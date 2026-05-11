@@ -1,3 +1,20 @@
+# LQoSync Release Notes
+
+## v2.42.0 - Privacy UX + Topology Save Fix
+
+### Improved
+
+- Increased the Network Layout Topology Tree width and reduced Visual Topology proportionally so node names, hierarchy depth, and badges are easier to read on desktop screens.
+- Kept the Node Inspector at a stable width while letting the Visual Topology area absorb the width adjustment.
+- Replaced text-based topbar theme/privacy controls with compact icon-only controls: sun for light mode, moon for dark mode, and mask/mask-with-slash for Privacy Mode.
+- Improved Privacy Mode from blur-style masking to stable replacement labels such as `Client-001`, `Router-001`, `Node-001`, `IP-001`, `MAC-001`, `Circuit-001`, and `ID-001`.
+- Added a global CSRF token meta tag and JSON fetch helper for protected browser-side write actions.
+- Updated Network Layout save to send the CSRF token with AJAX requests and show a clearer explanation when a stale or missing token blocks the save.
+
+### Notes
+
+Privacy Mode remains browser-only redaction for screenshots and demos. It does not modify `config.json`, `ShapedDevices.csv`, `network.json`, logs, or any source data.
+
 # Release Notes
 
 ## v2.41.0 — Topology UX and Privacy Mode

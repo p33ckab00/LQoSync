@@ -2036,3 +2036,11 @@ A mask icon is available in the top navigation. Privacy Mode:
 - does not modify `config.json`, `ShapedDevices.csv`, `network.json`, logs, audit files, or any source data
 
 This is a client-side display-only feature. Disable Privacy Mode before doing precise visual checks where real names/IPs must be visible.
+
+
+## v2.42 Privacy UX + Topology Save Fix
+
+- Network Layout gives the Topology Tree more width and keeps the Node Inspector stable for easier topology editing.
+- Privacy Mode now uses stable redaction labels such as `Client-001`, `Node-001`, `IP-001`, and `MAC-001` instead of visual blur.
+- Topbar theme and privacy controls are compact icon-only toggles.
+- Topology save uses the session CSRF token in AJAX requests and shows a friendly explanation if the token is stale or missing.

@@ -238,6 +238,15 @@
         <div class="note"><b>Screenshot-safe:</b> Privacy preference is stored in browser local storage, so public screenshots can be taken without exposing subscriber names or addresses.</div>
       </div>
 
+      <h3><i class="ti ti-mask"></i> v2.42 Privacy UX + Topology Save Fix</h3>
+      <p>LQoSync v2.42 polishes the Network Layout workspace and improves privacy/redaction behavior for screenshots while keeping source files untouched.</p>
+      <div class="two-col" style="margin-top:12px">
+        <div class="note"><b>Wider topology tree:</b> The Network Layout page now gives the left Topology Tree more space and keeps the Node Inspector stable, making node names, hierarchy depth, and badges easier to read.</div>
+        <div class="note"><b>Icon-only toggles:</b> Light/dark mode and Privacy Mode now use compact icon-only buttons in the topbar. Light mode shows a sun icon, dark mode shows a moon icon, and privacy-off shows the mask icon with a slash.</div>
+        <div class="note"><b>Stable redaction labels:</b> Privacy Mode replaces visible values with labels such as Client-001, Router-001, Node-001, IP-001, MAC-001, Circuit-001, or ID-001 instead of blurring text.</div>
+        <div class="note"><b>CSRF-safe topology save:</b> Topology save now sends the session CSRF token through the AJAX request. If the token is expired or missing, the UI explains that no topology changes were saved and asks the operator to refresh.</div>
+      </div>
+
       <div class="note warn-note"><b>Excluded for now:</b> separate scan intervals and multi-router concurrency are intentionally not included in this phase. v2.38 focuses on safer selective collection, universal speed resolution, metadata cache visibility, and source-aware cleanup.</div>
     </section>
 

@@ -1373,3 +1373,10 @@ A mask icon is available in the top navigation. Privacy Mode:
 - does not modify `config.json`, `ShapedDevices.csv`, `network.json`, logs, audit files, or any source data
 
 This is a client-side display-only feature. Disable Privacy Mode before doing precise visual checks where real names/IPs must be visible.
+
+
+# v2.42 Privacy UX + Topology Save Fix
+
+This release improves Network Layout usability and screenshot safety. The Topology Tree is wider, the Visual Topology area gives up space proportionally, and the Node Inspector remains stable. Privacy Mode replaces visible sensitive values with stable labels rather than blur effects. The topology save action now uses the same CSRF protection model as form-based writes, preventing stale or missing security tokens from silently failing.
+
+Expected CSRF behavior: if the browser session token is valid, Save Topology writes `network.json` after validation. If the token is expired or missing, no file is modified and the UI asks the operator to refresh the page.

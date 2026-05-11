@@ -9,6 +9,7 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
   <meta name="theme-color" content="#00C896">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
@@ -119,7 +120,7 @@
     @media(max-width:760px){
       body{overflow-x:hidden}.mobile-only{display:initial}.desktop-only{display:none!important}
       .app-shell{display:block;min-height:100vh}.mobile-menu-btn{display:inline-flex}
-      .topbar{position:sticky;top:0;z-index:50;padding:0 12px;height:56px}.topbar .pill{display:none}.theme-toggle{min-width:44px;padding:8px 10px}.theme-toggle #themeLabel{display:none}.user-chip{width:34px;height:34px}
+      .topbar{position:sticky;top:0;z-index:50;padding:0 12px;height:56px}.topbar .pill{display:none}.icon-toggle{width:40px;min-width:40px;height:36px}.user-chip{width:34px;height:34px}
       .sidebar{position:fixed;display:flex;top:0;left:0;height:100vh;width:min(82vw,310px);z-index:45;transform:translateX(-105%);transition:transform .18s ease;background:var(--bg1);box-shadow:24px 0 60px rgba(0,0,0,.32);padding-top:66px;overflow-y:auto;overscroll-behavior:contain}
       body.mobile-menu-open .sidebar{transform:translateX(0)}body.mobile-menu-open .mobile-backdrop{display:block}
       .sidebar .nav-item span,.sidebar .nav-section,.sidebar .sidebar-footer{display:block}.sidebar .nav-item{justify-content:flex-start;padding:11px 18px}.sidebar .nav-section{padding:16px 18px 6px}.sidebar-footer{margin-top:10px}
@@ -146,10 +147,10 @@
 
 
     body.privacy-mode .privacy-banner{display:block}.privacy-banner{display:none;margin-bottom:12px;border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.10);color:var(--txt);border-radius:12px;padding:10px 12px;font-size:12px}.privacy-toggle.active{border-color:rgba(245,158,11,.55);background:rgba(245,158,11,.14);color:var(--txt)}
-    .redact{transition:opacity .12s ease}.redact.is-redacted{font-family:var(--font-mono);letter-spacing:.02em}
-    .theme-toggle{gap:6px;min-width:92px;justify-content:center;}
-    .privacy-toggle{gap:6px;min-width:100px;justify-content:center;}
-    .theme-toggle .theme-icon{font-size:15px;}
+    .redact{transition:opacity .12s ease}.redact.is-redacted{font-family:var(--font-mono);letter-spacing:.02em;color:var(--txt);background:rgba(100,116,139,.10);border:1px solid rgba(100,116,139,.22);border-radius:5px;padding:0 4px}
+    .icon-toggle{position:relative;width:42px;min-width:42px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px}
+    .icon-toggle i{font-size:17px}.privacy-slash{position:absolute;font-family:var(--font-mono);font-size:21px;line-height:1;right:10px;top:5px;transform:rotate(14deg);font-weight:700;color:var(--c-err);pointer-events:none}.privacy-toggle.active .privacy-slash{display:none}
+    .privacy-toggle.active i{color:var(--c-warn)}.theme-toggle i{color:var(--c-accent2)}
   </style>
 </head>
 <body>
@@ -159,13 +160,11 @@
     <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu" onclick="toggleMobileMenu()"><i class="ti ti-menu-2"></i></button>
     <div class="top-spacer"></div>
     <span class="pill"><span class="dot dot-green pulse"></span> Live QoS Subscriber Sync</span>
-    <button type="button" class="btn theme-toggle" id="themeToggle" title="Switch light/dark mode" onclick="toggleTheme()">
+    <button type="button" class="btn icon-toggle theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle light/dark mode" onclick="toggleTheme()">
       <i class="ti ti-sun theme-icon" id="themeIcon"></i>
-      <span id="themeLabel">Light</span>
     </button>
-    <button type="button" class="btn privacy-toggle" id="privacyToggle" title="Toggle WebUI privacy/redaction mode for screenshots" onclick="togglePrivacyMode()">
-      <i class="ti ti-mask" id="privacyIcon"></i>
-      <span id="privacyLabel">Privacy</span>
+    <button type="button" class="btn icon-toggle privacy-toggle" id="privacyToggle" title="Toggle WebUI privacy/redaction mode" aria-label="Toggle WebUI privacy/redaction mode" onclick="togglePrivacyMode()">
+      <i class="ti ti-mask" id="privacyIcon"></i><span class="privacy-slash" aria-hidden="true">/</span>
     </button>
     {% if user %}<span class="user-chip">{{ (user.username or 'ad')[:2] }}</span>{% endif %}
   </header>
@@ -219,35 +218,80 @@
   document.addEventListener('click', function(e){
     if(e.target.closest && e.target.closest('.sidebar .nav-item')) closeMobileMenu();
   });
+  function csrfToken(){ return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''; }
+  async function lqosFetch(url, options){
+    options = options || {};
+    const method = String(options.method || 'GET').toUpperCase();
+    const headers = new Headers(options.headers || {});
+    if(['POST','PUT','PATCH','DELETE'].includes(method)) headers.set('X-CSRFToken', csrfToken());
+    options.headers = headers;
+    return fetch(url, options);
+  }
+  async function lqosJsonFetch(url, payload, options){
+    options = options || {};
+    const headers = Object.assign({'Content-Type':'application/json'}, options.headers || {});
+    return lqosFetch(url, Object.assign({}, options, {method: options.method || 'POST', headers: headers, body: JSON.stringify(payload || {})}));
+  }
   function currentTheme(){ return document.documentElement.getAttribute('data-theme') || 'light'; }
   function setTheme(theme){
     if(theme !== 'dark' && theme !== 'light') theme = 'light';
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('lqosync_theme', theme);
-    var label = document.getElementById('themeLabel');
     var icon = document.getElementById('themeIcon');
-    if(label) label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+    var btn = document.getElementById('themeToggle');
     if(icon) icon.className = 'ti theme-icon ' + (theme === 'dark' ? 'ti-moon' : 'ti-sun');
+    if(btn){
+      btn.title = theme === 'dark' ? 'Dark mode enabled. Click for light mode.' : 'Light mode enabled. Click for dark mode.';
+      btn.setAttribute('aria-label', btn.title);
+    }
   }
   function toggleTheme(){ setTheme(currentTheme() === 'dark' ? 'light' : 'dark'); }
-  function hashString(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i); h|=0;} return Math.abs(h); }
+  const privacyMaps = {};
+  const privacyCounts = {};
+  function privacyTypeLabel(type){
+    type = String(type || 'client').toLowerCase();
+    if(type === 'name') type = 'client';
+    if(type === 'ip') return 'IP';
+    if(type === 'mac') return 'MAC';
+    if(type === 'id') return 'ID';
+    if(type === 'router') return 'Router';
+    if(type === 'node') return 'Node';
+    if(type === 'comment') return 'Comment';
+    if(type === 'path') return 'Path';
+    if(type === 'device') return 'Device';
+    if(type === 'circuit') return 'Circuit';
+    return 'Client';
+  }
   function privacyMask(value, type){
-    const v=String(value||''); if(!v) return ''; const h=hashString(v);
-    if(type==='ip') return v.includes('.') ? v.split('.').map((p,i)=> i===0 ? p : (i===3 ? 'x' : 'x')).join('.') : 'x.x.x.x';
-    if(type==='mac') return 'XX:XX:XX:XX:' + v.split(':').slice(-2).join(':').toUpperCase().padStart(5,'X');
-    if(type==='id') return 'ID-' + String(h).slice(0,6);
-    if(type==='router') return 'Router-' + String((h%999)+1).padStart(3,'0');
-    if(type==='node') return 'Node-' + String((h%999)+1).padStart(3,'0');
-    return 'Client-' + String((h%9999)+1).padStart(4,'0');
+    const v = String(value || '').trim();
+    if(!v) return '';
+    const label = privacyTypeLabel(type);
+    const key = label + '|' + v;
+    if(!privacyMaps[label]) privacyMaps[label] = new Map();
+    if(privacyMaps[label].has(key)) return privacyMaps[label].get(key);
+    privacyCounts[label] = (privacyCounts[label] || 0) + 1;
+    const masked = label + '-' + String(privacyCounts[label]).padStart(3,'0');
+    privacyMaps[label].set(key, masked);
+    return masked;
   }
   function setPrivacyMode(on){
-    document.body.classList.toggle('privacy-mode', !!on); localStorage.setItem('lqosync_privacy_mode', on?'true':'false');
-    const btn=document.getElementById('privacyToggle'); if(btn) btn.classList.toggle('active', !!on);
-    const label=document.getElementById('privacyLabel'); if(label) label.textContent=on?'Masked':'Privacy';
+    document.body.classList.toggle('privacy-mode', !!on);
+    localStorage.setItem('lqosync_privacy_mode', on?'true':'false');
+    const btn=document.getElementById('privacyToggle');
+    if(btn){
+      btn.classList.toggle('active', !!on);
+      btn.title = on ? 'Privacy Mode enabled. Click to show real values.' : 'Privacy Mode disabled. Click to mask visible values.';
+      btn.setAttribute('aria-label', btn.title);
+    }
     document.querySelectorAll('.redact').forEach(el=>{
       if(!el.dataset.original) el.dataset.original = el.textContent;
-      if(on){ el.textContent = el.dataset.mask || privacyMask(el.dataset.original, el.dataset.redactType || 'name'); el.classList.add('is-redacted'); }
-      else { el.textContent = el.dataset.original; el.classList.remove('is-redacted'); }
+      if(on){
+        el.textContent = el.dataset.mask || privacyMask(el.dataset.original, el.dataset.redactType || 'client');
+        el.classList.add('is-redacted');
+      } else {
+        el.textContent = el.dataset.original;
+        el.classList.remove('is-redacted');
+      }
     });
   }
   function togglePrivacyMode(){ setPrivacyMode(localStorage.getItem('lqosync_privacy_mode') !== 'true'); }
