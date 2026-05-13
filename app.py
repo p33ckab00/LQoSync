@@ -22,6 +22,7 @@ from applier.rollback import restore_backup
 from collectors.mikrotik_client import test_router_connection, connect_to_router, get_resource_data
 from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
+from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
 from engine.lifecycle import lifecycle_summary, client_event_timeline
 from applier.atomic_writer import atomic_write_text
 from monitoring.service_monitor import (
@@ -797,6 +798,48 @@ def lifecycle_center():
         selected_code=code,
         user=current_user(),
     )
+
+
+@app.route("/setup-repair")
+@admin_required
+def setup_repair_center():
+    """Smart Setup / Repair Center: read-only diagnostics and safe repair guidance."""
+    cfg, state = get_status()
+    errors, warnings = validate_config(cfg)
+    services = all_service_status(cfg)
+    report = compute_setup_repair_report(
+        cfg,
+        state,
+        git_status=_git_status(fetch_remote=False),
+        services=services,
+        config_errors=errors,
+        config_warnings=warnings,
+    )
+    return render_template(
+        "setup_repair.html",
+        cfg=cfg,
+        state=state,
+        report=report,
+        services=services,
+        config_errors=errors,
+        config_warnings=warnings,
+        user=current_user(),
+    )
+
+
+@app.route("/setup-repair/policy-preset", methods=["POST"])
+@admin_required
+def setup_repair_policy_preset():
+    cfg = load_config(CONFIG_PATH)
+    preset = request.form.get("preset", "balanced")
+    try:
+        new_cfg = apply_policy_preset(cfg, preset)
+        save_config(new_cfg, CONFIG_PATH)
+        write_audit(new_cfg, "policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
+        flash(f"Smart Policy preset applied: {preset}. Run Dry Run before enabling scheduler or auto-apply.")
+    except Exception as exc:
+        flash(f"Policy preset update failed: {exc}")
+    return redirect(url_for("setup_repair_center"))
 
 
 @app.route("/updates")

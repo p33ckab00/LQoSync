@@ -87,6 +87,23 @@
     "show_virtual_nodes": true,
     "validate_before_save": true
   },
+  "insights": {
+    "enabled": true,
+    "show_recommendations": true,
+    "show_data_quality": true,
+    "show_backup_readiness": true,
+    "show_anomaly_detection": true,
+    "show_warning_explanations": true,
+    "fallback_speed_review_limit": 100
+  },
+  "setup_repair": {
+    "enabled": true,
+    "read_only_by_default": true,
+    "show_guided_setup": true,
+    "show_repair_commands": true,
+    "allow_policy_preset_apply": true,
+    "doctor_command": "sudo CONFIG_PATH=/opt/libreqos/src/config.json python3 /opt/lqosync/scripts/doctor.py"
+  },
   "policies": {
     "mode": "balanced",
     "cleanup": {
@@ -340,14 +357,5 @@
       },
       "parent_node": ""
     }
-  ],
-  "insights": {
-    "enabled": true,
-    "show_recommendations": true,
-    "show_data_quality": true,
-    "show_backup_readiness": true,
-    "show_anomaly_detection": true,
-    "show_warning_explanations": true,
-    "fallback_speed_review_limit": 100
-  }
+  ]
 }

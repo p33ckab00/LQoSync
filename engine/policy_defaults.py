@@ -140,3 +140,9 @@ SMART_POLICY_DEFAULTS = {
 
 def smart_policy_defaults() -> dict:
     return deepcopy(SMART_POLICY_DEFAULTS)
+
+
+def apply_policy_preset_defaults(preset: str) -> dict:
+    """Return policy defaults adjusted to a named preset."""
+    from engine.setup_repair import apply_policy_preset
+    return apply_policy_preset({"policies": smart_policy_defaults()}, preset)["policies"]

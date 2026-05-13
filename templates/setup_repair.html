@@ -1,0 +1,123 @@
+{% extends "base.html" %}{% block content %}
+<style>
+  .repair-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;align-items:start}
+  .check-grid{display:grid;gap:8px}
+  .check-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--br0);border-radius:12px;padding:10px;background:rgba(15,23,42,.16)}
+  :root[data-theme=light] .check-row{background:#fff}
+  .check-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--font-mono);border-radius:999px;padding:4px 8px;width:max-content;text-transform:uppercase}
+  .check-ok{background:rgba(16,185,129,.12);color:var(--c-accent);border:1px solid rgba(16,185,129,.28)}
+  .check-warn{background:rgba(245,158,11,.12);color:var(--c-warn);border:1px solid rgba(245,158,11,.35)}
+  .check-fail{background:rgba(239,68,68,.12);color:var(--c-err);border:1px solid rgba(239,68,68,.35)}
+  .check-info{background:rgba(14,165,233,.12);color:var(--c-accent2);border:1px solid rgba(14,165,233,.30)}
+  .setup-step{display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;border:1px solid var(--br0);border-radius:12px;padding:10px;background:rgba(15,23,42,.14)}
+  :root[data-theme=light] .setup-step{background:#fff}
+  .step-num{width:30px;height:30px;border-radius:9px;background:rgba(14,165,233,.14);display:flex;align-items:center;justify-content:center;color:var(--c-accent2);font-family:var(--font-mono);font-weight:700}
+  .command-box{background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:10px;white-space:pre-wrap;overflow:auto;margin-top:8px}
+  .preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .preset-card{border:1px solid var(--br0);border-radius:12px;padding:12px;background:rgba(15,23,42,.14)}
+  :root[data-theme=light] .preset-card{background:#fff}
+  @media(max-width:1100px){.repair-grid,.preset-grid{grid-template-columns:1fr}.check-row{grid-template-columns:1fr}}
+</style>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Smart Setup / Repair Center</div>
+    <div class="page-subtitle">Guided setup, health checks, safe repair commands, policy preset setup, and Git/install adoption guidance.</div>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="/sync/dry-run"><i class="ti ti-eye"></i> Run Dry Run</a>
+    <a class="btn" href="/updates"><i class="ti ti-cloud-download"></i> Update Center</a>
+    <a class="btn" href="/config"><i class="ti ti-settings"></i> Config Center</a>
+  </div>
+</div>
+
+<section class="grid-stats">
+  <div class="stat"><div class="stat-label"><i class="ti ti-heartbeat"></i> Readiness</div><div class="stat-value {{ 'text-accent' if report.readiness == 'ready' else ('text-warn' if report.readiness == 'needs_attention' else 'text-err') }}">{{ report.readiness.replace('_',' ') }}</div><div class="stat-sub">score {{ report.score }}/100</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-alert-triangle"></i> Failed Checks</div><div class="stat-value {{ 'text-err' if report.fails else 'text-accent' }}">{{ report.fails }}</div><div class="stat-sub">must repair before production</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-info-triangle"></i> Warnings</div><div class="stat-value {{ 'text-warn' if report.warnings else 'text-accent' }}">{{ report.warnings }}</div><div class="stat-sub">review before scheduler</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-route"></i> Next Action</div><div class="stat-value text-accent" style="font-size:16px;line-height:1.25">Guided</div><div class="stat-sub">{{ report.recommended_next_action }}</div></div>
+</section>
+
+<section class="repair-grid" style="margin-top:12px">
+  <div class="card">
+    <div class="card-title"><i class="ti ti-clipboard-check"></i> Health Check Report</div>
+    <div class="check-grid">
+      {% for c in report.checks %}
+      <div class="check-row">
+        <span class="check-status check-{{ c.status }}"><i class="ti {{ 'ti-check' if c.status=='ok' else ('ti-alert-triangle' if c.status=='warn' else ('ti-x' if c.status=='fail' else 'ti-info-circle')) }}"></i>{{ c.status }}</span>
+        <div>
+          <div><b>{{ c.title }}</b> <span class="badge">{{ c.category }}</span></div>
+          <div class="mono text-xs" style="color:var(--muted);margin-top:4px">{{ c.detail }}</div>
+          {% if c.why %}<div class="text-sm" style="color:var(--muted);margin-top:8px"><b>Why:</b> {{ c.why }}</div>{% endif %}
+          {% if c.fix %}<div class="text-sm" style="color:var(--muted);margin-top:4px"><b>Fix:</b> {{ c.fix }}</div>{% endif %}
+          {% if c.command %}<details style="margin-top:6px"><summary class="mono text-xs text-dhcp" style="cursor:pointer">Show command</summary><pre class="mono text-xs command-box">{{ c.command }}</pre></details>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="display:grid;gap:12px">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-list-numbers"></i> Guided Setup Checklist</div>
+      <div style="display:grid;gap:8px">
+        {% for step in report.setup_steps %}
+        <div class="setup-step">
+          <div class="step-num">{{ step.step }}</div>
+          <div>
+            <div><b>{{ step.title }}</b></div>
+            <div class="mono text-xs" style="color:var(--hint);margin-top:3px">{{ step.status_hint }}</div>
+            <div class="text-sm" style="color:var(--muted);margin-top:5px">{{ step.description }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="ti ti-shield-cog"></i> Policy Preset Setup</div>
+      {% set current_preset = (cfg.get('policies') or {}).get('mode','balanced') %}
+      <div class="text-sm" style="color:var(--muted);margin-bottom:10px">Current preset: <b class="text-accent">{{ current_preset }}</b>. Preset changes are saved to config.json. Always run Dry Run after changing presets.</div>
+      <div class="preset-grid">
+        {% for preset, desc in [('conservative','Safest live production behavior with more confirmations.'),('balanced','Recommended default: safe but practical.'),('aggressive','Fast cleanup for lab or highly dynamic networks.')] %}
+        <form class="preset-card" method="post" action="/setup-repair/policy-preset">
+          {{ csrf_field()|safe }}
+          <input type="hidden" name="preset" value="{{ preset }}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>{{ preset.title() }}</b>{% if current_preset == preset %}<span class="badge b-ok">active</span>{% endif %}</div>
+          <p class="text-sm" style="color:var(--muted);min-height:50px">{{ desc }}</p>
+          <button class="btn btn-primary" onclick="return confirm('Apply {{ preset }} policy preset? Run Dry Run after saving.')"><i class="ti ti-check"></i> Apply</button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card" style="margin-top:12px">
+  <div class="card-title"><i class="ti ti-tool"></i> Guided Repair Commands</div>
+  <div class="two-grid">
+    {% for item in report.repair_commands %}
+    <div class="card" style="box-shadow:none;background:rgba(15,23,42,.12)">
+      <div><b>{{ item.title }}</b></div>
+      <div class="text-sm" style="color:var(--muted);margin-top:5px">{{ item.description }}</div>
+      <pre class="mono text-xs command-box">{{ item.command }}</pre>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card" style="margin-top:12px">
+  <div class="card-title"><i class="ti ti-router"></i> MikroTik Connection Test Wizard</div>
+  <p class="text-sm" style="color:var(--muted)">Use Config Center's router test buttons for live MikroTik API tests. This Setup / Repair Center is read-only by default so it does not unexpectedly contact routers while loading the page.</p>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Router</th><th>Address</th><th>Sources</th><th>Action</th></tr></thead><tbody>
+    {% for r in cfg.get('routers', []) %}
+    <tr>
+      <td><span class="redact" data-redact-type="router">{{ r.get('name') }}</span> {% if not r.get('enabled', true) %}<span class="badge">disabled</span>{% endif %}</td>
+      <td class="mono"><span class="redact" data-redact-type="ip">{{ r.get('address') }}</span>:{{ r.get('port',8728) }}</td>
+      <td class="mono text-xs">PPP={{ r.get('pppoe',{}).get('enabled', false) }} · DHCP={{ r.get('dhcp',{}).get('enabled', false) }} · HS={{ r.get('hotspot',{}).get('enabled', false) }}</td>
+      <td><a class="btn" href="/config"><i class="ti ti-plug-connected"></i> Test in Config Center</a></td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="text-sm" style="color:var(--muted)">No routers configured yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

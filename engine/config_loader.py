@@ -103,6 +103,14 @@ DEFAULT_CONFIG = {
         "show_warning_explanations": True,
         "fallback_speed_review_limit": 100,
     },
+    "setup_repair": {
+        "enabled": True,
+        "read_only_by_default": True,
+        "show_guided_setup": True,
+        "show_repair_commands": True,
+        "allow_policy_preset_apply": True,
+        "doctor_command": "sudo CONFIG_PATH=/opt/libreqos/src/config.json python3 /opt/lqosync/scripts/doctor.py",
+    },
     "policies": smart_policy_defaults(),
     "services": {
         # Required/current LibreQoS + LQoSync units. lqos_node_manager is not

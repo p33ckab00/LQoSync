@@ -514,3 +514,8 @@ LQoSync v2.46 adds Smart Insights on top of the Smart Policy Center. The dashboa
 ## v2.47 Smart Lifecycle note
 
 LQoSync v2.47 adds Smart Lifecycle tracking. The system now records bounded client lifecycle state, cleanup queue history, cleanup decision history, confirmation history, source lifecycle snapshots, per-client event timelines, and returned-client detection. The new Lifecycle Center shows active, stale, queued, removed, and returned clients so operators can understand not only what the policy engine decided, but what happened to each client across sync runs.
+
+
+## v2.48 Smart Setup / Repair Center
+
+LQoSync v2.48 adds a Smart Setup / Repair Center at `/setup-repair`. It provides a guided first-install checklist, health check report, readiness score, safe repair commands, policy preset setup, MikroTik connection-test guidance, Git/adoption guidance, and LibreQoS path/permission checks. The center is read-only by default and gives SSH commands instead of blindly modifying the server from the browser.

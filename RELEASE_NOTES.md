@@ -1,5 +1,21 @@
 # LQoSync Release Notes
 
+## v2.48.0 - Smart Setup / Repair Center
+
+### Added
+
+- Added Smart Setup / Repair Center at `/setup-repair`.
+- Added setup/repair diagnostics through `engine/setup_repair.py`.
+- Added readiness score, failed check count, warning count, and recommended next action.
+- Added guided first-install checklist for LibreQoS path, MikroTik API user, routers, DHCP discovery, network layout, policy preset, Dry Run, and scheduler activation.
+- Added safe repair command cards for preserve-existing reinstall, permission restore, environment doctor, safe GitHub update, GitHub adoption, and LibreQoS service checks.
+- Added policy preset setup for Conservative, Balanced, and Aggressive Smart Policy modes.
+- Added MikroTik connection-test workflow guidance without contacting routers during page load.
+
+### Notes
+
+The Setup / Repair Center is read-only by default. It gives commands and explanations instead of blindly repairing, restarting, updating, or applying from the browser.
+
 ## v2.47.0 - Smart Lifecycle
 
 ### Added
@@ -245,6 +261,22 @@ Privacy Mode remains browser-only redaction for screenshots and demos. It does n
 
 # LQoSync Release Notes
 
+## v2.48.0 - Smart Setup / Repair Center
+
+### Added
+
+- Added Smart Setup / Repair Center at `/setup-repair`.
+- Added setup/repair diagnostics through `engine/setup_repair.py`.
+- Added readiness score, failed check count, warning count, and recommended next action.
+- Added guided first-install checklist for LibreQoS path, MikroTik API user, routers, DHCP discovery, network layout, policy preset, Dry Run, and scheduler activation.
+- Added safe repair command cards for preserve-existing reinstall, permission restore, environment doctor, safe GitHub update, GitHub adoption, and LibreQoS service checks.
+- Added policy preset setup for Conservative, Balanced, and Aggressive Smart Policy modes.
+- Added MikroTik connection-test workflow guidance without contacting routers during page load.
+
+### Notes
+
+The Setup / Repair Center is read-only by default. It gives commands and explanations instead of blindly repairing, restarting, updating, or applying from the browser.
+
 ## v2.25.0 - Bare-metal direct runner enforcement
 
 - Prioritizes bare-metal/systemd installation as the default production path.
@@ -276,6 +308,22 @@ Privacy Mode remains browser-only redaction for screenshots and demos. It does n
 - Documented the production apply policy: dry-run never applies; non-dry-run file writes automatically trigger LibreQoS; failed applies remain pending until successfully retried.
 
 # LQoSync Release Notes
+
+## v2.48.0 - Smart Setup / Repair Center
+
+### Added
+
+- Added Smart Setup / Repair Center at `/setup-repair`.
+- Added setup/repair diagnostics through `engine/setup_repair.py`.
+- Added readiness score, failed check count, warning count, and recommended next action.
+- Added guided first-install checklist for LibreQoS path, MikroTik API user, routers, DHCP discovery, network layout, policy preset, Dry Run, and scheduler activation.
+- Added safe repair command cards for preserve-existing reinstall, permission restore, environment doctor, safe GitHub update, GitHub adoption, and LibreQoS service checks.
+- Added policy preset setup for Conservative, Balanced, and Aggressive Smart Policy modes.
+- Added MikroTik connection-test workflow guidance without contacting routers during page load.
+
+### Notes
+
+The Setup / Repair Center is read-only by default. It gives commands and explanations instead of blindly repairing, restarting, updating, or applying from the browser.
 
 LQoSync is a database-free LibreQoS companion dashboard and sync engine. It reads live MikroTik PPPoE, DHCP, and Hotspot data, generates LibreQoS-compatible `ShapedDevices.csv` and `network.json`, and calls `LibreQoS.py --updateonly` only when generated files change.
 
