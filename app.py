@@ -25,6 +25,7 @@ from engine.policy_state import load_policy_state, save_policy_state, confirm_cl
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
 from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS
 from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, POLICY_SCHEMA, get_by_path
+from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.config_simulator import simulate_config_change
 from engine.reports import compute_operator_report, report_to_csv, report_to_markdown
 from engine.config_schema import migrate_config_schema, validate_schema, CONFIG_SCHEMA_VERSION
@@ -794,9 +795,24 @@ def policy_center():
         policy_values={item["path"]: get_by_path(cfg, item["path"]) for item in POLICY_SCHEMA},
         preset_diff=policy_diff_from_preset(cfg, preset),
         preset_compare=preset,
+        preset_comparison=enhanced_preset_comparison(cfg, preset),
         closest_preset=closest_preset(cfg),
+        conflict_report=evaluate_policy_conflicts(cfg),
+        identity_report=client_identity_report(cfg),
         user=current_user(),
     )
+
+
+@app.route("/api/policy/conflicts")
+@admin_required
+def api_policy_conflicts():
+    cfg, state = get_status()
+    normalize_policies(cfg)
+    return jsonify({
+        "conflicts": evaluate_policy_conflicts(cfg),
+        "identity": client_identity_report(cfg),
+        "closest_preset": closest_preset(cfg),
+    })
 
 
 @app.route("/policy/save", methods=["POST"])

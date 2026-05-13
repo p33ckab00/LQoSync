@@ -665,6 +665,18 @@ python3 -m json.tool network.json</div>
     </section>
 
 
+
+    <section id="policy-ux-conflict-intelligence" class="card about-section">
+      <h2><i class="ti ti-alert-octagon"></i> v2.56 Policy UX + Conflict Intelligence</h2>
+      <p>LQoSync v2.56 improves Smart Policy Center with a read-only Policy Conflict Resolver, richer preset comparison, and Client Identity Handling guidance.</p>
+      <div class="note-grid">
+        <div class="note"><b>Policy Conflict Resolver:</b> detects risky combinations such as immediate cleanup with permissive zero-result behavior, collector-failed cleanup that can delete rows, source-disabled immediate cleanup, high/critical risk auto-apply, and disabled apply guards.</div>
+        <div class="note"><b>Better preset comparison:</b> shows current vs preset policy settings with section, current value, preset value, risk level, and setup guidance.</div>
+        <div class="note"><b>Client identity handling:</b> explains PPPoE username stability, DHCP private/random MAC risk, Hotspot username/voucher behavior, Static/manual identity, and when grace should remain disabled.</div>
+        <div class="note"><b>Read-only safety:</b> conflict detection and identity guidance do not modify config.json. Operators still choose the policy values they want.</div>
+      </div>
+    </section>
+
     <section id="package-quality-environment-doctor" class="card about-section">
       <h2><i class="ti ti-package"></i> v2.55 Package Quality + Environment Doctor</h2>
       <p>LQoSync v2.55 adds release integrity checks, a full environment doctor wrapper, route/template validation, config default completeness checks, and Smart Defaults Repair for safer upgrades and fresh installs.</p>

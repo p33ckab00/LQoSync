@@ -1,5 +1,19 @@
 # LQoSync Release Notes
 
+## v2.56.0 - Policy UX + Conflict Intelligence
+
+### Added
+
+- Added `engine/policy_conflicts.py` for read-only Policy Conflict Resolver and Client Identity guidance.
+- Added `/api/policy/conflicts` for structured conflict and identity reports.
+- Added Policy Conflict Resolver card in Smart Policy Center, including severity, what happened, why it matters, recommended fix, and affected config paths.
+- Added Client Identity Handling card explaining PPPoE, DHCP, Hotspot, and Static/manual identity stability and grace recommendations.
+- Improved Current vs Preset comparison into a table with section, current value, preset value, risk, and setup guidance.
+
+### Why
+
+Policies are powerful and flexible. This release makes policy combinations easier to understand before they affect cleanup, Dry Run, or LibreQoS apply behavior.
+
 ## v2.55.0 - Package Quality + Environment Doctor
 
 ### Added

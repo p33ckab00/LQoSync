@@ -81,5 +81,11 @@
     "file": "docs/content/package_quality_environment_doctor.md",
     "anchor": "v255-package-quality--environment-doctor",
     "summary": "v2.55 release integrity checks, environment doctor, route/template validation, and Smart Defaults Repair."
+  },
+  "policy_ux.conflict_identity": {
+    "title": "Policy UX + Conflict Intelligence",
+    "file": "docs/content/policy_ux_conflict_identity.md",
+    "anchor": "v256-policy-ux--conflict-intelligence",
+    "summary": "v2.56 Policy Conflict Resolver, richer preset comparison, and client identity handling guidance."
   }
 }

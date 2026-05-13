@@ -17,6 +17,8 @@
 
 <style>
   .policy-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:start}.policy-nav{position:sticky;top:12px}.policy-section-card{scroll-margin-top:80px}.policy-setting{border:1px solid var(--br0);border-radius:12px;padding:11px;background:rgba(15,23,42,.18);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.8fr);gap:12px;align-items:center}.policy-label{font-weight:700;color:var(--txt);font-size:13px}.policy-desc{font-size:11px;color:var(--muted);line-height:1.45;margin-top:4px}.policy-risk{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.policy-guidance{display:grid;gap:5px;margin-top:7px}.policy-guide-line{border-left:2px solid var(--br1);padding-left:8px;font-size:11px;color:var(--muted);line-height:1.42}.policy-guide-line b{color:var(--txt)}.action-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.action-help{border:1px solid var(--br0);border-radius:10px;padding:9px;background:rgba(15,23,42,.18);font-size:11px;color:var(--muted);line-height:1.4}.action-help b{display:block;color:var(--txt);font-family:var(--font-mono);font-size:11px;margin-bottom:3px}.policy-input select,.policy-input input[type=number]{width:100%;border:1px solid var(--br1);border-radius:9px;background:rgba(2,6,23,.40);color:var(--txt);padding:8px 9px;font-family:var(--font-mono);font-size:12px}.policy-switch{display:flex;justify-content:flex-end;align-items:center;gap:8px}.policy-switch input{width:20px;height:20px}.policy-section-list{display:grid;gap:8px}.preset-card{border:1px solid var(--br0);border-radius:12px;padding:12px;background:var(--bg1)}.preset-card.active{border-color:rgba(0,200,150,.55);background:rgba(0,200,150,.08)}.policy-diff-list{display:grid;gap:7px;max-height:360px;overflow:auto;padding-right:4px}.policy-diff{border:1px solid var(--br0);border-radius:9px;padding:8px 10px;font-family:var(--font-mono);font-size:11px;color:var(--muted)}.policy-savebar{position:sticky;bottom:0;background:linear-gradient(to top,var(--bg0),rgba(11,18,32,.92));border-top:1px solid var(--br0);padding:12px;margin:14px -14px -14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}:root[data-theme=light] .policy-setting{background:#fff}:root[data-theme=light] .policy-input select,:root[data-theme=light] .policy-input input[type=number]{background:#fff;color:#0f172a}:root[data-theme=light] .policy-savebar{background:linear-gradient(to top,#f8fafc,rgba(248,250,252,.92))}@media(max-width:1000px){.policy-grid{grid-template-columns:1fr}.policy-nav{position:static}.policy-setting{grid-template-columns:1fr}.policy-switch{justify-content:flex-start}}
+
+  .conflict-list{display:grid;gap:8px}.conflict-card{border:1px solid var(--br0);border-radius:12px;padding:11px;background:rgba(15,23,42,.18)}.conflict-card.critical{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.08)}.conflict-card.high{border-color:rgba(245,158,11,.50);background:rgba(245,158,11,.08)}.conflict-card.medium{border-color:rgba(14,165,233,.40);background:rgba(14,165,233,.07)}.conflict-title{font-weight:700;color:var(--txt);font-size:13px}.conflict-body{font-size:11px;color:var(--muted);line-height:1.45;margin-top:6px}.identity-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.identity-card{border:1px solid var(--br0);border-radius:12px;padding:11px;background:rgba(15,23,42,.18)}.preset-table-wrap{max-height:390px;overflow:auto;border:1px solid var(--br0);border-radius:10px}.preset-table{width:100%;border-collapse:collapse;font-size:11px}.preset-table th,.preset-table td{padding:8px 9px;border-bottom:1px solid var(--br0);vertical-align:top;text-align:left}.preset-table th{position:sticky;top:0;background:var(--bg1);z-index:1;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:10px}.policy-chip{display:inline-flex;border:1px solid var(--br1);border-radius:999px;padding:2px 7px;font-family:var(--font-mono);font-size:10px;color:var(--muted)}:root[data-theme=light] .conflict-card,:root[data-theme=light] .identity-card{background:#fff}
 </style>
 
 <section class="grid-stats">
@@ -24,6 +26,7 @@
   <div class="stat"><div class="stat-label"><i class="ti ti-alert-triangle"></i> Last Risk</div><div class="stat-value {{ 'text-err' if risk in ['high','critical'] else ('text-warn' if risk == 'medium' else 'text-accent') }}">{{ risk }}</div><div class="stat-sub">score {{ decision.get('risk_score', 0) }}</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-click"></i> Pending Confirms</div><div class="stat-value {{ 'text-warn' if confirmations else 'text-accent' }}">{{ confirmations|length }}</div><div class="stat-sub">cleanup decisions</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-clock"></i> Cleanup Queue</div><div class="stat-value {{ 'text-warn' if queue else 'text-accent' }}">{{ queue|length }}</div><div class="stat-sub">next-run candidates</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-alert-octagon"></i> Policy Conflicts</div><div class="stat-value {{ 'text-err' if conflict_report.counts.critical or conflict_report.counts.high else ('text-warn' if conflict_report.counts.medium else 'text-accent') }}">{{ conflict_report.total }}</div><div class="stat-sub">critical {{ conflict_report.counts.critical }} · high {{ conflict_report.counts.high }}</div></div>
 </section>
 
 <section class="card" style="margin-top:10px">
@@ -36,6 +39,38 @@
     <div class="action-help"><b>cleanup_next_run</b>Mark stale now and delete on next successful run. Balanced/safe default.</div>
     <div class="action-help"><b>require_confirm_next_run</b>Ask operator confirmation, then apply cleanup on next run. Safest for risky changes.</div>
     <div class="action-help"><b>block_cleanup / block_apply</b>Stop deletion or LibreQoS apply when policy detects unsafe conditions.</div>
+  </div>
+</section>
+
+<section class="two-grid" style="margin-top:10px">
+  <div class="card">
+    <div class="card-title"><i class="ti ti-alert-octagon"></i> Policy Conflict Resolver</div>
+    <p class="text-sm" style="color:var(--muted);line-height:1.5;margin-bottom:10px">This read-only checker explains risky policy combinations before they surprise the operator during cleanup, Dry Run, or auto-apply. It does not change config.json.</p>
+    {% if conflict_report.conflicts %}
+    <div class="conflict-list">
+      {% for c in conflict_report.conflicts[:8] %}
+      <div class="conflict-card {{ c.severity }}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div class="conflict-title">{{ c.title }}</div><span class="badge {{ 'b-err' if c.severity in ['critical','high'] else 'b-warn' }}">{{ c.severity }}</span></div>
+        <div class="conflict-body"><b>What:</b> {{ c.what }}<br><b>Why:</b> {{ c.why }}<br><b>Recommended fix:</b> {{ c.recommendation }}</div>
+        {% if c.paths %}<div class="mono text-xs" style="color:var(--hint);margin-top:7px">{{ c.paths|join(', ') }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="note"><b>No policy conflicts detected.</b> Current settings do not contain known dangerous combinations.</div>{% endif %}
+    <div class="btn-row" style="margin-top:10px"><a class="btn" href="/api/policy/conflicts" target="_blank"><i class="ti ti-code"></i> View JSON</a></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="ti ti-id-badge-2"></i> Client Identity Handling</div>
+    <p class="text-sm" style="color:var(--muted);line-height:1.5;margin-bottom:10px">Lifecycle and cleanup decisions are safest when identity is stable. Grace should stay optional and source-aware.</p>
+    <div class="identity-grid">
+      {% for item in identity_report.sources %}
+      <div class="identity-card">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>{{ item.label }}</b><span class="badge {{ 'b-ok' if item.stability == 'stable' else 'b-warn' }}">{{ item.stability }}</span></div>
+        <div class="mono text-xs" style="color:var(--muted);margin-top:6px">identity={{ item.identity }} · grace={{ item.grace_enabled }} · runs={{ item.grace_runs }}</div>
+        <div class="text-xs" style="color:var(--muted);line-height:1.45;margin-top:7px">{{ item.guidance }}<br><b>Recommendation:</b> {{ item.recommendation }}</div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </section>
 
@@ -59,10 +94,25 @@
     <div class="btn-row" style="margin-bottom:10px">
       {% for p in ['conservative','balanced','aggressive'] %}<a class="btn {{ 'btn-primary' if preset_compare == p else '' }}" href="/policy?compare={{ p }}">Compare {{ p }}</a>{% endfor %}
     </div>
-    <div class="text-sm" style="color:var(--muted);margin-bottom:8px">Closest preset: <b>{{ closest_preset.closest_preset }}</b> · differences {{ closest_preset.differences }}</div>
-    <div class="policy-diff-list">
-      {% if preset_diff %}{% for item in preset_diff[:80] %}<div class="policy-diff"><b>{{ item.label }}</b><br><span>{{ item.path }}</span><br>current=<b>{{ item.current }}</b> · {{ item.preset_name }}=<b>{{ item.preset }}</b></div>{% endfor %}{% else %}<div class="text-sm" style="color:var(--muted)">Current policy matches selected preset.</div>{% endif %}
+    <div class="text-sm" style="color:var(--muted);margin-bottom:8px">Closest preset: <b>{{ closest_preset.closest_preset }}</b> · differences {{ closest_preset.differences }} · comparing against <b>{{ preset_comparison.preset }}</b></div>
+    {% if preset_comparison.rows %}
+    <div class="preset-table-wrap">
+      <table class="preset-table">
+        <thead><tr><th>Setting</th><th>Section</th><th>Current</th><th>Preset</th><th>Risk / guidance</th></tr></thead>
+        <tbody>
+        {% for item in preset_comparison.rows[:120] %}
+          <tr>
+            <td><b>{{ item.label }}</b><br><span class="mono" style="color:var(--hint)">{{ item.path }}</span></td>
+            <td>{{ item.section }}</td>
+            <td><span class="policy-chip">{{ item.current }}</span></td>
+            <td><span class="policy-chip">{{ item.preset }}</span></td>
+            <td><span class="policy-risk {{ 'text-err' if item.risk in ['critical','high'] else ('text-warn' if item.risk == 'medium' else 'text-accent') }}">{{ item.risk }}</span><br><span style="color:var(--muted)">{{ item.recommendation }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
+    {% else %}<div class="text-sm" style="color:var(--muted)">Current policy matches selected preset.</div>{% endif %}
   </div>
 </section>
 
