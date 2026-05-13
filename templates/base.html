@@ -150,8 +150,8 @@
     .redact{transition:opacity .12s ease}.redact.is-redacted{font-family:var(--font-mono);letter-spacing:.02em;color:var(--txt);background:rgba(100,116,139,.10);border:1px solid rgba(100,116,139,.22);border-radius:5px;padding:0 4px}
     .icon-toggle{position:relative;width:42px;min-width:42px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px}
     .icon-toggle i{font-size:17px}.privacy-slash{position:absolute;width:24px;height:24px;right:8px;top:5px;pointer-events:none;color:var(--c-err)}.privacy-slash::before{content:'';position:absolute;left:11px;top:0;width:2.5px;height:25px;border-radius:999px;background:currentColor;transform:rotate(42deg);box-shadow:0 0 0 2px var(--bg1)}:root[data-theme=light] .privacy-slash::before{box-shadow:0 0 0 2px #fff}.privacy-toggle.active .privacy-slash{display:none}
-    .privacy-toggle.active{border-color:rgba(14,165,233,.55);background:rgba(14,165,233,.14)}.privacy-toggle.active .privacy-shield-icon{color:var(--c-accent)}.theme-toggle i{color:var(--c-accent2)}
-    .privacy-shield-icon{width:21px;height:21px;display:block;color:currentColor}.privacy-shield-icon *{vector-effect:non-scaling-stroke}
+    .privacy-toggle.active{border-color:rgba(245,158,11,.55);background:rgba(245,158,11,.14)}.privacy-toggle.active .privacy-incognito-icon{color:var(--c-warn)}.theme-toggle i{color:var(--c-accent2)}
+    .privacy-incognito-icon{width:22px;height:22px;display:block;color:currentColor}.privacy-incognito-icon *{vector-effect:non-scaling-stroke}
 
   </style>
 </head>
@@ -166,10 +166,12 @@
       <i class="ti ti-sun theme-icon" id="themeIcon"></i>
     </button>
     <button type="button" class="btn icon-toggle privacy-toggle" id="privacyToggle" title="Toggle WebUI privacy/redaction mode" aria-label="Toggle WebUI privacy/redaction mode" onclick="togglePrivacyMode()">
-      <svg class="privacy-shield-icon" id="privacyIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 3.2 5.5 5.8v5.6c0 4.1 2.7 7.4 6.5 9.4 3.8-2 6.5-5.3 6.5-9.4V5.8L12 3.2Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
-        <path d="M7.8 12.2S9.5 9.7 12 9.7s4.2 2.5 4.2 2.5-1.7 2.5-4.2 2.5-4.2-2.5-4.2-2.5Z" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
-        <circle cx="12" cy="12.2" r="1.25" fill="currentColor"/>
+      <svg class="privacy-incognito-icon" id="privacyIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.2 10h15.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="M7.6 9.9c.55-2.85 1.45-5 4.4-5s3.85 2.15 4.4 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6.4 13.2c1.65-.9 3.4-.9 5.2 0M12.4 13.2c1.8-.9 3.55-.9 5.2 0" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
+        <path d="M10.1 14.3c0 1.25-1 2.25-2.25 2.25S5.6 15.55 5.6 14.3M18.4 14.3c0 1.25-1 2.25-2.25 2.25s-2.25-1-2.25-2.25" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
+        <path d="M9.6 18.1c1.45.85 3.35.85 4.8 0" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
       </svg>
       <span class="privacy-slash" aria-hidden="true"></span>
     </button>
@@ -207,7 +209,7 @@
   <div class="mobile-backdrop" id="mobileBackdrop" onclick="closeMobileMenu()"></div>
   <main class="main">
     {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
-    <div class="privacy-banner" id="privacyBanner"><i class="ti ti-shield-lock"></i> Privacy Mode enabled. Visible client/router identifiers are masked for screenshots only. Source files and logs are unchanged.</div>
+    <div class="privacy-banner" id="privacyBanner"><i class="ti ti-user-secret"></i> Privacy Mode enabled. Visible client/router identifiers are masked for screenshots only. Source files and logs are unchanged.</div>
     {% block content %}{% endblock %}
   </main>
 </div>

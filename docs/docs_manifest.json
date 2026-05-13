@@ -70,5 +70,10 @@
     "title": "AI-Assisted Development Disclosure and Acknowledgement",
     "file": "AI_ASSISTED_DEVELOPMENT.md",
     "anchor": "ai-assisted-development-disclosure-and-acknowledgement"
+  },
+  "privacy_icon_polish": {
+    "title": "Privacy Icon Polish",
+    "file": "docs/content/privacy_icon_polish.md",
+    "anchor": "v2545-privacy-icon-polish"
   }
 }

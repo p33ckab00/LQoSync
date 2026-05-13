@@ -2191,3 +2191,8 @@ This update also normalizes stale lifecycle PPPoE policy naming to the canonical
 ## v2.54.3 Network Layout Drag-and-Drop
 
 Network Layout now supports desktop drag-and-drop. Operators can drag a node card or topology tree item onto another node to move it under that parent, or drop it on the root drop zone to move it to root level. The UI prevents unsafe moves such as moving a node under itself, moving it under its own descendant, creating duplicate child names, or dropping to the same parent as a no-op. Drag changes are preview-only until **Save topology** is clicked and backend network.json validation still applies. On mobile/touch devices, use the Node Inspector Move control.
+
+
+## v2.54.5 Privacy icon polish
+
+The Privacy Mode topbar control now uses an incognito-style icon to better represent screenshot-safe masking/redaction. Privacy OFF keeps the slash overlay, while Privacy ON highlights the incognito icon and continues to replace visible sensitive values with stable labels such as `Client-001`, `Node-001`, `IP-001`, and `MAC-001`. This is a UI-only polish change.

@@ -1,5 +1,18 @@
 # LQoSync Release Notes
 
+## v2.54.5 - Privacy Incognito Icon Polish
+
+### Improved
+
+- Replaced the Privacy Mode shield-and-eye icon with a cleaner incognito-style icon for better visual relevance to masked/screenshot-safe mode.
+- Kept the slash overlay when Privacy Mode is disabled.
+- Kept the active highlighted state when Privacy Mode is enabled.
+- Updated the Privacy Mode banner icon to match the new privacy/incognito visual language.
+
+### Notes
+
+This is a UI/UX polish update only. It does not change privacy redaction behavior, policy logic, MikroTik collection, generated files, scheduler behavior, or LibreQoS apply behavior.
+
 ## v2.54.4 - AI-Assisted Development Disclosure
 
 ### Added
