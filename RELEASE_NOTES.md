@@ -1,5 +1,18 @@
 # LQoSync Release Notes
 
+## v2.54.4 - AI-Assisted Development Disclosure
+
+### Added
+
+- Added an AI-Assisted Development Disclosure and Acknowledgement at the top of README.md and FULL_DOCUMENTATION.md for clear project transparency.
+- Added docs/AI_ASSISTED_DEVELOPMENT.md as the standalone disclosure source.
+- Added the same disclosure to the About / Documentation module near the top of the operator guide.
+- Updated docs/docs_manifest.json so the disclosure is discoverable by the documentation system.
+
+### Notes
+
+This is a documentation-only transparency update. It does not change MikroTik collection, policy behavior, generated files, scheduler behavior, Network Layout, LibreQoS apply logic, or service automation.
+
 ## v2.54.3 - Network Layout Drag-and-Drop Wiring
 
 ### Added

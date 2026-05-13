@@ -65,5 +65,10 @@
     "file": "docs/content/network_layout_drag_drop.md",
     "anchor": "network-layout-drag-and-drop",
     "description": "v2.54.3 wired desktop drag-and-drop for moving topology nodes with safe validation and preview-before-save behavior."
+  },
+  "ai_assisted_development": {
+    "title": "AI-Assisted Development Disclosure and Acknowledgement",
+    "file": "AI_ASSISTED_DEVELOPMENT.md",
+    "anchor": "ai-assisted-development-disclosure-and-acknowledgement"
   }
 }
