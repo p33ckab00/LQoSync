@@ -23,6 +23,7 @@ from collectors.mikrotik_client import test_router_connection, connect_to_router
 from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
+from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, POLICY_SCHEMA, get_by_path
 from engine.lifecycle import lifecycle_summary, client_event_timeline
 from applier.atomic_writer import atomic_write_text
 from monitoring.service_monitor import (
@@ -735,10 +736,53 @@ def discover_dhcp(router_idx):
 @admin_required
 def policy_center():
     cfg, state = get_status()
+    normalize_policies(cfg)
     pstate = load_policy_state(cfg)
     last = state.get("last_run") or state.get("last_dry_run") or {}
     decision = (last.get("diff") or {}).get("policy_decision") or pstate.get("last_policy_decision") or {}
-    return render_template("policy_center.html", cfg=cfg, state=state, policy_state=pstate, decision=decision, user=current_user())
+    preset = request.args.get("compare") or (cfg.get("policies") or {}).get("mode") or "balanced"
+    if preset == "custom":
+        preset = "balanced"
+    return render_template(
+        "policy_center.html",
+        cfg=cfg,
+        state=state,
+        policy_state=pstate,
+        decision=decision,
+        policy_schema=grouped_policy_schema(),
+        policy_values={item["path"]: get_by_path(cfg, item["path"]) for item in POLICY_SCHEMA},
+        preset_diff=policy_diff_from_preset(cfg, preset),
+        preset_compare=preset,
+        closest_preset=closest_preset(cfg),
+        user=current_user(),
+    )
+
+
+@app.route("/policy/save", methods=["POST"])
+@admin_required
+def policy_save_settings():
+    cfg = load_config(CONFIG_PATH)
+    before = cfg.get("policies", {})
+    cfg = parse_policy_form(request.form, cfg)
+    cfg.setdefault("policies", {})["mode"] = "custom"
+    save_config(cfg, CONFIG_PATH, backup_existing=True)
+    write_audit(cfg, "policy_settings_saved", actor=(current_user() or {}).get("username"), details={"mode": "custom", "previous_mode": before.get("mode") if isinstance(before, dict) else None})
+    flash("Policy settings saved. Preset changed to Custom because values were edited manually. Run Dry Run to preview decisions before enabling auto-apply.")
+    return redirect(url_for("policy_center"))
+
+
+@app.route("/policy/apply-preset/<preset>", methods=["POST"])
+@admin_required
+def policy_apply_preset(preset):
+    cfg = load_config(CONFIG_PATH)
+    try:
+        new_cfg = apply_policy_preset(cfg, preset)
+        save_config(new_cfg, CONFIG_PATH, backup_existing=True)
+        write_audit(new_cfg, "policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
+        flash(f"Policy preset applied: {preset}. Run Dry Run to preview cleanup/apply behavior.")
+    except Exception as exc:
+        flash(f"Unable to apply policy preset: {exc}")
+    return redirect(url_for("policy_center"))
 
 
 @app.route("/policy/confirm/<path:confirmation_id>", methods=["POST"])

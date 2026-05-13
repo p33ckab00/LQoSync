@@ -519,3 +519,28 @@ LQoSync v2.47 adds Smart Lifecycle tracking. The system now records bounded clie
 ## v2.48 Smart Setup / Repair Center
 
 LQoSync v2.48 adds a Smart Setup / Repair Center at `/setup-repair`. It provides a guided first-install checklist, health check report, readiness score, safe repair commands, policy preset setup, MikroTik connection-test guidance, Git/adoption guidance, and LibreQoS path/permission checks. The center is read-only by default and gives SSH commands instead of blindly modifying the server from the browser.
+
+
+## v2.49 Policy Settings Integration FULL
+
+LQoSync v2.49 makes Smart Policy Center a real operator settings surface. Policies are no longer hidden or only visible as raw JSON. Operators can edit policy behavior in the WebUI, save it to `config.json -> policies`, compare the current policy against Conservative/Balanced/Aggressive presets, and run Dry Run to preview the effect before scheduler/auto-apply.
+
+### Key behavior
+
+- Policy Center settings are saved to `config.json -> policies`.
+- Manual edits switch `policies.mode` to `custom`.
+- Preset buttons apply Conservative, Balanced, or Aggressive defaults.
+- Config Center includes a Policy Center module for core policy settings and links to the full Policy Center.
+- `engine/policy_schema.py` is the schema source for labels, descriptions, choices, defaults, risk labels, preset comparison, and form parsing.
+- Setup & Repair focuses on diagnostics/repair actions and links to Documentation rather than duplicating the full manual.
+
+### Source of truth
+
+```text
+config.json -> policies        operator intent
+engine/policy_schema.py        policy setting metadata
+engine/policy_defaults.py      default/preset values
+engine/policy_engine.py        runtime decision maker
+policy_state.json              pending confirmations and cleanup queue
+docs/content/*.md              documentation source blocks
+```

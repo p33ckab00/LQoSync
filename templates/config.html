@@ -39,6 +39,12 @@ function cfgEditor(initial) {
     cfg.preflight.enabled ??= true; cfg.preflight.duplicate_ip_policy ??= 'warn_and_skip'; cfg.preflight.missing_parent_policy ??= 'block'; cfg.preflight.invalid_bandwidth_policy ??= 'block';
     cfg.ui.refresh_seconds ??= 5; cfg.ui.show_raw_json_editor ??= true; cfg.ui.default_theme ??= 'light';
     cfg.services.units ??= ['lqosd','lqos_scheduler','lqos_shaped_sync']; cfg.services.legacy_optional_units ??= ['lqos_node_manager']; cfg.services.show_legacy_optional_not_installed ??= false; cfg.services.restart_groups ??= {libreqos_core: ['lqosd','lqos_scheduler']}; cfg.services.journal_lines_default ??= 100; cfg.services.unit_metadata ??= {lqos_node_manager:{label:'Legacy Web UI service',role:'legacy_optional',note:'Older LibreQoS installs only. Newer installs usually use lqosd for the Web UI.'}};
+    cfg.policies ||= {}; cfg.policies.mode ??= 'balanced'; cfg.policies.cleanup ||= {}; cfg.policies.cleanup.enabled ??= true; cfg.policies.cleanup.global_default_action ??= 'require_confirm_next_run'; cfg.policies.cleanup.confirmation_expires_hours ??= 24; cfg.policies.cleanup.apply_confirmed_cleanup ??= 'next_run'; cfg.policies.cleanup.allow_immediate_cleanup ??= true;
+    cfg.policies.cleanup_sources ||= {}; ['pppoe','dhcp','hotspot','static'].forEach(src => { cfg.policies.cleanup_sources[src] ||= {}; let p=cfg.policies.cleanup_sources[src]; p.enabled ??= true; p.normal_inactive_action ??= (src==='pppoe'?'cleanup_next_run':(src==='static'?'preserve_rows':'cleanup_immediate')); p.source_disabled_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.collector_failed_action ??= 'preserve_rows'; p.zero_result_action ??= (src==='hotspot'?'warn_only':(src==='static'?'preserve_rows':'block_cleanup')); p.mass_removal_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.respect_percentage_guards ??= (src==='pppoe'||src==='static'); });
+    cfg.policies.node_cleanup_guard ||= {}; cfg.policies.node_cleanup_guard.enabled ??= true; cfg.policies.node_cleanup_guard.threshold_percent ??= 30; cfg.policies.node_cleanup_guard.min_node_size ??= 10; cfg.policies.node_cleanup_guard.min_removed_count ??= 3; cfg.policies.node_cleanup_guard.action ??= 'require_confirm_next_run';
+    cfg.policies.small_node_guard ||= {}; cfg.policies.small_node_guard.enabled ??= true; cfg.policies.small_node_guard.max_node_size ??= 5; cfg.policies.small_node_guard.partial_removal_action ??= 'cleanup_next_run'; cfg.policies.small_node_guard.full_removal_action ??= 'require_confirm_next_run';
+    cfg.policies.source_cleanup_guard ||= {}; cfg.policies.source_cleanup_guard.enabled ??= true; cfg.policies.source_cleanup_guard.threshold_percent ??= 30; cfg.policies.source_cleanup_guard.min_removed_count ??= 5; cfg.policies.source_cleanup_guard.action ??= 'require_confirm_next_run';
+    cfg.policies.apply_guard ||= {}; cfg.policies.collector_guard ||= {}; cfg.policies.data_quality ||= {}; cfg.policies.topology_guard ||= {}; cfg.policies.backup_guard ||= {}; cfg.policies.anomaly_detection ||= {}; cfg.policies.recommendations ||= {};
     cfg.routers.forEach((r) => {
       r.enabled ??= true; r.name ??= 'Router'; r.address ??= ''; r.port ??= 8728; r.username ??= ''; r.password ??= '';
       r.root_download_mbps ??= 100; r.root_upload_mbps ??= 100; r.root_type ??= 'site'; r.root_virtual ??= false; r.parent_node ??= ''; 
@@ -74,6 +80,8 @@ function cfgEditor(initial) {
     removeRouter(i){ if(confirm('Remove router from config.json? This does not touch MikroTik.')) { this.cfg.routers.splice(i,1); this.routerIndex = Math.max(0, Math.min(this.routerIndex, this.cfg.routers.length-1)); } },
     addDhcp(router){ router.dhcp ||= {enabled: true, servers: []}; router.dhcp.servers.push(blankDhcp()); },
     removeDhcp(router, i){ if(confirm('Remove DHCP server entry from config.json? This does not touch MikroTik.')) router.dhcp.servers.splice(i,1); },
+    markPolicyCustom(){ this.cfg.policies ||= {}; if(this.cfg.policies.mode !== 'custom') this.cfg.policies.mode = 'custom'; },
+    policyActions(){ return ['preserve_rows','warn_only','cleanup_immediate','cleanup_next_run','require_confirm_immediate','require_confirm_next_run','block_cleanup','block_apply']; },
     addFactor(router){ router.pppoe ||= {factor_rules: []}; router.pppoe.factor_rules.push(blankFactor()); },
     removeFactor(router, i){ router.pppoe.factor_rules.splice(i,1); },
     submitTest(){ this.syncHidden(); this.$refs.testRouterIdx.value = String(this.routerIndex ?? 0); this.$refs.testPayload.value = this.jsonText; this.$refs.testForm.submit(); },
@@ -83,11 +91,12 @@ function cfgEditor(initial) {
         ['scheduler.enabled','Scheduler enabled'], ['app.auto_apply','Auto apply'], ['app.backup_before_apply','Backup before apply'], ['network_mode','Network mode'],
         ['libreqos.run_mode','LibreQoS run mode'], ['libreqos.working_dir','LibreQoS working directory'], ['libreqos.retry_if_last_apply_failed','Retry failed apply'],
         ['collector.selective_fields','Selective MikroTik fields'], ['collector.dhcp.lease_mode','DHCP lease mode'], ['collector.hotspot.enhanced_metadata','Hotspot enhanced metadata'],
-        ['ui.default_theme','Default theme']
+        ['ui.default_theme','Default theme'], ['policies.mode','Policy preset mode']
       ];
       const get=(obj,path)=>path.split('.').reduce((o,k)=>o&&o[k], obj);
       const out=[];
       paths.forEach(([path,label])=>{ const a=get(after,path), b=get(before,path); if(JSON.stringify(a)!==JSON.stringify(b)) out.push({path,label,before:b,after:a}); });
+      if(JSON.stringify(before.policies||{})!==JSON.stringify(after.policies||{})) out.push({path:'policies',label:'Smart policy settings',before:'policy block',after:'modified'});
       if(JSON.stringify(before.routers||[])!==JSON.stringify(after.routers||[])) out.push({path:'routers',label:'Router/source settings',before:(before.routers||[]).length+' router(s)',after:(after.routers||[]).length+' router(s)'});
       return out;
     },
@@ -131,6 +140,7 @@ function cfgEditor(initial) {
           <button type="button" @click="tab='collector'" :class="tab==='collector' && 'active'" class="cfg-nav-btn"><i class="ti ti-database-search"></i>Collectors</button>
           <button type="button" @click="tab='scheduler'" :class="tab==='scheduler' && 'active'" class="cfg-nav-btn"><i class="ti ti-clock-cog"></i>Scheduler</button>
           <button type="button" @click="tab='services'" :class="tab==='services' && 'active'" class="cfg-nav-btn"><i class="ti ti-server-cog"></i>Services</button>
+          <button type="button" @click="tab='policies'" :class="tab==='policies' && 'active'" class="cfg-nav-btn"><i class="ti ti-shield-cog"></i>Policy Center</button>
           <button type="button" @click="tab='defaults'" :class="tab==='defaults' && 'active'" class="cfg-nav-btn"><i class="ti ti-ruler-measure"></i>Defaults</button>
           <button type="button" @click="tab='routers'" :class="tab==='routers' && 'active'" class="cfg-nav-btn"><i class="ti ti-router"></i>Routers</button>
           <button type="button" @click="tab='router'" :disabled="!currentRouter" :class="tab==='router' && 'active'" class="cfg-nav-btn"><i class="ti ti-settings-automation"></i>Selected Router</button>
@@ -260,6 +270,60 @@ function cfgEditor(initial) {
           <div class="card" style="border-color:rgba(14,165,233,.35);background:rgba(14,165,233,.08)">
             <div class="card-title"><i class="ti ti-info-circle text-dhcp"></i> About lqos_node_manager</div>
             <p class="text-sm" style="color:var(--muted)"><code>lqos_node_manager</code> is kept only for older LibreQoS installs that used it as a separate Web UI service. In newer LibreQoS setups, the important health checks are usually <code>lqosd</code> and <code>lqos_scheduler</code>. LQoSync will auto-hide <code>lqos_node_manager</code> when it is not installed, or mark it as legacy/optional when displayed.</p>
+          </div>
+        </section>
+
+        <section x-show="tab==='policies'" x-cloak class="cfg-section">
+          <div class="card" style="border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.06)">
+            <div class="card-title"><i class="ti ti-shield-cog"></i> Smart Policy Center — Settings Integration</div>
+            <p class="text-sm" style="color:var(--muted)">These values are saved directly to <code>config.json → policies</code>. Manual edits switch the preset to <b>custom</b>. Use the full Policy Center page for preset comparison, pending confirmations, and runtime policy state.</p>
+            <div class="btn-row" style="margin-top:10px"><a class="btn btn-primary" href="/policy"><i class="ti ti-sliders"></i> Open Full Policy Center</a><a class="btn" href="/sync/dry-run"><i class="ti ti-eye"></i> Dry Run Preview</a></div>
+          </div>
+          <div class="grid lg:grid-cols-2 gap-3">
+            <div class="card">
+              <div class="card-title"><i class="ti ti-template"></i> Preset / Core Cleanup</div>
+              <div class="grid md:grid-cols-2 gap-3">
+                <label class="cfg-field"><span class="cfg-label">Policy mode</span><select x-model="cfg.policies.mode" class="cfg-select"><option>conservative</option><option>balanced</option><option>aggressive</option><option>custom</option></select><span class="cfg-help">Manual policy edits should use custom. Presets can be applied from the full Policy Center.</span></label>
+                <label class="cfg-toggle cfg-subtle"><span><b>Cleanup policy engine</b><span class="cfg-help">Evaluate cleanup reasons before deleting rows or applying LibreQoS.</span></span><input type="checkbox" x-model="cfg.policies.cleanup.enabled" @change="markPolicyCustom()"></label>
+                <label class="cfg-field"><span class="cfg-label">Global default action</span><select x-model="cfg.policies.cleanup.global_default_action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                <label class="cfg-field"><span class="cfg-label">Confirmation expires hours</span><input type="number" x-model.number="cfg.policies.cleanup.confirmation_expires_hours" @input="markPolicyCustom()" class="cfg-input"></label>
+                <label class="cfg-field"><span class="cfg-label">Confirmed cleanup apply mode</span><select x-model="cfg.policies.cleanup.apply_confirmed_cleanup" @change="markPolicyCustom()" class="cfg-select"><option>next_run</option><option>immediate</option></select></label>
+                <label class="cfg-toggle cfg-subtle"><span><b>Allow immediate cleanup</b><span class="cfg-help">Master switch for same-cycle row deletion.</span></span><input type="checkbox" x-model="cfg.policies.cleanup.allow_immediate_cleanup" @change="markPolicyCustom()"></label>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title"><i class="ti ti-alert-triangle"></i> Mass Removal Guards</div>
+              <div class="grid md:grid-cols-2 gap-3">
+                <label class="cfg-toggle cfg-subtle"><span><b>Node guard enabled</b></span><input type="checkbox" x-model="cfg.policies.node_cleanup_guard.enabled" @change="markPolicyCustom()"></label>
+                <label class="cfg-field"><span class="cfg-label">Node threshold %</span><input type="number" x-model.number="cfg.policies.node_cleanup_guard.threshold_percent" @input="markPolicyCustom()" class="cfg-input"></label>
+                <label class="cfg-field"><span class="cfg-label">Min node size</span><input type="number" x-model.number="cfg.policies.node_cleanup_guard.min_node_size" @input="markPolicyCustom()" class="cfg-input"></label>
+                <label class="cfg-field"><span class="cfg-label">Min removed count</span><input type="number" x-model.number="cfg.policies.node_cleanup_guard.min_removed_count" @input="markPolicyCustom()" class="cfg-input"></label>
+                <label class="cfg-field"><span class="cfg-label">Node guard action</span><select x-model="cfg.policies.node_cleanup_guard.action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                <label class="cfg-toggle cfg-subtle"><span><b>Small-node guard enabled</b></span><input type="checkbox" x-model="cfg.policies.small_node_guard.enabled" @change="markPolicyCustom()"></label>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-database-cog"></i> Per-Source Cleanup Policies</div>
+            <div style="display:grid;gap:10px">
+              <template x-for="src in ['pppoe','dhcp','hotspot','static']" :key="src">
+                <div class="cfg-subtle">
+                  <div class="flex items-center justify-between gap-3 mb-3"><b x-text="src.toUpperCase()"></b><label class="cfg-toggle gap-2"><span class="text-sm" style="color:var(--muted)">Enabled</span><input type="checkbox" x-model="cfg.policies.cleanup_sources[src].enabled" @change="markPolicyCustom()"></label></div>
+                  <div class="grid md:grid-cols-3 gap-3">
+                    <label class="cfg-field"><span class="cfg-label">Normal inactive</span><select x-model="cfg.policies.cleanup_sources[src].normal_inactive_action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                    <label class="cfg-field"><span class="cfg-label">Source disabled</span><select x-model="cfg.policies.cleanup_sources[src].source_disabled_action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                    <label class="cfg-field"><span class="cfg-label">Collector failed</span><select x-model="cfg.policies.cleanup_sources[src].collector_failed_action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                    <label class="cfg-field"><span class="cfg-label">Zero result</span><select x-model="cfg.policies.cleanup_sources[src].zero_result_action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                    <label class="cfg-field"><span class="cfg-label">Mass removal</span><select x-model="cfg.policies.cleanup_sources[src].mass_removal_action" @change="markPolicyCustom()" class="cfg-select"><template x-for="a in policyActions()"><option :value="a" x-text="a"></option></template></select></label>
+                    <label class="cfg-toggle cfg-subtle"><span><b>Respect percentage guards</b></span><input type="checkbox" x-model="cfg.policies.cleanup_sources[src].respect_percentage_guards" @change="markPolicyCustom()"></label>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-info-circle"></i> Single source of truth</div>
+            <p class="text-sm" style="color:var(--muted)">The same policy block appears in Advanced Raw JSON and is used by Dry Run, Dashboard policy decision cards, cleanup confirmation workflow, and runtime policy state. Setup & Repair should diagnose policy/config health and link to documentation instead of duplicating long manuals.</p>
           </div>
         </section>
 

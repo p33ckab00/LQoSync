@@ -1,3 +1,16 @@
+# Release Notes
+
+## v2.49.0 - Policy Settings Integration FULL
+
+- Adds `engine/policy_schema.py` as the single source of truth for visible Policy Center settings, allowed values, labels, descriptions, recommended defaults, and risk levels.
+- Converts Smart Policy Center from read-mostly visibility into a real settings UI that writes directly to `config.json -> policies`.
+- Adds editable Policy Center form groups for cleanup core, PPPoE/DHCP/Hotspot/static cleanup, mass-removal guards, apply guards, collector guards, data quality, topology, backup, anomaly detection, and recommendations.
+- Adds preset actions for Conservative, Balanced, and Aggressive policies, plus manual edit behavior that saves as Custom.
+- Adds current-vs-preset comparison, closest-preset detection, and policy difference display.
+- Adds Policy Center integration inside Config Center so policy settings are visible and wired into the same settings workflow and raw JSON preview.
+- Adds documentation centralization files under `docs/content/` and `docs/docs_manifest.json` so Setup & Repair can focus on diagnostics while About/Documentation remains the manual source of truth.
+- Updates Setup & Repair wording to reduce duplication and link operators toward Documentation and Policy Center.
+
 # LQoSync Release Notes
 
 ## v2.48.0 - Smart Setup / Repair Center

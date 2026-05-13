@@ -1,0 +1,22 @@
+{
+  "policy.settings_integration": {
+    "title": "Policy Settings Integration",
+    "file": "docs/content/policy_settings_integration.md",
+    "anchor": "policy-settings-integration"
+  },
+  "setup_repair.center": {
+    "title": "Setup & Repair Center",
+    "file": "docs/content/setup_repair_center.md",
+    "anchor": "setup--repair-center"
+  },
+  "policy.smart_policy_center": {
+    "title": "Smart Policy Center",
+    "file": "docs/SMART_POLICY_CENTER.md",
+    "anchor": "smart-policy-center"
+  },
+  "setup_repair.smart_setup_repair": {
+    "title": "Smart Setup / Repair",
+    "file": "docs/SMART_SETUP_REPAIR.md",
+    "anchor": "smart-setup--repair"
+  }
+}

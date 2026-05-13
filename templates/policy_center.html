@@ -1,8 +1,13 @@
 {% extends "base.html" %}{% block content %}
+{% set pol = cfg.get('policies', {}) %}
+{% set cleanup = pol.get('cleanup', {}) %}
+{% set confirmations = policy_state.get('pending_confirmations', []) %}
+{% set queue = policy_state.get('cleanup_queue', []) %}
+{% set risk = decision.get('risk_level', 'unknown') %}
 <div class="page-header">
   <div>
     <div class="page-title">Smart Policy Center</div>
-    <div class="page-subtitle">Policy-driven cleanup, apply guards, confirmation workflow, and risk visibility.</div>
+    <div class="page-subtitle">Visible, configurable, config.json-wired policies for cleanup, apply guards, confirmations, risk, and recommendations.</div>
   </div>
   <div class="btn-row">
     <a class="btn" href="/config"><i class="ti ti-settings"></i> Config Center</a>
@@ -10,47 +15,41 @@
   </div>
 </div>
 
-{% set pol = cfg.get('policies', {}) %}
-{% set cleanup = pol.get('cleanup', {}) %}
-{% set confirmations = policy_state.get('pending_confirmations', []) %}
-{% set queue = policy_state.get('cleanup_queue', []) %}
-{% set risk = decision.get('risk_level', 'unknown') %}
+<style>
+  .policy-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:start}.policy-nav{position:sticky;top:12px}.policy-section-card{scroll-margin-top:80px}.policy-setting{border:1px solid var(--br0);border-radius:12px;padding:11px;background:rgba(15,23,42,.18);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.8fr);gap:12px;align-items:center}.policy-label{font-weight:700;color:var(--txt);font-size:13px}.policy-desc{font-size:11px;color:var(--muted);line-height:1.45;margin-top:4px}.policy-risk{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.policy-input select,.policy-input input[type=number]{width:100%;border:1px solid var(--br1);border-radius:9px;background:rgba(2,6,23,.40);color:var(--txt);padding:8px 9px;font-family:var(--font-mono);font-size:12px}.policy-switch{display:flex;justify-content:flex-end;align-items:center;gap:8px}.policy-switch input{width:20px;height:20px}.policy-section-list{display:grid;gap:8px}.preset-card{border:1px solid var(--br0);border-radius:12px;padding:12px;background:var(--bg1)}.preset-card.active{border-color:rgba(0,200,150,.55);background:rgba(0,200,150,.08)}.policy-diff-list{display:grid;gap:7px;max-height:360px;overflow:auto;padding-right:4px}.policy-diff{border:1px solid var(--br0);border-radius:9px;padding:8px 10px;font-family:var(--font-mono);font-size:11px;color:var(--muted)}.policy-savebar{position:sticky;bottom:0;background:linear-gradient(to top,var(--bg0),rgba(11,18,32,.92));border-top:1px solid var(--br0);padding:12px;margin:14px -14px -14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}:root[data-theme=light] .policy-setting{background:#fff}:root[data-theme=light] .policy-input select,:root[data-theme=light] .policy-input input[type=number]{background:#fff;color:#0f172a}:root[data-theme=light] .policy-savebar{background:linear-gradient(to top,#f8fafc,rgba(248,250,252,.92))}@media(max-width:1000px){.policy-grid{grid-template-columns:1fr}.policy-nav{position:static}.policy-setting{grid-template-columns:1fr}.policy-switch{justify-content:flex-start}}
+</style>
+
 <section class="grid-stats">
-  <div class="stat"><div class="stat-label"><i class="ti ti-shield-cog"></i> Policy Mode</div><div class="stat-value text-accent">{{ pol.get('mode','balanced') }}</div><div class="stat-sub">preset / custom behavior</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-shield-cog"></i> Policy Mode</div><div class="stat-value {{ 'text-warn' if pol.get('mode') == 'custom' else 'text-accent' }}">{{ pol.get('mode','balanced') }}</div><div class="stat-sub">operator preset / custom config</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-alert-triangle"></i> Last Risk</div><div class="stat-value {{ 'text-err' if risk in ['high','critical'] else ('text-warn' if risk == 'medium' else 'text-accent') }}">{{ risk }}</div><div class="stat-sub">score {{ decision.get('risk_score', 0) }}</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-click"></i> Pending Confirms</div><div class="stat-value {{ 'text-warn' if confirmations else 'text-accent' }}">{{ confirmations|length }}</div><div class="stat-sub">cleanup decisions</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-clock"></i> Cleanup Queue</div><div class="stat-value {{ 'text-warn' if queue else 'text-accent' }}">{{ queue|length }}</div><div class="stat-sub">next-run candidates</div></div>
 </section>
 
-<section class="card" style="margin-top:10px">
-  <div class="card-title"><i class="ti ti-history-toggle"></i> Smart Lifecycle Snapshot</div>
-  {% set lifecycle = policy_state.get('last_lifecycle_summary', {}) %}
-  <div class="grid-stats">
-    <div class="stat"><div class="stat-label">Tracked</div><div class="stat-value text-accent">{{ lifecycle.get('total_tracked_clients', 0) }}</div><div class="stat-sub">client lifecycle rows</div></div>
-    <div class="stat"><div class="stat-label">Queued</div><div class="stat-value text-warn">{{ lifecycle.get('cleanup_queue', 0) }}</div><div class="stat-sub">next-run cleanup</div></div>
-    <div class="stat"><div class="stat-label">Events</div><div class="stat-value text-accent">{{ lifecycle.get('client_events', 0) }}</div><div class="stat-sub">bounded timeline</div></div>
-    <div class="stat"><div class="stat-label">Returned</div><div class="stat-value text-accent">{{ lifecycle.get('returned', 0) }}</div><div class="stat-sub">latest run</div></div>
-  </div>
-  <div class="btn-row" style="margin-top:10px"><a class="btn" href="/lifecycle"><i class="ti ti-timeline-event"></i> Open Lifecycle Center</a></div>
-</section>
-
 <section class="two-grid" style="margin-top:10px">
   <div class="card">
-    <div class="card-title"><i class="ti ti-scale"></i> Last Policy Decision</div>
-    <div style="display:grid;gap:8px">
-      <div class="op-line"><span>Verdict</span><strong class="{{ 'text-err' if decision.get('verdict') == 'blocked_by_policy' else ('text-warn' if decision.get('verdict') == 'requires_confirmation' else 'text-accent') }}">{{ (decision.get('verdict') or 'none').replace('_',' ') }}</strong></div>
-      <div class="op-line"><span>Write allowed</span><strong>{{ decision.get('write_allowed', true) }}</strong></div>
-      <div class="op-line"><span>Apply allowed</span><strong>{{ decision.get('apply_allowed', true) }}</strong></div>
-      <div class="op-line"><span>Requires confirmation</span><strong>{{ decision.get('requires_confirmation', false) }}</strong></div>
+    <div class="card-title"><i class="ti ti-template"></i> Preset Mode</div>
+    <div class="grid md:grid-cols-4 gap-2">
+      {% for preset in ['conservative','balanced','aggressive','custom'] %}
+      <div class="preset-card {{ 'active' if pol.get('mode') == preset else '' }}">
+        <div class="mono" style="font-weight:700">{{ preset }}</div>
+        <div class="text-xs" style="color:var(--muted);margin:6px 0 10px">
+          {% if preset == 'conservative' %}Safest production behavior, more confirmations.{% elif preset == 'balanced' %}Recommended default for live operators.{% elif preset == 'aggressive' %}Fast cleanup for lab/dynamic networks.{% else %}Manual operator-tuned policy values.{% endif %}
+        </div>
+        {% if preset != 'custom' %}<form method="post" action="/policy/apply-preset/{{ preset }}">{{ csrf_field()|safe }}<button class="btn" onclick="return confirm('Apply {{ preset }} policy preset to config.json?')"><i class="ti ti-check"></i> Apply</button></form>{% else %}<span class="badge b-warn">manual edits</span>{% endif %}
+      </div>
+      {% endfor %}
     </div>
-    {% if decision.get('blocked_reasons') %}
-    <div style="margin-top:12px" class="mono text-sm text-err">{% for item in decision.get('blocked_reasons', []) %}✖ {{ item.title or item.message }}<br>{% endfor %}</div>
-    {% endif %}
   </div>
   <div class="card">
-    <div class="card-title"><i class="ti ti-info-circle"></i> Policy Philosophy</div>
-    <p class="text-sm" style="color:var(--muted)">Config defines operator intent. Policies define how safely that intent is applied. The policy engine evaluates cleanup, validation, risk, confirmations, and apply permission before LQoSync writes files or calls LibreQoS.</p>
-    <div class="mono text-sm" style="color:var(--muted);margin-top:10px">Default: {{ cleanup.get('global_default_action','require_confirm_next_run') }}<br>Confirmation expiry: {{ cleanup.get('confirmation_expires_hours',24) }}h<br>Confirmed cleanup: {{ cleanup.get('apply_confirmed_cleanup','next_run') }}</div>
+    <div class="card-title"><i class="ti ti-git-compare"></i> Current vs Preset</div>
+    <div class="btn-row" style="margin-bottom:10px">
+      {% for p in ['conservative','balanced','aggressive'] %}<a class="btn {{ 'btn-primary' if preset_compare == p else '' }}" href="/policy?compare={{ p }}">Compare {{ p }}</a>{% endfor %}
+    </div>
+    <div class="text-sm" style="color:var(--muted);margin-bottom:8px">Closest preset: <b>{{ closest_preset.closest_preset }}</b> · differences {{ closest_preset.differences }}</div>
+    <div class="policy-diff-list">
+      {% if preset_diff %}{% for item in preset_diff[:80] %}<div class="policy-diff"><b>{{ item.label }}</b><br><span>{{ item.path }}</span><br>current=<b>{{ item.current }}</b> · {{ item.preset_name }}=<b>{{ item.preset }}</b></div>{% endfor %}{% else %}<div class="text-sm" style="color:var(--muted)">Current policy matches selected preset.</div>{% endif %}
+    </div>
   </div>
 </section>
 
@@ -61,17 +60,8 @@
     {% for item in confirmations %}
     <div class="card" style="background:rgba(245,158,11,.06);box-shadow:none">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-        <div>
-          <div class="mono text-sm"><b>{{ item.source_label or item.source }}</b> · {{ (item.reason or '').replace('_',' ') }}</div>
-          <div class="text-sm" style="color:var(--muted);margin-top:4px">{{ item.affected_rows }} row(s) · {{ item.policy }} · apply mode {{ item.apply_mode }} · expires {{ item.expires_at }}</div>
-          <div class="mono text-xs" style="color:var(--hint);margin-top:6px">{{ item.id }}</div>
-        </div>
-        <div class="btn-row">
-          {% if not item.confirmed %}
-          <form method="post" action="/policy/confirm/{{ item.id }}">{{ csrf_field()|safe }}<button class="btn btn-primary" onclick="return confirm('Confirm cleanup for {{ item.affected_rows }} row(s)?')"><i class="ti ti-check"></i> Confirm</button></form>
-          {% else %}<span class="badge b-ok">confirmed</span>{% endif %}
-          <form method="post" action="/policy/dismiss/{{ item.id }}">{{ csrf_field()|safe }}<button class="btn btn-danger"><i class="ti ti-x"></i> Dismiss</button></form>
-        </div>
+        <div><div class="mono text-sm"><b>{{ item.source_label or item.source }}</b> · {{ (item.reason or '').replace('_',' ') }}</div><div class="text-sm" style="color:var(--muted);margin-top:4px">{{ item.affected_rows }} row(s) · {{ item.policy }} · apply mode {{ item.apply_mode }} · expires {{ item.expires_at }}</div><div class="mono text-xs" style="color:var(--hint);margin-top:6px">{{ item.id }}</div></div>
+        <div class="btn-row">{% if not item.confirmed %}<form method="post" action="/policy/confirm/{{ item.id }}">{{ csrf_field()|safe }}<button class="btn btn-primary" onclick="return confirm('Confirm cleanup for {{ item.affected_rows }} row(s)?')"><i class="ti ti-check"></i> Confirm</button></form>{% else %}<span class="badge b-ok">confirmed</span>{% endif %}<form method="post" action="/policy/dismiss/{{ item.id }}">{{ csrf_field()|safe }}<button class="btn btn-danger"><i class="ti ti-x"></i> Dismiss</button></form></div>
       </div>
     </div>
     {% endfor %}
@@ -79,40 +69,64 @@
 </section>
 {% endif %}
 
-<section class="card" style="margin-top:10px">
-  <div class="card-title"><i class="ti ti-list-check"></i> Source Cleanup Policies</div>
-  <div class="table-wrap"><table class="table">
-    <thead><tr><th>Source</th><th>Normal inactive</th><th>Source disabled</th><th>Collector failed</th><th>Zero result</th><th>Mass removal</th><th>Guards</th></tr></thead>
-    <tbody>
-    {% for source, p in pol.get('cleanup_sources', {}).items() %}
-    <tr>
-      <td><span class="badge {{ 'b-ppp' if source=='pppoe' else ('b-dhcp' if source=='dhcp' else ('b-hs' if source=='hotspot' else 'b-static')) }}">{{ source }}</span></td>
-      <td>{{ p.get('normal_inactive_action') }}</td>
-      <td>{{ p.get('source_disabled_action') }}</td>
-      <td>{{ p.get('collector_failed_action') }}</td>
-      <td>{{ p.get('zero_result_action') }}</td>
-      <td>{{ p.get('mass_removal_action') }}</td>
-      <td>{{ p.get('respect_percentage_guards') }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table></div>
-  <p class="text-sm" style="color:var(--muted);margin-top:10px">Edit these values from Config Center raw JSON for now. Recommended future UI: dropdown cards for each policy. Raw JSON is kept visible so advanced operators can control behavior exactly.</p>
-</section>
+<form method="post" action="/policy/save" style="margin-top:10px">
+  {{ csrf_field()|safe }}
+  <div class="policy-grid">
+    <aside class="card policy-nav">
+      <div class="card-title"><i class="ti ti-list-tree"></i> Policy Sections</div>
+      <div style="display:grid;gap:6px">
+        {% for section in policy_schema.keys() %}<a class="btn" href="#policy-{{ loop.index }}" style="justify-content:flex-start">{{ section }}</a>{% endfor %}
+      </div>
+      <div class="note" style="margin-top:12px"><b>Manual edit behavior:</b> saving from this form sets <code>policies.mode=custom</code>. Use preset buttons above to reset to Conservative/Balanced/Aggressive.</div>
+    </aside>
+    <main style="display:grid;gap:12px">
+      {% for section, fields in policy_schema.items() %}
+      <section class="card policy-section-card" id="policy-{{ loop.index }}">
+        <div class="card-title"><i class="ti ti-sliders"></i> {{ section }}</div>
+        <div class="policy-section-list">
+          {% for f in fields %}
+          {% set value = policy_values.get(f.path) %}
+          <div class="policy-setting">
+            <div>
+              <div class="policy-label">{{ f.label }}</div>
+              <div class="policy-desc">{{ f.description }}</div>
+              <div class="policy-desc">Path: <code>{{ f.path }}</code> · Recommended: <code>{{ f.recommended }}</code> · Risk: <span class="policy-risk {{ 'text-err' if f.risk in ['critical','high'] else ('text-warn' if f.risk == 'medium' else 'text-accent') }}">{{ f.risk }}</span></div>
+            </div>
+            <div class="policy-input">
+              {% if f.type == 'bool' %}
+              <label class="policy-switch"><span class="text-sm" style="color:var(--muted)">Enabled</span><input type="checkbox" name="{{ f.path }}" value="true" {% if value is sameas true %}checked{% endif %}></label>
+              {% elif f.type == 'select' %}
+              <select name="{{ f.path }}">{% for choice in f.choices %}<option value="{{ choice }}" {% if value == choice %}selected{% endif %}>{{ choice.replace('_',' ') }}</option>{% endfor %}</select>
+              {% else %}
+              <input type="number" name="{{ f.path }}" value="{{ value }}" {% if f.min is not none %}min="{{ f.min }}"{% endif %} {% if f.max is not none %}max="{{ f.max }}"{% endif %}>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+      <div class="policy-savebar">
+        <div class="text-sm" style="color:var(--muted)"><b>Save behavior:</b> writes to <code>config.json → policies</code>, switches mode to <b>custom</b>, and is reflected in Advanced Raw JSON. Run Dry Run after saving.</div>
+        <div class="btn-row"><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Save Custom Policy</button><a class="btn" href="/sync/dry-run"><i class="ti ti-eye"></i> Dry Run</a></div>
+      </div>
+    </main>
+  </div>
+</form>
 
 <section class="two-grid" style="margin-top:10px">
   <div class="card">
-    <div class="card-title"><i class="ti ti-shield-check"></i> Apply Guards</div>
-    {% for k,v in pol.get('apply_guard', {}).items() %}<div class="op-line"><span>{{ k.replace('_',' ') }}</span><strong>{{ v }}</strong></div>{% endfor %}
+    <div class="card-title"><i class="ti ti-scale"></i> Last Policy Decision</div>
+    <div style="display:grid;gap:8px">
+      <div class="op-line"><span>Verdict</span><strong class="{{ 'text-err' if decision.get('verdict') == 'blocked_by_policy' else ('text-warn' if decision.get('verdict') == 'requires_confirmation' else 'text-accent') }}">{{ (decision.get('verdict') or 'none').replace('_',' ') }}</strong></div>
+      <div class="op-line"><span>Write allowed</span><strong>{{ decision.get('write_allowed', true) }}</strong></div>
+      <div class="op-line"><span>Apply allowed</span><strong>{{ decision.get('apply_allowed', true) }}</strong></div>
+      <div class="op-line"><span>Requires confirmation</span><strong>{{ decision.get('requires_confirmation', false) }}</strong></div>
+    </div>
   </div>
   <div class="card">
-    <div class="card-title"><i class="ti ti-database-exclamation"></i> Collector Guards</div>
-    {% for k,v in pol.get('collector_guard', {}).items() %}<div class="op-line"><span>{{ k.replace('_',' ') }}</span><strong>{{ v }}</strong></div>{% endfor %}
+    <div class="card-title"><i class="ti ti-code"></i> Policy State JSON</div>
+    <details><summary class="mono text-sm text-dhcp" style="cursor:pointer">Show runtime policy state</summary><pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ policy_state | tojson(indent=2) }}</pre></details>
   </div>
-</section>
-
-<section class="card" style="margin-top:10px">
-  <div class="card-title"><i class="ti ti-code"></i> Policy State JSON</div>
-  <details><summary class="mono text-sm text-dhcp" style="cursor:pointer">Show runtime policy state</summary><pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ policy_state | tojson(indent=2) }}</pre></details>
 </section>
 {% endblock %}
