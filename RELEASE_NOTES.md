@@ -1,5 +1,20 @@
 # LQoSync Release Notes
 
+## v2.54.3 - Network Layout Drag-and-Drop Wiring
+
+### Added
+
+- Wired desktop drag-and-drop behavior in Network Layout.
+- Node cards and topology tree items can now be dragged onto another node to move them under that parent.
+- Added a root drop zone to promote/move dragged nodes back to root level.
+- Added visual drag-over and invalid-drop states for allowed/blocked moves.
+- Added validation for drag moves to prevent moving a node under itself, moving a node under its own descendant, moving to the same parent, or creating duplicate child names under a target parent.
+- Added drag status messaging and a Network Layout guide explaining that drag-and-drop edits the in-browser preview only until Save topology is clicked.
+
+### Notes
+
+Drag-and-drop is intended for desktop browsers. On mobile/touch devices, operators should continue using the Node Inspector Move control. This update changes only the Network Layout UI behavior; saved topology still goes through the existing network.json save validation.
+
 ## v2.54.2 - Policy Center Setup Guidelines
 
 ### Improved

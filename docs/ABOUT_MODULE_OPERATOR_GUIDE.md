@@ -595,3 +595,8 @@ This hotfix restores the missing Flask route wiring for Smart Reports in `app.py
 Policy Center now includes atomic setup guidance for every visible setting. Each field explains what it controls, recommended setup, risk note, config path, recommended value, and risk level. The detailed guide is available at `docs/content/policy_center_settings_guidelines.md`.
 
 This update also normalizes stale lifecycle PPPoE policy naming to the canonical `pppoe` key while accepting the older `ppoe` alias from previous schema builds, preventing false missing-policy warnings after upgrades or fresh installs.
+
+
+## v2.54.3 Network Layout Drag-and-Drop
+
+Network Layout now supports desktop drag-and-drop. Operators can drag a node card or topology tree item onto another node to move it under that parent, or drop it on the root drop zone to move it to root level. The UI prevents unsafe moves such as moving a node under itself, moving it under its own descendant, creating duplicate child names, or dropping to the same parent as a no-op. Drag changes are preview-only until **Save topology** is clicked and backend network.json validation still applies. On mobile/touch devices, use the Node Inspector Move control.

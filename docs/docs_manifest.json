@@ -59,5 +59,11 @@
     "file": "docs/content/policy_center_settings_guidelines.md",
     "anchor": "policy-center-settings-guidelines",
     "description": "Atomic operator explanations for every editable Policy Center setting."
+  },
+  "network_layout.drag_drop": {
+    "title": "Network Layout Drag-and-Drop",
+    "file": "docs/content/network_layout_drag_drop.md",
+    "anchor": "network-layout-drag-and-drop",
+    "description": "v2.54.3 wired desktop drag-and-drop for moving topology nodes with safe validation and preview-before-save behavior."
   }
 }
