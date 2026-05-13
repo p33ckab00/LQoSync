@@ -1,3 +1,20 @@
+# LQoSync Release Notes
+
+## v2.54.2 - Policy Center Setup Guidelines
+
+### Improved
+
+- Added atomic operator explanations for every visible Policy Center setting.
+- Policy Center now explains each setting with What it controls, Setup guide, Risk note, Config path, Recommended value, and Risk level.
+- Added Policy Setup Guidelines card to the Policy Center with cleanup action meanings such as preserve_rows, warn_only, cleanup_immediate, cleanup_next_run, require_confirm_next_run, block_cleanup, and block_apply.
+- Added docs/content/policy_center_settings_guidelines.md as the detailed source-of-truth setup guide for every policy setting.
+- Updated docs/docs_manifest.json so the new policy guidelines are discoverable by Documentation / Setup & Repair links.
+- Normalized stale lifecycle PPPoE policy naming to the canonical pppoe key while accepting the older ppoe alias from previous schema builds, preventing false missing-policy warnings after upgrade or fresh install.
+
+### Notes
+
+This is a Policy Center UX/documentation/config-defaults hotfix. It does not change MikroTik collection, ShapedDevices.csv generation, network.json generation, or LibreQoS apply behavior.
+
 # Release Notes
 
 ## v2.54.1 - Smart Reports Route Hotfix

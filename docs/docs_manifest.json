@@ -53,5 +53,11 @@
     "title": "Smart Reports route hotfix",
     "file": "docs/content/smart_reports_route_hotfix.md",
     "anchor": "v2541-smart-reports-route-hotfix"
+  },
+  "policy_center_settings_guidelines": {
+    "title": "Policy Center Settings Guidelines",
+    "file": "docs/content/policy_center_settings_guidelines.md",
+    "anchor": "policy-center-settings-guidelines",
+    "description": "Atomic operator explanations for every editable Policy Center setting."
   }
 }

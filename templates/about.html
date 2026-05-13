@@ -643,6 +643,18 @@ python3 -m json.tool network.json</div>
   <p class="text-sm" style="color:var(--muted)">LQoSync v2.48 adds a guided Setup / Repair Center for first install, health checks, safe repair commands, Git/adoption guidance, policy preset setup, LibreQoS path/permission checks, and MikroTik connection-test workflow. The page is read-only by default and explains what a repair command does before the operator runs it from SSH.</p>
 </section>
 
+
+    <section id="policy-center-settings-guidelines" class="card about-section">
+      <h2><i class="ti ti-book-2 text-accent"></i> v2.54.2 Policy Center Setup Guidelines</h2>
+      <p>The Policy Center now acts as a setup guide, not only a settings form. Every visible policy field explains what it controls, recommended setup, risk note, config path, recommended value, and risk level.</p>
+      <div class="note-grid">
+        <div class="note"><b>Atomic explanations:</b> each setting shows What, Setup guide, and Risk note directly beside the input.</div>
+        <div class="note"><b>Cleanup action meanings:</b> preserve_rows, warn_only, cleanup_immediate, cleanup_next_run, require_confirm_next_run, block_cleanup, and block_apply are explained in the Policy Center.</div>
+        <div class="note"><b>Documentation source:</b> <code>docs/content/policy_center_settings_guidelines.md</code> contains the full detailed guide for every policy path.</div>
+        <div class="note"><b>PPPoE key normalization:</b> stale lifecycle settings use canonical <code>pppoe</code> while accepting older <code>ppoe</code> alias values to avoid false missing-policy warnings.</div>
+      </div>
+    </section>
+
 {% endblock %}
 
 <section class="card" style="margin-top:12px">

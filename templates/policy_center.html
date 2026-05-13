@@ -16,7 +16,7 @@
 </div>
 
 <style>
-  .policy-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:start}.policy-nav{position:sticky;top:12px}.policy-section-card{scroll-margin-top:80px}.policy-setting{border:1px solid var(--br0);border-radius:12px;padding:11px;background:rgba(15,23,42,.18);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.8fr);gap:12px;align-items:center}.policy-label{font-weight:700;color:var(--txt);font-size:13px}.policy-desc{font-size:11px;color:var(--muted);line-height:1.45;margin-top:4px}.policy-risk{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.policy-input select,.policy-input input[type=number]{width:100%;border:1px solid var(--br1);border-radius:9px;background:rgba(2,6,23,.40);color:var(--txt);padding:8px 9px;font-family:var(--font-mono);font-size:12px}.policy-switch{display:flex;justify-content:flex-end;align-items:center;gap:8px}.policy-switch input{width:20px;height:20px}.policy-section-list{display:grid;gap:8px}.preset-card{border:1px solid var(--br0);border-radius:12px;padding:12px;background:var(--bg1)}.preset-card.active{border-color:rgba(0,200,150,.55);background:rgba(0,200,150,.08)}.policy-diff-list{display:grid;gap:7px;max-height:360px;overflow:auto;padding-right:4px}.policy-diff{border:1px solid var(--br0);border-radius:9px;padding:8px 10px;font-family:var(--font-mono);font-size:11px;color:var(--muted)}.policy-savebar{position:sticky;bottom:0;background:linear-gradient(to top,var(--bg0),rgba(11,18,32,.92));border-top:1px solid var(--br0);padding:12px;margin:14px -14px -14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}:root[data-theme=light] .policy-setting{background:#fff}:root[data-theme=light] .policy-input select,:root[data-theme=light] .policy-input input[type=number]{background:#fff;color:#0f172a}:root[data-theme=light] .policy-savebar{background:linear-gradient(to top,#f8fafc,rgba(248,250,252,.92))}@media(max-width:1000px){.policy-grid{grid-template-columns:1fr}.policy-nav{position:static}.policy-setting{grid-template-columns:1fr}.policy-switch{justify-content:flex-start}}
+  .policy-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px;align-items:start}.policy-nav{position:sticky;top:12px}.policy-section-card{scroll-margin-top:80px}.policy-setting{border:1px solid var(--br0);border-radius:12px;padding:11px;background:rgba(15,23,42,.18);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.8fr);gap:12px;align-items:center}.policy-label{font-weight:700;color:var(--txt);font-size:13px}.policy-desc{font-size:11px;color:var(--muted);line-height:1.45;margin-top:4px}.policy-risk{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.policy-guidance{display:grid;gap:5px;margin-top:7px}.policy-guide-line{border-left:2px solid var(--br1);padding-left:8px;font-size:11px;color:var(--muted);line-height:1.42}.policy-guide-line b{color:var(--txt)}.action-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.action-help{border:1px solid var(--br0);border-radius:10px;padding:9px;background:rgba(15,23,42,.18);font-size:11px;color:var(--muted);line-height:1.4}.action-help b{display:block;color:var(--txt);font-family:var(--font-mono);font-size:11px;margin-bottom:3px}.policy-input select,.policy-input input[type=number]{width:100%;border:1px solid var(--br1);border-radius:9px;background:rgba(2,6,23,.40);color:var(--txt);padding:8px 9px;font-family:var(--font-mono);font-size:12px}.policy-switch{display:flex;justify-content:flex-end;align-items:center;gap:8px}.policy-switch input{width:20px;height:20px}.policy-section-list{display:grid;gap:8px}.preset-card{border:1px solid var(--br0);border-radius:12px;padding:12px;background:var(--bg1)}.preset-card.active{border-color:rgba(0,200,150,.55);background:rgba(0,200,150,.08)}.policy-diff-list{display:grid;gap:7px;max-height:360px;overflow:auto;padding-right:4px}.policy-diff{border:1px solid var(--br0);border-radius:9px;padding:8px 10px;font-family:var(--font-mono);font-size:11px;color:var(--muted)}.policy-savebar{position:sticky;bottom:0;background:linear-gradient(to top,var(--bg0),rgba(11,18,32,.92));border-top:1px solid var(--br0);padding:12px;margin:14px -14px -14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}:root[data-theme=light] .policy-setting{background:#fff}:root[data-theme=light] .policy-input select,:root[data-theme=light] .policy-input input[type=number]{background:#fff;color:#0f172a}:root[data-theme=light] .policy-savebar{background:linear-gradient(to top,#f8fafc,rgba(248,250,252,.92))}@media(max-width:1000px){.policy-grid{grid-template-columns:1fr}.policy-nav{position:static}.policy-setting{grid-template-columns:1fr}.policy-switch{justify-content:flex-start}}
 </style>
 
 <section class="grid-stats">
@@ -24,6 +24,19 @@
   <div class="stat"><div class="stat-label"><i class="ti ti-alert-triangle"></i> Last Risk</div><div class="stat-value {{ 'text-err' if risk in ['high','critical'] else ('text-warn' if risk == 'medium' else 'text-accent') }}">{{ risk }}</div><div class="stat-sub">score {{ decision.get('risk_score', 0) }}</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-click"></i> Pending Confirms</div><div class="stat-value {{ 'text-warn' if confirmations else 'text-accent' }}">{{ confirmations|length }}</div><div class="stat-sub">cleanup decisions</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-clock"></i> Cleanup Queue</div><div class="stat-value {{ 'text-warn' if queue else 'text-accent' }}">{{ queue|length }}</div><div class="stat-sub">next-run candidates</div></div>
+</section>
+
+<section class="card" style="margin-top:10px">
+  <div class="card-title"><i class="ti ti-book-2"></i> Policy Setup Guidelines</div>
+  <p class="text-sm" style="color:var(--muted);line-height:1.55;margin-bottom:10px">Each policy setting below is now written as an operator guide: <b>What it controls</b>, <b>recommended setup</b>, and <b>risk note</b>. Manual edits save as <code>policies.mode=custom</code>. Use Dry Run after changing policies before enabling scheduler or auto-apply.</p>
+  <div class="action-help-grid">
+    <div class="action-help"><b>preserve_rows</b>Keep existing rows. Safest when source data may be temporarily unavailable.</div>
+    <div class="action-help"><b>warn_only</b>Show warning but do not delete. Useful while tuning policies.</div>
+    <div class="action-help"><b>cleanup_immediate</b>Delete stale rows in the same sync cycle. Fastest but can increase apply frequency.</div>
+    <div class="action-help"><b>cleanup_next_run</b>Mark stale now and delete on next successful run. Balanced/safe default.</div>
+    <div class="action-help"><b>require_confirm_next_run</b>Ask operator confirmation, then apply cleanup on next run. Safest for risky changes.</div>
+    <div class="action-help"><b>block_cleanup / block_apply</b>Stop deletion or LibreQoS apply when policy detects unsafe conditions.</div>
+  </div>
 </section>
 
 <section class="two-grid" style="margin-top:10px">
@@ -89,7 +102,11 @@
           <div class="policy-setting">
             <div>
               <div class="policy-label">{{ f.label }}</div>
-              <div class="policy-desc">{{ f.description }}</div>
+              <div class="policy-guidance">
+                <div class="policy-guide-line"><b>What:</b> {{ f.description }}</div>
+                <div class="policy-guide-line"><b>Setup guide:</b> {{ f.setup_guidance or 'Use the recommended value unless your network behavior requires a different policy.' }}</div>
+                <div class="policy-guide-line"><b>Risk note:</b> {{ f.risk_note or 'Manual changes can affect cleanup, validation, warnings, or LibreQoS apply behavior.' }}</div>
+              </div>
               <div class="policy-desc">Path: <code>{{ f.path }}</code> · Recommended: <code>{{ f.recommended }}</code> · Risk: <span class="policy-risk {{ 'text-err' if f.risk in ['critical','high'] else ('text-warn' if f.risk == 'medium' else 'text-accent') }}">{{ f.risk }}</span></div>
             </div>
             <div class="policy-input">

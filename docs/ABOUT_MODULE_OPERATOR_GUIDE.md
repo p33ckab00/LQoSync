@@ -588,3 +588,10 @@ The wizard is read-only while loading. It does not contact routers or write gene
 ## v2.54.1 Smart Reports route hotfix
 
 This hotfix restores the missing Flask route wiring for Smart Reports in `app.py`. The v2.54 package already included `engine/reports.py`, `templates/reports.html`, and the navigation link, but `/reports` returned `404 Not Found` because the route handler was not registered. v2.54.1 adds `/reports`, `/api/reports/operator`, and `/reports/export/<fmt>` so Smart Reports works cumulatively with the First Run Setup Wizard release.
+
+
+## v2.54.2 Policy Center Setup Guidelines
+
+Policy Center now includes atomic setup guidance for every visible setting. Each field explains what it controls, recommended setup, risk note, config path, recommended value, and risk level. The detailed guide is available at `docs/content/policy_center_settings_guidelines.md`.
+
+This update also normalizes stale lifecycle PPPoE policy naming to the canonical `pppoe` key while accepting the older `ppoe` alias from previous schema builds, preventing false missing-policy warnings after upgrades or fresh installs.
