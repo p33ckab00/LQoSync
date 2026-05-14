@@ -730,6 +730,18 @@ python3 -m json.tool network.json</div>
       </div>
     </section>
 
+
+    <section id="better-fresh-install-experience" class="card about-section">
+      <h2><i class="ti ti-route-square text-accent"></i> v2.60 Better Fresh Install Experience</h2>
+      <p>LQoSync v2.60 improves fresh-install onboarding by guiding administrators to the First Run Setup Wizard until production readiness has been reviewed.</p>
+      <div class="note-grid">
+        <div class="note"><b>First-run gate:</b> checks router/source readiness, completed Dry Run, and Setup & Repair failures before scheduler go-live.</div>
+        <div class="note"><b>Dashboard banner:</b> setup-incomplete installs show a clear action banner that links to Setup Wizard and Setup & Repair.</div>
+        <div class="note"><b>Scheduler protection:</b> scheduler enable is blocked until setup requirements pass, unless explicitly allowed by config policy.</div>
+        <div class="note"><b>Upgrade friendly:</b> existing live installs with scheduler enabled or previous run history are considered acknowledged so upgrades do not trap operators in onboarding.</div>
+      </div>
+    </section>
+
 {% endblock %}
 
 <section class="card" style="margin-top:12px">

@@ -1,5 +1,20 @@
 # LQoSync Release Notes
 
+## v2.60.0 - Better Fresh Install Experience
+
+### Added
+
+- Added `setup_wizard` configuration defaults for first-run onboarding, Dashboard setup banners, scheduler go-live gates, and optional redirect to the First Run Setup Wizard.
+- Added a fresh-install production gate that checks router/source readiness, successful Dry Run, and Setup & Repair failed checks before allowing scheduler enable.
+- Added Dashboard First Run Setup banner when onboarding is not complete.
+- Added Setup Wizard readiness banner, blocker list, Mark Setup Complete action, and Reset Wizard action.
+- Added scheduler-enable protection in both WebUI form routes and API routes so new installs cannot enable scheduler until setup requirements are satisfied.
+- Preserved upgrade friendliness by treating existing live installs with scheduler enabled or previous run history as already acknowledged.
+
+### Notes
+
+This release improves onboarding and go-live safety. It does not change MikroTik collection, generated file formats, policy evaluation, Telegram notifications, or LibreQoS apply behavior.
+
 ## v2.59.0 - Documentation Search and UI Mobile Polish
 
 ### Added

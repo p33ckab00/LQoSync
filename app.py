@@ -23,7 +23,7 @@ from collectors.mikrotik_client import test_router_connection, connect_to_router
 from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
-from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS
+from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS, is_setup_wizard_complete
 from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, POLICY_SCHEMA, get_by_path
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
@@ -174,6 +174,79 @@ def get_status():
     except Exception:
         pass
     return cfg, state
+
+
+def _compute_setup_wizard_status(cfg=None, state=None):
+    """Compute Setup Wizard status for dashboard banners and production gates."""
+    try:
+        if cfg is None or state is None:
+            cfg, state = get_status()
+        errors, warnings = validate_config(cfg)
+        services = all_service_status(cfg)
+        setup_report = compute_setup_repair_report(
+            cfg,
+            state,
+            git_status=_git_status(fetch_remote=False),
+            services=services,
+            config_errors=errors,
+            config_warnings=warnings,
+        )
+        return compute_setup_wizard(cfg, state, setup_report)
+    except Exception as exc:
+        return {
+            "readiness": "unknown",
+            "production_ready": False,
+            "setup_complete": False,
+            "first_run_completed": False,
+            "dashboard_banner": True,
+            "go_live_blockers": [f"setup wizard status failed: {exc}"],
+            "next_action": "Open Setup & Repair and run Environment Doctor.",
+            "progress": 0,
+        }
+
+
+def _setup_wizard_allows_scheduler_enable(cfg, state=None):
+    wizard_cfg = cfg.get("setup_wizard") or {}
+    if not wizard_cfg.get("enabled", True):
+        return True, [], {}
+    wizard = _compute_setup_wizard_status(cfg, state)
+    if wizard.get("production_ready") or wizard_cfg.get("allow_force_scheduler_enable", False):
+        return True, wizard.get("go_live_blockers", []), wizard
+    return False, wizard.get("go_live_blockers", []), wizard
+
+
+@app.before_request
+def _setup_wizard_first_run_redirect():
+    """On fresh installs, guide admins to the Setup Wizard until acknowledged.
+
+    This does not block Config Center, Policy Center, Setup & Repair, docs, API
+    health checks, or static assets because those pages are needed to complete
+    setup. It only keeps the operator landing flow from silently entering the
+    normal dashboard before first-run readiness has been reviewed.
+    """
+    user = current_user()
+    if not user or user.get("role") != "admin":
+        return None
+    if request.method != "GET":
+        return None
+    allowed_prefixes = (
+        "/setup-wizard", "/setup-repair", "/config", "/policy", "/network",
+        "/docs", "/about", "/updates", "/services", "/logout", "/static", "/api", "/healthz"
+    )
+    if request.path.startswith(allowed_prefixes):
+        return None
+    try:
+        cfg, state = get_status()
+        wc = cfg.get("setup_wizard") or {}
+        if not wc.get("enabled", True) or not wc.get("redirect_after_login_until_complete", True):
+            return None
+        wizard = _compute_setup_wizard_status(cfg, state)
+        if wizard.get("enforce_redirect") and not wizard.get("setup_complete"):
+            return redirect(url_for("setup_wizard_center"))
+    except Exception:
+        return None
+    return None
+
 
 def _manual_sync_blocked(cfg):
     """Disable manual Run Sync Now when scheduler auto-apply is active.
@@ -353,6 +426,7 @@ def dashboard():
     policy_state = load_policy_state(cfg)
     apply_runs = list_apply_runs(cfg, limit=25)
     health_report = compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs)
+    setup_wizard_status = _compute_setup_wizard_status(cfg, state)
     return render_template(
         "dashboard.html",
         cfg=cfg,
@@ -362,6 +436,7 @@ def dashboard():
         config_errors=errors,
         config_warnings=warnings,
         health_report=health_report,
+        setup_wizard=setup_wizard_status,
         user=current_user(),
     )
 
@@ -396,8 +471,13 @@ def scheduler_action(action):
     cfg = load_config(CONFIG_PATH)
     sched = cfg.setdefault("scheduler", {})
     if action in ("enable", "resume"):
+        allowed, blockers, wizard = _setup_wizard_allows_scheduler_enable(cfg)
+        if not allowed:
+            flash("Scheduler enable blocked by First Run Setup Wizard: " + "; ".join(blockers or ["setup is not production-ready"]))
+            return redirect(url_for("setup_wizard_center"))
         sched["enabled"] = True
-        message = "Scheduler enabled/resumed."
+        cfg.setdefault("setup_wizard", {})["first_run_completed"] = True
+        message = "Scheduler enabled/resumed. First Run Setup marked complete."
     elif action in ("disable", "pause"):
         sched["enabled"] = False
         message = "Scheduler disabled/paused."
@@ -1127,6 +1207,32 @@ def setup_wizard_network_mode():
 
 
 
+@app.route("/setup-wizard/complete", methods=["POST"])
+@admin_required
+def setup_wizard_mark_complete():
+    cfg, state = get_status()
+    wizard = _compute_setup_wizard_status(cfg, state)
+    if not wizard.get("production_ready") and not cfg.get("setup_wizard", {}).get("allow_force_scheduler_enable", False):
+        flash("Setup Wizard cannot be marked complete yet: " + "; ".join(wizard.get("go_live_blockers") or ["setup is not production-ready"]))
+        return redirect(url_for("setup_wizard_center"))
+    cfg.setdefault("setup_wizard", {})["first_run_completed"] = True
+    save_config(cfg, CONFIG_PATH)
+    write_audit(cfg, "setup_wizard_completed", actor=current_user().get("username"), details={"readiness": wizard.get("readiness"), "progress": wizard.get("progress")})
+    flash("First Run Setup marked complete. Dashboard is now the default landing page.")
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/setup-wizard/reset", methods=["POST"])
+@admin_required
+def setup_wizard_reset():
+    cfg = load_config(CONFIG_PATH)
+    cfg.setdefault("setup_wizard", {})["first_run_completed"] = False
+    save_config(cfg, CONFIG_PATH)
+    write_audit(cfg, "setup_wizard_reset", actor=current_user().get("username"))
+    flash("First Run Setup was reset. The wizard will guide administrators again until completed.")
+    return redirect(url_for("setup_wizard_center"))
+
+
 @app.route("/notifications", methods=["GET", "POST"])
 @admin_required
 def notifications_center():
@@ -1582,9 +1688,13 @@ def api_scheduler_action(action):
     cfg = load_config(CONFIG_PATH)
     sched = cfg.setdefault("scheduler", {})
     if action in ("enable", "resume"):
+        allowed, blockers, wizard = _setup_wizard_allows_scheduler_enable(cfg)
+        if not allowed:
+            return jsonify({"ok": False, "blocked": True, "error": "setup_not_ready", "blockers": blockers, "wizard": wizard}), 409
         sched["enabled"] = True
+        cfg.setdefault("setup_wizard", {})["first_run_completed"] = True
         save_config(cfg, CONFIG_PATH)
-        return jsonify({"ok": True, "scheduler_enabled": True})
+        return jsonify({"ok": True, "scheduler_enabled": True, "setup_complete": True})
     if action in ("disable", "pause"):
         sched["enabled"] = False
         save_config(cfg, CONFIG_PATH)

@@ -110,5 +110,11 @@
     "file": "docs/content/documentation_search_ui_polish.md",
     "anchor": "v259-documentation-search--uimobile-polish",
     "summary": "v2.59 local documentation search, docs view pages, read-only docs API, and reusable UI/mobile consistency helpers."
+  },
+  "setup_wizard.better_fresh_install": {
+    "title": "Better Fresh Install Experience",
+    "file": "docs/content/better_fresh_install_experience.md",
+    "anchor": "better-fresh-install-experience",
+    "summary": "v2.60 first-run gate, scheduler readiness protection, setup wizard redirect, and fresh install workflow."
   }
 }

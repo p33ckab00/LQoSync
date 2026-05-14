@@ -1,5 +1,5 @@
 {
-  "config_schema_version": 5,
+  "config_schema_version": 6,
   "network_mode": "router_children",
   "flat_network": false,
   "no_parent": false,
@@ -112,22 +112,22 @@
       "enabled": false,
       "bot_token": "",
       "chat_id": "",
+      "base_url": "",
+      "parse_mode": "HTML",
+      "timeout_seconds": 10,
       "notify_levels": [
         "critical",
         "warning"
       ],
-      "notify_on_apply_failed": true,
-      "notify_on_policy_block": true,
-      "notify_on_confirmation_required": true,
-      "notify_on_update_available": true,
-      "base_url": "",
-      "parse_mode": "HTML",
-      "timeout_seconds": 10,
       "minimum_interval_seconds": 60,
       "dedupe_window_minutes": 60,
       "max_items_per_digest": 10,
       "send_digest": true,
       "send_individual": false,
+      "notify_on_apply_failed": true,
+      "notify_on_policy_block": true,
+      "notify_on_confirmation_required": true,
+      "notify_on_update_available": true,
       "notify_on_source_health_warning": true,
       "notify_on_performance_slow": true
     }
@@ -140,8 +140,19 @@
     "allow_policy_preset_apply": true,
     "doctor_command": "sudo CONFIG_PATH=/opt/libreqos/src/config.json python3 /opt/lqosync/scripts/doctor.py"
   },
+  "setup_wizard": {
+    "enabled": true,
+    "first_run_completed": false,
+    "redirect_after_login_until_complete": true,
+    "show_dashboard_banner_until_complete": true,
+    "scheduler_enable_requires_dry_run": true,
+    "scheduler_enable_requires_no_failed_checks": true,
+    "scheduler_enable_requires_router_and_source": true,
+    "allow_force_scheduler_enable": false,
+    "recommended_start_page": "/setup-wizard"
+  },
   "config_validation": {
-    "schema_version": 5,
+    "schema_version": 6,
     "validate_before_save": true,
     "simulate_before_save": true,
     "show_config_health": true,

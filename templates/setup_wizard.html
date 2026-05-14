@@ -10,7 +10,11 @@
   .progress-track{height:12px;border-radius:999px;background:rgba(148,163,184,.18);overflow:hidden;border:1px solid var(--br0)}
   .progress-fill{height:100%;background:linear-gradient(90deg,var(--c-accent),var(--c-accent2));border-radius:999px}
   .wizard-action-card{border:1px solid var(--br0);border-radius:14px;padding:12px;background:rgba(15,23,42,.14)}
-  :root[data-theme=light] .wizard-action-card{background:#fff}
+  .readiness-banner{border:1px solid var(--br0);border-radius:16px;padding:14px;margin-bottom:12px;background:rgba(15,23,42,.18)}
+  .readiness-banner.ready{border-color:rgba(16,185,129,.42);background:rgba(16,185,129,.08)}
+  .readiness-banner.blocked{border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.08)}
+  .blocker-list{display:grid;gap:7px;margin-top:10px}.blocker-item{border:1px solid var(--br0);border-radius:10px;padding:8px 10px;color:var(--muted);font-size:12px}
+  :root[data-theme=light] .wizard-action-card,:root[data-theme=light] .readiness-banner{background:#fff}
   .preset-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mode-row{display:grid;gap:8px}
   @media(max-width:1100px){.wizard-grid,.preset-row{grid-template-columns:1fr}}
 </style>
@@ -26,6 +30,25 @@
     <form method="post" action="/sync/dry-run">{{ csrf_field()|safe }}<button class="btn btn-primary"><i class="ti ti-eye"></i> Run Dry Run</button></form>
   </div>
 </div>
+
+<section class="readiness-banner {{ 'ready' if wizard.production_ready else ('blocked' if wizard.go_live_blockers else '') }}">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <div class="card-title" style="margin-bottom:6px"><i class="ti {{ 'ti-circle-check text-accent' if wizard.production_ready else 'ti-alert-triangle text-warn' }}"></i> Fresh install production gate</div>
+      <div class="text-sm" style="color:var(--muted);line-height:1.55">
+        {% if wizard.first_run_completed %}<b class="text-accent">First Run Setup is marked complete.</b> Dashboard is now the normal landing page.
+        {% elif wizard.production_ready %}<b class="text-accent">Setup is ready for go-live.</b> You may mark setup complete or enable scheduler deliberately.
+        {% else %}<b class="text-warn">Setup is not production-ready yet.</b> Complete the blockers below before enabling scheduler.
+        {% endif %}
+      </div>
+    </div>
+    <div class="btn-row">
+      {% if wizard.production_ready and not wizard.first_run_completed %}<form method="post" action="/setup-wizard/complete">{{ csrf_field()|safe }}<button class="btn btn-primary"><i class="ti ti-check"></i> Mark setup complete</button></form>{% endif %}
+      {% if wizard.first_run_completed %}<form method="post" action="/setup-wizard/reset">{{ csrf_field()|safe }}<button class="btn"><i class="ti ti-rotate"></i> Reset wizard</button></form>{% endif %}
+    </div>
+  </div>
+  {% if wizard.go_live_blockers %}<div class="blocker-list">{% for b in wizard.go_live_blockers %}<div class="blocker-item"><i class="ti ti-alert-circle text-warn"></i> {{ b }}</div>{% endfor %}</div>{% endif %}
+</section>
 
 <section class="card" style="margin-bottom:12px;border-color:rgba(14,165,233,.35);background:rgba(14,165,233,.07)">
   <div class="card-title"><i class="ti ti-route"></i> Wizard status: {{ wizard.readiness.replace('_',' ') }}</div>
@@ -103,9 +126,14 @@
         Use this order: configure routers → select sources → choose layout → choose policy preset → run Dry Run → review reports/lifecycle → enable scheduler.
       </div>
       <div class="btn-row" style="margin-top:10px">
-        <form method="post" action="/scheduler/enable">{{ csrf_field()|safe }}<button class="btn"><i class="ti ti-player-play"></i> Enable scheduler</button></form>
+        {% if wizard.production_ready %}
+        <form method="post" action="/scheduler/enable">{{ csrf_field()|safe }}<button class="btn btn-primary" onclick="return confirm('Enable production scheduler now? Confirm Dry Run results are expected.')"><i class="ti ti-player-play"></i> Enable scheduler</button></form>
+        {% else %}
+        <button class="btn" disabled title="Resolve setup blockers before enabling scheduler"><i class="ti ti-lock"></i> Scheduler locked by setup gate</button>
+        {% endif %}
         <form method="post" action="/scheduler/disable">{{ csrf_field()|safe }}<button class="btn"><i class="ti ti-player-pause"></i> Disable scheduler</button></form>
       </div>
+      {% if not wizard.production_ready %}<div class="note" style="margin-top:10px"><b>Why locked?</b> The wizard requires router/source readiness, a successful Dry Run, and no failed Setup & Repair checks before scheduler can be enabled.</div>{% endif %}
     </div>
   </div>
 </section>

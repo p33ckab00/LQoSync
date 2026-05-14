@@ -102,3 +102,10 @@ The wizard is read-only while loading. It does not contact routers or write gene
 LQoSync v2.59 adds a local Documentation Search Center at `/docs/search`. It indexes bundled Markdown documentation and docs manifest entries so operators can quickly find policy, setup, troubleshooting, update, Telegram, MikroTik, and LibreQoS guidance. Search is local/read-only and does not send queries outside the WebUI.
 
 This release also adds reusable UI/mobile consistency helpers for cleaner responsive grids, action strips, empty states, section cards, and mobile sticky action areas.
+
+
+## v2.60 Better Fresh Install Experience
+
+LQoSync v2.60 improves first-run onboarding. New installs are guided to the First Run Setup Wizard, the Dashboard shows a setup-incomplete banner, and scheduler enable is protected until router/source setup, Dry Run, and Setup & Repair checks are ready. Existing live installs with prior run history or scheduler already enabled are not forced into the wizard after upgrade.
+
+The new `setup_wizard` config block controls redirect behavior, Dashboard banners, and scheduler-enable requirements. Operators can mark setup complete when readiness is satisfied or reset the wizard to repeat onboarding.

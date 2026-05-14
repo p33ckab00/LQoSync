@@ -45,6 +45,16 @@ def _router_complete(router: dict) -> bool:
     return bool(router.get("name") and router.get("address") and router.get("port") and router.get("username") and router.get("password"))
 
 
+def is_setup_wizard_complete(wizard: dict) -> bool:
+    """Return True when the wizard is safe to consider complete.
+
+    Completion is intentionally stricter than merely having all form fields
+    present: a Dry Run must have been performed and failed checks must be
+    absent so fresh installs do not enable scheduler blindly.
+    """
+    return bool(wizard.get("production_ready") or wizard.get("setup_complete"))
+
+
 def compute_setup_wizard(cfg: dict, state: dict | None = None, setup_report: dict | None = None) -> dict[str, Any]:
     state = state or {}
     setup_report = setup_report or {}
@@ -54,6 +64,7 @@ def compute_setup_wizard(cfg: dict, state: dict | None = None, setup_report: dic
     scheduler = cfg.get("scheduler") or {}
     app_cfg = cfg.get("app") or {}
     policies = cfg.get("policies") or {}
+    wizard_cfg = cfg.get("setup_wizard") or {}
 
     checks_failed = int(setup_report.get("fails") or 0)
     checks_warn = int(setup_report.get("warnings") or 0)
@@ -131,10 +142,11 @@ def compute_setup_wizard(cfg: dict, state: dict | None = None, setup_report: dic
     )
 
     dry_status = dry_run.get("status") if isinstance(dry_run, dict) else None
+    dry_run_ok = bool(dry_status) and str(dry_status).lower() not in {"failed", "error", "blocked_by_policy"}
     add(
         "dry_run",
         "Run first Dry Run simulation",
-        DONE if dry_status else TODO,
+        DONE if dry_run_ok else TODO,
         f"Last dry-run status: {dry_status or 'not run yet'}",
         "Dry Run previews generated files, policy verdict, Smart Insights, lifecycle effects, cleanup decisions, and LibreQoS apply behavior without writing generated files or applying LibreQoS.",
         "Run Dry Run",
@@ -143,15 +155,32 @@ def compute_setup_wizard(cfg: dict, state: dict | None = None, setup_report: dic
 
     scheduler_enabled = bool(scheduler.get("enabled", False))
     auto_apply = bool(app_cfg.get("auto_apply", True))
-    prod_ready = router_complete and sources_enabled and bool(dry_status) and checks_failed == 0
+    require_dry_run = bool(wizard_cfg.get("scheduler_enable_requires_dry_run", True))
+    require_clean_checks = bool(wizard_cfg.get("scheduler_enable_requires_no_failed_checks", True))
+    require_router_source = bool(wizard_cfg.get("scheduler_enable_requires_router_and_source", True))
+    blockers = []
+    if require_router_source and not router_complete:
+        blockers.append("router credentials are incomplete")
+    if require_router_source and not sources_enabled:
+        blockers.append("no PPPoE/DHCP/Hotspot source is enabled")
+    if require_dry_run and not dry_run_ok:
+        blockers.append("first Dry Run has not completed successfully")
+    if require_clean_checks and checks_failed:
+        blockers.append(f"{checks_failed} Setup & Repair check(s) are failing")
+    prod_ready = not blockers
+    # Existing live installs should not be treated like brand-new installs after
+    # an upgrade. If the scheduler has already been enabled or a successful run
+    # exists, consider first-run onboarding acknowledged unless the operator
+    # explicitly resets the wizard.
+    first_run_completed = bool(wizard_cfg.get("first_run_completed", False)) or scheduler_enabled or bool(last_run)
     add(
         "go_live",
         "Enable production scheduler deliberately",
         DONE if scheduler_enabled else (TODO if prod_ready else BLOCKED),
         f"scheduler={scheduler_enabled} · auto_apply={auto_apply}",
         "Enable scheduler only after router access, sources, layout, policy preset, and Dry Run results are clean and expected. Auto-apply remains governed by risk-aware policies.",
-        "Open Dashboard" if scheduler_enabled else "Enable from Dashboard/Config",
-        "/",
+        "Open Dashboard" if scheduler_enabled else ("Enable from wizard" if prod_ready else "Resolve blockers"),
+        "/" if scheduler_enabled else "/setup-wizard",
     )
 
     done = sum(1 for s in steps if s["status"] == DONE)
@@ -186,8 +215,16 @@ def compute_setup_wizard(cfg: dict, state: dict | None = None, setup_report: dic
         "scheduler_enabled": scheduler_enabled,
         "auto_apply": auto_apply,
         "has_dry_run": bool(dry_status),
+        "dry_run_ok": dry_run_ok,
         "last_dry_run_status": dry_status,
         "last_run_status": last_run.get("status") if isinstance(last_run, dict) else None,
+        "production_ready": prod_ready,
+        "setup_complete": first_run_completed and prod_ready,
+        "first_run_completed": first_run_completed,
+        "go_live_blockers": blockers,
+        "wizard_config": wizard_cfg,
+        "enforce_redirect": bool(wizard_cfg.get("enabled", True)) and bool(wizard_cfg.get("redirect_after_login_until_complete", True)) and not first_run_completed,
+        "dashboard_banner": bool(wizard_cfg.get("enabled", True)) and bool(wizard_cfg.get("show_dashboard_banner_until_complete", True)) and not first_run_completed,
     }
 
 

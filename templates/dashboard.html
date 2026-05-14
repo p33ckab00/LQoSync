@@ -52,6 +52,17 @@
     </div>
   </div>
 
+  {% if setup_wizard and setup_wizard.dashboard_banner %}
+  <div class="card" style="border-color:rgba(245,158,11,.45);background:rgba(245,158,11,.08);margin-bottom:12px">
+    <div class="card-title"><i class="ti ti-route text-warn"></i> First Run Setup not complete</div>
+    <div class="text-sm" style="color:var(--muted);line-height:1.55">
+      Setup progress is <b>{{ setup_wizard.progress }}%</b>. Scheduler go-live is {% if setup_wizard.production_ready %}<b class="text-accent">ready</b>{% else %}<b class="text-warn">blocked</b>{% endif %}.
+      {% if setup_wizard.go_live_blockers %}<br>Blockers: {{ setup_wizard.go_live_blockers[:3]|join('; ') }}{% endif %}
+    </div>
+    <div class="btn-row" style="margin-top:10px"><a class="btn btn-primary" href="/setup-wizard"><i class="ti ti-arrow-right"></i> Continue Setup Wizard</a><a class="btn" href="/setup-repair"><i class="ti ti-tool"></i> Setup & Repair</a></div>
+  </div>
+  {% endif %}
+
   {% if config_errors %}<div class="card" style="border-color:rgba(239,68,68,.5);margin-bottom:12px"><div class="card-title text-err"><i class="ti ti-alert-circle"></i> Config Errors</div><ul class="mono text-err text-sm" style="padding-left:18px">{% for e in config_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
   {% if config_warnings %}<div class="card" style="border-color:rgba(245,158,11,.5);margin-bottom:12px"><div class="card-title text-warn"><i class="ti ti-alert-triangle"></i> Config Warnings</div><ul class="mono text-warn text-sm" style="padding-left:18px">{% for w in config_warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
 

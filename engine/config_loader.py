@@ -145,6 +145,17 @@ DEFAULT_CONFIG = {
         "allow_policy_preset_apply": True,
         "doctor_command": "sudo CONFIG_PATH=/opt/libreqos/src/config.json python3 /opt/lqosync/scripts/doctor.py",
     },
+    "setup_wizard": {
+        "enabled": True,
+        "first_run_completed": False,
+        "redirect_after_login_until_complete": True,
+        "show_dashboard_banner_until_complete": True,
+        "scheduler_enable_requires_dry_run": True,
+        "scheduler_enable_requires_no_failed_checks": True,
+        "scheduler_enable_requires_router_and_source": True,
+        "allow_force_scheduler_enable": False,
+        "recommended_start_page": "/setup-wizard",
+    },
     "config_validation": {
         "schema_version": CONFIG_SCHEMA_VERSION,
         "validate_before_save": True,
