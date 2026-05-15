@@ -173,6 +173,13 @@
       "path": "docs/content/backup_restore_center_polish.md",
       "category": "Operations",
       "summary": "Backup preview, integrity check, live diff, zip download, and retention preview for Operations Center."
+    },
+    {
+      "id": "production_readiness_score",
+      "title": "Production Readiness Score",
+      "path": "docs/content/production_readiness_score.md",
+      "category": "Operations",
+      "summary": "v2.68 Dashboard production readiness score, go-live checks, blockers, recommendations, and read-only readiness API."
     }
   ],
   "docs": [
@@ -189,6 +196,13 @@
       "path": "docs/content/backup_restore_center_polish.md",
       "category": "Operations",
       "summary": "Backup preview, integrity check, live diff, zip download, and retention preview for Operations Center."
+    },
+    {
+      "id": "production_readiness_score",
+      "title": "Production Readiness Score",
+      "path": "docs/content/production_readiness_score.md",
+      "category": "Operations",
+      "summary": "v2.68 Dashboard production readiness score, go-live checks, blockers, recommendations, and read-only readiness API."
     }
   ],
   "backup_restore_center_polish": {
@@ -202,5 +216,11 @@
     "file": "docs/content/access_control_role_hardening.md",
     "anchor": "access-control--role-hardening",
     "summary": "v2.67 owner/admin/operator/viewer role hierarchy, owner-only controls, and upgrade-safe role migration."
+  },
+  "production_readiness_score": {
+    "title": "Production Readiness Score",
+    "file": "docs/content/production_readiness_score.md",
+    "anchor": "production-readiness-score",
+    "summary": "v2.68 Dashboard production readiness score, go-live checks, blockers, recommendations, and read-only readiness API."
   }
 }

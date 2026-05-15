@@ -1,5 +1,5 @@
 {
-  "config_schema_version": 7,
+  "config_schema_version": 8,
   "network_mode": "router_children",
   "flat_network": false,
   "no_parent": false,
@@ -484,5 +484,26 @@
     ],
     "admin_required_summary": "Config, policy, scheduler, backup restore/delete, service restart, force apply, and setup actions require admin or owner.",
     "operator_summary": "Operators can view operational pages and run dry-run style previews, but cannot change production configuration or perform destructive actions."
+  },
+  "production_readiness": {
+    "enabled": true,
+    "show_on_dashboard": true,
+    "api_enabled": true,
+    "excellent_score": 95,
+    "warning_score": 85,
+    "review_score": 70,
+    "block_scheduler_when_not_ready": false,
+    "checks": {
+      "config_validity": true,
+      "setup_wizard": true,
+      "dry_run": true,
+      "router_sources": true,
+      "backup_before_apply": true,
+      "libreqos_paths": true,
+      "policy_conflicts": true,
+      "dashboard_health": true,
+      "apply_health": true,
+      "service_health": true
+    }
   }
 }

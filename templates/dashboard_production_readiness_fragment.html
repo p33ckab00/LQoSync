@@ -1,0 +1,50 @@
+{% set pr = production_readiness or {} %}
+{% set level = pr.get('level','unknown') %}
+<section id="production-readiness" class="card" style="margin-bottom:12px;border-color:{% if level == 'blocked' or level == 'not_ready' %}rgba(239,68,68,.45){% elif level in ['needs_review','ready_with_warnings'] %}rgba(245,158,11,.45){% else %}rgba(34,197,94,.35){% endif %}">
+  <style>
+    .pr-grid{display:grid;grid-template-columns:220px minmax(0,1fr) 260px;gap:12px;align-items:stretch}.pr-score{display:flex;align-items:center;justify-content:center;text-align:center;border:1px solid var(--br0);border-radius:14px;background:rgba(2,6,23,.16);padding:14px}.pr-score-num{font-size:42px;font-weight:800;letter-spacing:-.05em}.pr-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.pr-check{border:1px solid var(--br0);border-radius:10px;padding:8px 9px;background:rgba(2,6,23,.12);font-size:11px;color:var(--muted)}.pr-check b{color:var(--txt)}.pr-check.ok{border-color:rgba(34,197,94,.28)}.pr-check.warn{border-color:rgba(245,158,11,.35)}.pr-check.fail{border-color:rgba(239,68,68,.35)}.pr-list{display:grid;gap:7px}.pr-list-item{border:1px solid var(--br0);border-radius:10px;padding:8px 9px;font-size:11px;color:var(--muted);line-height:1.35}.pr-list-item b{color:var(--txt)}:root[data-theme=light] .pr-score,:root[data-theme=light] .pr-check,:root[data-theme=light] .pr-list-item{background:#fff}@media(max-width:1100px){.pr-grid{grid-template-columns:1fr}.pr-checks{grid-template-columns:1fr}}
+  </style>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+    <div>
+      <div class="card-title"><i class="ti ti-rocket"></i> Production Readiness</div>
+      <div class="text-sm" style="color:var(--muted)">One score for go-live confidence across config, setup, dry run, policies, backups, source health, services, and LibreQoS apply health.</div>
+    </div>
+    <div class="btn-row">
+      <a class="btn" href="/api/production/readiness" target="_blank"><i class="ti ti-code"></i> JSON</a>
+      <a class="btn" href="/setup-wizard"><i class="ti ti-route"></i> Setup</a>
+      <a class="btn" href="/sync/dry-run"><i class="ti ti-eye"></i> Dry Run</a>
+    </div>
+  </div>
+  <div class="pr-grid">
+    <div class="pr-score">
+      <div>
+        <div class="pr-score-num {{ 'text-accent' if pr.get('score',0) >= 95 else ('text-warn' if pr.get('score',0) >= 70 else 'text-err') }}">{{ pr.get('score',0) }}%</div>
+        <div class="badge {{ 'b-ok' if level == 'production_ready' else ('b-warn' if level in ['ready_with_warnings','needs_review'] else 'b-err') }}">{{ pr.get('label', level.replace('_',' ')|title) }}</div>
+        <div class="mono text-xs" style="color:var(--muted);margin-top:8px">OK={{ pr.get('summary',{}).get('ok',0) }} · WARN={{ pr.get('summary',{}).get('warn',0) }} · FAIL={{ pr.get('summary',{}).get('fail',0) }}</div>
+      </div>
+    </div>
+    <div>
+      <div class="pr-checks">
+        {% for c in pr.get('checks', [])[:8] %}
+        <a class="pr-check {{ c.status }}" href="{{ c.target or '#' }}" style="text-decoration:none">
+          <div style="display:flex;justify-content:space-between;gap:8px"><b>{{ c.label }}</b><span class="badge {{ 'b-ok' if c.status == 'ok' else ('b-warn' if c.status == 'warn' else 'b-err') }}">{{ c.status }}</span></div>
+          <div style="margin-top:4px">{{ c.detail }}</div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <div class="pr-list">
+        <div class="pr-list-item"><b>Next action</b><br>{{ pr.get('next_action','Review Dashboard and run Dry Run.') }}</div>
+        {% if pr.get('blockers') %}
+        <div class="pr-list-item text-err"><b>Blockers</b><br>{{ pr.get('blockers')[:3]|join('; ') }}</div>
+        {% elif pr.get('warnings') %}
+        <div class="pr-list-item text-warn"><b>Warnings</b><br>{{ pr.get('warnings')[:3]|join('; ') }}</div>
+        {% else %}
+        <div class="pr-list-item text-accent"><b>Status</b><br>No production blockers detected.</div>
+        {% endif %}
+        {% if pr.get('recommendations') %}<div class="pr-list-item"><b>Recommendation</b><br>{{ pr.get('recommendations')[0] }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>

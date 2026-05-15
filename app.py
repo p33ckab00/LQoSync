@@ -29,6 +29,7 @@ from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS, is_s
 from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, POLICY_SCHEMA, get_by_path
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
+from engine.production_readiness import compute_production_readiness
 from engine.notifications import telegram_settings_summary, send_test_message, dispatch_telegram_notifications
 from engine.docs_search import search_docs, build_docs_index, get_doc
 from engine.config_simulator import simulate_config_change
@@ -454,6 +455,14 @@ def dashboard():
     apply_runs = list_apply_runs(cfg, limit=25)
     health_report = compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs)
     setup_wizard_status = _compute_setup_wizard_status(cfg, state)
+    production_readiness = compute_production_readiness(
+        cfg,
+        state,
+        setup_wizard=setup_wizard_status,
+        health_report=health_report,
+        config_errors=errors,
+        config_warnings=warnings,
+    )
     return render_template(
         "dashboard.html",
         cfg=cfg,
@@ -463,6 +472,7 @@ def dashboard():
         config_errors=errors,
         config_warnings=warnings,
         health_report=health_report,
+        production_readiness=production_readiness,
         setup_wizard=setup_wizard_status,
         user=current_user(),
     )
@@ -1003,6 +1013,26 @@ def api_health_trends():
     services = all_service_status(cfg)
     apply_runs = list_apply_runs(cfg, limit=25)
     return jsonify(compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs))
+
+
+@app.route("/api/production/readiness")
+@login_required
+def api_production_readiness():
+    cfg, state = get_status()
+    services = all_service_status(cfg)
+    errors, warnings = validate_config(cfg)
+    policy_state = load_policy_state(cfg)
+    apply_runs = list_apply_runs(cfg, limit=25)
+    health_report = compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs)
+    setup_wizard_status = _compute_setup_wizard_status(cfg, state)
+    return jsonify(compute_production_readiness(
+        cfg,
+        state,
+        setup_wizard=setup_wizard_status,
+        health_report=health_report,
+        config_errors=errors,
+        config_warnings=warnings,
+    ))
 
 
 @app.route("/reports")

@@ -128,3 +128,8 @@ Operations Center backups now support read-only preview, metadata/hash integrity
 ## v2.67 Access Control + Role Hardening
 
 LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner controls users, updates, and high-trust repair actions. Admin controls config, policies, scheduler, backups, operations, and live apply actions. Operator can monitor and run dry-run previews. Viewer remains read-only. Older installs with only an admin account are upgraded safely by promoting the first admin to owner if no owner exists. See `docs/content/access_control_role_hardening.md`.
+
+
+## v2.68 Production Readiness Score
+
+LQoSync v2.68 adds a read-only Dashboard Production Readiness score and `/api/production/readiness`. It summarizes config validity, Setup Wizard state, Dry Run readiness, router/source configuration, backup-before-apply safety, LibreQoS paths, policy conflicts, Dashboard source/apply health, and service health into one go-live confidence card. This feature is read-only and does not change scheduler, cleanup, generated files, Telegram, or LibreQoS apply behavior.

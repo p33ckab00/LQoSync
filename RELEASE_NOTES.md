@@ -1,5 +1,19 @@
 # LQoSync Release Notes
 
+## v2.68.0 - Production Readiness Score
+
+### Added
+
+- Adds `engine/production_readiness.py` as a read-only Production Readiness scoring helper.
+- Adds a Dashboard Production Readiness card that combines config validity, Setup Wizard go-live state, first Dry Run, router/source readiness, backup-before-apply safety, LibreQoS paths, policy conflicts, source health, apply health, and service health into one operator-facing score.
+- Adds `/api/production/readiness` for read-only JSON readiness diagnostics.
+- Adds `production_readiness` defaults to config.json.example and config schema migration.
+- Updates docs/content, docs manifest, documentation index, README, full documentation, operator guide, release notes, and version metadata.
+
+### Notes
+
+This is a read-only operator confidence release. It does not change MikroTik collection, cleanup policy decisions, generated file behavior, scheduler enforcement, backup behavior, Telegram delivery, or LibreQoS apply behavior.
+
 ## v2.67.0 - Access Control + Role Hardening
 
 ### Added
