@@ -30,6 +30,7 @@ from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset,
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
 from engine.production_readiness import compute_production_readiness
+from engine.router_overview import compute_router_overview
 from engine.notifications import telegram_settings_summary, send_test_message, dispatch_telegram_notifications
 from engine.docs_search import search_docs, build_docs_index, get_doc
 from engine.config_simulator import simulate_config_change
@@ -605,6 +606,23 @@ def api_network_layout_save():
     atomic_write_text(cfg["paths"]["network_json"], text)
     write_audit(cfg, "network_layout_saved", actor=(current_user() or {}).get("username"), details={"nodes": len(flatten_nodes(network)), "warnings": warnings})
     return jsonify({"ok": True, "warnings": warnings, "nodes": len(flatten_nodes(network))})
+
+
+@app.route("/routers")
+@login_required
+def router_overview_center():
+    cfg, state = get_status()
+    rows = read_shaped_devices_csv(cfg["paths"]["shaped_devices_csv"])
+    report = compute_router_overview(cfg, state, rows=rows)
+    return render_template("routers.html", cfg=cfg, state=state, report=report, user=current_user())
+
+
+@app.route("/api/routers/overview")
+@login_required
+def api_router_overview():
+    cfg, state = get_status()
+    rows = read_shaped_devices_csv(cfg["paths"]["shaped_devices_csv"])
+    return jsonify(compute_router_overview(cfg, state, rows=rows))
 
 
 @app.route("/devices")

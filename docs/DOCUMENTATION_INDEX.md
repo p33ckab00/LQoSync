@@ -66,3 +66,5 @@ This index is the GitHub-friendly map for the consolidated LQoSync documentation
 LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner controls users, updates, and high-trust repair actions. Admin controls config, policies, scheduler, backups, operations, and live apply actions. Operator can monitor and run dry-run previews. Viewer remains read-only. Older installs with only an admin account are upgraded safely by promoting the first admin to owner if no owner exists. See `docs/content/access_control_role_hardening.md`.
 
 - [Production Readiness Score](content/production_readiness_score.md) — v2.68 Dashboard go-live confidence score and readiness API.
+
+- [Router Overview + Multi-Router UX Polish](content/router_overview_multi_router_ux.md) — v2.69 read-only router overview and multi-router operator workflow polish.

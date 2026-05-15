@@ -147,6 +147,7 @@ def check_route_template_integrity(root: str | Path) -> dict[str, Any]:
     # Check high-value feature route/file combinations that previously regressed.
     feature_checks = [
         ("reports", "/reports", "templates/reports.html", "engine/reports.py"),
+        ("routers", "/routers", "templates/routers.html", "engine/router_overview.py"),
         ("lifecycle", "/lifecycle", "templates/lifecycle.html", "engine/lifecycle_report.py"),
         ("policy", "/policy", "templates/policy_center.html", "engine/policy_schema.py"),
         ("setup_repair", "/setup-repair", "templates/setup_repair.html", "engine/setup_repair.py"),

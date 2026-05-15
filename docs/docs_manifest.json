@@ -222,5 +222,11 @@
     "file": "docs/content/production_readiness_score.md",
     "anchor": "production-readiness-score",
     "summary": "v2.68 Dashboard production readiness score, go-live checks, blockers, recommendations, and read-only readiness API."
+  },
+  "router.overview_multi_router_ux": {
+    "title": "Router Overview + Multi-Router UX Polish",
+    "file": "docs/content/router_overview_multi_router_ux.md",
+    "anchor": "router-overview--multi-router-ux-polish",
+    "summary": "v2.69 read-only router overview, per-router source visibility, row ownership hints, and multi-router operator workflow polish."
   }
 }

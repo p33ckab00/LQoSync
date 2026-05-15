@@ -1,3 +1,16 @@
+# Release Notes
+
+## v2.69.0 — Router Overview + Multi-Router UX Polish
+
+- Added a read-only Router Overview page at `/routers` so operators can inspect configured MikroTik routers, enabled sources, generated row ownership hints, parent-node role, and last-run collector warnings in one compact view.
+- Added `/api/routers/overview` for structured read-only router overview diagnostics.
+- Added `engine/router_overview.py` and `templates/routers.html`.
+- Added Routers to the Main navigation for faster multi-router inspection.
+- Updated release integrity checks to include Router Overview route/template/engine wiring.
+- Updated documentation, docs manifest, documentation index, README, full documentation, operator guide, and version metadata to v2.69.0.
+
+This is a read-only UX polish release. It does not change MikroTik collection, cleanup policies, generated files, scheduler behavior, backups, Telegram delivery, or LibreQoS apply behavior.
+
 # LQoSync Release Notes
 
 ## v2.68.0 - Production Readiness Score
