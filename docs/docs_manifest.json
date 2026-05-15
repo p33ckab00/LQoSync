@@ -127,5 +127,11 @@
     "title": "Backup Pagination and Actions",
     "file": "docs/content/backup_pagination_actions.md",
     "anchor": "backup-pagination-and-actions"
+  },
+  "compact_information_architecture": {
+    "title": "Compact Information Architecture",
+    "file": "docs/content/compact_information_architecture.md",
+    "anchor": "compact-information-architecture-and-documentation-consolidation",
+    "summary": "v2.61 Operations Center consolidation, compact sidebar, Dashboard/Reports separation, and documentation source-of-truth cleanup."
   }
 }

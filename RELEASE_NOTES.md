@@ -1,5 +1,21 @@
 # LQoSync Release Notes
 
+## v2.61.0 - Compact Information Architecture + Documentation Consolidation
+
+### Improved
+
+- Adds a consolidated Operations Center that brings together Services, Journals, LibreQoS Apply History, App Logs, Audit Events, and Backups.
+- Keeps old `/services` and `/logs` routes as compatibility redirects into Operations Center tabs.
+- Cleans the sidebar into operator-intent groups: Main, Settings, Operations, and Help.
+- Keeps Dashboard as the single live health/status surface and leaves `/health` as a compatibility redirect.
+- Reduces Reports Center to export/report snapshot behavior instead of duplicating Dashboard health cards.
+- Reduces About into lightweight project/version/AI disclosure links while Documentation Center becomes the searchable manual source.
+- Updates GitHub-facing docs with the consolidated documentation model: README stays compact, FULL_DOCUMENTATION is the long-form manual, and docs/content + docs_manifest drive WebUI docs.
+
+### Compatibility
+
+Existing links to `/services`, `/logs`, and `/health` continue to work through redirects. API endpoints remain available for integrations.
+
 ## v2.60.2 - Backup Pagination and Actions
 
 ### Fixed / Improved

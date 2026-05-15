@@ -1595,3 +1595,8 @@ The Client Lifecycle page now uses instant searchable filters similar to the Sha
 ## v2.60.2 Backup pagination and actions
 
 Logs & Backups now has a paginated backup list with compact icon-only actions. Admin users can restore a backup using the restore icon or permanently delete a selected backup using the trash icon. Backup deletion is CSRF-protected, writes an audit event, and is restricted to direct child directories under the configured backup directory. Use restore when you need to roll back generated LibreQoS files; use delete only when the backup is no longer needed.
+
+
+## v2.61 Compact Information Architecture
+
+LQoSync v2.61 consolidates redundant WebUI and documentation surfaces. Dashboard is the live health/status page. Operations Center now contains services, journals, LibreQoS apply history, app logs, audit events, and backups. Reports Center focuses on exports and report snapshots. Documentation Center is the searchable source of truth, while About is lightweight project/version/disclosure information. Existing `/services`, `/logs`, and `/health` links remain compatible through redirects.

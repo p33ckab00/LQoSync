@@ -1467,37 +1467,27 @@ def restart_service_form(service):
 
 
 
-@app.route("/services")
+
+@app.route("/operations")
 @login_required
-def services_page():
+def operations_center():
+    """Compact Operations Center: services, journals, apply logs, app logs, audit, backups."""
     cfg, state = get_status()
     services = all_service_status(cfg)
     groups = allowed_groups(cfg)
     last = state.get("last_run") or {}
-    apply_runs = list_apply_runs(cfg, limit=10)
+    apply_runs = list_apply_runs(cfg, limit=25)
     selected_unit = request.args.get("unit") or next(iter(services.keys()), "lqos_shaped_sync")
-    lines = int(request.args.get("lines", cfg.get("services", {}).get("journal_lines_default", 100)))
-    journal = journal_lines(cfg, selected_unit, lines=lines) if selected_unit else {"stdout": "", "stderr": ""}
-    return render_template("services.html", cfg=cfg, state=state, services=services, groups=groups, last=last, apply_runs=apply_runs, selected_unit=selected_unit, journal=journal, user=current_user())
+    try:
+        lines_count = int(request.args.get("lines", cfg.get("services", {}).get("journal_lines_default", 100)))
+    except Exception:
+        lines_count = 100
+    journal = journal_lines(cfg, selected_unit, lines=lines_count) if selected_unit else {"stdout": "", "stderr": ""}
 
-
-@app.route("/services/group/<group>/restart", methods=["POST"])
-@admin_required
-def restart_service_group_form(group):
-    cfg = load_config(CONFIG_PATH)
-    res = restart_group(cfg, group)
-    write_audit(cfg, "service_group_restart", actor=current_user().get("username"), details={"group": group, "units": res.get("units"), "ok": res.get("ok"), "stderr": res.get("stderr", "")[:500]})
-    flash(f"Restart group {group}: {'OK' if res.get('ok') else 'FAILED'}")
-    return redirect(request.referrer or url_for("services_page"))
-
-@app.route("/logs")
-@login_required
-def logs_page():
-    cfg = load_config(CONFIG_PATH)
     log_file = Path(cfg["paths"].get("log_file", "logs/lqos_shaped_sync.log"))
     lines = []
     if log_file.exists():
-        lines = log_file.read_text(encoding="utf-8", errors="ignore").splitlines()[-300:]
+        lines = log_file.read_text(encoding="utf-8", errors="ignore").splitlines()[-500:]
 
     backups_all = list_backups(cfg)
     allowed_backup_limits = [5, 10, 20, 50, 100]
@@ -1527,7 +1517,51 @@ def logs_page():
     }
 
     audit_events = tail_audit(cfg, limit=500)
-    return render_template("logs.html", lines=lines, backups=backups, backup_pagination=backup_pagination, audit_events=audit_events, user=current_user())
+    active_tab = request.args.get("tab", "services")
+    if active_tab not in {"services", "journals", "apply", "logs", "audit", "backups"}:
+        active_tab = "services"
+    return render_template(
+        "operations.html",
+        cfg=cfg,
+        state=state,
+        services=services,
+        groups=groups,
+        last=last,
+        apply_runs=apply_runs,
+        selected_unit=selected_unit,
+        lines=lines_count,
+        journal=journal,
+        backups=backups,
+        backup_pagination=backup_pagination,
+        audit_events=audit_events,
+        active_tab=active_tab,
+        user=current_user(),
+    )
+
+
+@app.route("/services")
+@login_required
+def services_page():
+    args = request.args.to_dict(flat=True)
+    args.setdefault("tab", "journals" if args.get("unit") else "services")
+    return redirect(url_for("operations_center", **args))
+
+
+@app.route("/services/group/<group>/restart", methods=["POST"])
+@admin_required
+def restart_service_group_form(group):
+    cfg = load_config(CONFIG_PATH)
+    res = restart_group(cfg, group)
+    write_audit(cfg, "service_group_restart", actor=current_user().get("username"), details={"group": group, "units": res.get("units"), "ok": res.get("ok"), "stderr": res.get("stderr", "")[:500]})
+    flash(f"Restart group {group}: {'OK' if res.get('ok') else 'FAILED'}")
+    return redirect(request.referrer or url_for("operations_center", tab="services"))
+
+@app.route("/logs")
+@login_required
+def logs_page():
+    args = request.args.to_dict(flat=True)
+    args.setdefault("tab", "logs")
+    return redirect(url_for("operations_center", **args))
 
 
 @app.route("/backups/<backup_id>/restore", methods=["POST"])
@@ -1540,7 +1574,7 @@ def restore(backup_id):
         flash(f"Restored backup {backup_id}: {', '.join(restored)}")
     except Exception as e:
         flash(f"Restore failed: {e}")
-    return redirect(url_for("logs_page"))
+    return redirect(url_for("operations_center", tab="backups"))
 
 
 
@@ -1555,7 +1589,7 @@ def delete_backup_form(backup_id):
         flash(f"Deleted backup {backup_id}")
     except Exception as e:
         flash(f"Delete backup failed: {e}")
-    return redirect(url_for("logs_page"))
+    return redirect(url_for("operations_center", tab="backups"))
 
 
 @app.route("/download/csv")
