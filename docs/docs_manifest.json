@@ -151,5 +151,23 @@
     "file": "docs/DOCUMENTATION_INDEX.md",
     "anchor": "lqosync-documentation-index",
     "summary": "GitHub-friendly documentation table of contents that points to the consolidated LQoSync manual topics."
-  }
+  },
+  "entries": [
+    {
+      "id": "ui_consistency_redundancy_polish",
+      "title": "UI Consistency and Redundancy Polish",
+      "path": "docs/content/ui_consistency_redundancy_polish.md",
+      "category": "Operations",
+      "summary": "Explains the v2.64 compact operator model, UI consistency helpers, dashboard shortcuts, and Operations Center pagination polish."
+    }
+  ],
+  "docs": [
+    {
+      "id": "ui_consistency_redundancy_polish",
+      "title": "UI Consistency and Redundancy Polish",
+      "path": "docs/content/ui_consistency_redundancy_polish.md",
+      "category": "Operations",
+      "summary": "Explains the v2.64 compact operator model, UI consistency helpers, dashboard shortcuts, and Operations Center pagination polish."
+    }
+  ]
 }

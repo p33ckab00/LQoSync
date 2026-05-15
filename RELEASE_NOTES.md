@@ -1,5 +1,19 @@
 # LQoSync Release Notes
 
+## v2.64.0 - UI Consistency and Redundancy Polish
+
+### Improved
+
+- Adds reusable UI consistency helpers for page maps, compact chips, table toolbars, pagination, mobile table-card behavior, icon buttons, and empty states.
+- Adds Dashboard section shortcuts so the Dashboard behaves more like a compact operator cockpit instead of a long wall of cards.
+- Standardizes Operations Center Apply History with row-limit selector, pagination, and consistent empty-state behavior.
+- Standardizes Operations Center Audit Events with row-limit selector, pagination, consistent toolbar, and mobile-friendly stacked row behavior.
+- Keeps Reports export-focused, Dashboard status-focused, Operations evidence-focused, and Documentation as the single manual surface.
+
+### Notes
+
+This is a UI/UX polish release only. It does not change MikroTik collection, cleanup policy decisions, generated files, scheduler behavior, backup behavior, or LibreQoS apply behavior.
+
 ## v2.63.1 - Operations Center Log Variable Hotfix
 
 ### Fixed

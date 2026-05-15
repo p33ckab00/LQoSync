@@ -67,7 +67,35 @@
 
 <section id="apply" class="ops-section {{ 'active' if active_tab == 'apply' else '' }}">
   <section class="ops-two">
-    <div class="card ops-card-tall"><div class="ops-sticky"><div class="card-title"><i class="ti ti-bolt"></i> LibreQoS Apply History</div><div class="mono text-sm" style="color:var(--muted)">LibreQoS.py is an apply command, not a long-running service. LQoSync captures stdout/stderr and elapsed time per apply run.</div></div><div class="ops-scroll"><div class="apply-runs-scroll">{% for run in apply_runs %}<div class="apply-run-card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div class="mono text-sm"><div><b>{{ run.run_id }}</b></div><div style="color:var(--hint)">{{ run.started_at }} · {{ run.duration_seconds }}s · exit={{ run.exit_code }}</div></div><span class="badge {{ 'b-ok' if run.ok else 'b-err' }}">{{ 'OK' if run.ok else 'FAILED' }}</span></div><div class="btn-row" style="margin-top:8px"><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stdout" target="_blank">stdout</a><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stderr" target="_blank">stderr</a></div></div>{% else %}<div class="empty-state">No LibreQoS apply logs yet.</div>{% endfor %}</div></div></div>
+    <div class="card ops-card-tall ux-table-card">
+      <div class="ux-toolbar">
+        <div class="ux-toolbar-title">
+          <div class="card-title" style="margin:0"><i class="ti ti-bolt"></i> LibreQoS Apply History</div>
+          <div class="ux-inline-muted">Captured stdout/stderr, duration, and exit status for LibreQoS.py apply runs.</div>
+        </div>
+        <form method="get" action="/operations" class="ux-toolbar-actions">
+          <input type="hidden" name="tab" value="apply">
+          <label class="table-limit-control">View <select name="apply_limit" onchange="this.form.submit()">{% for n in apply_pagination.allowed_limits %}<option value="{{ n }}" {{ 'selected' if apply_pagination.limit == n else '' }}>{{ n }}</option>{% endfor %}</select></label>
+        </form>
+      </div>
+      <div class="ops-scroll">
+        <div class="apply-runs-scroll">
+          {% for run in apply_runs %}
+          <div class="apply-run-card">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+              <div class="mono text-sm"><div><b>{{ run.run_id }}</b></div><div style="color:var(--hint)">{{ run.started_at }} · {{ run.duration_seconds }}s · exit={{ run.exit_code }}</div></div>
+              <span class="badge {{ 'b-ok' if run.ok else 'b-err' }}">{{ 'OK' if run.ok else 'FAILED' }}</span>
+            </div>
+            <div class="btn-row" style="margin-top:8px"><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stdout" target="_blank">stdout</a><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stderr" target="_blank">stderr</a></div>
+          </div>
+          {% else %}<div class="empty-state">No LibreQoS apply logs yet.</div>{% endfor %}
+        </div>
+      </div>
+      <div class="ux-pagination">
+        <div class="mono text-xs" style="color:var(--muted)">Showing {{ apply_pagination.start }}–{{ apply_pagination.end }} of {{ apply_pagination.total }} apply runs</div>
+        <div class="btn-row"><a class="btn {{ 'disabled' if apply_pagination.page <= 1 else '' }}" href="{{ url_for('operations_center', tab='apply', apply_page=apply_pagination.page-1, apply_limit=apply_pagination.limit) if apply_pagination.page > 1 else '#' }}"><i class="ti ti-chevron-left"></i> Prev</a><span class="backup-page-badge mono text-xs">Page {{ apply_pagination.page }} / {{ apply_pagination.pages }}</span><a class="btn {{ 'disabled' if apply_pagination.page >= apply_pagination.pages else '' }}" href="{{ url_for('operations_center', tab='apply', apply_page=apply_pagination.page+1, apply_limit=apply_pagination.limit) if apply_pagination.page < apply_pagination.pages else '#' }}">Next <i class="ti ti-chevron-right"></i></a></div>
+      </div>
+    </div>
     <div class="card"><div class="card-title"><i class="ti ti-timeline"></i> Last Cycle Timeline</div>{% if timeline %}<div class="table-wrap"><table class="audit-table"><thead><tr><th>Step</th><th>Duration</th><th>Status</th><th>Details</th></tr></thead><tbody>{% for item in timeline %}<tr><td class="mono">{{ item.step }}</td><td class="mono">{{ item.duration_ms }} ms</td><td><span class="badge {{ 'b-ok' if item.status == 'ok' else ('b-warn' if item.status == 'failed' else 'b-dhcp') }}">{{ item.status }}</span></td><td class="mono" style="color:var(--muted)">{{ item.details }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state">No process timeline yet. Run sync or dry-run first.</div>{% endif %}</div>
   </section>
 </section>
@@ -77,7 +105,17 @@
 </section>
 
 <section id="audit" class="ops-section {{ 'active' if active_tab == 'audit' else '' }}">
-  <div class="card" style="padding:0;overflow:hidden"><div style="padding:14px 16px;border-bottom:1px solid var(--br0);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div class="card-title" style="margin:0"><i class="ti ti-history"></i> Audit Events</div><div class="mono text-xs" style="color:var(--muted);margin-top:4px">Recent operator, config, policy, backup, scheduler, and sync events.</div></div><a class="btn" href="/api/audit?limit=500" target="_blank"><i class="ti ti-code"></i> Audit JSON</a></div><div class="table-wrap"><table class="audit-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Summary</th><th>Details</th></tr></thead><tbody>{% for e in audit_events[:500] %}<tr><td class="mono">{{ e.ts or e.time or e.timestamp or '' }}</td><td class="mono">{{ e.event or e.type or '' }}</td><td class="mono">{{ e.actor or '' }}</td><td>{{ e.summary or e.message or '' }}</td><td class="mono" style="color:var(--muted);white-space:normal">{{ e.details if e.details is string else (e.details|tojson if e.details else '') }}</td></tr>{% else %}<tr><td colspan="5" class="mono" style="color:var(--muted)">No audit events yet.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card ux-table-card">
+    <div class="ux-toolbar">
+      <div class="ux-toolbar-title"><div class="card-title" style="margin:0"><i class="ti ti-history"></i> Audit Events</div><div class="ux-inline-muted">Operator, config, policy, backup, scheduler, and sync events.</div></div>
+      <div class="ux-toolbar-actions">
+        <form method="get" action="/operations" class="btn-row"><input type="hidden" name="tab" value="audit"><input type="hidden" name="audit_page" value="1"><label class="table-limit-control">View <select name="audit_limit" onchange="this.form.submit()">{% for n in audit_pagination.allowed_limits %}<option value="{{ n }}" {{ 'selected' if audit_pagination.limit == n else '' }}>{{ n }}</option>{% endfor %}</select></label></form>
+        <a class="btn" href="/api/audit?limit=500" target="_blank"><i class="ti ti-code"></i> Audit JSON</a>
+      </div>
+    </div>
+    <div class="table-wrap ux-table-mobile-stack"><table class="ux-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Summary</th><th>Details</th></tr></thead><tbody>{% for e in audit_events %}<tr><td data-label="Time" class="mono">{{ e.ts or e.time or e.timestamp or '' }}</td><td data-label="Event" class="mono">{{ e.event or e.type or '' }}</td><td data-label="Actor" class="mono">{{ e.actor or '' }}</td><td data-label="Summary">{{ e.summary or e.message or '' }}</td><td data-label="Details" class="mono" style="color:var(--muted);white-space:normal">{{ e.details if e.details is string else (e.details|tojson if e.details else '') }}</td></tr>{% else %}<tr><td colspan="5"><div class="empty-state">No audit events yet.</div></td></tr>{% endfor %}</tbody></table></div>
+    <div class="ux-pagination"><div class="mono text-xs" style="color:var(--muted)">Showing {{ audit_pagination.start }}–{{ audit_pagination.end }} of {{ audit_pagination.total }} audit events</div><div class="btn-row"><a class="btn {{ 'disabled' if audit_pagination.page <= 1 else '' }}" href="{{ url_for('operations_center', tab='audit', audit_page=audit_pagination.page-1, audit_limit=audit_pagination.limit) if audit_pagination.page > 1 else '#' }}"><i class="ti ti-chevron-left"></i> Prev</a><span class="backup-page-badge mono text-xs">Page {{ audit_pagination.page }} / {{ audit_pagination.pages }}</span><a class="btn {{ 'disabled' if audit_pagination.page >= audit_pagination.pages else '' }}" href="{{ url_for('operations_center', tab='audit', audit_page=audit_pagination.page+1, audit_limit=audit_pagination.limit) if audit_pagination.page < audit_pagination.pages else '#' }}">Next <i class="ti ti-chevron-right"></i></a></div></div>
+  </div>
 </section>
 
 <section id="backups" class="ops-section {{ 'active' if active_tab == 'backups' else '' }}">

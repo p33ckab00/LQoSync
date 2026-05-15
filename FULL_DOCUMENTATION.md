@@ -7288,3 +7288,8 @@ A compact documentation model prevents conflicting instructions, reduces UI clut
 ## v2.63.1 Operations Center hotfix
 
 This hotfix resolves an Internal Server Error on `/operations` caused by a variable-name collision between the journal line-count selector and the app log line list. The Operations Center now passes `journal_lines_count` separately from `lines`, so app logs render safely while all tabs and compatibility redirects remain unchanged.
+
+
+## v2.64 UI Consistency and Redundancy Polish
+
+LQoSync v2.64 improves the compact operator experience without changing engine behavior. Dashboard remains the live status cockpit, Operations Center owns services/journals/logs/audit/backups, Reports is export-focused, Config Center owns settings/policies/notifications, and Documentation Center is the single manual surface. Operations Center Apply History and Audit Events now use consistent pagination and row-limit controls.

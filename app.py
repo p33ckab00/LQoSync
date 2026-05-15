@@ -1448,7 +1448,34 @@ def operations_center():
     services = all_service_status(cfg)
     groups = allowed_groups(cfg)
     last = state.get("last_run") or {}
-    apply_runs = list_apply_runs(cfg, limit=25)
+    # Apply history pagination keeps Operations Center compact and consistent with backups/audit.
+    allowed_apply_limits = [5, 10, 20, 50]
+    try:
+        apply_limit = int(request.args.get("apply_limit", 10))
+    except Exception:
+        apply_limit = 10
+    if apply_limit not in allowed_apply_limits:
+        apply_limit = 10
+    try:
+        apply_page = int(request.args.get("apply_page", 1))
+    except Exception:
+        apply_page = 1
+    apply_runs_all = list_apply_runs(cfg, limit=200)
+    total_apply_runs = len(apply_runs_all)
+    apply_pages = max(1, (total_apply_runs + apply_limit - 1) // apply_limit)
+    apply_page = max(1, min(apply_page, apply_pages))
+    apply_start = (apply_page - 1) * apply_limit
+    apply_runs = apply_runs_all[apply_start:apply_start + apply_limit]
+    apply_pagination = {
+        "page": apply_page,
+        "pages": apply_pages,
+        "limit": apply_limit,
+        "total": total_apply_runs,
+        "start": apply_start + 1 if total_apply_runs else 0,
+        "end": min(apply_start + apply_limit, total_apply_runs),
+        "allowed_limits": allowed_apply_limits,
+    }
+
     selected_unit = request.args.get("unit") or next(iter(services.keys()), "lqos_shaped_sync")
     try:
         lines_count = int(request.args.get("lines", cfg.get("services", {}).get("journal_lines_default", 100)))
@@ -1488,7 +1515,34 @@ def operations_center():
         "allowed_limits": allowed_backup_limits,
     }
 
-    audit_events = tail_audit(cfg, limit=500)
+    # Audit pagination mirrors the backup/apply table behavior so Operations Center does not overflow.
+    allowed_audit_limits = [25, 50, 100, 200, 500]
+    try:
+        audit_limit = int(request.args.get("audit_limit", 50))
+    except Exception:
+        audit_limit = 50
+    if audit_limit not in allowed_audit_limits:
+        audit_limit = 50
+    try:
+        audit_page = int(request.args.get("audit_page", 1))
+    except Exception:
+        audit_page = 1
+    audit_all = tail_audit(cfg, limit=1000)
+    total_audit = len(audit_all)
+    audit_pages = max(1, (total_audit + audit_limit - 1) // audit_limit)
+    audit_page = max(1, min(audit_page, audit_pages))
+    audit_start = (audit_page - 1) * audit_limit
+    audit_events = audit_all[audit_start:audit_start + audit_limit]
+    audit_pagination = {
+        "page": audit_page,
+        "pages": audit_pages,
+        "limit": audit_limit,
+        "total": total_audit,
+        "start": audit_start + 1 if total_audit else 0,
+        "end": min(audit_start + audit_limit, total_audit),
+        "allowed_limits": allowed_audit_limits,
+    }
+
     active_tab = request.args.get("tab", "services")
     if active_tab not in {"services", "journals", "apply", "logs", "audit", "backups"}:
         active_tab = "services"
@@ -1500,6 +1554,7 @@ def operations_center():
         groups=groups,
         last=last,
         apply_runs=apply_runs,
+        apply_pagination=apply_pagination,
         selected_unit=selected_unit,
         lines=app_log_lines,
         journal_lines_count=lines_count,
@@ -1507,6 +1562,7 @@ def operations_center():
         backups=backups,
         backup_pagination=backup_pagination,
         audit_events=audit_events,
+        audit_pagination=audit_pagination,
         active_tab=active_tab,
         user=current_user(),
     )
