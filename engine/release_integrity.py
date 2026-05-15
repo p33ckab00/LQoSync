@@ -147,7 +147,7 @@ def check_route_template_integrity(root: str | Path) -> dict[str, Any]:
     # Check high-value feature route/file combinations that previously regressed.
     feature_checks = [
         ("reports", "/reports", "templates/reports.html", "engine/reports.py"),
-        ("routers", "/routers", "templates/routers.html", "engine/router_overview.py"),
+        ("router_insight", "/config", "templates/config.html", "engine/router_overview.py"),
         ("lifecycle", "/lifecycle", "templates/lifecycle.html", "engine/lifecycle_report.py"),
         ("policy", "/policy", "templates/policy_center.html", "engine/policy_schema.py"),
         ("setup_repair", "/setup-repair", "templates/setup_repair.html", "engine/setup_repair.py"),
@@ -210,6 +210,18 @@ def check_config_defaults(root: str | Path) -> dict[str, Any]:
         items.append(IntegrityItem("config.pppoe_stale_lifecycle", "PPPoE stale lifecycle defaults", "ok", "Canonical pppoe stale lifecycle defaults are present", "config"))
     else:
         items.append(IntegrityItem("config.pppoe_stale_lifecycle", "PPPoE stale lifecycle defaults", "fail", "Missing policies.stale_lifecycle.sources.pppoe required keys", "config", "Run Smart Defaults Repair or update policy defaults."))
+
+    try:
+        from engine.policy_path_audit import audit_policy_and_paths
+        audit = audit_policy_and_paths(root)
+        if audit["summary"].get("fail", 0):
+            failed = [x for x in audit.get("items", []) if x.get("status") == "fail"]
+            detail = "; ".join((x.get("title", "audit") + ": " + x.get("detail", "")) for x in failed[:5])
+            items.append(IntegrityItem("config.policy_path_audit", "Policy/path audit", "fail", detail, "config", "Run scripts/policy_path_audit.py and fix missing paths/policies."))
+        else:
+            items.append(IntegrityItem("config.policy_path_audit", "Policy/path audit", "ok", f"{audit['summary'].get('ok', 0)} policy/path audit checks passed", "config"))
+    except Exception as exc:
+        items.append(IntegrityItem("config.policy_path_audit", "Policy/path audit", "fail", str(exc), "config", "Fix engine/policy_path_audit.py or policy/default imports."))
 
     return {"items": [i.to_dict() for i in items], "summary": _status(items), "schema": schema}
 

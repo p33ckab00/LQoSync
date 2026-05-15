@@ -611,17 +611,20 @@ def api_network_layout_save():
 @app.route("/routers")
 @login_required
 def router_overview_center():
-    cfg, state = get_status()
-    rows = read_shaped_devices_csv(cfg["paths"]["shaped_devices_csv"])
-    report = compute_router_overview(cfg, state, rows=rows)
-    return render_template("routers.html", cfg=cfg, state=state, report=report, user=current_user())
+    """Compatibility alias: router overview now lives inside Config Center.
+
+    Avoid a duplicate top-level router page; keep old links working by opening
+    the Config Center Routers tab where router settings and read-only insight
+    are shown together.
+    """
+    return redirect(url_for("config_page", tab="routers"))
 
 
 @app.route("/api/routers/overview")
 @login_required
 def api_router_overview():
     cfg, state = get_status()
-    rows = read_shaped_devices_csv(cfg["paths"]["shaped_devices_csv"])
+    rows = read_shaped_devices_csv(cfg["paths"].get("shaped_devices_csv", ""))
     return jsonify(compute_router_overview(cfg, state, rows=rows))
 
 
@@ -736,6 +739,11 @@ def config_page():
     initial_tab = request.args.get("tab") or "overview"
     if initial_tab not in allowed_tabs:
         initial_tab = "overview"
+    try:
+        router_rows = read_shaped_devices_csv(cfg["paths"].get("shaped_devices_csv", ""))
+    except Exception:
+        router_rows = {}
+    router_overview = compute_router_overview(cfg, get_status()[1], rows=router_rows)
     return render_template(
         "config.html",
         config_json=json.dumps(cfg, indent=2),
@@ -747,6 +755,7 @@ def config_page():
         policy_conflicts=evaluate_policy_conflicts(cfg),
         identity_report=client_identity_report(cfg),
         telegram=telegram_settings_summary(cfg),
+        router_overview=router_overview,
         initial_tab=initial_tab,
         user=current_user(),
     )

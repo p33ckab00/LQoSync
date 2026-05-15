@@ -2,6 +2,7 @@
 <script>
 window.initialConfig = {{ config | tojson }};
 window.initialSchemaReport = {{ schema_report | tojson }};
+window.routerOverview = {{ router_overview | tojson }};
 window.initialConfigTab = {{ initial_tab | tojson }};
 function cfgEditor(initial) {
   const blankFactor = () => ({max_plan_mbps: 9999, download_factor: 1.0, upload_factor: 1.0});
@@ -442,6 +443,38 @@ function cfgEditor(initial) {
         </section>
 
         <section x-show="tab==='routers'" x-cloak class="cfg-section">
+          <div class="card" style="border-color:rgba(0,200,150,.30)">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <div class="card-title"><i class="ti ti-router"></i> Router Insight</div>
+                <p class="text-sm" style="color:var(--muted)">Read-only operational summary for saved router config. Router editing stays below, so there is no separate duplicate Routers module.</p>
+              </div>
+              <div class="btn-row"><a class="btn" href="/api/routers/overview" target="_blank"><i class="ti ti-code"></i> JSON</a><a class="btn" href="/sync/dry-run"><i class="ti ti-eye"></i> Dry Run</a></div>
+            </div>
+            <div class="grid md:grid-cols-4 gap-3 mb-3">
+              <div class="cfg-kpi"><div class="cfg-kpi-label">Routers</div><div class="cfg-kpi-value">{{ router_overview.totals.routers or 0 }}</div></div>
+              <div class="cfg-kpi"><div class="cfg-kpi-label">Enabled Sources</div><div class="cfg-kpi-value text-accent">{{ router_overview.totals.sources_enabled or 0 }}</div></div>
+              <div class="cfg-kpi"><div class="cfg-kpi-label">Generated Rows</div><div class="cfg-kpi-value text-dhcp">{{ router_overview.totals.rows or 0 }}</div></div>
+              <div class="cfg-kpi"><div class="cfg-kpi-label">Attention</div><div class="cfg-kpi-value {{ 'text-err' if router_overview.totals.error else ('text-warn' if router_overview.totals.warning else 'text-accent') }}">{{ (router_overview.totals.error or 0) + (router_overview.totals.warning or 0) }}</div></div>
+            </div>
+            <div class="grid xl:grid-cols-2 gap-3">
+              {% for r in router_overview.routers %}
+              <div class="cfg-subtle">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div class="min-w-0"><b class="redact" data-redact-type="router">{{ r.name }}</b><div class="mono text-xs" style="color:var(--muted)"><span class="redact" data-redact-type="ip">{{ r.address }}</span>:{{ r.port }} · {{ r.role }} · rows {{ r.row_counts.total or 0 }}</div></div>
+                  <span class="badge {{ 'b-ok' if r.status == 'ok' else ('b-err' if r.status == 'error' else ('b-warn' if r.status == 'warning' else '')) }}">{{ r.status }}</span>
+                </div>
+                <div class="btn-row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+                  <span class="cfg-chip {{ 'cfg-ok' if r.sources.pppoe.enabled else '' }}">PPPoE {{ r.sources.pppoe.rows or 0 }}</span>
+                  <span class="cfg-chip {{ 'cfg-ok' if r.sources.dhcp.enabled else '' }}">DHCP {{ r.sources.dhcp.rows or 0 }} / servers {{ r.sources.dhcp.servers_enabled or 0 }}</span>
+                  <span class="cfg-chip {{ 'cfg-ok' if r.sources.hotspot.enabled else '' }}">Hotspot {{ r.sources.hotspot.rows or 0 }}</span>
+                </div>
+                {% if r.warnings or r.errors %}<div class="cfg-help" style="margin-top:8px">{{ (r.warnings + r.errors)[:2]|join('; ') }}</div>{% endif %}
+              </div>
+              {% else %}<div class="cfg-subtle" style="color:var(--muted)">No routers configured yet. Add one below.</div>{% endfor %}
+            </div>
+            {% if router_overview.recommendations %}<div class="note" style="margin-top:10px"><b>Recommendation:</b> {{ router_overview.recommendations[0] }}</div>{% endif %}
+          </div>
           <div class="card">
             <div class="flex items-center justify-between gap-3 mb-4"><div><div class="card-title"><i class="ti ti-router"></i> Routers</div><p class="text-sm" style="color:var(--muted)">LQoSync reads MikroTik only. Add/remove here affects config.json only.</p></div><button type="button" @click="addRouter()" class="btn btn-primary"><i class="ti ti-plus"></i>Add Router</button></div>
             <div class="space-y-3">

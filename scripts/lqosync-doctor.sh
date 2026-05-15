@@ -42,6 +42,16 @@ fi
 MIGRATION_STATUS=${MIGRATION_STATUS:-0}
 echo
 
+echo "== Policy/path audit =="
+if [[ -x scripts/policy_path_audit.py || -f scripts/policy_path_audit.py ]]; then
+  python3 scripts/policy_path_audit.py || POLICY_PATH_STATUS=$?
+else
+  echo "[WARN] scripts/policy_path_audit.py not found; skipping."
+  POLICY_PATH_STATUS=0
+fi
+POLICY_PATH_STATUS=${POLICY_PATH_STATUS:-0}
+echo
+
 echo "== Environment / config doctor =="
 CONFIG_PATH="${CONFIG_PATH}" python3 scripts/doctor.py "${CONFIG_PATH}" "$@" || DOCTOR_STATUS=$?
 DOCTOR_STATUS=${DOCTOR_STATUS:-0}
@@ -55,7 +65,7 @@ else
   echo "[INFO] systemd is not available in this environment; skipping service status."
 fi
 
-if [[ "${RELEASE_STATUS}" -ne 0 || "${REGRESSION_STATUS:-0}" -ne 0 || "${MIGRATION_STATUS:-0}" -ne 0 || "${DOCTOR_STATUS}" -ne 0 ]]; then
+if [[ "${RELEASE_STATUS}" -ne 0 || "${REGRESSION_STATUS:-0}" -ne 0 || "${MIGRATION_STATUS:-0}" -ne 0 || "${POLICY_PATH_STATUS:-0}" -ne 0 || "${DOCTOR_STATUS}" -ne 0 ]]; then
   echo
   echo "Doctor completed with issues. Review FAIL/WARN lines above."
   exit 1

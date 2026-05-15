@@ -67,4 +67,6 @@ LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner contr
 
 - [Production Readiness Score](content/production_readiness_score.md) — v2.68 Dashboard go-live confidence score and readiness API.
 
-- [Router Overview + Multi-Router UX Polish](content/router_overview_multi_router_ux.md) — v2.69 read-only router overview and multi-router operator workflow polish.
+- [Router Overview + Multi-Router UX Polish](content/router_overview_multi_router_ux.md) — v2.69/v2.69.1 Router Insight now lives inside Config Center; /routers is a redirect alias.
+
+- [Router Insight De-duplication + Policy/Path Audit](content/router_insight_dedup_policy_path_audit.md) — v2.69.1 removes duplicate Router page UI and adds policy/path audit checks.

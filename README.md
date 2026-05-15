@@ -138,3 +138,8 @@ LQoSync v2.68 adds a read-only Dashboard Production Readiness score and `/api/pr
 ## v2.69 Router Overview + Multi-Router UX Polish
 
 LQoSync v2.69 adds a read-only `/routers` Router Overview page. Operators can inspect configured MikroTik routers, enabled PPPoE/DHCP/Hotspot sources, generated row ownership hints, parent-node role, and last-run collector warnings in one compact place. The page links to Config Center, Dry Run, and Operations Center for the next action. It does not modify config, generated files, scheduler state, or LibreQoS.
+
+
+## v2.69.1 Router Insight De-duplication + Policy/Path Audit
+
+LQoSync v2.69.1 removes redundant Router UX by moving Router Insight into `Config Center → Routers`. The old `/routers` path remains as a compatibility alias and redirects to `/config?tab=routers`; `/api/routers/overview` remains available for read-only diagnostics. The package also adds `scripts/policy_path_audit.py` to verify required runtime paths, policy schema/default coverage, migrated config policy paths, missing-policy warnings, and schema errors.

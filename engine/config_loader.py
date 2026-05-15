@@ -171,7 +171,8 @@ DEFAULT_CONFIG = {
         "doctor_script": "/opt/lqosync/scripts/lqosync-doctor.sh",
         "release_check_script": "/opt/lqosync/scripts/release_check.py",
         "regression_check_script": "/opt/lqosync/scripts/regression_check.py",
-        "config_migration_check_script": "/opt/lqosync/scripts/config_migration_check.py"
+        "config_migration_check_script": "/opt/lqosync/scripts/config_migration_check.py",
+        "policy_path_audit_script": "/opt/lqosync/scripts/policy_path_audit.py"
     },
     "access_control": {
         "enabled": True,

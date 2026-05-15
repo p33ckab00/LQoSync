@@ -1,5 +1,19 @@
 # Release Notes
 
+## v2.69.1 — Router Insight De-duplication + Policy/Path Audit
+
+- Reimagines the Router module to avoid redundant UX: Router Insight now lives inside Config Center → Routers where router settings already exist.
+- Removes the top-level Routers sidebar item and removes the active standalone router page template.
+- Keeps `/routers` as a compatibility alias that redirects to `/config?tab=routers`.
+- Keeps `/api/routers/overview` as a read-only diagnostics API.
+- Adds `engine/policy_path_audit.py` and `scripts/policy_path_audit.py` to verify required runtime paths, policy schema paths, policy defaults coverage, migrated config completeness, missing-policy warnings, and schema errors.
+- Integrates policy/path audit into release integrity, regression checks, and lqosync-doctor.
+- Adds `policy_path_audit_script` to package quality defaults and config.json.example.
+- Updates documentation, docs manifest, documentation index, README, full documentation, operator guide, release notes, and version metadata to v2.69.1.
+
+This is a UI de-duplication and safety-audit release. It does not change MikroTik collection, cleanup policy decisions, generated files, scheduler behavior, backups, Telegram delivery, or LibreQoS apply behavior.
+
+
 ## v2.69.0 — Router Overview + Multi-Router UX Polish
 
 - Added a read-only Router Overview page at `/routers` so operators can inspect configured MikroTik routers, enabled sources, generated row ownership hints, parent-node role, and last-run collector warnings in one compact view.

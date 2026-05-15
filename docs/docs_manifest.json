@@ -228,5 +228,11 @@
     "file": "docs/content/router_overview_multi_router_ux.md",
     "anchor": "router-overview--multi-router-ux-polish",
     "summary": "v2.69 read-only router overview, per-router source visibility, row ownership hints, and multi-router operator workflow polish."
+  },
+  "router.insight_dedup_policy_path_audit": {
+    "title": "Router Insight De-duplication + Policy/Path Audit",
+    "file": "docs/content/router_insight_dedup_policy_path_audit.md",
+    "anchor": "router-insight-de-duplication--policypath-audit",
+    "summary": "v2.69.1 moves Router Insight into Config Center, keeps /routers as a redirect alias, removes duplicate router page UI, and adds policy/path audit checks."
   }
 }
