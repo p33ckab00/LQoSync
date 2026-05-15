@@ -1,5 +1,19 @@
 # LQoSync Release Notes
 
+## v2.60.2 - Backup Pagination and Actions
+
+### Fixed / Improved
+
+- Adds wired delete action for backups under Logs & Backups. Delete removes the selected backup directory after CSRF-protected admin confirmation and writes an audit event.
+- Converts backup restore into an icon-only restore action to keep the Backups panel compact and consistent with operator action controls.
+- Adds backup pagination and row-limit controls so backup lists no longer overflow the panel when many backups exist.
+- Adds a safe backend `delete_backup()` helper that blocks path traversal by requiring the selected backup id to resolve as a direct child of the configured backup directory.
+- Adds `/backups/<backup_id>/delete` and `/api/backups/<backup_id>/delete` endpoints.
+
+### Notes
+
+Restore remains reversible because LQoSync creates a backup of current live files before restoring. Delete is permanent for the selected backup directory and should be used only after confirming the backup is no longer needed.
+
 ## v2.60.1 - Client Lifecycle View and Filter Hotfix
 
 ### Fixed / Improved

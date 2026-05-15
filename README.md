@@ -2254,3 +2254,8 @@ The new `setup_wizard` config block controls redirect behavior, Dashboard banner
 ## v2.60.1 Client Lifecycle View and Filter Hotfix
 
 The Client Lifecycle page now uses instant searchable filters similar to the Shaped Devices/Subscribers table. The View button preserves current filters and focuses the selected client's timeline correctly. Timeline Focus now supports event type filtering, row-limit selection, and pagination with Prev/Next controls. Mobile lifecycle cards use the same filtering and View/focus behavior as the desktop table.
+
+
+## v2.60.2 Backup pagination and actions
+
+Logs & Backups now has a paginated backup list with compact icon-only actions. Admin users can restore a backup using the restore icon or permanently delete a selected backup using the trash icon. Backup deletion is CSRF-protected, writes an audit event, and is restricted to direct child directories under the configured backup directory. Use restore when you need to roll back generated LibreQoS files; use delete only when the backup is no longer needed.

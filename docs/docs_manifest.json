@@ -122,5 +122,10 @@
     "file": "docs/content/client_lifecycle_timeline.md",
     "anchor": "v2601-client-lifecycle-view-and-filter-hotfix",
     "summary": "v2.60.1 fixes Lifecycle View button wiring, adds instant table/card filtering, and adds timeline pagination/row limits."
+  },
+  "backup_pagination_actions": {
+    "title": "Backup Pagination and Actions",
+    "file": "docs/content/backup_pagination_actions.md",
+    "anchor": "backup-pagination-and-actions"
   }
 }

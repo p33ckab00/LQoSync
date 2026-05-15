@@ -65,3 +65,23 @@ def list_backups(config: dict):
             pass
         backups.append({"id": p.name, "path": str(p), "metadata": meta})
     return backups
+
+
+
+def delete_backup(config: dict, backup_id: str):
+    """Delete a single backup directory safely from the configured backup_dir.
+
+    The backup_id must be a direct child directory name. Path traversal is
+    blocked by resolving the requested path and verifying it remains under the
+    configured backup root.
+    """
+    root = Path(config["paths"].get("backup_dir", "backups")).resolve()
+    target = (root / backup_id).resolve()
+    if not root.exists():
+        raise FileNotFoundError(f"Backup root not found: {root}")
+    if target.parent != root:
+        raise ValueError("Invalid backup id")
+    if not target.exists() or not target.is_dir():
+        raise FileNotFoundError(f"Backup not found: {backup_id}")
+    shutil.rmtree(target)
+    return {"id": backup_id, "path": str(target)}

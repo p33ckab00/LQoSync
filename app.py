@@ -16,7 +16,7 @@ from engine.state import load_state, update_state
 from scheduler.runner import LQoSyncScheduler
 from builders.shaped_devices import read_shaped_devices_csv, render_shaped_devices_csv
 from builders.network_json import read_network_json, render_network_json, flatten_nodes
-from applier.backup import list_backups
+from applier.backup import list_backups, delete_backup
 from applier.libreqos_runner import run_libreqos_update
 from applier.rollback import restore_backup
 from collectors.mikrotik_client import test_router_connection, connect_to_router, get_resource_data
@@ -1498,9 +1498,36 @@ def logs_page():
     lines = []
     if log_file.exists():
         lines = log_file.read_text(encoding="utf-8", errors="ignore").splitlines()[-300:]
-    backups = list_backups(cfg)
+
+    backups_all = list_backups(cfg)
+    allowed_backup_limits = [5, 10, 20, 50, 100]
+    try:
+        backup_limit = int(request.args.get("backup_limit", 10))
+    except Exception:
+        backup_limit = 10
+    if backup_limit not in allowed_backup_limits:
+        backup_limit = 10
+    try:
+        backup_page = int(request.args.get("backup_page", 1))
+    except Exception:
+        backup_page = 1
+    total_backups = len(backups_all)
+    backup_pages = max(1, (total_backups + backup_limit - 1) // backup_limit)
+    backup_page = max(1, min(backup_page, backup_pages))
+    start = (backup_page - 1) * backup_limit
+    backups = backups_all[start:start + backup_limit]
+    backup_pagination = {
+        "page": backup_page,
+        "pages": backup_pages,
+        "limit": backup_limit,
+        "total": total_backups,
+        "start": start + 1 if total_backups else 0,
+        "end": min(start + backup_limit, total_backups),
+        "allowed_limits": allowed_backup_limits,
+    }
+
     audit_events = tail_audit(cfg, limit=500)
-    return render_template("logs.html", lines=lines, backups=backups, audit_events=audit_events, user=current_user())
+    return render_template("logs.html", lines=lines, backups=backups, backup_pagination=backup_pagination, audit_events=audit_events, user=current_user())
 
 
 @app.route("/backups/<backup_id>/restore", methods=["POST"])
@@ -1513,6 +1540,21 @@ def restore(backup_id):
         flash(f"Restored backup {backup_id}: {', '.join(restored)}")
     except Exception as e:
         flash(f"Restore failed: {e}")
+    return redirect(url_for("logs_page"))
+
+
+
+
+@app.route("/backups/<backup_id>/delete", methods=["POST"])
+@admin_required
+def delete_backup_form(backup_id):
+    cfg = load_config(CONFIG_PATH)
+    try:
+        deleted = delete_backup(cfg, backup_id)
+        write_audit(cfg, "backup_deleted", actor=current_user().get("username"), details={"backup_id": backup_id, "deleted": deleted})
+        flash(f"Deleted backup {backup_id}")
+    except Exception as e:
+        flash(f"Delete backup failed: {e}")
     return redirect(url_for("logs_page"))
 
 
@@ -1792,6 +1834,20 @@ def api_restore_backup(backup_id):
         restored = restore_backup(cfg, backup_id)
         write_audit(cfg, "api_backup_restored", actor=current_user().get("username"), details={"backup_id": backup_id, "restored": restored})
         return jsonify({"ok": True, "restored": restored})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+
+
+@app.route("/api/backups/<backup_id>/delete", methods=["POST"])
+@admin_required
+def api_delete_backup(backup_id):
+    cfg = load_config(CONFIG_PATH)
+    try:
+        deleted = delete_backup(cfg, backup_id)
+        write_audit(cfg, "api_backup_deleted", actor=current_user().get("username"), details={"backup_id": backup_id, "deleted": deleted})
+        return jsonify({"ok": True, "deleted": deleted})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 

@@ -15,23 +15,69 @@
     <div class="card-title"><i class="ti ti-terminal-2"></i> Last log lines</div>
     <pre class="mono text-xs scroll-panel" style="height:420px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ '\n'.join(lines) }}</pre>
   </div>
-  <div class="card">
-    <div class="card-title"><i class="ti ti-archive"></i> Backups</div>
-    <div style="display:grid;gap:8px">
+  <div class="card backup-card">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <div class="card-title" style="margin-bottom:4px"><i class="ti ti-archive"></i> Backups</div>
+        <div class="mono text-xs" style="color:var(--muted)">Restore or delete saved ShapedDevices/network backups. Delete is permanent.</div>
+      </div>
+      <form method="get" action="/logs" class="backup-limit-form">
+        <input type="hidden" name="backup_page" value="1">
+        <label class="table-limit-control">View
+          <select name="backup_limit" onchange="this.form.submit()">
+            {% for n in backup_pagination.allowed_limits %}<option value="{{ n }}" {{ 'selected' if backup_pagination.limit == n else '' }}>{{ n }}</option>{% endfor %}
+          </select>
+        </label>
+      </form>
+    </div>
+
+    <div class="backup-list scroll-panel">
     {% for b in backups %}
-      <div style="border:1px solid var(--br0);border-radius:10px;padding:10px">
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-          <span class="mono text-xs">{{ b.id }}</span>
-          {% if user.role == 'admin' %}<form method="post" action="/backups/{{ b.id }}/restore" onsubmit="return confirm('Restore backup {{ b.id }}? Current files will be backed up first.')">{{ csrf_field()|safe }}<button class="btn btn-warn" style="padding:5px 8px;font-size:11px"><i class="ti ti-rotate-clockwise"></i> Restore</button></form>{% endif %}
+      <div class="backup-row">
+        <div class="backup-main">
+          <div class="mono text-xs backup-id" title="{{ b.id }}">{{ b.id }}</div>
+          {% if b.metadata.reason %}<div class="mono text-xs backup-reason">{{ b.metadata.reason }}</div>{% endif %}
         </div>
-        {% if b.metadata.reason %}<div class="mono text-xs" style="color:var(--hint);margin-top:5px">{{ b.metadata.reason }}</div>{% endif %}
+        {% if user.role == 'admin' %}
+        <div class="backup-actions">
+          <form method="post" action="/backups/{{ b.id }}/restore" onsubmit="return confirm('Restore backup {{ b.id }}? Current files will be backed up first so the restore can be reversed.')">
+            {{ csrf_field()|safe }}
+            <button class="icon-action icon-restore" title="Restore backup {{ b.id }}" aria-label="Restore backup {{ b.id }}"><i class="ti ti-rotate-clockwise"></i></button>
+          </form>
+          <form method="post" action="/backups/{{ b.id }}/delete" onsubmit="return confirm('Delete backup {{ b.id }} permanently? This cannot be undone.')">
+            {{ csrf_field()|safe }}
+            <button class="icon-action icon-delete" title="Delete backup {{ b.id }}" aria-label="Delete backup {{ b.id }}"><i class="ti ti-trash"></i></button>
+          </form>
+        </div>
+        {% endif %}
       </div>
     {% else %}<p class="mono text-sm" style="color:var(--muted)">No backups yet.</p>{% endfor %}
+    </div>
+
+    <div class="backup-pagination">
+      <div class="mono text-xs" style="color:var(--muted)">
+        Showing {{ backup_pagination.start }}–{{ backup_pagination.end }} of {{ backup_pagination.total }} backups
+      </div>
+      <div class="btn-row">
+        <a class="btn {{ 'disabled' if backup_pagination.page <= 1 else '' }}" href="{{ url_for('logs_page', backup_page=backup_pagination.page-1, backup_limit=backup_pagination.limit) if backup_pagination.page > 1 else '#' }}"><i class="ti ti-chevron-left"></i> Prev</a>
+        <span class="backup-page-badge mono text-xs">Page {{ backup_pagination.page }} / {{ backup_pagination.pages }}</span>
+        <a class="btn {{ 'disabled' if backup_pagination.page >= backup_pagination.pages else '' }}" href="{{ url_for('logs_page', backup_page=backup_pagination.page+1, backup_limit=backup_pagination.limit) if backup_pagination.page < backup_pagination.pages else '#' }}">Next <i class="ti ti-chevron-right"></i></a>
+      </div>
     </div>
   </div>
 </div>
 
 <style>
+  .backup-card{display:flex;flex-direction:column;min-height:420px;max-height:520px;overflow:hidden}
+  .backup-list{display:grid;gap:8px;overflow:auto;min-height:0;flex:1;padding-right:4px;max-height:none}
+  .backup-row{border:1px solid var(--br0);border-radius:10px;padding:10px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;background:rgba(15,23,42,.24)}
+  .backup-main{min-width:0;flex:1}.backup-id{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.backup-reason{color:var(--hint);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .backup-actions{display:flex;gap:6px;align-items:center;flex:0 0 auto}.backup-actions form{margin:0}
+  .icon-action{width:30px;height:30px;border-radius:8px;border:1px solid var(--br1);background:rgba(15,23,42,.75);color:var(--txt);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:.12s}
+  .icon-action:hover{transform:translateY(-1px);background:rgba(30,41,59,.92)}.icon-restore{color:var(--c-warn);border-color:rgba(245,158,11,.38)}.icon-delete{color:#fca5a5;border-color:rgba(239,68,68,.38)}
+  .backup-pagination{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.backup-page-badge{border:1px solid var(--br0);background:var(--bg2);border-radius:8px;padding:7px 10px;color:var(--muted)}.btn.disabled{opacity:.45;pointer-events:none}.backup-limit-form{margin:0}
+  :root[data-theme=light] .backup-row{background:#f8fafc}:root[data-theme=light] .icon-action{background:#fff;color:#0f172a}:root[data-theme=light] .icon-restore{color:#b45309}:root[data-theme=light] .icon-delete{color:#b91c1c}
+  @media(max-width:720px){.backup-card{max-height:none}.backup-list{max-height:420px}.backup-row{align-items:center}.backup-pagination{align-items:stretch}.backup-pagination .btn-row{width:100%;justify-content:space-between}.backup-page-badge{display:flex;align-items:center}}
   .audit-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
   .table-limit-control{display:flex;align-items:center;gap:7px;color:var(--muted);font-family:var(--font-mono);font-size:11px}
   .table-limit-control select{border:1px solid var(--br1);border-radius:8px;background:rgba(2,6,23,.64);color:var(--txt);font-family:var(--font-mono);font-size:11px;padding:7px 9px;outline:none}
