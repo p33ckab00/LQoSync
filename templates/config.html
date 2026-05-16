@@ -4,6 +4,7 @@ window.initialConfig = {{ config | tojson }};
 window.initialSchemaReport = {{ schema_report | tojson }};
 window.routerOverview = {{ router_overview | tojson }};
 window.initialConfigTab = {{ initial_tab | tojson }};
+window.policySchemaPaths = {{ policy_schema_paths | tojson }};
 function cfgEditor(initial) {
   const blankFactor = () => ({max_plan_mbps: 9999, download_factor: 1.0, upload_factor: 1.0});
   const blankDhcp = () => ({
@@ -87,8 +88,7 @@ function cfgEditor(initial) {
     removeDhcp(router, i){ if(confirm('Remove DHCP server entry from config.json? This does not touch MikroTik.')) router.dhcp.servers.splice(i,1); },
     markPolicyCustom(){ this.cfg.policies ||= {}; if(this.cfg.policies.mode !== 'custom') this.cfg.policies.mode = 'custom'; },
     policyContextPaths(){ return ['app.operation_mode','app.auto_apply','app.backup_before_apply','app.backup_retention','scheduler.enabled','scheduler.apply_cooldown_seconds','libreqos.run_only_when_files_changed','libreqos.retry_if_last_apply_failed','libreqos.run_mode','preflight.enabled','preflight.duplicate_ip_policy','preflight.missing_parent_policy','preflight.invalid_bandwidth_policy','defaults.duplicate_ip_policy']; },
-    policyBlockWithoutMode(obj){ const copy = JSON.parse(JSON.stringify((obj && obj.policies) || {})); delete copy.mode; return copy; },
-    policyContextChanged(){ const before = window.initialConfig || {}; const after = this.cfg || {}; const get=(obj,path)=>String(path).split('.').reduce((o,k)=>o&&o[k], obj); if(JSON.stringify(this.policyBlockWithoutMode(before)) !== JSON.stringify(this.policyBlockWithoutMode(after))) return true; return this.policyContextPaths().some(path => JSON.stringify(get(before,path)) !== JSON.stringify(get(after,path))); },
+    policyContextChanged(){ const before = window.initialConfig || {}; const after = this.cfg || {}; const get=(obj,path)=>String(path).split('.').reduce((o,k)=>(o && o[k] !== undefined ? o[k] : undefined), obj); const paths=[...(window.policySchemaPaths || []), ...this.policyContextPaths()]; return paths.some(path => JSON.stringify(get(before,path)) !== JSON.stringify(get(after,path))); },
     shouldForceCustomPolicy(){ const mode = (this.cfg?.policies?.mode || 'balanced'); return ['conservative','balanced','aggressive'].includes(mode) && this.policyContextChanged(); },
     policyActions(){ return ['preserve_rows','warn_only','cleanup_immediate','cleanup_next_run','require_confirm_immediate','require_confirm_next_run','block_cleanup','block_apply']; },
     policyPresetActive(preset){ return (this.cfg?.policies?.mode || 'balanced') === preset; },

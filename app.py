@@ -783,6 +783,7 @@ def config_page():
         telegram=telegram_settings_summary(cfg),
         router_overview=router_overview,
         policy_hierarchy=grouped_policy_schema(),
+        policy_schema_paths=[item["path"] for item in POLICY_SCHEMA if item.get("path") and item["path"] != "policies.mode"],
         initial_tab=initial_tab,
         user=current_user(),
     )
@@ -997,10 +998,12 @@ def policy_save_settings():
     cfg = load_config(CONFIG_PATH)
     before = cfg.get("policies", {})
     cfg = parse_policy_form(request.form, cfg)
-    cfg.setdefault("policies", {})["mode"] = "custom"
-    save_config(cfg, CONFIG_PATH, backup_existing=True)
-    write_audit(cfg, "policy_settings_saved", actor=(current_user() or {}).get("username"), details={"mode": "custom", "previous_mode": before.get("mode") if isinstance(before, dict) else None})
-    flash("Policy settings saved. Preset changed to Custom because values were edited manually. Run Dry Run to preview decisions before enabling auto-apply.")
+    cfg, previous_mode, new_mode = _save_config_with_policy_reconcile(cfg, backup_existing=True)
+    write_audit(cfg, "policy_settings_saved", actor=(current_user() or {}).get("username"), details={"mode": new_mode, "previous_mode": before.get("mode") if isinstance(before, dict) else previous_mode})
+    if previous_mode != new_mode and new_mode == "custom":
+        flash("Policy settings saved. Preset changed to Custom because saved policy values differ from the selected preset. Run Dry Run to preview decisions before enabling auto-apply.")
+    else:
+        flash(f"Policy settings saved. Policy mode: {new_mode}. Run Dry Run to preview decisions before enabling auto-apply.")
     return redirect(url_for("config_page", tab="policies"))
 
 
