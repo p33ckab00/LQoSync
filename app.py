@@ -26,7 +26,7 @@ from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
 from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS, is_setup_wizard_complete
-from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, reconcile_policy_mode, POLICY_SCHEMA, get_by_path
+from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, reconcile_policy_mode, policy_context_changed, POLICY_SCHEMA, get_by_path
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
 from engine.production_readiness import compute_production_readiness
@@ -51,36 +51,6 @@ load_dotenv()
 CONFIG_PATH = os.getenv("CONFIG_PATH") or "/opt/libreqos/src/config.json"
 USERS_PATH = os.getenv("USERS_PATH") or "users.json"
 ensure_users_file(USERS_PATH)
-
-
-def _cfg_get_path(cfg: dict, path: str, default=None):
-    """Read a dotted config path safely, e.g. app.auto_apply."""
-    cur = cfg if isinstance(cfg, dict) else {}
-    for part in path.split("."):
-        if not isinstance(cur, dict) or part not in cur:
-            return default
-        cur = cur.get(part)
-    return cur
-
-
-def policy_context_changed(previous: dict, current: dict) -> bool:
-    """Return True when Policy Overview runtime controls changed.
-
-    These app.* fields are shown in Config Center -> Policies as policy
-    semantics even though they live under app.* for runtime compatibility.
-    When a named policy preset is active, changing any of these should move
-    the saved policy mode to custom.
-    """
-    tracked_paths = (
-        "app.operation_mode",
-        "app.auto_apply",
-        "app.backup_before_apply",
-        "app.backup_retention",
-    )
-    return any(
-        _cfg_get_path(previous, path) != _cfg_get_path(current, path)
-        for path in tracked_paths
-    )
 
 
 def _startup_config_normalize():

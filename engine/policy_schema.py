@@ -430,6 +430,62 @@ def set_by_path(obj: dict, path: str, value: Any) -> None:
     cur[parts[-1]] = value
 
 
+
+
+# Config values outside the policies.* block that materially change policy
+# semantics in Config Center. Presets are only accurate while these runtime
+# controls still match the saved preset context. If an operator changes one of
+# these while a named preset is active, the mode must become custom.
+POLICY_CONTEXT_PATHS: tuple[str, ...] = (
+    "app.operation_mode",
+    "app.auto_apply",
+    "app.backup_before_apply",
+    "app.backup_retention",
+    "scheduler.enabled",
+    "scheduler.apply_cooldown_seconds",
+    "libreqos.run_only_when_files_changed",
+    "libreqos.retry_if_last_apply_failed",
+    "libreqos.run_mode",
+    "preflight.enabled",
+    "preflight.duplicate_ip_policy",
+    "preflight.missing_parent_policy",
+    "preflight.invalid_bandwidth_policy",
+    "defaults.duplicate_ip_policy",
+)
+
+
+def policy_context_changed(previous: dict | None, current: dict | None) -> bool:
+    """Return True when a named policy preset no longer describes config.
+
+    Policy Center has two kinds of controls:
+    - the visible Smart Policy block under ``policies.*``; and
+    - runtime/apply controls such as ``app.auto_apply`` and
+      ``app.backup_before_apply`` that are shown in Policy Overview because
+      they change how the selected policy behaves in production.
+
+    This helper intentionally ignores ``policies.mode`` itself. The mode is the
+    label we are deciding, not the setting that proves whether values changed.
+    It is used as a server-side safety net so saves still become Custom even
+    when browser-side markPolicyCustom() is missed or Advanced Raw JSON is used.
+    """
+    prev = deepcopy(previous or {})
+    cur = deepcopy(current or {})
+
+    # Merge missing policy defaults before comparing individual policy paths so
+    # an upgrade/default merge does not look like an operator edit.
+    normalize_policies(prev)
+    normalize_policies(cur)
+
+    tracked_policy_paths = tuple(
+        item["path"] for item in POLICY_SCHEMA
+        if item.get("path") and item.get("path") != "policies.mode"
+    )
+    for path in tracked_policy_paths + POLICY_CONTEXT_PATHS:
+        if get_by_path(prev, path) != get_by_path(cur, path):
+            return True
+    return False
+
+
 def grouped_policy_schema() -> dict[str, list[dict[str, Any]]]:
     out: dict[str, list[dict[str, Any]]] = {}
     for item in POLICY_SCHEMA:

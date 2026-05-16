@@ -48,7 +48,7 @@ function cfgEditor(initial) {
     cfg.policies.node_cleanup_guard ||= {}; cfg.policies.node_cleanup_guard.enabled ??= true; cfg.policies.node_cleanup_guard.threshold_percent ??= 30; cfg.policies.node_cleanup_guard.min_node_size ??= 10; cfg.policies.node_cleanup_guard.min_removed_count ??= 3; cfg.policies.node_cleanup_guard.action ??= 'require_confirm_next_run';
     cfg.policies.small_node_guard ||= {}; cfg.policies.small_node_guard.enabled ??= true; cfg.policies.small_node_guard.max_node_size ??= 5; cfg.policies.small_node_guard.partial_removal_action ??= 'cleanup_next_run'; cfg.policies.small_node_guard.full_removal_action ??= 'require_confirm_next_run';
     cfg.policies.source_cleanup_guard ||= {}; cfg.policies.source_cleanup_guard.enabled ??= true; cfg.policies.source_cleanup_guard.threshold_percent ??= 30; cfg.policies.source_cleanup_guard.min_removed_count ??= 5; cfg.policies.source_cleanup_guard.action ??= 'require_confirm_next_run';
-    cfg.policies.apply_guard ||= {}; cfg.policies.collector_guard ||= {}; cfg.policies.data_quality ||= {}; cfg.policies.topology_guard ||= {}; cfg.policies.backup_guard ||= {}; cfg.policies.anomaly_detection ||= {}; cfg.policies.recommendations ||= {};
+    cfg.policies.apply_guard ||= {}; cfg.policies.collector_guard ||= {}; cfg.policies.data_quality ||= {}; cfg.policies.topology_guard ||= {}; cfg.policies.backup_guard ||= {}; cfg.policies.anomaly_detection ||= {}; cfg.policies.recommendations ||= {}; cfg.policies.auto_apply_policy ||= {}; cfg.policies.decision_trace ||= {}; cfg.policies.stale_lifecycle ||= {}; cfg.policies.stale_lifecycle.sources ||= {};
     cfg.routers.forEach((r) => {
       r.enabled ??= true; r.name ??= 'Router'; r.address ??= ''; r.port ??= 8728; r.username ??= ''; r.password ??= '';
       r.root_download_mbps ??= 100; r.root_upload_mbps ??= 100; r.root_type ??= 'site'; r.root_virtual ??= false; r.parent_node ??= ''; 
@@ -77,7 +77,7 @@ function cfgEditor(initial) {
     networkModeLabel(){
       return {router_children: 'Normal hierarchy: router root + service/plan child nodes', deep_hierarchy: 'Deep hierarchy: routers can be nested under parent nodes', custom_hierarchy: 'Custom hierarchy: topology editor / virtual grouping mode', flat_router_root: 'Flat: all generated circuits under router root', flat_no_parent: 'Flat: blank Parent Node, no generated node tree'}[this.cfg.network_mode] || 'Hierarchy';
     },
-    syncHidden(){ this.normalizeNetworkMode(); this.cfg = ensure(this.cfg); this.$refs.configJson.value = this.jsonText; },
+    syncHidden(){ this.normalizeNetworkMode(); this.cfg = ensure(this.cfg); if(this.shouldForceCustomPolicy()) this.cfg.policies.mode = 'custom'; this.$refs.configJson.value = this.jsonText; },
     openRaw(){ this.rawDraft = this.jsonText; this.rawError=''; this.showRawEditor = true; },
     applyRaw(){ try { this.cfg = ensure(JSON.parse(this.rawDraft)); this.rawError=''; this.showRawEditor=false; if(this.routerIndex >= this.cfg.routers.length) this.routerIndex = 0; } catch(e) { this.rawError = e.message; } },
     addRouter(){ this.cfg.routers.push(blankRouter()); this.routerIndex = this.cfg.routers.length - 1; this.tab = 'router'; },
@@ -85,6 +85,10 @@ function cfgEditor(initial) {
     addDhcp(router){ router.dhcp ||= {enabled: true, servers: []}; router.dhcp.servers.push(blankDhcp()); },
     removeDhcp(router, i){ if(confirm('Remove DHCP server entry from config.json? This does not touch MikroTik.')) router.dhcp.servers.splice(i,1); },
     markPolicyCustom(){ this.cfg.policies ||= {}; if(this.cfg.policies.mode !== 'custom') this.cfg.policies.mode = 'custom'; },
+    policyContextPaths(){ return ['app.operation_mode','app.auto_apply','app.backup_before_apply','app.backup_retention','scheduler.enabled','scheduler.apply_cooldown_seconds','libreqos.run_only_when_files_changed','libreqos.retry_if_last_apply_failed','libreqos.run_mode','preflight.enabled','preflight.duplicate_ip_policy','preflight.missing_parent_policy','preflight.invalid_bandwidth_policy','defaults.duplicate_ip_policy']; },
+    policyBlockWithoutMode(obj){ const copy = JSON.parse(JSON.stringify((obj && obj.policies) || {})); delete copy.mode; return copy; },
+    policyContextChanged(){ const before = window.initialConfig || {}; const after = this.cfg || {}; const get=(obj,path)=>String(path).split('.').reduce((o,k)=>o&&o[k], obj); if(JSON.stringify(this.policyBlockWithoutMode(before)) !== JSON.stringify(this.policyBlockWithoutMode(after))) return true; return this.policyContextPaths().some(path => JSON.stringify(get(before,path)) !== JSON.stringify(get(after,path))); },
+    shouldForceCustomPolicy(){ const mode = (this.cfg?.policies?.mode || 'balanced'); return ['conservative','balanced','aggressive'].includes(mode) && this.policyContextChanged(); },
     policyActions(){ return ['preserve_rows','warn_only','cleanup_immediate','cleanup_next_run','require_confirm_immediate','require_confirm_next_run','block_cleanup','block_apply']; },
     policyPresetActive(preset){ return (this.cfg?.policies?.mode || 'balanced') === preset; },
     policyPresetClass(preset){ return this.policyPresetActive(preset) ? 'btn-primary' : ''; },
