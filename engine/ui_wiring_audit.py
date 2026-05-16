@@ -174,6 +174,42 @@ def check_config_center_state_wiring(root: str | Path) -> dict[str, Any]:
         items.append(UIWiringItem("config.center_state", "Config Center UI state wiring", "ok", "Config tabs, policy tree panels, dynamic preset active state, and config save binding are consistent.", "config_ui"))
     return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
 
+
+
+def check_checkbox_state_wiring(root: str | Path) -> dict[str, Any]:
+    """Check boolean checkbox visual/state binding in Config Center.
+
+    This catches cases where config values are true but the checkbox is not
+    visually checked because the dynamic binding is one-way, missing bool
+    normalization, or lacks a checked-state visual fallback.
+    """
+    root = Path(root)
+    items: list[UIWiringItem] = []
+    config = _read(root, "templates/config.html")
+    base = _read(root, "templates/base.html")
+    problems = []
+    if "asBool(value)" not in config:
+        problems.append("Config Center missing asBool() boolean normalizer")
+    if 'x-effect="$el.checked = asBool(getPath(' not in config:
+        problems.append("Policy boolean checkboxes are not x-effect synchronized to current config values")
+    if ':checked="asBool(getPath(' not in config:
+        problems.append("Policy boolean checkboxes do not use normalized checked binding")
+    if "accent-color:var(--c-accent)" not in config and "accent-color:var(--c-accent)" not in base:
+        problems.append("Checkbox checked-state accent color fallback is missing")
+    if problems:
+        items.append(UIWiringItem(
+            "config.checkbox_state",
+            "Config checkbox visual state wiring",
+            "fail",
+            "; ".join(problems),
+            "config_ui",
+            "Bind boolean policy checkboxes with asBool(getPath(...)), x-effect checked sync, and visible checked-state CSS.",
+        ))
+    else:
+        items.append(UIWiringItem("config.checkbox_state", "Config checkbox visual state wiring", "ok", "Boolean checkboxes use normalized checked binding, x-effect sync, and visible checked-state CSS.", "config_ui"))
+    return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
+
+
 def check_compatibility_route_wiring(root: str | Path) -> dict[str, Any]:
     root = Path(root)
     routes = collect_app_routes(root)
@@ -242,6 +278,7 @@ def audit_ui_wiring(root: str | Path | None = None) -> dict[str, Any]:
         "role_visibility": check_role_visibility(root),
         "policy_preset": check_policy_preset_wiring(root),
         "config_center_state": check_config_center_state_wiring(root),
+        "checkbox_state": check_checkbox_state_wiring(root),
         "compatibility_routes": check_compatibility_route_wiring(root),
         "owner_links": check_owner_only_links(root),
         "stale_files": check_stale_files(root),

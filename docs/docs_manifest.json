@@ -201,6 +201,13 @@
       "path": "docs/content/settings_ui_state_wiring_hotfix.md",
       "category": "UI Wiring",
       "summary": "v2.70.5-rc1 fixes Config Center preset active-state mismatch and adds deeper Config Center state wiring audit coverage."
+    },
+    {
+      "id": "checkbox_state_wiring_hotfix",
+      "title": "Checkbox State Wiring Hotfix",
+      "path": "docs/content/checkbox_state_wiring_hotfix.md",
+      "category": "Config Center",
+      "summary": "v2.70.6 fixes Config Center checkbox checked-state binding and visual checked marks for boolean policy fields."
     }
   ],
   "docs": [
@@ -245,6 +252,13 @@
       "path": "docs/content/settings_ui_state_wiring_hotfix.md",
       "category": "UI Wiring",
       "summary": "v2.70.5-rc1 fixes Config Center preset active-state mismatch and adds deeper Config Center state wiring audit coverage."
+    },
+    {
+      "id": "checkbox_state_wiring_hotfix",
+      "title": "Checkbox State Wiring Hotfix",
+      "path": "docs/content/checkbox_state_wiring_hotfix.md",
+      "category": "Config Center",
+      "summary": "v2.70.6 fixes Config Center checkbox checked-state binding and visual checked marks for boolean policy fields."
     }
   ],
   "backup_restore_center_polish": {
@@ -336,5 +350,11 @@
     "file": "docs/content/settings_ui_state_wiring_hotfix.md",
     "anchor": "settings-ui-state-wiring-hotfix",
     "summary": "v2.70.5-rc1 fixes Config Center preset active-state mismatch and adds deeper Config Center state wiring audit coverage."
+  },
+  "config.checkbox_state_wiring_hotfix": {
+    "title": "Checkbox State Wiring Hotfix",
+    "file": "docs/content/checkbox_state_wiring_hotfix.md",
+    "anchor": "checkbox-state-wiring-hotfix",
+    "summary": "v2.70.6 fixes Config Center checkbox checked-state binding and visual checked marks for boolean policy fields."
   }
 }

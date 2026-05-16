@@ -1,4 +1,18 @@
-# Release Notes
+# LQoSync Release Notes
+
+## v2.70.6-rc1 - Checkbox State Wiring Hotfix
+
+### Fixed
+
+- Fixes Config Center checkbox visual-state wiring where a boolean policy value could be true in config but the checkbox did not visibly show as checked.
+- Adds `asBool()` boolean normalization for true-like values such as `true`, `"true"`, `1`, `"1"`, `yes`, and `on`.
+- Updates dynamic policy boolean checkboxes to use normalized `:checked` binding and `x-effect` synchronization.
+- Adds checkbox accent/checked-state styling so checked boxes are visible in both light and dark mode.
+- Extends UI wiring audit to detect missing checkbox state binding and checked-state CSS.
+
+### Notes
+
+This is a Config Center UI/UX wiring hotfix only. It does not change MikroTik collection, cleanup policy execution, generated file formats, scheduler timing, backup implementation, Telegram delivery, or LibreQoS apply mechanics.
 
 ## v2.70.5-rc1 — Settings UI State Wiring Hotfix
 
