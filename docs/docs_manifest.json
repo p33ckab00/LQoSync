@@ -356,5 +356,11 @@
     "file": "docs/content/checkbox_state_wiring_hotfix.md",
     "anchor": "checkbox-state-wiring-hotfix",
     "summary": "v2.70.6 fixes Config Center checkbox checked-state binding and visual checked marks for boolean policy fields."
+  },
+  "operations.apply_failure_visibility": {
+    "title": "LibreQoS Apply Failure Visibility",
+    "file": "docs/content/apply_failure_visibility.md",
+    "anchor": "libreqos-apply-failure-visibility",
+    "summary": "v2.70.7-rc1 apply failure diagnostics page, notification targets, Operations detail/resolve buttons, and stderr/stdout resolution workflow."
   }
 }

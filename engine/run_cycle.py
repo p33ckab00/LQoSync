@@ -110,7 +110,7 @@ def _libreqos_should_apply(config: dict, state: dict, result: SyncResult, mode: 
     return False, "no_changes"
 
 
-def _mark_libreqos_state(state_path: str, result: SyncResult, ok: bool, reason: str):
+def _mark_libreqos_state(state_path: str, result: SyncResult, ok: bool, reason: str, run_id: str | None = None):
     update_state(
         state_path,
         last_libreqos_apply_success=bool(ok),
@@ -118,6 +118,7 @@ def _mark_libreqos_state(state_path: str, result: SyncResult, ok: bool, reason: 
         pending_libreqos_apply=not bool(ok),
         last_libreqos_apply_reason=reason,
         last_libreqos_exit_code=result.libreqos_exit_code,
+        last_libreqos_run_id=run_id,
     )
 
 
@@ -135,9 +136,9 @@ def _run_libreqos_apply(config: dict, state_path: str, result: SyncResult, timel
     result.diff["libreqos_apply_reason"] = reason
     result.diff["libreqos_working_dir"] = lq.get("working_dir")
     if lq["ok"]:
-        _mark_libreqos_state(state_path, result, True, reason)
+        _mark_libreqos_state(state_path, result, True, reason, lq.get("run_id"))
     else:
-        _mark_libreqos_state(state_path, result, False, reason)
+        _mark_libreqos_state(state_path, result, False, reason, lq.get("run_id"))
     return lq
 
 

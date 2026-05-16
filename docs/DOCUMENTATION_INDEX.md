@@ -86,3 +86,5 @@ LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner contr
 - [Settings UI State Wiring Hotfix](content/settings_ui_state_wiring_hotfix.md) — v2.70.5-rc1 Config Center preset active-state and settings UI wiring audit fix.
 
 - [Checkbox State Wiring Hotfix](content/checkbox_state_wiring_hotfix.md) — v2.70.6 Config Center checkbox checked-state binding and visual-state fix.
+
+- [LibreQoS Apply Failure Visibility](content/apply_failure_visibility.md) — v2.70.7-rc1 diagnostic workflow for failed LibreQoS apply runs.

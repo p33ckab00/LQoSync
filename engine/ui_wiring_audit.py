@@ -272,6 +272,41 @@ def check_owner_only_links(root: str | Path) -> dict[str, Any]:
     return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
 
 
+
+def check_apply_failure_visibility(root: str | Path) -> dict[str, Any]:
+    """Check LibreQoS apply failure notification-to-resolution wiring.
+
+    Apply failures must not be invisible. A notification candidate should point to
+    an actionable apply diagnostic page, Operations Center should expose detail
+    links, and app.py should provide human/API diagnostic routes.
+    """
+    root = Path(root)
+    items: list[UIWiringItem] = []
+    app = _read(root, "app.py")
+    health = _read(root, "engine/health_trends.py")
+    ops = _read(root, "templates/operations.html")
+    dash = _read(root, "templates/dashboard_health_performance_fragment.html")
+    diag = _read(root, "engine/apply_diagnostics.py")
+    problems = []
+    if "def libreqos_apply_detail" not in app or "/libreqos/apply/<run_id>" not in app:
+        problems.append("missing human apply diagnostic route")
+    if "api_libreqos_apply_diagnostic" not in app:
+        problems.append("missing apply diagnostic API route")
+    if "get_apply_diagnostic" not in app or not diag:
+        problems.append("missing apply diagnostics engine wiring")
+    if "/libreqos/apply/{run_id}" not in health or "/operations?tab=apply" not in health:
+        problems.append("notification target does not point to apply diagnostic/apply tab")
+    if "Detail / Resolve" not in ops or "run.diagnostic.summary" not in ops:
+        problems.append("Operations apply history lacks detail/resolve wiring")
+    if "Open resolve page" not in dash or "n.target" not in dash:
+        problems.append("Dashboard notification cards are not clickable/actionable")
+    if problems:
+        items.append(UIWiringItem("apply.failure_visibility", "Apply failure visibility wiring", "fail", "; ".join(problems), "apply", "Wire apply health notifications to /libreqos/apply/<run_id>, Operations detail buttons, and dashboard actionable targets."))
+    else:
+        items.append(UIWiringItem("apply.failure_visibility", "Apply failure visibility wiring", "ok", "LibreQoS apply failures are linked to diagnostic pages, Operations detail buttons, and Dashboard notification targets.", "apply"))
+    return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
+
+
 def audit_ui_wiring(root: str | Path | None = None) -> dict[str, Any]:
     root = Path(root or Path(__file__).resolve().parents[1])
     sections = {
@@ -279,6 +314,7 @@ def audit_ui_wiring(root: str | Path | None = None) -> dict[str, Any]:
         "policy_preset": check_policy_preset_wiring(root),
         "config_center_state": check_config_center_state_wiring(root),
         "checkbox_state": check_checkbox_state_wiring(root),
+        "apply_failure_visibility": check_apply_failure_visibility(root),
         "compatibility_routes": check_compatibility_route_wiring(root),
         "owner_links": check_owner_only_links(root),
         "stale_files": check_stale_files(root),

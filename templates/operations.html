@@ -86,7 +86,8 @@
               <div class="mono text-sm"><div><b>{{ run.run_id }}</b></div><div style="color:var(--hint)">{{ run.started_at }} · {{ run.duration_seconds }}s · exit={{ run.exit_code }}</div></div>
               <span class="badge {{ 'b-ok' if run.ok else 'b-err' }}">{{ 'OK' if run.ok else 'FAILED' }}</span>
             </div>
-            <div class="btn-row" style="margin-top:8px"><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stdout" target="_blank">stdout</a><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stderr" target="_blank">stderr</a></div>
+            {% if run.diagnostic %}<div class="note" style="margin-top:8px;border-color:rgba(239,68,68,.35)"><b>Why:</b> {{ run.diagnostic.summary }}<br><b>Resolve:</b> {{ run.diagnostic.resolution }}</div>{% endif %}
+            <div class="btn-row" style="margin-top:8px"><a class="btn btn-primary" href="/libreqos/apply/{{ run.run_id }}"><i class="ti ti-stethoscope"></i> Detail / Resolve</a><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stdout" target="_blank">stdout</a><a class="btn" href="/api/libreqos/apply/{{ run.run_id }}/stderr" target="_blank">stderr</a></div>
           </div>
           {% else %}<div class="empty-state">No LibreQoS apply logs yet.</div>{% endfor %}
         </div>

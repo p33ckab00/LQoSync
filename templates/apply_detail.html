@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% block content %}
+{% set d = diagnostic or {} %}{% set run = d.get('run', {}) %}
+<div class="page-header">
+  <div>
+    <div class="page-title">LibreQoS Apply Diagnostic</div>
+    <div class="page-subtitle">Run <span class="mono">{{ run_id }}</span> · exit={{ d.get('exit_code') }} · {{ d.get('duration_seconds') or 0 }}s</div>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="/operations?tab=apply"><i class="ti ti-arrow-left"></i> Apply History</a>
+    <a class="btn" href="/api/libreqos/apply/{{ run_id }}/diagnostic" target="_blank"><i class="ti ti-code"></i> Diagnostic JSON</a>
+    <a class="btn" href="/api/libreqos/apply/{{ run_id }}/stderr" target="_blank"><i class="ti ti-file-alert"></i> stderr</a>
+    <a class="btn" href="/api/libreqos/apply/{{ run_id }}/stdout" target="_blank"><i class="ti ti-file-text"></i> stdout</a>
+  </div>
+</div>
+
+<section class="grid-stats" style="margin-bottom:12px">
+  <div class="stat"><div class="stat-label"><i class="ti ti-bolt"></i> Status</div><div class="stat-value {{ 'text-accent' if d.get('ok') else 'text-err' }}">{{ 'OK' if d.get('ok') else 'FAILED' }}</div><div class="stat-sub">exit={{ d.get('exit_code') }}</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-category"></i> Category</div><div class="stat-value">{{ d.get('category','unknown') }}</div><div class="stat-sub">classification</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-clock"></i> Duration</div><div class="stat-value">{{ d.get('duration_seconds') or 0 }}s</div><div class="stat-sub">{{ d.get('started_at') or '' }}</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-folder-cog"></i> Working Dir</div><div class="stat-value" style="font-size:14px">{{ d.get('working_dir') or '—' }}</div><div class="stat-sub">mode={{ d.get('mode') or 'unknown' }}</div></div>
+</section>
+
+<section class="card" style="border-color:{{ 'rgba(239,68,68,.45)' if not d.get('ok') else 'rgba(34,197,94,.35)' }};margin-bottom:12px">
+  <div class="card-title"><i class="ti ti-stethoscope"></i> What failed / where to resolve</div>
+  <div class="note"><b>Summary:</b> {{ d.get('summary') }}</div>
+  <div class="note" style="margin-top:8px"><b>Resolution:</b> {{ d.get('resolution') }}</div>
+  <div class="btn-row" style="margin-top:10px">
+    <a class="btn btn-primary" href="{{ d.get('target') or '/operations?tab=apply' }}"><i class="ti ti-tool"></i> Open resolve page</a>
+    <a class="btn" href="/setup-repair"><i class="ti ti-shield-check"></i> System Validation</a>
+    <a class="btn" href="/config?tab=paths"><i class="ti ti-adjustments-horizontal"></i> Paths</a>
+  </div>
+</section>
+
+<div class="two-grid" style="align-items:start">
+  <section class="card">
+    <div class="card-title"><i class="ti ti-terminal-2"></i> Suggested commands</div>
+    {% if d.get('commands') %}<pre class="logbox" style="white-space:pre-wrap">{{ d.get('commands')|join('\n') }}</pre>{% else %}<div class="empty-state">No command suggestions for this failure type.</div>{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-title"><i class="ti ti-list-details"></i> Command metadata</div>
+    <div class="table-wrap"><table class="table"><tbody>
+      <tr><td>Run ID</td><td class="mono">{{ run_id }}</td></tr>
+      <tr><td>Mode</td><td class="mono">{{ d.get('mode') or '—' }}</td></tr>
+      <tr><td>Timed out</td><td class="mono">{{ run.get('timed_out') }}</td></tr>
+      <tr><td>Command</td><td class="mono" style="white-space:normal">{{ (d.get('command') or [])|join(' ') }}</td></tr>
+    </tbody></table></div>
+  </section>
+</div>
+
+<section class="card" style="margin-top:12px">
+  <div class="card-title"><i class="ti ti-file-alert"></i> stderr tail</div>
+  {% if d.get('stderr_tail') %}<pre class="logbox" style="white-space:pre-wrap">{{ d.get('stderr_tail') }}</pre>{% else %}<div class="empty-state">No stderr output captured for this run.</div>{% endif %}
+</section>
+
+<section class="card" style="margin-top:12px">
+  <div class="card-title"><i class="ti ti-file-text"></i> stdout tail</div>
+  {% if d.get('stdout_tail') %}<pre class="logbox" style="white-space:pre-wrap">{{ d.get('stdout_tail') }}</pre>{% else %}<div class="empty-state">No stdout output captured for this run.</div>{% endif %}
+</section>
+{% endblock %}

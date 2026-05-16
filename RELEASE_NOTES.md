@@ -1,5 +1,23 @@
 # LQoSync Release Notes
 
+## v2.70.7-rc1 - LibreQoS Apply Failure Visibility Hotfix
+
+### Fixed
+
+- Fixes the invisible LibreQoS apply failure workflow where Dashboard/Telegram could warn about failed apply but did not clearly link to where the error should be inspected or resolved.
+- Adds `engine/apply_diagnostics.py` to classify saved LibreQoS apply failures using stderr/stdout and metadata.
+- Adds `/libreqos/apply/<run_id>` as a human-readable apply diagnostic page.
+- Adds `/api/libreqos/apply/<run_id>/diagnostic` as a read-only JSON diagnostic endpoint.
+- Updates Dashboard notification cards so apply warnings/failures are clickable and show “Open resolve page”.
+- Updates apply health notification targets from the old `/services` pointer to `/libreqos/apply/<run_id>` when possible, or `/operations?tab=apply` as fallback.
+- Updates Operations Center → Apply History with a **Detail / Resolve** button and inline summary/resolution hints for failed apply runs.
+- Stores `last_libreqos_run_id` in runtime state for force-apply and scheduler apply attempts.
+- Extends UI wiring audit to validate apply failure notification-to-resolution wiring.
+
+### Notes
+
+This is an apply failure visibility and diagnostics wiring hotfix only. It does not change MikroTik collection, cleanup policy execution, generated file formats, scheduler timing, backup implementation, Telegram delivery, or LibreQoS apply mechanics.
+
 ## v2.70.6-rc1 - Checkbox State Wiring Hotfix
 
 ### Fixed

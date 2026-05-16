@@ -268,7 +268,19 @@ def notification_candidates(config: dict, state: dict[str, Any], source_cards: l
         if data.get("status") == "slow":
             items.append({"level": "warning", "event": "performance_slow", "title": f"{name} slower than baseline", "message": f"Current {data.get('current_ms')}ms vs average {data.get('average_ms')}ms.", "target": "/#source-health-performance"})
     if apply_health.get("status") in {"pending", "warning", "error"}:
-        items.append({"level": "critical" if apply_health.get("status") == "error" else "warning", "event": "apply_failed" if apply_health.get("status") == "error" else "apply_warning", "title": "LibreQoS apply needs attention", "message": "; ".join(apply_health.get("warnings") or []) or "Review apply health.", "target": "/services"})
+        last_apply = apply_health.get("last_apply") or {}
+        run_id = last_apply.get("run_id")
+        target = f"/libreqos/apply/{run_id}" if run_id else "/operations?tab=apply"
+        base_message = "; ".join(apply_health.get("warnings") or []) or "Review apply health."
+        if run_id:
+            base_message = f"{base_message} Latest run: {run_id}. Open the apply diagnostic page for stderr/stdout and resolution steps."
+        items.append({
+            "level": "critical" if apply_health.get("status") == "error" else "warning",
+            "event": "apply_failed" if apply_health.get("status") == "error" else "apply_warning",
+            "title": "LibreQoS apply needs attention",
+            "message": base_message,
+            "target": target,
+        })
     return items[:25]
 
 

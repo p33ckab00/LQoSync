@@ -11,7 +11,7 @@
     </div>
     <div class="btn-row">
       <a class="btn" href="/api/health/trends" target="_blank"><i class="ti ti-code"></i> JSON</a>
-      <a class="btn" href="/services"><i class="ti ti-terminal-2"></i> Apply logs</a>
+      <a class="btn" href="/operations?tab=apply"><i class="ti ti-terminal-2"></i> Apply logs</a>
     </div>
   </div>
 
@@ -65,7 +65,7 @@
         <div class="stat"><div class="stat-label">Repeated Failures</div><div class="stat-value {{ 'text-err' if apply.get('repeated_failures') else 'text-accent' }}">{{ apply.get('repeated_failures',0) }}</div></div>
       </div>
       {% set apply_warnings = apply.get('warnings', []) %}
-      {% if notifications or apply_warnings %}<div style="display:grid;gap:7px;margin-top:8px">{% for w in apply_warnings[:2] %}<div class="dash-note-item text-warn"><i class="ti ti-alert-triangle"></i> {{ w }}</div>{% endfor %}{% for n in notifications[:4] %}<div class="dash-note-item"><div style="display:flex;justify-content:space-between;gap:8px"><b>{{ n.title }}</b><span class="badge {{ 'b-err' if n.level == 'critical' else 'b-warn' }}">{{ n.level }}</span></div><div class="text-sm" style="color:var(--muted);margin-top:4px">{{ n.message }}</div></div>{% endfor %}</div>{% else %}<div class="mono text-sm" style="color:var(--muted);margin-top:8px">No notification-worthy health conditions detected.</div>{% endif %}
+      {% if notifications or apply_warnings %}<div style="display:grid;gap:7px;margin-top:8px">{% for w in apply_warnings[:2] %}<a class="dash-note-item text-warn" href="{{ '/libreqos/apply/' ~ apply.last_apply.run_id if apply.last_apply and apply.last_apply.run_id else '/operations?tab=apply' }}" style="text-decoration:none"><i class="ti ti-alert-triangle"></i> {{ w }}<div class="mono text-xs" style="color:var(--hint);margin-top:4px">Open apply diagnostic / logs</div></a>{% endfor %}{% for n in notifications[:4] %}<a class="dash-note-item" href="{{ n.target or '/operations?tab=apply' }}" style="text-decoration:none;display:block"><div style="display:flex;justify-content:space-between;gap:8px"><b>{{ n.title }}</b><span class="badge {{ 'b-err' if n.level == 'critical' else 'b-warn' }}">{{ n.level }}</span></div><div class="text-sm" style="color:var(--muted);margin-top:4px">{{ n.message }}</div><div class="mono text-xs" style="color:var(--hint);margin-top:4px">Open resolve page →</div></a>{% endfor %}</div>{% else %}<div class="mono text-sm" style="color:var(--muted);margin-top:8px">No notification-worthy health conditions detected.</div>{% endif %}
     </div>
   </div>
 </section>

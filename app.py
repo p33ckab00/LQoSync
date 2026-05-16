@@ -30,6 +30,7 @@ from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset,
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
 from engine.production_readiness import compute_production_readiness
+from engine.apply_diagnostics import get_apply_diagnostic
 from engine.stable_release import compute_stable_release_check
 from engine.router_overview import compute_router_overview
 from engine.notifications import telegram_settings_summary, send_test_message, dispatch_telegram_notifications
@@ -1561,6 +1562,13 @@ def operations_center():
     apply_page = max(1, min(apply_page, apply_pages))
     apply_start = (apply_page - 1) * apply_limit
     apply_runs = apply_runs_all[apply_start:apply_start + apply_limit]
+    # Make failed apply runs actionable directly from Operations Center.
+    for _run in apply_runs:
+        try:
+            if _run.get("ok") is False and _run.get("run_id"):
+                _run["diagnostic"] = get_apply_diagnostic(cfg, str(_run.get("run_id")))
+        except Exception:
+            pass
     apply_pagination = {
         "page": apply_page,
         "pages": apply_pages,
@@ -1853,10 +1861,14 @@ def libreqos_force_apply():
         pending_libreqos_apply=not bool(lq.get("ok")),
         last_libreqos_apply_reason="force_apply",
         last_libreqos_exit_code=lq.get("exit_code"),
+        last_libreqos_run_id=lq.get("run_id"),
     )
     write_audit(cfg, "libreqos_force_apply", actor=current_user().get("username"), details={"ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id")})
-    flash("LibreQoS force apply completed." if lq.get("ok") else "LibreQoS force apply failed. Check Services & Journals logs.")
-    return redirect(url_for("services_page"))
+    if lq.get("ok"):
+        flash("LibreQoS force apply completed.")
+        return redirect(url_for("operations_center", tab="apply"))
+    flash("LibreQoS force apply failed. Opening the apply diagnostic page.")
+    return redirect(url_for("libreqos_apply_detail", run_id=lq.get("run_id")))
 
 
 @app.route("/api/libreqos/force-apply", methods=["POST"])
@@ -1874,6 +1886,7 @@ def api_libreqos_force_apply():
         pending_libreqos_apply=not bool(lq.get("ok")),
         last_libreqos_apply_reason="force_apply",
         last_libreqos_exit_code=lq.get("exit_code"),
+        last_libreqos_run_id=lq.get("run_id"),
     )
     write_audit(cfg, "api_libreqos_force_apply", actor=current_user().get("username"), details={"ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id")})
     return jsonify(lq)
@@ -1901,6 +1914,21 @@ def api_libreqos_apply_stream(run_id, stream):
         return jsonify({"error": "invalid stream"}), 400
     cfg = load_config(CONFIG_PATH)
     return Response(read_apply_file(cfg, run_id, stream), mimetype="text/plain")
+
+
+@app.route("/libreqos/apply/<run_id>")
+@login_required
+def libreqos_apply_detail(run_id):
+    cfg = load_config(CONFIG_PATH)
+    diagnostic = get_apply_diagnostic(cfg, run_id)
+    return render_template("apply_detail.html", diagnostic=diagnostic, run_id=run_id, user=current_user())
+
+
+@app.route("/api/libreqos/apply/<run_id>/diagnostic")
+@login_required
+def api_libreqos_apply_diagnostic(run_id):
+    cfg = load_config(CONFIG_PATH)
+    return jsonify(get_apply_diagnostic(cfg, run_id))
 
 
 @app.route("/api/performance/last-cycle")

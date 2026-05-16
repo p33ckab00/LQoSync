@@ -52,3 +52,8 @@ LQoSync v2.70.5-rc1 fixes the Config Center → Policies preset active-state mis
 ## v2.70.6 Checkbox State Wiring Hotfix
 
 LQoSync v2.70.6 fixes Config Center checkbox visual-state wiring. Boolean policy fields now use normalized checked binding through `asBool(getPath(...))`, explicit `x-effect` checked synchronization, and visible checked-state CSS so true values display with a clear checked mark in light and dark mode. UI wiring audit now checks this behavior.
+
+
+## v2.70.7 LibreQoS Apply Failure Visibility
+
+LQoSync v2.70.7-rc1 makes failed LibreQoS apply runs actionable. Dashboard and Telegram apply warnings now link to an apply diagnostic page when a run ID is available. Operations Center → Apply History includes a Detail / Resolve button and failed runs show a short summary and resolution hint. The new `/libreqos/apply/<run_id>` page shows stderr/stdout tails, command metadata, failure classification, suggested resolve page, and suggested commands. This is a UI/diagnostics wiring improvement only.
