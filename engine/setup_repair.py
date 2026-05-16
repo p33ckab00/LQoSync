@@ -153,7 +153,10 @@ def apply_policy_preset(cfg: dict, preset: str) -> dict:
             s["normal_inactive_action"] = "cleanup_immediate"
             s["source_disabled_action"] = "cleanup_next_run"
             s["collector_failed_action"] = "preserve_rows"
-            s["zero_result_action"] = "warn_only"
+            # Even in Aggressive mode, a full zero-result from an enabled source
+            # is not treated like a normal inactive client. Zero-result can be
+            # caused by API/query/VLAN trouble, so cleanup remains blocked.
+            s["zero_result_action"] = "block_cleanup"
             s["mass_removal_action"] = "require_confirm_next_run"
             s["respect_percentage_guards"] = name == "pppoe"
         policies["apply_guard"]["require_manual_confirm_on_medium_risk"] = False

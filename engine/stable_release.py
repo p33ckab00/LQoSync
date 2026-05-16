@@ -16,6 +16,7 @@ from engine.release_integrity import collect_app_routes, collect_render_template
 from engine.regression import compute_regression_suite, check_config_migration_regressions
 from engine.policy_path_audit import audit_policy_and_paths
 from engine.ui_wiring_audit import audit_ui_wiring
+from engine.policy_preset_audit import audit_policy_presets
 
 STABLE_RELEASE_TARGET = "v2.70 Stable Release Candidate"
 FEATURE_FREEZE_POLICY = {
@@ -223,6 +224,14 @@ def compute_stable_release_check(root: str | Path | None = None) -> dict[str, An
         items.append(StableItem("ui.wiring", "UI wiring audit", "warn", f"WARN={ui_wiring['summary'].get('warn')}", "ui", "Review UI wiring warnings before stable tag."))
     else:
         items.append(StableItem("ui.wiring", "UI wiring audit", "ok", f"OK={ui_wiring['summary'].get('ok')}", "ui"))
+
+    preset_audit = audit_policy_presets(root)
+    if preset_audit["summary"].get("fail"):
+        items.append(StableItem("policy.preset_audit", "Policy preset audit", "fail", f"FAIL={preset_audit['summary'].get('fail')} WARN={preset_audit['summary'].get('warn')}", "policy", "Run scripts/policy_preset_audit.py and fix preset alignment/save semantics."))
+    elif preset_audit["summary"].get("warn"):
+        items.append(StableItem("policy.preset_audit", "Policy preset audit", "warn", f"WARN={preset_audit['summary'].get('warn')}", "policy", "Review preset warnings before stable tag."))
+    else:
+        items.append(StableItem("policy.preset_audit", "Policy preset audit", "ok", f"OK={preset_audit['summary'].get('ok')}", "policy"))
 
     version = (root / "VERSION").read_text(encoding="utf-8", errors="ignore").strip() if (root / "VERSION").exists() else "unknown"
     if not version.startswith("2.70"):

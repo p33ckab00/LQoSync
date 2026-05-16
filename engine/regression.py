@@ -385,12 +385,14 @@ def compute_regression_suite(root: str | Path | None = None) -> dict[str, Any]:
     root = Path(root or Path(__file__).resolve().parents[1])
     from engine.policy_path_audit import audit_policy_and_paths
     from engine.ui_wiring_audit import audit_ui_wiring
+    from engine.policy_preset_audit import audit_policy_presets
     sections = {
         "routes": check_route_regressions(root),
         "templates": check_template_context_regressions(root),
         "config_migration": check_config_migration_regressions(root),
         "policy_behavior": check_policy_behavior_regressions(root),
         "policy_path_audit": audit_policy_and_paths(root),
+        "policy_preset_audit": audit_policy_presets(root),
         "ui_wiring": audit_ui_wiring(root),
         "operations": check_operations_center_regressions(root),
         "documentation": check_documentation_regressions(root),

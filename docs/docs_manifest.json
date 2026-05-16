@@ -362,5 +362,11 @@
     "file": "docs/content/apply_failure_visibility.md",
     "anchor": "libreqos-apply-failure-visibility",
     "summary": "v2.70.7-rc1 apply failure diagnostics page, notification targets, Operations detail/resolve buttons, and stderr/stdout resolution workflow."
+  },
+  "policy.preset_alignment_save_semantics": {
+    "title": "Policy Preset Alignment + Save Semantics",
+    "file": "docs/content/policy_preset_alignment_save_semantics.md",
+    "anchor": "policy-preset-alignment--save-semantics",
+    "summary": "v2.70.8 aligns Conservative/Balanced/Aggressive presets and adds server-side custom mode reconciliation."
   }
 }

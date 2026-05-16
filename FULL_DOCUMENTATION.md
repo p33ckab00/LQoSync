@@ -7391,3 +7391,8 @@ LQoSync v2.70.6 fixes Config Center checkbox visual-state wiring. Boolean policy
 ## v2.70.7 LibreQoS Apply Failure Visibility
 
 LQoSync v2.70.7-rc1 makes failed LibreQoS apply runs actionable. Dashboard and Telegram apply warnings now link to an apply diagnostic page when a run ID is available. Operations Center → Apply History includes a Detail / Resolve button and failed runs show a short summary and resolution hint. The new `/libreqos/apply/<run_id>` page shows stderr/stdout tails, command metadata, failure classification, suggested resolve page, and suggested commands. This is a UI/diagnostics wiring improvement only.
+
+
+## v2.70.8 Policy Preset Alignment + Save Semantics
+
+LQoSync v2.70.8 aligns Conservative, Balanced, and Aggressive presets so they do not create high/critical conflicts immediately after apply. Aggressive mode still uses faster normal inactive cleanup, but PPPoE/DHCP/Hotspot zero-result cleanup remains `block_cleanup`. Config Center saves now reconcile policy mode server-side: exact presets keep their preset name, while edited policy values are saved as `custom`. The new `scripts/policy_preset_audit.py` validates preset alignment, user preference preservation, and custom-mode reconciliation.

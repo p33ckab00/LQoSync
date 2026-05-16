@@ -42,3 +42,8 @@ This release also separates required and optional behavior: `app.auto_apply` is 
 ## v2.70.3 Policy Preset Wiring Hotfix
 
 Config Center → Policies now includes visible Conservative, Balanced, and Aggressive preset buttons wired to the saved config preset route. `policies.mode` is displayed as managed preset status instead of a misleading normal field, while manual policy edits still set mode to `custom` when saved.
+
+
+## v2.70.8 Policy Preset Alignment + Save Semantics
+
+LQoSync v2.70.8 aligns Conservative, Balanced, and Aggressive presets so they do not create high/critical conflicts immediately after apply. Aggressive mode still uses faster normal inactive cleanup, but PPPoE/DHCP/Hotspot zero-result cleanup remains `block_cleanup`. Config Center saves now reconcile policy mode server-side: exact presets keep their preset name, while edited policy values are saved as `custom`. The new `scripts/policy_preset_audit.py` validates preset alignment, user preference preservation, and custom-mode reconciliation.

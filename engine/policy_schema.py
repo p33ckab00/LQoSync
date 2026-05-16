@@ -55,7 +55,7 @@ for source, label in [
         field(f"policies.cleanup_sources.{source}.normal_inactive_action", "Normal inactive action", "select", section=sec, choices=POLICY_ACTION_CHOICES, recommended="cleanup_next_run" if source == "pppoe" else ("cleanup_immediate" if source in {"dhcp", "hotspot"} else "preserve_rows"), risk="high", description="Action when a previously active row is absent for normal/expected reasons."),
         field(f"policies.cleanup_sources.{source}.source_disabled_action", "Source disabled action", "select", section=sec, choices=POLICY_ACTION_CHOICES, recommended="require_confirm_next_run", risk="high", description="Action when this source is disabled in config and existing rows would disappear."),
         field(f"policies.cleanup_sources.{source}.collector_failed_action", "Collector failed action", "select", section=sec, choices=POLICY_ACTION_CHOICES, recommended="preserve_rows", risk="critical", description="Action when the source is enabled but collection failed. Preserve rows is safest."),
-        field(f"policies.cleanup_sources.{source}.zero_result_action", "Zero-result action", "select", section=sec, choices=POLICY_ACTION_CHOICES, recommended="block_cleanup" if source in {"pppoe", "dhcp"} else "warn_only", risk="critical", description="Action when a source is enabled and scan succeeds but returns zero rows."),
+        field(f"policies.cleanup_sources.{source}.zero_result_action", "Zero-result action", "select", section=sec, choices=POLICY_ACTION_CHOICES, recommended="block_cleanup" if source in {"pppoe", "dhcp", "hotspot"} else "preserve_rows", risk="critical", description="Action when a source is enabled and scan succeeds but returns zero rows."),
         field(f"policies.cleanup_sources.{source}.mass_removal_action", "Mass-removal action", "select", section=sec, choices=POLICY_ACTION_CHOICES, recommended="require_confirm_next_run", risk="high", description="Action when source/node removal thresholds are exceeded."),
         field(f"policies.cleanup_sources.{source}.respect_percentage_guards", "Respect percentage/count guards", "bool", section=sec, recommended=(source in {"pppoe", "static"}), risk="medium", description="When enabled, node/source mass-removal percentage guards can override normal cleanup behavior."),
     ])
@@ -290,7 +290,7 @@ SOURCE_EXPLANATIONS = {
         "normal_inactive_action": ("Action when Hotspot active users/sessions disappear normally.", "cleanup_immediate is usually acceptable for session-style Hotspot. Use cleanup_next_run if users flap often.", "Immediate cleanup may cause more applies in busy captive/session environments."),
         "source_disabled_action": ("Action when Hotspot collection is disabled and existing Hotspot rows would disappear.", "cleanup_next_run or require_confirm_next_run are safer than immediate deletion.", "Immediate deletion can remove all Hotspot rows if disabled accidentally."),
         "collector_failed_action": ("Action when Hotspot is enabled but active-user collection fails.", "Use preserve_rows because a read failure is not proof users are gone.", "Deleting on failure can remove valid active sessions."),
-        "zero_result_action": ("Action when Hotspot scan succeeds but returns zero users.", "warn_only or cleanup_next_run can be reasonable if sessions naturally empty; block_cleanup for production sensitivity.", "cleanup_immediate may be okay for small guest networks but risky after a collector anomaly."),
+        "zero_result_action": ("Action when Hotspot scan succeeds but returns zero users.", "Use block_cleanup by default. If Hotspot sessions naturally become empty, override intentionally and document why.", "warn_only with immediate cleanup can hide collector/source mistakes."),
         "mass_removal_action": ("Action when Hotspot removal exceeds thresholds.", "require_confirm_next_run is safest if Hotspot users are subscribers; warn_only/cleanup_next_run may fit guest sessions.", "Mass Hotspot removal may be normal after vouchers expire but should be visible."),
         "respect_percentage_guards": ("Controls whether mass-removal guards can override Hotspot cleanup.", "Disable for highly dynamic sessions; enable for subscriber-like Hotspot use.", "Disabling guards favors speed over safety."),
     },
@@ -502,6 +502,27 @@ def closest_preset(cfg: dict) -> dict[str, Any]:
     scores.sort(key=lambda x: x["differences"])
     best = scores[0] if scores else {"preset": "balanced", "differences": 0}
     return {"closest_preset": best["preset"], "differences": best["differences"], "all": scores}
+
+
+
+
+def reconcile_policy_mode(cfg: dict) -> dict:
+    """Normalize policies and mark mode=custom when saved values no longer match the selected preset.
+
+    This is a server-side safety net for Config Center saves. The UI already marks
+    manual policy field edits as custom, but raw JSON edits, browser edge cases, or
+    old forms can leave policies.mode saying conservative/balanced/aggressive even
+    when the actual policy block differs.
+    """
+    normalize_policies(cfg)
+    mode = ((cfg.get("policies") or {}).get("mode") or "balanced").strip().lower()
+    if mode in {"conservative", "balanced", "aggressive"}:
+        diffs = [d for d in policy_diff_from_preset(cfg, mode, limit=10000) if d.get("path") != "policies.mode"]
+        if diffs:
+            cfg.setdefault("policies", {})["mode"] = "custom"
+    elif mode not in POLICY_PRESETS:
+        cfg.setdefault("policies", {})["mode"] = "custom"
+    return cfg
 
 
 def parse_policy_form(form: dict, current_cfg: dict) -> dict:

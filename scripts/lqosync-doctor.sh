@@ -52,6 +52,16 @@ fi
 POLICY_PATH_STATUS=${POLICY_PATH_STATUS:-0}
 echo
 
+echo "== Policy preset audit =="
+if [[ -x scripts/policy_preset_audit.py || -f scripts/policy_preset_audit.py ]]; then
+  python3 scripts/policy_preset_audit.py || POLICY_PRESET_STATUS=$?
+else
+  echo "[WARN] scripts/policy_preset_audit.py not found; skipping."
+  POLICY_PRESET_STATUS=0
+fi
+POLICY_PRESET_STATUS=${POLICY_PRESET_STATUS:-0}
+echo
+
 echo "== Stale file cleanup check =="
 if [[ -x scripts/cleanup_stale_files.py || -f scripts/cleanup_stale_files.py ]]; then
   python3 scripts/cleanup_stale_files.py || CLEANUP_STATUS=$?

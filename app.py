@@ -26,7 +26,7 @@ from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
 from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS, is_setup_wizard_complete
-from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, POLICY_SCHEMA, get_by_path
+from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, reconcile_policy_mode, POLICY_SCHEMA, get_by_path
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
 from engine.production_readiness import compute_production_readiness
@@ -729,9 +729,16 @@ def config_page():
         raw = request.form.get("config_json", "")
         try:
             data = json.loads(raw)
-            save_config(data, CONFIG_PATH)
-            write_audit(load_config(CONFIG_PATH), "config_saved", actor=current_user().get("username"))
-            flash("config.json saved.")
+            previous = load_config(CONFIG_PATH)
+            previous_mode = ((previous.get("policies") or {}).get("mode") if isinstance(previous.get("policies"), dict) else None)
+            data = reconcile_policy_mode(data)
+            new_mode = ((data.get("policies") or {}).get("mode") if isinstance(data.get("policies"), dict) else None)
+            save_config(data, CONFIG_PATH, backup_existing=True)
+            write_audit(load_config(CONFIG_PATH), "config_saved", actor=current_user().get("username"), details={"previous_policy_mode": previous_mode, "policy_mode": new_mode})
+            if previous_mode != new_mode and new_mode == "custom":
+                flash("config.json saved. Policy mode changed to Custom because saved policy values differ from the selected preset.")
+            else:
+                flash("config.json saved.")
         except Exception as e:
             flash(f"Config save failed: {e}")
     cfg = load_config(CONFIG_PATH)

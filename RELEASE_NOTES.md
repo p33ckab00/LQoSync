@@ -1,5 +1,22 @@
 # LQoSync Release Notes
 
+## v2.70.8-rc1 - Policy Preset Alignment + Save Semantics Hotfix
+
+### Fixed
+
+- Aligns Conservative, Balanced, and Aggressive policy presets with the stable safety model.
+- Aggressive mode still uses faster normal inactive cleanup, but PPPoE/DHCP/Hotspot zero-result cleanup now remains `block_cleanup`.
+- Balanced defaults now use `block_cleanup` for Hotspot zero-result instead of `warn_only`.
+- Adds server-side policy mode reconciliation during Config Center saves: exact presets keep their preset name, while modified policy blocks are saved as `custom`.
+- Ensures policy preset apply preserves user preferences outside `config.json → policies`, including optional auto-backup, Telegram settings, operation mode, router settings, and paths.
+- Adds `engine/policy_preset_audit.py` and `scripts/policy_preset_audit.py` to validate preset alignment and custom-save semantics.
+- Integrates Policy Preset Audit into release integrity, regression, stable release checks, and lqosync-doctor.
+- Adds `package_quality.policy_preset_audit_script` and bumps `config_schema_version` to 12.
+
+### Notes
+
+This is a policy preset alignment and Config Center save-semantics hotfix. It does not change MikroTik collection, generated file formats, scheduler timing, backup implementation, Telegram delivery mechanics, or LibreQoS apply mechanics.
+
 ## v2.70.7-rc1 - LibreQoS Apply Failure Visibility Hotfix
 
 ### Fixed

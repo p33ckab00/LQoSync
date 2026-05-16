@@ -245,7 +245,18 @@ def compute_release_integrity(root: str | Path | None = None) -> dict[str, Any]:
             ui_items = [IntegrityItem("ui.wiring", "UI wiring audit", "ok", f"{ui_report['summary'].get('ok', 0)} UI wiring checks passed", "ui").to_dict()]
     except Exception as exc:
         ui_items = [IntegrityItem("ui.wiring", "UI wiring audit", "fail", str(exc), "ui", "Fix engine/ui_wiring_audit.py or template imports.").to_dict()]
-    items = [*route_report["items"], *config_report["items"], *ui_items]
+    try:
+        from engine.policy_preset_audit import audit_policy_presets
+        preset_report = audit_policy_presets(root)
+        if preset_report["summary"].get("fail", 0):
+            failed = [x for x in preset_report.get("items", []) if x.get("status") == "fail"]
+            detail = "; ".join((x.get("title", "preset") + ": " + x.get("detail", "")) for x in failed[:5])
+            preset_items = [IntegrityItem("policy.preset_audit", "Policy preset audit", "fail", detail, "config", "Run scripts/policy_preset_audit.py and align preset defaults/save semantics.").to_dict()]
+        else:
+            preset_items = [IntegrityItem("policy.preset_audit", "Policy preset audit", "ok", f"{preset_report['summary'].get('ok', 0)} policy preset checks passed", "config").to_dict()]
+    except Exception as exc:
+        preset_items = [IntegrityItem("policy.preset_audit", "Policy preset audit", "fail", str(exc), "config", "Fix engine/policy_preset_audit.py or preset imports.").to_dict()]
+    items = [*route_report["items"], *config_report["items"], *ui_items, *preset_items]
     summary = {
         "ok": sum(1 for i in items if i["status"] == "ok"),
         "warn": sum(1 for i in items if i["status"] == "warn"),
@@ -261,6 +272,7 @@ def compute_release_integrity(root: str | Path | None = None) -> dict[str, Any]:
         "route_template": route_report,
         "config_defaults": config_report,
         "ui_wiring": ui_items,
+        "policy_preset_audit": preset_items,
     }
 
 

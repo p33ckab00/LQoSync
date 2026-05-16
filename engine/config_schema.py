@@ -15,7 +15,7 @@ from engine.policy_defaults import CLEANUP_ACTIONS, POLICY_PRESETS, smart_policy
 from engine.policy_schema import POLICY_SCHEMA, get_by_path, normalize_policies
 from rules.network_mode import VALID_NETWORK_MODES
 
-CONFIG_SCHEMA_VERSION = 11
+CONFIG_SCHEMA_VERSION = 12
 
 
 def deep_merge(base: dict, override: dict) -> dict:

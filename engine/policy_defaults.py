@@ -56,7 +56,7 @@ SMART_POLICY_DEFAULTS = {
             "normal_inactive_action": "cleanup_immediate",
             "source_disabled_action": "cleanup_next_run",
             "collector_failed_action": "preserve_rows",
-            "zero_result_action": "warn_only",
+            "zero_result_action": "block_cleanup",
             "mass_removal_action": "require_confirm_next_run",
             "respect_percentage_guards": False,
         },
