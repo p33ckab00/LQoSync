@@ -62,6 +62,8 @@ This index is the GitHub-friendly map for the consolidated LQoSync documentation
 - [Smart Reports route hotfix](content/smart_reports_route_hotfix.md)
 - [Policy Center Settings Guidelines](content/policy_center_settings_guidelines.md)
   - Atomic operator explanations for every editable Policy Center setting.
+- [Config Field Guide — WH/HOW Reference](content/config_field_guide.md)
+  - Shared install/operator reference for guided config.json fields and Advanced JSON help.
 - [Network Layout Drag-and-Drop](content/network_layout_drag_drop.md)
   - v2.54.3 wired desktop drag-and-drop for moving topology nodes with safe validation and preview-before-save behavior.
 - [AI-Assisted Development Disclosure and Acknowledgement](../AI_ASSISTED_DEVELOPMENT.md)
@@ -7419,3 +7421,8 @@ normalize → validate → reconcile preset/custom → diff → audit → save c
 ```
 
 `config.json` remains the source of truth. In-flight cycles keep the snapshot they started with; the next scheduler/manual cycle rereads the newly saved file. `network_mode`, `flat_network`, and `no_parent` keep their existing network-layout semantics for generated `network.json`.
+
+
+## v2.70.12-rc1 Config Guidance + Role-Aware Navigation
+
+LQoSync v2.70.12-rc1 adds a shared Config Field Guide used by both bundled install/operator documentation and the admin/owner-only Advanced JSON inspector. The inspector answers What / Why / When / Who / Where / How, plus default/recommended value, risk, and related paths for guided config paths. Operator/viewer sidebars now hide admin-only Lifecycle and Reports destinations instead of exposing links that would lead to 403 pages, while backend route guards remain authoritative.

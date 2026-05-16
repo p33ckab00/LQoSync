@@ -386,5 +386,17 @@
     "file": "docs/content/config_truth_layer.md",
     "anchor": "config-truth-layer--live-save-audit",
     "summary": "v2.70.11-rc1 canonical config writes, stale-write rejection, field-level audit diffs, and inline effectivity."
+  },
+  "config.field_guide_wh_how": {
+    "title": "Config Field Guide — WH/HOW Reference",
+    "file": "docs/content/config_field_guide.md",
+    "anchor": "config-field-guide--whhow-reference",
+    "summary": "Shared install/operator guide for config.json fields: What, Why, When, Who, Where, How, default, risk, and related paths."
+  },
+  "config.guidance_role_navigation": {
+    "title": "Config Guidance + Role-Aware Navigation",
+    "file": "docs/content/config_guidance_role_navigation.md",
+    "anchor": "config-guidance--role-aware-navigation",
+    "summary": "v2.70.12-rc1 Advanced JSON WH/HOW inspector, generated config guide docs, and hidden admin-only sidebar links for lower roles."
   }
 }

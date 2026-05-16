@@ -60,7 +60,7 @@
     <a class="ux-chip" href="#sync-timeline"><i class="ti ti-timeline"></i> Timeline</a>
     <a class="ux-chip" href="#policy-decision"><i class="ti ti-shield-check"></i> Policy</a>
     <a class="ux-chip" href="/operations"><i class="ti ti-tool"></i> Operations</a>
-    <a class="ux-chip" href="/reports"><i class="ti ti-file-export"></i> Reports</a>
+    {% if role_at_least(user.role, 'admin') %}<a class="ux-chip" href="/reports"><i class="ti ti-file-export"></i> Reports</a>{% endif %}
   </nav>
 
   {% if setup_wizard and setup_wizard.dashboard_banner %}

@@ -44,6 +44,7 @@ from engine.config_writer import (
     write_config_snapshot,
 )
 from engine.config_metadata import CONFIG_FIELD_RULES
+from engine.config_guide import build_config_guide
 from engine.release_integrity import compute_release_integrity, repair_config_defaults
 from engine.lifecycle import lifecycle_summary, client_event_timeline
 from engine.lifecycle_report import compute_lifecycle_report, lifecycle_report_to_csv, lifecycle_report_to_markdown
@@ -800,6 +801,7 @@ def config_page():
         policy_schema_paths=[item["path"] for item in POLICY_SCHEMA if item.get("path") and item["path"] != "policies.mode"],
         config_revision=config_revision(cfg),
         config_field_rules=CONFIG_FIELD_RULES,
+        config_field_guide=build_config_guide(cfg),
         initial_tab=initial_tab,
         user=current_user(),
     )

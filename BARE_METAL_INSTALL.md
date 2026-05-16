@@ -38,6 +38,10 @@ LQoSync uses this final path layout:
 
 The systemd service name and Docker container name remain `lqos_shaped_sync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
 
+## After install: understand config before editing it
+
+`config.json` is the source of truth. Before changing advanced fields, open the bundled **Config Field Guide — WH/HOW Reference** in the Documentation Center or read `docs/content/config_field_guide.md`. It explains guided fields with **What / Why / When / Who / Where / How**, recommended/default behavior, risk, and related paths. In the WebUI, admins/owners see the same guide beside **Advanced JSON**, so the install manual and live editor stay aligned.
+
 3. read existing `/opt/libreqos/src/network.json`
 4. connect to MikroTik read-only API
 5. process PPPoE, Hotspot, and DHCP
@@ -791,4 +795,3 @@ sudo UPDATE_POLICY=factory_reset CONFIRM_FACTORY_RESET=yes bash upgrade.sh
 ```
 
 See `docs/GITHUB_INSTALL.md` for the full Git source install and update guide.
-

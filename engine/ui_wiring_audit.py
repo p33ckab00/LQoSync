@@ -201,6 +201,7 @@ def check_checkbox_state_wiring(root: str | Path) -> dict[str, Any]:
     items: list[UIWiringItem] = []
     config = _read(root, "templates/config.html")
     base = _read(root, "templates/base.html")
+    dashboard = _read(root, "templates/dashboard.html")
     problems = []
     if "asBool(value)" not in config:
         problems.append("Config Center missing asBool() boolean normalizer")
@@ -286,6 +287,75 @@ def check_owner_only_links(root: str | Path) -> dict[str, Any]:
     return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
 
 
+def check_admin_only_sidebar_links(root: str | Path) -> dict[str, Any]:
+    """Ensure links to admin-only page routes are not shown to lower roles."""
+    root = Path(root)
+    items: list[UIWiringItem] = []
+    base = _read(root, "templates/base.html")
+    dashboard = _read(root, "templates/dashboard.html")
+    problems = []
+    for route in ("/lifecycle", "/reports"):
+        marker = f"href=\"{route}\""
+        pos = base.find(marker)
+        if pos < 0:
+            problems.append(f"missing sidebar link marker for {route}")
+            continue
+        context = base[max(0, pos - 180): pos + 80]
+        if "role_at_least" not in context or "admin" not in context:
+            problems.append(f"{route} sidebar link is not admin-gated")
+    reports_pos = dashboard.find('href="/reports"')
+    if reports_pos >= 0:
+        context = dashboard[max(0, reports_pos - 180): reports_pos + 80]
+        if "role_at_least" not in context or "admin" not in context:
+            problems.append("/reports dashboard shortcut is not admin-gated")
+    if problems:
+        items.append(UIWiringItem(
+            "links.admin_only_sidebar",
+            "Admin-only sidebar links are hidden",
+            "fail",
+            "; ".join(problems),
+            "roles",
+            "Gate sidebar links to admin-only page routes so operator/viewer users do not click into 403 pages.",
+        ))
+    else:
+        items.append(UIWiringItem("links.admin_only_sidebar", "Admin-only sidebar links are hidden", "ok", "Lifecycle and Reports sidebar links are hidden from operator/viewer roles while route guards remain authoritative.", "roles"))
+    return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
+
+
+def check_config_field_guide_wiring(root: str | Path) -> dict[str, Any]:
+    """Ensure Advanced JSON and docs share the WH/HOW config guide layer."""
+    root = Path(root)
+    items: list[UIWiringItem] = []
+    app = _read(root, "app.py")
+    config = _read(root, "templates/config.html")
+    guide = _read(root, "engine/config_guide.py")
+    docs = _read(root, "docs/content/config_field_guide.md")
+    problems = []
+    if "build_config_guide" not in app or "config_field_guide=build_config_guide(cfg)" not in app:
+        problems.append("config_page does not pass shared guide entries")
+    if "window.configFieldGuide" not in config or "Advanced JSON + Field Guide" not in config:
+        problems.append("Config Center is missing Advanced JSON field-guide UI")
+    for needle in ("What:", "Why:", "When:", "Who:", "Where:", "How:"):
+        if needle not in config:
+            problems.append(f"Config Center guide missing {needle}")
+    if "render_config_field_guide_markdown" not in guide:
+        problems.append("shared config guide renderer missing")
+    if "Config Field Guide — WH/HOW Reference" not in docs:
+        problems.append("generated config field guide documentation missing")
+    if problems:
+        items.append(UIWiringItem(
+            "config.field_guide",
+            "Config field-guide wiring",
+            "fail",
+            "; ".join(problems),
+            "config_ui",
+            "Keep Advanced JSON and documentation backed by the same WH/HOW config guide registry.",
+        ))
+    else:
+        items.append(UIWiringItem("config.field_guide", "Config field-guide wiring", "ok", "Advanced JSON and documentation share one WH/HOW config guide registry.", "config_ui"))
+    return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
+
+
 
 def check_apply_failure_visibility(root: str | Path) -> dict[str, Any]:
     """Check LibreQoS apply failure notification-to-resolution wiring.
@@ -331,6 +401,8 @@ def audit_ui_wiring(root: str | Path | None = None) -> dict[str, Any]:
         "apply_failure_visibility": check_apply_failure_visibility(root),
         "compatibility_routes": check_compatibility_route_wiring(root),
         "owner_links": check_owner_only_links(root),
+        "admin_sidebar_links": check_admin_only_sidebar_links(root),
+        "config_field_guide": check_config_field_guide_wiring(root),
         "stale_files": check_stale_files(root),
     }
     items = []

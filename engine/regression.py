@@ -87,7 +87,7 @@ EXPECTED_TEMPLATE_CONTEXTS = {
     "operations.html": {"cfg", "state", "services", "groups", "last", "apply_runs", "apply_pagination", "selected_unit", "lines", "journal_lines_count", "journal", "backups", "backup_pagination", "audit_events", "audit_pagination", "active_tab", "user"},
     "reports.html": {"cfg", "state", "report", "user"},
     "lifecycle.html": {"cfg", "state", "policy_state", "summary", "report", "events", "client_items", "selected_code", "user"},
-    "config.html": {"config_json", "config", "config_errors", "config_warnings", "schema_report", "schema_version", "policy_conflicts", "identity_report", "telegram", "router_overview", "policy_hierarchy", "policy_schema_paths", "config_revision", "config_field_rules", "initial_tab", "user"},
+    "config.html": {"config_json", "config", "config_errors", "config_warnings", "schema_report", "schema_version", "policy_conflicts", "identity_report", "telegram", "router_overview", "policy_hierarchy", "policy_schema_paths", "config_revision", "config_field_rules", "config_field_guide", "initial_tab", "user"},
     "setup_repair.html": {"cfg", "state", "report", "services", "config_errors", "config_warnings", "user"},
     "setup_wizard.html": {"cfg", "state", "report", "wizard", "network_modes", "services", "config_errors", "config_warnings", "user"},
     "network_layout.html": {"network", "node_math", "config", "nodes_flat", "shaped_rows", "user"},

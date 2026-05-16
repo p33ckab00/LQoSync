@@ -94,3 +94,5 @@ LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner contr
 - [Custom Policy Mode Persistence Hotfix](content/custom_policy_mode_persistence.md) — v2.70.9 visible Custom policy state and save semantics.
 
 - [Config Truth Layer + Live Save Audit](content/config_truth_layer.md) — v2.70.11-rc1 canonical config writes, stale-write rejection, field-level audit diffs, and inline effectivity.
+- [Config Field Guide — WH/HOW Reference](content/config_field_guide.md) — install/operator guide for config.json fields using the same What/Why/When/Who/Where/How registry as Advanced JSON.
+- [Config Guidance + Role-Aware Navigation](content/config_guidance_role_navigation.md) — v2.70.12-rc1 Advanced JSON guide inspector and hidden admin-only sidebar links for operator/viewer roles.

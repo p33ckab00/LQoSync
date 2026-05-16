@@ -1,5 +1,15 @@
 # Release Notes
 
+## v2.70.12-rc1 — Config Guidance + Role-Aware Navigation
+
+- Adds one shared config-guide registry for the Advanced JSON inspector and bundled documentation.
+- Adds a searchable Advanced JSON field guide that answers What / Why / When / Who / Where / How, default/recommended value, risk, and related paths.
+- Adds a generated `Config Field Guide — WH/HOW Reference` for installers/operators so documentation and the live editor stay aligned.
+- Hides admin-only Lifecycle and Reports sidebar links from operator/viewer roles while preserving backend route guards.
+- Aligns role descriptions with the actual route model and extends UI Wiring Audit for admin-only sidebar links plus config-guide wiring.
+
+This is a guidance/visibility hardening release in the existing `v2.70` RC stabilization line, so the correct next version is `2.70.12-rc1` rather than a new minor version. It does not change MikroTik collection behavior, cleanup decisions, generated file formats, scheduler timing, or LibreQoS apply mechanics.
+
 ## v2.70.11-rc1 — Config Truth Layer + Live Save Audit
 
 - Routes every runtime config write through one canonical config-write pipeline.

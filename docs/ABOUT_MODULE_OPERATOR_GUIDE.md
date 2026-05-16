@@ -826,3 +826,5 @@ Changing Operation Mode, Auto Apply, Optional Auto Backup, or Backup Retention i
 ## v2.70.11-rc1 Config Truth Layer + Live Save Audit
 
 LQoSync v2.70.11-rc1 keeps Config Center live-save behavior but routes every runtime config write through one canonical pipeline. Live writes now carry a config revision so stale tabs cannot silently overwrite newer `config.json` values, real config writes record masked field-level audit diffs, Config Change Preview shows when important changes become effective, and Policy field cards show next-cycle effectivity. Existing routes and network-layout behavior remain unchanged.
+
+LQoSync v2.70.12-rc1 adds a shared Config Field Guide used by both the install/operator documentation and the admin/owner-only Advanced JSON inspector. The inspector now answers What / Why / When / Who / Where / How, plus default/recommended value, risk, and related paths for guided config paths. Operator/viewer sidebars also hide admin-only Lifecycle and Reports destinations instead of exposing links that would lead to 403 pages; backend route guards remain authoritative.
