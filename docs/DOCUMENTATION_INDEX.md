@@ -97,3 +97,4 @@ LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner contr
 - [Config Field Guide — WH/HOW Reference](content/config_field_guide.md) — install/operator guide for config.json fields using the same What/Why/When/Who/Where/How registry as Advanced JSON.
 - [Config Guidance + Role-Aware Navigation](content/config_guidance_role_navigation.md) — v2.70.12-rc1 Advanced JSON guide inspector and hidden admin-only sidebar links for operator/viewer roles.
 - [Advanced JSON + Field Guide UI Polish](content/advanced_json_field_guide_ui_polish.md) — v2.70.13-rc1 wider admin workspace, wider guide pane, aligned WH/HOW rows, and smaller JSON editor text.
+- [Policy Tree Desktop Alignment Hotfix](content/policy_tree_desktop_alignment_hotfix.md) — v2.70.14-rc1 restores desktop horizontal icon/label alignment without changing mobile layout.

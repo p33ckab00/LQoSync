@@ -1,5 +1,13 @@
 # Release Notes
 
+## v2.70.14-rc1 — Policy Tree Desktop Alignment Hotfix
+
+- Restores horizontal icon + label alignment in the desktop Policy Center tree.
+- Keeps the mobile Policy Center layout unchanged.
+- Scopes stacked Field Guide text styling away from the normal policy navigation buttons and adds UI Wiring Audit coverage for the desktop rule.
+
+This is a UI-only fix. It does not change policy values, config writes, routes, generated files, scheduler timing, or LibreQoS apply mechanics.
+
 ## v2.70.13-rc1 — Advanced JSON + Field Guide UI Polish
 
 - Widens the admin/owner Advanced JSON workspace and gives the field guide the larger desktop pane.

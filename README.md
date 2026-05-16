@@ -221,3 +221,5 @@ LQoSync v2.70.11-rc1 keeps Config Center live-save behavior but routes every run
 LQoSync v2.70.12-rc1 adds a shared **Config Field Guide** used by both the installer documentation and the admin/owner-only Advanced JSON inspector. The inspector now answers What / Why / When / Who / Where / How for guided config paths, while operator/viewer sidebars no longer show admin-only Lifecycle or Reports links that would lead to 403 pages. Backend route guards remain authoritative.
 
 LQoSync v2.70.13-rc1 polishes that Advanced JSON workspace: the modal is wider, the Field Guide receives more width and cleaner scan rows, and the JSON editor uses a slightly smaller monospace size so more config fits without shrinking the explanations.
+
+LQoSync v2.70.14-rc1 fixes a desktop-only Policy Center styling regression: icons and labels are horizontal again in the left policy tree, while the mobile layout remains unchanged.

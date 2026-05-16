@@ -174,6 +174,8 @@ def check_config_center_state_wiring(root: str | Path) -> dict[str, Any]:
     # Raw JSON and normal config save must still share one hidden config_json source.
     if 'name="config_json"' not in config or 'x-ref="configJson"' not in config or "syncHidden()" not in config:
         problems.append("Config save form is not clearly wired to the normalized config_json hidden field")
+    if ".policy-tree>.policy-tree-btn>span{display:flex" not in config:
+        problems.append("Desktop Policy Center tree is missing scoped horizontal icon/label alignment")
 
     if problems:
         items.append(UIWiringItem(

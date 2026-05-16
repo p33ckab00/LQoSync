@@ -404,5 +404,11 @@
     "file": "docs/content/advanced_json_field_guide_ui_polish.md",
     "anchor": "advanced-json--field-guide-ui-polish",
     "summary": "v2.70.13-rc1 wider Advanced JSON workspace, wider Field Guide pane, aligned WH/HOW rows, and smaller JSON editor text."
+  },
+  "policy.tree_desktop_alignment_hotfix": {
+    "title": "Policy Tree Desktop Alignment Hotfix",
+    "file": "docs/content/policy_tree_desktop_alignment_hotfix.md",
+    "anchor": "policy-tree-desktop-alignment-hotfix",
+    "summary": "v2.70.14-rc1 restores desktop horizontal icon/label alignment while keeping mobile Policy Center layout unchanged."
   }
 }

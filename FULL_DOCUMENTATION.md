@@ -7431,3 +7431,8 @@ LQoSync v2.70.12-rc1 adds a shared Config Field Guide used by both bundled insta
 ## v2.70.13-rc1 Advanced JSON + Field Guide UI Polish
 
 LQoSync v2.70.13-rc1 widens the Advanced JSON workspace, gives the Field Guide the larger desktop pane, aligns the What / Why / When / Who / Where / How answers into easier scan rows, and slightly reduces JSON editor text size so more config remains visible at once.
+
+
+## v2.70.14-rc1 Policy Tree Desktop Alignment Hotfix
+
+LQoSync v2.70.14-rc1 restores horizontal icon + label alignment in the desktop Policy Center tree. The Field Guide keeps its stacked list styling, but that styling is now scoped away from ordinary Policy Center navigation buttons; the mobile Policy Center layout remains unchanged.
