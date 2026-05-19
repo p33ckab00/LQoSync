@@ -1,3 +1,9 @@
+## v2.92.1-rc1 — Rust Core v2.2.1 RouterOS Transport Redaction Test Hotfix
+
+- Fixed the Rust RouterOS transport rehearsal unit test so it checks for leaked password material instead of the legitimate RouterOS resource path `/ppp/secret`.
+- Kept production behavior unchanged: RouterOS transport remains rehearsal-only, credentials are redacted, and no live MikroTik connection is attempted.
+- Keeps v2.2 behavior intact while allowing `scripts/build-rust-core.sh` to pass cleanly.
+
 
 ## v2.92.0-rc1 — Rust Core v2.1 RouterOS Read Result Contract
 

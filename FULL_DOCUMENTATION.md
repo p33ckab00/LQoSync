@@ -1,3 +1,8 @@
+
+## v2.92.1-rc1 — Rust Core v2.2.1 RouterOS Transport Redaction Test Hotfix
+
+The v2.2.1 package fixes a false-positive Rust unit test in `routeros_transport.rs`. The test now checks that actual password material and raw password keys are not emitted, while allowing legitimate RouterOS read paths such as `/ppp/secret` in the collector plan. Runtime behavior is unchanged: no live Rust RouterOS connection is attempted.
+
 # LQoSync Full Documentation
 
 > **Canonical path:** LQoSync installs and runs from `/opt/lqosync`. LibreQoS remains under `/opt/libreqos`. Do not use a user-home directory as the documented install base.

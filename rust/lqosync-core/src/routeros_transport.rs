@@ -137,13 +137,16 @@ mod tests {
 
     #[test]
     fn rehearses_routeros_transport_without_connections() {
-        let payload = json!({"config":{"routers":[{"name":"R1","enabled":true,"address":"10.0.0.1","username":"admin","password":"secret","pppoe":{"enabled":true}}]}});
+        let payload = json!({"config":{"routers":[{"name":"R1","enabled":true,"address":"10.0.0.1","username":"admin","password":"super_private_pw_123","pppoe":{"enabled":true}}]}});
         let (result, errors, _warnings) = build_routeros_transport_session_payload(&payload);
         assert!(errors.is_empty());
         assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
         assert_eq!(result.get("status").and_then(Value::as_str), Some("ready_for_future_transport"));
         let text = serde_json::to_string(&result).unwrap();
-        assert!(!text.contains("secret"));
+        assert!(!text.contains("super_private_pw_123"));
+        assert!(!text.contains("\"password\""));
+        assert!(text.contains("credential_material"));
+        assert!(text.contains("redacted"));
     }
 
     #[test]

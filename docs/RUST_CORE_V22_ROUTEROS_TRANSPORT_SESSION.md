@@ -53,3 +53,7 @@ curl "http://YOUR-LQOSYNC/api/rust-core/routeros-transport-session?router=RB5k9-
 ## Why this phase exists
 
 Before Rust can become responsible for MikroTik reads, it must have a stable transport contract that redacts credentials, blocks accidental live execution, and proves exactly what it would connect to later.
+
+## v2.2.1 hotfix note
+
+The v2.2.1 package fixes a false-positive unit test in `routeros_transport.rs`. The original test checked that serialized output did not contain the word `secret`, but the output legitimately contains RouterOS read paths such as `/ppp/secret`. The hotfix now verifies that the actual password value and raw `password` key are not present while preserving the `/ppp/secret` read-plan path. Runtime transport behavior is unchanged.

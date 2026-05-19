@@ -392,6 +392,10 @@ A valid v2.0+ self-test must advertise `build-routeros-collector-plan`.
 This package adds `validate-routeros-read-results`, a Rust trust contract that validates Python-executed RouterOS read results against the deterministic collector plan. It is diagnostic by default and does not replace Python live RouterOS collectors.
 
 
+## Rust Core v2.2.1 RouterOS Transport Session Rehearsal Hotfix
+
+This package fixes a false-positive redaction test while keeping the v2.2 transport session behavior unchanged. RouterOS transport remains non-network, credentials stay redacted, and Python collectors remain authoritative.
+
 ## Rust Core v2.2 RouterOS Transport Session Rehearsal
 
 Adds `build-routeros-transport-session`, a non-network RouterOS transport rehearsal that redacts credentials, reports planned sessions, blocks live Rust RouterOS transport attempts, and keeps Python live collectors authoritative.

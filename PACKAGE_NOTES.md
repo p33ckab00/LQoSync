@@ -1,3 +1,10 @@
+## v2.92.1-rc1 Package Notes — RouterOS Transport Redaction Test Hotfix
+
+- Fixes a false-positive Rust test failure in `routeros_transport.rs`.
+- The failed assertion checked for the word `secret`, but the JSON output legitimately includes RouterOS resource paths such as `/ppp/secret`.
+- The test now checks for the exact password value and the raw `password` key instead.
+- Runtime behavior is unchanged; transport remains non-network and rehearsal-only.
+
 # Package Notes
 
 ## v2.76.0-rc1 - Rust Core v0.6 Circuit Shadow Normalizer
