@@ -7530,3 +7530,8 @@ The Rust core also provides `diff-shaped-devices`, `diff-network`, and `diff-fil
 ## Rust Core v0.3 Atomic State/File Engine
 
 See `docs/RUST_CORE_V03_ATOMIC_STATE.md` for the atomic state/file persistence model covering runtime_state, policy_state, collector_cache, audit JSONL, ShapedDevices.csv, network.json, and config.json.
+
+
+## Rust Core v0.4 Daemon Mode
+
+The `lqosync-in-rust` branch now includes optional Unix socket daemon support for `lqosync-core`. See `docs/RUST_CORE_V04_DAEMON.md`.

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import socket
 import subprocess
 import time
 from pathlib import Path
@@ -157,18 +158,74 @@ def find_rust_core_binary(config: dict | None = None) -> str | None:
     return None
 
 
+
+def daemon_socket_available(config: dict | None = None) -> bool:
+    rc = rust_core_config(config)
+    try:
+        return rc["enabled"] and Path(rc["unix_socket"]).exists()
+    except Exception:
+        return False
+
+
+def call_rust_core_daemon(op: str, payload: dict[str, Any] | None = None, *, config: dict | None = None, request_id: str | None = None, timeout: int | None = None) -> dict[str, Any]:
+    """Call lqosync-core over the Unix socket daemon.
+
+    The daemon uses the exact same request/response envelope as the CLI. If the
+    socket is unavailable or the daemon response is malformed, the caller can
+    safely fall back to subprocess or Python fallback.
+    """
+    started = time.perf_counter()
+    rc = rust_core_config(config)
+    socket_path = rc["unix_socket"]
+    request_payload = {
+        "version": PROTOCOL_VERSION,
+        "op": op,
+        "request_id": request_id,
+        "payload": payload or {},
+    }
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout or rc["timeout_seconds"])
+            sock.connect(socket_path)
+            sock.sendall(json.dumps(request_payload, ensure_ascii=False).encode("utf-8"))
+            try:
+                sock.shutdown(socket.SHUT_WR)
+            except Exception:
+                pass
+            chunks = []
+            while True:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+    except Exception as exc:
+        return _wrapper_error(op, request_id, "rust_core_daemon_failed", str(exc), started, available=False, mode="daemon")
+    try:
+        response = json.loads(b"".join(chunks).decode("utf-8") or "{}")
+    except Exception as exc:
+        return _wrapper_error(op, request_id, "rust_core_daemon_invalid_response", str(exc), started, available=False, mode="daemon")
+    response.setdefault("available", True)
+    response.setdefault("meta", {})
+    response["meta"].setdefault("wrapper_duration_ms", round((time.perf_counter() - started) * 1000, 3))
+    response["meta"].setdefault("transport", "unix_socket")
+    response["meta"].setdefault("socket", socket_path)
+    return response
+
+
 def rust_core_status(config: dict | None = None) -> dict[str, Any]:
     rc = rust_core_config(config)
     binary = find_rust_core_binary(config)
+    daemon_available = daemon_socket_available(config)
     return {
         "enabled": rc["enabled"],
-        "available": bool(binary),
+        "available": bool(binary or daemon_available),
         "binary": binary,
+        "daemon_available": bool(daemon_available),
         "timeout_seconds": rc["timeout_seconds"],
         "enforce_validation": rc["enforce_validation"],
         "prefer_daemon": rc["prefer_daemon"],
         "unix_socket": rc["unix_socket"],
-        "mode": "subprocess" if binary else "python_fallback",
+        "mode": "daemon" if rc["prefer_daemon"] and daemon_available else ("subprocess" if binary else "python_fallback"),
     }
 
 
@@ -179,8 +236,16 @@ def call_rust_core(op: str, payload: dict[str, Any] | None = None, *, config: di
     subprocess because it is easy to deploy and debug.
     """
     started = time.perf_counter()
-    binary = find_rust_core_binary(config)
     rc = rust_core_config(config)
+    if rc.get("prefer_daemon") and daemon_socket_available(config):
+        daemon_response = call_rust_core_daemon(op, payload, config=config, request_id=request_id, timeout=timeout)
+        # Fallback to subprocess only when the daemon transport itself fails.
+        # A valid daemon response with ok=false is an operation result, not a transport failure.
+        if daemon_response.get("errors") and any((e.get("code") or "").startswith("rust_core_daemon_") for e in daemon_response.get("errors", [])):
+            pass
+        else:
+            return daemon_response
+    binary = find_rust_core_binary(config)
     if not binary:
         return {
             "version": PROTOCOL_VERSION,
@@ -194,7 +259,7 @@ def call_rust_core(op: str, payload: dict[str, Any] | None = None, *, config: di
             "warnings": [{
                 "code": "rust_core_unavailable",
                 "severity": "info",
-                "message": "Rust core binary is not installed/built; Python validator fallback is active.",
+                "message": "Rust core daemon/binary is not available; Python validator fallback is active.",
             }],
             "meta": {
                 "engine": "python-wrapper",
@@ -297,7 +362,7 @@ def diagnostics_to_messages(response: dict[str, Any], *, include_warnings: bool 
     return errors, warnings
 
 
-def _wrapper_error(op: str, request_id: str | None, code: str, message: str, started: float, *, available: bool) -> dict[str, Any]:
+def _wrapper_error(op: str, request_id: str | None, code: str, message: str, started: float, *, available: bool, mode: str = "subprocess") -> dict[str, Any]:
     return {
         "version": PROTOCOL_VERSION,
         "op": op,
@@ -309,7 +374,7 @@ def _wrapper_error(op: str, request_id: str | None, code: str, message: str, sta
         "warnings": [],
         "meta": {
             "engine": "python-wrapper",
-            "mode": "subprocess",
+            "mode": mode,
             "duration_ms": round((time.perf_counter() - started) * 1000, 3),
         },
     }

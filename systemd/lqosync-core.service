@@ -1,0 +1,15 @@
+[Unit]
+Description=LQoSync Rust Core Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/lqosync-core --daemon --socket /run/lqosync-core.sock
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=lqosync-core
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

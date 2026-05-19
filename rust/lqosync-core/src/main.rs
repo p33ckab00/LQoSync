@@ -2,26 +2,49 @@ use anyhow::Context;
 use clap::Parser;
 use lqosync_core::atomic_state::{append_audit_jsonl_payload, atomic_write_json_state_payload, atomic_write_text_payload, validate_json_state_payload};
 use lqosync_core::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
-use lqosync_core::protocol::{CoreRequest, CoreResponse, PROTOCOL_VERSION};
 use lqosync_core::diff::{diff_files_payload, diff_network_text, diff_shaped_devices_text};
 use lqosync_core::network::{collect_node_names, parse_network_text, validate_network};
+use lqosync_core::protocol::{CoreRequest, CoreResponse, PROTOCOL_VERSION};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::validators::{validate_collector_output_payload, validate_config_value, validate_files_payload};
 use serde_json::{json, Value};
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
+use std::path::Path;
 use std::time::Instant;
+
+#[cfg(unix)]
+use std::os::unix::net::{UnixListener, UnixStream};
 
 #[derive(Parser, Debug)]
 #[command(name = "lqosync-core", version, about = "Rust safety core for LQoSync")]
 struct Args {
-    /// Read a JSON protocol request from stdin. This is the default behavior.
+    /// Read a JSON protocol request from stdin. This is the default CLI behavior.
     #[arg(long, default_value_t = true)]
     json: bool,
+
+    /// Run as a Unix socket daemon. The daemon uses the same JSON protocol as stdin/stdout.
+    #[arg(long, default_value_t = false)]
+    daemon: bool,
+
+    /// Unix socket path for daemon mode.
+    #[arg(long, default_value = "/run/lqosync-core.sock")]
+    socket: String,
 }
 
 fn main() {
+    let args = Args::parse();
+    if args.daemon {
+        if let Err(e) = run_daemon(&args.socket) {
+            eprintln!("lqosync-core daemon failed: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    run_one_shot();
+}
+
+fn run_one_shot() {
     let started = Instant::now();
-    let _args = Args::parse();
     let mut input = String::new();
     if let Err(e) = io::stdin().read_to_string(&mut input) {
         let response = CoreResponse::failure("unknown", None, "stdin_read_failed", format!("Failed to read stdin: {e}"), started);
@@ -29,22 +52,71 @@ fn main() {
         std::process::exit(1);
     }
 
-    let req: CoreRequest = match serde_json::from_str(&input) {
-        Ok(req) => req,
-        Err(e) => {
-            let response = CoreResponse::failure("unknown", None, "invalid_request_json", format!("Invalid request JSON: {e}"), started);
-            print_response(&response);
-            std::process::exit(1);
-        }
-    };
-
-    let response = match handle_request(&req, started) {
-        Ok(response) => response,
-        Err(e) => CoreResponse::failure(req.op.clone(), req.request_id.clone(), "operation_failed", e.to_string(), started),
-    };
+    let response = handle_request_text(&input, started);
     let exit_code = if response.ok { 0 } else { 2 };
     print_response(&response);
     std::process::exit(exit_code);
+}
+
+#[cfg(unix)]
+fn run_daemon(socket_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(socket_path);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).with_context(|| format!("create socket parent {}", parent.display()))?;
+    }
+    if path.exists() {
+        std::fs::remove_file(path).with_context(|| format!("remove stale socket {}", path.display()))?;
+    }
+    let listener = UnixListener::bind(path).with_context(|| format!("bind unix socket {}", path.display()))?;
+    eprintln!("lqosync-core daemon listening on {socket_path}");
+    for stream in listener.incoming() {
+        match stream {
+            Ok(mut stream) => {
+                if let Err(e) = handle_daemon_stream(&mut stream) {
+                    let started = Instant::now();
+                    let response = CoreResponse::failure("unknown", None, "daemon_stream_failed", e.to_string(), started);
+                    let _ = write_response_to_stream(&mut stream, &response);
+                }
+            }
+            Err(e) => eprintln!("lqosync-core daemon accept failed: {e}"),
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn run_daemon(_socket_path: &str) -> anyhow::Result<()> {
+    anyhow::bail!("daemon mode is only supported on Unix platforms")
+}
+
+#[cfg(unix)]
+fn handle_daemon_stream(stream: &mut UnixStream) -> anyhow::Result<()> {
+    let started = Instant::now();
+    let mut input = String::new();
+    stream.read_to_string(&mut input)?;
+    let response = handle_request_text(&input, started);
+    write_response_to_stream(stream, &response)?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn write_response_to_stream(stream: &mut UnixStream, response: &CoreResponse) -> anyhow::Result<()> {
+    let text = serde_json::to_string(response)?;
+    stream.write_all(text.as_bytes())?;
+    stream.write_all(b"\n")?;
+    stream.flush()?;
+    Ok(())
+}
+
+fn handle_request_text(input: &str, started: Instant) -> CoreResponse {
+    let req: CoreRequest = match serde_json::from_str(input) {
+        Ok(req) => req,
+        Err(e) => return CoreResponse::failure("unknown", None, "invalid_request_json", format!("Invalid request JSON: {e}"), started),
+    };
+    match handle_request(&req, started) {
+        Ok(response) => response,
+        Err(e) => CoreResponse::failure(req.op.clone(), req.request_id.clone(), "operation_failed", e.to_string(), started),
+    }
 }
 
 fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreResponse> {
@@ -59,6 +131,27 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
     }
 
     match req.op.as_str() {
+        "health" => Ok(CoreResponse::success(req, json!({
+            "status": "ok",
+            "mode": "daemon_or_cli",
+            "protocol_version": PROTOCOL_VERSION,
+            "operations": [
+                "health",
+                "parse-bandwidth",
+                "validate-config",
+                "validate-shaped-devices",
+                "validate-network",
+                "validate-files",
+                "validate-collector-output",
+                "diff-shaped-devices",
+                "diff-network",
+                "diff-files",
+                "validate-json-state",
+                "write-json-state",
+                "write-text-file",
+                "append-audit-jsonl"
+            ]
+        }), started)),
         "parse-bandwidth" => Ok(handle_parse_bandwidth(req, started)),
         "validate-config" => Ok(handle_validate_config(req, started)),
         "validate-shaped-devices" => Ok(handle_validate_shaped_devices(req, started)?),

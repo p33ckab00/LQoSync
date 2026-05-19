@@ -255,3 +255,8 @@ Build hotfix `v2.73.1-rc1` updates the Rust CSV writer to use `csv::Terminator::
 ## Safety Note
 
 LQoSync can write LibreQoS input files and trigger LibreQoS apply behavior. Always verify backups, policies, dry-run output, and apply results before using it in production.
+
+
+### Rust Core v0.4 daemon mode
+
+The optional Rust safety core now supports a Unix socket daemon. The daemon uses the same JSON protocol as the CLI and can be installed with `sudo scripts/install-rust-core-daemon.sh` after building/installing the Rust binary. Python falls back to subprocess or Python fallback when the daemon is unavailable.

@@ -309,3 +309,13 @@ git commit -m "rust(core): add atomic state and file engine" \
   -m "Harden Python fallback writes and move runtime_state, policy_state, collector_cache, and audit logs onto shared safe writer helpers."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v0.4 daemon mode commit
+
+```bash
+git add .
+git commit -m "rust(core): add optional daemon transport" \
+  -m "Add Unix socket daemon mode for lqosync-core, Python wrapper daemon transport, systemd service helpers, and daemon documentation while preserving subprocess and Python fallback behavior."
+git push -u origin lqosync-in-rust
+```

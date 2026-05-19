@@ -135,3 +135,5 @@ Read these docs first:
 - [Commit and Push Guide](COMMIT_AND_PUSH_GUIDE.md)
 
 - [Rust Core v0.3 Atomic State and File Engine](RUST_CORE_V03_ATOMIC_STATE.md)
+
+- [Rust Core v0.4 Daemon Mode](RUST_CORE_V04_DAEMON.md)

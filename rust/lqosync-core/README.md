@@ -57,3 +57,22 @@ append-audit-jsonl
 ```
 
 These operations use the stable protocol envelope and are intended for both the current CLI and future Unix socket daemon.
+
+
+## v0.4 daemon mode
+
+The Rust core can run as a long-lived Unix socket daemon using the same JSON protocol as the CLI:
+
+```bash
+lqosync-core --daemon --socket /run/lqosync-core.sock
+```
+
+Install as a systemd service after building/installing the binary:
+
+```bash
+scripts/build-rust-core.sh
+sudo scripts/install-rust-core.sh
+sudo scripts/install-rust-core-daemon.sh
+```
+
+Python uses the daemon only when `rust_core.prefer_daemon=true` and the socket exists. If the daemon is unavailable, the wrapper falls back to subprocess or Python fallback.

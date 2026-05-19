@@ -1730,3 +1730,10 @@ Added production-safe existing installation handling for GitHub-source installs.
 ### Notes
 
 This update keeps LibreQoS integrity intact while allowing older ZIP/manual installs to become Git-managed and safely updatable from GitHub.
+
+## v2.74.0-rc1 — Rust Core v0.4 Daemon Mode
+
+- Added optional `lqosync-core --daemon --socket /run/lqosync-core.sock` Unix socket daemon.
+- Added Python wrapper daemon transport with safe fallback to subprocess or Python fallback.
+- Added `health` operation to the Rust core protocol.
+- Added systemd service template and install/uninstall helper scripts for the daemon.

@@ -108,3 +108,8 @@ The existing Python runtime remains primary. Rust validation is exposed as an op
 
 This package advances the `lqosync-in-rust` branch to Rust Core v0.2. It adds collector output trust guarding and Rust diff operations while keeping Python as the primary runtime. No database is introduced. `/opt/lqosync` and `/opt/libreqos` remain the canonical paths.
 
+
+
+## v2.74.0-rc1
+
+Includes optional Rust core daemon service support. Daemon mode is disabled by default and must be enabled with `rust_core.prefer_daemon=true`.
