@@ -1,3 +1,12 @@
+
+
+## v2.85.0-rc1 — Rust Core v1.5 Rollback Execution Rehearsal
+
+- Added Rust `execute-rollback` operation.
+- Added rollback rehearsal and opt-in file restore execution guarded by `CONFIRM_ROLLBACK`.
+- Added `/api/rust-core/rollback-execute` admin endpoint.
+- Added rollback authority config flags with safe defaults.
+- Python fallback never restores files.
 ## 2.84.0-rc1 — Rust Core v1.4 Transaction History and Rollback Plan Viewer
 
 - Add read-only Rust transaction journal history operation.

@@ -2,6 +2,7 @@ use crate::apply_manifest::build_apply_manifest_payload;
 use crate::apply_transaction::execute_apply_transaction_payload;
 use crate::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use crate::protocol::Diagnostic;
+use crate::rollback_executor::execute_rollback_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -30,6 +31,7 @@ pub const OP_APPEND_TRANSACTION_JOURNAL: &str = "append-transaction-journal";
 pub const OP_BUILD_ROLLBACK_MANIFEST: &str = "build-rollback-manifest";
 pub const OP_READ_TRANSACTION_JOURNAL: &str = "read-transaction-journal";
 pub const OP_BUILD_ROLLBACK_FROM_JOURNAL: &str = "build-rollback-from-journal";
+pub const OP_EXECUTE_ROLLBACK: &str = "execute-rollback";
 pub const OP_SELF_TEST: &str = "self-test";
 
 pub fn advertised_operations() -> &'static [&'static str] {
@@ -58,6 +60,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_ROLLBACK_MANIFEST,
         OP_READ_TRANSACTION_JOURNAL,
         OP_BUILD_ROLLBACK_FROM_JOURNAL,
+        OP_EXECUTE_ROLLBACK,
         OP_SELF_TEST,
     ]
 }
@@ -210,6 +213,17 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     if !rollback_from_journal_ok {
         errors.push(Diagnostic::error("self_test_rollback_from_journal_failed", Some("build-rollback-from-journal".to_string()), "Self-test rollback-from-journal should build a preview from a temporary JSONL entry."));
     }
+
+    let (rollback_execute, rollback_execute_errors, _rollback_execute_warnings) = execute_rollback_payload(&json!({
+        "rollback_manifest": rollback_from_journal.clone(),
+        "execute": false,
+        "allow_rollback_file_writes": false
+    }));
+    let rollback_execute_ok = rollback_execute_errors.is_empty() && rollback_execute.get("executed").and_then(Value::as_bool).unwrap_or(true) == false;
+    checks.push(check("rollback_execute_rehearsal", rollback_execute_ok, json!({"status": rollback_execute.get("status"), "executed": rollback_execute.get("executed")})));
+    if !rollback_execute_ok {
+        errors.push(Diagnostic::error("self_test_rollback_execute_failed", Some("execute-rollback".to_string()), "Self-test rollback execution rehearsal should not restore files."));
+    }
     let _ = std::fs::remove_file(temp_journal_path);
 
     let strict = payload.get("strict").and_then(Value::as_bool).unwrap_or(false);
@@ -248,6 +262,7 @@ mod tests {
         assert!(ops.contains(&OP_BUILD_ROLLBACK_MANIFEST));
         assert!(ops.contains(&OP_READ_TRANSACTION_JOURNAL));
         assert!(ops.contains(&OP_BUILD_ROLLBACK_FROM_JOURNAL));
+        assert!(ops.contains(&OP_EXECUTE_ROLLBACK));
         assert!(ops.contains(&OP_SELF_TEST));
     }
 }

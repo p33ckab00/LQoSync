@@ -425,3 +425,13 @@ git commit -m "rust(core): add transaction history reader" \
   -m "Add read-transaction-journal and build-rollback-from-journal operations, read-only WebUI APIs, self-test coverage, and documentation for rollback plan inspection without rollback execution."
 git push -u origin lqosync-in-rust
 ```
+
+
+### v1.5 rollback execution rehearsal
+
+```bash
+git add .
+git commit -m "rust(core): add rollback execution rehearsal" \
+  -m "Add execute-rollback, rollback confirmation gates, Python wrapper/API integration, and documentation for opt-in file restore rollback authority."
+git push -u origin lqosync-in-rust
+```

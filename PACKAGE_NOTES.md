@@ -173,3 +173,8 @@ Adds Rust Core v1.3 transaction journal persistence preview/write path. Defaults
 ## Rust Core v1.4 Transaction History and Rollback Plan Viewer
 
 This package adds read-only Rust operations `read-transaction-journal` and `build-rollback-from-journal`, plus WebUI API endpoints for transaction history and rollback plan preview. Rollback execution remains unsupported/disabled.
+
+
+## Rust Core v1.5 Rollback Execution Rehearsal
+
+This package adds `execute-rollback`, a gated rollback executor. It rehearses rollback by default and only restores files when rollback authority, file-write permission, and `CONFIRM_ROLLBACK` confirmation are explicitly provided. Python remains authoritative by default.

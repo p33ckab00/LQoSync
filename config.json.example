@@ -549,6 +549,9 @@
     "append_transaction_journal": false,
     "allow_transaction_journal_writes": false,
     "include_rehearsal_journal_entries": false,
-    "allow_dry_run_journal_entries": false
+    "allow_dry_run_journal_entries": false,
+    "execute_rollback": false,
+    "allow_rust_rollback_file_writes": false,
+    "rollback_authority": "preview"
   }
 }

@@ -1102,6 +1102,65 @@ def rust_build_rollback_from_journal(config: dict, *, journal_id: str = "", mani
         return _python_rollback_from_journal(payload)
     return response
 
+
+def _python_execute_rollback(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for Rust execute-rollback.
+
+    The Python fallback never restores files. It exists only to keep the API
+    shape stable when the Rust core is unavailable.
+    """
+    started = started or time.perf_counter()
+    rollback_manifest = payload.get("rollback_manifest") if isinstance(payload.get("rollback_manifest"), dict) else {}
+    if not rollback_manifest and (payload.get("journal_id") or payload.get("manifest_id")):
+        rollback_manifest = (rust_build_rollback_from_journal(payload.get("config") or {}, journal_id=str(payload.get("journal_id") or ""), manifest_id=str(payload.get("manifest_id") or "")).get("result") or {})
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "execute-rollback",
+        "available": False,
+        "ok": True,
+        "result": {
+            "mode": "rollback_executor",
+            "authoritative": False,
+            "executed": False,
+            "status": "python_fallback_rehearsal_only",
+            "rollback_manifest": rollback_manifest,
+            "restore_results": [],
+            "restore_count": 0,
+            "execute_requested": bool(payload.get("execute", False)),
+            "allow_rollback_file_writes": False,
+            "confirmation_required": True,
+            "confirmation_ok": str(payload.get("confirmation") or "") == "CONFIRM_ROLLBACK",
+            "trace": [{"step": "rollback_execute", "decision": "python_fallback_never_restores_files"}],
+        },
+        "errors": [],
+        "warnings": [{"code": "rust_rollback_executor_unavailable", "severity": "warning", "path": "rust_core", "message": "Rust execute-rollback is unavailable; Python fallback rehearsed only and did not restore files."}],
+        "meta": {"engine": "python-wrapper", "mode": "python_rollback_executor_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_execute_rollback(config: dict, *, journal_id: str = "", manifest_id: str = "", rollback_manifest: dict | None = None, execute: bool | None = None, confirmation: str = "", allow_checksum_mismatch: bool = False) -> dict[str, Any]:
+    rc = rust_core_config(config)
+    paths = (config or {}).get("paths", {}) if isinstance(config, dict) else {}
+    payload: dict[str, Any] = {
+        "config": config or {},
+        "path": paths.get("transaction_journal") or "/opt/lqosync/logs/transaction_journal.jsonl",
+        "journal_id": journal_id or "",
+        "manifest_id": manifest_id or "",
+        "rollback_manifest": rollback_manifest or {},
+        "execute": bool(rc.get("execute_rollback", False) if execute is None else execute),
+        "allow_rollback_file_writes": bool(rc.get("allow_rust_rollback_file_writes", False)),
+        "confirmation": confirmation or "",
+        "allow_checksum_mismatch": bool(allow_checksum_mismatch),
+    }
+    if str(rc.get("rollback_authority") or "preview") != "execute_file_restores":
+        payload["execute"] = False
+    response = call_rust_core("execute-rollback", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_execute_rollback(payload)
+    return response
+
+
 def rust_sync_plan_authority_gate(config: dict, rust_sync_plan: dict | None, *, mode: str = "apply") -> dict[str, Any]:
     """Return the opt-in Rust authority gate decision for an apply cycle.
 
@@ -1174,6 +1233,9 @@ def rust_core_config(config: dict | None = None) -> dict:
         "allow_transaction_journal_writes": bool(cfg.get("allow_transaction_journal_writes", False)),
         "include_rehearsal_journal_entries": bool(cfg.get("include_rehearsal_journal_entries", False)),
         "allow_dry_run_journal_entries": bool(cfg.get("allow_dry_run_journal_entries", False)),
+        "execute_rollback": bool(cfg.get("execute_rollback", False)),
+        "allow_rust_rollback_file_writes": bool(cfg.get("allow_rust_rollback_file_writes", False)),
+        "rollback_authority": str(cfg.get("rollback_authority") or "preview"),
     }
 
 

@@ -156,3 +156,5 @@ Read these docs first:
 - [Rust Core v1.3 Transaction Journal Persistence](RUST_CORE_V13_TRANSACTION_JOURNAL_PERSISTENCE.md) — opt-in JSONL persistence for Rust transaction journal events.
 
 - [Rust Core v1.4 Transaction History and Rollback Plan Viewer](RUST_CORE_V14_TRANSACTION_HISTORY.md) — Read-only journal history and rollback plan API.
+
+- [Rust Core v1.5 Rollback Execution Rehearsal](RUST_CORE_V15_ROLLBACK_EXECUTOR.md) — gated `execute-rollback` operation and confirmation-based file restore preview/execution model.

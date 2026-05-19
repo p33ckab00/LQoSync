@@ -80,6 +80,9 @@ DEFAULT_CONFIG = {
         "allow_rust_file_writes": False,
         "allow_rust_libreqos_apply": False,
         "self_test_on_status": False,
+        "execute_rollback": False,
+        "allow_rust_rollback_file_writes": False,
+        "rollback_authority": "preview",
     },
     "collector": {
         "selective_fields": True,
@@ -531,11 +534,16 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_transaction_journal_writes", False)
     rust_core.setdefault("include_rehearsal_journal_entries", False)
     rust_core.setdefault("allow_dry_run_journal_entries", False)
+    rust_core.setdefault("execute_rollback", False)
+    rust_core.setdefault("allow_rust_rollback_file_writes", False)
+    rust_core.setdefault("rollback_authority", "preview")
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     # Compatibility: authority_mode=enforce_blockers implies sync-plan enforcement.
     if rust_core.get("authority_mode") == "enforce_blockers":
         rust_core["enforce_sync_plan"] = True
+    if rust_core.get("rollback_authority") not in ("preview", "execute_file_restores"):
+        errors.append(f"rust_core.rollback_authority invalid: {rust_core.get('rollback_authority')}")
     try:
         rust_core["timeout_seconds"] = max(int(rust_core.get("timeout_seconds", 10) or 10), 1)
     except Exception:

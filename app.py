@@ -41,7 +41,7 @@ from engine.config_schema import migrate_config_schema, validate_schema, CONFIG_
 from engine.release_integrity import compute_release_integrity, repair_config_defaults
 from engine.lifecycle import lifecycle_summary, client_event_timeline
 from engine.lifecycle_report import compute_lifecycle_report, lifecycle_report_to_csv, lifecycle_report_to_markdown
-from engine.rust_core import rust_core_status, rust_core_self_test, rust_read_transaction_journal, rust_build_rollback_from_journal
+from engine.rust_core import rust_core_status, rust_core_self_test, rust_read_transaction_journal, rust_build_rollback_from_journal, rust_execute_rollback
 from applier.atomic_writer import atomic_write_text
 from monitoring.service_monitor import (
     all_service_status, service_status, restart_service as monitor_restart_service,
@@ -2027,6 +2027,39 @@ def api_rust_core_rollback_plan():
     if not journal_id and not manifest_id:
         return jsonify({"ok": False, "error": "journal_id_or_manifest_id_required"}), 400
     return jsonify(rust_build_rollback_from_journal(cfg, journal_id=journal_id, manifest_id=manifest_id))
+
+
+
+
+@app.route("/api/rust-core/rollback-execute", methods=["POST"])
+@admin_required
+def api_rust_core_rollback_execute():
+    cfg = load_config(CONFIG_PATH)
+    payload = request.get_json(silent=True) or {}
+    journal_id = str(payload.get("journal_id") or request.args.get("journal_id") or "")
+    manifest_id = str(payload.get("manifest_id") or request.args.get("manifest_id") or "")
+    confirmation = str(payload.get("confirmation") or "")
+    execute = bool(payload.get("execute", False))
+    allow_checksum_mismatch = bool(payload.get("allow_checksum_mismatch", False))
+    if not journal_id and not manifest_id and not isinstance(payload.get("rollback_manifest"), dict):
+        return jsonify({"ok": False, "error": "journal_id_or_manifest_id_or_rollback_manifest_required"}), 400
+    result = rust_execute_rollback(
+        cfg,
+        journal_id=journal_id,
+        manifest_id=manifest_id,
+        rollback_manifest=payload.get("rollback_manifest") if isinstance(payload.get("rollback_manifest"), dict) else None,
+        execute=execute,
+        confirmation=confirmation,
+        allow_checksum_mismatch=allow_checksum_mismatch,
+    )
+    write_audit(cfg, "rust_rollback_execute_requested", actor=(current_user() or {}).get("username"), details={
+        "journal_id": journal_id,
+        "manifest_id": manifest_id,
+        "execute_requested": execute,
+        "executed": (result.get("result") or {}).get("executed"),
+        "status": (result.get("result") or {}).get("status"),
+    })
+    return jsonify(result)
 
 
 @app.route("/api/sync/run", methods=["POST"])
