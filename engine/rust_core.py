@@ -702,6 +702,69 @@ def rust_build_apply_manifest(config: dict, *, mode: str, paths: dict, current_c
     return response
 
 
+
+def _python_execute_apply_transaction(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for Rust `execute-apply-transaction`.
+
+    Fallback intentionally never writes files. It mirrors the transaction
+    rehearsal shape so the UI and Dry Run remain stable if an older Rust core is
+    installed.
+    """
+    started = started or time.perf_counter()
+    manifest = _python_apply_manifest(payload).get("result", {})
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "execute-apply-transaction",
+        "available": False,
+        "ok": True,
+        "result": {
+            "mode": "transaction_executor",
+            "authoritative": False,
+            "executed": False,
+            "status": "python_fallback_rehearsal_only",
+            "manifest": manifest,
+            "write_results": [],
+            "write_count": 0,
+            "execute_requested": bool(payload.get("execute")),
+            "allow_file_writes": False,
+            "allow_libreqos_apply": False,
+            "libreqos_apply_executed": False,
+            "trace": [{"step": "fallback", "decision": "no_file_writes"}],
+        },
+        "errors": [],
+        "warnings": [{"code": "rust_transaction_executor_unavailable", "severity": "warning", "path": "rust_core", "message": "Rust execute-apply-transaction is unavailable; Python fallback rehearsed only."}],
+        "meta": {"engine": "python-wrapper", "mode": "python_transaction_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_execute_apply_transaction(config: dict, *, mode: str, paths: dict, current_csv_text: str, proposed_csv_text: str, current_network_text: str, proposed_network_text: str, files_changed: bool, csv_changed: bool, network_changed: bool, policy_decision: dict | None = None, rust_sync_plan: dict | None = None, rust_authority_gate: dict | None = None, state: dict | None = None, execute: bool | None = None) -> dict[str, Any]:
+    rc = rust_core_config(config)
+    do_execute = bool(rc.get("execute_apply_manifest") if execute is None else execute)
+    payload = {
+        "config": config or {},
+        "mode": mode,
+        "paths": paths or {},
+        "state": state or {},
+        "current_csv_text": current_csv_text or "",
+        "proposed_csv_text": proposed_csv_text or "",
+        "current_network_text": current_network_text or "{}",
+        "proposed_network_text": proposed_network_text or "{}",
+        "files_changed": bool(files_changed),
+        "csv_changed": bool(csv_changed),
+        "network_changed": bool(network_changed),
+        "policy_decision": policy_decision or {},
+        "rust_sync_plan": rust_sync_plan or {},
+        "rust_authority_gate": rust_authority_gate or {},
+        "execute": do_execute,
+        "allow_file_writes": bool(rc.get("allow_rust_file_writes", False)),
+        "allow_libreqos_apply": bool(rc.get("allow_rust_libreqos_apply", False)),
+    }
+    response = call_rust_core("execute-apply-transaction", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_execute_apply_transaction(payload)
+    return response
+
 def rust_sync_plan_authority_gate(config: dict, rust_sync_plan: dict | None, *, mode: str = "apply") -> dict[str, Any]:
     """Return the opt-in Rust authority gate decision for an apply cycle.
 
@@ -766,6 +829,10 @@ def rust_core_config(config: dict | None = None) -> dict:
         "authority_mode": str(cfg.get("authority_mode") or ("enforce_blockers" if cfg.get("enforce_sync_plan") else "shadow")),
         "prefer_daemon": bool(cfg.get("prefer_daemon", False)),
         "unix_socket": str(cfg.get("unix_socket") or os.getenv("LQOSYNC_CORE_SOCKET") or DEFAULT_SOCKET),
+        "transaction_authority": str(cfg.get("transaction_authority") or "preview"),
+        "execute_apply_manifest": bool(cfg.get("execute_apply_manifest", False)),
+        "allow_rust_file_writes": bool(cfg.get("allow_rust_file_writes", False)),
+        "allow_rust_libreqos_apply": bool(cfg.get("allow_rust_libreqos_apply", False)),
     }
 
 

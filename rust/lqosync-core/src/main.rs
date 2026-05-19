@@ -1,6 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use lqosync_core::apply_manifest::build_apply_manifest_payload;
+use lqosync_core::apply_transaction::execute_apply_transaction_payload;
 use lqosync_core::atomic_state::{append_audit_jsonl_payload, atomic_write_json_state_payload, atomic_write_text_payload, validate_json_state_payload};
 use lqosync_core::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use lqosync_core::circuits::normalize_circuits_payload;
@@ -157,7 +158,8 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
                 "evaluate-policy",
                 "normalize-circuits",
                 "evaluate-sync-plan",
-                "build-apply-manifest"
+                "build-apply-manifest",
+                "execute-apply-transaction"
             ]
         }), started)),
         "parse-bandwidth" => Ok(handle_parse_bandwidth(req, started)),

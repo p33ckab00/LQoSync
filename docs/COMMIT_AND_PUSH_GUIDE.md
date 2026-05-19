@@ -368,3 +368,13 @@ git commit -m "rust(core): add apply manifest preview" \
   -m "Add build-apply-manifest to lqosync-core, Python wrapper integration, Dry Run transaction preview, and documentation for backup/write/pending-apply/LibreQoS apply intent before future Rust transaction authority."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v1.0 commit
+
+```bash
+git add .
+git commit -m "rust(core): add apply transaction executor" \
+  -m "Add execute-apply-transaction to lqosync-core with rehearsal-only defaults, opt-in file-write execution, Dry Run visibility, and documentation while keeping Python authoritative."
+git push -u origin lqosync-in-rust
+```

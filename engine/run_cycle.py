@@ -37,7 +37,7 @@ from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
 from engine.rust_core import (
     validate_runtime_outputs, diagnostics_to_messages, validate_collector_output,
-    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest,
+    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction,
 )
 
 
@@ -545,6 +545,39 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 "manifest_id": apply_manifest_result.get("manifest_id"),
                 "status": apply_manifest_result.get("status"),
                 "operations": apply_manifest_result.get("operation_count"),
+            },
+        )
+        t_apply_transaction = time.perf_counter()
+        rust_apply_transaction = rust_execute_apply_transaction(
+            config,
+            mode=mode,
+            paths=paths,
+            current_csv_text=current_csv_text,
+            proposed_csv_text=proposed_csv_text,
+            current_network_text=current_network_text,
+            proposed_network_text=proposed_network_text,
+            files_changed=result.files_changed,
+            csv_changed=result.csv_changed,
+            network_changed=result.network_changed,
+            policy_decision=python_policy_dict,
+            rust_sync_plan=rust_sync_plan,
+            rust_authority_gate=rust_authority_gate,
+            state=state_before,
+        )
+        result.diff["rust_apply_transaction"] = rust_apply_transaction
+        tx_result = rust_apply_transaction.get("result", {}) if isinstance(rust_apply_transaction, dict) else {}
+        if tx_result.get("executed"):
+            result.warnings.append("Rust apply transaction executed file writes. Python apply path should be disabled before enabling this in production.")
+        timeline.record(
+            "rust_apply_transaction",
+            t_apply_transaction,
+            status="ok" if rust_apply_transaction.get("ok") else ("unavailable" if not rust_apply_transaction.get("available") else "check"),
+            details={
+                "available": bool(rust_apply_transaction.get("available")),
+                "ok": bool(rust_apply_transaction.get("ok")),
+                "status": tx_result.get("status"),
+                "executed": bool(tx_result.get("executed")),
+                "write_count": tx_result.get("write_count"),
             },
         )
         result.diff["policy_decision"] = python_policy_dict

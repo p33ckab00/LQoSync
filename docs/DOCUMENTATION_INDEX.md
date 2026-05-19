@@ -146,3 +146,5 @@ Read these docs first:
 - [Rust Core v0.8 Authority Gates](RUST_CORE_V08_AUTHORITY_GATES.md) — opt-in Rust sync-plan enforcement gate for blocking unsafe non-dry-run writes.
 
 - [Rust Core v0.9 Apply Manifest Preview](RUST_CORE_V09_APPLY_MANIFEST.md) — transaction manifest before backup/write/apply.
+
+- [Rust Core v1.0 Apply Transaction Executor](RUST_CORE_V10_APPLY_TRANSACTION.md)

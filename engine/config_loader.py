@@ -74,6 +74,10 @@ DEFAULT_CONFIG = {
         "authority_mode": "shadow",  # shadow | enforce_blockers
         "prefer_daemon": False,
         "unix_socket": "/run/lqosync-core.sock",
+        "transaction_authority": "preview",
+        "execute_apply_manifest": False,
+        "allow_rust_file_writes": False,
+        "allow_rust_libreqos_apply": False,
     },
     "collector": {
         "selective_fields": True,

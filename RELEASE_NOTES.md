@@ -1777,3 +1777,10 @@ This update keeps LibreQoS integrity intact while allowing older ZIP/manual inst
 - Adds `build-apply-manifest` to `lqosync-core`.
 - Adds Dry Run visibility for backup/write/pending-apply/LibreQoS apply transaction intent.
 - Keeps Python authoritative; manifest is non-destructive and diagnostic by default.
+
+
+## 2.80.0-rc1
+
+- Add Rust Core v1.0 apply transaction executor operation `execute-apply-transaction`.
+- Keep transaction execution disabled by default; Dry Run shows rehearsal status.
+- Add config flags for future opt-in Rust file-write authority.

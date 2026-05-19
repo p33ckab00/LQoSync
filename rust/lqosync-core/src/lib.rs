@@ -7,6 +7,7 @@
 
 pub mod atomic_state;
 pub mod apply_manifest;
+pub mod apply_transaction;
 pub mod bandwidth;
 pub mod circuits;
 pub mod network;

@@ -200,3 +200,17 @@
 {% endif %}
 {% endblock %}
 
+
+
+{% set rust_tx = result.diff.rust_apply_transaction if result and result.diff and result.diff.rust_apply_transaction else None %}
+{% if rust_tx %}
+<div class="card mb-3">
+  <div class="card-header"><strong>Rust Apply Transaction Rehearsal</strong></div>
+  <div class="card-body">
+    {% set txr = rust_tx.result if rust_tx.result else {} %}
+    <p class="mb-2">Status: <code>{{ txr.status or 'unknown' }}</code> · Executed: <code>{{ txr.executed }}</code> · Writes: <code>{{ txr.write_count or 0 }}</code></p>
+    <p class="text-muted mb-2">Default mode is rehearsal only. Rust file writes require explicit rust_core.execute_apply_manifest and allow_rust_file_writes.</p>
+    <details><summary>Transaction JSON</summary><pre class="small">{{ rust_tx | tojson(indent=2) }}</pre></details>
+  </div>
+</div>
+{% endif %}

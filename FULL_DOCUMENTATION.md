@@ -7563,3 +7563,8 @@ Rust Core v0.6 adds the `normalize-circuits` operation. It is shadow-only: Pytho
 ## Rust Core v0.9 Apply Manifest Preview
 
 See `docs/RUST_CORE_V09_APPLY_MANIFEST.md`. v0.9 adds a non-destructive transaction manifest before Python performs backup, generated file writes, pending apply state, or LibreQoS apply.
+
+
+## Rust Core v1.0 Apply Transaction Executor
+
+This package adds the optional `execute-apply-transaction` Rust operation. It rehearses transactions by default and only writes files when explicit Rust transaction flags are enabled. Python remains authoritative for normal production sync/apply behavior.

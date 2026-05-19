@@ -288,3 +288,8 @@ The `lqosync-in-rust` branch now includes `evaluate-sync-plan`, a shadow-only en
 ## Rust Core v0.9 Apply Manifest Preview
 
 The `lqosync-in-rust` branch now includes a non-destructive Rust apply manifest that previews the backup/write/pending-apply/LibreQoS apply transaction before Python executes it. Python remains authoritative by default.
+
+
+## Rust Core v1.0 Apply Transaction Executor
+
+This package adds the optional `execute-apply-transaction` Rust operation. It rehearses transactions by default and only writes files when explicit Rust transaction flags are enabled. Python remains authoritative for normal production sync/apply behavior.

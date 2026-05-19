@@ -100,3 +100,8 @@ The Rust core can now annotate sync plans with authority metadata. Python enforc
 ## v0.9 Apply Manifest
 
 Adds `build-apply-manifest`, a non-destructive transaction preview that lists backup, file-write, pending-apply, and LibreQoS apply operations before Python performs them. It is diagnostic by default and designed for future controlled Rust transaction authority.
+
+
+## v1.0 Apply Transaction Executor
+
+`execute-apply-transaction` executes the safe file-write part of a previously previewed apply manifest only when explicitly requested with `execute=true` and `allow_file_writes=true`. It does not run `LibreQoS.py`; Python remains authoritative for external apply execution. By default it behaves as a rehearsal and returns the write plan without mutating files.

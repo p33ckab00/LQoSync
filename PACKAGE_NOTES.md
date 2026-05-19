@@ -141,3 +141,8 @@ Adds `evaluate-sync-plan`, Dry Run sync-plan visibility, and documentation. Pyth
 ## v2.79.0-rc1 Package Notes
 
 Rust core advances to v0.9.0 with a transaction-style apply manifest preview. No generated file write/apply behavior is moved to Rust in this package.
+
+
+## Rust Core v1.0 Apply Transaction Executor
+
+This package adds the optional `execute-apply-transaction` Rust operation. It rehearses transactions by default and only writes files when explicit Rust transaction flags are enabled. Python remains authoritative for normal production sync/apply behavior.
