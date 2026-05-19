@@ -7585,3 +7585,7 @@ Rust Core v1.1.1 fixes the v1.1.0 self-test build failure by aligning the intern
 ## Rust Core v1.2 Transaction Journal and Rollback Manifest
 
 Rust Core v1.2 adds non-mutating transaction journal and rollback manifest previews. The Dry Run page now shows journal IDs, append intent, rollback status, and restore operation counts. Python remains authoritative; no new write/apply authority is enabled by default. Read: `docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md`.
+
+## Rust Core v1.3 Transaction Journal Persistence
+
+Rust Core v1.3 adds the `append-transaction-journal` operation and config flags for opt-in transaction journal persistence. This gives future Rust apply authority an auditable JSONL transaction trail while keeping Python authoritative and journal writes disabled by default. See `docs/RUST_CORE_V13_TRANSACTION_JOURNAL_PERSISTENCE.md`.

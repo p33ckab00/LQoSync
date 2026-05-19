@@ -1,3 +1,4 @@
+use crate::atomic_state::append_audit_jsonl_payload;
 use crate::protocol::{Diagnostic, Severity};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -144,6 +145,93 @@ pub fn build_transaction_journal_payload(payload: &Value) -> (Value, Vec<Diagnos
     (result, errors, warnings)
 }
 
+
+/// Append a transaction journal event to JSONL when explicitly requested and allowed.
+///
+/// v1.3 keeps this operation opt-in. Without `append=true` and
+/// `allow_journal_write=true`, it returns a rehearsal result and does not touch
+/// the filesystem. This is intended to make Rust transaction authority auditable
+/// before wider file-write or rollback authority is enabled.
+pub fn append_transaction_journal_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+    let (preview, mut errors, mut warnings) = build_transaction_journal_payload(payload);
+    let mode = payload.get("mode").and_then(Value::as_str).unwrap_or("apply");
+    let append_requested = payload.get("append").and_then(Value::as_bool)
+        .or_else(|| payload.get("execute").and_then(Value::as_bool))
+        .unwrap_or(false);
+    let allow_journal_write = payload.get("allow_journal_write").and_then(Value::as_bool).unwrap_or(false);
+    let include_rehearsal_entries = payload.get("include_rehearsal_entries").and_then(Value::as_bool).unwrap_or(false);
+    let allow_dry_run_journal = payload.get("allow_dry_run_journal").and_then(Value::as_bool).unwrap_or(false);
+    let append_required = preview.get("append_required").and_then(Value::as_bool).unwrap_or(false);
+    let event = preview.get("event").cloned().unwrap_or_else(|| json!({}));
+    let journal_path = preview.get("journal_path").and_then(Value::as_str).unwrap_or("/opt/lqosync/logs/transaction_journal.jsonl");
+    let mut append_result = json!({});
+    let mut append_executed = false;
+    let status: String;
+
+    if !errors.is_empty() {
+        status = "preview_failed".to_string();
+    } else if !append_requested {
+        status = "rehearsal_only".to_string();
+    } else if !allow_journal_write {
+        status = "not_allowed".to_string();
+        warnings.push(warning(
+            "transaction_journal_write_not_allowed",
+            Some("allow_journal_write".to_string()),
+            "Transaction journal append was requested but allow_journal_write is false.",
+        ));
+    } else if mode == "dry_run" && !allow_dry_run_journal {
+        status = "dry_run_preview_only".to_string();
+        warnings.push(warning(
+            "transaction_journal_dry_run_not_written",
+            Some("mode".to_string()),
+            "Dry Run does not append transaction journal entries unless allow_dry_run_journal is explicitly true.",
+        ));
+    } else if !append_required && !include_rehearsal_entries {
+        status = "not_required".to_string();
+    } else if journal_path.trim().is_empty() {
+        status = "failed".to_string();
+        errors.push(Diagnostic::error(
+            "transaction_journal_path_required",
+            Some("journal_path".to_string()),
+            "Cannot append transaction journal because journal_path is empty.",
+        ));
+    } else {
+        let append_payload = json!({"path": journal_path, "event": event});
+        match append_audit_jsonl_payload(&append_payload) {
+            Ok(result) => {
+                append_result = result;
+                append_executed = true;
+                status = "appended".to_string();
+            }
+            Err(e) => {
+                status = "failed".to_string();
+                errors.push(Diagnostic::error(
+                    "transaction_journal_append_failed",
+                    Some("journal_path".to_string()),
+                    format!("Transaction journal append failed: {e}"),
+                ));
+            }
+        }
+    }
+
+    let result = json!({
+        "mode": "transaction_journal_writer",
+        "authoritative": append_executed,
+        "status": status,
+        "journal_id": preview.get("journal_id"),
+        "journal_path": journal_path,
+        "append_requested": append_requested,
+        "append_required": append_required,
+        "allow_journal_write": allow_journal_write,
+        "include_rehearsal_entries": include_rehearsal_entries,
+        "allow_dry_run_journal": allow_dry_run_journal,
+        "append_executed": append_executed,
+        "append_result": append_result,
+        "journal_preview": preview,
+    });
+    (result, errors, warnings)
+}
+
 /// Build a non-mutating rollback manifest from a transaction result.
 ///
 /// The rollback plan is intentionally preview-only. It lists restore_file steps
@@ -247,4 +335,42 @@ mod tests {
         assert_eq!(result.get("status").and_then(Value::as_str), Some("rollback_available"));
         assert_eq!(result.get("operation_count").and_then(Value::as_u64), Some(1));
     }
+
+    #[test]
+    fn append_transaction_journal_rehearses_without_flags() {
+        let payload = json!({
+            "mode": "apply",
+            "paths": {"transaction_journal": "/tmp/lqosync-should-not-write.jsonl"},
+            "rust_apply_manifest": {"result": {"manifest_id":"apply-abc", "status":"ready", "operation_count":1, "operations":[]}},
+            "rust_apply_transaction": {"result": {"status":"executed_file_writes", "executed":true, "write_count":1, "write_results":[]}},
+            "rust_sync_plan": {"result": {"verdict":"ready_by_shadow_plan"}}
+        });
+        let (result, errors, _warnings) = append_transaction_journal_payload(&payload);
+        assert!(errors.is_empty());
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("rehearsal_only"));
+        assert_eq!(result.get("append_executed").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn append_transaction_journal_writes_when_explicitly_allowed() {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let journal_path = std::env::temp_dir().join(format!("lqosync-txj-{now}.jsonl"));
+        let payload = json!({
+            "mode": "apply",
+            "journal_path": journal_path.to_string_lossy(),
+            "append": true,
+            "allow_journal_write": true,
+            "rust_apply_manifest": {"result": {"manifest_id":"apply-abc", "status":"ready", "operation_count":1, "operations":[]}},
+            "rust_apply_transaction": {"result": {"status":"executed_file_writes", "executed":true, "write_count":1, "write_results":[]}},
+            "rust_sync_plan": {"result": {"verdict":"ready_by_shadow_plan"}}
+        });
+        let (result, errors, _warnings) = append_transaction_journal_payload(&payload);
+        assert!(errors.is_empty(), "append errors: {errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("appended"));
+        assert_eq!(result.get("append_executed").and_then(Value::as_bool), Some(true));
+        let text = std::fs::read_to_string(&journal_path).unwrap();
+        assert!(text.contains("rust_apply_transaction_journal"));
+        let _ = std::fs::remove_file(&journal_path);
+    }
+
 }

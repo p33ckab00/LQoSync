@@ -527,6 +527,10 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_file_writes", False)
     rust_core.setdefault("allow_rust_libreqos_apply", False)
     rust_core.setdefault("self_test_on_status", False)
+    rust_core.setdefault("append_transaction_journal", False)
+    rust_core.setdefault("allow_transaction_journal_writes", False)
+    rust_core.setdefault("include_rehearsal_journal_entries", False)
+    rust_core.setdefault("allow_dry_run_journal_entries", False)
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     # Compatibility: authority_mode=enforce_blockers implies sync-plan enforcement.

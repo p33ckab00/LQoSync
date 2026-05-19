@@ -164,3 +164,7 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 ## v2.82.0-rc1 Package Notes
 
 Adds Rust Core v1.2 transaction journal and rollback manifest previews. This is documentation/diagnostic/safety plumbing only; Python remains authoritative and no new Rust write/apply authority is enabled by default.
+
+## v2.83.0-rc1 package notes
+
+Adds Rust Core v1.3 transaction journal persistence preview/write path. Defaults remain non-mutating unless transaction journal write flags are explicitly enabled.

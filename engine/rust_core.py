@@ -819,6 +819,41 @@ def _python_transaction_journal(payload: dict[str, Any], *, started: float | Non
     }
 
 
+
+def _python_append_transaction_journal(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for Rust append-transaction-journal.
+
+    The fallback is intentionally non-mutating. Journal persistence is a Rust
+    authority surface, so if Rust is unavailable Python reports rehearsal only.
+    """
+    started = started or time.perf_counter()
+    preview = _python_transaction_journal(payload, started=started).get("result", {})
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "append-transaction-journal",
+        "available": False,
+        "ok": True,
+        "result": {
+            "mode": "transaction_journal_writer",
+            "authoritative": False,
+            "status": "rust_unavailable_rehearsal_only",
+            "journal_id": preview.get("journal_id"),
+            "journal_path": preview.get("journal_path"),
+            "append_requested": bool(payload.get("append")),
+            "append_required": bool(preview.get("append_required")),
+            "allow_journal_write": bool(payload.get("allow_journal_write")),
+            "include_rehearsal_entries": bool(payload.get("include_rehearsal_entries")),
+            "allow_dry_run_journal": bool(payload.get("allow_dry_run_journal")),
+            "append_executed": False,
+            "append_result": {},
+            "journal_preview": preview,
+        },
+        "errors": [],
+        "warnings": [{"code": "rust_transaction_journal_append_unavailable", "severity": "warning", "path": "rust_core", "message": "Rust append-transaction-journal is unavailable; Python fallback did not write the journal."}],
+        "meta": {"engine": "python-wrapper", "mode": "python_transaction_journal_append_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
 def rust_build_transaction_journal(config: dict, *, mode: str, paths: dict, rust_apply_manifest: dict | None = None, rust_apply_transaction: dict | None = None, rust_sync_plan: dict | None = None, rust_authority_gate: dict | None = None, policy_decision: dict | None = None) -> dict[str, Any]:
     payload = {
         "config": config or {},
@@ -834,6 +869,31 @@ def rust_build_transaction_journal(config: dict, *, mode: str, paths: dict, rust
     error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
     if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
         return _python_transaction_journal(payload)
+    return response
+
+
+
+def rust_append_transaction_journal(config: dict, *, mode: str, paths: dict, rust_apply_manifest: dict | None = None, rust_apply_transaction: dict | None = None, rust_sync_plan: dict | None = None, rust_authority_gate: dict | None = None, policy_decision: dict | None = None, rust_transaction_journal: dict | None = None) -> dict[str, Any]:
+    rc = rust_core_config(config)
+    payload = {
+        "config": config or {},
+        "mode": mode,
+        "paths": paths or {},
+        "rust_apply_manifest": rust_apply_manifest or {},
+        "rust_apply_transaction": rust_apply_transaction or {},
+        "rust_sync_plan": rust_sync_plan or {},
+        "rust_authority_gate": rust_authority_gate or {},
+        "policy_decision": policy_decision or {},
+        "rust_transaction_journal": rust_transaction_journal or {},
+        "append": bool(rc.get("append_transaction_journal", False)),
+        "allow_journal_write": bool(rc.get("allow_transaction_journal_writes", False)),
+        "include_rehearsal_entries": bool(rc.get("include_rehearsal_journal_entries", False)),
+        "allow_dry_run_journal": bool(rc.get("allow_dry_run_journal_entries", False)),
+    }
+    response = call_rust_core("append-transaction-journal", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_append_transaction_journal(payload)
     return response
 
 

@@ -545,6 +545,10 @@
     "enforce_sync_plan": false,
     "fail_closed_when_enforced": true,
     "authority_mode": "shadow",
-    "self_test_on_status": false
+    "self_test_on_status": false,
+    "append_transaction_journal": false,
+    "allow_transaction_journal_writes": false,
+    "include_rehearsal_journal_entries": false,
+    "allow_dry_run_journal_entries": false
   }
 }

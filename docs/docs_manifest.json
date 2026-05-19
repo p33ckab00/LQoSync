@@ -403,7 +403,7 @@
     "title": "Custom Policy Mode Persistence Hotfix",
     "file": "docs/content/custom_policy_mode_persistence.md",
     "anchor": "custom-policy-mode-persistence-hotfix",
-    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center → Policies."
+    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center \u2192 Policies."
   },
   "policy_overview_custom_wiring_hotfix": {
     "title": "Policy Overview Custom Wiring Hotfix",
@@ -494,5 +494,11 @@
     "file": "docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md",
     "anchor": "rust-core-v12-transaction-journal-and-rollback-manifest",
     "summary": "Non-mutating transaction journal and rollback manifest previews for Rust apply transaction accountability."
+  },
+  "rust.v13_transaction_journal_persistence": {
+    "title": "Rust Core v1.3 Transaction Journal Persistence",
+    "file": "docs/RUST_CORE_V13_TRANSACTION_JOURNAL_PERSISTENCE.md",
+    "anchor": "rust-core-v13-transaction-journal-persistence",
+    "summary": "Opt-in append-transaction-journal operation for durable Rust apply transaction accountability."
   }
 }

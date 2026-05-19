@@ -310,3 +310,7 @@ The v1.1.1 package fixes the self-test no-change manifest assertion and hardens 
 ### Rust Core v1.2 transaction journal and rollback preview
 
 Rust Core v1.2 adds `build-transaction-journal` and `build-rollback-manifest` operations. These are preview-only by default and make future Rust file-write authority auditable and rollback-aware. Read: `docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md`.
+
+### Rust Core v1.3 Transaction Journal Persistence
+
+The `lqosync-in-rust` branch now includes `append-transaction-journal`, an opt-in operation for persisting Rust apply transaction journal events to `/opt/lqosync/logs/transaction_journal.jsonl`. It is disabled by default and remains rehearsal-only unless explicitly enabled.

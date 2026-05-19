@@ -1808,3 +1808,10 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 - Adds `/opt/lqosync/logs/transaction_journal.jsonl` as the canonical future transaction journal path.
 - Adds Dry Run visibility for Rust transaction journal and rollback preview.
 - Bumps `lqosync-core` to `1.2.0`.
+
+## v2.83.0-rc1 — Rust Core v1.3 Transaction Journal Persistence
+
+- Added `append-transaction-journal` Rust operation.
+- Added opt-in transaction journal persistence flags.
+- Dry Run now shows journal append status.
+- Python remains authoritative; journal writes are disabled by default.

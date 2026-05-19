@@ -406,3 +406,12 @@ git commit -m "rust(core): add transaction journal and rollback preview" \
   -m "Add build-transaction-journal and build-rollback-manifest operations, Dry Run visibility, transaction_journal path defaults, and documentation for auditable Rust apply transaction accountability."
 git push -u origin lqosync-in-rust
 ```
+
+## v1.3 transaction journal persistence commit
+
+```bash
+git add .
+git commit -m "rust(core): add transaction journal persistence" \
+  -m "Add append-transaction-journal, opt-in journal write flags, Dry Run journal append visibility, and documentation for auditable Rust apply transaction persistence."
+git push -u origin lqosync-in-rust
+```

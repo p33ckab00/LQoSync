@@ -37,7 +37,7 @@ from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
 from engine.rust_core import (
     validate_runtime_outputs, diagnostics_to_messages, validate_collector_output,
-    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction, rust_build_transaction_journal, rust_build_rollback_manifest,
+    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction, rust_build_transaction_journal, rust_append_transaction_journal, rust_build_rollback_manifest,
 )
 
 
@@ -603,6 +603,32 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 "journal_id": journal_result.get("journal_id"),
                 "append_required": bool(journal_result.get("append_required")),
                 "rollback_available": bool(journal_result.get("rollback_available")),
+            },
+        )
+        t_transaction_journal_append = time.perf_counter()
+        rust_transaction_journal_append = rust_append_transaction_journal(
+            config,
+            mode=mode,
+            paths=paths,
+            rust_apply_manifest=rust_apply_manifest,
+            rust_apply_transaction=rust_apply_transaction,
+            rust_sync_plan=rust_sync_plan,
+            rust_authority_gate=rust_authority_gate,
+            policy_decision=python_policy_dict,
+            rust_transaction_journal=rust_transaction_journal,
+        )
+        result.diff["rust_transaction_journal_append"] = rust_transaction_journal_append
+        journal_append_result = rust_transaction_journal_append.get("result", {}) if isinstance(rust_transaction_journal_append, dict) else {}
+        timeline.record(
+            "rust_transaction_journal_append",
+            t_transaction_journal_append,
+            status="ok" if rust_transaction_journal_append.get("ok") else ("unavailable" if not rust_transaction_journal_append.get("available") else "check"),
+            details={
+                "available": bool(rust_transaction_journal_append.get("available")),
+                "ok": bool(rust_transaction_journal_append.get("ok")),
+                "status": journal_append_result.get("status"),
+                "append_executed": bool(journal_append_result.get("append_executed")),
+                "journal_id": journal_append_result.get("journal_id"),
             },
         )
         t_rollback_manifest = time.perf_counter()
