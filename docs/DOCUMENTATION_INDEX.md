@@ -12,6 +12,16 @@ This index is the GitHub-friendly map for the consolidated LQoSync documentation
 - [AI-Assisted Development Disclosure](AI_ASSISTED_DEVELOPMENT.md)
 - [Command Reference](COMMANDS.md)
 
+
+
+## LQoSync-in-Rust branch documentation
+
+- [LQoSync-in-Rust Core Migration Plan](RUST_CORE_MIGRATION.md) — phased plan for adding a Rust safety core while preserving the Python Flask WebUI, pure JSON/files, and autosave behavior.
+- [Rust Core Protocol](RUST_CORE_PROTOCOL.md) — stable JSON request/response envelope shared by subprocess CLI and future Unix socket daemon.
+- [Collector Output Contract](COLLECTOR_OUTPUT_CONTRACT.md) — typed source trust contract to prevent silent RouterOS partial/zero results from triggering unsafe cleanup.
+- [Autosave and Atomic State Model](AUTOSAVE_AND_ATOMIC_STATE.md) — no-save-button flow, dangerous-change confirmation, atomic file/state writes, and rollback guidance.
+- [Commit and Push Guide](COMMIT_AND_PUSH_GUIDE.md) — branch workflow and commit/push instructions for `lqosync-in-rust`.
+
 ## Topic index
 
 - [Policy Settings Integration](content/policy_settings_integration.md)

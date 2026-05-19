@@ -1,15 +1,27 @@
 # Release Notes
 
-## v2.72.0 — Runtime Canonical Naming
+## v2.70.10-rust-docs - LQoSync-in-Rust Documentation Package
 
-- Makes `LQoSync` the canonical project identity and `lqosync` the canonical runtime/service identity.
-- Updates fresh install, update, adoption, WebUI guidance, and operator documentation to use `p33ckab00/LQoSync`.
-- Renames runtime-facing defaults to the canonical `lqosync` identity, including service commands, Docker naming, sudoers naming, and log paths.
-- Adds migration guidance so existing installs can move safely from the old service name without double-running schedulers or losing operator-owned data.
-- Preserves production safety behavior for `config.json`, `ShapedDevices.csv`, `network.json`, users, environment files, runtime state, logs, and backups.
+Documentation-only package for the planned `lqosync-in-rust` branch.
+
+### Added
+
+- `docs/RUST_CORE_MIGRATION.md` documents the phased hybrid migration from Python backend core to Rust safety core.
+- `docs/RUST_CORE_PROTOCOL.md` defines the stable JSON request/response envelope for subprocess CLI and future Unix socket daemon.
+- `docs/COLLECTOR_OUTPUT_CONTRACT.md` documents typed collector trust validation to prevent silent partial/zero RouterOS results from triggering unsafe cleanup.
+- `docs/AUTOSAVE_AND_ATOMIC_STATE.md` documents no-save-button autosave, dangerous-change confirmation, and atomic state/file writes.
+- `docs/COMMIT_AND_PUSH_GUIDE.md` documents branch workflow, commit messages, push commands, and pull request template for `lqosync-in-rust`.
+- Added `docs/assets/lqosync_rust_migration_plan.svg` as the Rust migration planning diagram.
+
+### Safety notes
+
+- No runtime behavior change in this documentation package.
+- Python Flask WebUI remains the operator interface in the migration plan.
+- Rust is planned as a deterministic safety boundary before cleanup, diff, write, and apply decisions.
+- `collector_cache.json` is explicitly included in the future atomic state engine scope.
 
 
-## v2.72.0 — Policy Overview Custom Wiring Hotfix
+## v2.70.10-rc1 — Policy Overview Custom Wiring Hotfix
 
 - Fixes Config Center → Policies so Policy Overview controls also switch the visible policy mode to Custom.
 - Operation Mode, Auto Apply, Optional Auto Backup, and Backup Retention now call markPolicyCustom() when changed in the Policy Hierarchy UI.

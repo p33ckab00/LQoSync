@@ -200,6 +200,27 @@ LQoSync builds the LibreQoS node tree from router, source, DHCP server, plan, an
 - **Source** — MikroTik PPPoE, DHCP, Hotspot, or static source used to generate rows.
 - **Parent Node** — the LibreQoS node where a shaped device is attached.
 
+
+
+## LQoSync-in-Rust branch plan
+
+The planned `lqosync-in-rust` branch keeps the Python Flask WebUI as the operator interface while adding a Rust core for deterministic safety-critical backend work.
+
+```text
+Python = WebUI, auth, templates, scheduler controls, docs, reports
+Rust   = protocol, validation, parsing, diff, collector trust, atomic state/file writes
+```
+
+The migration preserves the existing no-database model and keeps `config.json`, `runtime_state.json`, `policy_state.json`, `collector_cache.json`, `audit.jsonl`, `ShapedDevices.csv`, and `network.json` as file-based state.
+
+Start with documentation and protocol before code:
+
+- [LQoSync-in-Rust Core Migration Plan](docs/RUST_CORE_MIGRATION.md)
+- [Rust Core Protocol](docs/RUST_CORE_PROTOCOL.md)
+- [Collector Output Contract](docs/COLLECTOR_OUTPUT_CONTRACT.md)
+- [Autosave and Atomic State Model](docs/AUTOSAVE_AND_ATOMIC_STATE.md)
+- [Commit and Push Guide](docs/COMMIT_AND_PUSH_GUIDE.md)
+
 ## Appendices
 
 - [Full Documentation](FULL_DOCUMENTATION.md)

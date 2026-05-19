@@ -33,6 +33,11 @@ DEFAULT_DOC_FILES = [
     "docs/STABLE_RELEASE_CHECKLIST.md",
     "docs/UPGRADE_GUIDE.md",
     "docs/POLICY_PATH_REFERENCE.md",
+    "docs/RUST_CORE_MIGRATION.md",
+    "docs/RUST_CORE_PROTOCOL.md",
+    "docs/COLLECTOR_OUTPUT_CONTRACT.md",
+    "docs/AUTOSAVE_AND_ATOMIC_STATE.md",
+    "docs/COMMIT_AND_PUSH_GUIDE.md",
     "GITHUB_DESCRIPTION.md",
 ]
 

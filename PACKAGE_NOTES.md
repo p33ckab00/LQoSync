@@ -37,3 +37,31 @@ sudo systemctl status lqosync
 sudo journalctl -u lqosync -n 100 --no-pager
 sudo systemctl restart lqosync
 ```
+
+
+## Rust branch documentation package
+
+This package also includes documentation for the future `lqosync-in-rust` branch. It is documentation-only and does not change runtime behavior.
+
+Included docs:
+
+```text
+docs/RUST_CORE_MIGRATION.md
+docs/RUST_CORE_PROTOCOL.md
+docs/COLLECTOR_OUTPUT_CONTRACT.md
+docs/AUTOSAVE_AND_ATOMIC_STATE.md
+docs/COMMIT_AND_PUSH_GUIDE.md
+docs/assets/lqosync_rust_migration_plan.svg
+```
+
+Recommended branch:
+
+```bash
+git checkout -b lqosync-in-rust
+```
+
+Recommended commit:
+
+```bash
+git commit -m "docs(rust): document LQoSync-in-Rust migration plan"
+```

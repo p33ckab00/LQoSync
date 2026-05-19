@@ -155,7 +155,7 @@ The systemd service name and Docker container name remain `lqosync` for compatib
 sudo apt update
 sudo apt install -y docker.io docker-compose-plugin unzip
 sudo systemctl enable --now docker
-cd /opt
+cd /home/pi
 unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 openssl rand -hex 32
@@ -183,7 +183,7 @@ DOCKER_INSTALL.md
 ```bash
 sudo apt update
 sudo apt install -y unzip
-cd /opt
+cd /home/pi
 unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 sudo bash install.sh
@@ -211,7 +211,7 @@ Use this when installing directly from GitHub instead of a ZIP package.
 ### Clone
 
 ```bash
-cd /opt
+cd /home/pi
 git clone https://github.com/p33ckab00/LQoSync.git
 cd lqosync
 ```
@@ -231,7 +231,7 @@ sudo docker logs -f lqosync
 ```bash
 sudo apt update
 sudo apt install -y git
-cd /opt/lqosync
+cd /home/pi/lqosync
 sudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh
 sudo systemctl status lqosync
 ```
@@ -287,7 +287,7 @@ sudo systemctl disable lqosync
 Quick Docker stop:
 
 ```bash
-cd /opt/lqosync
+cd /home/pi/lqosync
 sudo docker compose down
 ```
 
@@ -990,7 +990,7 @@ ls -ld /opt/libreqos/src
 ### 1. Unzip the package
 
 ```bash
-cd /opt
+cd /home/pi
 unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 ```
@@ -1788,7 +1788,7 @@ docker compose version
 ### 3. Unzip package
 
 ```bash
-cd /opt
+cd /home/pi
 unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 ```
@@ -2107,7 +2107,7 @@ This user can read the RouterOS API resources required by LQoSync while blocking
 If the Docker deployment source folder is Git-managed, update with:
 
 ```bash
-cd /opt/lqosync
+cd /home/pi/lqosync
 sudo git pull origin main
 sudo docker compose down
 sudo docker compose build --no-cache
@@ -2178,13 +2178,13 @@ sudo docker compose up -d --build
 Common locations:
 
 ```bash
-cd /opt/lqosync
+cd /home/pi/lqosync
 ```
 
 or:
 
 ```bash
-cd /opt/lqos_docker
+cd /home/pi/lqos_docker
 ```
 
 Confirm Compose file exists:
@@ -2246,7 +2246,7 @@ sudo rm -rf /opt/lqosync
 If installed from Git:
 
 ```bash
-rm -rf /opt/lqosync
+rm -rf /home/pi/lqosync
 ```
 
 If using old local folder name:
@@ -2397,7 +2397,7 @@ sudo chmod 644 /opt/libreqos/src/ShapedDevices.csv /opt/libreqos/src/network.jso
 If installed from Git:
 
 ```bash
-rm -rf /opt/lqosync
+rm -rf /home/pi/lqosync
 ```
 
 If using old extracted package folder:
@@ -2492,7 +2492,7 @@ This page lists the common commands for Docker and bare-metal installs.
 Run these from the folder that contains `compose.yaml`, usually:
 
 ```bash
-cd /opt/lqos_docker
+cd /home/pi/lqos_docker
 ```
 
 ### Check container status
@@ -2653,7 +2653,7 @@ UNINSTALLATION.md
 ### Docker uninstall
 
 ```bash
-cd /opt/lqosync 2>/dev/null || cd /opt/lqos_docker
+cd /home/pi/lqosync 2>/dev/null || cd /home/pi/lqos_docker
 sudo docker compose down
 ```
 
@@ -2667,7 +2667,7 @@ sudo rm -rf /opt/lqosync
 If installed from Git and you want to remove the source clone:
 
 ```bash
-rm -rf /opt/lqosync
+rm -rf /home/pi/lqosync
 ```
 
 ### Bare-metal uninstall
@@ -7350,7 +7350,7 @@ LQoSync v2.69 adds a read-only `/routers` Router Overview page. Operators can in
 LQoSync v2.69.1 removes redundant Router UX by moving Router Insight into `Config Center → Routers`. The old `/routers` path remains as a compatibility alias and redirects to `/config?tab=routers`; `/api/routers/overview` remains available for read-only diagnostics. The package also adds `scripts/policy_path_audit.py` to verify required runtime paths, policy schema/default coverage, migrated config policy paths, missing-policy warnings, and schema errors.
 
 
-## v2.72 Runtime Canonical Naming / Production Freeze
+## v2.70 Stable Release Candidate / Production Freeze
 
 LQoSync v2.70.0-rc1 is a stable release candidate. The feature-freeze rule allows bug fixes, route cleanup, UI consistency fixes, documentation cleanup, installer/update safety, config migration safety, and test coverage. It avoids new sidebar modules, duplicate settings pages, and undocumented production behavior changes.
 
@@ -7418,3 +7418,41 @@ Config Center → Policies now shows Custom as a visible policy state beside Con
 ## v2.70.10 Policy Overview Custom Wiring Hotfix
 
 Changing Operation Mode, Auto Apply, Optional Auto Backup, or Backup Retention inside Config Center → Policies now marks `policies.mode` as `custom` and remains custom after save. Server-side save also detects these policy-adjacent `app.*` changes so the mode is protected even if browser JS misses the change event.
+
+
+---
+
+# LQoSync-in-Rust Branch Documentation Addendum
+
+This package includes first-class documentation for the future `lqosync-in-rust` branch. The branch direction is hybrid, not a full rewrite.
+
+```text
+Python Flask WebUI remains the operator interface.
+Rust becomes the deterministic backend safety core.
+No database is introduced.
+Autosave/no-save-button behavior remains.
+LibreQoS remains external.
+```
+
+## Rust branch documents
+
+- `docs/RUST_CORE_MIGRATION.md` — phased migration plan and module boundaries.
+- `docs/RUST_CORE_PROTOCOL.md` — stable JSON protocol shared by CLI and future Unix socket daemon.
+- `docs/COLLECTOR_OUTPUT_CONTRACT.md` — typed collector trust envelope for PPPoE/DHCP/Hotspot source safety.
+- `docs/AUTOSAVE_AND_ATOMIC_STATE.md` — autosave, dangerous-change confirmation, atomic state/file writes, and rollback behavior.
+- `docs/COMMIT_AND_PUSH_GUIDE.md` — branch workflow, commit messages, push commands, and PR template.
+
+## Corrected migration priorities
+
+```text
+v0.1 Protocol + validator core
+v0.2 Diff + collector output contract
+v0.3 Atomic state/file engine, including collector_cache.json
+v0.4 Optional Rust core daemon using the same JSON protocol
+v0.5 Policy decision engine
+v0.6 Circuit builder / possible Rust RouterOS collector
+```
+
+The most important safety correction is that collector output must be validated before cleanup. A source that returns an empty list without raising an exception must not be treated as safe for cleanup unless Rust classifies it as `zero_valid`.
+
+The second safety correction is that `collector_cache.json` belongs with the atomic state engine. It may influence speed/source continuity and source-trust decisions in later cycles, so it must not be treated as an unimportant warning-only cache.

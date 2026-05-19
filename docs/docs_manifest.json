@@ -1,4 +1,34 @@
 {
+  "rust.core_migration": {
+    "title": "LQoSync-in-Rust Core Migration Plan",
+    "file": "docs/RUST_CORE_MIGRATION.md",
+    "anchor": "lqosync-in-rust-core-migration-plan",
+    "summary": "Phased plan for adding a Rust safety core while preserving Python Flask WebUI, pure JSON/files, and autosave behavior."
+  },
+  "rust.core_protocol": {
+    "title": "Rust Core Protocol",
+    "file": "docs/RUST_CORE_PROTOCOL.md",
+    "anchor": "rust-core-protocol",
+    "summary": "Transport-neutral JSON request/response envelope for subprocess CLI and future Unix socket daemon."
+  },
+  "rust.collector_output_contract": {
+    "title": "Collector Output Contract",
+    "file": "docs/COLLECTOR_OUTPUT_CONTRACT.md",
+    "anchor": "collector-output-contract",
+    "summary": "Typed source trust contract to prevent silent partial or suspicious zero RouterOS results from triggering unsafe cleanup."
+  },
+  "rust.autosave_atomic_state": {
+    "title": "Autosave and Atomic State Model",
+    "file": "docs/AUTOSAVE_AND_ATOMIC_STATE.md",
+    "anchor": "autosave-and-atomic-state-model",
+    "summary": "No-save-button autosave flow, dangerous-change confirmation, atomic file/state writes, and rollback guidance."
+  },
+  "rust.commit_push_guide": {
+    "title": "Commit and Push Guide for lqosync-in-rust",
+    "file": "docs/COMMIT_AND_PUSH_GUIDE.md",
+    "anchor": "commit-and-push-guide-for-lqosync-in-rust",
+    "summary": "Branch workflow, review checklist, commit message, pull request, and push instructions for the Rust migration branch."
+  },
   "policy.settings_integration": {
     "title": "Policy Settings Integration",
     "file": "docs/content/policy_settings_integration.md",
