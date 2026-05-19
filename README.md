@@ -300,3 +300,9 @@ This package adds the optional `execute-apply-transaction` Rust operation. It re
 This package adds a safe Rust core `self-test` operation and `/api/rust-core/self-test` endpoint. It also routes `execute-apply-transaction` through the CLI/daemon protocol and centralizes advertised Rust operations so future operation-list mismatches are easier to catch before enabling authority flags.
 
 Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
+
+
+### Rust Core v1.1.1 self-test build hotfix
+
+The v1.1.1 package fixes the self-test no-change manifest assertion and hardens Rust install helpers so a failed build cannot accidentally install a stale release binary. The daemon installer now restarts an already-running `lqosync-core.service` after updating `/usr/local/bin/lqosync-core`.
+

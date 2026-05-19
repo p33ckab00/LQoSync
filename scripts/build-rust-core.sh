@@ -7,6 +7,8 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 cd "$CORE_DIR"
+# Prevent a failed test/build from leaving a stale release binary that could be installed accidentally.
+rm -f "$CORE_DIR/target/release/lqosync-core"
 cargo test
 cargo build --release
 echo "Built: $CORE_DIR/target/release/lqosync-core"

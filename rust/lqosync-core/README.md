@@ -114,3 +114,11 @@ printf '{"version":"1","op":"self-test","payload":{}}' | lqosync-core
 ```
 
 The self-test is read-only and verifies advertised operations, parser basics, apply manifest generation, and transaction rehearsal.
+
+
+## v1.1.1 build/install hotfix
+
+- Fixes the `self-test` no-change manifest check.
+- Prevents stale release binaries from surviving a failed `scripts/build-rust-core.sh`.
+- Restarts an active `lqosync-core.service` when installing daemon updates.
+

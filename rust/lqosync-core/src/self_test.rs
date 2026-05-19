@@ -112,7 +112,7 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     }
 
     let manifest_payload = json!({
-        "mode": "dry_run",
+        "mode": "apply",
         "config": {"app": {"auto_apply": true, "backup_before_apply": false}, "libreqos": {"retry_if_last_apply_failed": true}},
         "paths": {"shaped_devices_csv": "/tmp/ShapedDevices.csv", "network_json": "/tmp/network.json", "runtime_state": "/tmp/runtime_state.json", "backup_dir": "/tmp/backups"},
         "state": {},
@@ -157,7 +157,7 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
         "operation_count": operations.len(),
         "operations": operations,
         "checks": checks,
-        "check_count": operations.len().saturating_sub(operations.len()) + 6,
+        "check_count": checks.len(),
         "failed_check_count": failed_check_count,
         "purpose": "Verify that the installed Rust core binary/daemon advertises and can internally exercise critical parser, manifest, and transaction paths."
     });

@@ -387,3 +387,13 @@ git add .
 git commit -m "rust(core): add runtime self-test and capability audit"   -m "Route execute-apply-transaction through the Rust CLI/daemon protocol, add the self-test operation, expose /api/rust-core/self-test, and document capability checks before enabling authority flags."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v2.81.1-rc1 commit example
+
+```bash
+git add .
+git commit -m "rust(core): fix self-test and daemon reinstall flow" \
+  -m "Fix the Rust self-test no-change manifest check, prevent stale release binaries after failed builds, and restart the Rust core daemon after binary updates."
+git push -u origin lqosync-in-rust
+```

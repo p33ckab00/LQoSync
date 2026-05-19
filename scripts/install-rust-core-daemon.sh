@@ -10,6 +10,11 @@ if [ ! -x "$BIN" ]; then
 fi
 install -m 0644 "$SERVICE_SRC" "$SERVICE_DEST"
 systemctl daemon-reload
-systemctl enable --now lqosync-core.service
+systemctl enable lqosync-core.service
+if systemctl is-active --quiet lqosync-core.service; then
+  systemctl restart lqosync-core.service
+else
+  systemctl start lqosync-core.service
+fi
 systemctl status lqosync-core.service --no-pager || true
-echo "Installed and started lqosync-core daemon service."
+echo "Installed and restarted lqosync-core daemon service."

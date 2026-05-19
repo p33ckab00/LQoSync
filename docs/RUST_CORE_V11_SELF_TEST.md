@@ -2,6 +2,16 @@
 
 Rust Core v1.1 adds a safe runtime self-test layer for the `lqosync-in-rust` branch.
 
+
+## v1.1.1 build hotfix
+
+Server validation of v1.1.0 exposed two issues that are fixed in v1.1.1:
+
+1. the internal self-test used `mode="dry_run"` while expecting a `no_changes` apply manifest status. `build-apply-manifest` correctly returns `preview_only` for dry-run mode, so the self-test now uses `mode="apply"` for the no-change manifest check;
+2. `scripts/install-rust-core-daemon.sh` used `systemctl enable --now`, which starts the daemon only if inactive. It now restarts an already-running daemon after a new binary is installed, so the socket serves the current binary instead of an older process.
+
+`build-rust-core.sh` also removes the stale release binary before running tests/builds. If tests fail, `install-rust-core.sh` will not accidentally install an older `target/release/lqosync-core` binary.
+
 ## Purpose
 
 The v1.0 package introduced `execute-apply-transaction`. Server testing showed the Rust crate built and all unit tests passed, but the binary emitted a warning because the transaction function was imported without being routed by `main.rs`. v1.1 fixes that class of problem by:

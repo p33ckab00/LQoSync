@@ -148,6 +148,13 @@ Rust core advances to v0.9.0 with a transaction-style apply manifest preview. No
 This package adds the optional `execute-apply-transaction` Rust operation. It rehearses transactions by default and only writes files when explicit Rust transaction flags are enabled. Python remains authoritative for normal production sync/apply behavior.
 
 
+
+## v2.81.1-rc1 Package Notes
+
+This package fixes the Rust Core v1.1 self-test build failure and hardens Rust binary/daemon install behavior. The self-test no-change manifest check now uses apply mode, the build helper removes stale release binaries before tests/builds, and the daemon installer restarts an active service after binary updates.
+
+Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
+
 ## v2.81.0-rc1 Package Notes
 
 This package adds a safe Rust core `self-test` operation and `/api/rust-core/self-test` endpoint. It also routes `execute-apply-transaction` through the CLI/daemon protocol and centralizes advertised Rust operations so future operation-list mismatches are easier to catch before enabling authority flags.
