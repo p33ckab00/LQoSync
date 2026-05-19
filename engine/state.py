@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime, timezone
-from applier.atomic_writer import atomic_write_text
+from applier.atomic_writer import atomic_write_json
 
 DEFAULT_STATE = {
     "scheduler_state": "idle",
@@ -37,7 +37,7 @@ def save_state(path, state):
     state = dict(state)
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(path, json.dumps(state, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(path, state, file_kind="runtime_state")
 
 def update_state(path, **kwargs):
     st = load_state(path)

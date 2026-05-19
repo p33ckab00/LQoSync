@@ -5,6 +5,7 @@
 //! validation behind a stable JSON protocol that can be used by both a CLI and a
 //! future Unix socket daemon.
 
+pub mod atomic_state;
 pub mod bandwidth;
 pub mod network;
 pub mod protocol;

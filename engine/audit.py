@@ -8,6 +8,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from applier.atomic_writer import append_jsonl
 
 
 def audit_path(config: dict) -> Path:
@@ -27,8 +28,7 @@ def write_audit(config: dict, action: str, actor: str = "system", details: dict[
         "action": action,
         "details": details or {},
     }
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+    append_jsonl(path, event)
 
 
 def tail_audit(config: dict, limit: int = 100) -> list[dict[str, Any]]:

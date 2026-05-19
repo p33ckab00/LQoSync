@@ -246,6 +246,10 @@ Documentation:
 - [Command Reference](docs/COMMANDS.md)
 - [AI-Assisted Development Disclosure](docs/AI_ASSISTED_DEVELOPMENT.md)
 
+## Rust Core v0.3 Atomic State/File Engine
+
+The `lqosync-in-rust` branch now includes Rust protocol operations for atomic JSON state writes, generated file writes, and audit JSONL appends. Python remains the default writer, with optional Rust-backed writes enabled by `LQOSYNC_RUST_ATOMIC_WRITES=1`. See `docs/RUST_CORE_V03_ATOMIC_STATE.md`.
+
 ## Safety Note
 
 LQoSync can write LibreQoS input files and trigger LibreQoS apply behavior. Always verify backups, policies, dry-run output, and apply results before using it in production.

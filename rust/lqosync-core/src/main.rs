@@ -1,5 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
+use lqosync_core::atomic_state::{append_audit_jsonl_payload, atomic_write_json_state_payload, atomic_write_text_payload, validate_json_state_payload};
 use lqosync_core::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use lqosync_core::protocol::{CoreRequest, CoreResponse, PROTOCOL_VERSION};
 use lqosync_core::diff::{diff_files_payload, diff_network_text, diff_shaped_devices_text};
@@ -85,6 +86,22 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         "diff-files" => {
             let (result, errors, warnings) = diff_files_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "validate-json-state" => {
+            let (result, errors, warnings) = validate_json_state_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "write-json-state" => {
+            let result = atomic_write_json_state_payload(&req.payload)?;
+            Ok(CoreResponse::success(req, result, started))
+        }
+        "write-text-file" => {
+            let result = atomic_write_text_payload(&req.payload)?;
+            Ok(CoreResponse::success(req, result, started))
+        }
+        "append-audit-jsonl" => {
+            let result = append_audit_jsonl_payload(&req.payload)?;
+            Ok(CoreResponse::success(req, result, started))
         }
         other => Ok(CoreResponse::failure(
             other,

@@ -7525,3 +7525,8 @@ The `lqosync-in-rust` branch now includes a second Rust-core integration step. T
 
 The Rust core also provides `diff-shaped-devices`, `diff-network`, and `diff-files` protocol operations. Python's existing diff remains the primary UI-compatible diff, while the Rust diff appears in Dry Run as `rust_core_diff` for cross-checking and future migration.
 
+
+
+## Rust Core v0.3 Atomic State/File Engine
+
+See `docs/RUST_CORE_V03_ATOMIC_STATE.md` for the atomic state/file persistence model covering runtime_state, policy_state, collector_cache, audit JSONL, ShapedDevices.csv, network.json, and config.json.

@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from applier.atomic_writer import atomic_write_json
 
 
 def utcnow() -> datetime:

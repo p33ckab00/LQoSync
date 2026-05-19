@@ -10,7 +10,7 @@ import json
 import hashlib
 from pathlib import Path
 from typing import Any
-from applier.atomic_writer import atomic_write_text
+from applier.atomic_writer import atomic_write_json
 
 
 def _json_default(value: Any):
@@ -53,7 +53,7 @@ def save_cache(path: str | None, cache: dict) -> None:
     cache.setdefault("sources", {})
     cache["updated_at"] = datetime.now(timezone.utc).isoformat()
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(path, json.dumps(cache, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
+    atomic_write_json(path, cache, file_kind="collector_cache", sort_keys=True)
 
 
 def get_source(cache: dict, key: str) -> dict:

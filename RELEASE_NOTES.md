@@ -1,3 +1,10 @@
+## v2.73.0-rc1 - Rust Core v0.3 Atomic State/File Engine
+
+- Adds Rust protocol operations for `validate-json-state`, `write-json-state`, `write-text-file`, and `append-audit-jsonl`.
+- Hardens Python fallback atomic writes with parent-directory fsync where supported.
+- Moves `runtime_state.json`, `policy_state.json`, `collector_cache.json`, and audit JSONL writes onto shared safe writer helpers.
+- Keeps Rust-backed writes opt-in via `LQOSYNC_RUST_ATOMIC_WRITES=1`; Python fallback remains default.
+
 # 2.72.0-rc1 — Rust Core v0.2 Trust/Diff Guard
 
 - Added Rust `diff-shaped-devices`, `diff-network`, and `diff-files` protocol operations.

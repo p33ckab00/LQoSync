@@ -298,3 +298,14 @@ scripts/build-rust-core.sh
 printf '%s' '{"version":"1","op":"parse-bandwidth","payload":{"parser":"rate_limit","value":"10M/5M"}}' \
   | rust/lqosync-core/target/release/lqosync-core
 ```
+
+
+## v0.3 Atomic State/File Engine commit
+
+```bash
+git add .
+git commit -m "rust(core): add atomic state and file engine" \
+  -m "Add Rust protocol operations for JSON state validation, atomic JSON/text writes, and audit JSONL appends." \
+  -m "Harden Python fallback writes and move runtime_state, policy_state, collector_cache, and audit logs onto shared safe writer helpers."
+git push -u origin lqosync-in-rust
+```

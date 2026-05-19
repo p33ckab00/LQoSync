@@ -1,3 +1,10 @@
+## v2.73.0-rc1 Package Notes
+
+- Adds Rust protocol operations for `validate-json-state`, `write-json-state`, `write-text-file`, and `append-audit-jsonl`.
+- Hardens Python fallback atomic writes with parent-directory fsync where supported.
+- Moves `runtime_state.json`, `policy_state.json`, `collector_cache.json`, and audit JSONL writes onto shared safe writer helpers.
+- Keeps Rust-backed writes opt-in via `LQOSYNC_RUST_ATOMIC_WRITES=1`; Python fallback remains default.
+
 # LQoSync Runtime Canonical Package
 
 This package canonicalizes LQoSync naming across repository references, operator documentation, runtime service names, Docker container naming, logs, config defaults, and WebUI guidance.

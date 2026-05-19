@@ -243,6 +243,18 @@ def call_rust_core(op: str, payload: dict[str, Any] | None = None, *, config: di
     return response
 
 
+def validate_json_state(config: dict | None, *, state: dict[str, Any], state_type: str) -> dict[str, Any]:
+    return call_rust_core("validate-json-state", {"state": state or {}, "state_type": state_type}, config=config)
+
+
+def rust_write_json_state(config: dict | None, *, path: str, state: dict[str, Any], state_type: str, create_backup: bool = False) -> dict[str, Any]:
+    return call_rust_core("write-json-state", {"path": path, "state": state or {}, "state_type": state_type, "create_backup": create_backup}, config=config)
+
+
+def rust_append_audit_jsonl(config: dict | None, *, path: str, event: dict[str, Any]) -> dict[str, Any]:
+    return call_rust_core("append-audit-jsonl", {"path": path, "event": event or {}}, config=config)
+
+
 def validate_runtime_outputs(config: dict, *, csv_text: str | None = None, network_text: str | None = None, csv_path: str | None = None, network_path: str | None = None) -> dict[str, Any]:
     paths = (config or {}).get("paths", {})
     payload = {

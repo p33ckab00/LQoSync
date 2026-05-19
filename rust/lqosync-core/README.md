@@ -45,3 +45,15 @@ diff-files
 
 `validate-collector-output` protects cleanup eligibility from silent partial or suspicious zero collector results. `diff-files` compares current/proposed ShapedDevices and network JSON text and returns added/removed/updated summaries.
 
+
+
+## v0.3 atomic state operations
+
+```text
+validate-json-state
+write-json-state
+write-text-file
+append-audit-jsonl
+```
+
+These operations use the stable protocol envelope and are intended for both the current CLI and future Unix socket daemon.

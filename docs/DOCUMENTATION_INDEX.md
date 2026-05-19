@@ -131,3 +131,5 @@ Read these docs first:
 - [Collector Output Contract](COLLECTOR_OUTPUT_CONTRACT.md)
 - [Autosave and Atomic State Model](AUTOSAVE_AND_ATOMIC_STATE.md)
 - [Commit and Push Guide](COMMIT_AND_PUSH_GUIDE.md)
+
+- [Rust Core v0.3 Atomic State and File Engine](RUST_CORE_V03_ATOMIC_STATE.md)
