@@ -1810,6 +1810,83 @@ def rust_build_routeros_collector_plan(config: dict, payload: dict[str, Any] | N
     return response
 
 
+
+def _python_validate_routeros_read_results(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    plan = payload.get("plan") if isinstance(payload.get("plan"), dict) else {}
+    plan_result = plan.get("result") if isinstance(plan.get("result"), dict) else plan
+    commands = plan_result.get("commands") if isinstance(plan_result.get("commands"), list) else []
+    results = payload.get("results")
+    if isinstance(results, dict):
+        result_items = [v for v in results.values() if isinstance(v, dict)]
+    elif isinstance(results, list):
+        result_items = [v for v in results if isinstance(v, dict)]
+    else:
+        result_items = []
+    expected = {}
+    required = set()
+    for cmd in commands:
+        if not isinstance(cmd, dict):
+            continue
+        key = f"{cmd.get('router','unknown')}|{cmd.get('source','unknown')}|{cmd.get('path','')}"
+        expected[key] = cmd
+        if bool(cmd.get("required", True)):
+            required.add(key)
+    seen = set()
+    errors = []
+    warnings = []
+    command_reports = []
+    total_rows = 0
+    for item in result_items:
+        router = str(item.get("router") or "unknown")
+        source = str(item.get("source") or "unknown")
+        path = str(item.get("path") or "")
+        key = f"{router}|{source}|{path}"
+        seen.add(key)
+        status = str(item.get("status") or "ok")
+        rows = item.get("rows") if isinstance(item.get("rows"), list) else []
+        total_rows += len(rows)
+        trusted = status in {"ok", "zero_valid"}
+        if not trusted:
+            errors.append({"code": "routeros_read_failed", "severity": "error", "path": f"results.{router}.{path}", "message": f"RouterOS read result for {router}/{source} {path} is not trusted: status={status}.", "safe_for_cleanup": False})
+        command_reports.append({"router": router, "source": source, "path": path, "status": status, "trusted": trusted, "row_count": len(rows), "planned": key in expected})
+    for key, cmd in expected.items():
+        if key in required and key not in seen:
+            errors.append({"code": "routeros_required_read_missing", "severity": "error", "path": f"plan.{cmd.get('router','unknown')}.{cmd.get('path','')}", "message": f"Required RouterOS read result is missing for {cmd.get('router','unknown')}/{cmd.get('source','unknown')} {cmd.get('path','')}.", "safe_for_cleanup": False})
+            command_reports.append({"router": cmd.get("router","unknown"), "source": cmd.get("source","unknown"), "path": cmd.get("path",""), "status": "missing", "trusted": False, "row_count": 0, "planned": True})
+    safe = not errors
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "validate-routeros-read-results",
+        "available": False,
+        "ok": safe,
+        "result": {
+            "mode": "routeros_read_results_contract",
+            "status": "trusted" if safe else "failed",
+            "safe_for_cleanup": safe,
+            "trusted": safe,
+            "planned_command_count": len(expected),
+            "received_result_count": len(seen),
+            "command_count": len(command_reports),
+            "total_row_count": total_rows,
+            "commands": command_reports,
+            "authority_note": "Python fallback validates command-level RouterOS read results. Live reads are still Python-authoritative.",
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_routeros_read_results_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    response = call_rust_core("validate-routeros-read-results", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_validate_routeros_read_results(req_payload, started=started)
+    return response
+
 def rust_build_collector_circuit_bundle(config: dict, payload: dict[str, Any]) -> dict[str, Any]:
     """Build a shadow ShapedDevices-compatible circuit bundle from raw collector snapshots.
 

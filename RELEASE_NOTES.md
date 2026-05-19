@@ -1,4 +1,12 @@
 
+## v2.91.0-rc1 — Rust Core v2.1 RouterOS Read Result Contract
+
+- Added Rust `validate-routeros-read-results` operation.
+- Added command-level trust validation for Python-executed RouterOS read results against the Rust collector plan.
+- Added `/api/rust-core/routeros-read-results` diagnostic endpoint.
+- Detects missing required reads, failed/partial reads, suspicious zero results, and slow reads before future Rust live transport migration.
+- Rust still does not connect to MikroTik; Python collectors remain authoritative by default.
+
 
 ## v2.85.0-rc1 — Rust Core v1.5 Rollback Execution Rehearsal
 

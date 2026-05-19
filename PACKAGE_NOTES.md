@@ -217,3 +217,8 @@ POST /api/rust-core/routeros-collector-plan
 ## v2.90.1-rc1 package note
 
 Packaging hotfix for script executable-bit loss during ZIP/manual deployment. Use `bash scripts/repair-script-permissions.sh` or call helpers through `bash`.
+
+
+## Rust Core v2.1 RouterOS Read Result Contract
+
+This package adds `validate-routeros-read-results`, a Rust trust contract that validates Python-executed RouterOS read results against the deterministic collector plan. It is diagnostic by default and does not replace Python live RouterOS collectors.

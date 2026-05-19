@@ -15,6 +15,7 @@ use lqosync_core::policy::evaluate_policy_payload;
 use lqosync_core::protocol::{CoreRequest, CoreResponse, PROTOCOL_VERSION};
 use lqosync_core::rollback_executor::execute_rollback_payload;
 use lqosync_core::routeros_plan::build_routeros_collector_plan_payload;
+use lqosync_core::routeros_results::validate_routeros_read_results_payload;
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::sync_plan::evaluate_sync_plan_payload;
@@ -205,6 +206,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-routeros-collector-plan" => {
             let (result, errors, warnings) = build_routeros_collector_plan_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "validate-routeros-read-results" => {
+            let (result, errors, warnings) = validate_routeros_read_results_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "build-collector-circuit-bundle" => {

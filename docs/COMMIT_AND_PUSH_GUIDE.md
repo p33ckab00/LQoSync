@@ -492,3 +492,8 @@ git commit -m "packaging(rust): fix script permission deployment issue" \
   -m "Add script permission repair helper, preserve executable bits for Rust build/install helpers, and document bash fallback commands for ZIP/manual installs."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v2.1 RouterOS Read Result Contract
+
+This package adds `validate-routeros-read-results`, a Rust trust contract that validates Python-executed RouterOS read results against the deterministic collector plan. It is diagnostic by default and does not replace Python live RouterOS collectors.

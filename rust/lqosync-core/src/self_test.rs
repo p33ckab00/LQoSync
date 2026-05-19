@@ -8,6 +8,7 @@ use crate::collector_parity::compare_collector_bundle_parity_payload;
 use crate::protocol::Diagnostic;
 use crate::rollback_executor::execute_rollback_payload;
 use crate::routeros_plan::build_routeros_collector_plan_payload;
+use crate::routeros_results::validate_routeros_read_results_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -29,6 +30,7 @@ pub const OP_APPEND_AUDIT_JSONL: &str = "append-audit-jsonl";
 pub const OP_EVALUATE_POLICY: &str = "evaluate-policy";
 pub const OP_NORMALIZE_CIRCUITS: &str = "normalize-circuits";
 pub const OP_BUILD_ROUTEROS_COLLECTOR_PLAN: &str = "build-routeros-collector-plan";
+pub const OP_VALIDATE_ROUTEROS_READ_RESULTS: &str = "validate-routeros-read-results";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -64,6 +66,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_EVALUATE_POLICY,
         OP_NORMALIZE_CIRCUITS,
         OP_BUILD_ROUTEROS_COLLECTOR_PLAN,
+        OP_VALIDATE_ROUTEROS_READ_RESULTS,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -162,6 +165,24 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     checks.push(check("routeros_collector_plan_builder", routeros_plan_ok, json!({"command_count": routeros_plan.get("command_count"), "status": routeros_plan.get("status")})));
     if !routeros_plan_ok {
         errors.push(Diagnostic::error("self_test_routeros_plan_failed", Some("build-routeros-collector-plan".to_string()), "Self-test RouterOS collector plan should build deterministic PPPoE/DHCP read commands."));
+    }
+
+    let routeros_results_payload = json!({
+        "plan": routeros_plan.clone(),
+        "results": [
+            {"router":"RB5009", "source":"pppoe", "path":"/ppp/active", "status":"ok", "rows":[{"name":"selftest", "address":"10.0.0.2"}], "duration_ms": 5.0},
+            {"router":"RB5009", "source":"pppoe", "path":"/ppp/secret", "status":"ok", "rows":[{"name":"selftest", "profile":"15M"}], "duration_ms": 5.0},
+            {"router":"RB5009", "source":"pppoe", "path":"/ppp/profile", "status":"ok", "rows":[{"name":"15M", "rate-limit":"15M/15M"}], "duration_ms": 5.0},
+            {"router":"RB5009", "source":"dhcp", "path":"/ip/dhcp-server/lease", "status":"ok", "rows":[], "duration_ms": 5.0},
+            {"router":"RB5009", "source":"dhcp", "path":"/ip/dhcp-server", "status":"ok", "rows":[{"name":"LAN"}], "duration_ms": 5.0}
+        ]
+    });
+    let (routeros_results, routeros_results_errors, _routeros_results_warnings) = validate_routeros_read_results_payload(&routeros_results_payload);
+    let routeros_results_ok = routeros_results_errors.is_empty()
+        && routeros_results.get("safe_for_cleanup").and_then(Value::as_bool).unwrap_or(false);
+    checks.push(check("routeros_read_results_contract", routeros_results_ok, json!({"status": routeros_results.get("status"), "safe_for_cleanup": routeros_results.get("safe_for_cleanup")})));
+    if !routeros_results_ok {
+        errors.push(Diagnostic::error("self_test_routeros_results_failed", Some("validate-routeros-read-results".to_string()), "Self-test RouterOS read-result contract should trust complete planned command results."));
     }
 
     let collector_bundle_payload = json!({
@@ -376,6 +397,7 @@ mod tests {
         assert!(ops.contains(&OP_BUILD_ROLLBACK_FROM_JOURNAL));
         assert!(ops.contains(&OP_EXECUTE_ROLLBACK));
         assert!(ops.contains(&OP_BUILD_ROUTEROS_COLLECTOR_PLAN));
+        assert!(ops.contains(&OP_VALIDATE_ROUTEROS_READ_RESULTS));
         assert!(ops.contains(&OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE));
         assert!(ops.contains(&OP_COMPARE_COLLECTOR_BUNDLE_PARITY));
         assert!(ops.contains(&OP_EVALUATE_AUTHORITY_READINESS));
