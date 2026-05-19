@@ -53,7 +53,7 @@ MikroTik RouterOS API → LQoSync → ShapedDevices.csv/network.json → LibreQo
 
 ```bash
 cd /opt
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/lqos_shaped_sync/main/install-from-github.sh -o /tmp/install-lqosync.sh
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/main/install-from-github.sh -o /tmp/install-lqosync.sh
 sudo EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
 ```
 

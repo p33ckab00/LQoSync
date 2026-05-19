@@ -85,7 +85,7 @@ Recommended GitHub-source install:
 sudo apt update
 sudo apt install -y git
 cd /opt
-sudo git clone https://github.com/p33ckab00/lqos_shaped_sync.git lqosync
+sudo git clone https://github.com/p33ckab00/LQoSync.git lqosync
 cd /opt/lqosync
 sudo bash install.sh
 ```
@@ -93,7 +93,7 @@ sudo bash install.sh
 One-command bootstrap:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/lqos_shaped_sync/main/install-from-github.sh -o /tmp/install-lqosync.sh
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/main/install-from-github.sh -o /tmp/install-lqosync.sh
 sudo bash /tmp/install-lqosync.sh
 ```
 
@@ -124,7 +124,7 @@ Recommended adoption command:
 
 ```bash
 cd /opt
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/lqos_shaped_sync/main/install-from-github.sh -o /tmp/install-lqosync.sh
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/main/install-from-github.sh -o /tmp/install-lqosync.sh
 sudo EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
 ```
 
@@ -344,7 +344,7 @@ Use adoption mode:
 
 ```bash
 cd /opt
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/lqos_shaped_sync/main/install-from-github.sh -o /tmp/install-lqosync.sh
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/main/install-from-github.sh -o /tmp/install-lqosync.sh
 sudo EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
 ```
 
