@@ -117,6 +117,150 @@ def rust_diff_files(config: dict, *, current_csv_text: str, proposed_csv_text: s
     return call_rust_core("diff-files", payload, config=config)
 
 
+def _risk_level(score: int) -> str:
+    if score >= 81:
+        return "critical"
+    if score >= 51:
+        return "high"
+    if score >= 21:
+        return "medium"
+    return "low"
+
+
+def _python_policy_shadow(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for Rust `evaluate-policy` shadow mode.
+
+    Python remains authoritative in v0.5. This fallback mirrors the Rust shadow
+    payload shape so Dry Run and reports stay stable when the binary/daemon is
+    unavailable.
+    """
+    started = started or time.perf_counter()
+    config = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+    preflight = payload.get("preflight") if isinstance(payload.get("preflight"), dict) else {}
+    collector_trust = payload.get("collector_trust") if isinstance(payload.get("collector_trust"), list) else []
+    cleanup = payload.get("cleanup") if isinstance(payload.get("cleanup"), dict) else {}
+    rust_validation = payload.get("rust_validation") if isinstance(payload.get("rust_validation"), dict) else {}
+    python_decision = payload.get("python_policy_decision") if isinstance(payload.get("python_policy_decision"), dict) else {}
+    apply_guard = (config.get("policies") or {}).get("apply_guard") or {}
+
+    blocked = []
+    warnings = []
+    trace = []
+    recommendations = []
+    risk_score = 0
+    cleanup_allowed = True
+    write_allowed = True
+    apply_allowed = True
+
+    errors_text = "\n".join(str(e) for e in (preflight.get("errors") or [])).lower()
+    if errors_text:
+        if apply_guard.get("block_apply_on_duplicate_ip", True) and "duplicate ip" in errors_text:
+            blocked.append({"code": "duplicate_ip", "title": "Duplicate IP detected", "message": "Preflight detected duplicate IP addresses.", "severity": "critical"})
+        if apply_guard.get("block_apply_on_missing_parent", True) and "parent" in errors_text:
+            blocked.append({"code": "missing_parent", "title": "Missing parent node", "message": "One or more circuits reference missing Parent Node values.", "severity": "critical"})
+        if apply_guard.get("block_apply_on_invalid_speed", True) and ("bandwidth" in errors_text or "speed" in errors_text):
+            blocked.append({"code": "invalid_speed", "title": "Invalid speed/bandwidth", "message": "Preflight detected invalid speed or bandwidth values.", "severity": "critical"})
+        if not blocked:
+            blocked.append({"code": "preflight_errors", "title": "Preflight errors", "message": "Preflight returned one or more errors.", "severity": "critical"})
+        risk_score += 35
+        trace.append({"policy": "preflight", "decision": "errors_present"})
+
+    unsafe_sources = []
+    for item in collector_trust:
+        result = item.get("result") if isinstance(item.get("result"), dict) else item
+        if isinstance(result, dict) and result.get("safe_for_cleanup") is False:
+            unsafe_sources.append(f"{result.get('router','unknown')}/{result.get('source','unknown')}")
+    if unsafe_sources:
+        cleanup_allowed = False
+        risk_score += 25
+        warnings.append({"title": "Collector cleanup held", "message": "Unsafe collector output held cleanup for: " + ", ".join(unsafe_sources), "severity": "high", "sources": unsafe_sources})
+        trace.append({"policy": "collector_trust", "decision": "cleanup_held", "unsafe_count": len(unsafe_sources)})
+        if apply_guard.get("block_apply_on_collector_failure", True):
+            blocked.append({"code": "collector_not_trusted", "title": "Collector trust failure", "message": "One or more collector outputs were not trusted for cleanup/apply.", "severity": "critical"})
+
+    if rust_validation and (rust_validation.get("ok") is False or rust_validation.get("errors")):
+        risk_score += 30
+        blocked.append({"code": "rust_validation_failed", "title": "Rust validation failed", "message": "Rust validation reported errors in proposed output.", "severity": "critical"})
+
+    removed = int(cleanup.get("removed") or 0)
+    queued = int(cleanup.get("queued") or 0)
+    preserved = int(cleanup.get("preserved") or 0)
+    if removed:
+        risk_score += min(25, removed * 4)
+        warnings.append({"title": "Rows removed by cleanup", "message": f"{removed} row(s) are scheduled for removal by cleanup policy.", "severity": "high" if removed >= 10 else "warning", "affected_rows": removed})
+    if queued or preserved:
+        risk_score += min(20, (queued + preserved) * 2)
+
+    if blocked:
+        write_allowed = False
+        apply_allowed = False
+        cleanup_allowed = False
+    risk_score = min(100, risk_score + len(blocked) * 30)
+    risk_level = _risk_level(risk_score)
+    verdict = "blocked_by_policy" if blocked or risk_level == "critical" else ("apply_with_caution" if risk_level in {"medium", "high"} else "safe_to_apply")
+    if verdict == "blocked_by_policy":
+        write_allowed = False
+        apply_allowed = False
+        recommendations.append({"title": "Review blocked policy decision", "reason": "Rust/Python shadow found blocking conditions.", "action": "Review Dry Run diagnostics before applying.", "severity": "critical"})
+
+    parity = {"available": bool(python_decision)}
+    if python_decision:
+        parity.update({
+            "matches_verdict": python_decision.get("verdict") == verdict,
+            "matches_risk_level": python_decision.get("risk_level") == risk_level,
+            "matches_write_allowed": python_decision.get("write_allowed") == write_allowed,
+            "matches_apply_allowed": python_decision.get("apply_allowed") == apply_allowed,
+            "python": {k: python_decision.get(k) for k in ("verdict", "risk_level", "write_allowed", "apply_allowed")},
+            "rust": {"verdict": verdict, "risk_level": risk_level, "write_allowed": write_allowed, "apply_allowed": apply_allowed},
+        })
+        if not parity.get("matches_verdict", True):
+            warnings.append({"title": "Policy parity mismatch", "message": "Shadow policy verdict differs from Python policy verdict. Python remains authoritative in this release.", "severity": "warning", "python_verdict": python_decision.get("verdict"), "rust_verdict": verdict})
+
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "evaluate-policy",
+        "available": False,
+        "ok": True,
+        "result": {
+            "verdict": verdict,
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "apply_allowed": apply_allowed,
+            "write_allowed": write_allowed,
+            "cleanup_allowed": cleanup_allowed,
+            "blocked_reasons": blocked,
+            "warnings": warnings,
+            "recommendations": recommendations,
+            "decision_trace": trace,
+            "parity": parity,
+            "mode": "shadow",
+            "authoritative": False,
+        },
+        "errors": [],
+        "warnings": [],
+        "meta": {"engine": "python-wrapper", "mode": "python_policy_shadow_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_evaluate_policy(config: dict, *, preflight: dict | None = None, collector_trust: list[dict[str, Any]] | None = None, cleanup: dict | None = None, rust_validation: dict | None = None, python_policy_decision: dict | None = None, diff_summary: dict | None = None) -> dict[str, Any]:
+    payload = {
+        "config": config or {},
+        "preflight": preflight or {},
+        "collector_trust": collector_trust or [],
+        "cleanup": cleanup or {},
+        "rust_validation": rust_validation or {},
+        "python_policy_decision": python_policy_decision or {},
+        "diff_summary": diff_summary or {},
+    }
+    response = call_rust_core("evaluate-policy", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    # Older installed Rust cores (v0.4 and below) do not know evaluate-policy.
+    # Treat that as a transport/capability gap and use the Python shadow fallback.
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_policy_shadow(payload)
+    return response
+
+
 def _project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 

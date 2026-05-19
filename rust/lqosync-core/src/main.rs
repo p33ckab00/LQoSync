@@ -4,6 +4,7 @@ use lqosync_core::atomic_state::{append_audit_jsonl_payload, atomic_write_json_s
 use lqosync_core::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use lqosync_core::diff::{diff_files_payload, diff_network_text, diff_shaped_devices_text};
 use lqosync_core::network::{collect_node_names, parse_network_text, validate_network};
+use lqosync_core::policy::evaluate_policy_payload;
 use lqosync_core::protocol::{CoreRequest, CoreResponse, PROTOCOL_VERSION};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::validators::{validate_collector_output_payload, validate_config_value, validate_files_payload};
@@ -149,7 +150,8 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
                 "validate-json-state",
                 "write-json-state",
                 "write-text-file",
-                "append-audit-jsonl"
+                "append-audit-jsonl",
+                "evaluate-policy"
             ]
         }), started)),
         "parse-bandwidth" => Ok(handle_parse_bandwidth(req, started)),
@@ -195,6 +197,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         "append-audit-jsonl" => {
             let result = append_audit_jsonl_payload(&req.payload)?;
             Ok(CoreResponse::success(req, result, started))
+        }
+        "evaluate-policy" => {
+            let (result, errors, warnings) = evaluate_policy_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         other => Ok(CoreResponse::failure(
             other,

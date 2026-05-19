@@ -7535,3 +7535,8 @@ See `docs/RUST_CORE_V03_ATOMIC_STATE.md` for the atomic state/file persistence m
 ## Rust Core v0.4 Daemon Mode
 
 The `lqosync-in-rust` branch now includes optional Unix socket daemon support for `lqosync-core`. See `docs/RUST_CORE_V04_DAEMON.md`.
+
+## Rust Core v0.5 Policy Shadow Engine
+
+Rust Core v0.5 adds `evaluate-policy`, a shadow policy decision engine that reviews preflight, collector trust, Rust validation, cleanup impact, and Python policy output. Python remains authoritative; Rust provides risk/verdict/parity diagnostics in Dry Run. See `docs/RUST_CORE_V05_POLICY_SHADOW.md`.
+

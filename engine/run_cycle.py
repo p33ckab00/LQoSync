@@ -37,7 +37,7 @@ from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
 from engine.rust_core import (
     validate_runtime_outputs, diagnostics_to_messages, validate_collector_output,
-    collector_output_envelope, rust_diff_files,
+    collector_output_envelope, rust_diff_files, rust_evaluate_policy,
 )
 
 
@@ -437,8 +437,27 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
 
         t = time.perf_counter()
         policy_decision = evaluate_apply_guards(config, policy_decision, preflight, result)
-        result.diff["policy_decision"] = policy_decision.to_dict()
-        policy_state["last_policy_decision"] = policy_decision.to_dict()
+        python_policy_dict = policy_decision.to_dict()
+        rust_policy_shadow = rust_evaluate_policy(
+            config,
+            preflight=preflight,
+            collector_trust=result.diff.get("collector_trust", []),
+            cleanup=cleanup_stats,
+            rust_validation=rust_validation,
+            python_policy_decision=python_policy_dict,
+            diff_summary={
+                "csv_changed": result.csv_changed,
+                "network_changed": result.network_changed,
+                "client_change_summary": result.diff.get("client_change_summary", {}),
+            },
+        )
+        result.diff["rust_policy_shadow"] = rust_policy_shadow
+        policy_decision_shadow_result = rust_policy_shadow.get("result", {}) if isinstance(rust_policy_shadow, dict) else {}
+        policy_parity = policy_decision_shadow_result.get("parity", {}) if isinstance(policy_decision_shadow_result, dict) else {}
+        if policy_parity and policy_parity.get("available") and policy_parity.get("matches_verdict") is False:
+            result.warnings.append("Rust policy shadow verdict differs from Python policy verdict; Python remains authoritative in this release.")
+        result.diff["policy_decision"] = python_policy_dict
+        policy_state["last_policy_decision"] = python_policy_dict
         for w in policy_decision.warnings:
             msg = w.get("message") or w.get("title")
             if msg:

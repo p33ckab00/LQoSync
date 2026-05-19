@@ -76,3 +76,8 @@ sudo scripts/install-rust-core-daemon.sh
 ```
 
 Python uses the daemon only when `rust_core.prefer_daemon=true` and the socket exists. If the daemon is unavailable, the wrapper falls back to subprocess or Python fallback.
+
+
+## v0.5 Policy Shadow
+
+`evaluate-policy` computes a non-authoritative policy verdict, risk score, write/apply hints, and parity against Python policy decisions.

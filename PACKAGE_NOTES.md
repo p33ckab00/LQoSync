@@ -113,3 +113,8 @@ This package advances the `lqosync-in-rust` branch to Rust Core v0.2. It adds co
 ## v2.74.0-rc1
 
 Includes optional Rust core daemon service support. Daemon mode is disabled by default and must be enabled with `rust_core.prefer_daemon=true`.
+
+## v2.75.0-rc1 Rust Policy Shadow
+
+Adds Rust Core v0.5 policy shadow evaluation, Dry Run parity visibility, and a non-authoritative `evaluate-policy` protocol operation.
+

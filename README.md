@@ -260,3 +260,8 @@ LQoSync can write LibreQoS input files and trigger LibreQoS apply behavior. Alwa
 ### Rust Core v0.4 daemon mode
 
 The optional Rust safety core now supports a Unix socket daemon. The daemon uses the same JSON protocol as the CLI and can be installed with `sudo scripts/install-rust-core-daemon.sh` after building/installing the Rust binary. Python falls back to subprocess or Python fallback when the daemon is unavailable.
+
+## Rust Core v0.5 Policy Shadow
+
+The `lqosync-in-rust` branch now includes an optional Rust `evaluate-policy` operation. It runs in shadow mode beside Python policy decisions, reports risk/verdict/parity in Dry Run, and remains non-authoritative until parity is proven.
+

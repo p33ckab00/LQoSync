@@ -137,3 +137,5 @@ Read these docs first:
 - [Rust Core v0.3 Atomic State and File Engine](RUST_CORE_V03_ATOMIC_STATE.md)
 
 - [Rust Core v0.4 Daemon Mode](RUST_CORE_V04_DAEMON.md)
+
+- [Rust Core v0.5 Policy Shadow Engine](RUST_CORE_V05_POLICY_SHADOW.md) — Shadow Rust policy decision engine, risk scoring, and Python/Rust parity checks.

@@ -1737,3 +1737,11 @@ This update keeps LibreQoS integrity intact while allowing older ZIP/manual inst
 - Added Python wrapper daemon transport with safe fallback to subprocess or Python fallback.
 - Added `health` operation to the Rust core protocol.
 - Added systemd service template and install/uninstall helper scripts for the daemon.
+
+## v2.75.0-rc1 - Rust Core v0.5 Policy Shadow
+
+- Added Rust `evaluate-policy` operation.
+- Added shadow policy risk/verdict/parity checks.
+- Added Dry Run Rust Policy Shadow panel.
+- Python policy remains authoritative; Rust is diagnostics-only in this release.
+
