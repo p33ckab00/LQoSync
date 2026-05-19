@@ -35,7 +35,7 @@ Check:
 ```text
 /opt/lqosync
 /opt/lqosync/.git
-/etc/systemd/system/lqos_shaped_sync.service
+/etc/systemd/system/lqosync.service
 /etc/sudoers.d/lqosync
 /opt/libreqos/src/config.json
 /opt/libreqos/src/ShapedDevices.csv
@@ -76,7 +76,7 @@ Gusto mo maging GitHub-managed na without losing config/users/logs
 Behavior:
 
 ```text
-1. Stop lqos_shaped_sync
+1. Stop lqosync
 2. Backup /opt/lqosync
 3. Preserve local files:
    - users.json

@@ -4,6 +4,9 @@ This index is the GitHub-friendly map for the consolidated LQoSync documentation
 
 ## Main entry points
 
+- [Runtime Rename Migration](RUNTIME_RENAME_MIGRATION.md) — canonical `lqosync` service/log/container naming and safe migration behavior.
+
+- [Repository Rename Guide](REPOSITORY_RENAME.md) — rename GitHub repository from lqosync to LQoSync while preserving runtime compatibility names.
 - [README](../README.md) — compact project landing page
 - [Full Documentation](../FULL_DOCUMENTATION.md) — complete single-file manual
 - [AI-Assisted Development Disclosure](AI_ASSISTED_DEVELOPMENT.md)
@@ -93,10 +96,6 @@ LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner contr
 
 - [Custom Policy Mode Persistence Hotfix](content/custom_policy_mode_persistence.md) — v2.70.9 visible Custom policy state and save semantics.
 
-- [Config Truth Layer + Live Save Audit](content/config_truth_layer.md) — v2.70.11-rc1 canonical config writes, stale-write rejection, field-level audit diffs, and inline effectivity.
-- [Config Field Guide — WH/HOW Reference](content/config_field_guide.md) — install/operator guide for config.json fields using the same What/Why/When/Who/Where/How registry as Advanced JSON.
-- [Config Guidance + Role-Aware Navigation](content/config_guidance_role_navigation.md) — v2.70.12-rc1 Advanced JSON guide inspector and hidden admin-only sidebar links for operator/viewer roles.
-- [Advanced JSON + Field Guide UI Polish](content/advanced_json_field_guide_ui_polish.md) — v2.70.13-rc1 wider admin workspace, wider guide pane, aligned WH/HOW rows, and smaller JSON editor text.
-- [Policy Tree Desktop Alignment Hotfix](content/policy_tree_desktop_alignment_hotfix.md) — v2.70.14-rc1 restores desktop horizontal icon/label alignment without changing mobile layout.
-- [Telegram Notifications](content/telegram_notifications.md) — v2.71 Safety Alerts plus digest-first Activity Journal delivery.
-- [Telegram Runtime Feed — Safety Alerts + Activity Journal](content/telegram_runtime_feed.md) — v2.71 live runtime event wiring and audit interpretation.
+- [Install and Update Safety](content/install_update_safety.md) — backup-first fresh install, preserve-existing update behavior, and operator verification.
+
+- [Operator Overview](content/operator_overview.md) — atomic explanation of the collection/build/policy/apply workflow.

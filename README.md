@@ -1,46 +1,135 @@
-# LQoSync / `lqos_shaped_sync`
+# LQoSync
 
-## AI-Assisted Development Disclosure and Acknowledgement
-
-LQoSync was developed and refined through an AI-assisted development workflow with substantial assistance from **GPT-5.5 Thinking by OpenAI**, working interactively with the project owner/operator. AI assistance does not replace human review, security auditing, backup verification, configuration validation, or production testing. See [docs/AI_ASSISTED_DEVELOPMENT.md](docs/AI_ASSISTED_DEVELOPMENT.md).
-
-
-LQoSync is a standalone, database-free WebUI and scheduler for syncing live MikroTik PPPoE, DHCP, and Hotspot subscriber/session data into LibreQoS `ShapedDevices.csv` and `network.json`.
+LQoSync is a standalone WebUI and scheduler that syncs live MikroTik PPPoE, DHCP, and Hotspot data into LibreQoS input files.
 
 ```text
-MikroTik RouterOS API → LQoSync → ShapedDevices.csv/network.json → LibreQoS.py --updateonly
+MikroTik RouterOS API → LQoSync → ShapedDevices.csv + network.json → LibreQoS.py --updateonly
 ```
 
-## What LQoSync is
+LQoSync is inspired by the LibreQoS operating model. It exists to make MikroTik-to-LibreQoS synchronization easier to operate, safer to update, and more visible for ISP operators who need to understand what is happening behind the system.
+
+## Table of Contents
+
+1. [What LQoSync Is](#what-lqosync-is)
+2. [What LQoSync Is Not](#what-lqosync-is-not)
+3. [Why It Exists](#why-it-exists)
+4. [System Workflow](#system-workflow)
+5. [Fresh Install Safety](#fresh-install-safety)
+6. [Safe Update Behavior](#safe-update-behavior)
+7. [Standard Paths](#standard-paths)
+8. [Core Modules](#core-modules)
+9. [Operator Workflow](#operator-workflow)
+10. [Dashboard Areas](#dashboard-areas)
+11. [ShapedDevices.csv Handling](#shapeddevicescsv-handling)
+12. [network.json Handling](#networkjson-handling)
+13. [Glossary](#glossary)
+14. [Appendices](#appendices)
+
+## What LQoSync Is
 
 - A focused MikroTik-to-LibreQoS sync companion.
-- A WebUI for dry-run preview, policy-aware cleanup, config/settings, reports, lifecycle visibility, operations logs, backups, and setup/repair.
-- A safety layer for live LibreQoS input-file generation.
+- A WebUI for dry-run preview, source health, policies, config, backups, reports, and operations visibility.
+- A safety layer for generating LibreQoS `ShapedDevices.csv` and `network.json`.
+- A scheduler that can run collection, build proposed outputs, validate impact, and optionally apply LibreQoS updates.
 
-## What LQoSync is not
+## What LQoSync Is Not
 
 - Not a billing system.
 - Not an ISP CRM.
 - Not a replacement for LibreQoS.
-- Not a replacement for human validation before production changes.
+- Not a replacement for operator validation, backups, and production testing.
 
-## Key features
+## Why It Exists
 
-- MikroTik PPPoE, DHCP, and Hotspot collection through read-only RouterOS API.
-- LibreQoS `ShapedDevices.csv` and `network.json` generation.
-- Policy-aware cleanup and source lifecycle behavior.
-- Dry Run / impact preview before apply.
-- Config Center with policies and Telegram notification settings.
-- Dashboard with live status, source health, and apply health.
-- Operations Center for services, journals, logs, audit events, backups, and LibreQoS apply history.
-- Documentation Center with local search.
-- Setup Wizard and Setup & Repair workflows.
+LibreQoS is powerful, but operators still need clean input files and clear visibility into how subscribers map into shaping. LQoSync helps by showing the chain from router data collection to generated LibreQoS files, policy decisions, dry-run impact, backups, and apply results.
 
-## Standard paths
+## System Workflow
+
+```text
+1. Collect from MikroTik sources
+2. Normalize PPPoE / DHCP / Hotspot records
+3. Resolve speed and identity rules
+4. Build ShapedDevices.csv rows
+5. Build network.json topology nodes
+6. Validate duplicates, missing parent nodes, and policy conflicts
+7. Show Dry Run impact
+8. Backup live files
+9. Write generated files
+10. Run LibreQoS apply/update when allowed
+11. Store logs, audit events, and apply history
+```
+
+## Fresh Install Safety
+
+If a fresh install finds existing production files, LQoSync backs them up first and preserves them by default:
+
+```text
+/opt/libreqos/src/config.json
+/opt/libreqos/src/ShapedDevices.csv
+/opt/libreqos/src/network.json
+```
+
+Missing files are created from templates. Existing files are not overwritten unless the operator explicitly chooses overwrite-with-backup.
+
+## Safe Update Behavior
+
+A normal update should update app code and safe missing defaults only. These operator-owned files are preserved:
+
+```text
+/opt/libreqos/src/config.json
+/opt/libreqos/src/ShapedDevices.csv
+/opt/libreqos/src/network.json
+/opt/lqosync/users.json
+/opt/lqosync/.env
+/opt/lqosync/state/
+/opt/lqosync/logs/
+/opt/lqosync/backups/
+```
+
+Recommended GitHub install/update command after repository rename:
+
+```bash
+cd /opt
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/main/install-from-github.sh -o /tmp/install-lqosync.sh
+sudo EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
+```
+
+If the GitHub repository has not yet been renamed, temporarily use:
+
+```bash
+sudo LQOSYNC_REPO_URL=https://github.com/p33ckab00/LQoSync.git EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
+```
+
+
+## GitHub Repository Rename
+
+Target repository name:
+
+```text
+p33ckab00/LQoSync
+```
+
+Rename with GitHub CLI:
+
+```bash
+gh repo edit p33ckab00/LQoSync --name LQoSync
+```
+
+Then update every local checkout:
+
+```bash
+git remote set-url origin https://github.com/p33ckab00/LQoSync.git
+git remote -v
+git fetch origin main
+```
+
+See [Repository Rename Guide](docs/REPOSITORY_RENAME.md).
+
+## Standard Paths
 
 ```text
 /opt/libreqos/                     # LibreQoS application folder
-/opt/libreqos/src/config.json       # LQoSync config consumed by the engine
+/opt/libreqos/src/config.json       # LQoSync runtime config consumed by the engine
 /opt/libreqos/src/ShapedDevices.csv # generated LibreQoS shaped-device output
 /opt/libreqos/src/network.json      # generated LibreQoS topology output
 /opt/lqosync/                       # LQoSync app/runtime folder
@@ -49,180 +138,76 @@ MikroTik RouterOS API → LQoSync → ShapedDevices.csv/network.json → LibreQo
 /opt/lqosync/backups/               # pre-apply and restore backups
 ```
 
-## Quick install from GitHub
+Compatibility note: the systemd service can remain `lqosync` even after the GitHub repository/product name is LQoSync.
 
-```bash
-cd /opt
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/main/install-from-github.sh -o /tmp/install-lqosync.sh
-sudo EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
+## Core Modules
+
+| Module | Purpose |
+|---|---|
+| Dashboard | Live health, source status, production readiness, and apply warnings |
+| Config Center | Router/source settings, policies, notifications, scheduler, and Advanced JSON |
+| Dry Run | Preview generated changes before writing live LibreQoS files |
+| Shaped Devices | Inspect generated subscriber/circuit rows |
+| Network Layout | Inspect or adjust LibreQoS topology nodes |
+| Operations Center | Services, journals, app logs, audit, backups, restore preview, and apply history |
+| Update Center | Installed version, GitHub status, latest fetched changes, and safe SSH update commands |
+| Documentation Center | Searchable local operator documentation |
+
+## Operator Workflow
+
+```text
+Install / update safely
+→ Configure routers and sources
+→ Choose policy preset
+→ Run Dry Run
+→ Review generated rows and node tree
+→ Confirm backups are ready
+→ Enable scheduler only when production-ready
+→ Monitor Operations Center and Dashboard
 ```
 
-## Safe update from GitHub
+## Dashboard Areas
 
-```bash
-cd /opt/lqosync
-git fetch origin main
-sudo ./upgrade.sh
-sudo systemctl restart lqos_shaped_sync
-```
+- **Dashboard** shows live status and go-live confidence.
+- **Config Center** owns settings and policy controls.
+- **Update Center** owns version/update visibility.
+- **About** owns project identity only; it does not display release updates.
+- **Operations Center** owns logs, services, backups, and apply history.
 
-## First-run flow
+## ShapedDevices.csv Handling
 
-1. Open the WebUI.
-2. Follow **Setup Wizard**.
-3. Configure LibreQoS paths and MikroTik routers.
-4. Choose PPPoE/DHCP/Hotspot sources.
-5. Choose Network Layout mode.
-6. Choose Smart Policy preset.
-7. Run Dry Run.
-8. Review Dashboard/Operations/Reports.
-9. Enable scheduler only when production-ready.
+LQoSync builds `ShapedDevices.csv` from normalized source records. The important questions are:
 
-## Documentation
+- Which source created this row?
+- Which speed rule resolved its bandwidth?
+- Which parent node will LibreQoS use?
+- Is the IP/MAC duplicated?
+- Is the row active, stale, excluded, locked, or policy-held?
 
-The documentation is consolidated into one coherent system:
+## network.json Handling
 
-- [FULL_DOCUMENTATION.md](FULL_DOCUMENTATION.md) — complete single-file manual.
-- [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) — GitHub topic index.
-- [docs/content/](docs/content/) — source-of-truth topic files used by WebUI docs search.
-- WebUI **Documentation Center** — searchable local documentation.
+LQoSync builds the LibreQoS node tree from router, source, DHCP server, plan, and topology rules. A generated subscriber row should point to a valid parent node. Dry Run and validation help detect missing parent nodes before apply.
 
-## Safety note
+## Glossary
 
-LQoSync can write LibreQoS input files and trigger LibreQoS apply behavior. Always verify `config.json`, backups, policies, dry-run output, and apply results before using it in production.
+- **LibreQoS** — the shaping system that consumes `ShapedDevices.csv` and `network.json`.
+- **ShapedDevices.csv** — LibreQoS subscriber/circuit input file.
+- **network.json** — LibreQoS topology tree file.
+- **Dry Run** — preview mode that calculates impact without writing live files.
+- **Apply** — writing generated outputs and optionally running LibreQoS update.
+- **Policy preset** — Conservative, Balanced, or Aggressive behavior template.
+- **Custom policy** — a policy state created when preset-derived values are manually changed.
+- **Source** — MikroTik PPPoE, DHCP, Hotspot, or static source used to generate rows.
+- **Parent Node** — the LibreQoS node where a shaped device is attached.
 
+## Appendices
 
-## v2.63.1 Operations Center hotfix
+- [Full Documentation](FULL_DOCUMENTATION.md)
+- [Documentation Index](docs/DOCUMENTATION_INDEX.md)
+- [Upgrade Guide](docs/UPGRADE_GUIDE.md)
+- [Command Reference](docs/COMMANDS.md)
+- [AI-Assisted Development Disclosure](docs/AI_ASSISTED_DEVELOPMENT.md)
 
-This hotfix resolves an Internal Server Error on `/operations` caused by a variable-name collision between the journal line-count selector and the app log line list. The Operations Center now passes `journal_lines_count` separately from `lines`, so app logs render safely while all tabs and compatibility redirects remain unchanged.
+## Safety Note
 
-
-## v2.64 UI Consistency and Redundancy Polish
-
-LQoSync v2.64 improves the compact operator experience without changing engine behavior. Dashboard remains the live status cockpit, Operations Center owns services/journals/logs/audit/backups, Reports is export-focused, Config Center owns settings/policies/notifications, and Documentation Center is the single manual surface. Operations Center Apply History and Audit Events now use consistent pagination and row-limit controls.
-
-
-## v2.65 Production Hardening + Regression Suite
-
-LQoSync v2.65 adds offline regression checks for route/template wiring, high-risk template context, preserved config migration, policy safety behavior, Operations Center compatibility, and documentation integrity. Before publishing or updating from GitHub, run:
-
-```bash
-cd /opt/lqosync
-python3 scripts/release_check.py
-python3 scripts/regression_check.py
-python3 scripts/config_migration_check.py
-```
-
-The full environment doctor also runs these checks:
-
-```bash
-sudo CONFIG_PATH=/opt/libreqos/src/config.json bash scripts/lqosync-doctor.sh
-```
-
-
-## v2.66 Backup / Restore Center Polish
-
-Operations Center backups now support read-only preview, metadata/hash integrity checks, live-file comparison, selected-backup zip download, and retention preview visibility. Restore still creates a fresh backup of current live files before rollback so restore remains reversible. This is a backup/restore UX and safety improvement only.
-
-
-## v2.67 Access Control + Role Hardening
-
-LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner controls users, updates, and high-trust repair actions. Admin controls config, policies, scheduler, backups, operations, and live apply actions. Operator can monitor and run dry-run previews. Viewer remains read-only. Older installs with only an admin account are upgraded safely by promoting the first admin to owner if no owner exists. See `docs/content/access_control_role_hardening.md`.
-
-
-## v2.68 Production Readiness Score
-
-LQoSync v2.68 adds a read-only Dashboard Production Readiness score and `/api/production/readiness`. It summarizes config validity, Setup Wizard state, Dry Run readiness, router/source configuration, backup-before-apply safety, LibreQoS paths, policy conflicts, Dashboard source/apply health, and service health into one go-live confidence card. This feature is read-only and does not change scheduler, cleanup, generated files, Telegram, or LibreQoS apply behavior.
-
-
-## v2.69 Router Overview + Multi-Router UX Polish
-
-LQoSync v2.69 adds a read-only `/routers` Router Overview page. Operators can inspect configured MikroTik routers, enabled PPPoE/DHCP/Hotspot sources, generated row ownership hints, parent-node role, and last-run collector warnings in one compact place. The page links to Config Center, Dry Run, and Operations Center for the next action. It does not modify config, generated files, scheduler state, or LibreQoS.
-
-
-## v2.69.1 Router Insight De-duplication + Policy/Path Audit
-
-LQoSync v2.69.1 removes redundant Router UX by moving Router Insight into `Config Center → Routers`. The old `/routers` path remains as a compatibility alias and redirects to `/config?tab=routers`; `/api/routers/overview` remains available for read-only diagnostics. The package also adds `scripts/policy_path_audit.py` to verify required runtime paths, policy schema/default coverage, migrated config policy paths, missing-policy warnings, and schema errors.
-
-
-## v2.70 Stable Release Candidate / Production Freeze
-
-LQoSync v2.70.0-rc1 is a stable release candidate. The feature-freeze rule allows bug fixes, route cleanup, UI consistency fixes, documentation cleanup, installer/update safety, config migration safety, and test coverage. It avoids new sidebar modules, duplicate settings pages, and undocumented production behavior changes.
-
-Before publishing or updating production, run:
-
-```bash
-cd /opt/lqosync
-python3 scripts/release_check.py
-python3 scripts/regression_check.py
-python3 scripts/config_migration_check.py
-python3 scripts/policy_path_audit.py
-python3 scripts/stable_release_check.py
-```
-
-Compatibility aliases remain in place: `/health`, `/services`, `/logs`, `/policy`, `/notifications`, and `/routers` redirect to their canonical compact UI destinations.
-
-
-## v2.70.1-rc1 Stable RC Stale Template Cleanup Hotfix
-
-This hotfix adds `scripts/cleanup_stale_files.py` for older ZIP/manual installs that may keep files removed from the canonical package. The first known stale file is `templates/routers.html`, because Router Insight now lives in Config Center → Routers and `/routers` redirects there. Run `python3 scripts/cleanup_stale_files.py --apply` then rerun `python3 scripts/stable_release_check.py`.
-
-
-## v2.70.2-rc1 Config Policy Hierarchy UI
-
-LQoSync v2.70.2-rc1 reorganizes Config Center → Policies into a compact hierarchy tree. Policies remain inside Config Center to avoid redundant modules, but are now grouped by operator intent: Overview, General Core, PPPoE, DHCP, Hotspot, Static, Cleanup Lifecycle, Mass Removal, Apply Guards, Auto Apply, Backup Policy, Topology/Data, Speed Resolution, and Advanced JSON.
-
-This release also separates required and optional behavior: `app.auto_apply` is required when `app.operation_mode=automatic`, while `app.backup_before_apply` is optional by default to support storage-saving deployments. Production Readiness blocks disabled auto-apply in automatic mode but treats disabled auto-backup as allowed operator choice.
-
-
-## v2.70.3 Policy Preset Wiring Hotfix
-
-Config Center → Policies now includes visible Conservative, Balanced, and Aggressive preset buttons wired to the saved config preset route. `policies.mode` is displayed as managed preset status instead of a misleading normal field, while manual policy edits still set mode to `custom` when saved.
-
-
-## v2.70.4-rc1 UI Wiring Audit + Role Visibility Hotfix
-
-LQoSync v2.70.4-rc1 adds `scripts/ui_wiring_audit.py` and fixes role-visibility gaps after owner/admin/operator/viewer hardening. Admin-capable actions now use `role_at_least(user.role, 'admin')`, operator dry-run actions use `role_at_least(user.role, 'operator')`, owner-only Update Center links are gated, Config Center policy preset wiring is audited, and stale files such as `app.py.pre_reports_route_fix` are removed from stable packages.
-
-
-## v2.70.5 Settings UI State Wiring Hotfix
-
-LQoSync v2.70.5-rc1 fixes the Config Center → Policies preset active-state mismatch. The active Conservative/Balanced/Aggressive button now follows `cfg.policies.mode`, so `Current: aggressive` highlights Aggressive, `Current: balanced` highlights Balanced, and `Current: conservative` highlights Conservative. The UI wiring audit now also checks Config Center nav/section pairing, policy tree/panel pairing, preset active-state binding, and normalized config save binding.
-
-
-## v2.70.6 Checkbox State Wiring Hotfix
-
-LQoSync v2.70.6 fixes Config Center checkbox visual-state wiring. Boolean policy fields now use normalized checked binding through `asBool(getPath(...))`, explicit `x-effect` checked synchronization, and visible checked-state CSS so true values display with a clear checked mark in light and dark mode. UI wiring audit now checks this behavior.
-
-
-## v2.70.7 LibreQoS Apply Failure Visibility
-
-LQoSync v2.70.7-rc1 makes failed LibreQoS apply runs actionable. Dashboard and Telegram apply warnings now link to an apply diagnostic page when a run ID is available. Operations Center → Apply History includes a Detail / Resolve button and failed runs show a short summary and resolution hint. The new `/libreqos/apply/<run_id>` page shows stderr/stdout tails, command metadata, failure classification, suggested resolve page, and suggested commands. This is a UI/diagnostics wiring improvement only.
-
-
-## v2.70.8 Policy Preset Alignment + Save Semantics
-
-LQoSync v2.70.8 aligns Conservative, Balanced, and Aggressive presets so they do not create high/critical conflicts immediately after apply. Aggressive mode still uses faster normal inactive cleanup, but PPPoE/DHCP/Hotspot zero-result cleanup remains `block_cleanup`. Config Center saves now reconcile policy mode server-side: exact presets keep their preset name, while edited policy values are saved as `custom`. The new `scripts/policy_preset_audit.py` validates preset alignment, user preference preservation, and custom-mode reconciliation.
-
-
-## v2.70.9 Custom Policy Mode Persistence
-
-Config Center → Policies now shows Custom as a visible policy state beside Conservative, Balanced, and Aggressive. Manual policy edits change the UI state to Custom immediately, and server-side save preserves explicit `policies.mode = custom`. Named presets still stay named when exact, and edited named presets reconcile to Custom.
-
-
-## v2.70.10 Policy Overview Custom Wiring Hotfix
-
-Changing Operation Mode, Auto Apply, Optional Auto Backup, or Backup Retention inside Config Center → Policies now marks `policies.mode` as `custom` and remains custom after save. Server-side save also detects these policy-adjacent `app.*` changes so the mode is protected even if browser JS misses the change event.
-
-## v2.70.11-rc1 Config Truth Layer + Live Save Audit
-
-LQoSync v2.70.11-rc1 keeps Config Center live-save behavior but routes every runtime config write through one canonical pipeline. Live writes now carry a config revision so stale tabs cannot silently overwrite newer `config.json` values, real config writes record masked field-level audit diffs, Config Change Preview shows when important changes become effective, and Policy field cards show next-cycle effectivity. Existing routes and network-layout behavior remain unchanged.
-
-LQoSync v2.70.12-rc1 adds a shared **Config Field Guide** used by both the installer documentation and the admin/owner-only Advanced JSON inspector. The inspector now answers What / Why / When / Who / Where / How for guided config paths, while operator/viewer sidebars no longer show admin-only Lifecycle or Reports links that would lead to 403 pages. Backend route guards remain authoritative.
-
-LQoSync v2.70.13-rc1 polishes that Advanced JSON workspace: the modal is wider, the Field Guide receives more width and cleaner scan rows, and the JSON editor uses a slightly smaller monospace size so more config fits without shrinking the explanations.
-
-LQoSync v2.70.14-rc1 fixes a desktop-only Policy Center styling regression: icons and labels are horizontal again in the left policy tree, while the mobile layout remains unchanged.
-## v2.71.0 Telegram Runtime Notifications
-
-LQoSync v2.71.0 makes Telegram a real runtime feed instead of only a test/manual-send surface. Safety Alerts now carry urgent policy/apply conditions, while a separate digest-first Activity Journal reports client changes and successful LibreQoS applies from live runtime paths. The two lanes keep independent dedupe state so quiet journal traffic cannot suppress an urgent alert.
+LQoSync can write LibreQoS input files and trigger LibreQoS apply behavior. Always verify backups, policies, dry-run output, and apply results before using it in production.

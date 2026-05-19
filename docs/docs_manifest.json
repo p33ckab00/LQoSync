@@ -102,8 +102,8 @@
   "notifications.telegram": {
     "title": "Telegram Notifications",
     "file": "docs/content/telegram_notifications.md",
-    "anchor": "v271-telegram-notifications",
-    "summary": "v2.71 Telegram Safety Alerts plus digest-first Activity Journal runtime delivery."
+    "anchor": "v258-telegram-notifications",
+    "summary": "v2.58 optional Telegram delivery for internal health, policy, apply, and source notification candidates."
   },
   "docs.search_ui_polish": {
     "title": "Documentation Search + UI/Mobile Polish",
@@ -381,40 +381,16 @@
     "anchor": "policy-overview-custom-wiring-hotfix",
     "summary": "v2.70.10 fixes Custom policy mode for Operation Mode, Auto Apply, Optional Auto Backup, and Backup Retention changes inside Config Center Policies."
   },
-  "config.truth_layer_live_audit": {
-    "title": "Config Truth Layer + Live Save Audit",
-    "file": "docs/content/config_truth_layer.md",
-    "anchor": "config-truth-layer--live-save-audit",
-    "summary": "v2.70.11-rc1 canonical config writes, stale-write rejection, field-level audit diffs, and inline effectivity."
+  "install.update_safety": {
+    "title": "Install and Update Safety",
+    "file": "docs/content/install_update_safety.md",
+    "anchor": "install-and-update-safety",
+    "summary": "Backup-first fresh install behavior and preserve-existing update rules for operator-owned LibreQoS files."
   },
-  "config.field_guide_wh_how": {
-    "title": "Config Field Guide — WH/HOW Reference",
-    "file": "docs/content/config_field_guide.md",
-    "anchor": "config-field-guide--whhow-reference",
-    "summary": "Shared install/operator guide for config.json fields: What, Why, When, Who, Where, How, default, risk, and related paths."
-  },
-  "config.guidance_role_navigation": {
-    "title": "Config Guidance + Role-Aware Navigation",
-    "file": "docs/content/config_guidance_role_navigation.md",
-    "anchor": "config-guidance--role-aware-navigation",
-    "summary": "v2.70.12-rc1 Advanced JSON WH/HOW inspector, generated config guide docs, and hidden admin-only sidebar links for lower roles."
-  },
-  "config.advanced_json_field_guide_ui_polish": {
-    "title": "Advanced JSON + Field Guide UI Polish",
-    "file": "docs/content/advanced_json_field_guide_ui_polish.md",
-    "anchor": "advanced-json--field-guide-ui-polish",
-    "summary": "v2.70.13-rc1 wider Advanced JSON workspace, wider Field Guide pane, aligned WH/HOW rows, and smaller JSON editor text."
-  },
-  "policy.tree_desktop_alignment_hotfix": {
-    "title": "Policy Tree Desktop Alignment Hotfix",
-    "file": "docs/content/policy_tree_desktop_alignment_hotfix.md",
-    "anchor": "policy-tree-desktop-alignment-hotfix",
-    "summary": "v2.70.14-rc1 restores desktop horizontal icon/label alignment while keeping mobile Policy Center layout unchanged."
-  },
-  "notifications.telegram_runtime_feed": {
-    "title": "Telegram Runtime Feed — Safety Alerts + Activity Journal",
-    "file": "docs/content/telegram_runtime_feed.md",
-    "anchor": "telegram-runtime-feed--safety-alerts--activity-journal",
-    "summary": "v2.71 live runtime wiring for client-change, apply-success, policy-block, confirmation, and apply-failure Telegram events."
+  "operator.overview": {
+    "title": "Operator Overview",
+    "file": "docs/content/operator_overview.md",
+    "anchor": "operator-overview",
+    "summary": "Atomic explanation of how LQoSync collects, builds, validates, writes, applies, and reports."
   }
 }

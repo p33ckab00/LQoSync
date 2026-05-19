@@ -1,10 +1,10 @@
 services:
-  lqos_shaped_sync:
+  lqosync:
     build:
       context: .
       dockerfile: Dockerfile
-    image: lqos_shaped_sync:2.17-install-path
-    container_name: lqos_shaped_sync
+    image: lqosync:2.17-install-path
+    container_name: lqosync
     restart: unless-stopped
 
     # Required because LQoSync calls host LibreQoS.py --updateonly and may control host services.

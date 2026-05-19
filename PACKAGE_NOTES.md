@@ -1,21 +1,39 @@
-# LQoSync Full Package Notes
+# LQoSync Runtime Canonical Package
 
-This package is based on the provided LQoSync v2.70.10-rc1 codebase and applies only the requested scoped changes:
+This package canonicalizes LQoSync naming across repository references, operator documentation, runtime service names, Docker container naming, logs, config defaults, and WebUI guidance.
 
-- Clarifies fresh-install backup-first behavior for existing config.json, ShapedDevices.csv, and network.json.
-- Clarifies update-only behavior: app code and safe missing defaults update while operator-owned files are preserved.
-- Cleans the About module so version/release update details are moved out of About.
-- Enhances Update Center ownership for installed version, GitHub version, local/remote commit, latest fetched changes, and safe update commands.
-- Updates operator-facing repository/product naming to LQoSync while preserving compatibility service/path names.
-- Adds operator-focused documentation with Table of Contents, glossary, appendices, and LibreQoS-inspired design explanation.
+## Canonical names
 
-Validation run:
+```text
+GitHub repo:      https://github.com/p33ckab00/LQoSync.git
+Install path:     /opt/lqosync
+Systemd service:  lqosync
+Docker container: lqosync
+App log:          /opt/lqosync/logs/lqosync.log
+System log:       /var/log/lqosync.log
+Sudoers file:     /etc/sudoers.d/lqosync
+```
 
-- python3 -m py_compile app.py engine/policy_schema.py engine/setup_repair.py
-- python3 scripts/release_check.py
-- python3 scripts/regression_check.py
-- python3 scripts/config_migration_check.py
-- python3 scripts/policy_path_audit.py
-- python3 scripts/stable_release_check.py
+## Update safety
 
-All checks passed.
+The installer/updater keeps production safety behavior:
+
+- backs up `/opt/libreqos/src/config.json`
+- backs up `/opt/libreqos/src/ShapedDevices.csv`
+- backs up `/opt/libreqos/src/network.json`
+- preserves users, `.env`, state, logs, and backups
+- creates missing files only by default
+- normalizes Git remote to `p33ckab00/LQoSync`
+- installs and starts the canonical `lqosync` runtime service
+
+## Migration safety
+
+The only remaining old runtime name references are internal migration variables in the install/update scripts. They are needed to safely stop/disable/remove the previous runtime unit during upgrade so the old and new services do not run at the same time.
+
+After installation/update, operators should use only:
+
+```bash
+sudo systemctl status lqosync
+sudo journalctl -u lqosync -n 100 --no-pager
+sudo systemctl restart lqosync
+```

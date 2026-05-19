@@ -99,7 +99,7 @@ echo
 
 if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
   echo "== Service status =="
-  systemctl status lqos_shaped_sync --no-pager || true
+  systemctl status lqosync --no-pager || true
 else
   echo "== Service status =="
   echo "[INFO] systemd is not available in this environment; skipping service status."

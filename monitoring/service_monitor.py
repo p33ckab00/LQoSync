@@ -56,7 +56,7 @@ def services_config(config: dict) -> dict:
     svc.setdefault("units", [
         "lqosd",
         "lqos_scheduler",
-        "lqos_shaped_sync",
+        "lqosync",
     ])
     svc.setdefault("legacy_optional_units", ["lqos_node_manager"])
     svc.setdefault("show_legacy_optional_not_installed", False)
@@ -64,7 +64,7 @@ def services_config(config: dict) -> dict:
         "lqosd": {"label": "LibreQoS daemon", "role": "required", "note": "Main LibreQoS daemon; newer installs may serve Web UI here."},
         "lqos_scheduler": {"label": "LibreQoS scheduler", "role": "required", "note": "LibreQoS scheduler/integration refresh service."},
         "lqos_node_manager": {"label": "Legacy Web UI service", "role": "legacy_optional", "note": "Older LibreQoS installs only; newer installs usually use lqosd for the Web UI."},
-        "lqos_shaped_sync": {"label": "LQoSync service", "role": "required", "note": "LQoSync dashboard and sync engine."},
+        "lqosync": {"label": "LQoSync service", "role": "required", "note": "LQoSync dashboard and sync engine."},
     })
     svc.setdefault("restart_groups", {
         "libreqos_core": ["lqosd", "lqos_scheduler"],

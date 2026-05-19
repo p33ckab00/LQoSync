@@ -52,7 +52,7 @@ sudo docker compose up -d --build
 Common locations:
 
 ```bash
-cd /home/pi/lqos_shaped_sync
+cd /home/pi/lqosync
 ```
 
 or:
@@ -96,8 +96,8 @@ sudo docker rmi IMAGE_ID
 Or try common tags:
 
 ```bash
-sudo docker image rm lqos_shaped_sync:latest 2>/dev/null || true
-sudo docker image rm lqos_shaped_sync:2.17-opt-lqosync 2>/dev/null || true
+sudo docker image rm lqosync:latest 2>/dev/null || true
+sudo docker image rm lqosync:2.17-opt-lqosync 2>/dev/null || true
 ```
 
 ## 4. Optional: remove runtime folder
@@ -120,7 +120,7 @@ sudo rm -rf /opt/lqosync
 If installed from Git:
 
 ```bash
-rm -rf /home/pi/lqos_shaped_sync
+rm -rf /home/pi/lqosync
 ```
 
 If using old local folder name:
@@ -171,20 +171,20 @@ sudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh
 ## 1. Stop and disable service
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
-sudo systemctl disable lqos_shaped_sync
+sudo systemctl stop lqosync
+sudo systemctl disable lqosync
 ```
 
 Check:
 
 ```bash
-sudo systemctl status lqos_shaped_sync
+sudo systemctl status lqosync
 ```
 
 ## 2. Remove systemd service file
 
 ```bash
-sudo rm -f /etc/systemd/system/lqos_shaped_sync.service
+sudo rm -f /etc/systemd/system/lqosync.service
 sudo systemctl daemon-reload
 sudo systemctl reset-failed
 ```
@@ -193,7 +193,7 @@ sudo systemctl reset-failed
 
 ```bash
 sudo rm -f /etc/sudoers.d/lqosync
-sudo rm -f /etc/sudoers.d/lqos_shaped_sync
+sudo rm -f /etc/sudoers.d/lqosync
 ```
 
 ## 4. Backup and remove app/runtime folder
@@ -206,7 +206,7 @@ sudo rm -rf /opt/lqosync
 ## 5. Remove log file, optional
 
 ```bash
-sudo rm -f /var/log/lqos_shaped_sync.log
+sudo rm -f /var/log/lqosync.log
 ```
 
 ## 6. Remove Linux user, optional
@@ -271,7 +271,7 @@ sudo chmod 644 /opt/libreqos/src/ShapedDevices.csv /opt/libreqos/src/network.jso
 If installed from Git:
 
 ```bash
-rm -rf /home/pi/lqos_shaped_sync
+rm -rf /home/pi/lqosync
 ```
 
 If using old extracted package folder:
@@ -325,7 +325,7 @@ Make sure LQoSync is stopped/removed first to avoid two writers touching `Shaped
 # E. Verify Removal
 
 ```bash
-systemctl status lqos_shaped_sync
+systemctl status lqosync
 ls -lah /opt/lqosync
 sudo docker ps -a | grep lqos || true
 ```
@@ -333,9 +333,9 @@ sudo docker ps -a | grep lqos || true
 Expected after full uninstall:
 
 ```text
-Unit lqos_shaped_sync.service could not be found
+Unit lqosync.service could not be found
 /opt/lqosync: No such file or directory
-no lqos_shaped_sync container
+no lqosync container
 ```
 
 ---

@@ -26,7 +26,7 @@ def _normalize_live_paths(cfg: dict) -> None:
     libreqos_src = Path(os.getenv("LQOSYNC_LIBREQOS_SRC") or "/opt/libreqos/src")
     defaults = {
         "backup_dir": runtime_base / "backups",
-        "log_file": runtime_base / "logs" / "lqos_shaped_sync.log",
+        "log_file": runtime_base / "logs" / "lqosync.log",
         "runtime_state": runtime_base / "state" / "runtime_state.json",
         "lock_file": runtime_base / "state" / "lqosync.lock",
         "audit_log": runtime_base / "logs" / "audit.jsonl",

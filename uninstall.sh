@@ -6,7 +6,7 @@ set -euo pipefail
 # for managed files, and keep /opt/lqosync as a backup source unless REMOVE_RUNTIME=true.
 
 INSTALL_DIR="${INSTALL_DIR:-/opt/lqosync}"
-SERVICE_NAME="${SERVICE_NAME:-lqos_shaped_sync}"
+SERVICE_NAME="${SERVICE_NAME:-lqosync}"
 RESTORE_LIBREQOS_PERMS="${RESTORE_LIBREQOS_PERMS:-true}"
 RESTORE_MODE="${RESTORE_MODE:-managed}" # managed or full
 REMOVE_RUNTIME="${REMOVE_RUNTIME:-false}"
@@ -26,7 +26,7 @@ rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
 systemctl daemon-reload || true
 systemctl reset-failed || true
 
-rm -f /etc/sudoers.d/lqosync /etc/sudoers.d/lqos_shaped_sync
+rm -f /etc/sudoers.d/lqosync /etc/sudoers.d/lqosync
 
 if [[ "$RESTORE_LIBREQOS_PERMS" == "true" ]]; then
   if [[ -x "$INSTALL_DIR/scripts/restore_libreqos_permissions.sh" ]]; then
@@ -68,7 +68,7 @@ if [[ -d "$INSTALL_DIR" ]]; then
   fi
 fi
 
-rm -f /var/log/lqos_shaped_sync.log 2>/dev/null || true
+rm -f /var/log/lqosync.log 2>/dev/null || true
 
 if [[ "$REMOVE_USER" == "true" ]]; then
   userdel "$LQOSYNC_USER" 2>/dev/null || true

@@ -28,14 +28,13 @@ DEFAULT_CONFIG = {
         "shaped_devices_csv": "/opt/libreqos/src/ShapedDevices.csv",
         "network_json": "/opt/libreqos/src/network.json",
         "backup_dir": "/opt/lqosync/backups",
-        "log_file": "/opt/lqosync/logs/lqos_shaped_sync.log",
+        "log_file": "/opt/lqosync/logs/lqosync.log",
         "runtime_state": "/opt/lqosync/state/runtime_state.json",
         "lock_file": "/opt/lqosync/state/lqosync.lock",
         "audit_log": "/opt/lqosync/logs/audit.jsonl",
         "libreqos_apply_log_dir": "/opt/lqosync/logs/libreqos_apply",
         "collector_cache": "/opt/lqosync/state/collector_cache.json",
         "policy_state": "/opt/lqosync/state/policy_state.json",
-        "notification_state": "/opt/lqosync/state/notification_state.json",
     },
     "libreqos": {
         "cmd": "/opt/libreqos/src/LibreQoS.py",
@@ -129,22 +128,14 @@ DEFAULT_CONFIG = {
             "minimum_interval_seconds": 60,
             "dedupe_window_minutes": 60,
             "max_items_per_digest": 10,
-            "safety_alerts_enabled": True,
             "send_digest": True,
             "send_individual": False,
-            "activity_journal_enabled": True,
-            "activity_send_digest": True,
-            "activity_send_individual": False,
-            "activity_silent_messages": True,
             "notify_on_apply_failed": True,
             "notify_on_policy_block": True,
             "notify_on_confirmation_required": True,
             "notify_on_update_available": True,
             "notify_on_source_health_warning": True,
-            "notify_on_performance_slow": True,
-            "notify_on_client_changes": True,
-            "notify_on_apply_success": True,
-            "notify_on_files_written": True,
+            "notify_on_performance_slow": True
         }
     },
     "setup_repair": {
@@ -188,7 +179,7 @@ DEFAULT_CONFIG = {
         "cleanup_stale_files_script": "/opt/lqosync/scripts/cleanup_stale_files.py"
     },
     "stable_release": {
-        "target": "v2.71 Telegram Runtime Notifications",
+        "target": "v2.70 Stable Release Candidate",
         "feature_freeze": True,
         "allow_new_sidebar_modules": False,
         "require_release_check": True,
@@ -215,7 +206,7 @@ DEFAULT_CONFIG = {
         # Required/current LibreQoS + LQoSync units. lqos_node_manager is not
         # required on newer LibreQoS installs and is tracked separately as a
         # legacy optional Web UI unit.
-        "units": ["lqosd", "lqos_scheduler", "lqos_shaped_sync"],
+        "units": ["lqosd", "lqos_scheduler", "lqosync"],
         "legacy_optional_units": ["lqos_node_manager"],
         "show_legacy_optional_not_installed": False,
         "unit_metadata": {
@@ -234,7 +225,7 @@ DEFAULT_CONFIG = {
                 "role": "legacy_optional",
                 "note": "Older LibreQoS installs only. Newer LibreQoS usually exposes Web UI through lqosd, so this unit may be not installed."
             },
-            "lqos_shaped_sync": {
+            "lqosync": {
                 "label": "LQoSync service",
                 "role": "required",
                 "note": "LQoSync dashboard, scheduler, and MikroTik-to-LibreQoS sync engine."

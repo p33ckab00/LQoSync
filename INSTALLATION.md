@@ -37,7 +37,7 @@ LQoSync uses this final path layout:
 /opt/lqosync/backups/              # pre-apply and restore backups
 ```
 
-The systemd service name and Docker container name remain `lqos_shaped_sync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
+The systemd service name and Docker container name remain `lqosync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
 
 
 ---
@@ -49,12 +49,12 @@ sudo apt update
 sudo apt install -y docker.io docker-compose-plugin unzip
 sudo systemctl enable --now docker
 cd /home/pi
-unzip lqos_shaped_sync_v2_17_opt_lqosync.zip
+unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 openssl rand -hex 32
 nano compose.yaml
 sudo docker compose up -d --build
-sudo docker logs -f lqos_shaped_sync
+sudo docker logs -f lqosync
 ```
 
 Open:
@@ -77,10 +77,10 @@ DOCKER_INSTALL.md
 sudo apt update
 sudo apt install -y unzip
 cd /home/pi
-unzip lqos_shaped_sync_v2_17_opt_lqosync.zip
+unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 sudo bash install.sh
-sudo systemctl status lqos_shaped_sync
+sudo systemctl status lqosync
 ```
 
 Open:
@@ -106,7 +106,7 @@ Use this when installing directly from GitHub instead of a ZIP package.
 ```bash
 cd /home/pi
 git clone https://github.com/p33ckab00/LQoSync.git
-cd lqos_shaped_sync
+cd lqosync
 ```
 
 ### Docker from Git
@@ -116,7 +116,7 @@ sudo apt update
 sudo apt install -y docker.io docker-compose-plugin git
 sudo systemctl enable --now docker
 sudo LQOSYNC_INIT_POLICY=preserve_existing docker compose up -d --build
-sudo docker logs -f lqos_shaped_sync
+sudo docker logs -f lqosync
 ```
 
 ### Bare-metal from Git
@@ -124,9 +124,9 @@ sudo docker logs -f lqos_shaped_sync
 ```bash
 sudo apt update
 sudo apt install -y git
-cd /home/pi/lqos_shaped_sync
+cd /home/pi/lqosync
 sudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh
-sudo systemctl status lqos_shaped_sync
+sudo systemctl status lqosync
 ```
 
 Full details:
@@ -173,14 +173,14 @@ UNINSTALLATION.md
 Quick bare-metal stop:
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
-sudo systemctl disable lqos_shaped_sync
+sudo systemctl stop lqosync
+sudo systemctl disable lqosync
 ```
 
 Quick Docker stop:
 
 ```bash
-cd /home/pi/lqos_shaped_sync
+cd /home/pi/lqosync
 sudo docker compose down
 ```
 
@@ -203,7 +203,7 @@ Permission denied: /opt/libreqos/src/config.json.tmp
 Manual repair command:
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 sudo apt update
 sudo apt install -y acl
 sudo setfacl -m u:lqosync:rwx /opt/libreqos/src
@@ -211,7 +211,7 @@ sudo setfacl -m u:lqosync:rw /opt/libreqos/src/config.json
 sudo setfacl -m u:lqosync:rw /opt/libreqos/src/ShapedDevices.csv
 sudo setfacl -m u:lqosync:rw /opt/libreqos/src/network.json
 sudo setfacl -d -m u:lqosync:rwX /opt/libreqos/src
-sudo systemctl start lqos_shaped_sync
+sudo systemctl start lqosync
 ```
 
 Permission test:
@@ -287,9 +287,9 @@ If you see `nsenter: cannot open /proc/1/ns/ipc: Permission denied` on a bare-me
 ```bash
 cd /opt/lqosync
 sudo git pull origin main
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 sudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh
-sudo systemctl start lqos_shaped_sync
+sudo systemctl start lqosync
 ```
 
 Then confirm:
@@ -319,7 +319,7 @@ Fresh installations are based on `config.json.example`. This template must alway
 
 `working_dir` is required because LibreQoS.py uses some relative filenames internally, including `ShapedDevices.lastLoaded.csv`. On bare-metal/systemd installations, `run_mode` must be `direct`; `host_nsenter` is Docker-only.
 
-LQoSync also normalizes config at application startup. This means a `git pull` followed by `systemctl restart lqos_shaped_sync` can still persist missing safe defaults into `/opt/libreqos/src/config.json`, even when `install.sh` is not re-run.
+LQoSync also normalizes config at application startup. This means a `git pull` followed by `systemctl restart lqosync` can still persist missing safe defaults into `/opt/libreqos/src/config.json`, even when `install.sh` is not re-run.
 
 
 ### Troubleshooting: LibreQoS says `ShapedDevices.csv` not found
@@ -342,8 +342,8 @@ If LQoSync logs show `FileNotFoundError: ShapedDevices.csv` while manual executi
 Then restart bare-metal LQoSync:
 
 ```bash
-sudo systemctl restart lqos_shaped_sync
-journalctl -u lqos_shaped_sync -f
+sudo systemctl restart lqosync
+journalctl -u lqosync -f
 ```
 
 LQoSync v2.27+ also enforces the effective working directory at runtime and records it in each LibreQoS apply log metadata.
@@ -407,7 +407,7 @@ cd /opt/lqosync
 sudo REMOVE_RUNTIME=true bash uninstall.sh
 ```
 
-The helper stops/removes `lqos_shaped_sync`, removes sudoers entries, restores LibreQoS ACL/ownership for managed files, and optionally removes the runtime folder.
+The helper stops/removes `lqosync`, removes sudoers entries, restores LibreQoS ACL/ownership for managed files, and optionally removes the runtime folder.
 
 ## Fresh LibreQoS Install and Existing File Safety
 

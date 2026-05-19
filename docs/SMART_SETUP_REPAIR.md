@@ -12,7 +12,7 @@ The center is read-only by default. It does not automatically repair the server 
 - LibreQoS command and working directory
 - Bare-metal runner mode safety, especially `run_mode=direct`
 - Router configuration completeness
-- Required service status for `lqosd`, `lqos_scheduler`, and `lqos_shaped_sync`
+- Required service status for `lqosd`, `lqos_scheduler`, and `lqosync`
 - Git/update state when available
 - Backup-before-apply readiness
 

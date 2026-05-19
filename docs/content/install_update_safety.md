@@ -48,7 +48,7 @@ python3 scripts/regression_check.py
 python3 scripts/config_migration_check.py
 python3 scripts/policy_path_audit.py
 python3 scripts/stable_release_check.py
-sudo systemctl restart lqos_shaped_sync
+sudo systemctl restart lqosync
 ```
 
 Then open WebUI:

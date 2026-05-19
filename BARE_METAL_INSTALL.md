@@ -36,7 +36,7 @@ LQoSync uses this final path layout:
 /opt/lqosync/backups/              # pre-apply and restore backups
 ```
 
-The systemd service name and Docker container name remain `lqos_shaped_sync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
+The systemd service name and Docker container name remain `lqosync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
 
 3. read existing `/opt/libreqos/src/network.json`
 4. connect to MikroTik read-only API
@@ -70,7 +70,7 @@ Runtime/log/backup files:
 /opt/lqosync/state/runtime_state.json
 /opt/lqosync/backups/
 /opt/lqosync/logs/
-/var/log/lqos_shaped_sync.log
+/var/log/lqosync.log
 ```
 
 ---
@@ -97,7 +97,7 @@ ls -ld /opt/libreqos/src
 
 ```bash
 cd /home/pi
-unzip lqos_shaped_sync_v2_17_opt_lqosync.zip
+unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 ```
 
@@ -169,8 +169,8 @@ sudo LQOSYNC_INIT_POLICY=create_missing_only bash install.sh
 ### 4. Check service
 
 ```bash
-sudo systemctl status lqos_shaped_sync
-sudo journalctl -u lqos_shaped_sync -f
+sudo systemctl status lqosync
+sudo journalctl -u lqosync -f
 ```
 
 ### 5. Open web UI
@@ -264,20 +264,20 @@ Use UI: Dashboard → Enable Scheduler
 Restart LQoSync:
 
 ```bash
-sudo systemctl restart lqos_shaped_sync
+sudo systemctl restart lqosync
 ```
 
 Stop LQoSync:
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 ```
 
 View logs:
 
 ```bash
-sudo journalctl -u lqos_shaped_sync -f
-sudo tail -f /var/log/lqos_shaped_sync.log
+sudo journalctl -u lqosync -f
+sudo tail -f /var/log/lqosync.log
 ```
 
 Run doctor:
@@ -297,14 +297,14 @@ sudo USERS_PATH=/opt/lqosync/users.json /opt/lqosync/venv/bin/python /opt/lqosyn
 ## Uninstall Bare-Metal Install
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
-sudo systemctl disable lqos_shaped_sync
-sudo rm -f /etc/systemd/system/lqos_shaped_sync.service
+sudo systemctl stop lqosync
+sudo systemctl disable lqosync
+sudo rm -f /etc/systemd/system/lqosync.service
 sudo systemctl daemon-reload
-sudo rm -f /etc/sudoers.d/lqos_shaped_sync
-sudo tar -czf /root/lqos_shaped_sync_backup_$(date +%Y%m%d_%H%M%S).tar.gz /opt/lqosync 2>/dev/null || true
+sudo rm -f /etc/sudoers.d/lqosync
+sudo tar -czf /root/lqosync_backup_$(date +%Y%m%d_%H%M%S).tar.gz /opt/lqosync 2>/dev/null || true
 sudo rm -rf /opt/lqosync
-sudo rm -f /var/log/lqos_shaped_sync.log
+sudo rm -f /var/log/lqosync.log
 sudo userdel lqosync 2>/dev/null || true
 ```
 
@@ -325,7 +325,7 @@ sudo systemctl restart lqosd lqos_scheduler
 sudo systemctl restart lqosd lqos_scheduler lqos_node_manager
 ```
 
-If your LibreQoS unit names differ, update `services.units` and `services.restart_groups` in `/opt/libreqos/src/config.json` and adjust `/etc/sudoers.d/lqos_shaped_sync` accordingly.
+If your LibreQoS unit names differ, update `services.units` and `services.restart_groups` in `/opt/libreqos/src/config.json` and adjust `/etc/sudoers.d/lqosync` accordingly.
 
 
 ## LibreQoS service status check
@@ -427,7 +427,7 @@ DHCP discovery failed: [Errno 13] Permission denied: '/opt/libreqos/src/config.j
 Run this repair command:
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 
 sudo apt update
 sudo apt install -y acl
@@ -438,7 +438,7 @@ sudo setfacl -m u:lqosync:rw /opt/libreqos/src/ShapedDevices.csv
 sudo setfacl -m u:lqosync:rw /opt/libreqos/src/network.json
 sudo setfacl -d -m u:lqosync:rwX /opt/libreqos/src
 
-sudo systemctl start lqos_shaped_sync
+sudo systemctl start lqosync
 ```
 
 Test permission:
@@ -453,7 +453,7 @@ If the test returns no error, try DHCP Discovery or Config Save again from the w
 Check logs:
 
 ```bash
-journalctl -u lqos_shaped_sync -f
+journalctl -u lqosync -f
 ```
 
 
@@ -522,9 +522,9 @@ If you see `nsenter: cannot open /proc/1/ns/ipc: Permission denied` on a bare-me
 ```bash
 cd /opt/lqosync
 sudo git pull origin main
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 sudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh
-sudo systemctl start lqos_shaped_sync
+sudo systemctl start lqosync
 ```
 
 Then confirm:
@@ -554,7 +554,7 @@ Fresh installations are based on `config.json.example`. This template must alway
 
 `working_dir` is required because LibreQoS.py uses some relative filenames internally, including `ShapedDevices.lastLoaded.csv`. On bare-metal/systemd installations, `run_mode` must be `direct`; `host_nsenter` is Docker-only.
 
-LQoSync also normalizes config at application startup. This means a `git pull` followed by `systemctl restart lqos_shaped_sync` can still persist missing safe defaults into `/opt/libreqos/src/config.json`, even when `install.sh` is not re-run.
+LQoSync also normalizes config at application startup. This means a `git pull` followed by `systemctl restart lqosync` can still persist missing safe defaults into `/opt/libreqos/src/config.json`, even when `install.sh` is not re-run.
 
 
 ### Troubleshooting: LibreQoS says `ShapedDevices.csv` not found
@@ -577,8 +577,8 @@ If LQoSync logs show `FileNotFoundError: ShapedDevices.csv` while manual executi
 Then restart bare-metal LQoSync:
 
 ```bash
-sudo systemctl restart lqos_shaped_sync
-journalctl -u lqos_shaped_sync -f
+sudo systemctl restart lqosync
+journalctl -u lqosync -f
 ```
 
 LQoSync v2.27+ also enforces the effective working directory at runtime and records it in each LibreQoS apply log metadata.
@@ -642,7 +642,7 @@ cd /opt/lqosync
 sudo REMOVE_RUNTIME=true bash uninstall.sh
 ```
 
-The helper stops/removes `lqos_shaped_sync`, removes sudoers entries, restores LibreQoS ACL/ownership for managed files, and optionally removes the runtime folder.
+The helper stops/removes `lqosync`, removes sudoers entries, restores LibreQoS ACL/ownership for managed files, and optionally removes the runtime folder.
 
 ## Fresh LibreQoS Install and Existing File Safety
 

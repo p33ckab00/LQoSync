@@ -100,7 +100,7 @@ preserve users.json
 preserve ShapedDevices.csv and network.json
 run safe config migration for missing defaults
 reapply ACL/sudoers/service settings
-restart lqos_shaped_sync
+restart lqosync
 run service health check
 ```
 

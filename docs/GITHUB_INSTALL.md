@@ -100,7 +100,7 @@ preserve users.json
 preserve ShapedDevices.csv and network.json
 run safe config migration for missing defaults
 reapply ACL/sudoers/service settings
-restart lqos_shaped_sync
+restart lqosync
 run service health check
 ```
 
@@ -170,7 +170,7 @@ Public repositories can be cloned/pulled without login. Private repositories req
 
 ## Existing installation handling
 
-If `/opt/lqosync` or an existing `lqos_shaped_sync` service is detected, `install-from-github.sh` now supports smart adoption.
+If `/opt/lqosync` or an existing `lqosync` service is detected, `install-from-github.sh` now supports smart adoption.
 
 Interactive mode:
 

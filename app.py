@@ -12,7 +12,7 @@ from auth.users import (
     authenticate, ensure_users_file, list_users, add_user, update_user,
     set_user_password, delete_user, role_at_least, role_options, ROLE_DEFINITIONS
 )
-from engine.config_loader import load_config, validate_config
+from engine.config_loader import load_config, save_config, validate_config
 from engine.run_cycle import run_cycle
 from engine.state import load_state, update_state
 from scheduler.runner import LQoSyncScheduler
@@ -26,30 +26,18 @@ from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
 from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS, is_setup_wizard_complete
-from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, POLICY_SCHEMA
+from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, reconcile_policy_mode, policy_context_changed, POLICY_SCHEMA, get_by_path
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
 from engine.production_readiness import compute_production_readiness
 from engine.apply_diagnostics import get_apply_diagnostic
 from engine.stable_release import compute_stable_release_check
 from engine.router_overview import compute_router_overview
-from engine.notifications import (
-    telegram_settings_summary,
-    send_test_message,
-    dispatch_telegram_notifications,
-    build_force_apply_notifications,
-)
+from engine.notifications import telegram_settings_summary, send_test_message, dispatch_telegram_notifications
 from engine.docs_search import search_docs, build_docs_index, get_doc
 from engine.config_simulator import simulate_config_change
 from engine.reports import compute_operator_report, report_to_csv, report_to_markdown
 from engine.config_schema import migrate_config_schema, validate_schema, CONFIG_SCHEMA_VERSION
-from engine.config_writer import (
-    ConfigRevisionConflict,
-    config_revision,
-    write_config_snapshot,
-)
-from engine.config_metadata import CONFIG_FIELD_RULES
-from engine.config_guide import build_config_guide
 from engine.release_integrity import compute_release_integrity, repair_config_defaults
 from engine.lifecycle import lifecycle_summary, client_event_timeline
 from engine.lifecycle_report import compute_lifecycle_report, lifecycle_report_to_csv, lifecycle_report_to_markdown
@@ -76,13 +64,7 @@ def _startup_config_normalize():
     """
     try:
         cfg = load_config(CONFIG_PATH)
-        write_config_snapshot(
-            CONFIG_PATH,
-            cfg,
-            actor="system",
-            action="config_startup_normalized",
-            backup_existing=True,
-        )
+        save_config(cfg, CONFIG_PATH, backup_existing=True)
     except Exception as exc:
         # Do not prevent the UI from booting. The dashboard/config page will show
         # the real config state and logs will surface the startup migration error.
@@ -104,30 +86,6 @@ def current_user():
     """Return the currently logged-in user dict, or None."""
     user = session.get("user")
     return user if isinstance(user, dict) else None
-
-
-def _write_config(
-    data: dict,
-    *,
-    action: str,
-    details: dict | None = None,
-    backup_existing: bool = True,
-    expected_revision: str | None = None,
-    audit_when_unchanged: bool = False,
-    preserve_requested_policy_mode: bool = False,
-):
-    """Write config.json through the single runtime config-write pipeline."""
-    return write_config_snapshot(
-        CONFIG_PATH,
-        data,
-        actor=(current_user() or {}).get("username") or "system",
-        action=action,
-        details=details,
-        backup_existing=backup_existing,
-        expected_revision=expected_revision,
-        audit_when_unchanged=audit_when_unchanged,
-        preserve_requested_policy_mode=preserve_requested_policy_mode,
-    )
 
 
 def login_required(view_func):
@@ -425,6 +383,29 @@ def _git_status(fetch_remote: bool = False):
             elif data["remote_version"] != "unknown" and data["local_version"] != "unknown":
                 data["version_relation"] = "different"
 
+        show_local = run_git(["show", "-s", "--format=%h%x09%cs%x09%s", "HEAD"])
+        if show_local.returncode == 0:
+            parts = show_local.stdout.strip().split("	", 2)
+            if len(parts) == 3:
+                data["local_change"] = {"short_commit": parts[0], "date": parts[1], "subject": parts[2]}
+
+        if data.get("remote_commit") not in (None, "unknown"):
+            show_remote = run_git(["show", "-s", "--format=%h%x09%cs%x09%s", data["remote_commit"]])
+            if show_remote.returncode == 0:
+                parts = show_remote.stdout.strip().split("	", 2)
+                if len(parts) == 3:
+                    data["remote_change"] = {"short_commit": parts[0], "date": parts[1], "subject": parts[2]}
+
+        log_range = f"HEAD..{upstream}" if data.get("relation") == "behind" else upstream
+        git_log = run_git(["log", "--pretty=format:%h%x09%cs%x09%s", "-n", "8", log_range])
+        if git_log.returncode == 0 and git_log.stdout.strip():
+            commits = []
+            for line in git_log.stdout.strip().splitlines():
+                parts = line.split("	", 2)
+                if len(parts) == 3:
+                    commits.append({"short_commit": parts[0], "date": parts[1], "subject": parts[2]})
+            data["latest_changes"] = commits
+
         res = run_git(["status", "--porcelain"])
         if res.returncode == 0:
             data["dirty"] = bool(res.stdout.strip())
@@ -576,7 +557,8 @@ def scheduler_action(action):
     else:
         flash("Invalid scheduler action.")
         return redirect(url_for("dashboard"))
-    _write_config(cfg, action=f"scheduler_{action}")
+    save_config(cfg, CONFIG_PATH)
+    write_audit(cfg, f"scheduler_{action}", actor=current_user().get("username"))
     flash(message)
     return redirect(url_for("dashboard"))
 
@@ -589,7 +571,7 @@ def scheduler_settings():
     for key in ("active_interval_seconds", "idle_interval_seconds", "error_retry_interval_seconds", "apply_cooldown_seconds"):
         if key in request.form:
             sched[key] = int(request.form.get(key) or 0)
-    _write_config(cfg, action="scheduler_settings_saved")
+    save_config(cfg, CONFIG_PATH)
     flash("Scheduler settings saved.")
     return redirect(url_for("config_page"))
 
@@ -770,8 +752,18 @@ def config_page():
         raw = request.form.get("config_json", "")
         try:
             data = json.loads(raw)
-            result = _write_config(data, action="config_saved", backup_existing=True)
-            previous_mode, new_mode = result.previous_policy_mode, result.policy_mode
+            previous = load_config(CONFIG_PATH)
+            previous_mode = ((previous.get("policies") or {}).get("mode") if isinstance(previous.get("policies"), dict) else None)
+            # Policy Overview controls include a few app.* runtime settings.
+            # They must still turn preset mode into Custom when edited from
+            # Config Center → Policies. This protects server-side saves even if
+            # browser JS misses markPolicyCustom().
+            if previous_mode in {"conservative", "balanced", "aggressive"} and policy_context_changed(previous, data):
+                data.setdefault("policies", {})["mode"] = "custom"
+            data = reconcile_policy_mode(data)
+            new_mode = ((data.get("policies") or {}).get("mode") if isinstance(data.get("policies"), dict) else None)
+            save_config(data, CONFIG_PATH, backup_existing=True)
+            write_audit(load_config(CONFIG_PATH), "config_saved", actor=current_user().get("username"), details={"previous_policy_mode": previous_mode, "policy_mode": new_mode})
             if previous_mode != new_mode and new_mode == "custom":
                 flash("config.json saved. Policy mode changed to Custom because saved policy values differ from the selected preset.")
             else:
@@ -803,10 +795,6 @@ def config_page():
         telegram=telegram_settings_summary(cfg),
         router_overview=router_overview,
         policy_hierarchy=grouped_policy_schema(),
-        policy_schema_paths=[item["path"] for item in POLICY_SCHEMA if item.get("path") and item["path"] != "policies.mode"],
-        config_revision=config_revision(cfg),
-        config_field_rules=CONFIG_FIELD_RULES,
-        config_field_guide=build_config_guide(cfg),
         initial_tab=initial_tab,
         user=current_user(),
     )
@@ -844,7 +832,8 @@ def toggle_dhcp_server(router_idx, server_idx):
     try:
         server = cfg["routers"][router_idx]["dhcp"]["servers"][server_idx]
         server["enabled"] = not bool(server.get("enabled", True))
-        _write_config(cfg, action="dhcp_server_toggled", details={"router_idx": router_idx, "server": server.get("name"), "enabled": server.get("enabled")})
+        save_config(cfg, CONFIG_PATH)
+        write_audit(cfg, "dhcp_server_toggled", actor=current_user().get("username"), details={"router_idx": router_idx, "server": server.get("name"), "enabled": server.get("enabled")})
         flash(f"DHCP server {server.get('name')} set enabled={server['enabled']}")
     except Exception as e:
         flash(f"Toggle failed: {e}")
@@ -930,7 +919,8 @@ def discover_current_dhcp():
                 })
                 existing.add(name)
                 added += 1
-        _write_config(cfg, action="dhcp_discovered", details={"router_idx": router_idx, "added": added})
+        save_config(cfg, CONFIG_PATH)
+        write_audit(cfg, "dhcp_discovered", actor=current_user().get("username"), details={"router_idx": router_idx, "added": added})
         flash(f"DHCP discovery complete using current UI config. Added {added} server(s), default excluded and saved config.json.")
     except Exception as e:
         flash(f"DHCP discovery failed: {e}")
@@ -982,7 +972,8 @@ def discover_dhcp(router_idx):
                 })
                 existing.add(name)
                 added += 1
-        _write_config(cfg, action="dhcp_discovered", details={"router_idx": router_idx, "added": added})
+        save_config(cfg, CONFIG_PATH)
+        write_audit(cfg, "dhcp_discovered", actor=current_user().get("username"), details={"router_idx": router_idx, "added": added})
         flash(f"DHCP discovery complete using current UI config. Added {added} server(s), default excluded and saved config.json.")
     except Exception as e:
         flash(f"DHCP discovery failed: {e}")
@@ -1018,17 +1009,10 @@ def policy_save_settings():
     cfg = load_config(CONFIG_PATH)
     before = cfg.get("policies", {})
     cfg = parse_policy_form(request.form, cfg)
-    result = _write_config(
-        cfg,
-        action="policy_settings_saved",
-        details={"previous_mode_from_form": before.get("mode") if isinstance(before, dict) else None},
-        backup_existing=True,
-    )
-    cfg, previous_mode, new_mode = result.config, result.previous_policy_mode, result.policy_mode
-    if previous_mode != new_mode and new_mode == "custom":
-        flash("Policy settings saved. Preset changed to Custom because saved policy values differ from the selected preset. Run Dry Run to preview decisions before enabling auto-apply.")
-    else:
-        flash(f"Policy settings saved. Policy mode: {new_mode}. Run Dry Run to preview decisions before enabling auto-apply.")
+    cfg.setdefault("policies", {})["mode"] = "custom"
+    save_config(cfg, CONFIG_PATH, backup_existing=True)
+    write_audit(cfg, "policy_settings_saved", actor=(current_user() or {}).get("username"), details={"mode": "custom", "previous_mode": before.get("mode") if isinstance(before, dict) else None})
+    flash("Policy settings saved. Preset changed to Custom because values were edited manually. Run Dry Run to preview decisions before enabling auto-apply.")
     return redirect(url_for("config_page", tab="policies"))
 
 
@@ -1038,13 +1022,8 @@ def policy_apply_preset(preset):
     cfg = load_config(CONFIG_PATH)
     try:
         new_cfg = apply_policy_preset(cfg, preset)
-        _write_config(
-            new_cfg,
-            action="policy_preset_applied",
-            details={"preset": preset},
-            backup_existing=True,
-            preserve_requested_policy_mode=True,
-        )
+        save_config(new_cfg, CONFIG_PATH, backup_existing=True)
+        write_audit(new_cfg, "policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
         flash(f"Policy preset applied: {preset}. Run Dry Run to preview cleanup/apply behavior.")
     except Exception as exc:
         flash(f"Unable to apply policy preset: {exc}")
@@ -1314,12 +1293,8 @@ def setup_wizard_policy_preset():
     preset = request.form.get("preset", "balanced")
     try:
         new_cfg = apply_policy_preset(cfg, preset)
-        _write_config(
-            new_cfg,
-            action="wizard_policy_preset_applied",
-            details={"preset": preset},
-            preserve_requested_policy_mode=True,
-        )
+        save_config(new_cfg, CONFIG_PATH)
+        write_audit(new_cfg, "wizard_policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
         flash(f"Wizard policy preset applied: {preset}. Run Dry Run before enabling scheduler or auto-apply.")
     except Exception as exc:
         flash(f"Wizard policy preset update failed: {exc}")
@@ -1345,7 +1320,8 @@ def setup_wizard_network_mode():
     else:
         cfg["flat_network"] = False
         cfg["no_parent"] = False
-    _write_config(cfg, action="wizard_network_mode_saved", details={"network_mode": mode})
+    save_config(cfg, CONFIG_PATH)
+    write_audit(cfg, "wizard_network_mode_saved", actor=(current_user() or {}).get("username"), details={"network_mode": mode})
     flash(f"Network layout mode saved: {mode}. Run Dry Run to preview generated parent nodes.")
     return redirect(url_for("setup_wizard_center"))
 
@@ -1361,7 +1337,8 @@ def setup_wizard_mark_complete():
         flash("Setup Wizard cannot be marked complete yet: " + "; ".join(wizard.get("go_live_blockers") or ["setup is not production-ready"]))
         return redirect(url_for("setup_wizard_center"))
     cfg.setdefault("setup_wizard", {})["first_run_completed"] = True
-    _write_config(cfg, action="setup_wizard_completed", details={"readiness": wizard.get("readiness"), "progress": wizard.get("progress")})
+    save_config(cfg, CONFIG_PATH)
+    write_audit(cfg, "setup_wizard_completed", actor=current_user().get("username"), details={"readiness": wizard.get("readiness"), "progress": wizard.get("progress")})
     flash("First Run Setup marked complete. Dashboard is now the default landing page.")
     return redirect(url_for("dashboard"))
 
@@ -1371,7 +1348,8 @@ def setup_wizard_mark_complete():
 def setup_wizard_reset():
     cfg = load_config(CONFIG_PATH)
     cfg.setdefault("setup_wizard", {})["first_run_completed"] = False
-    _write_config(cfg, action="setup_wizard_reset")
+    save_config(cfg, CONFIG_PATH)
+    write_audit(cfg, "setup_wizard_reset", actor=current_user().get("username"))
     flash("First Run Setup was reset. The wizard will guide administrators again until completed.")
     return redirect(url_for("setup_wizard_center"))
 
@@ -1396,23 +1374,13 @@ def notifications_center():
                 pass
         tg["send_digest"] = bool(request.form.get("send_digest"))
         tg["send_individual"] = bool(request.form.get("send_individual"))
-        tg["safety_alerts_enabled"] = bool(request.form.get("safety_alerts_enabled"))
-        tg["activity_journal_enabled"] = bool(request.form.get("activity_journal_enabled"))
-        tg["activity_send_digest"] = bool(request.form.get("activity_send_digest"))
-        tg["activity_send_individual"] = bool(request.form.get("activity_send_individual"))
-        tg["activity_silent_messages"] = bool(request.form.get("activity_silent_messages"))
         for key in [
             "notify_on_apply_failed", "notify_on_policy_block", "notify_on_confirmation_required",
             "notify_on_update_available", "notify_on_source_health_warning", "notify_on_performance_slow",
-            "notify_on_client_changes", "notify_on_apply_success", "notify_on_files_written",
         ]:
             tg[key] = bool(request.form.get(key))
-        _write_config(
-            cfg,
-            action="telegram_notifications_saved",
-            details={"enabled": tg.get("enabled"), "levels": tg.get("notify_levels")},
-            backup_existing=True,
-        )
+        save_config(cfg, CONFIG_PATH, backup_existing=True)
+        write_audit(cfg, "telegram_notifications_saved", actor=(current_user() or {}).get("username"), details={"enabled": tg.get("enabled"), "levels": tg.get("notify_levels")})
         flash("Telegram notification settings saved. Notifications now live under Config Center.")
     return redirect(url_for("config_page", tab="notifications"))
 
@@ -1435,7 +1403,7 @@ def notifications_send_current():
     services = all_service_status(cfg)
     apply_runs = list_apply_runs(cfg, limit=25)
     report = compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs)
-    result = dispatch_telegram_notifications(cfg, report.get("notifications", []), force=bool(request.form.get("force")), title="LQoSync current health alerts", lane="alerts")
+    result = dispatch_telegram_notifications(cfg, report.get("notifications", []), force=bool(request.form.get("force")), title="LQoSync current health alerts")
     write_audit(cfg, "telegram_current_alerts_sent", actor=(current_user() or {}).get("username"), details={"ok": result.get("ok"), "sent": result.get("sent"), "reason": result.get("reason")})
     if result.get("ok"):
         flash(f"Telegram current alerts sent: {result.get('sent', 0)} item(s).")
@@ -1486,12 +1454,8 @@ def setup_repair_policy_preset():
     preset = request.form.get("preset", "balanced")
     try:
         new_cfg = apply_policy_preset(cfg, preset)
-        _write_config(
-            new_cfg,
-            action="policy_preset_applied",
-            details={"preset": preset},
-            preserve_requested_policy_mode=True,
-        )
+        save_config(new_cfg, CONFIG_PATH)
+        write_audit(new_cfg, "policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
         flash(f"Smart Policy preset applied: {preset}. Run Dry Run before enabling scheduler or auto-apply.")
     except Exception as exc:
         flash(f"Policy preset update failed: {exc}")
@@ -1501,7 +1465,9 @@ def setup_repair_policy_preset():
 @app.route("/setup-repair/repair-defaults", methods=["POST"])
 @owner_required
 def setup_repair_repair_defaults():
-    result = repair_config_defaults(CONFIG_PATH, actor=(current_user() or {}).get("username") or "system")
+    cfg = load_config(CONFIG_PATH)
+    result = repair_config_defaults(CONFIG_PATH)
+    write_audit(cfg, "smart_defaults_repair", actor=(current_user() or {}).get("username"), details=result)
     if result.get("ok"):
         flash("Smart Defaults Repair completed. Missing safe defaults were merged and config.json was backed up first.")
     else:
@@ -1649,14 +1615,14 @@ def operations_center():
         "allowed_limits": allowed_apply_limits,
     }
 
-    selected_unit = request.args.get("unit") or next(iter(services.keys()), "lqos_shaped_sync")
+    selected_unit = request.args.get("unit") or next(iter(services.keys()), "lqosync")
     try:
         lines_count = int(request.args.get("lines", cfg.get("services", {}).get("journal_lines_default", 100)))
     except Exception:
         lines_count = 100
     journal = journal_lines(cfg, selected_unit, lines=lines_count) if selected_unit else {"stdout": "", "stderr": ""}
 
-    log_file = Path(cfg["paths"].get("log_file", "logs/lqos_shaped_sync.log"))
+    log_file = Path(cfg["paths"].get("log_file", "logs/lqosync.log"))
     app_log_lines = []
     if log_file.exists():
         app_log_lines = log_file.read_text(encoding="utf-8", errors="ignore").splitlines()[-500:]
@@ -1915,20 +1881,6 @@ def api_restart_service_group(group):
     return jsonify(res)
 
 
-def _dispatch_force_apply_telegram(cfg, lq, *, actor=None):
-    """Best-effort Telegram feed for direct/manual LibreQoS apply routes."""
-    try:
-        alerts, activity = build_force_apply_notifications(lq, reason="force_apply")
-        if alerts:
-            dispatch = dispatch_telegram_notifications(cfg, alerts, lane="alerts", title="LQoSync safety alerts")
-            write_audit(cfg, "telegram_runtime_alerts", actor=actor, details={"ok": dispatch.get("ok"), "sent": dispatch.get("sent"), "reason": dispatch.get("reason"), "events": [item.get("event") for item in alerts]})
-        if activity:
-            dispatch = dispatch_telegram_notifications(cfg, activity, lane="activity", title="LQoSync activity journal")
-            write_audit(cfg, "telegram_runtime_activity", actor=actor, details={"ok": dispatch.get("ok"), "sent": dispatch.get("sent"), "reason": dispatch.get("reason"), "events": [item.get("event") for item in activity]})
-    except Exception as exc:
-        write_audit(cfg, "telegram_runtime_force_apply_failed", actor=actor, details={"error": str(exc)})
-
-
 @app.route("/libreqos/force-apply", methods=["POST"])
 @admin_required
 def libreqos_force_apply():
@@ -1948,7 +1900,6 @@ def libreqos_force_apply():
         last_libreqos_run_id=lq.get("run_id"),
     )
     write_audit(cfg, "libreqos_force_apply", actor=current_user().get("username"), details={"ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id")})
-    _dispatch_force_apply_telegram(cfg, lq, actor=current_user().get("username"))
     if lq.get("ok"):
         flash("LibreQoS force apply completed.")
         return redirect(url_for("operations_center", tab="apply"))
@@ -1974,7 +1925,6 @@ def api_libreqos_force_apply():
         last_libreqos_run_id=lq.get("run_id"),
     )
     write_audit(cfg, "api_libreqos_force_apply", actor=current_user().get("username"), details={"ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id")})
-    _dispatch_force_apply_telegram(cfg, lq, actor=current_user().get("username"))
     return jsonify(lq)
 
 
@@ -2073,11 +2023,11 @@ def api_scheduler_action(action):
             return jsonify({"ok": False, "blocked": True, "error": "setup_not_ready", "blockers": blockers, "wizard": wizard}), 409
         sched["enabled"] = True
         cfg.setdefault("setup_wizard", {})["first_run_completed"] = True
-        _write_config(cfg, action=f"api_scheduler_{action}")
+        save_config(cfg, CONFIG_PATH)
         return jsonify({"ok": True, "scheduler_enabled": True, "setup_complete": True})
     if action in ("disable", "pause"):
         sched["enabled"] = False
-        _write_config(cfg, action=f"api_scheduler_{action}")
+        save_config(cfg, CONFIG_PATH)
         return jsonify({"ok": True, "scheduler_enabled": False})
     if action == "run-now":
         if _manual_sync_blocked(cfg):
@@ -2097,7 +2047,7 @@ def api_scheduler_intervals():
     for key in allowed:
         if key in data and data[key] not in (None, ""):
             sched[key] = int(data[key])
-    _write_config(cfg, action="api_scheduler_intervals_saved")
+    save_config(cfg, CONFIG_PATH)
     return jsonify({"ok": True, "scheduler": sched})
 
 
@@ -2107,31 +2057,9 @@ def api_config():
     if request.method == "GET":
         return jsonify(load_config(CONFIG_PATH))
     try:
-        payload = request.get_json(force=True)
-        data = payload.get("config") if isinstance(payload, dict) and isinstance(payload.get("config"), dict) else payload
-        expected_revision = payload.get("expected_revision") if isinstance(payload, dict) else None
-        result = _write_config(
-            data,
-            action="config_autosaved",
-            expected_revision=expected_revision,
-        )
-        return jsonify({
-            "ok": True,
-            "previous_policy_mode": result.previous_policy_mode,
-            "policy_mode": result.policy_mode,
-            "config": result.config,
-            "revision": result.revision,
-            "change_count": len(result.changes),
-            "changes": result.changes,
-        })
-    except ConfigRevisionConflict as conflict:
-        return jsonify({
-            "ok": False,
-            "error": "config_revision_conflict",
-            "message": "config.json changed after this page loaded",
-            "config": conflict.current_config,
-            "revision": conflict.current_revision,
-        }), 409
+        data = request.get_json(force=True)
+        save_config(data, CONFIG_PATH)
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
@@ -2207,13 +2135,13 @@ def api_delete_backup(backup_id):
 @login_required
 def download_log():
     cfg = load_config(CONFIG_PATH)
-    p = Path(cfg["paths"].get("log_file", "logs/lqos_shaped_sync.log"))
+    p = Path(cfg["paths"].get("log_file", "logs/lqosync.log"))
     data = p.read_text(encoding="utf-8", errors="ignore") if p.exists() else ""
-    return Response(data, mimetype="text/plain", headers={"Content-Disposition": "attachment; filename=lqos_shaped_sync.log"})
+    return Response(data, mimetype="text/plain", headers={"Content-Disposition": "attachment; filename=lqosync.log"})
 
 @app.route("/healthz")
 def healthz():
-    return jsonify({"ok": True, "service": "lqos_shaped_sync"})
+    return jsonify({"ok": True, "service": "lqosync"})
 
 
 if __name__ == "__main__":

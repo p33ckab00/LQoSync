@@ -4,10 +4,6 @@ window.initialConfig = {{ config | tojson }};
 window.initialSchemaReport = {{ schema_report | tojson }};
 window.routerOverview = {{ router_overview | tojson }};
 window.initialConfigTab = {{ initial_tab | tojson }};
-window.policySchemaPaths = {{ policy_schema_paths | tojson }};
-window.initialConfigRevision = {{ config_revision | tojson }};
-window.configFieldRules = {{ config_field_rules | tojson }};
-window.configFieldGuide = {{ config_field_guide | tojson }};
 function cfgEditor(initial) {
   const blankFactor = () => ({max_plan_mbps: 9999, download_factor: 1.0, upload_factor: 1.0});
   const blankDhcp = () => ({
@@ -25,7 +21,7 @@ function cfgEditor(initial) {
   });
   const absPaths = (cfg) => {
     cfg.paths.backup_dir ||= '/opt/lqosync/backups';
-    cfg.paths.log_file ||= '/opt/lqosync/logs/lqos_shaped_sync.log';
+    cfg.paths.log_file ||= '/opt/lqosync/logs/lqosync.log';
     cfg.paths.runtime_state ||= '/opt/lqosync/state/runtime_state.json';
     cfg.paths.lock_file ||= '/opt/lqosync/state/lqosync.lock';
     cfg.paths.audit_log ||= '/opt/lqosync/logs/audit.jsonl';
@@ -45,8 +41,8 @@ function cfgEditor(initial) {
     cfg.defaults.id_length ??= 8; cfg.defaults.min_rate_percentage ??= 0.5; cfg.defaults.default_pppoe_profile ??= 'default'; cfg.defaults.default_pppoe_rate ??= '10M/10M'; cfg.defaults.default_dhcp_per_client_mbps ??= 15; cfg.defaults.default_hotspot_per_client_mbps ??= 10; cfg.defaults.duplicate_ip_policy ??= 'warn_and_skip'; cfg.defaults.static_comment_value ??= 'static';
     cfg.preflight.enabled ??= true; cfg.preflight.duplicate_ip_policy ??= 'warn_and_skip'; cfg.preflight.missing_parent_policy ??= 'block'; cfg.preflight.invalid_bandwidth_policy ??= 'block';
     cfg.ui.refresh_seconds ??= 5; cfg.ui.show_raw_json_editor ??= true; cfg.ui.default_theme ??= 'light';
-    cfg.services.units ??= ['lqosd','lqos_scheduler','lqos_shaped_sync']; cfg.services.legacy_optional_units ??= ['lqos_node_manager']; cfg.services.show_legacy_optional_not_installed ??= false; cfg.services.restart_groups ??= {libreqos_core: ['lqosd','lqos_scheduler']}; cfg.services.journal_lines_default ??= 100; cfg.services.unit_metadata ??= {lqos_node_manager:{label:'Legacy Web UI service',role:'legacy_optional',note:'Older LibreQoS installs only. Newer installs usually use lqosd for the Web UI.'}};
-    cfg.notifications ||= {}; cfg.notifications.telegram ||= {}; let tg=cfg.notifications.telegram; tg.enabled ??= false; tg.bot_token ??= ''; tg.chat_id ??= ''; tg.base_url ??= ''; tg.parse_mode ??= 'HTML'; tg.notify_levels ??= ['critical','warning']; tg.timeout_seconds ??= 10; tg.minimum_interval_seconds ??= 60; tg.dedupe_window_minutes ??= 60; tg.max_items_per_digest ??= 10; tg.safety_alerts_enabled ??= true; tg.send_digest ??= true; tg.send_individual ??= false; tg.activity_journal_enabled ??= true; tg.activity_send_digest ??= true; tg.activity_send_individual ??= false; tg.activity_silent_messages ??= true; ['notify_on_apply_failed','notify_on_policy_block','notify_on_confirmation_required','notify_on_update_available','notify_on_source_health_warning','notify_on_performance_slow','notify_on_client_changes','notify_on_apply_success','notify_on_files_written'].forEach(k => tg[k] ??= true);
+    cfg.services.units ??= ['lqosd','lqos_scheduler','lqosync']; cfg.services.legacy_optional_units ??= ['lqos_node_manager']; cfg.services.show_legacy_optional_not_installed ??= false; cfg.services.restart_groups ??= {libreqos_core: ['lqosd','lqos_scheduler']}; cfg.services.journal_lines_default ??= 100; cfg.services.unit_metadata ??= {lqos_node_manager:{label:'Legacy Web UI service',role:'legacy_optional',note:'Older LibreQoS installs only. Newer installs usually use lqosd for the Web UI.'}};
+    cfg.notifications ||= {}; cfg.notifications.telegram ||= {}; let tg=cfg.notifications.telegram; tg.enabled ??= false; tg.bot_token ??= ''; tg.chat_id ??= ''; tg.base_url ??= ''; tg.parse_mode ??= 'HTML'; tg.notify_levels ??= ['critical','warning']; tg.timeout_seconds ??= 10; tg.minimum_interval_seconds ??= 60; tg.dedupe_window_minutes ??= 60; tg.max_items_per_digest ??= 10; tg.send_digest ??= true; tg.send_individual ??= false; ['notify_on_apply_failed','notify_on_policy_block','notify_on_confirmation_required','notify_on_update_available','notify_on_source_health_warning','notify_on_performance_slow'].forEach(k => tg[k] ??= true);
     cfg.policies ||= {}; cfg.policies.mode ??= 'balanced'; cfg.policies.cleanup ||= {}; cfg.policies.cleanup.enabled ??= true; cfg.policies.cleanup.global_default_action ??= 'require_confirm_next_run'; cfg.policies.cleanup.confirmation_expires_hours ??= 24; cfg.policies.cleanup.apply_confirmed_cleanup ??= 'next_run'; cfg.policies.cleanup.allow_immediate_cleanup ??= true;
     cfg.policies.cleanup_sources ||= {}; ['pppoe','dhcp','hotspot','static'].forEach(src => { cfg.policies.cleanup_sources[src] ||= {}; let p=cfg.policies.cleanup_sources[src]; p.enabled ??= true; p.normal_inactive_action ??= (src==='pppoe'?'cleanup_next_run':(src==='static'?'preserve_rows':'cleanup_immediate')); p.source_disabled_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.collector_failed_action ??= 'preserve_rows'; p.zero_result_action ??= (src==='static'?'preserve_rows':'block_cleanup'); p.mass_removal_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.respect_percentage_guards ??= (src==='pppoe'||src==='static'); });
     cfg.policies.node_cleanup_guard ||= {}; cfg.policies.node_cleanup_guard.enabled ??= true; cfg.policies.node_cleanup_guard.threshold_percent ??= 30; cfg.policies.node_cleanup_guard.min_node_size ??= 10; cfg.policies.node_cleanup_guard.min_removed_count ??= 3; cfg.policies.node_cleanup_guard.action ??= 'require_confirm_next_run';
@@ -65,9 +61,7 @@ function cfgEditor(initial) {
   };
   return {
     cfg: ensure(JSON.parse(JSON.stringify(initial))),
-    tab: (window.initialConfigTab || 'overview'), routerIndex: 0, rawDraft: '', rawError: '', showRawEditor: false, guideQuery: '', selectedGuidePath: '',
-    schemaReport: window.initialSchemaReport || {}, simulation: null, simLoading: false, simError: '',
-    liveSaveTimer: null, liveSaveInFlight: false, liveSaveQueued: false, liveSaveState: 'saved', liveSaveMessage: 'Loaded from config.json.', lastSavedAt: '', configRevision: window.initialConfigRevision || '',
+    tab: (window.initialConfigTab || 'overview'), routerIndex: 0, rawDraft: '', rawError: '', showRawEditor: false,
     get routers(){ return this.cfg.routers || []; },
     get currentRouter(){ return this.routers[this.routerIndex] || null; },
     get jsonText(){ this.normalizeNetworkMode(); return JSON.stringify(this.cfg, null, 2); },
@@ -83,99 +77,17 @@ function cfgEditor(initial) {
     networkModeLabel(){
       return {router_children: 'Normal hierarchy: router root + service/plan child nodes', deep_hierarchy: 'Deep hierarchy: routers can be nested under parent nodes', custom_hierarchy: 'Custom hierarchy: topology editor / virtual grouping mode', flat_router_root: 'Flat: all generated circuits under router root', flat_no_parent: 'Flat: blank Parent Node, no generated node tree'}[this.cfg.network_mode] || 'Hierarchy';
     },
-    syncHidden(){ this.normalizeNetworkMode(); this.cfg = ensure(this.cfg); if(this.shouldForceCustomPolicy()) this.cfg.policies.mode = 'custom'; if(this.$refs.configJson) this.$refs.configJson.value = this.jsonText; },
-    clone(value){ return JSON.parse(JSON.stringify(value)); },
-    liveSavedConfig(saved, revision=''){ this.cfg = ensure(this.clone(saved)); window.initialConfig = this.clone(this.cfg); if(revision){ this.configRevision = revision; window.initialConfigRevision = revision; } if(this.routerIndex >= this.cfg.routers.length) this.routerIndex = Math.max(0, this.cfg.routers.length - 1); },
-    liveStatusClass(){ return this.liveSaveState === 'failed' ? 'b-err' : (this.liveSaveState === 'saving' ? 'b-warn' : 'b-ok'); },
-    liveStatusLabel(){ return this.liveSaveState === 'failed' ? 'Save failed' : (this.liveSaveState === 'saving' ? 'Saving live' : 'Saved live'); },
-    queueLiveSave(reason='change', immediate=false){
-      this.liveSaveMessage = 'Pending live save…';
-      if(this.liveSaveTimer) clearTimeout(this.liveSaveTimer);
-      const delay = immediate ? 0 : 650;
-      this.liveSaveTimer = setTimeout(() => this.saveLiveConfig(reason), delay);
-    },
-    queueLiveSaveFromEvent(event){
-      const el = event?.target;
-      if(!el || !['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return;
-      if(el.type === 'hidden') return;
-      // Number fields can pass through an empty intermediate state while the
-      // operator is typing; wait for a complete value or blur/change event.
-      if(event.type === 'input' && el.type === 'number' && el.value === '') return;
-      const immediate = event.type === 'change' || el.type === 'checkbox' || el.tagName === 'SELECT';
-      this.queueLiveSave('field_change', immediate);
-    },
-    async saveLiveConfig(reason='change'){
-      if(this.liveSaveTimer){ clearTimeout(this.liveSaveTimer); this.liveSaveTimer = null; }
-      if(this.liveSaveInFlight){ this.liveSaveQueued = true; return; }
-      this.syncHidden();
-      const payload = this.clone(this.cfg);
-      this.liveSaveInFlight = true;
-      this.liveSaveState = 'saving';
-      this.liveSaveMessage = 'Writing config.json…';
-      try{
-        const res = await lqosJsonFetch('/api/config', {config: payload, expected_revision: this.configRevision}, {method:'PUT'});
-        const data = await res.json();
-        if(res.status === 409 && data.error === 'config_revision_conflict'){
-          this.liveSaveState = 'failed';
-          this.liveSaveMessage = 'External config change detected. UI refreshed from latest config.json; re-apply your change if still needed.';
-          this.liveSavedConfig(data.config || {}, data.revision || '');
-          this.liveSaveQueued = false;
-          return;
-        }
-        if(!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
-        if(this.liveSaveQueued){
-          // A newer operator edit happened while this write was in flight.
-          // Keep the newer local UI state, but advance the saved baseline so the
-          // follow-up write compares against the exact config now on disk.
-          window.initialConfig = this.clone(data.config || payload);
-          this.configRevision = data.revision || this.configRevision;
-          window.initialConfigRevision = this.configRevision;
-        } else {
-          this.liveSavedConfig(data.config || payload, data.revision || '');
-        }
-        this.liveSaveState = 'saved';
-        this.lastSavedAt = new Date().toLocaleTimeString();
-        this.liveSaveMessage = 'Saved to config.json' + (this.lastSavedAt ? ' at ' + this.lastSavedAt : '') + '.';
-      }catch(e){
-        this.liveSaveState = 'failed';
-        this.liveSaveMessage = 'Save failed: ' + e;
-        // Keep the page honest: failed writes fall back to the last confirmed
-        // server snapshot instead of displaying a value that is not active.
-        this.cfg = ensure(this.clone(window.initialConfig || {}));
-      }finally{
-        this.liveSaveInFlight = false;
-        if(this.liveSaveQueued){
-          this.liveSaveQueued = false;
-          this.queueLiveSave('queued_change', true);
-        }
-      }
-    },
-    openRaw(){ this.rawDraft = this.jsonText; this.rawError=''; this.showRawEditor = true; this.ensureGuideSelection(); },
-    applyRaw(){ try { this.cfg = ensure(JSON.parse(this.rawDraft)); this.rawError=''; this.showRawEditor=false; if(this.routerIndex >= this.cfg.routers.length) this.routerIndex = 0; this.queueLiveSave('raw_json', true); } catch(e) { this.rawError = e.message; } },
-    addRouter(){ this.cfg.routers.push(blankRouter()); this.routerIndex = this.cfg.routers.length - 1; this.tab = 'router'; this.queueLiveSave('router_added', true); },
-    removeRouter(i){ if(confirm('Remove router from config.json? This does not touch MikroTik.')) { this.cfg.routers.splice(i,1); this.routerIndex = Math.max(0, Math.min(this.routerIndex, this.cfg.routers.length-1)); this.queueLiveSave('router_removed', true); } },
-    addDhcp(router){ router.dhcp ||= {enabled: true, servers: []}; router.dhcp.servers.push(blankDhcp()); this.queueLiveSave('dhcp_added', true); },
-    removeDhcp(router, i){ if(confirm('Remove DHCP server entry from config.json? This does not touch MikroTik.')) { router.dhcp.servers.splice(i,1); this.queueLiveSave('dhcp_removed', true); } },
+    syncHidden(){ this.normalizeNetworkMode(); this.cfg = ensure(this.cfg); if(this.shouldForceCustomPolicy()) this.cfg.policies.mode = 'custom'; this.$refs.configJson.value = this.jsonText; },
+    openRaw(){ this.rawDraft = this.jsonText; this.rawError=''; this.showRawEditor = true; },
+    applyRaw(){ try { this.cfg = ensure(JSON.parse(this.rawDraft)); this.rawError=''; this.showRawEditor=false; if(this.routerIndex >= this.cfg.routers.length) this.routerIndex = 0; } catch(e) { this.rawError = e.message; } },
+    addRouter(){ this.cfg.routers.push(blankRouter()); this.routerIndex = this.cfg.routers.length - 1; this.tab = 'router'; },
+    removeRouter(i){ if(confirm('Remove router from config.json? This does not touch MikroTik.')) { this.cfg.routers.splice(i,1); this.routerIndex = Math.max(0, Math.min(this.routerIndex, this.cfg.routers.length-1)); } },
+    addDhcp(router){ router.dhcp ||= {enabled: true, servers: []}; router.dhcp.servers.push(blankDhcp()); },
+    removeDhcp(router, i){ if(confirm('Remove DHCP server entry from config.json? This does not touch MikroTik.')) router.dhcp.servers.splice(i,1); },
     markPolicyCustom(){ this.cfg.policies ||= {}; if(this.cfg.policies.mode !== 'custom') this.cfg.policies.mode = 'custom'; },
     policyContextPaths(){ return ['app.operation_mode','app.auto_apply','app.backup_before_apply','app.backup_retention','scheduler.enabled','scheduler.apply_cooldown_seconds','libreqos.run_only_when_files_changed','libreqos.retry_if_last_apply_failed','libreqos.run_mode','preflight.enabled','preflight.duplicate_ip_policy','preflight.missing_parent_policy','preflight.invalid_bandwidth_policy','defaults.duplicate_ip_policy']; },
-    metaForPath(path){ const p=String(path || ''); return (window.configFieldRules || []).find(r => p === r.prefix || p.startsWith(r.prefix)) || {effectivity_label:'Next config read', explanation:'config.json is the source of truth; readers use the saved value on their next read.'}; },
-    configGuides(){ return window.configFieldGuide || []; },
-    visibleGuides(){
-      const q=String(this.guideQuery || '').trim().toLowerCase();
-      const rows=this.configGuides();
-      if(!q) return rows;
-      return rows.filter(g => [g.path,g.normalized_path,g.label,g.section,g.what,g.why,g.how,g.risk].join(' ').toLowerCase().includes(q));
-    },
-    ensureGuideSelection(){
-      const rows=this.visibleGuides();
-      if(!rows.length){ this.selectedGuidePath=''; return; }
-      if(!rows.some(g => g.path === this.selectedGuidePath)) this.selectedGuidePath = rows[0].path;
-    },
-    selectGuide(path){ this.selectedGuidePath = path; },
-    selectedGuide(){
-      return this.configGuides().find(g => g.path === this.selectedGuidePath) || this.visibleGuides()[0] || null;
-    },
-    policyContextChanged(){ const before = window.initialConfig || {}; const after = this.cfg || {}; const get=(obj,path)=>String(path).split('.').reduce((o,k)=>(o && o[k] !== undefined ? o[k] : undefined), obj); const paths=[...(window.policySchemaPaths || []), ...this.policyContextPaths()]; return paths.some(path => JSON.stringify(get(before,path)) !== JSON.stringify(get(after,path))); },
+    policyBlockWithoutMode(obj){ const copy = JSON.parse(JSON.stringify((obj && obj.policies) || {})); delete copy.mode; return copy; },
+    policyContextChanged(){ const before = window.initialConfig || {}; const after = this.cfg || {}; const get=(obj,path)=>String(path).split('.').reduce((o,k)=>o&&o[k], obj); if(JSON.stringify(this.policyBlockWithoutMode(before)) !== JSON.stringify(this.policyBlockWithoutMode(after))) return true; return this.policyContextPaths().some(path => JSON.stringify(get(before,path)) !== JSON.stringify(get(after,path))); },
     shouldForceCustomPolicy(){ const mode = (this.cfg?.policies?.mode || 'balanced'); return ['conservative','balanced','aggressive'].includes(mode) && this.policyContextChanged(); },
     policyActions(){ return ['preserve_rows','warn_only','cleanup_immediate','cleanup_next_run','require_confirm_immediate','require_confirm_next_run','block_cleanup','block_apply']; },
     policyPresetActive(preset){ return (this.cfg?.policies?.mode || 'balanced') === preset; },
@@ -185,21 +97,16 @@ function cfgEditor(initial) {
     customPolicyClass(){ return this.policyIsCustom() ? 'btn-primary' : ''; },
     asBool(value){ return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true' || String(value).toLowerCase() === 'yes' || String(value).toLowerCase() === 'on'; },
     getPath(path){ return String(path).split('.').reduce((obj,key)=>obj ? obj[key] : undefined, this.cfg); },
-    setPath(path, value){ const parts=String(path).split('.'); let cur=this.cfg; for(let i=0;i<parts.length-1;i++){ if(cur[parts[i]]===undefined || cur[parts[i]]===null || typeof cur[parts[i]]!=='object') cur[parts[i]]={}; cur=cur[parts[i]]; } cur[parts[parts.length-1]]=value; this.markPolicyCustom(); this.queueLiveSave('policy_path'); },
+    setPath(path, value){ const parts=String(path).split('.'); let cur=this.cfg; for(let i=0;i<parts.length-1;i++){ if(cur[parts[i]]===undefined || cur[parts[i]]===null || typeof cur[parts[i]]!=='object') cur[parts[i]]={}; cur=cur[parts[i]]; } cur[parts[parts.length-1]]=value; this.markPolicyCustom(); },
     policyRiskClass(risk){ return risk==='critical' ? 'b-err' : (risk==='high' ? 'b-warn' : (risk==='medium' ? 'b-dhcp' : 'b-ok')); },
     notifyLevelOptions(){ return ['critical','warning','info']; },
-    safetyEventToggleOptions(){ return [
+    eventToggleOptions(){ return [
       ['notify_on_apply_failed','LibreQoS apply failed'],
       ['notify_on_policy_block','Policy block / high risk'],
       ['notify_on_confirmation_required','Cleanup confirmation required'],
       ['notify_on_update_available','Update available'],
       ['notify_on_source_health_warning','Source health warning'],
       ['notify_on_performance_slow','Performance slow']
-    ]; },
-    activityEventToggleOptions(){ return [
-      ['notify_on_client_changes','Client records changed'],
-      ['notify_on_apply_success','LibreQoS apply completed'],
-      ['notify_on_files_written','Generated files changed']
     ]; },
     async testSavedTelegram(){ try{ const res=await lqosJsonFetch('/api/notifications/telegram/test', {}); const data=await res.json(); alert(data.ok ? 'Telegram test sent successfully.' : ('Telegram test failed: ' + (data.error || data.reason || JSON.stringify(data)))); }catch(e){ alert('Telegram test failed: ' + e); } },
     async applyPolicyPreset(preset){
@@ -216,8 +123,8 @@ function cfgEditor(initial) {
         window.location = '/config?tab=policies';
       }catch(e){ alert('Policy preset apply failed: ' + e); }
     },
-    addFactor(router){ router.pppoe ||= {factor_rules: []}; router.pppoe.factor_rules.push(blankFactor()); this.queueLiveSave('factor_added', true); },
-    removeFactor(router, i){ router.pppoe.factor_rules.splice(i,1); this.queueLiveSave('factor_removed', true); },
+    addFactor(router){ router.pppoe ||= {factor_rules: []}; router.pppoe.factor_rules.push(blankFactor()); },
+    removeFactor(router, i){ router.pppoe.factor_rules.splice(i,1); },
     submitTest(){ this.syncHidden(); this.$refs.testRouterIdx.value = String(this.routerIndex ?? 0); this.$refs.testPayload.value = this.jsonText; this.$refs.testForm.submit(); },
     submitDiscover(){ this.syncHidden(); this.$refs.discoverRouterIdx.value = String(this.routerIndex ?? 0); this.$refs.discoverPayload.value = this.jsonText; this.$refs.discoverForm.submit(); },
     changedPaths(){
@@ -234,7 +141,7 @@ function cfgEditor(initial) {
       if(JSON.stringify(before.routers||[])!==JSON.stringify(after.routers||[])) out.push({path:'routers',label:'Router/source settings',before:(before.routers||[]).length+' router(s)',after:(after.routers||[]).length+' router(s)'});
       return out;
     },
-    configDiffHtml(){ const changes=this.changedPaths(); if(!changes.length) return '<div class="cfg-help">No important changes detected yet. Saving will still normalize config.json safely.</div>'; return changes.slice(0,8).map(c=>{ const meta=this.metaForPath(c.path); return `<div class="cfg-subtle"><div class="op-line"><strong>${c.label}</strong><span>${JSON.stringify(c.before)} → ${JSON.stringify(c.after)}</span></div><div class="cfg-help"><b>Effective:</b> ${meta.effectivity_label}. ${meta.explanation}</div></div>`; }).join('') + (changes.length>8?`<div class="cfg-help">+${changes.length-8} more changed groups</div>`:''); },
+    configDiffHtml(){ const changes=this.changedPaths(); if(!changes.length) return '<div class="cfg-help">No important changes detected yet. Saving will still normalize config.json safely.</div>'; return changes.slice(0,8).map(c=>`<div class="op-line"><strong>${c.label}</strong><span>${JSON.stringify(c.before)} → ${JSON.stringify(c.after)}</span></div>`).join('') + (changes.length>8?`<div class="cfg-help">+${changes.length-8} more changed groups</div>`:''); },
     async simulateConfig(){
       this.syncHidden(); this.simLoading=true; this.simError=''; this.simulation=null;
       try{
@@ -245,6 +152,7 @@ function cfgEditor(initial) {
       }catch(e){ this.simError = String(e); }
       this.simLoading=false;
     },
+    confirmSave(form){ this.syncHidden(); const changes=this.changedPaths(); let msg='Save normalized config.json?'; if(changes.length){ msg+='\n\nChange preview:'; changes.slice(0,10).forEach(c=>{msg+=`\n- ${c.label}: ${JSON.stringify(c.before)} -> ${JSON.stringify(c.after)}`;}); if(changes.length>10) msg+=`\n- +${changes.length-10} more`; } else { msg+='\n\nNo important changes detected; config will still be normalized.'; } msg+='\n\nRecommended after major changes: run Dry Run Preview before enabling scheduler auto-apply.'; if(confirm(msg)) form.submit(); },
     nodePreview(template, values){ return (template || '').replaceAll('{router}', values.router || '').replaceAll('{server}', values.server || '').replaceAll('{profile}', values.profile || 'Tier-15M').replaceAll('{plan}', values.plan || '15M'); }
   }
 }
@@ -252,26 +160,25 @@ function cfgEditor(initial) {
 
 <style>
   .cfg-shell{display:grid;grid-template-columns:260px minmax(0,1fr) 430px;gap:12px;align-items:start}.cfg-nav{position:sticky;top:74px}.cfg-side{position:sticky;top:74px}.cfg-nav-card{padding:10px}.cfg-nav-btn{width:100%;display:flex;align-items:center;gap:9px;text-align:left;border:1px solid transparent;border-radius:10px;padding:10px 11px;color:var(--muted);font-size:12px;transition:.12s}.cfg-nav-btn:hover{background:var(--bg2);color:var(--txt)}.cfg-nav-btn.active{background:rgba(0,200,150,.10);border-color:rgba(0,200,150,.35);color:var(--c-accent);font-weight:700}.cfg-section{display:grid;gap:12px}.cfg-field{display:block;font-size:12px}.cfg-label{display:block;color:var(--muted);font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}.cfg-help{display:block;color:var(--hint);font-size:11px;margin-top:6px;line-height:1.35}.cfg-input,.cfg-select,.cfg-textarea{width:100%;background:var(--bg1);color:var(--txt);border:1px solid var(--br1);border-radius:10px;padding:9px 10px;outline:none}.cfg-input:focus,.cfg-select:focus,.cfg-textarea:focus{border-color:var(--c-accent);box-shadow:0 0 0 3px rgba(0,200,150,.08)}.cfg-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px}.cfg-toggle input[type="checkbox"]{width:20px;height:20px;accent-color:var(--c-accent);cursor:pointer}.cfg-toggle input[type="checkbox"]:checked{outline:2px solid rgba(0,200,150,.25);outline-offset:2px}.cfg-toggle input:not([type="checkbox"]){width:20px;height:20px}.cfg-kpi{padding:13px;border:1px solid var(--br0);background:var(--bg1);border-radius:12px}.cfg-kpi-label{color:var(--hint);font-size:10px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em}.cfg-kpi-value{font-family:var(--font-mono);font-size:18px;font-weight:700;margin-top:4px}.cfg-json{max-height:52vh;overflow:auto;font-family:var(--font-mono);font-size:11px;line-height:1.45;background:var(--bg1);color:var(--txt);border:1px solid var(--br0);border-radius:12px;padding:12px}.cfg-subtle{border:1px solid var(--br0);background:var(--bg1);border-radius:12px;padding:12px}.cfg-router-row{border:1px solid var(--br0);background:var(--bg1);border-radius:12px;padding:13px;display:flex;align-items:center;justify-content:space-between;gap:12px}.cfg-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--br1);background:var(--bg2);border-radius:999px;padding:4px 8px;font-size:10px;color:var(--muted);font-family:var(--font-mono)}.cfg-danger{background:rgba(239,68,68,.11);border-color:rgba(239,68,68,.35);color:#f87171}.cfg-ok{background:rgba(0,200,150,.10);border-color:rgba(0,200,150,.35);color:var(--c-accent)}.cfg-warn{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.35);color:var(--c-warn)}
-.policy-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:12px;align-items:start}.policy-tree{position:sticky;top:74px;display:grid;gap:6px}.policy-tree-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;border:1px solid var(--br0);background:var(--bg1);border-radius:10px;padding:9px 10px;color:var(--muted);font-size:12px}.policy-tree-btn span{display:grid;gap:3px;min-width:0}.policy-tree-btn small{font-family:var(--font-mono);font-size:10px;color:var(--hint);word-break:break-word}.policy-tree-btn:hover,.policy-tree-btn.active{border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.08);color:var(--txt)}.policy-field-card{border:1px solid var(--br0);background:var(--bg1);border-radius:12px;padding:12px;display:grid;gap:8px}.policy-field-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.policy-path{font-family:var(--font-mono);font-size:10px;color:var(--hint);word-break:break-all}.policy-required{display:inline-flex;align-items:center;gap:5px;border-radius:999px;border:1px solid var(--br0);padding:3px 7px;font-size:10px;font-family:var(--font-mono);color:var(--muted)}.policy-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.policy-ladder{counter-reset:step;display:grid;gap:7px}.policy-ladder div{counter-increment:step;border:1px solid var(--br0);border-radius:10px;padding:8px 10px;background:var(--bg1);font-size:12px;color:var(--muted)}.policy-ladder div:before{content:counter(step);display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:999px;background:rgba(0,200,150,.12);color:var(--c-accent);font-family:var(--font-mono);font-size:10px;margin-right:8px}.cfg-advanced-modal{width:min(96vw,1600px)}.cfg-advanced-json-editor{font-size:10px;line-height:1.35;tab-size:2}.cfg-guide-shell{min-width:0}.cfg-guide-list{max-height:58vh;overflow:auto;display:grid;gap:7px;align-content:start;padding-right:3px}.cfg-guide-list .policy-tree-btn{padding:10px 11px}.cfg-guide-detail{display:grid;gap:10px;border:1px solid var(--br0);border-radius:12px;background:var(--bg1);padding:14px}.cfg-guide-detail h3{margin:0;color:var(--txt);font-size:17px}.cfg-guide-detail .cfg-help{font-size:12px;line-height:1.5;margin-top:0}.cfg-guide-detail code{font-size:11px}.cfg-guide-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:start}.cfg-guide-row b{color:var(--txt)}@media(min-width:1181px){.policy-tree>.policy-tree-btn{min-height:42px;padding:10px 12px}.policy-tree>.policy-tree-btn>span{display:flex;align-items:center;gap:9px;white-space:nowrap}.policy-tree>.policy-tree-btn i{width:18px;min-width:18px;font-size:16px;text-align:center}.policy-tree>.policy-tree-btn.active{font-weight:700}}@media(max-width:1180px){.policy-layout{grid-template-columns:1fr}.policy-tree{position:static;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.cfg-guide-row{grid-template-columns:1fr;gap:3px}}
+.policy-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:12px;align-items:start}.policy-tree{position:sticky;top:74px;display:grid;gap:6px}.policy-tree-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;border:1px solid var(--br0);background:var(--bg1);border-radius:10px;padding:9px 10px;color:var(--muted);font-size:12px}.policy-tree-btn:hover,.policy-tree-btn.active{border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.08);color:var(--txt)}.policy-field-card{border:1px solid var(--br0);background:var(--bg1);border-radius:12px;padding:12px;display:grid;gap:8px}.policy-field-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.policy-path{font-family:var(--font-mono);font-size:10px;color:var(--hint);word-break:break-all}.policy-required{display:inline-flex;align-items:center;gap:5px;border-radius:999px;border:1px solid var(--br0);padding:3px 7px;font-size:10px;font-family:var(--font-mono);color:var(--muted)}.policy-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.policy-ladder{counter-reset:step;display:grid;gap:7px}.policy-ladder div{counter-increment:step;border:1px solid var(--br0);border-radius:10px;padding:8px 10px;background:var(--bg1);font-size:12px;color:var(--muted)}.policy-ladder div:before{content:counter(step);display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:999px;background:rgba(0,200,150,.12);color:var(--c-accent);font-family:var(--font-mono);font-size:10px;margin-right:8px}@media(max-width:1180px){.policy-layout{grid-template-columns:1fr}.policy-tree{position:static;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
   @media(max-width:1180px){.cfg-shell{grid-template-columns:1fr}.cfg-nav,.cfg-side{position:static}.cfg-nav-card{display:flex;flex-wrap:wrap}.cfg-nav-btn{width:auto}.cfg-json{max-height:420px}}
   @media(max-width:760px){.cfg-shell{display:block}.cfg-nav{margin-bottom:10px}.cfg-side{margin-top:10px}.cfg-nav-card{display:flex;overflow-x:auto;flex-wrap:nowrap;padding:8px;gap:6px}.cfg-nav-btn{flex:0 0 auto;white-space:nowrap;width:auto;min-height:40px;padding:9px 10px}.cfg-router-row{display:block}.cfg-router-row .btn-row{margin-top:10px}.cfg-toggle{align-items:flex-start}.cfg-kpi-value{font-size:15px;word-break:break-word}.cfg-json{max-height:300px;font-size:10px}.cfg-input,.cfg-select,.cfg-textarea{min-height:42px}.cfg-subtle{padding:10px}}
 </style>
 
 <div x-data="cfgEditor(window.initialConfig)" class="space-y-4">
-  <form method="post" @submit.prevent @input="queueLiveSaveFromEvent($event)" @change="queueLiveSaveFromEvent($event)" class="space-y-4">{{ csrf_field()|safe }}
+  <form method="post" @submit.prevent="confirmSave($el)" class="space-y-4">{{ csrf_field()|safe }}
     <input type="hidden" name="config_json" x-ref="configJson">
 
     <div class="page-header">
       <div>
         <div class="page-title" style="font-size:22px">Config Center</div>
-        <div class="page-subtitle">Live config.json control plane. UI values are loaded from disk and ordinary field changes persist back to disk automatically.</div>
+        <div class="page-subtitle">Professional config.json control plane. UI fields, network mode, LibreQoS runner, and raw JSON are mirrored live.</div>
       </div>
       <div class="btn-row">
         <button type="button" @click="openRaw()" class="btn"><i class="ti ti-code"></i>Raw JSON</button>
-        <span class="badge" :class="liveStatusClass()" x-text="liveStatusLabel()"></span>
+        <button class="btn btn-primary"><i class="ti ti-device-floppy"></i>Normalize & Save</button>
       </div>
     </div>
-    <div class="note"><b>Live persistence:</b> <span x-text="liveSaveMessage"></span> The next sync cycle rereads saved <code>config.json</code>; in-flight cycles finish with the snapshot they already started with. <span class="mono">rev <span x-text="(configRevision || '').slice(0,12)"></span></span></div>
 
     {% if config_errors %}<div class="card" style="border-color:rgba(239,68,68,.4)"><div class="card-title text-err"><i class="ti ti-alert-triangle"></i> Config Errors</div><ul class="list-disc ml-6 text-sm">{% for e in config_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
     {% if config_warnings %}<div class="card" style="border-color:rgba(245,158,11,.45)"><div class="card-title text-warn"><i class="ti ti-alert-circle"></i> Warnings</div><ul class="list-disc ml-6 text-sm">{% for w in config_warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
@@ -407,7 +314,7 @@ function cfgEditor(initial) {
           <div class="card">
             <div class="card-title"><i class="ti ti-server-cog"></i> Service Monitor Settings</div>
             <div class="grid md:grid-cols-2 gap-3">
-              <label class="cfg-field"><span class="cfg-label">Required/current service units</span><textarea class="cfg-textarea mono" style="height:120px" :value="(cfg.services.units || []).join('\n')" @input="cfg.services.units = $event.target.value.split('\n').map(x => x.trim()).filter(Boolean)"></textarea><span class="cfg-help">One systemd unit per line. Recommended bare-metal units: <code>lqosd</code>, <code>lqos_scheduler</code>, <code>lqos_shaped_sync</code>.</span></label>
+              <label class="cfg-field"><span class="cfg-label">Required/current service units</span><textarea class="cfg-textarea mono" style="height:120px" :value="(cfg.services.units || []).join('\n')" @input="cfg.services.units = $event.target.value.split('\n').map(x => x.trim()).filter(Boolean)"></textarea><span class="cfg-help">One systemd unit per line. Recommended bare-metal units: <code>lqosd</code>, <code>lqos_scheduler</code>, <code>lqosync</code>.</span></label>
               <label class="cfg-field"><span class="cfg-label">Legacy optional units</span><textarea class="cfg-textarea mono" style="height:120px" :value="(cfg.services.legacy_optional_units || []).join('\n')" @input="cfg.services.legacy_optional_units = $event.target.value.split('\n').map(x => x.trim()).filter(Boolean)"></textarea><span class="cfg-help"><code>lqos_node_manager</code> is an older LibreQoS Web UI unit. Newer LibreQoS installs commonly serve Web UI from <code>lqosd</code>, so this is optional and auto-hidden when not installed.</span></label>
               <label class="cfg-field"><span class="cfg-label">Journal lines default</span><input type="number" x-model.number="cfg.services.journal_lines_default" class="cfg-input"></label>
               <label class="cfg-toggle cfg-subtle"><span><b>Show missing legacy optional services</b><span class="cfg-help">When off, legacy units like lqos_node_manager are hidden if systemd says not installed.</span></span><input type="checkbox" x-model="cfg.services.show_legacy_optional_not_installed"></label>
@@ -445,7 +352,7 @@ function cfgEditor(initial) {
             {% else %}
             <label class="cfg-field"><span class="cfg-label">Current value</span><input class="cfg-input" :value="getPath({{ f.path|tojson }})" @input="setPath({{ f.path|tojson }}, $event.target.value)"></label>
             {% endif %}
-            <div class="cfg-help"><b>Effective:</b> {{ f.effectivity or 'Next sync cycle' }}.<br><b>Setup guidance:</b> {{ f.setup_guidance or 'Visible operator policy setting saved to config.json.' }} {% if f.risk_note %}<br><b>Risk note:</b> {{ f.risk_note }}{% endif %}</div>
+            <div class="cfg-help"><b>Setup guidance:</b> {{ f.setup_guidance or 'Visible operator policy setting saved to config.json.' }} {% if f.risk_note %}<br><b>Risk note:</b> {{ f.risk_note }}{% endif %}</div>
           </div>
           {%- endmacro %}
 
@@ -555,8 +462,8 @@ function cfgEditor(initial) {
               </div>
               <div x-show="psec==='advanced'" x-cloak class="card">
                 <div class="card-title"><i class="ti ti-code"></i> Advanced Policy JSON</div>
-                <p class="text-sm" style="color:var(--muted)">The hierarchy is the primary operator UI. Admin/owner-only Advanced JSON remains available for full inspection and emergency edits, with the same WH/HOW field guide used by the documentation.</p>
-                <div class="btn-row"><button type="button" class="btn btn-primary" @click="openRaw()"><i class="ti ti-code"></i> Open Advanced JSON</button><a class="btn" href="/docs/search?q=config+field+guide"><i class="ti ti-book"></i> Config Field Guide</a></div>
+                <p class="text-sm" style="color:var(--muted)">The hierarchy is the primary operator UI. Advanced Raw JSON remains available for full inspection and emergency edits.</p>
+                <div class="btn-row"><button type="button" class="btn btn-primary" @click="openRaw()"><i class="ti ti-code"></i> Open Raw JSON</button><a class="btn" href="/docs/search?q=policy+path+reference"><i class="ti ti-book"></i> Policy Path Reference</a></div>
               </div>
             </main>
           </div>
@@ -565,14 +472,16 @@ function cfgEditor(initial) {
         <section x-show="tab==='notifications'" x-cloak class="cfg-section">
           <div class="card" style="border-color:rgba(14,165,233,.35);background:rgba(14,165,233,.07)">
             <div class="card-title"><i class="ti ti-bell-cog"></i> Notification Settings — Config Center</div>
-            <p class="text-sm" style="color:var(--muted)">Telegram delivery settings now live in config.json under <code>notifications.telegram</code>. Runtime delivery has two lanes: <b>Safety Alerts</b> for urgent conditions and an <b>Activity Journal</b> for digest-first operational updates.</p>
+            <p class="text-sm" style="color:var(--muted)">Telegram delivery settings now live in config.json under <code>notifications.telegram</code>. Dashboard remains the live alert surface; this tab controls how alerts are delivered.</p>
             <div class="btn-row" style="margin-top:10px"><button type="button" class="btn btn-primary" @click="testSavedTelegram()"><i class="ti ti-brand-telegram"></i> Test saved Telegram</button><a class="btn" href="/docs/search?q=telegram"><i class="ti ti-book"></i> Telegram docs</a></div>
           </div>
           <div class="grid lg:grid-cols-2 gap-3">
             <div class="card">
-              <div class="card-title"><i class="ti ti-brand-telegram"></i> Telegram Connection</div>
+              <div class="card-title"><i class="ti ti-brand-telegram"></i> Telegram Delivery</div>
               <div class="grid md:grid-cols-2 gap-3">
                 <label class="cfg-toggle cfg-subtle"><span><b>Enable Telegram</b><span class="cfg-help">When off, internal Dashboard notifications still work but Telegram delivery is disabled.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.enabled"></label>
+                <label class="cfg-toggle cfg-subtle"><span><b>Send digest</b><span class="cfg-help">Recommended. Combines current alerts into one Telegram message.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.send_digest"></label>
+                <label class="cfg-toggle cfg-subtle"><span><b>Send individual messages</b><span class="cfg-help">Can be noisy. Usually keep disabled unless you want one message per alert.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.send_individual"></label>
                 <label class="cfg-field"><span class="cfg-label">Parse mode</span><select x-model="cfg.notifications.telegram.parse_mode" class="cfg-select"><option>HTML</option><option>Markdown</option><option></option></select></label>
                 <label class="cfg-field md:col-span-2"><span class="cfg-label">Bot token</span><input x-model="cfg.notifications.telegram.bot_token" type="password" class="cfg-input mono" placeholder="123456:ABC..."><span class="cfg-help">Stored in config.json. Protect config file permissions and avoid sharing raw config screenshots.</span></label>
                 <label class="cfg-field"><span class="cfg-label">Chat ID</span><input x-model="cfg.notifications.telegram.chat_id" class="cfg-input mono" placeholder="-1001234567890"></label>
@@ -590,31 +499,10 @@ function cfgEditor(initial) {
               </div>
             </div>
           </div>
-          <div class="grid lg:grid-cols-2 gap-3">
-            <div class="card">
-              <div class="card-title"><i class="ti ti-shield-exclamation"></i> Safety Alerts</div>
-              <p class="text-sm" style="color:var(--muted)">Urgent runtime conditions. These honor <code>notify_levels</code> and are meant to be hard to miss.</p>
-              <div class="grid md:grid-cols-2 gap-3" style="margin-top:10px">
-                <label class="cfg-toggle cfg-subtle"><span><b>Enable safety alerts</b></span><input type="checkbox" x-model="cfg.notifications.telegram.safety_alerts_enabled"></label>
-                <label class="cfg-toggle cfg-subtle"><span><b>Send digest</b><span class="cfg-help">Recommended. Combines current alert candidates into one message.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.send_digest"></label>
-                <label class="cfg-toggle cfg-subtle"><span><b>Send individual messages</b><span class="cfg-help">Can be noisy. Usually keep disabled unless you want one message per alert.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.send_individual"></label>
-              </div>
-              <div class="grid md:grid-cols-2 gap-3" style="margin-top:10px">
-                <template x-for="item in safetyEventToggleOptions()" :key="item[0]"><label class="cfg-toggle cfg-subtle"><span><b x-text="item[1]"></b></span><input type="checkbox" x-model="cfg.notifications.telegram[item[0]]"></label></template>
-              </div>
-            </div>
-            <div class="card">
-              <div class="card-title"><i class="ti ti-notes"></i> Activity Journal</div>
-              <p class="text-sm" style="color:var(--muted)">Meaningful operational updates such as client changes and successful applies. This lane is digest-first and defaults to silent Telegram delivery to avoid alarm fatigue.</p>
-              <div class="grid md:grid-cols-2 gap-3" style="margin-top:10px">
-                <label class="cfg-toggle cfg-subtle"><span><b>Enable activity journal</b></span><input type="checkbox" x-model="cfg.notifications.telegram.activity_journal_enabled"></label>
-                <label class="cfg-toggle cfg-subtle"><span><b>Send digest</b><span class="cfg-help">Recommended for operator journaling.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.activity_send_digest"></label>
-                <label class="cfg-toggle cfg-subtle"><span><b>Send individual messages</b><span class="cfg-help">Enable only if you want a live journal line per event.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.activity_send_individual"></label>
-                <label class="cfg-toggle cfg-subtle"><span><b>Silent activity messages</b><span class="cfg-help">Keeps journal updates quiet while safety alerts remain audible.</span></span><input type="checkbox" x-model="cfg.notifications.telegram.activity_silent_messages"></label>
-              </div>
-              <div class="grid md:grid-cols-2 gap-3" style="margin-top:10px">
-                <template x-for="item in activityEventToggleOptions()" :key="item[0]"><label class="cfg-toggle cfg-subtle"><span><b x-text="item[1]"></b></span><input type="checkbox" x-model="cfg.notifications.telegram[item[0]]"></label></template>
-              </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-bell-ringing"></i> Event Filters</div>
+            <div class="grid md:grid-cols-3 gap-3">
+              <template x-for="item in eventToggleOptions()" :key="item[0]"><label class="cfg-toggle cfg-subtle"><span><b x-text="item[1]"></b></span><input type="checkbox" x-model="cfg.notifications.telegram[item[0]]"></label></template>
             </div>
           </div>
         </section>
@@ -771,8 +659,8 @@ function cfgEditor(initial) {
           <div class="note" style="margin-top:10px"><b>Recommended:</b> after changing router, speed, collector, or network-mode settings, run Dry Run Preview before enabling live scheduler auto-apply.</div>
         </div>
         <div class="card">
-          <div class="flex items-center justify-between mb-3"><div class="card-title" style="margin-bottom:0"><i class="ti ti-code"></i> Advanced JSON</div><button type="button" @click="openRaw()" class="btn" style="padding:5px 9px">Open</button></div>
-          <p class="text-xs" style="color:var(--muted);margin-bottom:10px">Admin/owner view. This is the exact live config snapshot currently reflected by the UI and written back to config.json after each successful change. Open it for the WH/HOW field guide.</p>
+          <div class="flex items-center justify-between mb-3"><div class="card-title" style="margin-bottom:0"><i class="ti ti-code"></i> Live Raw JSON</div><button type="button" @click="openRaw()" class="btn" style="padding:5px 9px">Edit</button></div>
+          <p class="text-xs" style="color:var(--muted);margin-bottom:10px">This is the exact normalized payload posted to config.json on save.</p>
           <pre class="cfg-json" x-text="jsonText"></pre>
         </div>
         <div class="card" x-show="currentRouter" x-cloak>
@@ -787,45 +675,10 @@ function cfgEditor(initial) {
   <form method="post" x-ref="discoverForm" action="/config/router/discover-dhcp-current" class="hidden">{{ csrf_field()|safe }}<input type="hidden" name="config_json" x-ref="discoverPayload"><input type="hidden" name="router_idx" x-ref="discoverRouterIdx" value="0"></form>
 
   <div x-show="showRawEditor" x-cloak class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-    <div class="card w-full cfg-advanced-modal" style="max-height:92vh;overflow:auto">
-      <div class="flex items-center justify-between mb-3"><div><div class="text-xl font-bold">Advanced JSON + Field Guide</div><div class="cfg-help">Admin/owner-only full config editor. Click any path on the right to see What / Why / When / Who / Where / How before changing it.</div></div><button type="button" @click="showRawEditor=false" class="btn">Close</button></div>
-      <div class="grid lg:grid-cols-[minmax(360px,.82fr)_minmax(640px,1.18fr)] gap-3">
-        <div>
-          <textarea x-model="rawDraft" class="cfg-textarea mono cfg-advanced-json-editor" style="height:65vh"></textarea>
-          <div class="mt-3 flex justify-between items-center gap-3"><div class="text-err text-sm" x-text="rawError"></div><div class="btn-row"><button type="button" @click="rawDraft=jsonText" class="btn">Reset from UI</button><button type="button" @click="applyRaw()" class="btn btn-primary">Apply JSON & Save Live</button></div></div>
-        </div>
-        <div class="cfg-section cfg-guide-shell">
-          <div class="card" style="margin:0">
-            <div class="card-title"><i class="ti ti-book-2"></i> Config Field Guide</div>
-            <input x-model="guideQuery" @input="ensureGuideSelection()" class="cfg-input" placeholder="Search path, meaning, risk, usage…">
-            <div class="grid md:grid-cols-[minmax(250px,.72fr)_minmax(390px,1.28fr)] gap-3" style="margin-top:10px">
-              <div class="cfg-guide-list">
-                <template x-for="g in visibleGuides()" :key="g.path">
-                  <button type="button" class="policy-tree-btn" :class="selectedGuidePath===g.path && 'active'" @click="selectGuide(g.path)">
-                    <span><b x-text="g.path"></b><small x-text="g.label"></small></span>
-                  </button>
-                </template>
-                <div x-show="!visibleGuides().length" class="cfg-help">No matching config paths.</div>
-              </div>
-              <template x-if="selectedGuide()">
-                <div class="cfg-guide-detail">
-                  <div class="policy-path" x-text="selectedGuide().path"></div>
-                  <h3 x-text="selectedGuide().label"></h3>
-                  <div class="cfg-guide-row cfg-help"><b>What</b><span x-text="selectedGuide().what"></span></div>
-                  <div class="cfg-guide-row cfg-help"><b>Why</b><span x-text="selectedGuide().why"></span></div>
-                  <div class="cfg-guide-row cfg-help"><b>When</b><span><span x-text="selectedGuide().when"></span>. <span x-text="selectedGuide().effectivity_explanation"></span></span></div>
-                  <div class="cfg-guide-row cfg-help"><b>Who</b><span x-text="selectedGuide().who"></span></div>
-                  <div class="cfg-guide-row cfg-help"><b>Where</b><span x-text="selectedGuide().where"></span></div>
-                  <div class="cfg-guide-row cfg-help"><b>How</b><span x-text="selectedGuide().how"></span></div>
-                  <div class="cfg-guide-row cfg-help"><b>Default</b><code x-text="JSON.stringify(selectedGuide().default)"></code></div>
-                  <div class="cfg-guide-row cfg-help"><b>Risk</b><span x-text="selectedGuide().risk"></span></div>
-                  <template x-if="selectedGuide().related_paths && selectedGuide().related_paths.length"><div class="cfg-guide-row cfg-help"><b>Related</b><span x-text="selectedGuide().related_paths.join(', ')"></span></div></template>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="card w-full max-w-5xl" style="max-height:92vh;overflow:auto">
+      <div class="flex items-center justify-between mb-3"><div class="text-xl font-bold">Editable Raw JSON</div><button type="button" @click="showRawEditor=false" class="btn">Close</button></div>
+      <textarea x-model="rawDraft" class="cfg-textarea mono" style="height:65vh"></textarea>
+      <div class="mt-3 flex justify-between items-center gap-3"><div class="text-err text-sm" x-text="rawError"></div><div class="btn-row"><button type="button" @click="rawDraft=jsonText" class="btn">Reset from UI</button><button type="button" @click="applyRaw()" class="btn btn-primary">Apply Raw to UI</button></div></div>
     </div>
   </div>
 </div>

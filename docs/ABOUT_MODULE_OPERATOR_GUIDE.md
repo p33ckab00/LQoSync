@@ -224,7 +224,7 @@ Use that user in the router section of `config.json`.
 /opt/libreqos/src/ShapedDevices.csv           generated LibreQoS CSV
 /opt/libreqos/src/network.json                generated LibreQoS topology
 /opt/lqosync/users.json                       UI users with bcrypt hashes
-/opt/lqosync/logs/lqos_shaped_sync.log        LQoSync app log
+/opt/lqosync/logs/lqosync.log        LQoSync app log
 /opt/lqosync/logs/audit.jsonl                 audit log
 /opt/lqosync/logs/libreqos_apply/             LibreQoS apply stdout/stderr/metadata
 /opt/lqosync/state/runtime_state.json         runtime state and last run summary
@@ -329,13 +329,13 @@ systemctl status lqosd lqos_scheduler --no-pager
 
 Expected: `lqosd` and `lqos_scheduler` are active. `lqos_node_manager` is legacy/optional.
 
-### Blank /var/log/lqos_shaped_sync.log
+### Blank /var/log/lqosync.log
 
 Use the active app log path:
 
 ```bash
-tail -n 100 /opt/lqosync/logs/lqos_shaped_sync.log
-journalctl -u lqos_shaped_sync -n 100 --no-pager
+tail -n 100 /opt/lqosync/logs/lqosync.log
+journalctl -u lqosync -n 100 --no-pager
 ```
 
 ### git pull does not work: not a git repository
@@ -354,7 +354,7 @@ Check:
 
 ```bash
 sudo ss -tulpn | grep :9202
-sudo systemctl status lqos_shaped_sync
+sudo systemctl status lqosync
 ```
 
 ### ShapedDevices/network validation fails
@@ -821,17 +821,3 @@ Config Center → Policies now shows Custom as a visible policy state beside Con
 ## v2.70.10 Policy Overview Custom Wiring Hotfix
 
 Changing Operation Mode, Auto Apply, Optional Auto Backup, or Backup Retention inside Config Center → Policies now marks `policies.mode` as `custom` and remains custom after save. Server-side save also detects these policy-adjacent `app.*` changes so the mode is protected even if browser JS misses the change event.
-
-
-## v2.70.11-rc1 Config Truth Layer + Live Save Audit
-
-LQoSync v2.70.11-rc1 keeps Config Center live-save behavior but routes every runtime config write through one canonical pipeline. Live writes now carry a config revision so stale tabs cannot silently overwrite newer `config.json` values, real config writes record masked field-level audit diffs, Config Change Preview shows when important changes become effective, and Policy field cards show next-cycle effectivity. Existing routes and network-layout behavior remain unchanged.
-
-LQoSync v2.70.12-rc1 adds a shared Config Field Guide used by both the install/operator documentation and the admin/owner-only Advanced JSON inspector. The inspector now answers What / Why / When / Who / Where / How, plus default/recommended value, risk, and related paths for guided config paths. Operator/viewer sidebars also hide admin-only Lifecycle and Reports destinations instead of exposing links that would lead to 403 pages; backend route guards remain authoritative.
-
-LQoSync v2.70.13-rc1 polishes the Advanced JSON workspace by widening the modal, giving the Field Guide more width, aligning WH/HOW answers for faster scanning, and slightly reducing JSON editor text size so the guide becomes easier to use during real admin work.
-
-LQoSync v2.70.14-rc1 fixes a desktop-only Policy Center presentation regression. The left policy tree now shows horizontal icons and labels again on desktop, while Field Guide list styling remains separate and the mobile layout stays as-is.
-## v2.71.0 Telegram Runtime Notifications
-
-LQoSync v2.71.0 makes Telegram a real runtime feed instead of only a test/manual-send surface. Safety Alerts now carry urgent policy/apply conditions, while a separate digest-first Activity Journal reports client changes and successful LibreQoS applies from live runtime paths. The two lanes keep independent dedupe state so quiet journal traffic cannot suppress an urgent alert.

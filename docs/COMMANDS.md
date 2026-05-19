@@ -14,7 +14,7 @@ cd /home/pi/lqos_docker
 
 ```bash
 sudo docker compose ps
-sudo docker ps -a | grep lqos_shaped_sync
+sudo docker ps -a | grep lqosync
 ```
 
 ### Start / stop / restart
@@ -28,8 +28,8 @@ sudo docker compose restart
 ### View logs
 
 ```bash
-sudo docker logs -f lqos_shaped_sync
-sudo docker logs --tail=120 lqos_shaped_sync
+sudo docker logs -f lqosync
+sudo docker logs --tail=120 lqosync
 ```
 
 ### Rebuild after package update
@@ -45,20 +45,20 @@ sudo docker compose up -d
 Use this explicit command so the script always writes to the mounted `users.json` path:
 
 ```bash
-sudo docker exec -it lqos_shaped_sync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py admin 'new-strong-password' admin"
+sudo docker exec -it lqosync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py admin 'new-strong-password' admin"
 ```
 
 Create or update a viewer user:
 
 ```bash
-sudo docker exec -it lqos_shaped_sync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py viewer 'viewer-password' viewer"
+sudo docker exec -it lqosync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py viewer 'viewer-password' viewer"
 ```
 
 ### Run doctor checks
 
 ```bash
-sudo docker exec -it lqos_shaped_sync python /app/scripts/doctor.py
-sudo docker exec -it lqos_shaped_sync python /app/scripts/doctor.py --router-test
+sudo docker exec -it lqosync python /app/scripts/doctor.py
+sudo docker exec -it lqosync python /app/scripts/doctor.py --router-test
 ```
 
 ## Bare-metal Ubuntu commands
@@ -66,16 +66,16 @@ sudo docker exec -it lqos_shaped_sync python /app/scripts/doctor.py --router-tes
 ### Service status
 
 ```bash
-sudo systemctl status lqos_shaped_sync
-sudo journalctl -u lqos_shaped_sync -f
+sudo systemctl status lqosync
+sudo journalctl -u lqosync -f
 ```
 
 ### Start / stop / restart
 
 ```bash
-sudo systemctl start lqos_shaped_sync
-sudo systemctl stop lqos_shaped_sync
-sudo systemctl restart lqos_shaped_sync
+sudo systemctl start lqosync
+sudo systemctl stop lqosync
+sudo systemctl restart lqosync
 ```
 
 ### Change admin password
@@ -134,7 +134,7 @@ Passwords are stored in `/opt/lqosync/users.json` as bcrypt hashes. LQoSync does
 Docker:
 
 ```bash
-sudo docker exec -it lqos_shaped_sync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py admin 'new-strong-password' admin"
+sudo docker exec -it lqosync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py admin 'new-strong-password' admin"
 ```
 
 Bare-metal:
@@ -168,7 +168,7 @@ UNINSTALLATION.md
 ### Docker uninstall
 
 ```bash
-cd /home/pi/lqos_shaped_sync 2>/dev/null || cd /home/pi/lqos_docker
+cd /home/pi/lqosync 2>/dev/null || cd /home/pi/lqos_docker
 sudo docker compose down
 ```
 
@@ -182,19 +182,19 @@ sudo rm -rf /opt/lqosync
 If installed from Git and you want to remove the source clone:
 
 ```bash
-rm -rf /home/pi/lqos_shaped_sync
+rm -rf /home/pi/lqosync
 ```
 
 ### Bare-metal uninstall
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
-sudo systemctl disable lqos_shaped_sync
-sudo rm -f /etc/systemd/system/lqos_shaped_sync.service
+sudo systemctl stop lqosync
+sudo systemctl disable lqosync
+sudo rm -f /etc/systemd/system/lqosync.service
 sudo systemctl daemon-reload
 sudo systemctl reset-failed
 sudo rm -f /etc/sudoers.d/lqosync
-sudo rm -f /etc/sudoers.d/lqos_shaped_sync
+sudo rm -f /etc/sudoers.d/lqosync
 sudo tar -czf /root/lqosync_runtime_backup_$(date +%F_%H%M%S).tar.gz /opt/lqosync 2>/dev/null || true
 sudo rm -rf /opt/lqosync
 sudo userdel lqosync 2>/dev/null || true
@@ -230,7 +230,7 @@ Permission denied: /opt/libreqos/src/config.json.tmp
 Repair:
 
 ```bash
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 
 sudo apt update
 sudo apt install -y acl
@@ -241,7 +241,7 @@ sudo setfacl -m u:lqosync:rw /opt/libreqos/src/ShapedDevices.csv
 sudo setfacl -m u:lqosync:rw /opt/libreqos/src/network.json
 sudo setfacl -d -m u:lqosync:rwX /opt/libreqos/src
 
-sudo systemctl start lqos_shaped_sync
+sudo systemctl start lqosync
 ```
 
 Test:
@@ -346,9 +346,9 @@ If you see `nsenter: cannot open /proc/1/ns/ipc: Permission denied` on a bare-me
 ```bash
 cd /opt/lqosync
 sudo git pull origin main
-sudo systemctl stop lqos_shaped_sync
+sudo systemctl stop lqosync
 sudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh
-sudo systemctl start lqos_shaped_sync
+sudo systemctl start lqosync
 ```
 
 Then confirm:
@@ -378,7 +378,7 @@ Fresh installations are based on `config.json.example`. This template must alway
 
 `working_dir` is required because LibreQoS.py uses some relative filenames internally, including `ShapedDevices.lastLoaded.csv`. On bare-metal/systemd installations, `run_mode` must be `direct`; `host_nsenter` is Docker-only.
 
-LQoSync also normalizes config at application startup. This means a `git pull` followed by `systemctl restart lqos_shaped_sync` can still persist missing safe defaults into `/opt/libreqos/src/config.json`, even when `install.sh` is not re-run.
+LQoSync also normalizes config at application startup. This means a `git pull` followed by `systemctl restart lqosync` can still persist missing safe defaults into `/opt/libreqos/src/config.json`, even when `install.sh` is not re-run.
 
 
 ### Troubleshooting: LibreQoS says `ShapedDevices.csv` not found
@@ -401,8 +401,8 @@ If LQoSync logs show `FileNotFoundError: ShapedDevices.csv` while manual executi
 Then restart bare-metal LQoSync:
 
 ```bash
-sudo systemctl restart lqos_shaped_sync
-journalctl -u lqos_shaped_sync -f
+sudo systemctl restart lqosync
+journalctl -u lqosync -f
 ```
 
 LQoSync v2.27+ also enforces the effective working directory at runtime and records it in each LibreQoS apply log metadata.
@@ -466,7 +466,7 @@ cd /opt/lqosync
 sudo REMOVE_RUNTIME=true bash uninstall.sh
 ```
 
-The helper stops/removes `lqos_shaped_sync`, removes sudoers entries, restores LibreQoS ACL/ownership for managed files, and optionally removes the runtime folder.
+The helper stops/removes `lqosync`, removes sudoers entries, restores LibreQoS ACL/ownership for managed files, and optionally removes the runtime folder.
 
 ## Fresh LibreQoS Install and Existing File Safety
 

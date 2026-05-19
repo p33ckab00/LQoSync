@@ -6,7 +6,8 @@ LIBREQOS_SRC_DIR="/opt/libreqos/src"
 CONFIG_PATH="$LIBREQOS_SRC_DIR/config.json"
 SHAPED_DEVICES_PATH="$LIBREQOS_SRC_DIR/ShapedDevices.csv"
 NETWORK_JSON_PATH="$LIBREQOS_SRC_DIR/network.json"
-SERVICE_NAME="lqos_shaped_sync"
+SERVICE_NAME="lqosync"
+OLD_SERVICE_NAME="lqos_shaped_sync"
 USER_NAME="lqosync"
 PORT="${PORT:-9202}"
 
@@ -139,7 +140,26 @@ install_managed_file() {
   fi
 }
 
+migrate_legacy_runtime_names() {
+  # One-time safety migration from packages that used the old unit/sudoers/log names.
+  # Fresh installs are already canonical and do not create these names.
+  if systemctl list-unit-files 2>/dev/null | grep -q "^${OLD_SERVICE_NAME}.service"; then
+    echo "[LQoSync] Disabling previous runtime service: ${OLD_SERVICE_NAME}"
+    systemctl stop "$OLD_SERVICE_NAME" 2>/dev/null || true
+    systemctl disable "$OLD_SERVICE_NAME" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${OLD_SERVICE_NAME}.service"
+  fi
+  if [ -f "/etc/sudoers.d/${OLD_SERVICE_NAME}" ]; then
+    cp -a "/etc/sudoers.d/${OLD_SERVICE_NAME}" "$INSTALL_BACKUP_DIR/sudoers.${OLD_SERVICE_NAME}" 2>/dev/null || true
+    rm -f "/etc/sudoers.d/${OLD_SERVICE_NAME}"
+  fi
+  if [ -f "/var/log/${OLD_SERVICE_NAME}.log" ] && [ ! -f "/var/log/${SERVICE_NAME}.log" ]; then
+    mv "/var/log/${OLD_SERVICE_NAME}.log" "/var/log/${SERVICE_NAME}.log" 2>/dev/null || true
+  fi
+}
+
 resolve_init_policy
+migrate_legacy_runtime_names
 
 echo "[LQoSync] Installing..."
 echo "[LQoSync] Init policy: $INIT_POLICY"
@@ -205,11 +225,11 @@ set_env_var LQOSYNC_USE_SUDO "true"
 set_env_var LQOSYNC_LIBREQOS_WORKING_DIR "$LIBREQOS_SRC_DIR"
 
 mkdir -p "$INSTALL_DIR/backups" "$INSTALL_DIR/logs" "$INSTALL_DIR/state" "$INSTALL_DIR/config_backups" "$INSTALL_DIR/install_backups"
-touch /var/log/lqos_shaped_sync.log || true
+touch /var/log/lqosync.log || true
 
 # Permissions
 chown -R "$USER_NAME:$USER_NAME" "$INSTALL_DIR"
-chown "$USER_NAME:$USER_NAME" /var/log/lqos_shaped_sync.log || true
+chown "$USER_NAME:$USER_NAME" /var/log/lqosync.log || true
 chown "$USER_NAME:$USER_NAME" "$CONFIG_PATH" "$SHAPED_DEVICES_PATH" "$NETWORK_JSON_PATH" || true
 chmod 600 "$CONFIG_PATH" || true
 chmod 664 "$SHAPED_DEVICES_PATH" "$NETWORK_JSON_PATH" || true
@@ -277,16 +297,16 @@ EOF2
 
 SYSTEMCTL_BIN="$(command -v systemctl || echo /bin/systemctl)"
 PYTHON_BIN="$(command -v python3 || echo /usr/bin/python3)"
-cat > /etc/sudoers.d/lqos_shaped_sync <<EOF2
+cat > /etc/sudoers.d/lqosync <<EOF2
 $USER_NAME ALL=(ALL) NOPASSWD: $PYTHON_BIN /opt/libreqos/src/LibreQoS.py --updateonly
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_scheduler
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_node_manager
-$USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_shaped_sync
+$USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosync
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd lqos_scheduler
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd lqos_scheduler lqos_node_manager
 EOF2
-chmod 440 /etc/sudoers.d/lqos_shaped_sync
+chmod 440 /etc/sudoers.d/lqosync
 
 if systemctl is-active --quiet updatecsv.service; then
   echo "[LQoSync] WARNING: updatecsv.service is active. Disable it before enabling LQoSync scheduler:"

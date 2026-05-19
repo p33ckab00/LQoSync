@@ -12,7 +12,6 @@ import ast
 import copy
 import json
 import re
-import tempfile
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any
@@ -87,7 +86,7 @@ EXPECTED_TEMPLATE_CONTEXTS = {
     "operations.html": {"cfg", "state", "services", "groups", "last", "apply_runs", "apply_pagination", "selected_unit", "lines", "journal_lines_count", "journal", "backups", "backup_pagination", "audit_events", "audit_pagination", "active_tab", "user"},
     "reports.html": {"cfg", "state", "report", "user"},
     "lifecycle.html": {"cfg", "state", "policy_state", "summary", "report", "events", "client_items", "selected_code", "user"},
-    "config.html": {"config_json", "config", "config_errors", "config_warnings", "schema_report", "schema_version", "policy_conflicts", "identity_report", "telegram", "router_overview", "policy_hierarchy", "policy_schema_paths", "config_revision", "config_field_rules", "config_field_guide", "initial_tab", "user"},
+    "config.html": {"config_json", "config", "config_errors", "config_warnings", "schema_report", "schema_version", "policy_conflicts", "identity_report", "telegram", "initial_tab", "user"},
     "setup_repair.html": {"cfg", "state", "report", "services", "config_errors", "config_warnings", "user"},
     "setup_wizard.html": {"cfg", "state", "report", "wizard", "network_modes", "services", "config_errors", "config_warnings", "user"},
     "network_layout.html": {"network", "node_math", "config", "nodes_flat", "shaped_rows", "user"},
@@ -321,158 +320,6 @@ def check_policy_behavior_regressions(root: str | Path) -> dict[str, Any]:
     return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
 
 
-def check_config_write_pipeline_regressions(root: str | Path) -> dict[str, Any]:
-    root = Path(root)
-    items: list[RegressionItem] = []
-    failures = []
-    try:
-        from engine.config_loader import load_config, save_config
-        from engine.config_writer import ConfigRevisionConflict, config_revision, write_config_snapshot
-        from engine.setup_repair import apply_policy_preset
-
-        base = _load_example_config(root)
-        with tempfile.TemporaryDirectory() as tmp:
-            cfg_path = Path(tmp) / "config.json"
-            base.setdefault("paths", {})["audit_log"] = str(Path(tmp) / "audit.jsonl")
-            base["paths"]["log_file"] = str(Path(tmp) / "app.log")
-            save_config(base, str(cfg_path), backup_existing=False)
-            base = load_config(str(cfg_path))
-            before_rev = config_revision(base)
-
-            proposed = copy.deepcopy(base)
-            proposed.setdefault("policies", {}).setdefault("cleanup_sources", {}).setdefault("pppoe", {})["normal_inactive_action"] = "preserve_rows"
-            result = write_config_snapshot(
-                str(cfg_path),
-                proposed,
-                actor="regression",
-                action="config_autosaved",
-                expected_revision=before_rev,
-                backup_existing=False,
-            )
-            if result.revision == before_rev:
-                failures.append("config revision should change after a real field update")
-            if not any(c.get("path") == "policies.cleanup_sources.pppoe.normal_inactive_action" for c in result.changes):
-                failures.append("field-level audit diff missing changed PPPoE policy path")
-
-            preset_cfg = apply_policy_preset(result.config, "aggressive")
-            preset_result = write_config_snapshot(
-                str(cfg_path),
-                preset_cfg,
-                actor="regression",
-                action="policy_preset_applied",
-                expected_revision=result.revision,
-                backup_existing=False,
-                preserve_requested_policy_mode=True,
-            )
-            if (preset_result.config.get("policies") or {}).get("mode") != "aggressive":
-                failures.append("explicit preset apply should preserve requested named mode")
-
-            router_cfg = copy.deepcopy(preset_result.config)
-            router_cfg.setdefault("routers", [{}])[0]["password"] = "super-secret-password"
-            router_result = write_config_snapshot(
-                str(cfg_path),
-                router_cfg,
-                actor="regression",
-                action="config_autosaved",
-                expected_revision=preset_result.revision,
-                backup_existing=False,
-            )
-            if "super-secret-password" in json.dumps(router_result.changes):
-                failures.append("nested router passwords must stay masked in field-level config diffs")
-
-            stale = copy.deepcopy(router_result.config)
-            stale.setdefault("app", {})["backup_retention"] = 11
-            try:
-                write_config_snapshot(
-                    str(cfg_path),
-                    stale,
-                    actor="regression",
-                    action="config_autosaved",
-                    expected_revision=before_rev,
-                    backup_existing=False,
-                )
-                failures.append("stale config revision should raise ConfigRevisionConflict")
-            except ConfigRevisionConflict:
-                pass
-    except Exception as exc:
-        failures.append(f"config writer test crashed: {exc}")
-
-    if failures:
-        items.append(RegressionItem("config.write_pipeline", "Config write pipeline", "fail", "; ".join(failures), "config", "Review config_writer revision/audit behavior."))
-    else:
-        items.append(RegressionItem("config.write_pipeline", "Config write pipeline", "ok", "Canonical writes emit field diffs and reject stale revisions", "config"))
-    return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
-
-
-def check_notification_runtime_regressions(root: str | Path) -> dict[str, Any]:
-    root = Path(root)
-    items: list[RegressionItem] = []
-    failures = []
-    try:
-        from engine.notifications import (
-            build_runtime_activity_notifications,
-            build_runtime_safety_notifications,
-            filter_notification_candidates,
-        )
-
-        cfg = _load_example_config(root)
-        success = type("R", (), {
-            "status": "success",
-            "started_at": "2026-05-16T00:00:00+00:00",
-            "files_changed": True,
-            "libreqos_triggered": True,
-            "libreqos_exit_code": 0,
-            "diff": {
-                "client_change_summary": {
-                    "counts": {"added": 1, "updated": 0, "removed": 0, "total": 1},
-                    "summary_text": "+1 added",
-                    "clients_preview": "alice",
-                },
-                "libreqos_run_id": "run-ok",
-                "libreqos_apply_reason": "files_changed",
-            },
-        })()
-        activity = build_runtime_activity_notifications(success)
-        activity_events = {item.get("event") for item in activity}
-        if {"client_changes", "apply_success"} - activity_events:
-            failures.append("success runtime should emit client_changes and apply_success activity events")
-        # Activity entries are informational; alert-level filtering must not
-        # silently erase them when production alerts stay warning+critical.
-        filtered_activity = filter_notification_candidates(cfg, activity, lane="activity")
-        if len(filtered_activity) != len(activity):
-            failures.append("activity lane must not be filtered out by warning/critical alert levels")
-
-        blocked = type("R", (), {
-            "status": "policy_blocked",
-            "started_at": "2026-05-16T00:01:00+00:00",
-            "diff": {
-                "policy_decision": {
-                    "risk_level": "high",
-                    "risk_score": 80,
-                    "blocked_reasons": [{"message": "missing parent"}],
-                    "requires_confirmation": False,
-                }
-            },
-        })()
-        safety_events = {item.get("event") for item in build_runtime_safety_notifications(blocked)}
-        if "policy_block" not in safety_events:
-            failures.append("policy blocked runtime should emit policy_block safety event")
-
-        run_cycle_text = (root / "engine" / "run_cycle.py").read_text(encoding="utf-8", errors="ignore")
-        if '_dispatch_runtime_telegram(config, result, lane="alerts")' not in run_cycle_text:
-            failures.append("run_cycle missing runtime safety alert dispatch")
-        if '_dispatch_runtime_telegram(config, result, lane="activity")' not in run_cycle_text:
-            failures.append("run_cycle missing runtime activity journal dispatch")
-    except Exception as exc:
-        failures.append(f"notification runtime test crashed: {exc}")
-
-    if failures:
-        items.append(RegressionItem("notifications.runtime", "Telegram runtime event wiring", "fail", "; ".join(failures), "notifications", "Keep runtime alert/activity candidate generation and dispatch wiring intact."))
-    else:
-        items.append(RegressionItem("notifications.runtime", "Telegram runtime event wiring", "ok", "Runtime safety alerts and digest-first activity events are generated and wired.", "notifications"))
-    return {"items": [i.to_dict() for i in items], "summary": _summary(items)}
-
-
 def check_operations_center_regressions(root: str | Path) -> dict[str, Any]:
     root = Path(root)
     items: list[RegressionItem] = []
@@ -543,8 +390,6 @@ def compute_regression_suite(root: str | Path | None = None) -> dict[str, Any]:
         "routes": check_route_regressions(root),
         "templates": check_template_context_regressions(root),
         "config_migration": check_config_migration_regressions(root),
-        "config_write_pipeline": check_config_write_pipeline_regressions(root),
-        "notifications_runtime": check_notification_runtime_regressions(root),
         "policy_behavior": check_policy_behavior_regressions(root),
         "policy_path_audit": audit_policy_and_paths(root),
         "policy_preset_audit": audit_policy_presets(root),

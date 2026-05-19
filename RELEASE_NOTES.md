@@ -1,52 +1,5 @@
 # Release Notes
 
-## v2.71.0 — Telegram Runtime Notifications
-
-- Adds two Telegram lanes: urgent **Safety Alerts** and digest-first **Activity Journal** updates.
-- Wires real runtime events into Telegram from sync cycles and manual force-apply routes, including client changes, successful applies, policy blocks, confirmation holds, and apply failures.
-- Stores dedupe/rate-limit state per lane so journal traffic cannot suppress urgent alerts.
-- Adds Config Center controls, Advanced JSON field-guide entries, documentation, and regression/UI wiring checks for the new runtime feed.
-- Bumps `config_schema_version` to 13 and updates the current release line to `2.71.0`.
-
-This release changes notification behavior only. It does not change MikroTik collection logic, cleanup decisions, generated file formats, router/network hierarchy behavior, or LibreQoS apply execution semantics.
-
-## v2.70.14-rc1 — Policy Tree Desktop Alignment Hotfix
-
-- Restores horizontal icon + label alignment in the desktop Policy Center tree.
-- Keeps the mobile Policy Center layout unchanged.
-- Scopes stacked Field Guide text styling away from the normal policy navigation buttons and adds UI Wiring Audit coverage for the desktop rule.
-
-This is a UI-only fix. It does not change policy values, config writes, routes, generated files, scheduler timing, or LibreQoS apply mechanics.
-
-## v2.70.13-rc1 — Advanced JSON + Field Guide UI Polish
-
-- Widens the admin/owner Advanced JSON workspace and gives the field guide the larger desktop pane.
-- Improves Field Guide readability with a wider path list, roomier detail panel, and aligned What / Why / When / Who / Where / How rows.
-- Reduces the JSON editor font size slightly so more live config fits on screen.
-
-This is a UI polish release only. It does not change config save semantics, field-guide meaning, permissions, generated files, scheduler timing, policy behavior, or LibreQoS apply mechanics.
-
-## v2.70.12-rc1 — Config Guidance + Role-Aware Navigation
-
-- Adds one shared config-guide registry for the Advanced JSON inspector and bundled documentation.
-- Adds a searchable Advanced JSON field guide that answers What / Why / When / Who / Where / How, default/recommended value, risk, and related paths.
-- Adds a generated `Config Field Guide — WH/HOW Reference` for installers/operators so documentation and the live editor stay aligned.
-- Hides admin-only Lifecycle and Reports sidebar links from operator/viewer roles while preserving backend route guards.
-- Aligns role descriptions with the actual route model and extends UI Wiring Audit for admin-only sidebar links plus config-guide wiring.
-
-This is a guidance/visibility hardening release in the existing `v2.70` RC stabilization line, so the correct next version is `2.70.12-rc1` rather than a new minor version. It does not change MikroTik collection behavior, cleanup decisions, generated file formats, scheduler timing, or LibreQoS apply mechanics.
-
-## v2.70.11-rc1 — Config Truth Layer + Live Save Audit
-
-- Routes every runtime config write through one canonical config-write pipeline.
-- Keeps Config Center live-save behavior while adding revision checks so stale tabs cannot silently overwrite newer config.json values.
-- Adds masked field-level config audit diffs with changed paths, previous/new values, effectivity, and explanation metadata.
-- Adds inline effectivity to Config Change Preview and Policy field cards.
-- Removes the known stale `templates/routers.html` and `app.py.pre_reports_route_fix` package files now that compatibility routes point to the canonical UI.
-- Preserves existing routes, config.json source-of-truth behavior, and network-layout semantics for network_mode / flat_network / no_parent.
-
-This release strengthens config truth and auditability without changing MikroTik collection behavior, generated file formats, scheduler timing, cleanup semantics, Telegram delivery, or LibreQoS apply mechanics.
-
 ## v2.70.10-rc1 — Policy Overview Custom Wiring Hotfix
 
 - Fixes Config Center → Policies so Policy Overview controls also switch the visible policy mode to Custom.
@@ -876,7 +829,7 @@ Privacy Mode remains browser-only redaction for screenshots and demos. It does n
 ## v2.28.0 - Legacy LibreQoS Service Labeling
 
 - Treats `lqos_node_manager` as a legacy/optional LibreQoS Web UI service instead of a required service.
-- Fresh `config.json.example` now uses `lqosd`, `lqos_scheduler`, and `lqos_shaped_sync` as primary units.
+- Fresh `config.json.example` now uses `lqosd`, `lqos_scheduler`, and `lqosync` as primary units.
 - Adds `services.legacy_optional_units`, `services.unit_metadata`, and `services.show_legacy_optional_not_installed`.
 - Services & Journals now auto-hides missing legacy optional services by default and labels them clearly when shown.
 - Config Center now has a Service Monitor Settings section for service units, legacy optional units, journal defaults, and restart groups.
@@ -1049,7 +1002,7 @@ Permission denied: /opt/libreqos/src/config.json.tmp
 
 ## v2.17.0 - `/opt/lqosync` Install Path
 
-- Changed LQoSync application/runtime install path from `/opt/lqos_shaped_sync` to:
+- Changed LQoSync application/runtime install path from `/opt/lqosync` to:
 
 ```text
 /opt/lqosync
@@ -1073,7 +1026,7 @@ Permission denied: /opt/libreqos/src/config.json.tmp
   - `config.json`
   - `ShapedDevices.csv`
   - `network.json`
-- Service/container name remains `lqos_shaped_sync` for compatibility.
+- Service/container name remains `lqosync` for compatibility.
 - Updated documentation, commands, About page, Dockerfile, compose files, and installer scripts.
 
 ---
@@ -1262,7 +1215,7 @@ sudo systemctl restart lqosd lqos_scheduler
   - `lqosd`
   - `lqos_scheduler`
   - `lqos_node_manager`
-  - `lqos_shaped_sync`
+  - `lqosync`
 - Added migration normalization for older names like `lqos` or `lqosd_scheduler`.
 
 ---

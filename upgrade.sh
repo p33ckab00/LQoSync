@@ -6,9 +6,9 @@ set -euo pipefail
 
 INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-/opt/lqosync}"
 REPO_URL="${LQOSYNC_REPO_URL:-https://github.com/p33ckab00/LQoSync.git}"
-LEGACY_REPO_URL="${LQOSYNC_LEGACY_REPO_URL:-https://github.com/p33ckab00/lqos_shaped_sync.git}"
 BRANCH="${LQOSYNC_BRANCH:-main}"
-SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqos_shaped_sync}"
+SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
+OLD_SERVICE_NAME="${LQOSYNC_OLD_SERVICE_NAME:-lqos_shaped_sync}"
 POLICY="${UPDATE_POLICY:-preserve_and_migrate}"
 BACKUP_ROOT="${LQOSYNC_BACKUP_ROOT:-/opt/lqosync/backups/upgrades}"
 TS="$(date +%Y%m%d_%H%M%S)"
@@ -60,7 +60,7 @@ cp -a "$INSTALL_DIR/users.json" "$BACKUP_DIR/users.json" 2>/dev/null || true
 cp -a "$INSTALL_DIR/.env" "$BACKUP_DIR/.env" 2>/dev/null || true
 cp -a "$INSTALL_DIR/state" "$BACKUP_DIR/state" 2>/dev/null || true
 cp -a "/etc/systemd/system/${SERVICE_NAME}.service" "$BACKUP_DIR/${SERVICE_NAME}.service" 2>/dev/null || true
-cp -a "/etc/sudoers.d/lqos_shaped_sync" "$BACKUP_DIR/sudoers.lqos_shaped_sync" 2>/dev/null || true
+cp -a "/etc/sudoers.d/lqosync" "$BACKUP_DIR/sudoers.lqosync" 2>/dev/null || true
 
 OLD_COMMIT="none"
 if [ -d "$INSTALL_DIR/.git" ]; then
@@ -78,11 +78,7 @@ pull_or_clone() {
     log "Install directory is not Git-managed. Converting it using clone + rsync."
     TMP_CLONE="/tmp/lqosync_upgrade_clone_$TS"
     rm -rf "$TMP_CLONE"
-    if ! git clone --branch "$BRANCH" "$REPO_URL" "$TMP_CLONE"; then
-      log "Clone from $REPO_URL failed. Trying legacy repository URL: $LEGACY_REPO_URL"
-      rm -rf "$TMP_CLONE"
-      git clone --branch "$BRANCH" "$LEGACY_REPO_URL" "$TMP_CLONE"
-    fi
+    git clone --branch "$BRANCH" "$REPO_URL" "$TMP_CLONE"
     mkdir -p "$INSTALL_DIR"
     rsync -a --delete \
       --exclude 'venv' \

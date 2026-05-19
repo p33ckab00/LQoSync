@@ -14,18 +14,17 @@ def audit_path(config: dict) -> Path:
     explicit = config.get("paths", {}).get("audit_log")
     if explicit:
         return Path(explicit)
-    log_file = Path(config.get("paths", {}).get("log_file", "logs/lqos_shaped_sync.log"))
+    log_file = Path(config.get("paths", {}).get("log_file", "logs/lqosync.log"))
     return log_file.parent / "audit.jsonl"
 
 
-def write_audit(config: dict, action: str, actor: str = "system", details: dict[str, Any] | None = None, summary: str | None = None):
+def write_audit(config: dict, action: str, actor: str = "system", details: dict[str, Any] | None = None):
     path = audit_path(config)
     path.parent.mkdir(parents=True, exist_ok=True)
     event = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "actor": actor or "system",
         "action": action,
-        "summary": summary or "",
         "details": details or {},
     }
     with path.open("a", encoding="utf-8") as f:

@@ -98,7 +98,7 @@ def repair_commands() -> list[dict[str, Any]]:
         {
             "title": "Repair / reinstall bare-metal safely",
             "description": "Reapplies service file, sudoers, ACLs, config migration, and runtime folders while preserving live LibreQoS files.",
-            "command": "cd /opt/lqosync\nsudo systemctl stop lqos_shaped_sync\nsudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh\nsudo systemctl start lqos_shaped_sync",
+            "command": "cd /opt/lqosync\nsudo systemctl stop lqosync\nsudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh\nsudo systemctl start lqosync",
         },
         {
             "title": "Restore LibreQoS permissions after uninstall or stale ACLs",
@@ -253,7 +253,7 @@ def compute_setup_repair_report(
     else:
         _add_check(checks, key="router_credentials", title="Router API credentials", status="ok" if enabled_routers else "info", detail="Enabled routers have address/username/password fields", category="mikrotik")
 
-    required_services = ["lqosd", "lqos_scheduler", "lqos_shaped_sync"]
+    required_services = ["lqosd", "lqos_scheduler", "lqosync"]
     for unit in required_services:
         st = (services.get(unit) or {}).get("active") if isinstance(services.get(unit), dict) else None
         _add_check(checks, key=f"service_{unit}", title=f"Service {unit}", status="ok" if st == "active" else "warn", detail=f"active={st or 'unknown'}", why="Required services should be active for production operation.", fix=f"Inspect and restart {unit} if needed.", command=f"sudo systemctl status {unit} --no-pager", category="services")

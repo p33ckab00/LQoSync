@@ -36,7 +36,7 @@ LQoSync uses this final path layout:
 /opt/lqosync/backups/              # pre-apply and restore backups
 ```
 
-The systemd service name and Docker container name remain `lqos_shaped_sync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
+The systemd service name and Docker container name remain `lqosync` for compatibility, but the application/runtime directory is now `/opt/lqosync`.
 
 The Compose file uses:
 
@@ -98,7 +98,7 @@ docker compose version
 
 ```bash
 cd /home/pi
-unzip lqos_shaped_sync_v2_17_opt_lqosync.zip
+unzip LQoSync_v2_17_opt_lqosync.zip
 cd lqos_docker
 ```
 
@@ -170,7 +170,7 @@ sudo docker compose up -d --build
 ### 7. Check logs
 
 ```bash
-sudo docker logs -f lqos_shaped_sync
+sudo docker logs -f lqosync
 ```
 
 ### 8. Open UI
@@ -188,7 +188,7 @@ admin / adminpass
 Change password:
 
 ```bash
-sudo docker exec -it lqos_shaped_sync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py admin 'new-strong-password' admin"
+sudo docker exec -it lqosync sh -lc "USERS_PATH=/opt/lqosync/users.json python /app/scripts/set_password.py admin 'new-strong-password' admin"
 ```
 
 ---
@@ -227,20 +227,20 @@ sudo docker compose restart
 Shell:
 
 ```bash
-sudo docker exec -it lqos_shaped_sync bash
+sudo docker exec -it lqosync bash
 ```
 
 Doctor:
 
 ```bash
-sudo docker exec -it lqos_shaped_sync python /app/scripts/doctor.py
-sudo docker exec -it lqos_shaped_sync python /app/scripts/doctor.py --router-test
+sudo docker exec -it lqosync python /app/scripts/doctor.py
+sudo docker exec -it lqosync python /app/scripts/doctor.py --router-test
 ```
 
 Logs:
 
 ```bash
-sudo docker logs -f lqos_shaped_sync
+sudo docker logs -f lqosync
 ```
 
 ---
@@ -256,13 +256,13 @@ sudo docker compose down
 Remove image, optional:
 
 ```bash
-sudo docker image rm lqos_shaped_sync:2.4-docs-baremetal 2>/dev/null || true
+sudo docker image rm lqosync:2.4-docs-baremetal 2>/dev/null || true
 ```
 
 Remove runtime data, optional:
 
 ```bash
-sudo tar -czf /root/lqos_shaped_sync_backup_$(date +%Y%m%d_%H%M%S).tar.gz /opt/lqosync 2>/dev/null || true
+sudo tar -czf /root/lqosync_backup_$(date +%Y%m%d_%H%M%S).tar.gz /opt/lqosync 2>/dev/null || true
 sudo rm -rf /opt/lqosync
 ```
 
@@ -416,7 +416,7 @@ This user can read the RouterOS API resources required by LQoSync while blocking
 If the Docker deployment source folder is Git-managed, update with:
 
 ```bash
-cd /home/pi/lqos_shaped_sync
+cd /home/pi/lqosync
 sudo git pull origin main
 sudo docker compose down
 sudo docker compose build --no-cache
