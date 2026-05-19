@@ -422,5 +422,11 @@
     "file": "docs/content/operator_overview.md",
     "anchor": "operator-overview",
     "summary": "Atomic explanation of how LQoSync collects, builds, validates, writes, applies, and reports."
+  },
+  "rust.core_scaffold": {
+    "title": "Rust Core Scaffold Implementation",
+    "file": "docs/RUST_CORE_MIGRATION.md",
+    "anchor": "current-package-implementation-status",
+    "summary": "Current optional lqosync-core scaffold files, operations, build commands, and Python fallback behavior."
   }
 }

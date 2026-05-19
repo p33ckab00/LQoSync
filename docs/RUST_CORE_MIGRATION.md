@@ -252,3 +252,60 @@ Do not make the Rust RouterOS API client the first migration target. The first t
 ## Success criteria
 
 The Rust branch is successful when the operator cannot accidentally write unsafe LibreQoS input files from malformed config, partial collector output, invalid topology, duplicate IPs, corrupted state, or suspicious zero-result collector data.
+
+## Current package implementation status
+
+This package includes the first executable scaffold for the `lqosync-in-rust` branch.
+
+Implemented now:
+
+```text
+rust/lqosync-core/Cargo.toml
+rust/lqosync-core/src/protocol.rs
+rust/lqosync-core/src/bandwidth.rs
+rust/lqosync-core/src/shaped_devices.rs
+rust/lqosync-core/src/network.rs
+rust/lqosync-core/src/validators.rs
+rust/lqosync-core/src/main.rs
+engine/rust_core.py
+scripts/build-rust-core.sh
+scripts/install-rust-core.sh
+```
+
+Runtime behavior:
+
+```text
+- Python remains the main runtime path.
+- Rust core is optional.
+- If the Rust binary is missing, Python fallback stays active.
+- Dry Run records rust_core_validation in the result diff.
+- Rust validation is non-blocking by default.
+- Set rust_core.enforce_validation=true only after testing in lab/staging.
+```
+
+The Rust core currently supports these protocol operations:
+
+```text
+parse-bandwidth
+validate-config
+validate-shaped-devices
+validate-network
+validate-files
+validate-collector-output
+```
+
+Build commands:
+
+```bash
+scripts/build-rust-core.sh
+sudo scripts/install-rust-core.sh
+```
+
+After installation, LQoSync can discover the binary through:
+
+```text
+rust/lqosync-core/target/release/lqosync-core
+rust/lqosync-core/target/debug/lqosync-core
+/usr/local/bin/lqosync-core
+$LQOSYNC_CORE_BIN
+```

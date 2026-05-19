@@ -202,3 +202,32 @@ Recommended behavior:
 ```
 
 This prevents one drag/drop action from silently moving many active subscribers into a bad LibreQoS parent node.
+
+## Current package status
+
+This package adds the Rust protocol, parser, validator scaffold, and optional
+Python wrapper. Full Rust atomic writing is still a later phase.
+
+The following config section is now normalized by Python:
+
+```json
+{
+  "rust_core": {
+    "enabled": true,
+    "binary_path": "",
+    "timeout_seconds": 10,
+    "enforce_validation": false,
+    "prefer_daemon": false,
+    "unix_socket": "/run/lqosync-core.sock"
+  }
+}
+```
+
+Early safety behavior:
+
+```text
+- Rust validation is visible in Dry Run when the binary is available.
+- Python fallback remains active when the binary is missing.
+- enforce_validation is false by default to avoid blocking existing installs.
+- Later v0.3 work should move config/state/cache/file writes into Rust.
+```

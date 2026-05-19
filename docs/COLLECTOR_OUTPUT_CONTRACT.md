@@ -183,3 +183,30 @@ cleanup_sources only includes source when safe_for_cleanup=true
 ## Cache relationship
 
 Collector validation may use previous counts from `collector_cache.json` or runtime state. Because this influences cleanup safety, `collector_cache.json` must be written atomically in the same safety family as `runtime_state.json` and `policy_state.json`.
+
+## Current Rust support
+
+The Rust scaffold includes `validate-collector-output` now, even before a full
+collector rewrite. This allows Python collectors to pass a trust envelope before
+cleanup/diff/write decisions rely on their output.
+
+Example request:
+
+```json
+{
+  "version": "1",
+  "op": "validate-collector-output",
+  "payload": {
+    "router": "RB5009-Core",
+    "source": "pppoe",
+    "status": "ok",
+    "rows": [],
+    "failed_reads": [],
+    "previous_success_count": 18
+  }
+}
+```
+
+If `rows` is zero after a previous successful non-zero run and status is not
+`zero_valid`, Rust returns `safe_for_cleanup=false` with a
+`collector_zero_suspicious` diagnostic.

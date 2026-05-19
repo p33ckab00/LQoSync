@@ -49,7 +49,7 @@ git checkout -b lqosync-in-rust
 ```bash
 # Example location only
 cd /opt
-unzip /path/to/LQoSync_runtime_canonical_FULL_rust_docs.zip -d LQoSync-rust
+unzip /path/to/LQoSync_runtime_canonical_FULL_rust_core_scaffold.zip -d LQoSync-rust
 cd LQoSync-rust
 
 # If this folder is not yet a Git repo
@@ -93,7 +93,7 @@ rsync -a --delete ./ /opt/lqosync-branch-backups/LQoSync-before-$(date +%Y%m%d-%
 # Extract new ZIP into a temporary directory
 rm -rf /tmp/lqosync-new
 mkdir -p /tmp/lqosync-new
-unzip /path/to/LQoSync_runtime_canonical_FULL_rust_docs.zip -d /tmp/lqosync-new
+unzip /path/to/LQoSync_runtime_canonical_FULL_rust_core_scaffold.zip -d /tmp/lqosync-new
 
 # Copy new files into repo, preserving .git
 rsync -a --delete --exclude '.git' /tmp/lqosync-new/ ./
@@ -242,3 +242,56 @@ Before pushing, answer these questions:
 ```
 
 If the answer to 1–4 is yes, include a detailed commit body and run dry-run tests before production use.
+
+## Commit command for the Rust scaffold package
+
+Use this when committing the first actual Rust-core scaffold package.
+
+```bash
+git add \
+  VERSION \
+  README.md \
+  FULL_DOCUMENTATION.md \
+  RELEASE_NOTES.md \
+  PACKAGE_NOTES.md \
+  config.json.example \
+  app.py \
+  engine/config_loader.py \
+  engine/run_cycle.py \
+  engine/rust_core.py \
+  templates/dry_run.html \
+  scripts/build-rust-core.sh \
+  scripts/install-rust-core.sh \
+  rust/lqosync-core/Cargo.toml \
+  rust/lqosync-core/README.md \
+  rust/lqosync-core/src/lib.rs \
+  rust/lqosync-core/src/main.rs \
+  rust/lqosync-core/src/protocol.rs \
+  rust/lqosync-core/src/bandwidth.rs \
+  rust/lqosync-core/src/shaped_devices.rs \
+  rust/lqosync-core/src/network.rs \
+  rust/lqosync-core/src/validators.rs \
+  docs/RUST_CORE_MIGRATION.md \
+  docs/RUST_CORE_PROTOCOL.md \
+  docs/COLLECTOR_OUTPUT_CONTRACT.md \
+  docs/AUTOSAVE_AND_ATOMIC_STATE.md \
+  docs/COMMIT_AND_PUSH_GUIDE.md
+
+git commit -m "rust(core): scaffold optional LQoSync safety core" \
+  -m "Add the first lqosync-core Rust crate with the stable JSON protocol envelope, bandwidth parser, ShapedDevices/network validators, collector output trust validator, Python subprocess wrapper, Dry Run visibility, and build/install helper scripts." \
+  -m "Rust validation is optional and non-blocking by default. Python fallback remains active when the Rust binary is unavailable."
+```
+
+Push:
+
+```bash
+git push -u origin lqosync-in-rust
+```
+
+Additional checks when Rust is installed:
+
+```bash
+scripts/build-rust-core.sh
+printf '%s' '{"version":"1","op":"parse-bandwidth","payload":{"parser":"rate_limit","value":"10M/5M"}}' \
+  | rust/lqosync-core/target/release/lqosync-core
+```

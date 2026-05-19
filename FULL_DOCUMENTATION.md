@@ -7456,3 +7456,62 @@ v0.6 Circuit builder / possible Rust RouterOS collector
 The most important safety correction is that collector output must be validated before cleanup. A source that returns an empty list without raising an exception must not be treated as safe for cleanup unless Rust classifies it as `zero_valid`.
 
 The second safety correction is that `collector_cache.json` belongs with the atomic state engine. It may influence speed/source continuity and source-trust decisions in later cycles, so it must not be treated as an unimportant warning-only cache.
+
+# LQoSync-in-Rust Optional Core Scaffold
+
+Version `v2.71.0-rc1` adds the first optional Rust safety-core scaffold for the `lqosync-in-rust` branch.
+
+Implemented files:
+
+```text
+rust/lqosync-core/Cargo.toml
+rust/lqosync-core/src/protocol.rs
+rust/lqosync-core/src/bandwidth.rs
+rust/lqosync-core/src/shaped_devices.rs
+rust/lqosync-core/src/network.rs
+rust/lqosync-core/src/validators.rs
+rust/lqosync-core/src/main.rs
+engine/rust_core.py
+scripts/build-rust-core.sh
+scripts/install-rust-core.sh
+```
+
+Supported Rust operations:
+
+```text
+parse-bandwidth
+validate-config
+validate-shaped-devices
+validate-network
+validate-files
+validate-collector-output
+```
+
+The Python runtime remains the primary path. If the Rust binary is not installed,
+`engine.rust_core` returns a structured fallback response and existing Python
+validation remains active.
+
+Rust core config defaults:
+
+```json
+{
+  "rust_core": {
+    "enabled": true,
+    "binary_path": "",
+    "timeout_seconds": 10,
+    "enforce_validation": false,
+    "prefer_daemon": false,
+    "unix_socket": "/run/lqosync-core.sock"
+  }
+}
+```
+
+Dry Run now includes `diff.rust_core_validation` for visibility. Rust errors only
+block when the binary is available and `rust_core.enforce_validation` is enabled.
+
+Build commands:
+
+```bash
+scripts/build-rust-core.sh
+sudo scripts/install-rust-core.sh
+```

@@ -64,6 +64,14 @@ DEFAULT_CONFIG = {
         "duplicate_ip_policy": "warn_and_skip",
         "static_comment_value": "static",
     },
+    "rust_core": {
+        "enabled": True,
+        "binary_path": "",
+        "timeout_seconds": 10,
+        "enforce_validation": False,
+        "prefer_daemon": False,
+        "unix_socket": "/run/lqosync-core.sock",
+    },
     "collector": {
         "selective_fields": True,
         "pppoe": {
@@ -179,7 +187,7 @@ DEFAULT_CONFIG = {
         "cleanup_stale_files_script": "/opt/lqosync/scripts/cleanup_stale_files.py"
     },
     "stable_release": {
-        "target": "v2.72 Runtime Canonical Naming",
+        "target": "v2.70 Stable Release Candidate",
         "feature_freeze": True,
         "allow_new_sidebar_modules": False,
         "require_release_check": True,
@@ -311,6 +319,7 @@ def normalize_config(cfg):
     cfg.setdefault("scheduler", {})
     cfg.setdefault("defaults", {})
     cfg.setdefault("collector", {})
+    cfg.setdefault("rust_core", {})
     cfg.setdefault("topology", {})
     cfg.setdefault("preflight", {})
     cfg.setdefault("policies", {})
@@ -490,6 +499,18 @@ def validate_config(cfg: dict):
     topology.setdefault("allow_custom_edit", True)
     topology.setdefault("show_virtual_nodes", True)
     topology.setdefault("validate_before_save", True)
+
+    rust_core = cfg.setdefault("rust_core", {})
+    rust_core.setdefault("enabled", True)
+    rust_core.setdefault("binary_path", "")
+    rust_core.setdefault("timeout_seconds", 10)
+    rust_core.setdefault("enforce_validation", False)
+    rust_core.setdefault("prefer_daemon", False)
+    rust_core.setdefault("unix_socket", "/run/lqosync-core.sock")
+    try:
+        rust_core["timeout_seconds"] = max(int(rust_core.get("timeout_seconds", 10) or 10), 1)
+    except Exception:
+        errors.append("rust_core.timeout_seconds must be numeric")
 
     collector = cfg.get("collector", {})
     lease_mode = collector.get("dhcp", {}).get("lease_mode", "permissive")

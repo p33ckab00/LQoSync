@@ -204,7 +204,7 @@ LQoSync builds the LibreQoS node tree from router, source, DHCP server, plan, an
 
 ## LQoSync-in-Rust branch plan
 
-The planned `lqosync-in-rust` branch keeps the Python Flask WebUI as the operator interface while adding a Rust core for deterministic safety-critical backend work.
+The `lqosync-in-rust` branch keeps the Python Flask WebUI as the operator interface while adding an optional Rust core for deterministic safety-critical backend work.
 
 ```text
 Python = WebUI, auth, templates, scheduler controls, docs, reports
@@ -213,7 +213,16 @@ Rust   = protocol, validation, parsing, diff, collector trust, atomic state/file
 
 The migration preserves the existing no-database model and keeps `config.json`, `runtime_state.json`, `policy_state.json`, `collector_cache.json`, `audit.jsonl`, `ShapedDevices.csv`, and `network.json` as file-based state.
 
-Start with documentation and protocol before code:
+This package now includes the first optional Rust core scaffold under `rust/lqosync-core` plus the Python wrapper `engine/rust_core.py`. Rust validation is non-blocking by default and Python fallback remains active when the binary is not built or installed.
+
+Build the optional Rust core with:
+
+```bash
+scripts/build-rust-core.sh
+sudo scripts/install-rust-core.sh
+```
+
+Documentation:
 
 - [LQoSync-in-Rust Core Migration Plan](docs/RUST_CORE_MIGRATION.md)
 - [Rust Core Protocol](docs/RUST_CORE_PROTOCOL.md)

@@ -41,6 +41,7 @@ from engine.config_schema import migrate_config_schema, validate_schema, CONFIG_
 from engine.release_integrity import compute_release_integrity, repair_config_defaults
 from engine.lifecycle import lifecycle_summary, client_event_timeline
 from engine.lifecycle_report import compute_lifecycle_report, lifecycle_report_to_csv, lifecycle_report_to_markdown
+from engine.rust_core import rust_core_status
 from applier.atomic_writer import atomic_write_text
 from monitoring.service_monitor import (
     all_service_status, service_status, restart_service as monitor_restart_service,
@@ -1973,6 +1974,13 @@ def api_performance_last_cycle():
     _cfg, state = get_status()
     last = state.get("last_run") or {}
     return jsonify({"timings": last.get("timings", {}), "timeline": last.get("timeline", []), "duration_seconds": last.get("duration_seconds")})
+
+@app.route("/api/rust-core/status")
+@login_required
+def api_rust_core_status():
+    cfg = load_config(CONFIG_PATH)
+    return jsonify(rust_core_status(cfg))
+
 
 @app.route("/api/sync/run", methods=["POST"])
 @admin_required

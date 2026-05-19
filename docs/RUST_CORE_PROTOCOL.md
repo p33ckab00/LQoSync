@@ -263,3 +263,64 @@ When the protocol shape changes incompatibly:
 - support old version for at least one release
 - document migration in release notes
 ```
+
+## Implemented v0.1/v0.2-compatible operations in this package
+
+The current scaffold implements the stable envelope and these operations:
+
+```text
+parse-bandwidth
+validate-config
+validate-shaped-devices
+validate-network
+validate-files
+validate-collector-output
+```
+
+Example subprocess call:
+
+```bash
+printf '%s' '{"version":"1","op":"parse-bandwidth","payload":{"parser":"rate_limit","value":"10M/5M"}}' \
+  | rust/lqosync-core/target/release/lqosync-core
+```
+
+Example `validate-files` request using inline text:
+
+```json
+{
+  "version": "1",
+  "op": "validate-files",
+  "payload": {
+    "config": {},
+    "csv_text": "Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment\n",
+    "network_text": "{}"
+  }
+}
+```
+
+Example `validate-files` request using file paths:
+
+```json
+{
+  "version": "1",
+  "op": "validate-files",
+  "payload": {
+    "config_path": "/opt/libreqos/src/config.json",
+    "shaped_devices_csv_path": "/opt/libreqos/src/ShapedDevices.csv",
+    "network_json_path": "/opt/libreqos/src/network.json"
+  }
+}
+```
+
+Python wrapper:
+
+```python
+from engine.rust_core import call_rust_core, validate_runtime_outputs, rust_core_status
+```
+
+Fallback rule:
+
+```text
+If the Rust binary is unavailable, engine.rust_core returns ok=true, skipped=true,
+available=false so the current Python path can continue safely.
+```

@@ -515,7 +515,7 @@
     "require_regression_check": true,
     "require_release_check": true,
     "require_stable_release_check": true,
-    "target": "v2.72 Runtime Canonical Naming"
+    "target": "v2.70 Stable Release Candidate"
   },
   "topology": {
     "allow_custom_edit": true,
@@ -529,5 +529,13 @@
     "refresh_seconds": 5,
     "show_lifecycle_center": true,
     "show_raw_json_editor": true
+  },
+  "rust_core": {
+    "enabled": true,
+    "binary_path": "",
+    "timeout_seconds": 10,
+    "enforce_validation": false,
+    "prefer_daemon": false,
+    "unix_socket": "/run/lqosync-core.sock"
   }
 }

@@ -35,6 +35,7 @@ from engine.policy_engine import (
 )
 from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
+from engine.rust_core import validate_runtime_outputs, diagnostics_to_messages
 
 
 class Timeline:
@@ -355,6 +356,29 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
         result.warnings.extend(preflight["warnings"])
         result.errors.extend(preflight["errors"])
         timeline.record("preflight", t, status="failed" if result.errors else "ok", details={"warnings": len(preflight["warnings"]), "errors": len(preflight["errors"])})
+
+        t = time.perf_counter()
+        rust_validation = validate_runtime_outputs(config, csv_text=proposed_csv_text, network_text=proposed_network_text)
+        result.diff["rust_core_validation"] = rust_validation
+        rust_errors, rust_warnings = diagnostics_to_messages(rust_validation)
+        if rust_validation.get("available") and not rust_validation.get("ok") and config.get("rust_core", {}).get("enforce_validation", False):
+            result.errors.extend(rust_errors)
+        elif rust_errors:
+            result.warnings.extend(rust_errors)
+        if rust_validation.get("available"):
+            result.warnings.extend(rust_warnings)
+        timeline.record(
+            "rust_core_validation",
+            t,
+            status="ok" if rust_validation.get("ok") else ("unavailable" if not rust_validation.get("available") else "failed"),
+            details={
+                "available": bool(rust_validation.get("available")),
+                "ok": bool(rust_validation.get("ok")),
+                "enforced": bool(config.get("rust_core", {}).get("enforce_validation", False)),
+                "errors": len(rust_validation.get("errors") or []),
+                "warnings": len(rust_validation.get("warnings") or []),
+            },
+        )
 
         t = time.perf_counter()
         policy_decision = evaluate_apply_guards(config, policy_decision, preflight, result)

@@ -39,9 +39,9 @@ sudo systemctl restart lqosync
 ```
 
 
-## Rust branch documentation package
+## Rust branch scaffold package
 
-This package also includes documentation for the future `lqosync-in-rust` branch. It is documentation-only and does not change runtime behavior.
+This package includes documentation and the first optional Rust core scaffold for the `lqosync-in-rust` branch. Runtime sync/apply remains Python-first, and Rust validation is non-blocking by default.
 
 Included docs:
 
@@ -60,8 +60,23 @@ Recommended branch:
 git checkout -b lqosync-in-rust
 ```
 
-Recommended commit:
+Recommended commit for this scaffold package:
 
 ```bash
-git commit -m "docs(rust): document LQoSync-in-Rust migration plan"
+git commit -m "rust(core): scaffold optional LQoSync safety core"
 ```
+
+## v2.71.0-rc1 Rust core scaffold package
+
+This package adds the first optional Rust core implementation for the `lqosync-in-rust` branch.
+
+Included implementation files:
+
+```text
+rust/lqosync-core/
+engine/rust_core.py
+scripts/build-rust-core.sh
+scripts/install-rust-core.sh
+```
+
+The existing Python runtime remains primary. Rust validation is exposed as an optional sidecar and is non-blocking by default.

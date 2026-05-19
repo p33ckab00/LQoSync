@@ -1,5 +1,32 @@
 # Release Notes
 
+## v2.71.0-rc1 - Optional Rust Core Scaffold
+
+First implementation package for the `lqosync-in-rust` branch.
+
+### Added
+
+- Added `rust/lqosync-core`, an optional Rust safety-core crate.
+- Added a stable JSON protocol envelope in `protocol.rs` for CLI now and future Unix socket daemon later.
+- Added Rust bandwidth parser with unit, comment, and RouterOS `rate-limit` parsing.
+- Added Rust ShapedDevices.csv parser/render validator.
+- Added Rust network.json parser/tree validator.
+- Added Rust config/policy action validation.
+- Added Rust collector output trust validation for partial and suspicious zero-result source data.
+- Added `engine/rust_core.py` Python wrapper with subprocess transport and Python fallback.
+- Added `rust_core` config defaults: enabled, binary path, timeout, enforce mode, daemon preference, and socket path.
+- Added Dry Run visibility for `rust_core_validation` when the binary is available.
+- Added `/api/rust-core/status` for checking wrapper/binary availability.
+- Added build/install helpers: `scripts/build-rust-core.sh` and `scripts/install-rust-core.sh`.
+
+### Safety notes
+
+- Runtime sync/apply behavior remains Python-first.
+- Rust validation is optional and non-blocking by default.
+- If the Rust binary is missing, Python fallback remains active.
+- `rust_core.enforce_validation=false` by default; enable only after lab/staging validation.
+- This release does not yet move atomic state/file writes into Rust; that remains v0.3 migration scope.
+
 ## v2.70.10-rust-docs - LQoSync-in-Rust Documentation Package
 
 Documentation-only package for the planned `lqosync-in-rust` branch.

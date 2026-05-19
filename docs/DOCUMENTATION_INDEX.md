@@ -109,3 +109,24 @@ LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner contr
 - [Install and Update Safety](content/install_update_safety.md) — backup-first fresh install, preserve-existing update behavior, and operator verification.
 
 - [Operator Overview](content/operator_overview.md) — atomic explanation of the collection/build/policy/apply workflow.
+
+## Rust core scaffold implementation
+
+The `lqosync-in-rust` branch now includes the first optional Rust sidecar implementation.
+
+Key files:
+
+```text
+rust/lqosync-core/
+engine/rust_core.py
+scripts/build-rust-core.sh
+scripts/install-rust-core.sh
+```
+
+Read these docs first:
+
+- [LQoSync-in-Rust Core Migration Plan](RUST_CORE_MIGRATION.md)
+- [Rust Core Protocol](RUST_CORE_PROTOCOL.md)
+- [Collector Output Contract](COLLECTOR_OUTPUT_CONTRACT.md)
+- [Autosave and Atomic State Model](AUTOSAVE_AND_ATOMIC_STATE.md)
+- [Commit and Push Guide](COMMIT_AND_PUSH_GUIDE.md)
