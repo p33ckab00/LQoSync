@@ -515,7 +515,7 @@
     "require_regression_check": true,
     "require_release_check": true,
     "require_stable_release_check": true,
-    "target": "v2.70 Stable Release Candidate"
+    "target": "v2.72 Runtime Canonical Naming"
   },
   "topology": {
     "allow_custom_edit": true,

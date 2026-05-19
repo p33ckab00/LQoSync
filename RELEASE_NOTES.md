@@ -1,6 +1,15 @@
 # Release Notes
 
-## v2.70.10-rc1 — Policy Overview Custom Wiring Hotfix
+## v2.72.0 — Runtime Canonical Naming
+
+- Makes `LQoSync` the canonical project identity and `lqosync` the canonical runtime/service identity.
+- Updates fresh install, update, adoption, WebUI guidance, and operator documentation to use `p33ckab00/LQoSync`.
+- Renames runtime-facing defaults from the legacy `lqos_shaped_sync` identity to `lqosync`, including service commands, Docker naming, sudoers naming, and log paths.
+- Adds migration guidance so existing installs can move safely from the old service name without double-running schedulers or losing operator-owned data.
+- Preserves production safety behavior for `config.json`, `ShapedDevices.csv`, `network.json`, users, environment files, runtime state, logs, and backups.
+
+
+## v2.72.0 — Policy Overview Custom Wiring Hotfix
 
 - Fixes Config Center → Policies so Policy Overview controls also switch the visible policy mode to Custom.
 - Operation Mode, Auto Apply, Optional Auto Backup, and Backup Retention now call markPolicyCustom() when changed in the Policy Hierarchy UI.

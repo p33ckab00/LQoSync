@@ -179,7 +179,7 @@ DEFAULT_CONFIG = {
         "cleanup_stale_files_script": "/opt/lqosync/scripts/cleanup_stale_files.py"
     },
     "stable_release": {
-        "target": "v2.70 Stable Release Candidate",
+        "target": "v2.72 Runtime Canonical Naming",
         "feature_freeze": True,
         "allow_new_sidebar_modules": False,
         "require_release_check": True,
