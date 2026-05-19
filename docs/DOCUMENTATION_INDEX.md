@@ -150,3 +150,5 @@ Read these docs first:
 - [Rust Core v1.0 Apply Transaction Executor](RUST_CORE_V10_APPLY_TRANSACTION.md)
 
 - [Rust Core v1.1 Runtime Self-Test and Capability Audit](RUST_CORE_V11_SELF_TEST.md) — self-test operation, capability audit, and WebUI endpoint for validating Rust core runtime availability.
+
+- [Rust Core v1.2 Transaction Journal and Rollback Manifest](RUST_CORE_V12_TRANSACTION_JOURNAL.md) — non-mutating journal and rollback previews for Rust transaction accountability.

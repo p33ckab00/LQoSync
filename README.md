@@ -306,3 +306,7 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 
 The v1.1.1 package fixes the self-test no-change manifest assertion and hardens Rust install helpers so a failed build cannot accidentally install a stale release binary. The daemon installer now restarts an already-running `lqosync-core.service` after updating `/usr/local/bin/lqosync-core`.
 
+
+### Rust Core v1.2 transaction journal and rollback preview
+
+Rust Core v1.2 adds `build-transaction-journal` and `build-rollback-manifest` operations. These are preview-only by default and make future Rust file-write authority auditable and rollback-aware. Read: `docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md`.

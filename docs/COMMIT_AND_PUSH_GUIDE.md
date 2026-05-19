@@ -397,3 +397,12 @@ git commit -m "rust(core): fix self-test and daemon reinstall flow" \
   -m "Fix the Rust self-test no-change manifest check, prevent stale release binaries after failed builds, and restart the Rust core daemon after binary updates."
 git push -u origin lqosync-in-rust
 ```
+
+## v2.82.0-rc1 commit example
+
+```bash
+git add .
+git commit -m "rust(core): add transaction journal and rollback preview" \
+  -m "Add build-transaction-journal and build-rollback-manifest operations, Dry Run visibility, transaction_journal path defaults, and documentation for auditable Rust apply transaction accountability."
+git push -u origin lqosync-in-rust
+```

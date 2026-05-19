@@ -122,3 +122,7 @@ The self-test is read-only and verifies advertised operations, parser basics, ap
 - Prevents stale release binaries from surviving a failed `scripts/build-rust-core.sh`.
 - Restarts an active `lqosync-core.service` when installing daemon updates.
 
+
+## v1.2.0 transaction journal and rollback preview
+
+Adds `build-transaction-journal` and `build-rollback-manifest`. Both operations are non-mutating and intended to make future Rust apply authority auditable and rollback-aware.

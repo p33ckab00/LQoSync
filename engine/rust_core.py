@@ -765,6 +765,137 @@ def rust_execute_apply_transaction(config: dict, *, mode: str, paths: dict, curr
         return _python_execute_apply_transaction(payload)
     return response
 
+
+def _python_transaction_journal(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for Rust build-transaction-journal.
+
+    This fallback is non-mutating. It builds the same high-level event shape so
+    Dry Run and reports stay stable if an older Rust core is installed.
+    """
+    started = started or time.perf_counter()
+    manifest_resp = payload.get("rust_apply_manifest") if isinstance(payload.get("rust_apply_manifest"), dict) else {}
+    tx_resp = payload.get("rust_apply_transaction") if isinstance(payload.get("rust_apply_transaction"), dict) else {}
+    manifest = manifest_resp.get("result") if isinstance(manifest_resp.get("result"), dict) else manifest_resp
+    tx = tx_resp.get("result") if isinstance(tx_resp.get("result"), dict) else tx_resp
+    paths = payload.get("paths") if isinstance(payload.get("paths"), dict) else (payload.get("config", {}).get("paths", {}) if isinstance(payload.get("config"), dict) else {})
+    basis = json.dumps({"manifest": manifest.get("manifest_id"), "tx": tx.get("status"), "executed": tx.get("executed")}, sort_keys=True)
+    journal_id = "txj-" + hashlib.sha256(basis.encode()).hexdigest()[:16]
+    event = {
+        "schema_version": "1",
+        "event": "rust_apply_transaction_journal",
+        "journal_id": journal_id,
+        "mode": payload.get("mode", "apply"),
+        "manifest_id": manifest.get("manifest_id", "unknown"),
+        "manifest_status": manifest.get("status"),
+        "transaction_status": tx.get("status", "not_run"),
+        "executed": bool(tx.get("executed", False)),
+        "write_count": int(tx.get("write_count", 0) or 0),
+        "operation_count": int(manifest.get("operation_count", 0) or 0),
+        "rollback_available": any(bool(item.get("backup_path")) for item in (tx.get("write_results") or []) if isinstance(item, dict)),
+    }
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-transaction-journal",
+        "available": False,
+        "ok": True,
+        "result": {
+            "mode": "transaction_journal_preview",
+            "authoritative": False,
+            "journal_id": journal_id,
+            "journal_path": paths.get("transaction_journal", "/opt/lqosync/logs/transaction_journal.jsonl"),
+            "append_required": bool(event["executed"]),
+            "append_executed": False,
+            "rollback_available": bool(event["rollback_available"]),
+            "manifest_id": event["manifest_id"],
+            "transaction_status": event["transaction_status"],
+            "executed": event["executed"],
+            "write_count": event["write_count"],
+            "operation_count": event["operation_count"],
+            "event": event,
+        },
+        "errors": [],
+        "warnings": [{"code": "rust_transaction_journal_unavailable", "severity": "warning", "path": "rust_core", "message": "Rust build-transaction-journal is unavailable; Python fallback generated a preview only."}],
+        "meta": {"engine": "python-wrapper", "mode": "python_transaction_journal_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_transaction_journal(config: dict, *, mode: str, paths: dict, rust_apply_manifest: dict | None = None, rust_apply_transaction: dict | None = None, rust_sync_plan: dict | None = None, rust_authority_gate: dict | None = None, policy_decision: dict | None = None) -> dict[str, Any]:
+    payload = {
+        "config": config or {},
+        "mode": mode,
+        "paths": paths or {},
+        "rust_apply_manifest": rust_apply_manifest or {},
+        "rust_apply_transaction": rust_apply_transaction or {},
+        "rust_sync_plan": rust_sync_plan or {},
+        "rust_authority_gate": rust_authority_gate or {},
+        "policy_decision": policy_decision or {},
+    }
+    response = call_rust_core("build-transaction-journal", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_transaction_journal(payload)
+    return response
+
+
+def _python_rollback_manifest(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    tx_resp = payload.get("rust_apply_transaction") if isinstance(payload.get("rust_apply_transaction"), dict) else {}
+    manifest_resp = payload.get("rust_apply_manifest") if isinstance(payload.get("rust_apply_manifest"), dict) else {}
+    tx = tx_resp.get("result") if isinstance(tx_resp.get("result"), dict) else tx_resp
+    manifest = manifest_resp.get("result") if isinstance(manifest_resp.get("result"), dict) else manifest_resp
+    ops = []
+    for item in (tx.get("write_results") or []):
+        if isinstance(item, dict) and item.get("path") and item.get("backup_path"):
+            ops.append({
+                "op": "restore_file",
+                "phase": "rollback",
+                "target_path": item.get("path"),
+                "backup_path": item.get("backup_path"),
+                "expected_current_sha256": item.get("after_sha256"),
+                "restore_sha256": item.get("before_sha256"),
+                "file_kind": item.get("file_kind"),
+                "allowed_now": False,
+            })
+    status = "rollback_available" if ops else ("no_restore_points" if tx.get("executed") else "not_executed")
+    basis = json.dumps({"manifest": manifest.get("manifest_id"), "tx": tx.get("status"), "ops": ops}, sort_keys=True)
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-rollback-manifest",
+        "available": False,
+        "ok": True,
+        "result": {
+            "mode": "rollback_manifest_preview",
+            "authoritative": False,
+            "rollback_id": "rollback-" + hashlib.sha256(basis.encode()).hexdigest()[:16],
+            "status": status,
+            "manifest_id": manifest.get("manifest_id"),
+            "transaction_status": tx.get("status"),
+            "executed": bool(tx.get("executed", False)),
+            "rollback_available": bool(ops),
+            "operation_count": len(ops),
+            "operations": ops,
+            "requires_operator_confirmation": True,
+            "execute_supported": False,
+        },
+        "errors": [],
+        "warnings": [{"code": "rust_rollback_manifest_unavailable", "severity": "warning", "path": "rust_core", "message": "Rust build-rollback-manifest is unavailable; Python fallback generated a preview only."}],
+        "meta": {"engine": "python-wrapper", "mode": "python_rollback_manifest_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_rollback_manifest(config: dict, *, rust_apply_manifest: dict | None = None, rust_apply_transaction: dict | None = None, rust_transaction_journal: dict | None = None) -> dict[str, Any]:
+    payload = {
+        "config": config or {},
+        "rust_apply_manifest": rust_apply_manifest or {},
+        "rust_apply_transaction": rust_apply_transaction or {},
+        "rust_transaction_journal": rust_transaction_journal or {},
+    }
+    response = call_rust_core("build-rollback-manifest", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_rollback_manifest(payload)
+    return response
+
 def rust_sync_plan_authority_gate(config: dict, rust_sync_plan: dict | None, *, mode: str = "apply") -> dict[str, Any]:
     """Return the opt-in Rust authority gate decision for an apply cycle.
 

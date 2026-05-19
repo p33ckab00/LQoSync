@@ -1800,3 +1800,11 @@ This update keeps LibreQoS integrity intact while allowing older ZIP/manual inst
 This package adds a safe Rust core `self-test` operation and `/api/rust-core/self-test` endpoint. It also routes `execute-apply-transaction` through the CLI/daemon protocol and centralizes advertised Rust operations so future operation-list mismatches are easier to catch before enabling authority flags.
 
 Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
+
+## v2.82.0-rc1 — Rust Core v1.2 Transaction Journal and Rollback Manifest
+
+- Adds `build-transaction-journal` to create a non-mutating transaction journal event from the Rust apply manifest and transaction result.
+- Adds `build-rollback-manifest` to preview restore operations from transaction backup paths.
+- Adds `/opt/lqosync/logs/transaction_journal.jsonl` as the canonical future transaction journal path.
+- Adds Dry Run visibility for Rust transaction journal and rollback preview.
+- Bumps `lqosync-core` to `1.2.0`.

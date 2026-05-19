@@ -35,6 +35,7 @@ DEFAULT_CONFIG = {
         "libreqos_apply_log_dir": "/opt/lqosync/logs/libreqos_apply",
         "collector_cache": "/opt/lqosync/state/collector_cache.json",
         "policy_state": "/opt/lqosync/state/policy_state.json",
+        "transaction_journal": "/opt/lqosync/logs/transaction_journal.jsonl",
     },
     "libreqos": {
         "cmd": "/opt/libreqos/src/LibreQoS.py",
@@ -339,6 +340,9 @@ def normalize_config(cfg):
     cfg.clear(); cfg.update(merged)
     migrated, _migration_notes = migrate_config_schema(cfg)
     cfg.clear(); cfg.update(migrated)
+
+    paths = cfg.setdefault("paths", {})
+    paths.setdefault("transaction_journal", "/opt/lqosync/logs/transaction_journal.jsonl")
 
     # Network mode is the user-facing layout selector. Legacy flags are derived
     # automatically so old config.json files keep working.

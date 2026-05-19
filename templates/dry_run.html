@@ -152,6 +152,25 @@
 </section>
 {% endif %}
 
+
+{% set rust_journal = result.diff.rust_transaction_journal if result and result.diff and result.diff.rust_transaction_journal else None %}
+{% set rust_rollback = result.diff.rust_rollback_manifest if result and result.diff and result.diff.rust_rollback_manifest else None %}
+{% if rust_journal or rust_rollback %}
+<section class="card" style="margin-top:10px;border-color:rgba(20,184,166,.35);background:rgba(20,184,166,.06)">
+  <div class="card-title"><i class="ti ti-history-toggle"></i> Rust Transaction Journal & Rollback Preview</div>
+  {% set jr = rust_journal.result if rust_journal and rust_journal.result else {} %}
+  {% set rb = rust_rollback.result if rust_rollback and rust_rollback.result else {} %}
+  <div class="grid-stats" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+    <div class="stat"><div class="stat-label">Journal</div><div class="stat-value text-dhcp">{{ jr.journal_id or 'N/A' }}</div></div>
+    <div class="stat"><div class="stat-label">Append required</div><div class="stat-value {{ 'text-warn' if jr.append_required else 'text-muted' }}">{{ jr.append_required }}</div></div>
+    <div class="stat"><div class="stat-label">Rollback</div><div class="stat-value {{ 'text-accent' if rb.rollback_available else 'text-muted' }}">{{ rb.status or 'N/A' }}</div></div>
+    <div class="stat"><div class="stat-label">Restore ops</div><div class="stat-value text-dhcp">{{ rb.operation_count if rb.operation_count is defined else 0 }}</div></div>
+  </div>
+  <p class="text-sm" style="color:var(--muted);margin-top:10px">v1.2 creates non-mutating journal and rollback previews for Rust transaction flows. This makes future Rust file-write authority auditable and reversible before any wider authority is enabled.</p>
+  <details style="margin-top:10px"><summary class="mono text-sm text-dhcp" style="cursor:pointer">Show Rust journal / rollback JSON</summary><pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ {'rust_transaction_journal': rust_journal, 'rust_rollback_manifest': rust_rollback} | tojson(indent=2) }}</pre></details>
+</section>
+{% endif %}
+
 {% include "dry_run_policy_verdict_fragment.html" %}
 {% include "dry_run_smart_insights_fragment.html" %}
 

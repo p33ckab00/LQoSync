@@ -7581,3 +7581,7 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 
 Rust Core v1.1.1 fixes the v1.1.0 self-test build failure by aligning the internal no-change manifest check with `build-apply-manifest` semantics. Dry-run manifests still report `preview_only`; the self-test uses apply mode when it expects `no_changes`. The Rust build helper now removes stale release binaries before running tests/builds, and the daemon installer restarts an active `lqosync-core.service` after binary installation.
 
+
+## Rust Core v1.2 Transaction Journal and Rollback Manifest
+
+Rust Core v1.2 adds non-mutating transaction journal and rollback manifest previews. The Dry Run page now shows journal IDs, append intent, rollback status, and restore operation counts. Python remains authoritative; no new write/apply authority is enabled by default. Read: `docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md`.

@@ -160,3 +160,7 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 This package adds a safe Rust core `self-test` operation and `/api/rust-core/self-test` endpoint. It also routes `execute-apply-transaction` through the CLI/daemon protocol and centralizes advertised Rust operations so future operation-list mismatches are easier to catch before enabling authority flags.
 
 Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
+
+## v2.82.0-rc1 Package Notes
+
+Adds Rust Core v1.2 transaction journal and rollback manifest previews. This is documentation/diagnostic/safety plumbing only; Python remains authoritative and no new Rust write/apply authority is enabled by default.

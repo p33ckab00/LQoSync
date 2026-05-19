@@ -488,5 +488,11 @@
     "file": "docs/RUST_CORE_V11_SELF_TEST.md",
     "anchor": "rust-core-v11-runtime-self-test-and-capability-audit",
     "summary": "Runtime self-test, capability audit, transaction routing, and v1.1.1 build/daemon restart hotfix for the lqosync-in-rust branch."
+  },
+  "rust.v12_transaction_journal": {
+    "title": "Rust Core v1.2 Transaction Journal and Rollback Manifest",
+    "file": "docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md",
+    "anchor": "rust-core-v12-transaction-journal-and-rollback-manifest",
+    "summary": "Non-mutating transaction journal and rollback manifest previews for Rust apply transaction accountability."
   }
 }

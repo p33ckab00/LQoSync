@@ -12,6 +12,7 @@ use lqosync_core::protocol::{CoreRequest, CoreResponse, PROTOCOL_VERSION};
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::sync_plan::evaluate_sync_plan_payload;
+use lqosync_core::transaction_journal::{build_rollback_manifest_payload, build_transaction_journal_payload};
 use lqosync_core::validators::{validate_collector_output_payload, validate_config_value, validate_files_payload};
 use serde_json::{json, Value};
 use std::io::{self, Read, Write};
@@ -205,6 +206,14 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "execute-apply-transaction" => {
             let (result, errors, warnings) = execute_apply_transaction_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-transaction-journal" => {
+            let (result, errors, warnings) = build_transaction_journal_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-rollback-manifest" => {
+            let (result, errors, warnings) = build_rollback_manifest_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "self-test" => {

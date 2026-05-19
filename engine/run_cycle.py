@@ -37,7 +37,7 @@ from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
 from engine.rust_core import (
     validate_runtime_outputs, diagnostics_to_messages, validate_collector_output,
-    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction,
+    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction, rust_build_transaction_journal, rust_build_rollback_manifest,
 )
 
 
@@ -578,6 +578,52 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 "status": tx_result.get("status"),
                 "executed": bool(tx_result.get("executed")),
                 "write_count": tx_result.get("write_count"),
+            },
+        )
+        t_transaction_journal = time.perf_counter()
+        rust_transaction_journal = rust_build_transaction_journal(
+            config,
+            mode=mode,
+            paths=paths,
+            rust_apply_manifest=rust_apply_manifest,
+            rust_apply_transaction=rust_apply_transaction,
+            rust_sync_plan=rust_sync_plan,
+            rust_authority_gate=rust_authority_gate,
+            policy_decision=python_policy_dict,
+        )
+        result.diff["rust_transaction_journal"] = rust_transaction_journal
+        journal_result = rust_transaction_journal.get("result", {}) if isinstance(rust_transaction_journal, dict) else {}
+        timeline.record(
+            "rust_transaction_journal",
+            t_transaction_journal,
+            status="ok" if rust_transaction_journal.get("ok") else ("unavailable" if not rust_transaction_journal.get("available") else "check"),
+            details={
+                "available": bool(rust_transaction_journal.get("available")),
+                "ok": bool(rust_transaction_journal.get("ok")),
+                "journal_id": journal_result.get("journal_id"),
+                "append_required": bool(journal_result.get("append_required")),
+                "rollback_available": bool(journal_result.get("rollback_available")),
+            },
+        )
+        t_rollback_manifest = time.perf_counter()
+        rust_rollback_manifest = rust_build_rollback_manifest(
+            config,
+            rust_apply_manifest=rust_apply_manifest,
+            rust_apply_transaction=rust_apply_transaction,
+            rust_transaction_journal=rust_transaction_journal,
+        )
+        result.diff["rust_rollback_manifest"] = rust_rollback_manifest
+        rollback_result = rust_rollback_manifest.get("result", {}) if isinstance(rust_rollback_manifest, dict) else {}
+        timeline.record(
+            "rust_rollback_manifest",
+            t_rollback_manifest,
+            status="ok" if rust_rollback_manifest.get("ok") else ("unavailable" if not rust_rollback_manifest.get("available") else "check"),
+            details={
+                "available": bool(rust_rollback_manifest.get("available")),
+                "ok": bool(rust_rollback_manifest.get("ok")),
+                "rollback_id": rollback_result.get("rollback_id"),
+                "status": rollback_result.get("status"),
+                "operation_count": rollback_result.get("operation_count"),
             },
         )
         result.diff["policy_decision"] = python_policy_dict

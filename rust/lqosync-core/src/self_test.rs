@@ -2,6 +2,7 @@ use crate::apply_manifest::build_apply_manifest_payload;
 use crate::apply_transaction::execute_apply_transaction_payload;
 use crate::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use crate::protocol::Diagnostic;
+use crate::transaction_journal::{build_rollback_manifest_payload, build_transaction_journal_payload};
 use serde_json::{json, Value};
 
 pub const OP_HEALTH: &str = "health";
@@ -23,6 +24,8 @@ pub const OP_NORMALIZE_CIRCUITS: &str = "normalize-circuits";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
 pub const OP_BUILD_APPLY_MANIFEST: &str = "build-apply-manifest";
 pub const OP_EXECUTE_APPLY_TRANSACTION: &str = "execute-apply-transaction";
+pub const OP_BUILD_TRANSACTION_JOURNAL: &str = "build-transaction-journal";
+pub const OP_BUILD_ROLLBACK_MANIFEST: &str = "build-rollback-manifest";
 pub const OP_SELF_TEST: &str = "self-test";
 
 pub fn advertised_operations() -> &'static [&'static str] {
@@ -46,6 +49,8 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_EVALUATE_SYNC_PLAN,
         OP_BUILD_APPLY_MANIFEST,
         OP_EXECUTE_APPLY_TRANSACTION,
+        OP_BUILD_TRANSACTION_JOURNAL,
+        OP_BUILD_ROLLBACK_MANIFEST,
         OP_SELF_TEST,
     ]
 }
@@ -147,6 +152,27 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
         errors.push(Diagnostic::error("self_test_apply_transaction_failed", Some("execute-apply-transaction".to_string()), "Self-test transaction rehearsal should not execute writes."));
     }
 
+    let journal_payload = json!({
+        "mode": "apply",
+        "rust_apply_manifest": {"result": manifest.clone()},
+        "rust_apply_transaction": {"result": tx.clone()},
+        "rust_sync_plan": {"result": {"verdict": "no_changes"}},
+        "paths": {"transaction_journal": "/tmp/transaction_journal.jsonl"}
+    });
+    let (journal, journal_errors, _journal_warnings) = build_transaction_journal_payload(&journal_payload);
+    let journal_ok = journal_errors.is_empty() && journal.get("append_executed").and_then(Value::as_bool).unwrap_or(true) == false;
+    checks.push(check("transaction_journal_preview", journal_ok, json!({"journal_id": journal.get("journal_id"), "append_executed": journal.get("append_executed")})));
+    if !journal_ok {
+        errors.push(Diagnostic::error("self_test_transaction_journal_failed", Some("build-transaction-journal".to_string()), "Self-test transaction journal preview should be non-mutating and valid."));
+    }
+
+    let (rollback, rollback_errors, _rollback_warnings) = build_rollback_manifest_payload(&journal_payload);
+    let rollback_ok = rollback_errors.is_empty() && rollback.get("execute_supported").and_then(Value::as_bool).unwrap_or(true) == false;
+    checks.push(check("rollback_manifest_preview", rollback_ok, json!({"status": rollback.get("status"), "execute_supported": rollback.get("execute_supported")})));
+    if !rollback_ok {
+        errors.push(Diagnostic::error("self_test_rollback_manifest_failed", Some("build-rollback-manifest".to_string()), "Self-test rollback manifest should be preview-only and valid."));
+    }
+
     let strict = payload.get("strict").and_then(Value::as_bool).unwrap_or(false);
     let status = if errors.is_empty() { "ok" } else { "failed" };
     let failed_check_count = checks.iter().filter(|c| !c.get("ok").and_then(Value::as_bool).unwrap_or(false)).count();
@@ -178,6 +204,8 @@ mod tests {
     fn operations_include_transaction_and_self_test() {
         let ops = advertised_operations();
         assert!(ops.contains(&OP_EXECUTE_APPLY_TRANSACTION));
+        assert!(ops.contains(&OP_BUILD_TRANSACTION_JOURNAL));
+        assert!(ops.contains(&OP_BUILD_ROLLBACK_MANIFEST));
         assert!(ops.contains(&OP_SELF_TEST));
     }
 }
