@@ -160,3 +160,8 @@ New operations: `evaluate-full-rust-readiness` and `build-authority-pilot-plan`.
 ## v1.8.0
 
 Adds `build-collector-circuit-bundle`, a shadow operation that normalizes raw PPPoE/DHCP/Hotspot collector snapshots into ShapedDevices-compatible rows.
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.

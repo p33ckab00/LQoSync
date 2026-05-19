@@ -8,6 +8,7 @@ use lqosync_core::atomic_state::{append_audit_jsonl_payload, atomic_write_json_s
 use lqosync_core::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use lqosync_core::circuits::normalize_circuits_payload;
 use lqosync_core::collector_bundle::build_collector_circuit_bundle_payload;
+use lqosync_core::collector_parity::compare_collector_bundle_parity_payload;
 use lqosync_core::diff::{diff_files_payload, diff_network_text, diff_shaped_devices_text};
 use lqosync_core::network::{collect_node_names, parse_network_text, validate_network};
 use lqosync_core::policy::evaluate_policy_payload;
@@ -203,6 +204,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-collector-circuit-bundle" => {
             let (result, errors, warnings) = build_collector_circuit_bundle_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "compare-collector-bundle-parity" => {
+            let (result, errors, warnings) = compare_collector_bundle_parity_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "evaluate-sync-plan" => {

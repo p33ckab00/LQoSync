@@ -164,3 +164,8 @@ Read these docs first:
 - [Rust Core v1.7 Full Backend Readiness + Authority Pilot Plan](RUST_CORE_V17_FULL_BACKEND_READINESS.md)
 
 - [Rust Core v1.8 Collector Bundle Shadow Builder](RUST_CORE_V18_COLLECTOR_BUNDLE.md) - Shadow Rust normalization of raw collector snapshots into ShapedDevices-compatible rows.
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.

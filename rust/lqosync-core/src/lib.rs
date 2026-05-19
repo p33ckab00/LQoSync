@@ -11,6 +11,7 @@ pub mod apply_transaction;
 pub mod bandwidth;
 pub mod circuits;
 pub mod collector_bundle;
+pub mod collector_parity;
 pub mod network;
 pub mod protocol;
 pub mod shaped_devices;

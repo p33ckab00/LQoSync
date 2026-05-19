@@ -1723,3 +1723,96 @@ def rust_build_collector_circuit_bundle(config: dict, payload: dict[str, Any]) -
     authority stages.
     """
     return call_rust_core("build-collector-circuit-bundle", payload or {}, config=config)
+
+
+
+def _python_compare_collector_bundle_parity(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+
+    def _rows(value):
+        if isinstance(value, list):
+            return [r for r in value if isinstance(r, dict)]
+        if isinstance(value, dict):
+            return [r for r in value.values() if isinstance(r, dict)]
+        return []
+
+    def _rust_rows(payload):
+        rows = _rows(payload.get("rust_rows")) or _rows(payload.get("normalized_rows"))
+        if rows:
+            return rows
+        bundle = payload.get("rust_bundle") if isinstance(payload.get("rust_bundle"), dict) else {}
+        result = bundle.get("result") if isinstance(bundle.get("result"), dict) else bundle
+        return _rows(result.get("normalized_rows"))
+
+    def _key(row):
+        for field in ("Circuit Name", "Circuit ID", "Device ID", "Device Name"):
+            value = str(row.get(field) or "").strip()
+            if value:
+                return value
+        return ""
+
+    fields = payload.get("compare_fields") if isinstance(payload.get("compare_fields"), list) else None
+    fields = [str(f) for f in fields if str(f).strip()] if fields else ["Parent Node", "MAC", "IPv4", "Download Min Mbps", "Upload Min Mbps", "Download Max Mbps", "Upload Max Mbps", "Comment"]
+    python_rows = _rows(payload.get("python_rows"))
+    rust_rows = _rust_rows(payload)
+    py = {_key(r): r for r in python_rows if _key(r)}
+    rs = {_key(r): r for r in rust_rows if _key(r)}
+    missing = sorted(set(py) - set(rs))
+    extra = sorted(set(rs) - set(py))
+    mismatches = []
+    mismatch_count = 0
+    max_mismatches = int(payload.get("max_mismatches") or 50)
+    for key in sorted(set(py) & set(rs)):
+        for field in fields:
+            pv = str(py[key].get(field) or "").strip()
+            rv = str(rs[key].get(field) or "").strip()
+            if pv != rv:
+                mismatch_count += 1
+                if len(mismatches) < max_mismatches:
+                    mismatches.append({"circuit": key, "field": field, "python": pv, "rust": rv})
+    total_key_checks = len(set(py) | set(rs))
+    total_checks = total_key_checks + (len(set(py) & set(rs)) * len(fields))
+    failed = len(missing) + len(extra) + mismatch_count
+    score = 100.0 if total_checks <= 0 else round(((total_checks - failed) / total_checks) * 100.0, 2)
+    verdict = "parity_pass" if failed == 0 else ("parity_warning" if score >= float(payload.get("warning_threshold_percent") or 95.0) else "parity_failed")
+    warnings = [] if failed == 0 else [{"code": "collector_bundle_parity_mismatch", "severity": "warning", "path": "collector_bundle_parity", "message": f"Python authoritative rows and Rust shadow rows differ: score={score}%."}]
+    strict = bool(payload.get("strict"))
+    errors = []
+    if strict and verdict == "parity_failed":
+        errors.append({"code": "collector_bundle_parity_failed", "severity": "error", "path": "collector_bundle_parity", "message": "Strict collector bundle parity failed."})
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "compare-collector-bundle-parity",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "collector_bundle_parity_shadow",
+            "verdict": verdict,
+            "exact_match": failed == 0,
+            "parity_score": score,
+            "python_count": len(py),
+            "rust_count": len(rs),
+            "matched_count": len(set(py) & set(rs)),
+            "missing_in_rust_count": len(missing),
+            "extra_in_rust_count": len(extra),
+            "field_mismatch_count": mismatch_count,
+            "mismatch_sample_count": len(mismatches),
+            "missing_in_rust": missing,
+            "extra_in_rust": extra,
+            "field_mismatches": mismatches,
+            "compare_fields": fields,
+            "authority_note": "Python collector/builders remain authoritative. This fallback parity report is diagnostic.",
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_collector_parity_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_compare_collector_bundle_parity(config: dict, payload: dict[str, Any]) -> dict[str, Any]:
+    started = time.perf_counter()
+    response = call_rust_core("compare-collector-bundle-parity", payload or {}, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_compare_collector_bundle_parity(payload or {}, started=started)
+    return response

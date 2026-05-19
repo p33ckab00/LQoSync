@@ -1854,3 +1854,8 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 - Added read-only `/api/rust-core/collector-bundle-shadow`.
 - Added Rust self-test coverage for collector-bundle shadow normalization.
 - Python remains authoritative; Rust collector bundle output is diagnostic only.
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.

@@ -7616,3 +7616,8 @@ See `docs/RUST_CORE_V17_FULL_BACKEND_READINESS.md`. This release adds read-only 
 ## Rust Core v1.8 Collector Bundle Shadow Builder
 
 See `docs/RUST_CORE_V18_COLLECTOR_BUNDLE.md`. This phase starts the collector-processing migration by letting Rust normalize PPPoE, DHCP, and Hotspot snapshots without connecting to RouterOS or writing files.
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.

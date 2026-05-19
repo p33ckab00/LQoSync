@@ -4,6 +4,7 @@ use crate::authority_readiness::evaluate_authority_readiness_payload;
 use crate::authority_pilot::{build_authority_pilot_plan_payload, evaluate_full_rust_readiness_payload};
 use crate::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use crate::collector_bundle::build_collector_circuit_bundle_payload;
+use crate::collector_parity::compare_collector_bundle_parity_payload;
 use crate::protocol::Diagnostic;
 use crate::rollback_executor::execute_rollback_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
@@ -27,6 +28,7 @@ pub const OP_APPEND_AUDIT_JSONL: &str = "append-audit-jsonl";
 pub const OP_EVALUATE_POLICY: &str = "evaluate-policy";
 pub const OP_NORMALIZE_CIRCUITS: &str = "normalize-circuits";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
+pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
 pub const OP_BUILD_APPLY_MANIFEST: &str = "build-apply-manifest";
 pub const OP_EXECUTE_APPLY_TRANSACTION: &str = "execute-apply-transaction";
@@ -60,6 +62,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_EVALUATE_POLICY,
         OP_NORMALIZE_CIRCUITS,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
+        OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
         OP_BUILD_APPLY_MANIFEST,
         OP_EXECUTE_APPLY_TRANSACTION,
@@ -152,6 +155,18 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     checks.push(check("collector_bundle_shadow_builder", collector_bundle_ok, json!({"normalized_count": collector_bundle.get("normalized_count"), "mode": collector_bundle.get("mode")})));
     if !collector_bundle_ok {
         errors.push(Diagnostic::error("self_test_collector_bundle_failed", Some("build-collector-circuit-bundle".to_string()), "Self-test collector bundle should build one PPP circuit row in shadow mode."));
+    }
+
+    let collector_rows = collector_bundle.get("normalized_rows").cloned().unwrap_or_else(|| json!([]));
+    let (collector_parity, collector_parity_errors, _collector_parity_warnings) = compare_collector_bundle_parity_payload(&json!({
+        "python_rows": collector_rows.clone(),
+        "rust_rows": collector_rows.clone()
+    }));
+    let collector_parity_ok = collector_parity_errors.is_empty()
+        && collector_parity.get("verdict").and_then(Value::as_str).unwrap_or("") == "parity_pass";
+    checks.push(check("collector_bundle_parity_shadow", collector_parity_ok, json!({"verdict": collector_parity.get("verdict"), "parity_score": collector_parity.get("parity_score")})));
+    if !collector_parity_ok {
+        errors.push(Diagnostic::error("self_test_collector_parity_failed", Some("compare-collector-bundle-parity".to_string()), "Self-test collector parity should pass when Python and Rust rows are identical."));
     }
 
     let manifest_payload = json!({
@@ -338,6 +353,7 @@ mod tests {
         assert!(ops.contains(&OP_BUILD_ROLLBACK_FROM_JOURNAL));
         assert!(ops.contains(&OP_EXECUTE_ROLLBACK));
         assert!(ops.contains(&OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE));
+        assert!(ops.contains(&OP_COMPARE_COLLECTOR_BUNDLE_PARITY));
         assert!(ops.contains(&OP_EVALUATE_AUTHORITY_READINESS));
         assert!(ops.contains(&OP_SELF_TEST));
     }

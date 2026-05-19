@@ -195,3 +195,8 @@ Adds Rust Core v1.7 full backend readiness and authority pilot plan operations. 
 ## v2.88.0-rc1 Package Notes
 
 Includes Rust Core v1.8 collector-bundle shadow builder and documentation. No default production write/apply behavior changes.
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.

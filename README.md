@@ -354,3 +354,8 @@ New read-only APIs:
 ## Rust Core v1.8 Collector Bundle Shadow Builder
 
 This package adds `build-collector-circuit-bundle`, a non-authoritative Rust operation that accepts raw Python collector snapshots and returns ShapedDevices-compatible rows in shadow mode. Python RouterOS collection remains authoritative.
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.

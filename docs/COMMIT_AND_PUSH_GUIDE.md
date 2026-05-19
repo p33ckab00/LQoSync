@@ -465,3 +465,8 @@ git commit -m "rust(core): add collector bundle shadow builder" \
   -m "Add build-collector-circuit-bundle, self-test coverage, API wrapper, and documentation for shadow Rust normalization of raw collector snapshots."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v1.9 Collector Bundle Parity Report
+
+Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.
