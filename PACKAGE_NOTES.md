@@ -127,3 +127,12 @@ Adds Rust Core v0.5 policy shadow evaluation, Dry Run parity visibility, and a n
 ## v2.77.0-rc1 Rust Core v0.7 Sync Plan Shadow
 
 Adds `evaluate-sync-plan`, Dry Run sync-plan visibility, and documentation. Python remains authoritative.
+
+
+## v2.78.0-rc1 - Rust Core v0.8 Authority Gates
+
+- Added opt-in `rust_core.enforce_sync_plan` authority gate.
+- Added `rust_core.authority_mode` with `shadow` and `enforce_blockers`.
+- Added fail-closed behavior when enforced Rust core is unavailable.
+- Dry Run remains preview-only; Python remains default authority unless enforcement is enabled.
+- Added documentation: `docs/RUST_CORE_V08_AUTHORITY_GATES.md`.

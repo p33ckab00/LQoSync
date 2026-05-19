@@ -69,6 +69,9 @@ DEFAULT_CONFIG = {
         "binary_path": "",
         "timeout_seconds": 10,
         "enforce_validation": False,
+        "enforce_sync_plan": False,
+        "fail_closed_when_enforced": True,
+        "authority_mode": "shadow",  # shadow | enforce_blockers
         "prefer_daemon": False,
         "unix_socket": "/run/lqosync-core.sock",
     },
@@ -505,8 +508,16 @@ def validate_config(cfg: dict):
     rust_core.setdefault("binary_path", "")
     rust_core.setdefault("timeout_seconds", 10)
     rust_core.setdefault("enforce_validation", False)
+    rust_core.setdefault("enforce_sync_plan", False)
+    rust_core.setdefault("fail_closed_when_enforced", True)
+    rust_core.setdefault("authority_mode", "shadow")
     rust_core.setdefault("prefer_daemon", False)
     rust_core.setdefault("unix_socket", "/run/lqosync-core.sock")
+    if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
+        errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
+    # Compatibility: authority_mode=enforce_blockers implies sync-plan enforcement.
+    if rust_core.get("authority_mode") == "enforce_blockers":
+        rust_core["enforce_sync_plan"] = True
     try:
         rust_core["timeout_seconds"] = max(int(rust_core.get("timeout_seconds", 10) or 10), 1)
     except Exception:

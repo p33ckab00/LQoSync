@@ -105,6 +105,7 @@
 
 
 {% set rust_plan = result.diff.rust_sync_plan if result and result.diff and result.diff.rust_sync_plan else None %}
+{% set rust_gate = result.diff.rust_authority_gate if result and result.diff and result.diff.rust_authority_gate else None %}
 {% if rust_plan %}
 <section class="card" style="margin-top:10px;border-color:rgba(20,184,166,.35);background:rgba(20,184,166,.06)">
   <div class="card-title"><i class="ti ti-route-square"></i> Rust Sync Plan Shadow</div>
@@ -118,6 +119,19 @@
   </div>
   <p class="text-sm" style="color:var(--muted);margin-top:10px">Rust sync planning is shadow-only in v0.7. It composes collector trust, diff, validation, circuit shadow, and policy shadow into one end-to-end plan. Python remains authoritative for writes and LibreQoS apply.</p>
   <details style="margin-top:10px"><summary class="mono text-sm text-dhcp" style="cursor:pointer">Show Rust sync plan JSON</summary><pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ rust_plan | tojson(indent=2) }}</pre></details>
+</section>
+{% endif %}
+
+{% if rust_gate %}
+<section class="card" style="margin-top:10px;border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.06)">
+  <div class="card-title"><i class="ti ti-shield-check"></i> Rust Authority Gate</div>
+  <div class="grid-stats" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+    <div class="stat"><div class="stat-label">Mode</div><div class="stat-value text-dhcp">{{ rust_gate.authority_mode }}</div></div>
+    <div class="stat"><div class="stat-label">Enforced</div><div class="stat-value {{ 'text-warn' if rust_gate.enabled else 'text-accent' }}">{{ rust_gate.enabled }}</div></div>
+    <div class="stat"><div class="stat-label">Decision</div><div class="stat-value {{ 'text-err' if rust_gate.should_block else 'text-accent' }}">{{ 'Block' if rust_gate.should_block else 'Allow / Shadow' }}</div></div>
+    <div class="stat"><div class="stat-label">Reason</div><div class="stat-value text-dhcp">{{ rust_gate.reason }}</div></div>
+  </div>
+  <p class="text-sm" style="color:var(--muted);margin-top:10px">v0.8 keeps Python authoritative by default. If <code>rust_core.enforce_sync_plan=true</code>, this gate blocks unsafe non-dry-run cycles before generated files are written.</p>
 </section>
 {% endif %}
 
@@ -168,3 +182,4 @@
 <div class="card"><div class="card-title"><i class="ti ti-eye"></i> No preview yet</div><p class="text-sm" style="color:var(--muted)">Run a dry-run to generate a full proposed CSV/network diff without writing files.</p></div>
 {% endif %}
 {% endblock %}
+

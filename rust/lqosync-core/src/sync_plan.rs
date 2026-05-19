@@ -74,6 +74,10 @@ pub fn evaluate_sync_plan_payload(payload: &Value) -> (Value, Vec<Diagnostic>, V
     let preflight = payload.get("preflight").cloned().unwrap_or_else(|| json!({}));
     let cleanup = payload.get("cleanup").cloned().unwrap_or_else(|| json!({}));
     let collector_trust = payload.get("collector_trust").and_then(Value::as_array).cloned().unwrap_or_default();
+    let authority = payload.get("authority").cloned().unwrap_or_else(|| json!({}));
+    let authority_enabled = authority.get("enabled").and_then(Value::as_bool).unwrap_or(false);
+    let authority_mode = authority.get("authority_mode").and_then(Value::as_str).unwrap_or(if authority_enabled { "enforce_blockers" } else { "shadow" });
+    let fail_closed_when_enforced = authority.get("fail_closed_when_enforced").and_then(Value::as_bool).unwrap_or(true);
 
     let validation_errors = diagnostic_count(&rust_validation, "errors");
     if validation_errors > 0 || rust_validation.get("ok").and_then(Value::as_bool) == Some(false) {
@@ -262,9 +266,16 @@ pub fn evaluate_sync_plan_payload(payload: &Value) -> (Value, Vec<Diagnostic>, V
     };
 
     let result = json!({
-        "mode": "shadow",
-        "authoritative": false,
+        "mode": if authority_enabled { "authority_gate" } else { "shadow" },
+        "authoritative": authority_enabled && !dry_run,
         "transport_safe": true,
+        "authority": {
+            "enabled": authority_enabled,
+            "authority_mode": authority_mode,
+            "fail_closed_when_enforced": fail_closed_when_enforced,
+            "would_block": authority_enabled && !dry_run && verdict == "blocked_by_shadow_plan",
+            "reason": if authority_enabled && !dry_run && verdict == "blocked_by_shadow_plan" { "rust_sync_plan_blocked" } else if authority_enabled { "rust_sync_plan_allowed" } else { "shadow_only" }
+        },
         "input_mode": mode,
         "verdict": verdict,
         "risk_score": risk_score,
@@ -330,5 +341,22 @@ mod tests {
         assert!(!errors.is_empty());
         assert_eq!(result.get("verdict").and_then(Value::as_str), Some("blocked_by_shadow_plan"));
         assert_eq!(result.get("write_allowed").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn authority_gate_marks_blocking_plan_as_would_block() {
+        let (result, _errors, _warnings) = evaluate_sync_plan_payload(&json!({
+            "mode": "apply",
+            "files_changed": true,
+            "rust_validation": {"ok": false, "errors": [{"code": "bad"}]},
+            "preflight": {"errors": []},
+            "rust_policy_shadow": {"result": {"verdict": "safe_to_apply", "risk_score": 0, "risk_level": "low"}},
+            "rust_circuit_shadow": {"errors": [], "warnings": []},
+            "collector_trust": [],
+            "authority": {"enabled": true, "authority_mode": "enforce_blockers", "fail_closed_when_enforced": true}
+        }));
+        assert_eq!(result.get("authoritative").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.pointer("/authority/would_block").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.pointer("/authority/reason").and_then(Value::as_str), Some("rust_sync_plan_blocked"));
     }
 }

@@ -464,5 +464,11 @@
         "file": "docs/RUST_CORE_V07_SYNC_PLAN.md",
         "anchor": "rust-core-v07-sync-plan-shadow-engine",
         "summary": "End-to-end shadow sync planner that composes collector trust, diff, validation, circuit shadow, policy shadow, and preflight diagnostics."
+    },
+    "rust.v08_authority_gates": {
+        "title": "Rust Core v0.8 Authority Gates",
+        "file": "docs/RUST_CORE_V08_AUTHORITY_GATES.md",
+        "anchor": "rust-core-v08-authority-gates",
+        "summary": "Opt-in Rust sync-plan authority gate that can block unsafe non-dry-run writes while preserving Python default behavior."
     }
 }

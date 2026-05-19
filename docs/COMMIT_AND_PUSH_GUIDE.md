@@ -348,3 +348,13 @@ git commit -m "rust(core): add sync plan shadow engine" \
   -m "Add evaluate-sync-plan to lqosync-core, Python wrapper integration, Dry Run sync plan visibility, and documentation for end-to-end shadow planning before any Rust authority migration."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v0.8 commit example
+
+```bash
+git add .
+git commit -m "rust(core): add opt-in sync plan authority gate" \
+  -m "Add rust_core.enforce_sync_plan and authority_mode=enforce_blockers so operators can opt into Rust sync-plan blocker enforcement while keeping Python default behavior unchanged."
+git push -u origin lqosync-in-rust
+```

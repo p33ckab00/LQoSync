@@ -1761,3 +1761,12 @@ This update keeps LibreQoS integrity intact while allowing older ZIP/manual inst
 - Added Rust Sync Plan Shadow card in Dry Run UI.
 - Added `docs/RUST_CORE_V07_SYNC_PLAN.md`.
 - Python remains authoritative for cleanup, writes, and LibreQoS apply.
+
+
+## v2.78.0-rc1 - Rust Core v0.8 Authority Gates
+
+- Added opt-in `rust_core.enforce_sync_plan` authority gate.
+- Added `rust_core.authority_mode` with `shadow` and `enforce_blockers`.
+- Added fail-closed behavior when enforced Rust core is unavailable.
+- Dry Run remains preview-only; Python remains default authority unless enforcement is enabled.
+- Added documentation: `docs/RUST_CORE_V08_AUTHORITY_GATES.md`.

@@ -559,6 +559,11 @@ def rust_evaluate_sync_plan(config: dict, *, mode: str, files_changed: bool, csv
         "collector_trust": collector_trust or [],
         "preflight": preflight or {},
         "cleanup": cleanup or {},
+        "authority": {
+            "enabled": bool(rust_core_config(config).get("enforce_sync_plan", False)),
+            "fail_closed_when_enforced": bool(rust_core_config(config).get("fail_closed_when_enforced", True)),
+            "authority_mode": rust_core_config(config).get("authority_mode", "shadow"),
+        },
     }
     response = call_rust_core("evaluate-sync-plan", payload, config=config)
     error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
@@ -586,6 +591,54 @@ def rust_evaluate_policy(config: dict, *, preflight: dict | None = None, collect
     return response
 
 
+def rust_sync_plan_authority_gate(config: dict, rust_sync_plan: dict | None, *, mode: str = "apply") -> dict[str, Any]:
+    """Return the opt-in Rust authority gate decision for an apply cycle.
+
+    v0.8 keeps Python authoritative by default. When rust_core.enforce_sync_plan
+    or rust_core.authority_mode=enforce_blockers is enabled, non-dry-run cycles
+    fail closed if the Rust sync plan is unavailable or reports blockers.
+    """
+    rc = rust_core_config(config)
+    enforced = bool(rc.get("enforce_sync_plan"))
+    dry_run = str(mode or "").lower() == "dry_run"
+    response = rust_sync_plan or {}
+    result = response.get("result") if isinstance(response.get("result"), dict) else {}
+    available = bool(response.get("available", True)) and not bool(response.get("skipped", False))
+    verdict = str(result.get("verdict") or "unknown")
+    blockers = result.get("blockers") if isinstance(result.get("blockers"), list) else []
+    fail_closed = bool(rc.get("fail_closed_when_enforced", True))
+    should_block = False
+    reason = "shadow_only"
+
+    if dry_run:
+        reason = "dry_run_preview_only"
+    elif enforced and not available and fail_closed:
+        should_block = True
+        reason = "rust_sync_plan_unavailable_fail_closed"
+    elif enforced and verdict == "blocked_by_shadow_plan":
+        should_block = True
+        reason = "rust_sync_plan_blocked"
+    elif enforced:
+        reason = "rust_sync_plan_allowed"
+
+    return {
+        "enabled": enforced,
+        "authoritative": bool(enforced and not dry_run),
+        "dry_run": dry_run,
+        "available": available,
+        "fail_closed_when_enforced": fail_closed,
+        "authority_mode": rc.get("authority_mode", "shadow"),
+        "verdict": verdict,
+        "blocker_count": len(blockers),
+        "should_block": should_block,
+        "reason": reason,
+        "message": (
+            "Rust sync-plan authority gate blocked this non-dry-run cycle." if should_block else
+            "Rust sync-plan authority gate is in preview/shadow or allowed this cycle."
+        ),
+    }
+
+
 def _project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
@@ -597,6 +650,9 @@ def rust_core_config(config: dict | None = None) -> dict:
         "binary_path": str(cfg.get("binary_path") or os.getenv("LQOSYNC_CORE_BIN") or "").strip(),
         "timeout_seconds": int(cfg.get("timeout_seconds", os.getenv("LQOSYNC_CORE_TIMEOUT", 10)) or 10),
         "enforce_validation": bool(cfg.get("enforce_validation", False)),
+        "enforce_sync_plan": bool(cfg.get("enforce_sync_plan", False) or cfg.get("authority_mode") == "enforce_blockers"),
+        "fail_closed_when_enforced": bool(cfg.get("fail_closed_when_enforced", True)),
+        "authority_mode": str(cfg.get("authority_mode") or ("enforce_blockers" if cfg.get("enforce_sync_plan") else "shadow")),
         "prefer_daemon": bool(cfg.get("prefer_daemon", False)),
         "unix_socket": str(cfg.get("unix_socket") or os.getenv("LQOSYNC_CORE_SOCKET") or DEFAULT_SOCKET),
     }
@@ -692,6 +748,9 @@ def rust_core_status(config: dict | None = None) -> dict[str, Any]:
         "daemon_available": bool(daemon_available),
         "timeout_seconds": rc["timeout_seconds"],
         "enforce_validation": rc["enforce_validation"],
+        "enforce_sync_plan": rc["enforce_sync_plan"],
+        "fail_closed_when_enforced": rc["fail_closed_when_enforced"],
+        "authority_mode": rc["authority_mode"],
         "prefer_daemon": rc["prefer_daemon"],
         "unix_socket": rc["unix_socket"],
         "mode": "daemon" if rc["prefer_daemon"] and daemon_available else ("subprocess" if binary else "python_fallback"),

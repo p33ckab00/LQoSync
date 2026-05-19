@@ -7549,3 +7549,12 @@ Rust Core v0.6 adds the `normalize-circuits` operation. It is shadow-only: Pytho
 ## Rust Core v0.7 Sync Plan Shadow
 
 `lqosync-core 0.7.0` adds the `evaluate-sync-plan` operation. It produces a non-authoritative end-to-end plan containing verdict, risk score, blockers, holds, next actions, and decision trace. It does not write files or trigger LibreQoS apply.
+
+
+## v2.78.0-rc1 - Rust Core v0.8 Authority Gates
+
+- Added opt-in `rust_core.enforce_sync_plan` authority gate.
+- Added `rust_core.authority_mode` with `shadow` and `enforce_blockers`.
+- Added fail-closed behavior when enforced Rust core is unavailable.
+- Dry Run remains preview-only; Python remains default authority unless enforcement is enabled.
+- Added documentation: `docs/RUST_CORE_V08_AUTHORITY_GATES.md`.

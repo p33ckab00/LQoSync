@@ -274,3 +274,12 @@ The `lqosync-in-rust` branch now includes an optional Rust `normalize-circuits` 
 ### Rust Core v0.7 Sync Plan Shadow
 
 The `lqosync-in-rust` branch now includes `evaluate-sync-plan`, a shadow-only end-to-end Rust planner that composes collector trust, Rust diff, Rust circuit shadow, Rust validation, Rust policy shadow, Python preflight, and cleanup stats. Python remains authoritative for writes and LibreQoS apply.
+
+
+## v2.78.0-rc1 - Rust Core v0.8 Authority Gates
+
+- Added opt-in `rust_core.enforce_sync_plan` authority gate.
+- Added `rust_core.authority_mode` with `shadow` and `enforce_blockers`.
+- Added fail-closed behavior when enforced Rust core is unavailable.
+- Dry Run remains preview-only; Python remains default authority unless enforcement is enabled.
+- Added documentation: `docs/RUST_CORE_V08_AUTHORITY_GATES.md`.

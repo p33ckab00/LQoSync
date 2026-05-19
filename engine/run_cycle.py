@@ -494,8 +494,12 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
         )
         result.diff["rust_sync_plan"] = rust_sync_plan
         sync_plan_result = rust_sync_plan.get("result", {}) if isinstance(rust_sync_plan, dict) else {}
-        if sync_plan_result.get("verdict") == "blocked_by_shadow_plan":
-            result.warnings.append("Rust sync plan shadow found blockers; Python remains authoritative in this release.")
+        rust_authority_gate = rust_sync_plan_authority_gate(config, rust_sync_plan, mode=mode)
+        result.diff["rust_authority_gate"] = rust_authority_gate
+        if rust_authority_gate.get("should_block"):
+            result.errors.append(rust_authority_gate.get("message") or "Rust sync-plan authority gate blocked this cycle.")
+        elif sync_plan_result.get("verdict") == "blocked_by_shadow_plan":
+            result.warnings.append("Rust sync plan shadow found blockers; Python remains authoritative unless rust_core.enforce_sync_plan=true.")
         timeline.record(
             "rust_sync_plan_shadow",
             t_sync_plan,
@@ -505,7 +509,8 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 "ok": bool(rust_sync_plan.get("ok")),
                 "verdict": sync_plan_result.get("verdict"),
                 "risk_level": sync_plan_result.get("risk_level"),
-                "authoritative": bool(sync_plan_result.get("authoritative", False)),
+                "authoritative": bool(rust_authority_gate.get("authoritative", False)),
+                "authority_gate": rust_authority_gate.get("reason"),
             },
         )
         result.diff["policy_decision"] = python_policy_dict

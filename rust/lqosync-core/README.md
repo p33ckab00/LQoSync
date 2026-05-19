@@ -90,3 +90,8 @@ Python uses the daemon only when `rust_core.prefer_daemon=true` and the socket e
 ## v0.7.0 Operation
 
 `evaluate-sync-plan` composes collector trust, diff, validation, policy shadow, circuit shadow, preflight, and cleanup stats into one non-authoritative sync plan.
+
+
+## v0.8 authority gates
+
+The Rust core can now annotate sync plans with authority metadata. Python enforces the gate only when `rust_core.enforce_sync_plan=true` or `authority_mode=enforce_blockers`.
