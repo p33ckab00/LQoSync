@@ -1,5 +1,6 @@
 use crate::apply_manifest::build_apply_manifest_payload;
 use crate::apply_transaction::execute_apply_transaction_payload;
+use crate::authority_readiness::evaluate_authority_readiness_payload;
 use crate::bandwidth::{convert_to_mbps, parse_comment_bandwidth, parse_rate_limit};
 use crate::protocol::Diagnostic;
 use crate::rollback_executor::execute_rollback_payload;
@@ -32,6 +33,7 @@ pub const OP_BUILD_ROLLBACK_MANIFEST: &str = "build-rollback-manifest";
 pub const OP_READ_TRANSACTION_JOURNAL: &str = "read-transaction-journal";
 pub const OP_BUILD_ROLLBACK_FROM_JOURNAL: &str = "build-rollback-from-journal";
 pub const OP_EXECUTE_ROLLBACK: &str = "execute-rollback";
+pub const OP_EVALUATE_AUTHORITY_READINESS: &str = "evaluate-authority-readiness";
 pub const OP_SELF_TEST: &str = "self-test";
 
 pub fn advertised_operations() -> &'static [&'static str] {
@@ -61,6 +63,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_READ_TRANSACTION_JOURNAL,
         OP_BUILD_ROLLBACK_FROM_JOURNAL,
         OP_EXECUTE_ROLLBACK,
+        OP_EVALUATE_AUTHORITY_READINESS,
         OP_SELF_TEST,
     ]
 }
@@ -226,6 +229,21 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     }
     let _ = std::fs::remove_file(temp_journal_path);
 
+
+    let (authority_readiness, authority_readiness_errors, _authority_readiness_warnings) = evaluate_authority_readiness_payload(&json!({
+        "config": {
+            "rust_core": {"enabled": true, "authority_mode": "shadow"},
+            "paths": {"shaped_devices_csv": "/opt/libreqos/src/ShapedDevices.csv", "network_json": "/opt/libreqos/src/network.json", "transaction_journal": "/opt/lqosync/logs/transaction_journal.jsonl"}
+        },
+        "rust_core_status": {"available": true, "ok": true},
+        "self_test": {"ok": true, "result": {"status": "ok"}}
+    }));
+    let authority_readiness_ok = authority_readiness_errors.is_empty() && authority_readiness.get("verdict").and_then(Value::as_str).unwrap_or("") == "shadow_safe";
+    checks.push(check("authority_readiness_shadow_safe", authority_readiness_ok, json!({"verdict": authority_readiness.get("verdict"), "risk_level": authority_readiness.get("risk_level")})));
+    if !authority_readiness_ok {
+        errors.push(Diagnostic::error("self_test_authority_readiness_failed", Some("evaluate-authority-readiness".to_string()), "Self-test authority readiness should report shadow_safe for default shadow mode."));
+    }
+
     let strict = payload.get("strict").and_then(Value::as_bool).unwrap_or(false);
     let status = if errors.is_empty() { "ok" } else { "failed" };
     let failed_check_count = checks.iter().filter(|c| !c.get("ok").and_then(Value::as_bool).unwrap_or(false)).count();
@@ -263,6 +281,7 @@ mod tests {
         assert!(ops.contains(&OP_READ_TRANSACTION_JOURNAL));
         assert!(ops.contains(&OP_BUILD_ROLLBACK_FROM_JOURNAL));
         assert!(ops.contains(&OP_EXECUTE_ROLLBACK));
+        assert!(ops.contains(&OP_EVALUATE_AUTHORITY_READINESS));
         assert!(ops.contains(&OP_SELF_TEST));
     }
 }

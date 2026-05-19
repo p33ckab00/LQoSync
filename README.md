@@ -324,3 +324,11 @@ This package adds read-only Rust operations `read-transaction-journal` and `buil
 ## Rust Core v1.5 Rollback Execution Rehearsal
 
 This package adds `execute-rollback`, a gated rollback executor. It rehearses rollback by default and only restores files when rollback authority, file-write permission, and `CONFIRM_ROLLBACK` confirmation are explicitly provided. Python remains authoritative by default.
+
+
+## Rust Core v1.6 Authority Readiness Report
+
+- Adds `evaluate-authority-readiness` to score whether Rust authority flags are safe to pilot.
+- Adds `/api/rust-core/authority-readiness` for read-only operator visibility.
+- Keeps Python authoritative by default and treats partial authority flags as blockers.
+- Documents readiness verdicts before sync-plan enforcement, file-write authority, journal persistence, or rollback authority are enabled.

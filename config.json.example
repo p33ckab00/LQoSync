@@ -552,6 +552,7 @@
     "allow_dry_run_journal_entries": false,
     "execute_rollback": false,
     "allow_rust_rollback_file_writes": false,
-    "rollback_authority": "preview"
+    "rollback_authority": "preview",
+    "require_authority_readiness": false
   }
 }

@@ -145,3 +145,8 @@ These operations are read-only and are intended for Operations Center visibility
 ## v1.5 rollback executor
 
 Adds `execute-rollback`, default rehearsal-only, with explicit `CONFIRM_ROLLBACK` and file-write gates required for real restore operations.
+
+
+## v1.6 Authority Readiness
+
+Adds `evaluate-authority-readiness`, a read-only operation for checking Rust authority readiness before enabling enforcement, file writes, journal persistence, or rollback restores.

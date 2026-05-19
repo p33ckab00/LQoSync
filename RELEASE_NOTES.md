@@ -1831,3 +1831,11 @@ Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
 - Added opt-in transaction journal persistence flags.
 - Dry Run now shows journal append status.
 - Python remains authoritative; journal writes are disabled by default.
+
+
+## v2.86.0-rc1 — Rust Core v1.6 Authority Readiness Report
+
+- Adds `evaluate-authority-readiness` to score whether Rust authority flags are safe to pilot.
+- Adds `/api/rust-core/authority-readiness` for read-only operator visibility.
+- Keeps Python authoritative by default and treats partial authority flags as blockers.
+- Documents readiness verdicts before sync-plan enforcement, file-write authority, journal persistence, or rollback authority are enabled.

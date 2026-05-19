@@ -435,3 +435,13 @@ git commit -m "rust(core): add rollback execution rehearsal" \
   -m "Add execute-rollback, rollback confirmation gates, Python wrapper/API integration, and documentation for opt-in file restore rollback authority."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v1.6 Authority Readiness commit
+
+```bash
+git add .
+git commit -m "rust(core): add authority readiness evaluator" \
+  -m "Add evaluate-authority-readiness, read-only WebUI API visibility, self-test coverage, and documentation for piloting Rust authority flags safely."
+git push -u origin lqosync-in-rust
+```

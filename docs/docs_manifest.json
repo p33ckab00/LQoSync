@@ -403,7 +403,7 @@
     "title": "Custom Policy Mode Persistence Hotfix",
     "file": "docs/content/custom_policy_mode_persistence.md",
     "anchor": "custom-policy-mode-persistence-hotfix",
-    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center → Policies."
+    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center \u2192 Policies."
   },
   "policy_overview_custom_wiring_hotfix": {
     "title": "Policy Overview Custom Wiring Hotfix",
@@ -512,5 +512,11 @@
     "file": "docs/RUST_CORE_V15_ROLLBACK_EXECUTOR.md",
     "anchor": "rust-core-v15-rollback-execution-rehearsal",
     "summary": "Gated execute-rollback operation, rollback rehearsal, confirmation requirements, and opt-in file restore authority."
+  },
+  "rust.v16_authority_readiness": {
+    "title": "Rust Core v1.6 Authority Readiness Report",
+    "file": "docs/RUST_CORE_V16_AUTHORITY_READINESS.md",
+    "anchor": "rust-core-v16-authority-readiness-report",
+    "summary": "Read-only Rust authority readiness scoring before enabling sync-plan enforcement, file-write authority, journal persistence, or rollback authority."
   }
 }

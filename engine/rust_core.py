@@ -1515,3 +1515,101 @@ def rust_core_self_test(config: dict | None = None, *, strict: bool = False) -> 
             "meta": response.get("meta") or {"engine": "python-wrapper"},
         }
     return response
+
+
+def _python_authority_readiness(config: dict, *, status: dict | None = None, self_test: dict | None = None, journal_summary: dict | None = None, started: float | None = None) -> dict[str, Any]:
+    """Python fallback for Rust authority readiness scoring."""
+    started = started or time.perf_counter()
+    cfg = config or {}
+    rc = cfg.get("rust_core", {}) if isinstance(cfg, dict) else {}
+    paths = cfg.get("paths", {}) if isinstance(cfg, dict) else {}
+    status = status or {"available": False, "ok": False}
+    self_test = self_test or {"ok": False, "result": {"status": "unavailable"}}
+    checks = []
+    errors = []
+    warnings = []
+    blockers = []
+    risk_score = 0
+
+    def check(name, ok, severity="info", details=None):
+        checks.append({"name": name, "ok": bool(ok), "severity": severity, "details": details or {}})
+
+    enabled = bool(rc.get("enabled", True))
+    transport_ok = bool(status.get("available", False) and status.get("ok", False))
+    self_ok = bool(self_test.get("ok") and (self_test.get("result") or {}).get("status") == "ok")
+    check("rust_core_enabled", enabled, "required", {"enabled": enabled})
+    check("transport_available", transport_ok, "required", {"available": status.get("available"), "ok": status.get("ok")})
+    check("self_test_ok", self_ok, "required", {"ok": self_test.get("ok"), "status": (self_test.get("result") or {}).get("status")})
+    paths_ok = bool(paths.get("shaped_devices_csv") and paths.get("network_json"))
+    check("generated_file_paths_present", paths_ok, "required", {"shaped_devices_csv": paths.get("shaped_devices_csv"), "network_json": paths.get("network_json")})
+    for name, ok in (("rust_core_enabled", enabled), ("transport_available", transport_ok), ("self_test_ok", self_ok), ("generated_file_paths_present", paths_ok)):
+        if not ok:
+            blockers.append({"code": name, "message": f"{name} is not ready"})
+            errors.append({"code": name, "severity": "error", "path": "rust_core", "message": f"{name} is not ready"})
+            risk_score += 30
+    authority_flags = any(bool(rc.get(k)) for k in ("enforce_sync_plan", "execute_apply_manifest", "allow_rust_file_writes", "append_transaction_journal", "allow_transaction_journal_writes", "execute_rollback", "allow_rust_rollback_file_writes")) or rc.get("authority_mode") == "enforce_blockers" or rc.get("rollback_authority") == "execute_file_restores"
+    if rc.get("allow_rust_libreqos_apply"):
+        warnings.append({"code": "rust_libreqos_apply_not_implemented", "severity": "warning", "path": "rust_core.allow_rust_libreqos_apply", "message": "Rust does not invoke LibreQoS.py in this release."})
+        risk_score += 15
+    if rc.get("execute_apply_manifest") != rc.get("allow_rust_file_writes") and (rc.get("execute_apply_manifest") or rc.get("allow_rust_file_writes")):
+        blockers.append({"code": "partial_file_write_authority", "message": "execute_apply_manifest and allow_rust_file_writes must be enabled together for a file-write pilot."})
+        errors.append({"code": "partial_file_write_authority", "severity": "error", "path": "rust_core", "message": "Rust file-write authority flags are partial."})
+        risk_score += 35
+    if rc.get("append_transaction_journal") != rc.get("allow_transaction_journal_writes") and (rc.get("append_transaction_journal") or rc.get("allow_transaction_journal_writes")):
+        blockers.append({"code": "partial_journal_authority", "message": "append_transaction_journal and allow_transaction_journal_writes must be enabled together."})
+        errors.append({"code": "partial_journal_authority", "severity": "error", "path": "rust_core", "message": "Journal authority flags are partial."})
+        risk_score += 25
+    if rc.get("execute_rollback") != rc.get("allow_rust_rollback_file_writes") and (rc.get("execute_rollback") or rc.get("allow_rust_rollback_file_writes")):
+        blockers.append({"code": "partial_rollback_authority", "message": "execute_rollback and allow_rust_rollback_file_writes must be enabled together."})
+        errors.append({"code": "partial_rollback_authority", "severity": "error", "path": "rust_core", "message": "Rollback authority flags are partial."})
+        risk_score += 40
+    verdict = "not_ready" if blockers else ("shadow_safe" if not authority_flags else "ready_with_warnings")
+    risk_score = min(100, risk_score + len([c for c in checks if not c.get("ok")]) * 6)
+    risk_level = _risk_level(risk_score)
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "evaluate-authority-readiness",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "authority_readiness",
+            "authoritative": False,
+            "verdict": verdict,
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "ready": not blockers,
+            "authority_flags_enabled": authority_flags,
+            "check_count": len(checks),
+            "failed_check_count": len([c for c in checks if not c.get("ok")]),
+            "checks": checks,
+            "blockers": blockers,
+            "recommendations": [{"title": "Review Rust authority flags", "action": "Use Rust self-test and Dry Run before enabling authority flags.", "severity": "info"}],
+            "journal_summary": journal_summary or {},
+            "transport": {"available": status.get("available"), "ok": status.get("ok")},
+            "self_test": {"ok": self_test.get("ok"), "status": (self_test.get("result") or {}).get("status")},
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_authority_readiness_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_authority_readiness(config: dict) -> dict[str, Any]:
+    """Evaluate readiness before enabling Rust authority flags."""
+    started = time.perf_counter()
+    status = rust_core_status(config)
+    self_test = rust_core_self_test(config, strict=False) if status.get("available") else {"ok": False, "result": {"status": "unavailable"}}
+    journal = rust_read_transaction_journal(config, limit=1, include_event=False) if status.get("available") else {"ok": False, "result": {"total_count": 0}}
+    journal_result = journal.get("result") if isinstance(journal.get("result"), dict) else {}
+    payload = {
+        "config": config or {},
+        "rust_core_status": status,
+        "self_test": self_test,
+        "journal_summary": {"total_count": journal_result.get("total_count", journal_result.get("returned_count", 0)), "returned_count": journal_result.get("returned_count", 0)},
+    }
+    response = call_rust_core("evaluate-authority-readiness", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_authority_readiness(config or {}, status=status, self_test=self_test, journal_summary=payload["journal_summary"], started=started)
+    return response
+

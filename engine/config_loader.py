@@ -83,6 +83,7 @@ DEFAULT_CONFIG = {
         "execute_rollback": False,
         "allow_rust_rollback_file_writes": False,
         "rollback_authority": "preview",
+        "require_authority_readiness": False,
     },
     "collector": {
         "selective_fields": True,
@@ -537,6 +538,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("execute_rollback", False)
     rust_core.setdefault("allow_rust_rollback_file_writes", False)
     rust_core.setdefault("rollback_authority", "preview")
+    rust_core.setdefault("require_authority_readiness", False)
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     # Compatibility: authority_mode=enforce_blockers implies sync-plan enforcement.

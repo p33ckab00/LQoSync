@@ -23,3 +23,4 @@ pub mod self_test;
 pub mod transaction_journal;
 pub mod transaction_history;
 pub mod rollback_executor;
+pub mod authority_readiness;
