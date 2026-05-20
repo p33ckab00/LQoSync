@@ -470,3 +470,7 @@ The `lqosync-in-rust` branch now includes `evaluate-rust-collector-authority-pil
 
 This package includes `build-collector-authority-manifest`, a non-mutating Rust operation for creating an auditable per-source manifest before any future collector authority migration. Python collectors remain authoritative by default.
 
+
+## Rust Core v3.7 Collector Authority Dry-Run Selection
+
+Adds `build-collector-authority-selection`, a dry-run selector that maps collector authority manifest decisions into `python_collector` or `rust_shadow_collector` candidates. Python remains production-authoritative.

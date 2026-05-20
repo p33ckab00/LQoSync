@@ -2712,6 +2712,106 @@ def rust_build_collector_authority_manifest(config: dict, payload: dict[str, Any
     return response
 
 
+
+
+def _python_build_collector_authority_selection(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for v3.7 collector authority dry-run selection.
+
+    This fallback is non-mutating. It never switches production collector
+    authority and keeps Python collector output as the only cleanup/apply source.
+    """
+    started = started or time.perf_counter()
+    manifest_resp = _python_build_collector_authority_manifest(payload, started=started)
+    manifest = manifest_resp.get("result") or {}
+    rust_core = (payload.get("rust_core") or (payload.get("config") or {}).get("rust_core") or {}) if isinstance(payload, dict) else {}
+    allow = bool(rust_core.get("allow_collector_authority_dry_run_selection"))
+    pilot = bool(rust_core.get("collector_authority_dry_run_selection_pilot"))
+    mode = rust_core.get("collector_authority_mode") or "python_authoritative"
+    errors = []
+    if payload.get("execute") or str(payload.get("mode") or "").lower() in {"execute", "promote", "switch", "authority"}:
+        errors.append({"code": "collector_authority_selection_execute_not_implemented", "severity": "error", "path": "collector_authority_selection", "message": "Python fallback cannot switch collector authority."})
+    selections = []
+    rust_shadow_count = 0
+    python_count = 0
+    for item in manifest.get("decisions") or []:
+        if not isinstance(item, dict):
+            continue
+        gates_ready = bool(item.get("gates_ready"))
+        eligible = gates_ready and allow and pilot and mode == "rust_collector_authority_pilot" and item.get("decision") == "rust_pilot_ready"
+        if eligible:
+            rust_shadow_count += 1
+            selected = "rust_shadow_collector"
+        else:
+            python_count += 1
+            selected = "python_collector"
+        selections.append({
+            "source": item.get("source") or "unknown",
+            "path": item.get("path") or "",
+            "manifest_decision": item.get("decision") or "python_authoritative_shadow",
+            "selected_for_dry_run": selected,
+            "production_authority": "python_collector",
+            "cleanup_authority": "python_policy",
+            "apply_authority": "python_orchestrator",
+            "rust_shadow_selected": eligible,
+            "gates_ready": gates_ready,
+            "collector_output_can_drive_cleanup": False,
+            "collector_output_can_drive_apply": False,
+            "requires_python_fallback": True,
+            "fallback": "python_collector",
+        })
+    status = "blocked" if errors else ("collector_authority_dry_run_selection_ready" if rust_shadow_count else "collector_authority_dry_run_selection_python_only")
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-collector-authority-selection",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "collector_authority_dry_run_selection",
+            "status": status,
+            "selection_id": f"cas-python-{rust_shadow_count}-{python_count}-{len(selections)}",
+            "manifest_id": manifest.get("manifest_id"),
+            "manifest_status": manifest.get("status") or "unknown",
+            "collector_authority": "python_authoritative",
+            "production_authority": "python_collector",
+            "dry_run_authority": "rust_shadow_candidate" if rust_shadow_count else "python_collector",
+            "selection_count": len(selections),
+            "rust_shadow_count": rust_shadow_count,
+            "python_count": python_count,
+            "blocked_count": 0,
+            "allow_dry_run_selection": allow,
+            "dry_run_selection_pilot": pilot,
+            "selections": selections,
+            "full_rust_backend": False,
+            "collector_authority_switch_supported": False,
+            "collector_output_can_drive_cleanup": False,
+            "collector_output_can_drive_apply": False,
+            "python_collector_fallback_required": True,
+            "connection_attempt_count": 0,
+            "authentication_attempt_count": 0,
+            "api_sentence_write_count": 0,
+            "api_reply_read_count": 0,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "next_stage": "rust_collector_authority_dry_run_in_run_cycle",
+        },
+        "errors": errors,
+        "warnings": manifest_resp.get("warnings") or [],
+        "meta": {"engine": "python-wrapper", "mode": "python_collector_authority_selection_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_collector_authority_selection(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-collector-authority-selection", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_collector_authority_selection(req_payload, started=started)
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

@@ -598,3 +598,12 @@ git commit -m "rust(core): add collector authority decision manifest" \
 git push -u origin lqosync-in-rust
 ```
 
+
+## Suggested commit for Rust Core v3.7
+
+```bash
+git add .
+git commit -m "rust(core): add collector authority dry-run selection" \
+  -m "Add build-collector-authority-selection, a non-mutating selector that maps collector authority manifest decisions into dry-run Python/Rust-shadow source choices while keeping production collector authority in Python."
+git push -u origin lqosync-in-rust
+```

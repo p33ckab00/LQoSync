@@ -24,6 +24,7 @@ use crate::routeros_authenticated_read::run_routeros_authenticated_read_fixture_
 use crate::routeros_live_read_adapter::run_routeros_live_read_adapter_pilot_payload;
 use crate::collector_authority_pilot::evaluate_rust_collector_authority_pilot_payload;
 use crate::collector_authority_manifest::build_collector_authority_manifest_payload;
+use crate::collector_authority_selection::build_collector_authority_selection_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -61,6 +62,7 @@ pub const OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE: &str = "run-routeros-authe
 pub const OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT: &str = "run-routeros-live-read-adapter-pilot";
 pub const OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT: &str = "evaluate-rust-collector-authority-pilot";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_MANIFEST: &str = "build-collector-authority-manifest";
+pub const OP_BUILD_COLLECTOR_AUTHORITY_SELECTION: &str = "build-collector-authority-selection";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -112,6 +114,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT,
         OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT,
         OP_BUILD_COLLECTOR_AUTHORITY_MANIFEST,
+        OP_BUILD_COLLECTOR_AUTHORITY_SELECTION,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -533,6 +536,37 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !collector_manifest_ok {
         errors.push(Diagnostic::error("self_test_collector_authority_manifest_failed", Some("build-collector-authority-manifest".to_string()), "Self-test collector authority manifest should be ready when the source-level gate is ready."));
+    }
+
+    let collector_authority_selection_payload = json!({
+        "router": {"name":"RB5009", "address":"10.0.0.1", "port":8728, "username":"selftest", "password":"redacted-by-test"},
+        "sources": ["pppoe"],
+        "collector_parity": {"parity_score": 100.0, "verdict":"parity_pass"},
+        "rust_core": {
+            "allow_rust_collector_authority": true,
+            "rust_collector_authority_pilot": true,
+            "allow_rust_routeros_live_read_adapter": true,
+            "routeros_live_read_adapter_pilot": true,
+            "rust_collector_authority_sources": ["pppoe"],
+            "collector_authority_mode": "rust_collector_authority_pilot",
+            "collector_authority_manifest_pilot": true,
+            "allow_collector_authority_manifest": true,
+            "collector_authority_dry_run_selection_pilot": true,
+            "allow_collector_authority_dry_run_selection": true
+        }
+    });
+    let (collector_authority_selection, collector_authority_selection_errors, _collector_authority_selection_warnings) = build_collector_authority_selection_payload(&collector_authority_selection_payload);
+    let collector_authority_selection_ok = collector_authority_selection_errors.is_empty()
+        && collector_authority_selection.get("status").and_then(Value::as_str) == Some("collector_authority_dry_run_selection_ready")
+        && collector_authority_selection.get("rust_shadow_count").and_then(Value::as_u64).unwrap_or(0) >= 1
+        && collector_authority_selection.get("safe_for_cleanup").and_then(Value::as_bool).unwrap_or(true) == false;
+    checks.push(check("collector_authority_dry_run_selection", collector_authority_selection_ok, json!({
+        "status": collector_authority_selection.get("status"),
+        "collector_authority": collector_authority_selection.get("collector_authority"),
+        "rust_shadow_count": collector_authority_selection.get("rust_shadow_count")
+    })));
+    if !collector_authority_selection_ok {
+        errors.push(Diagnostic::error("self_test_collector_authority_selection_failed", Some("build-collector-authority-selection".to_string()), "Self-test collector authority dry-run selection should select Rust only as a shadow candidate while keeping Python production authority."));
     }
 
     let collector_bundle_payload = json!({

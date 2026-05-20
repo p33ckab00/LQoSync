@@ -649,5 +649,11 @@
     "file": "docs/RUST_CORE_V35_COLLECTOR_AUTHORITY_PILOT.md",
     "anchor": "rust-core-v35-collector-authority-pilot-gate",
     "summary": "Non-mutating Rust collector authority pilot gate that composes live-read adapter readiness, source allow-lists, and collector parity before any Python collector authority migration."
+  },
+  "rust.core_v37_collector_authority_selection": {
+    "title": "Rust Core v3.7 Collector Authority Dry-Run Selection",
+    "file": "docs/RUST_CORE_V37_COLLECTOR_AUTHORITY_SELECTION.md",
+    "anchor": "rust-core-v37-collector-authority-dry-run-selection",
+    "summary": "Dry-run source selector that maps collector authority manifest decisions to Python or Rust-shadow collector candidates while keeping Python authoritative."
   }
 }

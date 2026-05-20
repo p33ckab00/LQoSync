@@ -2001,3 +2001,10 @@ Adds `build-routeros-auth-session-contract`, a redacted authenticated-session co
 - Builds a non-mutating per-source authority decision manifest from Rust collector authority pilot gates.
 - Keeps Python collectors authoritative and blocks execution/switch attempts.
 
+
+## 2.107.0-rc1 — Rust Core v3.7 Collector Authority Dry-Run Selection
+
+- Added `build-collector-authority-selection`.
+- Converts collector authority manifest decisions into explicit dry-run source selections.
+- Allows Rust-shadow collector candidates only when dry-run selection gates are enabled.
+- Python collectors remain production authoritative; cleanup/apply authority is not transferred.

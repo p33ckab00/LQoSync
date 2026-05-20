@@ -7724,3 +7724,7 @@ See `docs/RUST_CORE_V35_COLLECTOR_AUTHORITY_PILOT.md` for the non-mutating colle
 
 `build-collector-authority-manifest` composes source-level collector authority pilot gates into a manifest showing which sources remain Python-authoritative and which are eligible for a future Rust collector pilot. It is non-mutating and does not perform live reads.
 
+
+## Rust Core v3.7 Collector Authority Dry-Run Selection
+
+Adds `build-collector-authority-selection`, a dry-run selector that maps collector authority manifest decisions into `python_collector` or `rust_shadow_collector` candidates. Python remains production-authoritative.

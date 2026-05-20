@@ -1,3 +1,8 @@
+
+## v2.107.0-rc1 Package Notes - Rust Core v3.7 Collector Authority Dry-Run Selection
+
+This package adds `build-collector-authority-selection`, a non-mutating selector that converts collector authority manifests into dry-run Python/Rust-shadow source choices. It does not switch production collector authority, cleanup authority, or LibreQoS apply authority.
+
 ## v2.105.1-rc1 Package Notes - Collector Authority Pilot Redaction Test Hotfix
 
 This package fixes a Rust unit-test false positive in the v3.5 collector authority pilot gate. The test now verifies that the exact password value and raw password key are not emitted, while allowing legitimate non-secret labels used by nested readiness contracts. Production behavior is unchanged.

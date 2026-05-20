@@ -114,6 +114,8 @@ DEFAULT_CONFIG = {
         "collector_authority_require_parity_score": 99.99,
         "collector_authority_manifest_pilot": False,
         "allow_collector_authority_manifest": False,
+        "collector_authority_dry_run_selection_pilot": False,
+        "allow_collector_authority_dry_run_selection": False,
     },
     "collector": {
         "selective_fields": True,

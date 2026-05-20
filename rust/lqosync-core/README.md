@@ -269,3 +269,7 @@ This operation evaluates whether a collector source is eligible for a future Rus
 ## v3.6
 
 Adds `build-collector-authority-manifest` for non-mutating collector authority decision manifests.
+
+## v3.7 Collector authority dry-run selection
+
+Adds `build-collector-authority-selection`, which is dry-run only and keeps Python collectors authoritative.
