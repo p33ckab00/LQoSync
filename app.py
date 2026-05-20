@@ -76,6 +76,7 @@ from engine.rust_core import (
     rust_build_rust_backend_scheduler_handoff_plan,
     rust_build_rust_run_cycle_orchestrator_handoff_contract,
     rust_build_rust_config_state_authority_handoff_contract,
+    rust_build_rust_live_collector_authority_handoff_contract,
     rust_validate_routeros_read_results,
     rust_build_collector_circuit_bundle,
     rust_compare_collector_bundle_parity,
@@ -2809,6 +2810,29 @@ def api_rust_core_config_state_authority_handoff_contract():
             "rollback_manifest_shadow_count": int(request.args.get("rollback_manifest_shadow_count") or 0),
         }
     return jsonify(rust_build_rust_config_state_authority_handoff_contract(cfg, payload))
+
+
+@app.route("/api/rust-core/rust-live-collector-authority-handoff-contract", methods=["GET", "POST"])
+@login_required
+def api_rust_core_live_collector_authority_handoff_contract():
+    cfg = load_config(CONFIG_PATH)
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {
+            "mode": request.args.get("mode") or "contract",
+            "execute": str(request.args.get("execute") or "").lower() in {"1", "true", "yes", "on"},
+            "confirmation": request.args.get("confirmation") or "",
+            "rust_config_state_authority_handoff_confirmation": request.args.get("config_state_confirmation") or "CONFIRM_RUST_CONFIG_STATE_AUTHORITY_HANDOFF_CONTRACT",
+            "shadow_age_seconds": int(request.args.get("shadow_age_seconds") or 0),
+            "live_collector_shadow_ready": str(request.args.get("live_collector_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "live_collector_shadow_count": int(request.args.get("live_collector_shadow_count") or 0),
+            "routeros_live_adapter_shadow_ready": str(request.args.get("routeros_live_adapter_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "routeros_live_adapter_shadow_count": int(request.args.get("routeros_live_adapter_shadow_count") or 0),
+            "collector_parity_verdict": request.args.get("collector_parity_verdict") or "not_available",
+            "collector_parity_score": float(request.args.get("collector_parity_score") or 0),
+        }
+    return jsonify(rust_build_rust_live_collector_authority_handoff_contract(cfg, payload))
 
 @app.route("/api/rust-core/routeros-read-results", methods=["POST"])
 @login_required

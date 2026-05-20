@@ -4375,6 +4375,104 @@ def rust_build_rust_config_state_authority_handoff_contract(config: dict, payloa
         return _python_build_rust_config_state_authority_handoff_contract(req_payload, started=started)
     return response
 
+
+
+def _python_build_rust_live_collector_authority_handoff_contract(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rc = dict(((payload.get("config") or {}).get("rust_core") or payload.get("rust_core") or {}) if isinstance(payload, dict) else {})
+    allow = bool(rc.get("allow_rust_live_collector_authority_handoff_contract"))
+    pilot = bool(rc.get("rust_live_collector_authority_handoff_contract_pilot"))
+    mode = str(rc.get("rust_live_collector_authority_handoff_mode") or "contract_only")
+    require_config_state = rc.get("rust_live_collector_authority_handoff_require_config_state_authority", True) is not False
+    require_fallback = rc.get("rust_live_collector_authority_handoff_require_python_fallback", True) is not False
+    require_confirmation = rc.get("rust_live_collector_authority_handoff_require_manual_confirmation", True) is not False
+    require_live_shadow = rc.get("rust_live_collector_authority_handoff_require_live_collector_shadow", True) is not False
+    require_adapter_shadow = rc.get("rust_live_collector_authority_handoff_require_routeros_adapter_shadow", True) is not False
+    require_parity = rc.get("rust_live_collector_authority_handoff_require_collector_parity", True) is not False
+    require_no_side_effects = rc.get("rust_live_collector_authority_handoff_require_no_side_effects", True) is not False
+    max_shadow_age = int(rc.get("rust_live_collector_authority_handoff_max_shadow_age_seconds") or 900)
+    shadow_age = int(payload.get("shadow_age_seconds") or 0)
+    confirmation_ok = (not require_confirmation) or payload.get("confirmation") == "CONFIRM_RUST_LIVE_COLLECTOR_AUTHORITY_HANDOFF_CONTRACT"
+
+    config_state = payload.get("rust_config_state_authority_handoff_contract") or payload.get("config_state_authority_handoff_contract") or {}
+    if isinstance(config_state, dict) and isinstance(config_state.get("result"), dict):
+        config_state = config_state.get("result") or {}
+    config_state_ready = isinstance(config_state, dict) and config_state.get("status") == "rust_config_state_authority_handoff_contract_ready" and config_state.get("rust_config_state_authority_handoff_ready") is True and config_state.get("rust_config_state_authoritative") is False
+    live_ready = (not require_live_shadow) or (bool(payload.get("live_collector_shadow_ready")) and int(payload.get("live_collector_shadow_count") or 0) > 0)
+    adapter_ready = (not require_adapter_shadow) or (bool(payload.get("routeros_live_adapter_shadow_ready")) and int(payload.get("routeros_live_adapter_shadow_count") or 0) > 0)
+    parity_verdict = str(payload.get("collector_parity_verdict") or "not_available")
+    parity_score = float(payload.get("collector_parity_score") or 0)
+    parity_ready = (not require_parity) or (parity_verdict == "parity_pass" and parity_score >= 99.0)
+    side_effect_free = not any([
+        payload.get("live_collector_authority_switched_to_rust"), payload.get("python_backend_removed"), payload.get("routeros_live_write_attempted"), payload.get("config_write_attempted"), payload.get("state_write_attempted"),
+    ])
+    gates_ready = bool(allow and pilot and mode == "contract_only")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bool(payload.get("execute")) or str(payload.get("mode") or "").lower() in {"execute", "commit", "switch", "remove-python", "replace-collector", "production", "authoritative", "live"}:
+        errors.append({"code": "rust_live_collector_authority_handoff_execute_not_implemented", "severity": "error", "path": "rust_live_collector_authority_handoff_contract", "message": "Python fallback cannot execute live collector authority handoff or remove Python."})
+    if require_config_state and not config_state_ready:
+        warnings.append({"code": "rust_live_collector_authority_handoff_config_state_not_ready", "severity": "warning", "path": "rust_config_state_authority_handoff_contract", "message": "Config/state authority handoff has not passed."})
+    if require_confirmation and not confirmation_ok:
+        warnings.append({"code": "rust_live_collector_authority_handoff_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Live collector authority handoff confirmation is required."})
+    if not require_fallback:
+        errors.append({"code": "rust_live_collector_authority_handoff_requires_python_fallback", "severity": "error", "path": "rust_core.rust_live_collector_authority_handoff_require_python_fallback", "message": "v5.5 still requires Python backend fallback."})
+    if require_no_side_effects and not side_effect_free:
+        errors.append({"code": "rust_live_collector_authority_handoff_side_effect_detected", "severity": "error", "path": "rust_live_collector_authority_handoff_contract", "message": "Live collector handoff side effects are forbidden."})
+    if shadow_age > max_shadow_age:
+        warnings.append({"code": "rust_live_collector_authority_handoff_shadow_stale", "severity": "warning", "path": "shadow_age_seconds", "message": "Rust-shadow data is stale."})
+    if not all([live_ready, adapter_ready, parity_ready]):
+        warnings.append({"code": "rust_live_collector_authority_handoff_shadow_requirements_missing", "severity": "warning", "path": "live_collector_shadow_ready", "message": "One or more live collector shadow requirements are missing."})
+    if not gates_ready:
+        warnings.append({"code": "rust_live_collector_authority_handoff_gates_not_enabled", "severity": "warning", "path": "rust_core", "message": "Live collector authority handoff gates are not enabled."})
+    ready = not errors and gates_ready and confirmation_ok and (config_state_ready or not require_config_state) and require_fallback and live_ready and adapter_ready and parity_ready and side_effect_free and shadow_age <= max_shadow_age
+    review = not errors and config_state_ready and live_ready and adapter_ready and parity_ready and side_effect_free
+    status = "blocked" if errors else ("rust_live_collector_authority_handoff_contract_ready" if ready else ("rust_live_collector_authority_handoff_contract_review" if review else "rust_live_collector_authority_handoff_contract_shadow_only"))
+    return {
+        "version": "1",
+        "op": "build-rust-live-collector-authority-handoff-contract",
+        "ok": not errors,
+        "result": {
+            "mode": "rust_live_collector_authority_handoff_contract",
+            "status": status,
+            "rust_live_collector_authority_handoff_ready": ready,
+            "config_state_authority_handoff_ready": config_state_ready,
+            "live_collector_shadow_ready": live_ready,
+            "routeros_live_adapter_shadow_ready": adapter_ready,
+            "collector_parity_ready": parity_ready,
+            "webui_ux_unchanged": True,
+            "full_rust_backend": False,
+            "python_backend_removable": False,
+            "python_backend_removed": False,
+            "python_backend_required": True,
+            "python_backend_fallback_required": True,
+            "python_live_collector_authoritative": True,
+            "rust_live_collector_authoritative": False,
+            "rust_config_state_authoritative": False,
+            "rust_run_cycle_authoritative": False,
+            "rust_api_service_authoritative": False,
+            "rust_apply_authoritative": False,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "next_stage": "rust_circuit_builder_authority_handoff_contract",
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_rust_live_collector_authority_handoff_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_rust_live_collector_authority_handoff_contract(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-rust-live-collector-authority-handoff-contract", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_rust_live_collector_authority_handoff_contract(req_payload, started=started)
+    return response
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

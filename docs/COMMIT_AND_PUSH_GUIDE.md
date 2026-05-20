@@ -777,3 +777,13 @@ git commit -m "rust(core): add Rust config state authority handoff contract" \
   -m "Add build-rust-config-state-authority-handoff-contract, the config/state authority handoff bridge after run_cycle orchestrator handoff while keeping Python config/state authoritative and WebUI/UX unchanged."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v5.5 commit suggestion
+
+```bash
+git add .
+git commit -m "rust(core): add Rust live collector authority handoff contract" \
+  -m "Add build-rust-live-collector-authority-handoff-contract, the live collector authority bridge after config/state handoff while keeping Python live collectors authoritative and WebUI/UX unchanged."
+git push -u origin lqosync-in-rust
+```

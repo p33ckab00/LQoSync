@@ -414,3 +414,8 @@ Adds `build-rust-run-cycle-orchestrator-handoff-contract`, the next full-Rust-ba
 ## Rust Core v5.4 Rust Config/State Authority Handoff Contract
 
 LQoSync `2.124.0-rc1` / `lqosync-core 5.4.0` adds `build-rust-config-state-authority-handoff-contract`, a non-mutating full-Rust-backend-track bridge after the run_cycle orchestrator handoff. It verifies config/state shadow, atomic writer shadow, transaction journal shadow, audit shadow, and rollback-manifest shadow readiness while keeping Python config/state authority and WebUI/UX unchanged.
+
+
+## Rust Core v5.5 Rust Live Collector Authority Handoff Contract
+
+LQoSync `2.125.0-rc1` / `lqosync-core 5.5.0` adds `build-rust-live-collector-authority-handoff-contract`, the live RouterOS collector authority handoff bridge after config/state authority handoff. It validates live collector shadow evidence, RouterOS live adapter shadow evidence, collector parity, and Python fallback while keeping WebUI/UX unchanged and Python live collectors authoritative.

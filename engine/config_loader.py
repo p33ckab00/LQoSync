@@ -254,6 +254,17 @@ DEFAULT_CONFIG = {
         "rust_config_state_authority_handoff_require_rollback_shadow": True,
         "rust_config_state_authority_handoff_require_no_side_effects": True,
         "rust_config_state_authority_handoff_max_shadow_age_seconds": 900,
+        "rust_live_collector_authority_handoff_contract_pilot": False,
+        "allow_rust_live_collector_authority_handoff_contract": False,
+        "rust_live_collector_authority_handoff_mode": "contract_only",
+        "rust_live_collector_authority_handoff_require_config_state_authority": True,
+        "rust_live_collector_authority_handoff_require_python_fallback": True,
+        "rust_live_collector_authority_handoff_require_manual_confirmation": True,
+        "rust_live_collector_authority_handoff_require_live_collector_shadow": True,
+        "rust_live_collector_authority_handoff_require_routeros_adapter_shadow": True,
+        "rust_live_collector_authority_handoff_require_collector_parity": True,
+        "rust_live_collector_authority_handoff_require_no_side_effects": True,
+        "rust_live_collector_authority_handoff_max_shadow_age_seconds": 900,
     },
     "collector": {
         "selective_fields": True,
@@ -820,6 +831,17 @@ def validate_config(cfg: dict):
     rust_core.setdefault("rust_config_state_authority_handoff_require_rollback_shadow", True)
     rust_core.setdefault("rust_config_state_authority_handoff_require_no_side_effects", True)
     rust_core.setdefault("rust_config_state_authority_handoff_max_shadow_age_seconds", 900)
+    rust_core.setdefault("rust_live_collector_authority_handoff_contract_pilot", False)
+    rust_core.setdefault("allow_rust_live_collector_authority_handoff_contract", False)
+    rust_core.setdefault("rust_live_collector_authority_handoff_mode", "contract_only")
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_config_state_authority", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_manual_confirmation", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_live_collector_shadow", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_routeros_adapter_shadow", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_collector_parity", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_no_side_effects", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_max_shadow_age_seconds", 900)
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     if rust_core.get("routeros_read_pilot_adapter") not in ("fixture", "disabled"):
