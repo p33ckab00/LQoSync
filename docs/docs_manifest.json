@@ -847,5 +847,11 @@
     "file": "docs/RUST_CORE_V63_PYTHON_BACKEND_RETIREMENT_PLAN.md",
     "anchor": "rust-core-v63-python-backend-retirement-plan",
     "summary": "Adds a non-mutating Python backend retirement planning gate after the full Rust backend cutover execution contract while keeping WebUI/UX unchanged and Python fallback mandatory."
+  },
+  "rust.core_v64_rust_backend_production_enablement": {
+    "title": "Rust Core v6.4 Rust Backend Production Enablement Contract",
+    "file": "docs/RUST_CORE_V64_RUST_BACKEND_PRODUCTION_ENABLEMENT.md",
+    "anchor": "rust-core-v64-rust-backend-production-enablement-contract",
+    "summary": "Adds a non-mutating Rust backend production enablement contract after Python backend retirement planning while keeping Python fallback and WebUI/UX unchanged."
   }
 }

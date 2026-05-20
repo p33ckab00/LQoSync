@@ -826,6 +826,17 @@
     "python_backend_retirement_require_rollback_path": true,
     "python_backend_retirement_require_operator_ack": true,
     "python_backend_retirement_require_no_side_effects": true,
-    "python_backend_retirement_max_shadow_age_seconds": 900
+    "python_backend_retirement_max_shadow_age_seconds": 900,
+    "rust_backend_production_enablement_contract_pilot": false,
+    "allow_rust_backend_production_enablement_contract": false,
+    "rust_backend_production_enablement_mode": "contract_only",
+    "rust_backend_production_enablement_require_python_retirement_plan": true,
+    "rust_backend_production_enablement_require_python_fallback": true,
+    "rust_backend_production_enablement_require_manual_confirmation": true,
+    "rust_backend_production_enablement_require_webui_unchanged": true,
+    "rust_backend_production_enablement_require_rollback_path": true,
+    "rust_backend_production_enablement_require_operator_ack": true,
+    "rust_backend_production_enablement_require_no_side_effects": true,
+    "rust_backend_production_enablement_max_shadow_age_seconds": 900
   }
 }

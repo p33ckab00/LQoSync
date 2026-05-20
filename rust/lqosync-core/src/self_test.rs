@@ -51,6 +51,7 @@ use crate::rust_full_backend_production_readiness::build_full_rust_backend_produ
 use crate::rust_full_backend_cutover_plan::build_full_rust_backend_cutover_plan_payload;
 use crate::rust_full_backend_cutover_execution::build_full_rust_backend_cutover_execution_contract_payload;
 use crate::rust_python_backend_retirement_plan::build_python_backend_retirement_plan_payload;
+use crate::rust_backend_production_enablement::build_rust_backend_production_enablement_contract_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -115,6 +116,7 @@ pub const OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_READINESS_CONTRACT: &str = "buil
 pub const OP_BUILD_FULL_RUST_BACKEND_CUTOVER_PLAN: &str = "build-full-rust-backend-cutover-plan";
 pub const OP_BUILD_FULL_RUST_BACKEND_CUTOVER_EXECUTION_CONTRACT: &str = "build-full-rust-backend-cutover-execution-contract";
 pub const OP_BUILD_PYTHON_BACKEND_RETIREMENT_PLAN: &str = "build-python-backend-retirement-plan";
+pub const OP_BUILD_RUST_BACKEND_PRODUCTION_ENABLEMENT_CONTRACT: &str = "build-rust-backend-production-enablement-contract";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -193,6 +195,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_FULL_RUST_BACKEND_CUTOVER_PLAN,
         OP_BUILD_FULL_RUST_BACKEND_CUTOVER_EXECUTION_CONTRACT,
         OP_BUILD_PYTHON_BACKEND_RETIREMENT_PLAN,
+        OP_BUILD_RUST_BACKEND_PRODUCTION_ENABLEMENT_CONTRACT,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -1551,6 +1554,41 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !python_retirement_ok {
         errors.push(Diagnostic::error("self_test_python_backend_retirement_failed", Some("build-python-backend-retirement-plan".to_string()), "Self-test Python backend retirement plan should report ready without removing Python or switching API traffic."));
+    }
+
+    let mut rust_backend_enablement_payload = python_retirement_payload.clone();
+    if let Some(obj) = rust_backend_enablement_payload.as_object_mut() {
+        obj.insert("confirmation".to_string(), json!("CONFIRM_RUST_BACKEND_PRODUCTION_ENABLEMENT_CONTRACT"));
+        obj.insert("python_backend_retirement_plan".to_string(), json!(python_retirement.clone()));
+        obj.insert("operator_rust_backend_enablement_ack".to_string(), json!(true));
+        obj.insert("rollback_path".to_string(), json!("restore_python_backend_and_flask_routes"));
+        if let Some(rc) = obj.get_mut("rust_core").and_then(Value::as_object_mut) {
+            rc.insert("rust_backend_production_enablement_contract_pilot".to_string(), json!(true));
+            rc.insert("allow_rust_backend_production_enablement_contract".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_mode".to_string(), json!("contract_only"));
+            rc.insert("rust_backend_production_enablement_require_python_retirement_plan".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_require_python_fallback".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_require_manual_confirmation".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_require_webui_unchanged".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_require_rollback_path".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_require_operator_ack".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_require_no_side_effects".to_string(), json!(true));
+            rc.insert("rust_backend_production_enablement_max_shadow_age_seconds".to_string(), json!(900));
+        }
+    }
+    let (rust_backend_enablement, rust_backend_enablement_errors, _rust_backend_enablement_warnings) = build_rust_backend_production_enablement_contract_payload(&rust_backend_enablement_payload);
+    let rust_backend_enablement_ok = rust_backend_enablement_errors.is_empty()
+        && rust_backend_enablement.get("status").and_then(Value::as_str) == Some("rust_backend_production_enablement_contract_ready")
+        && rust_backend_enablement.get("full_rust_backend_candidate").and_then(Value::as_bool) == Some(true)
+        && rust_backend_enablement.get("python_backend_removed").and_then(Value::as_bool) == Some(false)
+        && rust_backend_enablement.get("api_traffic_switched_to_rust").and_then(Value::as_bool) == Some(false);
+    checks.push(check("rust_backend_production_enablement_contract", rust_backend_enablement_ok, json!({
+        "status": rust_backend_enablement.get("status"),
+        "full_rust_backend_candidate": rust_backend_enablement.get("full_rust_backend_candidate"),
+        "python_backend_removed": rust_backend_enablement.get("python_backend_removed")
+    })));
+    if !rust_backend_enablement_ok {
+        errors.push(Diagnostic::error("self_test_rust_backend_production_enablement_failed", Some("build-rust-backend-production-enablement-contract".to_string()), "Self-test Rust backend production enablement contract should report ready without removing Python or switching API traffic."));
     }
 
     let collector_bundle_payload = json!({

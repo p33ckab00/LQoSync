@@ -867,3 +867,13 @@ git commit -m "rust(core): add Python backend retirement plan" \
   -m "Add build-python-backend-retirement-plan, the first explicit Python backend retirement planning gate after full Rust backend cutover execution while preserving WebUI/UX and Python fallback."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v6.4 commit suggestion
+
+```bash
+git add .
+git commit -m "rust(core): add Rust backend production enablement contract" \
+  -m "Add build-rust-backend-production-enablement-contract, the bridge after Python backend retirement planning while keeping Python fallback and WebUI/UX unchanged until an explicit removal execution package."
+git push -u origin lqosync-in-rust
+```

@@ -411,3 +411,8 @@ Adds `build-full-rust-backend-cutover-execution-contract`, the near-final cutove
 ## Rust Core v6.3 Python Backend Retirement Plan
 
 Adds `build-python-backend-retirement-plan`, the first explicit Python backend retirement planning gate after the v6.2 full Rust backend cutover execution contract. This remains non-mutating: Python is not removed, Flask routes are not disabled, API traffic is not switched, WebUI/UX remains unchanged, and Python fallback remains mandatory.
+
+
+## Rust Core v6.4 Rust Backend Production Enablement Contract
+
+Adds `build-rust-backend-production-enablement-contract`, the bridge after Python backend retirement planning. It can mark the system as a Rust backend production enablement candidate while keeping Python fallback, WebUI/UX unchanged, and all destructive actions disabled. It does not remove Python, disable Flask routes, switch API traffic, or enable Rust production authority.
