@@ -626,5 +626,11 @@
         "file": "docs/RUST_CORE_V33_AUTHENTICATED_READ_FIXTURE.md",
         "anchor": "rust-core-v33-authenticated-read-fixture-pipeline",
         "summary": "Fixture-only authenticated RouterOS read pipeline that composes auth session, offline session, and read-result trust before live Rust reads."
+    },
+    "rust.v34_live_read_adapter": {
+        "title": "Rust Core v3.4 Live Read Adapter Contract",
+        "file": "docs/RUST_CORE_V34_LIVE_READ_ADAPTER.md",
+        "anchor": "rust-core-v34-live-read-adapter-contract",
+        "summary": "Guarded live RouterOS read adapter contract that composes TCP/auth/API sentence readiness without opening sockets or replacing Python collectors."
     }
 }

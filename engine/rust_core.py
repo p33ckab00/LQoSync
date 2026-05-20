@@ -2492,6 +2492,70 @@ def rust_run_routeros_authenticated_read_fixture(config: dict, payload: dict[str
     return response
 
 
+def _python_run_routeros_live_read_adapter_pilot(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for v3.4 live-read adapter contract.
+
+    This is contract-only. It never opens sockets, authenticates, sends API words,
+    reads RouterOS replies, or replaces Python collectors.
+    """
+    started = started or time.perf_counter()
+    adapter = str((payload or {}).get("adapter") or "contract")
+    mode = str((payload or {}).get("mode") or "contract")
+    execute = bool((payload or {}).get("execute", False))
+    live_requested = adapter in {"live", "tcp", "routeros"} or mode in {"live", "live_read", "execute_live", "authenticated_live_read"}
+    errors: list[dict[str, Any]] = []
+    if execute or live_requested:
+        errors.append({"code": "routeros_live_read_adapter_not_implemented", "severity": "error", "path": "adapter", "message": "Python fallback cannot execute the Rust RouterOS live read adapter."})
+    session = _python_build_routeros_auth_session_contract({**(payload or {}), "adapter": "fixture", "execute": True, "fixture_reply_words": (payload or {}).get("fixture_reply_words") or ["!done"]}, started=started)
+    session_result = session.get("result") or {}
+    authenticated = bool(session_result.get("authenticated")) and session_result.get("status") == "auth_session_contract_ready"
+    status = "blocked" if errors else ("live_read_adapter_contract_ready" if authenticated else "live_read_adapter_contract_not_authenticated")
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "run-routeros-live-read-adapter-pilot",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "routeros_live_read_adapter_pilot",
+            "status": status,
+            "adapter": adapter,
+            "requested_mode": mode,
+            "authority": ((payload or {}).get("rust_core") or {}).get("routeros_transport_authority", "plan_only") if isinstance((payload or {}).get("rust_core"), dict) else "plan_only",
+            "full_rust_backend": False,
+            "live_transport_supported": False,
+            "live_adapter_implemented": False,
+            "authenticated": authenticated,
+            "auth_session": session_result,
+            "path": (payload or {}).get("path") or "/ppp/active",
+            "credential_material": "redacted",
+            "username_emitted": False,
+            "password_emitted": False,
+            "session_token_emitted": False,
+            "connection_attempt_count": 0,
+            "authentication_attempt_count": 0,
+            "api_sentence_write_count": 0,
+            "api_reply_read_count": 0,
+            "collector_authority": "python_authoritative",
+            "next_stage": "rust_routeros_live_read_socket_adapter",
+            "authority_note": "Python fallback only models the live-read adapter contract. It never performs live RouterOS reads."
+        },
+        "errors": errors,
+        "warnings": [],
+        "meta": {"engine": "python-wrapper", "mode": "python_routeros_live_read_adapter_pilot_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_run_routeros_live_read_adapter_pilot(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("run-routeros-live-read-adapter-pilot", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_run_routeros_live_read_adapter_pilot(req_payload, started=started)
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

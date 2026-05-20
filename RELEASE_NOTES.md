@@ -1,3 +1,10 @@
+## v2.104.0-rc1 / Rust Core v3.4 Live Read Adapter Contract
+
+- Added `run-routeros-live-read-adapter-pilot`.
+- Composes TCP pilot, auth-session contract, and API sentence encoder into a guarded live-read adapter contract.
+- Keeps live RouterOS sockets disabled and Python collectors authoritative.
+- Cleans the v3.3 unused import warning by adding authenticated-read self-test coverage.
+
 ## v2.103.0-rc1 - Rust Core v3.3 Authenticated Read Fixture Pipeline
 
 - Added `run-routeros-authenticated-read-fixture`.

@@ -575,6 +575,9 @@
         "routeros_session_authority": "contract_only",
         "routeros_authenticated_read_pilot": false,
         "allow_rust_routeros_authenticated_fixture_reads": true,
-        "routeros_authenticated_read_authority": "fixture_only"
+        "routeros_authenticated_read_authority": "fixture_only",
+        "routeros_live_read_adapter_pilot": false,
+        "allow_rust_routeros_live_read_adapter": false,
+        "routeros_live_read_adapter_authority": "contract_only"
     }
 }

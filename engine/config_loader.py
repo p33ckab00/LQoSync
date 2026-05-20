@@ -104,6 +104,9 @@ DEFAULT_CONFIG = {
         "routeros_authenticated_read_pilot": False,
         "allow_rust_routeros_authenticated_fixture_reads": True,
         "routeros_authenticated_read_authority": "fixture_only",
+        "routeros_live_read_adapter_pilot": False,
+        "allow_rust_routeros_live_read_adapter": False,
+        "routeros_live_read_adapter_authority": "contract_only",
     },
     "collector": {
         "selective_fields": True,

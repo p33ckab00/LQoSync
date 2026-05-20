@@ -21,6 +21,7 @@ use crate::routeros_auth_plan::build_routeros_auth_plan_payload;
 use crate::routeros_auth_handshake::run_routeros_auth_handshake_payload;
 use crate::routeros_auth_session::build_routeros_auth_session_contract_payload;
 use crate::routeros_authenticated_read::run_routeros_authenticated_read_fixture_payload;
+use crate::routeros_live_read_adapter::run_routeros_live_read_adapter_pilot_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -55,6 +56,7 @@ pub const OP_BUILD_ROUTEROS_AUTH_PLAN: &str = "build-routeros-auth-plan";
 pub const OP_RUN_ROUTEROS_AUTH_HANDSHAKE: &str = "run-routeros-auth-handshake";
 pub const OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT: &str = "build-routeros-auth-session-contract";
 pub const OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE: &str = "run-routeros-authenticated-read-fixture";
+pub const OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT: &str = "run-routeros-live-read-adapter-pilot";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -103,6 +105,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_RUN_ROUTEROS_AUTH_HANDSHAKE,
         OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT,
         OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE,
+        OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -422,6 +425,53 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     checks.push(check("routeros_auth_session_contract", auth_session_ok, json!({"status": auth_session.get("status"), "authenticated": auth_session.get("authenticated"), "connection_attempt_count": auth_session.get("connection_attempt_count")})));
     if !auth_session_ok {
         errors.push(Diagnostic::error("self_test_routeros_auth_session_failed", Some("build-routeros-auth-session-contract".to_string()), "Self-test RouterOS auth session contract should build an authenticated fixture session without network access."));
+    }
+
+
+    let authenticated_read_payload = json!({
+        "router": {"name":"RB5009", "address":"10.0.0.1", "port":8728, "username":"selftest", "password":"redacted-by-test"},
+        "adapter":"fixture",
+        "execute": true,
+        "fixture_reply_words": ["!done"],
+        "path": "/ppp/active",
+        "fields": ["name", "address"],
+        "fixture_rows": [{"name":"selftest", "address":"10.0.0.2"}]
+    });
+    let (authenticated_read, authenticated_read_errors, _authenticated_read_warnings) = run_routeros_authenticated_read_fixture_payload(&authenticated_read_payload);
+    let authenticated_read_ok = authenticated_read_errors.is_empty()
+        && authenticated_read.get("status").and_then(Value::as_str) == Some("authenticated_read_fixture_complete")
+        && authenticated_read.get("connection_attempt_count").and_then(Value::as_u64).unwrap_or(1) == 0
+        && authenticated_read.get("row_count").and_then(Value::as_u64).unwrap_or(0) == 1;
+    checks.push(check("routeros_authenticated_read_fixture", authenticated_read_ok, json!({
+        "status": authenticated_read.get("status"),
+        "connection_attempt_count": authenticated_read.get("connection_attempt_count"),
+        "row_count": authenticated_read.get("row_count")
+    })));
+    if !authenticated_read_ok {
+        errors.push(Diagnostic::error("self_test_routeros_authenticated_read_failed", Some("run-routeros-authenticated-read-fixture".to_string()), "Self-test authenticated read fixture should complete without network access."));
+    }
+
+    let live_read_adapter_payload = json!({
+        "router": {"name":"RB5009", "address":"10.0.0.1", "port":8728, "username":"selftest", "password":"redacted-by-test"},
+        "adapter":"contract",
+        "mode":"contract",
+        "execute": false,
+        "fixture_reply_words": ["!done"],
+        "path": "/ppp/active",
+        "fields": ["name", "address"]
+    });
+    let (live_read_adapter, live_read_adapter_errors, _live_read_adapter_warnings) = run_routeros_live_read_adapter_pilot_payload(&live_read_adapter_payload);
+    let live_read_adapter_ok = live_read_adapter_errors.is_empty()
+        && live_read_adapter.get("status").and_then(Value::as_str) == Some("live_read_adapter_contract_ready")
+        && live_read_adapter.get("connection_attempt_count").and_then(Value::as_u64).unwrap_or(1) == 0
+        && live_read_adapter.get("api_sentence_write_count").and_then(Value::as_u64).unwrap_or(1) == 0;
+    checks.push(check("routeros_live_read_adapter_contract", live_read_adapter_ok, json!({
+        "status": live_read_adapter.get("status"),
+        "connection_attempt_count": live_read_adapter.get("connection_attempt_count"),
+        "api_sentence_write_count": live_read_adapter.get("api_sentence_write_count")
+    })));
+    if !live_read_adapter_ok {
+        errors.push(Diagnostic::error("self_test_routeros_live_read_adapter_failed", Some("run-routeros-live-read-adapter-pilot".to_string()), "Self-test live read adapter contract should be ready without opening sockets or sending API words."));
     }
 
     let collector_bundle_payload = json!({
