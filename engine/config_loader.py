@@ -86,6 +86,15 @@ DEFAULT_CONFIG = {
         "require_authority_readiness": True,
         "full_rust_backend_authority": True,
         "python_mutation_fallback": False,
+        "full_rust_authority_supervisor_enabled": True,
+        "require_rust_authority_preflight": False,
+        "fail_closed_on_authority_preflight_failure": True,
+        "rust_authority_preflight_stamp": "/opt/LQoSync/state/rust_authority_preflight.json",
+        "rust_authority_preflight_max_age_seconds": 900,
+        "require_rust_authority_recovery_bundle": True,
+        "rust_authority_recovery_bundle_dir": "/opt/LQoSync/state/rust_authority_recovery",
+        "rust_authority_recovery_bundle_before_promotion": True,
+        "rust_authority_supervisor_mode": "operator_supervised",
         "fail_closed_without_rust_authority": True,
         "require_rust_authoritative_transaction": True,
         "collector_output_authority": "rust_validate_all",
@@ -921,6 +930,15 @@ def validate_config(cfg: dict):
     rust_core.setdefault("require_authority_readiness", True)
     rust_core.setdefault("full_rust_backend_authority", True)
     rust_core.setdefault("python_mutation_fallback", False)
+    rust_core.setdefault("full_rust_authority_supervisor_enabled", True)
+    rust_core.setdefault("require_rust_authority_preflight", False)
+    rust_core.setdefault("fail_closed_on_authority_preflight_failure", True)
+    rust_core.setdefault("rust_authority_preflight_stamp", "/opt/LQoSync/state/rust_authority_preflight.json")
+    rust_core.setdefault("rust_authority_preflight_max_age_seconds", 900)
+    rust_core.setdefault("require_rust_authority_recovery_bundle", True)
+    rust_core.setdefault("rust_authority_recovery_bundle_dir", "/opt/LQoSync/state/rust_authority_recovery")
+    rust_core.setdefault("rust_authority_recovery_bundle_before_promotion", True)
+    rust_core.setdefault("rust_authority_supervisor_mode", "operator_supervised")
     rust_core.setdefault("fail_closed_without_rust_authority", True)
     rust_core.setdefault("require_rust_authoritative_transaction", True)
     rust_core.setdefault("collector_output_authority", "rust_validate_all")

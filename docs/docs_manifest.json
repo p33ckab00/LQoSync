@@ -1010,5 +1010,11 @@
     "file": "docs/RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md",
     "anchor": "rust-core-v758-full-rust-authority-lockdown",
     "summary": "Fail-closed full Rust authority lock for production file writes, transaction journal, and LibreQoS apply while preserving Python WebUI/scheduler compatibility."
+  },
+  "rust_core_v760_rust_authority_supervisor": {
+    "title": "Rust Core v7.6.0 Rust Authority Supervisor",
+    "file": "docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md",
+    "anchor": "rust-core-v760-rust-authority-supervisor",
+    "summary": "Operator-supervised full Rust authority preflight, recovery bundle, and fail-closed production mutation stamp."
   }
 }

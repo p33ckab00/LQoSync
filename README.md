@@ -749,4 +749,20 @@ This enables Rust validation/sync-plan fail-closed authority after self-test, wh
 ## v7.5.8 Full Rust Authority Lockdown
 
 The `lqosync-in-rust` branch now includes a full Rust authority lock for the production mutation path. When `full_rust_backend_authority=true`, Python cannot silently fall back to writing `ShapedDevices.csv`, writing `network.json`, or running `LibreQoS.py --updateonly`; Rust must execute the authoritative transaction or the cycle fails closed.
+---
+
+## v7.6.0 Rust Authority Supervisor
+
+Full Rust authority now has an operator-supervised production gate. The full-authority promotion flow creates a recovery bundle, runs Rust core self-test, writes a preflight stamp, and enables fail-closed runtime verification through `rust_authority_preflight_required_failed`.
+
+New commands:
+
+```bash
+sudo bash scripts/promote-rust-full-authoritative-safe.sh
+bash scripts/rust-full-authority-preflight.sh --write-stamp
+bash scripts/rust-full-authority-recovery-bundle.sh
+bash scripts/verify-rust-authority-supervisor.sh
+```
+
+See `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md`.
 

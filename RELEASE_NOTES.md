@@ -2284,3 +2284,11 @@ Also aligns codebase/runtime path defaults and operator-facing repair/update com
 - Promoted collector output authority to `rust_validate_all` while keeping Python RouterOS transport as a compatibility shell until live Rust transport is separately certified.
 - Added `docs/RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md` and `scripts/verify-rust-full-authority-lockdown.sh`.
 
+## 2.146.0-rc1 - v7.6.0 Rust Authority Supervisor
+
+- Added `scripts/rust-full-authority-preflight.sh` to verify full Rust authority flags, Rust self-test operations, LibreQoS paths, and filesystem readiness.
+- Added `scripts/rust-full-authority-recovery-bundle.sh` to capture a non-destructive recovery bundle before production authority promotion.
+- Added runtime fail-closed supervisor status `rust_authority_preflight_required_failed` when a promoted full-authority config requires a fresh preflight stamp and it is missing, stale, or failed.
+- Updated `scripts/promote-rust-full-authoritative-safe.sh` so promotion creates a recovery bundle and writes a preflight stamp before enabling supervised full authority.
+- Added `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md` and `scripts/verify-rust-authority-supervisor.sh`.
+

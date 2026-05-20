@@ -12,6 +12,8 @@ INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-/opt/LQoSync}"
 CORE_BIN="${LQOSYNC_CORE_BIN:-$(command -v lqosync-core 2>/dev/null || true)}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
 RESTART_SERVICE="${RESTART_SERVICE:-false}"
+RUN_RUST_AUTHORITY_PREFLIGHT="${RUN_RUST_AUTHORITY_PREFLIGHT:-true}"
+RUN_RUST_AUTHORITY_RECOVERY_BUNDLE="${RUN_RUST_AUTHORITY_RECOVERY_BUNDLE:-true}"
 TS="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="${LQOSYNC_RUST_FULL_AUTH_BACKUP_DIR:-/root/lqosync_rust_full_authority_backups/$TS}"
 
@@ -59,6 +61,11 @@ mkdir -p "$BACKUP_DIR"
 cp -a "$CONFIG_PATH" "$BACKUP_DIR/config.json.before-rust-full-authority"
 log "Backed up config: $BACKUP_DIR/config.json.before-rust-full-authority"
 
+if as_bool "$RUN_RUST_AUTHORITY_RECOVERY_BUNDLE" && [ -x "$INSTALL_DIR/scripts/rust-full-authority-recovery-bundle.sh" ]; then
+  log "Creating Rust authority recovery bundle before promotion..."
+  CONFIG_PATH="$CONFIG_PATH" LQOSYNC_INSTALL_DIR="$INSTALL_DIR" "$INSTALL_DIR/scripts/rust-full-authority-recovery-bundle.sh" || fail "recovery bundle creation failed"
+fi
+
 python3 - "$CONFIG_PATH" <<'LQOSYNC_PROMOTE_PY'
 from __future__ import annotations
 import json, sys, pathlib, tempfile, os
@@ -79,6 +86,15 @@ rc.update({
     'require_authority_readiness': True,
     'full_rust_backend_authority': True,
     'python_mutation_fallback': False,
+    'full_rust_authority_supervisor_enabled': True,
+    'require_rust_authority_preflight': True,
+    'fail_closed_on_authority_preflight_failure': True,
+    'rust_authority_preflight_stamp': '/opt/LQoSync/state/rust_authority_preflight.json',
+    'rust_authority_preflight_max_age_seconds': 900,
+    'require_rust_authority_recovery_bundle': True,
+    'rust_authority_recovery_bundle_dir': '/opt/LQoSync/state/rust_authority_recovery',
+    'rust_authority_recovery_bundle_before_promotion': True,
+    'rust_authority_supervisor_mode': 'operator_supervised',
     'fail_closed_without_rust_authority': True,
     'require_rust_authoritative_transaction': True,
     'transaction_authority': 'rust_full_authoritative',
@@ -110,6 +126,15 @@ if [ -d "$INSTALL_DIR" ]; then
   log "Validating config after patch..."
   (cd "$INSTALL_DIR" && CONFIG_PATH="$CONFIG_PATH" python3 scripts/validate_config_example.py >/dev/null)
   (cd "$INSTALL_DIR" && CONFIG_PATH="$CONFIG_PATH" python3 scripts/doctor.py "$CONFIG_PATH" || true)
+fi
+
+if as_bool "$RUN_RUST_AUTHORITY_PREFLIGHT"; then
+  [ -x "$INSTALL_DIR/scripts/rust-full-authority-preflight.sh" ] || fail "preflight script missing or not executable: $INSTALL_DIR/scripts/rust-full-authority-preflight.sh"
+  log "Running Rust authority preflight and writing supervisor stamp..."
+  if ! CONFIG_PATH="$CONFIG_PATH" LQOSYNC_INSTALL_DIR="$INSTALL_DIR" LQOSYNC_CORE_BIN="$CORE_BIN" "$INSTALL_DIR/scripts/rust-full-authority-preflight.sh" --write-stamp; then
+    cp -a "$BACKUP_DIR/config.json.before-rust-full-authority" "$CONFIG_PATH"
+    fail "Rust authority preflight failed after patch; restored previous config from backup"
+  fi
 fi
 
 log "Rust full apply authority mode is enabled."

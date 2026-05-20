@@ -567,4 +567,20 @@ This package aligns the `lqosync-in-rust` branch installation guide with stale-c
 ## v7.5.8 Full Rust Authority Lockdown
 
 The package now enables the full Rust authority lock by default for the production mutation path. Python remains the WebUI/scheduler compatibility shell, but production file writes and LibreQoS apply must be Rust-owned when `full_rust_backend_authority=true`.
+---
+
+## v7.6.0 Rust Authority Supervisor
+
+Full Rust authority now has an operator-supervised production gate. The full-authority promotion flow creates a recovery bundle, runs Rust core self-test, writes a preflight stamp, and enables fail-closed runtime verification through `rust_authority_preflight_required_failed`.
+
+New commands:
+
+```bash
+sudo bash scripts/promote-rust-full-authoritative-safe.sh
+bash scripts/rust-full-authority-preflight.sh --write-stamp
+bash scripts/rust-full-authority-recovery-bundle.sh
+bash scripts/verify-rust-authority-supervisor.sh
+```
+
+See `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md`.
 

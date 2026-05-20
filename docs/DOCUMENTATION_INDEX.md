@@ -343,4 +343,7 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 ## v7.5.8 Full Rust Authority Lockdown
 
 - [Rust Core v7.5.8 Full Rust Authority Lockdown](RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md)
+## v7.6.0 Rust Authority Supervisor
+
+- [Rust Core v7.6.0 Rust Authority Supervisor](RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md)
 

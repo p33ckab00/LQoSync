@@ -935,6 +935,15 @@
     "fail_closed_without_rust_authority": true,
     "require_rust_authoritative_transaction": true,
     "collector_output_authority": "rust_validate_all",
-    "require_collector_rust_validation": true
+    "require_collector_rust_validation": true,
+    "full_rust_authority_supervisor_enabled": true,
+    "require_rust_authority_preflight": false,
+    "fail_closed_on_authority_preflight_failure": true,
+    "rust_authority_preflight_stamp": "/opt/LQoSync/state/rust_authority_preflight.json",
+    "rust_authority_preflight_max_age_seconds": 900,
+    "require_rust_authority_recovery_bundle": true,
+    "rust_authority_recovery_bundle_dir": "/opt/LQoSync/state/rust_authority_recovery",
+    "rust_authority_recovery_bundle_before_promotion": true,
+    "rust_authority_supervisor_mode": "operator_supervised"
   }
 }

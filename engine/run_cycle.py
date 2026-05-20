@@ -126,6 +126,71 @@ def _mark_libreqos_state(state_path: str, result: SyncResult, ok: bool, reason: 
     )
 
 
+def _rust_authority_supervisor_preflight(config: dict, result: SyncResult) -> bool:
+    """Validate the Rust authority preflight stamp when explicitly required.
+
+    This is intentionally opt-in through rust_core.require_rust_authority_preflight.
+    Promotion scripts enable it after writing a fresh stamp. Existing installs that
+    merely upgrade packages are not broken by a missing stamp unless the operator
+    has opted into the supervisor gate.
+    """
+    rc = config.get("rust_core", {}) or {}
+    if not bool(rc.get("full_rust_authority_supervisor_enabled", True)):
+        return True
+    if not bool(rc.get("require_rust_authority_preflight", False)):
+        result.diff["rust_authority_supervisor"] = {
+            "enabled": True,
+            "require_preflight": False,
+            "status": "not_required",
+        }
+        return True
+
+    paths = config.get("paths", {}) or {}
+    stamp_path = str(rc.get("rust_authority_preflight_stamp") or paths.get("rust_authority_preflight_stamp") or "/opt/LQoSync/state/rust_authority_preflight.json")
+    max_age = int(rc.get("rust_authority_preflight_max_age_seconds") or 900)
+    fail_closed = bool(rc.get("fail_closed_on_authority_preflight_failure", True))
+    supervisor = {
+        "enabled": True,
+        "require_preflight": True,
+        "stamp_path": stamp_path,
+        "max_age_seconds": max_age,
+        "fail_closed": fail_closed,
+        "status": "unknown",
+    }
+    try:
+        stamp = json.loads(Path(stamp_path).read_text(encoding="utf-8"))
+        supervisor["stamp"] = {
+            "status": stamp.get("status"),
+            "created_at": stamp.get("created_at"),
+            "created_epoch": stamp.get("created_epoch"),
+            "self_test_status": stamp.get("self_test_status"),
+            "git_head": stamp.get("git_head"),
+        }
+        age = max(0, int(time.time()) - int(stamp.get("created_epoch") or 0))
+        supervisor["age_seconds"] = age
+        if stamp.get("status") != "pass":
+            supervisor["status"] = "failed_stamp"
+            raise ValueError("preflight stamp status is not pass")
+        if stamp.get("self_test_status") != "ok":
+            supervisor["status"] = "failed_self_test"
+            raise ValueError("preflight stamp self_test_status is not ok")
+        if max_age > 0 and age > max_age:
+            supervisor["status"] = "stale"
+            raise ValueError(f"preflight stamp is stale: {age}s > {max_age}s")
+        supervisor["status"] = "ok"
+        result.diff["rust_authority_supervisor"] = supervisor
+        return True
+    except Exception as exc:
+        supervisor["error"] = str(exc)
+        result.diff["rust_authority_supervisor"] = supervisor
+        msg = f"Rust authority supervisor preflight failed: {exc}. Run scripts/rust-full-authority-preflight.sh --write-stamp after verifying Rust core."
+        if fail_closed:
+            result.errors.append(msg)
+            return False
+        result.warnings.append(msg)
+        return True
+
+
 def _run_libreqos_apply(config: dict, state_path: str, result: SyncResult, timeline: Timeline, reason: str):
     t = time.perf_counter()
     lq = run_libreqos_update(config)
@@ -794,6 +859,14 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 write_audit(config, "rust_full_authority_missing_apply_flag", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_missing_apply_flag")
                 return result
+
+        if rust_full_authority_required and not _rust_authority_supervisor_preflight(config, result):
+            result.finish("rust_authority_preflight_required_failed")
+            result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+            log_event(config, "error", "Rust authority supervisor preflight failed; production mutation blocked")
+            write_audit(config, "rust_authority_preflight_required_failed", details={"supervisor": result.diff.get("rust_authority_supervisor"), "timings": result.timings})
+            update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authority_preflight_required_failed")
+            return result
 
         if result.files_changed:
             t = time.perf_counter()
