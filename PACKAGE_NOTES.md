@@ -361,3 +361,7 @@ Fixes the v4.3.1 pilot execution readiness regression where one root confirmatio
 ## Package note: Rust Core v4.4
 
 This package adds the collector authority pilot result evaluator and documentation. It remains a bridge release; no production collector authority is switched to Rust.
+
+### Rust Core v4.4.1 — Pilot Result Recursion Hotfix
+
+Fixes the v4.4 Rust test compile failure caused by a large nested `serde_json::json!` test payload in the collector authority pilot result evaluator. Runtime safety behavior is unchanged.

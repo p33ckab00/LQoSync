@@ -293,7 +293,7 @@ pub fn evaluate_collector_authority_pilot_result_payload(payload: &Value) -> (Va
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::{json, Map, Value};
 
     fn row() -> Value {
         json!({"Circuit ID":"selftest", "Circuit Name":"selftest", "Device ID":"selftest", "Device Name":"selftest", "Parent Node":"15M-RB5009", "MAC":"AA:BB:CC:DD:EE:FF", "IPv4":"10.0.0.2", "IPv6":"", "Download Min Mbps":"7.5", "Upload Min Mbps":"7.5", "Download Max Mbps":"15", "Upload Max Mbps":"15", "Comment":"PPP"})
@@ -330,55 +330,55 @@ mod tests {
                 "write_attempted":false,
                 "error_count":0
             }));
-            obj.insert("rust_core".to_string(), json!({
-                "allow_rust_collector_authority": true,
-                "rust_collector_authority_pilot": true,
-                "allow_rust_routeros_live_read_adapter": true,
-                "routeros_live_read_adapter_pilot": true,
-                "rust_collector_authority_sources": ["pppoe"],
-                "collector_authority_mode": "rust_collector_authority_pilot",
-                "collector_authority_manifest_pilot": true,
-                "allow_collector_authority_manifest": true,
-                "collector_authority_dry_run_selection_pilot": true,
-                "allow_collector_authority_dry_run_selection": true,
-                "collector_authority_dry_run_bundle_pilot": true,
-                "allow_collector_authority_dry_run_bundle": true,
-                "run_cycle_rust_shadow_report_enabled": true,
-                "run_cycle_rust_shadow_report_pilot": true,
-                "collector_authority_activation_pilot": true,
-                "allow_collector_authority_activation": true,
-                "collector_authority_activation_mode": "rust_collector_authority_pilot",
-                "collector_authority_require_python_fallback": true,
-                "collector_authority_require_run_cycle_shadow": true,
-                "collector_authority_min_shadow_cycles": 3,
-                "collector_authority_runtime_pilot": true,
-                "allow_collector_authority_runtime_contract": true,
-                "collector_authority_runtime_mode": "rust_collector_authority_runtime_contract",
-                "collector_authority_runtime_require_activation_plan": true,
-                "collector_authority_runtime_require_python_fallback": true,
-                "collector_authority_runtime_max_shadow_age_seconds": 900,
-                "collector_authority_switch_rehearsal_pilot": true,
-                "allow_collector_authority_switch_rehearsal": true,
-                "collector_authority_switch_mode": "rust_collector_authority_switch_rehearsal",
-                "collector_authority_switch_require_runtime_contract": true,
-                "collector_authority_switch_require_python_fallback": true,
-                "collector_authority_switch_require_manual_confirmation": true,
-                "collector_authority_pilot_execution_pilot": true,
-                "allow_collector_authority_pilot_execution_contract": true,
-                "collector_authority_pilot_execution_mode": "rust_collector_authority_pilot_execution_contract",
-                "collector_authority_pilot_execution_require_switch_rehearsal": true,
-                "collector_authority_pilot_execution_require_python_fallback": true,
-                "collector_authority_pilot_execution_require_manual_confirmation": true,
-                "collector_authority_pilot_execution_max_shadow_age_seconds": 900,
-                "collector_authority_pilot_result_evaluator_pilot": true,
-                "allow_collector_authority_pilot_result_evaluation": true,
-                "collector_authority_pilot_result_mode": "rust_collector_authority_pilot_result_evaluation",
-                "collector_authority_pilot_result_require_execution_contract": true,
-                "collector_authority_pilot_result_require_python_fallback": true,
-                "collector_authority_pilot_result_require_no_cleanup_apply": true,
-                "collector_authority_pilot_result_require_parity": true,
-                "collector_authority_pilot_result_max_shadow_age_seconds": 900
-            }));
+            let mut rust_core = Map::new();
+            rust_core.insert("allow_rust_collector_authority".to_string(), json!(true));
+            rust_core.insert("rust_collector_authority_pilot".to_string(), json!(true));
+            rust_core.insert("allow_rust_routeros_live_read_adapter".to_string(), json!(true));
+            rust_core.insert("routeros_live_read_adapter_pilot".to_string(), json!(true));
+            rust_core.insert("rust_collector_authority_sources".to_string(), json!(["pppoe"]));
+            rust_core.insert("collector_authority_mode".to_string(), json!("rust_collector_authority_pilot"));
+            rust_core.insert("collector_authority_manifest_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_manifest".to_string(), json!(true));
+            rust_core.insert("collector_authority_dry_run_selection_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_dry_run_selection".to_string(), json!(true));
+            rust_core.insert("collector_authority_dry_run_bundle_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_dry_run_bundle".to_string(), json!(true));
+            rust_core.insert("run_cycle_rust_shadow_report_enabled".to_string(), json!(true));
+            rust_core.insert("run_cycle_rust_shadow_report_pilot".to_string(), json!(true));
+            rust_core.insert("collector_authority_activation_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_activation".to_string(), json!(true));
+            rust_core.insert("collector_authority_activation_mode".to_string(), json!("rust_collector_authority_pilot"));
+            rust_core.insert("collector_authority_require_python_fallback".to_string(), json!(true));
+            rust_core.insert("collector_authority_require_run_cycle_shadow".to_string(), json!(true));
+            rust_core.insert("collector_authority_min_shadow_cycles".to_string(), json!(3));
+            rust_core.insert("collector_authority_runtime_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_runtime_contract".to_string(), json!(true));
+            rust_core.insert("collector_authority_runtime_mode".to_string(), json!("rust_collector_authority_runtime_contract"));
+            rust_core.insert("collector_authority_runtime_require_activation_plan".to_string(), json!(true));
+            rust_core.insert("collector_authority_runtime_require_python_fallback".to_string(), json!(true));
+            rust_core.insert("collector_authority_runtime_max_shadow_age_seconds".to_string(), json!(900));
+            rust_core.insert("collector_authority_switch_rehearsal_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_switch_rehearsal".to_string(), json!(true));
+            rust_core.insert("collector_authority_switch_mode".to_string(), json!("rust_collector_authority_switch_rehearsal"));
+            rust_core.insert("collector_authority_switch_require_runtime_contract".to_string(), json!(true));
+            rust_core.insert("collector_authority_switch_require_python_fallback".to_string(), json!(true));
+            rust_core.insert("collector_authority_switch_require_manual_confirmation".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_execution_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_pilot_execution_contract".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_execution_mode".to_string(), json!("rust_collector_authority_pilot_execution_contract"));
+            rust_core.insert("collector_authority_pilot_execution_require_switch_rehearsal".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_execution_require_python_fallback".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_execution_require_manual_confirmation".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_execution_max_shadow_age_seconds".to_string(), json!(900));
+            rust_core.insert("collector_authority_pilot_result_evaluator_pilot".to_string(), json!(true));
+            rust_core.insert("allow_collector_authority_pilot_result_evaluation".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_result_mode".to_string(), json!("rust_collector_authority_pilot_result_evaluation"));
+            rust_core.insert("collector_authority_pilot_result_require_execution_contract".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_result_require_python_fallback".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_result_require_no_cleanup_apply".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_result_require_parity".to_string(), json!(true));
+            rust_core.insert("collector_authority_pilot_result_max_shadow_age_seconds".to_string(), json!(900));
+            obj.insert("rust_core".to_string(), Value::Object(rust_core));
         }
     }
 

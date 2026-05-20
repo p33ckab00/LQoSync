@@ -1,3 +1,7 @@
+## 2.114.1-rc1 / Rust Core v4.4.1
+
+Hotfix for v4.4 collector authority pilot result evaluator. Replaces a large nested `serde_json::json!` test gate payload with incremental `serde_json::Map` construction to avoid Rust macro recursion-limit compile failures. Runtime behavior remains non-mutating and Python collectors remain authoritative.
+
 ## v2.105.1-rc1 - Rust Core v3.5.1 Collector Authority Pilot Redaction Test Hotfix
 
 - Fixes a false-positive Rust test failure in `collector_authority_pilot.rs`.
