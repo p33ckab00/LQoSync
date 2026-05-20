@@ -2066,3 +2066,8 @@ Adds `evaluate-collector-authority-pilot-result`, a non-mutating collector autho
 - Adds a non-mutating promotion-readiness report after the collector authority pilot result evaluator.
 - Requires explicit gates, `CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_READINESS`, fresh Rust-shadow data, and Python fallback before it can report ready.
 - Does not promote Rust collectors, transfer cleanup/apply authority, write generated files, or claim full Rust backend production.
+
+
+## Rust Core v4.6 Collector Authority Promotion Execution Rehearsal
+
+LQoSync `2.116.0-rc1` / `lqosync-core 4.6.0` adds `build-collector-authority-promotion-execution-rehearsal`, a non-mutating bridge after v4.5 promotion readiness. It requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback, while keeping production collector authority in Python and keeping cleanup/apply/file writes disabled.

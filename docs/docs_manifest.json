@@ -733,5 +733,11 @@
     "path": "docs/RUST_CORE_V45_COLLECTOR_AUTHORITY_PROMOTION_READINESS.md",
     "category": "rust-core",
     "summary": "Adds a non-mutating promotion readiness report after pilot result evaluation, requiring explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback while keeping Python collectors authoritative."
+  },
+  "rust.core_v46_collector_authority_promotion_execution": {
+    "title": "Rust Core v4.6 Collector Authority Promotion Execution Rehearsal",
+    "path": "docs/RUST_CORE_V46_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION.md",
+    "category": "rust-core",
+    "summary": "Adds a non-mutating promotion execution rehearsal after v4.5 readiness, requiring explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback while keeping Python collectors authoritative."
   }
 }

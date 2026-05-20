@@ -321,3 +321,8 @@ Fixes collector authority pilot execution readiness by separating switch-rehears
 ## v4.5 Collector Authority Promotion Readiness
 
 Adds `build-collector-authority-promotion-readiness`, a non-mutating readiness report after `evaluate-collector-authority-pilot-result`. It requires explicit gates and `CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_READINESS` before reporting ready, but it does not promote Rust collectors or transfer cleanup/apply/write authority.
+
+
+## v4.6
+
+Adds `build-collector-authority-promotion-execution-rehearsal`, a non-mutating promotion execution rehearsal contract.

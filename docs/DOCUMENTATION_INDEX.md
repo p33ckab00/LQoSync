@@ -245,3 +245,5 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v4.4.1 — Pilot Result Recursion Hotfix](RUST_CORE_V441_PILOT_RESULT_RECURSION_HOTFIX.md)
 
 - [Rust Core v4.5 Collector Authority Promotion Readiness](RUST_CORE_V45_COLLECTOR_AUTHORITY_PROMOTION_READINESS.md) — non-mutating promotion-readiness bridge after pilot result evaluation.
+
+- [Rust Core v4.6 Collector Authority Promotion Execution Rehearsal](RUST_CORE_V46_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION.md)

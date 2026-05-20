@@ -369,3 +369,8 @@ Fixes the v4.4 Rust test compile failure caused by a large nested `serde_json::j
 ## Rust Core v4.5 Collector Authority Promotion Readiness
 
 This package adds `build-collector-authority-promotion-readiness` and updates API/config/docs. It remains fail-safe and Python-authoritative by default.
+
+
+## Rust Core v4.6 Collector Authority Promotion Execution Rehearsal
+
+LQoSync `2.116.0-rc1` / `lqosync-core 4.6.0` adds `build-collector-authority-promotion-execution-rehearsal`, a non-mutating bridge after v4.5 promotion readiness. It requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback, while keeping production collector authority in Python and keeping cleanup/apply/file writes disabled.

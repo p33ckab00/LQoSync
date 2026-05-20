@@ -7779,3 +7779,8 @@ Fixes the v4.4 Rust test compile failure caused by a large nested `serde_json::j
 ## Rust Core v4.5 Collector Authority Promotion Readiness
 
 `build-collector-authority-promotion-readiness` is a non-mutating bridge after pilot result evaluation. It reviews the collector authority pilot result, promotion-readiness gates, confirmation token, shadow freshness, and side-effect-free status. It never promotes Rust collectors or transfers cleanup/apply/write authority. See `docs/RUST_CORE_V45_COLLECTOR_AUTHORITY_PROMOTION_READINESS.md`.
+
+
+## Rust Core v4.6 Collector Authority Promotion Execution Rehearsal
+
+LQoSync `2.116.0-rc1` / `lqosync-core 4.6.0` adds `build-collector-authority-promotion-execution-rehearsal`, a non-mutating bridge after v4.5 promotion readiness. It requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback, while keeping production collector authority in Python and keeping cleanup/apply/file writes disabled.
