@@ -262,3 +262,4 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v5.2 Rust Backend Scheduler / Run Cycle Handoff Plan](RUST_CORE_V52_RUST_BACKEND_SCHEDULER_HANDOFF.md)
 
 - [Rust Core v5.3 Rust Run Cycle Orchestrator Handoff Contract](RUST_CORE_V53_RUST_RUN_CYCLE_ORCHESTRATOR_HANDOFF.md) — non-mutating Rust run_cycle orchestrator handoff contract with WebUI/UX unchanged.
+- [Rust Core v5.4 Rust Config/State Authority Handoff Contract](RUST_CORE_V54_RUST_CONFIG_STATE_AUTHORITY_HANDOFF.md) — non-mutating config/state authority handoff contract while keeping Python authoritative.

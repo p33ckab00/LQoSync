@@ -361,3 +361,8 @@ Adds `build-rust-backend-scheduler-handoff-plan`, a non-mutating full-Rust-backe
 ## Rust Core v5.3 Rust Run Cycle Orchestrator Handoff Contract
 
 Adds `build-rust-run-cycle-orchestrator-handoff-contract`, the next full-Rust-backend bridge after scheduler/run_cycle handoff planning. It verifies run_cycle orchestrator manifest readiness, run_cycle shadow cycles, config/state shadow verification, manual confirmation, and Python fallback. It remains non-mutating: Python run_cycle stays authoritative and WebUI/UX remains unchanged.
+
+
+## Rust Core v5.4 Rust Config/State Authority Handoff Contract
+
+LQoSync `2.124.0-rc1` / `lqosync-core 5.4.0` adds `build-rust-config-state-authority-handoff-contract`, a non-mutating full-Rust-backend-track bridge after the run_cycle orchestrator handoff. It verifies config/state shadow, atomic writer shadow, transaction journal shadow, audit shadow, and rollback-manifest shadow readiness while keeping Python config/state authority and WebUI/UX unchanged.

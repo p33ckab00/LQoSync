@@ -41,6 +41,7 @@ use crate::collector_authority_production_switch::build_collector_authority_prod
 use crate::rust_backend_api_handoff::build_rust_backend_api_handoff_plan_payload;
 use crate::rust_backend_scheduler_handoff::build_rust_backend_scheduler_handoff_plan_payload;
 use crate::rust_run_cycle_orchestrator_handoff::build_rust_run_cycle_orchestrator_handoff_contract_payload;
+use crate::rust_config_state_authority_handoff::build_rust_config_state_authority_handoff_contract_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -95,6 +96,7 @@ pub const OP_BUILD_COLLECTOR_AUTHORITY_PRODUCTION_SWITCH_CONTRACT: &str = "build
 pub const OP_BUILD_RUST_BACKEND_API_HANDOFF_PLAN: &str = "build-rust-backend-api-handoff-plan";
 pub const OP_BUILD_RUST_BACKEND_SCHEDULER_HANDOFF_PLAN: &str = "build-rust-backend-scheduler-handoff-plan";
 pub const OP_BUILD_RUST_RUN_CYCLE_ORCHESTRATOR_HANDOFF_CONTRACT: &str = "build-rust-run-cycle-orchestrator-handoff-contract";
+pub const OP_BUILD_RUST_CONFIG_STATE_AUTHORITY_HANDOFF_CONTRACT: &str = "build-rust-config-state-authority-handoff-contract";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -163,6 +165,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_RUST_BACKEND_API_HANDOFF_PLAN,
         OP_BUILD_RUST_BACKEND_SCHEDULER_HANDOFF_PLAN,
         OP_BUILD_RUST_RUN_CYCLE_ORCHESTRATOR_HANDOFF_CONTRACT,
+        OP_BUILD_RUST_CONFIG_STATE_AUTHORITY_HANDOFF_CONTRACT,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -1122,6 +1125,51 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !run_cycle_orchestrator_ok {
         errors.push(Diagnostic::error("self_test_rust_run_cycle_orchestrator_handoff_failed", Some("build-rust-run-cycle-orchestrator-handoff-contract".to_string()), "Self-test Rust run_cycle orchestrator handoff contract should report ready without switching run_cycle authority."));
+    }
+
+    let mut config_state_handoff_payload = run_cycle_orchestrator_payload.clone();
+    if let Some(obj) = config_state_handoff_payload.as_object_mut() {
+        obj.insert("confirmation".to_string(), json!("CONFIRM_RUST_CONFIG_STATE_AUTHORITY_HANDOFF_CONTRACT"));
+        obj.insert("rust_run_cycle_orchestrator_handoff_contract".to_string(), json!(run_cycle_orchestrator.clone()));
+        obj.insert("config_state_shadow_ready".to_string(), json!(true));
+        obj.insert("config_state_shadow_count".to_string(), json!(3));
+        obj.insert("atomic_writer_shadow_ready".to_string(), json!(true));
+        obj.insert("atomic_writer_shadow_count".to_string(), json!(3));
+        obj.insert("transaction_journal_shadow_ready".to_string(), json!(true));
+        obj.insert("transaction_journal_shadow_count".to_string(), json!(3));
+        obj.insert("audit_shadow_ready".to_string(), json!(true));
+        obj.insert("audit_shadow_count".to_string(), json!(3));
+        obj.insert("rollback_manifest_shadow_ready".to_string(), json!(true));
+        obj.insert("rollback_manifest_shadow_count".to_string(), json!(3));
+        if let Some(rc) = obj.get_mut("rust_core").and_then(Value::as_object_mut) {
+            rc.insert("rust_config_state_authority_handoff_contract_pilot".to_string(), json!(true));
+            rc.insert("allow_rust_config_state_authority_handoff_contract".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_mode".to_string(), json!("contract_only"));
+            rc.insert("rust_config_state_authority_handoff_require_run_cycle_orchestrator".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_python_fallback".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_manual_confirmation".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_config_state_shadow".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_atomic_writer_shadow".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_transaction_journal_shadow".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_audit_shadow".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_rollback_shadow".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_require_no_side_effects".to_string(), json!(true));
+            rc.insert("rust_config_state_authority_handoff_max_shadow_age_seconds".to_string(), json!(900));
+        }
+    }
+    let (config_state_handoff, config_state_handoff_errors, _config_state_handoff_warnings) = build_rust_config_state_authority_handoff_contract_payload(&config_state_handoff_payload);
+    let config_state_handoff_ok = config_state_handoff_errors.is_empty()
+        && config_state_handoff.get("status").and_then(Value::as_str) == Some("rust_config_state_authority_handoff_contract_ready")
+        && config_state_handoff.get("rust_config_state_authority_handoff_ready").and_then(Value::as_bool) == Some(true)
+        && config_state_handoff.get("rust_config_state_authoritative").and_then(Value::as_bool) == Some(false)
+        && config_state_handoff.get("python_config_state_authoritative").and_then(Value::as_bool) == Some(true);
+    checks.push(check("rust_config_state_authority_handoff_contract", config_state_handoff_ok, json!({
+        "status": config_state_handoff.get("status"),
+        "rust_config_state_authority_handoff_ready": config_state_handoff.get("rust_config_state_authority_handoff_ready"),
+        "rust_config_state_authoritative": config_state_handoff.get("rust_config_state_authoritative")
+    })));
+    if !config_state_handoff_ok {
+        errors.push(Diagnostic::error("self_test_rust_config_state_authority_handoff_failed", Some("build-rust-config-state-authority-handoff-contract".to_string()), "Self-test Rust config/state authority handoff contract should report ready without switching config/state authority."));
     }
 
     let collector_bundle_payload = json!({

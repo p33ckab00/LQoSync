@@ -61,3 +61,4 @@ pub mod collector_authority_production_switch;
 pub mod rust_backend_api_handoff;
 pub mod rust_backend_scheduler_handoff;
 pub mod rust_run_cycle_orchestrator_handoff;
+pub mod rust_config_state_authority_handoff;

@@ -75,6 +75,7 @@ from engine.rust_core import (
     rust_build_rust_backend_api_handoff_plan,
     rust_build_rust_backend_scheduler_handoff_plan,
     rust_build_rust_run_cycle_orchestrator_handoff_contract,
+    rust_build_rust_config_state_authority_handoff_contract,
     rust_validate_routeros_read_results,
     rust_build_collector_circuit_bundle,
     rust_compare_collector_bundle_parity,
@@ -2781,6 +2782,33 @@ def api_rust_core_run_cycle_orchestrator_handoff_contract():
             "scheduler_interval_seconds": int(request.args.get("scheduler_interval_seconds") or 30),
         }
     return jsonify(rust_build_rust_run_cycle_orchestrator_handoff_contract(cfg, payload))
+
+
+@app.route("/api/rust-core/rust-config-state-authority-handoff-contract", methods=["GET", "POST"])
+@login_required
+def api_rust_core_config_state_authority_handoff_contract():
+    cfg = load_config(CONFIG_PATH)
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {
+            "mode": request.args.get("mode") or "contract",
+            "execute": str(request.args.get("execute") or "").lower() in {"1", "true", "yes", "on"},
+            "confirmation": request.args.get("confirmation") or "",
+            "rust_run_cycle_orchestrator_handoff_confirmation": request.args.get("run_cycle_confirmation") or "CONFIRM_RUST_RUN_CYCLE_ORCHESTRATOR_HANDOFF_CONTRACT",
+            "shadow_age_seconds": int(request.args.get("shadow_age_seconds") or 0),
+            "config_state_shadow_ready": str(request.args.get("config_state_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "config_state_shadow_count": int(request.args.get("config_state_shadow_count") or 0),
+            "atomic_writer_shadow_ready": str(request.args.get("atomic_writer_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "atomic_writer_shadow_count": int(request.args.get("atomic_writer_shadow_count") or 0),
+            "transaction_journal_shadow_ready": str(request.args.get("transaction_journal_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "transaction_journal_shadow_count": int(request.args.get("transaction_journal_shadow_count") or 0),
+            "audit_shadow_ready": str(request.args.get("audit_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "audit_shadow_count": int(request.args.get("audit_shadow_count") or 0),
+            "rollback_manifest_shadow_ready": str(request.args.get("rollback_manifest_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "rollback_manifest_shadow_count": int(request.args.get("rollback_manifest_shadow_count") or 0),
+        }
+    return jsonify(rust_build_rust_config_state_authority_handoff_contract(cfg, payload))
 
 @app.route("/api/rust-core/routeros-read-results", methods=["POST"])
 @login_required

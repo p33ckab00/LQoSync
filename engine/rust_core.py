@@ -4272,6 +4272,109 @@ def rust_build_rust_run_cycle_orchestrator_handoff_contract(config: dict, payloa
     return response
 
 
+
+def _python_build_rust_config_state_authority_handoff_contract(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rc = dict(((payload.get("config") or {}).get("rust_core") or payload.get("rust_core") or {}) if isinstance(payload, dict) else {})
+    allow = bool(rc.get("allow_rust_config_state_authority_handoff_contract"))
+    pilot = bool(rc.get("rust_config_state_authority_handoff_contract_pilot"))
+    mode = str(rc.get("rust_config_state_authority_handoff_mode") or "contract_only")
+    require_run_cycle = rc.get("rust_config_state_authority_handoff_require_run_cycle_orchestrator", True) is not False
+    require_fallback = rc.get("rust_config_state_authority_handoff_require_python_fallback", True) is not False
+    require_confirmation = rc.get("rust_config_state_authority_handoff_require_manual_confirmation", True) is not False
+    require_config_state = rc.get("rust_config_state_authority_handoff_require_config_state_shadow", True) is not False
+    require_atomic = rc.get("rust_config_state_authority_handoff_require_atomic_writer_shadow", True) is not False
+    require_journal = rc.get("rust_config_state_authority_handoff_require_transaction_journal_shadow", True) is not False
+    require_audit = rc.get("rust_config_state_authority_handoff_require_audit_shadow", True) is not False
+    require_rollback = rc.get("rust_config_state_authority_handoff_require_rollback_shadow", True) is not False
+    require_no_side_effects = rc.get("rust_config_state_authority_handoff_require_no_side_effects", True) is not False
+    max_shadow_age = int(rc.get("rust_config_state_authority_handoff_max_shadow_age_seconds") or 900)
+    shadow_age = int(payload.get("shadow_age_seconds") or 0)
+    confirmation_ok = (not require_confirmation) or payload.get("confirmation") == "CONFIRM_RUST_CONFIG_STATE_AUTHORITY_HANDOFF_CONTRACT"
+
+    run_cycle = payload.get("rust_run_cycle_orchestrator_handoff_contract") or payload.get("run_cycle_orchestrator_handoff_contract") or {}
+    if isinstance(run_cycle, dict) and isinstance(run_cycle.get("result"), dict):
+        run_cycle = run_cycle.get("result") or {}
+    run_cycle_ready = isinstance(run_cycle, dict) and run_cycle.get("status") == "rust_run_cycle_orchestrator_handoff_contract_ready" and run_cycle.get("rust_run_cycle_orchestrator_handoff_ready") is True and run_cycle.get("rust_run_cycle_authoritative") is False
+
+    config_state_ready = (not require_config_state) or (bool(payload.get("config_state_shadow_ready")) and int(payload.get("config_state_shadow_count") or 0) > 0)
+    atomic_ready = (not require_atomic) or (bool(payload.get("atomic_writer_shadow_ready")) and int(payload.get("atomic_writer_shadow_count") or 0) > 0)
+    journal_ready = (not require_journal) or (bool(payload.get("transaction_journal_shadow_ready")) and int(payload.get("transaction_journal_shadow_count") or 0) > 0)
+    audit_ready = (not require_audit) or (bool(payload.get("audit_shadow_ready")) and int(payload.get("audit_shadow_count") or 0) > 0)
+    rollback_ready = (not require_rollback) or (bool(payload.get("rollback_manifest_shadow_ready")) and int(payload.get("rollback_manifest_shadow_count") or 0) > 0)
+    side_effect_free = not any([
+        payload.get("config_write_attempted"), payload.get("state_write_attempted"), payload.get("audit_write_attempted"), payload.get("journal_write_attempted"),
+        payload.get("python_backend_removed"), payload.get("config_state_authority_switched_to_rust"),
+    ])
+    gates_ready = bool(allow and pilot and mode == "contract_only")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bool(payload.get("execute")) or str(payload.get("mode") or "").lower() in {"execute", "commit", "switch", "remove-python", "replace-config-state", "production", "authoritative", "write"}:
+        errors.append({"code": "rust_config_state_authority_handoff_execute_not_implemented", "severity": "error", "path": "rust_config_state_authority_handoff_contract", "message": "Python fallback cannot execute config/state authority handoff or remove Python."})
+    if require_run_cycle and not run_cycle_ready:
+        warnings.append({"code": "rust_config_state_authority_handoff_run_cycle_not_ready", "severity": "warning", "path": "rust_run_cycle_orchestrator_handoff_contract", "message": "Run-cycle orchestrator handoff has not passed."})
+    if require_confirmation and not confirmation_ok:
+        warnings.append({"code": "rust_config_state_authority_handoff_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Config/state authority handoff confirmation is required."})
+    if not require_fallback:
+        errors.append({"code": "rust_config_state_authority_handoff_requires_python_fallback", "severity": "error", "path": "rust_core.rust_config_state_authority_handoff_require_python_fallback", "message": "v5.4 still requires Python backend fallback."})
+    if require_no_side_effects and not side_effect_free:
+        errors.append({"code": "rust_config_state_authority_handoff_side_effect_detected", "severity": "error", "path": "rust_config_state_authority_handoff_contract", "message": "Config/state handoff side effects are forbidden."})
+    if shadow_age > max_shadow_age:
+        warnings.append({"code": "rust_config_state_authority_handoff_shadow_stale", "severity": "warning", "path": "shadow_age_seconds", "message": "Rust-shadow data is stale."})
+    if not all([config_state_ready, atomic_ready, journal_ready, audit_ready, rollback_ready]):
+        warnings.append({"code": "rust_config_state_authority_handoff_shadow_requirements_missing", "severity": "warning", "path": "config_state_shadow_ready", "message": "One or more config/state shadow requirements are missing."})
+    if not gates_ready:
+        warnings.append({"code": "rust_config_state_authority_handoff_gates_not_enabled", "severity": "warning", "path": "rust_core", "message": "Config/state authority handoff gates are not enabled."})
+
+    ready = not errors and gates_ready and confirmation_ok and (run_cycle_ready or not require_run_cycle) and require_fallback and config_state_ready and atomic_ready and journal_ready and audit_ready and rollback_ready and side_effect_free and shadow_age <= max_shadow_age
+    review = not errors and run_cycle_ready and config_state_ready and atomic_ready and journal_ready and audit_ready and rollback_ready and side_effect_free
+    status = "blocked" if errors else ("rust_config_state_authority_handoff_contract_ready" if ready else ("rust_config_state_authority_handoff_contract_review" if review else "rust_config_state_authority_handoff_contract_shadow_only"))
+    return {
+        "version": "1",
+        "op": "build-rust-config-state-authority-handoff-contract",
+        "ok": not errors,
+        "result": {
+            "mode": "rust_config_state_authority_handoff_contract",
+            "status": status,
+            "rust_config_state_authority_handoff_ready": ready,
+            "run_cycle_orchestrator_handoff_ready": run_cycle_ready,
+            "config_state_shadow_ready": config_state_ready,
+            "atomic_writer_shadow_ready": atomic_ready,
+            "transaction_journal_shadow_ready": journal_ready,
+            "audit_shadow_ready": audit_ready,
+            "rollback_manifest_shadow_ready": rollback_ready,
+            "webui_ux_unchanged": True,
+            "full_rust_backend": False,
+            "python_backend_removable": False,
+            "python_backend_removed": False,
+            "python_backend_required": True,
+            "python_backend_fallback_required": True,
+            "python_config_state_authoritative": True,
+            "rust_config_state_authoritative": False,
+            "rust_run_cycle_authoritative": False,
+            "rust_api_service_authoritative": False,
+            "rust_apply_authoritative": False,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "next_stage": "rust_live_collector_execution_authority_handoff_contract",
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_rust_config_state_authority_handoff_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_rust_config_state_authority_handoff_contract(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-rust-config-state-authority-handoff-contract", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_rust_config_state_authority_handoff_contract(req_payload, started=started)
+    return response
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})
