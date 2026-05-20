@@ -937,3 +937,13 @@ git commit -m "rust(core): add full Rust backend steady-state guard" \
   -m "Add build-full-rust-backend-steady-state-guard, the post-retirement production guard that verifies Rust runtime authority, no Python drift, WebUI/UX preservation, rollback readiness, and server healthchecks."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v7.3.1 steady-state guard hotfix
+
+```bash
+git add .
+git commit -m "rust(core): fix steady-state guard self-test fixture" \
+  -m "Fix v7.3 aggregate self-test by adding the missing webui_static_assets_preserved gate to the full Rust backend steady-state guard payload while preserving WebUI/UX and rollback safety."
+git push -u origin lqosync-in-rust
+```

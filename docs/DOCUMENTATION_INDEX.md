@@ -292,3 +292,4 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v7.2 Full Rust Backend Post-Retirement Verifier](RUST_CORE_V72_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER.md)
 
 - [Rust Core v7.3 Full Rust Backend Steady-State Guard](RUST_CORE_V73_FULL_RUST_BACKEND_STEADY_STATE_GUARD.md)
+- [Rust Core v7.3.1 Steady-State Guard Hotfix](RUST_CORE_V731_STEADY_STATE_GUARD_HOTFIX.md) — fixes the aggregate steady-state guard self-test fixture.

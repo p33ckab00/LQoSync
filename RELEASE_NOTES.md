@@ -2191,3 +2191,8 @@ Adds `build-full-rust-backend-post-retirement-verifier`, the post-retirement ver
 ## Rust Core v7.3 Full Rust Backend Steady-State Guard
 
 Adds `build-full-rust-backend-steady-state-guard`, the post-retirement steady-state verifier for full Rust backend production. It verifies Rust runtime authority, API traffic on Rust, no Python/Flask drift, WebUI/UX/static assets unchanged, rollback readiness, and server healthchecks.
+
+
+## Rust Core v7.3.1 Steady-State Guard Hotfix
+
+Fixes the v7.3.0 aggregate self-test failure by adding the missing `webui_static_assets_preserved=true` gate to the steady-state guard self-test payload. Runtime safety remains unchanged: WebUI/UX/static assets must remain preserved and Python drift must stay absent before steady-state verification passes.
