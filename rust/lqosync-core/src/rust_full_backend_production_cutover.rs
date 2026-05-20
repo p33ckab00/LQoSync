@@ -57,7 +57,7 @@ fn contract_id(seed: &Value) -> String {
 /// scripts with an explicit confirmation token. This preserves WebUI/UX static
 /// assets and prevents accidental Python removal without rollback preparation.
 pub fn build_full_rust_backend_production_cutover_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
-    let mut errors: Vec<Diagnostic> = Vec::new();
+    let errors: Vec<Diagnostic> = Vec::new();
     let mut warnings: Vec<Diagnostic> = Vec::new();
 
     let allow_cutover = bool_value(config_value(payload, "allow_full_rust_backend_production_cutover"), false);

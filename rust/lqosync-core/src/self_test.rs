@@ -56,6 +56,7 @@ use crate::rust_python_backend_removal_execution::build_python_backend_removal_e
 use crate::rust_full_backend_removal_rehearsal::build_full_rust_backend_removal_rehearsal_payload;
 use crate::rust_full_backend_production_cutover::build_full_rust_backend_production_cutover_payload;
 use crate::rust_full_backend_production_verifier::build_full_rust_backend_production_verifier_payload;
+use crate::rust_full_backend_post_retirement_verifier::build_full_rust_backend_post_retirement_verifier_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -125,6 +126,7 @@ pub const OP_BUILD_PYTHON_BACKEND_REMOVAL_EXECUTION_CONTRACT: &str = "build-pyth
 pub const OP_BUILD_FULL_RUST_BACKEND_REMOVAL_REHEARSAL: &str = "build-full-rust-backend-removal-rehearsal";
 pub const OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_CUTOVER: &str = "build-full-rust-backend-production-cutover";
 pub const OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_VERIFIER: &str = "build-full-rust-backend-production-verifier";
+pub const OP_BUILD_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER: &str = "build-full-rust-backend-post-retirement-verifier";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -208,6 +210,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_FULL_RUST_BACKEND_REMOVAL_REHEARSAL,
         OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_CUTOVER,
         OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_VERIFIER,
+        OP_BUILD_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -1748,6 +1751,46 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !full_production_verifier_ok {
         errors.push(Diagnostic::error("self_test_full_rust_backend_production_verifier_failed", Some("build-full-rust-backend-production-verifier".to_string()), "Self-test full Rust backend production verifier should report production verified only when Rust runtime, tests, rollback, and WebUI gates pass."));
+    }
+
+    let mut post_retirement_payload = full_production_verifier_payload.clone();
+    if let Some(obj) = post_retirement_payload.as_object_mut() {
+        obj.insert("confirmation".to_string(), json!("CONFIRM_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER"));
+        obj.insert("full_rust_backend_production_verifier".to_string(), json!(full_production_verifier.clone()));
+        obj.insert("rust_service_runtime_authoritative".to_string(), json!(true));
+        obj.insert("python_backend_service_masked_or_disabled".to_string(), json!(true));
+        obj.insert("python_backend_files_preserved_for_rollback".to_string(), json!(true));
+        obj.insert("python_api_routes_unregistered".to_string(), json!(true));
+        obj.insert("post_retirement_healthcheck_passed".to_string(), json!(true));
+        obj.insert("operator_full_rust_backend_post_retirement_ack".to_string(), json!(true));
+        if let Some(rc) = obj.get_mut("rust_core").and_then(Value::as_object_mut) {
+            rc.insert("full_rust_backend_post_retirement_verifier_pilot".to_string(), json!(true));
+            rc.insert("allow_full_rust_backend_post_retirement_verifier".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_verifier_mode".to_string(), json!("verify_only"));
+            rc.insert("full_rust_backend_post_retirement_require_production_verifier".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_runtime_health".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_python_retired".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_webui_unchanged".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_rollback_package".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_server_tests".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_manual_confirmation".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_require_operator_ack".to_string(), json!(true));
+            rc.insert("full_rust_backend_post_retirement_max_shadow_age_seconds".to_string(), json!(900));
+        }
+    }
+    let (post_retirement, post_retirement_errors, _post_retirement_warnings) = build_full_rust_backend_post_retirement_verifier_payload(&post_retirement_payload);
+    let post_retirement_ok = post_retirement_errors.is_empty()
+        && post_retirement.get("status").and_then(Value::as_str) == Some("full_rust_backend_post_retirement_verified")
+        && post_retirement.get("full_rust_backend").and_then(Value::as_bool) == Some(true)
+        && post_retirement.get("python_backend_removed").and_then(Value::as_bool) == Some(true)
+        && post_retirement.get("webui_ux_unchanged").and_then(Value::as_bool) == Some(true);
+    checks.push(check("full_rust_backend_post_retirement_verifier", post_retirement_ok, json!({
+        "status": post_retirement.get("status"),
+        "full_rust_backend": post_retirement.get("full_rust_backend"),
+        "python_backend_removed": post_retirement.get("python_backend_removed")
+    })));
+    if !post_retirement_ok {
+        errors.push(Diagnostic::error("self_test_full_rust_backend_post_retirement_verifier_failed", Some("build-full-rust-backend-post-retirement-verifier".to_string()), "Self-test post-retirement verifier should report full Rust backend verified only when Python retirement state, Rust runtime, rollback, and WebUI gates pass."));
     }
 
     let collector_bundle_payload = json!({

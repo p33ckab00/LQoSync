@@ -310,7 +310,7 @@
     },
     {
       "path": "docs/RUST_CORE_V441_PILOT_RESULT_RECURSION_HOTFIX.md",
-      "title": "Rust Core v4.4.1 — Pilot Result Recursion Hotfix",
+      "title": "Rust Core v4.4.1 \u2014 Pilot Result Recursion Hotfix",
       "tags": [
         "rust",
         "collector-authority",
@@ -430,7 +430,7 @@
     "title": "Custom Policy Mode Persistence Hotfix",
     "file": "docs/content/custom_policy_mode_persistence.md",
     "anchor": "custom-policy-mode-persistence-hotfix",
-    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center → Policies."
+    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center \u2192 Policies."
   },
   "policy_overview_custom_wiring_hotfix": {
     "title": "Policy Overview Custom Wiring Hotfix",
@@ -877,5 +877,11 @@
     "file": "docs/RUST_CORE_V71_FULL_RUST_BACKEND_PRODUCTION_VERIFIER.md",
     "anchor": "rust-core-v71-full-rust-backend-production-verifier",
     "summary": "Adds the post-cutover Rust production verifier and guarded Python backend retirement executor while preserving WebUI/UX/static assets."
+  },
+  "rust.core_v72_full_rust_backend_post_retirement_verifier": {
+    "title": "Rust Core v7.2 Full Rust Backend Post-Retirement Verifier",
+    "file": "docs/RUST_CORE_V72_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER.md",
+    "anchor": "rust-core-v72-full-rust-backend-post-retirement-verifier",
+    "summary": "Verifies full Rust backend production after guarded Python backend retirement while preserving WebUI/UX and rollback safety."
   }
 }

@@ -5738,6 +5738,90 @@ def rust_build_full_rust_backend_production_verifier(config: dict, payload: dict
         return _python_build_full_rust_backend_production_verifier(req_payload, started=started)
     return response
 
+
+
+def _python_build_full_rust_backend_post_retirement_verifier(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rc = dict(((payload.get("config") or {}).get("rust_core") or payload.get("rust_core") or {}) if isinstance(payload, dict) else {})
+    allow = bool(rc.get("allow_full_rust_backend_post_retirement_verifier"))
+    pilot = bool(rc.get("full_rust_backend_post_retirement_verifier_pilot"))
+    mode = str(rc.get("full_rust_backend_post_retirement_verifier_mode") or "verify_only")
+    require_runtime = bool(rc.get("full_rust_backend_post_retirement_require_runtime_health", True))
+    require_python_retired = bool(rc.get("full_rust_backend_post_retirement_require_python_retired", True))
+    require_rollback = bool(rc.get("full_rust_backend_post_retirement_require_rollback_package", True))
+    require_tests = bool(rc.get("full_rust_backend_post_retirement_require_server_tests", True))
+    require_confirm = bool(rc.get("full_rust_backend_post_retirement_require_manual_confirmation", True))
+    require_ack = bool(rc.get("full_rust_backend_post_retirement_require_operator_ack", True))
+    confirmation_ok = (not require_confirm) or str(payload.get("confirmation") or "") == "CONFIRM_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER"
+    production_verifier = payload.get("full_rust_backend_production_verifier") or {}
+    if isinstance(production_verifier, dict) and isinstance(production_verifier.get("result"), dict):
+        production_verifier = production_verifier.get("result") or {}
+    production_verifier_ready = isinstance(production_verifier, dict) and production_verifier.get("status") == "full_rust_backend_production_verified" and bool(production_verifier.get("full_rust_backend"))
+    runtime_ready = bool(payload.get("rust_service_active")) and bool(payload.get("rust_api_healthcheck_passed")) and (bool(payload.get("rust_unix_socket_active")) or bool(payload.get("rust_http_api_active"))) and bool(payload.get("api_traffic_switched_to_rust")) and bool(payload.get("rust_service_runtime_authoritative"))
+    python_retired = bool(payload.get("flask_routes_disabled")) and bool(payload.get("python_backend_stopped_or_disabled")) and bool(payload.get("python_backend_service_masked_or_disabled") or payload.get("python_backend_service_removed")) and bool(payload.get("python_api_routes_unregistered") or payload.get("flask_routes_disabled"))
+    webui_unchanged = bool(payload.get("webui_ux_unchanged", True)) and bool(payload.get("webui_static_asset_paths_unchanged", True)) and bool(payload.get("webui_static_assets_preserved", True))
+    rollback_ready = bool(payload.get("python_backend_rollback_package_ready") or payload.get("python_fallback_backup_ready")) and bool(payload.get("rollback_test_passed")) and bool(payload.get("python_backend_files_preserved_for_rollback")) and bool(str(payload.get("rollback_path") or "restore_python_backend_and_flask_routes").strip())
+    tests_passed = bool(payload.get("server_cargo_tests_passed")) and bool(payload.get("self_test_passed")) and bool(payload.get("production_healthcheck_passed")) and bool(payload.get("post_retirement_healthcheck_passed"))
+    operator_ack = bool(payload.get("operator_full_rust_backend_post_retirement_ack") or payload.get("operator_acknowledged"))
+    gates_ready = bool(allow and pilot and mode == "verify_only")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bool(payload.get("execute")) or str(payload.get("mode") or "").lower() in {"execute", "remove", "delete", "disable-python", "retire-python", "switch"}:
+        errors.append({"code": "full_rust_backend_post_retirement_verifier_execute_not_implemented", "severity": "error", "path": "full_rust_backend_post_retirement_verifier", "message": "Verifier is non-mutating; Python retirement must already be completed by the guarded script."})
+    if not production_verifier_ready:
+        warnings.append({"code": "full_rust_backend_post_retirement_production_verifier_not_ready", "severity": "warning", "path": "full_rust_backend_production_verifier", "message": "Production verifier is not ready."})
+    if require_runtime and not runtime_ready:
+        warnings.append({"code": "full_rust_backend_post_retirement_runtime_health_required", "severity": "warning", "path": "rust_service_active", "message": "Rust runtime health signals are incomplete."})
+    if require_python_retired and not python_retired:
+        warnings.append({"code": "full_rust_backend_post_retirement_python_not_retired", "severity": "warning", "path": "python_backend_stopped_or_disabled", "message": "Python backend is not fully retired."})
+    if require_rollback and not rollback_ready:
+        warnings.append({"code": "full_rust_backend_post_retirement_rollback_package_required", "severity": "warning", "path": "python_backend_rollback_package_ready", "message": "Rollback package/test/preserved files are required."})
+    if require_tests and not tests_passed:
+        warnings.append({"code": "full_rust_backend_post_retirement_server_tests_required", "severity": "warning", "path": "server_cargo_tests_passed", "message": "Server cargo/self/production/post-retirement tests are required."})
+    if require_confirm and not confirmation_ok:
+        warnings.append({"code": "full_rust_backend_post_retirement_verifier_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Confirmation token is required."})
+    if require_ack and not operator_ack:
+        warnings.append({"code": "full_rust_backend_post_retirement_operator_ack_required", "severity": "warning", "path": "operator_full_rust_backend_post_retirement_ack", "message": "Operator acknowledgement is required."})
+    ready = not errors and gates_ready and confirmation_ok and production_verifier_ready and runtime_ready and python_retired and webui_unchanged and rollback_ready and tests_passed and operator_ack
+    status = "blocked" if errors else ("full_rust_backend_post_retirement_verified" if ready else ("full_rust_backend_post_retirement_review" if production_verifier_ready and runtime_ready else "full_rust_backend_post_retirement_blocked"))
+    return {
+        "version": "1",
+        "op": "build-full-rust-backend-post-retirement-verifier",
+        "ok": not errors,
+        "result": {
+            "mode": "full_rust_backend_post_retirement_verifier",
+            "status": status,
+            "full_rust_backend": ready,
+            "full_rust_backend_production_enabled": ready,
+            "rust_service_runtime_authoritative": ready,
+            "api_traffic_switched_to_rust": bool(payload.get("api_traffic_switched_to_rust")),
+            "flask_routes_disabled": bool(payload.get("flask_routes_disabled")),
+            "python_backend_removed": ready and python_retired,
+            "python_backend_retired": ready and python_retired,
+            "python_backend_removal_verified": ready and python_retired,
+            "webui_ux_unchanged": webui_unchanged,
+            "rollback_ready": rollback_ready,
+            "server_tests_passed": tests_passed,
+            "runtime_health_ready": runtime_ready,
+            "gates_ready": gates_ready,
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "full_rust_backend_post_retirement_verifier_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_full_rust_backend_post_retirement_verifier(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-full-rust-backend-post-retirement-verifier", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_full_rust_backend_post_retirement_verifier(req_payload, started=started)
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

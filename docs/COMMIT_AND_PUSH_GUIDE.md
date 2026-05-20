@@ -917,3 +917,13 @@ git commit -m "rust(core): add full Rust backend production verifier" \
   -m "Add build-full-rust-backend-production-verifier, the post-cutover verifier and guarded Python retirement executor while preserving WebUI/UX static assets."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v7.2 post-retirement verifier
+
+```bash
+git add .
+git commit -m "rust(core): add full Rust backend post-retirement verifier" \
+  -m "Add build-full-rust-backend-post-retirement-verifier, the final verification gate after guarded Python backend retirement while preserving WebUI/UX and rollback safety."
+git push -u origin lqosync-in-rust
+```
