@@ -855,3 +855,29 @@ export LQOSYNC_CORE_SELF_TEST_OK=1
 sudo -E bash scripts/stale-codebase-cleanup-execute-guard.sh --execute
 bash scripts/stale-codebase-post-cleanup-verify.sh
 ```
+
+
+## v7.5.6 Rust authoritative gate mode
+
+For Rust-authoritative production gating with Python fallback preserved, use:
+
+```bash
+sudo bash install-rust-authoritative-safe.sh
+```
+
+This enables Rust validation/sync-plan fail-closed authority after self-test, while keeping Rust direct file writes and Rust `LibreQoS.py` execution disabled for no-breakage operation.
+
+
+## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
+
+- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
+- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
+- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
+- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
+- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
+- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
+
+### v7.5.8 full authority lock note
+
+When using `install-rust-full-authoritative-safe.sh` or `scripts/promote-rust-full-authoritative-safe.sh`, full Rust authority mode now sets `python_mutation_fallback=false`. Python remains the WebUI/scheduler shell, but production file writes and LibreQoS apply must be completed by Rust or the cycle fails closed.
+

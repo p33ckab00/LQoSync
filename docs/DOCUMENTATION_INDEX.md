@@ -326,3 +326,21 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 
 - [Production-Safe Install Wrapper](PRODUCTION_SAFE_INSTALL.md)
 - [Rust Core v7.5.5 Production-Safe Install Wrapper](RUST_CORE_V755_PRODUCTION_SAFE_INSTALL_WRAPPER.md)
+
+## v7.5.6 Rust Authoritative Gate Cutover
+
+- [Rust Core v7.5.6 Authoritative Gate Cutover](RUST_CORE_V756_AUTHORITATIVE_GATE_CUTOVER.md)
+
+
+## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
+
+- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
+- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
+- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
+- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
+- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
+- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
+## v7.5.8 Full Rust Authority Lockdown
+
+- [Rust Core v7.5.8 Full Rust Authority Lockdown](RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md)
+

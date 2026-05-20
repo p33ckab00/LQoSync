@@ -58,9 +58,9 @@ def migrate_config_schema(cfg: dict) -> tuple[dict, list[str]]:
             "operation_mode": "automatic",
             "auto_apply": True,
             "dry_run_default": False,
-            "backup_before_apply": False,
+            "backup_before_apply": True,
             "backup_retention": 10,
-            "file_drift_policy": "overwrite_with_backup",
+            "file_drift_policy": "block",
         },
         "notifications": {
             "enabled": True,

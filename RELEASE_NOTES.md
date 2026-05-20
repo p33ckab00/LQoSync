@@ -2258,3 +2258,29 @@ Also aligns codebase/runtime path defaults and operator-facing repair/update com
 - Added optional path override support in `install.sh` for `LQOSYNC_INSTALL_DIR`, `LIBREQOS_SRC`, `CONFIG_PATH`, `SHAPED_DEVICES_PATH`, and `NETWORK_JSON_PATH` while preserving canonical defaults.
 - Kept Rust core install opt-in through `INSTALL_RUST_CORE=true` and `INSTALL_RUST_CORE_DAEMON=true`; no cargo build is forced on live production hosts.
 - Added `docs/PRODUCTION_SAFE_INSTALL.md` and `docs/RUST_CORE_V755_PRODUCTION_SAFE_INSTALL_WRAPPER.md`.
+
+## 2.145.6-rc1 - v7.5.6 Rust Authoritative Gate Cutover
+
+- Promoted default Rust config from shadow mode to authoritative gate mode: `prefer_daemon=true`, `enforce_validation=true`, `enforce_sync_plan=true`, `authority_mode=enforce_blockers`, and fail-closed gating.
+- Added `install-rust-authoritative-safe.sh` for one-command safe Rust daemon install plus config promotion.
+- Added `scripts/promote-rust-authoritative-safe.sh` to backup and promote existing installs after `lqosync-core` self-test passes.
+- Hardened production defaults with `backup_before_apply=true` and `file_drift_policy=block`.
+- Preserved no-breakage boundaries: Python fallback remains available, Rust file writes stay disabled, and external `LibreQoS.py` apply remains under the existing Python-supervised path.
+
+
+## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
+
+- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
+- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
+- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
+- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
+- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
+- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
+## 2.145.8-rc1 - v7.5.8 Full Rust Authority Lockdown
+
+- Made full Rust backend authority explicit with `full_rust_backend_authority=true`, `python_mutation_fallback=false`, and `transaction_authority=rust_full_authoritative`.
+- Updated default/example config and config migration defaults so Rust owns validation, sync-plan gating, atomic file writes, transaction journal append, and LibreQoS external apply when full authority is enabled.
+- Added fail-closed runtime blocks that prevent Python file-write or LibreQoS apply fallback when Rust authority is required but did not execute.
+- Promoted collector output authority to `rust_validate_all` while keeping Python RouterOS transport as a compatibility shell until live Rust transport is separately certified.
+- Added `docs/RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md` and `scripts/verify-rust-full-authority-lockdown.sh`.
+

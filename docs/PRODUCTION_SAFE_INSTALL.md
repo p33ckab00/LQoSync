@@ -102,3 +102,19 @@ sudo journalctl -u lqosync -n 100 --no-pager
 ## What this does not do
 
 The wrapper does not automatically enable scheduler, does not overwrite existing live LibreQoS files by default, and does not build/install Rust core unless requested.
+
+
+## Rust authoritative safe install
+
+Use this when the Rust daemon should be the authoritative safety gate while preserving Python fallback and avoiding Rust direct file-write/apply authority:
+
+```bash
+sudo bash install-rust-authoritative-safe.sh
+```
+
+This builds and installs the Rust core/daemon, runs self-test, backs up config, and enables `authority_mode=enforce_blockers`, `enforce_validation=true`, and `enforce_sync_plan=true`. It does not start the main service by default.
+
+### v7.5.8 full authority lock note
+
+When using `install-rust-full-authoritative-safe.sh` or `scripts/promote-rust-full-authoritative-safe.sh`, full Rust authority mode now sets `python_mutation_fallback=false`. Python remains the WebUI/scheduler shell, but production file writes and LibreQoS apply must be completed by Rust or the cycle fails closed.
+

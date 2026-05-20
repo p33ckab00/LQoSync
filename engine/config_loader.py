@@ -20,9 +20,9 @@ DEFAULT_CONFIG = {
         "operation_mode": "automatic",  # automatic | manual
         "auto_apply": True,
         "dry_run_default": False,
-        "backup_before_apply": False,  # optional storage-saving default; manual backups still available
+        "backup_before_apply": True,  # production-safe default; manual backups still available
         "backup_retention": 10,
-        "file_drift_policy": "overwrite_with_backup",  # overwrite_with_backup | warn_only | block
+        "file_drift_policy": "block",  # overwrite_with_backup | warn_only | block
     },
     "paths": {
         "shaped_devices_csv": "/opt/libreqos/src/ShapedDevices.csv",
@@ -69,21 +69,27 @@ DEFAULT_CONFIG = {
         "enabled": True,
         "binary_path": "",
         "timeout_seconds": 10,
-        "enforce_validation": False,
-        "enforce_sync_plan": False,
+        "enforce_validation": True,
+        "enforce_sync_plan": True,
         "fail_closed_when_enforced": True,
-        "authority_mode": "shadow",  # shadow | enforce_blockers
-        "prefer_daemon": False,
+        "authority_mode": "enforce_blockers",  # shadow | enforce_blockers
+        "prefer_daemon": True,
         "unix_socket": "/run/lqosync-core.sock",
-        "transaction_authority": "preview",
-        "execute_apply_manifest": False,
-        "allow_rust_file_writes": False,
-        "allow_rust_libreqos_apply": False,
-        "self_test_on_status": False,
+        "transaction_authority": "rust_full_authoritative",
+        "execute_apply_manifest": True,
+        "allow_rust_file_writes": True,
+        "allow_rust_libreqos_apply": True,
+        "self_test_on_status": True,
         "execute_rollback": False,
         "allow_rust_rollback_file_writes": False,
         "rollback_authority": "preview",
-        "require_authority_readiness": False,
+        "require_authority_readiness": True,
+        "full_rust_backend_authority": True,
+        "python_mutation_fallback": False,
+        "fail_closed_without_rust_authority": True,
+        "require_rust_authoritative_transaction": True,
+        "collector_output_authority": "rust_validate_all",
+        "require_collector_rust_validation": True,
         "routeros_transport_authority": "plan_only",
         "allow_rust_routeros_live_reads": False,
         "allow_rust_routeros_credentials": False,
@@ -110,7 +116,7 @@ DEFAULT_CONFIG = {
         "rust_collector_authority_pilot": False,
         "allow_rust_collector_authority": False,
         "rust_collector_authority_sources": [],
-        "collector_authority_mode": "python_authoritative",
+        "collector_authority_mode": "rust_validated_python_transport",
         "collector_authority_require_parity_score": 99.99,
         "collector_authority_manifest_pilot": False,
         "allow_collector_authority_manifest": False,
@@ -894,25 +900,31 @@ def validate_config(cfg: dict):
     rust_core.setdefault("enabled", True)
     rust_core.setdefault("binary_path", "")
     rust_core.setdefault("timeout_seconds", 10)
-    rust_core.setdefault("enforce_validation", False)
-    rust_core.setdefault("enforce_sync_plan", False)
+    rust_core.setdefault("enforce_validation", True)
+    rust_core.setdefault("enforce_sync_plan", True)
     rust_core.setdefault("fail_closed_when_enforced", True)
-    rust_core.setdefault("authority_mode", "shadow")
-    rust_core.setdefault("prefer_daemon", False)
+    rust_core.setdefault("authority_mode", "enforce_blockers")
+    rust_core.setdefault("prefer_daemon", True)
     rust_core.setdefault("unix_socket", "/run/lqosync-core.sock")
-    rust_core.setdefault("transaction_authority", "preview")
-    rust_core.setdefault("execute_apply_manifest", False)
-    rust_core.setdefault("allow_rust_file_writes", False)
-    rust_core.setdefault("allow_rust_libreqos_apply", False)
-    rust_core.setdefault("self_test_on_status", False)
-    rust_core.setdefault("append_transaction_journal", False)
-    rust_core.setdefault("allow_transaction_journal_writes", False)
+    rust_core.setdefault("transaction_authority", "rust_full_authoritative")
+    rust_core.setdefault("execute_apply_manifest", True)
+    rust_core.setdefault("allow_rust_file_writes", True)
+    rust_core.setdefault("allow_rust_libreqos_apply", True)
+    rust_core.setdefault("self_test_on_status", True)
+    rust_core.setdefault("append_transaction_journal", True)
+    rust_core.setdefault("allow_transaction_journal_writes", True)
     rust_core.setdefault("include_rehearsal_journal_entries", False)
     rust_core.setdefault("allow_dry_run_journal_entries", False)
     rust_core.setdefault("execute_rollback", False)
     rust_core.setdefault("allow_rust_rollback_file_writes", False)
     rust_core.setdefault("rollback_authority", "preview")
-    rust_core.setdefault("require_authority_readiness", False)
+    rust_core.setdefault("require_authority_readiness", True)
+    rust_core.setdefault("full_rust_backend_authority", True)
+    rust_core.setdefault("python_mutation_fallback", False)
+    rust_core.setdefault("fail_closed_without_rust_authority", True)
+    rust_core.setdefault("require_rust_authoritative_transaction", True)
+    rust_core.setdefault("collector_output_authority", "rust_validate_all")
+    rust_core.setdefault("require_collector_rust_validation", True)
     rust_core.setdefault("routeros_transport_authority", "plan_only")
     rust_core.setdefault("allow_rust_routeros_live_reads", False)
     rust_core.setdefault("allow_rust_routeros_credentials", False)

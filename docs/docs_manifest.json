@@ -193,18 +193,18 @@
       "title": "Checkbox State Wiring Hotfix"
     },
     {
-      "id": "production-safe-install-wrapper",
-      "title": "Production-Safe Install Wrapper",
       "category": "Installation",
+      "id": "production-safe-install-wrapper",
       "path": "docs/PRODUCTION_SAFE_INSTALL.md",
-      "summary": "Live-host installer wrapper with backups, preserve-existing policy, no automatic service start, and optional Rust core install."
+      "summary": "Live-host installer wrapper with backups, preserve-existing policy, no automatic service start, and optional Rust core install.",
+      "title": "Production-Safe Install Wrapper"
     },
     {
-      "id": "rust-core-v755-production-safe-install-wrapper",
-      "title": "Rust Core v7.5.5 Production-Safe Install Wrapper",
       "category": "Rust Core",
+      "id": "rust-core-v755-production-safe-install-wrapper",
       "path": "docs/RUST_CORE_V755_PRODUCTION_SAFE_INSTALL_WRAPPER.md",
-      "summary": "Documents v7.5.5 additive installer controls and production-safe wrapper behavior."
+      "summary": "Documents v7.5.5 additive installer controls and production-safe wrapper behavior.",
+      "title": "Rust Core v7.5.5 Production-Safe Install Wrapper"
     }
   ],
   "health.source_performance_trends": {
@@ -212,6 +212,12 @@
     "file": "docs/content/source_health_performance_trends.md",
     "summary": "v2.57 source health dashboard, RouterOS API timing trends, LibreQoS apply health, and internal notification candidates.",
     "title": "Source Health + Performance Trends"
+  },
+  "install.production_safe_wrapper": {
+    "anchor": "production-safe-install-wrapper",
+    "file": "docs/PRODUCTION_SAFE_INSTALL.md",
+    "summary": "Live-host install wrapper that preserves LibreQoS files, creates backups, and avoids automatic service start by default.",
+    "title": "Production-Safe Install Wrapper"
   },
   "install.update_safety": {
     "anchor": "install-and-update-safety",
@@ -673,6 +679,12 @@
     "summary": "Archive-first guarded cleanup execution for stale LQoSync working trees while protecting /opt/LQoSync, LibreQoS, Rust daemon, WebUI assets, and rollback safety.",
     "title": "Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard"
   },
+  "rust.core_v755_production_safe_install_wrapper": {
+    "anchor": "v755-production-safe-install-wrapper",
+    "file": "docs/RUST_CORE_V755_PRODUCTION_SAFE_INSTALL_WRAPPER.md",
+    "summary": "Release note guide for production-safe install controls, service start policy, and opt-in Rust core installation.",
+    "title": "Rust Core v7.5.5 Production-Safe Install Wrapper"
+  },
   "rust.core_v75_full_backend_production_audit_sentinel": {
     "anchor": "rust-core-v75-full-rust-backend-production-audit-sentinel",
     "file": "docs/RUST_CORE_V75_FULL_RUST_BACKEND_PRODUCTION_AUDIT_SENTINEL.md",
@@ -895,6 +907,18 @@
     "summary": "Documentation and operations alignment for branch installs and stale working tree cleanup in the final Rust production series.",
     "title": "Rust Core v7.5.4 Branch Install Cleanup Alignment"
   },
+  "rust_core_v756_authoritative_gate_cutover": {
+    "anchor": "v756-rust-authoritative-gate-cutover",
+    "file": "RUST_CORE_V756_AUTHORITATIVE_GATE_CUTOVER.md",
+    "summary": "Documents the Rust authoritative gate cutover profile with Python fallback and no direct Rust file-write/apply authority.",
+    "title": "Rust Core v7.5.6 Authoritative Gate Cutover"
+  },
+  "rust_core_v757_full_rust_apply_authority": {
+    "anchor": "rust-core-v757-full-rust-apply-authority",
+    "file": "RUST_CORE_V757_FULL_RUST_APPLY_AUTHORITY.md",
+    "summary": "Rust-owned file writes and LibreQoS.py apply execution with fail-closed no-duplicate Python mutation behavior.",
+    "title": "Rust Core v7.5.7 Full Rust Apply Authority"
+  },
   "security.access_control_role_hardening": {
     "anchor": "access-control--role-hardening",
     "file": "docs/content/access_control_role_hardening.md",
@@ -981,16 +1005,10 @@
     "summary": "v2.70.4-rc1 UI wiring audit, role visibility fixes, owner-only link gating, stale file detection, and policy preset wiring validation.",
     "title": "UI Wiring Audit + Role Visibility Hotfix"
   },
-  "install.production_safe_wrapper": {
-    "title": "Production-Safe Install Wrapper",
-    "file": "docs/PRODUCTION_SAFE_INSTALL.md",
-    "anchor": "production-safe-install-wrapper",
-    "summary": "Live-host install wrapper that preserves LibreQoS files, creates backups, and avoids automatic service start by default."
-  },
-  "rust.core_v755_production_safe_install_wrapper": {
-    "title": "Rust Core v7.5.5 Production-Safe Install Wrapper",
-    "file": "docs/RUST_CORE_V755_PRODUCTION_SAFE_INSTALL_WRAPPER.md",
-    "anchor": "v755-production-safe-install-wrapper",
-    "summary": "Release note guide for production-safe install controls, service start policy, and opt-in Rust core installation."
+  "rust_core_v758_full_rust_authority_lockdown": {
+    "title": "Rust Core v7.5.8 Full Rust Authority Lockdown",
+    "file": "docs/RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md",
+    "anchor": "rust-core-v758-full-rust-authority-lockdown",
+    "summary": "Fail-closed full Rust authority lock for production file writes, transaction journal, and LibreQoS apply while preserving Python WebUI/scheduler compatibility."
   }
 }

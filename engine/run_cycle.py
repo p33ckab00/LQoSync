@@ -596,6 +596,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             rust_sync_plan=rust_sync_plan,
             rust_authority_gate=rust_authority_gate,
             state=state_before,
+            execute=False,
         )
         result.diff["rust_apply_transaction"] = rust_apply_transaction
         tx_result = rust_apply_transaction.get("result", {}) if isinstance(rust_apply_transaction, dict) else {}
@@ -750,7 +751,50 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="preflight_failed")
             return result
 
+        should_run_lq, apply_reason = _libreqos_should_apply(config, state_before, result, mode)
+        should_run_lq, apply_reason, auto_apply_policy_decision = evaluate_auto_apply_policy(config, policy_decision, should_run_lq, apply_reason)
+        result.diff["libreqos_apply_decision"] = apply_reason
+        result.diff["auto_apply_policy_decision"] = auto_apply_policy_decision
+        result.diff["policy_decision"] = policy_decision.to_dict()
+        policy_state["last_policy_decision"] = policy_decision.to_dict()
+
+        rc = config.get("rust_core", {}) or {}
+        rust_file_write_authority = bool(rc.get("execute_apply_manifest") and rc.get("allow_rust_file_writes"))
+        rust_apply_authority = bool(rc.get("allow_rust_libreqos_apply") and should_run_lq)
+        rust_full_authority_required = bool(
+            rc.get("full_rust_backend_authority")
+            or rc.get("fail_closed_without_rust_authority")
+            or str(rc.get("transaction_authority") or "") in {"rust_full_authoritative", "rust_apply_authoritative"}
+        )
+        python_mutation_fallback_allowed = bool(rc.get("python_mutation_fallback", not rust_full_authority_required))
         files_were_written = False
+        rust_libreqos_already_applied = False
+
+        if rust_full_authority_required:
+            result.diff["rust_full_authority_lock"] = {
+                "enabled": True,
+                "rust_file_write_authority": rust_file_write_authority,
+                "rust_apply_authority": rust_apply_authority,
+                "python_mutation_fallback_allowed": python_mutation_fallback_allowed,
+                "transaction_authority": rc.get("transaction_authority"),
+            }
+            if result.files_changed and not rust_file_write_authority:
+                result.errors.append("Rust full authority lock: file changes require execute_apply_manifest=true and allow_rust_file_writes=true.")
+                result.finish("rust_full_authority_missing_file_write_flags")
+                result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                log_event(config, "error", "Rust full authority lock blocked Python file-write fallback")
+                write_audit(config, "rust_full_authority_missing_file_write_flags", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_missing_file_write_flags")
+                return result
+            if should_run_lq and not rust_apply_authority:
+                result.errors.append("Rust full authority lock: LibreQoS apply requires allow_rust_libreqos_apply=true.")
+                result.finish("rust_full_authority_missing_apply_flag")
+                result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                log_event(config, "error", "Rust full authority lock blocked Python LibreQoS apply fallback")
+                write_audit(config, "rust_full_authority_missing_apply_flag", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_missing_apply_flag")
+                return result
+
         if result.files_changed:
             t = time.perf_counter()
             if not _drift_check(config, state_before, current_csv_text, current_network_text, result):
@@ -761,6 +805,139 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 return result
             timeline.record("drift_check", t)
 
+        if (result.files_changed and rust_file_write_authority) or rust_apply_authority:
+            t = time.perf_counter()
+            rust_authoritative_tx = rust_execute_apply_transaction(
+                config,
+                mode=mode,
+                paths=paths,
+                current_csv_text=current_csv_text,
+                proposed_csv_text=proposed_csv_text,
+                current_network_text=current_network_text,
+                proposed_network_text=proposed_network_text,
+                files_changed=result.files_changed,
+                csv_changed=result.csv_changed,
+                network_changed=result.network_changed,
+                policy_decision=policy_decision.to_dict(),
+                rust_sync_plan=rust_sync_plan,
+                rust_authority_gate=rust_authority_gate,
+                state=state_before,
+                execute=True,
+                allow_libreqos_apply=rust_apply_authority,
+            )
+            result.diff["rust_authoritative_apply_transaction"] = rust_authoritative_tx
+            rust_tx_result = rust_authoritative_tx.get("result", {}) if isinstance(rust_authoritative_tx, dict) else {}
+            rust_tx_errors, rust_tx_warnings = diagnostics_to_messages(rust_authoritative_tx)
+            result.warnings.extend([f"Rust authoritative apply transaction: {msg}" for msg in rust_tx_warnings])
+            timeline.record(
+                "rust_authoritative_apply_transaction",
+                t,
+                status="ok" if rust_authoritative_tx.get("ok") else "failed",
+                details={
+                    "available": bool(rust_authoritative_tx.get("available")),
+                    "ok": bool(rust_authoritative_tx.get("ok")),
+                    "status": rust_tx_result.get("status"),
+                    "authoritative": bool(rust_tx_result.get("authoritative")),
+                    "file_writes_executed": bool(rust_tx_result.get("file_writes_executed")),
+                    "libreqos_apply_executed": bool(rust_tx_result.get("libreqos_apply_executed")),
+                    "write_count": rust_tx_result.get("write_count"),
+                },
+            )
+            if (not rust_authoritative_tx.get("ok")) or rust_tx_errors or rust_tx_result.get("status") == "failed":
+                result.errors.extend([f"Rust authoritative apply transaction: {msg}" for msg in rust_tx_errors] or ["Rust authoritative apply transaction failed"])
+                result.finish("rust_authoritative_apply_failed")
+                result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                log_event(config, "error", f"Rust authoritative apply failed: {result.errors[-3:]}")
+                write_audit(config, "rust_authoritative_apply_failed", details={"transaction": rust_authoritative_tx, "timings": result.timings})
+                update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authoritative_apply_failed")
+                return result
+
+            if rc.get("append_transaction_journal") and rc.get("allow_transaction_journal_writes"):
+                t_journal = time.perf_counter()
+                rust_authoritative_journal = rust_build_transaction_journal(
+                    config,
+                    mode=mode,
+                    paths=paths,
+                    rust_apply_manifest=rust_apply_manifest,
+                    rust_apply_transaction=rust_authoritative_tx,
+                    rust_sync_plan=rust_sync_plan,
+                    rust_authority_gate=rust_authority_gate,
+                    policy_decision=policy_decision.to_dict(),
+                )
+                rust_authoritative_journal_append = rust_append_transaction_journal(
+                    config,
+                    mode=mode,
+                    paths=paths,
+                    rust_apply_manifest=rust_apply_manifest,
+                    rust_apply_transaction=rust_authoritative_tx,
+                    rust_sync_plan=rust_sync_plan,
+                    rust_authority_gate=rust_authority_gate,
+                    policy_decision=policy_decision.to_dict(),
+                    rust_transaction_journal=rust_authoritative_journal,
+                )
+                result.diff["rust_authoritative_transaction_journal"] = rust_authoritative_journal
+                result.diff["rust_authoritative_transaction_journal_append"] = rust_authoritative_journal_append
+                timeline.record(
+                    "rust_authoritative_transaction_journal_append",
+                    t_journal,
+                    status="ok" if rust_authoritative_journal_append.get("ok") else "failed",
+                    details={
+                        "ok": bool(rust_authoritative_journal_append.get("ok")),
+                        "append_executed": bool((rust_authoritative_journal_append.get("result") or {}).get("append_executed")),
+                        "journal_id": (rust_authoritative_journal_append.get("result") or {}).get("journal_id"),
+                    },
+                )
+                journal_errors, journal_warnings = diagnostics_to_messages(rust_authoritative_journal_append)
+                result.warnings.extend([f"Rust authoritative journal: {msg}" for msg in journal_warnings])
+                if (not rust_authoritative_journal_append.get("ok")) or journal_errors:
+                    result.errors.extend([f"Rust authoritative journal: {msg}" for msg in journal_errors] or ["Rust authoritative journal append failed"])
+                    result.finish("rust_authoritative_journal_failed")
+                    result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                    log_event(config, "error", f"Rust authoritative journal failed: {result.errors[-3:]}")
+                    update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authoritative_journal_failed")
+                    return result
+
+            if rust_tx_result.get("file_writes_executed"):
+                files_were_written = True
+                result.diff["files_written_by"] = "rust"
+                result.diff["rust_write_results"] = rust_tx_result.get("write_results", [])
+                write_audit(config, "files_written", details={"executor": "rust", "csv_changed": result.csv_changed, "network_changed": result.network_changed, "client_change_summary": result.diff.get("client_change_summary"), "client_changes": result.diff.get("client_changes", []), "write_results": rust_tx_result.get("write_results", []), "timings": result.timings})
+                if result.diff.get("client_change_summary", {}).get("counts", {}).get("total", 0):
+                    write_audit(config, "client_changes", details={"summary": result.diff.get("client_change_summary"), "changes": result.diff.get("client_changes", []), "timings": result.timings})
+                update_state(state_path, pending_libreqos_apply=True, last_file_write_success=True)
+
+            if rust_tx_result.get("libreqos_apply_executed"):
+                lq = rust_tx_result.get("libreqos_apply_result") or {}
+                rust_libreqos_already_applied = True
+                result.libreqos_triggered = True
+                result.libreqos_exit_code = lq.get("exit_code")
+                result.libreqos_stdout = lq.get("stdout", "")
+                result.libreqos_stderr = lq.get("stderr", "")
+                result.diff["libreqos_command"] = lq.get("command")
+                result.diff["libreqos_run_id"] = lq.get("run_id")
+                result.diff["libreqos_duration_ms"] = lq.get("duration_ms")
+                result.diff["libreqos_apply_reason"] = apply_reason
+                result.diff["libreqos_working_dir"] = lq.get("working_dir")
+                result.diff["libreqos_executor"] = "rust"
+                _mark_libreqos_state(state_path, result, bool(lq.get("ok")), apply_reason, lq.get("run_id"))
+                write_audit(config, "libreqos_apply", details={"executor": "rust", "ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id"), "reason": apply_reason})
+                if not lq.get("ok"):
+                    result.errors.append("Rust LibreQoS update failed")
+                    result.finish("libreqos_failed")
+                    result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                    log_event(config, "error", f"Rust LibreQoS failed: reason={apply_reason} exit={result.libreqos_exit_code} stderr={result.libreqos_stderr[:500]}")
+                    update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="libreqos_failed")
+                    return result
+
+        elif result.files_changed:
+            if rust_full_authority_required and not python_mutation_fallback_allowed:
+                result.errors.append("Rust full authority lock: Rust transaction did not execute file writes; Python fallback is disabled.")
+                result.finish("rust_full_authority_file_write_not_executed")
+                result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                log_event(config, "error", "Rust full authority lock refused Python file-write fallback after Rust transaction path")
+                write_audit(config, "rust_full_authority_file_write_not_executed", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_file_write_not_executed")
+                return result
             if config.get("app", {}).get("backup_before_apply", True):
                 t = time.perf_counter()
                 result.diff["backup_path"] = create_backup(config, reason=mode)
@@ -774,25 +951,23 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             t = time.perf_counter()
             atomic_write_text(network_path, proposed_network_text)
             timeline.record("network_write", t, details={"path": network_path, "changed": result.network_changed})
-            write_audit(config, "files_written", details={"csv_changed": result.csv_changed, "network_changed": result.network_changed, "client_change_summary": result.diff.get("client_change_summary"), "client_changes": result.diff.get("client_changes", []), "timings": result.timings})
+            write_audit(config, "files_written", details={"executor": "python", "csv_changed": result.csv_changed, "network_changed": result.network_changed, "client_change_summary": result.diff.get("client_change_summary"), "client_changes": result.diff.get("client_changes", []), "timings": result.timings})
             if result.diff.get("client_change_summary", {}).get("counts", {}).get("total", 0):
                 write_audit(config, "client_changes", details={"summary": result.diff.get("client_change_summary"), "changes": result.diff.get("client_changes", []), "timings": result.timings})
             files_were_written = True
-
-            # Mark a pending apply immediately after successful file writes. If
-            # LibreQoS.py fails, later cycles can retry even when files are no
-            # longer changed.
             update_state(state_path, pending_libreqos_apply=True, last_file_write_success=True)
 
-        should_run_lq, apply_reason = _libreqos_should_apply(config, state_before, result, mode)
-        should_run_lq, apply_reason, auto_apply_policy_decision = evaluate_auto_apply_policy(config, policy_decision, should_run_lq, apply_reason)
-        result.diff["libreqos_apply_decision"] = apply_reason
-        result.diff["auto_apply_policy_decision"] = auto_apply_policy_decision
-        result.diff["policy_decision"] = policy_decision.to_dict()
-        policy_state["last_policy_decision"] = policy_decision.to_dict()
-        if should_run_lq:
+        if should_run_lq and not rust_libreqos_already_applied:
+            if rust_full_authority_required and not python_mutation_fallback_allowed:
+                result.errors.append("Rust full authority lock: Rust did not execute LibreQoS apply; Python apply fallback is disabled.")
+                result.finish("rust_full_authority_libreqos_apply_not_executed")
+                result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+                log_event(config, "error", "Rust full authority lock refused Python LibreQoS apply fallback")
+                write_audit(config, "rust_full_authority_libreqos_apply_not_executed", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_libreqos_apply_not_executed")
+                return result
             lq = _run_libreqos_apply(config, state_path, result, timeline, apply_reason)
-            write_audit(config, "libreqos_apply", details={"ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id"), "reason": apply_reason})
+            write_audit(config, "libreqos_apply", details={"executor": "python", "ok": lq.get("ok"), "exit_code": lq.get("exit_code"), "run_id": lq.get("run_id"), "reason": apply_reason})
             if not lq["ok"]:
                 result.errors.append("LibreQoS update failed")
                 result.finish("libreqos_failed")
@@ -800,9 +975,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 log_event(config, "error", f"LibreQoS failed: reason={apply_reason} exit={result.libreqos_exit_code} stderr={result.libreqos_stderr[:500]}")
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="libreqos_failed")
                 return result
-        elif files_were_written:
-            # This can only happen when app.auto_apply=false. Keep pending state
-            # visible so the operator knows a manual/force apply is needed.
+        elif files_were_written and not rust_libreqos_already_applied:
             update_state(state_path, pending_libreqos_apply=True, last_libreqos_apply_reason=apply_reason)
 
         result.finish("success")

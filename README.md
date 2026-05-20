@@ -723,3 +723,30 @@ The production Rust branch is `lqosync-in-rust`; the canonical runtime/source di
 
 
 Cleanup archives are stored under `/opt/LQoSync-archive/<timestamp>` and are restore-first, not delete-first.
+
+
+## v7.5.6 Rust authoritative gate mode
+
+For Rust-authoritative production gating with Python fallback preserved, use:
+
+```bash
+sudo bash install-rust-authoritative-safe.sh
+```
+
+This enables Rust validation/sync-plan fail-closed authority after self-test, while keeping Rust direct file writes and Rust `LibreQoS.py` execution disabled for no-breakage operation.
+
+
+## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
+
+- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
+- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
+- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
+- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
+- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
+- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
+---
+
+## v7.5.8 Full Rust Authority Lockdown
+
+The `lqosync-in-rust` branch now includes a full Rust authority lock for the production mutation path. When `full_rust_backend_authority=true`, Python cannot silently fall back to writing `ShapedDevices.csv`, writing `network.json`, or running `LibreQoS.py --updateonly`; Rust must execute the authoritative transaction or the cycle fails closed.
+

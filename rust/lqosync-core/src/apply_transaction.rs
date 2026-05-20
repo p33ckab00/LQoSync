@@ -2,7 +2,11 @@ use crate::apply_manifest::build_apply_manifest_payload;
 use crate::atomic_state::atomic_write_text;
 use crate::protocol::{Diagnostic, Severity};
 use serde_json::{json, Value};
+use std::fs;
 use std::path::Path;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 fn str_path<'a>(value: &'a Value, path: &[&str], default: &'a str) -> &'a str {
     let mut current = value;
@@ -37,11 +41,237 @@ fn warning(code: &str, path: Option<String>, message: &str) -> Diagnostic {
     }
 }
 
-/// Execute the safe file-write part of an apply manifest.
+fn now_run_id() -> String {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    format!("{}_{}", now.as_secs(), now.subsec_micros())
+}
+
+fn string_array(value: Option<&Value>, default: &[&str]) -> Vec<String> {
+    match value.and_then(Value::as_array) {
+        Some(items) => items
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect(),
+        None => default.iter().map(|v| (*v).to_string()).collect(),
+    }
+}
+
+fn libreqos_command(config: &Value) -> (Vec<String>, String, String, String, u64) {
+    let cmd = str_path(config, &["libreqos", "cmd"], "/opt/libreqos/src/LibreQoS.py").to_string();
+    let args = string_array(config.pointer("/libreqos/args"), &["--updateonly"]);
+    let working_dir = str_path(config, &["libreqos", "working_dir"], "/opt/libreqos/src").to_string();
+    let mode = str_path(config, &["libreqos", "run_mode"], "direct").to_string();
+    let timeout_seconds = config
+        .pointer("/libreqos/timeout_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(300)
+        .max(1);
+    let use_sudo = bool_path(config, &["libreqos", "sudo"], true);
+
+    if mode == "host_nsenter" {
+        let mut inner = String::new();
+        inner.push_str("cd ");
+        inner.push_str(&shell_quote(&working_dir));
+        inner.push_str(" && exec ");
+        if cmd.ends_with(".py") {
+            inner.push_str("/usr/bin/python3 ");
+        }
+        inner.push_str(&shell_quote(&cmd));
+        for arg in &args {
+            inner.push(' ');
+            inner.push_str(&shell_quote(arg));
+        }
+        return (
+            vec![
+                "/usr/bin/nsenter".to_string(),
+                "-t".to_string(),
+                "1".to_string(),
+                "-m".to_string(),
+                "-u".to_string(),
+                "-n".to_string(),
+                "-i".to_string(),
+                "--".to_string(),
+                "/bin/bash".to_string(),
+                "-lc".to_string(),
+                inner,
+            ],
+            working_dir,
+            mode,
+            cmd,
+            timeout_seconds,
+        );
+    }
+
+    let mut command: Vec<String> = Vec::new();
+    if use_sudo {
+        command.push("/usr/bin/sudo".to_string());
+    }
+    if cmd.ends_with(".py") {
+        command.push("/usr/bin/python3".to_string());
+        command.push(cmd.clone());
+    } else {
+        command.push(cmd.clone());
+    }
+    command.extend(args);
+    (command, working_dir, mode, cmd, timeout_seconds)
+}
+
+fn shell_quote(value: &str) -> String {
+    if value.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '_' | '-' | ':' | '=')) {
+        return value.to_string();
+    }
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+fn run_libreqos_update_from_rust(config: &Value) -> (Value, Option<Diagnostic>) {
+    let (command, working_dir, mode, cmd, timeout_seconds) = libreqos_command(config);
+    let log_dir = str_path(config, &["paths", "libreqos_apply_log_dir"], "/opt/LQoSync/logs/libreqos_apply").to_string();
+    let run_id = now_run_id();
+    let started_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let stdout_path = Path::new(&log_dir).join(format!("{run_id}.stdout.log"));
+    let stderr_path = Path::new(&log_dir).join(format!("{run_id}.stderr.log"));
+    let meta_path = Path::new(&log_dir).join(format!("{run_id}.json"));
+
+    let mut diagnostic: Option<Diagnostic> = None;
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let mut exit_code: i32 = -1;
+    let mut ok = false;
+    let mut timed_out = false;
+    let started = Instant::now();
+
+    if command.is_empty() {
+        diagnostic = Some(Diagnostic::error(
+            "rust_libreqos_command_empty",
+            Some("libreqos.cmd".to_string()),
+            "LibreQoS command resolved to an empty command",
+        ));
+    } else if mode != "host_nsenter" && !Path::new(&working_dir).is_dir() {
+        diagnostic = Some(Diagnostic::error(
+            "rust_libreqos_working_dir_invalid",
+            Some("libreqos.working_dir".to_string()),
+            format!("Invalid libreqos.working_dir: {working_dir}"),
+        ));
+    } else if mode != "host_nsenter" && cmd.ends_with(".py") && !Path::new(&cmd).is_file() {
+        diagnostic = Some(Diagnostic::error(
+            "rust_libreqos_cmd_missing",
+            Some("libreqos.cmd".to_string()),
+            format!("LibreQoS.py command does not exist: {cmd}"),
+        ));
+    } else {
+        let mut process = Command::new(&command[0]);
+        process.args(&command[1..]);
+        if mode != "host_nsenter" {
+            process.current_dir(&working_dir);
+        }
+        process.stdout(Stdio::piped()).stderr(Stdio::piped());
+        match process.spawn() {
+            Ok(mut child) => {
+                loop {
+                    match child.try_wait() {
+                        Ok(Some(_status)) => break,
+                        Ok(None) => {
+                            if started.elapsed() > Duration::from_secs(timeout_seconds) {
+                                timed_out = true;
+                                let _ = child.kill();
+                                break;
+                            }
+                            thread::sleep(Duration::from_millis(100));
+                        }
+                        Err(e) => {
+                            diagnostic = Some(Diagnostic::error(
+                                "rust_libreqos_wait_failed",
+                                Some("libreqos.cmd".to_string()),
+                                format!("Failed while waiting for LibreQoS.py: {e}"),
+                            ));
+                            let _ = child.kill();
+                            break;
+                        }
+                    }
+                }
+                match child.wait_with_output() {
+                    Ok(output) => {
+                        stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                        stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                        exit_code = output.status.code().unwrap_or(-1);
+                        ok = output.status.success() && !timed_out;
+                        if timed_out {
+                            diagnostic = Some(Diagnostic::error(
+                                "rust_libreqos_timeout",
+                                Some("libreqos.timeout_seconds".to_string()),
+                                format!("LibreQoS.py timed out after {timeout_seconds} seconds"),
+                            ));
+                        } else if !ok {
+                            diagnostic = Some(Diagnostic::error(
+                                "rust_libreqos_apply_failed",
+                                Some("libreqos.cmd".to_string()),
+                                format!("LibreQoS.py exited with code {exit_code}"),
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        diagnostic = Some(Diagnostic::error(
+                            "rust_libreqos_output_failed",
+                            Some("libreqos.cmd".to_string()),
+                            format!("Failed to collect LibreQoS.py output: {e}"),
+                        ));
+                    }
+                }
+            }
+            Err(e) => {
+                diagnostic = Some(Diagnostic::error(
+                    "rust_libreqos_spawn_failed",
+                    Some("libreqos.cmd".to_string()),
+                    format!("Failed to spawn LibreQoS.py: {e}"),
+                ));
+            }
+        }
+    }
+
+    let duration_ms = started.elapsed().as_millis() as u64;
+    let _ = fs::create_dir_all(&log_dir);
+    let _ = fs::write(&stdout_path, &stdout);
+    let _ = fs::write(&stderr_path, &stderr);
+    let meta = json!({
+        "run_id": run_id,
+        "started_epoch": started_epoch,
+        "duration_ms": duration_ms,
+        "duration_seconds": (duration_ms as f64) / 1000.0,
+        "exit_code": exit_code,
+        "ok": ok,
+        "timed_out": timed_out,
+        "command": command,
+        "working_dir": working_dir,
+        "mode": mode,
+        "executor": "rust",
+        "stdout_path": stdout_path.to_string_lossy(),
+        "stderr_path": stderr_path.to_string_lossy(),
+    });
+    let _ = fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap_or_else(|_| "{}".to_string()));
+
+    let result = json!({
+        "ok": ok,
+        "exit_code": exit_code,
+        "stdout": stdout,
+        "stderr": stderr,
+        "command": meta.get("command").cloned().unwrap_or_else(|| json!([])),
+        "working_dir": meta.get("working_dir").cloned().unwrap_or_else(|| json!("")),
+        "mode": meta.get("mode").cloned().unwrap_or_else(|| json!("direct")),
+        "duration_ms": duration_ms,
+        "duration_seconds": (duration_ms as f64) / 1000.0,
+        "run_id": meta.get("run_id").cloned().unwrap_or_else(|| json!("")),
+        "meta": meta,
+    });
+    (result, diagnostic)
+}
+
+/// Execute the Rust-owned apply transaction.
 ///
-/// This operation is intentionally opt-in. By default it only returns a
-/// transaction rehearsal. It never invokes LibreQoS.py in v1.0; Python remains
-/// authoritative for external command execution.
+/// This operation is still explicitly gated. With `execute=false` it rehearses.
+/// With `execute=true`, `allow_file_writes=true`, and a ready manifest it owns
+/// the atomic ShapedDevices/network writes. With `allow_libreqos_apply=true`, it
+/// also invokes LibreQoS.py and records the same apply-run log family that the
+/// Python executor writes.
 pub fn execute_apply_transaction_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let (manifest, mut errors, mut warnings) = build_apply_manifest_payload(payload);
     let execute = payload.get("execute").and_then(Value::as_bool).unwrap_or(false);
@@ -68,83 +298,106 @@ pub fn execute_apply_transaction_payload(payload: &Value) -> (Value, Vec<Diagnos
 
     let mut write_results: Vec<Value> = Vec::new();
     let mut trace: Vec<Value> = Vec::new();
-
-    if allow_libreqos_apply {
-        warnings.push(warning(
-            "transaction_libreqos_apply_not_implemented",
-            Some("allow_libreqos_apply".to_string()),
-            "Rust transaction executor v1.0 does not invoke LibreQoS.py; Python remains authoritative for external apply execution.",
-        ));
-        trace.push(json!({"step":"libreqos_apply","decision":"delegated_to_python"}));
-    }
+    let mut file_writes_executed = false;
+    let mut libreqos_apply_executed = false;
+    let mut libreqos_apply_result = json!({});
 
     if dry_run {
         trace.push(json!({"step":"execute","decision":"dry_run_preview_only"}));
     } else if status != "ready" {
         trace.push(json!({"step":"execute","decision":"not_ready","manifest_status":status}));
-    } else if !execute || !allow_file_writes {
-        trace.push(json!({"step":"execute","decision":"rehearsal_only","execute":execute,"allow_file_writes":allow_file_writes}));
+    } else if !execute {
+        trace.push(json!({"step":"execute","decision":"rehearsal_only","execute":execute}));
     } else {
-        if csv_changed {
-            if csv_path.is_empty() {
-                errors.push(Diagnostic::error(
-                    "transaction_missing_csv_path",
-                    Some("paths.shaped_devices_csv".to_string()),
-                    "Cannot execute CSV write because shaped_devices_csv path is empty",
-                ));
-            } else {
-                match atomic_write_text(
-                    Path::new(csv_path),
-                    proposed_csv,
-                    backup_before_apply,
-                    hashes.get("current_csv").and_then(Value::as_str),
-                    "ShapedDevices.csv",
-                ) {
-                    Ok(result) => {
-                        write_results.push(result);
-                        trace.push(json!({"step":"write_csv","decision":"wrote","path":csv_path}));
-                    }
-                    Err(e) => errors.push(Diagnostic::error(
-                        "transaction_csv_write_failed",
+        if allow_file_writes {
+            if csv_changed {
+                if csv_path.is_empty() {
+                    errors.push(Diagnostic::error(
+                        "transaction_missing_csv_path",
                         Some("paths.shaped_devices_csv".to_string()),
-                        format!("CSV write failed: {e}"),
-                    )),
-                }
-            }
-        }
-        if network_changed {
-            if network_path.is_empty() {
-                errors.push(Diagnostic::error(
-                    "transaction_missing_network_path",
-                    Some("paths.network_json".to_string()),
-                    "Cannot execute network write because network_json path is empty",
-                ));
-            } else {
-                match atomic_write_text(
-                    Path::new(network_path),
-                    proposed_network,
-                    backup_before_apply,
-                    hashes.get("current_network").and_then(Value::as_str),
-                    "network.json",
-                ) {
-                    Ok(result) => {
-                        write_results.push(result);
-                        trace.push(json!({"step":"write_network","decision":"wrote","path":network_path}));
+                        "Cannot execute CSV write because shaped_devices_csv path is empty",
+                    ));
+                } else {
+                    match atomic_write_text(
+                        Path::new(csv_path),
+                        proposed_csv,
+                        backup_before_apply,
+                        hashes.get("current_csv").and_then(Value::as_str),
+                        "ShapedDevices.csv",
+                    ) {
+                        Ok(result) => {
+                            write_results.push(result);
+                            file_writes_executed = true;
+                            trace.push(json!({"step":"write_csv","decision":"wrote","path":csv_path}));
+                        }
+                        Err(e) => errors.push(Diagnostic::error(
+                            "transaction_csv_write_failed",
+                            Some("paths.shaped_devices_csv".to_string()),
+                            format!("CSV write failed: {e}"),
+                        )),
                     }
-                    Err(e) => errors.push(Diagnostic::error(
-                        "transaction_network_write_failed",
-                        Some("paths.network_json".to_string()),
-                        format!("network.json write failed: {e}"),
-                    )),
                 }
             }
+            if network_changed {
+                if network_path.is_empty() {
+                    errors.push(Diagnostic::error(
+                        "transaction_missing_network_path",
+                        Some("paths.network_json".to_string()),
+                        "Cannot execute network.json write because network_json path is empty",
+                    ));
+                } else {
+                    match atomic_write_text(
+                        Path::new(network_path),
+                        proposed_network,
+                        backup_before_apply,
+                        hashes.get("current_network").and_then(Value::as_str),
+                        "network.json",
+                    ) {
+                        Ok(result) => {
+                            write_results.push(result);
+                            file_writes_executed = true;
+                            trace.push(json!({"step":"write_network","decision":"wrote","path":network_path}));
+                        }
+                        Err(e) => errors.push(Diagnostic::error(
+                            "transaction_network_write_failed",
+                            Some("paths.network_json".to_string()),
+                            format!("network.json write failed: {e}"),
+                        )),
+                    }
+                }
+            }
+        } else {
+            trace.push(json!({"step":"file_writes","decision":"not_allowed","allow_file_writes":false}));
+        }
+
+        if allow_libreqos_apply && errors.is_empty() {
+            let (apply_result, apply_error) = run_libreqos_update_from_rust(&config);
+            libreqos_apply_executed = true;
+            libreqos_apply_result = apply_result;
+            trace.push(json!({
+                "step":"libreqos_apply",
+                "decision":"executed_by_rust",
+                "ok": libreqos_apply_result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                "exit_code": libreqos_apply_result.get("exit_code").and_then(Value::as_i64).unwrap_or(-1),
+                "run_id": libreqos_apply_result.get("run_id").and_then(Value::as_str).unwrap_or("")
+            }));
+            if let Some(diag) = apply_error {
+                errors.push(diag);
+            }
+        } else if allow_libreqos_apply {
+            trace.push(json!({"step":"libreqos_apply","decision":"skipped_due_to_previous_errors"}));
+        } else {
+            trace.push(json!({"step":"libreqos_apply","decision":"not_allowed","allow_libreqos_apply":false}));
         }
     }
 
-    let executed = execute && allow_file_writes && !dry_run && status == "ready" && errors.is_empty();
+    let authoritative = execute && !dry_run && status == "ready" && (allow_file_writes || allow_libreqos_apply);
+    let executed = file_writes_executed || libreqos_apply_executed;
     let final_status = if !errors.is_empty() {
         "failed"
-    } else if executed {
+    } else if libreqos_apply_executed {
+        "executed_full_apply"
+    } else if file_writes_executed {
         "executed_file_writes"
     } else if dry_run {
         "dry_run_preview_only"
@@ -154,10 +407,19 @@ pub fn execute_apply_transaction_payload(payload: &Value) -> (Value, Vec<Diagnos
         "rehearsal_only"
     };
 
+    if allow_libreqos_apply && execute && !libreqos_apply_executed && final_status == "rehearsal_only" {
+        warnings.push(warning(
+            "rust_libreqos_apply_not_executed",
+            Some("allow_libreqos_apply".to_string()),
+            "Rust was allowed to apply LibreQoS, but transaction did not reach the execution phase.",
+        ));
+    }
+
     let result = json!({
         "mode": "transaction_executor",
-        "authoritative": executed,
+        "authoritative": authoritative,
         "executed": executed,
+        "file_writes_executed": file_writes_executed,
         "status": final_status,
         "manifest": manifest,
         "write_results": write_results,
@@ -165,7 +427,8 @@ pub fn execute_apply_transaction_payload(payload: &Value) -> (Value, Vec<Diagnos
         "execute_requested": execute,
         "allow_file_writes": allow_file_writes,
         "allow_libreqos_apply": allow_libreqos_apply,
-        "libreqos_apply_executed": false,
+        "libreqos_apply_executed": libreqos_apply_executed,
+        "libreqos_apply_result": libreqos_apply_result,
         "trace": trace,
     });
     (result, errors, warnings)
@@ -222,11 +485,13 @@ mod tests {
             "network_changed":false,
             "policy_decision":{"write_allowed":true,"apply_allowed":true},
             "execute":true,
-            "allow_file_writes":true
+            "allow_file_writes":true,
+            "allow_libreqos_apply":false
         });
         let (result, errors, _warnings) = execute_apply_transaction_payload(&payload);
         assert!(errors.is_empty(), "{errors:?}");
         assert_eq!(result.get("executed").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("file_writes_executed").and_then(Value::as_bool), Some(true));
         let manifest = result.get("manifest").unwrap();
         assert_eq!(manifest.get("status").and_then(Value::as_str), Some("ready"));
     }
@@ -243,7 +508,8 @@ mod tests {
             "network_changed":false,
             "policy_decision":{"write_allowed":false,"apply_allowed":false},
             "execute":true,
-            "allow_file_writes":true
+            "allow_file_writes":true,
+            "allow_libreqos_apply":false
         });
         let (result, _errors, _warnings) = execute_apply_transaction_payload(&payload);
         assert_eq!(result.get("executed").and_then(Value::as_bool), Some(false));

@@ -737,7 +737,7 @@ def _python_execute_apply_transaction(payload: dict[str, Any], *, started: float
     }
 
 
-def rust_execute_apply_transaction(config: dict, *, mode: str, paths: dict, current_csv_text: str, proposed_csv_text: str, current_network_text: str, proposed_network_text: str, files_changed: bool, csv_changed: bool, network_changed: bool, policy_decision: dict | None = None, rust_sync_plan: dict | None = None, rust_authority_gate: dict | None = None, state: dict | None = None, execute: bool | None = None) -> dict[str, Any]:
+def rust_execute_apply_transaction(config: dict, *, mode: str, paths: dict, current_csv_text: str, proposed_csv_text: str, current_network_text: str, proposed_network_text: str, files_changed: bool, csv_changed: bool, network_changed: bool, policy_decision: dict | None = None, rust_sync_plan: dict | None = None, rust_authority_gate: dict | None = None, state: dict | None = None, execute: bool | None = None, allow_libreqos_apply: bool | None = None) -> dict[str, Any]:
     rc = rust_core_config(config)
     do_execute = bool(rc.get("execute_apply_manifest") if execute is None else execute)
     payload = {
@@ -757,7 +757,7 @@ def rust_execute_apply_transaction(config: dict, *, mode: str, paths: dict, curr
         "rust_authority_gate": rust_authority_gate or {},
         "execute": do_execute,
         "allow_file_writes": bool(rc.get("allow_rust_file_writes", False)),
-        "allow_libreqos_apply": bool(rc.get("allow_rust_libreqos_apply", False)),
+        "allow_libreqos_apply": bool(rc.get("allow_rust_libreqos_apply", False) if allow_libreqos_apply is None else allow_libreqos_apply),
     }
     response = call_rust_core("execute-apply-transaction", payload, config=config)
     error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
@@ -1549,8 +1549,8 @@ def _python_authority_readiness(config: dict, *, status: dict | None = None, sel
             risk_score += 30
     authority_flags = any(bool(rc.get(k)) for k in ("enforce_sync_plan", "execute_apply_manifest", "allow_rust_file_writes", "append_transaction_journal", "allow_transaction_journal_writes", "execute_rollback", "allow_rust_rollback_file_writes")) or rc.get("authority_mode") == "enforce_blockers" or rc.get("rollback_authority") == "execute_file_restores"
     if rc.get("allow_rust_libreqos_apply"):
-        warnings.append({"code": "rust_libreqos_apply_not_implemented", "severity": "warning", "path": "rust_core.allow_rust_libreqos_apply", "message": "Rust does not invoke LibreQoS.py in this release."})
-        risk_score += 15
+        warnings.append({"code": "rust_libreqos_apply_authority_enabled", "severity": "info", "path": "rust_core.allow_rust_libreqos_apply", "message": "Rust may invoke LibreQoS.py when execute_apply_manifest and runtime policy allow apply."})
+        risk_score += 5
     if rc.get("execute_apply_manifest") != rc.get("allow_rust_file_writes") and (rc.get("execute_apply_manifest") or rc.get("allow_rust_file_writes")):
         blockers.append({"code": "partial_file_write_authority", "message": "execute_apply_manifest and allow_rust_file_writes must be enabled together for a file-write pilot."})
         errors.append({"code": "partial_file_write_authority", "severity": "error", "path": "rust_core", "message": "Rust file-write authority flags are partial."})
@@ -1633,7 +1633,7 @@ def _python_full_rust_readiness(config: dict, *, status: dict | None = None, sel
         {"component": "scheduler_runner", "owner": "python", "reason": "Python scheduler still starts sync jobs."},
         {"component": "run_cycle_orchestration", "owner": "python", "reason": "Python run_cycle remains authoritative by default."},
         {"component": "routeros_api_collectors", "owner": "python", "reason": "RouterOS PPPoE/DHCP/Hotspot collectors still use Python routeros-api."},
-        {"component": "libreqos_external_apply", "owner": "python", "reason": "Rust does not invoke LibreQoS.py in this release."},
+        {"component": "libreqos_external_apply", "owner": "rust_when_enabled", "reason": "Rust execute-apply-transaction can invoke LibreQoS.py when allow_rust_libreqos_apply is enabled and runtime policy allows apply."},
     ]
     authority_flags = any(bool(rc.get(k)) for k in ("enforce_sync_plan", "execute_apply_manifest", "allow_rust_file_writes", "append_transaction_journal", "allow_transaction_journal_writes", "execute_rollback", "allow_rust_rollback_file_writes"))
     return {
@@ -1688,7 +1688,8 @@ def _python_authority_pilot_plan(payload: dict[str, Any], *, started: float | No
         {"stage": 3, "name": "Transaction journal persistence", "status": "available", "config_delta": {"append_transaction_journal": True, "allow_transaction_journal_writes": True}},
         {"stage": 4, "name": "Rust file-write pilot", "status": "available_after_journal", "config_delta": {"execute_apply_manifest": True, "allow_rust_file_writes": True}},
         {"stage": 5, "name": "Rollback execution pilot", "status": "available_after_file_write_pilot", "config_delta": {"execute_rollback": True, "allow_rust_rollback_file_writes": True, "rollback_authority": "execute_file_restores"}},
-        {"stage": 6, "name": "Collector/circuit migration", "status": "future_work"},
+        {"stage": 6, "name": "Rust LibreQoS external apply", "status": "available_after_file_write_pilot", "config_delta": {"allow_rust_libreqos_apply": True}},
+        {"stage": 7, "name": "Collector/circuit migration", "status": "future_work"},
     ]
     return {
         "version": PROTOCOL_VERSION,

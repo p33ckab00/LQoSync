@@ -554,3 +554,17 @@ This package adds safe stale-codebase cleanup tooling. It is archive-first and c
 ## v7.5.4 package notes
 
 This package aligns the `lqosync-in-rust` branch installation guide with stale-codebase cleanup tooling. It is documentation/operations focused and does not add a new Rust core operation.
+
+
+## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
+
+- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
+- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
+- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
+- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
+- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
+- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
+## v7.5.8 Full Rust Authority Lockdown
+
+The package now enables the full Rust authority lock by default for the production mutation path. Python remains the WebUI/scheduler compatibility shell, but production file writes and LibreQoS apply must be Rust-owned when `full_rust_backend_authority=true`.
+
