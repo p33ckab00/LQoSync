@@ -310,7 +310,7 @@
     },
     {
       "path": "docs/RUST_CORE_V441_PILOT_RESULT_RECURSION_HOTFIX.md",
-      "title": "Rust Core v4.4.1 \u2014 Pilot Result Recursion Hotfix",
+      "title": "Rust Core v4.4.1 — Pilot Result Recursion Hotfix",
       "tags": [
         "rust",
         "collector-authority",
@@ -430,7 +430,7 @@
     "title": "Custom Policy Mode Persistence Hotfix",
     "file": "docs/content/custom_policy_mode_persistence.md",
     "anchor": "custom-policy-mode-persistence-hotfix",
-    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center \u2192 Policies."
+    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center → Policies."
   },
   "policy_overview_custom_wiring_hotfix": {
     "title": "Policy Overview Custom Wiring Hotfix",
@@ -942,5 +942,17 @@
     "file": "docs/STALE_CODEBASE_CLEANUP_POLICY.md",
     "anchor": "stale-codebase-cleanup-policy",
     "summary": "Classification policy for keep, archive-candidate, inspect, and never-delete paths during LQoSync cleanup."
+  },
+  "rust.core_v753_stale_codebase_cleanup_execution": {
+    "title": "Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard",
+    "file": "docs/RUST_CORE_V753_STALE_CODEBASE_CLEANUP_EXECUTION.md",
+    "anchor": "rust-core-v753-stale-codebase-cleanup-execution-guard",
+    "summary": "Archive-first guarded cleanup execution for stale LQoSync working trees while protecting /opt/LQoSync, LibreQoS, Rust daemon, WebUI assets, and rollback safety."
+  },
+  "operations.stale_codebase_cleanup_execution_runbook": {
+    "title": "Stale Codebase Cleanup Execution Runbook",
+    "file": "docs/STALE_CODEBASE_CLEANUP_EXECUTION_RUNBOOK.md",
+    "anchor": "stale-codebase-cleanup-execution-runbook",
+    "summary": "Operator runbook for planning, executing, verifying, and restoring archive-first stale codebase cleanup."
   }
 }

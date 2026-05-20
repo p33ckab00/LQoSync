@@ -1,3 +1,8 @@
+
+## v7.5.3 Stale Codebase Cleanup Execution Guard
+
+The `lqosync-in-rust` branch includes guarded archive-first cleanup tooling for stale working trees after the Rust backend production checks pass. Use `scripts/stale-codebase-cleanup-execution-plan.sh` first, then `scripts/stale-codebase-cleanup-execute-guard.sh --execute` only with the required confirmation token. The canonical app path `/opt/LQoSync`, LibreQoS path `/opt/libreqos`, Rust binary, and Rust daemon unit are protected.
+
 ### Rust Core v3.3 Authenticated Read Fixture Pipeline
 
 The `lqosync-in-rust` branch now includes `run-routeros-authenticated-read-fixture`, a fixture-only authenticated RouterOS read pipeline. It still does not open sockets or replace Python collectors.

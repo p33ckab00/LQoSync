@@ -1,3 +1,10 @@
+
+## Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard
+
+v7.5.3 adds an archive-first cleanup execution guard for duplicate or legacy LQoSync working trees. The canonical app remains `/opt/LQoSync`; LibreQoS remains `/opt/libreqos`; the Rust daemon binary remains `/usr/local/bin/lqosync-core`. The cleanup executor refuses protected paths and requires explicit confirmation plus Rust core self-test verification before archiving candidates.
+
+See `docs/RUST_CORE_V753_STALE_CODEBASE_CLEANUP_EXECUTION.md` and `docs/STALE_CODEBASE_CLEANUP_EXECUTION_RUNBOOK.md`.
+
 ## Rust Core v3.3 Authenticated Read Fixture Pipeline
 
 See `docs/RUST_CORE_V33_AUTHENTICATED_READ_FIXTURE.md`. This phase proves the authenticated read state machine using fixtures only before live Rust RouterOS read pilots.

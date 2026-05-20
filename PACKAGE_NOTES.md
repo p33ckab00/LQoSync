@@ -1,4 +1,18 @@
 
+## v2.145.3-rc1 Package Notes
+
+This package adds the v7.5.3 stale codebase cleanup execution guard. It is intended to archive duplicate working trees such as `/home/pi/lqosync_docker`, `/home/pi/lqosync`, and `/opt/lqosync` only after explicit confirmation and production self-test verification.
+
+New scripts:
+
+```text
+scripts/stale-codebase-cleanup-execution-plan.sh
+scripts/stale-codebase-cleanup-execute-guard.sh
+scripts/stale-codebase-post-cleanup-verify.sh
+scripts/stale-codebase-restore-from-archive.sh
+```
+
+
 ## v2.107.0-rc1 Package Notes - Rust Core v3.7 Collector Authority Dry-Run Selection
 
 This package adds `build-collector-authority-selection`, a non-mutating selector that converts collector authority manifests into dry-run Python/Rust-shadow source choices. It does not switch production collector authority, cleanup authority, or LibreQoS apply authority.

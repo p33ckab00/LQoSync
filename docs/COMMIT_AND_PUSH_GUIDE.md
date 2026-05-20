@@ -1001,3 +1001,12 @@ git commit -m "ops(cleanup): add stale codebase cleanup guard" \
 git push -u origin lqosync-in-rust
 ```
 
+
+## v7.5.3 cleanup execution commit
+
+```bash
+git add .
+git commit -m "ops(cleanup): add stale codebase cleanup execution guard" \
+  -m "Add guarded archive execution, post-cleanup verification, and restore tooling for stale LQoSync working trees while protecting canonical /opt/LQoSync, LibreQoS, Rust daemon, WebUI assets, and rollback safety."
+git push -u origin lqosync-in-rust
+```

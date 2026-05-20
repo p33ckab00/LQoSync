@@ -1,3 +1,11 @@
+
+## v2.145.3-rc1 - Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard
+
+- Adds guarded archive execution for stale/duplicate LQoSync working trees.
+- Adds cleanup execution plan, guarded executor, post-cleanup verifier, and archive restore helper.
+- Protects `/opt/LQoSync`, `/opt/libreqos`, `/usr/local/bin/lqosync-core`, and `lqosync-core.service`.
+- Archive-first only: no deletion, no service mutation, no WebUI/static asset mutation, and no LibreQoS mutation.
+
 ## 2.114.1-rc1 / Rust Core v4.4.1
 
 Hotfix for v4.4 collector authority pilot result evaluator. Replaces a large nested `serde_json::json!` test gate payload with incremental `serde_json::Map` construction to avoid Rust macro recursion-limit compile failures. Runtime behavior remains non-mutating and Python collectors remain authoritative.

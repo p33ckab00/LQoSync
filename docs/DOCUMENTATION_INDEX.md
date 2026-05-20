@@ -311,3 +311,9 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v7.5.2 — Stale Codebase Cleanup Guard](RUST_CORE_V752_STALE_CODEBASE_CLEANUP_GUARD.md)
 - [Stale Codebase Cleanup Policy](STALE_CODEBASE_CLEANUP_POLICY.md)
 
+
+## Rust Core v7.5.3 Cleanup Execution
+
+- [Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard](RUST_CORE_V753_STALE_CODEBASE_CLEANUP_EXECUTION.md)
+- [Stale Codebase Cleanup Execution Runbook](STALE_CODEBASE_CLEANUP_EXECUTION_RUNBOOK.md)
+
