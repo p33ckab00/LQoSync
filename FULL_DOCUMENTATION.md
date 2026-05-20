@@ -7844,3 +7844,8 @@ Adds `build-rust-sync-engine-authority-handoff-contract`, the sync engine author
 ## Rust Core v5.8 Rust Apply/Journal/Rollback Authority Handoff Contract
 
 Adds `build-rust-apply-journal-rollback-authority-handoff-contract`, the next full-Rust-backend bridge after sync engine authority. It prepares Rust ownership of apply transaction, transaction journal, rollback manifest/executor, and audit paths while keeping Python authoritative and WebUI/UX unchanged.
+
+
+## Rust Core v5.9 Rust Backend Service Runtime Handoff Contract
+
+Adds `build-rust-backend-service-runtime-handoff-contract`, the service/API runtime handoff bridge after apply/journal/rollback authority. It validates API route parity, static WebUI asset compatibility, Rust API shadow response parity, and Rust service supervision readiness while keeping Python backend fallback and WebUI/UX unchanged.

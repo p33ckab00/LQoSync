@@ -80,6 +80,7 @@ from engine.rust_core import (
     rust_build_rust_circuit_builder_authority_handoff_contract,
     rust_build_rust_sync_engine_authority_handoff_contract,
     rust_build_rust_apply_journal_rollback_authority_handoff_contract,
+    rust_build_rust_backend_service_runtime_handoff_contract,
     rust_validate_routeros_read_results,
     rust_build_collector_circuit_bundle,
     rust_compare_collector_bundle_parity,
@@ -2914,6 +2915,36 @@ def api_rust_core_rust_apply_journal_rollback_authority_handoff_contract():
             "rust_sync_engine_authority_handoff_confirmation": request.args.get("rust_sync_engine_authority_handoff_confirmation") or "CONFIRM_RUST_SYNC_ENGINE_AUTHORITY_HANDOFF_CONTRACT",
         }
     return jsonify(rust_build_rust_apply_journal_rollback_authority_handoff_contract(cfg, payload))
+
+
+@app.route("/api/rust-core/rust-backend-service-runtime-handoff-contract", methods=["GET", "POST"])
+@login_required
+def api_rust_core_rust_backend_service_runtime_handoff_contract():
+    cfg = load_config(CONFIG_PATH)
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {
+            "mode": request.args.get("mode") or "contract",
+            "execute": str(request.args.get("execute") or "").lower() in {"1", "true", "yes", "on"},
+            "confirmation": request.args.get("confirmation") or "",
+            "shadow_age_seconds": int(request.args.get("shadow_age_seconds") or 0),
+            "api_route_parity_ready": str(request.args.get("api_route_parity_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "api_route_parity_score": float(request.args.get("api_route_parity_score") or 0),
+            "webui_ux_unchanged": str(request.args.get("webui_ux_unchanged") or "").lower() in {"1", "true", "yes", "on"},
+            "static_assets_compat_ready": str(request.args.get("static_assets_compat_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "webui_static_asset_paths_unchanged": str(request.args.get("webui_static_asset_paths_unchanged") or "").lower() in {"1", "true", "yes", "on"},
+            "static_asset_compat_error_count": int(request.args.get("static_asset_compat_error_count") or 0),
+            "rust_service_supervision_shadow_ready": str(request.args.get("rust_service_supervision_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "rust_daemon_socket_shadow_ready": str(request.args.get("rust_daemon_socket_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "rust_service_healthcheck_shadow_ready": str(request.args.get("rust_service_healthcheck_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "rust_service_supervision_error_count": int(request.args.get("rust_service_supervision_error_count") or 0),
+            "rust_api_shadow_ready": str(request.args.get("rust_api_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "rust_api_response_parity_ready": str(request.args.get("rust_api_response_parity_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "rust_api_shadow_error_count": int(request.args.get("rust_api_shadow_error_count") or 0),
+            "rust_apply_journal_rollback_authority_handoff_confirmation": request.args.get("rust_apply_journal_rollback_authority_handoff_confirmation") or "CONFIRM_RUST_APPLY_JOURNAL_ROLLBACK_AUTHORITY_HANDOFF_CONTRACT",
+        }
+    return jsonify(rust_build_rust_backend_service_runtime_handoff_contract(cfg, payload))
 
 @app.route("/api/rust-core/routeros-read-results", methods=["POST"])
 @login_required

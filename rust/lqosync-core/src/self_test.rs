@@ -46,6 +46,7 @@ use crate::rust_live_collector_authority_handoff::build_rust_live_collector_auth
 use crate::rust_circuit_builder_authority_handoff::build_rust_circuit_builder_authority_handoff_contract_payload;
 use crate::rust_sync_engine_authority_handoff::build_rust_sync_engine_authority_handoff_contract_payload;
 use crate::rust_apply_journal_rollback_authority_handoff::build_rust_apply_journal_rollback_authority_handoff_contract_payload;
+use crate::rust_backend_service_runtime_handoff::build_rust_backend_service_runtime_handoff_contract_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -105,6 +106,7 @@ pub const OP_BUILD_RUST_LIVE_COLLECTOR_AUTHORITY_HANDOFF_CONTRACT: &str = "build
 pub const OP_BUILD_RUST_CIRCUIT_BUILDER_AUTHORITY_HANDOFF_CONTRACT: &str = "build-rust-circuit-builder-authority-handoff-contract";
 pub const OP_BUILD_RUST_SYNC_ENGINE_AUTHORITY_HANDOFF_CONTRACT: &str = "build-rust-sync-engine-authority-handoff-contract";
 pub const OP_BUILD_RUST_APPLY_JOURNAL_ROLLBACK_AUTHORITY_HANDOFF_CONTRACT: &str = "build-rust-apply-journal-rollback-authority-handoff-contract";
+pub const OP_BUILD_RUST_BACKEND_SERVICE_RUNTIME_HANDOFF_CONTRACT: &str = "build-rust-backend-service-runtime-handoff-contract";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -178,6 +180,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_RUST_CIRCUIT_BUILDER_AUTHORITY_HANDOFF_CONTRACT,
         OP_BUILD_RUST_SYNC_ENGINE_AUTHORITY_HANDOFF_CONTRACT,
         OP_BUILD_RUST_APPLY_JOURNAL_ROLLBACK_AUTHORITY_HANDOFF_CONTRACT,
+        OP_BUILD_RUST_BACKEND_SERVICE_RUNTIME_HANDOFF_CONTRACT,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -1348,6 +1351,53 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !apply_journal_handoff_ok {
         errors.push(Diagnostic::error("self_test_rust_apply_journal_rollback_authority_handoff_failed", Some("build-rust-apply-journal-rollback-authority-handoff-contract".to_string()), "Self-test Rust apply/journal/rollback authority handoff contract should report ready without switching apply/journal/rollback authority."));
+    }
+
+    let mut service_runtime_handoff_payload = apply_journal_handoff_payload.clone();
+    if let Some(obj) = service_runtime_handoff_payload.as_object_mut() {
+        obj.insert("confirmation".to_string(), json!("CONFIRM_RUST_BACKEND_SERVICE_RUNTIME_HANDOFF_CONTRACT"));
+        obj.insert("rust_apply_journal_rollback_authority_handoff_contract".to_string(), json!(apply_journal_handoff.clone()));
+        obj.insert("api_route_parity_ready".to_string(), json!(true));
+        obj.insert("api_route_parity_score".to_string(), json!(100.0));
+        obj.insert("webui_ux_unchanged".to_string(), json!(true));
+        obj.insert("static_assets_compat_ready".to_string(), json!(true));
+        obj.insert("webui_static_asset_paths_unchanged".to_string(), json!(true));
+        obj.insert("static_asset_compat_error_count".to_string(), json!(0));
+        obj.insert("rust_service_supervision_shadow_ready".to_string(), json!(true));
+        obj.insert("rust_daemon_socket_shadow_ready".to_string(), json!(true));
+        obj.insert("rust_service_healthcheck_shadow_ready".to_string(), json!(true));
+        obj.insert("rust_service_supervision_error_count".to_string(), json!(0));
+        obj.insert("rust_api_shadow_ready".to_string(), json!(true));
+        obj.insert("rust_api_response_parity_ready".to_string(), json!(true));
+        obj.insert("rust_api_shadow_error_count".to_string(), json!(0));
+        if let Some(rc) = obj.get_mut("rust_core").and_then(Value::as_object_mut) {
+            rc.insert("rust_backend_service_runtime_handoff_contract_pilot".to_string(), json!(true));
+            rc.insert("allow_rust_backend_service_runtime_handoff_contract".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_mode".to_string(), json!("contract_only"));
+            rc.insert("rust_backend_service_runtime_handoff_require_apply_journal_rollback_authority".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_python_fallback".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_manual_confirmation".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_route_parity".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_static_assets".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_service_supervision".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_api_shadow".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_require_no_side_effects".to_string(), json!(true));
+            rc.insert("rust_backend_service_runtime_handoff_max_shadow_age_seconds".to_string(), json!(900));
+        }
+    }
+    let (service_runtime_handoff, service_runtime_handoff_errors, _service_runtime_handoff_warnings) = build_rust_backend_service_runtime_handoff_contract_payload(&service_runtime_handoff_payload);
+    let service_runtime_handoff_ok = service_runtime_handoff_errors.is_empty()
+        && service_runtime_handoff.get("status").and_then(Value::as_str) == Some("rust_backend_service_runtime_handoff_contract_ready")
+        && service_runtime_handoff.get("rust_backend_service_runtime_handoff_ready").and_then(Value::as_bool) == Some(true)
+        && service_runtime_handoff.get("rust_service_runtime_authoritative").and_then(Value::as_bool) == Some(false)
+        && service_runtime_handoff.get("python_service_runtime_authoritative").and_then(Value::as_bool) == Some(true);
+    checks.push(check("rust_backend_service_runtime_handoff_contract", service_runtime_handoff_ok, json!({
+        "status": service_runtime_handoff.get("status"),
+        "rust_backend_service_runtime_handoff_ready": service_runtime_handoff.get("rust_backend_service_runtime_handoff_ready"),
+        "rust_service_runtime_authoritative": service_runtime_handoff.get("rust_service_runtime_authoritative")
+    })));
+    if !service_runtime_handoff_ok {
+        errors.push(Diagnostic::error("self_test_rust_backend_service_runtime_handoff_failed", Some("build-rust-backend-service-runtime-handoff-contract".to_string()), "Self-test Rust backend service/runtime handoff contract should report ready without switching API/service runtime authority."));
     }
 
     let collector_bundle_payload = json!({

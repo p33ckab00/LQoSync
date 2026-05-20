@@ -66,3 +66,4 @@ pub mod rust_live_collector_authority_handoff;
 pub mod rust_circuit_builder_authority_handoff;
 pub mod rust_sync_engine_authority_handoff;
 pub mod rust_apply_journal_rollback_authority_handoff;
+pub mod rust_backend_service_runtime_handoff;

@@ -271,3 +271,5 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v5.7 Rust Sync Engine Authority Handoff Contract](RUST_CORE_V57_RUST_SYNC_ENGINE_AUTHORITY_HANDOFF.md)
 
 - [Rust Core v5.8 Rust Apply/Journal/Rollback Authority Handoff Contract](RUST_CORE_V58_RUST_APPLY_JOURNAL_ROLLBACK_AUTHORITY_HANDOFF.md)
+
+- [Rust Core v5.9 Rust Backend Service Runtime Handoff Contract](RUST_CORE_V59_RUST_BACKEND_SERVICE_RUNTIME_HANDOFF.md) — service/API runtime handoff bridge while WebUI/UX stays unchanged.

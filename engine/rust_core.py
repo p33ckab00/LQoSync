@@ -4773,6 +4773,112 @@ def rust_build_rust_apply_journal_rollback_authority_handoff_contract(config: di
         return _python_build_rust_apply_journal_rollback_authority_handoff_contract(req_payload, started=started)
     return response
 
+
+
+def _python_build_rust_backend_service_runtime_handoff_contract(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rc = dict(((payload.get("config") or {}).get("rust_core") or payload.get("rust_core") or {}) if isinstance(payload, dict) else {})
+    allow = bool(rc.get("allow_rust_backend_service_runtime_handoff_contract"))
+    pilot = bool(rc.get("rust_backend_service_runtime_handoff_contract_pilot"))
+    mode = str(rc.get("rust_backend_service_runtime_handoff_mode") or "contract_only")
+    require_apply = rc.get("rust_backend_service_runtime_handoff_require_apply_journal_rollback_authority", True) is not False
+    require_fallback = rc.get("rust_backend_service_runtime_handoff_require_python_fallback", True) is not False
+    require_confirmation = rc.get("rust_backend_service_runtime_handoff_require_manual_confirmation", True) is not False
+    require_route_parity = rc.get("rust_backend_service_runtime_handoff_require_route_parity", True) is not False
+    require_static_assets = rc.get("rust_backend_service_runtime_handoff_require_static_assets", True) is not False
+    require_service_supervision = rc.get("rust_backend_service_runtime_handoff_require_service_supervision", True) is not False
+    require_api_shadow = rc.get("rust_backend_service_runtime_handoff_require_api_shadow", True) is not False
+    require_no_side_effects = rc.get("rust_backend_service_runtime_handoff_require_no_side_effects", True) is not False
+    max_shadow_age = int(rc.get("rust_backend_service_runtime_handoff_max_shadow_age_seconds") or 900)
+    shadow_age = int(payload.get("shadow_age_seconds") or 0)
+    confirmation_ok = (not require_confirmation) or payload.get("confirmation") == "CONFIRM_RUST_BACKEND_SERVICE_RUNTIME_HANDOFF_CONTRACT"
+    apply_handoff = payload.get("rust_apply_journal_rollback_authority_handoff_contract") or payload.get("apply_journal_rollback_authority_handoff_contract") or {}
+    if isinstance(apply_handoff, dict) and isinstance(apply_handoff.get("result"), dict):
+        apply_handoff = apply_handoff.get("result") or {}
+    apply_ready = isinstance(apply_handoff, dict) and apply_handoff.get("status") == "rust_apply_journal_rollback_authority_handoff_contract_ready" and apply_handoff.get("rust_apply_journal_rollback_authority_handoff_ready") is True and apply_handoff.get("rust_apply_journal_rollback_authoritative") is False and apply_handoff.get("python_apply_journal_rollback_authoritative", True) is True
+    route_parity_score = float(payload.get("api_route_parity_score") or 0)
+    route_ready = bool(payload.get("api_route_parity_ready")) and bool(payload.get("webui_ux_unchanged")) and route_parity_score >= 100.0
+    static_ready = bool(payload.get("static_assets_compat_ready")) and bool(payload.get("webui_static_asset_paths_unchanged")) and int(payload.get("static_asset_compat_error_count") or 0) == 0
+    supervision_ready = bool(payload.get("rust_service_supervision_shadow_ready")) and bool(payload.get("rust_daemon_socket_shadow_ready")) and bool(payload.get("rust_service_healthcheck_shadow_ready")) and int(payload.get("rust_service_supervision_error_count") or 0) == 0
+    api_shadow_ready = bool(payload.get("rust_api_shadow_ready")) and bool(payload.get("rust_api_response_parity_ready")) and int(payload.get("rust_api_shadow_error_count") or 0) == 0
+    side_effect_free = not any([
+        payload.get("python_backend_removed"), payload.get("flask_routes_disabled"), payload.get("api_traffic_switched_to_rust"), payload.get("rust_backend_live_bound"), payload.get("service_runtime_switched_to_rust"), payload.get("apply_attempted"), payload.get("cleanup_attempted"), payload.get("shaped_devices_write_attempted"), payload.get("journal_append_attempted"), payload.get("rollback_execute_attempted"),
+    ])
+    gates_ready = bool(allow and pilot and mode == "contract_only")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bool(payload.get("execute")) or str(payload.get("mode") or "").lower() in {"execute", "commit", "switch", "remove-python", "replace-flask", "bind-live-api", "production", "authoritative"}:
+        errors.append({"code": "rust_backend_service_runtime_handoff_execute_not_implemented", "severity": "error", "path": "rust_backend_service_runtime_handoff_contract", "message": "Python fallback cannot execute backend service runtime handoff or remove Python."})
+    if require_apply and not apply_ready:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_apply_journal_not_ready", "severity": "warning", "path": "rust_apply_journal_rollback_authority_handoff_contract", "message": "Apply/journal/rollback authority handoff has not passed."})
+    if require_confirmation and not confirmation_ok:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Service runtime handoff confirmation is required."})
+    if not require_fallback:
+        errors.append({"code": "rust_backend_service_runtime_handoff_requires_python_fallback", "severity": "error", "path": "rust_core.rust_backend_service_runtime_handoff_require_python_fallback", "message": "v5.9 still requires Python backend fallback."})
+    if require_route_parity and not route_ready:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_route_parity_required", "severity": "warning", "path": "api_route_parity_ready", "message": "API route parity is required."})
+    if require_static_assets and not static_ready:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_static_assets_required", "severity": "warning", "path": "static_assets_compat_ready", "message": "Static asset compatibility is required."})
+    if require_service_supervision and not supervision_ready:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_service_supervision_required", "severity": "warning", "path": "rust_service_supervision_shadow_ready", "message": "Rust service supervision shadow verification is required."})
+    if require_api_shadow and not api_shadow_ready:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_api_shadow_required", "severity": "warning", "path": "rust_api_shadow_ready", "message": "Rust API shadow response parity is required."})
+    if require_no_side_effects and not side_effect_free:
+        errors.append({"code": "rust_backend_service_runtime_handoff_side_effect_detected", "severity": "error", "path": "rust_backend_service_runtime_handoff_contract", "message": "Service runtime handoff side effects are forbidden."})
+    if shadow_age > max_shadow_age:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_shadow_stale", "severity": "warning", "path": "shadow_age_seconds", "message": "Rust-shadow data is stale."})
+    if not gates_ready:
+        warnings.append({"code": "rust_backend_service_runtime_handoff_gates_not_enabled", "severity": "warning", "path": "rust_core", "message": "Service runtime handoff gates are not enabled."})
+
+    ready = not errors and gates_ready and confirmation_ok and (apply_ready or not require_apply) and require_fallback and (route_ready or not require_route_parity) and (static_ready or not require_static_assets) and (supervision_ready or not require_service_supervision) and (api_shadow_ready or not require_api_shadow) and side_effect_free and shadow_age <= max_shadow_age
+    review = not errors and apply_ready and route_ready and static_ready and supervision_ready and api_shadow_ready and side_effect_free
+    status = "blocked" if errors else ("rust_backend_service_runtime_handoff_contract_ready" if ready else ("rust_backend_service_runtime_handoff_contract_review" if review else "rust_backend_service_runtime_handoff_contract_shadow_only"))
+    return {
+        "version": "1",
+        "op": "build-rust-backend-service-runtime-handoff-contract",
+        "ok": not errors,
+        "result": {
+            "mode": "rust_backend_service_runtime_handoff_contract",
+            "status": status,
+            "rust_backend_service_runtime_handoff_ready": ready,
+            "apply_journal_rollback_authority_handoff_ready": apply_ready,
+            "api_route_parity_ready": route_ready,
+            "static_assets_compat_ready": static_ready,
+            "service_supervision_shadow_ready": supervision_ready,
+            "rust_api_shadow_ready": api_shadow_ready,
+            "webui_ux_unchanged": True,
+            "full_rust_backend": False,
+            "python_backend_removable": False,
+            "python_backend_removed": False,
+            "python_backend_required": True,
+            "python_backend_fallback_required": True,
+            "python_service_runtime_authoritative": True,
+            "rust_service_runtime_authoritative": False,
+            "python_api_routes_authoritative": True,
+            "rust_api_routes_authoritative": False,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "api_traffic_switch_allowed": False,
+            "flask_disable_allowed": False,
+            "next_stage": "full_rust_backend_production_readiness_gate",
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_rust_backend_service_runtime_handoff_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_rust_backend_service_runtime_handoff_contract(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-rust-backend-service-runtime-handoff-contract", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_rust_backend_service_runtime_handoff_contract(req_payload, started=started)
+    return response
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

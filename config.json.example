@@ -771,6 +771,18 @@
     "rust_apply_journal_rollback_authority_handoff_require_rollback_shadow": true,
     "rust_apply_journal_rollback_authority_handoff_require_audit_shadow": true,
     "rust_apply_journal_rollback_authority_handoff_require_no_side_effects": true,
-    "rust_apply_journal_rollback_authority_handoff_max_shadow_age_seconds": 900
+    "rust_apply_journal_rollback_authority_handoff_max_shadow_age_seconds": 900,
+    "rust_backend_service_runtime_handoff_contract_pilot": false,
+    "allow_rust_backend_service_runtime_handoff_contract": false,
+    "rust_backend_service_runtime_handoff_mode": "contract_only",
+    "rust_backend_service_runtime_handoff_require_apply_journal_rollback_authority": true,
+    "rust_backend_service_runtime_handoff_require_python_fallback": true,
+    "rust_backend_service_runtime_handoff_require_manual_confirmation": true,
+    "rust_backend_service_runtime_handoff_require_route_parity": true,
+    "rust_backend_service_runtime_handoff_require_static_assets": true,
+    "rust_backend_service_runtime_handoff_require_service_supervision": true,
+    "rust_backend_service_runtime_handoff_require_api_shadow": true,
+    "rust_backend_service_runtime_handoff_require_no_side_effects": true,
+    "rust_backend_service_runtime_handoff_max_shadow_age_seconds": 900
   }
 }

@@ -817,3 +817,13 @@ git commit -m "rust(core): add Rust apply journal rollback authority handoff con
   -m "Add build-rust-apply-journal-rollback-authority-handoff-contract, the apply/journal/rollback authority bridge after sync engine authority while keeping Python backend fallback and WebUI/UX unchanged."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v5.9 Rust backend service runtime handoff
+
+```bash
+git add .
+git commit -m "rust(core): add Rust backend service runtime handoff contract" \
+  -m "Add build-rust-backend-service-runtime-handoff-contract, the service/API runtime handoff bridge after apply/journal/rollback authority while keeping Python backend fallback and WebUI/UX unchanged."
+git push -u origin lqosync-in-rust
+```
