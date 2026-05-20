@@ -530,3 +530,8 @@ Adds `build-collector-authority-promotion-readiness`, a non-mutating readiness b
 ## Rust Core v4.6 Collector Authority Promotion Execution Rehearsal
 
 LQoSync `2.116.0-rc1` / `lqosync-core 4.6.0` adds `build-collector-authority-promotion-execution-rehearsal`, a non-mutating bridge after v4.5 promotion readiness. It requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback, while keeping production collector authority in Python and keeping cleanup/apply/file writes disabled.
+
+
+## Rust Core v4.7 Collector Authority Promotion Commit Plan
+
+LQoSync `2.117.0-rc1` / `lqosync-core 4.7.0` adds `build-collector-authority-promotion-commit-plan`, a non-mutating bridge after v4.6 promotion execution rehearsal. It requires explicit gates, `CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_COMMIT_PLAN`, fresh Rust-shadow data, and Python fallback. It does not promote Rust collectors, transfer cleanup/apply authority, write generated files, or claim full Rust backend production.

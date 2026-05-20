@@ -3548,6 +3548,105 @@ def rust_build_collector_authority_promotion_execution_rehearsal(config: dict, p
         return _python_build_collector_authority_promotion_execution_rehearsal(req_payload, started=started)
     return response
 
+
+def _python_build_collector_authority_promotion_commit_plan(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rust_core = _rust_core_config(payload)
+    allow = bool(rust_core.get("allow_collector_authority_promotion_commit_plan"))
+    pilot = bool(rust_core.get("collector_authority_promotion_commit_plan_pilot"))
+    mode = str(rust_core.get("collector_authority_promotion_commit_mode") or "plan_only")
+    require_rehearsal = rust_core.get("collector_authority_promotion_commit_require_execution_rehearsal", True) is not False
+    require_fallback = rust_core.get("collector_authority_promotion_commit_require_python_fallback", True) is not False
+    require_confirmation = rust_core.get("collector_authority_promotion_commit_require_manual_confirmation", True) is not False
+    require_no_side_effects = rust_core.get("collector_authority_promotion_commit_require_no_cleanup_apply", True) is not False
+    max_shadow_age = int(rust_core.get("collector_authority_promotion_commit_max_shadow_age_seconds") or 900)
+    shadow_age = int(payload.get("shadow_age_seconds") or 0)
+    confirmation_ok = (not require_confirmation) or payload.get("confirmation") == "CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_COMMIT_PLAN"
+
+    rehearsal = payload.get("collector_authority_promotion_execution_rehearsal") or payload.get("promotion_execution_rehearsal") or payload.get("collector_authority_promotion_execution_report") or {}
+    if isinstance(rehearsal, dict) and isinstance(rehearsal.get("result"), dict):
+        rehearsal = rehearsal.get("result") or {}
+    if not isinstance(rehearsal, dict) or not rehearsal:
+        nested = dict(payload)
+        nested["confirmation"] = payload.get("collector_authority_promotion_execution_confirmation") or "CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION_REHEARSAL"
+        rehearsal = rust_build_collector_authority_promotion_execution_rehearsal(payload.get("config") or {}, nested).get("result") or {}
+
+    rehearsal_ready = (
+        rehearsal.get("status") == "collector_authority_promotion_execution_rehearsal_ready"
+        and rehearsal.get("promotion_execution_rehearsal_ready") is True
+        and rehearsal.get("production_collector_authority_switched") is False
+        and rehearsal.get("python_collector_fallback_required", True) is True
+    )
+    side_effect_free = not any([
+        payload.get("cleanup_attempted"), payload.get("apply_attempted"), payload.get("write_attempted"), payload.get("production_collector_authority_switched"),
+        rehearsal.get("cleanup_attempted"), rehearsal.get("apply_attempted"), rehearsal.get("write_attempted"), rehearsal.get("production_collector_authority_switched"),
+    ])
+    gates_ready = bool(allow and pilot and mode == "plan_only")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bool(payload.get("execute")) or str(payload.get("mode") or "").lower() in {"execute", "commit", "switch", "promote", "authority", "apply", "production"}:
+        errors.append({"code": "collector_authority_promotion_commit_not_implemented", "severity": "error", "path": "collector_authority_promotion_commit_plan", "message": "Python fallback cannot commit collector authority promotion."})
+    if require_rehearsal and not rehearsal_ready:
+        warnings.append({"code": "collector_authority_promotion_commit_rehearsal_not_ready", "severity": "warning", "path": "collector_authority_promotion_execution_rehearsal", "message": "Promotion execution rehearsal has not passed."})
+    if require_confirmation and not confirmation_ok:
+        warnings.append({"code": "collector_authority_promotion_commit_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Promotion commit-plan confirmation is required."})
+    if not require_fallback:
+        errors.append({"code": "collector_authority_promotion_commit_requires_python_fallback", "severity": "error", "path": "rust_core.collector_authority_promotion_commit_require_python_fallback", "message": "Promotion commit planning requires Python collector fallback."})
+    if require_no_side_effects and not side_effect_free:
+        errors.append({"code": "collector_authority_promotion_commit_side_effect_detected", "severity": "error", "path": "collector_authority_promotion_commit_plan", "message": "Cleanup/apply/write/authority side effects are forbidden."})
+    if shadow_age > max_shadow_age:
+        warnings.append({"code": "collector_authority_promotion_commit_shadow_stale", "severity": "warning", "path": "shadow_age_seconds", "message": "Rust-shadow data is stale."})
+    if not gates_ready:
+        warnings.append({"code": "collector_authority_promotion_commit_gates_not_enabled", "severity": "warning", "path": "rust_core", "message": "Promotion commit plan gates are not fully enabled."})
+
+    ready = not errors and gates_ready and confirmation_ok and (rehearsal_ready or not require_rehearsal) and shadow_age <= max_shadow_age and side_effect_free and require_fallback
+    review = not errors and rehearsal_ready and side_effect_free
+    status = "blocked" if errors else ("collector_authority_promotion_commit_plan_ready" if ready else ("collector_authority_promotion_commit_plan_review" if review else "collector_authority_promotion_commit_plan_shadow_only"))
+    return {
+        "version": "1",
+        "op": "build-collector-authority-promotion-commit-plan",
+        "ok": not errors,
+        "result": {
+            "mode": "collector_authority_promotion_commit_plan",
+            "status": status,
+            "collector_authority": "python_authoritative",
+            "promotion_commit_plan_ready": ready,
+            "promotion_commit_plan_only": True,
+            "full_rust_backend": False,
+            "production_collector_authority_switched": False,
+            "collector_authority_promotion_supported": False,
+            "collector_authority_promotion_executed": False,
+            "promotion_execution_rehearsal_status": rehearsal.get("status"),
+            "promotion_execution_rehearsal_ready": rehearsal_ready,
+            "manual_confirmation_accepted": confirmation_ok,
+            "gates_ready": gates_ready,
+            "python_collector_fallback_required": True,
+            "rust_can_drive_cleanup": False,
+            "rust_can_drive_apply": False,
+            "rust_can_write_generated_files": False,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "shadow_age_seconds": shadow_age,
+            "max_shadow_age_seconds": max_shadow_age,
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_collector_authority_promotion_commit_plan_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_collector_authority_promotion_commit_plan(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-collector-authority-promotion-commit-plan", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_collector_authority_promotion_commit_plan(req_payload, started=started)
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

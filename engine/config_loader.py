@@ -172,6 +172,14 @@ DEFAULT_CONFIG = {
         "collector_authority_promotion_execution_require_manual_confirmation": True,
         "collector_authority_promotion_execution_require_no_cleanup_apply": True,
         "collector_authority_promotion_execution_max_shadow_age_seconds": 900,
+        "collector_authority_promotion_commit_plan_pilot": False,
+        "allow_collector_authority_promotion_commit_plan": False,
+        "collector_authority_promotion_commit_mode": "plan_only",
+        "collector_authority_promotion_commit_require_execution_rehearsal": True,
+        "collector_authority_promotion_commit_require_python_fallback": True,
+        "collector_authority_promotion_commit_require_manual_confirmation": True,
+        "collector_authority_promotion_commit_require_no_cleanup_apply": True,
+        "collector_authority_promotion_commit_max_shadow_age_seconds": 900,
     },
     "collector": {
         "selective_fields": True,
@@ -656,6 +664,14 @@ def validate_config(cfg: dict):
     rust_core.setdefault("collector_authority_promotion_execution_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_promotion_execution_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_promotion_execution_max_shadow_age_seconds", 900)
+    rust_core.setdefault("collector_authority_promotion_commit_plan_pilot", False)
+    rust_core.setdefault("allow_collector_authority_promotion_commit_plan", False)
+    rust_core.setdefault("collector_authority_promotion_commit_mode", "plan_only")
+    rust_core.setdefault("collector_authority_promotion_commit_require_execution_rehearsal", True)
+    rust_core.setdefault("collector_authority_promotion_commit_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_promotion_commit_require_manual_confirmation", True)
+    rust_core.setdefault("collector_authority_promotion_commit_require_no_cleanup_apply", True)
+    rust_core.setdefault("collector_authority_promotion_commit_max_shadow_age_seconds", 900)
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     if rust_core.get("routeros_read_pilot_adapter") not in ("fixture", "disabled"):

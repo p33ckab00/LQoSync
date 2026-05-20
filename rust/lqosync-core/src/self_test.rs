@@ -34,6 +34,7 @@ use crate::collector_authority_pilot_execution::build_collector_authority_pilot_
 use crate::collector_authority_pilot_result::evaluate_collector_authority_pilot_result_payload;
 use crate::collector_authority_promotion::build_collector_authority_promotion_readiness_payload;
 use crate::collector_authority_promotion_execution::build_collector_authority_promotion_execution_rehearsal_payload;
+use crate::collector_authority_promotion_commit::build_collector_authority_promotion_commit_plan_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -81,6 +82,7 @@ pub const OP_BUILD_COLLECTOR_AUTHORITY_PILOT_EXECUTION_CONTRACT: &str = "build-c
 pub const OP_EVALUATE_COLLECTOR_AUTHORITY_PILOT_RESULT: &str = "evaluate-collector-authority-pilot-result";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_READINESS: &str = "build-collector-authority-promotion-readiness";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION_REHEARSAL: &str = "build-collector-authority-promotion-execution-rehearsal";
+pub const OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_COMMIT_PLAN: &str = "build-collector-authority-promotion-commit-plan";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -142,6 +144,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_EVALUATE_COLLECTOR_AUTHORITY_PILOT_RESULT,
         OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_READINESS,
         OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION_REHEARSAL,
+        OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_COMMIT_PLAN,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -859,6 +862,35 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !promotion_execution_ok {
         errors.push(Diagnostic::error("self_test_collector_authority_promotion_execution_failed", Some("build-collector-authority-promotion-execution-rehearsal".to_string()), "Self-test collector authority promotion execution rehearsal should report ready only as a non-mutating rehearsal result."));
+    }
+
+    let mut promotion_commit_payload = promotion_execution_payload.clone();
+    if let Some(obj) = promotion_commit_payload.as_object_mut() {
+        obj.insert("confirmation".to_string(), json!("CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_COMMIT_PLAN"));
+        obj.insert("collector_authority_promotion_execution_rehearsal".to_string(), json!(promotion_execution.clone()));
+        if let Some(rc) = obj.get_mut("rust_core").and_then(Value::as_object_mut) {
+            rc.insert("collector_authority_promotion_commit_plan_pilot".to_string(), json!(true));
+            rc.insert("allow_collector_authority_promotion_commit_plan".to_string(), json!(true));
+            rc.insert("collector_authority_promotion_commit_mode".to_string(), json!("plan_only"));
+            rc.insert("collector_authority_promotion_commit_require_execution_rehearsal".to_string(), json!(true));
+            rc.insert("collector_authority_promotion_commit_require_python_fallback".to_string(), json!(true));
+            rc.insert("collector_authority_promotion_commit_require_manual_confirmation".to_string(), json!(true));
+            rc.insert("collector_authority_promotion_commit_require_no_cleanup_apply".to_string(), json!(true));
+            rc.insert("collector_authority_promotion_commit_max_shadow_age_seconds".to_string(), json!(900));
+        }
+    }
+    let (promotion_commit, promotion_commit_errors, _promotion_commit_warnings) = build_collector_authority_promotion_commit_plan_payload(&promotion_commit_payload);
+    let promotion_commit_ok = promotion_commit_errors.is_empty()
+        && promotion_commit.get("status").and_then(Value::as_str) == Some("collector_authority_promotion_commit_plan_ready")
+        && promotion_commit.get("production_collector_authority_switched").and_then(Value::as_bool) == Some(false)
+        && promotion_commit.get("rust_can_drive_cleanup").and_then(Value::as_bool) == Some(false);
+    checks.push(check("collector_authority_promotion_commit_plan", promotion_commit_ok, json!({
+        "status": promotion_commit.get("status"),
+        "collector_authority": promotion_commit.get("collector_authority"),
+        "promotion_commit_plan_ready": promotion_commit.get("promotion_commit_plan_ready")
+    })));
+    if !promotion_commit_ok {
+        errors.push(Diagnostic::error("self_test_collector_authority_promotion_commit_failed", Some("build-collector-authority-promotion-commit-plan".to_string()), "Self-test collector authority promotion commit plan should report ready only as a non-mutating planning result."));
     }
 
     let collector_bundle_payload = json!({

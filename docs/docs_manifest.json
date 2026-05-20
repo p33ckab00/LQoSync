@@ -739,5 +739,11 @@
     "path": "docs/RUST_CORE_V46_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION.md",
     "category": "rust-core",
     "summary": "Adds a non-mutating promotion execution rehearsal after v4.5 readiness, requiring explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback while keeping Python collectors authoritative."
+  },
+  "rust.core_v47_promotion_commit": {
+    "title": "Rust Core v4.7 Collector Authority Promotion Commit Plan",
+    "file": "docs/RUST_CORE_V47_COLLECTOR_AUTHORITY_PROMOTION_COMMIT.md",
+    "anchor": "rust-core-v47-collector-authority-promotion-commit-plan",
+    "summary": "Non-mutating commit-plan bridge after promotion execution rehearsal while keeping Python collectors authoritative."
   }
 }

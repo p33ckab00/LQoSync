@@ -41,6 +41,7 @@ use lqosync_core::collector_authority_pilot_execution::build_collector_authority
 use lqosync_core::collector_authority_pilot_result::evaluate_collector_authority_pilot_result_payload;
 use lqosync_core::collector_authority_promotion::build_collector_authority_promotion_readiness_payload;
 use lqosync_core::collector_authority_promotion_execution::build_collector_authority_promotion_execution_rehearsal_payload;
+use lqosync_core::collector_authority_promotion_commit::build_collector_authority_promotion_commit_plan_payload;
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::sync_plan::evaluate_sync_plan_payload;
@@ -335,6 +336,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-collector-authority-promotion-execution-rehearsal" => {
             let (result, errors, warnings) = build_collector_authority_promotion_execution_rehearsal_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-collector-authority-promotion-commit-plan" => {
+            let (result, errors, warnings) = build_collector_authority_promotion_commit_plan_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "build-collector-circuit-bundle" => {

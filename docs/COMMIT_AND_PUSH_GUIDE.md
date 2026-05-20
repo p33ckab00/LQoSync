@@ -707,3 +707,13 @@ git commit -m "rust(core): add collector authority promotion execution rehearsal
   -m "Add build-collector-authority-promotion-execution-rehearsal, a non-mutating rehearsal bridge after promotion readiness that requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback while keeping production collector authority in Python."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v4.7 commit suggestion
+
+```bash
+git add .
+git commit -m "rust(core): add collector authority promotion commit plan" \
+  -m "Add build-collector-authority-promotion-commit-plan, a non-mutating commit-plan bridge after promotion execution rehearsal that requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback while keeping production collector authority in Python."
+git push -u origin lqosync-in-rust
+```
