@@ -2041,3 +2041,8 @@ Adds `build-collector-authority-switch-rehearsal`, a non-mutating switch rehears
 ## Rust Core v4.3 Collector Authority Pilot Execution Contract
 
 Adds `build-collector-authority-pilot-execution-contract`, a non-mutating contract after the collector authority switch rehearsal. It requires explicit gates, the `CONFIRM_COLLECTOR_AUTHORITY_PILOT_EXECUTION` token, fresh Rust-shadow data, and Python fallback. It does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V43_COLLECTOR_AUTHORITY_PILOT_EXECUTION.md`.
+
+
+## Rust Core v4.3.1 Collector Authority Pilot Execution Recursion Hotfix
+
+Fixes the v4.3 compile-time `serde_json::json!` macro recursion error in `collector_authority_pilot_execution.rs` by constructing the large response object incrementally with `serde_json::Map`. Runtime safety behavior is unchanged: no live RouterOS reads, no collector authority switch, no cleanup/apply authority transfer, and Python fallback remains mandatory.

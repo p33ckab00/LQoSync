@@ -659,3 +659,13 @@ git commit -m "rust(core): add collector authority pilot execution contract" \
   -m "Add build-collector-authority-pilot-execution-contract, a non-mutating readiness bridge after switch rehearsal that requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback before any future Rust collector authority pilot execution."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v4.3.1 hotfix commit
+
+```bash
+git add .
+git commit -m "rust(core): fix pilot execution response recursion" \
+  -m "Fix the collector authority pilot execution contract compile error by replacing the large serde_json json macro response with incremental serde_json Map construction while preserving fail-safe behavior."
+git push -u origin lqosync-in-rust
+```

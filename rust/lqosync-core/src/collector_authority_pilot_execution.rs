@@ -146,50 +146,56 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
         "shadow_age_seconds": shadow_age,
     });
 
-    let result = json!({
-        "mode": "collector_authority_pilot_execution_contract",
-        "status": status,
-        "pilot_execution_contract_id": pilot_execution_id(&seed),
-        "collector_authority": "python_authoritative",
-        "target_authority": if ready { "rust_collector_authority_pilot_candidate" } else { "python_authoritative" },
-        "contract_requested": requested,
-        "allow_pilot_execution_contract": allow_contract,
-        "pilot_execution_pilot": pilot_enabled,
-        "pilot_execution_mode": execution_mode,
-        "require_switch_rehearsal": require_switch_rehearsal,
-        "require_python_fallback": require_python_fallback,
-        "require_manual_confirmation": require_manual_confirmation,
-        "manual_confirmation_ok": confirmation_ok,
-        "max_shadow_age_seconds": max_shadow_age,
-        "shadow_age_seconds": shadow_age,
-        "switch_status": switch_status,
-        "switch_ready": switch_ready,
-        "sources": sources,
-        "python_row_count": python_row_count,
-        "rust_row_count": rust_row_count,
-        "collector_authority_switch_rehearsal": switch_rehearsal,
-        "full_rust_backend": false,
-        "production_collector_authority_switched": false,
-        "collector_authority_switch_supported": false,
-        "collector_authority_switch_executed": false,
-        "collector_authority_pilot_execution_supported": false,
-        "collector_authority_pilot_execution_executed": false,
-        "python_collector_fallback_required": true,
-        "pilot_execution_contract_only": true,
-        "rust_pilot_may_be_observed": ready,
-        "rust_can_drive_cleanup": false,
-        "rust_can_drive_apply": false,
-        "rust_can_write_generated_files": false,
-        "safe_for_cleanup": false,
-        "write_allowed": false,
-        "apply_allowed": false,
-        "connection_attempt_count": 0,
-        "authentication_attempt_count": 0,
-        "api_sentence_write_count": 0,
-        "api_reply_read_count": 0,
-        "next_stage": "rust_collector_authority_pilot_observation_window",
-        "note": "v4.3 builds a non-mutating collector authority pilot execution contract after the switch rehearsal. It does not execute production authority transfer."
-    });
+    // Build the response object incrementally instead of using one very large
+    // serde_json::json! block. The large nested object previously exceeded
+    // Rust's macro recursion limit on some toolchains even though the runtime
+    // structure was valid.
+    let target_authority = if ready { "rust_collector_authority_pilot_candidate" } else { "python_authoritative" };
+    let mut result_map = serde_json::Map::new();
+    result_map.insert("mode".to_string(), json!("collector_authority_pilot_execution_contract"));
+    result_map.insert("status".to_string(), json!(status));
+    result_map.insert("pilot_execution_contract_id".to_string(), json!(pilot_execution_id(&seed)));
+    result_map.insert("collector_authority".to_string(), json!("python_authoritative"));
+    result_map.insert("target_authority".to_string(), json!(target_authority));
+    result_map.insert("contract_requested".to_string(), json!(requested));
+    result_map.insert("allow_pilot_execution_contract".to_string(), json!(allow_contract));
+    result_map.insert("pilot_execution_pilot".to_string(), json!(pilot_enabled));
+    result_map.insert("pilot_execution_mode".to_string(), json!(execution_mode));
+    result_map.insert("require_switch_rehearsal".to_string(), json!(require_switch_rehearsal));
+    result_map.insert("require_python_fallback".to_string(), json!(require_python_fallback));
+    result_map.insert("require_manual_confirmation".to_string(), json!(require_manual_confirmation));
+    result_map.insert("manual_confirmation_ok".to_string(), json!(confirmation_ok));
+    result_map.insert("max_shadow_age_seconds".to_string(), json!(max_shadow_age));
+    result_map.insert("shadow_age_seconds".to_string(), json!(shadow_age));
+    result_map.insert("switch_status".to_string(), json!(switch_status));
+    result_map.insert("switch_ready".to_string(), json!(switch_ready));
+    result_map.insert("sources".to_string(), sources);
+    result_map.insert("python_row_count".to_string(), json!(python_row_count));
+    result_map.insert("rust_row_count".to_string(), json!(rust_row_count));
+    result_map.insert("collector_authority_switch_rehearsal".to_string(), switch_rehearsal);
+    result_map.insert("full_rust_backend".to_string(), json!(false));
+    result_map.insert("production_collector_authority_switched".to_string(), json!(false));
+    result_map.insert("collector_authority_switch_supported".to_string(), json!(false));
+    result_map.insert("collector_authority_switch_executed".to_string(), json!(false));
+    result_map.insert("collector_authority_pilot_execution_supported".to_string(), json!(false));
+    result_map.insert("collector_authority_pilot_execution_executed".to_string(), json!(false));
+    result_map.insert("python_collector_fallback_required".to_string(), json!(true));
+    result_map.insert("pilot_execution_contract_only".to_string(), json!(true));
+    result_map.insert("rust_pilot_may_be_observed".to_string(), json!(ready));
+    result_map.insert("rust_can_drive_cleanup".to_string(), json!(false));
+    result_map.insert("rust_can_drive_apply".to_string(), json!(false));
+    result_map.insert("rust_can_write_generated_files".to_string(), json!(false));
+    result_map.insert("safe_for_cleanup".to_string(), json!(false));
+    result_map.insert("write_allowed".to_string(), json!(false));
+    result_map.insert("apply_allowed".to_string(), json!(false));
+    result_map.insert("connection_attempt_count".to_string(), json!(0));
+    result_map.insert("authentication_attempt_count".to_string(), json!(0));
+    result_map.insert("api_sentence_write_count".to_string(), json!(0));
+    result_map.insert("api_reply_read_count".to_string(), json!(0));
+    result_map.insert("next_stage".to_string(), json!("rust_collector_authority_pilot_observation_window"));
+    result_map.insert("note".to_string(), json!("v4.3.1 fixes the non-mutating collector authority pilot execution contract response construction. It does not execute production authority transfer."));
+
+    let result = Value::Object(result_map);
 
     (result, errors, warnings)
 }

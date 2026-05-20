@@ -421,7 +421,7 @@
     "title": "Custom Policy Mode Persistence Hotfix",
     "file": "docs/content/custom_policy_mode_persistence.md",
     "anchor": "custom-policy-mode-persistence-hotfix",
-    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center \u2192 Policies."
+    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center → Policies."
   },
   "policy_overview_custom_wiring_hotfix": {
     "title": "Policy Overview Custom Wiring Hotfix",
@@ -700,5 +700,11 @@
     "path": "docs/RUST_CORE_V43_COLLECTOR_AUTHORITY_PILOT_EXECUTION.md",
     "category": "Rust Core",
     "summary": "Adds a non-mutating collector authority pilot execution contract after the v4.2 switch rehearsal while keeping Python collectors authoritative."
+  },
+  "rust.core_v431_pilot_execution_recursion_hotfix": {
+    "title": "Rust Core v4.3.1 Collector Authority Pilot Execution Recursion Hotfix",
+    "file": "docs/RUST_CORE_V431_PILOT_EXECUTION_RECURSION_HOTFIX.md",
+    "anchor": "rust-core-v431-collector-authority-pilot-execution-recursion-hotfix",
+    "summary": "Fixes the serde_json json! macro recursion compile error by building the pilot execution response incrementally while preserving fail-safe behavior."
   }
 }

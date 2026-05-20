@@ -303,3 +303,8 @@ Adds `build-collector-authority-switch-rehearsal`, a non-mutating rehearsal laye
 ## Rust Core v4.3 Collector Authority Pilot Execution Contract
 
 Adds `build-collector-authority-pilot-execution-contract`, a non-mutating contract after the collector authority switch rehearsal. It requires explicit gates, the `CONFIRM_COLLECTOR_AUTHORITY_PILOT_EXECUTION` token, fresh Rust-shadow data, and Python fallback. It does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V43_COLLECTOR_AUTHORITY_PILOT_EXECUTION.md`.
+
+
+### v4.3.1
+
+Fixes a compile-time recursion limit issue in the collector authority pilot execution contract response construction.
