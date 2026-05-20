@@ -893,6 +893,18 @@
     "full_rust_backend_post_retirement_require_server_tests": true,
     "full_rust_backend_post_retirement_require_manual_confirmation": true,
     "full_rust_backend_post_retirement_require_operator_ack": true,
-    "full_rust_backend_post_retirement_max_shadow_age_seconds": 900
+    "full_rust_backend_post_retirement_max_shadow_age_seconds": 900,
+    "full_rust_backend_steady_state_guard_pilot": false,
+    "allow_full_rust_backend_steady_state_guard": false,
+    "full_rust_backend_steady_state_guard_mode": "guard_only",
+    "full_rust_backend_steady_state_require_post_retirement_verifier": true,
+    "full_rust_backend_steady_state_require_runtime_health": true,
+    "full_rust_backend_steady_state_require_no_python_drift": true,
+    "full_rust_backend_steady_state_require_webui_unchanged": true,
+    "full_rust_backend_steady_state_require_rollback_package": true,
+    "full_rust_backend_steady_state_require_server_tests": true,
+    "full_rust_backend_steady_state_require_manual_confirmation": true,
+    "full_rust_backend_steady_state_require_operator_ack": true,
+    "full_rust_backend_steady_state_max_shadow_age_seconds": 900
   }
 }

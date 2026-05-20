@@ -77,3 +77,4 @@ pub mod rust_full_backend_removal_rehearsal;
 pub mod rust_full_backend_production_cutover;
 pub mod rust_full_backend_production_verifier;
 pub mod rust_full_backend_post_retirement_verifier;
+pub mod rust_full_backend_steady_state_guard;

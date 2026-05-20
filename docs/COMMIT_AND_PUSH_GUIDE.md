@@ -927,3 +927,13 @@ git commit -m "rust(core): add full Rust backend post-retirement verifier" \
   -m "Add build-full-rust-backend-post-retirement-verifier, the final verification gate after guarded Python backend retirement while preserving WebUI/UX and rollback safety."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v7.3 steady-state guard
+
+```bash
+git add .
+git commit -m "rust(core): add full Rust backend steady-state guard" \
+  -m "Add build-full-rust-backend-steady-state-guard, the post-retirement production guard that verifies Rust runtime authority, no Python drift, WebUI/UX preservation, rollback readiness, and server healthchecks."
+git push -u origin lqosync-in-rust
+```

@@ -2186,3 +2186,8 @@ Adds `build-full-rust-backend-production-verifier`, the post-cutover verifier th
 ## Rust Core v7.2 Full Rust Backend Post-Retirement Verifier
 
 Adds `build-full-rust-backend-post-retirement-verifier`, the post-retirement verifier after guarded Python backend retirement. It can report `full_rust_backend=true` and `python_backend_removed=true` only when Rust runtime authority, API traffic switch, WebUI/UX preservation, rollback package, server tests, and Python retirement state all pass.
+
+
+## Rust Core v7.3 Full Rust Backend Steady-State Guard
+
+Adds `build-full-rust-backend-steady-state-guard`, the post-retirement steady-state verifier for full Rust backend production. It verifies Rust runtime authority, API traffic on Rust, no Python/Flask drift, WebUI/UX/static assets unchanged, rollback readiness, and server healthchecks.
