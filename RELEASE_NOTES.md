@@ -1974,3 +1974,10 @@ Adds `run-routeros-auth-handshake`, an offline fixture operation that models Rou
 ## Rust Core v3.2 RouterOS Auth Session Contract
 
 Adds `build-routeros-auth-session-contract`, a redacted authenticated-session contract built from fixture auth replies. It performs zero socket/auth attempts, emits no credentials or tokens, and keeps Python collectors authoritative.
+
+## 2.105.0-rc1 — Rust Core v3.5 Collector Authority Pilot Gate
+
+- Added `evaluate-rust-collector-authority-pilot` to the Rust core.
+- Added a read-only Web/API bridge for source-level Rust collector authority eligibility.
+- Python collectors remain authoritative; Rust does not perform live reads or switch collector authority in this release.
+- Added documentation for the collector authority pilot gate and required flags.

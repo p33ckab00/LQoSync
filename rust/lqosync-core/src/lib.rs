@@ -42,3 +42,4 @@ pub mod routeros_auth_handshake;
 pub mod routeros_auth_session;
 pub mod routeros_authenticated_read;
 pub mod routeros_live_read_adapter;
+pub mod collector_authority_pilot;

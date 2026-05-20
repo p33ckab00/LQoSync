@@ -2556,6 +2556,79 @@ def rust_run_routeros_live_read_adapter_pilot(config: dict, payload: dict[str, A
     return response
 
 
+
+def _python_evaluate_collector_authority_pilot(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for v3.5 Rust collector authority pilot gate.
+
+    This fallback is non-authoritative. It never performs live reads or switches
+    collector authority away from Python.
+    """
+    started = started or time.perf_counter()
+    rc = {}
+    if isinstance(payload.get("rust_core"), dict):
+        rc.update(payload.get("rust_core") or {})
+    cfg = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+    if isinstance((cfg.get("rust_core") if isinstance(cfg, dict) else None), dict):
+        merged = dict(cfg.get("rust_core") or {})
+        merged.update(rc)
+        rc = merged
+    path = str(payload.get("path") or "/ppp/active")
+    source = str(payload.get("source") or ("pppoe" if path.startswith("/ppp/") else "dhcp" if path.startswith("/ip/dhcp-server") else "hotspot" if path.startswith("/ip/hotspot") else "unknown"))
+    parity = payload.get("collector_parity") if isinstance(payload.get("collector_parity"), dict) else {}
+    parity_result = parity.get("result") if isinstance(parity.get("result"), dict) else parity
+    try:
+        parity_score = float(parity_result.get("parity_score", 0))
+    except Exception:
+        parity_score = 0.0
+    parity_verdict = str(parity_result.get("verdict") or "not_available")
+    sources = rc.get("rust_collector_authority_sources") if isinstance(rc.get("rust_collector_authority_sources"), list) else []
+    gates_ready = bool(rc.get("allow_rust_collector_authority")) and bool(rc.get("rust_collector_authority_pilot")) and bool(rc.get("allow_rust_routeros_live_read_adapter")) and bool(rc.get("routeros_live_read_adapter_pilot")) and (source in sources or "all" in sources) and (parity_score >= 99.99 or parity_verdict == "parity_pass") and rc.get("collector_authority_mode") == "rust_collector_authority_pilot"
+    errors = []
+    if payload.get("execute"):
+        errors.append({"code": "rust_collector_authority_switch_not_implemented", "severity": "error", "path": "collector_authority", "message": "Python fallback cannot switch collector authority; Python collectors remain authoritative."})
+    status = "blocked" if errors else ("collector_authority_pilot_gate_ready" if gates_ready else "collector_authority_shadow_only")
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "evaluate-rust-collector-authority-pilot",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "rust_collector_authority_pilot_gate",
+            "status": status,
+            "source": source,
+            "path": path,
+            "collector_authority": "python_authoritative",
+            "future_collector_authority": "rust_pilot_eligible" if gates_ready else "not_eligible",
+            "gates_ready": gates_ready,
+            "full_rust_backend": False,
+            "rust_collector_authority_switch_supported": False,
+            "python_collector_fallback_required": True,
+            "connection_attempt_count": 0,
+            "authentication_attempt_count": 0,
+            "api_sentence_write_count": 0,
+            "api_reply_read_count": 0,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "next_stage": "rust_collector_live_read_pilot",
+        },
+        "errors": errors,
+        "warnings": [],
+        "meta": {"engine": "python-wrapper", "mode": "python_collector_authority_pilot_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_evaluate_collector_authority_pilot(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("evaluate-rust-collector-authority-pilot", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_evaluate_collector_authority_pilot(req_payload, started=started)
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

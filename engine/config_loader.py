@@ -107,6 +107,11 @@ DEFAULT_CONFIG = {
         "routeros_live_read_adapter_pilot": False,
         "allow_rust_routeros_live_read_adapter": False,
         "routeros_live_read_adapter_authority": "contract_only",
+        "rust_collector_authority_pilot": False,
+        "allow_rust_collector_authority": False,
+        "rust_collector_authority_sources": [],
+        "collector_authority_mode": "python_authoritative",
+        "collector_authority_require_parity_score": 99.99,
     },
     "collector": {
         "selective_fields": True,

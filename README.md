@@ -461,3 +461,7 @@ Adds `build-routeros-auth-session-contract`, a redacted authenticated-session co
 ## v3.4 Live Read Adapter Contract
 
 This package adds Rust Core `v3.4.0` / LQoSync `2.104.0-rc1` with `run-routeros-live-read-adapter-pilot`. It is still not a full Rust backend: the operation builds a guarded live-read adapter contract only and does not open RouterOS sockets, authenticate, send API words, read replies, or replace Python collectors.
+
+### Rust Core v3.5 Collector Authority Pilot Gate
+
+The `lqosync-in-rust` branch now includes `evaluate-rust-collector-authority-pilot`, a read-only gate for future Rust collector authority. It composes live-read adapter readiness, collector parity, and explicit source allow-lists. Python collectors remain authoritative.

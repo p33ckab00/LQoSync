@@ -579,3 +579,12 @@ git push -u origin lqosync-in-rust
 ## v3.4 Live Read Adapter Contract
 
 This package adds Rust Core `v3.4.0` / LQoSync `2.104.0-rc1` with `run-routeros-live-read-adapter-pilot`. It is still not a full Rust backend: the operation builds a guarded live-read adapter contract only and does not open RouterOS sockets, authenticate, send API words, read replies, or replace Python collectors.
+
+## Commit for Rust Core v3.5 Collector Authority Pilot
+
+```bash
+git add .
+git commit -m "rust(core): add collector authority pilot gate" \
+  -m "Add evaluate-rust-collector-authority-pilot, a non-mutating source-level authority eligibility gate that keeps Python collectors authoritative while preparing future Rust collector live-read pilot migration."
+git push -u origin lqosync-in-rust
+```

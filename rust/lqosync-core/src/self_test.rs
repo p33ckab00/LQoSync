@@ -22,6 +22,7 @@ use crate::routeros_auth_handshake::run_routeros_auth_handshake_payload;
 use crate::routeros_auth_session::build_routeros_auth_session_contract_payload;
 use crate::routeros_authenticated_read::run_routeros_authenticated_read_fixture_payload;
 use crate::routeros_live_read_adapter::run_routeros_live_read_adapter_pilot_payload;
+use crate::collector_authority_pilot::evaluate_rust_collector_authority_pilot_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -57,6 +58,7 @@ pub const OP_RUN_ROUTEROS_AUTH_HANDSHAKE: &str = "run-routeros-auth-handshake";
 pub const OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT: &str = "build-routeros-auth-session-contract";
 pub const OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE: &str = "run-routeros-authenticated-read-fixture";
 pub const OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT: &str = "run-routeros-live-read-adapter-pilot";
+pub const OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT: &str = "evaluate-rust-collector-authority-pilot";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -106,6 +108,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT,
         OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE,
         OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT,
+        OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -472,6 +475,34 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     })));
     if !live_read_adapter_ok {
         errors.push(Diagnostic::error("self_test_routeros_live_read_adapter_failed", Some("run-routeros-live-read-adapter-pilot".to_string()), "Self-test live read adapter contract should be ready without opening sockets or sending API words."));
+    }
+
+    let collector_authority_payload = json!({
+        "router": {"name":"selftest", "address":"127.0.0.1", "username":"admin", "password":"selftest_secret"},
+        "source": "pppoe",
+        "path": "/ppp/active",
+        "collector_parity": {"parity_score": 100.0, "verdict":"parity_pass"},
+        "rust_core": {
+            "allow_rust_collector_authority": true,
+            "rust_collector_authority_pilot": true,
+            "allow_rust_routeros_live_read_adapter": true,
+            "routeros_live_read_adapter_pilot": true,
+            "rust_collector_authority_sources": ["pppoe"],
+            "collector_authority_mode": "rust_collector_authority_pilot"
+        }
+    });
+    let (collector_authority, collector_authority_errors, _collector_authority_warnings) = evaluate_rust_collector_authority_pilot_payload(&collector_authority_payload);
+    let collector_authority_ok = collector_authority_errors.is_empty()
+        && collector_authority.get("status").and_then(Value::as_str) == Some("collector_authority_pilot_gate_ready")
+        && collector_authority.get("gates_ready").and_then(Value::as_bool).unwrap_or(false)
+        && collector_authority.get("full_rust_backend").and_then(Value::as_bool).unwrap_or(true) == false;
+    checks.push(check("rust_collector_authority_pilot_gate", collector_authority_ok, json!({
+        "status": collector_authority.get("status"),
+        "gates_ready": collector_authority.get("gates_ready"),
+        "collector_authority": collector_authority.get("collector_authority")
+    })));
+    if !collector_authority_ok {
+        errors.push(Diagnostic::error("self_test_collector_authority_pilot_failed", Some("evaluate-rust-collector-authority-pilot".to_string()), "Self-test Rust collector authority pilot gate should become eligible only as a non-authoritative gate."));
     }
 
     let collector_bundle_payload = json!({

@@ -632,5 +632,11 @@
         "file": "docs/RUST_CORE_V34_LIVE_READ_ADAPTER.md",
         "anchor": "rust-core-v34-live-read-adapter-contract",
         "summary": "Guarded live RouterOS read adapter contract that composes TCP/auth/API sentence readiness without opening sockets or replacing Python collectors."
+    },
+    "rust.v35_collector_authority_pilot": {
+        "title": "Rust Core v3.5 Collector Authority Pilot Gate",
+        "file": "docs/RUST_CORE_V35_COLLECTOR_AUTHORITY_PILOT.md",
+        "anchor": "rust-core-v35-collector-authority-pilot-gate",
+        "summary": "Non-mutating Rust collector authority pilot gate that composes live-read adapter readiness, source allow-lists, and collector parity before any Python collector authority migration."
     }
 }
