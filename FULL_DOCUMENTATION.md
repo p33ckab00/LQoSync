@@ -7719,3 +7719,8 @@ This package adds Rust Core `v3.4.0` / LQoSync `2.104.0-rc1` with `run-routeros-
 ## Rust Core v3.5 Collector Authority Pilot Gate
 
 See `docs/RUST_CORE_V35_COLLECTOR_AUTHORITY_PILOT.md` for the non-mutating collector authority pilot gate. This phase does not make LQoSync a full Rust backend; it prepares source-level authority migration while Python collectors remain authoritative.
+
+## Rust Core v3.6 Collector Authority Decision Manifest
+
+`build-collector-authority-manifest` composes source-level collector authority pilot gates into a manifest showing which sources remain Python-authoritative and which are eligible for a future Rust collector pilot. It is non-mutating and does not perform live reads.
+

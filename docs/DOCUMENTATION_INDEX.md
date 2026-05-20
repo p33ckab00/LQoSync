@@ -209,3 +209,5 @@ Adds `build-routeros-auth-session-contract`, a redacted authenticated-session co
 - [Rust Core v3.4 Live Read Adapter Contract](RUST_CORE_V34_LIVE_READ_ADAPTER.md) - Guarded live-read adapter contract before live Rust RouterOS reads.
 
 - [Rust Core v3.5 Collector Authority Pilot Gate](RUST_CORE_V35_COLLECTOR_AUTHORITY_PILOT.md) — source-level Rust collector authority eligibility gate before any Python collector migration.
+
+- [Rust Core v3.6 Collector Authority Decision Manifest](RUST_CORE_V36_COLLECTOR_AUTHORITY_MANIFEST.md)

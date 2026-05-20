@@ -265,3 +265,7 @@ This package adds Rust Core `v3.4.0` / LQoSync `2.104.0-rc1` with `run-routeros-
 New operation: `evaluate-rust-collector-authority-pilot`.
 
 This operation evaluates whether a collector source is eligible for a future Rust collector authority pilot. It does not perform live reads, does not switch authority, and keeps Python collectors authoritative.
+
+## v3.6
+
+Adds `build-collector-authority-manifest` for non-mutating collector authority decision manifests.

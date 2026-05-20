@@ -308,3 +308,8 @@ This package adds Rust Core `v3.4.0` / LQoSync `2.104.0-rc1` with `run-routeros-
 ## Rust Core v3.5 package note
 
 This package adds a non-mutating collector authority pilot gate. It reports whether a source could be eligible for a future Rust collector authority pilot, but keeps Python collectors authoritative by default and by design.
+
+## 2.106.0-rc1
+
+Rust Core v3.6 adds a collector authority decision manifest. This is a planning/visibility layer only; it does not switch authority or perform live RouterOS reads.
+

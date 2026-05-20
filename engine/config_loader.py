@@ -112,6 +112,8 @@ DEFAULT_CONFIG = {
         "rust_collector_authority_sources": [],
         "collector_authority_mode": "python_authoritative",
         "collector_authority_require_parity_score": 99.99,
+        "collector_authority_manifest_pilot": False,
+        "allow_collector_authority_manifest": False,
     },
     "collector": {
         "selective_fields": True,

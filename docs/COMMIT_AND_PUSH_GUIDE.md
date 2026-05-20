@@ -588,3 +588,13 @@ git commit -m "rust(core): add collector authority pilot gate" \
   -m "Add evaluate-rust-collector-authority-pilot, a non-mutating source-level authority eligibility gate that keeps Python collectors authoritative while preparing future Rust collector live-read pilot migration."
 git push -u origin lqosync-in-rust
 ```
+
+## v3.6 Collector authority manifest commit
+
+```bash
+git add .
+git commit -m "rust(core): add collector authority decision manifest" \
+  -m "Add build-collector-authority-manifest, a non-mutating per-source manifest for future Rust collector authority migration while keeping Python collectors authoritative."
+git push -u origin lqosync-in-rust
+```
+

@@ -1994,3 +1994,10 @@ Adds `build-routeros-auth-session-contract`, a redacted authenticated-session co
 - Added a read-only Web/API bridge for source-level Rust collector authority eligibility.
 - Python collectors remain authoritative; Rust does not perform live reads or switch collector authority in this release.
 - Added documentation for the collector authority pilot gate and required flags.
+
+## 2.106.0-rc1 — Rust Core v3.6 Collector Authority Decision Manifest
+
+- Added `build-collector-authority-manifest`.
+- Builds a non-mutating per-source authority decision manifest from Rust collector authority pilot gates.
+- Keeps Python collectors authoritative and blocks execution/switch attempts.
+

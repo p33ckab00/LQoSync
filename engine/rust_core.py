@@ -2629,6 +2629,89 @@ def rust_evaluate_collector_authority_pilot(config: dict, payload: dict[str, Any
     return response
 
 
+
+
+def _python_build_collector_authority_manifest(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for v3.6 collector authority decision manifest.
+
+    This fallback is non-mutating and keeps Python collectors authoritative.
+    """
+    started = started or time.perf_counter()
+    sources = payload.get("sources") if isinstance(payload.get("sources"), list) else [payload.get("source") or "pppoe"]
+    decisions = []
+    ready_count = 0
+    shadow_count = 0
+    for source in [str(s.get("source") if isinstance(s, dict) else s or "pppoe") for s in sources]:
+        gate = _python_evaluate_collector_authority_pilot({**(payload or {}), "source": source, "execute": False}, started=started)
+        gate_result = gate.get("result") or {}
+        gates_ready = bool(gate_result.get("gates_ready"))
+        if gates_ready:
+            ready_count += 1
+            decision = "rust_pilot_ready"
+        else:
+            shadow_count += 1
+            decision = "python_authoritative_shadow"
+        decisions.append({
+            "source": source,
+            "path": (payload.get("paths") or {}).get(source) if isinstance(payload.get("paths"), dict) else (payload.get("path") or ("/ppp/active" if source == "pppoe" else "/ip/dhcp-server/lease" if source == "dhcp" else "/ip/hotspot/active")),
+            "decision": decision,
+            "current_authority": "python",
+            "proposed_authority": "rust_collector_pilot" if gates_ready else "python",
+            "gates_ready": gates_ready,
+            "fallback": "python_collector",
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+        })
+    errors = []
+    if payload.get("execute"):
+        errors.append({"code": "collector_authority_manifest_execute_not_implemented", "severity": "error", "path": "collector_authority_manifest", "message": "Python fallback cannot execute collector authority manifest switches."})
+    status = "blocked" if errors else ("collector_authority_manifest_ready" if ready_count and not shadow_count else "collector_authority_manifest_partial" if ready_count else "collector_authority_manifest_shadow_only")
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-collector-authority-manifest",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "collector_authority_decision_manifest",
+            "status": status,
+            "manifest_id": f"cam-python-{ready_count}-{shadow_count}-{len(decisions)}",
+            "collector_authority": "python_authoritative",
+            "future_collector_authority": "rust_pilot_candidates" if ready_count else "not_eligible",
+            "source_count": len(decisions),
+            "ready_count": ready_count,
+            "shadow_count": shadow_count,
+            "blocked_count": 0,
+            "decisions": decisions,
+            "full_rust_backend": False,
+            "collector_authority_switch_supported": False,
+            "python_collector_fallback_required": True,
+            "connection_attempt_count": 0,
+            "authentication_attempt_count": 0,
+            "api_sentence_write_count": 0,
+            "api_reply_read_count": 0,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "next_stage": "rust_collector_authority_dry_run_shadow_integration",
+        },
+        "errors": errors,
+        "warnings": [],
+        "meta": {"engine": "python-wrapper", "mode": "python_collector_authority_manifest_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_collector_authority_manifest(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-collector-authority-manifest", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_collector_authority_manifest(req_payload, started=started)
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

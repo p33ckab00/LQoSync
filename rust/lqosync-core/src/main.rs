@@ -30,6 +30,7 @@ use lqosync_core::routeros_auth_session::build_routeros_auth_session_contract_pa
 use lqosync_core::routeros_authenticated_read::run_routeros_authenticated_read_fixture_payload;
 use lqosync_core::routeros_live_read_adapter::run_routeros_live_read_adapter_pilot_payload;
 use lqosync_core::collector_authority_pilot::evaluate_rust_collector_authority_pilot_payload;
+use lqosync_core::collector_authority_manifest::build_collector_authority_manifest_payload;
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::sync_plan::evaluate_sync_plan_payload;
@@ -280,6 +281,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "evaluate-rust-collector-authority-pilot" => {
             let (result, errors, warnings) = evaluate_rust_collector_authority_pilot_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-collector-authority-manifest" => {
+            let (result, errors, warnings) = build_collector_authority_manifest_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "build-collector-circuit-bundle" => {
