@@ -254,3 +254,5 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v4.8.1 Cutover Ledger Hotfix](RUST_CORE_V481_CUTOVER_LEDGER_HOTFIX.md) — Fixes the v4.8 cutover ledger readiness unit fixture while preserving non-mutating Python-authoritative behavior.
 
 - [Rust Core v4.9 Collector Authority Production Freeze Gate](RUST_CORE_V49_COLLECTOR_AUTHORITY_PRODUCTION_FREEZE.md)
+
+- [Rust Core v5.0 Collector Authority Production Switch Contract](RUST_CORE_V50_COLLECTOR_AUTHORITY_PRODUCTION_SWITCH.md) — first non-mutating production switch contract after the freeze gate; Python removal is still blocked.

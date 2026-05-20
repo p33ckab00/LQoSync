@@ -671,6 +671,17 @@
     "collector_authority_production_freeze_require_rollback_path": true,
     "collector_authority_production_freeze_require_maintenance_window": true,
     "collector_authority_production_freeze_require_operator_ack": true,
-    "collector_authority_production_freeze_max_shadow_age_seconds": 900
+    "collector_authority_production_freeze_max_shadow_age_seconds": 900,
+    "collector_authority_production_switch_contract_pilot": false,
+    "allow_collector_authority_production_switch_contract": false,
+    "collector_authority_production_switch_mode": "contract_only",
+    "collector_authority_production_switch_require_freeze_gate": true,
+    "collector_authority_production_switch_require_python_fallback": true,
+    "collector_authority_production_switch_require_manual_confirmation": true,
+    "collector_authority_production_switch_require_no_cleanup_apply": true,
+    "collector_authority_production_switch_require_rollback_path": true,
+    "collector_authority_production_switch_require_maintenance_window": true,
+    "collector_authority_production_switch_require_operator_ack": true,
+    "collector_authority_production_switch_max_shadow_age_seconds": 900
   }
 }

@@ -341,3 +341,8 @@ Adds `build-collector-authority-promotion-cutover-ledger`, a non-mutating cutove
 ## Rust Core v4.9 Collector Authority Production Freeze Gate
 
 Adds `build-collector-authority-production-freeze-gate`, the final non-mutating pre-production freeze gate before a future v5 Rust collector-authority production switch contract. It requires cutover-ledger readiness, manual confirmation, a maintenance window, operator acknowledgment, rollback path, fresh Rust-shadow data, and Python fallback. It does not remove Python, switch production collector authority, drive cleanup/apply, or write generated LibreQoS files.
+
+
+## Rust Core v5.0 Collector Authority Production Switch Contract
+
+LQoSync `2.120.0-rc1` / `lqosync-core 5.0.0` adds `build-collector-authority-production-switch-contract`, the first production collector-authority switch contract after the v4.9 freeze gate. It is still non-mutating: it does not switch authority, remove Python, transfer cleanup/apply authority, write generated files, or apply LibreQoS. Python collector fallback remains mandatory.

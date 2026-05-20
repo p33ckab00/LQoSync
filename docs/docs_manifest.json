@@ -763,5 +763,11 @@
     "file": "docs/RUST_CORE_V49_COLLECTOR_AUTHORITY_PRODUCTION_FREEZE.md",
     "anchor": "rust-core-v49-collector-authority-production-freeze-gate",
     "summary": "Final non-mutating pre-production freeze gate before a future v5 Rust collector-authority production switch contract."
+  },
+  "rust.core_v50_production_switch_contract": {
+    "title": "Rust Core v5.0 Collector Authority Production Switch Contract",
+    "file": "docs/RUST_CORE_V50_COLLECTOR_AUTHORITY_PRODUCTION_SWITCH.md",
+    "anchor": "rust-core-v50-collector-authority-production-switch-contract",
+    "summary": "Adds the first non-mutating production collector-authority switch contract after the v4.9 freeze gate while keeping Python backend and fallback required."
   }
 }

@@ -57,3 +57,4 @@ pub mod collector_authority_promotion_execution;
 pub mod collector_authority_promotion_commit;
 pub mod collector_authority_promotion_cutover;
 pub mod collector_authority_production_freeze;
+pub mod collector_authority_production_switch;

@@ -727,3 +727,13 @@ git commit -m "rust(core): add collector authority production freeze gate" \
   -m "Add build-collector-authority-production-freeze-gate, the final non-mutating pre-production freeze gate before a future Rust collector authority switch contract, requiring cutover readiness, manual confirmation, maintenance window, operator acknowledgment, rollback path, and Python fallback."
 git push -u origin lqosync-in-rust
 ```
+
+
+## v5.0 collector authority production switch contract
+
+```bash
+git add .
+git commit -m "rust(core): add collector authority production switch contract" \
+  -m "Add build-collector-authority-production-switch-contract, the first non-mutating production switch contract after the freeze gate while keeping Python backend and fallback required."
+git push -u origin lqosync-in-rust
+```
