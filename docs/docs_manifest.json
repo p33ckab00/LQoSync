@@ -775,5 +775,11 @@
     "file": "docs/RUST_CORE_V51_RUST_BACKEND_API_HANDOFF.md",
     "anchor": "rust-core-v51-rust-backend-api-handoff-plan",
     "summary": "Starts the full Rust backend track with a non-mutating API handoff plan while preserving existing WebUI/UX and keeping Python backend fallback required."
+  },
+  "rust.core_v52_scheduler_handoff": {
+    "title": "Rust Core v5.2 Rust Backend Scheduler / Run Cycle Handoff Plan",
+    "file": "docs/RUST_CORE_V52_RUST_BACKEND_SCHEDULER_HANDOFF.md",
+    "anchor": "rust-core-v52-rust-backend-scheduler-run-cycle-handoff-plan",
+    "summary": "Adds the non-mutating Rust scheduler/run_cycle handoff planning bridge after API handoff while keeping Python scheduler/run_cycle authoritative."
   }
 }

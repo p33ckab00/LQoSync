@@ -692,6 +692,16 @@
     "rust_backend_api_handoff_require_webui_compatibility": true,
     "rust_backend_api_handoff_require_route_parity": true,
     "rust_backend_api_handoff_require_no_side_effects": true,
-    "rust_backend_api_handoff_max_shadow_age_seconds": 900
+    "rust_backend_api_handoff_max_shadow_age_seconds": 900,
+    "rust_backend_scheduler_handoff_plan_pilot": false,
+    "allow_rust_backend_scheduler_handoff_plan": false,
+    "rust_backend_scheduler_handoff_mode": "plan_only",
+    "rust_backend_scheduler_handoff_require_api_handoff": true,
+    "rust_backend_scheduler_handoff_require_python_fallback": true,
+    "rust_backend_scheduler_handoff_require_manual_confirmation": true,
+    "rust_backend_scheduler_handoff_require_run_cycle_shadow": true,
+    "rust_backend_scheduler_handoff_require_scheduler_parity": true,
+    "rust_backend_scheduler_handoff_require_no_side_effects": true,
+    "rust_backend_scheduler_handoff_max_shadow_age_seconds": 900
   }
 }

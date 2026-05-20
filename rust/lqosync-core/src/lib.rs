@@ -59,3 +59,4 @@ pub mod collector_authority_promotion_cutover;
 pub mod collector_authority_production_freeze;
 pub mod collector_authority_production_switch;
 pub mod rust_backend_api_handoff;
+pub mod rust_backend_scheduler_handoff;

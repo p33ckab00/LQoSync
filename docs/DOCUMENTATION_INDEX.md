@@ -258,3 +258,5 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v5.0 Collector Authority Production Switch Contract](RUST_CORE_V50_COLLECTOR_AUTHORITY_PRODUCTION_SWITCH.md) — first non-mutating production switch contract after the freeze gate; Python removal is still blocked.
 
 - [Rust Core v5.1 Rust Backend API Handoff Plan](RUST_CORE_V51_RUST_BACKEND_API_HANDOFF.md) — starts the full Rust backend API handoff track while preserving existing WebUI/UX.
+
+- [Rust Core v5.2 Rust Backend Scheduler / Run Cycle Handoff Plan](RUST_CORE_V52_RUST_BACKEND_SCHEDULER_HANDOFF.md)

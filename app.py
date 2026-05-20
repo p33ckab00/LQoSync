@@ -73,6 +73,7 @@ from engine.rust_core import (
     rust_build_collector_authority_production_freeze_gate,
     rust_build_collector_authority_production_switch_contract,
     rust_build_rust_backend_api_handoff_plan,
+    rust_build_rust_backend_scheduler_handoff_plan,
     rust_validate_routeros_read_results,
     rust_build_collector_circuit_bundle,
     rust_compare_collector_bundle_parity,
@@ -2729,6 +2730,32 @@ def api_rust_core_rust_backend_api_handoff_plan():
             },
         }
     return jsonify(rust_build_rust_backend_api_handoff_plan(cfg, payload))
+
+
+
+@app.route("/api/rust-core/rust-backend-scheduler-handoff-plan", methods=["GET", "POST"])
+@login_required
+def api_rust_core_rust_backend_scheduler_handoff_plan():
+    cfg = load_config(CONFIG_PATH)
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {
+            "mode": request.args.get("mode") or "plan",
+            "execute": str(request.args.get("execute") or "").lower() in {"1", "true", "yes", "on"},
+            "confirmation": request.args.get("confirmation") or "",
+            "rust_backend_api_handoff_confirmation": request.args.get("api_handoff_confirmation") or "CONFIRM_RUST_BACKEND_API_HANDOFF_PLAN",
+            "shadow_age_seconds": int(request.args.get("shadow_age_seconds") or 0),
+            "scheduler_manifest_ready": str(request.args.get("scheduler_manifest_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "scheduler_interval_seconds": int(request.args.get("scheduler_interval_seconds") or 30),
+            "run_cycle_shadow_ready": str(request.args.get("run_cycle_shadow_ready") or "").lower() in {"1", "true", "yes", "on"},
+            "run_cycle_shadow_count": int(request.args.get("run_cycle_shadow_count") or 0),
+            "webui_ux_unchanged": True,
+            "webui_static_assets_unchanged": True,
+            "api_route_parity": str(request.args.get("api_route_parity") or "true").lower() in {"1", "true", "yes", "on"},
+            "api_route_count": int(request.args.get("api_route_count") or 42),
+        }
+    return jsonify(rust_build_rust_backend_scheduler_handoff_plan(cfg, payload))
 
 @app.route("/api/rust-core/routeros-read-results", methods=["POST"])
 @login_required

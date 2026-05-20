@@ -351,3 +351,8 @@ LQoSync `2.120.0-rc1` / `lqosync-core 5.0.0` adds `build-collector-authority-pro
 ## Rust Core v5.1 Rust Backend API Handoff Plan
 
 Adds `build-rust-backend-api-handoff-plan`, the first full-Rust-backend-track bridge after the collector-authority production switch contract. It checks WebUI/UX compatibility, static asset compatibility, API route parity, Python backend fallback, and side-effect-free status. It does not remove Python, replace Flask routes, or switch API traffic to Rust yet.
+
+
+## Rust Core v5.2 Rust Backend Scheduler / Run Cycle Handoff Plan
+
+Adds `build-rust-backend-scheduler-handoff-plan`, a non-mutating full-Rust-backend-track bridge after v5.1 API handoff. It validates scheduler manifest readiness, run_cycle shadow readiness, API handoff readiness, and Python fallback while keeping WebUI/UX unchanged and Python scheduler/run_cycle authoritative.
