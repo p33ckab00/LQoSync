@@ -333,6 +333,23 @@ mod tests {
         payload.insert("rollback_path".to_string(), json!("python_fallback_revert"));
         payload.insert("collector_parity".to_string(), json!({"parity_score":100.0,"verdict":"parity_pass"}));
         payload.insert("pilot_result".to_string(), json!({"status":"collector_authority_pilot_result_pass","error_count":0,"cleanup_attempted":false,"apply_attempted":false,"write_attempted":false}));
+
+        // v4.8.1 hotfix: the cutover ledger unit fixture must model the same
+        // prerequisite handoff used by self-test/API callers: a ready commit plan
+        // may be supplied explicitly to the cutover stage. This avoids reusing the
+        // root confirmation field across multiple nested prerequisite stages and
+        // keeps the ledger contract focused on cutover readiness only. Runtime
+        // safety remains unchanged: the ledger is non-mutating and cannot switch
+        // production authority.
+        payload.insert("collector_authority_promotion_commit_plan".to_string(), json!({
+            "status": "collector_authority_promotion_commit_plan_ready",
+            "promotion_commit_plan_ready": true,
+            "production_collector_authority_switched": false,
+            "python_collector_fallback_required": true,
+            "cleanup_attempted": false,
+            "apply_attempted": false,
+            "write_attempted": false
+        }));
         Value::Object(payload)
     }
 

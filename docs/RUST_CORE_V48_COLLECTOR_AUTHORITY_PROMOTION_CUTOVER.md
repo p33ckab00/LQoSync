@@ -1,7 +1,16 @@
 # Rust Core v4.8 Collector Authority Promotion Cutover Ledger
 
-`rust/lqosync-core = 4.8.0`  
-`LQoSync VERSION = 2.118.0-rc1`
+`rust/lqosync-core = 4.8.1`  
+`LQoSync VERSION = 2.118.1-rc1`
+
+
+## v4.8.1 hotfix
+
+The v4.8.0 package had a blocking unit-test failure where the cutover ledger readiness fixture returned `collector_authority_promotion_cutover_ledger_shadow_only` instead of `collector_authority_promotion_cutover_ledger_ready`.
+
+The hotfix updates the cutover test fixture to supply the prerequisite v4.7 promotion commit plan explicitly, matching the self-test/API handoff pattern and avoiding reuse of the root `confirmation` field across nested prerequisite stages.
+
+Runtime behavior is unchanged: the ledger remains non-mutating, keeps Python collectors authoritative, and cannot promote Rust collectors or transfer cleanup/apply authority.
 
 ## Summary
 

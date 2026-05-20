@@ -251,3 +251,4 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v4.7 Collector Authority Promotion Commit Plan](RUST_CORE_V47_COLLECTOR_AUTHORITY_PROMOTION_COMMIT.md) — non-mutating commit-plan bridge after promotion execution rehearsal.
 
 - [Rust Core v4.8 Collector Authority Promotion Cutover Ledger](RUST_CORE_V48_COLLECTOR_AUTHORITY_PROMOTION_CUTOVER.md)
+- [Rust Core v4.8.1 Cutover Ledger Hotfix](RUST_CORE_V481_CUTOVER_LEDGER_HOTFIX.md) — Fixes the v4.8 cutover ledger readiness unit fixture while preserving non-mutating Python-authoritative behavior.

@@ -310,7 +310,7 @@
     },
     {
       "path": "docs/RUST_CORE_V441_PILOT_RESULT_RECURSION_HOTFIX.md",
-      "title": "Rust Core v4.4.1 \u2014 Pilot Result Recursion Hotfix",
+      "title": "Rust Core v4.4.1 — Pilot Result Recursion Hotfix",
       "tags": [
         "rust",
         "collector-authority",
@@ -430,7 +430,7 @@
     "title": "Custom Policy Mode Persistence Hotfix",
     "file": "docs/content/custom_policy_mode_persistence.md",
     "anchor": "custom-policy-mode-persistence-hotfix",
-    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center \u2192 Policies."
+    "summary": "v2.70.9-rc1 preserves explicit custom policy mode and adds a visible Custom state in Config Center → Policies."
   },
   "policy_overview_custom_wiring_hotfix": {
     "title": "Policy Overview Custom Wiring Hotfix",
@@ -751,5 +751,11 @@
     "file": "docs/RUST_CORE_V48_COLLECTOR_AUTHORITY_PROMOTION_CUTOVER.md",
     "anchor": "rust-core-v48-collector-authority-promotion-cutover-ledger",
     "summary": "Non-mutating cutover ledger after the promotion commit plan, requiring explicit gates, manual confirmation, rollback path, and Python fallback while keeping Python collectors authoritative."
+  },
+  "rust.core_v481_cutover_ledger_hotfix": {
+    "title": "Rust Core v4.8.1 Cutover Ledger Hotfix",
+    "file": "docs/RUST_CORE_V481_CUTOVER_LEDGER_HOTFIX.md",
+    "anchor": "rust-core-v481-cutover-ledger-hotfix",
+    "summary": "Fixes the v4.8 cutover ledger readiness unit fixture while preserving non-mutating Python-authoritative behavior."
   }
 }
