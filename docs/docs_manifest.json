@@ -300,6 +300,13 @@
         "authority",
         "manifest"
       ]
+    },
+    {
+      "id": "rust.core_v42_collector_authority_switch",
+      "title": "Rust Core v4.2 Collector Authority Switch Rehearsal",
+      "path": "docs/RUST_CORE_V42_COLLECTOR_AUTHORITY_SWITCH.md",
+      "category": "Rust Core",
+      "summary": "Adds a non-mutating collector authority switch rehearsal after the v4.1 runtime contract while keeping Python collectors authoritative."
     }
   ],
   "backup_restore_center_polish": {
@@ -679,5 +686,12 @@
     "file": "docs/RUST_CORE_V41_COLLECTOR_AUTHORITY_RUNTIME.md",
     "anchor": "rust-core-v41-collector-authority-runtime-contract",
     "summary": "Adds a non-mutating runtime contract bridge after the collector authority activation plan while keeping Python collectors authoritative."
+  },
+  "rust.core_v42_collector_authority_switch": {
+    "id": "rust.core_v42_collector_authority_switch",
+    "title": "Rust Core v4.2 Collector Authority Switch Rehearsal",
+    "path": "docs/RUST_CORE_V42_COLLECTOR_AUTHORITY_SWITCH.md",
+    "category": "Rust Core",
+    "summary": "Adds a non-mutating collector authority switch rehearsal after the v4.1 runtime contract while keeping Python collectors authoritative."
   }
 }

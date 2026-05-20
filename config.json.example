@@ -606,6 +606,12 @@
     "collector_authority_runtime_require_activation_plan": true,
     "collector_authority_runtime_require_python_fallback": true,
     "collector_authority_runtime_max_shadow_age_seconds": 900,
-    "collector_authority_shadow_age_seconds": 0
+    "collector_authority_shadow_age_seconds": 0,
+    "collector_authority_switch_rehearsal_pilot": false,
+    "allow_collector_authority_switch_rehearsal": false,
+    "collector_authority_switch_mode": "rehearsal_only",
+    "collector_authority_switch_require_runtime_contract": true,
+    "collector_authority_switch_require_python_fallback": true,
+    "collector_authority_switch_require_manual_confirmation": true
   }
 }

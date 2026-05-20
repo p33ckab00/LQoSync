@@ -222,3 +222,8 @@ Adds `build-routeros-auth-session-contract`, a redacted authenticated-session co
 ## Rust Core v4.1 Collector Authority Runtime Contract
 
 Adds `build-collector-authority-runtime-contract`, a non-mutating runtime contract after the collector authority activation plan. Python collectors remain authoritative; Rust cannot drive cleanup, apply, or generated-file writes from this contract. See `docs/RUST_CORE_V41_COLLECTOR_AUTHORITY_RUNTIME.md`.
+
+
+## Rust Core v4.2 Collector Authority Switch Rehearsal
+
+Adds `build-collector-authority-switch-rehearsal`, a non-mutating switch rehearsal after the collector authority runtime contract. It requires explicit gates, manual confirmation, and Python fallback, but does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V42_COLLECTOR_AUTHORITY_SWITCH.md`.

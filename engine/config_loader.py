@@ -135,6 +135,12 @@ DEFAULT_CONFIG = {
         "collector_authority_runtime_require_python_fallback": True,
         "collector_authority_runtime_max_shadow_age_seconds": 900,
         "collector_authority_shadow_age_seconds": 0,
+        "collector_authority_switch_rehearsal_pilot": False,
+        "allow_collector_authority_switch_rehearsal": False,
+        "collector_authority_switch_mode": "rehearsal_only",
+        "collector_authority_switch_require_runtime_contract": True,
+        "collector_authority_switch_require_python_fallback": True,
+        "collector_authority_switch_require_manual_confirmation": True,
     },
     "collector": {
         "selective_fields": True,

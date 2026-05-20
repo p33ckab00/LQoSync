@@ -29,6 +29,7 @@ use crate::collector_authority_dry_run::build_collector_authority_dry_run_bundle
 use crate::collector_run_cycle_shadow::build_run_cycle_rust_shadow_report_payload;
 use crate::collector_authority_activation::build_collector_authority_activation_plan_payload;
 use crate::collector_authority_runtime::build_collector_authority_runtime_contract_payload;
+use crate::collector_authority_switch::build_collector_authority_switch_rehearsal_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -71,6 +72,7 @@ pub const OP_BUILD_COLLECTOR_AUTHORITY_DRY_RUN_BUNDLE: &str = "build-collector-a
 pub const OP_BUILD_RUN_CYCLE_RUST_SHADOW_REPORT: &str = "build-run-cycle-rust-shadow-report";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_ACTIVATION_PLAN: &str = "build-collector-authority-activation-plan";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_RUNTIME_CONTRACT: &str = "build-collector-authority-runtime-contract";
+pub const OP_BUILD_COLLECTOR_AUTHORITY_SWITCH_REHEARSAL: &str = "build-collector-authority-switch-rehearsal";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -127,6 +129,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_RUN_CYCLE_RUST_SHADOW_REPORT,
         OP_BUILD_COLLECTOR_AUTHORITY_ACTIVATION_PLAN,
         OP_BUILD_COLLECTOR_AUTHORITY_RUNTIME_CONTRACT,
+        OP_BUILD_COLLECTOR_AUTHORITY_SWITCH_REHEARSAL,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -693,6 +696,33 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
         errors.push(Diagnostic::error("self_test_collector_authority_runtime_failed", Some("build-collector-authority-runtime-contract".to_string()), "Self-test collector authority runtime contract should become ready only as a non-mutating pilot with Python fallback retained."));
     }
 
+    let mut switch_payload = runtime_payload.clone();
+    if let Some(obj) = switch_payload.as_object_mut() {
+        obj.insert("confirmation".to_string(), json!("CONFIRM_COLLECTOR_AUTHORITY_REHEARSAL"));
+        if let Some(rc) = obj.get_mut("rust_core").and_then(Value::as_object_mut) {
+            rc.insert("collector_authority_switch_rehearsal_pilot".to_string(), json!(true));
+            rc.insert("allow_collector_authority_switch_rehearsal".to_string(), json!(true));
+            rc.insert("collector_authority_switch_mode".to_string(), json!("rust_collector_authority_switch_rehearsal"));
+            rc.insert("collector_authority_switch_require_runtime_contract".to_string(), json!(true));
+            rc.insert("collector_authority_switch_require_python_fallback".to_string(), json!(true));
+            rc.insert("collector_authority_switch_require_manual_confirmation".to_string(), json!(true));
+        }
+    }
+    let (switch_rehearsal, switch_errors, _switch_warnings) = build_collector_authority_switch_rehearsal_payload(&switch_payload);
+    let switch_ok = switch_errors.is_empty()
+        && switch_rehearsal.get("status").and_then(Value::as_str) == Some("collector_authority_switch_rehearsal_ready")
+        && switch_rehearsal.get("collector_authority_switch_executed").and_then(Value::as_bool) == Some(false)
+        && switch_rehearsal.get("production_collector_authority_switched").and_then(Value::as_bool) == Some(false)
+        && switch_rehearsal.get("rust_can_drive_cleanup").and_then(Value::as_bool) == Some(false);
+    checks.push(check("collector_authority_switch_rehearsal", switch_ok, json!({
+        "status": switch_rehearsal.get("status"),
+        "collector_authority": switch_rehearsal.get("collector_authority"),
+        "switch_rehearsal_only": switch_rehearsal.get("switch_rehearsal_only")
+    })));
+    if !switch_ok {
+        errors.push(Diagnostic::error("self_test_collector_authority_switch_failed", Some("build-collector-authority-switch-rehearsal".to_string()), "Self-test collector authority switch rehearsal should be ready but non-mutating."));
+    }
+
 
     let collector_bundle_payload = json!({
         "router": {"name":"RB5009", "pppoe":{"per_plan_node":true, "plan_node_name":"{profile}-{router}"}},
@@ -913,6 +943,7 @@ mod tests {
         assert!(ops.contains(&OP_BUILD_ROUTEROS_API_SENTENCE));
         assert!(ops.contains(&OP_BUILD_ROUTEROS_AUTH_PLAN));
         assert!(ops.contains(&OP_BUILD_RUN_CYCLE_RUST_SHADOW_REPORT));
+        assert!(ops.contains(&OP_BUILD_COLLECTOR_AUTHORITY_SWITCH_REHEARSAL));
         assert!(ops.contains(&OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE));
         assert!(ops.contains(&OP_COMPARE_COLLECTOR_BUNDLE_PARITY));
         assert!(ops.contains(&OP_EVALUATE_AUTHORITY_READINESS));

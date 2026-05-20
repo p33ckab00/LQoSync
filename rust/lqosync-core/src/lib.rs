@@ -49,3 +49,4 @@ pub mod collector_authority_dry_run;
 pub mod collector_run_cycle_shadow;
 pub mod collector_authority_activation;
 pub mod collector_authority_runtime;
+pub mod collector_authority_switch;

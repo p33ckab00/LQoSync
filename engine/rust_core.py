@@ -3081,6 +3081,84 @@ def rust_build_collector_authority_runtime_contract(config: dict, payload: dict[
         return _python_build_collector_authority_runtime_contract(req_payload, started=started)
     return response
 
+
+
+def _python_build_collector_authority_switch_rehearsal(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rust_core = (payload.get("rust_core") if isinstance(payload.get("rust_core"), dict) else (payload.get("config") or {}).get("rust_core") if isinstance(payload.get("config"), dict) else {}) or {}
+    allow = bool(rust_core.get("allow_collector_authority_switch_rehearsal"))
+    pilot = bool(rust_core.get("collector_authority_switch_rehearsal_pilot"))
+    mode = str(rust_core.get("collector_authority_switch_mode") or "rehearsal_only")
+    require_fallback = rust_core.get("collector_authority_switch_require_python_fallback", True) is not False
+    require_confirm = rust_core.get("collector_authority_switch_require_manual_confirmation", True) is not False
+    confirmation_ok = (not require_confirm) or payload.get("confirmation") == "CONFIRM_COLLECTOR_AUTHORITY_REHEARSAL"
+    runtime = payload.get("collector_authority_runtime_contract") or {}
+    if isinstance(runtime, dict) and isinstance(runtime.get("result"), dict):
+        runtime = runtime.get("result")
+    runtime_ready = isinstance(runtime, dict) and runtime.get("status") == "collector_authority_runtime_contract_ready"
+    requested = bool(allow and pilot and mode == "rust_collector_authority_switch_rehearsal")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if payload.get("execute") or str(payload.get("mode") or "").lower() in {"execute", "switch", "promote", "authority", "apply", "production"}:
+        errors.append({"code": "collector_authority_switch_execute_not_implemented", "severity": "error", "path": "collector_authority_switch", "message": "Python fallback cannot switch Rust collector authority."})
+    if not require_fallback:
+        errors.append({"code": "collector_authority_switch_requires_python_fallback", "severity": "error", "path": "rust_core.collector_authority_switch_require_python_fallback", "message": "Collector authority switch rehearsal requires Python collector fallback in this release."})
+    if not runtime_ready:
+        warnings.append({"code": "collector_authority_switch_runtime_not_ready", "severity": "warning", "path": "collector_authority_runtime_contract", "message": "Collector authority runtime contract is not ready."})
+    if not confirmation_ok:
+        warnings.append({"code": "collector_authority_switch_confirmation_missing", "severity": "warning", "path": "collector_authority_switch.confirmation", "message": "Manual confirmation token is missing."})
+    ready = bool(requested and runtime_ready and require_fallback and confirmation_ok and not errors)
+    status = "blocked" if errors else ("collector_authority_switch_rehearsal_ready" if ready else ("collector_authority_switch_rehearsal_waiting_for_gates" if runtime_ready else "collector_authority_switch_rehearsal_shadow_only"))
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-collector-authority-switch-rehearsal",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": "collector_authority_switch_rehearsal",
+            "status": status,
+            "collector_authority": "python_authoritative",
+            "target_authority": "rust_collector_authority_rehearsal_candidate" if ready else "python_authoritative",
+            "rehearsal_requested": requested,
+            "allow_switch_rehearsal": allow,
+            "switch_rehearsal_pilot": pilot,
+            "switch_mode": mode,
+            "runtime_ready": runtime_ready,
+            "manual_confirmation_ok": confirmation_ok,
+            "collector_authority_runtime_contract": runtime if isinstance(runtime, dict) else {},
+            "full_rust_backend": False,
+            "production_collector_authority_switched": False,
+            "collector_authority_switch_supported": False,
+            "collector_authority_switch_executed": False,
+            "python_collector_fallback_required": True,
+            "switch_rehearsal_only": True,
+            "rust_can_drive_cleanup": False,
+            "rust_can_drive_apply": False,
+            "rust_can_write_generated_files": False,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "connection_attempt_count": 0,
+            "authentication_attempt_count": 0,
+            "api_sentence_write_count": 0,
+            "api_reply_read_count": 0,
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_collector_authority_switch_rehearsal_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_collector_authority_switch_rehearsal(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-collector-authority-switch-rehearsal", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_collector_authority_switch_rehearsal(req_payload, started=started)
+    return response
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})
