@@ -907,3 +907,13 @@ git commit -m "rust(core): add full Rust backend production cutover" \
   -m "Add build-full-rust-backend-production-cutover, the first full-Rust-backend production cutover package with WebUI/UX preserved and rollback-first Python backend removal gates."
 git push -u origin lqosync-in-rust
 ```
+
+
+## Rust Core v7.1 commit suggestion
+
+```bash
+git add .
+git commit -m "rust(core): add full Rust backend production verifier" \
+  -m "Add build-full-rust-backend-production-verifier, the post-cutover verifier and guarded Python retirement executor while preserving WebUI/UX static assets."
+git push -u origin lqosync-in-rust
+```

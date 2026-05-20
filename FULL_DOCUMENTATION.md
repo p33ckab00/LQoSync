@@ -7889,3 +7889,8 @@ Adds `build-full-rust-backend-removal-rehearsal`, the final non-mutating rehears
 ## Rust Core v7.0 Full Rust Backend Production Cutover
 
 Adds `build-full-rust-backend-production-cutover`, the first full-Rust-backend production cutover package. It can mark cutover as allowed only after v6.6 rehearsal, WebUI/static asset preservation, server cargo/self/rollback tests, rollback backup, and explicit operator confirmation pass. WebUI/UX remains as-is; OS-level service switching/removal is done only by supervised scripts.
+
+
+## Rust Core v7.1 Full Rust Backend Production Verifier / Python Retirement Guard
+
+Adds `build-full-rust-backend-production-verifier`, the post-cutover verifier that can mark the Rust backend as production-authoritative only when runtime health, API traffic switch, server tests, rollback package, WebUI/UX preservation, and operator confirmation pass. Adds guarded scripts for production verification and supervised Python backend retirement while preserving WebUI/UX/static assets.

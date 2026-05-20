@@ -5666,6 +5666,78 @@ def rust_build_full_rust_backend_production_cutover(config: dict, payload: dict[
     return response
 
 
+
+def _python_build_full_rust_backend_production_verifier(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    started = started or time.perf_counter()
+    rc = _rust_core_config(payload)
+    allow = bool(rc.get("allow_full_rust_backend_production_verifier"))
+    pilot = bool(rc.get("full_rust_backend_production_verifier_pilot"))
+    mode = str(rc.get("full_rust_backend_production_verifier_mode") or "verify_only")
+    confirmation_ok = payload.get("confirmation") == "CONFIRM_FULL_RUST_BACKEND_PRODUCTION_VERIFIER"
+    cutover = payload.get("full_rust_backend_production_cutover") or {}
+    if isinstance(cutover, dict) and isinstance(cutover.get("result"), dict):
+        cutover = cutover.get("result") or {}
+    cutover_ready = isinstance(cutover, dict) and cutover.get("status") == "full_rust_backend_production_cutover_ready" and bool(cutover.get("cutover_allowed"))
+    webui_unchanged = bool(payload.get("webui_ux_unchanged", True)) and bool(payload.get("webui_static_asset_paths_unchanged", True)) and bool(payload.get("webui_static_assets_preserved", True))
+    rust_runtime_ready = bool(payload.get("rust_service_active")) and bool(payload.get("rust_api_healthcheck_passed")) and (bool(payload.get("rust_unix_socket_active")) or bool(payload.get("rust_http_api_active"))) and bool(payload.get("api_traffic_switched_to_rust"))
+    rollback_ready = bool(payload.get("python_backend_rollback_package_ready") or payload.get("python_fallback_backup_ready")) and bool(str(payload.get("rollback_path") or "restore_python_backend_and_flask_routes").strip())
+    tests_passed = bool(payload.get("server_cargo_tests_passed")) and bool(payload.get("self_test_passed")) and bool(payload.get("rollback_test_passed")) and bool(payload.get("production_healthcheck_passed"))
+    operator_ack = bool(payload.get("operator_full_rust_backend_production_verifier_ack") or payload.get("operator_acknowledged"))
+    gates_ready = bool(allow and pilot and mode == "verify_only")
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bool(payload.get("execute")) or str(payload.get("mode") or "").lower() in {"execute", "remove", "delete", "disable-python", "retire-python", "switch"}:
+        errors.append({"code": "full_rust_backend_production_verifier_execute_not_implemented", "severity": "error", "path": "full_rust_backend_production_verifier", "message": "Verifier is non-mutating; use the guarded retirement script for OS-level changes."})
+    if not cutover_ready:
+        warnings.append({"code": "full_rust_backend_production_verifier_cutover_not_ready", "severity": "warning", "path": "full_rust_backend_production_cutover", "message": "Production cutover contract is not ready."})
+    if not rust_runtime_ready:
+        warnings.append({"code": "full_rust_backend_production_verifier_runtime_health_required", "severity": "warning", "path": "rust_service_active", "message": "Rust service/runtime/API health signals are incomplete."})
+    if not rollback_ready:
+        warnings.append({"code": "full_rust_backend_production_verifier_rollback_package_required", "severity": "warning", "path": "python_backend_rollback_package_ready", "message": "Python rollback package is required."})
+    if not tests_passed:
+        warnings.append({"code": "full_rust_backend_production_verifier_tests_required", "severity": "warning", "path": "server_cargo_tests_passed", "message": "Cargo/self/rollback/production healthcheck tests are required."})
+    if not confirmation_ok:
+        warnings.append({"code": "full_rust_backend_production_verifier_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Confirmation token is required."})
+    verified = not errors and gates_ready and confirmation_ok and cutover_ready and webui_unchanged and rust_runtime_ready and rollback_ready and tests_passed and operator_ack
+    retirement_allowed = verified and bool(payload.get("python_backend_stopped_or_disabled")) and bool(payload.get("flask_routes_disabled"))
+    status = "blocked" if errors else ("full_rust_backend_production_verified" if verified else ("full_rust_backend_production_verifier_review" if cutover_ready and rollback_ready else "full_rust_backend_production_verifier_blocked"))
+    return {
+        "version": "1",
+        "op": "build-full-rust-backend-production-verifier",
+        "ok": not errors,
+        "result": {
+            "mode": "full_rust_backend_production_verifier",
+            "status": status,
+            "full_rust_backend": verified,
+            "full_rust_backend_production_enabled": verified,
+            "rust_service_runtime_authoritative": verified,
+            "api_traffic_switched_to_rust": bool(payload.get("api_traffic_switched_to_rust")),
+            "flask_routes_disabled": bool(payload.get("flask_routes_disabled")),
+            "python_backend_removed": False,
+            "python_backend_removable": retirement_allowed,
+            "python_removal_allowed": retirement_allowed,
+            "python_retirement_executor_allowed": retirement_allowed,
+            "webui_ux_unchanged": webui_unchanged,
+            "rollback_ready": rollback_ready,
+            "server_tests_passed": tests_passed,
+            "cutover_ready": cutover_ready,
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "full_rust_backend_production_verifier_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_full_rust_backend_production_verifier(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-full-rust-backend-production-verifier", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_full_rust_backend_production_verifier(req_payload, started=started)
+    return response
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

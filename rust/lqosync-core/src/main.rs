@@ -62,6 +62,7 @@ use lqosync_core::rust_backend_production_enablement::build_rust_backend_product
 use lqosync_core::rust_python_backend_removal_execution::build_python_backend_removal_execution_contract_payload;
 use lqosync_core::rust_full_backend_removal_rehearsal::build_full_rust_backend_removal_rehearsal_payload;
 use lqosync_core::rust_full_backend_production_cutover::build_full_rust_backend_production_cutover_payload;
+use lqosync_core::rust_full_backend_production_verifier::build_full_rust_backend_production_verifier_payload;
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::sync_plan::evaluate_sync_plan_payload;
@@ -440,6 +441,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-full-rust-backend-production-cutover" => {
             let (result, errors, warnings) = build_full_rust_backend_production_cutover_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-full-rust-backend-production-verifier" => {
+            let (result, errors, warnings) = build_full_rust_backend_production_verifier_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "build-collector-circuit-bundle" => {

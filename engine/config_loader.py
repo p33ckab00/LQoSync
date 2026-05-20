@@ -399,6 +399,17 @@ DEFAULT_CONFIG = {
         "full_rust_backend_production_cutover_require_server_tests": True,
         "full_rust_backend_production_cutover_require_python_fallback_backup": True,
         "full_rust_backend_production_cutover_max_shadow_age_seconds": 900,
+        "full_rust_backend_production_verifier_pilot": False,
+        "allow_full_rust_backend_production_verifier": False,
+        "full_rust_backend_production_verifier_mode": "verify_only",
+        "full_rust_backend_production_verifier_require_cutover": True,
+        "full_rust_backend_production_verifier_require_webui_unchanged": True,
+        "full_rust_backend_production_verifier_require_runtime_health": True,
+        "full_rust_backend_production_verifier_require_rollback_package": True,
+        "full_rust_backend_production_verifier_require_manual_confirmation": True,
+        "full_rust_backend_production_verifier_require_operator_ack": True,
+        "full_rust_backend_production_verifier_require_server_tests": True,
+        "full_rust_backend_production_verifier_max_shadow_age_seconds": 900,
     },
     "collector": {
         "selective_fields": True,
@@ -1110,6 +1121,17 @@ def validate_config(cfg: dict):
     rust_core.setdefault("full_rust_backend_production_cutover_require_server_tests", True)
     rust_core.setdefault("full_rust_backend_production_cutover_require_python_fallback_backup", True)
     rust_core.setdefault("full_rust_backend_production_cutover_max_shadow_age_seconds", 900)
+    rust_core.setdefault("full_rust_backend_production_verifier_pilot", False)
+    rust_core.setdefault("allow_full_rust_backend_production_verifier", False)
+    rust_core.setdefault("full_rust_backend_production_verifier_mode", "verify_only")
+    rust_core.setdefault("full_rust_backend_production_verifier_require_cutover", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_require_webui_unchanged", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_require_runtime_health", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_require_rollback_package", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_require_manual_confirmation", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_require_operator_ack", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_require_server_tests", True)
+    rust_core.setdefault("full_rust_backend_production_verifier_max_shadow_age_seconds", 900)
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     if rust_core.get("routeros_read_pilot_adapter") not in ("fixture", "disabled"):

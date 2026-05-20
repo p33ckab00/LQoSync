@@ -286,3 +286,5 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 - [Rust Core v6.6 Full Rust Backend Removal Rehearsal](RUST_CORE_V66_FULL_RUST_BACKEND_REMOVAL_REHEARSAL.md)
 
 - [Rust Core v7.0 Full Rust Backend Production Cutover](RUST_CORE_V70_FULL_RUST_BACKEND_PRODUCTION_CUTOVER.md)
+
+- [Rust Core v7.1 Full Rust Backend Production Verifier / Python Retirement Guard](RUST_CORE_V71_FULL_RUST_BACKEND_PRODUCTION_VERIFIER.md)

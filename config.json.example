@@ -870,6 +870,17 @@
     "full_rust_backend_production_cutover_require_operator_ack": true,
     "full_rust_backend_production_cutover_require_server_tests": true,
     "full_rust_backend_production_cutover_require_python_fallback_backup": true,
-    "full_rust_backend_production_cutover_max_shadow_age_seconds": 900
+    "full_rust_backend_production_cutover_max_shadow_age_seconds": 900,
+    "full_rust_backend_production_verifier_pilot": false,
+    "allow_full_rust_backend_production_verifier": false,
+    "full_rust_backend_production_verifier_mode": "verify_only",
+    "full_rust_backend_production_verifier_require_cutover": true,
+    "full_rust_backend_production_verifier_require_webui_unchanged": true,
+    "full_rust_backend_production_verifier_require_runtime_health": true,
+    "full_rust_backend_production_verifier_require_rollback_package": true,
+    "full_rust_backend_production_verifier_require_manual_confirmation": true,
+    "full_rust_backend_production_verifier_require_operator_ack": true,
+    "full_rust_backend_production_verifier_require_server_tests": true,
+    "full_rust_backend_production_verifier_max_shadow_age_seconds": 900
   }
 }
