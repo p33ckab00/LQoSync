@@ -57,3 +57,7 @@ Old per-version migration documents may remain in the repository as audit histor
 ## v8.2.2 Runtime Hotfix
 
 - [Rust Core v8.2.2 Runtime Hotfix](RUST_CORE_V822_RUNTIME_HOTFIX.md)
+
+## v8.2.3 Sync-Plan Gate Import Hardening
+
+- [Rust Sync-Plan Gate Import Hardening](RUST_CORE_V823_SYNC_PLAN_GATE_IMPORT_HARDENING.md)

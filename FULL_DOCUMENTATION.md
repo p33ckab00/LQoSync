@@ -43,3 +43,16 @@ docs/OPERATOR_TROUBLESHOOTING.md
 ```
 
 It covers missing Cargo, old Cargo with `Cargo.lock` version 4, Git `fetch first` / `non-fast-forward`, rebase conflict recovery, production-safe `enable_only` service behavior, and old Python/main to `lqosync-in-rust` migration.
+
+
+### v8.2.3 Rust Sync-Plan Gate Import Hardening
+
+If the WebUI reports `name 'rust_sync_plan_authority_gate' is not defined`, apply v8.2.3 and run:
+
+```bash
+bash scripts/verify-rust-sync-plan-gate-import-hardening.sh
+find /opt/LQoSync -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+sudo systemctl restart lqosync
+```
+
+Collector parity warnings are separate and indicate Rust MikroTik collector parity is not complete yet.

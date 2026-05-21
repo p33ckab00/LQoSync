@@ -1,80 +1,86 @@
 {
-  "project.canonical_architecture": {
-    "title": "Project Canonical Architecture",
-    "file": "docs/PROJECT_CANONICAL_ARCHITECTURE.md",
-    "summary": "Defines LQoSync as a local appliance web app with Rust authority daemon and Flask WebUI shell."
-  },
-  "project.flask_ui_shell": {
-    "title": "Flask UI Shell",
-    "file": "docs/FLASK_UI_SHELL.md",
-    "summary": "Documents why Flask remains the operator UI and why Django/SaaS conversion is out of scope."
-  },
-  "rust.scheduler_authority": {
-    "title": "Rust Scheduler Authority",
-    "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
-    "summary": "v8.1.0 Rust scheduler authority operations and runtime boundary."
-  },
-  "rust.stable_operations": {
-    "title": "Full Rust Stable Operations",
-    "file": "docs/FULL_RUST_STABLE_OPERATIONS.md",
-    "summary": "Stable full-Rust backend authority operation guide with Flask UI shell boundary."
-  },
-  "install.matrix": {
-    "title": "Installation Matrix",
-    "file": "docs/INSTALLATION_MATRIX.md",
-    "summary": "Bare metal, GitHub, ZIP, Docker, update, and uninstall matrix."
-  },
-  "install.zip": {
-    "title": "ZIP Install",
-    "file": "docs/ZIP_INSTALL.md",
-    "summary": "ZIP/local package install and update guide."
-  },
-  "install.docker": {
-    "title": "Docker Operations",
-    "file": "docs/DOCKER_OPERATIONS.md",
-    "summary": "Docker install/update/uninstall guide for controlled deployments."
-  },
-  "install.github": {
-    "title": "GitHub Install",
-    "file": "docs/GITHUB_INSTALL.md",
-    "summary": "GitHub branch install and update guide for lqosync-in-rust."
-  },
-  "release.v800_cleanup": {
-    "title": "v8.0.0 Rust Backend Stable Cleanup",
-    "file": "docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md",
-    "summary": "Stable cleanup boundary: Python retained only as UI shell."
-  },
-  "release.v810_scheduler_authority": {
-    "title": "v8.1.0 Rust Scheduler Authority",
-    "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
-    "summary": "Moves scheduler authority to Rust while preserving Flask WebUI."
-  },
-  "rust.core_v820_full_rust_daemon_boundary": {
-    "title": "Rust Core v8.2.0 Full Rust Daemon Boundary Cleanup",
-    "file": "docs/RUST_CORE_V820_FULL_RUST_DAEMON_BOUNDARY.md",
-    "anchor": "v820-full-rust-daemon-boundary-cleanup",
-    "summary": "Removes the legacy Python scheduler loop, clarifies Flask as UI shell only, and aligns the canonical workflow diagram to Rust daemon authority."
-  },
   "architecture.full_rust_backend_boundary": {
-    "title": "Full Rust Backend Boundary",
-    "file": "docs/FULL_RUST_BACKEND_BOUNDARY.md",
     "anchor": "full-rust-backend-boundary",
-    "summary": "Canonical local appliance architecture: Rust authority daemon backend and existing Flask WebUI shell."
+    "file": "docs/FULL_RUST_BACKEND_BOUNDARY.md",
+    "summary": "Canonical local appliance architecture: Rust authority daemon backend and existing Flask WebUI shell.",
+    "title": "Full Rust Backend Boundary"
   },
   "architecture.workflow_svg": {
-    "title": "LQoSync Workflow Architecture SVG",
-    "file": "docs/lqosync_workflow_architecture.svg",
     "anchor": "workflow-architecture-svg",
-    "summary": "Updated diagram showing Flask UI shell delegating to the Rust authority daemon, with the Python legacy scheduler loop removed."
+    "file": "docs/lqosync_workflow_architecture.svg",
+    "summary": "Updated diagram showing Flask UI shell delegating to the Rust authority daemon, with the Python legacy scheduler loop removed.",
+    "title": "LQoSync Workflow Architecture SVG"
+  },
+  "install.docker": {
+    "file": "docs/DOCKER_OPERATIONS.md",
+    "summary": "Docker install/update/uninstall guide for controlled deployments.",
+    "title": "Docker Operations"
+  },
+  "install.github": {
+    "file": "docs/GITHUB_INSTALL.md",
+    "summary": "GitHub branch install and update guide for lqosync-in-rust.",
+    "title": "GitHub Install"
+  },
+  "install.matrix": {
+    "file": "docs/INSTALLATION_MATRIX.md",
+    "summary": "Bare metal, GitHub, ZIP, Docker, update, and uninstall matrix.",
+    "title": "Installation Matrix"
+  },
+  "install.zip": {
+    "file": "docs/ZIP_INSTALL.md",
+    "summary": "ZIP/local package install and update guide.",
+    "title": "ZIP Install"
   },
   "operator.troubleshooting": {
-    "title": "Operator Troubleshooting Guide",
     "file": "docs/OPERATOR_TROUBLESHOOTING.md",
-    "summary": "Real-world operator error guide for Rust/Cargo, Git, rebase, service policy, and Python/main to lqosync-in-rust migration issues."
+    "summary": "Real-world operator error guide for Rust/Cargo, Git, rebase, service policy, and Python/main to lqosync-in-rust migration issues.",
+    "title": "Operator Troubleshooting Guide"
+  },
+  "project.canonical_architecture": {
+    "file": "docs/PROJECT_CANONICAL_ARCHITECTURE.md",
+    "summary": "Defines LQoSync as a local appliance web app with Rust authority daemon and Flask WebUI shell.",
+    "title": "Project Canonical Architecture"
+  },
+  "project.flask_ui_shell": {
+    "file": "docs/FLASK_UI_SHELL.md",
+    "summary": "Documents why Flask remains the operator UI and why Django/SaaS conversion is out of scope.",
+    "title": "Flask UI Shell"
+  },
+  "release.v800_cleanup": {
+    "file": "docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md",
+    "summary": "Stable cleanup boundary: Python retained only as UI shell.",
+    "title": "v8.0.0 Rust Backend Stable Cleanup"
+  },
+  "release.v810_scheduler_authority": {
+    "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
+    "summary": "Moves scheduler authority to Rust while preserving Flask WebUI.",
+    "title": "v8.1.0 Rust Scheduler Authority"
   },
   "release.v821_operator_troubleshooting_docs": {
-    "title": "v8.2.1 Operator Error Runbook",
     "file": "docs/RUST_CORE_V821_OPERATOR_TROUBLESHOOTING_DOCS.md",
-    "summary": "Documents the v8.2.1 maintenance release adding operator troubleshooting for live migration errors."
+    "summary": "Documents the v8.2.1 maintenance release adding operator troubleshooting for live migration errors.",
+    "title": "v8.2.1 Operator Error Runbook"
+  },
+  "rust.core_v820_full_rust_daemon_boundary": {
+    "anchor": "v820-full-rust-daemon-boundary-cleanup",
+    "file": "docs/RUST_CORE_V820_FULL_RUST_DAEMON_BOUNDARY.md",
+    "summary": "Removes the legacy Python scheduler loop, clarifies Flask as UI shell only, and aligns the canonical workflow diagram to Rust daemon authority.",
+    "title": "Rust Core v8.2.0 Full Rust Daemon Boundary Cleanup"
+  },
+  "rust.core_v823_sync_plan_gate_import_hardening": {
+    "anchor": "v823-sync-plan-gate-import-hardening",
+    "file": "docs/RUST_CORE_V823_SYNC_PLAN_GATE_IMPORT_HARDENING.md",
+    "summary": "Fixes live WebUI NameError for rust_sync_plan_authority_gate with defensive import hardening and verification docs.",
+    "title": "Rust Core v8.2.3 Sync-Plan Gate Import Hardening"
+  },
+  "rust.scheduler_authority": {
+    "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
+    "summary": "v8.1.0 Rust scheduler authority operations and runtime boundary.",
+    "title": "Rust Scheduler Authority"
+  },
+  "rust.stable_operations": {
+    "file": "docs/FULL_RUST_STABLE_OPERATIONS.md",
+    "summary": "Stable full-Rust backend authority operation guide with Flask UI shell boundary.",
+    "title": "Full Rust Stable Operations"
   }
 }

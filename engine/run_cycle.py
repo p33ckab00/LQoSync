@@ -904,6 +904,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
         )
         result.diff["rust_sync_plan"] = rust_sync_plan
         sync_plan_result = rust_sync_plan.get("result", {}) if isinstance(rust_sync_plan, dict) else {}
+        from engine.rust_core import rust_sync_plan_authority_gate  # local hardening: prevents stale import namespace NameError
         rust_authority_gate = rust_sync_plan_authority_gate(config, rust_sync_plan, mode=mode)
         result.diff["rust_authority_gate"] = rust_authority_gate
         if rust_authority_gate.get("should_block"):

@@ -1,5 +1,12 @@
 # Release Notes
 
+## 2.152.3 - v8.2.3 Rust Sync-Plan Gate Import Hardening
+
+- Hardened `engine/run_cycle.py` against live NameError failures for `rust_sync_plan_authority_gate` by adding a defensive local import at the call site while preserving the existing top-level import.
+- Added `scripts/verify-rust-sync-plan-gate-import-hardening.sh`.
+- Added operator documentation for the exact runtime error and clarified that collector parity warnings are separate from the import hotfix.
+- No WebUI redesign, scheduler rollback, or Rust authority behavior change.
+
 ## 2.151.0 - v8.1.0 Rust Scheduler Authority Stable
 
 - Moves scheduler authority to the Rust daemon.

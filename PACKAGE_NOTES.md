@@ -44,3 +44,7 @@ It covers missing Cargo, old Cargo with `Cargo.lock` version 4, Git `fetch first
 ## v8.2.2 runtime hotfix
 
 This package fixes the missing `rust_sync_plan_authority_gate` import seen during live WebUI/run-cycle testing. If the UI shows Rust-shadow collector warnings, treat them as authority-readiness warnings: scheduler/apply authority may be Rust-owned, but collector transport/parity still needs validation before claiming complete Rust collector authority.
+
+## v8.2.3 Rust Sync-Plan Gate Import Hardening
+
+This package hardens the Rust sync-plan authority gate import used by `engine/run_cycle.py` so live WebUI cycles do not fail with `name 'rust_sync_plan_authority_gate' is not defined`. It adds a verification script and operator documentation.
