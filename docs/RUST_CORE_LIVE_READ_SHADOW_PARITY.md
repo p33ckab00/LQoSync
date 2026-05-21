@@ -80,5 +80,7 @@ blocked
 
 ## Next Phase
 
-Wire this parity evidence into the run-cycle shadow history so operators can
-require repeated clean cycles before any collector authority handoff.
+`build-run-cycle-rust-shadow-report` now accepts this parity evidence and
+records live-read shadow status fields beside the authoritative Python cycle.
+The next step is persisting repeated clean live-read shadow cycles before any
+collector authority handoff.

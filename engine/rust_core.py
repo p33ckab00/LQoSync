@@ -2997,13 +2997,24 @@ def _python_build_run_cycle_rust_shadow_report(payload: dict[str, Any], *, start
     bundle = bundle_resp.get("result") if isinstance(bundle_resp.get("result"), dict) else {}
     rust_ready = bundle.get("status") == "collector_authority_dry_run_bundle_review" or bundle.get("status") == "collector_authority_dry_run_bundle_ready"
     rust_rows = int(bundle.get("normalized_count") or 0)
+    live_shadow = payload.get("live_read_shadow_parity") if isinstance(payload.get("live_read_shadow_parity"), dict) else {}
+    if isinstance(live_shadow.get("result"), dict):
+        live_shadow = live_shadow.get("result") or {}
+    live_shadow_status = str(live_shadow.get("status") or "not_run")
+    live_shadow_parity = live_shadow.get("parity") if isinstance(live_shadow.get("parity"), dict) else {}
+    live_shadow_parity_verdict = str(live_shadow_parity.get("verdict") or "not_run")
+    live_shadow_rows = int(live_shadow.get("normalized_count") or 0)
+    live_shadow_ready = live_shadow_status == "live_read_shadow_parity_pass" and live_shadow_rows > 0
     python_rows = payload.get("python_rows") or payload.get("python_authoritative_rows") or payload.get("existing_rows") or []
     if not isinstance(python_rows, list):
         python_rows = []
-    status = "run_cycle_rust_shadow_ready" if (allow and pilot and rust_ready and rust_rows > 0) else ("run_cycle_rust_shadow_available_not_enabled" if rust_ready else "run_cycle_rust_shadow_python_only")
+    any_shadow_ready = (rust_ready and rust_rows > 0) or live_shadow_ready
+    status = "run_cycle_rust_shadow_ready" if (allow and pilot and any_shadow_ready) else ("run_cycle_rust_shadow_available_not_enabled" if any_shadow_ready else "run_cycle_rust_shadow_python_only")
     warnings = []
     if not (allow and pilot):
         warnings.append({"code": "run_cycle_rust_shadow_report_not_enabled", "severity": "warning", "path": "run_cycle_rust_shadow", "message": "run_cycle Rust-shadow report gates are not fully enabled; Python run_cycle remains authoritative."})
+    parity = bundle.get("parity") if isinstance(bundle.get("parity"), dict) else {}
+    dry_run_parity_verdict = str(parity.get("verdict") or "not_available")
     return {
         "version": PROTOCOL_VERSION,
         "op": "build-run-cycle-rust-shadow-report",
@@ -3018,9 +3029,18 @@ def _python_build_run_cycle_rust_shadow_report(payload: dict[str, Any], *, start
             "report_enabled": allow,
             "report_pilot": pilot,
             "rust_shadow_ready": bool(rust_ready),
+            "live_read_shadow_ready": bool(live_shadow_ready),
             "python_row_count": len(python_rows),
-            "rust_row_count": rust_rows,
+            "rust_row_count": max(rust_rows, live_shadow_rows),
+            "dry_run_row_count": rust_rows,
+            "live_read_shadow_row_count": live_shadow_rows,
+            "parity_verdict": live_shadow_parity_verdict if live_shadow_ready else dry_run_parity_verdict,
+            "dry_run_parity_verdict": dry_run_parity_verdict,
+            "live_read_shadow_parity_verdict": live_shadow_parity_verdict,
+            "live_read_shadow_status": live_shadow_status,
             "collector_authority_dry_run_bundle": bundle,
+            "live_read_shadow_parity": live_shadow or {"status": "not_run", "parity": {"verdict": "not_run", "parity_score": 0.0}, "normalized_count": 0},
+            "live_read_shadow_error_count": 0,
             "full_rust_backend": False,
             "python_run_cycle_authoritative": True,
             "rust_can_drive_cleanup": False,
@@ -3028,7 +3048,7 @@ def _python_build_run_cycle_rust_shadow_report(payload: dict[str, Any], *, start
             "safe_for_cleanup": False,
             "write_allowed": False,
             "apply_allowed": False,
-            "next_stage": "rust_collector_authority_run_cycle_shadow_ui",
+            "next_stage": "rust_collector_authority_repeated_live_shadow_cycles",
         },
         "errors": [],
         "warnings": warnings,

@@ -1,6 +1,7 @@
 
 use crate::collector_authority_dry_run::build_collector_authority_dry_run_bundle_payload;
 use crate::protocol::Diagnostic;
+use crate::routeros_live_shadow_parity::build_routeros_live_read_shadow_parity_payload;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
@@ -25,6 +26,29 @@ fn report_id(value: &Value) -> String {
 
 fn array_len(value: Option<&Value>) -> usize {
     value.and_then(Value::as_array).map(|v| v.len()).unwrap_or(0)
+}
+
+fn object_result_value(payload: &Value, key: &str) -> Option<Value> {
+    payload
+        .get(key)
+        .and_then(|v| v.get("result").or(Some(v)))
+        .filter(|v| v.is_object())
+        .cloned()
+}
+
+fn has_live_shadow_inputs(payload: &Value) -> bool {
+    [
+        "live_read_shadow_parity",
+        "live_read_adapter",
+        "adapter_result",
+        "live_read_result",
+        "read_result",
+        "live_read_results",
+        "read_results",
+        "routeros_results",
+    ]
+    .iter()
+    .any(|key| payload.get(*key).is_some())
 }
 
 /// Build a non-mutating run_cycle Rust-shadow integration report.
@@ -72,28 +96,79 @@ pub fn build_run_cycle_rust_shadow_report_payload(payload: &Value) -> (Value, Ve
         ));
     }
 
+    let mut live_shadow_errors: Vec<Diagnostic> = Vec::new();
+    let mut live_shadow_value = object_result_value(payload, "live_read_shadow_parity")
+        .unwrap_or_else(|| {
+            if has_live_shadow_inputs(payload) {
+                let (live_shadow, l_errors, l_warnings) =
+                    build_routeros_live_read_shadow_parity_payload(payload);
+                live_shadow_errors = l_errors;
+                warnings.extend(l_warnings);
+                live_shadow
+            } else {
+                json!({
+                    "mode": "routeros_live_read_shadow_parity",
+                    "status": "not_run",
+                    "live_read_result_count": 0,
+                    "normalized_count": 0,
+                    "parity": {"verdict":"not_run", "parity_score":0.0},
+                    "safe_for_cleanup": false,
+                    "collector_authority": "python_authoritative"
+                })
+            }
+        });
+
+    if !live_shadow_errors.is_empty() {
+        warnings.push(Diagnostic::warning(
+            "live_read_shadow_parity_not_clean",
+            Some("live_read_shadow_parity".to_string()),
+            "Live-read shadow parity evidence returned errors; run_cycle Rust-shadow report remains review-only.",
+        ));
+    }
+
     let dry_run_status = dry_run_bundle.get("status").and_then(Value::as_str).unwrap_or("unknown");
     let rust_shadow_ready = dry_run_errors.is_empty()
         && dry_run_status == "collector_authority_dry_run_bundle_ready"
         && dry_run_bundle.get("normalized_count").and_then(Value::as_u64).unwrap_or(0) > 0;
+    let live_shadow_status = live_shadow_value
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("not_run")
+        .to_string();
+    let live_shadow_ready = live_shadow_errors.is_empty()
+        && live_shadow_status == "live_read_shadow_parity_pass"
+        && live_shadow_value.get("normalized_count").and_then(Value::as_u64).unwrap_or(0) > 0;
 
     let python_row_count = array_len(payload.get("python_rows"))
         .max(array_len(payload.get("python_authoritative_rows")))
         .max(array_len(payload.get("existing_rows")));
-    let rust_row_count = dry_run_bundle.get("normalized_count").and_then(Value::as_u64).unwrap_or(0);
-    let parity_verdict = dry_run_bundle
+    let dry_run_row_count = dry_run_bundle.get("normalized_count").and_then(Value::as_u64).unwrap_or(0);
+    let live_shadow_row_count = live_shadow_value.get("normalized_count").and_then(Value::as_u64).unwrap_or(0);
+    let rust_row_count = dry_run_row_count.max(live_shadow_row_count);
+    let dry_run_parity_verdict = dry_run_bundle
         .get("parity")
         .and_then(|v| v.get("verdict"))
         .or_else(|| dry_run_bundle.get("parity"))
         .cloned()
         .unwrap_or_else(|| json!("not_available"));
+    let live_shadow_parity_verdict = live_shadow_value
+        .get("parity")
+        .and_then(|v| v.get("verdict"))
+        .or_else(|| live_shadow_value.get("parity"))
+        .cloned()
+        .unwrap_or_else(|| json!("not_run"));
+    let parity_verdict = if live_shadow_ready {
+        live_shadow_parity_verdict.clone()
+    } else {
+        dry_run_parity_verdict.clone()
+    };
 
-    let report_active = allow && pilot && rust_shadow_ready;
+    let report_active = allow && pilot && (rust_shadow_ready || live_shadow_ready);
     let status = if !errors.is_empty() {
         "blocked"
     } else if report_active {
         "run_cycle_rust_shadow_ready"
-    } else if rust_shadow_ready {
+    } else if rust_shadow_ready || live_shadow_ready {
         "run_cycle_rust_shadow_available_not_enabled"
     } else {
         "run_cycle_rust_shadow_python_only"
@@ -122,6 +197,14 @@ pub fn build_run_cycle_rust_shadow_report_payload(payload: &Value) -> (Value, Ve
                 rust_bundle.remove("normalized_rows");
             }
         }
+        if let Some(obj) = live_shadow_value.as_object_mut() {
+            if let Some(shadow_bundle) = obj.get_mut("shadow_bundle").and_then(Value::as_object_mut) {
+                shadow_bundle.remove("normalized_rows");
+                if let Some(rust_bundle) = shadow_bundle.get_mut("rust_bundle").and_then(Value::as_object_mut) {
+                    rust_bundle.remove("normalized_rows");
+                }
+            }
+        }
     }
 
     let result = json!({
@@ -135,11 +218,19 @@ pub fn build_run_cycle_rust_shadow_report_payload(payload: &Value) -> (Value, Ve
         "report_pilot": pilot,
         "include_rows": include_rows,
         "rust_shadow_ready": rust_shadow_ready,
+        "live_read_shadow_ready": live_shadow_ready,
         "dry_run_status": dry_run_status,
+        "live_read_shadow_status": live_shadow_status,
         "python_row_count": python_row_count,
         "rust_row_count": rust_row_count,
+        "dry_run_row_count": dry_run_row_count,
+        "live_read_shadow_row_count": live_shadow_row_count,
         "parity_verdict": parity_verdict,
+        "dry_run_parity_verdict": dry_run_parity_verdict,
+        "live_read_shadow_parity_verdict": live_shadow_parity_verdict,
         "collector_authority_dry_run_bundle": shadow_bundle,
+        "live_read_shadow_parity": live_shadow_value,
+        "live_read_shadow_error_count": live_shadow_errors.len(),
         "full_rust_backend": false,
         "python_run_cycle_authoritative": true,
         "rust_can_drive_cleanup": false,
@@ -152,8 +243,8 @@ pub fn build_run_cycle_rust_shadow_report_payload(payload: &Value) -> (Value, Ve
         "authentication_attempt_count": 0,
         "api_sentence_write_count": 0,
         "api_reply_read_count": 0,
-        "next_stage": "rust_collector_authority_run_cycle_shadow_ui",
-        "note": "v3.9 exposes a non-mutating run_cycle Rust-shadow report so Python can display Rust candidate collector output beside the authoritative Python cycle."
+        "next_stage": "rust_collector_authority_repeated_live_shadow_cycles",
+        "note": "The run_cycle shadow report can now carry dry-run and live-read shadow parity evidence beside the authoritative Python cycle. Rust output remains diagnostic and cannot drive cleanup/apply."
     });
 
     (result, errors, warnings)
@@ -223,6 +314,35 @@ mod tests {
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("run-cycle-shadow-password"));
         assert!(!text.contains("\"password\":"));
+    }
+
+    #[test]
+    fn builds_ready_report_from_live_read_shadow_parity_evidence() {
+        let row = json!({"Circuit ID":"selftest", "Circuit Name":"selftest", "Device ID":"selftest", "Device Name":"selftest", "Parent Node":"15M-RB5009", "MAC":"AA:BB:CC:DD:EE:FF", "IPv4":"10.0.0.2", "IPv6":"", "Download Min Mbps":"7.5", "Upload Min Mbps":"7.5", "Download Max Mbps":"15", "Upload Max Mbps":"15", "Comment":"PPP"});
+        let payload = json!({
+            "python_rows": [row],
+            "rust_core": {
+                "run_cycle_rust_shadow_report_enabled": true,
+                "run_cycle_rust_shadow_report_pilot": true
+            },
+            "live_read_shadow_parity": {
+                "result": {
+                    "status": "live_read_shadow_parity_pass",
+                    "normalized_count": 1,
+                    "parity": {"verdict":"parity_pass", "parity_score":100.0},
+                    "safe_for_cleanup": false,
+                    "collector_authority": "python_authoritative"
+                }
+            }
+        });
+        let (result, errors, _warnings) = build_run_cycle_rust_shadow_report_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("run_cycle_rust_shadow_ready"));
+        assert_eq!(result.get("rust_shadow_ready").and_then(Value::as_bool), Some(false));
+        assert_eq!(result.get("live_read_shadow_ready").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("rust_row_count").and_then(Value::as_u64), Some(1));
+        assert_eq!(result["live_read_shadow_parity_verdict"], "parity_pass");
+        assert_eq!(result.get("safe_for_cleanup").and_then(Value::as_bool), Some(false));
     }
 
     #[test]

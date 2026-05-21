@@ -1,19 +1,20 @@
 # Rust Core v3.9 — run_cycle Rust-Shadow Integration Report
 
-Rust Core v3.9 adds `build-run-cycle-rust-shadow-report`, a non-mutating bridge that lets the Python `run_cycle` attach Rust-shadow collector dry-run data beside the authoritative Python collector result.
+Rust Core v3.9 adds `build-run-cycle-rust-shadow-report`, a non-mutating bridge that lets the Python `run_cycle` attach Rust-shadow collector dry-run data beside the authoritative Python collector result. On the `lqosync-in-rust` branch, this report also accepts `build-routeros-live-read-shadow-parity` evidence so live-read parity can be carried into repeated run-cycle history.
 
 ## Purpose
 
 This phase prepares the production orchestrator for the future Rust collector authority pilot without switching authority yet. It answers:
 
 - Is a Rust-shadow collector bundle available for this cycle?
+- Is live-read shadow parity evidence available for this cycle?
 - How many authoritative Python rows and Rust-shadow rows are present?
 - Is parity available?
 - Can Rust output drive cleanup or apply? In v3.9, always no.
 
 ## Safety model
 
-Python remains authoritative. Rust does not perform live RouterOS reads, does not drive cleanup, does not write generated files, and does not run LibreQoS apply.
+Python remains authoritative. Run-cycle shadow reporting does not initiate live RouterOS reads by default, does not drive cleanup, does not write generated files, and does not run LibreQoS apply.
 
 The report always returns:
 
@@ -33,6 +34,7 @@ full_rust_backend = false
   "version": "1",
   "payload": {
     "python_rows": [],
+    "live_read_shadow_parity": {},
     "collector_parity": {"parity_score": 100, "verdict": "parity_pass"}
   }
 }
@@ -50,6 +52,22 @@ full_rust_backend = false
 
 The default is disabled. When enabled, the report is still diagnostic-only.
 
+## Live-read shadow fields
+
+When live-read shadow evidence is supplied, the report includes:
+
+```text
+live_read_shadow_ready
+live_read_shadow_status
+live_read_shadow_row_count
+live_read_shadow_parity_verdict
+live_read_shadow_error_count
+```
+
+`run_cycle_rust_shadow_ready` may be reached from either the existing dry-run
+collector bundle or a passing live-read shadow parity result. In both cases,
+Python run_cycle remains authoritative.
+
 ## New API
 
 ```text
@@ -59,4 +77,4 @@ POST /api/rust-core/run-cycle-rust-shadow-report
 
 ## Next phase
 
-The next safe phase is run_cycle UI/report visibility and then Rust collector authority pilot integration, where Rust-shadow rows can be compared continuously before any source becomes Rust-authoritative.
+The next safe phase is recording repeated live-read shadow parity cycles and feeding that history into collector authority activation. Rust-shadow rows must pass across multiple cycles before any source becomes Rust-authoritative.

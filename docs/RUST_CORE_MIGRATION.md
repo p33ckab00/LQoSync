@@ -74,7 +74,7 @@ Python still covers:
 - WebUI shell and compatibility wrappers
 ```
 
-The next migration target is feeding live-read shadow parity evidence into repeated run-cycle history. The live adapter can execute a single read-only `print` when all gates are enabled, and `build-routeros-live-read-shadow-parity` can now turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence. It still does not replace Python collectors. Once repeated live-read parity is proven, the Python collector/build/run-cycle modules can be removed.
+The next migration target is persisting repeated live-read shadow parity history for collector authority activation. The live adapter can execute a single read-only `print` when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, and `build-run-cycle-rust-shadow-report` can now carry that evidence beside the authoritative Python cycle. It still does not replace Python collectors. Once repeated live-read parity is proven, the Python collector/build/run-cycle modules can be removed.
 
 ## Singularity policy target
 
