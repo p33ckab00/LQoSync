@@ -15,6 +15,7 @@ No SaaS
 - [Project Canonical Architecture](PROJECT_CANONICAL_ARCHITECTURE.md)
 - [Flask UI Shell](FLASK_UI_SHELL.md)
 - [Rust Scheduler Authority](RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md)
+- [Rust Core Live-Read Shadow Parity](RUST_CORE_LIVE_READ_SHADOW_PARITY.md)
 - [Full Rust Stable Operations](FULL_RUST_STABLE_OPERATIONS.md)
 - [Installation Matrix](INSTALLATION_MATRIX.md)
 

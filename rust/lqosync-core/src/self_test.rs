@@ -97,6 +97,7 @@ pub const OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT: &str = "build-routeros-auth-s
 pub const OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE: &str = "run-routeros-authenticated-read-fixture";
 pub const OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT: &str = "run-routeros-live-read-adapter-pilot";
 pub const OP_BUILD_ROUTEROS_SHADOW_COLLECTOR_BUNDLE: &str = "build-routeros-shadow-collector-bundle";
+pub const OP_BUILD_ROUTEROS_LIVE_READ_SHADOW_PARITY: &str = "build-routeros-live-read-shadow-parity";
 pub const OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT: &str = "evaluate-rust-collector-authority-pilot";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_MANIFEST: &str = "build-collector-authority-manifest";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_SELECTION: &str = "build-collector-authority-selection";
@@ -189,6 +190,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE,
         OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT,
         OP_BUILD_ROUTEROS_SHADOW_COLLECTOR_BUNDLE,
+        OP_BUILD_ROUTEROS_LIVE_READ_SHADOW_PARITY,
         OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT,
         OP_BUILD_COLLECTOR_AUTHORITY_MANIFEST,
         OP_BUILD_COLLECTOR_AUTHORITY_SELECTION,

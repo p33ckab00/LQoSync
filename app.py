@@ -59,6 +59,7 @@ from engine.rust_core import (
     rust_build_routeros_auth_session_contract,
     rust_run_routeros_authenticated_read_fixture,
     rust_run_routeros_live_read_adapter_pilot,
+    rust_build_routeros_live_read_shadow_parity,
     rust_evaluate_collector_authority_pilot,
     rust_build_collector_authority_manifest,
     rust_build_collector_authority_selection,
@@ -2391,6 +2392,25 @@ def api_rust_core_routeros_live_read_adapter_pilot():
             "fixture_reply_words": [w.strip() for w in str(request.args.get("fixture_reply_words") or "!done").split(",") if w.strip()],
         }
     return jsonify(rust_run_routeros_live_read_adapter_pilot(cfg, payload))
+
+@app.route("/api/rust-core/routeros-live-read-shadow-parity", methods=["GET", "POST"])
+@login_required
+def api_rust_core_routeros_live_read_shadow_parity():
+    cfg = load_config(CONFIG_PATH)
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+    else:
+        payload = {
+            "router": request.args.get("router") or "",
+            "adapter": request.args.get("adapter") or "contract",
+            "mode": request.args.get("mode") or "shadow_parity",
+            "execute": str(request.args.get("execute") or "").lower() in {"1", "true", "yes", "on"},
+            "path": request.args.get("path") or "/ppp/active",
+            "fields": [w.strip() for w in str(request.args.get("fields") or "name,address").split(",") if w.strip()],
+            "fixture_reply_words": [w.strip() for w in str(request.args.get("fixture_reply_words") or "!done").split(",") if w.strip()],
+            "python_rows": [],
+        }
+    return jsonify(rust_build_routeros_live_read_shadow_parity(cfg, payload))
 
 @app.route("/api/rust-core/collector-authority-pilot", methods=["GET", "POST"])
 @login_required

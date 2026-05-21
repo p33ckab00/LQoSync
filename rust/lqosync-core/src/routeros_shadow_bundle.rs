@@ -21,29 +21,46 @@ fn as_result_entries(value: &Value) -> Vec<Value> {
     }
 }
 
+fn append_result_entries(target: &mut Vec<Value>, value: Option<&Value>) {
+    if let Some(value) = value {
+        target.extend(as_result_entries(value));
+    }
+}
+
+fn append_live_read_result(target: &mut Vec<Value>, value: Option<&Value>) {
+    let Some(value) = value else { return; };
+    if let Some(result) = value.get("result") {
+        append_live_read_result(target, Some(result));
+    }
+    if let Some(read_result) = value.get("read_result").filter(|v| v.is_object()) {
+        target.push(read_result.clone());
+        return;
+    }
+    if value.get("path").is_some() && value.get("rows").is_some() {
+        target.push(value.clone());
+    }
+}
+
 fn result_entries(payload: &Value) -> Vec<Value> {
+    let mut entries = Vec::new();
     if let Some(results) = payload.get("results") {
-        let entries = as_result_entries(results);
-        if !entries.is_empty() {
-            return entries;
-        }
+        append_result_entries(&mut entries, Some(results));
     }
     if let Some(results) = payload.get("read_results") {
-        let entries = as_result_entries(results);
-        if !entries.is_empty() {
-            return entries;
-        }
+        append_result_entries(&mut entries, Some(results));
     }
     if let Some(results) = payload
         .get("routeros_results")
         .and_then(|v| v.get("results"))
     {
-        let entries = as_result_entries(results);
-        if !entries.is_empty() {
-            return entries;
-        }
+        append_result_entries(&mut entries, Some(results));
     }
-    Vec::new()
+    append_result_entries(&mut entries, payload.get("live_read_results"));
+    append_live_read_result(&mut entries, payload.get("live_read_result"));
+    append_live_read_result(&mut entries, payload.get("read_result"));
+    append_live_read_result(&mut entries, payload.get("live_read_adapter"));
+    append_live_read_result(&mut entries, payload.get("adapter_result"));
+    entries
 }
 
 fn merge_diags(target: &mut Vec<Diagnostic>, mut source: Vec<Diagnostic>) {
@@ -347,5 +364,30 @@ mod tests {
             result.get("safe_for_cleanup").and_then(Value::as_bool),
             Some(false)
         );
+    }
+
+    #[test]
+    fn accepts_live_read_adapter_result_as_shadow_input() {
+        let python_rows = json!([
+            {"Circuit ID":"JUAN", "Circuit Name":"juan", "Device ID":"JUANDEV", "Device Name":"juan", "Parent Node":"15M-RB5009", "MAC":"AA:BB:CC:DD:EE:FF", "IPv4":"10.0.0.2", "IPv6":"", "Download Min Mbps":"7.5", "Upload Min Mbps":"7.5", "Download Max Mbps":"15", "Upload Max Mbps":"15", "Comment":"PPP"}
+        ]);
+        let payload = json!({
+            "config": {
+                "defaults": {"default_pppoe_rate":"10M/10M", "min_rate_percentage":0.5},
+                "routers": [{"name":"RB5009", "enabled": true, "pppoe":{"enabled":true, "per_plan_node":true}}]
+            },
+            "live_read_adapter": {"result": {"status":"live_read_adapter_read_complete", "read_result": {"router":"RB5009", "source":"pppoe", "path":"/ppp/active", "status":"ok", "rows":[{"name":"juan", "address":"10.0.0.2", "caller-id":"AA:BB:CC:DD:EE:FF"}]}}},
+            "live_read_results": [
+                {"router":"RB5009", "source":"pppoe", "path":"/ppp/secret", "status":"ok", "rows":[{"name":"juan", "profile":"15M", "comment":"PLAN|15M/15M", "disabled":"false", "inactive":"false"}]},
+                {"router":"RB5009", "source":"pppoe", "path":"/ppp/profile", "status":"ok", "rows":[{"name":"15M", "rate-limit":"15M/15M"}]}
+            ],
+            "python_rows": python_rows
+        });
+        let (result, errors, _warnings) = build_routeros_shadow_collector_bundle_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("shadow_ready"));
+        assert_eq!(result.get("normalized_count").and_then(Value::as_u64), Some(1));
+        assert_eq!(result["parity"]["verdict"], "parity_pass");
+        assert_eq!(result["normalized_rows"][0]["Circuit Name"], "juan");
     }
 }

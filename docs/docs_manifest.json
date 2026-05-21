@@ -57,6 +57,11 @@
     "summary": "Defines the simplified Singularity policy model and staged Rust backend cutover gates.",
     "title": "Singularity Rust Backend Cutover"
   },
+  "rust.live_read_shadow_parity": {
+    "file": "docs/RUST_CORE_LIVE_READ_SHADOW_PARITY.md",
+    "summary": "Documents the shadow-only bridge that turns gated RouterOS live-read results into Rust collector rows and parity evidence.",
+    "title": "Rust Core Live-Read Shadow Parity"
+  },
   "release.v800_cleanup": {
     "file": "docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md",
     "summary": "Stable cleanup boundary: Python retained only as UI shell.",

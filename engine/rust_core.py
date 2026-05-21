@@ -2535,8 +2535,8 @@ def _python_run_routeros_live_read_adapter_pilot(payload: dict[str, Any], *, sta
             "api_sentence_write_count": 0,
             "api_reply_read_count": 0,
             "collector_authority": "python_authoritative",
-            "next_stage": "rust_routeros_live_read_socket_adapter",
-            "authority_note": "Python fallback only models the live-read adapter contract. It never performs live RouterOS reads."
+            "next_stage": "rust_routeros_live_read_shadow_parity",
+            "authority_note": "Python fallback only models the live-read adapter contract. The Rust core binary is required for gated live RouterOS reads."
         },
         "errors": errors,
         "warnings": [],
@@ -2607,6 +2607,63 @@ def rust_build_routeros_shadow_collector_bundle(config: dict, payload: dict[str,
     error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
     if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
         return _python_build_routeros_shadow_collector_bundle(req_payload, started=started)
+    return response
+
+
+def _python_build_routeros_live_read_shadow_parity(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback for the Rust live-read shadow parity bridge.
+
+    Python intentionally does not emulate this bridge because the Rust core must
+    own read-result validation, shadow row normalization, and parity evidence.
+    """
+    started = started or time.perf_counter()
+    adapter = _python_run_routeros_live_read_adapter_pilot(payload, started=started)
+    adapter_result = adapter.get("result") if isinstance(adapter.get("result"), dict) else {}
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-routeros-live-read-shadow-parity",
+        "available": False,
+        "skipped": True,
+        "ok": False,
+        "result": {
+            "mode": "routeros_live_read_shadow_parity",
+            "status": "rust_core_required",
+            "authoritative": False,
+            "collector_authority": "python_authoritative",
+            "production_authority": "python_collector",
+            "full_rust_backend": False,
+            "live_adapter_status": adapter_result.get("status", "unavailable"),
+            "live_read_result_count": 0,
+            "normalized_count": 0,
+            "parity": {"verdict": "not_run", "parity_score": 0.0},
+            "parity_ready": False,
+            "collector_output_can_drive_cleanup": False,
+            "collector_output_can_drive_apply": False,
+            "safe_for_cleanup": False,
+            "write_allowed": False,
+            "apply_allowed": False,
+            "next_stage": "build_rust_core_binary_or_enable_daemon",
+            "note": "Rust core is required to turn live-read pilot results into shadow collector rows and parity evidence.",
+        },
+        "errors": [{
+            "code": "routeros_live_shadow_parity_rust_core_required",
+            "severity": "error",
+            "path": "rust_core",
+            "message": "The live-read shadow parity bridge requires the Rust core operation build-routeros-live-read-shadow-parity.",
+        }],
+        "warnings": list(adapter.get("warnings") or []),
+        "meta": {"engine": "python-wrapper", "mode": "python_routeros_live_shadow_parity_unavailable", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_routeros_live_read_shadow_parity(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-routeros-live-read-shadow-parity", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_routeros_live_read_shadow_parity(req_payload, started=started)
     return response
 
 

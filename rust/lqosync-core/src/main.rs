@@ -30,6 +30,7 @@ use lqosync_core::routeros_auth_session::build_routeros_auth_session_contract_pa
 use lqosync_core::routeros_authenticated_read::run_routeros_authenticated_read_fixture_payload;
 use lqosync_core::routeros_live_read_adapter::run_routeros_live_read_adapter_pilot_payload;
 use lqosync_core::routeros_shadow_bundle::build_routeros_shadow_collector_bundle_payload;
+use lqosync_core::routeros_live_shadow_parity::build_routeros_live_read_shadow_parity_payload;
 use lqosync_core::collector_authority_pilot::evaluate_rust_collector_authority_pilot_payload;
 use lqosync_core::collector_authority_manifest::build_collector_authority_manifest_payload;
 use lqosync_core::collector_authority_selection::build_collector_authority_selection_payload;
@@ -356,6 +357,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-routeros-shadow-collector-bundle" => {
             let (result, errors, warnings) = build_routeros_shadow_collector_bundle_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-routeros-live-read-shadow-parity" => {
+            let (result, errors, warnings) = build_routeros_live_read_shadow_parity_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "evaluate-rust-collector-authority-pilot" => {

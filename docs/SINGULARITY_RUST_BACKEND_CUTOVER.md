@@ -66,10 +66,11 @@ The next backend migration layer is now represented by:
 
 ```text
 build-routeros-shadow-collector-bundle
+build-routeros-live-read-shadow-parity
 ```
 
-This Rust operation accepts RouterOS read results, validates them against the
-planned MikroTik reads, normalizes PPPoE/DHCP/Hotspot rows through the Rust
+These Rust operations accept RouterOS read results, validate them against the
+planned MikroTik reads, normalize PPPoE/DHCP/Hotspot rows through the Rust
 collector bundle builder, and can compare those rows against Python output.
 
 It is intentionally non-authoritative:

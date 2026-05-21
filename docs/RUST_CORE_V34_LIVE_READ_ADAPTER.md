@@ -99,6 +99,7 @@ to `plan_only` after the pilot run.
 
 ## Next phase
 
-Feed successful live-read results into `build-routeros-shadow-collector-bundle`
-and compare them with Python collector rows over multiple clean cycles before
-any authority handoff.
+Successful live-read results can now feed
+`build-routeros-live-read-shadow-parity`, which builds Rust shadow collector
+rows and compares them with Python collector rows. The next step is repeated
+run-cycle history before any authority handoff.

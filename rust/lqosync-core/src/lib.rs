@@ -43,6 +43,7 @@ pub mod routeros_auth_session;
 pub mod routeros_authenticated_read;
 pub mod routeros_live_read_adapter;
 pub mod routeros_shadow_bundle;
+pub mod routeros_live_shadow_parity;
 pub mod collector_authority_pilot;
 pub mod collector_authority_manifest;
 pub mod collector_authority_selection;

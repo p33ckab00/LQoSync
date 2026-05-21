@@ -66,6 +66,7 @@ Rust already covers:
 - RouterOS read planning and read-result validation
 - RouterOS shadow collector bundle generation from supplied read results
 - gated read-only RouterOS live adapter pilot
+- live-read shadow parity bridge from RouterOS results to Rust collector rows
 
 Python still covers:
 - live RouterOS API reads through routeros-api
@@ -73,7 +74,7 @@ Python still covers:
 - WebUI shell and compatibility wrappers
 ```
 
-The next migration target is wiring gated Rust live-read pilot results into shadow parity cycles. The live adapter can execute a single read-only `print` when all gates are enabled, and the shadow bundle bridge can turn those results into diagnostic PPPoE/DHCP/Hotspot rows. It still does not replace Python collectors. Once live reads and parity are proven, the Python collector/build/run-cycle modules can be removed.
+The next migration target is feeding live-read shadow parity evidence into repeated run-cycle history. The live adapter can execute a single read-only `print` when all gates are enabled, and `build-routeros-live-read-shadow-parity` can now turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence. It still does not replace Python collectors. Once repeated live-read parity is proven, the Python collector/build/run-cycle modules can be removed.
 
 ## Singularity policy target
 
