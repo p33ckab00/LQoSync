@@ -31,6 +31,12 @@
     "summary": "ZIP/local package install and update guide.",
     "title": "ZIP Install"
   },
+  "operations.one_line": {
+    "anchor": "one-line-operations-guide",
+    "file": "docs/ONE_LINE_OPERATIONS.md",
+    "summary": "Fresh install, update, check, verify, start, stop, restart, and repair using lqosyncctl.sh.",
+    "title": "One-Line Operations Guide"
+  },
   "operator.troubleshooting": {
     "file": "docs/OPERATOR_TROUBLESHOOTING.md",
     "summary": "Real-world operator error guide for Rust/Cargo, Git, rebase, service policy, and Python/main to lqosync-in-rust migration issues.",
@@ -78,6 +84,12 @@
     "file": "docs/RUST_CORE_V824_DASHBOARD_BACKEND_WIRING_AUDIT.md",
     "summary": "Read-only Dashboard module wiring audit and JSON endpoint for operator verification.",
     "title": "Rust Core v8.2.4 Dashboard Backend Wiring Audit"
+  },
+  "rust.core_v825_one_line_operations": {
+    "anchor": "v825-one-line-operations-dry-run-hardening",
+    "file": "docs/RUST_CORE_V825_ONE_LINE_OPERATIONS_AND_DRY_RUN_HARDENING.md",
+    "summary": "Adds lqosyncctl.sh and safe dry-run exception diagnostics.",
+    "title": "Rust Core v8.2.5 One-Line Operations + Dry-Run Hardening"
   },
   "rust.scheduler_authority": {
     "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",

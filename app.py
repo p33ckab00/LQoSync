@@ -2,6 +2,8 @@ import json
 import os
 import secrets
 import subprocess
+import time
+import traceback
 import io
 import zipfile
 from pathlib import Path
@@ -583,6 +585,12 @@ def dashboard():
     )
 
 
+
+
+def _dry_run_failure_result(exc, *, source="webui"):
+    err = f"{type(exc).__name__}: {exc}"
+    return {"status":"dry_run_failed","mode":"dry_run","source":source,"duration_seconds":0,"csv_changed":False,"network_changed":False,"files_changed":False,"errors":[err],"warnings":["Dry-run failed before producing a preview. Run: sudo journalctl -u lqosync -n 120 --no-pager -l","Then run: sudo /opt/LQoSync/lqosyncctl.sh verify"],"diff":{},"node_math":{},"timings":{}}
+
 @app.route("/sync/run", methods=["POST"])
 @admin_required
 def sync_run():
@@ -599,15 +607,26 @@ def sync_run():
 @login_required
 def dry_run():
     result = None
+    dry_run_error = None
     if request.method == "POST":
         user = current_user() or {}
         if not role_at_least(user.get("role", "viewer"), "operator"):
             abort(403)
-        result = run_cycle(mode="dry_run", config_path=CONFIG_PATH).to_dict()
+        try:
+            result = run_cycle(mode="dry_run", config_path=CONFIG_PATH).to_dict()
+        except Exception as exc:
+            dry_run_error = f"{type(exc).__name__}: {exc}"
+            app.logger.exception("Dry-run route failed")
+            result = _dry_run_failure_result(exc, source="webui")
     else:
-        _cfg, state = get_status()
-        result = state.get("last_dry_run")
-    return render_template("dry_run.html", result=result, user=current_user())
+        try:
+            _cfg, state = get_status()
+            result = state.get("last_dry_run")
+        except Exception as exc:
+            dry_run_error = f"{type(exc).__name__}: {exc}"
+            app.logger.exception("Dry-run status load failed")
+            result = _dry_run_failure_result(exc, source="webui-status")
+    return render_template("dry_run.html", result=result, dry_run_error=dry_run_error, user=current_user())
 
 
 @app.route("/scheduler/<action>", methods=["POST"])
@@ -1453,14 +1472,21 @@ def setup_wizard_mark_complete():
     return redirect(url_for("dashboard"))
 
 
-@app.route("/setup-wizard/reset", methods=["POST"])
+@app.route("/setup-wizard/reset", methods=["GET", "POST"])
 @admin_required
 def setup_wizard_reset():
-    cfg = load_config(CONFIG_PATH)
-    cfg.setdefault("setup_wizard", {})["first_run_completed"] = False
-    save_config(cfg, CONFIG_PATH)
-    write_audit(cfg, "setup_wizard_reset", actor=current_user().get("username"))
-    flash("First Run Setup was reset. The wizard will guide administrators again until completed.")
+    if request.method == "GET":
+        flash("Setup Wizard reset requires confirmation. Use the Reset button from the Setup Wizard page.")
+        return redirect(url_for("setup_wizard_center"))
+    try:
+        cfg = load_config(CONFIG_PATH)
+        cfg.setdefault("setup_wizard", {})["first_run_completed"] = False
+        save_config(cfg, CONFIG_PATH)
+        write_audit(cfg, "setup_wizard_reset", actor=(current_user() or {}).get("username"))
+        flash("First Run Setup was reset. The wizard will guide administrators again until completed.")
+    except Exception as exc:
+        app.logger.exception("Setup Wizard reset failed")
+        flash(f"Setup Wizard reset failed: {type(exc).__name__}: {exc}")
     return redirect(url_for("setup_wizard_center"))
 
 
@@ -3491,8 +3517,12 @@ def api_sync_run():
 @app.route("/api/sync/dry-run", methods=["POST"])
 @login_required
 def api_sync_dry_run():
-    result = run_cycle(mode="dry_run", config_path=CONFIG_PATH).to_dict()
-    return jsonify(result)
+    try:
+        result = run_cycle(mode="dry_run", config_path=CONFIG_PATH).to_dict()
+        return jsonify(result)
+    except Exception as exc:
+        app.logger.exception("API dry-run failed")
+        return jsonify(_dry_run_failure_result(exc, source="api")), 500
 
 
 @app.route("/api/sync/apply-last-preview", methods=["POST"])

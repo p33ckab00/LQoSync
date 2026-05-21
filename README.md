@@ -168,3 +168,29 @@ Collector parity warnings are separate and indicate Rust MikroTik collector pari
 ## Dashboard Backend Wiring
 
 The Dashboard includes a read-only backend wiring audit and `/api/dashboard/modules` endpoint so operators can confirm every visible module is connected to its backend provider.
+
+## One-line install/update/check/verify
+
+Fresh install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- install
+```
+
+Update:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- update
+```
+
+Check:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- check
+```
+
+Verify:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- verify
+```

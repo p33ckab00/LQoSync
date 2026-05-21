@@ -16,6 +16,15 @@
   </div>
 </div>
 
+{% if dry_run_error %}
+<section class="card" style="margin-top:10px;border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.08)">
+  <div class="card-title text-err"><i class="ti ti-alert-circle"></i> Dry Run failed safely</div>
+  <p class="text-sm" style="color:var(--muted)">The WebUI caught the dry-run exception and returned this diagnostic page instead of a raw Internal Server Error.</p>
+  <pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ dry_run_error }}</pre>
+  <div class="mono text-xs" style="margin-top:10px;color:var(--muted)">Next checks:<br>sudo journalctl -u lqosync -n 120 --no-pager -l<br>sudo /opt/LQoSync/lqosyncctl.sh verify<br>sudo systemctl status lqosync-core --no-pager</div>
+</section>
+{% endif %}
+
 {% if result %}
 <section class="grid-stats">
   <div class="stat"><div class="stat-label"><i class="ti ti-activity"></i> Status</div><div class="stat-value {{ 'text-accent' if result.status == 'dry_run_complete' else 'text-warn' }}">{{ result.status }}</div><div class="stat-sub">duration {{ result.duration_seconds }}s</div></div>

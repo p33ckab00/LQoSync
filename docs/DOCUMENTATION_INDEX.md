@@ -65,3 +65,8 @@ Old per-version migration documents may remain in the repository as audit histor
 ## v8.2.4 Dashboard Backend Wiring Audit
 
 - [Dashboard Backend Wiring Audit](RUST_CORE_V824_DASHBOARD_BACKEND_WIRING_AUDIT.md)
+
+## v8.2.5 One-Line Operations
+
+- [One-Line Operations Guide](ONE_LINE_OPERATIONS.md)
+- [Rust Core v8.2.5 One-Line Operations + Dry-Run Hardening](RUST_CORE_V825_ONE_LINE_OPERATIONS_AND_DRY_RUN_HARDENING.md)

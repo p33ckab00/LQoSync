@@ -55,3 +55,7 @@ This package hardens the Rust sync-plan authority gate import used by `engine/ru
 - Added read-only verification for Dashboard modules and their backend providers.
 - Added `scripts/verify-dashboard-backend-wiring.sh` and documentation for operator-facing module wiring checks.
 - No collector, apply, scheduler, or WebUI redesign behavior changed.
+
+## v8.2.5 One-Line Operations + Dry-Run Hardening
+
+This package adds `lqosyncctl.sh` for one-line fresh install, update, check, verify, start, stop, restart, and repair from the `lqosync-in-rust` GitHub branch. It also catches dry-run route exceptions and displays operator diagnostics instead of raw Internal Server Error pages.

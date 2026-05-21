@@ -55,3 +55,11 @@
 - Added read-only verification for Dashboard modules and their backend providers.
 - Added `scripts/verify-dashboard-backend-wiring.sh` and documentation for operator-facing module wiring checks.
 - No collector, apply, scheduler, or WebUI redesign behavior changed.
+
+## 2.152.5 - v8.2.5 One-Line Operations + Dry-Run Hardening
+
+- Added `lqosyncctl.sh`, a one-line operator control script for GitHub fresh install, update, check, verify, start, stop, restart, and repair.
+- The one-line script handles root execution, `/opt/LQoSync` Git safe.directory, rustup stable Cargo installation/update, live-file backups, GitHub branch update from `lqosync-in-rust`, stable install, and verification.
+- Hardened `/sync/dry-run` and `/api/sync/dry-run` so runtime exceptions render actionable diagnostics instead of raw Internal Server Error pages.
+- Added `docs/ONE_LINE_OPERATIONS.md` and `docs/RUST_CORE_V825_ONE_LINE_OPERATIONS_AND_DRY_RUN_HARDENING.md`.
+- Added `scripts/verify-one-line-operations.sh`.

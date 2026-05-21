@@ -84,3 +84,29 @@ sudo systemctl restart lqosync
 ```
 
 Collector parity warnings are separate and indicate Rust MikroTik collector parity is not complete yet.
+
+## v8.2.5 one-line GitHub operations
+
+Preferred fresh install from GitHub branch `lqosync-in-rust`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- install
+```
+
+Preferred update:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- update
+```
+
+Check current installation:
+
+```bash
+sudo /opt/LQoSync/lqosyncctl.sh check
+```
+
+Verify current installation:
+
+```bash
+sudo /opt/LQoSync/lqosyncctl.sh verify
+```
