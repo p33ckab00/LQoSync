@@ -2555,6 +2555,61 @@ def rust_run_routeros_live_read_adapter_pilot(config: dict, payload: dict[str, A
     return response
 
 
+def _python_build_routeros_shadow_collector_bundle(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Conservative fallback for the Rust RouterOS shadow bundle bridge.
+
+    The Python fallback deliberately does not duplicate the Rust collector
+    bundle builder. If Rust is unavailable, Python remains the production
+    collector and this shadow bridge reports unavailable rather than pretending
+    parity was checked.
+    """
+    started = started or time.perf_counter()
+    plan = _python_build_routeros_collector_plan(payload, started=started)
+    results = payload.get("results") if isinstance(payload.get("results"), list) else []
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-routeros-shadow-collector-bundle",
+        "available": False,
+        "skipped": True,
+        "ok": False,
+        "result": {
+            "mode": "routeros_shadow_collector_bundle",
+            "status": "rust_core_required",
+            "authoritative": False,
+            "python_authoritative": True,
+            "full_rust_backend": False,
+            "live_transport_supported": False,
+            "connection_attempt_count": 0,
+            "planned_command_count": ((plan.get("result") or {}).get("command_count") if isinstance(plan.get("result"), dict) else 0),
+            "received_result_count": len(results),
+            "normalized_count": 0,
+            "safe_for_cleanup": False,
+            "cleanup_authority": "python_authoritative",
+            "next_stage": "build_rust_core_binary_or_enable_daemon",
+            "note": "Rust core is required to build the RouterOS shadow collector bundle. Python collectors remain authoritative.",
+        },
+        "errors": [{
+            "code": "routeros_shadow_bundle_rust_core_required",
+            "severity": "error",
+            "path": "rust_core",
+            "message": "The RouterOS shadow collector bundle requires the Rust core operation build-routeros-shadow-collector-bundle.",
+        }],
+        "warnings": list(plan.get("warnings") or []),
+        "meta": {"engine": "python-wrapper", "mode": "python_routeros_shadow_bundle_unavailable", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_routeros_shadow_collector_bundle(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-routeros-shadow-collector-bundle", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_build_routeros_shadow_collector_bundle(req_payload, started=started)
+    return response
+
+
 
 def _python_evaluate_collector_authority_pilot(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
     """Fallback for v3.5 Rust collector authority pilot gate.

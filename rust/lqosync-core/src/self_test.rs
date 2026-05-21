@@ -22,6 +22,7 @@ use crate::routeros_auth_handshake::run_routeros_auth_handshake_payload;
 use crate::routeros_auth_session::build_routeros_auth_session_contract_payload;
 use crate::routeros_authenticated_read::run_routeros_authenticated_read_fixture_payload;
 use crate::routeros_live_read_adapter::run_routeros_live_read_adapter_pilot_payload;
+use crate::routeros_shadow_bundle::build_routeros_shadow_collector_bundle_payload;
 use crate::collector_authority_pilot::evaluate_rust_collector_authority_pilot_payload;
 use crate::collector_authority_manifest::build_collector_authority_manifest_payload;
 use crate::collector_authority_selection::build_collector_authority_selection_payload;
@@ -95,6 +96,7 @@ pub const OP_RUN_ROUTEROS_AUTH_HANDSHAKE: &str = "run-routeros-auth-handshake";
 pub const OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT: &str = "build-routeros-auth-session-contract";
 pub const OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE: &str = "run-routeros-authenticated-read-fixture";
 pub const OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT: &str = "run-routeros-live-read-adapter-pilot";
+pub const OP_BUILD_ROUTEROS_SHADOW_COLLECTOR_BUNDLE: &str = "build-routeros-shadow-collector-bundle";
 pub const OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT: &str = "evaluate-rust-collector-authority-pilot";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_MANIFEST: &str = "build-collector-authority-manifest";
 pub const OP_BUILD_COLLECTOR_AUTHORITY_SELECTION: &str = "build-collector-authority-selection";
@@ -186,6 +188,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_ROUTEROS_AUTH_SESSION_CONTRACT,
         OP_RUN_ROUTEROS_AUTHENTICATED_READ_FIXTURE,
         OP_RUN_ROUTEROS_LIVE_READ_ADAPTER_PILOT,
+        OP_BUILD_ROUTEROS_SHADOW_COLLECTOR_BUNDLE,
         OP_EVALUATE_RUST_COLLECTOR_AUTHORITY_PILOT,
         OP_BUILD_COLLECTOR_AUTHORITY_MANIFEST,
         OP_BUILD_COLLECTOR_AUTHORITY_SELECTION,
@@ -1981,6 +1984,31 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
         errors.push(Diagnostic::error("self_test_collector_parity_failed", Some("compare-collector-bundle-parity".to_string()), "Self-test collector parity should pass when Python and Rust rows are identical."));
     }
 
+    let shadow_bundle_payload = json!({
+        "config": {
+            "defaults": {"default_pppoe_rate":"10M/10M", "min_rate_percentage":0.5},
+            "routers": [{"name":"RB5009", "enabled": true, "pppoe":{"enabled":true, "per_plan_node":true, "plan_node_name":"{profile}-{router}"}}]
+        },
+        "results": [
+            {"router":"RB5009", "source":"pppoe", "path":"/ppp/active", "status":"ok", "rows":[{"name":"selftest", "address":"10.0.0.2", "caller-id":"AA:BB:CC:DD:EE:FF"}]},
+            {"router":"RB5009", "source":"pppoe", "path":"/ppp/secret", "status":"ok", "rows":[{"name":"selftest", "profile":"15M", "comment":"PLAN|15M/15M", "disabled":"false", "inactive":"false"}]},
+            {"router":"RB5009", "source":"pppoe", "path":"/ppp/profile", "status":"ok", "rows":[{"name":"15M", "rate-limit":"15M/15M"}]}
+        ]
+    });
+    let (shadow_bundle, shadow_bundle_errors, _shadow_bundle_warnings) = build_routeros_shadow_collector_bundle_payload(&shadow_bundle_payload);
+    let shadow_bundle_ok = shadow_bundle_errors.is_empty()
+        && shadow_bundle.get("status").and_then(Value::as_str) == Some("shadow_ready")
+        && shadow_bundle.get("normalized_count").and_then(Value::as_u64).unwrap_or(0) == 1
+        && shadow_bundle.get("python_authoritative").and_then(Value::as_bool) == Some(true);
+    checks.push(check("routeros_shadow_collector_bundle", shadow_bundle_ok, json!({
+        "status": shadow_bundle.get("status"),
+        "normalized_count": shadow_bundle.get("normalized_count"),
+        "python_authoritative": shadow_bundle.get("python_authoritative")
+    })));
+    if !shadow_bundle_ok {
+        errors.push(Diagnostic::error("self_test_routeros_shadow_bundle_failed", Some("build-routeros-shadow-collector-bundle".to_string()), "Self-test RouterOS shadow bundle should normalize trusted read results without taking collector authority."));
+    }
+
     let manifest_payload = json!({
         "mode": "apply",
         "config": {"app": {"auto_apply": true, "backup_before_apply": false}, "libreqos": {"retry_if_last_apply_failed": true}},
@@ -2171,6 +2199,7 @@ mod tests {
         assert!(ops.contains(&OP_RUN_ROUTEROS_READ_PILOT));
         assert!(ops.contains(&OP_BUILD_ROUTEROS_API_SENTENCE));
         assert!(ops.contains(&OP_BUILD_ROUTEROS_AUTH_PLAN));
+        assert!(ops.contains(&OP_BUILD_ROUTEROS_SHADOW_COLLECTOR_BUNDLE));
         assert!(ops.contains(&OP_BUILD_RUN_CYCLE_RUST_SHADOW_REPORT));
         assert!(ops.contains(&OP_BUILD_COLLECTOR_AUTHORITY_SWITCH_REHEARSAL));
         assert!(ops.contains(&OP_BUILD_COLLECTOR_AUTHORITY_PROMOTION_READINESS));

@@ -186,7 +186,7 @@ fn process_dhcp(payload: &Value, router: &Value, defaults: &Value, rows: &mut Ve
         for server in servers { let name = sval(server, "name"); if !name.is_empty() { server_by_name.insert(name, server); } }
     }
     if let Some(servers) = router_dhcp.get("servers").and_then(Value::as_array) {
-        for server in servers { let name = sval(server, "name"); if !name.is_empty() { server_by_name.entry(name).or_insert(server); } }
+        for server in servers { let name = sval(server, "name"); if !name.is_empty() { server_by_name.insert(name, server); } }
     }
 
     let mut count = 0;
@@ -196,7 +196,10 @@ fn process_dhcp(payload: &Value, router: &Value, defaults: &Value, rows: &mut Ve
         let server = server_by_name.get(&server_name).copied().unwrap_or(&Value::Null);
         let hostname = sval(lease, "host-name");
         let mac = sval(lease, "mac-address");
-        let ip = sval(lease, "address");
+        let ip = {
+            let active = sval(lease, "active-address");
+            if active.is_empty() { sval(lease, "address") } else { active }
+        };
         let mac_clean = clean_mac(&mac);
         let code = if !hostname.trim().is_empty() { format!("DHCP-{hostname}") } else { format!("DHCP-{mac_clean}") };
         if code == "DHCP-" {

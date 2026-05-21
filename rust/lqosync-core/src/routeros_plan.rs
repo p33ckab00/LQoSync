@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 const PPP_ACTIVE_FIELDS: &[&str] = &["name", "address", "caller-id", "comment"];
 const PPP_SECRET_FIELDS: &[&str] = &["name", "profile", "comment", "caller-id", "disabled", "inactive"];
 const PPP_PROFILE_FIELDS: &[&str] = &["name", "comment", "rate-limit"];
-const DHCP_LEASE_FIELDS: &[&str] = &["address", "mac-address", "host-name", "server", "status", "comment", "dynamic", "disabled"];
+const DHCP_LEASE_FIELDS: &[&str] = &["address", "active-address", "mac-address", "host-name", "server", "status", "comment", "dynamic", "disabled"];
 const DHCP_SERVER_FIELDS: &[&str] = &["name", "interface", "comment", "disabled", "lease-script"];
 const HOTSPOT_ACTIVE_FIELDS: &[&str] = &["user", "address", "mac-address", "server", "uptime", "comment"];
 const HOTSPOT_USER_FIELDS: &[&str] = &["name", "profile", "comment", "mac-address", "disabled"];

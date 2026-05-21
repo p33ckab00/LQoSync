@@ -43,6 +43,8 @@ Rust owns:
 - run authorization
 - Singularity policy validation surface
 - collector-output validation
+- RouterOS read-result validation
+- RouterOS shadow collector bundle generation
 - sync-plan enforcement
 - file write authority
 - transaction journal
@@ -56,6 +58,7 @@ Python Flask owns:
 - sessions/login/admin shell
 - forms/buttons/API wrappers
 - displaying Rust results
+- live RouterOS reads until Rust live-read parity passes
 - compatibility live MikroTik collector shell until Rust live reads replace it
 ```
 

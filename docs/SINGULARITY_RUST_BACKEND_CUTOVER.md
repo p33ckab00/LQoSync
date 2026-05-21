@@ -52,11 +52,35 @@ The policy behavior should remain simple:
 
 1. Keep the Python WebUI as the shell.
 2. Normalize policy configuration and docs to Singularity.
-3. Implement Rust live RouterOS API reads.
-4. Move PPPoE, DHCP, and Hotspot row generation into Rust.
-5. Move run-cycle orchestration into Rust.
-6. Switch scheduler commands away from `scripts/run_cycle_once.py`.
-7. Delete stale Python backend modules only after Rust parity passes.
+3. Build Rust RouterOS read plans and validate read-result trust.
+4. Build Rust shadow collector bundles from trusted RouterOS read results.
+5. Implement Rust live RouterOS API reads behind pilot gates.
+6. Move PPPoE, DHCP, and Hotspot row generation into Rust authority.
+7. Move run-cycle orchestration into Rust.
+8. Switch scheduler commands away from `scripts/run_cycle_once.py`.
+9. Delete stale Python backend modules only after Rust parity passes.
+
+## Current Shadow Bundle Bridge
+
+The next backend migration layer is now represented by:
+
+```text
+build-routeros-shadow-collector-bundle
+```
+
+This Rust operation accepts RouterOS read results, validates them against the
+planned MikroTik reads, normalizes PPPoE/DHCP/Hotspot rows through the Rust
+collector bundle builder, and can compare those rows against Python output.
+
+It is intentionally non-authoritative:
+
+```text
+- no socket connections are opened
+- no credentials are emitted
+- no cleanup/write/apply authority is transferred
+- Python collectors remain production-authoritative
+- parity output is diagnostic until live-read shadow cycles pass
+```
 
 ## Python Backend Retirement Gate
 

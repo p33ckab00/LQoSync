@@ -63,6 +63,8 @@ Rust already covers:
 - apply manifest/transaction
 - transaction journal/rollback contracts
 - atomic writes and LibreQoS apply execution when enabled
+- RouterOS read planning and read-result validation
+- RouterOS shadow collector bundle generation from supplied read results
 
 Python still covers:
 - live RouterOS API reads through routeros-api
@@ -70,7 +72,7 @@ Python still covers:
 - WebUI shell and compatibility wrappers
 ```
 
-The next migration target is the Rust live RouterOS adapter plus Rust run-cycle orchestration. Once that is live and parity-tested, the Python collector/build/run-cycle modules can be removed.
+The next migration target is live RouterOS read execution in Rust. The shadow bundle bridge already lets Rust validate supplied RouterOS read results and produce diagnostic PPPoE/DHCP/Hotspot rows for parity checks, but it does not open sockets or replace Python collectors yet. Once live reads and parity are proven, the Python collector/build/run-cycle modules can be removed.
 
 ## Singularity policy target
 
