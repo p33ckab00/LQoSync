@@ -251,3 +251,16 @@ bash scripts/verify-rust-authority-supervisor.sh
 
 See `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md`.
 
+
+
+---
+
+## v7.6.1 Rust Authority Watchdog
+
+Promoted full Rust authority now includes a non-mutating watchdog check. After creating the recovery bundle and writing the Rust authority preflight stamp, run:
+
+```bash
+bash scripts/rust-authority-watchdog.sh
+```
+
+The full authority promotion script runs this automatically and fails closed if the required authority evidence is missing.

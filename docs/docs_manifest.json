@@ -1016,5 +1016,11 @@
     "file": "docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md",
     "anchor": "rust-core-v760-rust-authority-supervisor",
     "summary": "Operator-supervised full Rust authority preflight, recovery bundle, and fail-closed production mutation stamp."
+  },
+  "rust.core_v761_rust_authority_watchdog": {
+    "title": "Rust Core v7.6.1 Rust Authority Watchdog",
+    "file": "docs/RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md",
+    "anchor": "v761-rust-authority-watchdog",
+    "summary": "Non-mutating watchdog for promoted full Rust authority deployments; checks preflight freshness, recovery bundle manifest, and transaction journal readiness."
   }
 }

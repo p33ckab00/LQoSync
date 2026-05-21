@@ -14,6 +14,7 @@ SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
 RESTART_SERVICE="${RESTART_SERVICE:-false}"
 RUN_RUST_AUTHORITY_PREFLIGHT="${RUN_RUST_AUTHORITY_PREFLIGHT:-true}"
 RUN_RUST_AUTHORITY_RECOVERY_BUNDLE="${RUN_RUST_AUTHORITY_RECOVERY_BUNDLE:-true}"
+RUN_RUST_AUTHORITY_WATCHDOG="${RUN_RUST_AUTHORITY_WATCHDOG:-true}"
 TS="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="${LQOSYNC_RUST_FULL_AUTH_BACKUP_DIR:-/root/lqosync_rust_full_authority_backups/$TS}"
 
@@ -95,6 +96,12 @@ rc.update({
     'rust_authority_recovery_bundle_dir': '/opt/LQoSync/state/rust_authority_recovery',
     'rust_authority_recovery_bundle_before_promotion': True,
     'rust_authority_supervisor_mode': 'operator_supervised',
+    'rust_authority_watchdog_enabled': True,
+    'fail_closed_on_authority_watchdog_failure': True,
+    'rust_authority_watchdog_require_fresh_preflight': True,
+    'rust_authority_watchdog_max_preflight_age_seconds': 900,
+    'rust_authority_watchdog_require_recovery_bundle': True,
+    'rust_authority_watchdog_require_transaction_journal_path': True,
     'fail_closed_without_rust_authority': True,
     'require_rust_authoritative_transaction': True,
     'transaction_authority': 'rust_full_authoritative',
@@ -135,6 +142,12 @@ if as_bool "$RUN_RUST_AUTHORITY_PREFLIGHT"; then
     cp -a "$BACKUP_DIR/config.json.before-rust-full-authority" "$CONFIG_PATH"
     fail "Rust authority preflight failed after patch; restored previous config from backup"
   fi
+fi
+
+if as_bool "$RUN_RUST_AUTHORITY_WATCHDOG"; then
+  [ -x "$INSTALL_DIR/scripts/rust-authority-watchdog.sh" ] || fail "watchdog script missing or not executable: $INSTALL_DIR/scripts/rust-authority-watchdog.sh"
+  log "Running Rust authority watchdog verification..."
+  CONFIG_PATH="$CONFIG_PATH" LQOSYNC_INSTALL_DIR="$INSTALL_DIR" "$INSTALL_DIR/scripts/rust-authority-watchdog.sh" || fail "Rust authority watchdog verification failed after promotion"
 fi
 
 log "Rust full apply authority mode is enabled."

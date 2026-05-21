@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from pathlib import Path
 
@@ -190,6 +191,89 @@ def _rust_authority_supervisor_preflight(config: dict, result: SyncResult) -> bo
         result.warnings.append(msg)
         return True
 
+
+
+def _rust_authority_watchdog(config: dict, result: SyncResult) -> bool:
+    """Non-mutating runtime watchdog for promoted Rust full-authority mode.
+
+    The watchdog is intentionally opt-in through rust_core.rust_authority_watchdog_enabled.
+    Promotion scripts enable it after creating a recovery bundle and a fresh preflight
+    stamp. This keeps package upgrades safe while making promoted live mutation fail
+    closed when the recovery/journal evidence is missing.
+    """
+    rc = config.get("rust_core", {}) or {}
+    if not bool(rc.get("rust_authority_watchdog_enabled", False)):
+        result.diff["rust_authority_watchdog"] = {"enabled": False, "status": "not_enabled"}
+        return True
+
+    paths = config.get("paths", {}) or {}
+    now = int(time.time())
+    fail_closed = bool(rc.get("fail_closed_on_authority_watchdog_failure", True))
+    watchdog = {
+        "enabled": True,
+        "fail_closed": fail_closed,
+        "checks": [],
+        "status": "unknown",
+    }
+    failures: list[str] = []
+
+    def check(name: str, ok: bool, detail: str = ""):
+        watchdog["checks"].append({"name": name, "ok": bool(ok), "detail": detail})
+        if not ok:
+            failures.append(f"{name}: {detail}")
+
+    if bool(rc.get("rust_authority_watchdog_require_fresh_preflight", True)):
+        stamp_path = str(rc.get("rust_authority_preflight_stamp") or paths.get("rust_authority_preflight_stamp") or "/opt/LQoSync/state/rust_authority_preflight.json")
+        max_age = int(rc.get("rust_authority_watchdog_max_preflight_age_seconds") or rc.get("rust_authority_preflight_max_age_seconds") or 900)
+        try:
+            stamp = json.loads(Path(stamp_path).read_text(encoding="utf-8"))
+            age = max(0, now - int(stamp.get("created_epoch") or 0))
+            watchdog["preflight_stamp"] = {
+                "path": stamp_path,
+                "status": stamp.get("status"),
+                "self_test_status": stamp.get("self_test_status"),
+                "age_seconds": age,
+                "max_age_seconds": max_age,
+            }
+            check("preflight_stamp_status", stamp.get("status") == "pass", str(stamp.get("status")))
+            check("preflight_stamp_self_test", stamp.get("self_test_status") == "ok", str(stamp.get("self_test_status")))
+            check("preflight_stamp_fresh", max_age <= 0 or age <= max_age, f"age={age}s max={max_age}s")
+        except Exception as exc:
+            watchdog["preflight_stamp"] = {"path": stamp_path, "error": str(exc)}
+            check("preflight_stamp_readable", False, str(exc))
+
+    if bool(rc.get("rust_authority_watchdog_require_recovery_bundle", True)):
+        root = Path(str(rc.get("rust_authority_recovery_bundle_dir") or "/opt/LQoSync/state/rust_authority_recovery"))
+        latest = None
+        if root.exists() and root.is_dir():
+            candidates = sorted([p for p in root.iterdir() if p.is_dir()], key=lambda p: p.name, reverse=True)
+            latest = candidates[0] if candidates else None
+        watchdog["recovery_bundle"] = {"root": str(root), "latest": str(latest) if latest else None}
+        check("recovery_bundle_root", root.exists() and root.is_dir(), str(root))
+        check("recovery_bundle_latest", latest is not None, str(latest) if latest else "none")
+        if latest is not None:
+            manifest = latest / "MANIFEST.json"
+            check("recovery_bundle_manifest", manifest.exists() and manifest.is_file(), str(manifest))
+
+    if bool(rc.get("rust_authority_watchdog_require_transaction_journal_path", True)):
+        journal = Path(str(paths.get("transaction_journal") or "/opt/LQoSync/logs/transaction_journal.jsonl"))
+        parent = journal.parent
+        watchdog["transaction_journal"] = {"path": str(journal), "parent": str(parent)}
+        check("transaction_journal_parent", parent.exists() and parent.is_dir(), str(parent))
+        check("transaction_journal_parent_writable", parent.exists() and parent.is_dir() and os.access(parent, os.W_OK), str(parent))
+        if bool(rc.get("append_transaction_journal")) or bool(rc.get("allow_transaction_journal_writes")):
+            check("transaction_journal_authority_flags", bool(rc.get("append_transaction_journal")) and bool(rc.get("allow_transaction_journal_writes")), "append_transaction_journal and allow_transaction_journal_writes must both be true")
+
+    watchdog["failure_count"] = len(failures)
+    watchdog["failures"] = failures
+    watchdog["status"] = "ok" if not failures else "failed"
+    result.diff["rust_authority_watchdog"] = watchdog
+    if failures and fail_closed:
+        result.errors.append("Rust authority watchdog failed: " + "; ".join(failures[:5]))
+        return False
+    if failures:
+        result.warnings.append("Rust authority watchdog warnings: " + "; ".join(failures[:5]))
+    return True
 
 def _run_libreqos_apply(config: dict, state_path: str, result: SyncResult, timeline: Timeline, reason: str):
     t = time.perf_counter()
@@ -866,6 +950,14 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             log_event(config, "error", "Rust authority supervisor preflight failed; production mutation blocked")
             write_audit(config, "rust_authority_preflight_required_failed", details={"supervisor": result.diff.get("rust_authority_supervisor"), "timings": result.timings})
             update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authority_preflight_required_failed")
+            return result
+
+        if rust_full_authority_required and not _rust_authority_watchdog(config, result):
+            result.finish("rust_authority_watchdog_required_failed")
+            result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+            log_event(config, "error", "Rust authority watchdog failed; production mutation blocked")
+            write_audit(config, "rust_authority_watchdog_required_failed", details={"watchdog": result.diff.get("rust_authority_watchdog"), "timings": result.timings})
+            update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authority_watchdog_required_failed")
             return result
 
         if result.files_changed:

@@ -91,6 +91,12 @@ DEFAULT_CONFIG = {
         "fail_closed_on_authority_preflight_failure": True,
         "rust_authority_preflight_stamp": "/opt/LQoSync/state/rust_authority_preflight.json",
         "rust_authority_preflight_max_age_seconds": 900,
+        "rust_authority_watchdog_enabled": False,
+        "fail_closed_on_authority_watchdog_failure": True,
+        "rust_authority_watchdog_require_fresh_preflight": True,
+        "rust_authority_watchdog_max_preflight_age_seconds": 900,
+        "rust_authority_watchdog_require_recovery_bundle": True,
+        "rust_authority_watchdog_require_transaction_journal_path": True,
         "require_rust_authority_recovery_bundle": True,
         "rust_authority_recovery_bundle_dir": "/opt/LQoSync/state/rust_authority_recovery",
         "rust_authority_recovery_bundle_before_promotion": True,
@@ -935,6 +941,12 @@ def validate_config(cfg: dict):
     rust_core.setdefault("fail_closed_on_authority_preflight_failure", True)
     rust_core.setdefault("rust_authority_preflight_stamp", "/opt/LQoSync/state/rust_authority_preflight.json")
     rust_core.setdefault("rust_authority_preflight_max_age_seconds", 900)
+    rust_core.setdefault("rust_authority_watchdog_enabled", False)
+    rust_core.setdefault("fail_closed_on_authority_watchdog_failure", True)
+    rust_core.setdefault("rust_authority_watchdog_require_fresh_preflight", True)
+    rust_core.setdefault("rust_authority_watchdog_max_preflight_age_seconds", 900)
+    rust_core.setdefault("rust_authority_watchdog_require_recovery_bundle", True)
+    rust_core.setdefault("rust_authority_watchdog_require_transaction_journal_path", True)
     rust_core.setdefault("require_rust_authority_recovery_bundle", True)
     rust_core.setdefault("rust_authority_recovery_bundle_dir", "/opt/LQoSync/state/rust_authority_recovery")
     rust_core.setdefault("rust_authority_recovery_bundle_before_promotion", True)

@@ -944,6 +944,12 @@
     "require_rust_authority_recovery_bundle": true,
     "rust_authority_recovery_bundle_dir": "/opt/LQoSync/state/rust_authority_recovery",
     "rust_authority_recovery_bundle_before_promotion": true,
-    "rust_authority_supervisor_mode": "operator_supervised"
+    "rust_authority_supervisor_mode": "operator_supervised",
+    "rust_authority_watchdog_enabled": false,
+    "fail_closed_on_authority_watchdog_failure": true,
+    "rust_authority_watchdog_require_fresh_preflight": true,
+    "rust_authority_watchdog_max_preflight_age_seconds": 900,
+    "rust_authority_watchdog_require_recovery_bundle": true,
+    "rust_authority_watchdog_require_transaction_journal_path": true
   }
 }

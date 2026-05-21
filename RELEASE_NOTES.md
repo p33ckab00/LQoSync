@@ -2292,3 +2292,11 @@ Also aligns codebase/runtime path defaults and operator-facing repair/update com
 - Updated `scripts/promote-rust-full-authoritative-safe.sh` so promotion creates a recovery bundle and writes a preflight stamp before enabling supervised full authority.
 - Added `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md` and `scripts/verify-rust-authority-supervisor.sh`.
 
+
+## 2.146.1-rc1 - v7.6.1 Rust Authority Watchdog
+
+- Added `scripts/rust-authority-watchdog.sh`, a non-mutating checker for promoted full Rust authority deployments.
+- Added `rust_authority_watchdog_enabled` and related fail-closed config keys.
+- Added runtime fail-closed status `rust_authority_watchdog_required_failed` when promoted authority lacks a fresh preflight stamp, recovery bundle manifest, or transaction journal path readiness.
+- Updated `scripts/promote-rust-full-authoritative-safe.sh` to run the watchdog after recovery bundle creation and preflight stamp generation.
+- Added `docs/RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md` and `scripts/verify-rust-authority-watchdog.sh`.
