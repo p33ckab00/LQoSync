@@ -15,6 +15,8 @@ RESTART_SERVICE="${RESTART_SERVICE:-false}"
 RUN_RUST_AUTHORITY_PREFLIGHT="${RUN_RUST_AUTHORITY_PREFLIGHT:-true}"
 RUN_RUST_AUTHORITY_RECOVERY_BUNDLE="${RUN_RUST_AUTHORITY_RECOVERY_BUNDLE:-true}"
 RUN_RUST_AUTHORITY_WATCHDOG="${RUN_RUST_AUTHORITY_WATCHDOG:-true}"
+RUN_RUST_LIVE_STABLE_MONITOR="${RUN_RUST_LIVE_STABLE_MONITOR:-true}"
+RUN_RUST_LAST_GOOD_SNAPSHOT="${RUN_RUST_LAST_GOOD_SNAPSHOT:-true}"
 TS="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="${LQOSYNC_RUST_FULL_AUTH_BACKUP_DIR:-/root/lqosync_rust_full_authority_backups/$TS}"
 
@@ -102,6 +104,26 @@ rc.update({
     'rust_authority_watchdog_max_preflight_age_seconds': 900,
     'rust_authority_watchdog_require_recovery_bundle': True,
     'rust_authority_watchdog_require_transaction_journal_path': True,
+    'rust_live_stable_candidate_enabled': True,
+    'rust_live_stable_fail_closed': True,
+    'rust_live_stable_require_watchdog': True,
+    'rust_live_stable_require_recovery_bundle': True,
+    'rust_live_stable_require_last_good_snapshot': False,
+    'rust_live_stable_max_recent_failures': 0,
+    'rust_live_stable_min_successful_cycles': 0,
+    'rust_authority_quarantine_enabled': True,
+    'rust_authority_auto_quarantine_on_failure': True,
+    'rust_authority_quarantine_state': '/opt/LQoSync/state/rust_authority_quarantine.json',
+    'rust_authority_last_good_snapshot_dir': '/opt/LQoSync/state/rust_authority_last_good',
+    'rust_authority_failure_quarantine_statuses': [
+        'rust_authority_preflight_required_failed',
+        'rust_authority_watchdog_required_failed',
+        'rust_authoritative_apply_failed',
+        'rust_authoritative_journal_failed',
+        'rust_full_authority_file_write_not_executed',
+        'rust_full_authority_libreqos_apply_not_executed',
+        'libreqos_failed',
+    ],
     'fail_closed_without_rust_authority': True,
     'require_rust_authoritative_transaction': True,
     'transaction_authority': 'rust_full_authoritative',
@@ -150,6 +172,18 @@ if as_bool "$RUN_RUST_AUTHORITY_WATCHDOG"; then
   CONFIG_PATH="$CONFIG_PATH" LQOSYNC_INSTALL_DIR="$INSTALL_DIR" "$INSTALL_DIR/scripts/rust-authority-watchdog.sh" || fail "Rust authority watchdog verification failed after promotion"
 fi
 
+if as_bool "$RUN_RUST_LAST_GOOD_SNAPSHOT"; then
+  [ -x "$INSTALL_DIR/scripts/rust-authority-last-good-snapshot.sh" ] || fail "last-good snapshot script missing or not executable: $INSTALL_DIR/scripts/rust-authority-last-good-snapshot.sh"
+  log "Creating Rust authority last-good snapshot..."
+  CONFIG_PATH="$CONFIG_PATH" LQOSYNC_INSTALL_DIR="$INSTALL_DIR" "$INSTALL_DIR/scripts/rust-authority-last-good-snapshot.sh" || fail "Rust authority last-good snapshot failed after promotion"
+fi
+
+if as_bool "$RUN_RUST_LIVE_STABLE_MONITOR"; then
+  [ -x "$INSTALL_DIR/scripts/rust-authority-live-soak-monitor.sh" ] || fail "live soak monitor script missing or not executable: $INSTALL_DIR/scripts/rust-authority-live-soak-monitor.sh"
+  log "Running Rust authority live-stable monitor..."
+  CONFIG_PATH="$CONFIG_PATH" LQOSYNC_INSTALL_DIR="$INSTALL_DIR" "$INSTALL_DIR/scripts/rust-authority-live-soak-monitor.sh" || fail "Rust authority live-stable monitor failed after promotion"
+fi
+
 log "Rust full apply authority mode is enabled."
 log "Active boundaries:"
 log "  - Rust owns validation and sync-plan blocker enforcement."
@@ -157,6 +191,7 @@ log "  - Rust owns atomic ShapedDevices.csv/network.json writes."
 log "  - Rust owns LibreQoS.py external apply execution."
 log "  - Python still owns WebUI and scheduler shell. RouterOS transport remains Python-compatible, but collector output must pass Rust validation before mutation."
 log "  - backup_before_apply=true and file_drift_policy=block."
+log "  - v7.7 live-stable gate, quarantine marker, and last-good snapshot are enabled by promotion."
 
 if as_bool "$RESTART_SERVICE"; then
   log "Restarting $SERVICE_NAME as requested..."

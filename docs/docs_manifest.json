@@ -1022,5 +1022,11 @@
     "file": "docs/RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md",
     "anchor": "v761-rust-authority-watchdog",
     "summary": "Non-mutating watchdog for promoted full Rust authority deployments; checks preflight freshness, recovery bundle manifest, and transaction journal readiness."
+  },
+  "rust.core_v770_live_stable_candidate": {
+    "title": "Rust Core v7.7.0 Rust Live Stable Candidate",
+    "file": "docs/RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md",
+    "anchor": "v770-rust-live-stable-candidate",
+    "summary": "Adds quarantine, last-good snapshots, live soak monitoring, and a fail-closed live-stable gate for promoted full Rust authority deployments."
   }
 }

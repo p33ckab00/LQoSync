@@ -351,3 +351,7 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 ## v7.6.1 Rust Authority Watchdog
 
 - [Rust Core v7.6.1 Rust Authority Watchdog](RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md)
+
+## v7.7.0 Rust Live Stable Candidate
+
+- [Rust Core v7.7.0 Rust Live Stable Candidate](RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md)

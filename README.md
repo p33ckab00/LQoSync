@@ -779,3 +779,17 @@ bash scripts/rust-authority-watchdog.sh
 ```
 
 The full authority promotion script runs this automatically and fails closed if the required authority evidence is missing.
+
+---
+
+## v7.7.0 Rust Live Stable Candidate
+
+The `lqosync-in-rust` branch now includes a live-stable candidate layer for promoted full Rust authority installs. Use it after Rust supervisor/watchdog promotion and before trusting scheduler/auto-apply.
+
+```bash
+bash scripts/verify-rust-live-stable-candidate.sh
+bash scripts/rust-authority-live-soak-monitor.sh
+bash scripts/rust-authority-quarantine.sh status
+```
+
+The live-stable layer adds fail-closed quarantine, last-good snapshots, and read-only soak monitoring while preserving the Python WebUI and scheduler shell.

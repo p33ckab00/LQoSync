@@ -275,6 +275,160 @@ def _rust_authority_watchdog(config: dict, result: SyncResult) -> bool:
         result.warnings.append("Rust authority watchdog warnings: " + "; ".join(failures[:5]))
     return True
 
+
+
+def _rust_authority_quarantine_path(config: dict) -> Path:
+    rc = config.get("rust_core", {}) or {}
+    paths = config.get("paths", {}) or {}
+    return Path(str(rc.get("rust_authority_quarantine_state") or paths.get("rust_authority_quarantine_state") or "/opt/LQoSync/state/rust_authority_quarantine.json"))
+
+
+def _rust_authority_mark_quarantine(config: dict, status: str, result: SyncResult, details: dict | None = None) -> None:
+    """Write a non-destructive quarantine marker after critical Rust authority failures.
+
+    Quarantine only activates when rust_core.rust_authority_quarantine_enabled and
+    rust_core.rust_authority_auto_quarantine_on_failure are both true. This keeps
+    package upgrades no-breakage while promoted live-stable installs can fail closed
+    after a critical authority/apply failure.
+    """
+    rc = config.get("rust_core", {}) or {}
+    if not bool(rc.get("rust_authority_quarantine_enabled", False)):
+        return
+    if not bool(rc.get("rust_authority_auto_quarantine_on_failure", True)):
+        return
+    statuses = rc.get("rust_authority_failure_quarantine_statuses") or []
+    if statuses and status not in set(str(s) for s in statuses):
+        return
+    try:
+        path = _rust_authority_quarantine_path(config)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema": "lqosync.rust_authority_quarantine.v1",
+            "active": True,
+            "status": status,
+            "created_epoch": int(time.time()),
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "reason": "critical Rust authority failure; live-stable mutation blocked until operator review",
+            "last_error": status,
+            "result_status": getattr(result, "status", None),
+            "errors": list(getattr(result, "errors", []) or [])[-10:],
+            "warnings": list(getattr(result, "warnings", []) or [])[-10:],
+            "details": details or {},
+        }
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        result.diff["rust_authority_quarantine"] = {"active": True, "path": str(path), "status": status}
+    except Exception as exc:
+        result.warnings.append(f"Failed to write Rust authority quarantine marker: {exc}")
+
+
+def _rust_authority_live_stable_gate(config: dict, state: dict, result: SyncResult) -> bool:
+    """Fail-closed production gate for the v7.7 live-stable candidate path.
+
+    This gate is intentionally opt-in through rust_core.rust_live_stable_candidate_enabled.
+    It blocks live mutation when quarantine is active, watchdog evidence is missing,
+    recovery bundles are absent, or recent failure counters exceed the configured threshold.
+    """
+    rc = config.get("rust_core", {}) or {}
+    if not bool(rc.get("rust_live_stable_candidate_enabled", False)):
+        result.diff["rust_live_stable_gate"] = {"enabled": False, "status": "not_enabled"}
+        return True
+
+    fail_closed = bool(rc.get("rust_live_stable_fail_closed", True))
+    gate = {"enabled": True, "fail_closed": fail_closed, "checks": [], "status": "unknown"}
+    failures: list[str] = []
+
+    def check(name: str, ok: bool, detail: str = ""):
+        gate["checks"].append({"name": name, "ok": bool(ok), "detail": detail})
+        if not ok:
+            failures.append(f"{name}: {detail}")
+
+    qpath = _rust_authority_quarantine_path(config)
+    quarantine_active = False
+    if qpath.exists():
+        try:
+            qdata = json.loads(qpath.read_text(encoding="utf-8"))
+            quarantine_active = bool(qdata.get("active", False))
+            gate["quarantine"] = {"path": str(qpath), "active": quarantine_active, "status": qdata.get("status"), "created_at": qdata.get("created_at")}
+        except Exception as exc:
+            quarantine_active = True
+            gate["quarantine"] = {"path": str(qpath), "active": True, "error": str(exc)}
+    else:
+        gate["quarantine"] = {"path": str(qpath), "active": False, "status": "missing_ok"}
+    check("quarantine_clear", not quarantine_active, str(gate.get("quarantine")))
+
+    if bool(rc.get("rust_live_stable_require_watchdog", True)):
+        watchdog = result.diff.get("rust_authority_watchdog") or {}
+        check("watchdog_ok", watchdog.get("status") == "ok", str(watchdog.get("status")))
+
+    if bool(rc.get("rust_live_stable_require_recovery_bundle", True)):
+        root = Path(str(rc.get("rust_authority_recovery_bundle_dir") or "/opt/LQoSync/state/rust_authority_recovery"))
+        latest = None
+        if root.exists() and root.is_dir():
+            dirs = sorted([d for d in root.iterdir() if d.is_dir()], key=lambda d: d.name, reverse=True)
+            latest = dirs[0] if dirs else None
+        gate["recovery_bundle"] = {"root": str(root), "latest": str(latest) if latest else None}
+        check("recovery_bundle_available", latest is not None and (latest / "MANIFEST.json").exists(), str(latest) if latest else "none")
+
+    if bool(rc.get("rust_live_stable_require_last_good_snapshot", False)):
+        root = Path(str(rc.get("rust_authority_last_good_snapshot_dir") or "/opt/LQoSync/state/rust_authority_last_good"))
+        latest = None
+        if root.exists() and root.is_dir():
+            dirs = sorted([d for d in root.iterdir() if d.is_dir()], key=lambda d: d.name, reverse=True)
+            latest = dirs[0] if dirs else None
+        gate["last_good_snapshot"] = {"root": str(root), "latest": str(latest) if latest else None}
+        check("last_good_snapshot_available", latest is not None and (latest / "MANIFEST.json").exists(), str(latest) if latest else "none")
+
+    max_failures = int(rc.get("rust_live_stable_max_recent_failures") or 0)
+    recent_failures = state.get("rust_authority_recent_failures") or []
+    if isinstance(recent_failures, list):
+        count = len(recent_failures)
+        gate["recent_failures"] = {"count": count, "max": max_failures, "items": recent_failures[-5:]}
+        check("recent_failure_budget", count <= max_failures, f"count={count} max={max_failures}")
+
+    gate["failure_count"] = len(failures)
+    gate["failures"] = failures
+    gate["status"] = "ok" if not failures else "failed"
+    result.diff["rust_live_stable_gate"] = gate
+    if failures and fail_closed:
+        result.errors.append("Rust live-stable gate failed: " + "; ".join(failures[:6]))
+        return False
+    if failures:
+        result.warnings.append("Rust live-stable gate warnings: " + "; ".join(failures[:6]))
+    return True
+
+
+def _rust_authority_record_last_good_snapshot(config: dict, result: SyncResult) -> None:
+    rc = config.get("rust_core", {}) or {}
+    if not bool(rc.get("rust_live_stable_candidate_enabled", False)):
+        return
+    try:
+        paths = config.get("paths", {}) or {}
+        root = Path(str(rc.get("rust_authority_last_good_snapshot_dir") or "/opt/LQoSync/state/rust_authority_last_good"))
+        ts = time.strftime("%Y%m%d_%H%M%S", time.gmtime())
+        d = root / ts
+        d.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "schema": "lqosync.rust_authority_last_good.v1",
+            "created_epoch": int(time.time()),
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "status": result.status,
+            "files_changed": bool(result.files_changed),
+            "libreqos_triggered": bool(result.libreqos_triggered),
+            "libreqos_exit_code": result.libreqos_exit_code,
+            "file_hashes": result.file_hashes,
+            "paths": {k: paths.get(k) for k in ("shaped_devices_csv", "network_json", "runtime_state", "transaction_journal")},
+        }
+        for key, src_name in (("shaped_devices_csv", "ShapedDevices.csv"), ("network_json", "network.json"), ("runtime_state", "runtime_state.json")):
+            src = paths.get(key)
+            if src and Path(str(src)).exists():
+                target = d / src_name
+                target.write_text(Path(str(src)).read_text(encoding="utf-8", errors="ignore"), encoding="utf-8")
+                manifest.setdefault("included_files", []).append(str(target.name))
+        (d / "MANIFEST.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        result.diff["rust_authority_last_good_snapshot"] = {"path": str(d), "status": "created"}
+    except Exception as exc:
+        result.warnings.append(f"Failed to create Rust authority last-good snapshot: {exc}")
+
 def _run_libreqos_apply(config: dict, state_path: str, result: SyncResult, timeline: Timeline, reason: str):
     t = time.perf_counter()
     lq = run_libreqos_update(config)
@@ -933,6 +1087,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                 log_event(config, "error", "Rust full authority lock blocked Python file-write fallback")
                 write_audit(config, "rust_full_authority_missing_file_write_flags", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                _rust_authority_mark_quarantine(config, "rust_full_authority_missing_file_write_flags", result, {"rust_core": result.diff.get("rust_full_authority_lock")})
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_missing_file_write_flags")
                 return result
             if should_run_lq and not rust_apply_authority:
@@ -941,6 +1096,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                 log_event(config, "error", "Rust full authority lock blocked Python LibreQoS apply fallback")
                 write_audit(config, "rust_full_authority_missing_apply_flag", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                _rust_authority_mark_quarantine(config, "rust_full_authority_missing_apply_flag", result, {"rust_core": result.diff.get("rust_full_authority_lock")})
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_missing_apply_flag")
                 return result
 
@@ -949,6 +1105,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
             log_event(config, "error", "Rust authority supervisor preflight failed; production mutation blocked")
             write_audit(config, "rust_authority_preflight_required_failed", details={"supervisor": result.diff.get("rust_authority_supervisor"), "timings": result.timings})
+            _rust_authority_mark_quarantine(config, "rust_authority_preflight_required_failed", result, {"supervisor": result.diff.get("rust_authority_supervisor")})
             update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authority_preflight_required_failed")
             return result
 
@@ -957,7 +1114,16 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
             log_event(config, "error", "Rust authority watchdog failed; production mutation blocked")
             write_audit(config, "rust_authority_watchdog_required_failed", details={"watchdog": result.diff.get("rust_authority_watchdog"), "timings": result.timings})
+            _rust_authority_mark_quarantine(config, "rust_authority_watchdog_required_failed", result, {"watchdog": result.diff.get("rust_authority_watchdog")})
             update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authority_watchdog_required_failed")
+            return result
+
+        if rust_full_authority_required and not _rust_authority_live_stable_gate(config, state_before, result):
+            result.finish("rust_live_stable_gate_failed")
+            result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
+            log_event(config, "error", "Rust live-stable gate failed; production mutation blocked")
+            write_audit(config, "rust_live_stable_gate_failed", details={"gate": result.diff.get("rust_live_stable_gate"), "timings": result.timings})
+            update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_live_stable_gate_failed")
             return result
 
         if result.files_changed:
@@ -1014,6 +1180,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                 log_event(config, "error", f"Rust authoritative apply failed: {result.errors[-3:]}")
                 write_audit(config, "rust_authoritative_apply_failed", details={"transaction": rust_authoritative_tx, "timings": result.timings})
+                _rust_authority_mark_quarantine(config, "rust_authoritative_apply_failed", result, {"transaction": rust_authoritative_tx})
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authoritative_apply_failed")
                 return result
 
@@ -1059,6 +1226,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                     result.finish("rust_authoritative_journal_failed")
                     result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                     log_event(config, "error", f"Rust authoritative journal failed: {result.errors[-3:]}")
+                    _rust_authority_mark_quarantine(config, "rust_authoritative_journal_failed", result, {"journal_append": rust_authoritative_journal_append})
                     update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_authoritative_journal_failed")
                     return result
 
@@ -1091,6 +1259,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                     result.finish("libreqos_failed")
                     result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                     log_event(config, "error", f"Rust LibreQoS failed: reason={apply_reason} exit={result.libreqos_exit_code} stderr={result.libreqos_stderr[:500]}")
+                    _rust_authority_mark_quarantine(config, "libreqos_failed", result, {"executor": "rust", "exit_code": result.libreqos_exit_code})
                     update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="libreqos_failed")
                     return result
 
@@ -1101,6 +1270,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                 log_event(config, "error", "Rust full authority lock refused Python file-write fallback after Rust transaction path")
                 write_audit(config, "rust_full_authority_file_write_not_executed", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                _rust_authority_mark_quarantine(config, "rust_full_authority_file_write_not_executed", result, {"rust_core": result.diff.get("rust_full_authority_lock")})
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_file_write_not_executed")
                 return result
             if config.get("app", {}).get("backup_before_apply", True):
@@ -1129,6 +1299,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
                 result.timings["cycle_total"] = round((time.perf_counter() - cycle_start) * 1000, 3)
                 log_event(config, "error", "Rust full authority lock refused Python LibreQoS apply fallback")
                 write_audit(config, "rust_full_authority_libreqos_apply_not_executed", details={"rust_core": result.diff.get("rust_full_authority_lock"), "timings": result.timings})
+                _rust_authority_mark_quarantine(config, "rust_full_authority_libreqos_apply_not_executed", result, {"rust_core": result.diff.get("rust_full_authority_lock")})
                 update_state(state_path, sync_running=False, scheduler_state="error", last_run=result.to_dict(), last_error="rust_full_authority_libreqos_apply_not_executed")
                 return result
             lq = _run_libreqos_apply(config, state_path, result, timeline, apply_reason)
@@ -1152,6 +1323,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             result.warnings.append(f"Policy state save failed: {policy_state_error}")
         log_event(config, "info", f"Sync success: files_changed={result.files_changed} libreqos_triggered={result.libreqos_triggered} duration_ms={result.timings.get('cycle_total')}")
         write_audit(config, "sync_finished", details={"status": result.status, "files_changed": result.files_changed, "libreqos_triggered": result.libreqos_triggered, "libreqos_exit_code": result.libreqos_exit_code, "client_change_summary": result.diff.get("client_change_summary"), "policy_decision": result.diff.get("policy_decision"), "lifecycle_summary": result.diff.get("lifecycle_summary"), "timings": result.timings})
+        _rust_authority_record_last_good_snapshot(config, result)
         update_state(
             state_path,
             sync_running=False,

@@ -27,7 +27,7 @@ check_exec() {
   fi
 }
 
-check_contains VERSION '2.146.0-rc1' version
+check_contains VERSION '2.147.0-rc1' version
 check_exec scripts/rust-full-authority-preflight.sh preflight-script
 check_exec scripts/rust-full-authority-recovery-bundle.sh recovery-bundle-script
 check_exec scripts/verify-rust-authority-supervisor.sh verifier-script

@@ -588,3 +588,7 @@ See `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md`.
 ## v7.6.1 Rust Authority Watchdog
 
 This package adds a non-mutating Rust authority watchdog. It verifies preflight freshness, recovery bundle readiness, and transaction journal path readiness before promoted full Rust authority mutation is allowed. Package upgrades remain safe because the watchdog is disabled by default and enabled by the promotion script.
+
+## v7.7.0 package notes
+
+This package adds the Rust Live Stable Candidate layer. It introduces a non-destructive quarantine marker, last-good snapshots, a live-soak monitor, and a fail-closed live-stable gate for promoted full Rust authority deployments. Existing installs are not forced into the live-stable gate until the promotion script enables the relevant flags.

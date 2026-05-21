@@ -97,6 +97,26 @@ DEFAULT_CONFIG = {
         "rust_authority_watchdog_max_preflight_age_seconds": 900,
         "rust_authority_watchdog_require_recovery_bundle": True,
         "rust_authority_watchdog_require_transaction_journal_path": True,
+        "rust_live_stable_candidate_enabled": False,
+        "rust_live_stable_fail_closed": True,
+        "rust_live_stable_require_watchdog": True,
+        "rust_live_stable_require_recovery_bundle": True,
+        "rust_live_stable_require_last_good_snapshot": False,
+        "rust_live_stable_max_recent_failures": 0,
+        "rust_live_stable_min_successful_cycles": 0,
+        "rust_authority_quarantine_enabled": False,
+        "rust_authority_auto_quarantine_on_failure": True,
+        "rust_authority_quarantine_state": "/opt/LQoSync/state/rust_authority_quarantine.json",
+        "rust_authority_last_good_snapshot_dir": "/opt/LQoSync/state/rust_authority_last_good",
+        "rust_authority_failure_quarantine_statuses": [
+            "rust_authority_preflight_required_failed",
+            "rust_authority_watchdog_required_failed",
+            "rust_authoritative_apply_failed",
+            "rust_authoritative_journal_failed",
+            "rust_full_authority_file_write_not_executed",
+            "rust_full_authority_libreqos_apply_not_executed",
+            "libreqos_failed",
+        ],
         "require_rust_authority_recovery_bundle": True,
         "rust_authority_recovery_bundle_dir": "/opt/LQoSync/state/rust_authority_recovery",
         "rust_authority_recovery_bundle_before_promotion": True,
@@ -947,6 +967,26 @@ def validate_config(cfg: dict):
     rust_core.setdefault("rust_authority_watchdog_max_preflight_age_seconds", 900)
     rust_core.setdefault("rust_authority_watchdog_require_recovery_bundle", True)
     rust_core.setdefault("rust_authority_watchdog_require_transaction_journal_path", True)
+    rust_core.setdefault("rust_live_stable_candidate_enabled", False)
+    rust_core.setdefault("rust_live_stable_fail_closed", True)
+    rust_core.setdefault("rust_live_stable_require_watchdog", True)
+    rust_core.setdefault("rust_live_stable_require_recovery_bundle", True)
+    rust_core.setdefault("rust_live_stable_require_last_good_snapshot", False)
+    rust_core.setdefault("rust_live_stable_max_recent_failures", 0)
+    rust_core.setdefault("rust_live_stable_min_successful_cycles", 0)
+    rust_core.setdefault("rust_authority_quarantine_enabled", False)
+    rust_core.setdefault("rust_authority_auto_quarantine_on_failure", True)
+    rust_core.setdefault("rust_authority_quarantine_state", "/opt/LQoSync/state/rust_authority_quarantine.json")
+    rust_core.setdefault("rust_authority_last_good_snapshot_dir", "/opt/LQoSync/state/rust_authority_last_good")
+    rust_core.setdefault("rust_authority_failure_quarantine_statuses", [
+        "rust_authority_preflight_required_failed",
+        "rust_authority_watchdog_required_failed",
+        "rust_authoritative_apply_failed",
+        "rust_authoritative_journal_failed",
+        "rust_full_authority_file_write_not_executed",
+        "rust_full_authority_libreqos_apply_not_executed",
+        "libreqos_failed",
+    ])
     rust_core.setdefault("require_rust_authority_recovery_bundle", True)
     rust_core.setdefault("rust_authority_recovery_bundle_dir", "/opt/LQoSync/state/rust_authority_recovery")
     rust_core.setdefault("rust_authority_recovery_bundle_before_promotion", True)

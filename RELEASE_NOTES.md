@@ -2300,3 +2300,13 @@ Also aligns codebase/runtime path defaults and operator-facing repair/update com
 - Added runtime fail-closed status `rust_authority_watchdog_required_failed` when promoted authority lacks a fresh preflight stamp, recovery bundle manifest, or transaction journal path readiness.
 - Updated `scripts/promote-rust-full-authoritative-safe.sh` to run the watchdog after recovery bundle creation and preflight stamp generation.
 - Added `docs/RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md` and `scripts/verify-rust-authority-watchdog.sh`.
+
+## 2.147.0-rc1 - v7.7.0 Rust Live Stable Candidate
+
+- Added `scripts/rust-authority-quarantine.sh` for non-destructive operator quarantine status, enter, and clear workflows.
+- Added `scripts/rust-authority-last-good-snapshot.sh` to capture current config, generated files, runtime state, and transaction journal metadata before trusting scheduler/auto-apply.
+- Added `scripts/rust-authority-live-soak-monitor.sh`, a read-only live-soak monitor for full Rust authority flags, quarantine state, recovery bundle, preflight stamp, runtime state, and transaction journal readiness.
+- Added runtime live-stable gate status `rust_live_stable_gate_failed` when promoted full-authority deployments have active quarantine or missing required safety evidence.
+- Added automatic quarantine marker creation for critical Rust authority failures when live-stable candidate mode is enabled.
+- Updated `scripts/promote-rust-full-authoritative-safe.sh` to enable live-stable candidate mode, create a last-good snapshot, and run the live-soak monitor after watchdog verification.
+- Added `docs/RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md` and `scripts/verify-rust-live-stable-candidate.sh`.
