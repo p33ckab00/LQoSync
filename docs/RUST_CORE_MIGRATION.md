@@ -69,6 +69,7 @@ Rust already covers:
 - live-read shadow parity bridge from RouterOS results to Rust collector rows
 - collector activation readiness derived from repeated dry-run/live-read shadow history
 - collector runtime contracts that expose activation provenance without switching authority
+- collector switch rehearsals that select Rust shadow rows for diagnostics only
 
 Python still covers:
 - live RouterOS API reads through routeros-api
@@ -76,7 +77,7 @@ Python still covers:
 - WebUI shell and compatibility wrappers
 ```
 
-The next migration target is a controlled runtime handoff rehearsal that selects Rust shadow rows for diagnostics while Python remains authoritative. The live adapter can execute a single read-only `print` when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, `build-run-cycle-rust-shadow-report` can carry that evidence beside the authoritative Python cycle, collector activation can derive successful shadow-cycle counts from that history, and the runtime contract now exposes that provenance. It still does not replace Python collectors. Once repeated live-read parity and controlled handoff rehearsal are proven, the Python collector/build/run-cycle modules can be removed.
+The next migration target is a Rust pilot observation window that records Rust-selected diagnostic rows beside Python production rows over repeated cycles. The live adapter can execute a single read-only `print` when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, `build-run-cycle-rust-shadow-report` can carry that evidence beside the authoritative Python cycle, collector activation can derive successful shadow-cycle counts from that history, the runtime contract exposes that provenance, and the switch rehearsal now marks Rust rows as diagnostics-only. It still does not replace Python collectors. Once repeated live-read parity, diagnostics-only selection, and the observation window are proven, the Python collector/build/run-cycle modules can be removed.
 
 ## Singularity policy target
 

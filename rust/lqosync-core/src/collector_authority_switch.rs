@@ -11,6 +11,10 @@ fn str_value<'a>(v: Option<&'a Value>, default: &'a str) -> &'a str {
     v.and_then(Value::as_str).unwrap_or(default)
 }
 
+fn number_value(v: Option<&Value>, default: u64) -> u64 {
+    v.and_then(Value::as_u64).unwrap_or(default)
+}
+
 fn config_value<'a>(payload: &'a Value, key: &str) -> Option<&'a Value> {
     payload
         .get("rust_core")
@@ -123,6 +127,18 @@ pub fn build_collector_authority_switch_rehearsal_payload(payload: &Value) -> (V
 
     let rust_row_count = runtime_contract.get("rust_row_count").and_then(Value::as_u64).unwrap_or(0);
     let python_row_count = runtime_contract.get("python_row_count").and_then(Value::as_u64).unwrap_or(0);
+    let runtime_contract_id = str_value(runtime_contract.get("runtime_contract_id"), "");
+    let runtime_evidence_source = str_value(runtime_contract.get("runtime_evidence_source"), "not_ready");
+    let rust_shadow_ready = bool_value(runtime_contract.get("rust_shadow_ready"), false);
+    let dry_run_shadow_ready = bool_value(runtime_contract.get("dry_run_shadow_ready"), false);
+    let live_read_shadow_ready = bool_value(runtime_contract.get("live_read_shadow_ready"), false);
+    let shadow_history_successful_count = number_value(runtime_contract.get("shadow_history_successful_count"), 0);
+    let live_read_shadow_row_count = number_value(runtime_contract.get("live_read_shadow_row_count"), 0);
+    let parity_verdict = str_value(runtime_contract.get("parity_verdict"), "not_available");
+    let live_read_shadow_parity_verdict = str_value(runtime_contract.get("live_read_shadow_parity_verdict"), "not_available");
+    let runtime_may_select_diagnostics = bool_value(runtime_contract.get("rust_pilot_may_select_rows_for_diagnostics"), false);
+    let rust_diagnostic_selection_ready = rehearsal_ready && runtime_may_select_diagnostics;
+    let diagnostic_row_authority = if rust_diagnostic_selection_ready { "rust_shadow_diagnostics" } else { "python_authoritative" };
     let sources = payload.get("sources").cloned().unwrap_or_else(|| json!([]));
 
     let seed = json!({
@@ -130,6 +146,8 @@ pub fn build_collector_authority_switch_rehearsal_payload(payload: &Value) -> (V
         "runtime_status": runtime_status,
         "switch_mode": switch_mode,
         "rust_row_count": rust_row_count,
+        "runtime_evidence_source": runtime_evidence_source,
+        "rust_diagnostic_selection_ready": rust_diagnostic_selection_ready,
         "confirmation_ok": confirmation_ok,
     });
 
@@ -149,10 +167,27 @@ pub fn build_collector_authority_switch_rehearsal_payload(payload: &Value) -> (V
         "manual_confirmation_ok": confirmation_ok,
         "runtime_status": runtime_status,
         "runtime_ready": runtime_ready,
+        "runtime_contract_id": runtime_contract_id,
+        "runtime_evidence_source": runtime_evidence_source,
+        "rust_shadow_ready": rust_shadow_ready,
+        "dry_run_shadow_ready": dry_run_shadow_ready,
+        "live_read_shadow_ready": live_read_shadow_ready,
+        "shadow_history_successful_count": shadow_history_successful_count,
+        "parity_verdict": parity_verdict,
+        "live_read_shadow_parity_verdict": live_read_shadow_parity_verdict,
         "sources": sources,
         "python_row_count": python_row_count,
         "rust_row_count": rust_row_count,
+        "live_read_shadow_row_count": live_read_shadow_row_count,
         "collector_authority_runtime_contract": runtime_contract,
+        "production_row_authority": "python_collector",
+        "cleanup_row_authority": "python_collector",
+        "diagnostic_row_authority": diagnostic_row_authority,
+        "diagnostic_selection_only": true,
+        "rust_diagnostic_selection_ready": rust_diagnostic_selection_ready,
+        "rust_rows_selected_for_diagnostics": rust_diagnostic_selection_ready,
+        "rust_rows_safe_for_observation": rust_diagnostic_selection_ready,
+        "runtime_may_select_rows_for_diagnostics": runtime_may_select_diagnostics,
         "full_rust_backend": false,
         "production_collector_authority_switched": false,
         "collector_authority_switch_supported": false,
@@ -170,8 +205,8 @@ pub fn build_collector_authority_switch_rehearsal_payload(payload: &Value) -> (V
         "authentication_attempt_count": 0,
         "api_sentence_write_count": 0,
         "api_reply_read_count": 0,
-        "next_stage": "rust_collector_authority_pilot_shadow_handoff",
-        "note": "v4.2 builds a non-mutating switch rehearsal after the runtime contract. It does not switch production authority away from Python."
+        "next_stage": "rust_collector_authority_pilot_observation_window",
+        "note": "v4.2 builds a non-mutating switch rehearsal after the runtime contract. It can select Rust shadow rows for diagnostics only; it does not switch production authority away from Python."
     });
 
     (result, errors, warnings)
@@ -262,6 +297,42 @@ mod tests {
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("switch-rehearsal-password"));
         assert!(!text.contains("\"password\":"));
+    }
+
+    #[test]
+    fn selects_live_read_shadow_rows_for_diagnostics_only() {
+        let mut payload = json!({
+            "sources": ["pppoe"],
+            "collector_authority_runtime_contract": {
+                "status": "collector_authority_runtime_contract_ready",
+                "runtime_contract_id": "capr-live-shadow",
+                "production_collector_authority_switched": false,
+                "python_collector_fallback_required": true,
+                "rust_pilot_may_select_rows_for_diagnostics": true,
+                "runtime_evidence_source": "live_read_shadow_history",
+                "rust_shadow_ready": true,
+                "dry_run_shadow_ready": false,
+                "live_read_shadow_ready": true,
+                "shadow_history_successful_count": 3,
+                "parity_verdict": "parity_pass",
+                "live_read_shadow_parity_verdict": "parity_pass",
+                "python_row_count": 1,
+                "rust_row_count": 1,
+                "live_read_shadow_row_count": 1
+            }
+        });
+        enable_all_gates(&mut payload);
+
+        let (result, errors, _warnings) = build_collector_authority_switch_rehearsal_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_switch_rehearsal_ready"));
+        assert_eq!(result.get("runtime_evidence_source").and_then(Value::as_str), Some("live_read_shadow_history"));
+        assert_eq!(result.get("diagnostic_row_authority").and_then(Value::as_str), Some("rust_shadow_diagnostics"));
+        assert_eq!(result.get("production_row_authority").and_then(Value::as_str), Some("python_collector"));
+        assert_eq!(result.get("rust_rows_selected_for_diagnostics").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("rust_rows_safe_for_observation").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("safe_for_cleanup").and_then(Value::as_bool), Some(false));
+        assert_eq!(result.get("production_collector_authority_switched").and_then(Value::as_bool), Some(false));
     }
 
     #[test]

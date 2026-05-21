@@ -2,7 +2,7 @@
 
 Version: `lqosync-core 4.2.0` / `LQoSync 2.112.0-rc1`
 
-This phase adds `build-collector-authority-switch-rehearsal`. It consumes the v4.1 collector authority runtime contract and builds a non-mutating switch rehearsal for a future Rust collector authority pilot.
+This phase adds `build-collector-authority-switch-rehearsal`. It consumes the v4.1 collector authority runtime contract and builds a non-mutating switch rehearsal for a future Rust collector authority pilot. The rehearsal now carries runtime evidence forward and can mark Rust shadow rows as selected for diagnostics only.
 
 ## Safety
 
@@ -12,6 +12,8 @@ This phase adds `build-collector-authority-switch-rehearsal`. It consumes the v4
 - Rust cannot write generated files from this rehearsal.
 - Python collector fallback remains mandatory.
 - No live RouterOS reads are executed by this operation.
+- Rust rows may be selected only for observation/diagnostics.
+- Production row authority and cleanup row authority remain Python.
 
 ## New operation
 
@@ -27,6 +29,17 @@ The operation returns `collector_authority_switch_rehearsal_ready` only when:
 4. the manual confirmation token is present.
 
 Even when ready, the result remains `switch_rehearsal_only=true`, `collector_authority_switch_executed=false`, and `production_collector_authority_switched=false`.
+
+When the runtime contract is ready and allows diagnostic row selection, the rehearsal reports:
+
+- `diagnostic_row_authority="rust_shadow_diagnostics"`
+- `production_row_authority="python_collector"`
+- `cleanup_row_authority="python_collector"`
+- `diagnostic_selection_only=true`
+- `rust_rows_selected_for_diagnostics=true`
+- `rust_rows_safe_for_observation=true`
+
+These fields are evidence for the next observation-window phase only. They do not permit cleanup, apply, generated-file writes, or production authority transfer.
 
 ## Manual confirmation
 

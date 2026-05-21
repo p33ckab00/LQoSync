@@ -3318,26 +3318,49 @@ def _python_build_collector_authority_switch_rehearsal(payload: dict[str, Any], 
     allow = bool(rust_core.get("allow_collector_authority_switch_rehearsal"))
     pilot = bool(rust_core.get("collector_authority_switch_rehearsal_pilot"))
     mode = str(rust_core.get("collector_authority_switch_mode") or "rehearsal_only")
+    require_runtime = rust_core.get("collector_authority_switch_require_runtime_contract", True) is not False
     require_fallback = rust_core.get("collector_authority_switch_require_python_fallback", True) is not False
     require_confirm = rust_core.get("collector_authority_switch_require_manual_confirmation", True) is not False
     confirmation_ok = (not require_confirm) or payload.get("confirmation") == "CONFIRM_COLLECTOR_AUTHORITY_REHEARSAL"
     runtime = payload.get("collector_authority_runtime_contract") or {}
     if isinstance(runtime, dict) and isinstance(runtime.get("result"), dict):
         runtime = runtime.get("result")
-    runtime_ready = isinstance(runtime, dict) and runtime.get("status") == "collector_authority_runtime_contract_ready"
+    runtime_resp: dict[str, Any] = {}
+    if not isinstance(runtime, dict) or not runtime:
+        runtime_resp = _python_build_collector_authority_runtime_contract(payload, started=started)
+        runtime = runtime_resp.get("result") if isinstance(runtime_resp.get("result"), dict) else {}
+
+    def _runtime_int(name: str) -> int:
+        try:
+            return int((runtime or {}).get(name) or 0)
+        except Exception:
+            return 0
+
+    runtime_errors = list(runtime_resp.get("errors") or []) if runtime_resp else []
+    runtime_ready = (
+        not runtime_errors
+        and isinstance(runtime, dict)
+        and runtime.get("status") == "collector_authority_runtime_contract_ready"
+        and runtime.get("production_collector_authority_switched") is False
+        and runtime.get("python_collector_fallback_required") is True
+    )
     requested = bool(allow and pilot and mode == "rust_collector_authority_switch_rehearsal")
     errors: list[dict[str, Any]] = []
-    warnings: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = list(runtime_resp.get("warnings") or []) if runtime_resp else []
+    if runtime_errors:
+        warnings.append({"code": "collector_authority_switch_runtime_not_clean", "severity": "warning", "path": "collector_authority_runtime_contract", "message": "Collector authority runtime contract returned errors; switch rehearsal remains blocked."})
     if payload.get("execute") or str(payload.get("mode") or "").lower() in {"execute", "switch", "promote", "authority", "apply", "production"}:
         errors.append({"code": "collector_authority_switch_execute_not_implemented", "severity": "error", "path": "collector_authority_switch", "message": "Python fallback cannot switch Rust collector authority."})
     if not require_fallback:
         errors.append({"code": "collector_authority_switch_requires_python_fallback", "severity": "error", "path": "rust_core.collector_authority_switch_require_python_fallback", "message": "Collector authority switch rehearsal requires Python collector fallback in this release."})
-    if not runtime_ready:
+    if require_runtime and not runtime_ready:
         warnings.append({"code": "collector_authority_switch_runtime_not_ready", "severity": "warning", "path": "collector_authority_runtime_contract", "message": "Collector authority runtime contract is not ready."})
     if not confirmation_ok:
         warnings.append({"code": "collector_authority_switch_confirmation_missing", "severity": "warning", "path": "collector_authority_switch.confirmation", "message": "Manual confirmation token is missing."})
-    ready = bool(requested and runtime_ready and require_fallback and confirmation_ok and not errors)
+    ready = bool(requested and (not require_runtime or runtime_ready) and require_fallback and confirmation_ok and not errors)
     status = "blocked" if errors else ("collector_authority_switch_rehearsal_ready" if ready else ("collector_authority_switch_rehearsal_waiting_for_gates" if runtime_ready else "collector_authority_switch_rehearsal_shadow_only"))
+    runtime_may_select = bool((runtime or {}).get("rust_pilot_may_select_rows_for_diagnostics"))
+    diagnostic_ready = bool(ready and runtime_may_select)
     return {
         "version": PROTOCOL_VERSION,
         "op": "build-collector-authority-switch-rehearsal",
@@ -3352,9 +3375,33 @@ def _python_build_collector_authority_switch_rehearsal(payload: dict[str, Any], 
             "allow_switch_rehearsal": allow,
             "switch_rehearsal_pilot": pilot,
             "switch_mode": mode,
+            "require_runtime_contract": require_runtime,
+            "require_python_fallback": require_fallback,
+            "require_manual_confirmation": require_confirm,
             "runtime_ready": runtime_ready,
+            "runtime_status": (runtime or {}).get("status") if isinstance(runtime, dict) else None,
+            "runtime_contract_id": (runtime or {}).get("runtime_contract_id") if isinstance(runtime, dict) else "",
+            "runtime_evidence_source": (runtime or {}).get("runtime_evidence_source", "not_ready") if isinstance(runtime, dict) else "not_ready",
+            "rust_shadow_ready": bool((runtime or {}).get("rust_shadow_ready")) if isinstance(runtime, dict) else False,
+            "dry_run_shadow_ready": bool((runtime or {}).get("dry_run_shadow_ready")) if isinstance(runtime, dict) else False,
+            "live_read_shadow_ready": bool((runtime or {}).get("live_read_shadow_ready")) if isinstance(runtime, dict) else False,
+            "shadow_history_successful_count": _runtime_int("shadow_history_successful_count"),
+            "parity_verdict": (runtime or {}).get("parity_verdict", "not_available") if isinstance(runtime, dict) else "not_available",
+            "live_read_shadow_parity_verdict": (runtime or {}).get("live_read_shadow_parity_verdict", "not_available") if isinstance(runtime, dict) else "not_available",
             "manual_confirmation_ok": confirmation_ok,
+            "sources": payload.get("sources") if isinstance(payload.get("sources"), list) else [],
+            "python_row_count": _runtime_int("python_row_count"),
+            "rust_row_count": _runtime_int("rust_row_count"),
+            "live_read_shadow_row_count": _runtime_int("live_read_shadow_row_count"),
             "collector_authority_runtime_contract": runtime if isinstance(runtime, dict) else {},
+            "production_row_authority": "python_collector",
+            "cleanup_row_authority": "python_collector",
+            "diagnostic_row_authority": "rust_shadow_diagnostics" if diagnostic_ready else "python_authoritative",
+            "diagnostic_selection_only": True,
+            "rust_diagnostic_selection_ready": diagnostic_ready,
+            "rust_rows_selected_for_diagnostics": diagnostic_ready,
+            "rust_rows_safe_for_observation": diagnostic_ready,
+            "runtime_may_select_rows_for_diagnostics": runtime_may_select,
             "full_rust_backend": False,
             "production_collector_authority_switched": False,
             "collector_authority_switch_supported": False,
@@ -3371,6 +3418,8 @@ def _python_build_collector_authority_switch_rehearsal(payload: dict[str, Any], 
             "authentication_attempt_count": 0,
             "api_sentence_write_count": 0,
             "api_reply_read_count": 0,
+            "next_stage": "rust_collector_authority_pilot_observation_window",
+            "note": "Python fallback mirrors the Rust switch rehearsal shape. Rust rows may be selected for diagnostics only; Python remains production and cleanup authority.",
         },
         "errors": errors,
         "warnings": warnings,
