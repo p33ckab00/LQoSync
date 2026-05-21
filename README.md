@@ -121,3 +121,22 @@ Start here:
 - `docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md`
 - `docs/INSTALLATION_MATRIX.md`
 - `docs/FULL_RUST_STABLE_OPERATIONS.md`
+
+## v8.2.0 Full Rust daemon boundary
+
+LQoSync is now documented as a local appliance-style app with this boundary:
+
+```text
+Rust authority daemon = backend authority
+Python Flask = WebUI shell only
+```
+
+The legacy Python scheduler loop has been removed. Flask still exposes the same dashboard and action buttons, but scheduler status, heartbeat, and run authorization are delegated to `lqosync-core`.
+
+This project is not being converted to Django and is not a SaaS platform.
+
+Canonical workflow diagram:
+
+```text
+docs/lqosync_workflow_architecture.svg
+```

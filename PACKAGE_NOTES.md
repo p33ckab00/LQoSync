@@ -25,3 +25,7 @@ python3 scripts/release_check.py
 python3 scripts/regression_check.py
 python3 scripts/stable_release_check.py
 ```
+
+## v8.2.0 Full Rust Daemon Boundary Cleanup
+
+This package removes the stale Python scheduler loop and aligns the workflow diagram/documentation to the stable journey: Rust authority daemon + Flask WebUI shell. Python remains only where required for UI, diagnostics, and compatibility transport. Production mutation fallback is disabled by default.

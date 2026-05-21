@@ -886,7 +886,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
         policy_decision_shadow_result = rust_policy_shadow.get("result", {}) if isinstance(rust_policy_shadow, dict) else {}
         policy_parity = policy_decision_shadow_result.get("parity", {}) if isinstance(policy_decision_shadow_result, dict) else {}
         if policy_parity and policy_parity.get("available") and policy_parity.get("matches_verdict") is False:
-            result.warnings.append("Rust policy shadow verdict differs from Python policy verdict; Python remains authoritative in this release.")
+            result.warnings.append("Rust policy authority reported a parity mismatch; Python mutation fallback is disabled in stable releases.")
         t_sync_plan = time.perf_counter()
         rust_sync_plan = rust_evaluate_sync_plan(
             config,
@@ -909,7 +909,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
         if rust_authority_gate.get("should_block"):
             result.errors.append(rust_authority_gate.get("message") or "Rust sync-plan authority gate blocked this cycle.")
         elif sync_plan_result.get("verdict") == "blocked_by_shadow_plan":
-            result.warnings.append("Rust sync plan shadow found blockers; Python remains authoritative unless rust_core.enforce_sync_plan=true.")
+            result.warnings.append("Rust sync-plan authority found blockers; production mutation is fail-closed.")
         timeline.record(
             "rust_sync_plan_shadow",
             t_sync_plan,
@@ -1143,7 +1143,7 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             or rc.get("fail_closed_without_rust_authority")
             or str(rc.get("transaction_authority") or "") in {"rust_full_authoritative", "rust_apply_authoritative"}
         )
-        python_mutation_fallback_allowed = bool(rc.get("python_mutation_fallback", not rust_full_authority_required))
+        python_mutation_fallback_allowed = False if rust_full_authority_required else bool(rc.get("python_mutation_fallback", False))
         files_were_written = False
         rust_libreqos_already_applied = False
 

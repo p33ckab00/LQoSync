@@ -153,14 +153,14 @@ rc.update({
     'collector_authority_mode': 'rust_validated_python_transport',
     'collector_output_authority': 'rust_validate_all',
     'require_collector_rust_validation': True,
-    'collector_authority_require_python_fallback': True,
+    'collector_authority_require_python_fallback': False,
     'run_cycle_rust_shadow_report_enabled': True,
 })
 sched = cfg.setdefault('scheduler', {})
 sched.update({
     'engine': 'rust',
     'allow_python_scheduler': False,
-    'python_scheduler_role': 'retired_webui_compatibility_shell_only',
+    'python_scheduler_role': 'removed_flask_shell_only',
     'rust_scheduler_authority': True,
     'rust_authority_daemon_required': True,
     'fail_closed_on_rust_scheduler_error': True,

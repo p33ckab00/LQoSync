@@ -17,3 +17,12 @@
 - Locked stable Rust authority defaults.
 - Added stable install and cleanup verification scripts.
 - Documented Python as WebUI/scheduler compatibility shell only.
+
+## 2.152.0 - v8.2.0 Full Rust Daemon Boundary Cleanup
+
+- Removed the legacy Python scheduler loop from `scheduler/runner.py`; the Flask scheduler facade now delegates every scheduler action to Rust authority.
+- Added the canonical workflow architecture SVG with the Python legacy scheduler loop removed.
+- Added `docs/RUST_CORE_V820_FULL_RUST_DAEMON_BOUNDARY.md` and `docs/FULL_RUST_BACKEND_BOUNDARY.md`.
+- Updated stable defaults so Python fallback flags are false by default across Rust handoff/authority settings.
+- Retained Flask WebUI as-is. This is not a Django or SaaS migration.
+- Clarified that remaining Python files are UI/diagnostic/compatibility shell files, not production mutation authority.

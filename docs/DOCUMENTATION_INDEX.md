@@ -39,3 +39,9 @@ python3 scripts/stable_release_check.py
 ## Historical notes
 
 Old per-version migration documents may remain in the repository as audit history, but they are no longer the canonical operator path. The canonical path is Rust authority daemon + Flask UI shell.
+
+## v8.2.0 Full Rust Daemon Boundary Cleanup
+
+- [Full Rust Backend Boundary](FULL_RUST_BACKEND_BOUNDARY.md)
+- [Rust Core v8.2.0 Full Rust Daemon Boundary Cleanup](RUST_CORE_V820_FULL_RUST_DAEMON_BOUNDARY.md)
+- [Workflow Architecture SVG](lqosync_workflow_architecture.svg)

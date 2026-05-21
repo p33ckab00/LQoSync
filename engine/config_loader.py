@@ -178,7 +178,7 @@ DEFAULT_CONFIG = {
         "collector_authority_activation_pilot": False,
         "allow_collector_authority_activation": False,
         "collector_authority_activation_mode": "shadow_only",
-        "collector_authority_require_python_fallback": True,
+        "collector_authority_require_python_fallback": False,
         "collector_authority_require_run_cycle_shadow": True,
         "collector_authority_min_shadow_cycles": 3,
         "collector_authority_successful_shadow_cycles": 0,
@@ -186,27 +186,27 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_runtime_contract": False,
         "collector_authority_runtime_mode": "contract_only",
         "collector_authority_runtime_require_activation_plan": True,
-        "collector_authority_runtime_require_python_fallback": True,
+        "collector_authority_runtime_require_python_fallback": False,
         "collector_authority_runtime_max_shadow_age_seconds": 900,
         "collector_authority_shadow_age_seconds": 0,
         "collector_authority_switch_rehearsal_pilot": False,
         "allow_collector_authority_switch_rehearsal": False,
         "collector_authority_switch_mode": "rehearsal_only",
         "collector_authority_switch_require_runtime_contract": True,
-        "collector_authority_switch_require_python_fallback": True,
+        "collector_authority_switch_require_python_fallback": False,
         "collector_authority_switch_require_manual_confirmation": True,
         "collector_authority_pilot_execution_pilot": False,
         "allow_collector_authority_pilot_execution_contract": False,
         "collector_authority_pilot_execution_mode": "contract_only",
         "collector_authority_pilot_execution_require_switch_rehearsal": True,
-        "collector_authority_pilot_execution_require_python_fallback": True,
+        "collector_authority_pilot_execution_require_python_fallback": False,
         "collector_authority_pilot_execution_require_manual_confirmation": True,
         "collector_authority_pilot_execution_max_shadow_age_seconds": 900,
         "collector_authority_pilot_result_evaluator_pilot": False,
         "allow_collector_authority_pilot_result_evaluation": False,
         "collector_authority_pilot_result_mode": "evaluate_only",
         "collector_authority_pilot_result_require_execution_contract": True,
-        "collector_authority_pilot_result_require_python_fallback": True,
+        "collector_authority_pilot_result_require_python_fallback": False,
         "collector_authority_pilot_result_require_no_cleanup_apply": True,
         "collector_authority_pilot_result_require_parity": True,
         "collector_authority_pilot_result_max_shadow_age_seconds": 900,
@@ -214,7 +214,7 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_promotion_readiness": False,
         "collector_authority_promotion_readiness_mode": "readiness_only",
         "collector_authority_promotion_require_pilot_result": True,
-        "collector_authority_promotion_require_python_fallback": True,
+        "collector_authority_promotion_require_python_fallback": False,
         "collector_authority_promotion_require_manual_confirmation": True,
         "collector_authority_promotion_require_no_cleanup_apply": True,
         "collector_authority_promotion_max_shadow_age_seconds": 900,
@@ -222,7 +222,7 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_promotion_execution_rehearsal": False,
         "collector_authority_promotion_execution_mode": "rehearsal_only",
         "collector_authority_promotion_execution_require_readiness": True,
-        "collector_authority_promotion_execution_require_python_fallback": True,
+        "collector_authority_promotion_execution_require_python_fallback": False,
         "collector_authority_promotion_execution_require_manual_confirmation": True,
         "collector_authority_promotion_execution_require_no_cleanup_apply": True,
         "collector_authority_promotion_execution_max_shadow_age_seconds": 900,
@@ -230,7 +230,7 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_promotion_commit_plan": False,
         "collector_authority_promotion_commit_mode": "plan_only",
         "collector_authority_promotion_commit_require_execution_rehearsal": True,
-        "collector_authority_promotion_commit_require_python_fallback": True,
+        "collector_authority_promotion_commit_require_python_fallback": False,
         "collector_authority_promotion_commit_require_manual_confirmation": True,
         "collector_authority_promotion_commit_require_no_cleanup_apply": True,
         "collector_authority_promotion_commit_max_shadow_age_seconds": 900,
@@ -238,7 +238,7 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_promotion_cutover_ledger": False,
         "collector_authority_promotion_cutover_mode": "ledger_only",
         "collector_authority_promotion_cutover_require_commit_plan": True,
-        "collector_authority_promotion_cutover_require_python_fallback": True,
+        "collector_authority_promotion_cutover_require_python_fallback": False,
         "collector_authority_promotion_cutover_require_manual_confirmation": True,
         "collector_authority_promotion_cutover_require_no_cleanup_apply": True,
         "collector_authority_promotion_cutover_require_rollback_path": True,
@@ -247,7 +247,7 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_production_freeze_gate": False,
         "collector_authority_production_freeze_mode": "freeze_only",
         "collector_authority_production_freeze_require_cutover_ledger": True,
-        "collector_authority_production_freeze_require_python_fallback": True,
+        "collector_authority_production_freeze_require_python_fallback": False,
         "collector_authority_production_freeze_require_manual_confirmation": True,
         "collector_authority_production_freeze_require_no_cleanup_apply": True,
         "collector_authority_production_freeze_require_rollback_path": True,
@@ -258,7 +258,7 @@ DEFAULT_CONFIG = {
         "allow_collector_authority_production_switch_contract": False,
         "collector_authority_production_switch_mode": "contract_only",
         "collector_authority_production_switch_require_freeze_gate": True,
-        "collector_authority_production_switch_require_python_fallback": True,
+        "collector_authority_production_switch_require_python_fallback": False,
         "collector_authority_production_switch_require_manual_confirmation": True,
         "collector_authority_production_switch_require_no_cleanup_apply": True,
         "collector_authority_production_switch_require_rollback_path": True,
@@ -269,7 +269,7 @@ DEFAULT_CONFIG = {
         "allow_rust_backend_api_handoff_plan": False,
         "rust_backend_api_handoff_mode": "plan_only",
         "rust_backend_api_handoff_require_production_switch_contract": True,
-        "rust_backend_api_handoff_require_python_backend_fallback": True,
+        "rust_backend_api_handoff_require_python_backend_fallback": False,
         "rust_backend_api_handoff_require_manual_confirmation": True,
         "rust_backend_api_handoff_require_webui_compatibility": True,
         "rust_backend_api_handoff_require_route_parity": True,
@@ -279,7 +279,7 @@ DEFAULT_CONFIG = {
         "allow_rust_backend_scheduler_handoff_plan": False,
         "rust_backend_scheduler_handoff_mode": "plan_only",
         "rust_backend_scheduler_handoff_require_api_handoff": True,
-        "rust_backend_scheduler_handoff_require_python_fallback": True,
+        "rust_backend_scheduler_handoff_require_python_fallback": False,
         "rust_backend_scheduler_handoff_require_manual_confirmation": True,
         "rust_backend_scheduler_handoff_require_run_cycle_shadow": True,
         "rust_backend_scheduler_handoff_require_scheduler_parity": True,
@@ -289,7 +289,7 @@ DEFAULT_CONFIG = {
         "allow_rust_run_cycle_orchestrator_handoff_contract": False,
         "rust_run_cycle_orchestrator_handoff_mode": "contract_only",
         "rust_run_cycle_orchestrator_handoff_require_scheduler_handoff": True,
-        "rust_run_cycle_orchestrator_handoff_require_python_fallback": True,
+        "rust_run_cycle_orchestrator_handoff_require_python_fallback": False,
         "rust_run_cycle_orchestrator_handoff_require_manual_confirmation": True,
         "rust_run_cycle_orchestrator_handoff_require_run_cycle_shadow": True,
         "rust_run_cycle_orchestrator_handoff_require_config_state_shadow": True,
@@ -299,7 +299,7 @@ DEFAULT_CONFIG = {
         "allow_rust_config_state_authority_handoff_contract": False,
         "rust_config_state_authority_handoff_mode": "contract_only",
         "rust_config_state_authority_handoff_require_run_cycle_orchestrator": True,
-        "rust_config_state_authority_handoff_require_python_fallback": True,
+        "rust_config_state_authority_handoff_require_python_fallback": False,
         "rust_config_state_authority_handoff_require_manual_confirmation": True,
         "rust_config_state_authority_handoff_require_config_state_shadow": True,
         "rust_config_state_authority_handoff_require_atomic_writer_shadow": True,
@@ -312,7 +312,7 @@ DEFAULT_CONFIG = {
         "allow_rust_live_collector_authority_handoff_contract": False,
         "rust_live_collector_authority_handoff_mode": "contract_only",
         "rust_live_collector_authority_handoff_require_config_state_authority": True,
-        "rust_live_collector_authority_handoff_require_python_fallback": True,
+        "rust_live_collector_authority_handoff_require_python_fallback": False,
         "rust_live_collector_authority_handoff_require_manual_confirmation": True,
         "rust_live_collector_authority_handoff_require_live_collector_shadow": True,
         "rust_live_collector_authority_handoff_require_routeros_adapter_shadow": True,
@@ -323,7 +323,7 @@ DEFAULT_CONFIG = {
         "allow_rust_circuit_builder_authority_handoff_contract": False,
         "rust_circuit_builder_authority_handoff_mode": "contract_only",
         "rust_circuit_builder_authority_handoff_require_live_collector_authority": True,
-        "rust_circuit_builder_authority_handoff_require_python_fallback": True,
+        "rust_circuit_builder_authority_handoff_require_python_fallback": False,
         "rust_circuit_builder_authority_handoff_require_manual_confirmation": True,
         "rust_circuit_builder_authority_handoff_require_circuit_shadow": True,
         "rust_circuit_builder_authority_handoff_require_shaped_devices_parity": True,
@@ -334,7 +334,7 @@ DEFAULT_CONFIG = {
         "allow_rust_sync_engine_authority_handoff_contract": False,
         "rust_sync_engine_authority_handoff_mode": "contract_only",
         "rust_sync_engine_authority_handoff_require_circuit_builder_authority": True,
-        "rust_sync_engine_authority_handoff_require_python_fallback": True,
+        "rust_sync_engine_authority_handoff_require_python_fallback": False,
         "rust_sync_engine_authority_handoff_require_manual_confirmation": True,
         "rust_sync_engine_authority_handoff_require_sync_plan_shadow": True,
         "rust_sync_engine_authority_handoff_require_diff_parity": True,
@@ -346,7 +346,7 @@ DEFAULT_CONFIG = {
         "allow_rust_apply_journal_rollback_authority_handoff_contract": False,
         "rust_apply_journal_rollback_authority_handoff_mode": "contract_only",
         "rust_apply_journal_rollback_authority_handoff_require_sync_engine_authority": True,
-        "rust_apply_journal_rollback_authority_handoff_require_python_fallback": True,
+        "rust_apply_journal_rollback_authority_handoff_require_python_fallback": False,
         "rust_apply_journal_rollback_authority_handoff_require_manual_confirmation": True,
         "rust_apply_journal_rollback_authority_handoff_require_apply_shadow": True,
         "rust_apply_journal_rollback_authority_handoff_require_journal_shadow": True,
@@ -358,7 +358,7 @@ DEFAULT_CONFIG = {
         "allow_rust_backend_service_runtime_handoff_contract": False,
         "rust_backend_service_runtime_handoff_mode": "contract_only",
         "rust_backend_service_runtime_handoff_require_apply_journal_rollback_authority": True,
-        "rust_backend_service_runtime_handoff_require_python_fallback": True,
+        "rust_backend_service_runtime_handoff_require_python_fallback": False,
         "rust_backend_service_runtime_handoff_require_manual_confirmation": True,
         "rust_backend_service_runtime_handoff_require_route_parity": True,
         "rust_backend_service_runtime_handoff_require_static_assets": True,
@@ -370,7 +370,7 @@ DEFAULT_CONFIG = {
         "allow_full_rust_backend_production_readiness_contract": False,
         "full_rust_backend_production_readiness_mode": "contract_only",
         "full_rust_backend_production_readiness_require_service_runtime": True,
-        "full_rust_backend_production_readiness_require_python_fallback": True,
+        "full_rust_backend_production_readiness_require_python_fallback": False,
         "full_rust_backend_production_readiness_require_manual_confirmation": True,
         "full_rust_backend_production_readiness_require_webui_unchanged": True,
         "full_rust_backend_production_readiness_require_operator_final_review": True,
@@ -380,7 +380,7 @@ DEFAULT_CONFIG = {
         "allow_full_rust_backend_cutover_plan": False,
         "full_rust_backend_cutover_mode": "plan_only",
         "full_rust_backend_cutover_require_production_readiness": True,
-        "full_rust_backend_cutover_require_python_fallback": True,
+        "full_rust_backend_cutover_require_python_fallback": False,
         "full_rust_backend_cutover_require_manual_confirmation": True,
         "full_rust_backend_cutover_require_webui_unchanged": True,
         "full_rust_backend_cutover_require_rollback_path": True,
@@ -391,7 +391,7 @@ DEFAULT_CONFIG = {
         "allow_full_rust_backend_cutover_execution_contract": False,
         "full_rust_backend_cutover_execution_mode": "contract_only",
         "full_rust_backend_cutover_execution_require_cutover_plan": True,
-        "full_rust_backend_cutover_execution_require_python_fallback": True,
+        "full_rust_backend_cutover_execution_require_python_fallback": False,
         "full_rust_backend_cutover_execution_require_manual_confirmation": True,
         "full_rust_backend_cutover_execution_require_webui_unchanged": True,
         "full_rust_backend_cutover_execution_require_rollback_path": True,
@@ -402,7 +402,7 @@ DEFAULT_CONFIG = {
         "allow_python_backend_retirement_plan": False,
         "python_backend_retirement_mode": "plan_only",
         "python_backend_retirement_require_cutover_execution_contract": True,
-        "python_backend_retirement_require_python_fallback": True,
+        "python_backend_retirement_require_python_fallback": False,
         "python_backend_retirement_require_manual_confirmation": True,
         "python_backend_retirement_require_webui_unchanged": True,
         "python_backend_retirement_require_rollback_path": True,
@@ -413,7 +413,7 @@ DEFAULT_CONFIG = {
         "allow_rust_backend_production_enablement_contract": False,
         "rust_backend_production_enablement_mode": "contract_only",
         "rust_backend_production_enablement_require_python_retirement_plan": True,
-        "rust_backend_production_enablement_require_python_fallback": True,
+        "rust_backend_production_enablement_require_python_fallback": False,
         "rust_backend_production_enablement_require_manual_confirmation": True,
         "rust_backend_production_enablement_require_webui_unchanged": True,
         "rust_backend_production_enablement_require_rollback_path": True,
@@ -424,7 +424,7 @@ DEFAULT_CONFIG = {
         "allow_python_backend_removal_execution_contract": False,
         "python_backend_removal_execution_mode": "contract_only",
         "python_backend_removal_execution_require_rust_enablement_contract": True,
-        "python_backend_removal_execution_require_python_fallback": True,
+        "python_backend_removal_execution_require_python_fallback": False,
         "python_backend_removal_execution_require_manual_confirmation": True,
         "python_backend_removal_execution_require_webui_unchanged": True,
         "python_backend_removal_execution_require_rollback_path": True,
@@ -435,7 +435,7 @@ DEFAULT_CONFIG = {
         "allow_full_rust_backend_removal_rehearsal": False,
         "full_rust_backend_removal_rehearsal_mode": "rehearsal_only",
         "full_rust_backend_removal_rehearsal_require_removal_execution_contract": True,
-        "full_rust_backend_removal_rehearsal_require_python_fallback": True,
+        "full_rust_backend_removal_rehearsal_require_python_fallback": False,
         "full_rust_backend_removal_rehearsal_require_manual_confirmation": True,
         "full_rust_backend_removal_rehearsal_require_webui_unchanged": True,
         "full_rust_backend_removal_rehearsal_require_rollback_path": True,
@@ -451,7 +451,7 @@ DEFAULT_CONFIG = {
         "full_rust_backend_production_cutover_require_rollback_path": True,
         "full_rust_backend_production_cutover_require_operator_ack": True,
         "full_rust_backend_production_cutover_require_server_tests": True,
-        "full_rust_backend_production_cutover_require_python_fallback_backup": True,
+        "full_rust_backend_production_cutover_require_python_fallback_backup": False,
         "full_rust_backend_production_cutover_max_shadow_age_seconds": 900,
         "full_rust_backend_production_verifier_pilot": False,
         "allow_full_rust_backend_production_verifier": False,
@@ -1057,7 +1057,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_collector_authority_promotion_readiness", False)
     rust_core.setdefault("collector_authority_promotion_readiness_mode", "readiness_only")
     rust_core.setdefault("collector_authority_promotion_require_pilot_result", True)
-    rust_core.setdefault("collector_authority_promotion_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_promotion_require_python_fallback", False)
     rust_core.setdefault("collector_authority_promotion_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_promotion_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_promotion_max_shadow_age_seconds", 900)
@@ -1065,7 +1065,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_collector_authority_promotion_execution_rehearsal", False)
     rust_core.setdefault("collector_authority_promotion_execution_mode", "rehearsal_only")
     rust_core.setdefault("collector_authority_promotion_execution_require_readiness", True)
-    rust_core.setdefault("collector_authority_promotion_execution_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_promotion_execution_require_python_fallback", False)
     rust_core.setdefault("collector_authority_promotion_execution_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_promotion_execution_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_promotion_execution_max_shadow_age_seconds", 900)
@@ -1073,7 +1073,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_collector_authority_promotion_commit_plan", False)
     rust_core.setdefault("collector_authority_promotion_commit_mode", "plan_only")
     rust_core.setdefault("collector_authority_promotion_commit_require_execution_rehearsal", True)
-    rust_core.setdefault("collector_authority_promotion_commit_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_promotion_commit_require_python_fallback", False)
     rust_core.setdefault("collector_authority_promotion_commit_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_promotion_commit_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_promotion_commit_max_shadow_age_seconds", 900)
@@ -1081,7 +1081,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_collector_authority_promotion_cutover_ledger", False)
     rust_core.setdefault("collector_authority_promotion_cutover_mode", "ledger_only")
     rust_core.setdefault("collector_authority_promotion_cutover_require_commit_plan", True)
-    rust_core.setdefault("collector_authority_promotion_cutover_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_promotion_cutover_require_python_fallback", False)
     rust_core.setdefault("collector_authority_promotion_cutover_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_promotion_cutover_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_promotion_cutover_require_rollback_path", True)
@@ -1090,7 +1090,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_collector_authority_production_freeze_gate", False)
     rust_core.setdefault("collector_authority_production_freeze_mode", "freeze_only")
     rust_core.setdefault("collector_authority_production_freeze_require_cutover_ledger", True)
-    rust_core.setdefault("collector_authority_production_freeze_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_production_freeze_require_python_fallback", False)
     rust_core.setdefault("collector_authority_production_freeze_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_production_freeze_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_production_freeze_require_rollback_path", True)
@@ -1101,7 +1101,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_collector_authority_production_switch_contract", False)
     rust_core.setdefault("collector_authority_production_switch_mode", "contract_only")
     rust_core.setdefault("collector_authority_production_switch_require_freeze_gate", True)
-    rust_core.setdefault("collector_authority_production_switch_require_python_fallback", True)
+    rust_core.setdefault("collector_authority_production_switch_require_python_fallback", False)
     rust_core.setdefault("collector_authority_production_switch_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_production_switch_require_no_cleanup_apply", True)
     rust_core.setdefault("collector_authority_production_switch_require_rollback_path", True)
@@ -1112,7 +1112,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_backend_api_handoff_plan", False)
     rust_core.setdefault("rust_backend_api_handoff_mode", "plan_only")
     rust_core.setdefault("rust_backend_api_handoff_require_production_switch_contract", True)
-    rust_core.setdefault("rust_backend_api_handoff_require_python_backend_fallback", True)
+    rust_core.setdefault("rust_backend_api_handoff_require_python_backend_fallback", False)
     rust_core.setdefault("rust_backend_api_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_backend_api_handoff_require_webui_compatibility", True)
     rust_core.setdefault("rust_backend_api_handoff_require_route_parity", True)
@@ -1122,7 +1122,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_backend_scheduler_handoff_plan", False)
     rust_core.setdefault("rust_backend_scheduler_handoff_mode", "plan_only")
     rust_core.setdefault("rust_backend_scheduler_handoff_require_api_handoff", True)
-    rust_core.setdefault("rust_backend_scheduler_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_backend_scheduler_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_backend_scheduler_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_backend_scheduler_handoff_require_run_cycle_shadow", True)
     rust_core.setdefault("rust_backend_scheduler_handoff_require_scheduler_parity", True)
@@ -1132,7 +1132,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_run_cycle_orchestrator_handoff_contract", False)
     rust_core.setdefault("rust_run_cycle_orchestrator_handoff_mode", "contract_only")
     rust_core.setdefault("rust_run_cycle_orchestrator_handoff_require_scheduler_handoff", True)
-    rust_core.setdefault("rust_run_cycle_orchestrator_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_run_cycle_orchestrator_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_run_cycle_orchestrator_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_run_cycle_orchestrator_handoff_require_run_cycle_shadow", True)
     rust_core.setdefault("rust_run_cycle_orchestrator_handoff_require_config_state_shadow", True)
@@ -1142,7 +1142,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_config_state_authority_handoff_contract", False)
     rust_core.setdefault("rust_config_state_authority_handoff_mode", "contract_only")
     rust_core.setdefault("rust_config_state_authority_handoff_require_run_cycle_orchestrator", True)
-    rust_core.setdefault("rust_config_state_authority_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_config_state_authority_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_config_state_authority_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_config_state_authority_handoff_require_config_state_shadow", True)
     rust_core.setdefault("rust_config_state_authority_handoff_require_atomic_writer_shadow", True)
@@ -1155,7 +1155,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_live_collector_authority_handoff_contract", False)
     rust_core.setdefault("rust_live_collector_authority_handoff_mode", "contract_only")
     rust_core.setdefault("rust_live_collector_authority_handoff_require_config_state_authority", True)
-    rust_core.setdefault("rust_live_collector_authority_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_live_collector_authority_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_live_collector_authority_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_live_collector_authority_handoff_require_live_collector_shadow", True)
     rust_core.setdefault("rust_live_collector_authority_handoff_require_routeros_adapter_shadow", True)
@@ -1166,7 +1166,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_circuit_builder_authority_handoff_contract", False)
     rust_core.setdefault("rust_circuit_builder_authority_handoff_mode", "contract_only")
     rust_core.setdefault("rust_circuit_builder_authority_handoff_require_live_collector_authority", True)
-    rust_core.setdefault("rust_circuit_builder_authority_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_circuit_builder_authority_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_circuit_builder_authority_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_circuit_builder_authority_handoff_require_circuit_shadow", True)
     rust_core.setdefault("rust_circuit_builder_authority_handoff_require_shaped_devices_parity", True)
@@ -1177,7 +1177,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_sync_engine_authority_handoff_contract", False)
     rust_core.setdefault("rust_sync_engine_authority_handoff_mode", "contract_only")
     rust_core.setdefault("rust_sync_engine_authority_handoff_require_circuit_builder_authority", True)
-    rust_core.setdefault("rust_sync_engine_authority_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_sync_engine_authority_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_sync_engine_authority_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_sync_engine_authority_handoff_require_sync_plan_shadow", True)
     rust_core.setdefault("rust_sync_engine_authority_handoff_require_diff_parity", True)
@@ -1189,7 +1189,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_apply_journal_rollback_authority_handoff_contract", False)
     rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_mode", "contract_only")
     rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_require_sync_engine_authority", True)
-    rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_require_apply_shadow", True)
     rust_core.setdefault("rust_apply_journal_rollback_authority_handoff_require_journal_shadow", True)
@@ -1201,7 +1201,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_backend_service_runtime_handoff_contract", False)
     rust_core.setdefault("rust_backend_service_runtime_handoff_mode", "contract_only")
     rust_core.setdefault("rust_backend_service_runtime_handoff_require_apply_journal_rollback_authority", True)
-    rust_core.setdefault("rust_backend_service_runtime_handoff_require_python_fallback", True)
+    rust_core.setdefault("rust_backend_service_runtime_handoff_require_python_fallback", False)
     rust_core.setdefault("rust_backend_service_runtime_handoff_require_manual_confirmation", True)
     rust_core.setdefault("rust_backend_service_runtime_handoff_require_route_parity", True)
     rust_core.setdefault("rust_backend_service_runtime_handoff_require_static_assets", True)
@@ -1213,7 +1213,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_full_rust_backend_production_readiness_contract", False)
     rust_core.setdefault("full_rust_backend_production_readiness_mode", "contract_only")
     rust_core.setdefault("full_rust_backend_production_readiness_require_service_runtime", True)
-    rust_core.setdefault("full_rust_backend_production_readiness_require_python_fallback", True)
+    rust_core.setdefault("full_rust_backend_production_readiness_require_python_fallback", False)
     rust_core.setdefault("full_rust_backend_production_readiness_require_manual_confirmation", True)
     rust_core.setdefault("full_rust_backend_production_readiness_require_webui_unchanged", True)
     rust_core.setdefault("full_rust_backend_production_readiness_require_operator_final_review", True)
@@ -1223,7 +1223,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_full_rust_backend_cutover_plan", False)
     rust_core.setdefault("full_rust_backend_cutover_mode", "plan_only")
     rust_core.setdefault("full_rust_backend_cutover_require_production_readiness", True)
-    rust_core.setdefault("full_rust_backend_cutover_require_python_fallback", True)
+    rust_core.setdefault("full_rust_backend_cutover_require_python_fallback", False)
     rust_core.setdefault("full_rust_backend_cutover_require_manual_confirmation", True)
     rust_core.setdefault("full_rust_backend_cutover_require_webui_unchanged", True)
     rust_core.setdefault("full_rust_backend_cutover_require_rollback_path", True)
@@ -1234,7 +1234,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_full_rust_backend_cutover_execution_contract", False)
     rust_core.setdefault("full_rust_backend_cutover_execution_mode", "contract_only")
     rust_core.setdefault("full_rust_backend_cutover_execution_require_cutover_plan", True)
-    rust_core.setdefault("full_rust_backend_cutover_execution_require_python_fallback", True)
+    rust_core.setdefault("full_rust_backend_cutover_execution_require_python_fallback", False)
     rust_core.setdefault("full_rust_backend_cutover_execution_require_manual_confirmation", True)
     rust_core.setdefault("full_rust_backend_cutover_execution_require_webui_unchanged", True)
     rust_core.setdefault("full_rust_backend_cutover_execution_require_rollback_path", True)
@@ -1245,7 +1245,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_python_backend_retirement_plan", False)
     rust_core.setdefault("python_backend_retirement_mode", "plan_only")
     rust_core.setdefault("python_backend_retirement_require_cutover_execution_contract", True)
-    rust_core.setdefault("python_backend_retirement_require_python_fallback", True)
+    rust_core.setdefault("python_backend_retirement_require_python_fallback", False)
     rust_core.setdefault("python_backend_retirement_require_manual_confirmation", True)
     rust_core.setdefault("python_backend_retirement_require_webui_unchanged", True)
     rust_core.setdefault("python_backend_retirement_require_rollback_path", True)
@@ -1256,7 +1256,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_rust_backend_production_enablement_contract", False)
     rust_core.setdefault("rust_backend_production_enablement_mode", "contract_only")
     rust_core.setdefault("rust_backend_production_enablement_require_python_retirement_plan", True)
-    rust_core.setdefault("rust_backend_production_enablement_require_python_fallback", True)
+    rust_core.setdefault("rust_backend_production_enablement_require_python_fallback", False)
     rust_core.setdefault("rust_backend_production_enablement_require_manual_confirmation", True)
     rust_core.setdefault("rust_backend_production_enablement_require_webui_unchanged", True)
     rust_core.setdefault("rust_backend_production_enablement_require_rollback_path", True)
@@ -1267,7 +1267,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_python_backend_removal_execution_contract", False)
     rust_core.setdefault("python_backend_removal_execution_mode", "contract_only")
     rust_core.setdefault("python_backend_removal_execution_require_rust_enablement_contract", True)
-    rust_core.setdefault("python_backend_removal_execution_require_python_fallback", True)
+    rust_core.setdefault("python_backend_removal_execution_require_python_fallback", False)
     rust_core.setdefault("python_backend_removal_execution_require_manual_confirmation", True)
     rust_core.setdefault("python_backend_removal_execution_require_webui_unchanged", True)
     rust_core.setdefault("python_backend_removal_execution_require_rollback_path", True)
@@ -1278,7 +1278,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("allow_full_rust_backend_removal_rehearsal", False)
     rust_core.setdefault("full_rust_backend_removal_rehearsal_mode", "rehearsal_only")
     rust_core.setdefault("full_rust_backend_removal_rehearsal_require_removal_execution_contract", True)
-    rust_core.setdefault("full_rust_backend_removal_rehearsal_require_python_fallback", True)
+    rust_core.setdefault("full_rust_backend_removal_rehearsal_require_python_fallback", False)
     rust_core.setdefault("full_rust_backend_removal_rehearsal_require_manual_confirmation", True)
     rust_core.setdefault("full_rust_backend_removal_rehearsal_require_webui_unchanged", True)
     rust_core.setdefault("full_rust_backend_removal_rehearsal_require_rollback_path", True)
@@ -1294,7 +1294,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("full_rust_backend_production_cutover_require_rollback_path", True)
     rust_core.setdefault("full_rust_backend_production_cutover_require_operator_ack", True)
     rust_core.setdefault("full_rust_backend_production_cutover_require_server_tests", True)
-    rust_core.setdefault("full_rust_backend_production_cutover_require_python_fallback_backup", True)
+    rust_core.setdefault("full_rust_backend_production_cutover_require_python_fallback_backup", False)
     rust_core.setdefault("full_rust_backend_production_cutover_max_shadow_age_seconds", 900)
     rust_core.setdefault("full_rust_backend_production_verifier_pilot", False)
     rust_core.setdefault("allow_full_rust_backend_production_verifier", False)

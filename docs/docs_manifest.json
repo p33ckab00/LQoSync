@@ -48,5 +48,23 @@
     "title": "v8.1.0 Rust Scheduler Authority",
     "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
     "summary": "Moves scheduler authority to Rust while preserving Flask WebUI."
+  },
+  "rust.core_v820_full_rust_daemon_boundary": {
+    "title": "Rust Core v8.2.0 Full Rust Daemon Boundary Cleanup",
+    "file": "docs/RUST_CORE_V820_FULL_RUST_DAEMON_BOUNDARY.md",
+    "anchor": "v820-full-rust-daemon-boundary-cleanup",
+    "summary": "Removes the legacy Python scheduler loop, clarifies Flask as UI shell only, and aligns the canonical workflow diagram to Rust daemon authority."
+  },
+  "architecture.full_rust_backend_boundary": {
+    "title": "Full Rust Backend Boundary",
+    "file": "docs/FULL_RUST_BACKEND_BOUNDARY.md",
+    "anchor": "full-rust-backend-boundary",
+    "summary": "Canonical local appliance architecture: Rust authority daemon backend and existing Flask WebUI shell."
+  },
+  "architecture.workflow_svg": {
+    "title": "LQoSync Workflow Architecture SVG",
+    "file": "docs/lqosync_workflow_architecture.svg",
+    "anchor": "workflow-architecture-svg",
+    "summary": "Updated diagram showing Flask UI shell delegating to the Rust authority daemon, with the Python legacy scheduler loop removed."
   }
 }

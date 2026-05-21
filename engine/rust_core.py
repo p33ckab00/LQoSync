@@ -1,9 +1,9 @@
-"""Optional Python wrapper for the LQoSync Rust safety core.
+"""Python WebUI client for the LQoSync Rust authority daemon.
 
-The Rust core is introduced as an optional sidecar. If the binary is missing or
-returns malformed output, Python keeps the existing sync path and records a
-non-blocking unavailable/fallback result. This allows the `lqosync-in-rust`
-branch to harden deterministic validation without breaking current installs.
+Python is no longer the production backend authority. This module is retained as
+a small Flask/UI bridge for sending JSON protocol requests to ``lqosync-core``
+over the local Unix socket or, when explicitly allowed for diagnostics, the JSON
+stdin/stdout CLI mode. Runtime mutation must remain Rust-authoritative.
 """
 from __future__ import annotations
 
@@ -23,11 +23,9 @@ DEFAULT_SOCKET = "/run/lqosync-core.sock"
 
 
 def _python_collector_contract(envelope: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
-    """Local fallback for the collector trust contract.
+    """Diagnostic collector trust helper used only when explicitly allowed.
 
-    This mirrors the Rust `validate-collector-output` behavior so the safety
-    semantics are available even before the Rust binary is built. The Rust core
-    remains the preferred implementation when available.
+    Rust remains the production authority; this helper exists for historical tests and non-mutating diagnostics only.
     """
     started = started or time.perf_counter()
     router = str(envelope.get("router") or "unknown")
@@ -129,9 +127,9 @@ def _risk_level(score: int) -> str:
 
 
 def _python_policy_shadow(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
-    """Fallback for Rust `evaluate-policy` shadow mode.
+    """Historical diagnostic helper for Rust `evaluate-policy` parity mode.
 
-    Python remains authoritative in v0.5. This fallback mirrors the Rust shadow
+    Rust is authoritative in stable releases. This fallback mirrors the Rust shadow
     payload shape so Dry Run and reports stay stable when the binary/daemon is
     unavailable.
     """
@@ -215,7 +213,7 @@ def _python_policy_shadow(payload: dict[str, Any], *, started: float | None = No
             "rust": {"verdict": verdict, "risk_level": risk_level, "write_allowed": write_allowed, "apply_allowed": apply_allowed},
         })
         if not parity.get("matches_verdict", True):
-            warnings.append({"title": "Policy parity mismatch", "message": "Shadow policy verdict differs from Python policy verdict. Python remains authoritative in this release.", "severity": "warning", "python_verdict": python_decision.get("verdict"), "rust_verdict": verdict})
+            warnings.append({"title": "Policy parity mismatch", "message": "Shadow policy verdict differs from Python policy verdict. Rust is authoritative; Python fallback is disabled in stable releases.", "severity": "warning", "python_verdict": python_decision.get("verdict"), "rust_verdict": verdict})
 
     return {
         "version": PROTOCOL_VERSION,
