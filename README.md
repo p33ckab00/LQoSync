@@ -45,6 +45,7 @@ Rust owns:
 - collector-output validation
 - RouterOS read-result validation
 - RouterOS shadow collector bundle generation
+- gated read-only RouterOS live adapter pilot
 - sync-plan enforcement
 - file write authority
 - transaction journal

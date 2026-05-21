@@ -118,11 +118,11 @@ pub fn run_routeros_tcp_connectivity_pilot_payload(payload: &Value) -> (Value, V
         ));
     }
 
-    if execute && transport_authority != "tcp_connect_pilot" && transport_authority != "live_read_pilot" {
+    if execute && transport_authority != "tcp_connect_pilot" && transport_authority != "live_read_pilot" && transport_authority != "live_read_adapter_pilot" {
         errors.push(Diagnostic::error(
             "routeros_tcp_authority_not_enabled",
             Some("rust_core.routeros_transport_authority".to_string()),
-            "Rust RouterOS TCP connectivity pilot requires routeros_transport_authority=tcp_connect_pilot or live_read_pilot.",
+            "Rust RouterOS TCP connectivity pilot requires routeros_transport_authority=tcp_connect_pilot, live_read_pilot, or live_read_adapter_pilot.",
         ));
     }
 

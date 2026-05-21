@@ -1,16 +1,31 @@
-# Rust Core v3.4 Live Read Adapter Contract
+# Rust Core Live Read Adapter Pilot
 
-LQoSync `2.104.0-rc1` adds `lqosync-core v3.4.0` with the `run-routeros-live-read-adapter-pilot` operation.
+LQoSync `lqosync-in-rust` exposes `run-routeros-live-read-adapter-pilot`.
 
-This phase is a bridge between the fixture-only authenticated read pipeline and a future live Rust RouterOS socket adapter. It builds a guarded live-read adapter contract by composing the TCP connectivity pilot, the redacted auth-session contract, and the RouterOS API sentence encoder.
+This phase bridges the fixture-only authenticated read pipeline and production
+collector parity. Contract mode still performs no network I/O. Live mode can
+execute a single read-only RouterOS API `print` command only when every
+live-read gate is explicitly enabled.
 
 ## Safety status
 
 This is **not** full Rust backend yet.
 
-The operation does not open RouterOS sockets, authenticate to MikroTik, emit credentials, send API words, read API replies, replace Python collectors, or write LibreQoS files.
+The operation does not write RouterOS config, does not write LibreQoS files, and
+does not transfer cleanup or collector authority. Python collectors remain
+authoritative until live-read shadow parity gates pass.
 
-If `execute=true` or a live adapter/mode is requested, the Rust core returns `routeros_live_read_adapter_not_implemented`.
+Live execution requires:
+
+```text
+allow_rust_routeros_live_reads=true
+allow_rust_routeros_credentials=true
+allow_rust_routeros_tcp_connect=true
+allow_rust_routeros_live_read_adapter=true
+routeros_live_read_pilot=true
+routeros_live_read_adapter_pilot=true
+routeros_transport_authority=live_read_adapter_pilot
+```
 
 ## Operation
 
@@ -26,6 +41,16 @@ connection_attempt_count=0
 authentication_attempt_count=0
 api_sentence_write_count=0
 api_reply_read_count=0
+```
+
+Expected gated live-read result:
+
+```text
+live_read_adapter_read_complete
+connection_attempt_count=1
+authentication_attempt_count=1
+collector_authority=python_authoritative
+safe_for_cleanup=false
 ```
 
 ## API
@@ -56,15 +81,24 @@ curl -X POST http://YOUR-LQOSYNC/api/rust-core/routeros-live-read-adapter-pilot 
 ```json
 {
   "rust_core": {
-    "routeros_live_read_adapter_pilot": false,
+    "routeros_transport_authority": "plan_only",
+    "allow_rust_routeros_live_reads": false,
+    "allow_rust_routeros_credentials": false,
+    "allow_rust_routeros_tcp_connect": false,
     "allow_rust_routeros_live_read_adapter": false,
+    "routeros_live_read_pilot": false,
+    "routeros_live_read_adapter_pilot": false,
     "routeros_live_read_adapter_authority": "contract_only"
   }
 }
 ```
 
-These flags are intentionally conservative. A real live adapter remains blocked until a future phase implements the socket/auth/read state machine.
+These flags are intentionally conservative. Set `routeros_transport_authority`
+to `live_read_adapter_pilot` only for a read-only pilot window, then return it
+to `plan_only` after the pilot run.
 
 ## Next phase
 
-The next bridge is expected to introduce a read-only live adapter implementation path behind explicit gates, while Python collectors remain the fallback and authority until parity is proven.
+Feed successful live-read results into `build-routeros-shadow-collector-bundle`
+and compare them with Python collector rows over multiple clean cycles before
+any authority handoff.

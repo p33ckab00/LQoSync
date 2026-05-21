@@ -1362,7 +1362,7 @@ def validate_config(cfg: dict):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     if rust_core.get("routeros_read_pilot_adapter") not in ("fixture", "disabled"):
         errors.append(f"rust_core.routeros_read_pilot_adapter invalid: {rust_core.get('routeros_read_pilot_adapter')}")
-    if rust_core.get("routeros_transport_authority") not in ("plan_only", "live_read_pilot"):
+    if rust_core.get("routeros_transport_authority") not in ("plan_only", "live_read_pilot", "live_read_adapter_pilot"):
         errors.append(f"rust_core.routeros_transport_authority invalid: {rust_core.get('routeros_transport_authority')}")
     try:
         rust_core["routeros_live_read_timeout_seconds"] = max(int(rust_core.get("routeros_live_read_timeout_seconds", 5) or 5), 1)

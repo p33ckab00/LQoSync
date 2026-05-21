@@ -75,7 +75,7 @@ collector bundle builder, and can compare those rows against Python output.
 It is intentionally non-authoritative:
 
 ```text
-- no socket connections are opened
+- socket connections are opened only by the gated read-only live adapter pilot
 - no credentials are emitted
 - no cleanup/write/apply authority is transferred
 - Python collectors remain production-authoritative
