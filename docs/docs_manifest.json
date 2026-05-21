@@ -1028,5 +1028,11 @@
     "file": "docs/RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md",
     "anchor": "v770-rust-live-stable-candidate",
     "summary": "Adds quarantine, last-good snapshots, live soak monitoring, and a fail-closed live-stable gate for promoted full Rust authority deployments."
+  },
+  "rust_core_v780_set_and_forget_candidate": {
+    "title": "Rust Core v7.8.0 Set-and-Forget Candidate",
+    "file": "docs/RUST_CORE_V780_SET_AND_FORGET_CANDIDATE.md",
+    "anchor": "v780-set-and-forget-candidate",
+    "summary": "Adds journal audit, rollback drill, set-and-forget readiness evidence, and a fail-closed runtime gate for promoted Rust authority deployments."
   }
 }

@@ -104,6 +104,14 @@ DEFAULT_CONFIG = {
         "rust_live_stable_require_last_good_snapshot": False,
         "rust_live_stable_max_recent_failures": 0,
         "rust_live_stable_min_successful_cycles": 0,
+        "rust_set_and_forget_candidate_enabled": False,
+        "rust_set_and_forget_fail_closed": True,
+        "rust_set_and_forget_require_live_soak_monitor": True,
+        "rust_set_and_forget_require_journal_audit": True,
+        "rust_set_and_forget_require_rollback_drill": True,
+        "rust_set_and_forget_require_last_good_snapshot": True,
+        "rust_set_and_forget_readiness_evidence": "/opt/LQoSync/state/rust_set_and_forget_readiness.json",
+        "rust_set_and_forget_max_evidence_age_seconds": 1800,
         "rust_authority_quarantine_enabled": False,
         "rust_authority_auto_quarantine_on_failure": True,
         "rust_authority_quarantine_state": "/opt/LQoSync/state/rust_authority_quarantine.json",
@@ -974,6 +982,14 @@ def validate_config(cfg: dict):
     rust_core.setdefault("rust_live_stable_require_last_good_snapshot", False)
     rust_core.setdefault("rust_live_stable_max_recent_failures", 0)
     rust_core.setdefault("rust_live_stable_min_successful_cycles", 0)
+    rust_core.setdefault("rust_set_and_forget_candidate_enabled", False)
+    rust_core.setdefault("rust_set_and_forget_fail_closed", True)
+    rust_core.setdefault("rust_set_and_forget_require_live_soak_monitor", True)
+    rust_core.setdefault("rust_set_and_forget_require_journal_audit", True)
+    rust_core.setdefault("rust_set_and_forget_require_rollback_drill", True)
+    rust_core.setdefault("rust_set_and_forget_require_last_good_snapshot", True)
+    rust_core.setdefault("rust_set_and_forget_readiness_evidence", "/opt/LQoSync/state/rust_set_and_forget_readiness.json")
+    rust_core.setdefault("rust_set_and_forget_max_evidence_age_seconds", 1800)
     rust_core.setdefault("rust_authority_quarantine_enabled", False)
     rust_core.setdefault("rust_authority_auto_quarantine_on_failure", True)
     rust_core.setdefault("rust_authority_quarantine_state", "/opt/LQoSync/state/rust_authority_quarantine.json")
@@ -986,6 +1002,7 @@ def validate_config(cfg: dict):
         "rust_full_authority_file_write_not_executed",
         "rust_full_authority_libreqos_apply_not_executed",
         "libreqos_failed",
+        "rust_set_and_forget_gate_failed",
     ])
     rust_core.setdefault("require_rust_authority_recovery_bundle", True)
     rust_core.setdefault("rust_authority_recovery_bundle_dir", "/opt/LQoSync/state/rust_authority_recovery")

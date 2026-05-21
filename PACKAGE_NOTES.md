@@ -592,3 +592,8 @@ This package adds a non-mutating Rust authority watchdog. It verifies preflight 
 ## v7.7.0 package notes
 
 This package adds the Rust Live Stable Candidate layer. It introduces a non-destructive quarantine marker, last-good snapshots, a live-soak monitor, and a fail-closed live-stable gate for promoted full Rust authority deployments. Existing installs are not forced into the live-stable gate until the promotion script enables the relevant flags.
+
+
+## v7.8.0 Rust Set-and-Forget Candidate
+
+Adds transaction journal auditing, non-destructive rollback drill verification, set-and-forget readiness evidence, and a fail-closed runtime gate before promoted Rust full-authority production mutation.

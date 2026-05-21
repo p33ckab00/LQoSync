@@ -355,3 +355,8 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 ## v7.7.0 Rust Live Stable Candidate
 
 - [Rust Core v7.7.0 Rust Live Stable Candidate](RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md)
+
+
+## v7.8.0 Rust Set-and-Forget Candidate
+
+- [Rust Core v7.8.0 Set-and-Forget Candidate](RUST_CORE_V780_SET_AND_FORGET_CANDIDATE.md)

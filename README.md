@@ -793,3 +793,8 @@ bash scripts/rust-authority-quarantine.sh status
 ```
 
 The live-stable layer adds fail-closed quarantine, last-good snapshots, and read-only soak monitoring while preserving the Python WebUI and scheduler shell.
+
+
+## v7.8.0 Rust Set-and-Forget Candidate
+
+Adds transaction journal auditing, non-destructive rollback drill verification, set-and-forget readiness evidence, and a fail-closed runtime gate before promoted Rust full-authority production mutation.

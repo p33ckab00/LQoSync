@@ -910,3 +910,8 @@ bash scripts/rust-authority-watchdog.sh
 ```
 
 The full authority promotion script runs this automatically and fails closed if the required authority evidence is missing.
+
+
+## v7.8.0 Rust Set-and-Forget Candidate
+
+Adds transaction journal auditing, non-destructive rollback drill verification, set-and-forget readiness evidence, and a fail-closed runtime gate before promoted Rust full-authority production mutation.

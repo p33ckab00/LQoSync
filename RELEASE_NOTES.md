@@ -2310,3 +2310,13 @@ Also aligns codebase/runtime path defaults and operator-facing repair/update com
 - Added automatic quarantine marker creation for critical Rust authority failures when live-stable candidate mode is enabled.
 - Updated `scripts/promote-rust-full-authoritative-safe.sh` to enable live-stable candidate mode, create a last-good snapshot, and run the live-soak monitor after watchdog verification.
 - Added `docs/RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md` and `scripts/verify-rust-live-stable-candidate.sh`.
+
+
+## 2.148.0-rc1 - v7.8.0 Rust Set-and-Forget Candidate
+
+- Added `scripts/rust-authority-journal-audit.sh`.
+- Added `scripts/rust-authority-rollback-drill.sh`.
+- Added `scripts/rust-set-and-forget-readiness.sh`.
+- Added `scripts/verify-rust-set-and-forget-candidate.sh`.
+- Added fail-closed runtime status `rust_set_and_forget_gate_failed`.
+- Promotion now writes set-and-forget readiness evidence after watchdog, recovery bundle, live-soak, journal audit, and rollback drill checks pass.
