@@ -127,6 +127,27 @@ pub fn build_collector_authority_runtime_contract_payload(payload: &Value) -> (V
 
     let rust_row_count = activation_plan.get("rust_row_count").and_then(Value::as_u64).unwrap_or(0);
     let python_row_count = activation_plan.get("python_row_count").and_then(Value::as_u64).unwrap_or(0);
+    let rust_shadow_ready = bool_value(activation_plan.get("rust_shadow_ready"), false);
+    let dry_run_shadow_ready = bool_value(activation_plan.get("dry_run_shadow_ready"), false);
+    let live_read_shadow_ready = bool_value(activation_plan.get("live_read_shadow_ready"), false);
+    let shadow_history_count = number_value(activation_plan.get("shadow_history_count"), 0);
+    let shadow_history_successful_count = number_value(activation_plan.get("shadow_history_successful_count"), 0);
+    let configured_successful_shadow_cycles = number_value(activation_plan.get("configured_successful_shadow_cycles"), 0);
+    let successful_shadow_cycles = number_value(activation_plan.get("successful_shadow_cycles"), 0);
+    let required_shadow_cycles = number_value(activation_plan.get("required_shadow_cycles"), 0);
+    let shadow_cycles_ok = bool_value(activation_plan.get("shadow_cycles_ok"), false);
+    let live_read_shadow_row_count = number_value(activation_plan.get("live_read_shadow_row_count"), 0);
+    let parity_verdict = str_value(activation_plan.get("parity_verdict"), "not_available");
+    let live_read_shadow_parity_verdict = str_value(activation_plan.get("live_read_shadow_parity_verdict"), "not_available");
+    let runtime_evidence_source = if live_read_shadow_ready {
+        "live_read_shadow_history"
+    } else if dry_run_shadow_ready {
+        "dry_run_shadow_report"
+    } else if rust_shadow_ready {
+        "activation_plan"
+    } else {
+        "not_ready"
+    };
     let sources = payload.get("sources").cloned().unwrap_or_else(|| json!([]));
 
     let seed = json!({
@@ -134,6 +155,8 @@ pub fn build_collector_authority_runtime_contract_payload(payload: &Value) -> (V
         "activation_status": activation_status,
         "runtime_mode": runtime_mode,
         "rust_row_count": rust_row_count,
+        "live_read_shadow_ready": live_read_shadow_ready,
+        "shadow_history_successful_count": shadow_history_successful_count,
         "shadow_age_seconds": shadow_age_seconds,
     });
 
@@ -154,9 +177,22 @@ pub fn build_collector_authority_runtime_contract_payload(payload: &Value) -> (V
         "shadow_age_seconds": shadow_age_seconds,
         "max_shadow_age_seconds": max_stale_seconds,
         "shadow_fresh": shadow_fresh,
+        "rust_shadow_ready": rust_shadow_ready,
+        "dry_run_shadow_ready": dry_run_shadow_ready,
+        "live_read_shadow_ready": live_read_shadow_ready,
+        "runtime_evidence_source": runtime_evidence_source,
+        "shadow_history_count": shadow_history_count,
+        "shadow_history_successful_count": shadow_history_successful_count,
+        "configured_successful_shadow_cycles": configured_successful_shadow_cycles,
+        "successful_shadow_cycles": successful_shadow_cycles,
+        "required_shadow_cycles": required_shadow_cycles,
+        "shadow_cycles_ok": shadow_cycles_ok,
+        "parity_verdict": parity_verdict,
+        "live_read_shadow_parity_verdict": live_read_shadow_parity_verdict,
         "sources": sources,
         "python_row_count": python_row_count,
         "rust_row_count": rust_row_count,
+        "live_read_shadow_row_count": live_read_shadow_row_count,
         "collector_authority_activation_plan": activation_plan,
         "full_rust_backend": false,
         "production_collector_authority_switched": false,
@@ -175,7 +211,7 @@ pub fn build_collector_authority_runtime_contract_payload(payload: &Value) -> (V
         "api_sentence_write_count": 0,
         "api_reply_read_count": 0,
         "next_stage": "rust_collector_authority_pilot_controlled_handoff",
-        "note": "v4.1 builds a non-mutating runtime contract for a future Rust collector authority pilot. It does not switch production authority away from Python."
+        "note": "v4.1 builds a non-mutating runtime contract for a future Rust collector authority pilot and carries dry-run/live-read shadow provenance. It does not switch production authority away from Python."
     });
 
     (result, errors, warnings)
@@ -259,6 +295,44 @@ mod tests {
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("runtime-contract-password"));
         assert!(!text.contains("\"password\":"));
+    }
+
+    #[test]
+    fn carries_live_read_shadow_history_into_ready_runtime_contract() {
+        let mut payload = json!({
+            "shadow_age_seconds": 30,
+            "sources": ["pppoe"],
+            "collector_authority_activation_plan": {
+                "status": "collector_authority_activation_ready_for_pilot",
+                "production_collector_authority_switched": false,
+                "python_collector_fallback_required": true,
+                "rust_shadow_ready": true,
+                "dry_run_shadow_ready": false,
+                "live_read_shadow_ready": true,
+                "python_row_count": 1,
+                "rust_row_count": 1,
+                "live_read_shadow_row_count": 1,
+                "parity_verdict": "parity_pass",
+                "live_read_shadow_parity_verdict": "parity_pass",
+                "required_shadow_cycles": 3,
+                "successful_shadow_cycles": 3,
+                "configured_successful_shadow_cycles": 3,
+                "shadow_history_count": 3,
+                "shadow_history_successful_count": 3,
+                "shadow_cycles_ok": true
+            }
+        });
+        enable_all_gates(&mut payload);
+
+        let (result, errors, _warnings) = build_collector_authority_runtime_contract_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_runtime_contract_ready"));
+        assert_eq!(result.get("runtime_evidence_source").and_then(Value::as_str), Some("live_read_shadow_history"));
+        assert_eq!(result.get("live_read_shadow_ready").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("shadow_history_successful_count").and_then(Value::as_u64), Some(3));
+        assert_eq!(result.get("live_read_shadow_parity_verdict").and_then(Value::as_str), Some("parity_pass"));
+        assert_eq!(result.get("safe_for_cleanup").and_then(Value::as_bool), Some(false));
+        assert_eq!(result.get("production_collector_authority_switched").and_then(Value::as_bool), Some(false));
     }
 
     #[test]

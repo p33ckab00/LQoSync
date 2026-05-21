@@ -3181,22 +3181,61 @@ def _python_build_collector_authority_runtime_contract(payload: dict[str, Any], 
     allow = bool(rust_core.get("allow_collector_authority_runtime_contract"))
     pilot = bool(rust_core.get("collector_authority_runtime_pilot"))
     mode = str(rust_core.get("collector_authority_runtime_mode") or "contract_only")
+    require_activation = rust_core.get("collector_authority_runtime_require_activation_plan", True) is not False
     require_fallback = rust_core.get("collector_authority_runtime_require_python_fallback", True) is not False
     max_age = int(rust_core.get("collector_authority_runtime_max_shadow_age_seconds") or 900)
     shadow_age = int(payload.get("shadow_age_seconds") or rust_core.get("collector_authority_shadow_age_seconds") or 0)
-    activation_resp = _python_build_collector_authority_activation_plan(payload, started=started)
-    activation = activation_resp.get("result") if isinstance(activation_resp.get("result"), dict) else {}
-    activation_ready = activation.get("status") == "collector_authority_activation_ready_for_pilot" and activation.get("production_collector_authority_switched") is False
+
+    supplied_activation = payload.get("collector_authority_activation_plan") if isinstance(payload.get("collector_authority_activation_plan"), dict) else {}
+    if isinstance(supplied_activation.get("result"), dict):
+        supplied_activation = supplied_activation.get("result") or {}
+    activation_resp: dict[str, Any] = {}
+    if supplied_activation:
+        activation = supplied_activation
+    else:
+        activation_resp = _python_build_collector_authority_activation_plan(payload, started=started)
+        activation = activation_resp.get("result") if isinstance(activation_resp.get("result"), dict) else {}
+
+    def _activation_int(name: str) -> int:
+        try:
+            return int(activation.get(name) or 0)
+        except Exception:
+            return 0
+
+    def _activation_str(name: str, default: str = "not_available") -> str:
+        value = activation.get(name)
+        return str(value) if value not in (None, "") else default
+
+    activation_errors = list(activation_resp.get("errors") or []) if activation_resp else []
+    activation_ready = (
+        not activation_errors
+        and activation.get("status") == "collector_authority_activation_ready_for_pilot"
+        and activation.get("production_collector_authority_switched") is False
+        and activation.get("python_collector_fallback_required") is True
+    )
+    rust_shadow_ready = bool(activation.get("rust_shadow_ready"))
+    dry_run_shadow_ready = bool(activation.get("dry_run_shadow_ready"))
+    live_read_shadow_ready = bool(activation.get("live_read_shadow_ready"))
+    runtime_evidence_source = (
+        "live_read_shadow_history" if live_read_shadow_ready
+        else "dry_run_shadow_report" if dry_run_shadow_ready
+        else "activation_plan" if rust_shadow_ready
+        else "not_ready"
+    )
     errors = []
-    warnings = []
+    warnings = list(activation_resp.get("warnings") or []) if activation_resp else []
+    if activation_errors:
+        warnings.append({"code": "collector_authority_activation_not_clean", "severity": "warning", "path": "collector_authority_activation_plan", "message": "Collector authority activation plan returned errors; runtime contract remains blocked."})
     if payload.get("execute") or str(payload.get("mode") or "contract") in {"execute", "promote", "switch", "authority", "apply", "production"}:
         errors.append({"code": "collector_authority_runtime_execute_not_implemented", "severity": "error", "path": "collector_authority_runtime", "message": "Python fallback cannot switch Rust collector authority."})
+    if require_activation and not activation_ready:
+        warnings.append({"code": "collector_authority_runtime_activation_not_ready", "severity": "warning", "path": "collector_authority_activation_plan", "message": "Collector authority activation plan is not ready; runtime contract remains shadow-only."})
     if not require_fallback:
         errors.append({"code": "collector_authority_runtime_requires_python_fallback", "severity": "error", "path": "rust_core.collector_authority_runtime_require_python_fallback", "message": "Collector authority runtime pilot requires Python collector fallback in this release."})
     if shadow_age > max_age:
         warnings.append({"code": "collector_authority_runtime_shadow_state_stale", "severity": "warning", "path": "collector_authority_runtime.shadow_age_seconds", "message": "Rust-shadow collector state is older than the runtime pilot freshness limit."})
     requested = bool(allow and pilot and mode == "rust_collector_authority_runtime_contract")
-    ready = not errors and requested and activation_ready and require_fallback and shadow_age <= max_age
+    ready = not errors and requested and (not require_activation or activation_ready) and require_fallback and shadow_age <= max_age
     status = "blocked" if errors else ("collector_authority_runtime_contract_ready" if ready else ("collector_authority_runtime_waiting_for_gates" if activation_ready else "collector_authority_runtime_shadow_only"))
     return {
         "version": PROTOCOL_VERSION,
@@ -3209,11 +3248,32 @@ def _python_build_collector_authority_runtime_contract(payload: dict[str, Any], 
             "collector_authority": "python_authoritative",
             "target_authority": "rust_collector_authority_runtime_candidate" if ready else "python_authoritative",
             "runtime_requested": requested,
+            "allow_runtime_contract": allow,
+            "runtime_pilot": pilot,
+            "runtime_mode": mode,
+            "require_activation_plan": require_activation,
+            "require_python_fallback": require_fallback,
             "activation_status": activation.get("status"),
             "activation_ready": activation_ready,
             "shadow_age_seconds": shadow_age,
             "max_shadow_age_seconds": max_age,
             "shadow_fresh": shadow_age <= max_age,
+            "rust_shadow_ready": rust_shadow_ready,
+            "dry_run_shadow_ready": dry_run_shadow_ready,
+            "live_read_shadow_ready": live_read_shadow_ready,
+            "runtime_evidence_source": runtime_evidence_source,
+            "shadow_history_count": _activation_int("shadow_history_count"),
+            "shadow_history_successful_count": _activation_int("shadow_history_successful_count"),
+            "configured_successful_shadow_cycles": _activation_int("configured_successful_shadow_cycles"),
+            "successful_shadow_cycles": _activation_int("successful_shadow_cycles"),
+            "required_shadow_cycles": _activation_int("required_shadow_cycles"),
+            "shadow_cycles_ok": bool(activation.get("shadow_cycles_ok")),
+            "parity_verdict": _activation_str("parity_verdict"),
+            "live_read_shadow_parity_verdict": _activation_str("live_read_shadow_parity_verdict"),
+            "sources": payload.get("sources") if isinstance(payload.get("sources"), list) else [],
+            "python_row_count": _activation_int("python_row_count"),
+            "rust_row_count": _activation_int("rust_row_count"),
+            "live_read_shadow_row_count": _activation_int("live_read_shadow_row_count"),
             "collector_authority_activation_plan": activation,
             "full_rust_backend": False,
             "production_collector_authority_switched": False,
@@ -3227,7 +3287,12 @@ def _python_build_collector_authority_runtime_contract(payload: dict[str, Any], 
             "safe_for_cleanup": False,
             "write_allowed": False,
             "apply_allowed": False,
+            "connection_attempt_count": 0,
+            "authentication_attempt_count": 0,
+            "api_sentence_write_count": 0,
+            "api_reply_read_count": 0,
             "next_stage": "rust_collector_authority_pilot_controlled_handoff",
+            "note": "Python fallback mirrors the Rust runtime contract shape and carries dry-run/live-read shadow provenance without switching production authority.",
         },
         "errors": errors,
         "warnings": warnings,
