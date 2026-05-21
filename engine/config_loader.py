@@ -134,8 +134,8 @@ DEFAULT_CONFIG = {
         "collector_output_authority": "rust_validate_all",
         "require_collector_rust_validation": True,
         "rust_stable_release": True,
-        "rust_stable_release_version": "v8.0.0",
-        "python_runtime_role": "webui_scheduler_shell_only",
+        "rust_stable_release_version": "v8.1.0",
+        "python_runtime_role": "flask_webui_shell_only",
         "python_backend_authority_removed": True,
         "legacy_python_mutation_cleanup_complete": True,
         "routeros_transport_authority": "plan_only",
@@ -628,7 +628,7 @@ DEFAULT_CONFIG = {
         "cleanup_stale_files_script": "/opt/LQoSync/scripts/cleanup_stale_files.py"
     },
     "stable_release": {
-        "target": "v2.70 Stable Release Candidate",
+        "target": "v8.1.0 Rust Scheduler Authority Stable",
         "feature_freeze": True,
         "allow_new_sidebar_modules": False,
         "require_release_check": True,
@@ -758,6 +758,19 @@ def normalize_config(cfg):
     cfg.setdefault("paths", {})
     cfg.setdefault("libreqos", {})
     cfg.setdefault("scheduler", {})
+    scheduler = cfg.setdefault("scheduler", {})
+    scheduler.setdefault("engine", "rust")
+    scheduler.setdefault("allow_python_scheduler", False)
+    scheduler.setdefault("python_scheduler_role", "retired_webui_compatibility_shell_only")
+    scheduler.setdefault("rust_scheduler_authority", True)
+    scheduler.setdefault("rust_authority_daemon_required", True)
+    scheduler.setdefault("fail_closed_on_rust_scheduler_error", True)
+    scheduler.setdefault("require_watchdog", True)
+    scheduler.setdefault("require_set_and_forget_readiness", True)
+    scheduler.setdefault("rust_heartbeat_path", "/opt/LQoSync/state/rust_scheduler_heartbeat.json")
+    scheduler.setdefault("rust_lock_path", "/opt/LQoSync/state/rust_scheduler.lock")
+    scheduler.setdefault("rust_run_cycle_command", "/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py scheduled")
+    scheduler.setdefault("manual_run_command", "/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py manual")
     cfg.setdefault("defaults", {})
     cfg.setdefault("collector", {})
     cfg.setdefault("rust_core", {})
@@ -1018,10 +1031,15 @@ def validate_config(cfg: dict):
     rust_core.setdefault("collector_output_authority", "rust_validate_all")
     rust_core.setdefault("require_collector_rust_validation", True)
     rust_core.setdefault("rust_stable_release", True)
-    rust_core.setdefault("rust_stable_release_version", "v8.0.0")
-    rust_core.setdefault("python_runtime_role", "webui_scheduler_shell_only")
+    rust_core.setdefault("rust_stable_release_version", "v8.1.0")
+    rust_core.setdefault("python_runtime_role", "flask_webui_shell_only")
     rust_core.setdefault("python_backend_authority_removed", True)
     rust_core.setdefault("legacy_python_mutation_cleanup_complete", True)
+    rust_core.setdefault("rust_scheduler_authority", True)
+    rust_core.setdefault("rust_scheduler_authority_version", "v8.1.0")
+    rust_core.setdefault("rust_scheduler_operations_required", True)
+    rust_core.setdefault("rust_scheduler_fail_closed", True)
+    rust_core.setdefault("scheduler_run_once_timeout_seconds", 1800)
     rust_core.setdefault("routeros_transport_authority", "plan_only")
     rust_core.setdefault("allow_rust_routeros_live_reads", False)
     rust_core.setdefault("allow_rust_routeros_credentials", False)

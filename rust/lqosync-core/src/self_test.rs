@@ -147,6 +147,10 @@ pub const OP_EXECUTE_ROLLBACK: &str = "execute-rollback";
 pub const OP_EVALUATE_AUTHORITY_READINESS: &str = "evaluate-authority-readiness";
 pub const OP_EVALUATE_FULL_RUST_READINESS: &str = "evaluate-full-rust-readiness";
 pub const OP_BUILD_AUTHORITY_PILOT_PLAN: &str = "build-authority-pilot-plan";
+pub const OP_SCHEDULER_STATUS: &str = "scheduler-status";
+pub const OP_SCHEDULER_HEARTBEAT: &str = "scheduler-heartbeat";
+pub const OP_SCHEDULER_DECISION: &str = "scheduler-decision";
+pub const OP_SCHEDULER_RUN_ONCE: &str = "scheduler-run-once";
 pub const OP_SELF_TEST: &str = "self-test";
 
 pub fn advertised_operations() -> &'static [&'static str] {
@@ -220,6 +224,10 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_FULL_RUST_BACKEND_STEADY_STATE_GUARD,
         OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_DRIFT_MONITOR,
         OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_AUDIT_SENTINEL,
+        OP_SCHEDULER_STATUS,
+        OP_SCHEDULER_HEARTBEAT,
+        OP_SCHEDULER_DECISION,
+        OP_SCHEDULER_RUN_ONCE,
         OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE,
         OP_COMPARE_COLLECTOR_BUNDLE_PARITY,
         OP_EVALUATE_SYNC_PLAN,
@@ -274,6 +282,21 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
             "transaction_operation_not_advertised",
             Some("operations".to_string()),
             "execute-apply-transaction is not advertised by the Rust core.",
+        ));
+    }
+
+
+    let has_scheduler = operations.contains(&OP_SCHEDULER_STATUS) && operations.contains(&OP_SCHEDULER_RUN_ONCE);
+    checks.push(check(
+        "rust_scheduler_run_once_advertised",
+        has_scheduler,
+        json!({"operations": [OP_SCHEDULER_STATUS, OP_SCHEDULER_HEARTBEAT, OP_SCHEDULER_DECISION, OP_SCHEDULER_RUN_ONCE]}),
+    ));
+    if !has_scheduler {
+        errors.push(Diagnostic::error(
+            "scheduler_operations_not_advertised",
+            Some("operations".to_string()),
+            "Rust scheduler authority operations are not advertised by the Rust core.",
         ));
     }
 

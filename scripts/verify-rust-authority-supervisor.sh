@@ -27,7 +27,7 @@ check_exec() {
   fi
 }
 
-check_contains VERSION '2.150.0' version
+check_contains VERSION '2.151.0' version
 check_exec scripts/rust-full-authority-preflight.sh preflight-script
 check_exec scripts/rust-full-authority-recovery-bundle.sh recovery-bundle-script
 check_exec scripts/verify-rust-authority-supervisor.sh verifier-script
@@ -38,7 +38,7 @@ check_contains engine/run_cycle.py 'rust_authority_preflight_required_failed' ru
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'rust-full-authority-preflight.sh' promote-preflight
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'rust-full-authority-recovery-bundle.sh' promote-recovery-bundle
 check_contains docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md 'Rust Authority Supervisor' docs
-check_contains docs/DOCUMENTATION_INDEX.md 'RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md' docs-index
+check_contains docs/DOCUMENTATION_INDEX.md 'RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md' docs-index
 
 if [ "$fail" -ne 0 ]; then
   echo "FAIL: Rust authority supervisor verification failed" >&2

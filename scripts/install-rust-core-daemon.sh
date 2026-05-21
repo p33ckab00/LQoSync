@@ -17,4 +17,4 @@ else
   systemctl start lqosync-core.service
 fi
 systemctl status lqosync-core.service --no-pager || true
-echo "Installed and restarted lqosync-core daemon service."
+echo "Installed and restarted lqosync-core Rust authority daemon service with scheduler authority enabled by systemd unit."

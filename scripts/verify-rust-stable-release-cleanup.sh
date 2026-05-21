@@ -9,8 +9,8 @@ contains(){ local f="$1" p="$2" k="$3"; grep -q "$p" "$f" && ok "$k" "$f" || bad
 
 version="$(tr -d '\n' < VERSION 2>/dev/null || true)"
 case "$version" in
-  2.150.*) ok version "$version" ;;
-  *) bad version "expected 2.150.x stable, got $version" ;;
+  2.151.*) ok version "$version" ;;
+  *) bad version "expected 2.151.x v8.1 stable, got $version" ;;
 esac
 
 python3 - <<'PY'
@@ -37,8 +37,8 @@ if rc.get('transaction_authority') != 'rust_full_authoritative':
     errors.append('transaction_authority not rust_full_authoritative')
 if rc.get('collector_output_authority') != 'rust_validate_all':
     errors.append('collector_output_authority not rust_validate_all')
-if rc.get('python_runtime_role') != 'webui_scheduler_shell_only':
-    errors.append('python_runtime_role not shell-only')
+if rc.get('python_runtime_role') != 'flask_webui_shell_only':
+    errors.append('python_runtime_role not Flask shell-only')
 if errors:
     print('FAIL|config|' + '; '.join(errors))
     sys.exit(1)
@@ -49,8 +49,8 @@ contains engine/config_loader.py 'rust_stable_release' config-loader-stable
 contains engine/run_cycle.py 'rust_set_and_forget_gate_failed' runtime-set-and-forget-gate
 contains scripts/promote-rust-full-authoritative-safe.sh 'rust-set-and-forget-readiness.sh' promotion-readiness
 contains docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md 'Python is .*not.* allowed to silently take over production mutation' stable-doc-boundary
-contains docs/FULL_RUST_STABLE_OPERATIONS.md 'install-rust-stable-safe.sh' stable-ops-guide
-contains scripts/rust-stable-codebase-cleanup-inventory.sh 'webui_scheduler_shell_only' cleanup-inventory
+contains docs/FULL_RUST_STABLE_OPERATIONS.md 'Rust authority daemon' stable-ops-guide
+contains scripts/rust-stable-codebase-cleanup-inventory.sh 'flask_webui_shell_only' cleanup-inventory
 
 if find . -path './.git' -prune -o -type f \( -name '*.orig' -o -name '*.rej' -o -name '*.bak' -o -name '*~' -o -name '*.pre_*' \) -print | grep -q .; then
   bad stale-files "stale backup/reject files found"

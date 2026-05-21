@@ -67,6 +67,7 @@ use lqosync_core::rust_full_backend_post_retirement_verifier::build_full_rust_ba
 use lqosync_core::rust_full_backend_steady_state_guard::build_full_rust_backend_steady_state_guard_payload;
 use lqosync_core::rust_full_backend_production_drift_monitor::build_full_rust_backend_production_drift_monitor_payload;
 use lqosync_core::rust_full_backend_production_audit_sentinel::build_full_rust_backend_production_audit_sentinel_payload;
+use lqosync_core::rust_scheduler::{scheduler_status_payload, scheduler_heartbeat_payload, scheduler_decision_payload, scheduler_run_once_payload};
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
 use lqosync_core::sync_plan::evaluate_sync_plan_payload;
@@ -76,7 +77,8 @@ use lqosync_core::validators::{validate_collector_output_payload, validate_confi
 use serde_json::{json, Value};
 use std::io::{self, Read, Write};
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use std::thread;
 
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -95,12 +97,20 @@ struct Args {
     /// Unix socket path for daemon mode.
     #[arg(long, default_value = "/run/lqosync-core.sock")]
     socket: String,
+
+    /// Enable the Rust scheduler authority loop inside the daemon.
+    #[arg(long, default_value_t = false)]
+    scheduler: bool,
+
+    /// LQoSync config path used by the Rust scheduler authority loop.
+    #[arg(long, default_value = "/opt/libreqos/src/config.json")]
+    config: String,
 }
 
 fn main() {
     let args = Args::parse();
     if args.daemon {
-        if let Err(e) = run_daemon(&args.socket) {
+        if let Err(e) = run_daemon(&args.socket, args.scheduler, &args.config) {
             eprintln!("lqosync-core daemon failed: {e}");
             std::process::exit(1);
         }
@@ -125,7 +135,7 @@ fn run_one_shot() {
 }
 
 #[cfg(unix)]
-fn run_daemon(socket_path: &str) -> anyhow::Result<()> {
+fn run_daemon(socket_path: &str, scheduler_enabled: bool, config_path: &str) -> anyhow::Result<()> {
     let path = Path::new(socket_path);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).with_context(|| format!("create socket parent {}", parent.display()))?;
@@ -134,6 +144,12 @@ fn run_daemon(socket_path: &str) -> anyhow::Result<()> {
         std::fs::remove_file(path).with_context(|| format!("remove stale socket {}", path.display()))?;
     }
     let listener = UnixListener::bind(path).with_context(|| format!("bind unix socket {}", path.display()))?;
+
+    if scheduler_enabled {
+        let scheduler_config = config_path.to_string();
+        thread::spawn(move || run_scheduler_loop(scheduler_config));
+        eprintln!("lqosync-core Rust scheduler authority loop enabled");
+    }
     eprintln!("lqosync-core daemon listening on {socket_path}");
     for stream in listener.incoming() {
         match stream {
@@ -151,8 +167,30 @@ fn run_daemon(socket_path: &str) -> anyhow::Result<()> {
 }
 
 #[cfg(not(unix))]
-fn run_daemon(_socket_path: &str) -> anyhow::Result<()> {
+fn run_daemon(_socket_path: &str, _scheduler_enabled: bool, _config_path: &str) -> anyhow::Result<()> {
     anyhow::bail!("daemon mode is only supported on Unix platforms")
+}
+
+
+#[cfg(unix)]
+fn run_scheduler_loop(config_path: String) {
+    loop {
+        let payload = json!({"config_path": config_path.clone(), "mode": "scheduled", "execute": true});
+        let (status, _status_errors, _status_warnings) = scheduler_status_payload(&json!({"config_path": config_path.clone()}));
+        let enabled = status.get("scheduler_enabled").and_then(Value::as_bool).unwrap_or(false);
+        let interval = if enabled {
+            let (result, errors, _warnings) = scheduler_run_once_payload(&payload);
+            if !errors.is_empty() {
+                eprintln!("lqosync-core Rust scheduler tick blocked/failed: {}", result);
+                30
+            } else {
+                30
+            }
+        } else {
+            5
+        };
+        thread::sleep(Duration::from_secs(interval));
+    }
 }
 
 #[cfg(unix)]
@@ -465,6 +503,23 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-full-rust-backend-production-audit-sentinel" => {
             let (result, errors, warnings) = build_full_rust_backend_production_audit_sentinel_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+
+        "scheduler-status" => {
+            let (result, errors, warnings) = scheduler_status_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "scheduler-heartbeat" => {
+            let (result, errors, warnings) = scheduler_heartbeat_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "scheduler-decision" => {
+            let (result, errors, warnings) = scheduler_decision_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "scheduler-run-once" => {
+            let (result, errors, warnings) = scheduler_run_once_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
         "build-collector-circuit-bundle" => {

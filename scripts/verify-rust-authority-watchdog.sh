@@ -27,7 +27,7 @@ check_exec() {
   fi
 }
 
-check_contains VERSION '2.150.0' version
+check_contains VERSION '2.151.0' version
 check_exec scripts/rust-authority-watchdog.sh watchdog-script
 check_exec scripts/verify-rust-authority-watchdog.sh verifier-script
 check_contains config.json.example 'rust_authority_watchdog_enabled' config-watchdog-enabled
@@ -35,7 +35,7 @@ check_contains engine/config_loader.py 'rust_authority_watchdog_enabled' loader-
 check_contains engine/run_cycle.py 'rust_authority_watchdog_required_failed' run-cycle-watchdog-fail-closed
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'rust_authority_watchdog_enabled' promote-watchdog
 check_contains docs/RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md 'Rust Authority Watchdog' docs
-check_contains docs/DOCUMENTATION_INDEX.md 'RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md' docs-index
+check_contains docs/DOCUMENTATION_INDEX.md 'RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md' docs-index
 
 if [ "$fail" -ne 0 ]; then
   echo "FAIL: Rust authority watchdog verification failed" >&2

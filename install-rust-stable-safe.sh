@@ -19,9 +19,10 @@ if [ -x ./scripts/promote-rust-full-authoritative-safe.sh ]; then
   bash ./scripts/promote-rust-full-authoritative-safe.sh
 fi
 
+bash ./scripts/verify-rust-scheduler-authority.sh
 bash ./scripts/verify-rust-stable-release-cleanup.sh
 python3 ./scripts/release_check.py
 python3 ./scripts/regression_check.py
 python3 ./scripts/stable_release_check.py
 
-echo "[LQoSync Stable] Complete. Start after review: sudo systemctl start lqosync"
+echo "[LQoSync Stable] Complete. Start after review: sudo systemctl start lqosync-core lqosync"

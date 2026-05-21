@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 echo "== LQoSync stable Rust cleanup inventory =="
-echo "runtime_role=webui_scheduler_shell_only"
+echo "runtime_role=flask_webui_shell_only"
 echo "backend_authority=rust_full_authoritative"
 echo
 

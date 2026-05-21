@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Promote an existing LQoSync install to Rust apply authority mode.
 # Rust owns validation, sync-plan gating, atomic file writes, transaction journal,
-# and LibreQoS.py external apply execution. Python remains the UI/scheduler and
-# emergency compatibility shell; it no longer performs writes/apply when the Rust
+# and LibreQoS.py external apply execution. Python remains the Flask WebUI shell; Rust owns scheduler authority and
+# production mutation; it no longer performs writes/apply when the Rust
 # authority flags are enabled and healthy.
 
 CONFIG_PATH="${CONFIG_PATH:-/opt/libreqos/src/config.json}"
@@ -123,6 +123,11 @@ rc.update({
     'rust_authority_auto_quarantine_on_failure': True,
     'rust_authority_quarantine_state': '/opt/LQoSync/state/rust_authority_quarantine.json',
     'rust_authority_last_good_snapshot_dir': '/opt/LQoSync/state/rust_authority_last_good',
+    'rust_scheduler_authority': True,
+    'rust_scheduler_authority_version': 'v8.1.0',
+    'rust_scheduler_operations_required': True,
+    'rust_scheduler_fail_closed': True,
+    'scheduler_run_once_timeout_seconds': 1800,
     'rust_authority_failure_quarantine_statuses': [
         'rust_authority_preflight_required_failed',
         'rust_authority_watchdog_required_failed',
@@ -150,6 +155,21 @@ rc.update({
     'require_collector_rust_validation': True,
     'collector_authority_require_python_fallback': True,
     'run_cycle_rust_shadow_report_enabled': True,
+})
+sched = cfg.setdefault('scheduler', {})
+sched.update({
+    'engine': 'rust',
+    'allow_python_scheduler': False,
+    'python_scheduler_role': 'retired_webui_compatibility_shell_only',
+    'rust_scheduler_authority': True,
+    'rust_authority_daemon_required': True,
+    'fail_closed_on_rust_scheduler_error': True,
+    'require_watchdog': True,
+    'require_set_and_forget_readiness': True,
+    'rust_heartbeat_path': '/opt/LQoSync/state/rust_scheduler_heartbeat.json',
+    'rust_lock_path': '/opt/LQoSync/state/rust_scheduler.lock',
+    'rust_run_cycle_command': '/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py scheduled',
+    'manual_run_command': '/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py manual',
 })
 text = json.dumps(cfg, indent=2) + '\n'
 fd, tmp = tempfile.mkstemp(prefix=path.name + '.', dir=str(path.parent))
@@ -197,9 +217,9 @@ log "Active boundaries:"
 log "  - Rust owns validation and sync-plan blocker enforcement."
 log "  - Rust owns atomic ShapedDevices.csv/network.json writes."
 log "  - Rust owns LibreQoS.py external apply execution."
-log "  - Python still owns WebUI and scheduler shell. RouterOS transport remains Python-compatible, but collector output must pass Rust validation before mutation."
+log "  - Python owns only Flask WebUI shell. Rust owns scheduler authority. RouterOS transport remains Python-compatible, but collector output must pass Rust validation before mutation."
 log "  - backup_before_apply=true and file_drift_policy=block."
-log "  - v7.7 live-stable gate, quarantine marker, and last-good snapshot are enabled by promotion."
+log "  - v8.1 Rust scheduler authority, live-stable gate, quarantine marker, and last-good snapshot are enabled by promotion."
 
 if as_bool "$RESTART_SERVICE"; then
   log "Restarting $SERVICE_NAME as requested..."

@@ -1,376 +1,41 @@
 # LQoSync Documentation Index
 
-This index is the GitHub-friendly map for the consolidated LQoSync documentation. The same topic files are searchable inside the WebUI Documentation Center.
-
-## Main entry points
-
-- [Runtime Rename Migration](RUNTIME_RENAME_MIGRATION.md) — canonical `lqosync` service/log/container naming and safe migration behavior.
-
-- [Repository Rename Guide](REPOSITORY_RENAME.md) — rename GitHub repository from lqosync to LQoSync while preserving runtime compatibility names.
-- [README](../README.md) — compact project landing page
-- [Full Documentation](../FULL_DOCUMENTATION.md) — complete single-file manual
-- [AI-Assisted Development Disclosure](AI_ASSISTED_DEVELOPMENT.md)
-- [Command Reference](COMMANDS.md)
-
-
-
-## LQoSync-in-Rust branch documentation
-
-- [LQoSync-in-Rust Core Migration Plan](RUST_CORE_MIGRATION.md) — phased plan for adding a Rust safety core while preserving the Python Flask WebUI, pure JSON/files, and autosave behavior.
-- [Rust Core v0.3 Atomic State and File Engine](RUST_CORE_V03_ATOMIC_STATE.md) — includes v2.73.1 Rust build hotfix for CSV LF terminator compatibility.
-- [Rust Core Protocol](RUST_CORE_PROTOCOL.md) — stable JSON request/response envelope shared by subprocess CLI and future Unix socket daemon.
-- [Rust Core v0.2 Trust and Diff Update](RUST_CORE_V02_TRUST_DIFF.md) — Collector trust guard, suspicious zero protection, and Rust diff operations.
-- [Collector Output Contract](COLLECTOR_OUTPUT_CONTRACT.md) — typed source trust contract to prevent silent RouterOS partial/zero results from triggering unsafe cleanup.
-- [Autosave and Atomic State Model](AUTOSAVE_AND_ATOMIC_STATE.md) — no-save-button flow, dangerous-change confirmation, atomic file/state writes, and rollback guidance.
-- [Commit and Push Guide](COMMIT_AND_PUSH_GUIDE.md) — branch workflow and commit/push instructions for `lqosync-in-rust`.
-
-## Topic index
-
-- [Policy Settings Integration](content/policy_settings_integration.md)
-- [Setup & Repair Center](content/setup_repair_center.md)
-- [Smart Policy Center](SMART_POLICY_CENTER.md)
-- [Smart Setup / Repair](SMART_SETUP_REPAIR.md)
-- [Policy-Aware Cleanup Intelligence](content/policy_aware_cleanup_intelligence.md)
-  - v2.50 source-aware stale lifecycle, optional grace, risk-aware auto apply, and decision trace.
-- [Config Schema + Policy Simulation Engine](content/config_schema_policy_simulation.md)
-  - v2.51 config_schema_version, config health, unsaved config preview, policy simulation, and impact verdicts.
-- [Smart Reports + Operator Audit](content/smart_reports_operator_audit.md)
-  - v2.52 operator report page with 24h summary, policy decision report, cleanup report, client changes, config audit, and exports.
-- [Client Lifecycle Timeline](content/client_lifecycle_timeline.md)
-  - v2.53 client lifecycle timeline, active/stale/queued/removed/returned states, cleanup queue, confirmations, and exports.
-- [First Run Setup Wizard](content/setup_wizard_first_run.md)
-  - v2.54 guided first-run onboarding for paths, routers, sources, layout, policy preset, Dry Run, and scheduler readiness.
-- [Smart Reports route hotfix](content/smart_reports_route_hotfix.md)
-- [Policy Center Settings Guidelines](content/policy_center_settings_guidelines.md)
-  - Atomic operator explanations for every editable Policy Center setting.
-- [Network Layout Drag-and-Drop](content/network_layout_drag_drop.md)
-  - v2.54.3 wired desktop drag-and-drop for moving topology nodes with safe validation and preview-before-save behavior.
-- [AI-Assisted Development Disclosure and Acknowledgement](../AI_ASSISTED_DEVELOPMENT.md)
-- [Privacy Icon Polish](content/privacy_icon_polish.md)
-- [Package Quality + Environment Doctor](content/package_quality_environment_doctor.md)
-  - v2.55 release integrity checks, environment doctor, route/template validation, and Smart Defaults Repair.
-- [Policy UX + Conflict Intelligence](content/policy_ux_conflict_identity.md)
-  - v2.56 Policy Conflict Resolver, richer preset comparison, and client identity handling guidance.
-- [Source Health + Performance Trends](content/source_health_performance_trends.md)
-  - v2.57 source health dashboard, RouterOS API timing trends, LibreQoS apply health, and internal notification candidates.
-- [Source Health & Performance Trends](content/source_health_performance_trends.md)
-  - Dashboard-consolidated source health, RouterOS API timing, LibreQoS apply health, and internal notification candidates.
-- [Telegram Notifications](content/telegram_notifications.md)
-  - v2.58 optional Telegram delivery for internal health, policy, apply, and source notification candidates.
-- [Documentation Search + UI/Mobile Polish](content/documentation_search_ui_polish.md)
-  - v2.59 local documentation search, docs view pages, read-only docs API, and reusable UI/mobile consistency helpers.
-- [Better Fresh Install Experience](content/better_fresh_install_experience.md)
-  - v2.60 first-run gate, scheduler readiness protection, setup wizard redirect, and fresh install workflow.
-- [Client Lifecycle View and Filter Hotfix](content/client_lifecycle_timeline.md)
-  - v2.60.1 fixes Lifecycle View button wiring, adds instant table/card filtering, and adds timeline pagination/row limits.
-- [Backup Pagination and Actions](content/backup_pagination_actions.md)
-- [Compact Information Architecture](content/compact_information_architecture.md)
-  - v2.61 Operations Center consolidation, compact sidebar, Dashboard/Reports separation, and documentation source-of-truth cleanup.
-- [Config + Policy + Notification Unification](content/config_policy_notification_unification.md)
-  - v2.62 consolidates Policy Center and Telegram notification delivery settings into Config Center while keeping compatibility redirects.
-- [Documentation Consolidation and Source of Truth](content/documentation_consolidation.md)
-  - v2.63 consolidates GitHub and WebUI documentation into docs/content, docs_manifest, README, and FULL_DOCUMENTATION as one coherent source-of-truth system.
-
-- [Production Hardening + Regression Suite](content/production_hardening_regression_suite.md)
-
-- [Backup / Restore Center Polish](content/backup_restore_center_polish.md) — backup preview, integrity, live diff, zip download, and retention preview.
-
-
-## v2.67 Access Control + Role Hardening
-
-LQoSync v2.67 adds a clearer owner/admin/operator/viewer role model. Owner controls users, updates, and high-trust repair actions. Admin controls config, policies, scheduler, backups, operations, and live apply actions. Operator can monitor and run dry-run previews. Viewer remains read-only. Older installs with only an admin account are upgraded safely by promoting the first admin to owner if no owner exists. See `docs/content/access_control_role_hardening.md`.
-
-- [Production Readiness Score](content/production_readiness_score.md) — v2.68 Dashboard go-live confidence score and readiness API.
-
-- [Router Overview + Multi-Router UX Polish](content/router_overview_multi_router_ux.md) — v2.69/v2.69.1 Router Insight now lives inside Config Center; /routers is a redirect alias.
-
-- [Router Insight De-duplication + Policy/Path Audit](content/router_insight_dedup_policy_path_audit.md) — v2.69.1 removes duplicate Router page UI and adds policy/path audit checks.
-
-- [Stable Release Candidate](content/stable_release_candidate.md) — v2.70 feature freeze and validation chain.
-- [Route Compatibility Map](ROUTE_COMPATIBILITY.md) — compact canonical routes and compatibility aliases.
-- [Stable Release Checklist](STABLE_RELEASE_CHECKLIST.md) — preflight/operator checklist for stable candidates.
-- [Upgrade Guide](UPGRADE_GUIDE.md) — safe GitHub update and post-upgrade checks.
-- [Policy / Path Reference](POLICY_PATH_REFERENCE.md) — policy/path audit and important policy groups.
-
-- [Config Policy Hierarchy UI](content/policy_hierarchy_ui.md) — v2.70.2-rc1 compact policy hierarchy and auto-apply/optional backup interpretation.
-
-- [Policy Preset Wiring Hotfix](content/policy_preset_wiring_hotfix.md) — Config Center policy preset apply controls and managed preset-mode behavior.
-
-- [UI Wiring Audit + Role Visibility Hotfix](content/ui_wiring_audit_role_visibility.md) — v2.70.4-rc1 role visibility, compact route ownership, policy preset wiring, and stale file checks.
-
-- [Settings UI State Wiring Hotfix](content/settings_ui_state_wiring_hotfix.md) — v2.70.5-rc1 Config Center preset active-state and settings UI wiring audit fix.
-
-- [Checkbox State Wiring Hotfix](content/checkbox_state_wiring_hotfix.md) — v2.70.6 Config Center checkbox checked-state binding and visual-state fix.
-
-- [LibreQoS Apply Failure Visibility](content/apply_failure_visibility.md) — v2.70.7-rc1 diagnostic workflow for failed LibreQoS apply runs.
-
-- [Policy Preset Alignment + Save Semantics](content/policy_preset_alignment_save_semantics.md) — preset alignment, custom-save reconciliation, and policy preset audit.
-
-- [Custom Policy Mode Persistence Hotfix](content/custom_policy_mode_persistence.md) — v2.70.9 visible Custom policy state and save semantics.
-
-- [Install and Update Safety](content/install_update_safety.md) — backup-first fresh install, preserve-existing update behavior, and operator verification.
-
-- [Operator Overview](content/operator_overview.md) — atomic explanation of the collection/build/policy/apply workflow.
-
-## Rust core scaffold implementation
-
-The `lqosync-in-rust` branch now includes the first optional Rust sidecar implementation.
-
-Key files:
+This documentation set is aligned to the current project journey:
 
 ```text
-rust/lqosync-core/
-engine/rust_core.py
-scripts/build-rust-core.sh
-scripts/install-rust-core.sh
+Local appliance web app
+Rust authority daemon
+Python Flask WebUI shell
+No Django
+No SaaS
 ```
 
-Read these docs first:
-
-- [LQoSync-in-Rust Core Migration Plan](RUST_CORE_MIGRATION.md)
-- [Rust Core v0.3 Atomic State and File Engine](RUST_CORE_V03_ATOMIC_STATE.md) — includes v2.73.1 Rust build hotfix for CSV LF terminator compatibility.
-- [Rust Core Protocol](RUST_CORE_PROTOCOL.md)
-- [Collector Output Contract](COLLECTOR_OUTPUT_CONTRACT.md)
-- [Autosave and Atomic State Model](AUTOSAVE_AND_ATOMIC_STATE.md)
-- [Commit and Push Guide](COMMIT_AND_PUSH_GUIDE.md)
-
-- [Rust Core v0.3 Atomic State and File Engine](RUST_CORE_V03_ATOMIC_STATE.md)
-
-- [Rust Core v0.4 Daemon Mode](RUST_CORE_V04_DAEMON.md)
-
-- [Rust Core v0.5 Policy Shadow Engine](RUST_CORE_V05_POLICY_SHADOW.md) — Shadow Rust policy decision engine, risk scoring, and Python/Rust parity checks.
-
-- [Rust Core v0.6 Circuit Shadow Normalizer](RUST_CORE_V06_CIRCUIT_SHADOW.md) — Shadow Rust circuit normalization and Dry Run visibility.
-- [Rust Core v0.7 Sync Plan Shadow Engine](RUST_CORE_V07_SYNC_PLAN.md) - End-to-end shadow sync planner for collector trust, diff, validation, circuit shadow, policy shadow, and preflight diagnostics.
-
-- [Rust Core v0.8 Authority Gates](RUST_CORE_V08_AUTHORITY_GATES.md) — opt-in Rust sync-plan enforcement gate for blocking unsafe non-dry-run writes.
-
-- [Rust Core v0.9 Apply Manifest Preview](RUST_CORE_V09_APPLY_MANIFEST.md) — transaction manifest before backup/write/apply.
-
-- [Rust Core v1.0 Apply Transaction Executor](RUST_CORE_V10_APPLY_TRANSACTION.md)
-
-- [Rust Core v1.1 Runtime Self-Test and Capability Audit](RUST_CORE_V11_SELF_TEST.md) — self-test operation, capability audit, and WebUI endpoint for validating Rust core runtime availability.
-
-- [Rust Core v1.2 Transaction Journal and Rollback Manifest](RUST_CORE_V12_TRANSACTION_JOURNAL.md) — non-mutating journal and rollback previews for Rust transaction accountability.
-
-- [Rust Core v1.3 Transaction Journal Persistence](RUST_CORE_V13_TRANSACTION_JOURNAL_PERSISTENCE.md) — opt-in JSONL persistence for Rust transaction journal events.
-
-- [Rust Core v1.4 Transaction History and Rollback Plan Viewer](RUST_CORE_V14_TRANSACTION_HISTORY.md) — Read-only journal history and rollback plan API.
-
-- [Rust Core v1.5 Rollback Execution Rehearsal](RUST_CORE_V15_ROLLBACK_EXECUTOR.md) — gated `execute-rollback` operation and confirmation-based file restore preview/execution model.
-
-- [Rust Core v1.6 Authority Readiness Report](RUST_CORE_V16_AUTHORITY_READINESS.md)
-
-- [Rust Core v1.7 Full Backend Readiness + Authority Pilot Plan](RUST_CORE_V17_FULL_BACKEND_READINESS.md)
-
-- [Rust Core v1.8 Collector Bundle Shadow Builder](RUST_CORE_V18_COLLECTOR_BUNDLE.md) - Shadow Rust normalization of raw collector snapshots into ShapedDevices-compatible rows.
-
-
-## Rust Core v1.9 Collector Bundle Parity Report
-
-Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.
-
-- [Rust Core v2.0 RouterOS Collector Plan](RUST_CORE_V20_ROUTEROS_COLLECTOR_PLAN.md) — Read-only RouterOS resource/field command planning before live Rust transport migration.
-
-- [Rust Core v2.0.1 Script Permission Hotfix](RUST_CORE_V201_SCRIPT_PERMISSION_HOTFIX.md) — Repairs lost shell script executable bits and prevents accidentally testing an older installed Rust core.
-
-- [Rust Core v2.1 RouterOS Read Result Contract](RUST_CORE_V21_ROUTEROS_READ_RESULTS.md)
-
-- [Rust Core v2.2 RouterOS Transport Session Rehearsal](RUST_CORE_V22_ROUTEROS_TRANSPORT_SESSION.md)
-
-- [Rust Core v2.3 RouterOS Live Read Pilot Gate](RUST_CORE_V23_ROUTEROS_LIVE_READ_PILOT.md)
-
-- [Rust Core v2.4 RouterOS Read Pilot Fixture Adapter](RUST_CORE_V24_ROUTEROS_READ_PILOT_FIXTURE.md)
-
-- [Rust Core v2.5 RouterOS API Sentence Codec](RUST_CORE_V25_ROUTEROS_API_CODEC.md) - Offline RouterOS API sentence/proplist codec for future read-only Rust transport.
-
-- [Rust Core v2.6 RouterOS API Reply Codec](RUST_CORE_V26_ROUTEROS_API_REPLY_CODEC.md) — Offline RouterOS API reply word decoder for future live Rust transport.
-
-- [Rust Core v2.7 RouterOS API Frame Codec](RUST_CORE_V27_ROUTEROS_API_FRAME_CODEC.md) — Offline RouterOS API binary frame encoder/decoder before live Rust socket transport.
-
-- [Rust Core v2.8 RouterOS Offline Session Pipeline](RUST_CORE_V28_ROUTEROS_OFFLINE_SESSION.md) — Offline end-to-end RouterOS API protocol session rehearsal using fixtures only.
-
-- [Rust Core v2.9 RouterOS TCP Connectivity Pilot](RUST_CORE_V29_ROUTEROS_TCP_CONNECTIVITY.md) — gated TCP reachability pilot before RouterOS authentication/live API reads.
-
-- [Rust Core v3.0 RouterOS Authentication Plan](RUST_CORE_V30_ROUTEROS_AUTH_PLAN.md) — redacted RouterOS auth planning before live Rust authentication or collector authority.
-
-
-## Rust Core v3.1 RouterOS Auth Handshake Fixture
-
-Adds `run-routeros-auth-handshake`, an offline fixture operation that models RouterOS authentication reply handling without opening sockets, emitting credentials, or replacing Python collectors.
-
-
-## Rust Core v3.2 RouterOS Auth Session Contract
-
-Adds `build-routeros-auth-session-contract`, a redacted authenticated-session contract built from fixture auth replies. It performs zero socket/auth attempts, emits no credentials or tokens, and keeps Python collectors authoritative.
-
-- [Rust Core v3.3 Authenticated Read Fixture Pipeline](RUST_CORE_V33_AUTHENTICATED_READ_FIXTURE.md) — fixture-only authenticated read pipeline before live Rust RouterOS reads.
-
-- [Rust Core v3.4 Live Read Adapter Contract](RUST_CORE_V34_LIVE_READ_ADAPTER.md) - Guarded live-read adapter contract before live Rust RouterOS reads.
-
-- [Rust Core v3.5 Collector Authority Pilot Gate](RUST_CORE_V35_COLLECTOR_AUTHORITY_PILOT.md) — source-level Rust collector authority eligibility gate before any Python collector migration.
-
-- [Rust Core v3.6 Collector Authority Decision Manifest](RUST_CORE_V36_COLLECTOR_AUTHORITY_MANIFEST.md)
-
-- [Rust Core v3.7 Collector Authority Dry-Run Selection](RUST_CORE_V37_COLLECTOR_AUTHORITY_SELECTION.md) — maps collector authority manifest decisions into dry-run Python/Rust-shadow source selection while keeping production authority in Python.
-
-- [Rust Core v3.9 run_cycle Rust-Shadow Integration Report](RUST_CORE_V39_RUN_CYCLE_SHADOW.md) — attaches non-mutating Rust-shadow collector dry-run reports to Python run_cycle output while keeping Python authoritative.
-
-- [Rust Core v4.0 Collector Authority Activation Plan](RUST_CORE_V40_COLLECTOR_AUTHORITY_ACTIVATION.md) — evaluates readiness for a future Rust collector authority pilot while keeping Python collectors authoritative.
-
-
-## Rust Core v4.1 Collector Authority Runtime Contract
-
-Adds `build-collector-authority-runtime-contract`, a non-mutating runtime contract after the collector authority activation plan. Python collectors remain authoritative; Rust cannot drive cleanup, apply, or generated-file writes from this contract. See `docs/RUST_CORE_V41_COLLECTOR_AUTHORITY_RUNTIME.md`.
-
-
-## Rust Core v4.2 Collector Authority Switch Rehearsal
-
-Adds `build-collector-authority-switch-rehearsal`, a non-mutating switch rehearsal after the collector authority runtime contract. It requires explicit gates, manual confirmation, and Python fallback, but does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V42_COLLECTOR_AUTHORITY_SWITCH.md`.
-
-
-## Rust Core v4.3 Collector Authority Pilot Execution Contract
-
-Adds `build-collector-authority-pilot-execution-contract`, a non-mutating contract after the collector authority switch rehearsal. It requires explicit gates, the `CONFIRM_COLLECTOR_AUTHORITY_PILOT_EXECUTION` token, fresh Rust-shadow data, and Python fallback. It does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V43_COLLECTOR_AUTHORITY_PILOT_EXECUTION.md`.
-
-- [Rust Core v4.3.1 Collector Authority Pilot Execution Recursion Hotfix](RUST_CORE_V431_PILOT_EXECUTION_RECURSION_HOTFIX.md)
-
-- [Rust Core v4.3.2 Collector Authority Pilot Execution Confirmation Hotfix](RUST_CORE_V432_PILOT_EXECUTION_CONFIRMATION_HOTFIX.md)
-
-
-## Rust Core v4.4 Collector Authority Pilot Result Evaluator
-
-Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for future Rust collector authority pilot results. It checks pilot execution contract readiness, parity, shadow freshness, observed errors, and forbidden side effects while keeping Python collectors authoritative. See `docs/RUST_CORE_V44_COLLECTOR_AUTHORITY_PILOT_RESULT.md`.
-
-- [Rust Core v4.4.1 — Pilot Result Recursion Hotfix](RUST_CORE_V441_PILOT_RESULT_RECURSION_HOTFIX.md)
-
-- [Rust Core v4.5 Collector Authority Promotion Readiness](RUST_CORE_V45_COLLECTOR_AUTHORITY_PROMOTION_READINESS.md) — non-mutating promotion-readiness bridge after pilot result evaluation.
-
-- [Rust Core v4.6 Collector Authority Promotion Execution Rehearsal](RUST_CORE_V46_COLLECTOR_AUTHORITY_PROMOTION_EXECUTION.md)
-
-- [Rust Core v4.7 Collector Authority Promotion Commit Plan](RUST_CORE_V47_COLLECTOR_AUTHORITY_PROMOTION_COMMIT.md) — non-mutating commit-plan bridge after promotion execution rehearsal.
-
-- [Rust Core v4.8 Collector Authority Promotion Cutover Ledger](RUST_CORE_V48_COLLECTOR_AUTHORITY_PROMOTION_CUTOVER.md)
-- [Rust Core v4.8.1 Cutover Ledger Hotfix](RUST_CORE_V481_CUTOVER_LEDGER_HOTFIX.md) — Fixes the v4.8 cutover ledger readiness unit fixture while preserving non-mutating Python-authoritative behavior.
-
-- [Rust Core v4.9 Collector Authority Production Freeze Gate](RUST_CORE_V49_COLLECTOR_AUTHORITY_PRODUCTION_FREEZE.md)
-
-- [Rust Core v5.0 Collector Authority Production Switch Contract](RUST_CORE_V50_COLLECTOR_AUTHORITY_PRODUCTION_SWITCH.md) — first non-mutating production switch contract after the freeze gate; Python removal is still blocked.
-
-- [Rust Core v5.1 Rust Backend API Handoff Plan](RUST_CORE_V51_RUST_BACKEND_API_HANDOFF.md) — starts the full Rust backend API handoff track while preserving existing WebUI/UX.
-
-- [Rust Core v5.2 Rust Backend Scheduler / Run Cycle Handoff Plan](RUST_CORE_V52_RUST_BACKEND_SCHEDULER_HANDOFF.md)
-
-- [Rust Core v5.3 Rust Run Cycle Orchestrator Handoff Contract](RUST_CORE_V53_RUST_RUN_CYCLE_ORCHESTRATOR_HANDOFF.md) — non-mutating Rust run_cycle orchestrator handoff contract with WebUI/UX unchanged.
-- [Rust Core v5.4 Rust Config/State Authority Handoff Contract](RUST_CORE_V54_RUST_CONFIG_STATE_AUTHORITY_HANDOFF.md) — non-mutating config/state authority handoff contract while keeping Python authoritative.
-
-- [Rust Core v5.5 Rust Live Collector Authority Handoff Contract](RUST_CORE_V55_RUST_LIVE_COLLECTOR_AUTHORITY_HANDOFF.md)
-
-- [Rust Core v5.6 Rust Circuit Builder Authority Handoff Contract](RUST_CORE_V56_RUST_CIRCUIT_BUILDER_AUTHORITY_HANDOFF.md) — circuit builder authority handoff while keeping Python fallback.
-
-- [Rust Core v5.7 Rust Sync Engine Authority Handoff Contract](RUST_CORE_V57_RUST_SYNC_ENGINE_AUTHORITY_HANDOFF.md)
-
-- [Rust Core v5.8 Rust Apply/Journal/Rollback Authority Handoff Contract](RUST_CORE_V58_RUST_APPLY_JOURNAL_ROLLBACK_AUTHORITY_HANDOFF.md)
-
-- [Rust Core v5.9 Rust Backend Service Runtime Handoff Contract](RUST_CORE_V59_RUST_BACKEND_SERVICE_RUNTIME_HANDOFF.md) — service/API runtime handoff bridge while WebUI/UX stays unchanged.
-- [Rust Core v6.0 Full Rust Backend Production Readiness Contract](RUST_CORE_V60_FULL_RUST_BACKEND_PRODUCTION_READINESS.md) — full Rust backend readiness gate after service/runtime handoff; still non-mutating and Python-fallback based.
-
-- [Rust Core v6.1 Full Rust Backend Cutover Plan](RUST_CORE_V61_FULL_RUST_BACKEND_CUTOVER_PLAN.md) — non-mutating cutover planning gate after v6.0 production-readiness.
-
-- [Rust Core v6.2 Full Rust Backend Cutover Execution Contract](RUST_CORE_V62_FULL_RUST_BACKEND_CUTOVER_EXECUTION.md)
-
-- [Rust Core v6.3 Python Backend Retirement Plan](RUST_CORE_V63_PYTHON_BACKEND_RETIREMENT_PLAN.md) — non-mutating Python backend retirement planning gate after v6.2 cutover execution contract.
-- [Rust Core v6.4 Rust Backend Production Enablement Contract](RUST_CORE_V64_RUST_BACKEND_PRODUCTION_ENABLEMENT.md) — candidate gate after Python backend retirement planning; non-mutating, WebUI/UX unchanged.
-
-- [Rust Core v6.5 Python Backend Removal Execution Contract](RUST_CORE_V65_PYTHON_BACKEND_REMOVAL_EXECUTION.md)
-- [Rust Core v6.6 Full Rust Backend Removal Rehearsal](RUST_CORE_V66_FULL_RUST_BACKEND_REMOVAL_REHEARSAL.md)
-
-- [Rust Core v7.0 Full Rust Backend Production Cutover](RUST_CORE_V70_FULL_RUST_BACKEND_PRODUCTION_CUTOVER.md)
-
-- [Rust Core v7.1 Full Rust Backend Production Verifier / Python Retirement Guard](RUST_CORE_V71_FULL_RUST_BACKEND_PRODUCTION_VERIFIER.md)
-
-- [Rust Core v7.2 Full Rust Backend Post-Retirement Verifier](RUST_CORE_V72_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER.md)
-
-- [Rust Core v7.3 Full Rust Backend Steady-State Guard](RUST_CORE_V73_FULL_RUST_BACKEND_STEADY_STATE_GUARD.md)
-- [Rust Core v7.3.1 Steady-State Guard Hotfix](RUST_CORE_V731_STEADY_STATE_GUARD_HOTFIX.md) — fixes the aggregate steady-state guard self-test fixture.
-- [Rust Core v7.3.2 Steady-State Guard Self-Test Hotfix](RUST_CORE_V732_STEADY_STATE_GUARD_HOTFIX.md) — Adds the missing WebUI static asset path gate to the aggregate steady-state self-test.
-- [Rust Core v7.3.3 Steady-State Guard Hotfix](RUST_CORE_V733_STEADY_STATE_GUARD_HOTFIX.md) — Adds missing top-level `webui_ux_unchanged` gate to aggregate steady-state self-test payload.
-- [Rust Core v7.3.4 Steady-State Guard Hotfix](RUST_CORE_V734_STEADY_STATE_GUARD_HOTFIX.md) — Adds missing rollback-package readiness gate to aggregate steady-state guard self-test fixture.
-- [Rust Core v7.4 Full Rust Backend Production Drift Monitor](RUST_CORE_V74_FULL_RUST_BACKEND_PRODUCTION_DRIFT_MONITOR.md) — Post-steady-state production drift monitor for Rust runtime authority, no Python drift, WebUI/UX preservation, rollback readiness, and healthchecks.
-
-- [Rust Core v7.5 Full Rust Backend Production Audit Sentinel](RUST_CORE_V75_FULL_RUST_BACKEND_PRODUCTION_AUDIT_SENTINEL.md)
-
-## Rust Core v7.5.1 Installation Documentation and Installer Alignment
-
-- [Rust Core v7.5.1 Installation Documentation and Installer Alignment](RUST_CORE_V751_INSTALLATION_DOCS_ALIGNMENT.md)
-- Aligns install docs with `/opt/LQoSync`, branch `lqosync-in-rust`, and Rust daemon install/self-test flow.
-
-
-## v7.5.2 Stale Codebase Cleanup Guard
-
-- [Rust Core v7.5.2 — Stale Codebase Cleanup Guard](RUST_CORE_V752_STALE_CODEBASE_CLEANUP_GUARD.md)
-- [Stale Codebase Cleanup Policy](STALE_CODEBASE_CLEANUP_POLICY.md)
-
-
-## Rust Core v7.5.3 Cleanup Execution
-
-- [Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard](RUST_CORE_V753_STALE_CODEBASE_CLEANUP_EXECUTION.md)
-- [Stale Codebase Cleanup Execution Runbook](STALE_CODEBASE_CLEANUP_EXECUTION_RUNBOOK.md)
-
-## v7.5.4 Branch Install + Cleanup Alignment
-
-- [Branch Install and Cleanup Guide](BRANCH_INSTALL_AND_CLEANUP_GUIDE.md)
-- [Rust Core v7.5.4 Branch Install Cleanup Alignment](RUST_CORE_V754_BRANCH_INSTALL_CLEANUP_ALIGNMENT.md)
-
-## v7.5.5 Production-Safe Install Wrapper
-
-- [Production-Safe Install Wrapper](PRODUCTION_SAFE_INSTALL.md)
-- [Rust Core v7.5.5 Production-Safe Install Wrapper](RUST_CORE_V755_PRODUCTION_SAFE_INSTALL_WRAPPER.md)
-
-## v7.5.6 Rust Authoritative Gate Cutover
-
-- [Rust Core v7.5.6 Authoritative Gate Cutover](RUST_CORE_V756_AUTHORITATIVE_GATE_CUTOVER.md)
-
-
-## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
-
-- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
-- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
-- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
-- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
-- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
-- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
-## v7.5.8 Full Rust Authority Lockdown
-
-- [Rust Core v7.5.8 Full Rust Authority Lockdown](RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md)
-## v7.6.0 Rust Authority Supervisor
-
-- [Rust Core v7.6.0 Rust Authority Supervisor](RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md)
-
-
-## v7.6.1 Rust Authority Watchdog
-
-- [Rust Core v7.6.1 Rust Authority Watchdog](RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md)
-
-## v7.7.0 Rust Live Stable Candidate
-
-- [Rust Core v7.7.0 Rust Live Stable Candidate](RUST_CORE_V770_LIVE_STABLE_CANDIDATE.md)
-
-
-## v7.8.0 Rust Set-and-Forget Candidate
-
-- [Rust Core v7.8.0 Set-and-Forget Candidate](RUST_CORE_V780_SET_AND_FORGET_CANDIDATE.md)
-
-
-## v7.8.1 Install / Update / Uninstall Alignment
-
+## Start here
+
+- [Project Canonical Architecture](PROJECT_CANONICAL_ARCHITECTURE.md)
+- [Flask UI Shell](FLASK_UI_SHELL.md)
+- [Rust Scheduler Authority](RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md)
+- [Full Rust Stable Operations](FULL_RUST_STABLE_OPERATIONS.md)
 - [Installation Matrix](INSTALLATION_MATRIX.md)
-- [ZIP Install and Update Guide](ZIP_INSTALL.md)
-- [Docker Operations Guide](DOCKER_OPERATIONS.md)
-- [Rust Core v7.8.1 Install Update Uninstall Alignment](RUST_CORE_V781_INSTALL_UPDATE_UNINSTALL_ALIGNMENT.md)
 
-## v8.0.0 Rust Backend Stable Cleanup
+## Install / update / uninstall
 
-- [Rust Backend Stable Cleanup](RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md)
-- [Full Rust Stable Operations Guide](FULL_RUST_STABLE_OPERATIONS.md)
+- [GitHub Install](GITHUB_INSTALL.md)
+- [ZIP Install](ZIP_INSTALL.md)
+- [Docker Operations](DOCKER_OPERATIONS.md)
+- [Bare Metal Install](../BARE_METAL_INSTALL.md)
+- [Uninstallation](../UNINSTALLATION.md)
 
+## Stable release checks
+
+```bash
+bash scripts/verify-rust-scheduler-authority.sh
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+## Historical notes
+
+Old per-version migration documents may remain in the repository as audit history, but they are no longer the canonical operator path. The canonical path is Rust authority daemon + Flask UI shell.

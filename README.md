@@ -1,843 +1,123 @@
-# v8.0.0 Stable Rust Backend Release
+# LQoSync
 
-LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+**LQoSync is a local appliance-style web app for MikroTik → LibreQoS synchronization.**
 
-Canonical stable install:
+This project is **not Django** and **not a SaaS platform**. The WebUI remains the existing Python Flask interface. The backend authority is now the Rust daemon.
+
+## Canonical architecture
+
+```text
+MikroTik API sources
+  - PPPoE
+  - DHCP / IPoE
+  - Hotspot
+  - static/manual mappings
+        ↓
+lqosync-core.service
+  - one Rust authority daemon
+  - scheduler authority
+  - validation
+  - sync plan
+  - transaction journal
+  - ShapedDevices.csv writer
+  - network.json writer
+  - LibreQoS.py --updateonly executor
+  - rollback / quarantine / watchdog
+        ↓
+LibreQoS external middlebox
+
+lqosync web service
+  - Python Flask WebUI shell only
+  - dashboard, config, dry-run, operations, docs
+  - calls the Rust daemon through /run/lqosync-core.sock
+```
+
+## Runtime boundary
+
+Rust owns production backend authority. Flask is retained only because it is already the working operator interface.
+
+```text
+Rust owns:
+- scheduler
+- run authorization
+- collector-output validation
+- sync-plan enforcement
+- file write authority
+- transaction journal
+- LibreQoS apply authority
+- recovery bundle
+- quarantine
+- set-and-forget readiness gates
+
+Python Flask owns:
+- WebUI pages
+- sessions/login/admin shell
+- forms/buttons/API wrappers
+- displaying Rust results
+- compatibility transport shell where still required
+```
+
+## Current stable package
+
+```text
+v8.1.0 Rust Scheduler Authority
+VERSION=2.151.0
+```
+
+The old Python scheduler loop is retired by default:
+
+```json
+{
+  "scheduler": {
+    "engine": "rust",
+    "allow_python_scheduler": false
+  }
+}
+```
+
+The Flask UI still exposes the same buttons, but those actions are delegated to Rust scheduler authority.
+
+## Install
+
+For live/local appliance install:
 
 ```bash
 sudo bash install-rust-stable-safe.sh
 ```
 
-Stable verification:
+Manual controlled install:
 
 ```bash
-bash scripts/verify-rust-stable-release-cleanup.sh
+sudo bash install-production-safe.sh
+sudo bash scripts/build-rust-core.sh
+sudo bash scripts/install-rust-core.sh
+sudo bash scripts/install-rust-core-daemon.sh
+sudo bash scripts/promote-rust-full-authoritative-safe.sh
+```
+
+Verify:
+
+```bash
+bash scripts/verify-rust-scheduler-authority.sh
 python3 scripts/release_check.py
 python3 scripts/regression_check.py
 python3 scripts/stable_release_check.py
 ```
 
-See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+## Do not migrate to Django
 
----
-
-
-## v7.5.3 Stale Codebase Cleanup Execution Guard
-
-The `lqosync-in-rust` branch includes guarded archive-first cleanup tooling for stale working trees after the Rust backend production checks pass. Use `scripts/stale-codebase-cleanup-execution-plan.sh` first, then `scripts/stale-codebase-cleanup-execute-guard.sh --execute` only with the required confirmation token. The canonical app path `/opt/LQoSync`, LibreQoS path `/opt/libreqos`, Rust binary, and Rust daemon unit are protected.
-
-### Rust Core v3.3 Authenticated Read Fixture Pipeline
-
-The `lqosync-in-rust` branch now includes `run-routeros-authenticated-read-fixture`, a fixture-only authenticated RouterOS read pipeline. It still does not open sockets or replace Python collectors.
-
-# LQoSync
-
-> **Canonical path:** LQoSync installs and runs from `/opt/LQoSync`. LibreQoS remains under `/opt/libreqos`. Do not use a user-home directory as the documented install base.
-
-
-LQoSync is a standalone WebUI and scheduler that syncs live MikroTik PPPoE, DHCP, and Hotspot data into LibreQoS input files.
+Django is not part of this appliance path. The correct direction is:
 
 ```text
-MikroTik RouterOS API → LQoSync → ShapedDevices.csv + network.json → LibreQoS.py --updateonly
+Rust authority daemon + existing Flask WebUI shell
 ```
 
-LQoSync is inspired by the LibreQoS operating model. It exists to make MikroTik-to-LibreQoS synchronization easier to operate, safer to update, and more visible for ISP operators who need to understand what is happening behind the system.
-
-## Table of Contents
-
-1. [What LQoSync Is](#what-lqosync-is)
-2. [What LQoSync Is Not](#what-lqosync-is-not)
-3. [Why It Exists](#why-it-exists)
-4. [System Workflow](#system-workflow)
-5. [Fresh Install Safety](#fresh-install-safety)
-6. [Safe Update Behavior](#safe-update-behavior)
-7. [Standard Paths](#standard-paths)
-8. [Core Modules](#core-modules)
-9. [Operator Workflow](#operator-workflow)
-10. [Dashboard Areas](#dashboard-areas)
-11. [ShapedDevices.csv Handling](#shapeddevicescsv-handling)
-12. [network.json Handling](#networkjson-handling)
-13. [Glossary](#glossary)
-14. [Appendices](#appendices)
-
-## What LQoSync Is
-
-- A focused MikroTik-to-LibreQoS sync companion.
-- A WebUI for dry-run preview, source health, policies, config, backups, reports, and operations visibility.
-- A safety layer for generating LibreQoS `ShapedDevices.csv` and `network.json`.
-- A scheduler that can run collection, build proposed outputs, validate impact, and optionally apply LibreQoS updates.
-
-## What LQoSync Is Not
-
-- Not a billing system.
-- Not an ISP CRM.
-- Not a replacement for LibreQoS.
-- Not a replacement for operator validation, backups, and production testing.
-
-## Why It Exists
-
-LibreQoS is powerful, but operators still need clean input files and clear visibility into how subscribers map into shaping. LQoSync helps by showing the chain from router data collection to generated LibreQoS files, policy decisions, dry-run impact, backups, and apply results.
-
-## System Workflow
-
-```text
-1. Collect from MikroTik sources
-2. Normalize PPPoE / DHCP / Hotspot records
-3. Resolve speed and identity rules
-4. Build ShapedDevices.csv rows
-5. Build network.json topology nodes
-6. Validate duplicates, missing parent nodes, and policy conflicts
-7. Show Dry Run impact
-8. Backup live files
-9. Write generated files
-10. Run LibreQoS apply/update when allowed
-11. Store logs, audit events, and apply history
-```
-
-## Fresh Install Safety
-
-If a fresh install finds existing production files, LQoSync backs them up first and preserves them by default:
-
-```text
-/opt/libreqos/src/config.json
-/opt/libreqos/src/ShapedDevices.csv
-/opt/libreqos/src/network.json
-```
-
-Missing files are created from templates. Existing files are not overwritten unless the operator explicitly chooses overwrite-with-backup.
-
-## Safe Update Behavior
-
-A normal update should update app code and safe missing defaults only. These operator-owned files are preserved:
-
-```text
-/opt/libreqos/src/config.json
-/opt/libreqos/src/ShapedDevices.csv
-/opt/libreqos/src/network.json
-/opt/LQoSync/users.json
-/opt/LQoSync/.env
-/opt/LQoSync/state/
-/opt/LQoSync/logs/
-/opt/LQoSync/backups/
-```
-
-Recommended GitHub install/update command after repository rename:
-
-```bash
-cd /opt
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/install-from-github.sh -o /tmp/install-lqosync.sh
-sudo EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
-```
-
-Production-safe live-host wrapper, when installing from a ZIP/local package and you do **not** want the service started automatically:
-
-```bash
-sudo bash install-production-safe.sh
-# review config + dry-run first, then:
-sudo systemctl start lqosync
-```
-
-The wrapper preserves live LibreQoS files and backs up `config.json`, `ShapedDevices.csv`, and `network.json` before installer actions. Rust core install remains opt-in with `INSTALL_RUST_CORE=true`.
-
-If the GitHub repository has not yet been renamed, temporarily use:
-
-```bash
-sudo LQOSYNC_REPO_URL=https://github.com/p33ckab00/LQoSync.git EXISTING_INSTALL_ACTION=adopt bash /tmp/install-lqosync.sh
-```
-
-
-## GitHub Repository Rename
-
-Target repository name:
-
-```text
-p33ckab00/LQoSync
-```
-
-Rename with GitHub CLI:
-
-```bash
-gh repo edit p33ckab00/LQoSync --name LQoSync
-```
-
-Then update every local checkout:
-
-```bash
-git remote set-url origin https://github.com/p33ckab00/LQoSync.git
-git remote -v
-git fetch origin lqosync-in-rust
-```
-
-See [Repository Rename Guide](docs/REPOSITORY_RENAME.md).
-
-## Standard Paths
-
-```text
-/opt/libreqos/                     # LibreQoS application folder
-/opt/libreqos/src/config.json       # LQoSync runtime config consumed by the engine
-/opt/libreqos/src/ShapedDevices.csv # generated LibreQoS shaped-device output
-/opt/libreqos/src/network.json      # generated LibreQoS topology output
-/opt/LQoSync/                       # LQoSync app/runtime folder
-/opt/LQoSync/state/                 # runtime, policy, lifecycle, notification state
-/opt/LQoSync/logs/                  # audit and apply logs
-/opt/LQoSync/backups/               # pre-apply and restore backups
-```
-
-Compatibility note: the systemd service can remain `lqosync` even after the GitHub repository/product name is LQoSync.
-
-
-### LQoSync-in-Rust v0.2 Trust/Diff Guard
-
-The `lqosync-in-rust` branch now includes an optional Rust v0.2 safety layer: collector output trust validation and Rust diff operations. The collector trust guard protects cleanup from silent empty/partial RouterOS results, while the Rust diff report is surfaced in Dry Run under `rust_core_diff`. Python remains the primary runtime and fallback remains active when the Rust binary is not built.
-
-## Core Modules
-
-| Module | Purpose |
-|---|---|
-| Dashboard | Live health, source status, production readiness, and apply warnings |
-| Config Center | Router/source settings, policies, notifications, scheduler, and Advanced JSON |
-| Dry Run | Preview generated changes before writing live LibreQoS files |
-| Shaped Devices | Inspect generated subscriber/circuit rows |
-| Network Layout | Inspect or adjust LibreQoS topology nodes |
-| Operations Center | Services, journals, app logs, audit, backups, restore preview, and apply history |
-| Update Center | Installed version, GitHub status, latest fetched changes, and safe SSH update commands |
-| Documentation Center | Searchable local operator documentation |
-
-## Operator Workflow
-
-```text
-Install / update safely
-→ Configure routers and sources
-→ Choose policy preset
-→ Run Dry Run
-→ Review generated rows and node tree
-→ Confirm backups are ready
-→ Enable scheduler only when production-ready
-→ Monitor Operations Center and Dashboard
-```
-
-## Dashboard Areas
-
-- **Dashboard** shows live status and go-live confidence.
-- **Config Center** owns settings and policy controls.
-- **Update Center** owns version/update visibility.
-- **About** owns project identity only; it does not display release updates.
-- **Operations Center** owns logs, services, backups, and apply history.
-
-## ShapedDevices.csv Handling
-
-LQoSync builds `ShapedDevices.csv` from normalized source records. The important questions are:
-
-- Which source created this row?
-- Which speed rule resolved its bandwidth?
-- Which parent node will LibreQoS use?
-- Is the IP/MAC duplicated?
-- Is the row active, stale, excluded, locked, or policy-held?
-
-## network.json Handling
-
-LQoSync builds the LibreQoS node tree from router, source, DHCP server, plan, and topology rules. A generated subscriber row should point to a valid parent node. Dry Run and validation help detect missing parent nodes before apply.
-
-## Glossary
-
-- **LibreQoS** — the shaping system that consumes `ShapedDevices.csv` and `network.json`.
-- **ShapedDevices.csv** — LibreQoS subscriber/circuit input file.
-- **network.json** — LibreQoS topology tree file.
-- **Dry Run** — preview mode that calculates impact without writing live files.
-- **Apply** — writing generated outputs and optionally running LibreQoS update.
-- **Policy preset** — Conservative, Balanced, or Aggressive behavior template.
-- **Custom policy** — a policy state created when preset-derived values are manually changed.
-- **Source** — MikroTik PPPoE, DHCP, Hotspot, or static source used to generate rows.
-- **Parent Node** — the LibreQoS node where a shaped device is attached.
-
-
-
-## LQoSync-in-Rust branch plan
-
-The `lqosync-in-rust` branch keeps the Python Flask WebUI as the operator interface while adding an optional Rust core for deterministic safety-critical backend work.
-
-```text
-Python = WebUI, auth, templates, scheduler controls, docs, reports
-Rust   = protocol, validation, parsing, diff, collector trust, atomic state/file writes
-```
-
-The migration preserves the existing no-database model and keeps `config.json`, `runtime_state.json`, `policy_state.json`, `collector_cache.json`, `audit.jsonl`, `ShapedDevices.csv`, and `network.json` as file-based state.
-
-This package now includes the first optional Rust core scaffold under `rust/lqosync-core` plus the Python wrapper `engine/rust_core.py`. Rust validation is non-blocking by default and Python fallback remains active when the binary is not built or installed.
-
-Build the optional Rust core with:
-
-```bash
-scripts/build-rust-core.sh
-sudo scripts/install-rust-core.sh
-```
-
-Documentation:
-
-- [LQoSync-in-Rust Core Migration Plan](docs/RUST_CORE_MIGRATION.md)
-- [Rust Core Protocol](docs/RUST_CORE_PROTOCOL.md)
-- [Collector Output Contract](docs/COLLECTOR_OUTPUT_CONTRACT.md)
-- [Autosave and Atomic State Model](docs/AUTOSAVE_AND_ATOMIC_STATE.md)
-- [Commit and Push Guide](docs/COMMIT_AND_PUSH_GUIDE.md)
-
-## Appendices
-
-- [Full Documentation](FULL_DOCUMENTATION.md)
-- [Documentation Index](docs/DOCUMENTATION_INDEX.md)
-- [Upgrade Guide](docs/UPGRADE_GUIDE.md)
-- [Command Reference](docs/COMMANDS.md)
-- [AI-Assisted Development Disclosure](docs/AI_ASSISTED_DEVELOPMENT.md)
-
-## Rust Core v0.3 Atomic State/File Engine
-
-The `lqosync-in-rust` branch now includes Rust protocol operations for atomic JSON state writes, generated file writes, and audit JSONL appends. Python remains the default writer, with optional Rust-backed writes enabled by `LQOSYNC_RUST_ATOMIC_WRITES=1`. See `docs/RUST_CORE_V03_ATOMIC_STATE.md`.
-
-Build hotfix `v2.73.1-rc1` updates the Rust CSV writer to use `csv::Terminator::Any(b'\n')` for compatibility with the current `csv` crate while preserving LF line endings.
-
-## Safety Note
-
-LQoSync can write LibreQoS input files and trigger LibreQoS apply behavior. Always verify backups, policies, dry-run output, and apply results before using it in production.
-
-
-### Rust Core v0.4 daemon mode
-
-The optional Rust safety core now supports a Unix socket daemon. The daemon uses the same JSON protocol as the CLI and can be installed with `sudo scripts/install-rust-core-daemon.sh` after building/installing the Rust binary. Python falls back to subprocess or Python fallback when the daemon is unavailable.
-
-## Rust Core v0.5 Policy Shadow
-
-The `lqosync-in-rust` branch now includes an optional Rust `evaluate-policy` operation. It runs in shadow mode beside Python policy decisions, reports risk/verdict/parity in Dry Run, and remains non-authoritative until parity is proven.
-
-
-
-## Rust Core v0.6 Circuit Shadow
-
-The `lqosync-in-rust` branch now includes an optional Rust `normalize-circuits` operation. It runs in shadow mode beside the Python collectors/builders, reports normalized row counts and diagnostics in Dry Run, and prepares the next migration step toward a Rust circuit builder without changing live behavior.
-
-### Rust Core v0.7 Sync Plan Shadow
-
-The `lqosync-in-rust` branch now includes `evaluate-sync-plan`, a shadow-only end-to-end Rust planner that composes collector trust, Rust diff, Rust circuit shadow, Rust validation, Rust policy shadow, Python preflight, and cleanup stats. Python remains authoritative for writes and LibreQoS apply.
-
-
-## v2.78.0-rc1 - Rust Core v0.8 Authority Gates
-
-- Added opt-in `rust_core.enforce_sync_plan` authority gate.
-- Added `rust_core.authority_mode` with `shadow` and `enforce_blockers`.
-- Added fail-closed behavior when enforced Rust core is unavailable.
-- Dry Run remains preview-only; Python remains default authority unless enforcement is enabled.
-- Added documentation: `docs/RUST_CORE_V08_AUTHORITY_GATES.md`.
-
-
-## Rust Core v0.9 Apply Manifest Preview
-
-The `lqosync-in-rust` branch now includes a non-destructive Rust apply manifest that previews the backup/write/pending-apply/LibreQoS apply transaction before Python executes it. Python remains authoritative by default.
-
-
-## Rust Core v1.0 Apply Transaction Executor
-
-This package adds the optional `execute-apply-transaction` Rust operation. It rehearses transactions by default and only writes files when explicit Rust transaction flags are enabled. Python remains authoritative for normal production sync/apply behavior.
-
-
-## Rust Core v1.1 Runtime Self-Test
-
-This package adds a safe Rust core `self-test` operation and `/api/rust-core/self-test` endpoint. It also routes `execute-apply-transaction` through the CLI/daemon protocol and centralizes advertised Rust operations so future operation-list mismatches are easier to catch before enabling authority flags.
-
-Read: `docs/RUST_CORE_V11_SELF_TEST.md`.
-
-
-### Rust Core v1.1.1 self-test build hotfix
-
-The v1.1.1 package fixes the self-test no-change manifest assertion and hardens Rust install helpers so a failed build cannot accidentally install a stale release binary. The daemon installer now restarts an already-running `lqosync-core.service` after updating `/usr/local/bin/lqosync-core`.
-
-
-### Rust Core v1.2 transaction journal and rollback preview
-
-Rust Core v1.2 adds `build-transaction-journal` and `build-rollback-manifest` operations. These are preview-only by default and make future Rust file-write authority auditable and rollback-aware. Read: `docs/RUST_CORE_V12_TRANSACTION_JOURNAL.md`.
-
-### Rust Core v1.3 Transaction Journal Persistence
-
-The `lqosync-in-rust` branch now includes `append-transaction-journal`, an opt-in operation for persisting Rust apply transaction journal events to `/opt/LQoSync/logs/transaction_journal.jsonl`. It is disabled by default and remains rehearsal-only unless explicitly enabled.
-
-
-## Rust Core v1.4 Transaction History and Rollback Plan Viewer
-
-This package adds read-only Rust operations `read-transaction-journal` and `build-rollback-from-journal`, plus WebUI API endpoints for transaction history and rollback plan preview. Rollback execution remains unsupported/disabled.
-
-
-## Rust Core v1.5 Rollback Execution Rehearsal
-
-This package adds `execute-rollback`, a gated rollback executor. It rehearses rollback by default and only restores files when rollback authority, file-write permission, and `CONFIRM_ROLLBACK` confirmation are explicitly provided. Python remains authoritative by default.
-
-
-## Rust Core v1.6 Authority Readiness Report
-
-- Adds `evaluate-authority-readiness` to score whether Rust authority flags are safe to pilot.
-- Adds `/api/rust-core/authority-readiness` for read-only operator visibility.
-- Keeps Python authoritative by default and treats partial authority flags as blockers.
-- Documents readiness verdicts before sync-plan enforcement, file-write authority, journal persistence, or rollback authority are enabled.
-
-### Rust Core v1.7 Full Backend Readiness
-
-The `lqosync-in-rust` branch now includes read-only full backend readiness and authority pilot planning. This confirms the current system is still a hybrid architecture: Python remains authoritative for the WebUI, scheduler, RouterOS collectors, and default run cycle, while Rust provides validation, planning, transactions, journaling, rollback, and optional authority gates.
-
-New operations:
-
-```text
-evaluate-full-rust-readiness
-build-authority-pilot-plan
-```
-
-New read-only APIs:
-
-```text
-/api/rust-core/full-backend-readiness
-/api/rust-core/authority-pilot-plan
-```
-
-## Rust Core v1.8 Collector Bundle Shadow Builder
-
-This package adds `build-collector-circuit-bundle`, a non-authoritative Rust operation that accepts raw Python collector snapshots and returns ShapedDevices-compatible rows in shadow mode. Python RouterOS collection remains authoritative.
-
-
-## Rust Core v1.9 Collector Bundle Parity Report
-
-Adds `compare-collector-bundle-parity`, a diagnostic operation and API endpoint for comparing Python-authoritative rows with Rust-shadow collector bundle rows before any collector authority migration.
-
-
-## Rust Core v2.0 RouterOS Collector Plan
-
-This package adds `build-routeros-collector-plan`, a read-only Rust operation that derives the RouterOS resource/field plan for enabled PPPoE, DHCP, and Hotspot sources. It does not connect to MikroTik and does not replace Python collectors. It is a bridge toward a future Rust RouterOS transport while keeping Python authoritative by default.
-
-New API:
-
-```text
-GET /api/rust-core/routeros-collector-plan
-POST /api/rust-core/routeros-collector-plan
-```
-
-
-## Rust Core v2.0.1 Script Permission Hotfix
-
-If a ZIP/manual copy loses executable bits and `scripts/build-rust-core.sh` returns `Permission denied`, run:
-
-```bash
-bash scripts/repair-script-permissions.sh
-bash scripts/build-rust-core.sh
-sudo bash scripts/install-rust-core.sh
-sudo bash scripts/install-rust-core-daemon.sh
-```
-
-A valid v2.0+ self-test must advertise `build-routeros-collector-plan`.
-
-
-## Rust Core v2.1 RouterOS Read Result Contract
-
-This package adds `validate-routeros-read-results`, a Rust trust contract that validates Python-executed RouterOS read results against the deterministic collector plan. It is diagnostic by default and does not replace Python live RouterOS collectors.
-
-
-## Rust Core v2.2.1 RouterOS Transport Session Rehearsal Hotfix
-
-This package fixes a false-positive redaction test while keeping the v2.2 transport session behavior unchanged. RouterOS transport remains non-network, credentials stay redacted, and Python collectors remain authoritative.
-
-## Rust Core v2.2 RouterOS Transport Session Rehearsal
-
-Adds `build-routeros-transport-session`, a non-network RouterOS transport rehearsal that redacts credentials, reports planned sessions, blocks live Rust RouterOS transport attempts, and keeps Python live collectors authoritative.
-
-
-## Rust Core v2.3 RouterOS Live Read Pilot Gate
-
-LQoSync 2.93.0-rc1 / lqosync-core 2.3.0 adds `build-routeros-live-read-pilot`, a gated non-network contract for a future read-only Rust RouterOS transport adapter. Python collectors remain authoritative and Rust still does not open MikroTik sockets.
-
-
-## Rust Core v2.4 RouterOS Read Pilot Fixture Adapter
-
-Adds `run-routeros-read-pilot`, an offline fixture adapter that exercises the RouterOS read-pilot execution contract without opening MikroTik sockets or replacing Python collectors.
-
-### Rust Core v2.5 RouterOS API Sentence Codec
-
-The `lqosync-in-rust` branch now includes `build-routeros-api-sentence`, an offline RouterOS API word/proplist encoder for future read-only Rust transport. It does not connect to MikroTik and does not replace Python collectors.
-
-
-### Rust Core v2.5.1 RouterOS API Codec Redaction Hotfix
-
-`lqosync-core` v2.5.1 keeps the offline RouterOS API codec warning-clean and redacts dropped sensitive `.proplist` field names from result payloads. Valid RouterOS resource paths such as `/ppp/secret` remain allowed, but dropped fields such as `password` or `api-key` are reported only by count.
-
-
-## Rust Core v2.6 RouterOS API Reply Codec
-
-Adds `decode-routeros-api-reply`, an offline RouterOS API reply parser that decodes already-captured `!re`/`!trap`/`!done` words into sanitized rows/traps while keeping Rust RouterOS live transport disabled by default.
-
-### Rust Core v2.7 RouterOS API Frame Codec
-
-Adds `codec-routeros-api-frame`, an offline RouterOS API binary frame encoder/decoder. This is transport preparation only: no live MikroTik sockets, no credential use, and Python collectors remain authoritative.
-
-
-## Rust Core v2.8 RouterOS Offline Session Pipeline
-
-Adds `run-routeros-offline-session`, an end-to-end offline RouterOS API session rehearsal. It composes sentence encoding, frame encoding/decoding, and reply decoding using fixtures only. It performs zero live connections, consumes no MikroTik credentials, and keeps Python collectors authoritative.
-
-
-## Rust Core v2.9 RouterOS TCP Connectivity Pilot
-
-The `lqosync-in-rust` branch now includes a gated RouterOS TCP reachability pilot through `run-routeros-tcp-connectivity-pilot`. This remains a transport bridge, not a full Rust backend. Python collectors remain authoritative by default.
-
-
-## Rust Core v3.0 RouterOS Authentication Plan
-
-Adds `build-routeros-auth-plan`, a redacted RouterOS authentication planning bridge. It verifies whether router metadata is ready for a future authentication adapter without emitting credentials, opening sockets, or replacing Python collectors.
-
-
-## Rust Core v3.1 RouterOS Auth Handshake Fixture
-
-Adds `run-routeros-auth-handshake`, an offline fixture operation that models RouterOS authentication reply handling without opening sockets, emitting credentials, or replacing Python collectors.
-
-
-## Rust Core v3.2 RouterOS Auth Session Contract
-
-Adds `build-routeros-auth-session-contract`, a redacted authenticated-session contract built from fixture auth replies. It performs zero socket/auth attempts, emits no credentials or tokens, and keeps Python collectors authoritative.
-
-
-## v3.4 Live Read Adapter Contract
-
-This package adds Rust Core `v3.4.0` / LQoSync `2.104.0-rc1` with `run-routeros-live-read-adapter-pilot`. It is still not a full Rust backend: the operation builds a guarded live-read adapter contract only and does not open RouterOS sockets, authenticate, send API words, read replies, or replace Python collectors.
-
-### Rust Core v3.5 Collector Authority Pilot Gate
-
-The `lqosync-in-rust` branch now includes `evaluate-rust-collector-authority-pilot`, a read-only gate for future Rust collector authority. It composes live-read adapter readiness, collector parity, and explicit source allow-lists. Python collectors remain authoritative.
-
-### Rust Core v3.6 Collector Authority Decision Manifest
-
-This package includes `build-collector-authority-manifest`, a non-mutating Rust operation for creating an auditable per-source manifest before any future collector authority migration. Python collectors remain authoritative by default.
-
-
-## Rust Core v3.7 Collector Authority Dry-Run Selection
-
-Adds `build-collector-authority-selection`, a dry-run selector that maps collector authority manifest decisions into `python_collector` or `rust_shadow_collector` candidates. Python remains production-authoritative.
-
-
-## Rust Core v3.8 Collector Authority Dry-Run Bundle
-
-Adds `build-collector-authority-dry-run-bundle`, a non-mutating Rust-shadow bundle that combines collector authority selection, normalized Rust rows, and parity reporting. Python remains production-authoritative; Rust rows cannot drive cleanup or apply.
-
-### Rust Core v3.9 run_cycle Rust-Shadow Integration
-
-Adds `build-run-cycle-rust-shadow-report` so Python run_cycle can carry Rust-shadow collector diagnostics beside authoritative Python output. This does not transfer cleanup/apply authority.
-
-
-## Rust Core v4.0 Collector Authority Activation Plan
-
-Adds `build-collector-authority-activation-plan`, a non-mutating activation readiness plan for the future Rust collector authority pilot. It requires a clean run_cycle Rust-shadow report, successful shadow-cycle history, explicit activation gates, and Python fallback. Python collectors remain authoritative; Rust cannot drive cleanup, writes, or apply in this release.
-
-
-## Rust Core v4.1 Collector Authority Runtime Contract
-
-Adds `build-collector-authority-runtime-contract`, a non-mutating runtime contract after the collector authority activation plan. Python collectors remain authoritative; Rust cannot drive cleanup, apply, or generated-file writes from this contract. See `docs/RUST_CORE_V41_COLLECTOR_AUTHORITY_RUNTIME.md`.
-
-
-## Rust Core v4.2 Collector Authority Switch Rehearsal
-
-Adds `build-collector-authority-switch-rehearsal`, a non-mutating switch rehearsal after the collector authority runtime contract. It requires explicit gates, manual confirmation, and Python fallback, but does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V42_COLLECTOR_AUTHORITY_SWITCH.md`.
-
-
-## Rust Core v4.3 Collector Authority Pilot Execution Contract
-
-Adds `build-collector-authority-pilot-execution-contract`, a non-mutating contract after the collector authority switch rehearsal. It requires explicit gates, the `CONFIRM_COLLECTOR_AUTHORITY_PILOT_EXECUTION` token, fresh Rust-shadow data, and Python fallback. It does not switch production collector authority, drive cleanup, write generated files, or apply LibreQoS. See `docs/RUST_CORE_V43_COLLECTOR_AUTHORITY_PILOT_EXECUTION.md`.
-
-
-### Rust Core v4.3.1 Pilot Execution Recursion Hotfix
-
-Fixes a compile-time macro recursion issue in the collector authority pilot execution contract while keeping Python collectors authoritative and fail-safe defaults unchanged.
-
-### v4.3.2
-
-Fixes collector authority pilot execution readiness by separating switch-rehearsal confirmation from pilot-execution confirmation. This remains a non-mutating contract-only bridge.
-
-
-## Rust Core v4.4 Collector Authority Pilot Result Evaluator
-
-Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for future Rust collector authority pilot results. It checks pilot execution contract readiness, parity, shadow freshness, observed errors, and forbidden side effects while keeping Python collectors authoritative. See `docs/RUST_CORE_V44_COLLECTOR_AUTHORITY_PILOT_RESULT.md`.
-
-### Rust Core v4.4.1 — Pilot Result Recursion Hotfix
-
-Fixes the v4.4 Rust test compile failure caused by a large nested `serde_json::json!` test payload in the collector authority pilot result evaluator. Runtime safety behavior is unchanged.
-
-## Rust Core v4.5 Collector Authority Promotion Readiness
-
-Adds `build-collector-authority-promotion-readiness`, a non-mutating readiness bridge after the v4.4 pilot result evaluator. It checks pilot-result pass status, explicit promotion-readiness gates, manual confirmation, Rust-shadow freshness, and Python fallback before any future collector authority promotion. Python collectors remain authoritative; Rust still cannot drive cleanup, writes, or LibreQoS apply in this release.
-
-
-## Rust Core v4.6 Collector Authority Promotion Execution Rehearsal
-
-LQoSync `2.116.0-rc1` / `lqosync-core 4.6.0` adds `build-collector-authority-promotion-execution-rehearsal`, a non-mutating bridge after v4.5 promotion readiness. It requires explicit gates, manual confirmation, fresh Rust-shadow data, and Python fallback, while keeping production collector authority in Python and keeping cleanup/apply/file writes disabled.
-
-
-## Rust Core v4.7 Collector Authority Promotion Commit Plan
-
-LQoSync `2.117.0-rc1` / `lqosync-core 4.7.0` adds `build-collector-authority-promotion-commit-plan`, a non-mutating bridge after v4.6 promotion execution rehearsal. It requires explicit gates, `CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_COMMIT_PLAN`, fresh Rust-shadow data, and Python fallback. It does not promote Rust collectors, transfer cleanup/apply authority, write generated files, or claim full Rust backend production.
-
-
-## Rust Core v4.8 Collector Authority Promotion Cutover Ledger
-
-Adds `build-collector-authority-promotion-cutover-ledger`, a non-mutating cutover ledger after the v4.7 promotion commit plan. It requires explicit gates, manual confirmation, a rollback path, and Python fallback. It does not switch collector authority, drive cleanup/apply, or write generated LibreQoS files.
-
-
-## Rust Core v4.9 Collector Authority Production Freeze Gate
-
-Adds `build-collector-authority-production-freeze-gate`, the final non-mutating pre-production freeze gate before a future v5 Rust collector-authority production switch contract. It requires cutover-ledger readiness, manual confirmation, a maintenance window, operator acknowledgment, rollback path, fresh Rust-shadow data, and Python fallback. It does not remove Python, switch production collector authority, drive cleanup/apply, or write generated LibreQoS files.
-
-
-## Rust Core v5.0 Collector Authority Production Switch Contract
-
-LQoSync `2.120.0-rc1` / `lqosync-core 5.0.0` adds `build-collector-authority-production-switch-contract`, the first production collector-authority switch contract after the v4.9 freeze gate. It is still non-mutating: it does not switch authority, remove Python, transfer cleanup/apply authority, write generated files, or apply LibreQoS. Python collector fallback remains mandatory.
-
-
-## Rust Core v5.1 Rust Backend API Handoff Plan
-
-Adds `build-rust-backend-api-handoff-plan`, the first full-Rust-backend-track bridge after the collector-authority production switch contract. It checks WebUI/UX compatibility, static asset compatibility, API route parity, Python backend fallback, and side-effect-free status. It does not remove Python, replace Flask routes, or switch API traffic to Rust yet.
-
-
-## Rust Core v5.2 Rust Backend Scheduler / Run Cycle Handoff Plan
-
-Adds `build-rust-backend-scheduler-handoff-plan`, a non-mutating full-Rust-backend-track bridge after v5.1 API handoff. It validates scheduler manifest readiness, run_cycle shadow readiness, API handoff readiness, and Python fallback while keeping WebUI/UX unchanged and Python scheduler/run_cycle authoritative.
-
-
-## Rust Core v5.3 Rust Run Cycle Orchestrator Handoff Contract
-
-Adds `build-rust-run-cycle-orchestrator-handoff-contract`, the next full-Rust-backend bridge after scheduler/run_cycle handoff planning. It verifies run_cycle orchestrator manifest readiness, run_cycle shadow cycles, config/state shadow verification, manual confirmation, and Python fallback. It remains non-mutating: Python run_cycle stays authoritative and WebUI/UX remains unchanged.
-
-
-## Rust Core v5.4 Rust Config/State Authority Handoff Contract
-
-LQoSync `2.124.0-rc1` / `lqosync-core 5.4.0` adds `build-rust-config-state-authority-handoff-contract`, a non-mutating full-Rust-backend-track bridge after the run_cycle orchestrator handoff. It verifies config/state shadow, atomic writer shadow, transaction journal shadow, audit shadow, and rollback-manifest shadow readiness while keeping Python config/state authority and WebUI/UX unchanged.
-
-
-## Rust Core v5.5 Rust Live Collector Authority Handoff Contract
-
-LQoSync `2.125.0-rc1` / `lqosync-core 5.5.0` adds `build-rust-live-collector-authority-handoff-contract`, the live RouterOS collector authority handoff bridge after config/state authority handoff. It validates live collector shadow evidence, RouterOS live adapter shadow evidence, collector parity, and Python fallback while keeping WebUI/UX unchanged and Python live collectors authoritative.
-
-
-## Rust Core v5.6 Rust Circuit Builder Authority Handoff Contract
-
-LQoSync `2.126.0-rc1` / `lqosync-core 5.6.0` adds `build-rust-circuit-builder-authority-handoff-contract`. This moves the full-Rust-backend track from live collector authority to circuit row / ShapedDevices builder authority while keeping WebUI/UX unchanged and Python as the authoritative fallback. It remains non-mutating and does not remove Python.
-
-
-## Rust Core v5.7 Rust Sync Engine Authority Handoff Contract
-
-Adds `build-rust-sync-engine-authority-handoff-contract`, the sync engine authority bridge after circuit builder authority handoff. It verifies sync-plan shadow output, diff parity, apply-manifest preview, cleanup safety, and Python fallback while keeping WebUI/UX unchanged and Python sync engine authoritative.
-
-
-## Rust Core v5.8 Rust Apply/Journal/Rollback Authority Handoff Contract
-
-Adds `build-rust-apply-journal-rollback-authority-handoff-contract`, the next full-Rust-backend bridge after sync engine authority. It prepares Rust ownership of apply transaction, transaction journal, rollback manifest/executor, and audit paths while keeping Python authoritative and WebUI/UX unchanged.
-
-
-## Rust Core v5.9 Rust Backend Service Runtime Handoff Contract
-
-Adds `build-rust-backend-service-runtime-handoff-contract`, the service/API runtime handoff bridge after apply/journal/rollback authority. It validates API route parity, static WebUI asset compatibility, Rust API shadow response parity, and Rust service supervision readiness while keeping Python backend fallback and WebUI/UX unchanged.
-
-
-## Rust Core v6.0 Full Rust Backend Production Readiness Contract
-
-Adds `build-full-rust-backend-production-readiness-contract`, the first full Rust backend production-readiness gate after service/runtime handoff. It can mark the system as a future cutover candidate, but it does not remove Python, disable Flask routes, switch live API traffic, or enable Rust production service authority. WebUI/UX remains unchanged and Python fallback remains mandatory.
-
-
-## Rust Core v6.1 Full Rust Backend Cutover Plan
-
-Adds `build-full-rust-backend-cutover-plan`, a non-mutating full Rust backend cutover plan after v6.0 production-readiness. It keeps WebUI/UX unchanged and requires Python backend fallback, rollback path, and operator approval. It does not remove Python, disable Flask routes, or switch API traffic to Rust.
-
-
-## Rust Core v6.2 Full Rust Backend Cutover Execution Contract
-
-Adds `build-full-rust-backend-cutover-execution-contract`, the near-final cutover execution contract after v6.1 planning. It verifies cutover execution gates while preserving WebUI/UX and keeping Python backend fallback required. It still does not remove Python, disable Flask, switch API traffic, or enable Rust production authority.
-
-
-## Rust Core v6.3 Python Backend Retirement Plan
-
-Adds `build-python-backend-retirement-plan`, the first explicit Python backend retirement planning gate after the v6.2 full Rust backend cutover execution contract. This remains non-mutating: Python is not removed, Flask routes are not disabled, API traffic is not switched, WebUI/UX remains unchanged, and Python fallback remains mandatory.
-
-
-## Rust Core v6.4 Rust Backend Production Enablement Contract
-
-Adds `build-rust-backend-production-enablement-contract`, the bridge after Python backend retirement planning. It can mark the system as a Rust backend production enablement candidate while keeping Python fallback, WebUI/UX unchanged, and all destructive actions disabled. It does not remove Python, disable Flask routes, switch API traffic, or enable Rust production authority.
-
-
-## Rust Core v6.5 Python Backend Removal Execution Contract
-
-Adds `build-python-backend-removal-execution-contract`, the first explicit Python backend removal execution contract after Rust backend production enablement. It is still non-mutating: it can mark a Python-removal candidate but does not remove Python, disable Flask, switch API traffic, or enable Rust service authority. WebUI/UX remains unchanged and Python fallback remains mandatory.
-
-
-## Rust Core v6.6 Full Rust Backend Removal Rehearsal
-
-Adds `build-full-rust-backend-removal-rehearsal`, the final non-mutating rehearsal before a future v7.0 actual full Rust backend cutover / Python backend removal package. WebUI/UX remains unchanged and Python backend fallback remains mandatory.
-
-
-## Rust Core v7.0 Full Rust Backend Production Cutover
-
-Adds `build-full-rust-backend-production-cutover`, the first full-Rust-backend production cutover package. It can mark cutover as allowed only after v6.6 rehearsal, WebUI/static asset preservation, server cargo/self/rollback tests, rollback backup, and explicit operator confirmation pass. WebUI/UX remains as-is; OS-level service switching/removal is done only by supervised scripts.
-
-
-## Rust Core v7.1 Full Rust Backend Production Verifier / Python Retirement Guard
-
-Adds `build-full-rust-backend-production-verifier`, the post-cutover verifier that can mark the Rust backend as production-authoritative only when runtime health, API traffic switch, server tests, rollback package, WebUI/UX preservation, and operator confirmation pass. Adds guarded scripts for production verification and supervised Python backend retirement while preserving WebUI/UX/static assets.
-
-
-## Rust Core v7.2 Full Rust Backend Post-Retirement Verifier
-
-Adds `build-full-rust-backend-post-retirement-verifier`, the post-retirement verifier after guarded Python backend retirement. It can report `full_rust_backend=true` and `python_backend_removed=true` only when Rust runtime authority, API traffic switch, WebUI/UX preservation, rollback package, server tests, and Python retirement state all pass.
-
-
-## Rust Core v7.3 Full Rust Backend Steady-State Guard
-
-Adds `build-full-rust-backend-steady-state-guard`, the post-retirement steady-state verifier for full Rust backend production. It verifies Rust runtime authority, API traffic on Rust, no Python/Flask drift, WebUI/UX/static assets unchanged, rollback readiness, and server healthchecks.
-
-
-## Rust Core v7.3.1 Steady-State Guard Hotfix
-
-Fixes the v7.3.0 aggregate self-test failure by adding the missing `webui_static_assets_preserved=true` gate to the steady-state guard self-test payload. Runtime safety remains unchanged: WebUI/UX/static assets must remain preserved and Python drift must stay absent before steady-state verification passes.
-
-
-## Rust Core v7.3.2 Steady-State Guard Self-Test Hotfix
-
-Fixes the aggregate `self-test` steady-state guard fixture by including both `webui_static_asset_paths_unchanged=true` and `webui_static_assets_preserved=true`. This preserves the final production steady-state safety model: Rust backend authority, no Python drift, WebUI/UX/static assets unchanged, and rollback readiness.
-
-
-## Rust Core v7.3.3 Steady-State Guard Hotfix
-
-Fixes the v7.3.2 aggregate `self-test` steady-state guard failure by adding the missing top-level `webui_ux_unchanged = true` gate beside `webui_static_asset_paths_unchanged` and `webui_static_assets_preserved`. Safety behavior is unchanged: WebUI/UX/static assets must remain preserved, no Python drift is allowed, Rust runtime authority must remain verified, and rollback must remain available.
-
-## Rust Core v7.3.4 Steady-State Guard Hotfix
-
-Fixes the aggregate full Rust backend steady-state guard self-test fixture by adding the missing top-level `python_backend_rollback_package_ready` gate. This keeps rollback safety explicit while preserving WebUI/UX/static assets and does not perform any service/file mutation.
-
-
-
-## Rust Core v7.4 Full Rust Backend Production Drift Monitor
-
-Adds `build-full-rust-backend-production-drift-monitor`, a non-mutating post-steady-state monitor that verifies Rust backend authority, no Python/Flask drift, WebUI/UX/static asset preservation, rollback readiness, and server healthchecks after Python backend retirement.
-
-## v7.5 Full Rust Backend Production Audit Sentinel
-
-Adds `build-full-rust-backend-production-audit-sentinel`, a verification-only post-drift-monitor guard for audit trail readiness, transaction journal visibility, rollback preview readiness, WebUI/UX preservation, and no-Python-drift production authority. WebUI/UX remains unchanged and no service/file mutations are performed by the Rust core operation.
-
-## Rust Core v7.5.1 Installation Documentation and Installer Alignment
-
-The install path and branch examples are now aligned with the production Rust line:
-
-```bash
-cd /opt/LQoSync
-git checkout lqosync-in-rust
-git pull --ff-only origin lqosync-in-rust
-bash scripts/repair-script-permissions.sh
-bash scripts/build-rust-core.sh
-sudo bash scripts/install-rust-core.sh
-sudo bash scripts/install-rust-core-daemon.sh
-printf '{"version":"1","op":"self-test","payload":{}}' | lqosync-core
-```
-
-Run `bash scripts/verify-installation-docs-alignment.sh` to confirm docs and installer defaults are aligned.
-
-
-## v7.5.2 Stale Codebase Cleanup Guard
-
-The production series now includes safe stale-codebase cleanup helpers. Use `scripts/stale-codebase-inventory.sh` and `scripts/stale-codebase-cleanup-dry-run.sh` before archiving duplicate working trees. The guarded archive executor never touches `/opt/LQoSync`, `/opt/libreqos`, the Rust daemon binary, or WebUI/static assets.
-
-## v7.5.4 branch install + cleanup alignment
-
-The production Rust branch is `lqosync-in-rust`; the canonical runtime/source directory is `/opt/LQoSync`. Use `scripts/verify-branch-cleanup-installation-alignment.sh` before archiving stale duplicate working trees. Cleanup is archive-first and protects `/opt/LQoSync`, `/opt/libreqos`, `lqosync-core.service`, `/usr/local/bin/lqosync-core`, and WebUI/static assets. See `docs/BRANCH_INSTALL_AND_CLEANUP_GUIDE.md`.
-
-
-Cleanup archives are stored under `/opt/LQoSync-archive/<timestamp>` and are restore-first, not delete-first.
-
-
-## v7.5.6 Rust authoritative gate mode
-
-For Rust-authoritative production gating with Python fallback preserved, use:
-
-```bash
-sudo bash install-rust-authoritative-safe.sh
-```
-
-This enables Rust validation/sync-plan fail-closed authority after self-test, while keeping Rust direct file writes and Rust `LibreQoS.py` execution disabled for no-breakage operation.
-
-
-## 2.145.7-rc1 - v7.5.7 Full Rust Apply Authority
-
-- Added Rust-owned `LibreQoS.py` external apply execution inside `execute-apply-transaction`.
-- Added full-authority wrappers: `install-rust-full-authoritative-safe.sh` and `scripts/promote-rust-full-authoritative-safe.sh`.
-- Runtime now uses an execute=false Rust preview first, then runs a second Rust authoritative transaction only after dry-run/policy/drift/auto-apply gates pass.
-- When Rust file/apply authority is enabled and healthy, Python skips duplicate file writes and skips duplicate `LibreQoS.py` apply.
-- If Rust authoritative apply fails, the cycle fails closed; no silent Python mutation fallback is used in authority mode.
-- Python remains the WebUI/scheduler/RouterOS collector compatibility shell while Rust owns the production mutation path.
----
-
-## v7.5.8 Full Rust Authority Lockdown
-
-The `lqosync-in-rust` branch now includes a full Rust authority lock for the production mutation path. When `full_rust_backend_authority=true`, Python cannot silently fall back to writing `ShapedDevices.csv`, writing `network.json`, or running `LibreQoS.py --updateonly`; Rust must execute the authoritative transaction or the cycle fails closed.
----
-
-## v7.6.0 Rust Authority Supervisor
-
-Full Rust authority now has an operator-supervised production gate. The full-authority promotion flow creates a recovery bundle, runs Rust core self-test, writes a preflight stamp, and enables fail-closed runtime verification through `rust_authority_preflight_required_failed`.
-
-New commands:
-
-```bash
-sudo bash scripts/promote-rust-full-authoritative-safe.sh
-bash scripts/rust-full-authority-preflight.sh --write-stamp
-bash scripts/rust-full-authority-recovery-bundle.sh
-bash scripts/verify-rust-authority-supervisor.sh
-```
-
-See `docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md`.
-
-
-
----
-
-## v7.6.1 Rust Authority Watchdog
-
-Promoted full Rust authority now includes a non-mutating watchdog check. After creating the recovery bundle and writing the Rust authority preflight stamp, run:
-
-```bash
-bash scripts/rust-authority-watchdog.sh
-```
-
-The full authority promotion script runs this automatically and fails closed if the required authority evidence is missing.
-
----
-
-## v7.7.0 Rust Live Stable Candidate
-
-The `lqosync-in-rust` branch now includes a live-stable candidate layer for promoted full Rust authority installs. Use it after Rust supervisor/watchdog promotion and before trusting scheduler/auto-apply.
-
-```bash
-bash scripts/verify-rust-live-stable-candidate.sh
-bash scripts/rust-authority-live-soak-monitor.sh
-bash scripts/rust-authority-quarantine.sh status
-```
-
-The live-stable layer adds fail-closed quarantine, last-good snapshots, and read-only soak monitoring while preserving the Python WebUI and scheduler shell.
-
-
-## v7.8.0 Rust Set-and-Forget Candidate
-
-Adds transaction journal auditing, non-destructive rollback drill verification, set-and-forget readiness evidence, and a fail-closed runtime gate before promoted Rust full-authority production mutation.
-
-
-## v7.8.1 install/update alignment
-
-Canonical operator guides:
-
-- `docs/INSTALLATION_MATRIX.md` — install/update/uninstall matrix for bare metal, GitHub, ZIP, and Docker.
-- `docs/ZIP_INSTALL.md` — ZIP/local package install and update.
-- `docs/DOCKER_OPERATIONS.md` — Docker host-integrated install/update/uninstall.
-- `UNINSTALLATION.md` — safe removal and backup rules.
-
-Production-safe local install defaults:
-
-```bash
-sudo bash install-from-zip.sh
-# or
-sudo bash install-production-safe.sh
-```
-
-Both preserve existing LibreQoS files and avoid automatic service start unless `LQOSYNC_SERVICE_START_POLICY=restart` is explicitly set.
+## Documentation
+
+Start here:
+
+- `docs/PROJECT_CANONICAL_ARCHITECTURE.md`
+- `docs/FLASK_UI_SHELL.md`
+- `docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md`
+- `docs/INSTALLATION_MATRIX.md`
+- `docs/FULL_RUST_STABLE_OPERATIONS.md`
