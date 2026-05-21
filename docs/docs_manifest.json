@@ -66,5 +66,15 @@
     "file": "docs/lqosync_workflow_architecture.svg",
     "anchor": "workflow-architecture-svg",
     "summary": "Updated diagram showing Flask UI shell delegating to the Rust authority daemon, with the Python legacy scheduler loop removed."
+  },
+  "operator.troubleshooting": {
+    "title": "Operator Troubleshooting Guide",
+    "file": "docs/OPERATOR_TROUBLESHOOTING.md",
+    "summary": "Real-world operator error guide for Rust/Cargo, Git, rebase, service policy, and Python/main to lqosync-in-rust migration issues."
+  },
+  "release.v821_operator_troubleshooting_docs": {
+    "title": "v8.2.1 Operator Error Runbook",
+    "file": "docs/RUST_CORE_V821_OPERATOR_TROUBLESHOOTING_DOCS.md",
+    "summary": "Documents the v8.2.1 maintenance release adding operator troubleshooting for live migration errors."
   }
 }

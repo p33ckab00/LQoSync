@@ -26,3 +26,12 @@
 - Updated stable defaults so Python fallback flags are false by default across Rust handoff/authority settings.
 - Retained Flask WebUI as-is. This is not a Django or SaaS migration.
 - Clarified that remaining Python files are UI/diagnostic/compatibility shell files, not production mutation authority.
+
+
+## 2.152.1 - v8.2.1 Operator Troubleshooting Documentation
+
+- Added `docs/OPERATOR_TROUBLESHOOTING.md` with real-world fixes for missing Cargo, old Cargo/Cargo.lock v4, Git push rejection, non-fast-forward divergence, rebase conflict recovery, service `enable_only` behavior, and old Python/main to `lqosync-in-rust` migration.
+- Added `docs/RUST_CORE_V821_OPERATOR_TROUBLESHOOTING_DOCS.md` as the release runbook.
+- Added `scripts/verify-operator-troubleshooting-docs.sh`.
+- Updated README, installation, full documentation, package notes, documentation index, and docs manifest so operators know where to look when install/migration errors happen.
+- No runtime authority, Flask WebUI, Rust scheduler, or production mutation behavior changed.

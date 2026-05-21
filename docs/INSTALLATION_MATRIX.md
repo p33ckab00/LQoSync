@@ -78,3 +78,10 @@ sudo systemctl start lqosync
 ## Uninstall safety rule
 
 Uninstall scripts remove LQoSync runtime/service integration by default. They do **not** delete LibreQoS working files unless you explicitly remove them yourself.
+
+
+## Troubleshooting entry point
+
+For real-world install/migration errors, see [Operator Troubleshooting Guide](OPERATOR_TROUBLESHOOTING.md).
+
+Covered errors include missing Cargo, old Cargo/Cargo.lock v4, Git push rejection, non-fast-forward divergence, rebase conflict recovery, and old Python/main migration to `lqosync-in-rust`.

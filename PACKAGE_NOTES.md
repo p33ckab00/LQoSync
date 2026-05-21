@@ -29,3 +29,14 @@ python3 scripts/stable_release_check.py
 ## v8.2.0 Full Rust Daemon Boundary Cleanup
 
 This package removes the stale Python scheduler loop and aligns the workflow diagram/documentation to the stable journey: Rust authority daemon + Flask WebUI shell. Python remains only where required for UI, diagnostics, and compatibility transport. Production mutation fallback is disabled by default.
+
+
+## Operator troubleshooting
+
+If installation or migration fails, start with:
+
+```text
+docs/OPERATOR_TROUBLESHOOTING.md
+```
+
+It covers missing Cargo, old Cargo with `Cargo.lock` version 4, Git `fetch first` / `non-fast-forward`, rebase conflict recovery, production-safe `enable_only` service behavior, and old Python/main to `lqosync-in-rust` migration.

@@ -140,3 +140,14 @@ Canonical workflow diagram:
 ```text
 docs/lqosync_workflow_architecture.svg
 ```
+
+
+## Operator troubleshooting
+
+If installation or migration fails, start with:
+
+```text
+docs/OPERATOR_TROUBLESHOOTING.md
+```
+
+It covers missing Cargo, old Cargo with `Cargo.lock` version 4, Git `fetch first` / `non-fast-forward`, rebase conflict recovery, production-safe `enable_only` service behavior, and old Python/main to `lqosync-in-rust` migration.

@@ -26,6 +26,14 @@ No SaaS
 - [Bare Metal Install](../BARE_METAL_INSTALL.md)
 - [Uninstallation](../UNINSTALLATION.md)
 
+
+## Operator troubleshooting
+
+- [Operator Troubleshooting Guide](OPERATOR_TROUBLESHOOTING.md)
+- [v8.2.1 Operator Error Runbook](RUST_CORE_V821_OPERATOR_TROUBLESHOOTING_DOCS.md)
+
+Use these first when a live install/migration hits Rust/Cargo, Git, rebase, service-start, or old Python/main migration errors.
+
 ## Stable release checks
 
 ```bash
