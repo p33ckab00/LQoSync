@@ -1,3 +1,26 @@
+# v8.0.0 Stable Rust Backend Release
+
+LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+
+Canonical stable install:
+
+```bash
+sudo bash install-rust-stable-safe.sh
+```
+
+Stable verification:
+
+```bash
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+
+---
+
 
 ## Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard
 
@@ -175,8 +198,8 @@ sudo apt update
 sudo apt install -y docker.io docker-compose-plugin unzip
 sudo systemctl enable --now docker
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 openssl rand -hex 32
 nano compose.yaml
 sudo docker compose up -d --build
@@ -203,8 +226,8 @@ DOCKER_INSTALL.md
 sudo apt update
 sudo apt install -y unzip
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 sudo bash install.sh
 sudo systemctl status lqosync
 ```
@@ -232,7 +255,7 @@ Use this when installing directly from GitHub instead of a ZIP package.
 ```bash
 cd /opt
 git clone https://github.com/p33ckab00/LQoSync.git
-cd lqosync
+cd LQoSync
 ```
 
 ### Docker from Git
@@ -1010,11 +1033,11 @@ ls -ld /opt/libreqos/src
 
 ```bash
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 ```
 
-The folder name remains `lqos_docker` because the same package supports Docker and bare-metal installs.
+The canonical source/runtime folder is `/opt/LQoSync`. Older `lqos_docker` or `lqosync_docker` paths are legacy working-tree candidates and should be archived only through guarded cleanup scripts.
 
 ### 2. Choose file initialization policy
 
@@ -1808,8 +1831,8 @@ docker compose version
 
 ```bash
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 ```
 
 ### 4. Edit compose.yaml
@@ -2242,7 +2265,7 @@ Or try common tags:
 
 ```bash
 sudo docker image rm lqosync:latest 2>/dev/null || true
-sudo docker image rm lqosync:2.17-opt-lqosync 2>/dev/null || true
+sudo docker image rm lqosync:2.148.1-rc1 2>/dev/null || true
 ```
 
 ## 4. Optional: remove runtime folder

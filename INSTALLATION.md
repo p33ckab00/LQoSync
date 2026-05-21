@@ -1,6 +1,76 @@
+# v8.0.0 Stable Rust Backend Release
+
+LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+
+Canonical stable install:
+
+```bash
+sudo bash install-rust-stable-safe.sh
+```
+
+Stable verification:
+
+```bash
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+
+---
+
 # LQoSync Installation Options
 
+> **v7.8.1 canonical install/update note:** Use `/opt/LQoSync` as the application/runtime path and `/opt/libreqos/src` as the LibreQoS file path. For the complete matrix, see `docs/INSTALLATION_MATRIX.md`. For ZIP installs, use `install-from-zip.sh` / `update-from-zip.sh`. For Docker installs, use `install-docker.sh` / `update-docker.sh` / `uninstall-docker.sh`.
+
+
 > **Canonical path:** LQoSync installs and runs from `/opt/LQoSync`. LibreQoS remains under `/opt/libreqos`. Do not use a user-home directory as the documented install base.
+
+
+## Recommended live install paths
+
+### ZIP/local package
+
+```bash
+sudo apt update
+sudo apt install -y unzip rsync
+mkdir -p /tmp/lqosync-package
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip -d /tmp/lqosync-package
+cd /tmp/lqosync-package
+sudo bash install-from-zip.sh
+```
+
+### GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/install-from-github.sh -o /tmp/install-lqosync.sh
+sudo bash /tmp/install-lqosync.sh
+```
+
+### Docker host-integrated mode
+
+```bash
+cd /opt/LQoSync
+sudo bash install-docker.sh
+```
+
+### Update from ZIP
+
+```bash
+cd /tmp/lqosync-package
+sudo bash update-from-zip.sh
+```
+
+### Uninstall
+
+```bash
+cd /opt/LQoSync
+sudo bash uninstall.sh
+# Docker only:
+sudo bash uninstall-docker.sh
+```
 
 
 LQoSync can be installed in two ways:
@@ -52,8 +122,8 @@ sudo apt update
 sudo apt install -y docker.io docker-compose-plugin unzip
 sudo systemctl enable --now docker
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 openssl rand -hex 32
 nano compose.yaml
 sudo docker compose up -d --build
@@ -80,8 +150,8 @@ DOCKER_INSTALL.md
 sudo apt update
 sudo apt install -y unzip
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 sudo bash install.sh
 sudo systemctl status lqosync
 ```
@@ -117,7 +187,7 @@ Use this when installing directly from GitHub instead of a ZIP package.
 ```bash
 cd /opt
 git clone https://github.com/p33ckab00/LQoSync.git
-cd lqosync
+cd LQoSync
 ```
 
 ### Docker from Git

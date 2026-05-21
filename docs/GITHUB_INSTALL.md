@@ -1,5 +1,8 @@
 # GitHub Source Installation and Smart Update
 
+> **v7.8.1 canonical install/update note:** Use `/opt/LQoSync` as the application/runtime path and `/opt/libreqos/src` as the LibreQoS file path. For the complete matrix, see `docs/INSTALLATION_MATRIX.md`. For ZIP installs, use `install-from-zip.sh` / `update-from-zip.sh`. For Docker installs, use `install-docker.sh` / `update-docker.sh` / `uninstall-docker.sh`.
+
+
 LQoSync can be installed and updated directly from the GitHub repository without GitHub CLI (`gh`). The server only needs the normal `git` command and network access to GitHub.
 
 Repository:

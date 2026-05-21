@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LQoSync v2.70 Stable Release Candidate check.
+"""LQoSync v8.0.0 Rust Backend Stable Release check.
 
 Run before publishing a stable candidate or after update:
 
@@ -24,7 +24,7 @@ def main() -> int:
     if "--json" in sys.argv:
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0 if report["summary"].get("fail", 0) == 0 else 1
-    print("LQoSync Stable Release Candidate Check")
+    print("LQoSync Rust Backend Stable Release Check")
     print("=" * 43)
     print(f"Target: {report['target']}")
     print(f"Verdict: {report['verdict']}")

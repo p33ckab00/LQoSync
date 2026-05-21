@@ -1,3 +1,26 @@
+# v8.0.0 Stable Rust Backend Release
+
+LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+
+Canonical stable install:
+
+```bash
+sudo bash install-rust-stable-safe.sh
+```
+
+Stable verification:
+
+```bash
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+
+---
+
 
 ## v7.5.3 Stale Codebase Cleanup Execution Guard
 
@@ -798,3 +821,23 @@ The live-stable layer adds fail-closed quarantine, last-good snapshots, and read
 ## v7.8.0 Rust Set-and-Forget Candidate
 
 Adds transaction journal auditing, non-destructive rollback drill verification, set-and-forget readiness evidence, and a fail-closed runtime gate before promoted Rust full-authority production mutation.
+
+
+## v7.8.1 install/update alignment
+
+Canonical operator guides:
+
+- `docs/INSTALLATION_MATRIX.md` — install/update/uninstall matrix for bare metal, GitHub, ZIP, and Docker.
+- `docs/ZIP_INSTALL.md` — ZIP/local package install and update.
+- `docs/DOCKER_OPERATIONS.md` — Docker host-integrated install/update/uninstall.
+- `UNINSTALLATION.md` — safe removal and backup rules.
+
+Production-safe local install defaults:
+
+```bash
+sudo bash install-from-zip.sh
+# or
+sudo bash install-production-safe.sh
+```
+
+Both preserve existing LibreQoS files and avoid automatic service start unless `LQOSYNC_SERVICE_START_POLICY=restart` is explicitly set.

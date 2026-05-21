@@ -1,3 +1,13 @@
+## 2.150.0 - v8.0.0 Rust Backend Stable Cleanup
+
+- Declares the stable production backend authority as Rust-owned.
+- Sets stable defaults for Rust preflight, watchdog, live-stable, set-and-forget, quarantine, recovery, and transaction journal gates.
+- Disables silent Python mutation fallback by default with `python_mutation_fallback=false`.
+- Keeps Python only as Flask WebUI / scheduler / RouterOS transport compatibility shell.
+- Adds `install-rust-stable-safe.sh`, `scripts/verify-rust-stable-release-cleanup.sh`, and `scripts/rust-stable-codebase-cleanup-inventory.sh`.
+- Updates stable release checks from the old v2.70 RC target to the v8.0.0 Rust Backend Stable Release target.
+- Adds canonical stable operations and cleanup documentation.
+
 
 ## v2.145.3-rc1 - Rust Core v7.5.3 Stale Codebase Cleanup Execution Guard
 
@@ -2320,3 +2330,14 @@ Also aligns codebase/runtime path defaults and operator-facing repair/update com
 - Added `scripts/verify-rust-set-and-forget-candidate.sh`.
 - Added fail-closed runtime status `rust_set_and_forget_gate_failed`.
 - Promotion now writes set-and-forget readiness evidence after watchdog, recovery bundle, live-soak, journal audit, and rollback drill checks pass.
+
+
+## 2.148.1-rc1 - v7.8.1 Install / Update / Uninstall Alignment
+
+- Added canonical install/update/uninstall matrix for bare metal, GitHub, ZIP, and Docker deployment paths.
+- Added explicit ZIP wrappers: `install-from-zip.sh` and `update-from-zip.sh`.
+- Added Docker operation wrappers: `install-docker.sh`, `update-docker.sh`, and `uninstall-docker.sh`.
+- Updated installer/update behavior so production-safe wrappers preserve existing LibreQoS files and avoid automatic service start by default.
+- Fixed upgrade service-active validation to respect `LQOSYNC_SERVICE_START_POLICY=enable_only|leave_stopped`.
+- Updated sudoers generation to use the configured LibreQoS source path instead of hard-coding `/opt/libreqos/src`.
+- Added `scripts/verify-install-update-uninstall-alignment.sh` to validate documentation and script alignment.

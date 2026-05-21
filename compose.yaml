@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: lqosync:2.17-install-path
+    image: lqosync:2.148.1-rc1
     container_name: lqosync
     restart: unless-stopped
 
@@ -28,9 +28,9 @@ services:
       HOST_PYTHON: "/usr/bin/python3"
       NSENTER_BIN: "/usr/bin/nsenter"
 
-      # Default follows your requested policy: if config/network/CSV exist, back them up then overwrite.
-      # Sa live system, change to preserve_existing kung ayaw mong palitan current files.
-      LQOSYNC_INIT_POLICY: "overwrite_with_backup"
+      # Production-safe default: preserve existing live LibreQoS files.
+      # For lab/factory reset only, change to overwrite_with_backup.
+      LQOSYNC_INIT_POLICY: "preserve_existing"
 
     volumes:
       # LibreQoS managed files. LQoSync reads/writes config.json, ShapedDevices.csv, network.json here.

@@ -128,7 +128,11 @@ case "$POLICY" in
     "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
     chown -R lqosync:lqosync "$INSTALL_DIR" 2>/dev/null || true
     systemctl daemon-reload
-    systemctl start "$SERVICE_NAME"
+    case "$SERVICE_START_POLICY" in
+      restart) systemctl enable "$SERVICE_NAME"; systemctl restart "$SERVICE_NAME" ;;
+      enable_only) systemctl enable "$SERVICE_NAME"; log "Service enabled but not started/restarted by policy." ;;
+      leave_stopped) systemctl disable "$SERVICE_NAME" 2>/dev/null || true; systemctl stop "$SERVICE_NAME" 2>/dev/null || true; log "Service left stopped by policy." ;;
+    esac
     ;;
 
   preserve_and_migrate|refresh_with_backup)
@@ -162,11 +166,15 @@ cat > "$SUMMARY" <<JSON
 JSON
 
 if [ "$POLICY" != "pull_only" ]; then
-  if systemctl is-active --quiet "$SERVICE_NAME"; then
-    log "Service is active after update."
+  if [ "$SERVICE_START_POLICY" = "restart" ]; then
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+      log "Service is active after update."
+    else
+      log "WARNING: Service is not active after update. Check: journalctl -u $SERVICE_NAME -n 100 --no-pager"
+      exit 1
+    fi
   else
-    log "WARNING: Service is not active after update. Check: journalctl -u $SERVICE_NAME -n 100 --no-pager"
-    exit 1
+    log "Service active check skipped because LQOSYNC_SERVICE_START_POLICY=$SERVICE_START_POLICY."
   fi
 fi
 

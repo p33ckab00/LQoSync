@@ -328,10 +328,14 @@ case "$action" in
     ;;
 esac
 
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-  log "$SERVICE_NAME is active."
+if [ "$SERVICE_START_POLICY" = "restart" ]; then
+  if systemctl is-active --quiet "$SERVICE_NAME"; then
+    log "$SERVICE_NAME is active."
+  else
+    warn "$SERVICE_NAME is not active. Check: journalctl -u $SERVICE_NAME -n 100 --no-pager"
+  fi
 else
-  warn "$SERVICE_NAME is not active. Check: journalctl -u $SERVICE_NAME -n 100 --no-pager"
+  log "Service active check skipped because LQOSYNC_SERVICE_START_POLICY=$SERVICE_START_POLICY."
 fi
 
 write_summary "$action" "ok"

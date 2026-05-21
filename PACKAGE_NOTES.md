@@ -1,3 +1,26 @@
+# v8.0.0 Stable Rust Backend Release
+
+LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+
+Canonical stable install:
+
+```bash
+sudo bash install-rust-stable-safe.sh
+```
+
+Stable verification:
+
+```bash
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+
+---
+
 
 ## v2.145.3-rc1 Package Notes
 
@@ -597,3 +620,8 @@ This package adds the Rust Live Stable Candidate layer. It introduces a non-dest
 ## v7.8.0 Rust Set-and-Forget Candidate
 
 Adds transaction journal auditing, non-destructive rollback drill verification, set-and-forget readiness evidence, and a fail-closed runtime gate before promoted Rust full-authority production mutation.
+
+
+## v7.8.1 package notes
+
+This package aligns documentation and operational scripts around the current production architecture. Use `/opt/LQoSync` as the canonical app path, `/opt/libreqos/src` as the LibreQoS file path, and the explicit wrappers for ZIP/GitHub/Docker install and update flows. Core runtime behavior is unchanged except for safer install/update script handling.

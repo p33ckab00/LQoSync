@@ -87,24 +87,24 @@ DEFAULT_CONFIG = {
         "full_rust_backend_authority": True,
         "python_mutation_fallback": False,
         "full_rust_authority_supervisor_enabled": True,
-        "require_rust_authority_preflight": False,
+        "require_rust_authority_preflight": True,
         "fail_closed_on_authority_preflight_failure": True,
         "rust_authority_preflight_stamp": "/opt/LQoSync/state/rust_authority_preflight.json",
         "rust_authority_preflight_max_age_seconds": 900,
-        "rust_authority_watchdog_enabled": False,
+        "rust_authority_watchdog_enabled": True,
         "fail_closed_on_authority_watchdog_failure": True,
         "rust_authority_watchdog_require_fresh_preflight": True,
         "rust_authority_watchdog_max_preflight_age_seconds": 900,
         "rust_authority_watchdog_require_recovery_bundle": True,
         "rust_authority_watchdog_require_transaction_journal_path": True,
-        "rust_live_stable_candidate_enabled": False,
+        "rust_live_stable_candidate_enabled": True,
         "rust_live_stable_fail_closed": True,
         "rust_live_stable_require_watchdog": True,
         "rust_live_stable_require_recovery_bundle": True,
-        "rust_live_stable_require_last_good_snapshot": False,
+        "rust_live_stable_require_last_good_snapshot": True,
         "rust_live_stable_max_recent_failures": 0,
         "rust_live_stable_min_successful_cycles": 0,
-        "rust_set_and_forget_candidate_enabled": False,
+        "rust_set_and_forget_candidate_enabled": True,
         "rust_set_and_forget_fail_closed": True,
         "rust_set_and_forget_require_live_soak_monitor": True,
         "rust_set_and_forget_require_journal_audit": True,
@@ -112,7 +112,7 @@ DEFAULT_CONFIG = {
         "rust_set_and_forget_require_last_good_snapshot": True,
         "rust_set_and_forget_readiness_evidence": "/opt/LQoSync/state/rust_set_and_forget_readiness.json",
         "rust_set_and_forget_max_evidence_age_seconds": 1800,
-        "rust_authority_quarantine_enabled": False,
+        "rust_authority_quarantine_enabled": True,
         "rust_authority_auto_quarantine_on_failure": True,
         "rust_authority_quarantine_state": "/opt/LQoSync/state/rust_authority_quarantine.json",
         "rust_authority_last_good_snapshot_dir": "/opt/LQoSync/state/rust_authority_last_good",
@@ -133,6 +133,11 @@ DEFAULT_CONFIG = {
         "require_rust_authoritative_transaction": True,
         "collector_output_authority": "rust_validate_all",
         "require_collector_rust_validation": True,
+        "rust_stable_release": True,
+        "rust_stable_release_version": "v8.0.0",
+        "python_runtime_role": "webui_scheduler_shell_only",
+        "python_backend_authority_removed": True,
+        "legacy_python_mutation_cleanup_complete": True,
         "routeros_transport_authority": "plan_only",
         "allow_rust_routeros_live_reads": False,
         "allow_rust_routeros_credentials": False,
@@ -965,24 +970,24 @@ def validate_config(cfg: dict):
     rust_core.setdefault("full_rust_backend_authority", True)
     rust_core.setdefault("python_mutation_fallback", False)
     rust_core.setdefault("full_rust_authority_supervisor_enabled", True)
-    rust_core.setdefault("require_rust_authority_preflight", False)
+    rust_core.setdefault("require_rust_authority_preflight", True)
     rust_core.setdefault("fail_closed_on_authority_preflight_failure", True)
     rust_core.setdefault("rust_authority_preflight_stamp", "/opt/LQoSync/state/rust_authority_preflight.json")
     rust_core.setdefault("rust_authority_preflight_max_age_seconds", 900)
-    rust_core.setdefault("rust_authority_watchdog_enabled", False)
+    rust_core.setdefault("rust_authority_watchdog_enabled", True)
     rust_core.setdefault("fail_closed_on_authority_watchdog_failure", True)
     rust_core.setdefault("rust_authority_watchdog_require_fresh_preflight", True)
     rust_core.setdefault("rust_authority_watchdog_max_preflight_age_seconds", 900)
     rust_core.setdefault("rust_authority_watchdog_require_recovery_bundle", True)
     rust_core.setdefault("rust_authority_watchdog_require_transaction_journal_path", True)
-    rust_core.setdefault("rust_live_stable_candidate_enabled", False)
+    rust_core.setdefault("rust_live_stable_candidate_enabled", True)
     rust_core.setdefault("rust_live_stable_fail_closed", True)
     rust_core.setdefault("rust_live_stable_require_watchdog", True)
     rust_core.setdefault("rust_live_stable_require_recovery_bundle", True)
-    rust_core.setdefault("rust_live_stable_require_last_good_snapshot", False)
+    rust_core.setdefault("rust_live_stable_require_last_good_snapshot", True)
     rust_core.setdefault("rust_live_stable_max_recent_failures", 0)
     rust_core.setdefault("rust_live_stable_min_successful_cycles", 0)
-    rust_core.setdefault("rust_set_and_forget_candidate_enabled", False)
+    rust_core.setdefault("rust_set_and_forget_candidate_enabled", True)
     rust_core.setdefault("rust_set_and_forget_fail_closed", True)
     rust_core.setdefault("rust_set_and_forget_require_live_soak_monitor", True)
     rust_core.setdefault("rust_set_and_forget_require_journal_audit", True)
@@ -990,7 +995,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("rust_set_and_forget_require_last_good_snapshot", True)
     rust_core.setdefault("rust_set_and_forget_readiness_evidence", "/opt/LQoSync/state/rust_set_and_forget_readiness.json")
     rust_core.setdefault("rust_set_and_forget_max_evidence_age_seconds", 1800)
-    rust_core.setdefault("rust_authority_quarantine_enabled", False)
+    rust_core.setdefault("rust_authority_quarantine_enabled", True)
     rust_core.setdefault("rust_authority_auto_quarantine_on_failure", True)
     rust_core.setdefault("rust_authority_quarantine_state", "/opt/LQoSync/state/rust_authority_quarantine.json")
     rust_core.setdefault("rust_authority_last_good_snapshot_dir", "/opt/LQoSync/state/rust_authority_last_good")
@@ -1012,6 +1017,11 @@ def validate_config(cfg: dict):
     rust_core.setdefault("require_rust_authoritative_transaction", True)
     rust_core.setdefault("collector_output_authority", "rust_validate_all")
     rust_core.setdefault("require_collector_rust_validation", True)
+    rust_core.setdefault("rust_stable_release", True)
+    rust_core.setdefault("rust_stable_release_version", "v8.0.0")
+    rust_core.setdefault("python_runtime_role", "webui_scheduler_shell_only")
+    rust_core.setdefault("python_backend_authority_removed", True)
+    rust_core.setdefault("legacy_python_mutation_cleanup_complete", True)
     rust_core.setdefault("routeros_transport_authority", "plan_only")
     rust_core.setdefault("allow_rust_routeros_live_reads", False)
     rust_core.setdefault("allow_rust_routeros_credentials", False)

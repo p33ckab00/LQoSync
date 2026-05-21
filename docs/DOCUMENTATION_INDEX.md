@@ -360,3 +360,17 @@ Adds `evaluate-collector-authority-pilot-result`, a fail-safe evaluator for futu
 ## v7.8.0 Rust Set-and-Forget Candidate
 
 - [Rust Core v7.8.0 Set-and-Forget Candidate](RUST_CORE_V780_SET_AND_FORGET_CANDIDATE.md)
+
+
+## v7.8.1 Install / Update / Uninstall Alignment
+
+- [Installation Matrix](INSTALLATION_MATRIX.md)
+- [ZIP Install and Update Guide](ZIP_INSTALL.md)
+- [Docker Operations Guide](DOCKER_OPERATIONS.md)
+- [Rust Core v7.8.1 Install Update Uninstall Alignment](RUST_CORE_V781_INSTALL_UPDATE_UNINSTALL_ALIGNMENT.md)
+
+## v8.0.0 Rust Backend Stable Cleanup
+
+- [Rust Backend Stable Cleanup](RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md)
+- [Full Rust Stable Operations Guide](FULL_RUST_STABLE_OPERATIONS.md)
+

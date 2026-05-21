@@ -5,8 +5,8 @@ set -euo pipefail
 # Defaults are safe: stop/remove service + sudoers, restore LibreQoS ACL/ownership
 # for managed files, and keep /opt/LQoSync as a backup source unless REMOVE_RUNTIME=true.
 
-INSTALL_DIR="${INSTALL_DIR:-/opt/LQoSync}"
-SERVICE_NAME="${SERVICE_NAME:-lqosync}"
+INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-${INSTALL_DIR:-/opt/LQoSync}}"
+SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-${SERVICE_NAME:-lqosync}}"
 RESTORE_LIBREQOS_PERMS="${RESTORE_LIBREQOS_PERMS:-true}"
 RESTORE_MODE="${RESTORE_MODE:-managed}" # managed or full
 REMOVE_RUNTIME="${REMOVE_RUNTIME:-false}"
@@ -26,7 +26,7 @@ rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
 systemctl daemon-reload || true
 systemctl reset-failed || true
 
-rm -f /etc/sudoers.d/lqosync /etc/sudoers.d/lqosync
+rm -f /etc/sudoers.d/lqosync
 
 if [[ "$RESTORE_LIBREQOS_PERMS" == "true" ]]; then
   if [[ -x "$INSTALL_DIR/scripts/restore_libreqos_permissions.sh" ]]; then
@@ -76,4 +76,4 @@ if [[ "$REMOVE_USER" == "true" ]]; then
   echo "[LQoSync] Removed user $LQOSYNC_USER"
 fi
 
-echo "[LQoSync] Uninstall complete."
+echo "[LQoSync] Uninstall complete. LibreQoS working files were preserved unless you removed them manually."

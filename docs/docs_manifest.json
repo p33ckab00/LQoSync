@@ -1034,5 +1034,41 @@
     "file": "docs/RUST_CORE_V780_SET_AND_FORGET_CANDIDATE.md",
     "anchor": "v780-set-and-forget-candidate",
     "summary": "Adds journal audit, rollback drill, set-and-forget readiness evidence, and a fail-closed runtime gate for promoted Rust authority deployments."
+  },
+  "install.installation_matrix": {
+    "title": "Installation / Update / Uninstall Matrix",
+    "file": "docs/INSTALLATION_MATRIX.md",
+    "anchor": "lqosync-installation-update-uninstall-matrix",
+    "summary": "Canonical deployment matrix for bare metal, GitHub, ZIP, Docker, update, and uninstall paths."
+  },
+  "install.zip_install": {
+    "title": "ZIP Install and Update Guide",
+    "file": "docs/ZIP_INSTALL.md",
+    "anchor": "zip-install-and-update-guide",
+    "summary": "Explicit local ZIP installation and update workflow using install-from-zip.sh and update-from-zip.sh."
+  },
+  "install.docker_operations": {
+    "title": "Docker Operations Guide",
+    "file": "docs/DOCKER_OPERATIONS.md",
+    "anchor": "docker-operations-guide",
+    "summary": "Host-integrated Docker install, update, and uninstall workflow."
+  },
+  "rust.core_v781_install_update_uninstall_alignment": {
+    "title": "Rust Core v7.8.1 Install Update Uninstall Alignment",
+    "file": "docs/RUST_CORE_V781_INSTALL_UPDATE_UNINSTALL_ALIGNMENT.md",
+    "anchor": "v781-install-update-uninstall-alignment",
+    "summary": "Maintenance release notes for aligned documentation and operational wrappers."
+  },
+  "rust.core_v800_stable_cleanup": {
+    "title": "Rust Core v8.0.0 Stable Backend Cleanup",
+    "file": "docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md",
+    "anchor": "v800-stable-rust-backend-cleanup",
+    "summary": "Defines stable Rust backend authority, Python shell-only boundary, and cleanup verification."
+  },
+  "install.full_rust_stable_operations": {
+    "title": "Full Rust Stable Operations Guide",
+    "file": "docs/FULL_RUST_STABLE_OPERATIONS.md",
+    "anchor": "full-rust-stable-operations-guide",
+    "summary": "Canonical stable install, update, Docker, cleanup, and protected-path guidance."
   }
 }

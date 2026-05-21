@@ -516,7 +516,11 @@
     "require_regression_check": true,
     "require_release_check": true,
     "require_stable_release_check": true,
-    "target": "v2.70 Stable Release Candidate"
+    "target": "v8.0.0 Rust Backend Stable Release",
+    "rust_backend_stable": true,
+    "python_backend_authority_removed": true,
+    "python_runtime_role": "webui_scheduler_shell_only",
+    "require_rust_stable_cleanup_check": true
   },
   "topology": {
     "allow_custom_edit": true,
@@ -937,7 +941,7 @@
     "collector_output_authority": "rust_validate_all",
     "require_collector_rust_validation": true,
     "full_rust_authority_supervisor_enabled": true,
-    "require_rust_authority_preflight": false,
+    "require_rust_authority_preflight": true,
     "fail_closed_on_authority_preflight_failure": true,
     "rust_authority_preflight_stamp": "/opt/LQoSync/state/rust_authority_preflight.json",
     "rust_authority_preflight_max_age_seconds": 900,
@@ -945,20 +949,20 @@
     "rust_authority_recovery_bundle_dir": "/opt/LQoSync/state/rust_authority_recovery",
     "rust_authority_recovery_bundle_before_promotion": true,
     "rust_authority_supervisor_mode": "operator_supervised",
-    "rust_authority_watchdog_enabled": false,
+    "rust_authority_watchdog_enabled": true,
     "fail_closed_on_authority_watchdog_failure": true,
     "rust_authority_watchdog_require_fresh_preflight": true,
     "rust_authority_watchdog_max_preflight_age_seconds": 900,
     "rust_authority_watchdog_require_recovery_bundle": true,
     "rust_authority_watchdog_require_transaction_journal_path": true,
-    "rust_live_stable_candidate_enabled": false,
+    "rust_live_stable_candidate_enabled": true,
     "rust_live_stable_fail_closed": true,
     "rust_live_stable_require_watchdog": true,
     "rust_live_stable_require_recovery_bundle": true,
-    "rust_live_stable_require_last_good_snapshot": false,
+    "rust_live_stable_require_last_good_snapshot": true,
     "rust_live_stable_max_recent_failures": 0,
     "rust_live_stable_min_successful_cycles": 0,
-    "rust_set_and_forget_candidate_enabled": false,
+    "rust_set_and_forget_candidate_enabled": true,
     "rust_set_and_forget_fail_closed": true,
     "rust_set_and_forget_require_live_soak_monitor": true,
     "rust_set_and_forget_require_journal_audit": true,
@@ -966,7 +970,7 @@
     "rust_set_and_forget_require_last_good_snapshot": true,
     "rust_set_and_forget_readiness_evidence": "/opt/LQoSync/state/rust_set_and_forget_readiness.json",
     "rust_set_and_forget_max_evidence_age_seconds": 1800,
-    "rust_authority_quarantine_enabled": false,
+    "rust_authority_quarantine_enabled": true,
     "rust_authority_auto_quarantine_on_failure": true,
     "rust_authority_quarantine_state": "/opt/LQoSync/state/rust_authority_quarantine.json",
     "rust_authority_last_good_snapshot_dir": "/opt/LQoSync/state/rust_authority_last_good",
@@ -978,7 +982,14 @@
       "rust_full_authority_file_write_not_executed",
       "rust_full_authority_libreqos_apply_not_executed",
       "libreqos_failed",
-      "rust_set_and_forget_gate_failed"
-    ]
+      "rust_set_and_forget_gate_failed",
+      "rust_live_stable_gate_failed",
+      "rust_stable_release_gate_failed"
+    ],
+    "rust_stable_release": true,
+    "rust_stable_release_version": "v8.0.0",
+    "python_runtime_role": "webui_scheduler_shell_only",
+    "python_backend_authority_removed": true,
+    "legacy_python_mutation_cleanup_complete": true
   }
 }

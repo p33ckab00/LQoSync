@@ -1,4 +1,30 @@
+# v8.0.0 Stable Rust Backend Release
+
+LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+
+Canonical stable install:
+
+```bash
+sudo bash install-rust-stable-safe.sh
+```
+
+Stable verification:
+
+```bash
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+
+---
+
 # GitHub Source Installation and Smart Update
+
+> **v7.8.1 canonical install/update note:** Use `/opt/LQoSync` as the application/runtime path and `/opt/libreqos/src` as the LibreQoS file path. For the complete matrix, see `docs/INSTALLATION_MATRIX.md`. For ZIP installs, use `install-from-zip.sh` / `update-from-zip.sh`. For Docker installs, use `install-docker.sh` / `update-docker.sh` / `uninstall-docker.sh`.
+
 
 LQoSync can be installed and updated directly from the GitHub repository without GitHub CLI (`gh`). The server only needs the normal `git` command and network access to GitHub.
 

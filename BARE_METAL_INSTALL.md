@@ -1,4 +1,30 @@
+# v8.0.0 Stable Rust Backend Release
+
+LQoSync is now packaged as a Rust-backend-authoritative stable release. Rust owns validation, sync-plan enforcement, generated file writes, LibreQoS apply, transaction journal, readiness gates, and quarantine. Python remains only as the WebUI/scheduler compatibility shell; Python mutation fallback is disabled in stable authority mode.
+
+Canonical stable install:
+
+```bash
+sudo bash install-rust-stable-safe.sh
+```
+
+Stable verification:
+
+```bash
+bash scripts/verify-rust-stable-release-cleanup.sh
+python3 scripts/release_check.py
+python3 scripts/regression_check.py
+python3 scripts/stable_release_check.py
+```
+
+See `docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md` and `docs/FULL_RUST_STABLE_OPERATIONS.md`.
+
+---
+
 # LQoSync Bare-Metal Ubuntu Installation Guide
+
+> **v7.8.1 canonical install/update note:** Use `/opt/LQoSync` as the application/runtime path and `/opt/libreqos/src` as the LibreQoS file path. For the complete matrix, see `docs/INSTALLATION_MATRIX.md`. For ZIP installs, use `install-from-zip.sh` / `update-from-zip.sh`. For Docker installs, use `install-docker.sh` / `update-docker.sh` / `uninstall-docker.sh`.
+
 
 > **Canonical path:** LQoSync installs and runs from `/opt/LQoSync`. LibreQoS remains under `/opt/libreqos`. Do not use a user-home directory as the documented install base.
 
@@ -100,11 +126,11 @@ ls -ld /opt/libreqos/src
 
 ```bash
 cd /opt
-unzip LQoSync_v2_17_opt_lqosync.zip
-cd lqos_docker
+unzip LQoSync_runtime_canonical_FULL_rust_core_<version>.zip
+cd /tmp/lqosync-package
 ```
 
-The folder name remains `lqos_docker` because the same package supports Docker and bare-metal installs.
+The canonical source/runtime folder is `/opt/LQoSync`. Older `lqos_docker` or `lqosync_docker` paths are legacy working-tree candidates and should be archived only through guarded cleanup scripts.
 
 ### 2. Choose file initialization policy
 

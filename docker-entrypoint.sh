@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/app"
-DATA_DIR="/opt/LQoSync"
-LIBREQOS_SRC_DIR="/opt/libreqos/src"
+APP_DIR="${LQOSYNC_APP_DIR:-/app}"
+DATA_DIR="${LQOSYNC_DATA_DIR:-/opt/LQoSync}"
+LIBREQOS_SRC_DIR="${LIBREQOS_SRC_DIR:-${LIBREQOS_SRC:-/opt/libreqos/src}}"
 CONFIG_PATH="${CONFIG_PATH:-$LIBREQOS_SRC_DIR/config.json}"
 SHAPED_DEVICES_PATH="${SHAPED_DEVICES_PATH:-$LIBREQOS_SRC_DIR/ShapedDevices.csv}"
 NETWORK_JSON_PATH="${NETWORK_JSON_PATH:-$LIBREQOS_SRC_DIR/network.json}"

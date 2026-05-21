@@ -1,5 +1,8 @@
 # Upgrade Guide
 
+> **v7.8.1 canonical install/update note:** Use `/opt/LQoSync` as the application/runtime path and `/opt/libreqos/src` as the LibreQoS file path. For the complete matrix, see `docs/INSTALLATION_MATRIX.md`. For ZIP installs, use `install-from-zip.sh` / `update-from-zip.sh`. For Docker installs, use `install-docker.sh` / `update-docker.sh` / `uninstall-docker.sh`.
+
+
 ## Safety rule
 
 LQoSync updates should refresh application code and safe missing defaults without replacing operator-owned production files. Existing `/opt/libreqos/src/config.json`, `ShapedDevices.csv`, and `network.json` must be backed up first and preserved by default.

@@ -313,7 +313,7 @@ EOF2
 SYSTEMCTL_BIN="$(command -v systemctl || echo /bin/systemctl)"
 PYTHON_BIN="$(command -v python3 || echo /usr/bin/python3)"
 cat > /etc/sudoers.d/lqosync <<EOF2
-$USER_NAME ALL=(ALL) NOPASSWD: $PYTHON_BIN /opt/libreqos/src/LibreQoS.py --updateonly
+$USER_NAME ALL=(ALL) NOPASSWD: $PYTHON_BIN $LIBREQOS_SRC_DIR/LibreQoS.py --updateonly
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_scheduler
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_node_manager
@@ -322,6 +322,9 @@ $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd lqos_scheduler
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd lqos_scheduler lqos_node_manager
 EOF2
 chmod 440 /etc/sudoers.d/lqosync
+if command -v visudo >/dev/null 2>&1; then
+  visudo -cf /etc/sudoers.d/lqosync >/dev/null || { echo "[LQoSync] ERROR: generated sudoers file failed validation"; exit 1; }
+fi
 
 if systemctl is-active --quiet updatecsv.service; then
   echo "[LQoSync] WARNING: updatecsv.service is active. Disable it before enabling LQoSync scheduler:"
