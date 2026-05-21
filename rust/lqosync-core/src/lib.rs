@@ -5,6 +5,8 @@
 //! validation behind a stable JSON protocol that can be used by both a CLI and a
 //! future Unix socket daemon.
 
+#![recursion_limit = "256"]
+
 pub mod atomic_state;
 pub mod apply_manifest;
 pub mod apply_transaction;

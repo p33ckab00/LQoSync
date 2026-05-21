@@ -16,7 +16,7 @@ It combines:
 run_cycle Rust-shadow report
 + collector authority dry-run bundle
 + parity result
-+ successful shadow-cycle count
++ successful shadow-cycle count or supplied live-read shadow history
 + explicit activation gates
 + Python fallback requirement
 ```
@@ -64,6 +64,21 @@ The operation always reports:
 }
 ```
 
+`successful_shadow_cycles` may be supplied directly, read from config, or
+derived from shadow history arrays:
+
+```text
+run_cycle_shadow_history
+live_read_shadow_history
+shadow_history
+successful_shadow_history
+```
+
+An entry counts as successful when it is a ready run-cycle shadow report with
+`rust_shadow_ready=true` or `live_read_shadow_ready=true` and parity passed.
+This lets repeated live-read shadow parity evidence satisfy the activation
+cycle gate without transferring production collector authority.
+
 ## Status values
 
 ```text
@@ -88,7 +103,7 @@ curl "http://YOUR-LQOSYNC/api/rust-core/collector-authority-activation-plan?sour
 
 ## Why this phase exists
 
-The previous phase proved that Python `run_cycle` can carry a Rust-shadow report. v4.0 turns that diagnostic report into an explicit activation plan so operators can see whether Rust collector authority is eligible for a pilot before any live switch is allowed.
+The previous phase proved that Python `run_cycle` can carry a Rust-shadow report. v4.0 turns that diagnostic report and repeated shadow history into an explicit activation plan so operators can see whether Rust collector authority is eligible for a pilot before any live switch is allowed.
 
 ## Not full Rust backend yet
 

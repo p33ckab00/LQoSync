@@ -84,3 +84,7 @@ blocked
 records live-read shadow status fields beside the authoritative Python cycle.
 The next step is persisting repeated clean live-read shadow cycles before any
 collector authority handoff.
+
+`build-collector-authority-activation-plan` now accepts those repeated cycles
+through `live_read_shadow_history` or `run_cycle_shadow_history` and derives the
+successful shadow-cycle count from parity-passing entries.

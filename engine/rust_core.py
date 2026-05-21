@@ -3075,10 +3075,35 @@ def _python_build_collector_authority_activation_plan(payload: dict[str, Any], *
     mode = str(rust_core.get("collector_authority_activation_mode") or "shadow_only")
     require_fallback = rust_core.get("collector_authority_require_python_fallback", True) is not False
     required_cycles = int(rust_core.get("collector_authority_min_shadow_cycles") or 3)
-    successful_cycles = int(payload.get("successful_shadow_cycles") or rust_core.get("collector_authority_successful_shadow_cycles") or 0)
-    report_resp = _python_build_run_cycle_rust_shadow_report(payload, started=started)
-    report = report_resp.get("result") if isinstance(report_resp.get("result"), dict) else {}
-    rust_shadow_ready = bool(report.get("rust_shadow_ready")) and report.get("status") == "run_cycle_rust_shadow_ready"
+    configured_successful_cycles = int(payload.get("successful_shadow_cycles") or rust_core.get("collector_authority_successful_shadow_cycles") or 0)
+    history = []
+    for key in ("run_cycle_shadow_history", "live_read_shadow_history", "shadow_history", "successful_shadow_history"):
+        if isinstance(payload.get(key), list):
+            history = [item for item in payload.get(key) if isinstance(item, dict)]
+            break
+    def _parity_pass(item: dict[str, Any]) -> bool:
+        verdict = item.get("parity_verdict") or item.get("live_read_shadow_parity_verdict") or item.get("dry_run_parity_verdict")
+        if not verdict and isinstance(item.get("parity"), dict):
+            verdict = item["parity"].get("verdict")
+        return str(verdict or "") == "parity_pass"
+    def _history_success(item: dict[str, Any]) -> bool:
+        status = str(item.get("status") or "")
+        live_ready = bool(item.get("live_read_shadow_ready")) or status == "live_read_shadow_parity_pass"
+        dry_ready = bool(item.get("rust_shadow_ready"))
+        return ((status == "run_cycle_rust_shadow_ready" and (live_ready or dry_ready)) or live_ready) and _parity_pass(item)
+    shadow_history_successful_count = sum(1 for item in history if _history_success(item))
+    successful_cycles = max(configured_successful_cycles, shadow_history_successful_count)
+    supplied_report = payload.get("run_cycle_rust_shadow_report") if isinstance(payload.get("run_cycle_rust_shadow_report"), dict) else {}
+    if isinstance(supplied_report.get("result"), dict):
+        supplied_report = supplied_report.get("result") or {}
+    if supplied_report:
+        report = supplied_report
+    else:
+        report_resp = _python_build_run_cycle_rust_shadow_report(payload, started=started)
+        report = report_resp.get("result") if isinstance(report_resp.get("result"), dict) else {}
+    dry_run_shadow_ready = bool(report.get("rust_shadow_ready"))
+    live_read_shadow_ready = bool(report.get("live_read_shadow_ready"))
+    rust_shadow_ready = (dry_run_shadow_ready or live_read_shadow_ready) and report.get("status") == "run_cycle_rust_shadow_ready"
     errors = []
     warnings = []
     if payload.get("execute") or str(payload.get("mode") or "plan") in {"execute", "promote", "switch", "authority", "apply", "production"}:
@@ -3106,11 +3131,19 @@ def _python_build_collector_authority_activation_plan(payload: dict[str, Any], *
             "require_python_fallback": require_fallback,
             "required_shadow_cycles": required_cycles,
             "successful_shadow_cycles": successful_cycles,
+            "configured_successful_shadow_cycles": configured_successful_cycles,
+            "shadow_history_count": len(history),
+            "shadow_history_successful_count": shadow_history_successful_count,
             "shadow_cycles_ok": successful_cycles >= required_cycles,
             "run_cycle_shadow_status": report.get("status"),
             "rust_shadow_ready": rust_shadow_ready,
+            "dry_run_shadow_ready": dry_run_shadow_ready,
+            "live_read_shadow_ready": live_read_shadow_ready,
             "python_row_count": report.get("python_row_count", 0),
             "rust_row_count": report.get("rust_row_count", 0),
+            "live_read_shadow_row_count": report.get("live_read_shadow_row_count", 0),
+            "parity_verdict": report.get("parity_verdict", "not_available"),
+            "live_read_shadow_parity_verdict": report.get("live_read_shadow_parity_verdict", "not_run"),
             "run_cycle_rust_shadow_report": report,
             "full_rust_backend": False,
             "production_collector_authority_switched": False,

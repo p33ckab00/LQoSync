@@ -30,6 +30,50 @@ fn activation_id(value: &Value) -> String {
     format!("cap-{}", &digest[..16])
 }
 
+fn history_entries(payload: &Value) -> Vec<Value> {
+    for key in [
+        "run_cycle_shadow_history",
+        "live_read_shadow_history",
+        "shadow_history",
+        "successful_shadow_history",
+    ] {
+        if let Some(items) = payload.get(key).and_then(Value::as_array) {
+            return items.iter().filter(|v| v.is_object()).cloned().collect();
+        }
+    }
+    Vec::new()
+}
+
+fn parity_pass(value: &Value) -> bool {
+    value
+        .get("parity_verdict")
+        .or_else(|| value.get("live_read_shadow_parity_verdict"))
+        .or_else(|| value.get("dry_run_parity_verdict"))
+        .and_then(Value::as_str)
+        .map(|s| s == "parity_pass")
+        .unwrap_or_else(|| {
+            value
+                .get("parity")
+                .and_then(|v| v.get("verdict"))
+                .and_then(Value::as_str)
+                == Some("parity_pass")
+        })
+}
+
+fn entry_successful(value: &Value) -> bool {
+    let status = value.get("status").and_then(Value::as_str).unwrap_or("");
+    let live_ready = value.get("live_read_shadow_ready").and_then(Value::as_bool).unwrap_or(false)
+        || status == "live_read_shadow_parity_pass";
+    let dry_ready = value.get("rust_shadow_ready").and_then(Value::as_bool).unwrap_or(false);
+    (status == "run_cycle_rust_shadow_ready" && (live_ready || dry_ready) && parity_pass(value))
+        || (live_ready && parity_pass(value))
+}
+
+fn count_successful_history(entries: &[Value]) -> (u64, u64) {
+    let successful = entries.iter().filter(|entry| entry_successful(entry)).count() as u64;
+    (entries.len() as u64, successful)
+}
+
 /// Build a non-mutating Collector Authority Pilot activation plan.
 ///
 /// v4.0 is the bridge between run_cycle Rust-shadow reporting and a future
@@ -56,11 +100,14 @@ pub fn build_collector_authority_activation_plan_payload(payload: &Value) -> (Va
     let require_python_fallback = bool_value(config_value(payload, "collector_authority_require_python_fallback"), true);
     let require_shadow_report = bool_value(config_value(payload, "collector_authority_require_run_cycle_shadow"), true);
     let min_shadow_cycles = number_value(config_value(payload, "collector_authority_min_shadow_cycles"), 3);
-    let successful_shadow_cycles = number_value(
+    let configured_successful_shadow_cycles = number_value(
         payload.get("successful_shadow_cycles")
             .or_else(|| config_value(payload, "collector_authority_successful_shadow_cycles")),
         0,
     );
+    let history = history_entries(payload);
+    let (shadow_history_count, shadow_history_successful_count) = count_successful_history(&history);
+    let successful_shadow_cycles = configured_successful_shadow_cycles.max(shadow_history_successful_count);
 
     let report_value = payload
         .get("run_cycle_rust_shadow_report")
@@ -85,9 +132,19 @@ pub fn build_collector_authority_activation_plan_payload(payload: &Value) -> (Va
     let report_status = run_cycle_report.get("status").and_then(Value::as_str).unwrap_or("unknown");
     let rust_shadow_ready = report_errors.is_empty()
         && report_status == "run_cycle_rust_shadow_ready"
-        && run_cycle_report.get("rust_shadow_ready").and_then(Value::as_bool).unwrap_or(false);
+        && (
+            run_cycle_report.get("rust_shadow_ready").and_then(Value::as_bool).unwrap_or(false)
+            || run_cycle_report.get("live_read_shadow_ready").and_then(Value::as_bool).unwrap_or(false)
+        );
+    let dry_run_shadow_ready = run_cycle_report.get("rust_shadow_ready").and_then(Value::as_bool).unwrap_or(false);
+    let live_read_shadow_ready = run_cycle_report.get("live_read_shadow_ready").and_then(Value::as_bool).unwrap_or(false);
     let parity_verdict = run_cycle_report.get("parity_verdict").cloned().unwrap_or_else(|| json!("not_available"));
+    let live_read_shadow_parity_verdict = run_cycle_report
+        .get("live_read_shadow_parity_verdict")
+        .cloned()
+        .unwrap_or_else(|| json!("not_run"));
     let rust_row_count = run_cycle_report.get("rust_row_count").and_then(Value::as_u64).unwrap_or(0);
+    let live_read_shadow_row_count = run_cycle_report.get("live_read_shadow_row_count").and_then(Value::as_u64).unwrap_or(0);
     let python_row_count = run_cycle_report.get("python_row_count").and_then(Value::as_u64).unwrap_or(0);
     let shadow_cycles_ok = successful_shadow_cycles >= min_shadow_cycles;
     let activation_requested = allow_activation && activation_pilot && activation_mode == "rust_collector_authority_pilot";
@@ -134,6 +191,8 @@ pub fn build_collector_authority_activation_plan_payload(payload: &Value) -> (Va
         "status": status,
         "report_status": report_status,
         "rust_row_count": rust_row_count,
+        "live_read_shadow_row_count": live_read_shadow_row_count,
+        "shadow_history_successful_count": shadow_history_successful_count,
         "successful_shadow_cycles": successful_shadow_cycles,
         "activation_mode": activation_mode,
     });
@@ -152,12 +211,19 @@ pub fn build_collector_authority_activation_plan_payload(payload: &Value) -> (Va
         "require_run_cycle_shadow": require_shadow_report,
         "required_shadow_cycles": min_shadow_cycles,
         "successful_shadow_cycles": successful_shadow_cycles,
+        "configured_successful_shadow_cycles": configured_successful_shadow_cycles,
+        "shadow_history_count": shadow_history_count,
+        "shadow_history_successful_count": shadow_history_successful_count,
         "shadow_cycles_ok": shadow_cycles_ok,
         "run_cycle_shadow_status": report_status,
         "rust_shadow_ready": rust_shadow_ready,
+        "dry_run_shadow_ready": dry_run_shadow_ready,
+        "live_read_shadow_ready": live_read_shadow_ready,
         "python_row_count": python_row_count,
         "rust_row_count": rust_row_count,
+        "live_read_shadow_row_count": live_read_shadow_row_count,
         "parity_verdict": parity_verdict,
+        "live_read_shadow_parity_verdict": live_read_shadow_parity_verdict,
         "run_cycle_rust_shadow_report": run_cycle_report,
         "full_rust_backend": false,
         "production_collector_authority_switched": false,
@@ -174,7 +240,7 @@ pub fn build_collector_authority_activation_plan_payload(payload: &Value) -> (Va
         "api_sentence_write_count": 0,
         "api_reply_read_count": 0,
         "next_stage": "rust_collector_authority_pilot_runtime_decision",
-        "note": "v4.0 builds an auditable activation plan for a future Rust collector authority pilot. It does not switch production authority away from Python."
+        "note": "v4.0 builds an auditable activation plan for a future Rust collector authority pilot using dry-run or live-read shadow history. It does not switch production authority away from Python."
     });
 
     (result, errors, warnings)
@@ -251,6 +317,46 @@ mod tests {
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("activation-plan-password"));
         assert!(!text.contains("\"password\":"));
+    }
+
+    #[test]
+    fn becomes_ready_from_repeated_live_read_shadow_history() {
+        let mut payload = base_payload();
+        if let Some(obj) = payload.as_object_mut() {
+            obj.remove("pppoe");
+            obj.remove("successful_shadow_cycles");
+            obj.insert("run_cycle_rust_shadow_report".to_string(), json!({
+                "status": "run_cycle_rust_shadow_ready",
+                "rust_shadow_ready": false,
+                "live_read_shadow_ready": true,
+                "python_row_count": 1,
+                "rust_row_count": 1,
+                "live_read_shadow_row_count": 1,
+                "parity_verdict": "parity_pass",
+                "live_read_shadow_parity_verdict": "parity_pass",
+                "safe_for_cleanup": false
+            }));
+            obj.insert("live_read_shadow_history".to_string(), json!([
+                {"status":"run_cycle_rust_shadow_ready", "live_read_shadow_ready":true, "live_read_shadow_parity_verdict":"parity_pass"},
+                {"status":"run_cycle_rust_shadow_ready", "live_read_shadow_ready":true, "live_read_shadow_parity_verdict":"parity_pass"},
+                {"status":"run_cycle_rust_shadow_ready", "live_read_shadow_ready":true, "live_read_shadow_parity_verdict":"parity_pass"}
+            ]));
+            obj.insert("rust_core".to_string(), json!({
+                "collector_authority_activation_pilot": true,
+                "allow_collector_authority_activation": true,
+                "collector_authority_activation_mode": "rust_collector_authority_pilot",
+                "collector_authority_require_python_fallback": true,
+                "collector_authority_require_run_cycle_shadow": true,
+                "collector_authority_min_shadow_cycles": 3
+            }));
+        }
+        let (result, errors, _warnings) = build_collector_authority_activation_plan_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_activation_ready_for_pilot"));
+        assert_eq!(result.get("live_read_shadow_ready").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("shadow_history_successful_count").and_then(Value::as_u64), Some(3));
+        assert_eq!(result.get("successful_shadow_cycles").and_then(Value::as_u64), Some(3));
+        assert_eq!(result.get("safe_for_cleanup").and_then(Value::as_bool), Some(false));
     }
 
     #[test]
