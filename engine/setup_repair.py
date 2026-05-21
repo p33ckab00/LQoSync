@@ -87,9 +87,9 @@ def setup_steps(cfg: dict) -> list[dict[str, Any]]:
         {"step": 3, "title": "Add or verify routers", "status_hint": f"{len(routers)} router(s) configured", "description": "Each enabled router needs name, address, API port, username, password, root bandwidth, and enabled PPP/DHCP/Hotspot sources."},
         {"step": 4, "title": "Discover DHCP servers", "status_hint": "optional", "description": "Use Config Center DHCP discovery to add MikroTik DHCP server names as disabled-by-default entries, then enable only production access servers."},
         {"step": 5, "title": "Choose network layout mode", "status_hint": cfg.get("network_mode", "router_children"), "description": "Simple flat, router-root, normal hierarchy, or deep/custom hierarchy should match how LibreQoS should group parent nodes."},
-        {"step": 6, "title": "Select Smart Policy preset", "status_hint": (cfg.get("policies") or {}).get("mode", "balanced"), "description": "Conservative is safest, Balanced is recommended, Aggressive is for lab/dynamic environments."},
-        {"step": 7, "title": "Run Dry Run", "status_hint": "safe simulation", "description": "Dry Run previews CSV/network changes, policy verdict, risk, recommendations, and Smart Insights without writing files or applying LibreQoS."},
-        {"step": 8, "title": "Enable scheduler only after clean dry-run", "status_hint": "production step", "description": "Enable scheduler and auto-apply only after Policy Center and Dry Run show safe/expected behavior."},
+        {"step": 6, "title": "Use Singularity policy", "status_hint": (cfg.get("policies") or {}).get("mode", "singularity"), "description": "Singularity is the single supported policy mode: simple operator surface, safe collector/zero-result/mass-removal guards."},
+        {"step": 7, "title": "Run Dry Run", "status_hint": "safe simulation", "description": "Dry Run previews CSV/network changes, Singularity policy verdict, risk, recommendations, and Smart Insights without writing files or applying LibreQoS."},
+        {"step": 8, "title": "Enable scheduler only after clean dry-run", "status_hint": "production step", "description": "Enable scheduler and auto-apply only after Dry Run shows safe/expected Rust-backed behavior."},
     ]
 
 
@@ -130,36 +130,14 @@ def repair_commands() -> list[dict[str, Any]]:
 
 def apply_policy_preset(cfg: dict, preset: str) -> dict:
     """Return a config copy with a known policy preset applied."""
-    preset = (preset or "balanced").strip().lower()
-    if preset not in {"conservative", "balanced", "aggressive"}:
-        raise ValueError("preset must be conservative, balanced, or aggressive")
+    preset = (preset or "singularity").strip().lower()
+    if preset in {"conservative", "balanced", "aggressive"}:
+        preset = "singularity"
+    if preset not in {"singularity"}:
+        raise ValueError("preset must be singularity")
     out = deepcopy(cfg)
     policies = smart_policy_defaults()
     policies["mode"] = preset
-    sources = policies["cleanup_sources"]
-    if preset == "conservative":
-        for s in sources.values():
-            s["normal_inactive_action"] = "cleanup_next_run"
-            s["source_disabled_action"] = "require_confirm_next_run"
-            s["collector_failed_action"] = "preserve_rows"
-            s["zero_result_action"] = "block_cleanup"
-            s["mass_removal_action"] = "require_confirm_next_run"
-            s["respect_percentage_guards"] = True
-        policies["apply_guard"]["require_manual_confirm_on_medium_risk"] = True
-    elif preset == "aggressive":
-        for name, s in sources.items():
-            if name == "static":
-                continue
-            s["normal_inactive_action"] = "cleanup_immediate"
-            s["source_disabled_action"] = "cleanup_next_run"
-            s["collector_failed_action"] = "preserve_rows"
-            # Even in Aggressive mode, a full zero-result from an enabled source
-            # is not treated like a normal inactive client. Zero-result can be
-            # caused by API/query/VLAN trouble, so cleanup remains blocked.
-            s["zero_result_action"] = "block_cleanup"
-            s["mass_removal_action"] = "require_confirm_next_run"
-            s["respect_percentage_guards"] = name == "pppoe"
-        policies["apply_guard"]["require_manual_confirm_on_medium_risk"] = False
     out["policies"] = policies
     return out
 

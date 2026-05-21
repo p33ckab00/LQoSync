@@ -856,14 +856,14 @@ def config_page():
             # They must still turn preset mode into Custom when edited from
             # Config Center → Policies. This protects server-side saves even if
             # browser JS misses markPolicyCustom().
-            if previous_mode in {"conservative", "balanced", "aggressive"} and policy_context_changed(previous, data):
+            if previous_mode in {"singularity", "conservative", "balanced", "aggressive"} and policy_context_changed(previous, data):
                 data.setdefault("policies", {})["mode"] = "custom"
             data = reconcile_policy_mode(data)
             new_mode = ((data.get("policies") or {}).get("mode") if isinstance(data.get("policies"), dict) else None)
             save_config(data, CONFIG_PATH, backup_existing=True)
             write_audit(load_config(CONFIG_PATH), "config_saved", actor=current_user().get("username"), details={"previous_policy_mode": previous_mode, "policy_mode": new_mode})
             if previous_mode != new_mode and new_mode == "custom":
-                flash("config.json saved. Policy mode changed to Custom because saved policy values differ from the selected preset.")
+                flash("config.json saved. Policy mode changed to Custom because saved policy values differ from Singularity.")
             else:
                 flash("config.json saved.")
         except Exception as e:
@@ -1419,12 +1419,12 @@ def setup_wizard_center():
 @admin_required
 def setup_wizard_policy_preset():
     cfg = load_config(CONFIG_PATH)
-    preset = request.form.get("preset", "balanced")
+    preset = request.form.get("preset", "singularity")
     try:
         new_cfg = apply_policy_preset(cfg, preset)
         save_config(new_cfg, CONFIG_PATH)
         write_audit(new_cfg, "wizard_policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
-        flash(f"Wizard policy preset applied: {preset}. Run Dry Run before enabling scheduler or auto-apply.")
+        flash(f"Wizard policy mode applied: {preset}. Run Dry Run before enabling scheduler or auto-apply.")
     except Exception as exc:
         flash(f"Wizard policy preset update failed: {exc}")
     return redirect(url_for("setup_wizard_center"))
@@ -1587,12 +1587,12 @@ def setup_repair_center():
 @admin_required
 def setup_repair_policy_preset():
     cfg = load_config(CONFIG_PATH)
-    preset = request.form.get("preset", "balanced")
+    preset = request.form.get("preset", "singularity")
     try:
         new_cfg = apply_policy_preset(cfg, preset)
         save_config(new_cfg, CONFIG_PATH)
         write_audit(new_cfg, "policy_preset_applied", actor=(current_user() or {}).get("username"), details={"preset": preset})
-        flash(f"Smart Policy preset applied: {preset}. Run Dry Run before enabling scheduler or auto-apply.")
+        flash(f"Singularity policy applied. Run Dry Run before enabling scheduler or auto-apply.")
     except Exception as exc:
         flash(f"Policy preset update failed: {exc}")
     return redirect(url_for("setup_repair_center"))

@@ -22,7 +22,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">First Run Setup Wizard</div>
-    <div class="page-subtitle">Guided onboarding for MikroTik sources, Network Layout, Smart Policy preset, Dry Run, and production scheduler readiness.</div>
+    <div class="page-subtitle">Guided onboarding for MikroTik sources, Network Layout, Singularity Policy, Dry Run, and production scheduler readiness.</div>
   </div>
   <div class="btn-row">
     <a class="btn" href="/setup-repair"><i class="ti ti-tool"></i> Repair Center</a>
@@ -90,19 +90,19 @@
 
   <div style="display:grid;gap:12px">
     <div class="card">
-      <div class="card-title"><i class="ti ti-shield-cog"></i> Choose Smart Policy preset</div>
-      <p class="text-sm" style="color:var(--muted)">Preset changes write to <code>config.json → policies</code>. Run Dry Run after changing presets before enabling scheduler/auto-apply.</p>
+      <div class="card-title"><i class="ti ti-shield-cog"></i> Singularity Policy</div>
+      <p class="text-sm" style="color:var(--muted)">Singularity writes one simplified safe policy block to <code>config.json → policies</code>. Run Dry Run after applying before enabling scheduler/auto-apply.</p>
       <div class="preset-row" style="margin-top:10px">
-        {% for preset, desc in [('conservative','Safest production behavior.'),('balanced','Recommended default.'),('aggressive','Fast cleanup for dynamic/lab networks.')] %}
+        {% for preset, desc in [('singularity','One simple live-operator policy mode with collector, zero-result, static-row, and mass-removal guardrails.')] %}
         <form class="wizard-action-card" method="post" action="/setup-wizard/policy-preset">
           {{ csrf_field()|safe }}<input type="hidden" name="preset" value="{{ preset }}">
           <div style="display:flex;justify-content:space-between;gap:8px"><b>{{ preset.title() }}</b>{% if wizard.policy_mode == preset %}<span class="badge b-ok">active</span>{% endif %}</div>
           <p class="text-sm" style="color:var(--muted);min-height:48px">{{ desc }}</p>
-          <button class="btn btn-primary" onclick="return confirm('Apply {{ preset }} preset and then run Dry Run?')"><i class="ti ti-check"></i> Apply</button>
+          <button class="btn btn-primary" onclick="return confirm('Apply Singularity policy and then run Dry Run?')"><i class="ti ti-check"></i> Apply</button>
         </form>
         {% endfor %}
       </div>
-      <div class="btn-row" style="margin-top:10px"><a class="btn" href="/policy"><i class="ti ti-adjustments"></i> Full Policy Center</a></div>
+      <div class="btn-row" style="margin-top:10px"><a class="btn" href="/policy"><i class="ti ti-adjustments"></i> Policy Details</a></div>
     </div>
 
     <div class="card">

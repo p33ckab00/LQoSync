@@ -52,6 +52,11 @@
     "summary": "Documents why Flask remains the operator UI and why Django/SaaS conversion is out of scope.",
     "title": "Flask UI Shell"
   },
+  "project.singularity_rust_backend_cutover": {
+    "file": "docs/SINGULARITY_RUST_BACKEND_CUTOVER.md",
+    "summary": "Defines the simplified Singularity policy model and staged Rust backend cutover gates.",
+    "title": "Singularity Rust Backend Cutover"
+  },
   "release.v800_cleanup": {
     "file": "docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md",
     "summary": "Stable cleanup boundary: Python retained only as UI shell.",

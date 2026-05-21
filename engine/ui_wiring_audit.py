@@ -96,14 +96,14 @@ def check_policy_preset_wiring(root: str | Path) -> dict[str, Any]:
         problems.append("missing POST /policy/apply-preset/<preset> route")
     if "def policy_apply_preset" not in app or "save_config(new_cfg" not in app:
         problems.append("policy preset route does not clearly save new config")
-    for preset in ("conservative", "balanced", "aggressive"):
+    for preset in ("singularity",):
         if f"applyPolicyPreset('{preset}')" not in config:
             problems.append(f"Config Center missing {preset} preset button")
         if f"policyPresetClass('{preset}')" not in config:
             problems.append(f"Config Center missing dynamic active class for {preset} preset button")
     for line in config.splitlines():
         if "applyPolicyPreset(" in line and "btn btn-primary" in line:
-            # Hard-coded primary on a preset button recreates the bug where Current=aggressive but Balanced is highlighted.
+            # Hard-coded primary on a preset button recreates the bug where Current and highlighted mode diverge.
             problems.append("policy preset buttons contain hard-coded btn-primary instead of cfg.policies.mode-driven active state")
             break
     if "policyPresetActive(preset)" not in config or "policyPresetLabel()" not in config:
@@ -112,7 +112,7 @@ def check_policy_preset_wiring(root: str | Path) -> dict[str, Any]:
         problems.append("Config Center missing visible Custom policy state and active custom badge")
     if "/policy/apply-preset/" not in config:
         problems.append("Config Center preset JS is not wired to /policy/apply-preset")
-    if "policies.mode" in config and "Preset mode is controlled by the preset buttons" not in config:
+    if "policies.mode" in config and "Singularity is the supported policy mode" not in config:
         problems.append("policies.mode still looks like a normal editable field")
     if problems:
         items.append(UIWiringItem("policy.preset_wiring", "Policy preset wiring", "fail", "; ".join(problems), "policy", "Wire preset buttons inside Config Center → Policies and keep policies.mode managed."))
@@ -161,7 +161,7 @@ def check_config_center_state_wiring(root: str | Path) -> dict[str, Any]:
 
     # Policy Overview has policy-adjacent app.* controls. They must mark the
     # policy state as Custom, otherwise operators can change Auto Apply /
-    # optional Auto Backup while the UI still says Balanced/Aggressive.
+    # optional Auto Backup while the UI still says Singularity.
     for needle in (
         'x-model="cfg.app.operation_mode" @change="markPolicyCustom()"',
         'x-model="cfg.app.auto_apply" @change="markPolicyCustom()"',

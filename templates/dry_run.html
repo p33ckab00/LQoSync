@@ -126,7 +126,7 @@
     <div class="stat"><div class="stat-label">Blockers / Holds</div><div class="stat-value {{ 'text-warn' if (summary.blocked_count or summary.hold_count) else 'text-accent' }}">{{ summary.blocked_count if summary.blocked_count is defined else 0 }} / {{ summary.hold_count if summary.hold_count is defined else 0 }}</div></div>
     <div class="stat"><div class="stat-label">Mode</div><div class="stat-value text-dhcp">{{ sp.mode or 'shadow' }}</div><div class="stat-sub">non-authoritative</div></div>
   </div>
-  <p class="text-sm" style="color:var(--muted);margin-top:10px">Rust sync planning is shadow-only in v0.7. It composes collector trust, diff, validation, circuit shadow, and policy shadow into one end-to-end plan. Python remains authoritative for writes and LibreQoS apply.</p>
+  <p class="text-sm" style="color:var(--muted);margin-top:10px">Rust sync planning composes collector trust, diff, validation, circuit normalization, and Singularity policy into one end-to-end plan. File writes and LibreQoS apply are Rust-authoritative when the configured authority gates are enabled; live MikroTik collection is the remaining migration bridge.</p>
   <details style="margin-top:10px"><summary class="mono text-sm text-dhcp" style="cursor:pointer">Show Rust sync plan JSON</summary><pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ rust_plan | tojson(indent=2) }}</pre></details>
 </section>
 {% endif %}

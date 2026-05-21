@@ -22,7 +22,7 @@
 </style>
 
 <section class="grid-stats">
-  <div class="stat"><div class="stat-label"><i class="ti ti-shield-cog"></i> Policy Mode</div><div class="stat-value {{ 'text-warn' if pol.get('mode') == 'custom' else 'text-accent' }}">{{ pol.get('mode','balanced') }}</div><div class="stat-sub">operator preset / custom config</div></div>
+  <div class="stat"><div class="stat-label"><i class="ti ti-shield-cog"></i> Policy Mode</div><div class="stat-value {{ 'text-warn' if pol.get('mode') == 'custom' else 'text-accent' }}">{{ pol.get('mode','singularity') }}</div><div class="stat-sub">Singularity / custom config</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-alert-triangle"></i> Last Risk</div><div class="stat-value {{ 'text-err' if risk in ['high','critical'] else ('text-warn' if risk == 'medium' else 'text-accent') }}">{{ risk }}</div><div class="stat-sub">score {{ decision.get('risk_score', 0) }}</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-click"></i> Pending Confirms</div><div class="stat-value {{ 'text-warn' if confirmations else 'text-accent' }}">{{ confirmations|length }}</div><div class="stat-sub">cleanup decisions</div></div>
   <div class="stat"><div class="stat-label"><i class="ti ti-clock"></i> Cleanup Queue</div><div class="stat-value {{ 'text-warn' if queue else 'text-accent' }}">{{ queue|length }}</div><div class="stat-sub">next-run candidates</div></div>
@@ -36,7 +36,7 @@
     <div class="action-help"><b>preserve_rows</b>Keep existing rows. Safest when source data may be temporarily unavailable.</div>
     <div class="action-help"><b>warn_only</b>Show warning but do not delete. Useful while tuning policies.</div>
     <div class="action-help"><b>cleanup_immediate</b>Delete stale rows in the same sync cycle. Fastest but can increase apply frequency.</div>
-    <div class="action-help"><b>cleanup_next_run</b>Mark stale now and delete on next successful run. Balanced/safe default.</div>
+    <div class="action-help"><b>cleanup_next_run</b>Mark stale now and delete on next successful run. Retained for custom compatibility; Singularity normally uses immediate cleanup only after trusted source scans.</div>
     <div class="action-help"><b>require_confirm_next_run</b>Ask operator confirmation, then apply cleanup on next run. Safest for risky changes.</div>
     <div class="action-help"><b>block_cleanup / block_apply</b>Stop deletion or LibreQoS apply when policy detects unsafe conditions.</div>
   </div>
@@ -76,15 +76,15 @@
 
 <section class="two-grid" style="margin-top:10px">
   <div class="card">
-    <div class="card-title"><i class="ti ti-template"></i> Preset Mode</div>
-    <div class="grid md:grid-cols-4 gap-2">
-      {% for preset in ['conservative','balanced','aggressive','custom'] %}
+    <div class="card-title"><i class="ti ti-template"></i> Singularity Mode</div>
+    <div class="grid md:grid-cols-2 gap-2">
+      {% for preset in ['singularity','custom'] %}
       <div class="preset-card {{ 'active' if pol.get('mode') == preset else '' }}">
         <div class="mono" style="font-weight:700">{{ preset }}</div>
         <div class="text-xs" style="color:var(--muted);margin:6px 0 10px">
-          {% if preset == 'conservative' %}Safest production behavior, more confirmations.{% elif preset == 'balanced' %}Recommended default for live operators.{% elif preset == 'aggressive' %}Fast cleanup for lab/dynamic networks.{% else %}Manual operator-tuned policy values.{% endif %}
+          {% if preset == 'singularity' %}One simple safe policy mode for live operators.{% else %}Manual operator-tuned policy values retained for compatibility.{% endif %}
         </div>
-        {% if preset != 'custom' %}<form method="post" action="/policy/apply-preset/{{ preset }}">{{ csrf_field()|safe }}<button class="btn" onclick="return confirm('Apply {{ preset }} policy preset to config.json?')"><i class="ti ti-check"></i> Apply</button></form>{% else %}<span class="badge b-warn">manual edits</span>{% endif %}
+        {% if preset != 'custom' %}<form method="post" action="/policy/apply-preset/{{ preset }}">{{ csrf_field()|safe }}<button class="btn" onclick="return confirm('Apply Singularity policy to config.json?')"><i class="ti ti-check"></i> Apply</button></form>{% else %}<span class="badge b-warn">manual edits</span>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -92,7 +92,7 @@
   <div class="card">
     <div class="card-title"><i class="ti ti-git-compare"></i> Current vs Preset</div>
     <div class="btn-row" style="margin-bottom:10px">
-      {% for p in ['conservative','balanced','aggressive'] %}<a class="btn {{ 'btn-primary' if preset_compare == p else '' }}" href="/policy?compare={{ p }}">Compare {{ p }}</a>{% endfor %}
+      {% for p in ['singularity'] %}<a class="btn {{ 'btn-primary' if preset_compare == p else '' }}" href="/policy?compare={{ p }}">Compare {{ p }}</a>{% endfor %}
     </div>
     <div class="text-sm" style="color:var(--muted);margin-bottom:8px">Closest preset: <b>{{ closest_preset.closest_preset }}</b> · differences {{ closest_preset.differences }} · comparing against <b>{{ preset_comparison.preset }}</b></div>
     {% if preset_comparison.rows %}
@@ -140,7 +140,7 @@
       <div style="display:grid;gap:6px">
         {% for section in policy_schema.keys() %}<a class="btn" href="#policy-{{ loop.index }}" style="justify-content:flex-start">{{ section }}</a>{% endfor %}
       </div>
-      <div class="note" style="margin-top:12px"><b>Manual edit behavior:</b> saving from this form sets <code>policies.mode=custom</code>. Use preset buttons above to reset to Conservative/Balanced/Aggressive.</div>
+      <div class="note" style="margin-top:12px"><b>Manual edit behavior:</b> saving from this form sets <code>policies.mode=custom</code>. Use the Singularity button above to return to the simplified default.</div>
     </aside>
     <main style="display:grid;gap:12px">
       {% for section, fields in policy_schema.items() %}

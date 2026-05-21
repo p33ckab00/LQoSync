@@ -6,7 +6,7 @@ from applier.atomic_writer import atomic_write_text
 from rules.network_mode import normalize_network_mode, VALID_NETWORK_MODES
 from datetime import datetime, timezone
 import shutil
-from engine.policy_defaults import smart_policy_defaults, CLEANUP_ACTIONS, POLICY_PRESETS
+from engine.policy_defaults import LEGACY_POLICY_PRESETS, smart_policy_defaults, CLEANUP_ACTIONS, POLICY_PRESETS
 from engine.config_schema import CONFIG_SCHEMA_VERSION, migrate_config_schema, validate_schema
 
 DEFAULT_CONFIG = {
@@ -785,6 +785,9 @@ def normalize_config(cfg):
     cfg.clear(); cfg.update(merged)
     migrated, _migration_notes = migrate_config_schema(cfg)
     cfg.clear(); cfg.update(migrated)
+    policies = cfg.setdefault("policies", {})
+    if str(policies.get("mode") or "").strip().lower() in LEGACY_POLICY_PRESETS:
+        policies["mode"] = "singularity"
 
     paths = cfg.setdefault("paths", {})
     paths.setdefault("transaction_journal", "/opt/LQoSync/logs/transaction_journal.jsonl")
@@ -934,7 +937,7 @@ def validate_config(cfg: dict):
         if not paths.get(key):
             errors.append(f"paths.{key} is required")
     policies = cfg.setdefault("policies", {})
-    policies.setdefault("mode", "balanced")
+    policies.setdefault("mode", "singularity")
     if policies.get("mode") not in POLICY_PRESETS:
         errors.append(f"policies.mode invalid: {policies.get('mode')}")
     cleanup_sources = policies.get("cleanup_sources", {}) if isinstance(policies, dict) else {}

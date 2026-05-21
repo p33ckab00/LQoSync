@@ -165,7 +165,7 @@
       "allow_critical_risk": false,
       "allow_high_risk": false,
       "allow_low_risk": true,
-      "allow_medium_risk": false,
+      "allow_medium_risk": true,
       "enabled": true,
       "when_blocked": "keep_pending_manual_apply"
     },
@@ -180,8 +180,8 @@
       "collector_failed_default_action": "preserve_rows",
       "confirmation_expires_hours": 24,
       "enabled": true,
-      "global_default_action": "require_confirm_next_run",
-      "normal_inactive_default_action": "cleanup_next_run",
+      "global_default_action": "preserve_rows",
+      "normal_inactive_default_action": "cleanup_immediate",
       "source_disabled_default_action": "require_confirm_next_run",
       "source_zero_result_default_action": "block_cleanup"
     },
@@ -189,26 +189,26 @@
       "dhcp": {
         "collector_failed_action": "preserve_rows",
         "enabled": true,
-        "mass_removal_action": "require_confirm_next_run",
+        "mass_removal_action": "block_cleanup",
         "normal_inactive_action": "cleanup_immediate",
-        "respect_percentage_guards": false,
+        "respect_percentage_guards": true,
         "source_disabled_action": "require_confirm_next_run",
         "zero_result_action": "block_cleanup"
       },
       "hotspot": {
         "collector_failed_action": "preserve_rows",
         "enabled": true,
-        "mass_removal_action": "require_confirm_next_run",
+        "mass_removal_action": "block_cleanup",
         "normal_inactive_action": "cleanup_immediate",
-        "respect_percentage_guards": false,
-        "source_disabled_action": "cleanup_next_run",
+        "respect_percentage_guards": true,
+        "source_disabled_action": "require_confirm_next_run",
         "zero_result_action": "block_cleanup"
       },
       "pppoe": {
         "collector_failed_action": "preserve_rows",
         "enabled": true,
-        "mass_removal_action": "require_confirm_next_run",
-        "normal_inactive_action": "cleanup_next_run",
+        "mass_removal_action": "block_cleanup",
+        "normal_inactive_action": "cleanup_immediate",
         "respect_percentage_guards": true,
         "source_disabled_action": "require_confirm_next_run",
         "zero_result_action": "block_cleanup"
@@ -241,9 +241,9 @@
       "enabled": true,
       "max_items": 200
     },
-    "mode": "balanced",
+    "mode": "singularity",
     "node_cleanup_guard": {
-      "action": "require_confirm_next_run",
+      "action": "block_cleanup",
       "enabled": true,
       "min_node_size": 10,
       "min_removed_count": 3,
@@ -261,18 +261,18 @@
     },
     "small_node_guard": {
       "enabled": true,
-      "full_removal_action": "require_confirm_next_run",
+      "full_removal_action": "block_cleanup",
       "max_node_size": 5,
-      "partial_removal_action": "cleanup_next_run"
+      "partial_removal_action": "cleanup_immediate"
     },
     "source_cleanup_guard": {
-      "action": "require_confirm_next_run",
+      "action": "block_cleanup",
       "enabled": true,
       "min_removed_count": 5,
       "threshold_percent": 30
     },
     "stale_lifecycle": {
-      "enabled": true,
+      "enabled": false,
       "sources": {
         "dhcp": {
           "grace_enabled": false,

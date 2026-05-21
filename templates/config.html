@@ -43,11 +43,11 @@ function cfgEditor(initial) {
     cfg.ui.refresh_seconds ??= 5; cfg.ui.show_raw_json_editor ??= true; cfg.ui.default_theme ??= 'light';
     cfg.services.units ??= ['lqosd','lqos_scheduler','lqosync']; cfg.services.legacy_optional_units ??= ['lqos_node_manager']; cfg.services.show_legacy_optional_not_installed ??= false; cfg.services.restart_groups ??= {libreqos_core: ['lqosd','lqos_scheduler']}; cfg.services.journal_lines_default ??= 100; cfg.services.unit_metadata ??= {lqos_node_manager:{label:'Legacy Web UI service',role:'legacy_optional',note:'Older LibreQoS installs only. Newer installs usually use lqosd for the Web UI.'}};
     cfg.notifications ||= {}; cfg.notifications.telegram ||= {}; let tg=cfg.notifications.telegram; tg.enabled ??= false; tg.bot_token ??= ''; tg.chat_id ??= ''; tg.base_url ??= ''; tg.parse_mode ??= 'HTML'; tg.notify_levels ??= ['critical','warning']; tg.timeout_seconds ??= 10; tg.minimum_interval_seconds ??= 60; tg.dedupe_window_minutes ??= 60; tg.max_items_per_digest ??= 10; tg.send_digest ??= true; tg.send_individual ??= false; ['notify_on_apply_failed','notify_on_policy_block','notify_on_confirmation_required','notify_on_update_available','notify_on_source_health_warning','notify_on_performance_slow'].forEach(k => tg[k] ??= true);
-    cfg.policies ||= {}; cfg.policies.mode ??= 'balanced'; cfg.policies.cleanup ||= {}; cfg.policies.cleanup.enabled ??= true; cfg.policies.cleanup.global_default_action ??= 'require_confirm_next_run'; cfg.policies.cleanup.confirmation_expires_hours ??= 24; cfg.policies.cleanup.apply_confirmed_cleanup ??= 'next_run'; cfg.policies.cleanup.allow_immediate_cleanup ??= true;
-    cfg.policies.cleanup_sources ||= {}; ['pppoe','dhcp','hotspot','static'].forEach(src => { cfg.policies.cleanup_sources[src] ||= {}; let p=cfg.policies.cleanup_sources[src]; p.enabled ??= true; p.normal_inactive_action ??= (src==='pppoe'?'cleanup_next_run':(src==='static'?'preserve_rows':'cleanup_immediate')); p.source_disabled_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.collector_failed_action ??= 'preserve_rows'; p.zero_result_action ??= (src==='static'?'preserve_rows':'block_cleanup'); p.mass_removal_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.respect_percentage_guards ??= (src==='pppoe'||src==='static'); });
-    cfg.policies.node_cleanup_guard ||= {}; cfg.policies.node_cleanup_guard.enabled ??= true; cfg.policies.node_cleanup_guard.threshold_percent ??= 30; cfg.policies.node_cleanup_guard.min_node_size ??= 10; cfg.policies.node_cleanup_guard.min_removed_count ??= 3; cfg.policies.node_cleanup_guard.action ??= 'require_confirm_next_run';
-    cfg.policies.small_node_guard ||= {}; cfg.policies.small_node_guard.enabled ??= true; cfg.policies.small_node_guard.max_node_size ??= 5; cfg.policies.small_node_guard.partial_removal_action ??= 'cleanup_next_run'; cfg.policies.small_node_guard.full_removal_action ??= 'require_confirm_next_run';
-    cfg.policies.source_cleanup_guard ||= {}; cfg.policies.source_cleanup_guard.enabled ??= true; cfg.policies.source_cleanup_guard.threshold_percent ??= 30; cfg.policies.source_cleanup_guard.min_removed_count ??= 5; cfg.policies.source_cleanup_guard.action ??= 'require_confirm_next_run';
+    cfg.policies ||= {}; cfg.policies.mode ??= 'singularity'; if(['conservative','balanced','aggressive'].includes(cfg.policies.mode)) cfg.policies.mode = 'singularity'; cfg.policies.cleanup ||= {}; cfg.policies.cleanup.enabled ??= true; cfg.policies.cleanup.global_default_action ??= 'preserve_rows'; cfg.policies.cleanup.confirmation_expires_hours ??= 24; cfg.policies.cleanup.apply_confirmed_cleanup ??= 'next_run'; cfg.policies.cleanup.allow_immediate_cleanup ??= true;
+    cfg.policies.cleanup_sources ||= {}; ['pppoe','dhcp','hotspot','static'].forEach(src => { cfg.policies.cleanup_sources[src] ||= {}; let p=cfg.policies.cleanup_sources[src]; p.enabled ??= true; p.normal_inactive_action ??= (src==='static'?'preserve_rows':'cleanup_immediate'); p.source_disabled_action ??= (src==='static'?'preserve_rows':'require_confirm_next_run'); p.collector_failed_action ??= 'preserve_rows'; p.zero_result_action ??= (src==='static'?'preserve_rows':'block_cleanup'); p.mass_removal_action ??= (src==='static'?'preserve_rows':'block_cleanup'); p.respect_percentage_guards ??= true; });
+    cfg.policies.node_cleanup_guard ||= {}; cfg.policies.node_cleanup_guard.enabled ??= true; cfg.policies.node_cleanup_guard.threshold_percent ??= 30; cfg.policies.node_cleanup_guard.min_node_size ??= 10; cfg.policies.node_cleanup_guard.min_removed_count ??= 3; cfg.policies.node_cleanup_guard.action ??= 'block_cleanup';
+    cfg.policies.small_node_guard ||= {}; cfg.policies.small_node_guard.enabled ??= true; cfg.policies.small_node_guard.max_node_size ??= 5; cfg.policies.small_node_guard.partial_removal_action ??= 'cleanup_immediate'; cfg.policies.small_node_guard.full_removal_action ??= 'block_cleanup';
+    cfg.policies.source_cleanup_guard ||= {}; cfg.policies.source_cleanup_guard.enabled ??= true; cfg.policies.source_cleanup_guard.threshold_percent ??= 30; cfg.policies.source_cleanup_guard.min_removed_count ??= 5; cfg.policies.source_cleanup_guard.action ??= 'block_cleanup';
     cfg.policies.apply_guard ||= {}; cfg.policies.collector_guard ||= {}; cfg.policies.data_quality ||= {}; cfg.policies.topology_guard ||= {}; cfg.policies.backup_guard ||= {}; cfg.policies.anomaly_detection ||= {}; cfg.policies.recommendations ||= {}; cfg.policies.auto_apply_policy ||= {}; cfg.policies.decision_trace ||= {}; cfg.policies.stale_lifecycle ||= {}; cfg.policies.stale_lifecycle.sources ||= {};
     cfg.routers.forEach((r) => {
       r.enabled ??= true; r.name ??= 'Router'; r.address ??= ''; r.port ??= 8728; r.username ??= ''; r.password ??= '';
@@ -88,12 +88,12 @@ function cfgEditor(initial) {
     policyContextPaths(){ return ['app.operation_mode','app.auto_apply','app.backup_before_apply','app.backup_retention','scheduler.enabled','scheduler.apply_cooldown_seconds','libreqos.run_only_when_files_changed','libreqos.retry_if_last_apply_failed','libreqos.run_mode','preflight.enabled','preflight.duplicate_ip_policy','preflight.missing_parent_policy','preflight.invalid_bandwidth_policy','defaults.duplicate_ip_policy']; },
     policyBlockWithoutMode(obj){ const copy = JSON.parse(JSON.stringify((obj && obj.policies) || {})); delete copy.mode; return copy; },
     policyContextChanged(){ const before = window.initialConfig || {}; const after = this.cfg || {}; const get=(obj,path)=>String(path).split('.').reduce((o,k)=>o&&o[k], obj); if(JSON.stringify(this.policyBlockWithoutMode(before)) !== JSON.stringify(this.policyBlockWithoutMode(after))) return true; return this.policyContextPaths().some(path => JSON.stringify(get(before,path)) !== JSON.stringify(get(after,path))); },
-    shouldForceCustomPolicy(){ const mode = (this.cfg?.policies?.mode || 'balanced'); return ['conservative','balanced','aggressive'].includes(mode) && this.policyContextChanged(); },
+    shouldForceCustomPolicy(){ const mode = (this.cfg?.policies?.mode || 'singularity'); return ['singularity','conservative','balanced','aggressive'].includes(mode) && this.policyContextChanged(); },
     policyActions(){ return ['preserve_rows','warn_only','cleanup_immediate','cleanup_next_run','require_confirm_immediate','require_confirm_next_run','block_cleanup','block_apply']; },
-    policyPresetActive(preset){ return (this.cfg?.policies?.mode || 'balanced') === preset; },
+    policyPresetActive(preset){ return (this.cfg?.policies?.mode || 'singularity') === preset; },
     policyPresetClass(preset){ return this.policyPresetActive(preset) ? 'btn-primary' : ''; },
-    policyPresetLabel(){ return (this.cfg?.policies?.mode || 'balanced').replace('_',' '); },
-    policyIsCustom(){ return (this.cfg?.policies?.mode || 'balanced') === 'custom'; },
+    policyPresetLabel(){ const mode = this.cfg?.policies?.mode || 'singularity'; return ['conservative','balanced','aggressive'].includes(mode) ? 'singularity' : mode.replace('_',' '); },
+    policyIsCustom(){ return (this.cfg?.policies?.mode || 'singularity') === 'custom'; },
     customPolicyClass(){ return this.policyIsCustom() ? 'btn-primary' : ''; },
     asBool(value){ return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true' || String(value).toLowerCase() === 'yes' || String(value).toLowerCase() === 'on'; },
     getPath(path){ return String(path).split('.').reduce((obj,key)=>obj ? obj[key] : undefined, this.cfg); },
@@ -110,10 +110,10 @@ function cfgEditor(initial) {
     ]; },
     async testSavedTelegram(){ try{ const res=await lqosJsonFetch('/api/notifications/telegram/test', {}); const data=await res.json(); alert(data.ok ? 'Telegram test sent successfully.' : ('Telegram test failed: ' + (data.error || data.reason || JSON.stringify(data)))); }catch(e){ alert('Telegram test failed: ' + e); } },
     async applyPolicyPreset(preset){
-      const names = {conservative:'Conservative', balanced:'Balanced', aggressive:'Aggressive'};
-      if(!['conservative','balanced','aggressive'].includes(preset)){ alert('Invalid policy preset: ' + preset); return; }
+      const names = {singularity:'Singularity'};
+      if(preset !== 'singularity'){ alert('Invalid policy mode: ' + preset); return; }
       let msg = `Apply ${names[preset]} policy preset to saved config.json?`;
-      msg += '\n\nThis will overwrite only the Smart Policy block with the selected preset.';
+      msg += '\n\nThis will overwrite only the policy block with the simplified Singularity guardrails.';
       msg += '\nUser preferences outside policies, such as auto backup and Telegram settings, are preserved. Unsaved Config Center edits are not included unless you save them first.';
       msg += '\n\nRun Dry Run after applying the preset.';
       if(!confirm(msg)) return;
@@ -340,8 +340,8 @@ function cfgEditor(initial) {
             <div class="text-sm" style="color:var(--muted)">{{ f.description }}</div>
             {% if f.path == 'policies.mode' %}
             <div class="cfg-subtle">
-              <div class="op-line"><strong>Current value</strong><span x-text="cfg.policies.mode || 'balanced'"></span></div>
-              <div class="cfg-help">Preset mode is controlled by the preset buttons in Policy Overview. Manual field edits automatically set this to <code>custom</code>.</div>
+              <div class="op-line"><strong>Current value</strong><span x-text="policyPresetLabel()"></span></div>
+              <div class="cfg-help">Singularity is the supported policy mode. Manual field edits automatically set this to <code>custom</code>.</div>
             </div>
             {% elif f.type == 'bool' %}
             <label class="cfg-toggle cfg-subtle"><span><b>Current value</b><span class="cfg-help">Recommended: {{ f.recommended }}</span></span><input type="checkbox" :checked="asBool(getPath({{ f.path|tojson }}))" x-effect="$el.checked = asBool(getPath({{ f.path|tojson }}))" @change="setPath({{ f.path|tojson }}, $event.target.checked)"></label>
@@ -376,25 +376,23 @@ function cfgEditor(initial) {
           {%- endmacro %}
 
           <div class="card" style="border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.06)">
-            <div class="card-title"><i class="ti ti-sitemap"></i> Policy Hierarchy — Config Center</div>
-            <p class="text-sm" style="color:var(--muted)">All configurable policies stay inside Config Center. The tree below groups policies by operator intent, while every field still saves to <code>config.json → policies</code> and remains visible in Advanced Raw JSON.</p>
+            <div class="card-title"><i class="ti ti-sitemap"></i> Singularity Policy — Config Center</div>
+            <p class="text-sm" style="color:var(--muted)">Policies are being collapsed into one simple operator mode. Singularity keeps safe defaults for collector failures, zero-result reads, static rows, and mass-removal guards while avoiding a preset maze.</p>
             <div class="cfg-subtle" style="margin-top:10px">
               <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
                 <div>
-                  <div style="font-weight:800;color:var(--txt)"><i class="ti ti-shield-cog"></i> Policy Preset</div>
-                  <div class="cfg-help">Current: <b x-text="policyPresetLabel()"></b>. Applying a preset writes directly to saved <code>config.json → policies</code>. Manual policy edits become and stay <code>custom</code> after saving until you apply a named preset again.</div>
+                  <div style="font-weight:800;color:var(--txt)"><i class="ti ti-shield-cog"></i> Policy Mode</div>
+                  <div class="cfg-help">Current: <b x-text="policyPresetLabel()"></b>. Applying Singularity writes the simplified safe policy block to saved <code>config.json → policies</code>. Manual policy edits become <code>custom</code>.</div>
                 </div>
                 <div class="btn-row">
-                  <button type="button" class="btn" :class="policyPresetClass('conservative')" :aria-pressed="policyPresetActive('conservative')" @click="applyPolicyPreset('conservative')"><i class="ti ti-lock"></i> Conservative</button>
-                  <button type="button" class="btn" :class="policyPresetClass('balanced')" :aria-pressed="policyPresetActive('balanced')" @click="applyPolicyPreset('balanced')"><i class="ti ti-balance"></i> Balanced</button>
-                  <button type="button" class="btn" :class="policyPresetClass('aggressive')" :aria-pressed="policyPresetActive('aggressive')" @click="applyPolicyPreset('aggressive')"><i class="ti ti-bolt"></i> Aggressive</button>
+                  <button type="button" class="btn" :class="policyPresetClass('singularity')" :aria-pressed="policyPresetActive('singularity')" @click="applyPolicyPreset('singularity')"><i class="ti ti-shield-check"></i> Singularity</button>
                   <span class="btn" :class="customPolicyClass()" :aria-pressed="policyIsCustom()" title="Custom is created by manual policy edits and saved to config.json → policies."><i class="ti ti-adjustments-cog"></i> Custom</span>
                 </div>
               </div>
             </div>
             <div x-show="policyIsCustom()" x-cloak class="cfg-subtle" style="margin-top:10px;border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.08)">
               <div style="font-weight:800;color:var(--txt)"><i class="ti ti-adjustments-cog"></i> Customized policies active</div>
-              <div class="cfg-help">Your policy block is saved as <code>custom</code>. LQoSync will keep this custom state across Config Center saves. Use Conservative, Balanced, or Aggressive only when you want to replace the policy block with a preset.</div>
+              <div class="cfg-help">Your policy block is saved as <code>custom</code>. LQoSync will keep this custom state across Config Center saves. Apply Singularity when you want to replace custom policy values with the simplified safe default.</div>
             </div>
             <div class="btn-row" style="margin-top:10px"><a class="btn btn-primary" href="/sync/dry-run"><i class="ti ti-eye"></i> Preview Impact / Dry Run</a><a class="btn" href="/docs/search?q=policy+hierarchy"><i class="ti ti-book"></i> Policy docs</a><button type="button" class="btn" @click="openRaw()"><i class="ti ti-code"></i> Raw JSON</button></div>
           </div>

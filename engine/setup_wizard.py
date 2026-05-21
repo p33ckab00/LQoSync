@@ -130,13 +130,13 @@ def compute_setup_wizard(cfg: dict, state: dict | None = None, setup_report: dic
         "/network",
     )
 
-    preset = policies.get("mode", "balanced")
+    preset = policies.get("mode", "singularity")
     add(
         "policy_preset",
-        "Select Smart Policy preset",
+        "Use Singularity policy",
         DONE if preset else TODO,
         f"Current policy mode: {preset}",
-        "Conservative is safest for production, Balanced is the recommended default, Aggressive is for labs or highly dynamic access networks, and Custom means the operator edited individual policy settings.",
+        "Singularity is the single supported policy mode. It keeps the operator surface simple while preserving collector, zero-result, static-row, and mass-removal guardrails.",
         "Open Policy Center",
         "/policy",
     )

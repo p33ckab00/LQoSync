@@ -10,11 +10,12 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from engine.policy_defaults import CLEANUP_ACTIONS, POLICY_PRESETS, smart_policy_defaults
+from engine.policy_defaults import CLEANUP_ACTIONS, LEGACY_POLICY_PRESETS, POLICY_PRESETS, smart_policy_defaults
 from engine.setup_repair import apply_policy_preset
 
 POLICY_ACTION_CHOICES = list(CLEANUP_ACTIONS)
-PRESET_CHOICES = ["conservative", "balanced", "aggressive", "custom"]
+PRESET_CHOICES = ["singularity", "custom"]
+LEGACY_PRESET_CHOICES = list(LEGACY_POLICY_PRESETS)
 
 
 def field(path: str, label: str, field_type: str, *, section: str, description: str = "", choices: list[str] | None = None, recommended: Any = None, risk: str = "medium", minimum: int | float | None = None, maximum: int | float | None = None, setup_guidance: str = "", risk_note: str = "") -> dict[str, Any]:
@@ -35,12 +36,12 @@ def field(path: str, label: str, field_type: str, *, section: str, description: 
 
 
 POLICY_SCHEMA: list[dict[str, Any]] = [
-    field("policies.mode", "Preset mode", "select", section="Preset", choices=PRESET_CHOICES, recommended="balanced", risk="low", description="Preset or custom policy profile. Manual edits should switch this to Custom."),
+    field("policies.mode", "Policy mode", "select", section="Singularity", choices=PRESET_CHOICES, recommended="singularity", risk="low", description="Singularity is the one supported operator policy mode. Custom is retained only for compatibility with manually edited configs."),
     field("policies.cleanup.enabled", "Cleanup policy engine", "bool", section="Cleanup Core", recommended=True, risk="high", description="When enabled, cleanup actions are evaluated by source/reason before file write/apply."),
-    field("policies.cleanup.global_default_action", "Global default cleanup action", "select", section="Cleanup Core", choices=POLICY_ACTION_CHOICES, recommended="require_confirm_next_run", risk="high", description="Fallback action when no source-specific cleanup policy matches."),
+    field("policies.cleanup.global_default_action", "Global default cleanup action", "select", section="Cleanup Core", choices=POLICY_ACTION_CHOICES, recommended="preserve_rows", risk="high", description="Fallback action when no source-specific cleanup policy matches."),
     field("policies.cleanup.confirmation_expires_hours", "Confirmation expiry hours", "number", section="Cleanup Core", recommended=24, risk="medium", minimum=1, maximum=720, description="How long pending cleanup confirmations remain valid."),
     field("policies.cleanup.apply_confirmed_cleanup", "Confirmed cleanup apply mode", "select", section="Cleanup Core", choices=["immediate", "next_run"], recommended="next_run", risk="medium", description="Whether confirmed cleanup should happen immediately or on the next successful run."),
-    field("policies.cleanup.allow_immediate_cleanup", "Allow immediate cleanup", "bool", section="Cleanup Core", recommended=True, risk="high", description="Master switch allowing policies to delete absent rows in the same sync cycle."),
+    field("policies.cleanup.allow_immediate_cleanup", "Allow normal inactive cleanup", "bool", section="Cleanup Core", recommended=True, risk="high", description="Allows normal inactive dynamic rows to be removed after a successful source scan. Unsafe source conditions still preserve or block cleanup."),
 ]
 
 for source, label in [
@@ -173,9 +174,9 @@ ACTION_EXPLANATIONS = {
 
 ATOMIC_POLICY_EXPLANATIONS = {
     "policies.mode": (
-        "Selects the active policy preset. Conservative is strict, Balanced is recommended for production, Aggressive prioritizes speed, and Custom means the operator manually changed individual settings.",
-        "Start with Balanced. Use Conservative for live networks where accidental deletion is unacceptable. Use Aggressive only for lab/highly dynamic environments. Any manual policy edit should save as Custom.",
-        "Changing presets can modify many cleanup/apply rules at once. Run Dry Run after applying a preset."
+        "Selects the active policy mode. Singularity is the supported mode; Custom means the operator manually changed individual settings.",
+        "Use Singularity unless you are deliberately preserving custom policy values during migration.",
+        "Changing mode can replace many cleanup/apply rules at once. Run Dry Run after applying Singularity."
     ),
     "policies.cleanup.enabled": (
         "Turns the Smart Cleanup Policy Engine on or off. When enabled, LQoSync classifies why rows are stale before deciding whether to delete, preserve, confirm, or block.",
@@ -184,8 +185,8 @@ ATOMIC_POLICY_EXPLANATIONS = {
     ),
     "policies.cleanup.global_default_action": (
         "Fallback cleanup action used when no source-specific or reason-specific policy matches a cleanup candidate.",
-        "Use require_confirm_next_run for conservative production behavior. Use cleanup_next_run for a faster but still staged workflow.",
-        "Avoid cleanup_immediate as the global default unless the operator accepts fast deletion for all sources."
+        "Use preserve_rows as the Singularity fallback. Specific trusted-source paths can still clean normal inactive rows.",
+        "Avoid cleanup_immediate as the global fallback because it applies to unknown reasons."
     ),
     "policies.cleanup.confirmation_expires_hours": (
         "Controls how long a pending cleanup confirmation remains valid before the operator must confirm again.",
@@ -199,8 +200,8 @@ ATOMIC_POLICY_EXPLANATIONS = {
     ),
     "policies.cleanup.allow_immediate_cleanup": (
         "Master permission that allows any policy to delete stale rows in the same sync cycle.",
-        "Enable if DHCP/Hotspot should update quickly. Disable if all deletions must be staged or confirmed first.",
-        "If enabled with aggressive source policies, dynamic clients can cause more file churn and LibreQoS applies."
+        "Enable for Singularity so normal inactive dynamic clients can be cleaned after trusted source scans.",
+        "Unsafe source conditions still preserve or block cleanup through collector, zero-result, and mass-removal guards."
     ),
     "policies.node_cleanup_guard.enabled": (
         "Enables protection for individual generated nodes such as a DHCP server node, PPP plan node, or Hotspot node.",
@@ -239,7 +240,7 @@ ATOMIC_POLICY_EXPLANATIONS = {
     ),
     "policies.small_node_guard.partial_removal_action": (
         "Action when only some clients disappear from a small node.",
-        "cleanup_next_run is a balanced default. cleanup_immediate is acceptable for dynamic DHCP/Hotspot if operator wants fast cleanup.",
+        "Singularity uses cleanup_immediate for trusted normal inactive rows.",
         "require_confirm for every small-node partial removal can create too many prompts."
     ),
     "policies.small_node_guard.full_removal_action": (
@@ -524,9 +525,19 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
+def _canonical_preset_name(preset: str | None) -> str:
+    """Map retired multi-preset names to the single operator policy mode."""
+    name = str(preset or "singularity").strip().lower()
+    if name in LEGACY_PRESET_CHOICES:
+        return "singularity"
+    if name not in PRESET_CHOICES:
+        return "singularity"
+    return name
+
+
 def preset_config(preset: str) -> dict:
     cfg = {"policies": smart_policy_defaults()}
-    return apply_policy_preset(cfg, preset)
+    return apply_policy_preset(cfg, _canonical_preset_name(preset))
 
 
 def preset_policies(preset: str) -> dict:
@@ -534,9 +545,9 @@ def preset_policies(preset: str) -> dict:
 
 
 def policy_diff_from_preset(cfg: dict, preset: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
-    preset = (preset or (cfg.get("policies") or {}).get("mode") or "balanced").lower()
-    if preset == "custom" or preset not in {"conservative", "balanced", "aggressive"}:
-        preset = "balanced"
+    preset = _canonical_preset_name(preset or (cfg.get("policies") or {}).get("mode") or "singularity")
+    if preset == "custom":
+        preset = "singularity"
     ref = {"policies": preset_policies(preset)}
     out = []
     for item in POLICY_SCHEMA:
@@ -552,11 +563,11 @@ def policy_diff_from_preset(cfg: dict, preset: str | None = None, limit: int = 2
 
 def closest_preset(cfg: dict) -> dict[str, Any]:
     scores = []
-    for preset in ("conservative", "balanced", "aggressive"):
+    for preset in ("singularity",):
         diff = policy_diff_from_preset(cfg, preset, limit=10000)
         scores.append({"preset": preset, "differences": len(diff)})
     scores.sort(key=lambda x: x["differences"])
-    best = scores[0] if scores else {"preset": "balanced", "differences": 0}
+    best = scores[0] if scores else {"preset": "singularity", "differences": 0}
     return {"closest_preset": best["preset"], "differences": best["differences"], "all": scores}
 
 
@@ -569,8 +580,9 @@ def reconcile_policy_mode(cfg: dict) -> dict:
     - If policies.mode is ``custom``, keep it custom. Custom is an explicit
       operator preference and should not disappear just because the values happen
       to be close to, or even equal to, a named preset.
-    - If policies.mode is conservative/balanced/aggressive and the policy block
-      differs from that preset, change it to custom.
+    - Retired conservative/balanced/aggressive modes normalize to
+      ``singularity`` so existing installs keep loading without keeping the old
+      multi-preset operator surface alive.
     - If policies.mode is invalid or missing, change it to custom after defaults
       are merged.
 
@@ -578,16 +590,17 @@ def reconcile_policy_mode(cfg: dict) -> dict:
     edits, browser edge cases, and old forms.
     """
     normalize_policies(cfg)
-    mode = str(((cfg.get("policies") or {}).get("mode") or "balanced")).strip().lower()
+    mode = str(((cfg.get("policies") or {}).get("mode") or "singularity")).strip().lower()
     if mode == "custom":
         cfg.setdefault("policies", {})["mode"] = "custom"
         return cfg
-    if mode in {"conservative", "balanced", "aggressive"}:
-        diffs = [d for d in policy_diff_from_preset(cfg, mode, limit=10000) if d.get("path") != "policies.mode"]
+    if mode in {"singularity", *LEGACY_PRESET_CHOICES}:
+        target = _canonical_preset_name(mode)
+        diffs = [d for d in policy_diff_from_preset(cfg, target, limit=10000) if d.get("path") != "policies.mode"]
         if diffs:
             cfg.setdefault("policies", {})["mode"] = "custom"
         else:
-            cfg.setdefault("policies", {})["mode"] = mode
+            cfg.setdefault("policies", {})["mode"] = target
     else:
         cfg.setdefault("policies", {})["mode"] = "custom"
     return cfg

@@ -114,17 +114,17 @@ python3 scripts/stable_release_check.py</pre>
     </div>
 
     <div class="card">
-      <div class="card-title"><i class="ti ti-shield-cog"></i> Policy Preset Setup</div>
-      {% set current_preset = (cfg.get('policies') or {}).get('mode','balanced') %}
-      <div class="text-sm" style="color:var(--muted);margin-bottom:10px">Current preset: <b class="text-accent">{{ current_preset }}</b>. Preset changes are saved to config.json. For full editable settings, use Policy Center. Always run Dry Run after changing presets.</div>
+      <div class="card-title"><i class="ti ti-shield-cog"></i> Singularity Policy Setup</div>
+      {% set current_preset = (cfg.get('policies') or {}).get('mode','singularity') %}
+      <div class="text-sm" style="color:var(--muted);margin-bottom:10px">Current policy mode: <b class="text-accent">{{ current_preset }}</b>. Singularity writes the simplified safe policy block to config.json. Always run Dry Run after changing policy mode.</div>
       <div class="preset-grid">
-        {% for preset, desc in [('conservative','Safest live production behavior with more confirmations.'),('balanced','Recommended default: safe but practical.'),('aggressive','Fast cleanup for lab or highly dynamic networks.')] %}
+        {% for preset, desc in [('singularity','One simple live-operator policy mode with collector, zero-result, static-row, and mass-removal guardrails.')] %}
         <form class="preset-card" method="post" action="/setup-repair/policy-preset">
           {{ csrf_field()|safe }}
           <input type="hidden" name="preset" value="{{ preset }}">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>{{ preset.title() }}</b>{% if current_preset == preset %}<span class="badge b-ok">active</span>{% endif %}</div>
           <p class="text-sm" style="color:var(--muted);min-height:50px">{{ desc }}</p>
-          <button class="btn btn-primary" onclick="return confirm('Apply {{ preset }} policy preset? Run Dry Run after saving.')"><i class="ti ti-check"></i> Apply</button>
+          <button class="btn btn-primary" onclick="return confirm('Apply Singularity policy? Run Dry Run after saving.')"><i class="ti ti-check"></i> Apply</button>
         </form>
         {% endfor %}
       </div>

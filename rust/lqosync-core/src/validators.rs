@@ -52,12 +52,12 @@ pub fn validate_config_value(config: &Value) -> (Vec<Diagnostic>, Vec<Diagnostic
 
     if let Some(policies) = config.get("policies") {
         validate_policy_actions(policies, "policies", &mut errors);
-        let policy_mode = policies.get("mode").and_then(Value::as_str).unwrap_or("balanced");
-        if !["conservative", "balanced", "aggressive", "custom"].contains(&policy_mode) {
+        let policy_mode = policies.get("mode").and_then(Value::as_str).unwrap_or("singularity");
+        if !["singularity", "custom", "conservative", "balanced", "aggressive"].contains(&policy_mode) {
             errors.push(Diagnostic::error(
                 "invalid_policy_mode",
                 Some("policies.mode".to_string()),
-                format!("policies.mode invalid: {policy_mode}"),
+                format!("policies.mode invalid: {policy_mode}; expected singularity or custom"),
             )
             .with_value(json!(policy_mode)));
         }

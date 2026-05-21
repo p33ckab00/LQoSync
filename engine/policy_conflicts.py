@@ -179,7 +179,7 @@ def evaluate_policy_conflicts(cfg: dict) -> dict[str, Any]:
     return {"verdict": verdict, "counts": counts, "conflicts": conflicts, "total": len(conflicts)}
 
 
-def enhanced_preset_comparison(cfg: dict, preset: str = "balanced", limit: int = 200) -> dict[str, Any]:
+def enhanced_preset_comparison(cfg: dict, preset: str = "singularity", limit: int = 200) -> dict[str, Any]:
     """Return richer current-vs-preset rows for UI tables."""
     diff = policy_diff_from_preset(cfg, preset, limit=limit)
     schema_by_path = {item["path"]: item for item in POLICY_SCHEMA}

@@ -19,7 +19,7 @@ from engine.config_loader import load_config, save_config
 from engine.config_metadata import annotate_config_changes
 from engine.policy_schema import policy_context_changed, reconcile_policy_mode
 
-NAMED_POLICY_PRESETS = {"conservative", "balanced", "aggressive"}
+NAMED_POLICY_PRESETS = {"singularity", "conservative", "balanced", "aggressive"}
 
 
 @dataclass

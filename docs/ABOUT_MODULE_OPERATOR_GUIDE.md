@@ -521,7 +521,7 @@ Key behavior:
 
 The Policy Center exposes policy mode, source cleanup behavior, pending cleanup confirmations, runtime policy state, apply guards, and collector guards. Normal inactive cleanup, source-disabled cleanup, collector failure, zero-result scans, and mass-removal events are treated differently so intentional operator actions are not confused with API failure or suspicious data loss.
 
-Recommended production default is balanced mode. In balanced mode, collector failures preserve rows, enabled sources returning zero rows are protected, source-disabled cleanup can require confirmation, and dangerous validation failures block file writes and LibreQoS apply.
+Recommended production default is Singularity mode. In Singularity mode, normal inactive dynamic rows can clean up quickly after successful scans, collector failures preserve rows, enabled sources returning zero rows are protected, source-disabled dynamic cleanup requires confirmation, and dangerous validation failures block file writes and LibreQoS apply.
 
 ## v2.46 Smart Insights note
 

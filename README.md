@@ -2,7 +2,7 @@
 
 **LQoSync is a local appliance-style web app for MikroTik → LibreQoS synchronization.**
 
-This project is **not Django** and **not a SaaS platform**. The WebUI remains the existing Python Flask interface. The backend authority is now the Rust daemon.
+This project is **not Django** and **not a SaaS platform**. The WebUI remains the existing Python Flask interface. The backend is migrating to the Rust daemon; Rust already owns scheduler/write/apply authority where enabled, while live MikroTik collectors are the remaining migration target.
 
 ## Canonical architecture
 
@@ -16,6 +16,7 @@ MikroTik API sources
 lqosync-core.service
   - one Rust authority daemon
   - scheduler authority
+  - Singularity policy guardrails
   - validation
   - sync plan
   - transaction journal
@@ -34,12 +35,13 @@ lqosync web service
 
 ## Runtime boundary
 
-Rust owns production backend authority. Flask is retained only because it is already the working operator interface.
+Rust is the backend authority target. Flask is retained only because it is already the working operator interface. Until the live RouterOS adapter lands in Rust, the legacy Python collector path remains the compatibility bridge and must not be deleted blindly.
 
 ```text
 Rust owns:
 - scheduler
 - run authorization
+- Singularity policy validation surface
 - collector-output validation
 - sync-plan enforcement
 - file write authority
@@ -54,7 +56,7 @@ Python Flask owns:
 - sessions/login/admin shell
 - forms/buttons/API wrappers
 - displaying Rust results
-- compatibility transport shell where still required
+- compatibility live MikroTik collector shell until Rust live reads replace it
 ```
 
 ## Current stable package
@@ -75,7 +77,21 @@ The old Python scheduler loop is retired by default:
 }
 ```
 
-The Flask UI still exposes the same buttons, but those actions are delegated to Rust scheduler authority.
+The Flask UI still exposes the same buttons, but those actions are delegated to Rust scheduler authority. The run-cycle command currently bridges through `scripts/run_cycle_once.py` until the Rust live collector/sync engine is promoted.
+
+## Singularity Policy
+
+Policy presets are being collapsed into one supported operator mode:
+
+```json
+{
+  "policies": {
+    "mode": "singularity"
+  }
+}
+```
+
+Singularity keeps the operator surface simple while preserving safety: normal inactive dynamic rows clean up quickly after successful scans, disabled dynamic sources require confirmation, source failures preserve rows, enabled sources returning zero rows block cleanup, static/manual rows are preserved, and mass-removal guards block cleanup instead of presenting multiple preset personalities.
 
 ## Install
 
@@ -118,20 +134,21 @@ Start here:
 
 - `docs/PROJECT_CANONICAL_ARCHITECTURE.md`
 - `docs/FLASK_UI_SHELL.md`
+- `docs/SINGULARITY_RUST_BACKEND_CUTOVER.md`
 - `docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md`
 - `docs/INSTALLATION_MATRIX.md`
 - `docs/FULL_RUST_STABLE_OPERATIONS.md`
 
 ## v8.2.0 Full Rust daemon boundary
 
-LQoSync is now documented as a local appliance-style app with this boundary:
+LQoSync is documented as a local appliance-style app with this target boundary:
 
 ```text
 Rust authority daemon = backend authority
 Python Flask = WebUI shell only
 ```
 
-The legacy Python scheduler loop has been removed. Flask still exposes the same dashboard and action buttons, but scheduler status, heartbeat, and run authorization are delegated to `lqosync-core`.
+The legacy Python scheduler loop has been removed. Flask still exposes the same dashboard and action buttons, but scheduler status, heartbeat, and run authorization are delegated to `lqosync-core`. Live RouterOS collection remains the key backend component still being migrated from Python to Rust.
 
 This project is not being converted to Django and is not a SaaS platform.
 

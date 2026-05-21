@@ -1,8 +1,11 @@
-"""Default Smart Policy Center configuration for LQoSync.
+"""Default Singularity policy configuration for LQoSync.
 
-The policy defaults are intentionally conservative/balanced: normal stale rows
-can be cleaned safely, but source-disabled, zero-result, collector-failed, and
-mass-removal situations are protected before file write and LibreQoS apply.
+The operator-facing policy model is intentionally singular: one simple policy
+mode with safe built-in guardrails. Normal inactive dynamic rows can be cleaned
+quickly after a successful source scan, while source-disabled dynamic sources
+require confirmation and collector-failed, zero-result, static/manual, and
+mass-removal situations are preserved or blocked instead of becoming a maze of
+per-policy operator choices.
 """
 from copy import deepcopy
 
@@ -17,16 +20,17 @@ CLEANUP_ACTIONS = (
     "block_apply",
 )
 
-POLICY_PRESETS = ("conservative", "balanced", "aggressive", "custom")
+POLICY_PRESETS = ("singularity", "custom", "conservative", "balanced", "aggressive")
+LEGACY_POLICY_PRESETS = ("conservative", "balanced", "aggressive")
 
 SMART_POLICY_DEFAULTS = {
-    "mode": "balanced",
+    "mode": "singularity",
     "cleanup": {
         "enabled": True,
-        "global_default_action": "require_confirm_next_run",
+        "global_default_action": "preserve_rows",
         "confirmation_expires_hours": 24,
         "apply_confirmed_cleanup": "next_run",
-        "normal_inactive_default_action": "cleanup_next_run",
+        "normal_inactive_default_action": "cleanup_immediate",
         "source_disabled_default_action": "require_confirm_next_run",
         "collector_failed_default_action": "preserve_rows",
         "source_zero_result_default_action": "block_cleanup",
@@ -35,11 +39,11 @@ SMART_POLICY_DEFAULTS = {
     "cleanup_sources": {
         "pppoe": {
             "enabled": True,
-            "normal_inactive_action": "cleanup_next_run",
+            "normal_inactive_action": "cleanup_immediate",
             "source_disabled_action": "require_confirm_next_run",
             "collector_failed_action": "preserve_rows",
             "zero_result_action": "block_cleanup",
-            "mass_removal_action": "require_confirm_next_run",
+            "mass_removal_action": "block_cleanup",
             "respect_percentage_guards": True,
         },
         "dhcp": {
@@ -48,17 +52,17 @@ SMART_POLICY_DEFAULTS = {
             "source_disabled_action": "require_confirm_next_run",
             "collector_failed_action": "preserve_rows",
             "zero_result_action": "block_cleanup",
-            "mass_removal_action": "require_confirm_next_run",
-            "respect_percentage_guards": False,
+            "mass_removal_action": "block_cleanup",
+            "respect_percentage_guards": True,
         },
         "hotspot": {
             "enabled": True,
             "normal_inactive_action": "cleanup_immediate",
-            "source_disabled_action": "cleanup_next_run",
+            "source_disabled_action": "require_confirm_next_run",
             "collector_failed_action": "preserve_rows",
             "zero_result_action": "block_cleanup",
-            "mass_removal_action": "require_confirm_next_run",
-            "respect_percentage_guards": False,
+            "mass_removal_action": "block_cleanup",
+            "respect_percentage_guards": True,
         },
         "static": {
             "enabled": True,
@@ -75,19 +79,19 @@ SMART_POLICY_DEFAULTS = {
         "threshold_percent": 30,
         "min_node_size": 10,
         "min_removed_count": 3,
-        "action": "require_confirm_next_run",
+        "action": "block_cleanup",
     },
     "small_node_guard": {
         "enabled": True,
         "max_node_size": 5,
-        "partial_removal_action": "cleanup_next_run",
-        "full_removal_action": "require_confirm_next_run",
+        "partial_removal_action": "cleanup_immediate",
+        "full_removal_action": "block_cleanup",
     },
     "source_cleanup_guard": {
         "enabled": True,
         "threshold_percent": 30,
         "min_removed_count": 5,
-        "action": "require_confirm_next_run",
+        "action": "block_cleanup",
     },
     "apply_guard": {
         "block_apply_on_collector_failure": True,
@@ -138,7 +142,7 @@ SMART_POLICY_DEFAULTS = {
     "auto_apply_policy": {
         "enabled": True,
         "allow_low_risk": True,
-        "allow_medium_risk": False,
+        "allow_medium_risk": True,
         "allow_high_risk": False,
         "allow_critical_risk": False,
         "when_blocked": "keep_pending_manual_apply",
@@ -148,7 +152,7 @@ SMART_POLICY_DEFAULTS = {
         "max_items": 200,
     },
     "stale_lifecycle": {
-        "enabled": True,
+        "enabled": False,
         "sources": {
             "pppoe": {
                 "identity": "username",

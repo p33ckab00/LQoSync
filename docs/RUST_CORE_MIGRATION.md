@@ -1,14 +1,14 @@
 # LQoSync-in-Rust Core Migration Plan
 
-This document defines the planned `lqosync-in-rust` branch. The goal is not to rewrite the whole application at once. The goal is to harden the backend core while preserving the current operator experience.
+This document defines the `lqosync-in-rust` branch. The goal is to migrate backend authority to Rust while preserving the current operator experience and keeping the existing Flask WebUI as the shell.
 
 ```text
 Python Flask WebUI stays as the operator interface.
 Rust becomes the hardened deterministic backend core.
 No database is introduced.
 JSON/files remain the source of truth.
-Autosave/no-save-button behavior remains.
 LibreQoS remains external and is still applied through LibreQoS.py.
+Policy configuration is simplified to Singularity mode instead of multiple operator presets.
 ```
 
 ![LQoSync Rust migration plan](assets/lqosync_rust_migration_plan.svg)
@@ -19,8 +19,8 @@ LibreQoS remains external and is still applied through LibreQoS.py.
 2. **Move dangerous deterministic logic first.** Validation, parsing, diff, topology checks, state writes, and file writes are more important than rewriting screens.
 3. **Rust is the safety boundary.** Rust must sit before cleanup, before diff/write/apply decisions, and before file mutation.
 4. **No database.** Runtime state remains file-based: `config.json`, `runtime_state.json`, `policy_state.json`, `collector_cache.json`, `audit.jsonl`, `ShapedDevices.csv`, and `network.json`.
-5. **No big-bang rewrite.** Python calls Rust through a stable protocol. Early versions use subprocess; later versions may use a Unix socket daemon with the same request/response envelope.
-6. **Python fallback remains.** If the Rust binary is missing during early migration, Python validators can still run.
+5. **No big-bang delete.** Python calls Rust through a stable protocol. Retire Python backend files only after the equivalent Rust live path passes parity and production gates.
+6. **Singularity policy.** Keep one safe operator policy mode. Do not port the old Conservative/Balanced/Aggressive preset maze into Rust.
 
 ## Current implementation boundary
 
@@ -42,7 +42,7 @@ backup + atomic write
 LibreQoS.py --updateonly
 ```
 
-The Rust branch should initially add this boundary:
+The Rust branch currently has this boundary:
 
 ```text
 Flask / scheduler / run_cycle.py
@@ -53,6 +53,46 @@ rust/lqosync-core
   ↓ JSON result
 Python UI / runtime state display
 ```
+
+Important current state:
+
+```text
+Rust already covers:
+- scheduler authority gates
+- validation/diff/sync plan
+- apply manifest/transaction
+- transaction journal/rollback contracts
+- atomic writes and LibreQoS apply execution when enabled
+
+Python still covers:
+- live RouterOS API reads through routeros-api
+- PPPoE/DHCP/Hotspot row generation in the production run cycle
+- WebUI shell and compatibility wrappers
+```
+
+The next migration target is the Rust live RouterOS adapter plus Rust run-cycle orchestration. Once that is live and parity-tested, the Python collector/build/run-cycle modules can be removed.
+
+## Singularity policy target
+
+The policy model is intentionally simplified:
+
+```text
+policies.mode = singularity
+```
+
+Singularity behavior:
+
+```text
+- normal inactive PPP/DHCP/Hotspot rows may clean up after successful collection
+- static/manual rows are preserved
+- collector failures preserve rows
+- enabled source zero-result blocks cleanup
+- source-disabled dynamic cleanup requires confirmation and preserves rows until confirmed
+- mass-removal guards block cleanup
+- medium-risk auto-apply is allowed only after the guardrail verdict remains non-blocking
+```
+
+Legacy policy modes `conservative`, `balanced`, and `aggressive` are compatibility aliases only. New Rust backend work should target Singularity and should not add more policy personalities.
 
 ## Proposed repository layout
 
