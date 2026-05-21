@@ -35,3 +35,9 @@
 - Added `scripts/verify-operator-troubleshooting-docs.sh`.
 - Updated README, installation, full documentation, package notes, documentation index, and docs manifest so operators know where to look when install/migration errors happen.
 - No runtime authority, Flask WebUI, Rust scheduler, or production mutation behavior changed.
+
+## 2.152.2 - v8.2.2 Rust Authority Runtime Hotfix
+
+- Fixed a runtime `NameError` where `engine.run_cycle` called `rust_sync_plan_authority_gate` without importing it from `engine.rust_core`.
+- Added operator guidance for Rust shadow collector warnings that indicate Python collector transport is still selected until Rust collector parity is proven.
+- No WebUI redesign and no live LibreQoS file mutation behavior change.

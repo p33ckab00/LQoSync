@@ -38,7 +38,7 @@ from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
 from engine.rust_core import (
     validate_runtime_outputs, diagnostics_to_messages, validate_collector_output,
-    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction, rust_build_transaction_journal, rust_append_transaction_journal, rust_build_rollback_manifest, rust_build_run_cycle_rust_shadow_report,
+    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction, rust_build_transaction_journal, rust_append_transaction_journal, rust_build_rollback_manifest, rust_build_run_cycle_rust_shadow_report, rust_sync_plan_authority_gate,
 )
 
 

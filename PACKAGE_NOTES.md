@@ -40,3 +40,7 @@ docs/OPERATOR_TROUBLESHOOTING.md
 ```
 
 It covers missing Cargo, old Cargo with `Cargo.lock` version 4, Git `fetch first` / `non-fast-forward`, rebase conflict recovery, production-safe `enable_only` service behavior, and old Python/main to `lqosync-in-rust` migration.
+
+## v8.2.2 runtime hotfix
+
+This package fixes the missing `rust_sync_plan_authority_gate` import seen during live WebUI/run-cycle testing. If the UI shows Rust-shadow collector warnings, treat them as authority-readiness warnings: scheduler/apply authority may be Rust-owned, but collector transport/parity still needs validation before claiming complete Rust collector authority.

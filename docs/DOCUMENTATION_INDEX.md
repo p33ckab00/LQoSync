@@ -53,3 +53,7 @@ Old per-version migration documents may remain in the repository as audit histor
 - [Full Rust Backend Boundary](FULL_RUST_BACKEND_BOUNDARY.md)
 - [Rust Core v8.2.0 Full Rust Daemon Boundary Cleanup](RUST_CORE_V820_FULL_RUST_DAEMON_BOUNDARY.md)
 - [Workflow Architecture SVG](lqosync_workflow_architecture.svg)
+
+## v8.2.2 Runtime Hotfix
+
+- [Rust Core v8.2.2 Runtime Hotfix](RUST_CORE_V822_RUNTIME_HOTFIX.md)
