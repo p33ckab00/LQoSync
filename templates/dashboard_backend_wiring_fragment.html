@@ -1,0 +1,32 @@
+{% set wiring = dashboard_modules or {} %}
+<section id="dashboard-backend-wiring" class="card" style="margin-top:10px">
+  <style>
+    .dash-wiring-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.dash-wiring-item{border:1px solid var(--br0);border-radius:10px;padding:9px;background:rgba(2,6,23,.13)}.dash-wiring-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;color:var(--txt)}.dash-wiring-meta{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:5px}.dash-wiring-backend{font-size:10.5px;color:var(--hint);margin-top:4px;line-height:1.35}@media(max-width:1100px){.dash-wiring-grid{grid-template-columns:1fr}}:root[data-theme=light] .dash-wiring-item{background:#fff}
+  </style>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <div class="card-title"><i class="ti ti-plug-connected"></i> Dashboard Backend Wiring</div>
+      <div class="text-sm" style="color:var(--muted)">Read-only audit showing which Dashboard modules are connected to backend providers. Idle modules are wired but waiting for a dry-run or sync result.</div>
+    </div>
+    <div class="btn-row">
+      <span class="badge {{ 'b-err' if wiring.get('overall') == 'fail' else ('b-warn' if wiring.get('overall') == 'warn' else 'b-ok') }}">{{ wiring.get('overall','unknown') }}</span>
+      <a class="btn" href="/api/dashboard/modules" target="_blank"><i class="ti ti-code"></i> JSON</a>
+    </div>
+  </div>
+  <div class="pillline" style="margin-top:10px">
+    <span class="small-pill">ok={{ wiring.get('summary',{}).get('ok',0) }}</span>
+    <span class="small-pill">warn={{ wiring.get('summary',{}).get('warn',0) }}</span>
+    <span class="small-pill">idle={{ wiring.get('summary',{}).get('idle',0) }}</span>
+    <span class="small-pill">fail={{ wiring.get('summary',{}).get('fail',0) }}</span>
+  </div>
+  <div class="dash-wiring-grid">
+    {% for m in wiring.get('modules', []) %}
+    <a class="dash-wiring-item" href="{{ m.target or '#' }}" style="text-decoration:none">
+      <div class="dash-wiring-title"><span>{{ m.label }}</span><span class="badge {{ 'b-ok' if m.status == 'ok' else ('b-warn' if m.status in ['warn','idle'] else 'b-err') }}">{{ m.status }}</span></div>
+      <div class="dash-wiring-meta">{{ m.detail }}</div>
+      <div class="dash-wiring-backend">{{ m.backend }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% if wiring.get('notes') %}<div class="text-xs" style="color:var(--hint);margin-top:10px">{{ wiring.get('notes')|join(' ') }}</div>{% endif %}
+</section>

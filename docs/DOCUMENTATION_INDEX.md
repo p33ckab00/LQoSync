@@ -61,3 +61,7 @@ Old per-version migration documents may remain in the repository as audit histor
 ## v8.2.3 Sync-Plan Gate Import Hardening
 
 - [Rust Sync-Plan Gate Import Hardening](RUST_CORE_V823_SYNC_PLAN_GATE_IMPORT_HARDENING.md)
+
+## v8.2.4 Dashboard Backend Wiring Audit
+
+- [Dashboard Backend Wiring Audit](RUST_CORE_V824_DASHBOARD_BACKEND_WIRING_AUDIT.md)

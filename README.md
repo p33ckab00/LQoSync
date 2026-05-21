@@ -164,3 +164,7 @@ sudo systemctl restart lqosync
 ```
 
 Collector parity warnings are separate and indicate Rust MikroTik collector parity is not complete yet.
+
+## Dashboard Backend Wiring
+
+The Dashboard includes a read-only backend wiring audit and `/api/dashboard/modules` endpoint so operators can confirm every visible module is connected to its backend provider.

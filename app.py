@@ -29,6 +29,7 @@ from engine.setup_wizard import compute_setup_wizard, NETWORK_MODE_OPTIONS, is_s
 from engine.policy_schema import grouped_policy_schema, policy_diff_from_preset, closest_preset, parse_policy_form, normalize_policies, reconcile_policy_mode, policy_context_changed, POLICY_SCHEMA, get_by_path
 from engine.policy_conflicts import evaluate_policy_conflicts, enhanced_preset_comparison, client_identity_report
 from engine.health_trends import compute_health_report
+from engine.dashboard_modules import build_dashboard_module_wiring
 from engine.production_readiness import compute_production_readiness
 from engine.apply_diagnostics import get_apply_diagnostic
 from engine.stable_release import compute_stable_release_check
@@ -554,12 +555,25 @@ def dashboard():
         config_errors=errors,
         config_warnings=warnings,
     )
+    git_status = _git_status()
+    dashboard_modules = build_dashboard_module_wiring(
+        cfg,
+        state,
+        services=services,
+        git_status=git_status,
+        config_errors=errors,
+        config_warnings=warnings,
+        health_report=health_report,
+        production_readiness=production_readiness,
+        setup_wizard=setup_wizard_status,
+    )
     return render_template(
         "dashboard.html",
         cfg=cfg,
         state=state,
         services=services,
-        git_status=_git_status(),
+        git_status=git_status,
+        dashboard_modules=dashboard_modules,
         config_errors=errors,
         config_warnings=warnings,
         health_report=health_report,
@@ -1144,6 +1158,37 @@ def api_health_trends():
     services = all_service_status(cfg)
     apply_runs = list_apply_runs(cfg, limit=25)
     return jsonify(compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs))
+
+
+@app.route("/api/dashboard/modules")
+@login_required
+def api_dashboard_modules():
+    cfg, state = get_status()
+    services = all_service_status(cfg)
+    errors, warnings = validate_config(cfg)
+    policy_state = load_policy_state(cfg)
+    apply_runs = list_apply_runs(cfg, limit=25)
+    health_report = compute_health_report(cfg, state, policy_state=policy_state, services=services, apply_runs=apply_runs)
+    setup_wizard_status = _compute_setup_wizard_status(cfg, state)
+    production_readiness = compute_production_readiness(
+        cfg,
+        state,
+        setup_wizard=setup_wizard_status,
+        health_report=health_report,
+        config_errors=errors,
+        config_warnings=warnings,
+    )
+    return jsonify(build_dashboard_module_wiring(
+        cfg,
+        state,
+        services=services,
+        git_status=_git_status(),
+        config_errors=errors,
+        config_warnings=warnings,
+        health_report=health_report,
+        production_readiness=production_readiness,
+        setup_wizard=setup_wizard_status,
+    ))
 
 
 @app.route("/api/production/readiness")

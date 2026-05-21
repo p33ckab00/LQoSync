@@ -67,6 +67,7 @@ ACTIVE_PAGE_TEMPLATES = {
     "backup_preview.html",
     "login.html",
     "dashboard_health_performance_fragment.html",
+    "dashboard_backend_wiring_fragment.html",
     "dashboard_lifecycle_fragment.html",
     "dashboard_policy_decision_fragment.html",
     "dashboard_production_readiness_fragment.html",

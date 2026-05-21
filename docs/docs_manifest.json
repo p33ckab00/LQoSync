@@ -73,6 +73,12 @@
     "summary": "Fixes live WebUI NameError for rust_sync_plan_authority_gate with defensive import hardening and verification docs.",
     "title": "Rust Core v8.2.3 Sync-Plan Gate Import Hardening"
   },
+  "rust.core_v824_dashboard_backend_wiring_audit": {
+    "anchor": "v824-dashboard-backend-wiring-audit",
+    "file": "docs/RUST_CORE_V824_DASHBOARD_BACKEND_WIRING_AUDIT.md",
+    "summary": "Read-only Dashboard module wiring audit and JSON endpoint for operator verification.",
+    "title": "Rust Core v8.2.4 Dashboard Backend Wiring Audit"
+  },
   "rust.scheduler_authority": {
     "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
     "summary": "v8.1.0 Rust scheduler authority operations and runtime boundary.",

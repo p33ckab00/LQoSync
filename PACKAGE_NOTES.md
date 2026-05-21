@@ -48,3 +48,10 @@ This package fixes the missing `rust_sync_plan_authority_gate` import seen durin
 ## v8.2.3 Rust Sync-Plan Gate Import Hardening
 
 This package hardens the Rust sync-plan authority gate import used by `engine/run_cycle.py` so live WebUI cycles do not fail with `name 'rust_sync_plan_authority_gate' is not defined`. It adds a verification script and operator documentation.
+
+## v8.2.4 Dashboard Backend Wiring Audit
+
+- Added `engine/dashboard_modules.py`, `/api/dashboard/modules`, and a Dashboard Backend Wiring card.
+- Added read-only verification for Dashboard modules and their backend providers.
+- Added `scripts/verify-dashboard-backend-wiring.sh` and documentation for operator-facing module wiring checks.
+- No collector, apply, scheduler, or WebUI redesign behavior changed.
