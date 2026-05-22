@@ -67,8 +67,8 @@ Python Flask owns:
 ## Current stable package
 
 ```text
-v8.1.0 Rust Scheduler Authority
-VERSION=2.151.0
+v8.2.6 Python Legacy Retirement Inventory
+VERSION=2.152.6
 ```
 
 The old Python scheduler loop is retired by default:
@@ -83,6 +83,8 @@ The old Python scheduler loop is retired by default:
 ```
 
 The Flask UI still exposes the same buttons, but those actions are delegated to Rust scheduler authority. The run-cycle command currently bridges through `scripts/run_cycle_once.py` until the Rust live collector/sync engine is promoted.
+
+Rust now also exposes `build-python-legacy-retirement-inventory` so backend-only Python remnants can be classified separately from the Flask WebUI shell before any guarded cleanup. The inventory is non-mutating and keeps deletion disabled by design.
 
 ## Singularity Policy
 

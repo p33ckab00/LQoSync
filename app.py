@@ -98,6 +98,7 @@ from engine.rust_core import (
     rust_build_full_rust_backend_steady_state_guard,
     rust_build_full_rust_backend_production_drift_monitor,
     rust_build_full_rust_backend_production_audit_sentinel,
+    rust_build_python_legacy_retirement_inventory,
     rust_validate_routeros_read_results,
     rust_build_collector_circuit_bundle,
     rust_compare_collector_bundle_parity,
@@ -3428,6 +3429,38 @@ def api_rust_core_full_rust_backend_production_audit_sentinel():
             "operator_full_rust_backend_audit_sentinel_ack": str(request.args.get("operator_full_rust_backend_audit_sentinel_ack") or "").lower() in true_values,
         }
     return jsonify(rust_build_full_rust_backend_production_audit_sentinel(cfg, payload))
+
+
+@app.route("/api/rust-core/python-legacy-retirement-inventory", methods=["GET", "POST"])
+@login_required
+def api_rust_core_python_legacy_retirement_inventory():
+    cfg = load_config(CONFIG_PATH)
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+    else:
+        true_values = {"1", "true", "yes", "on"}
+        audit_ready = str(request.args.get("audit_sentinel_ready") or "").lower() in true_values
+        payload = {
+            "mode": request.args.get("mode") or "inventory_only",
+            "confirmation": request.args.get("confirmation") or "",
+            "shadow_age_seconds": int(request.args.get("shadow_age_seconds") or 0),
+            "webui_ux_unchanged": str(request.args.get("webui_ux_unchanged") or "").lower() in true_values,
+            "webui_static_asset_paths_unchanged": str(request.args.get("webui_static_asset_paths_unchanged") or "").lower() in true_values,
+            "webui_static_assets_preserved": str(request.args.get("webui_static_assets_preserved") or "").lower() in true_values,
+            "python_backend_rollback_package_ready": str(request.args.get("python_backend_rollback_package_ready") or "").lower() in true_values,
+            "rollback_test_passed": str(request.args.get("rollback_test_passed") or "").lower() in true_values,
+            "rollback_path": request.args.get("rollback_path") or "restore_python_backend_and_flask_routes",
+            "operator_python_legacy_retirement_ack": str(request.args.get("operator_python_legacy_retirement_ack") or "").lower() in true_values,
+        }
+        if audit_ready:
+            payload["full_rust_backend_production_audit_sentinel"] = {
+                "status": "full_rust_backend_production_audit_sentinel_healthy",
+                "full_rust_backend": True,
+                "python_backend_removed": True,
+                "python_backend_retired": True,
+                "side_effects_allowed": False,
+            }
+    return jsonify(rust_build_python_legacy_retirement_inventory(cfg, payload))
 
 
 @app.route("/api/rust-core/routeros-read-results", methods=["POST"])

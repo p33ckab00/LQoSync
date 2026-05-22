@@ -27,7 +27,7 @@ check_exec() {
   fi
 }
 
-check_contains VERSION '2.151.0' version
+check_contains VERSION '2.152.' version
 check_exec scripts/rust-authority-watchdog.sh watchdog-script
 check_exec scripts/verify-rust-authority-watchdog.sh verifier-script
 check_contains config.json.example 'rust_authority_watchdog_enabled' config-watchdog-enabled

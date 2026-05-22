@@ -1,5 +1,12 @@
 # Release Notes
 
+## 2.152.6 - v8.2.6 Python Legacy Retirement Inventory
+
+- Added Rust operation `build-python-legacy-retirement-inventory` to classify Flask WebUI shell files separately from legacy backend cleanup candidates.
+- Added `/api/rust-core/python-legacy-retirement-inventory` as a WebUI-shell API wrapper with no Python fallback authority.
+- Added config gates, documentation, docs manifest entry, and stable cleanup verification coverage.
+- Kept cleanup non-mutating by design: `delete_allowed=false`, `side_effects_allowed=false`, and archive planning only reports ready after audit-sentinel, rollback, WebUI, and operator gates pass.
+
 ## 2.152.3 - v8.2.3 Rust Sync-Plan Gate Import Hardening
 
 - Hardened `engine/run_cycle.py` against live NameError failures for `rust_sync_plan_authority_gate` by adding a defensive local import at the call site while preserving the existing top-level import.

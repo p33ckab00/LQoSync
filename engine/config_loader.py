@@ -134,7 +134,7 @@ DEFAULT_CONFIG = {
         "collector_output_authority": "rust_validate_all",
         "require_collector_rust_validation": True,
         "rust_stable_release": True,
-        "rust_stable_release_version": "v8.1.0",
+        "rust_stable_release_version": "v8.2.6",
         "python_runtime_role": "flask_webui_shell_only",
         "python_backend_authority_removed": True,
         "legacy_python_mutation_cleanup_complete": True,
@@ -515,6 +515,16 @@ DEFAULT_CONFIG = {
         "full_rust_backend_audit_sentinel_require_manual_confirmation": True,
         "full_rust_backend_audit_sentinel_require_operator_ack": True,
         "full_rust_backend_audit_sentinel_max_shadow_age_seconds": 900,
+        "python_legacy_retirement_inventory_pilot": False,
+        "allow_python_legacy_retirement_inventory": False,
+        "python_legacy_retirement_inventory_mode": "inventory_only",
+        "python_legacy_retirement_require_audit_sentinel": True,
+        "python_legacy_retirement_require_webui_shell": True,
+        "python_legacy_retirement_require_rollback_package": True,
+        "python_legacy_retirement_require_manual_confirmation": True,
+        "python_legacy_retirement_require_operator_ack": True,
+        "python_legacy_retirement_require_no_side_effects": True,
+        "python_legacy_retirement_max_shadow_age_seconds": 900,
     },
     "collector": {
         "selective_fields": True,
@@ -631,7 +641,7 @@ DEFAULT_CONFIG = {
         "cleanup_stale_files_script": "/opt/LQoSync/scripts/cleanup_stale_files.py"
     },
     "stable_release": {
-        "target": "v8.1.0 Rust Scheduler Authority Stable",
+        "target": "v8.2.6 Rust Backend Legacy Retirement Inventory",
         "feature_freeze": True,
         "allow_new_sidebar_modules": False,
         "require_release_check": True,
@@ -1037,7 +1047,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("collector_output_authority", "rust_validate_all")
     rust_core.setdefault("require_collector_rust_validation", True)
     rust_core.setdefault("rust_stable_release", True)
-    rust_core.setdefault("rust_stable_release_version", "v8.1.0")
+    rust_core.setdefault("rust_stable_release_version", "v8.2.6")
     rust_core.setdefault("python_runtime_role", "flask_webui_shell_only")
     rust_core.setdefault("python_backend_authority_removed", True)
     rust_core.setdefault("legacy_python_mutation_cleanup_complete", True)
@@ -1364,6 +1374,16 @@ def validate_config(cfg: dict):
     rust_core.setdefault("full_rust_backend_audit_sentinel_require_manual_confirmation", True)
     rust_core.setdefault("full_rust_backend_audit_sentinel_require_operator_ack", True)
     rust_core.setdefault("full_rust_backend_audit_sentinel_max_shadow_age_seconds", 900)
+    rust_core.setdefault("python_legacy_retirement_inventory_pilot", False)
+    rust_core.setdefault("allow_python_legacy_retirement_inventory", False)
+    rust_core.setdefault("python_legacy_retirement_inventory_mode", "inventory_only")
+    rust_core.setdefault("python_legacy_retirement_require_audit_sentinel", True)
+    rust_core.setdefault("python_legacy_retirement_require_webui_shell", True)
+    rust_core.setdefault("python_legacy_retirement_require_rollback_package", True)
+    rust_core.setdefault("python_legacy_retirement_require_manual_confirmation", True)
+    rust_core.setdefault("python_legacy_retirement_require_operator_ack", True)
+    rust_core.setdefault("python_legacy_retirement_require_no_side_effects", True)
+    rust_core.setdefault("python_legacy_retirement_max_shadow_age_seconds", 900)
     if rust_core.get("authority_mode") not in ("shadow", "enforce_blockers"):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     if rust_core.get("routeros_read_pilot_adapter") not in ("fixture", "disabled"):

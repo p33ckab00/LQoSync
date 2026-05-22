@@ -69,6 +69,7 @@ use lqosync_core::rust_full_backend_post_retirement_verifier::build_full_rust_ba
 use lqosync_core::rust_full_backend_steady_state_guard::build_full_rust_backend_steady_state_guard_payload;
 use lqosync_core::rust_full_backend_production_drift_monitor::build_full_rust_backend_production_drift_monitor_payload;
 use lqosync_core::rust_full_backend_production_audit_sentinel::build_full_rust_backend_production_audit_sentinel_payload;
+use lqosync_core::python_legacy_retirement_inventory::build_python_legacy_retirement_inventory_payload;
 use lqosync_core::rust_scheduler::{scheduler_status_payload, scheduler_heartbeat_payload, scheduler_decision_payload, scheduler_run_once_payload};
 use lqosync_core::self_test::{advertised_operations, self_test_payload};
 use lqosync_core::shaped_devices::{parse_csv_text, render_csv_text, validate_rows};
@@ -513,6 +514,10 @@ fn handle_request(req: &CoreRequest, started: Instant) -> anyhow::Result<CoreRes
         }
         "build-full-rust-backend-production-audit-sentinel" => {
             let (result, errors, warnings) = build_full_rust_backend_production_audit_sentinel_payload(&req.payload);
+            Ok(CoreResponse::validation(req, result, errors, warnings, started))
+        }
+        "build-python-legacy-retirement-inventory" => {
+            let (result, errors, warnings) = build_python_legacy_retirement_inventory_payload(&req.payload);
             Ok(CoreResponse::validation(req, result, errors, warnings, started))
         }
 

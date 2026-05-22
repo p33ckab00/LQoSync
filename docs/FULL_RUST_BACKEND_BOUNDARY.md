@@ -35,3 +35,5 @@ Python Flask remains because LQoSync is a local web app with an existing interfa
 ## Compatibility bridge note
 
 Some Python files remain because the Flask UI, operator diagnostics, and transport compatibility still need them. They must not be interpreted as Python backend authority. Stable config disables Python mutation fallback.
+
+`build-python-legacy-retirement-inventory` is the Rust-owned cleanup classifier for this boundary. It preserves Flask WebUI shell files, marks backend-only Python paths as guarded archive candidates, and keeps `delete_allowed=false` until an external rollback-aware cleanup script is explicitly run.

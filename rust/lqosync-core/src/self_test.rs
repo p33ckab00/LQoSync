@@ -61,6 +61,7 @@ use crate::rust_full_backend_post_retirement_verifier::build_full_rust_backend_p
 use crate::rust_full_backend_steady_state_guard::build_full_rust_backend_steady_state_guard_payload;
 use crate::rust_full_backend_production_drift_monitor::build_full_rust_backend_production_drift_monitor_payload;
 use crate::rust_full_backend_production_audit_sentinel::build_full_rust_backend_production_audit_sentinel_payload;
+use crate::python_legacy_retirement_inventory::build_python_legacy_retirement_inventory_payload;
 use crate::transaction_journal::{append_transaction_journal_payload, build_rollback_manifest_payload, build_transaction_journal_payload};
 use crate::transaction_history::{build_rollback_from_journal_payload, read_transaction_journal_payload};
 use serde_json::{json, Value};
@@ -136,6 +137,7 @@ pub const OP_BUILD_FULL_RUST_BACKEND_POST_RETIREMENT_VERIFIER: &str = "build-ful
 pub const OP_BUILD_FULL_RUST_BACKEND_STEADY_STATE_GUARD: &str = "build-full-rust-backend-steady-state-guard";
 pub const OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_DRIFT_MONITOR: &str = "build-full-rust-backend-production-drift-monitor";
 pub const OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_AUDIT_SENTINEL: &str = "build-full-rust-backend-production-audit-sentinel";
+pub const OP_BUILD_PYTHON_LEGACY_RETIREMENT_INVENTORY: &str = "build-python-legacy-retirement-inventory";
 pub const OP_BUILD_COLLECTOR_CIRCUIT_BUNDLE: &str = "build-collector-circuit-bundle";
 pub const OP_COMPARE_COLLECTOR_BUNDLE_PARITY: &str = "compare-collector-bundle-parity";
 pub const OP_EVALUATE_SYNC_PLAN: &str = "evaluate-sync-plan";
@@ -229,6 +231,7 @@ pub fn advertised_operations() -> &'static [&'static str] {
         OP_BUILD_FULL_RUST_BACKEND_STEADY_STATE_GUARD,
         OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_DRIFT_MONITOR,
         OP_BUILD_FULL_RUST_BACKEND_PRODUCTION_AUDIT_SENTINEL,
+        OP_BUILD_PYTHON_LEGACY_RETIREMENT_INVENTORY,
         OP_SCHEDULER_STATUS,
         OP_SCHEDULER_HEARTBEAT,
         OP_SCHEDULER_DECISION,
@@ -302,6 +305,53 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
             "scheduler_operations_not_advertised",
             Some("operations".to_string()),
             "Rust scheduler authority operations are not advertised by the Rust core.",
+        ));
+    }
+
+    let (legacy_inventory, legacy_inventory_errors, _legacy_inventory_warnings) =
+        build_python_legacy_retirement_inventory_payload(&json!({
+            "confirmation": "CONFIRM_PYTHON_LEGACY_RETIREMENT_INVENTORY",
+            "shadow_age_seconds": 0,
+            "full_rust_backend_production_audit_sentinel": {
+                "status": "full_rust_backend_production_audit_sentinel_healthy",
+                "full_rust_backend": true,
+                "python_backend_removed": true,
+                "python_backend_retired": true,
+                "side_effects_allowed": false
+            },
+            "webui_ux_unchanged": true,
+            "webui_static_asset_paths_unchanged": true,
+            "webui_static_assets_preserved": true,
+            "python_backend_rollback_package_ready": true,
+            "rollback_test_passed": true,
+            "rollback_path": "restore_python_backend_and_flask_routes",
+            "operator_python_legacy_retirement_ack": true,
+            "python_paths": ["app.py", "engine/rust_core.py", "engine/run_cycle.py", "collectors/pppoe.py"],
+            "rust_core": {
+                "python_runtime_role": "flask_webui_shell_only",
+                "allow_python_legacy_retirement_inventory": true,
+                "python_legacy_retirement_inventory_pilot": true,
+                "python_legacy_retirement_inventory_mode": "inventory_only"
+            }
+        }));
+    let legacy_inventory_ok = legacy_inventory_errors.is_empty()
+        && legacy_inventory.get("status").and_then(Value::as_str)
+            == Some("python_legacy_retirement_inventory_ready")
+        && legacy_inventory.get("delete_allowed").and_then(Value::as_bool) == Some(false);
+    checks.push(check(
+        "python_legacy_retirement_inventory",
+        legacy_inventory_ok,
+        json!({
+            "status": legacy_inventory.get("status"),
+            "legacy_backend_candidate_count": legacy_inventory.get("legacy_backend_candidate_count"),
+            "delete_allowed": legacy_inventory.get("delete_allowed")
+        }),
+    ));
+    if !legacy_inventory_ok {
+        errors.push(Diagnostic::error(
+            "self_test_python_legacy_inventory_failed",
+            Some(OP_BUILD_PYTHON_LEGACY_RETIREMENT_INVENTORY.to_string()),
+            "Self-test Python legacy retirement inventory should be ready and deletion-disabled when full-Rust evidence is present.",
         ));
     }
 

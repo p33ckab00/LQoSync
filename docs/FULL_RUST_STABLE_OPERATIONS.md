@@ -44,3 +44,7 @@ Rust authority requires:
 ## Flask role
 
 Flask is an operator UI. It must not silently mutate production files outside Rust authority.
+
+## Python legacy cleanup
+
+Run `build-python-legacy-retirement-inventory` before any final cleanup of Python backend remnants. The Rust inventory preserves Flask WebUI shell paths, marks backend-only Python paths as guarded archive candidates, and keeps deletion disabled by design.

@@ -26,7 +26,7 @@ check_exec() {
     fail=1
   fi
 }
-check_contains VERSION '2.151.0' version
+check_contains VERSION '2.152.' version
 check_contains config.json.example 'rust_live_stable_candidate_enabled' config-live-stable
 check_contains config.json.example 'rust_authority_quarantine_enabled' config-quarantine
 check_contains engine/config_loader.py 'rust_live_stable_candidate_enabled' loader-live-stable

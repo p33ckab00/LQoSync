@@ -101,6 +101,12 @@
     "summary": "Adds lqosyncctl.sh and safe dry-run exception diagnostics.",
     "title": "Rust Core v8.2.5 One-Line Operations + Dry-Run Hardening"
   },
+  "rust.core_v826_python_legacy_retirement_inventory": {
+    "anchor": "v826-python-legacy-retirement-inventory",
+    "file": "docs/RUST_CORE_V826_PYTHON_LEGACY_RETIREMENT_INVENTORY.md",
+    "summary": "Adds Rust-owned classification and gates for legacy Python backend cleanup while preserving the Flask WebUI shell.",
+    "title": "Rust Core v8.2.6 Python Legacy Retirement Inventory"
+  },
   "rust.scheduler_authority": {
     "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
     "summary": "v8.1.0 Rust scheduler authority operations and runtime boundary.",

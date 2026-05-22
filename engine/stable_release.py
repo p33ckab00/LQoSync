@@ -1,6 +1,6 @@
 """Stable Release Candidate checks for LQoSync.
 
-v8.2.0 is the full Rust daemon boundary cleanup stable release. These helpers are
+v8.2.x is the full Rust daemon boundary cleanup stable release series. These helpers are
 read-only and classify routes, compatibility aliases, deprecated templates, and
 pre/post-update checks so operators can validate a release without adding more UI
 surface area.
@@ -18,7 +18,7 @@ from engine.policy_path_audit import audit_policy_and_paths
 from engine.ui_wiring_audit import audit_ui_wiring
 from engine.policy_preset_audit import audit_policy_presets
 
-STABLE_RELEASE_TARGET = "v8.2.0 Full Rust Daemon Boundary Stable Release"
+STABLE_RELEASE_TARGET = "v8.2.6 Python Legacy Retirement Inventory Stable Release"
 FEATURE_FREEZE_POLICY = {
     "status": "active",
     "allowed": [
@@ -236,7 +236,7 @@ def compute_stable_release_check(root: str | Path | None = None) -> dict[str, An
 
     version = (root / "VERSION").read_text(encoding="utf-8", errors="ignore").strip() if (root / "VERSION").exists() else "unknown"
     if not version.startswith("2.152"):
-        items.append(StableItem("version.rc", "Stable release version", "warn", f"VERSION is {version}; expected 2.152.x for v8.2 full Rust daemon boundary stable", "release", "Update VERSION and release notes before packaging v8.2.0 stable."))
+        items.append(StableItem("version.rc", "Stable release version", "warn", f"VERSION is {version}; expected 2.152.x for v8.2 full Rust daemon boundary stable", "release", "Update VERSION and release notes before packaging the v8.2 stable series."))
     else:
         items.append(StableItem("version.rc", "Stable release version", "ok", f"VERSION={version}", "release"))
 

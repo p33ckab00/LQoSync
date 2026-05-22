@@ -6453,6 +6453,38 @@ def rust_build_full_rust_backend_production_audit_sentinel(config: dict, payload
     return response
 
 
+def rust_build_python_legacy_retirement_inventory(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", config)
+    response = call_rust_core("build-python-legacy-retirement-inventory", req_payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return {
+            "version": "1",
+            "op": "build-python-legacy-retirement-inventory",
+            "ok": False,
+            "result": {
+                "mode": "python_legacy_retirement_inventory",
+                "status": "python_legacy_retirement_inventory_unavailable",
+                "python_legacy_retirement_inventory_ready": False,
+                "inventory_only": True,
+                "non_mutating": True,
+                "delete_allowed": False,
+                "side_effects_allowed": False,
+            },
+            "errors": [{
+                "code": "rust_core_operation_unavailable",
+                "severity": "error",
+                "path": "build-python-legacy-retirement-inventory",
+                "message": "Installed Rust core does not advertise the Python legacy retirement inventory operation.",
+            }],
+            "warnings": [],
+            "meta": {"engine": "python-wrapper", "mode": "python_legacy_retirement_inventory_unavailable", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+        }
+    return response
+
+
 def rust_validate_routeros_read_results(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     req_payload = dict(payload or {})

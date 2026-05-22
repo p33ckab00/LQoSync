@@ -71,3 +71,7 @@ Old per-version migration documents may remain in the repository as audit histor
 
 - [One-Line Operations Guide](ONE_LINE_OPERATIONS.md)
 - [Rust Core v8.2.5 One-Line Operations + Dry-Run Hardening](RUST_CORE_V825_ONE_LINE_OPERATIONS_AND_DRY_RUN_HARDENING.md)
+
+## v8.2.6 Python Legacy Retirement Inventory
+
+- [Python Legacy Retirement Inventory](RUST_CORE_V826_PYTHON_LEGACY_RETIREMENT_INVENTORY.md)

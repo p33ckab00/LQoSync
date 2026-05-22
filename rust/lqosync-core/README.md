@@ -485,3 +485,6 @@ The Rust core remains installed through `scripts/build-rust-core.sh`, `scripts/i
 
 The stale-codebase cleanup guard is an operational layer outside Rust core protocol operations. It does not add a new Rust core op; it helps operators safely identify duplicate working trees and legacy Python remnants while preserving Rust daemon and rollback safety.
 
+## v8.2.6 Python Legacy Retirement Inventory
+
+Adds `build-python-legacy-retirement-inventory`, a non-mutating Rust operation that classifies Flask WebUI shell files separately from legacy backend cleanup candidates after the full Rust production audit sentinel is healthy. It keeps `delete_allowed=false`, exposes `archive_plan_allowed` only when rollback/WebUI/operator gates pass, and provides the manifest needed before any guarded cleanup of Python backend remnants.

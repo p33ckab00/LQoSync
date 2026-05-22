@@ -1,7 +1,7 @@
 # Package Notes
 
-Package: v8.1.0 Rust Scheduler Authority Stable
-Version: 2.151.0
+Package: v8.2.6 Python Legacy Retirement Inventory
+Version: 2.152.6
 
 This package aligns the codebase and documentation to the current project journey:
 
@@ -21,6 +21,7 @@ It is not Django and not SaaS.
 
 ```bash
 bash scripts/verify-rust-scheduler-authority.sh
+bash scripts/verify-rust-stable-release-cleanup.sh
 python3 scripts/release_check.py
 python3 scripts/regression_check.py
 python3 scripts/stable_release_check.py
@@ -59,3 +60,7 @@ This package hardens the Rust sync-plan authority gate import used by `engine/ru
 ## v8.2.5 One-Line Operations + Dry-Run Hardening
 
 This package adds `lqosyncctl.sh` for one-line fresh install, update, check, verify, start, stop, restart, and repair from the `lqosync-in-rust` GitHub branch. It also catches dry-run route exceptions and displays operator diagnostics instead of raw Internal Server Error pages.
+
+## v8.2.6 Python Legacy Retirement Inventory
+
+This package adds Rust operation `build-python-legacy-retirement-inventory` and `/api/rust-core/python-legacy-retirement-inventory`. It preserves Flask WebUI shell files, marks backend-only Python paths as guarded archive candidates, and keeps `delete_allowed=false` until rollback-aware cleanup is explicitly run outside Rust core.

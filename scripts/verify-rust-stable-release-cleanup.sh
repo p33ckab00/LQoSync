@@ -9,8 +9,8 @@ contains(){ local f="$1" p="$2" k="$3"; grep -q "$p" "$f" && ok "$k" "$f" || bad
 
 version="$(tr -d '\n' < VERSION 2>/dev/null || true)"
 case "$version" in
-  2.151.*) ok version "$version" ;;
-  *) bad version "expected 2.151.x v8.1 stable, got $version" ;;
+  2.152.*) ok version "$version" ;;
+  *) bad version "expected 2.152.x v8.2 stable, got $version" ;;
 esac
 
 python3 - <<'PY'
@@ -51,6 +51,8 @@ contains scripts/promote-rust-full-authoritative-safe.sh 'rust-set-and-forget-re
 contains docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md 'Python is .*not.* allowed to silently take over production mutation' stable-doc-boundary
 contains docs/FULL_RUST_STABLE_OPERATIONS.md 'Rust authority daemon' stable-ops-guide
 contains scripts/rust-stable-codebase-cleanup-inventory.sh 'flask_webui_shell_only' cleanup-inventory
+contains rust/lqosync-core/src/self_test.rs 'build-python-legacy-retirement-inventory' legacy-retirement-op
+contains docs/RUST_CORE_V826_PYTHON_LEGACY_RETIREMENT_INVENTORY.md 'delete_allowed=false' legacy-retirement-doc
 
 if find . -path './.git' -prune -o -type f \( -name '*.orig' -o -name '*.rej' -o -name '*.bak' -o -name '*~' -o -name '*.pre_*' \) -print | grep -q .; then
   bad stale-files "stale backup/reject files found"
