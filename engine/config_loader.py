@@ -201,6 +201,7 @@ DEFAULT_CONFIG = {
         "collector_authority_pilot_execution_require_switch_rehearsal": True,
         "collector_authority_pilot_execution_require_python_fallback": False,
         "collector_authority_pilot_execution_require_manual_confirmation": True,
+        "collector_authority_pilot_execution_require_diagnostic_selection": True,
         "collector_authority_pilot_execution_max_shadow_age_seconds": 900,
         "collector_authority_pilot_result_evaluator_pilot": False,
         "allow_collector_authority_pilot_result_evaluation": False,
@@ -1053,6 +1054,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("collector_authority_pilot_execution_pilot", False)
     rust_core.setdefault("allow_collector_authority_pilot_execution_contract", False)
     rust_core.setdefault("collector_authority_pilot_execution_mode", "contract_only")
+    rust_core.setdefault("collector_authority_pilot_execution_require_diagnostic_selection", True)
     rust_core.setdefault("collector_authority_pilot_result_evaluator_pilot", False)
     rust_core.setdefault("allow_collector_authority_pilot_result_evaluation", False)
     rust_core.setdefault("collector_authority_pilot_result_mode", "evaluate_only")

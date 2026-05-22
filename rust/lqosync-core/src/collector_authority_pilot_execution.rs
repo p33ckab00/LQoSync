@@ -11,6 +11,10 @@ fn str_value<'a>(v: Option<&'a Value>, default: &'a str) -> &'a str {
     v.and_then(Value::as_str).unwrap_or(default)
 }
 
+fn number_value(v: Option<&Value>, default: u64) -> u64 {
+    v.and_then(Value::as_u64).unwrap_or(default)
+}
+
 fn config_value<'a>(payload: &'a Value, key: &str) -> Option<&'a Value> {
     payload
         .get("rust_core")
@@ -52,6 +56,7 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
     let require_switch_rehearsal = bool_value(config_value(payload, "collector_authority_pilot_execution_require_switch_rehearsal"), true);
     let require_python_fallback = bool_value(config_value(payload, "collector_authority_pilot_execution_require_python_fallback"), true);
     let require_manual_confirmation = bool_value(config_value(payload, "collector_authority_pilot_execution_require_manual_confirmation"), true);
+    let require_diagnostic_selection = bool_value(config_value(payload, "collector_authority_pilot_execution_require_diagnostic_selection"), true);
     let max_shadow_age = config_value(payload, "collector_authority_pilot_execution_max_shadow_age_seconds")
         .and_then(Value::as_u64)
         .unwrap_or(900);
@@ -98,11 +103,34 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
         && switch_rehearsal.get("collector_authority_switch_executed").and_then(Value::as_bool) == Some(false)
         && switch_rehearsal.get("python_collector_fallback_required").and_then(Value::as_bool) == Some(true);
 
+    let diagnostic_row_authority = str_value(switch_rehearsal.get("diagnostic_row_authority"), "python_authoritative");
+    let production_row_authority = str_value(switch_rehearsal.get("production_row_authority"), "python_collector");
+    let cleanup_row_authority = str_value(switch_rehearsal.get("cleanup_row_authority"), "python_collector");
+    let diagnostic_selection_only = bool_value(switch_rehearsal.get("diagnostic_selection_only"), false);
+    let rust_diagnostic_selection_ready = bool_value(switch_rehearsal.get("rust_diagnostic_selection_ready"), false);
+    let rust_rows_selected_for_diagnostics = bool_value(switch_rehearsal.get("rust_rows_selected_for_diagnostics"), false);
+    let rust_rows_safe_for_observation = bool_value(switch_rehearsal.get("rust_rows_safe_for_observation"), false);
+    let diagnostic_selection_ready = switch_ready
+        && diagnostic_selection_only
+        && rust_diagnostic_selection_ready
+        && rust_rows_selected_for_diagnostics
+        && rust_rows_safe_for_observation
+        && diagnostic_row_authority == "rust_shadow_diagnostics"
+        && production_row_authority == "python_collector"
+        && cleanup_row_authority == "python_collector";
+
     if require_switch_rehearsal && !switch_ready {
         warnings.push(Diagnostic::warning(
             "collector_authority_pilot_execution_switch_not_ready",
             Some("collector_authority_switch_rehearsal".to_string()),
             "Collector authority switch rehearsal is not ready; pilot execution contract remains shadow-only.",
+        ));
+    }
+    if require_diagnostic_selection && !diagnostic_selection_ready {
+        warnings.push(Diagnostic::warning(
+            "collector_authority_pilot_execution_diagnostic_selection_not_ready",
+            Some("collector_authority_switch_rehearsal".to_string()),
+            "Switch rehearsal has not selected Rust rows for diagnostics-only observation; pilot execution contract remains waiting.",
         ));
     }
     if !require_python_fallback {
@@ -131,6 +159,7 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
     let ready = errors.is_empty()
         && requested
         && (!require_switch_rehearsal || switch_ready)
+        && (!require_diagnostic_selection || diagnostic_selection_ready)
         && require_python_fallback
         && confirmation_ok
         && shadow_age <= max_shadow_age;
@@ -147,6 +176,12 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
 
     let rust_row_count = switch_rehearsal.get("rust_row_count").and_then(Value::as_u64).unwrap_or(0);
     let python_row_count = switch_rehearsal.get("python_row_count").and_then(Value::as_u64).unwrap_or(0);
+    let live_read_shadow_row_count = number_value(switch_rehearsal.get("live_read_shadow_row_count"), 0);
+    let shadow_history_successful_count = number_value(switch_rehearsal.get("shadow_history_successful_count"), 0);
+    let runtime_evidence_source = str_value(switch_rehearsal.get("runtime_evidence_source"), "not_ready");
+    let live_read_shadow_ready = bool_value(switch_rehearsal.get("live_read_shadow_ready"), false);
+    let parity_verdict = str_value(switch_rehearsal.get("parity_verdict"), "not_available");
+    let live_read_shadow_parity_verdict = str_value(switch_rehearsal.get("live_read_shadow_parity_verdict"), "not_available");
     let sources = payload.get("sources").cloned().unwrap_or_else(|| json!([]));
 
     let seed = json!({
@@ -154,6 +189,8 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
         "switch_status": switch_status,
         "execution_mode": execution_mode,
         "rust_row_count": rust_row_count,
+        "runtime_evidence_source": runtime_evidence_source,
+        "diagnostic_selection_ready": diagnostic_selection_ready,
         "confirmation_ok": confirmation_ok,
         "shadow_age_seconds": shadow_age,
     });
@@ -176,14 +213,30 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
     result_map.insert("require_switch_rehearsal".to_string(), json!(require_switch_rehearsal));
     result_map.insert("require_python_fallback".to_string(), json!(require_python_fallback));
     result_map.insert("require_manual_confirmation".to_string(), json!(require_manual_confirmation));
+    result_map.insert("require_diagnostic_selection".to_string(), json!(require_diagnostic_selection));
     result_map.insert("manual_confirmation_ok".to_string(), json!(confirmation_ok));
     result_map.insert("max_shadow_age_seconds".to_string(), json!(max_shadow_age));
     result_map.insert("shadow_age_seconds".to_string(), json!(shadow_age));
     result_map.insert("switch_status".to_string(), json!(switch_status));
     result_map.insert("switch_ready".to_string(), json!(switch_ready));
+    result_map.insert("runtime_evidence_source".to_string(), json!(runtime_evidence_source));
+    result_map.insert("live_read_shadow_ready".to_string(), json!(live_read_shadow_ready));
+    result_map.insert("shadow_history_successful_count".to_string(), json!(shadow_history_successful_count));
+    result_map.insert("parity_verdict".to_string(), json!(parity_verdict));
+    result_map.insert("live_read_shadow_parity_verdict".to_string(), json!(live_read_shadow_parity_verdict));
     result_map.insert("sources".to_string(), sources);
     result_map.insert("python_row_count".to_string(), json!(python_row_count));
     result_map.insert("rust_row_count".to_string(), json!(rust_row_count));
+    result_map.insert("live_read_shadow_row_count".to_string(), json!(live_read_shadow_row_count));
+    result_map.insert("production_row_authority".to_string(), json!(production_row_authority));
+    result_map.insert("cleanup_row_authority".to_string(), json!(cleanup_row_authority));
+    result_map.insert("diagnostic_row_authority".to_string(), json!(diagnostic_row_authority));
+    result_map.insert("diagnostic_selection_only".to_string(), json!(diagnostic_selection_only));
+    result_map.insert("diagnostic_selection_ready".to_string(), json!(diagnostic_selection_ready));
+    result_map.insert("rust_diagnostic_selection_ready".to_string(), json!(rust_diagnostic_selection_ready));
+    result_map.insert("rust_rows_selected_for_diagnostics".to_string(), json!(rust_rows_selected_for_diagnostics));
+    result_map.insert("rust_rows_safe_for_observation".to_string(), json!(rust_rows_safe_for_observation));
+    result_map.insert("rust_rows_may_feed_pilot_observation".to_string(), json!(ready && diagnostic_selection_ready));
     result_map.insert("collector_authority_switch_rehearsal".to_string(), switch_rehearsal);
     result_map.insert("full_rust_backend".to_string(), json!(false));
     result_map.insert("production_collector_authority_switched".to_string(), json!(false));
@@ -193,7 +246,7 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
     result_map.insert("collector_authority_pilot_execution_executed".to_string(), json!(false));
     result_map.insert("python_collector_fallback_required".to_string(), json!(true));
     result_map.insert("pilot_execution_contract_only".to_string(), json!(true));
-    result_map.insert("rust_pilot_may_be_observed".to_string(), json!(ready));
+    result_map.insert("rust_pilot_may_be_observed".to_string(), json!(ready && (!require_diagnostic_selection || diagnostic_selection_ready)));
     result_map.insert("rust_can_drive_cleanup".to_string(), json!(false));
     result_map.insert("rust_can_drive_apply".to_string(), json!(false));
     result_map.insert("rust_can_write_generated_files".to_string(), json!(false));
@@ -205,7 +258,7 @@ pub fn build_collector_authority_pilot_execution_contract_payload(payload: &Valu
     result_map.insert("api_sentence_write_count".to_string(), json!(0));
     result_map.insert("api_reply_read_count".to_string(), json!(0));
     result_map.insert("next_stage".to_string(), json!("rust_collector_authority_pilot_observation_window"));
-    result_map.insert("note".to_string(), json!("v4.3.2 fixes pilot execution readiness gating by allowing a separate switch-rehearsal confirmation token while preserving non-mutating fail-safe behavior."));
+    result_map.insert("note".to_string(), json!("v4.3.3 requires diagnostics-only Rust row selection before pilot observation readiness while preserving non-mutating fail-safe behavior."));
 
     let result = Value::Object(result_map);
 
@@ -278,6 +331,7 @@ mod tests {
                 "collector_authority_pilot_execution_require_switch_rehearsal": true,
                 "collector_authority_pilot_execution_require_python_fallback": true,
                 "collector_authority_pilot_execution_require_manual_confirmation": true,
+                "collector_authority_pilot_execution_require_diagnostic_selection": true,
                 "collector_authority_pilot_execution_max_shadow_age_seconds": 900
             }));
         }
@@ -302,10 +356,43 @@ mod tests {
         assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_pilot_execution_contract_ready"));
         assert_eq!(result.get("pilot_execution_contract_only").and_then(Value::as_bool), Some(true));
         assert_eq!(result.get("collector_authority_pilot_execution_executed").and_then(Value::as_bool), Some(false));
+        assert_eq!(result.get("diagnostic_row_authority").and_then(Value::as_str), Some("rust_shadow_diagnostics"));
+        assert_eq!(result.get("rust_rows_may_feed_pilot_observation").and_then(Value::as_bool), Some(true));
         assert_eq!(result.get("rust_can_drive_cleanup").and_then(Value::as_bool), Some(false));
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("pilot-execution-password"));
         assert!(!text.contains("\"password\":"));
+    }
+
+    #[test]
+    fn requires_diagnostics_only_selection_before_observation_ready() {
+        let mut payload = json!({
+            "shadow_age_seconds": 30,
+            "confirmation": "CONFIRM_COLLECTOR_AUTHORITY_PILOT_EXECUTION",
+            "collector_authority_switch_rehearsal": {
+                "status": "collector_authority_switch_rehearsal_ready",
+                "production_collector_authority_switched": false,
+                "collector_authority_switch_executed": false,
+                "python_collector_fallback_required": true,
+                "diagnostic_row_authority": "python_authoritative",
+                "production_row_authority": "python_collector",
+                "cleanup_row_authority": "python_collector",
+                "diagnostic_selection_only": true,
+                "rust_diagnostic_selection_ready": false,
+                "rust_rows_selected_for_diagnostics": false,
+                "rust_rows_safe_for_observation": false,
+                "rust_row_count": 1,
+                "python_row_count": 1
+            }
+        });
+        enable_all_gates(&mut payload);
+
+        let (result, errors, warnings) = build_collector_authority_pilot_execution_contract_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_pilot_execution_waiting_for_gates"));
+        assert_eq!(result.get("diagnostic_selection_ready").and_then(Value::as_bool), Some(false));
+        assert_eq!(result.get("rust_rows_may_feed_pilot_observation").and_then(Value::as_bool), Some(false));
+        assert!(warnings.iter().any(|w| w.code == "collector_authority_pilot_execution_diagnostic_selection_not_ready"));
     }
 
     #[test]

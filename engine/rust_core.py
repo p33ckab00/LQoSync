@@ -1237,6 +1237,22 @@ def rust_core_config(config: dict | None = None) -> dict:
     }
 
 
+def _rust_core_config(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+    merged: dict[str, Any] = {}
+    config = payload.get("config")
+    if isinstance(config, dict) and isinstance(config.get("rust_core"), dict):
+        merged.update(config.get("rust_core") or {})
+    if isinstance(payload.get("rust_core"), dict):
+        merged.update(payload.get("rust_core") or {})
+    return merged
+
+
+def _extract_rust_core_config(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    return _rust_core_config(payload)
+
+
 def find_rust_core_binary(config: dict | None = None) -> str | None:
     rc = rust_core_config(config)
     if not rc["enabled"]:
@@ -3444,8 +3460,10 @@ def _python_build_collector_authority_pilot_execution_contract(payload: dict[str
     allow = bool(rust_core.get("allow_collector_authority_pilot_execution_contract"))
     pilot = bool(rust_core.get("collector_authority_pilot_execution_pilot"))
     mode = str(rust_core.get("collector_authority_pilot_execution_mode") or "contract_only")
+    require_switch = rust_core.get("collector_authority_pilot_execution_require_switch_rehearsal", True) is not False
     require_fallback = rust_core.get("collector_authority_pilot_execution_require_python_fallback", True) is not False
     require_confirm = rust_core.get("collector_authority_pilot_execution_require_manual_confirmation", True) is not False
+    require_diagnostic_selection = rust_core.get("collector_authority_pilot_execution_require_diagnostic_selection", True) is not False
     max_shadow_age = int(rust_core.get("collector_authority_pilot_execution_max_shadow_age_seconds") or 900)
     shadow_age = int(payload.get("shadow_age_seconds") or 0)
     confirmation_ok = (not require_confirm) or payload.get("confirmation") == "CONFIRM_COLLECTOR_AUTHORITY_PILOT_EXECUTION"
@@ -3458,7 +3476,25 @@ def _python_build_collector_authority_pilot_execution_contract(payload: dict[str
         if switch_confirmation:
             switch_payload["confirmation"] = switch_confirmation
         switch = rust_build_collector_authority_switch_rehearsal(payload.get("config") or {}, switch_payload).get("result") or {}
-    switch_ready = switch.get("status") == "collector_authority_switch_rehearsal_ready" and switch.get("production_collector_authority_switched") is False
+    switch_ready = (
+        switch.get("status") == "collector_authority_switch_rehearsal_ready"
+        and switch.get("production_collector_authority_switched") is False
+        and switch.get("collector_authority_switch_executed") is False
+        and switch.get("python_collector_fallback_required") is True
+    )
+    diagnostic_row_authority = str(switch.get("diagnostic_row_authority") or "python_authoritative")
+    production_row_authority = str(switch.get("production_row_authority") or "python_collector")
+    cleanup_row_authority = str(switch.get("cleanup_row_authority") or "python_collector")
+    diagnostic_selection_ready = (
+        switch_ready
+        and bool(switch.get("diagnostic_selection_only"))
+        and bool(switch.get("rust_diagnostic_selection_ready"))
+        and bool(switch.get("rust_rows_selected_for_diagnostics"))
+        and bool(switch.get("rust_rows_safe_for_observation"))
+        and diagnostic_row_authority == "rust_shadow_diagnostics"
+        and production_row_authority == "python_collector"
+        and cleanup_row_authority == "python_collector"
+    )
     requested = bool(allow and pilot and mode == "rust_collector_authority_pilot_execution_contract")
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -3466,14 +3502,31 @@ def _python_build_collector_authority_pilot_execution_contract(payload: dict[str
         errors.append({"code": "collector_authority_pilot_execution_not_implemented", "severity": "error", "path": "collector_authority_pilot_execution", "message": "Python fallback cannot execute Rust collector authority pilot execution."})
     if not require_fallback:
         errors.append({"code": "collector_authority_pilot_execution_requires_python_fallback", "severity": "error", "path": "rust_core.collector_authority_pilot_execution_require_python_fallback", "message": "Collector authority pilot execution contract requires Python collector fallback in this release."})
-    if not switch_ready:
+    if require_switch and not switch_ready:
         warnings.append({"code": "collector_authority_pilot_execution_switch_not_ready", "severity": "warning", "path": "collector_authority_switch_rehearsal", "message": "Collector authority switch rehearsal is not ready."})
+    if require_diagnostic_selection and not diagnostic_selection_ready:
+        warnings.append({"code": "collector_authority_pilot_execution_diagnostic_selection_not_ready", "severity": "warning", "path": "collector_authority_switch_rehearsal", "message": "Switch rehearsal has not selected Rust rows for diagnostics-only observation."})
     if shadow_age > max_shadow_age:
         warnings.append({"code": "collector_authority_pilot_execution_shadow_stale", "severity": "warning", "path": "shadow_age_seconds", "message": "Rust-shadow collector output is older than the configured maximum age."})
     if not confirmation_ok:
         warnings.append({"code": "collector_authority_pilot_execution_confirmation_missing", "severity": "warning", "path": "collector_authority_pilot_execution.confirmation", "message": "Manual confirmation token is missing."})
-    ready = not errors and requested and switch_ready and require_fallback and confirmation_ok and shadow_age <= max_shadow_age
+    ready = (
+        not errors
+        and requested
+        and (switch_ready or not require_switch)
+        and (diagnostic_selection_ready or not require_diagnostic_selection)
+        and require_fallback
+        and confirmation_ok
+        and shadow_age <= max_shadow_age
+    )
     status = "blocked" if errors else ("collector_authority_pilot_execution_contract_ready" if ready else ("collector_authority_pilot_execution_waiting_for_gates" if switch_ready else "collector_authority_pilot_execution_shadow_only"))
+
+    def _switch_int(name: str) -> int:
+        try:
+            return int((switch or {}).get(name) or 0)
+        except Exception:
+            return 0
+
     return {
         "version": "1",
         "op": "build-collector-authority-pilot-execution-contract",
@@ -3484,8 +3537,30 @@ def _python_build_collector_authority_pilot_execution_contract(payload: dict[str
             "collector_authority": "python_authoritative",
             "target_authority": "rust_collector_authority_pilot_candidate" if ready else "python_authoritative",
             "contract_requested": requested,
+            "require_switch_rehearsal": require_switch,
+            "require_python_fallback": require_fallback,
+            "require_manual_confirmation": require_confirm,
+            "require_diagnostic_selection": require_diagnostic_selection,
             "switch_ready": switch_ready,
             "manual_confirmation_ok": confirmation_ok,
+            "runtime_evidence_source": switch.get("runtime_evidence_source", "not_ready") if isinstance(switch, dict) else "not_ready",
+            "live_read_shadow_ready": bool(switch.get("live_read_shadow_ready")) if isinstance(switch, dict) else False,
+            "shadow_history_successful_count": _switch_int("shadow_history_successful_count"),
+            "parity_verdict": switch.get("parity_verdict", "not_available") if isinstance(switch, dict) else "not_available",
+            "live_read_shadow_parity_verdict": switch.get("live_read_shadow_parity_verdict", "not_available") if isinstance(switch, dict) else "not_available",
+            "sources": payload.get("sources") if isinstance(payload.get("sources"), list) else [],
+            "python_row_count": _switch_int("python_row_count"),
+            "rust_row_count": _switch_int("rust_row_count"),
+            "live_read_shadow_row_count": _switch_int("live_read_shadow_row_count"),
+            "production_row_authority": production_row_authority,
+            "cleanup_row_authority": cleanup_row_authority,
+            "diagnostic_row_authority": diagnostic_row_authority,
+            "diagnostic_selection_only": bool(switch.get("diagnostic_selection_only")),
+            "diagnostic_selection_ready": diagnostic_selection_ready,
+            "rust_diagnostic_selection_ready": bool(switch.get("rust_diagnostic_selection_ready")),
+            "rust_rows_selected_for_diagnostics": bool(switch.get("rust_rows_selected_for_diagnostics")),
+            "rust_rows_safe_for_observation": bool(switch.get("rust_rows_safe_for_observation")),
+            "rust_rows_may_feed_pilot_observation": bool(ready and diagnostic_selection_ready),
             "collector_authority_switch_rehearsal": switch,
             "full_rust_backend": False,
             "production_collector_authority_switched": False,
@@ -3495,7 +3570,7 @@ def _python_build_collector_authority_pilot_execution_contract(payload: dict[str
             "collector_authority_pilot_execution_executed": False,
             "python_collector_fallback_required": True,
             "pilot_execution_contract_only": True,
-            "rust_pilot_may_be_observed": ready,
+            "rust_pilot_may_be_observed": bool(ready and (diagnostic_selection_ready or not require_diagnostic_selection)),
             "rust_can_drive_cleanup": False,
             "rust_can_drive_apply": False,
             "rust_can_write_generated_files": False,
@@ -3506,6 +3581,8 @@ def _python_build_collector_authority_pilot_execution_contract(payload: dict[str
             "authentication_attempt_count": 0,
             "api_sentence_write_count": 0,
             "api_reply_read_count": 0,
+            "next_stage": "rust_collector_authority_pilot_observation_window",
+            "note": "Python fallback requires diagnostics-only Rust row selection before pilot observation readiness while preserving non-mutating behavior.",
         },
         "errors": errors,
         "warnings": warnings,
