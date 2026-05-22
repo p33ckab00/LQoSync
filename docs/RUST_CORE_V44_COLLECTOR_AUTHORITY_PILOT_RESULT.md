@@ -16,7 +16,7 @@ v4.2 switch rehearsal
 v4.3 pilot execution contract
 ```
 
-and evaluates whether the observed pilot result is clean enough to continue toward future handoff stages.
+and evaluates whether the observed pilot result is clean enough to continue toward future handoff stages. The evaluator now requires diagnostics-only Rust observation evidence by default before a pilot result can pass.
 
 ## New operation
 
@@ -33,6 +33,8 @@ pilot execution contract readiness
 Python fallback requirement
 pilot observation status
 pilot error count
+diagnostics-only Rust observation approval from v4.3
+observed Rust/Python row presence
 parity status
 shadow freshness
 cleanup/apply/write side-effect attempts
@@ -60,6 +62,19 @@ No generated file writes
 No LibreQoS apply authority
 Python collectors remain authoritative
 ```
+
+For a pass, the evaluator requires:
+
+```text
+diagnostic_row_authority = rust_shadow_diagnostics
+production_row_authority = python_collector
+cleanup_row_authority = python_collector
+rust_rows_may_feed_pilot_observation = true
+observed_rust_row_count > 0
+observed_python_row_count > 0
+```
+
+If these are missing, the result remains `collector_authority_pilot_result_review`.
 
 The result explicitly keeps:
 
@@ -111,6 +126,7 @@ curl -X POST http://YOUR-LQOSYNC/api/rust-core/collector-authority-pilot-result 
   "collector_authority_pilot_result_require_python_fallback": true,
   "collector_authority_pilot_result_require_no_cleanup_apply": true,
   "collector_authority_pilot_result_require_parity": true,
+  "collector_authority_pilot_result_require_diagnostic_observation": true,
   "collector_authority_pilot_result_max_shadow_age_seconds": 900
 }
 ```

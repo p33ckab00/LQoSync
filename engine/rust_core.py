@@ -3619,6 +3619,7 @@ def _python_evaluate_collector_authority_pilot_result(payload: dict[str, Any], *
     require_fallback = rust_core.get("collector_authority_pilot_result_require_python_fallback", True) is not False
     require_no_side_effects = rust_core.get("collector_authority_pilot_result_require_no_cleanup_apply", True) is not False
     require_parity = rust_core.get("collector_authority_pilot_result_require_parity", True) is not False
+    require_diagnostic_observation = rust_core.get("collector_authority_pilot_result_require_diagnostic_observation", True) is not False
     max_shadow_age = int(rust_core.get("collector_authority_pilot_result_max_shadow_age_seconds") or 900)
     shadow_age = int(payload.get("shadow_age_seconds") or 0)
     contract = payload.get("collector_authority_pilot_execution_contract") or payload.get("pilot_execution_contract") or {}
@@ -3627,6 +3628,11 @@ def _python_evaluate_collector_authority_pilot_result(payload: dict[str, Any], *
     if not isinstance(contract, dict) or not contract:
         contract = rust_build_collector_authority_pilot_execution_contract(payload.get("config") or {}, payload).get("result") or {}
     contract_ready = contract.get("status") == "collector_authority_pilot_execution_contract_ready" and contract.get("production_collector_authority_switched") is False and contract.get("python_collector_fallback_required") is True
+    production_row_authority = str(contract.get("production_row_authority") or "python_collector")
+    cleanup_row_authority = str(contract.get("cleanup_row_authority") or "python_collector")
+    diagnostic_row_authority = str(contract.get("diagnostic_row_authority") or "python_authoritative")
+    diagnostic_selection_ready = bool(contract.get("diagnostic_selection_ready"))
+    rust_rows_may_feed = bool(contract.get("rust_rows_may_feed_pilot_observation"))
     observed = payload.get("pilot_result") or payload.get("pilot_observation") or {}
     observed = observed if isinstance(observed, dict) else {}
     cleanup_attempted = bool(observed.get("cleanup_attempted") or payload.get("cleanup_attempted"))
@@ -3636,6 +3642,18 @@ def _python_evaluate_collector_authority_pilot_result(payload: dict[str, Any], *
     side_effect_free = not any([cleanup_attempted, apply_attempted, write_attempted, authority_switched])
     rust_rows = _rows_for_pilot_result(observed.get("rust_rows")) or _rows_for_pilot_result(payload.get("rust_rows"))
     python_rows = _rows_for_pilot_result(observed.get("python_rows")) or _rows_for_pilot_result(payload.get("python_rows"))
+    observed_rust_row_count = len(rust_rows)
+    observed_python_row_count = len(python_rows)
+    observation_rows_present = observed_rust_row_count > 0 and observed_python_row_count > 0
+    diagnostic_observation_ready = (
+        contract_ready
+        and diagnostic_selection_ready
+        and rust_rows_may_feed
+        and observation_rows_present
+        and diagnostic_row_authority == "rust_shadow_diagnostics"
+        and production_row_authority == "python_collector"
+        and cleanup_row_authority == "python_collector"
+    )
     parity = payload.get("collector_parity") if isinstance(payload.get("collector_parity"), dict) else {}
     if rust_rows or python_rows:
         parity = _python_compare_collector_bundle_parity({"python_rows": python_rows, "rust_rows": rust_rows}).get("result") or {}
@@ -3656,9 +3674,21 @@ def _python_evaluate_collector_authority_pilot_result(payload: dict[str, Any], *
         errors.append({"code": "collector_authority_pilot_result_side_effect_detected", "severity": "error", "path": "collector_authority_pilot_result", "message": "Collector authority pilot result contains forbidden cleanup/apply/write/authority side effects."})
     if require_parity and not parity_pass:
         warnings.append({"code": "collector_authority_pilot_result_parity_not_passed", "severity": "warning", "path": "collector_parity", "message": "Collector authority pilot result parity has not passed."})
+    if require_diagnostic_observation and not diagnostic_observation_ready:
+        warnings.append({"code": "collector_authority_pilot_result_diagnostic_observation_not_ready", "severity": "warning", "path": "collector_authority_pilot_execution_contract", "message": "Pilot result does not include a diagnostics-only Rust observation approved by the pilot execution contract."})
     if shadow_age > max_shadow_age:
         warnings.append({"code": "collector_authority_pilot_result_shadow_stale", "severity": "warning", "path": "shadow_age_seconds", "message": "Rust-shadow collector result is stale."})
-    passed = (not errors and requested and (contract_ready or not require_contract) and require_fallback and side_effect_free and observed_ok and shadow_age <= max_shadow_age and (parity_pass or not require_parity))
+    passed = (
+        not errors
+        and requested
+        and (contract_ready or not require_contract)
+        and require_fallback
+        and side_effect_free
+        and observed_ok
+        and shadow_age <= max_shadow_age
+        and (parity_pass or not require_parity)
+        and (diagnostic_observation_ready or not require_diagnostic_observation)
+    )
     status = "blocked" if errors else ("collector_authority_pilot_result_pass" if passed else ("collector_authority_pilot_result_review" if contract_ready else "collector_authority_pilot_result_shadow_only"))
     return {
         "version": "1",
@@ -3670,9 +3700,22 @@ def _python_evaluate_collector_authority_pilot_result(payload: dict[str, Any], *
             "collector_authority": "python_authoritative",
             "target_authority": "rust_collector_authority_pilot_candidate_validated" if passed else "python_authoritative",
             "evaluation_requested": requested,
+            "require_diagnostic_observation": require_diagnostic_observation,
             "execution_contract_ready": contract_ready,
+            "runtime_evidence_source": contract.get("runtime_evidence_source", "not_ready") if isinstance(contract, dict) else "not_ready",
+            "live_read_shadow_ready": bool(contract.get("live_read_shadow_ready")) if isinstance(contract, dict) else False,
+            "shadow_history_successful_count": int(contract.get("shadow_history_successful_count") or 0) if isinstance(contract, dict) else 0,
+            "production_row_authority": production_row_authority,
+            "cleanup_row_authority": cleanup_row_authority,
+            "diagnostic_row_authority": diagnostic_row_authority,
+            "diagnostic_selection_ready": diagnostic_selection_ready,
+            "rust_rows_may_feed_pilot_observation": rust_rows_may_feed,
+            "diagnostic_observation_ready": diagnostic_observation_ready,
             "observed_status": observed_status,
             "observed_error_count": observed_error_count,
+            "observed_rust_row_count": observed_rust_row_count,
+            "observed_python_row_count": observed_python_row_count,
+            "observation_rows_present": observation_rows_present,
             "side_effect_free": side_effect_free,
             "parity": parity,
             "parity_pass": parity_pass,

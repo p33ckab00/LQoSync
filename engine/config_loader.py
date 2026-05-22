@@ -210,6 +210,7 @@ DEFAULT_CONFIG = {
         "collector_authority_pilot_result_require_python_fallback": False,
         "collector_authority_pilot_result_require_no_cleanup_apply": True,
         "collector_authority_pilot_result_require_parity": True,
+        "collector_authority_pilot_result_require_diagnostic_observation": True,
         "collector_authority_pilot_result_max_shadow_age_seconds": 900,
         "collector_authority_promotion_readiness_pilot": False,
         "allow_collector_authority_promotion_readiness": False,
@@ -1058,6 +1059,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("collector_authority_pilot_result_evaluator_pilot", False)
     rust_core.setdefault("allow_collector_authority_pilot_result_evaluation", False)
     rust_core.setdefault("collector_authority_pilot_result_mode", "evaluate_only")
+    rust_core.setdefault("collector_authority_pilot_result_require_diagnostic_observation", True)
     rust_core.setdefault("collector_authority_promotion_readiness_pilot", False)
     rust_core.setdefault("allow_collector_authority_promotion_readiness", False)
     rust_core.setdefault("collector_authority_promotion_readiness_mode", "readiness_only")

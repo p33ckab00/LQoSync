@@ -71,6 +71,7 @@ Rust already covers:
 - collector runtime contracts that expose activation provenance without switching authority
 - collector switch rehearsals that select Rust shadow rows for diagnostics only
 - collector pilot execution contracts that require diagnostics-only Rust row selection before observation
+- collector pilot result evaluation that requires diagnostics-only Rust observation evidence before pass
 
 Python still covers:
 - live RouterOS API reads through routeros-api
@@ -78,7 +79,7 @@ Python still covers:
 - WebUI shell and compatibility wrappers
 ```
 
-The next migration target is a Rust pilot observation window that records Rust-selected diagnostic rows beside Python production rows over repeated cycles. The live adapter can execute a single read-only `print` when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, `build-run-cycle-rust-shadow-report` can carry that evidence beside the authoritative Python cycle, collector activation can derive successful shadow-cycle counts from that history, the runtime contract exposes that provenance, the switch rehearsal marks Rust rows as diagnostics-only, and the pilot execution contract now requires that diagnostics-only handoff before observation. It still does not replace Python collectors. Once repeated live-read parity, diagnostics-only selection, and the observation window are proven, the Python collector/build/run-cycle modules can be removed.
+The next migration target is a Rust pilot handoff manifest that records repeated diagnostics-only observations and prepares the proof bundle for retiring Python backend collectors. The live adapter can execute a single read-only `print` when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, `build-run-cycle-rust-shadow-report` can carry that evidence beside the authoritative Python cycle, collector activation can derive successful shadow-cycle counts from that history, the runtime contract exposes that provenance, the switch rehearsal marks Rust rows as diagnostics-only, the pilot execution contract requires that diagnostics-only handoff before observation, and the pilot result evaluator now requires observed Rust/Python rows from that path before pass. It still does not replace Python collectors. Once repeated live-read parity, diagnostics-only selection, observation evidence, and the handoff manifest are proven, the Python collector/build/run-cycle modules can be removed.
 
 ## Singularity policy target
 
