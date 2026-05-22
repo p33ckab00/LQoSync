@@ -3762,6 +3762,7 @@ def _python_build_collector_authority_promotion_readiness(payload: dict[str, Any
     require_fallback = rust_core.get("collector_authority_promotion_require_python_fallback", True) is not False
     require_confirmation = rust_core.get("collector_authority_promotion_require_manual_confirmation", True) is not False
     require_no_side_effects = rust_core.get("collector_authority_promotion_require_no_cleanup_apply", True) is not False
+    require_diagnostic_observation = rust_core.get("collector_authority_promotion_require_diagnostic_observation", True) is not False
     max_shadow_age = int(rust_core.get("collector_authority_promotion_max_shadow_age_seconds") or 900)
     shadow_age = int(payload.get("shadow_age_seconds") or 0)
     confirmation_ok = (not require_confirmation) or payload.get("confirmation") == "CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_READINESS"
@@ -3778,6 +3779,25 @@ def _python_build_collector_authority_promotion_readiness(payload: dict[str, Any
         and pilot_result.get("production_collector_authority_switched") is False
         and pilot_result.get("python_collector_fallback_required", True) is True
     )
+    try:
+        observed_rust_row_count = int(pilot_result.get("observed_rust_row_count") or 0)
+        observed_python_row_count = int(pilot_result.get("observed_python_row_count") or 0)
+    except Exception:
+        observed_rust_row_count = 0
+        observed_python_row_count = 0
+    production_row_authority = str(pilot_result.get("production_row_authority") or "python_collector")
+    cleanup_row_authority = str(pilot_result.get("cleanup_row_authority") or "python_collector")
+    diagnostic_row_authority = str(pilot_result.get("diagnostic_row_authority") or "python_authoritative")
+    diagnostic_observation_ready = bool(pilot_result.get("diagnostic_observation_ready"))
+    diagnostic_observation_ok = (
+        pilot_pass
+        and diagnostic_observation_ready
+        and observed_rust_row_count > 0
+        and observed_python_row_count > 0
+        and diagnostic_row_authority == "rust_shadow_diagnostics"
+        and production_row_authority == "python_collector"
+        and cleanup_row_authority == "python_collector"
+    )
     side_effect_free = not any([
         payload.get("cleanup_attempted"), payload.get("apply_attempted"), payload.get("write_attempted"), payload.get("production_collector_authority_switched"),
         pilot_result.get("cleanup_attempted"), pilot_result.get("apply_attempted"), pilot_result.get("write_attempted"), pilot_result.get("production_collector_authority_switched"),
@@ -3789,6 +3809,8 @@ def _python_build_collector_authority_promotion_readiness(payload: dict[str, Any
         errors.append({"code": "collector_authority_promotion_execute_not_implemented", "severity": "error", "path": "collector_authority_promotion_readiness", "message": "Python fallback cannot execute collector authority promotion."})
     if require_result and not pilot_pass:
         warnings.append({"code": "collector_authority_promotion_pilot_result_not_passed", "severity": "warning", "path": "collector_authority_pilot_result", "message": "Pilot result has not passed."})
+    if require_diagnostic_observation and not diagnostic_observation_ok:
+        warnings.append({"code": "collector_authority_promotion_diagnostic_observation_not_ready", "severity": "warning", "path": "collector_authority_pilot_result", "message": "Promotion readiness requires a pilot result backed by diagnostics-only Rust observation evidence."})
     if require_confirmation and not confirmation_ok:
         warnings.append({"code": "collector_authority_promotion_confirmation_required", "severity": "warning", "path": "confirmation", "message": "Promotion readiness confirmation is required."})
     if not require_fallback:
@@ -3800,7 +3822,16 @@ def _python_build_collector_authority_promotion_readiness(payload: dict[str, Any
     if not gates_ready:
         warnings.append({"code": "collector_authority_promotion_gates_not_enabled", "severity": "warning", "path": "rust_core", "message": "Promotion readiness gates are not fully enabled."})
 
-    ready = not errors and gates_ready and confirmation_ok and (pilot_pass or not require_result) and shadow_age <= max_shadow_age and side_effect_free and require_fallback
+    ready = (
+        not errors
+        and gates_ready
+        and confirmation_ok
+        and (pilot_pass or not require_result)
+        and (diagnostic_observation_ok or not require_diagnostic_observation)
+        and shadow_age <= max_shadow_age
+        and side_effect_free
+        and require_fallback
+    )
     review = not errors and pilot_pass and side_effect_free
     status = "blocked" if errors else ("collector_authority_promotion_readiness_ready" if ready else ("collector_authority_promotion_readiness_review" if review else "collector_authority_promotion_readiness_shadow_only"))
     return {
@@ -3819,6 +3850,15 @@ def _python_build_collector_authority_promotion_readiness(payload: dict[str, Any
             "collector_authority_promotion_executed": False,
             "pilot_result_status": pilot_result.get("status"),
             "pilot_result_pass": pilot_pass,
+            "require_diagnostic_observation": require_diagnostic_observation,
+            "diagnostic_observation_ready": diagnostic_observation_ready,
+            "diagnostic_observation_ok": diagnostic_observation_ok,
+            "production_row_authority": production_row_authority,
+            "cleanup_row_authority": cleanup_row_authority,
+            "diagnostic_row_authority": diagnostic_row_authority,
+            "observed_rust_row_count": observed_rust_row_count,
+            "observed_python_row_count": observed_python_row_count,
+            "runtime_evidence_source": pilot_result.get("runtime_evidence_source", "not_ready") if isinstance(pilot_result, dict) else "not_ready",
             "manual_confirmation_accepted": confirmation_ok,
             "gates_ready": gates_ready,
             "python_collector_fallback_required": True,

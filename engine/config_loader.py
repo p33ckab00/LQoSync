@@ -219,6 +219,7 @@ DEFAULT_CONFIG = {
         "collector_authority_promotion_require_python_fallback": False,
         "collector_authority_promotion_require_manual_confirmation": True,
         "collector_authority_promotion_require_no_cleanup_apply": True,
+        "collector_authority_promotion_require_diagnostic_observation": True,
         "collector_authority_promotion_max_shadow_age_seconds": 900,
         "collector_authority_promotion_execution_rehearsal_pilot": False,
         "allow_collector_authority_promotion_execution_rehearsal": False,
@@ -1067,6 +1068,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("collector_authority_promotion_require_python_fallback", False)
     rust_core.setdefault("collector_authority_promotion_require_manual_confirmation", True)
     rust_core.setdefault("collector_authority_promotion_require_no_cleanup_apply", True)
+    rust_core.setdefault("collector_authority_promotion_require_diagnostic_observation", True)
     rust_core.setdefault("collector_authority_promotion_max_shadow_age_seconds", 900)
     rust_core.setdefault("collector_authority_promotion_execution_rehearsal_pilot", False)
     rust_core.setdefault("allow_collector_authority_promotion_execution_rehearsal", False)

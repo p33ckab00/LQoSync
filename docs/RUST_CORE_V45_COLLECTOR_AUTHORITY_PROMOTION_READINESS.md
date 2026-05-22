@@ -14,6 +14,7 @@ build-collector-authority-promotion-readiness
 
 ```text
 collector authority pilot result evaluation
++ diagnostics-only observation evidence from v4.4
 + explicit promotion-readiness gates
 + manual confirmation token
 + Python fallback requirement
@@ -30,6 +31,21 @@ CONFIRM_COLLECTOR_AUTHORITY_PROMOTION_READINESS
 ```
 
 The token only allows the readiness report to say `ready`. It does not switch authority.
+
+## Diagnostic Observation Gate
+
+Promotion readiness now requires the v4.4 pilot result to prove it came from the diagnostics-only observation path:
+
+```text
+diagnostic_observation_ready = true
+diagnostic_row_authority = rust_shadow_diagnostics
+production_row_authority = python_collector
+cleanup_row_authority = python_collector
+observed_rust_row_count > 0
+observed_python_row_count > 0
+```
+
+If that proof is missing, the report remains `collector_authority_promotion_readiness_review`.
 
 ## Status values
 
@@ -90,7 +106,13 @@ curl -X POST http://YOUR-LQOSYNC/api/rust-core/collector-authority-promotion-rea
       "status": "collector_authority_pilot_result_pass",
       "collector_authority_pilot_result_evaluated": true,
       "python_collector_fallback_required": true,
-      "production_collector_authority_switched": false
+      "production_collector_authority_switched": false,
+      "diagnostic_observation_ready": true,
+      "diagnostic_row_authority": "rust_shadow_diagnostics",
+      "production_row_authority": "python_collector",
+      "cleanup_row_authority": "python_collector",
+      "observed_rust_row_count": 1,
+      "observed_python_row_count": 1
     }
   }'
 ```
@@ -107,6 +129,7 @@ curl -X POST http://YOUR-LQOSYNC/api/rust-core/collector-authority-promotion-rea
     "collector_authority_promotion_require_python_fallback": true,
     "collector_authority_promotion_require_manual_confirmation": true,
     "collector_authority_promotion_require_no_cleanup_apply": true,
+    "collector_authority_promotion_require_diagnostic_observation": true,
     "collector_authority_promotion_max_shadow_age_seconds": 900
   }
 }

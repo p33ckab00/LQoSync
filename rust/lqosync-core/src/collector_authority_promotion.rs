@@ -74,6 +74,7 @@ pub fn build_collector_authority_promotion_readiness_payload(payload: &Value) ->
     let require_python_fallback = bool_value(config_value(payload, "collector_authority_promotion_require_python_fallback"), true);
     let require_manual_confirmation = bool_value(config_value(payload, "collector_authority_promotion_require_manual_confirmation"), true);
     let require_no_side_effects = bool_value(config_value(payload, "collector_authority_promotion_require_no_cleanup_apply"), true);
+    let require_diagnostic_observation = bool_value(config_value(payload, "collector_authority_promotion_require_diagnostic_observation"), true);
     let max_shadow_age = number_value(config_value(payload, "collector_authority_promotion_max_shadow_age_seconds"), 900);
     let shadow_age = number_value(payload.get("shadow_age_seconds"), 0);
 
@@ -130,12 +131,39 @@ pub fn build_collector_authority_promotion_readiness_payload(payload: &Value) ->
         && pilot_result.get("collector_authority_pilot_result_evaluated").and_then(Value::as_bool).unwrap_or(false)
         && pilot_result.get("python_collector_fallback_required").and_then(Value::as_bool).unwrap_or(true);
 
+    let diagnostic_observation_ready = bool_value(pilot_result.get("diagnostic_observation_ready"), false);
+    let production_row_authority = str_value(pilot_result.get("production_row_authority"), "python_collector");
+    let cleanup_row_authority = str_value(pilot_result.get("cleanup_row_authority"), "python_collector");
+    let diagnostic_row_authority = str_value(pilot_result.get("diagnostic_row_authority"), "python_authoritative");
+    let observed_rust_row_count = number_value(pilot_result.get("observed_rust_row_count"), 0);
+    let observed_python_row_count = number_value(pilot_result.get("observed_python_row_count"), 0);
+    let runtime_evidence_source = str_value(pilot_result.get("runtime_evidence_source"), "not_ready");
+    let diagnostic_observation_ok = pilot_result_pass
+        && diagnostic_observation_ready
+        && observed_rust_row_count > 0
+        && observed_python_row_count > 0
+        && diagnostic_row_authority == "rust_shadow_diagnostics"
+        && production_row_authority == "python_collector"
+        && cleanup_row_authority == "python_collector";
+
     if require_pilot_result && !pilot_result_pass {
         warnings.push(Diagnostic::warning(
             "collector_authority_promotion_pilot_result_not_passed",
             Some("collector_authority_pilot_result".to_string()),
             "Collector authority pilot result has not passed; promotion readiness remains shadow-only or under review.",
         ));
+    }
+    if require_diagnostic_observation && !diagnostic_observation_ok {
+        warnings.push(Diagnostic::warning(
+            "collector_authority_promotion_diagnostic_observation_not_ready",
+            Some("collector_authority_pilot_result".to_string()),
+            "Promotion readiness requires a pilot result backed by diagnostics-only Rust observation evidence.",
+        ).with_value(json!({
+            "diagnostic_observation_ready": diagnostic_observation_ready,
+            "observed_rust_row_count": observed_rust_row_count,
+            "observed_python_row_count": observed_python_row_count,
+            "diagnostic_row_authority": diagnostic_row_authority
+        })));
     }
 
     let cleanup_attempted = bool_value(payload.get("cleanup_attempted"), false)
@@ -169,6 +197,7 @@ pub fn build_collector_authority_promotion_readiness_payload(payload: &Value) ->
         && gates_ready
         && confirmation_ok
         && (!require_pilot_result || pilot_result_pass)
+        && (!require_diagnostic_observation || diagnostic_observation_ok)
         && shadow_age <= max_shadow_age
         && side_effect_free
         && require_python_fallback;
@@ -187,6 +216,7 @@ pub fn build_collector_authority_promotion_readiness_payload(payload: &Value) ->
     let mut seed = Map::new();
     seed.insert("status".to_string(), json!(status));
     seed.insert("pilot_status".to_string(), json!(pilot_status));
+    seed.insert("diagnostic_observation_ok".to_string(), json!(diagnostic_observation_ok));
     seed.insert("shadow_age_seconds".to_string(), json!(shadow_age));
     seed.insert("confirmation_ok".to_string(), json!(confirmation_ok));
 
@@ -213,6 +243,15 @@ pub fn build_collector_authority_promotion_readiness_payload(payload: &Value) ->
     map.insert("gates_ready".to_string(), json!(gates_ready));
     map.insert("pilot_result_status".to_string(), json!(pilot_status));
     map.insert("pilot_result_pass".to_string(), json!(pilot_result_pass));
+    map.insert("require_diagnostic_observation".to_string(), json!(require_diagnostic_observation));
+    map.insert("diagnostic_observation_ready".to_string(), json!(diagnostic_observation_ready));
+    map.insert("diagnostic_observation_ok".to_string(), json!(diagnostic_observation_ok));
+    map.insert("production_row_authority".to_string(), json!(production_row_authority));
+    map.insert("cleanup_row_authority".to_string(), json!(cleanup_row_authority));
+    map.insert("diagnostic_row_authority".to_string(), json!(diagnostic_row_authority));
+    map.insert("observed_rust_row_count".to_string(), json!(observed_rust_row_count));
+    map.insert("observed_python_row_count".to_string(), json!(observed_python_row_count));
+    map.insert("runtime_evidence_source".to_string(), json!(runtime_evidence_source));
     map.insert("shadow_age_seconds".to_string(), json!(shadow_age));
     map.insert("max_shadow_age_seconds".to_string(), json!(max_shadow_age));
     map.insert("side_effect_free".to_string(), json!(side_effect_free));
@@ -220,7 +259,7 @@ pub fn build_collector_authority_promotion_readiness_payload(payload: &Value) ->
     map.insert("authentication_attempt_count".to_string(), json!(0));
     map.insert("api_sentence_write_count".to_string(), json!(0));
     map.insert("api_reply_read_count".to_string(), json!(0));
-    map.insert("note".to_string(), json!("v4.5 builds a non-mutating promotion readiness report after the pilot result evaluator. It does not promote Rust collectors or transfer cleanup/apply authority."));
+    map.insert("note".to_string(), json!("v4.5 builds a non-mutating promotion readiness report after the pilot result evaluator and requires diagnostics-only Rust observation evidence before readiness."));
 
     (Value::Object(map), errors, warnings)
 }
@@ -242,6 +281,7 @@ mod tests {
         rust_core.insert("collector_authority_promotion_require_python_fallback".to_string(), json!(true));
         rust_core.insert("collector_authority_promotion_require_manual_confirmation".to_string(), json!(true));
         rust_core.insert("collector_authority_promotion_require_no_cleanup_apply".to_string(), json!(true));
+        rust_core.insert("collector_authority_promotion_require_diagnostic_observation".to_string(), json!(true));
         rust_core.insert("collector_authority_promotion_max_shadow_age_seconds".to_string(), json!(900));
         root.insert("rust_core".to_string(), Value::Object(rust_core));
 
@@ -253,6 +293,13 @@ mod tests {
         pilot.insert("cleanup_attempted".to_string(), json!(false));
         pilot.insert("apply_attempted".to_string(), json!(false));
         pilot.insert("write_attempted".to_string(), json!(false));
+        pilot.insert("diagnostic_observation_ready".to_string(), json!(true));
+        pilot.insert("production_row_authority".to_string(), json!("python_collector"));
+        pilot.insert("cleanup_row_authority".to_string(), json!("python_collector"));
+        pilot.insert("diagnostic_row_authority".to_string(), json!("rust_shadow_diagnostics"));
+        pilot.insert("observed_rust_row_count".to_string(), json!(1));
+        pilot.insert("observed_python_row_count".to_string(), json!(1));
+        pilot.insert("runtime_evidence_source".to_string(), json!("live_read_shadow_history"));
         root.insert("collector_authority_pilot_result_evaluation".to_string(), Value::Object(pilot));
 
         Value::Object(root)
@@ -280,7 +327,28 @@ mod tests {
         assert!(errors.is_empty(), "errors: {errors:?}");
         assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_promotion_readiness_ready"));
         assert_eq!(result.get("promotion_ready").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("diagnostic_observation_ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(result.get("diagnostic_row_authority").and_then(Value::as_str), Some("rust_shadow_diagnostics"));
         assert_eq!(result.get("collector_authority_promotion_executed").and_then(Value::as_bool), Some(false));
         assert_eq!(result.get("rust_can_drive_cleanup").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn keeps_promotion_under_review_without_diagnostic_observation() {
+        let mut payload = ready_payload();
+        if let Some(pilot) = payload
+            .get_mut("collector_authority_pilot_result_evaluation")
+            .and_then(Value::as_object_mut)
+        {
+            pilot.insert("diagnostic_observation_ready".to_string(), json!(false));
+            pilot.insert("observed_rust_row_count".to_string(), json!(0));
+        }
+
+        let (result, errors, warnings) = build_collector_authority_promotion_readiness_payload(&payload);
+        assert!(errors.is_empty(), "errors: {errors:?}");
+        assert_eq!(result.get("status").and_then(Value::as_str), Some("collector_authority_promotion_readiness_review"));
+        assert_eq!(result.get("promotion_ready").and_then(Value::as_bool), Some(false));
+        assert_eq!(result.get("diagnostic_observation_ok").and_then(Value::as_bool), Some(false));
+        assert!(warnings.iter().any(|w| w.code == "collector_authority_promotion_diagnostic_observation_not_ready"));
     }
 }
