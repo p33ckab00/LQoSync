@@ -29,8 +29,25 @@ fn append_result_entries(target: &mut Vec<Value>, value: Option<&Value>) {
     }
 }
 
+fn append_routeros_results(target: &mut Vec<Value>, value: Option<&Value>) {
+    let Some(value) = value else {
+        return;
+    };
+    if let Some(result) = value.get("result") {
+        append_routeros_results(target, Some(result));
+    }
+    if let Some(results) = value.get("results") {
+        append_result_entries(target, Some(results));
+    }
+    if let Some(read_result) = value.get("read_result") {
+        append_live_read_result(target, Some(read_result));
+    }
+}
+
 fn append_live_read_result(target: &mut Vec<Value>, value: Option<&Value>) {
-    let Some(value) = value else { return; };
+    let Some(value) = value else {
+        return;
+    };
     if let Some(result) = value.get("result") {
         append_live_read_result(target, Some(result));
     }
@@ -62,6 +79,7 @@ fn collect_read_results(payload: &Value, live_adapter: &Value) -> Vec<Value> {
     append_result_entries(&mut results, payload.get("results"));
     append_result_entries(&mut results, payload.get("read_results"));
     append_result_entries(&mut results, payload.get("live_read_results"));
+    append_routeros_results(&mut results, payload.get("routeros_results"));
     append_live_read_result(&mut results, payload.get("live_read_result"));
     append_live_read_result(&mut results, payload.get("read_result"));
     append_live_read_result(&mut results, Some(live_adapter));
@@ -78,7 +96,9 @@ fn value_count(value: &Value, key: &str) -> u64 {
 /// shadow collector bundle. It may consume supplied live-read results or run the
 /// live adapter if requested, but it never transfers cleanup/apply/collector
 /// authority away from Python.
-pub fn build_routeros_live_read_shadow_parity_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn build_routeros_live_read_shadow_parity_payload(
+    payload: &Value,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors: Vec<Diagnostic> = Vec::new();
     let mut warnings: Vec<Diagnostic> = Vec::new();
 
@@ -100,7 +120,8 @@ pub fn build_routeros_live_read_shadow_parity_payload(payload: &Value) -> (Value
             "api_reply_read_count": 0
         })
     } else {
-        let (adapter, adapter_errors, adapter_warnings) = run_routeros_live_read_adapter_pilot_payload(payload);
+        let (adapter, adapter_errors, adapter_warnings) =
+            run_routeros_live_read_adapter_pilot_payload(payload);
         merge_diags(&mut errors, adapter_errors);
         merge_diags(&mut warnings, adapter_warnings);
         adapter
@@ -121,7 +142,8 @@ pub fn build_routeros_live_read_shadow_parity_payload(payload: &Value) -> (Value
         if let Value::Object(ref mut map) = bundle_payload {
             map.insert("results".to_string(), Value::Array(read_results.clone()));
         }
-        let (bundle, bundle_errors, bundle_warnings) = build_routeros_shadow_collector_bundle_payload(&bundle_payload);
+        let (bundle, bundle_errors, bundle_warnings) =
+            build_routeros_shadow_collector_bundle_payload(&bundle_payload);
         shadow_bundle = bundle;
         merge_diags(&mut errors, bundle_errors);
         merge_diags(&mut warnings, bundle_warnings);
@@ -133,15 +155,32 @@ pub fn build_routeros_live_read_shadow_parity_payload(payload: &Value) -> (Value
         ));
     }
 
-    let live_adapter_status = live_adapter.get("status").and_then(Value::as_str).unwrap_or("not_run").to_string();
+    let live_adapter_status = live_adapter
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("not_run")
+        .to_string();
     let live_read_complete = live_adapter_status == "live_read_adapter_read_complete"
         || live_adapter_status == "supplied_live_read_results";
-    let shadow_status = shadow_bundle.get("status").and_then(Value::as_str).unwrap_or("not_run").to_string();
+    let shadow_status = shadow_bundle
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("not_run")
+        .to_string();
     let shadow_ready = shadow_status == "shadow_ready";
-    let parity = shadow_bundle.get("parity").cloned().unwrap_or_else(|| json!({"verdict":"not_run", "parity_score":0.0}));
-    let parity_verdict = parity.get("verdict").and_then(Value::as_str).unwrap_or("not_run");
+    let parity = shadow_bundle
+        .get("parity")
+        .cloned()
+        .unwrap_or_else(|| json!({"verdict":"not_run", "parity_score":0.0}));
+    let parity_verdict = parity
+        .get("verdict")
+        .and_then(Value::as_str)
+        .unwrap_or("not_run");
     let parity_pass = parity_verdict == "parity_pass";
-    let normalized_count = shadow_bundle.get("normalized_count").cloned().unwrap_or_else(|| json!(0));
+    let normalized_count = shadow_bundle
+        .get("normalized_count")
+        .cloned()
+        .unwrap_or_else(|| json!(0));
     let connection_attempt_count = value_count(&live_adapter, "connection_attempt_count");
     let authentication_attempt_count = value_count(&live_adapter, "authentication_attempt_count");
     let api_sentence_write_count = value_count(&live_adapter, "api_sentence_write_count");
@@ -229,8 +268,16 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_live_read_shadow_parity_payload(&payload);
         assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("live_read_shadow_contract_ready"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("live_read_shadow_contract_ready")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains(leaked_password));
     }
@@ -240,12 +287,27 @@ mod tests {
         let payload = full_pppoe_payload();
         let (result, errors, _warnings) = build_routeros_live_read_shadow_parity_payload(&payload);
         assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("live_read_shadow_parity_pass"));
-        assert_eq!(result.get("live_read_result_count").and_then(Value::as_u64), Some(3));
-        assert_eq!(result.get("normalized_count").and_then(Value::as_u64), Some(1));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("live_read_shadow_parity_pass")
+        );
+        assert_eq!(
+            result.get("live_read_result_count").and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            result.get("normalized_count").and_then(Value::as_u64),
+            Some(1)
+        );
         assert_eq!(result["parity"]["verdict"], "parity_pass");
-        assert_eq!(result.get("collector_authority").and_then(Value::as_str), Some("python_authoritative"));
-        assert_eq!(result.get("safe_for_cleanup").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            result.get("collector_authority").and_then(Value::as_str),
+            Some("python_authoritative")
+        );
+        assert_eq!(
+            result.get("safe_for_cleanup").and_then(Value::as_bool),
+            Some(false)
+        );
     }
 
     #[test]
@@ -256,8 +318,50 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_live_read_shadow_parity_payload(&payload);
         assert!(!errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("blocked"));
-        assert!(errors.iter().any(|e| e.code == "routeros_required_read_missing"));
-        assert_eq!(result.get("collector_authority").and_then(Value::as_str), Some("python_authoritative"));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "routeros_required_read_missing"));
+        assert_eq!(
+            result.get("collector_authority").and_then(Value::as_str),
+            Some("python_authoritative")
+        );
+    }
+
+    #[test]
+    fn consumes_routeros_results_wrapper_without_requesting_live_adapter() {
+        let payload = json!({
+            "config": {
+                "defaults": {"default_pppoe_rate":"10M/10M", "min_rate_percentage":0.5},
+                "routers": [{"name":"RB5009", "enabled": true, "pppoe":{"enabled":true, "per_plan_node":true}}]
+            },
+            "python_rows": [
+                {"Circuit ID":"JUAN", "Circuit Name":"juan", "Device ID":"JUANDEV", "Device Name":"juan", "Parent Node":"15M-RB5009", "MAC":"AA:BB:CC:DD:EE:FF", "IPv4":"10.0.0.2", "IPv6":"", "Download Min Mbps":"7.5", "Upload Min Mbps":"7.5", "Download Max Mbps":"15", "Upload Max Mbps":"15", "Comment":"PPP"}
+            ],
+            "routeros_results": {
+                "results": [
+                    {"router":"RB5009", "source":"pppoe", "path":"/ppp/active", "status":"ok", "rows":[{"name":"juan", "address":"10.0.0.2", "caller-id":"AA:BB:CC:DD:EE:FF"}]},
+                    {"router":"RB5009", "source":"pppoe", "path":"/ppp/secret", "status":"ok", "rows":[{"name":"juan", "profile":"15M", "comment":"PLAN|15M/15M", "disabled":"false", "inactive":"false"}]},
+                    {"router":"RB5009", "source":"pppoe", "path":"/ppp/profile", "status":"ok", "rows":[{"name":"15M", "rate-limit":"15M/15M"}]}
+                ]
+            }
+        });
+        let (result, errors, _warnings) = build_routeros_live_read_shadow_parity_payload(&payload);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("live_read_shadow_parity_pass")
+        );
+        assert_eq!(
+            result.get("live_read_result_count").and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            result.get("live_adapter_status").and_then(Value::as_str),
+            Some("supplied_live_read_results")
+        );
     }
 }
