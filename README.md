@@ -170,7 +170,7 @@ Rust authority daemon = backend authority
 Python Flask = WebUI shell only
 ```
 
-The legacy Python scheduler loop has been removed. Flask still exposes the same dashboard and action buttons, but scheduler status, heartbeat, and run authorization are delegated to `lqosync-core`. Live RouterOS collection remains the key backend component still being migrated from Python to Rust.
+The legacy Python scheduler loop and Python run-cycle backend have been removed. Flask still exposes the same dashboard and action buttons, but scheduler status, heartbeat, run authorization, run-cycle authority, collector-bundle transformation, generated-file writes, and LibreQoS force apply are delegated to Rust.
 
 This project is not being converted to Django and is not a SaaS platform.
 
@@ -233,6 +233,8 @@ Adopt user, ownership, and ACLs:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- adopt
 ```
+
+The standalone adopt path installs/checks ACL tooling, creates the `lqosync` runtime user if missing, applies managed-file ownership/ACLs, and verifies temporary-file creation in `/opt/libreqos/src`.
 
 Check:
 

@@ -6,6 +6,7 @@ Use `lqosyncctl.sh` for fresh install, update, uninstall, permission adoption, c
 
 - Git `dubious ownership` by adding `/opt/LQoSync` as a safe directory for root.
 - Missing or old Cargo by installing/updating Rust stable with rustup.
+- Missing ACL tooling by installing `acl` before standalone permission adoption.
 - GitHub branch updates from `lqosync-in-rust`.
 - Preserve-existing live LibreQoS files.
 - Service start policy defaults that avoid surprise WebUI/scheduler starts during install.
@@ -33,6 +34,8 @@ curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/l
 ```bash
 curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- adopt
 ```
+
+Standalone `adopt` ensures ACL tooling is present, creates the `lqosync` system user if needed, grants the runtime user access to managed LibreQoS files, and tests temporary-file creation in `/opt/libreqos/src`.
 
 ## Check current server status
 

@@ -75,6 +75,19 @@ install_packages() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y git curl rsync sudo acl python3 python3-venv python3-pip build-essential pkg-config libssl-dev
 }
 
+ensure_acl_available() {
+  if command -v setfacl >/dev/null 2>&1 && command -v getfacl >/dev/null 2>&1; then
+    return
+  fi
+  if command -v apt-get >/dev/null 2>&1; then
+    log "Installing ACL tooling for permission adoption..."
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y acl
+    return
+  fi
+  fail "setfacl/getfacl are missing. Install the acl package before running adopt."
+}
+
 ensure_rustup_cargo() {
   export PATH="/root/.cargo/bin:$PATH"
   if ! command -v cargo >/dev/null 2>&1 || ! cargo --version 2>/dev/null | grep -Eq 'cargo 1\.(8[0-9]|9[0-9]|[1-9][0-9]{2})'; then
@@ -219,6 +232,7 @@ case "$COMMAND" in
     ;;
   adopt)
     need_root
+    ensure_acl_available
     run_permission_adoption
     ;;
   check)
