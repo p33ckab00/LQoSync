@@ -39,8 +39,7 @@ Rust backend authority does not automatically mean the Python backend can be del
 
 Current retirement blockers still include:
 
-- the guarded Python fallback path that still exists inside `rust_run_cycle_authority`;
-- legacy rollback compatibility files such as `engine/run_cycle.py` and `scripts/run_cycle_once.py`;
+- legacy rollback compatibility files such as `engine/run_cycle.py`;
 - the remaining safety-gated live RouterOS enablement path, which still needs explicit operator promotion before Python removal is safe.
 
 `engine.run_cycle` now sends its non-mutating sync-engine shadow bundle to Rust through `build-rust-sync-engine-shadow-preview`, so diff generation, runtime validation, policy shadowing, sync-plan authority preview, and apply-manifest preview are already Rust-owned even before live mutation authority is fully cut over.
@@ -48,10 +47,10 @@ Current retirement blockers still include:
 Rust now owns read-only dry-run shadow generation for both `ShapedDevices.csv`
 and `network.json`, and the WebUI/API dry-run path now calls that Rust-native
 preview directly. Scheduled/manual run entry also now enters Rust first through
-`run-rust-cycle-authority`. Backend deletion stays blocked because the Rust
-authority op still carries a guarded Python fallback for rollback compatibility.
-
-Those bridges must be replaced by native Rust paths before guarded Python backend retirement can proceed.
+`run-rust-cycle-authority`. The old `scripts/run_cycle_once.py` bridge has been
+removed from that path, so backend deletion is now blocked by the remaining
+rollback-only Python modules and by safety promotion evidence, not by an active
+Python executor in the Rust authority boundary.
 
 ## Compatibility bridge note
 

@@ -96,10 +96,10 @@ Even when that native preview flag is off, `engine.run_cycle` now delegates its 
 Do not erase the Python backend yet if any of these are still true:
 
 - `rust_core.native_run_cycle_authority_python_fallback` is still allowed anywhere in runtime config
-- `rust/lqosync-core/src/rust_run_cycle_authority.rs` still contains the guarded fallback bridge to `scripts/run_cycle_once.py`
-- legacy files such as `engine/run_cycle.py` and `scripts/run_cycle_once.py` are still being kept as rollback compatibility paths
+- scheduled/manual runs are not entering `run-rust-cycle-authority` first
+- legacy backend modules such as `engine/run_cycle.py` are still being kept for rollback or reference instead of being retired after verification
 
-This branch now runs manual and scheduled cycles through Rust first, but guarded Python deletion is still blocked until the fallback code itself is removed and the remaining rollback-only Python paths are retired.
+This branch now runs manual and scheduled cycles through Rust first, and the `scripts/run_cycle_once.py` bridge has been removed. Guarded Python deletion still stays blocked until the remaining rollback-only Python backend paths are retired after verification.
 
 ## Singularity Policy
 

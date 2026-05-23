@@ -18,7 +18,6 @@ const DEFAULT_PYTHON_PATHS: &[&str] = &[
     "engine/run_cycle.py",
     "engine/stable_release.py",
     "scheduler/runner.py",
-    "scripts/run_cycle_once.py",
     "collectors/pppoe.py",
     "collectors/dhcp.py",
     "collectors/hotspot.py",
@@ -116,7 +115,6 @@ fn classify_path(path: &str) -> (&'static str, &'static str, &'static str) {
         );
     }
     if path == "engine/run_cycle.py"
-        || path == "scripts/run_cycle_once.py"
         || path.starts_with("collectors/")
         || path.starts_with("builders/")
         || path.starts_with("rules/")

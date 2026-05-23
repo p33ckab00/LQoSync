@@ -73,7 +73,9 @@ Stable full-Rust run-cycle entry now uses these flags:
 ```
 
 If RouterOS live-read gates are still disabled, the native authority path fails
-closed instead of silently dropping back to the legacy Python backend.
+closed instead of silently dropping back to the legacy Python backend. The old
+`scripts/run_cycle_once.py` bridge has been removed from the scheduled/manual
+execution path.
 
 ## Production safety chain
 
