@@ -8,6 +8,7 @@ SHAPED_DEVICES_PATH="${SHAPED_DEVICES_PATH:-$LIBREQOS_SRC_DIR/ShapedDevices.csv}
 NETWORK_JSON_PATH="${NETWORK_JSON_PATH:-$LIBREQOS_SRC_DIR/network.json}"
 USER_NAME="${LQOSYNC_USER:-lqosync}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
   echo "Run as root: sudo bash scripts/adopt-runtime-permissions.sh" >&2
@@ -15,6 +16,16 @@ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
 fi
 
 echo "[LQoSync] Adopting runtime user and permissions"
+
+if [[ "${LQOSYNC_SKIP_PERMISSION_SNAPSHOT:-false}" != "true" ]]; then
+  if [[ -x "$SCRIPT_DIR/snapshot-runtime-permissions.sh" ]]; then
+    bash "$SCRIPT_DIR/snapshot-runtime-permissions.sh" || {
+      echo "[LQoSync] WARNING: original permission snapshot failed; continuing adoption." >&2
+    }
+  else
+    echo "[LQoSync] WARNING: snapshot-runtime-permissions.sh not found; original permissions will not be restorable automatically." >&2
+  fi
+fi
 
 if ! id "$USER_NAME" >/dev/null 2>&1; then
   useradd --system --no-create-home --shell /usr/sbin/nologin "$USER_NAME"

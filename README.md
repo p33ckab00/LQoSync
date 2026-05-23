@@ -234,7 +234,7 @@ Adopt user, ownership, and ACLs:
 curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- adopt
 ```
 
-The standalone adopt path installs/checks ACL tooling, creates the `lqosync` runtime user if missing, applies managed-file ownership/ACLs, and verifies temporary-file creation in `/opt/libreqos/src`.
+The standalone adopt path installs/checks ACL tooling, saves the original permission map under `/root/lqosync_permission_snapshots`, creates the `lqosync` runtime user if missing, applies managed-file ownership/ACLs, and verifies temporary-file creation in `/opt/libreqos/src`. Uninstall restores from that original map first.
 
 Check:
 

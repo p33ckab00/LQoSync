@@ -70,6 +70,96 @@ backup_live_files() {
   log "Backup saved: $dir"
 }
 
+backup_permission_snapshot() {
+  if [ -x "$INSTALL_DIR/scripts/snapshot-runtime-permissions.sh" ]; then
+    bash "$INSTALL_DIR/scripts/snapshot-runtime-permissions.sh"
+    return
+  fi
+
+  local snapshot_root="${LQOSYNC_PERMISSION_SNAPSHOT_ROOT:-/root/lqosync_permission_snapshots}"
+  local force="${LQOSYNC_FORCE_PERMISSION_SNAPSHOT:-false}"
+  case "$(printf '%s' "$force" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|y|on) force=true ;;
+    *) force=false ;;
+  esac
+
+  if [ "$force" != "true" ]; then
+    if [ -f "$snapshot_root/latest.path" ]; then
+      local existing=""
+      read -r existing < "$snapshot_root/latest.path" || true
+      if [ -n "$existing" ] && [ -f "$existing/metadata.tsv" ]; then
+        log "Existing original permission snapshot kept: $existing"
+        return
+      fi
+    fi
+    if [ -f "$snapshot_root/latest/metadata.tsv" ]; then
+      log "Existing original permission snapshot kept: $snapshot_root/latest"
+      return
+    fi
+  fi
+
+  local dir="$snapshot_root/$TS"
+  local metadata_tmp="$dir/metadata.tsv.tmp"
+  local metadata="$dir/metadata.tsv"
+  local acl_restore="$dir/acl.restore"
+  mkdir -p "$dir"
+  chmod 700 "$snapshot_root" "$dir" 2>/dev/null || true
+  : > "$metadata_tmp"
+
+  record_missing() { printf 'missing\t\t\t\t%s\n' "$1" >> "$metadata_tmp"; }
+  record_one() {
+    local p="$1"
+    if [ -e "$p" ] || [ -L "$p" ]; then
+      find "$p" -maxdepth 0 -printf '%y\t%m\t%U\t%G\t%p\n' >> "$metadata_tmp"
+    else
+      record_missing "$p"
+    fi
+  }
+  record_tree() {
+    local p="$1"
+    if [ -d "$p" ]; then
+      find "$p" -xdev -printf '%y\t%m\t%U\t%G\t%p\n' >> "$metadata_tmp"
+    else
+      record_missing "$p"
+    fi
+  }
+
+  record_tree "$INSTALL_DIR"
+  record_one "$LIBREQOS_SRC"
+  record_one "$LIBREQOS_SRC/config.json"
+  record_one "$LIBREQOS_SRC/ShapedDevices.csv"
+  record_one "$LIBREQOS_SRC/network.json"
+  record_one /var/log/lqosync.log
+
+  {
+    printf '#type\tmode\tuid\tgid\tpath\n'
+    awk -F '\t' 'NF >= 5 && !seen[$5]++ { print }' "$metadata_tmp"
+  } > "$metadata"
+  rm -f "$metadata_tmp"
+
+  : > "$acl_restore"
+  if command -v getfacl >/dev/null 2>&1; then
+    [ -d "$INSTALL_DIR" ] && getfacl -R -p "$INSTALL_DIR" >> "$acl_restore" 2>/dev/null || true
+    for p in "$LIBREQOS_SRC" "$LIBREQOS_SRC/config.json" "$LIBREQOS_SRC/ShapedDevices.csv" "$LIBREQOS_SRC/network.json" /var/log/lqosync.log; do
+      if [ -e "$p" ] || [ -L "$p" ]; then
+        getfacl -p "$p" >> "$acl_restore" 2>/dev/null || true
+      fi
+    done
+  fi
+
+  cat > "$dir/manifest.env" <<EOF
+created_at=$TS
+install_dir=$INSTALL_DIR
+libreqos_src_dir=$LIBREQOS_SRC
+metadata=$metadata
+acl_restore=$acl_restore
+EOF
+
+  ln -sfn "$dir" "$snapshot_root/latest"
+  printf '%s\n' "$dir" > "$snapshot_root/latest.path"
+  log "Original permission snapshot saved: $dir"
+}
+
 install_packages() {
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y git curl rsync sudo acl python3 python3-venv python3-pip build-essential pkg-config libssl-dev
@@ -208,6 +298,7 @@ case "$COMMAND" in
     stop_services
     backup_live_files
     install_packages
+    backup_permission_snapshot
     ensure_rustup_cargo
     ensure_source
     run_stable_install
@@ -219,6 +310,7 @@ case "$COMMAND" in
     need_root
     backup_live_files
     install_packages
+    backup_permission_snapshot
     ensure_rustup_cargo
     run_stable_install
     run_permission_adoption

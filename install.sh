@@ -239,6 +239,12 @@ set_env_var LQOSYNC_FORCE_DIRECT "true"
 set_env_var LQOSYNC_USE_SUDO "true"
 set_env_var LQOSYNC_LIBREQOS_WORKING_DIR "$LIBREQOS_SRC_DIR"
 
+if [[ "${LQOSYNC_SKIP_PERMISSION_SNAPSHOT:-false}" != "true" && -x "$INSTALL_DIR/scripts/snapshot-runtime-permissions.sh" ]]; then
+  bash "$INSTALL_DIR/scripts/snapshot-runtime-permissions.sh" || {
+    echo "[LQoSync] WARNING: original permission snapshot failed; continuing install permission adoption." >&2
+  }
+fi
+
 mkdir -p "$INSTALL_DIR/backups" "$INSTALL_DIR/logs" "$INSTALL_DIR/state" "$INSTALL_DIR/config_backups" "$INSTALL_DIR/install_backups"
 touch /var/log/lqosync.log || true
 

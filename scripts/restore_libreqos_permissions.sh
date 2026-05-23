@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Restore /opt/libreqos/src permissions after removing LQoSync.
-# Default mode restores only the files LQoSync manages. Use --full to chown
-# the whole LibreQoS src tree back to root:root.
+# Restore permissions after removing LQoSync.
+# Prefer the original permission snapshot captured before adoption. If no
+# snapshot exists, fall back to conservative managed LibreQoS file defaults.
 
+INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-/opt/LQoSync}"
 LIBREQOS_SRC_DIR="${LIBREQOS_SRC_DIR:-/opt/libreqos/src}"
 LQOSYNC_USER="${LQOSYNC_USER:-lqosync}"
+SNAPSHOT_ROOT="${LQOSYNC_PERMISSION_SNAPSHOT_ROOT:-/root/lqosync_permission_snapshots}"
+SNAPSHOT_DIR="${LQOSYNC_PERMISSION_SNAPSHOT_DIR:-}"
 MODE="managed"
 
 if [[ "${1:-}" == "--full" ]]; then
@@ -26,6 +29,66 @@ fi
 if [[ ! -d "$LIBREQOS_SRC_DIR" ]]; then
   echo "LibreQoS source directory not found: $LIBREQOS_SRC_DIR" >&2
   exit 1
+fi
+
+find_snapshot() {
+  if [[ -n "$SNAPSHOT_DIR" && -f "$SNAPSHOT_DIR/metadata.tsv" ]]; then
+    printf '%s\n' "$SNAPSHOT_DIR"
+    return 0
+  fi
+  if [[ -f "$SNAPSHOT_ROOT/latest.path" ]]; then
+    local p=""
+    read -r p < "$SNAPSHOT_ROOT/latest.path" || true
+    if [[ -n "$p" && -f "$p/metadata.tsv" ]]; then
+      printf '%s\n' "$p"
+      return 0
+    fi
+  fi
+  if [[ -f "$SNAPSHOT_ROOT/latest/metadata.tsv" ]]; then
+    printf '%s\n' "$SNAPSHOT_ROOT/latest"
+    return 0
+  fi
+  return 1
+}
+
+restore_from_snapshot() {
+  local snap="$1"
+  local metadata="$snap/metadata.tsv"
+  local acl_restore="$snap/acl.restore"
+
+  [[ -f "$metadata" ]] || return 1
+  echo "[LQoSync] Restoring original permissions from snapshot: $snap"
+
+  while IFS=$'\t' read -r type mode uid gid path; do
+    [[ -z "${type:-}" || "$type" == \#* ]] && continue
+    [[ "$type" == "missing" ]] && continue
+    [[ -n "${path:-}" ]] || continue
+    [[ -e "$path" || -L "$path" ]] || continue
+    if [[ -n "${uid:-}" && -n "${gid:-}" ]]; then
+      chown -h "$uid:$gid" "$path" 2>/dev/null || true
+    fi
+    if [[ "$type" != "l" && -n "${mode:-}" ]]; then
+      chmod "$mode" "$path" 2>/dev/null || true
+    fi
+  done < "$metadata"
+
+  if [[ -s "$acl_restore" ]]; then
+    if command -v setfacl >/dev/null 2>&1; then
+      setfacl --restore="$acl_restore" 2>/dev/null || true
+      echo "[LQoSync] ACLs restored from original snapshot."
+    else
+      echo "[LQoSync] WARNING: setfacl not available; owner/mode restored but ACL restore skipped."
+    fi
+  fi
+
+  echo "[LQoSync] Original permission snapshot restore complete."
+  ls -ld "$INSTALL_DIR" "$LIBREQOS_SRC_DIR" 2>/dev/null || true
+  ls -lah "$LIBREQOS_SRC_DIR/config.json" "$LIBREQOS_SRC_DIR/ShapedDevices.csv" "$LIBREQOS_SRC_DIR/network.json" 2>/dev/null || true
+}
+
+if snapshot="$(find_snapshot 2>/dev/null)"; then
+  restore_from_snapshot "$snapshot"
+  exit 0
 fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"

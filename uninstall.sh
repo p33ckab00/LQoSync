@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # LQoSync bare-metal uninstall helper.
-# Defaults are safe: stop/remove service + sudoers, restore LibreQoS ACL/ownership
-# for managed files, and keep /opt/LQoSync as a backup source unless REMOVE_RUNTIME=true.
+# Defaults are safe: stop/remove service + sudoers, restore original
+# owner/mode/ACLs from the pre-adoption snapshot when available, and keep
+# /opt/LQoSync as a backup source unless REMOVE_RUNTIME=true.
 
 INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-${INSTALL_DIR:-/opt/LQoSync}}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-${SERVICE_NAME:-lqosync}}"
