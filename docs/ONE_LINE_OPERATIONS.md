@@ -2,7 +2,7 @@
 
 LQoSync is a local appliance-style app: Rust backend authority daemon plus Flask WebUI shell.
 
-Use `lqosyncctl.sh` for fresh install, update, check, verify, start, stop, restart, and repair. The script handles the common live-server problems found during deployment:
+Use `lqosyncctl.sh` for fresh install, update, uninstall, permission adoption, check, verify, start, stop, restart, and repair. The script handles the common live-server problems found during deployment:
 
 - Git `dubious ownership` by adding `/opt/LQoSync` as a safe directory for root.
 - Missing or old Cargo by installing/updating Rust stable with rustup.
@@ -20,6 +20,18 @@ curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/l
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- update
+```
+
+## Uninstall LQoSync runtime integration safely
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- uninstall
+```
+
+## Adopt the runtime user, ownership, ACLs, and managed-file permissions
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- adopt
 ```
 
 ## Check current server status

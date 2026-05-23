@@ -15,7 +15,10 @@ fn rows_by_circuit(rows: Vec<ShapedDeviceRow>) -> BTreeMap<String, ShapedDeviceR
     out
 }
 
-pub fn diff_shaped_devices_text(current_text: &str, proposed_text: &str) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn diff_shaped_devices_text(
+    current_text: &str,
+    proposed_text: &str,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors = Vec::new();
     let warnings = Vec::new();
 
@@ -49,11 +52,20 @@ pub fn diff_shaped_devices_text(current_text: &str, proposed_text: &str) -> (Val
 
     let mut updated = Vec::new();
     for key in current_keys.intersection(&proposed_keys) {
-        let old = current.get(key).expect("intersection key exists in current");
-        let new = proposed.get(key).expect("intersection key exists in proposed");
+        let old = current
+            .get(key)
+            .expect("intersection key exists in current");
+        let new = proposed
+            .get(key)
+            .expect("intersection key exists in proposed");
         if old.fields != new.fields {
             let mut changed_fields = Vec::new();
-            let field_keys: BTreeSet<String> = old.fields.keys().chain(new.fields.keys()).cloned().collect();
+            let field_keys: BTreeSet<String> = old
+                .fields
+                .keys()
+                .chain(new.fields.keys())
+                .cloned()
+                .collect();
             for field in field_keys {
                 if old.fields.get(&field) != new.fields.get(&field) {
                     changed_fields.push(field);
@@ -81,7 +93,10 @@ pub fn diff_shaped_devices_text(current_text: &str, proposed_text: &str) -> (Val
     (result, errors, warnings)
 }
 
-pub fn diff_network_text(current_text: &str, proposed_text: &str) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn diff_network_text(
+    current_text: &str,
+    proposed_text: &str,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors = Vec::new();
     let warnings = Vec::new();
 
@@ -112,6 +127,16 @@ pub fn diff_network_text(current_text: &str, proposed_text: &str) -> (Value, Vec
     let proposed_nodes: BTreeSet<String> = collect_node_names(&proposed).into_iter().collect();
     let added_nodes: Vec<String> = proposed_nodes.difference(&current_nodes).cloned().collect();
     let removed_nodes: Vec<String> = current_nodes.difference(&proposed_nodes).cloned().collect();
+    let current_flat = flatten_network_nodes(&current);
+    let proposed_flat = flatten_network_nodes(&proposed);
+    let mut updated_nodes = Vec::new();
+    for key in current_nodes.intersection(&proposed_nodes) {
+        if let (Some(lhs), Some(rhs)) = (current_flat.get(key), proposed_flat.get(key)) {
+            if lhs != rhs {
+                updated_nodes.push(key.clone());
+            }
+        }
+    }
     let changed = current != proposed;
 
     let result = json!({
@@ -119,22 +144,68 @@ pub fn diff_network_text(current_text: &str, proposed_text: &str) -> (Value, Vec
         "proposed_node_count": proposed_nodes.len(),
         "added_node_count": added_nodes.len(),
         "removed_node_count": removed_nodes.len(),
+        "updated_node_count": updated_nodes.len(),
         "changed": changed,
         "added_nodes": added_nodes,
         "removed_nodes": removed_nodes,
+        "updated_nodes": updated_nodes,
     });
 
     (result, errors, warnings)
 }
 
-pub fn diff_files_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
-    let current_csv = payload.get("current_csv_text").and_then(Value::as_str).unwrap_or("");
-    let proposed_csv = payload.get("proposed_csv_text").and_then(Value::as_str).unwrap_or("");
-    let current_network = payload.get("current_network_text").and_then(Value::as_str).unwrap_or("{}");
-    let proposed_network = payload.get("proposed_network_text").and_then(Value::as_str).unwrap_or("{}");
+fn flatten_network_nodes(value: &Value) -> BTreeMap<String, Value> {
+    fn visit(name: &str, node: &Value, parent: Option<&str>, out: &mut BTreeMap<String, Value>) {
+        if !node.is_object() {
+            return;
+        }
+        let mut record = node.clone();
+        if let Some(map) = record.as_object_mut() {
+            map.remove("children");
+            map.insert(
+                "parent".to_string(),
+                parent.map(|value| json!(value)).unwrap_or(Value::Null),
+            );
+        }
+        out.insert(name.to_string(), record);
+        if let Some(children) = node.get("children").and_then(Value::as_object) {
+            for (child_name, child) in children {
+                visit(child_name, child, Some(name), out);
+            }
+        }
+    }
 
-    let (csv, mut csv_errors, mut csv_warnings) = diff_shaped_devices_text(current_csv, proposed_csv);
-    let (network, mut net_errors, mut net_warnings) = diff_network_text(current_network, proposed_network);
+    let mut out = BTreeMap::new();
+    if let Some(roots) = value.as_object() {
+        for (name, node) in roots {
+            visit(name, node, None, &mut out);
+        }
+    }
+    out
+}
+
+pub fn diff_files_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+    let current_csv = payload
+        .get("current_csv_text")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let proposed_csv = payload
+        .get("proposed_csv_text")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let current_network = payload
+        .get("current_network_text")
+        .and_then(Value::as_str)
+        .unwrap_or("{}");
+    let proposed_network = payload
+        .get("proposed_network_text")
+        .and_then(Value::as_str)
+        .unwrap_or("{}");
+
+    let (csv, mut csv_errors, mut csv_warnings) =
+        diff_shaped_devices_text(current_csv, proposed_csv);
+    let (network, mut net_errors, mut net_warnings) =
+        diff_network_text(current_network, proposed_network);
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -168,5 +239,15 @@ mod tests {
         assert_eq!(result["added_count"], 1);
         assert_eq!(result["removed_count"], 1);
         assert_eq!(result["updated_count"], 1);
+    }
+
+    #[test]
+    fn detects_updated_network_nodes() {
+        let current = r#"{"Root":{"downloadBandwidthMbps":10,"uploadBandwidthMbps":10,"type":"site","children":{"Leaf":{"downloadBandwidthMbps":5,"uploadBandwidthMbps":5,"type":"site","children":{}}}}}"#;
+        let proposed = r#"{"Root":{"downloadBandwidthMbps":20,"uploadBandwidthMbps":10,"type":"site","children":{"Leaf":{"downloadBandwidthMbps":5,"uploadBandwidthMbps":5,"type":"site","children":{}}}}}"#;
+        let (result, errors, _warnings) = diff_network_text(current, proposed);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(result["updated_node_count"], 1);
+        assert_eq!(result["updated_nodes"], json!(["Root"]));
     }
 }

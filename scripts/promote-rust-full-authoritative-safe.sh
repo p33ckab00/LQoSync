@@ -147,6 +147,9 @@ rc.update({
     'allow_transaction_journal_writes': True,
     'include_rehearsal_journal_entries': False,
     'allow_dry_run_journal_entries': False,
+    'native_dry_run_preview_enabled': True,
+    'native_run_cycle_authority_enabled': True,
+    'native_run_cycle_authority_python_fallback': False,
     'execute_rollback': False,
     'allow_rust_rollback_file_writes': False,
     'rollback_authority': 'preview',
@@ -168,8 +171,8 @@ sched.update({
     'require_set_and_forget_readiness': True,
     'rust_heartbeat_path': '/opt/LQoSync/state/rust_scheduler_heartbeat.json',
     'rust_lock_path': '/opt/LQoSync/state/rust_scheduler.lock',
-    'rust_run_cycle_command': '/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py scheduled',
-    'manual_run_command': '/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py manual',
+    'rust_run_cycle_command': '/opt/LQoSync/scripts/rust-run-cycle-authority.sh scheduled',
+    'manual_run_command': '/opt/LQoSync/scripts/rust-run-cycle-authority.sh manual',
 })
 text = json.dumps(cfg, indent=2) + '\n'
 fd, tmp = tempfile.mkstemp(prefix=path.name + '.', dir=str(path.parent))

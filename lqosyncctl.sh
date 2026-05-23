@@ -5,6 +5,8 @@ set -euo pipefail
 # Remote examples:
 #   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- install
 #   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- update
+#   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- uninstall
+#   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- adopt
 #   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- check
 #   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- verify
 
@@ -35,6 +37,8 @@ LQoSync one-line control
 Commands:
   install   Fresh/adopt install from GitHub branch $BRANCH, preserve LibreQoS files, build Rust, enable services without auto-start surprise.
   update    Update existing /opt/LQoSync from GitHub branch $BRANCH, preserve LibreQoS files, rebuild Rust, verify.
+  uninstall Remove the LQoSync service/runtime integration with safe backups; keep LibreQoS working files unless explicit uninstall env vars say otherwise.
+  adopt     Re-apply the lqosync runtime user, ownership, ACLs, and managed-file permissions across /opt/LQoSync and /opt/libreqos/src.
   check     Read-only status check: branch, services, ports, Rust/Cargo, config summary.
   verify    Run package + Rust authority verification scripts.
   start     Start lqosync-core and lqosync.
@@ -45,6 +49,8 @@ Commands:
 One-line examples:
   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- install
   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- update
+  curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- uninstall
+  curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- adopt
   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- check
   curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh | sudo bash -s -- verify
 USAGE
@@ -114,6 +120,11 @@ run_stable_install() {
   export LQOSYNC_INIT_POLICY="${LQOSYNC_INIT_POLICY:-preserve_existing}"
   export LQOSYNC_SERVICE_START_POLICY="${LQOSYNC_SERVICE_START_POLICY:-enable_only}"
   bash install-rust-stable-safe.sh
+}
+
+run_permission_adoption() {
+  [ -x "$INSTALL_DIR/scripts/adopt-runtime-permissions.sh" ] || fail "Missing executable permission adoption script: $INSTALL_DIR/scripts/adopt-runtime-permissions.sh"
+  bash "$INSTALL_DIR/scripts/adopt-runtime-permissions.sh"
 }
 
 run_verify() {
@@ -187,6 +198,7 @@ case "$COMMAND" in
     ensure_rustup_cargo
     ensure_source
     run_stable_install
+    run_permission_adoption
     run_verify
     log "Complete. Start WebUI with: sudo /opt/LQoSync/lqosyncctl.sh start"
     ;;
@@ -196,7 +208,18 @@ case "$COMMAND" in
     install_packages
     ensure_rustup_cargo
     run_stable_install
+    run_permission_adoption
     run_verify
+    ;;
+  uninstall)
+    need_root
+    backup_live_files
+    [ -x "$INSTALL_DIR/uninstall.sh" ] || fail "Missing uninstall helper: $INSTALL_DIR/uninstall.sh"
+    bash "$INSTALL_DIR/uninstall.sh"
+    ;;
+  adopt)
+    need_root
+    run_permission_adoption
     ;;
   check)
     need_root

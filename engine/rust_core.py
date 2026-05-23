@@ -17,6 +17,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from builders.shaped_devices import read_shaped_devices_csv
+
 PROTOCOL_VERSION = "1"
 DEFAULT_SOCKET = "/run/lqosync-core.sock"
 
@@ -697,6 +699,191 @@ def rust_build_apply_manifest(config: dict, *, mode: str, paths: dict, current_c
     error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
     if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
         return _python_apply_manifest(payload)
+    return response
+
+
+def _response_envelope_like(value: Any) -> bool:
+    return isinstance(value, dict) and (isinstance(value.get("result"), dict) or bool(value.get("op")))
+
+
+def _collect_response_diagnostics(*responses: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    for response in responses:
+        if not isinstance(response, dict):
+            continue
+        for item in response.get("errors") or []:
+            if isinstance(item, dict):
+                errors.append(dict(item))
+        for item in response.get("warnings") or []:
+            if isinstance(item, dict):
+                warnings.append(dict(item))
+    return errors, warnings
+
+
+def _python_sync_engine_shadow_preview(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
+    """Fallback bundle for Rust sync-engine shadow orchestration.
+
+    This keeps the orchestration bundle shape stable even when the aggregate Rust
+    op is unavailable or the daemon has not been restarted yet.
+    """
+    started = started or time.perf_counter()
+    config = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+    mode = str(payload.get("mode") or "apply")
+    current_csv_text = str(payload.get("current_csv_text") or "")
+    proposed_csv_text = str(payload.get("proposed_csv_text") or "")
+    current_network_text = str(payload.get("current_network_text") or "{}")
+    proposed_network_text = str(payload.get("proposed_network_text") or "{}")
+    files_changed = bool(payload.get("files_changed", False))
+    csv_changed = bool(payload.get("csv_changed", current_csv_text != proposed_csv_text))
+    network_changed = bool(payload.get("network_changed", current_network_text != proposed_network_text))
+    preflight = payload.get("preflight") if isinstance(payload.get("preflight"), dict) else {}
+    collector_trust = payload.get("collector_trust") if isinstance(payload.get("collector_trust"), list) else []
+    cleanup = payload.get("cleanup") if isinstance(payload.get("cleanup"), dict) else {}
+    rust_circuit_shadow = payload.get("rust_circuit_shadow") if isinstance(payload.get("rust_circuit_shadow"), dict) else {}
+    paths = payload.get("paths") if isinstance(payload.get("paths"), dict) else ((config.get("paths") or {}) if isinstance(config.get("paths"), dict) else {})
+    state = payload.get("state") if isinstance(payload.get("state"), dict) else {}
+    policy_decision = payload.get("policy_decision") if isinstance(payload.get("policy_decision"), dict) else {}
+    diff_summary = payload.get("diff_summary") if isinstance(payload.get("diff_summary"), dict) else {
+        "csv_changed": csv_changed,
+        "network_changed": network_changed,
+        "client_change_summary": payload.get("client_change_summary") if isinstance(payload.get("client_change_summary"), dict) else {},
+    }
+
+    rust_diff = payload.get("rust_diff") if _response_envelope_like(payload.get("rust_diff")) else rust_diff_files(
+        config,
+        current_csv_text=current_csv_text,
+        proposed_csv_text=proposed_csv_text,
+        current_network_text=current_network_text,
+        proposed_network_text=proposed_network_text,
+    )
+    rust_validation = payload.get("rust_validation") if _response_envelope_like(payload.get("rust_validation")) else validate_runtime_outputs(
+        config,
+        csv_text=proposed_csv_text,
+        network_text=proposed_network_text,
+    )
+    rust_policy_shadow = rust_evaluate_policy(
+        config,
+        preflight=preflight,
+        collector_trust=collector_trust,
+        cleanup=cleanup,
+        rust_validation=rust_validation,
+        python_policy_decision=policy_decision,
+        diff_summary=diff_summary,
+    )
+    rust_sync_plan = rust_evaluate_sync_plan(
+        config,
+        mode=mode,
+        files_changed=files_changed,
+        csv_changed=csv_changed,
+        network_changed=network_changed,
+        rust_diff=rust_diff,
+        rust_validation=rust_validation,
+        rust_policy_shadow=rust_policy_shadow,
+        rust_circuit_shadow=rust_circuit_shadow,
+        collector_trust=collector_trust,
+        preflight=preflight,
+        cleanup=cleanup,
+    )
+    rust_authority_gate = rust_sync_plan_authority_gate(config, rust_sync_plan, mode=mode)
+    rust_apply_manifest = rust_build_apply_manifest(
+        config,
+        mode=mode,
+        paths=paths,
+        current_csv_text=current_csv_text,
+        proposed_csv_text=proposed_csv_text,
+        current_network_text=current_network_text,
+        proposed_network_text=proposed_network_text,
+        files_changed=files_changed,
+        csv_changed=csv_changed,
+        network_changed=network_changed,
+        policy_decision=policy_decision,
+        rust_sync_plan=rust_sync_plan,
+        rust_authority_gate=rust_authority_gate,
+        state=state,
+    )
+    errors, warnings = _collect_response_diagnostics(
+        rust_diff,
+        rust_validation,
+        rust_policy_shadow,
+        rust_sync_plan,
+        rust_apply_manifest,
+    )
+    apply_manifest_result = rust_apply_manifest.get("result") if isinstance(rust_apply_manifest.get("result"), dict) else {}
+    sync_plan_result = rust_sync_plan.get("result") if isinstance(rust_sync_plan.get("result"), dict) else {}
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": "build-rust-sync-engine-shadow-preview",
+        "available": False,
+        "ok": not errors,
+        "result": {
+            "mode": mode,
+            "authoritative": False,
+            "status": "blocked_by_authority_gate" if rust_authority_gate.get("should_block") else str(apply_manifest_result.get("status") or "shadow_preview_ready"),
+            "files_changed": files_changed,
+            "csv_changed": csv_changed,
+            "network_changed": network_changed,
+            "rust_core_diff": rust_diff,
+            "rust_core_validation": rust_validation,
+            "rust_policy_shadow": rust_policy_shadow,
+            "rust_sync_plan": rust_sync_plan,
+            "rust_authority_gate": rust_authority_gate,
+            "rust_apply_manifest": rust_apply_manifest,
+            "summary": {
+                "sync_plan_verdict": sync_plan_result.get("verdict", "unknown"),
+                "sync_plan_risk_level": sync_plan_result.get("risk_level", "unknown"),
+                "authority_reason": rust_authority_gate.get("reason"),
+                "authority_block": bool(rust_authority_gate.get("should_block")),
+                "manifest_status": apply_manifest_result.get("status", "unknown"),
+                "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+            },
+        },
+        "errors": errors,
+        "warnings": warnings,
+        "meta": {"engine": "python-wrapper", "mode": "python_sync_engine_shadow_preview_fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)},
+    }
+
+
+def rust_build_sync_engine_shadow_preview(config: dict, *, mode: str, paths: dict, state: dict | None = None, current_csv_text: str, proposed_csv_text: str, current_network_text: str, proposed_network_text: str, files_changed: bool, csv_changed: bool, network_changed: bool, preflight: dict | None = None, collector_trust: list[dict[str, Any]] | None = None, cleanup: dict | None = None, rust_circuit_shadow: dict | None = None, policy_decision: dict | None = None, diff_summary: dict | None = None, client_change_summary: dict | None = None, rust_diff: dict | None = None, rust_validation: dict | None = None) -> dict[str, Any]:
+    started = time.perf_counter()
+    payload = {
+        "config": config or {},
+        "mode": mode,
+        "paths": paths or {},
+        "state": state or {},
+        "current_csv_text": current_csv_text or "",
+        "proposed_csv_text": proposed_csv_text or "",
+        "current_network_text": current_network_text or "{}",
+        "proposed_network_text": proposed_network_text or "{}",
+        "files_changed": bool(files_changed),
+        "csv_changed": bool(csv_changed),
+        "network_changed": bool(network_changed),
+        "preflight": preflight or {},
+        "collector_trust": collector_trust or [],
+        "cleanup": cleanup or {},
+        "rust_circuit_shadow": rust_circuit_shadow or {},
+        "policy_decision": policy_decision or {},
+        "diff_summary": diff_summary or {},
+        "client_change_summary": client_change_summary or {},
+    }
+    if rust_diff:
+        payload["rust_diff"] = rust_diff
+    if rust_validation:
+        payload["rust_validation"] = rust_validation
+    response = call_rust_core("build-rust-sync-engine-shadow-preview", payload, config=config)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if "unknown_operation" in error_codes:
+        subprocess_cfg = json.loads(json.dumps(config or {})) if config else {}
+        if not isinstance(subprocess_cfg.get("rust_core"), dict):
+            subprocess_cfg["rust_core"] = {}
+        subprocess_cfg["rust_core"]["prefer_daemon"] = False
+        retry = call_rust_core("build-rust-sync-engine-shadow-preview", payload, config=subprocess_cfg)
+        retry_codes = {str(e.get("code")) for e in (retry.get("errors") or []) if isinstance(e, dict)}
+        if not retry.get("skipped") and retry.get("available", True) and "unknown_operation" not in retry_codes:
+            response = retry
+            error_codes = retry_codes
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_sync_engine_shadow_preview(payload, started=started)
     return response
 
 
@@ -2682,6 +2869,232 @@ def rust_build_routeros_live_read_shadow_parity(config: dict, payload: dict[str,
         return _python_build_routeros_live_read_shadow_parity(req_payload, started=started)
     return response
 
+
+def _collector_row_key(row: dict[str, Any]) -> str:
+    for field in ("Circuit Name", "Circuit ID", "Device ID", "Device Name"):
+        value = str(row.get(field) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _collector_row_diff_counts(current_rows: list[dict[str, Any]], rust_rows: list[dict[str, Any]]) -> dict[str, int]:
+    compare_fields = (
+        "Parent Node",
+        "MAC",
+        "IPv4",
+        "IPv6",
+        "Download Min Mbps",
+        "Upload Min Mbps",
+        "Download Max Mbps",
+        "Upload Max Mbps",
+        "Comment",
+    )
+    current = {_collector_row_key(row): row for row in current_rows if isinstance(row, dict) and _collector_row_key(row)}
+    proposed = {_collector_row_key(row): row for row in rust_rows if isinstance(row, dict) and _collector_row_key(row)}
+    current_keys = set(current)
+    proposed_keys = set(proposed)
+    updated = 0
+    for key in sorted(current_keys & proposed_keys):
+        lhs = current[key]
+        rhs = proposed[key]
+        if any(str(lhs.get(field) or "").strip() != str(rhs.get(field) or "").strip() for field in compare_fields):
+            updated += 1
+    return {
+        "added": len(proposed_keys - current_keys),
+        "updated": updated,
+        "removed": len(current_keys - proposed_keys),
+    }
+
+
+def _append_unique_messages(target: list[str], source: list[str]) -> None:
+    for item in source:
+        if item not in target:
+            target.append(item)
+
+
+def _python_rust_native_dry_run_preview(config: dict, payload: dict[str, Any] | None = None, *, started: float | None = None) -> dict[str, Any]:
+    """Legacy Python fallback for the Rust native dry-run preview."""
+    started = started or time.perf_counter()
+    cfg = config or {}
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", cfg)
+
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    plan = rust_build_routeros_collector_plan(cfg, {
+        "config": cfg,
+        "router": str(req_payload.get("router") or ""),
+        "source": str(req_payload.get("source") or ""),
+        "include_disabled_routers": bool(req_payload.get("include_disabled_routers", False)),
+    })
+    plan_errors, plan_warnings = diagnostics_to_messages(plan)
+    _append_unique_messages(errors, plan_errors)
+    _append_unique_messages(warnings, plan_warnings)
+
+    plan_result = plan.get("result") if isinstance(plan.get("result"), dict) else {}
+    commands = [cmd for cmd in (plan_result.get("commands") or []) if isinstance(cmd, dict)]
+
+    live_read_responses: list[dict[str, Any]] = []
+    live_read_results: list[dict[str, Any]] = []
+    for command in commands:
+        response = rust_run_routeros_live_read_adapter_pilot(cfg, {
+            "config": cfg,
+            "router": command.get("router") or req_payload.get("router") or "",
+            "source": command.get("source") or "",
+            "path": command.get("path") or "",
+            "fields": command.get("fields") or [],
+            "adapter": str(req_payload.get("adapter") or "live"),
+            "mode": str(req_payload.get("mode") or "live_read"),
+            "execute": bool(req_payload.get("execute", True)),
+            "timeout_seconds": req_payload.get("timeout_seconds"),
+        })
+        live_read_responses.append({
+            "router": command.get("router"),
+            "source": command.get("source"),
+            "path": command.get("path"),
+            "response": response,
+        })
+        response_errors, response_warnings = diagnostics_to_messages(response)
+        _append_unique_messages(errors, response_errors)
+        _append_unique_messages(warnings, response_warnings)
+        result = response.get("result") if isinstance(response.get("result"), dict) else {}
+        if isinstance(result.get("read_result"), dict):
+            live_read_results.append(result.get("read_result") or {})
+        elif result.get("path") and isinstance(result.get("rows"), list):
+            live_read_results.append(result)
+
+    current_rows = []
+    try:
+        current_rows_map = read_shaped_devices_csv(str((cfg.get("paths") or {}).get("shaped_devices_csv") or ""))
+        current_rows = [row for row in current_rows_map.values() if isinstance(row, dict)]
+    except Exception as exc:
+        warnings.append(f"Rust native dry-run preview could not read current ShapedDevices.csv: {exc}")
+    shadow_bundle = rust_build_routeros_shadow_collector_bundle(cfg, {
+        "config": cfg,
+        "plan": plan_result or plan,
+        "results": live_read_results,
+        "python_rows": current_rows,
+        "strict_read_results": bool(req_payload.get("strict_read_results", True)),
+        "strict_parity": bool(req_payload.get("strict_parity", False)),
+        "compare_fields": req_payload.get("compare_fields"),
+    })
+    bundle_errors, bundle_warnings = diagnostics_to_messages(shadow_bundle)
+    _append_unique_messages(errors, bundle_errors)
+    _append_unique_messages(warnings, bundle_warnings)
+
+    bundle_result = shadow_bundle.get("result") if isinstance(shadow_bundle.get("result"), dict) else {}
+    rust_rows = [row for row in (bundle_result.get("normalized_rows") or []) if isinstance(row, dict)]
+    csv_counts = _collector_row_diff_counts(current_rows, rust_rows)
+    csv_changed = any(csv_counts.values())
+    network_counts = {"added": 0, "updated": 0, "removed": 0}
+    network_changed = False
+    files_changed = csv_changed or network_changed
+    parity = bundle_result.get("parity") if isinstance(bundle_result.get("parity"), dict) else {}
+
+    if commands and live_read_results and not errors and bundle_result.get("status") == "shadow_ready":
+        status = "dry_run_complete"
+    elif errors:
+        status = "rust_native_dry_run_blocked"
+    elif commands:
+        status = "rust_native_dry_run_review"
+    else:
+        status = "rust_native_dry_run_unavailable"
+        warnings.append("Rust native dry-run preview found no RouterOS commands to execute.")
+
+    duration_ms = round((time.perf_counter() - started) * 1000, 3)
+    return {
+        "status": status,
+        "mode": "dry_run",
+        "source": "rust_native_preview",
+        "duration_seconds": round(duration_ms / 1000.0, 3),
+        "csv_changed": csv_changed,
+        "network_changed": network_changed,
+        "files_changed": files_changed,
+        "errors": errors,
+        "warnings": warnings,
+        "diff": {
+            "csv": {"counts": csv_counts},
+            "network": {"changed": False, "counts": network_counts},
+            "rust_native_preview": {
+                "engine": "rust_live_read_shadow_bundle",
+                "command_count": len(commands),
+                "live_read_result_count": len(live_read_results),
+                "plan": plan,
+                "live_reads": live_read_responses,
+                "shadow_bundle": shadow_bundle,
+                "current_csv_parity": parity,
+                "current_csv_counts": csv_counts,
+            },
+        },
+        "node_math": {},
+        "timings": {
+            "rust_native_dry_run_preview_ms": duration_ms,
+            "rust_routeros_command_count": len(commands),
+            "rust_live_read_result_count": len(live_read_results),
+        },
+    }
+
+
+def _normalize_rust_native_dry_run_preview(result: dict[str, Any] | None, *, response: dict[str, Any] | None = None) -> dict[str, Any]:
+    preview = dict(result or {})
+    preview.setdefault("mode", "dry_run")
+    preview.setdefault("source", "rust_native_preview")
+    preview.setdefault("csv_changed", False)
+    preview.setdefault("network_changed", False)
+    preview.setdefault("files_changed", bool(preview.get("csv_changed")) or bool(preview.get("network_changed")))
+    preview.setdefault("diff", {})
+    preview.setdefault("node_math", {})
+    preview.setdefault("timings", {})
+
+    if "duration_seconds" not in preview:
+        meta = response.get("meta") if isinstance(response, dict) else {}
+        raw_ms = 0.0
+        if isinstance(meta, dict):
+            try:
+                raw_ms = float(meta.get("duration_ms") or meta.get("wrapper_duration_ms") or 0.0)
+            except Exception:
+                raw_ms = 0.0
+        preview["duration_seconds"] = round(raw_ms / 1000.0, 3)
+
+    errors = [str(item) for item in (preview.get("errors") or []) if str(item).strip()] if isinstance(preview.get("errors"), list) else []
+    warnings = [str(item) for item in (preview.get("warnings") or []) if str(item).strip()] if isinstance(preview.get("warnings"), list) else []
+    if response:
+        response_errors, response_warnings = diagnostics_to_messages(response)
+        _append_unique_messages(errors, response_errors)
+        _append_unique_messages(warnings, response_warnings)
+    preview["errors"] = errors
+    preview["warnings"] = warnings
+
+    if "status" not in preview:
+        preview["status"] = "rust_native_dry_run_blocked" if errors else "rust_native_dry_run_review"
+    return preview
+
+
+def rust_native_dry_run_preview(config: dict, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build a Rust-backed dry-run preview through the Rust core when available."""
+    started = time.perf_counter()
+    cfg = config or {}
+    req_payload = dict(payload or {})
+    req_payload.setdefault("config", cfg)
+
+    response = call_rust_core("build-rust-native-dry-run-preview", req_payload, config=cfg)
+    error_codes = {str(e.get("code")) for e in (response.get("errors") or []) if isinstance(e, dict)}
+    if "unknown_operation" in error_codes:
+        subprocess_cfg = json.loads(json.dumps(cfg)) if cfg else {}
+        if not isinstance(subprocess_cfg.get("rust_core"), dict):
+            subprocess_cfg["rust_core"] = {}
+        subprocess_cfg["rust_core"]["prefer_daemon"] = False
+        retry = call_rust_core("build-rust-native-dry-run-preview", req_payload, config=subprocess_cfg)
+        retry_codes = {str(e.get("code")) for e in (retry.get("errors") or []) if isinstance(e, dict)}
+        if not retry.get("skipped") and retry.get("available", True) and "unknown_operation" not in retry_codes:
+            response = retry
+            error_codes = retry_codes
+    if response.get("skipped") or not response.get("available", True) or "unknown_operation" in error_codes:
+        return _python_rust_native_dry_run_preview(cfg, req_payload, started=started)
+    result = response.get("result") if isinstance(response.get("result"), dict) else {}
+    return _normalize_rust_native_dry_run_preview(result, response=response)
 
 
 def _python_evaluate_collector_authority_pilot(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:

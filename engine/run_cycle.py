@@ -37,8 +37,9 @@ from engine.policy_engine import (
 from engine.insights import compute_smart_insights
 from engine.lifecycle import update_lifecycle_state
 from engine.rust_core import (
-    validate_runtime_outputs, diagnostics_to_messages, validate_collector_output,
-    collector_output_envelope, rust_diff_files, rust_evaluate_policy, rust_normalize_circuits, rust_evaluate_sync_plan, rust_build_apply_manifest, rust_execute_apply_transaction, rust_build_transaction_journal, rust_append_transaction_journal, rust_build_rollback_manifest, rust_build_run_cycle_rust_shadow_report, rust_sync_plan_authority_gate,
+    diagnostics_to_messages, validate_collector_output,
+    collector_output_envelope, rust_normalize_circuits, rust_execute_apply_transaction, rust_build_transaction_journal, rust_append_transaction_journal, rust_build_rollback_manifest, rust_build_run_cycle_rust_shadow_report, rust_build_sync_engine_shadow_preview,
+    rust_native_dry_run_preview,
 )
 
 
@@ -58,6 +59,38 @@ def read_text(path):
     if not p.exists():
         return ""
     return p.read_text(encoding="utf-8", errors="ignore")
+
+
+def _rust_native_dry_run_enabled(config: dict) -> bool:
+    return bool((config.get("rust_core") or {}).get("native_dry_run_preview_enabled", False))
+
+
+def _sync_result_from_rust_native_preview(preview: dict) -> SyncResult:
+    result = SyncResult(mode="dry_run")
+    result.csv_changed = bool(preview.get("csv_changed", False))
+    result.network_changed = bool(preview.get("network_changed", False))
+    result.files_changed = bool(preview.get("files_changed", result.csv_changed or result.network_changed))
+    result.warnings = [str(item) for item in (preview.get("warnings") or []) if str(item).strip()]
+    result.errors = [str(item) for item in (preview.get("errors") or []) if str(item).strip()]
+    if isinstance(preview.get("counts"), dict):
+        for key, value in preview.get("counts", {}).items():
+            try:
+                result.counts[str(key)] = int(value)
+            except Exception:
+                continue
+    if isinstance(preview.get("router_errors"), list):
+        result.router_errors = [item for item in preview.get("router_errors", []) if isinstance(item, dict)]
+    result.routers_processed = int(preview.get("routers_processed") or 0)
+    result.diff = preview.get("diff") if isinstance(preview.get("diff"), dict) else {}
+    result.node_math = preview.get("node_math") if isinstance(preview.get("node_math"), dict) else {}
+    result.timings = preview.get("timings") if isinstance(preview.get("timings"), dict) else {}
+    result.meta = {"source": str(preview.get("source") or "rust_native_preview")}
+    result.finish(str(preview.get("status") or "dry_run_complete"))
+    try:
+        result.duration_seconds = float(preview.get("duration_seconds") or result.duration_seconds or 0.0)
+    except Exception:
+        pass
+    return result
 
 
 def _drift_check(config: dict, state: dict, current_csv_text: str, current_network_text: str, result: SyncResult) -> bool:
@@ -532,6 +565,39 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
     timeline.record("config_load", t)
     paths = config["paths"]
     state_path = paths.get("runtime_state", "state/runtime_state.json")
+
+    if mode == "dry_run" and _rust_native_dry_run_enabled(config):
+        log_event(config, "info", "Starting Rust-native dry-run cycle")
+        write_audit(config, "sync_started", details={"mode": mode, "engine": "rust_native_preview"})
+        try:
+            update_state(state_path, sync_running=True, scheduler_state="running")
+        except Exception:
+            pass
+        preview = rust_native_dry_run_preview(config)
+        result = _sync_result_from_rust_native_preview(preview)
+        result.diff.setdefault("rust_native_dry_run_short_circuit", {
+            "enabled": True,
+            "source": preview.get("source", "rust_native_preview"),
+        })
+        log_event(
+            config,
+            "info",
+            f"Rust-native dry-run complete: csv_changed={result.csv_changed} network_changed={result.network_changed} status={result.status}",
+        )
+        write_audit(
+            config,
+            "dry_run_complete",
+            details={
+                "engine": "rust_native_preview",
+                "csv_changed": result.csv_changed,
+                "network_changed": result.network_changed,
+                "status": result.status,
+                "timings": result.timings,
+            },
+        )
+        update_state(state_path, sync_running=False, scheduler_state="idle", last_dry_run=result.to_dict(), last_error=None)
+        return result
+
     t = time.perf_counter()
     state_before = load_state(state_path)
     timeline.record("state_load", t)
@@ -740,14 +806,6 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             "network": diff_network(current_network, ctx.network_config),
             "collector_trust": collector_trust_results,
         }
-        rust_diff = rust_diff_files(
-            config,
-            current_csv_text=current_csv_text,
-            proposed_csv_text=proposed_csv_text,
-            current_network_text=current_network_text,
-            proposed_network_text=proposed_network_text,
-        )
-        result.diff["rust_core_diff"] = rust_diff
         client_change_summary = build_client_change_summary(result.diff.get("csv", {}), ctx.meta)
         result.diff["client_change_summary"] = client_change_summary
         result.diff["client_changes"] = client_change_summary.get("changes", [])
@@ -846,92 +904,14 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
         result.errors.extend(preflight["errors"])
         timeline.record("preflight", t, status="failed" if result.errors else "ok", details={"warnings": len(preflight["warnings"]), "errors": len(preflight["errors"])})
 
-        t = time.perf_counter()
-        rust_validation = validate_runtime_outputs(config, csv_text=proposed_csv_text, network_text=proposed_network_text)
-        result.diff["rust_core_validation"] = rust_validation
-        rust_errors, rust_warnings = diagnostics_to_messages(rust_validation)
-        if rust_validation.get("available") and not rust_validation.get("ok") and config.get("rust_core", {}).get("enforce_validation", False):
-            result.errors.extend(rust_errors)
-        elif rust_errors:
-            result.warnings.extend(rust_errors)
-        if rust_validation.get("available"):
-            result.warnings.extend(rust_warnings)
-        timeline.record(
-            "rust_core_validation",
-            t,
-            status="ok" if rust_validation.get("ok") else ("unavailable" if not rust_validation.get("available") else "failed"),
-            details={
-                "available": bool(rust_validation.get("available")),
-                "ok": bool(rust_validation.get("ok")),
-                "enforced": bool(config.get("rust_core", {}).get("enforce_validation", False)),
-                "errors": len(rust_validation.get("errors") or []),
-                "warnings": len(rust_validation.get("warnings") or []),
-            },
-        )
-
-        t = time.perf_counter()
         policy_decision = evaluate_apply_guards(config, policy_decision, preflight, result)
         python_policy_dict = policy_decision.to_dict()
-        rust_policy_shadow = rust_evaluate_policy(
-            config,
-            preflight=preflight,
-            collector_trust=result.diff.get("collector_trust", []),
-            cleanup=cleanup_stats,
-            rust_validation=rust_validation,
-            python_policy_decision=python_policy_dict,
-            diff_summary={
-                "csv_changed": result.csv_changed,
-                "network_changed": result.network_changed,
-                "client_change_summary": result.diff.get("client_change_summary", {}),
-            },
-        )
-        result.diff["rust_policy_shadow"] = rust_policy_shadow
-        policy_decision_shadow_result = rust_policy_shadow.get("result", {}) if isinstance(rust_policy_shadow, dict) else {}
-        policy_parity = policy_decision_shadow_result.get("parity", {}) if isinstance(policy_decision_shadow_result, dict) else {}
-        if policy_parity and policy_parity.get("available") and policy_parity.get("matches_verdict") is False:
-            result.warnings.append("Rust policy authority reported a parity mismatch; Python mutation fallback is disabled in stable releases.")
-        t_sync_plan = time.perf_counter()
-        rust_sync_plan = rust_evaluate_sync_plan(
-            config,
-            mode=mode,
-            files_changed=result.files_changed,
-            csv_changed=result.csv_changed,
-            network_changed=result.network_changed,
-            rust_diff=result.diff.get("rust_core_diff", {}),
-            rust_validation=rust_validation,
-            rust_policy_shadow=rust_policy_shadow,
-            rust_circuit_shadow=result.diff.get("rust_circuit_shadow", {}),
-            collector_trust=result.diff.get("collector_trust", []),
-            preflight=preflight,
-            cleanup=cleanup_stats,
-        )
-        result.diff["rust_sync_plan"] = rust_sync_plan
-        sync_plan_result = rust_sync_plan.get("result", {}) if isinstance(rust_sync_plan, dict) else {}
-        from engine.rust_core import rust_sync_plan_authority_gate  # local hardening: prevents stale import namespace NameError
-        rust_authority_gate = rust_sync_plan_authority_gate(config, rust_sync_plan, mode=mode)
-        result.diff["rust_authority_gate"] = rust_authority_gate
-        if rust_authority_gate.get("should_block"):
-            result.errors.append(rust_authority_gate.get("message") or "Rust sync-plan authority gate blocked this cycle.")
-        elif sync_plan_result.get("verdict") == "blocked_by_shadow_plan":
-            result.warnings.append("Rust sync-plan authority found blockers; production mutation is fail-closed.")
-        timeline.record(
-            "rust_sync_plan_shadow",
-            t_sync_plan,
-            status="ok" if rust_sync_plan.get("ok") else ("unavailable" if not rust_sync_plan.get("available") else "check"),
-            details={
-                "available": bool(rust_sync_plan.get("available")),
-                "ok": bool(rust_sync_plan.get("ok")),
-                "verdict": sync_plan_result.get("verdict"),
-                "risk_level": sync_plan_result.get("risk_level"),
-                "authoritative": bool(rust_authority_gate.get("authoritative", False)),
-                "authority_gate": rust_authority_gate.get("reason"),
-            },
-        )
-        t_apply_manifest = time.perf_counter()
-        rust_apply_manifest = rust_build_apply_manifest(
+        t = time.perf_counter()
+        rust_sync_engine_shadow = rust_build_sync_engine_shadow_preview(
             config,
             mode=mode,
             paths=paths,
+            state=state_before,
             current_csv_text=current_csv_text,
             proposed_csv_text=proposed_csv_text,
             current_network_text=current_network_text,
@@ -939,28 +919,66 @@ def _run_cycle_unlocked(mode="apply", config_path=None):
             files_changed=result.files_changed,
             csv_changed=result.csv_changed,
             network_changed=result.network_changed,
+            preflight=preflight,
+            collector_trust=result.diff.get("collector_trust", []),
+            cleanup=cleanup_stats,
+            rust_circuit_shadow=result.diff.get("rust_circuit_shadow", {}),
             policy_decision=python_policy_dict,
-            rust_sync_plan=rust_sync_plan,
-            rust_authority_gate=rust_authority_gate,
-            state=state_before,
+            diff_summary={
+                "csv_changed": result.csv_changed,
+                "network_changed": result.network_changed,
+                "client_change_summary": result.diff.get("client_change_summary", {}),
+            },
+            client_change_summary=result.diff.get("client_change_summary", {}),
         )
+        result.diff["rust_sync_engine_shadow_preview"] = rust_sync_engine_shadow
+        rust_shadow_result = rust_sync_engine_shadow.get("result", {}) if isinstance(rust_sync_engine_shadow, dict) else {}
+        rust_diff = rust_shadow_result.get("rust_core_diff", {}) if isinstance(rust_shadow_result.get("rust_core_diff"), dict) else {}
+        rust_validation = rust_shadow_result.get("rust_core_validation", {}) if isinstance(rust_shadow_result.get("rust_core_validation"), dict) else {}
+        rust_policy_shadow = rust_shadow_result.get("rust_policy_shadow", {}) if isinstance(rust_shadow_result.get("rust_policy_shadow"), dict) else {}
+        rust_sync_plan = rust_shadow_result.get("rust_sync_plan", {}) if isinstance(rust_shadow_result.get("rust_sync_plan"), dict) else {}
+        rust_authority_gate = rust_shadow_result.get("rust_authority_gate", {}) if isinstance(rust_shadow_result.get("rust_authority_gate"), dict) else {}
+        rust_apply_manifest = rust_shadow_result.get("rust_apply_manifest", {}) if isinstance(rust_shadow_result.get("rust_apply_manifest"), dict) else {}
+        result.diff["rust_core_diff"] = rust_diff
+        result.diff["rust_core_validation"] = rust_validation
+        result.diff["rust_policy_shadow"] = rust_policy_shadow
+        result.diff["rust_sync_plan"] = rust_sync_plan
+        result.diff["rust_authority_gate"] = rust_authority_gate
         result.diff["rust_apply_manifest"] = rust_apply_manifest
+        rust_errors, rust_warnings = diagnostics_to_messages(rust_validation)
+        if rust_validation.get("available") and not rust_validation.get("ok") and config.get("rust_core", {}).get("enforce_validation", False):
+            result.errors.extend(rust_errors)
+        elif rust_errors:
+            result.warnings.extend(rust_errors)
+        if rust_validation.get("available"):
+            result.warnings.extend(rust_warnings)
+        policy_decision_shadow_result = rust_policy_shadow.get("result", {}) if isinstance(rust_policy_shadow, dict) else {}
+        policy_parity = policy_decision_shadow_result.get("parity", {}) if isinstance(policy_decision_shadow_result, dict) else {}
+        if policy_parity and policy_parity.get("available") and policy_parity.get("matches_verdict") is False:
+            result.warnings.append("Rust policy authority reported a parity mismatch; Python mutation fallback is disabled in stable releases.")
+        sync_plan_result = rust_sync_plan.get("result", {}) if isinstance(rust_sync_plan, dict) else {}
+        if rust_authority_gate.get("should_block"):
+            result.errors.append(rust_authority_gate.get("message") or "Rust sync-plan authority gate blocked this cycle.")
+        elif sync_plan_result.get("verdict") == "blocked_by_shadow_plan":
+            result.warnings.append("Rust sync-plan authority found blockers; production mutation is fail-closed.")
+        timeline.record(
+            "rust_sync_engine_shadow_preview",
+            t,
+            status="ok" if rust_sync_engine_shadow.get("ok") else ("unavailable" if not rust_sync_engine_shadow.get("available") else "check"),
+            details={
+                "available": bool(rust_sync_engine_shadow.get("available")),
+                "ok": bool(rust_sync_engine_shadow.get("ok")),
+                "verdict": sync_plan_result.get("verdict"),
+                "risk_level": sync_plan_result.get("risk_level"),
+                "authoritative": bool(rust_authority_gate.get("authoritative", False)),
+                "authority_gate": rust_authority_gate.get("reason"),
+                "manifest_status": (rust_apply_manifest.get("result") or {}).get("status") if isinstance(rust_apply_manifest.get("result"), dict) else None,
+            },
+        )
         apply_manifest_result = rust_apply_manifest.get("result", {}) if isinstance(rust_apply_manifest, dict) else {}
         if rust_apply_manifest.get("available") and not rust_apply_manifest.get("ok"):
             manifest_errors, manifest_warnings = diagnostics_to_messages(rust_apply_manifest)
             result.warnings.extend([f"Rust apply manifest: {msg}" for msg in manifest_errors + manifest_warnings])
-        timeline.record(
-            "rust_apply_manifest",
-            t_apply_manifest,
-            status="ok" if rust_apply_manifest.get("ok") else ("unavailable" if not rust_apply_manifest.get("available") else "check"),
-            details={
-                "available": bool(rust_apply_manifest.get("available")),
-                "ok": bool(rust_apply_manifest.get("ok")),
-                "manifest_id": apply_manifest_result.get("manifest_id"),
-                "status": apply_manifest_result.get("status"),
-                "operations": apply_manifest_result.get("operation_count"),
-            },
-        )
         t_apply_transaction = time.perf_counter()
         rust_apply_transaction = rust_execute_apply_transaction(
             config,

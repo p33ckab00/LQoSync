@@ -44,6 +44,28 @@
   <p class="text-sm" style="color:var(--muted);margin-top:10px">Dry-run uses the same collection, speed resolver, node builder, diff, and preflight path as live sync, but it does not write files and does not run <code>LibreQoS.py --updateonly</code>. Use this before enabling scheduler auto-apply or after changing Config Center settings.</p>
 </section>
 
+{% set rust_native = result.diff.rust_native_preview if result and result.diff and result.diff.rust_native_preview else None %}
+{% if rust_native %}
+<section class="card" style="margin-top:10px;border-color:rgba(251,146,60,.35);background:rgba(251,146,60,.06)">
+  <div class="card-title"><i class="ti ti-radioactive"></i> Rust Native Dry-Run Preview</div>
+  {% set native_bundle = rust_native.shadow_bundle.result if rust_native.shadow_bundle and rust_native.shadow_bundle.result else {} %}
+  {% set native_parity = rust_native.current_csv_parity if rust_native.current_csv_parity else {} %}
+  <div class="grid-stats" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+    <div class="stat"><div class="stat-label">Engine</div><div class="stat-value text-dhcp">{{ rust_native.engine or 'rust_live_read_shadow_bundle' }}</div></div>
+    <div class="stat"><div class="stat-label">Commands</div><div class="stat-value text-accent">{{ rust_native.command_count if rust_native.command_count is defined else 0 }}</div></div>
+    <div class="stat"><div class="stat-label">Live read results</div><div class="stat-value {{ 'text-accent' if (rust_native.live_read_result_count or 0) > 0 else 'text-warn' }}">{{ rust_native.live_read_result_count if rust_native.live_read_result_count is defined else 0 }}</div></div>
+    <div class="stat"><div class="stat-label">CSV parity</div><div class="stat-value {{ 'text-accent' if native_parity.verdict == 'parity_pass' else 'text-warn' }}">{{ native_parity.verdict or 'not_run' }}</div></div>
+  </div>
+  <p class="text-sm" style="color:var(--muted);margin-top:10px">This preview path keeps Flask as the operator shell, but the preview orchestration now lives in Rust: Flask sends one read-only preview request and Rust builds the RouterOS plan, live-read evidence, shadow collector bundle, and shadow `network.json`. It still does not write files or run LibreQoS.</p>
+  <div class="grid-stats" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
+    <div class="stat"><div class="stat-label">Normalized rows</div><div class="stat-value text-accent">{{ native_bundle.normalized_count if native_bundle.normalized_count is defined else 0 }}</div></div>
+    <div class="stat"><div class="stat-label">Bundle status</div><div class="stat-value {{ 'text-accent' if native_bundle.status == 'shadow_ready' else 'text-warn' }}">{{ native_bundle.status or 'unknown' }}</div></div>
+    <div class="stat"><div class="stat-label">Cleanup authority</div><div class="stat-value text-dhcp">{{ native_bundle.cleanup_authority or 'python_authoritative' }}</div></div>
+  </div>
+  <details style="margin-top:10px"><summary class="mono text-sm text-dhcp" style="cursor:pointer">Show Rust native preview JSON</summary><pre class="mono text-xs scroll-panel" style="margin-top:10px;background:var(--bg0);border:1px solid var(--br0);border-radius:10px;padding:12px;white-space:pre-wrap">{{ rust_native | tojson(indent=2) }}</pre></details>
+</section>
+{% endif %}
+
 {% set rust_core = result.diff.rust_core_validation if result and result.diff and result.diff.rust_core_validation else None %}
 {% if rust_core %}
 <section class="card" style="margin-top:10px;border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.06)">

@@ -28,7 +28,9 @@ fn append_result_entries(target: &mut Vec<Value>, value: Option<&Value>) {
 }
 
 fn append_live_read_result(target: &mut Vec<Value>, value: Option<&Value>) {
-    let Some(value) = value else { return; };
+    let Some(value) = value else {
+        return;
+    };
     if let Some(result) = value.get("result") {
         append_live_read_result(target, Some(result));
     }
@@ -180,6 +182,7 @@ pub fn build_routeros_shadow_collector_bundle_payload(
     let grouped = rows_by_command(&results);
     let defaults = config.get("defaults").cloned().unwrap_or_else(|| json!({}));
     let mut normalized_rows: Vec<Value> = Vec::new();
+    let mut aggregate_meta: Vec<Value> = Vec::new();
     let mut router_bundles: Vec<Value> = Vec::new();
     let mut aggregate_source_counts = serde_json::Map::new();
     let mut bundle_count = 0u64;
@@ -217,6 +220,9 @@ pub fn build_routeros_shadow_collector_bundle_payload(
         );
         if let Some(rows) = bundle.get("normalized_rows").and_then(Value::as_array) {
             normalized_rows.extend(rows.iter().cloned());
+        }
+        if let Some(meta) = bundle.get("meta").and_then(Value::as_array) {
+            aggregate_meta.extend(meta.iter().filter(|value| value.is_object()).cloned());
         }
         router_bundles.push(json!({
             "router": name,
@@ -281,6 +287,7 @@ pub fn build_routeros_shadow_collector_bundle_payload(
         "normalized_count": normalized_count,
         "source_counts": Value::Object(aggregate_source_counts),
         "normalized_rows": normalized_rows,
+        "meta": aggregate_meta,
         "router_bundles": router_bundles,
         "parity": parity,
         "next_stage": "rust_routeros_live_read_shadow_parity",
@@ -385,8 +392,14 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_shadow_collector_bundle_payload(&payload);
         assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("shadow_ready"));
-        assert_eq!(result.get("normalized_count").and_then(Value::as_u64), Some(1));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("shadow_ready")
+        );
+        assert_eq!(
+            result.get("normalized_count").and_then(Value::as_u64),
+            Some(1)
+        );
         assert_eq!(result["parity"]["verdict"], "parity_pass");
         assert_eq!(result["normalized_rows"][0]["Circuit Name"], "juan");
     }

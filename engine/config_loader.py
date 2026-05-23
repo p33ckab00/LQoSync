@@ -138,6 +138,9 @@ DEFAULT_CONFIG = {
         "python_runtime_role": "flask_webui_shell_only",
         "python_backend_authority_removed": True,
         "legacy_python_mutation_cleanup_complete": True,
+        "native_dry_run_preview_enabled": True,
+        "native_run_cycle_authority_enabled": True,
+        "native_run_cycle_authority_python_fallback": False,
         "routeros_transport_authority": "plan_only",
         "allow_rust_routeros_live_reads": False,
         "allow_rust_routeros_credentials": False,
@@ -782,8 +785,8 @@ def normalize_config(cfg):
     scheduler.setdefault("require_set_and_forget_readiness", True)
     scheduler.setdefault("rust_heartbeat_path", "/opt/LQoSync/state/rust_scheduler_heartbeat.json")
     scheduler.setdefault("rust_lock_path", "/opt/LQoSync/state/rust_scheduler.lock")
-    scheduler.setdefault("rust_run_cycle_command", "/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py scheduled")
-    scheduler.setdefault("manual_run_command", "/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py manual")
+    scheduler.setdefault("rust_run_cycle_command", "/opt/LQoSync/scripts/rust-run-cycle-authority.sh scheduled")
+    scheduler.setdefault("manual_run_command", "/opt/LQoSync/scripts/rust-run-cycle-authority.sh manual")
     cfg.setdefault("defaults", {})
     cfg.setdefault("collector", {})
     cfg.setdefault("rust_core", {})
@@ -1051,6 +1054,9 @@ def validate_config(cfg: dict):
     rust_core.setdefault("python_runtime_role", "flask_webui_shell_only")
     rust_core.setdefault("python_backend_authority_removed", True)
     rust_core.setdefault("legacy_python_mutation_cleanup_complete", True)
+    rust_core.setdefault("native_dry_run_preview_enabled", True)
+    rust_core.setdefault("native_run_cycle_authority_enabled", True)
+    rust_core.setdefault("native_run_cycle_authority_python_fallback", False)
     rust_core.setdefault("rust_scheduler_authority", True)
     rust_core.setdefault("rust_scheduler_authority_version", "v8.1.0")
     rust_core.setdefault("rust_scheduler_operations_required", True)

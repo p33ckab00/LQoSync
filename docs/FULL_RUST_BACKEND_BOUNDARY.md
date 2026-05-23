@@ -1,5 +1,6 @@
 # Full Rust Backend Boundary
-nRust authority daemon = backend authority
+
+Rust authority daemon = backend authority
 
 
 The stable architecture is:
@@ -31,6 +32,26 @@ Python Flask remains because LQoSync is a local web app with an existing interfa
 ## Removed legacy loop
 
 `LQoSyncScheduler` no longer contains the old Python scheduler loop. When the web app starts, it only registers/heartbeats with Rust scheduler authority.
+
+## Retirement-ready is stricter than authority-ready
+
+Rust backend authority does not automatically mean the Python backend can be deleted.
+
+Current retirement blockers still include:
+
+- the guarded Python fallback path that still exists inside `rust_run_cycle_authority`;
+- legacy rollback compatibility files such as `engine/run_cycle.py` and `scripts/run_cycle_once.py`;
+- the remaining safety-gated live RouterOS enablement path, which still needs explicit operator promotion before Python removal is safe.
+
+`engine.run_cycle` now sends its non-mutating sync-engine shadow bundle to Rust through `build-rust-sync-engine-shadow-preview`, so diff generation, runtime validation, policy shadowing, sync-plan authority preview, and apply-manifest preview are already Rust-owned even before live mutation authority is fully cut over.
+
+Rust now owns read-only dry-run shadow generation for both `ShapedDevices.csv`
+and `network.json`, and the WebUI/API dry-run path now calls that Rust-native
+preview directly. Scheduled/manual run entry also now enters Rust first through
+`run-rust-cycle-authority`. Backend deletion stays blocked because the Rust
+authority op still carries a guarded Python fallback for rollback compatibility.
+
+Those bridges must be replaced by native Rust paths before guarded Python backend retirement can proceed.
 
 ## Compatibility bridge note
 

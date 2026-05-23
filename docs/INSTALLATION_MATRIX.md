@@ -21,6 +21,7 @@ Do not use `/home/pi/lqosync`, `/home/pi/lqosync_docker`, or `/opt/lqosync` as t
 
 | Mode | Install command | Update command | Uninstall command | Recommended for live LibreQoS? |
 |---|---|---|---|---|
+| One-line control | `curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh \| sudo bash -s -- install` | `curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh \| sudo bash -s -- update` | `curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync-in-rust/lqosyncctl.sh \| sudo bash -s -- uninstall` | Yes |
 | Bare metal from ZIP | `sudo bash install-from-zip.sh` | `sudo bash update-from-zip.sh` | `sudo bash uninstall.sh` | Yes |
 | Bare metal from GitHub | `sudo bash install-from-github.sh` | `sudo bash upgrade.sh` | `sudo bash uninstall.sh` | Yes |
 | Production-safe local install | `sudo bash install-production-safe.sh` | apply ZIP/Git update then run same wrapper | `sudo bash uninstall.sh` | Best default |

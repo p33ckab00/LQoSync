@@ -23,8 +23,11 @@ not_contains scheduler/runner.py 'def _loop' python-loop-method
 not_contains scheduler/runner.py 'threading.Thread(target=self._loop' python-loop-thread
 not_contains scheduler/runner.py 'python_legacy' python-legacy-state
 not_contains scheduler/runner.py 'from engine.run_cycle import run_cycle' direct-run-cycle-import
+not_contains app.py 'from engine.run_cycle import run_cycle' app-no-run-cycle-import
 contains config.json.example '"allow_python_scheduler": false' python-scheduler-disabled
 contains config.json.example '"python_mutation_fallback": false' python-mutation-fallback-disabled
+contains config.json.example '"native_run_cycle_authority_enabled": true' native-run-cycle-enabled
+contains config.json.example '"native_run_cycle_authority_python_fallback": false' native-run-cycle-no-python-fallback
 contains engine/config_loader.py 'scheduler.setdefault("allow_python_scheduler", False)' loader-python-scheduler-disabled
 contains engine/config_loader.py 'rust_core.setdefault("python_mutation_fallback", False)' loader-python-mutation-disabled
 contains docs/FULL_RUST_BACKEND_BOUNDARY.md 'Rust authority daemon = backend authority' docs-boundary

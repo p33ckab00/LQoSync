@@ -15,7 +15,6 @@ from auth.users import (
     set_user_password, delete_user, role_at_least, role_options, ROLE_DEFINITIONS
 )
 from engine.config_loader import load_config, save_config, validate_config
-from engine.run_cycle import run_cycle
 from engine.state import load_state, update_state
 from scheduler.runner import LQoSyncScheduler
 from builders.shaped_devices import read_shaped_devices_csv, render_shaped_devices_csv
@@ -110,6 +109,7 @@ from engine.rust_core import (
     rust_authority_readiness,
     rust_full_backend_readiness,
     rust_authority_pilot_plan,
+    rust_native_dry_run_preview,
 )
 from applier.atomic_writer import atomic_write_text
 from monitoring.service_monitor import (
@@ -593,6 +593,16 @@ def _dry_run_failure_result(exc, *, source="webui"):
     err = f"{type(exc).__name__}: {exc}"
     return {"status":"dry_run_failed","mode":"dry_run","source":source,"duration_seconds":0,"csv_changed":False,"network_changed":False,"files_changed":False,"errors":[err],"warnings":["Dry-run failed before producing a preview. Run: sudo journalctl -u lqosync -n 120 --no-pager -l","Then run: sudo /opt/LQoSync/lqosyncctl.sh verify"],"diff":{},"node_math":{},"timings":{}}
 
+
+def _execute_dry_run_preview(cfg, *, force_rust_native=False, payload=None):
+    req_payload = dict(payload or {})
+    if force_rust_native:
+        req_payload.setdefault("engine", "rust_native")
+    result = rust_native_dry_run_preview(cfg, payload=req_payload)
+    state_path = cfg.get("paths", {}).get("runtime_state", "state/runtime_state.json")
+    update_state(state_path, last_dry_run=result, last_error=None)
+    return result
+
 @app.route("/sync/run", methods=["POST"])
 @admin_required
 def sync_run():
@@ -615,7 +625,7 @@ def dry_run():
         if not role_at_least(user.get("role", "viewer"), "operator"):
             abort(403)
         try:
-            result = run_cycle(mode="dry_run", config_path=CONFIG_PATH).to_dict()
+            result = _execute_dry_run_preview(load_config(CONFIG_PATH))
         except Exception as exc:
             dry_run_error = f"{type(exc).__name__}: {exc}"
             app.logger.exception("Dry-run route failed")
@@ -3570,8 +3580,12 @@ def api_sync_run():
 @app.route("/api/sync/dry-run", methods=["POST"])
 @login_required
 def api_sync_dry_run():
+    cfg = load_config(CONFIG_PATH)
+    payload = request.get_json(silent=True) or {}
+    engine = str(payload.get("engine") or "").strip().lower()
+    force_rust_native = engine in {"rust", "rust_native", "rust_preview", "full_rust"}
     try:
-        result = run_cycle(mode="dry_run", config_path=CONFIG_PATH).to_dict()
+        result = _execute_dry_run_preview(cfg, force_rust_native=force_rust_native, payload=payload)
         return jsonify(result)
     except Exception as exc:
         app.logger.exception("API dry-run failed")

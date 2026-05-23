@@ -691,6 +691,9 @@
     "full_rust_backend_steady_state_require_webui_unchanged": true,
     "include_rehearsal_journal_entries": false,
     "legacy_python_mutation_cleanup_complete": true,
+    "native_dry_run_preview_enabled": true,
+    "native_run_cycle_authority_enabled": true,
+    "native_run_cycle_authority_python_fallback": false,
     "prefer_daemon": true,
     "python_backend_authority_removed": true,
     "python_backend_removal_execution_contract_pilot": false,
@@ -914,7 +917,7 @@
     "error_retry_interval_seconds": 30,
     "fail_closed_on_rust_scheduler_error": true,
     "idle_interval_seconds": 120,
-    "manual_run_command": "/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py manual",
+    "manual_run_command": "/opt/LQoSync/scripts/rust-run-cycle-authority.sh manual",
     "max_instances": 1,
     "python_scheduler_role": "retired_webui_compatibility_shell_only",
     "require_set_and_forget_readiness": true,
@@ -922,7 +925,7 @@
     "rust_authority_daemon_required": true,
     "rust_heartbeat_path": "/opt/LQoSync/state/rust_scheduler_heartbeat.json",
     "rust_lock_path": "/opt/LQoSync/state/rust_scheduler.lock",
-    "rust_run_cycle_command": "/opt/LQoSync/venv/bin/python /opt/LQoSync/scripts/run_cycle_once.py scheduled",
+    "rust_run_cycle_command": "/opt/LQoSync/scripts/rust-run-cycle-authority.sh scheduled",
     "rust_scheduler_authority": true
   },
   "services": {
