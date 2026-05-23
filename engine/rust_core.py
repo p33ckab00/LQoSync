@@ -1824,17 +1824,15 @@ def _python_full_rust_readiness(config: dict, *, status: dict | None = None, sel
     implemented = [
         {"component": "rust_protocol_daemon", "status": "ready" if status.get("available", True) else "not_ready", "rust_owned": True},
         {"component": "validation_diff_core", "status": "ready", "rust_owned": True},
-        {"component": "collector_trust_contract", "status": "ready", "rust_owned": True, "note": "Rust validates collector output, but Python still collects RouterOS data."},
-        {"component": "policy_engine", "status": "shadow", "rust_owned": "partial"},
-        {"component": "circuit_normalizer", "status": "shadow", "rust_owned": "partial"},
+        {"component": "collector_trust_contract", "status": "ready", "rust_owned": True, "note": "Rust validates RouterOS read results and collector bundles before run-cycle authority."},
+        {"component": "policy_engine", "status": "ready", "rust_owned": True},
+        {"component": "circuit_normalizer", "status": "ready", "rust_owned": True},
         {"component": "sync_plan_apply_transaction_journal_rollback", "status": "gated_ready", "rust_owned": True},
     ]
     remaining = [
         {"component": "webui_auth_routes_templates", "owner": "python", "reason": "Flask/Jinja UI remains the operator surface."},
-        {"component": "scheduler_runner", "owner": "python", "reason": "Python scheduler still starts sync jobs."},
-        {"component": "run_cycle_orchestration", "owner": "python", "reason": "Python run_cycle remains authoritative by default."},
-        {"component": "routeros_api_collectors", "owner": "python", "reason": "RouterOS PPPoE/DHCP/Hotspot collectors still use Python routeros-api."},
-        {"component": "libreqos_external_apply", "owner": "rust_when_enabled", "reason": "Rust execute-apply-transaction can invoke LibreQoS.py when allow_rust_libreqos_apply is enabled and runtime policy allows apply."},
+        {"component": "scheduler_facade", "owner": "python_shell", "reason": "Flask keeps a thin scheduler facade while Rust owns scheduler authority."},
+        {"component": "routeros_connection_test_helpers", "owner": "python_shell", "reason": "Flask keeps read-only operator diagnostics and connection tests."},
     ]
     authority_flags = any(bool(rc.get(k)) for k in ("enforce_sync_plan", "execute_apply_manifest", "allow_rust_file_writes", "append_transaction_journal", "allow_transaction_journal_writes", "execute_rollback", "allow_rust_rollback_file_writes"))
     return {
@@ -1845,19 +1843,19 @@ def _python_full_rust_readiness(config: dict, *, status: dict | None = None, sel
         "result": {
             "mode": "full_rust_readiness",
             "full_backend_ready": False,
-            "backend_model": "hybrid_rust_authority_pilot" if authority_flags else "hybrid_python_authoritative_rust_safety_core",
-            "maturity": "authority_pilot_active" if authority_flags else "hybrid_shadow_ready",
-            "verdict": "not_full_rust_backend_yet",
-            "summary": "LQoSync is a hybrid system: Python remains WebUI/orchestrator/collector authority by default while Rust provides safety, planning, transaction, journal, rollback, and optional authority gates.",
+            "backend_model": "rust_backend_authority_with_flask_shell" if authority_flags else "rust_backend_available_flask_shell",
+            "maturity": "rust_authority_active" if authority_flags else "rust_shadow_ready",
+            "verdict": "rust_backend_authority_flask_shell_remaining",
+            "summary": "Rust owns run-cycle authority, collector-bundle transformation, validation, apply transaction, journal, rollback, and LibreQoS apply execution. Python remains only the Flask/WebUI shell and read-only support surface.",
             "rust_operations_count": len(operations),
             "implemented_rust_capabilities": implemented,
             "remaining_python_authoritative_components": remaining,
             "authority_readiness_verdict": ((authority_readiness or {}).get("result") or {}).get("verdict", "unknown"),
             "blockers": [],
             "next_steps": [
-                {"step": 1, "title": "Pilot sync-plan enforcement", "action": "Enable enforce_sync_plan only after authority readiness is clean."},
-                {"step": 2, "title": "Pilot transaction journal persistence", "action": "Enable append_transaction_journal before Rust file writes."},
-                {"step": 3, "title": "Move collector normalization", "action": "Migrate PPPoE/DHCP/Hotspot row-building to Rust before replacing RouterOS API transport."},
+                {"step": 1, "title": "Keep Rust authority enabled", "action": "Run scheduled and manual cycles through run-rust-cycle-authority."},
+                {"step": 2, "title": "Keep transaction guardrails active", "action": "Preserve sync-plan enforcement, journaling, rollback, and file-write policy gates."},
+                {"step": 3, "title": "Limit Python to shell duties", "action": "Use Python only for Flask/WebUI, configuration, backup browsing, diagnostics, and operator support helpers."},
             ],
         },
         "errors": [],
@@ -1986,7 +1984,7 @@ def _python_build_routeros_collector_plan(payload: dict[str, Any], *, started: f
         "commands": commands,
         "next_stage": "rust_routeros_transport_shadow",
         "full_rust_backend": False,
-        "note": "This is a deterministic RouterOS read plan only. It does not open RouterOS connections or replace Python collectors.",
+        "note": "This is a deterministic RouterOS read plan only. Live reads are handled by the gated Rust live-read adapter or supplied read results.",
     }
     return {
         "version": PROTOCOL_VERSION,
@@ -2787,9 +2785,9 @@ def _python_build_routeros_shadow_collector_bundle(payload: dict[str, Any], *, s
             "received_result_count": len(results),
             "normalized_count": 0,
             "safe_for_cleanup": False,
-            "cleanup_authority": "python_authoritative",
+            "cleanup_authority": "rust_authority_required",
             "next_stage": "build_rust_core_binary_or_enable_daemon",
-            "note": "Rust core is required to build the RouterOS shadow collector bundle. Python collectors remain authoritative.",
+            "note": "Rust core is required to build the RouterOS collector bundle used by run-cycle authority.",
         },
         "errors": [{
             "code": "routeros_shadow_bundle_rust_core_required",
@@ -3125,7 +3123,7 @@ def _python_evaluate_collector_authority_pilot(payload: dict[str, Any], *, start
     gates_ready = bool(rc.get("allow_rust_collector_authority")) and bool(rc.get("rust_collector_authority_pilot")) and bool(rc.get("allow_rust_routeros_live_read_adapter")) and bool(rc.get("routeros_live_read_adapter_pilot")) and (source in sources or "all" in sources) and (parity_score >= 99.99 or parity_verdict == "parity_pass") and rc.get("collector_authority_mode") == "rust_collector_authority_pilot"
     errors = []
     if payload.get("execute"):
-        errors.append({"code": "rust_collector_authority_switch_not_implemented", "severity": "error", "path": "collector_authority", "message": "Python fallback cannot switch collector authority; Python collectors remain authoritative."})
+        errors.append({"code": "rust_collector_authority_switch_not_implemented", "severity": "error", "path": "collector_authority", "message": "Python fallback cannot switch collector authority; Rust backend authority requires the Rust core binary."})
     status = "blocked" if errors else ("collector_authority_pilot_gate_ready" if gates_ready else "collector_authority_shadow_only")
     return {
         "version": PROTOCOL_VERSION,
@@ -3441,7 +3439,7 @@ def _python_build_run_cycle_rust_shadow_report(payload: dict[str, Any], *, start
     status = "run_cycle_rust_shadow_ready" if (allow and pilot and any_shadow_ready) else ("run_cycle_rust_shadow_available_not_enabled" if any_shadow_ready else "run_cycle_rust_shadow_python_only")
     warnings = []
     if not (allow and pilot):
-        warnings.append({"code": "run_cycle_rust_shadow_report_not_enabled", "severity": "warning", "path": "run_cycle_rust_shadow", "message": "run_cycle Rust-shadow report gates are not fully enabled; Python run_cycle remains authoritative."})
+        warnings.append({"code": "run_cycle_rust_shadow_report_not_enabled", "severity": "warning", "path": "run_cycle_rust_shadow", "message": "Legacy run-cycle shadow gates are not fully enabled; production cycles should use Rust run-cycle authority instead."})
     parity = bundle.get("parity") if isinstance(bundle.get("parity"), dict) else {}
     dry_run_parity_verdict = str(parity.get("verdict") or "not_available")
     return {

@@ -34,7 +34,7 @@ check_exec scripts/verify-rust-authority-supervisor.sh verifier-script
 check_contains config.json.example 'full_rust_authority_supervisor_enabled' config-supervisor
 check_contains config.json.example 'rust_authority_preflight_stamp' config-preflight-stamp
 check_contains engine/config_loader.py 'full_rust_authority_supervisor_enabled' loader-default
-check_contains engine/run_cycle.py 'rust_authority_preflight_required_failed' run-cycle-preflight-fail-closed
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_authority_preflight_required_failed' run-cycle-preflight-fail-closed
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'rust-full-authority-preflight.sh' promote-preflight
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'rust-full-authority-recovery-bundle.sh' promote-recovery-bundle
 check_contains docs/RUST_CORE_V760_RUST_AUTHORITY_SUPERVISOR.md 'Rust Authority Supervisor' docs

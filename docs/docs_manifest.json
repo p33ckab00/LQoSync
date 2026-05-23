@@ -107,6 +107,12 @@
     "summary": "Adds Rust-owned classification and gates for legacy Python backend cleanup while preserving the Flask WebUI shell.",
     "title": "Rust Core v8.2.6 Python Legacy Retirement Inventory"
   },
+  "rust.core_v827_rust_run_cycle_backend_retirement": {
+    "anchor": "v827-rust-run-cycle-backend-retirement",
+    "file": "docs/RUST_CORE_V827_RUST_RUN_CYCLE_BACKEND_RETIREMENT.md",
+    "summary": "Retires the Python run-cycle/backend collector/apply modules after Rust run-cycle and apply authority take over.",
+    "title": "Rust Core v8.2.7 Rust Run-Cycle Backend Retirement"
+  },
   "rust.scheduler_authority": {
     "file": "docs/RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md",
     "summary": "v8.1.0 Rust scheduler authority operations and runtime boundary.",

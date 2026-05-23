@@ -394,7 +394,7 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
             "rollback_test_passed": true,
             "rollback_path": "restore_python_backend_and_flask_routes",
             "operator_python_legacy_retirement_ack": true,
-            "python_paths": ["app.py", "engine/rust_core.py", "engine/run_cycle.py", "collectors/pppoe.py"],
+            "python_paths": ["app.py", "engine/rust_core.py", "collectors/mikrotik_client.py"],
             "rust_core": {
                 "python_runtime_role": "flask_webui_shell_only",
                 "allow_python_legacy_retirement_inventory": true,
@@ -4355,7 +4355,17 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
     let (authority_readiness, authority_readiness_errors, _authority_readiness_warnings) =
         evaluate_authority_readiness_payload(&json!({
             "config": {
-                "rust_core": {"enabled": true, "authority_mode": "shadow"},
+                "rust_core": {
+                    "enabled": true,
+                    "authority_mode": "enforce_blockers",
+                    "full_rust_backend_authority": true,
+                    "enforce_sync_plan": true,
+                    "execute_apply_manifest": true,
+                    "allow_rust_file_writes": true,
+                    "append_transaction_journal": true,
+                    "allow_transaction_journal_writes": true,
+                    "allow_rust_libreqos_apply": true
+                },
                 "paths": {"shaped_devices_csv": "/opt/libreqos/src/ShapedDevices.csv", "network_json": "/opt/libreqos/src/network.json", "transaction_journal": "/opt/LQoSync/logs/transaction_journal.jsonl"}
             },
             "rust_core_status": {"available": true, "ok": true},
@@ -4366,20 +4376,30 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
             .get("verdict")
             .and_then(Value::as_str)
             .unwrap_or("")
-            == "shadow_safe";
-    checks.push(check("authority_readiness_shadow_safe", authority_readiness_ok, json!({"verdict": authority_readiness.get("verdict"), "risk_level": authority_readiness.get("risk_level")})));
+            == "ready_for_authority_pilot";
+    checks.push(check("authority_readiness_rust_authority_ready", authority_readiness_ok, json!({"verdict": authority_readiness.get("verdict"), "risk_level": authority_readiness.get("risk_level")})));
     if !authority_readiness_ok {
         errors.push(Diagnostic::error(
             "self_test_authority_readiness_failed",
             Some("evaluate-authority-readiness".to_string()),
-            "Self-test authority readiness should report shadow_safe for default shadow mode.",
+            "Self-test authority readiness should report ready_for_authority_pilot for the full Rust authority fixture.",
         ));
     }
 
     let (full_readiness, full_readiness_errors, _full_readiness_warnings) =
         evaluate_full_rust_readiness_payload(&json!({
             "config": {
-                "rust_core": {"enabled": true, "authority_mode": "shadow"},
+                "rust_core": {
+                    "enabled": true,
+                    "authority_mode": "enforce_blockers",
+                    "full_rust_backend_authority": true,
+                    "enforce_sync_plan": true,
+                    "execute_apply_manifest": true,
+                    "allow_rust_file_writes": true,
+                    "append_transaction_journal": true,
+                    "allow_transaction_journal_writes": true,
+                    "allow_rust_libreqos_apply": true
+                },
                 "paths": {"shaped_devices_csv": "/opt/libreqos/src/ShapedDevices.csv", "network_json": "/opt/libreqos/src/network.json", "transaction_journal": "/opt/LQoSync/logs/transaction_journal.jsonl"}
             },
             "rust_core_status": {"available": true, "ok": true},
@@ -4390,19 +4410,18 @@ pub fn self_test_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagno
         && full_readiness
             .get("full_backend_ready")
             .and_then(Value::as_bool)
-            .unwrap_or(true)
-            == false
+            .unwrap_or(false)
         && full_readiness
             .get("verdict")
             .and_then(Value::as_str)
             .unwrap_or("")
-            == "not_full_rust_backend_yet";
-    checks.push(check("full_rust_readiness_reports_hybrid", full_readiness_ok, json!({"verdict": full_readiness.get("verdict"), "maturity": full_readiness.get("maturity")})));
+            == "full_rust_backend_ready";
+    checks.push(check("full_rust_readiness_reports_rust_authority", full_readiness_ok, json!({"verdict": full_readiness.get("verdict"), "maturity": full_readiness.get("maturity")})));
     if !full_readiness_ok {
         errors.push(Diagnostic::error(
             "self_test_full_rust_readiness_failed",
             Some("evaluate-full-rust-readiness".to_string()),
-            "Self-test full Rust readiness should report hybrid/not full backend yet.",
+            "Self-test full Rust readiness should report active Rust backend authority.",
         ));
     }
 

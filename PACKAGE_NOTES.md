@@ -1,7 +1,7 @@
 # Package Notes
 
-Package: v8.2.6 Python Legacy Retirement Inventory
-Version: 2.152.6
+Package: v8.2.7 Rust Run-Cycle Backend Retirement
+Version: 2.152.7
 
 This package aligns the codebase and documentation to the current project journey:
 
@@ -15,12 +15,14 @@ It is not Django and not SaaS.
 
 - Rust owns scheduler authority and production mutation.
 - Flask owns the existing WebUI only.
-- The old Python scheduler loop is disabled by default when `scheduler.engine=rust`.
+- The old Python scheduler loop, Python run-cycle entrypoint, Python collector transformation stack, and Python LibreQoS runner are retired from active backend authority.
 
 ## Required verification
 
 ```bash
 bash scripts/verify-rust-scheduler-authority.sh
+bash scripts/verify-full-rust-daemon-boundary.sh
+bash scripts/verify-one-line-operations.sh
 bash scripts/verify-rust-stable-release-cleanup.sh
 python3 scripts/release_check.py
 python3 scripts/regression_check.py
@@ -64,3 +66,7 @@ This package adds `lqosyncctl.sh` for one-line fresh install, update, check, ver
 ## v8.2.6 Python Legacy Retirement Inventory
 
 This package adds Rust operation `build-python-legacy-retirement-inventory` and `/api/rust-core/python-legacy-retirement-inventory`. It preserves Flask WebUI shell files, marks backend-only Python paths as guarded archive candidates, and keeps `delete_allowed=false` until rollback-aware cleanup is explicitly run outside Rust core.
+
+## v8.2.7 Rust Run-Cycle Backend Retirement
+
+This package removes `engine/run_cycle.py`, the retired Python collector transformation modules, Python duplicate/preflight validators, and the Python LibreQoS runner. Scheduled/manual cycles and WebUI force apply now enter Rust authority directly; remaining Python files serve the Flask UI shell, config/user management, backup views, diagnostics, and read-only connection helpers.

@@ -2,6 +2,10 @@
 
 This hotfix documents and fixes two live deployment findings.
 
+Historical note: as of v8.2.7, the affected Python run-cycle entrypoint has
+been retired from the active backend package. Keep this note for operators
+upgrading from older v8.2.2/v8.2.3 installs.
+
 ## 1. `name 'rust_sync_plan_authority_gate' is not defined`
 
 Symptom in WebUI warnings/errors:
@@ -12,7 +16,9 @@ name 'rust_sync_plan_authority_gate' is not defined
 
 Cause: `engine.run_cycle` called the Rust sync-plan authority gate but did not import the helper from `engine.rust_core`.
 
-Fix: v8.2.2 imports `rust_sync_plan_authority_gate` in `engine/run_cycle.py`.
+Fix at the time: v8.2.2 imported `rust_sync_plan_authority_gate` in
+`engine/run_cycle.py`. Current v8.2.7 installs use Rust run-cycle authority
+instead.
 
 Immediate local workaround on an affected install is to update to v8.2.2 or add the missing import, then restart `lqosync`.
 

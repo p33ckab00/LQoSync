@@ -24,30 +24,31 @@ Policy configuration is simplified to Singularity mode instead of multiple opera
 
 ## Current implementation boundary
 
+Status update for v8.2.7: production run-cycle authority now enters Rust
+directly. The old Python `engine/run_cycle.py` entrypoint and Python
+PPPoE/DHCP/Hotspot transformation stack have been retired from the active
+package.
+
 Current runtime flow:
 
 ```text
-Flask WebUI / scheduler
+Flask WebUI / scheduler facade
   ↓
-engine/run_cycle.py
+lqosync-core run-rust-cycle-authority
   ↓
-MikroTik collectors
+Rust RouterOS read plan / gated live-read adapter / supplied read results
   ↓
-ShapedDevices.csv + network.json builders
+Rust collector bundle + validation + sync plan + apply manifest
   ↓
-preflight + policy engine
-  ↓
-backup + atomic write
-  ↓
-LibreQoS.py --updateonly
+Rust atomic write + LibreQoS.py --updateonly executor
 ```
 
 The Rust branch currently has this boundary:
 
 ```text
-Flask / scheduler / run_cycle.py
+Flask WebUI shell / scheduler facade
   ↓
-engine/rust_core.py
+engine/rust_core.py protocol wrapper
   ↓ JSON protocol
 rust/lqosync-core
   ↓ JSON result
@@ -74,14 +75,15 @@ Rust already covers:
 - collector pilot result evaluation that requires diagnostics-only Rust observation evidence before pass
 - collector promotion readiness that requires the same diagnostics-only observation proof
 - Python legacy retirement inventory that Rust-classifies Flask WebUI shell files separately from backend cleanup candidates
+- native run-cycle authority that has replaced `engine/run_cycle.py`
 
 Python still covers:
-- live RouterOS API reads through routeros-api
-- PPPoE/DHCP/Hotspot row generation in the production run cycle
-- WebUI shell and compatibility wrappers
+- Flask WebUI shell, auth, routes, docs, reports, and diagnostics
+- config/user/backup support used by the Flask shell
+- read-only RouterOS connection-test helpers
 ```
 
-The current cleanup target is a Rust-owned legacy retirement inventory. The live adapter can execute a single read-only `print` when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, `build-run-cycle-rust-shadow-report` can carry that evidence beside the authoritative Python cycle, collector activation can derive successful shadow-cycle counts from that history, the runtime contract exposes that provenance, the switch rehearsal marks Rust rows as diagnostics-only, the pilot execution contract requires that diagnostics-only handoff before observation, the pilot result evaluator requires observed Rust/Python rows from that path before pass, and promotion readiness refuses readiness without that same observation proof. After the full Rust backend audit sentinel is healthy, `build-python-legacy-retirement-inventory` classifies Flask WebUI shell files separately from backend cleanup candidates with `delete_allowed=false`, so actual cleanup stays guarded and rollback-aware.
+The current cleanup target is a Rust-owned legacy retirement inventory. The live adapter can execute read-only RouterOS commands when all gates are enabled, `build-routeros-live-read-shadow-parity` can turn supplied live-read results into diagnostic PPPoE/DHCP/Hotspot rows and parity evidence, and `run-rust-cycle-authority` now owns scheduled/manual cycle execution. After the full Rust backend audit sentinel is healthy, `build-python-legacy-retirement-inventory` classifies Flask WebUI shell files separately from backend cleanup candidates with `delete_allowed=false`, so actual cleanup stays guarded and rollback-aware.
 
 ## Singularity policy target
 
@@ -111,7 +113,6 @@ Legacy policy modes `conservative`, `balanced`, and `aggressive` are compatibili
 LQoSync/
 ├─ app.py
 ├─ engine/
-│  ├─ run_cycle.py
 │  ├─ rust_core.py              # Python wrapper for Rust CLI/daemon
 │  └─ ...
 ├─ rust/

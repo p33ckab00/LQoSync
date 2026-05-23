@@ -73,29 +73,32 @@ These Rust operations accept RouterOS read results, validate them against the
 planned MikroTik reads, normalize PPPoE/DHCP/Hotspot rows through the Rust
 collector bundle builder, and can compare those rows against Python output.
 
-It is intentionally non-authoritative:
+It was intentionally non-authoritative during the shadow phase:
 
 ```text
 - socket connections are opened only by the gated read-only live adapter pilot
 - no credentials are emitted
-- no cleanup/write/apply authority is transferred
-- Python collectors remain production-authoritative
 - parity output is diagnostic until live-read shadow cycles pass
 ```
 
 ## Python Backend Retirement Gate
 
-Do not delete these production paths until Rust live parity is demonstrated:
+v8.2.7 retirement status:
 
 ```text
-collectors/
-builders/
-rules/
-parsers/
-validators/
-engine/run_cycle.py
-scripts/run_cycle_once.py
+Retired from active backend authority:
+- engine/run_cycle.py
+- scripts/run_cycle_once.py
+- Python PPPoE/DHCP/Hotspot collector transformation modules
+- Python duplicate/preflight validators
+- Python LibreQoS runner
+
+Still preserved as Flask UI shell/support:
+- app.py
+- engine/rust_core.py
+- config/user/backup/diagnostic helpers imported by app.py
+- read-only RouterOS connection-test helpers
 ```
 
-After cutover, those files can be removed or converted into test fixtures and
-migration notes. Until then, they are compatibility bridge code, not dead code.
+Delete remaining Python support only after the Flask UI has an equivalent
+replacement or the feature is intentionally removed with rollback evidence.

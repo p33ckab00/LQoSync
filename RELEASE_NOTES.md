@@ -1,5 +1,12 @@
 # Release Notes
 
+## 2.152.7 - v8.2.7 Rust Run-Cycle Backend Retirement
+
+- Removed the legacy Python run-cycle entrypoint and old Python run-cycle bridge from the active backend path.
+- Removed the dead Python PPPoE/DHCP/Hotspot collector transformation stack, duplicate/preflight validators, and Python LibreQoS runner after Rust authority took over those production backend responsibilities.
+- Switched WebUI/API force apply to Rust `execute-apply-transaction` so LibreQoS apply execution is no longer Python-owned.
+- Repointed runtime verification scripts at `rust_run_cycle_authority.rs` and updated full-Rust boundary documentation plus one-line operations guidance.
+
 ## 2.152.6 - v8.2.6 Python Legacy Retirement Inventory
 
 - Added Rust operation `build-python-legacy-retirement-inventory` to classify Flask WebUI shell files separately from legacy backend cleanup candidates.

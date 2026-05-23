@@ -46,10 +46,11 @@ print('ok|config|stable Rust authority defaults')
 PY
 
 contains engine/config_loader.py 'rust_stable_release' config-loader-stable
-contains engine/run_cycle.py 'rust_set_and_forget_gate_failed' runtime-set-and-forget-gate
+contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_set_and_forget_gate_failed' runtime-set-and-forget-gate
 contains scripts/promote-rust-full-authoritative-safe.sh 'rust-set-and-forget-readiness.sh' promotion-readiness
 contains docs/RUST_CORE_V800_STABLE_RUST_BACKEND_CLEANUP.md 'Python is .*not.* allowed to silently take over production mutation' stable-doc-boundary
 contains docs/FULL_RUST_STABLE_OPERATIONS.md 'Rust authority daemon' stable-ops-guide
+contains docs/RUST_CORE_V827_RUST_RUN_CYCLE_BACKEND_RETIREMENT.md 'Rust Run-Cycle Backend Retirement' v827-doc
 contains scripts/rust-stable-codebase-cleanup-inventory.sh 'flask_webui_shell_only' cleanup-inventory
 contains rust/lqosync-core/src/self_test.rs 'build-python-legacy-retirement-inventory' legacy-retirement-op
 contains docs/RUST_CORE_V826_PYTHON_LEGACY_RETIREMENT_INVENTORY.md 'delete_allowed=false' legacy-retirement-doc

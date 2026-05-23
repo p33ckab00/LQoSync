@@ -20,7 +20,6 @@ from scheduler.runner import LQoSyncScheduler
 from builders.shaped_devices import read_shaped_devices_csv, render_shaped_devices_csv
 from builders.network_json import read_network_json, render_network_json, flatten_nodes
 from applier.backup import list_backups, delete_backup, inspect_backup, compare_backup_to_live, retention_preview
-from applier.libreqos_runner import run_libreqos_update
 from applier.rollback import restore_backup
 from collectors.mikrotik_client import test_router_connection, connect_to_router, get_resource_data
 from engine.audit import write_audit, tail_audit
@@ -110,6 +109,7 @@ from engine.rust_core import (
     rust_full_backend_readiness,
     rust_authority_pilot_plan,
     rust_native_dry_run_preview,
+    rust_execute_apply_transaction,
 )
 from applier.atomic_writer import atomic_write_text
 from monitoring.service_monitor import (
@@ -214,6 +214,63 @@ def admin_required(view_func):
 def operator_required(view_func):
     """Decorator for routes/actions available to operators and above."""
     return _require_min_role("operator", "operator_required")(view_func)
+
+
+def _read_text_or_default(path, default: str) -> str:
+    if not path:
+        return default
+    p = Path(path)
+    if not p.exists():
+        return default
+    return p.read_text(encoding="utf-8", errors="ignore")
+
+
+def rust_libreqos_force_apply(cfg: dict) -> dict:
+    paths = cfg.get("paths") or {}
+    current_csv = _read_text_or_default(paths.get("shaped_devices_csv"), "")
+    current_network = _read_text_or_default(paths.get("network_json"), "{}\n")
+    state = load_state(paths.get("runtime_state", "state/runtime_state.json"))
+    response = rust_execute_apply_transaction(
+        cfg,
+        mode="force_apply",
+        paths=paths,
+        current_csv_text=current_csv,
+        proposed_csv_text=current_csv,
+        current_network_text=current_network,
+        proposed_network_text=current_network,
+        files_changed=False,
+        csv_changed=False,
+        network_changed=False,
+        policy_decision={"write_allowed": True, "apply_allowed": True},
+        rust_sync_plan={"result": {"verdict": "allow"}},
+        rust_authority_gate={"should_block": False},
+        state=state,
+        execute=True,
+        allow_libreqos_apply=True,
+    )
+    result = response.get("result") if isinstance(response.get("result"), dict) else {}
+    apply_result = (
+        result.get("libreqos_apply_result")
+        if isinstance(result.get("libreqos_apply_result"), dict)
+        else {}
+    )
+    errors = response.get("errors") or []
+    ok = bool(result.get("libreqos_apply_executed")) and bool(apply_result.get("ok")) and not errors
+    first_error = errors[0].get("code") if errors and isinstance(errors[0], dict) else None
+    manifest = result.get("manifest") if isinstance(result.get("manifest"), dict) else {}
+    return {
+        "ok": ok,
+        "exit_code": apply_result.get("exit_code"),
+        "run_id": apply_result.get("run_id") or manifest.get("manifest_id"),
+        "stdout": apply_result.get("stdout", ""),
+        "stderr": apply_result.get("stderr", ""),
+        "duration_ms": apply_result.get("duration_ms"),
+        "error": first_error,
+        "engine": "rust_execute_apply_transaction",
+        "rust_apply_transaction": result,
+        "warnings": response.get("warnings") or [],
+        "errors": errors,
+    }
 
 
 def _csrf_token():
@@ -2036,7 +2093,7 @@ def libreqos_force_apply():
     if scheduler.is_running():
         flash("Cannot force apply while a sync cycle is running.")
         return redirect(url_for("services_page"))
-    lq = run_libreqos_update(cfg)
+    lq = rust_libreqos_force_apply(cfg)
     state_path = cfg.get("paths", {}).get("runtime_state", "state/runtime_state.json")
     update_state(
         state_path,
@@ -2061,7 +2118,7 @@ def api_libreqos_force_apply():
     cfg = load_config(CONFIG_PATH)
     if scheduler.is_running():
         return jsonify({"ok": False, "error": "sync_running"}), 409
-    lq = run_libreqos_update(cfg)
+    lq = rust_libreqos_force_apply(cfg)
     state_path = cfg.get("paths", {}).get("runtime_state", "state/runtime_state.json")
     update_state(
         state_path,

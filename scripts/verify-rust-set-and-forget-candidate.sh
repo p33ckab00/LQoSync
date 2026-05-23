@@ -9,7 +9,7 @@ for f in scripts/rust-authority-journal-audit.sh scripts/rust-authority-rollback
 check_contains VERSION '2.152.' version
 check_contains config.json.example "rust_set_and_forget_candidate_enabled" config-flag
 check_contains engine/config_loader.py "rust_set_and_forget_candidate_enabled" loader-default
-check_contains engine/run_cycle.py "rust_set_and_forget_gate_failed" runtime-gate
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs "rust_set_and_forget_gate_failed" runtime-gate
 check_contains scripts/promote-rust-full-authoritative-safe.sh "rust-set-and-forget-readiness.sh" promotion-readiness
 check_contains docs/docs_manifest.json "scheduler_authority" docs-manifest
 if [ "$fail" -ne 0 ]; then echo "FAIL: Rust set-and-forget candidate verification failed" >&2; exit 1; fi

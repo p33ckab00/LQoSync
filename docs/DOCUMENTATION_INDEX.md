@@ -75,3 +75,7 @@ Old per-version migration documents may remain in the repository as audit histor
 ## v8.2.6 Python Legacy Retirement Inventory
 
 - [Python Legacy Retirement Inventory](RUST_CORE_V826_PYTHON_LEGACY_RETIREMENT_INVENTORY.md)
+
+## v8.2.7 Rust Run-Cycle Backend Retirement
+
+- [Rust Run-Cycle Backend Retirement](RUST_CORE_V827_RUST_RUN_CYCLE_BACKEND_RETIREMENT.md)

@@ -61,12 +61,43 @@ PY
 }
 
 check_repo_for_python_bridge() {
+  local retired_paths=(
+    engine/run_cycle.py
+    scripts/run_cycle_once.py
+    collectors/pppoe.py
+    collectors/dhcp.py
+    collectors/hotspot.py
+    builders/circuit_rows.py
+    builders/node_tree.py
+    parsers/bandwidth.py
+    parsers/identity.py
+    parsers/profile.py
+    parsers/speed_resolver.py
+    validators/duplicate_checker.py
+    validators/preflight.py
+    applier/libreqos_runner.py
+  )
+  local retired_path
+  for retired_path in "${retired_paths[@]}"; do
+    if [[ -e "$retired_path" ]]; then
+      fail "${retired_path} still exists; retire the legacy Python backend file before running the backend retirement executor" 17
+    fi
+  done
+
   if [[ -f app.py ]] && grep -qE 'from engine\.run_cycle import run_cycle' app.py; then
     fail "app.py still imports engine.run_cycle, so WebUI/API flows still depend on the Python run-cycle backend" 7
   fi
 
   if [[ -f app.py ]] && grep -qE 'run_cycle\(mode=["'"'"']dry_run["'"'"']' app.py; then
     fail "WebUI dry-run routes still execute the Python run-cycle backend" 8
+  fi
+
+  if [[ -f app.py ]] && grep -qE 'run_libreqos_update' app.py; then
+    fail "WebUI force-apply still calls the Python LibreQoS runner instead of Rust execute-apply-transaction" 18
+  fi
+
+  if [[ -f app.py ]] && ! grep -qE 'rust_execute_apply_transaction' app.py; then
+    fail "WebUI force-apply is not wired to Rust execute-apply-transaction" 19
   fi
 
   if [[ -f rust/lqosync-core/src/rust_scheduler.rs ]] && grep -q 'scripts/run_cycle_once.py' rust/lqosync-core/src/rust_scheduler.rs; then

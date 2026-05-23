@@ -92,6 +92,97 @@ fn value_field(value: &Value, field: &str) -> String {
     }
 }
 
+fn boolish(value: &Value, key: &str) -> bool {
+    match value.get(key) {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::String(s)) => matches!(
+            s.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Some(Value::Number(n)) => n.as_i64().unwrap_or(0) != 0,
+        _ => false,
+    }
+}
+
+fn config_network_mode(config: &Value) -> String {
+    let mode = config
+        .get("network_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
+    match mode {
+        "router_children" | "flat_router_root" | "flat_no_parent" | "deep_hierarchy"
+        | "custom_hierarchy" => mode.to_string(),
+        _ => {
+            if boolish(config, "flat_network") && boolish(config, "no_parent") {
+                "flat_no_parent".to_string()
+            } else if boolish(config, "flat_network") {
+                "flat_router_root".to_string()
+            } else {
+                "router_children".to_string()
+            }
+        }
+    }
+}
+
+fn default_router_name(config: &Value) -> String {
+    config
+        .get("routers")
+        .and_then(Value::as_array)
+        .and_then(|routers| {
+            routers
+                .iter()
+                .find_map(|router| router.get("name").and_then(Value::as_str))
+        })
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn meta_router_by_circuit(shadow_result: &Value) -> BTreeMap<String, String> {
+    let mut routers = BTreeMap::new();
+    let Some(items) = shadow_result.get("meta").and_then(Value::as_array) else {
+        return routers;
+    };
+    for item in items {
+        let router = value_field(item, "router");
+        if router.is_empty() {
+            continue;
+        }
+        for key in ["circuit_name", "username", "hostname"] {
+            let circuit = value_field(item, key);
+            if !circuit.is_empty() {
+                routers.insert(circuit, router.clone());
+            }
+        }
+    }
+    routers
+}
+
+fn apply_flat_parent_overrides(config: &Value, shadow_result: &Value, rows: &mut [Value]) {
+    let mode = config_network_mode(config);
+    if !matches!(mode.as_str(), "flat_no_parent" | "flat_router_root") {
+        return;
+    }
+    let routers = meta_router_by_circuit(shadow_result);
+    let default_router = default_router_name(config);
+    for row in rows {
+        let key = row_key(row);
+        let parent = if mode == "flat_no_parent" {
+            String::new()
+        } else {
+            routers
+                .get(&key)
+                .cloned()
+                .filter(|name| !name.is_empty())
+                .unwrap_or_else(|| default_router.clone())
+        };
+        if let Value::Object(fields) = row {
+            fields.insert("Parent Node".to_string(), Value::String(parent));
+        }
+    }
+}
+
 fn row_key(row: &Value) -> String {
     for field in ["Circuit Name", "Circuit ID", "Device ID", "Device Name"] {
         let value = value_field(row, field);
@@ -405,11 +496,12 @@ pub fn build_rust_native_dry_run_preview_payload(
         &network_warnings,
     );
 
-    let proposed_rows: Vec<Value> = shadow_result
+    let mut proposed_rows: Vec<Value> = shadow_result
         .get("normalized_rows")
         .and_then(Value::as_array)
         .map(|items| items.iter().filter(|v| v.is_object()).cloned().collect())
         .unwrap_or_default();
+    apply_flat_parent_overrides(config, &shadow_result, &mut proposed_rows);
     let proposed_csv_text = match rows_to_csv_text(&proposed_rows) {
         Ok(text) => text,
         Err(err) => {
@@ -566,6 +658,8 @@ pub fn build_rust_native_dry_run_preview_payload(
         "csv_changed": csv_changed,
         "network_changed": network_changed,
         "files_changed": csv_changed || network_changed,
+        "proposed_rows": proposed_rows.clone(),
+        "proposed_csv_text": proposed_csv_text.clone(),
         "diff": {
             "csv": {
                 "changed": csv_changed,

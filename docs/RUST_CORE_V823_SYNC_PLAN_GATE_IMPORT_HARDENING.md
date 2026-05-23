@@ -2,17 +2,21 @@
 
 This hotfix makes the Rust sync-plan authority gate import resilient in live deployments.
 
+Historical note: as of v8.2.7, the affected Python run-cycle entrypoint has
+been retired from the active backend package. Keep this note for operators
+upgrading from older v8.2.3 installs.
+
 ## Fixed runtime symptom
 
 ```text
 name 'rust_sync_plan_authority_gate' is not defined
 ```
 
-The function already exists in `engine/rust_core.py`, but live systems may still hit a NameError if `engine/run_cycle.py` was running from an older import namespace or the top-level import list was not refreshed.
+The function already exists in `engine/rust_core.py`, but older live systems may still hit a NameError if `engine/run_cycle.py` was running from an older import namespace or the top-level import list was not refreshed.
 
 ## Change
 
-`engine/run_cycle.py` now keeps the top-level import and also performs a local import immediately before the authority gate call. This is intentionally defensive and safe because it does not change the authority decision logic.
+In v8.2.3, `engine/run_cycle.py` kept the top-level import and also performed a local import immediately before the authority gate call. Current v8.2.7 installs use Rust run-cycle authority instead.
 
 ## Operator verification
 

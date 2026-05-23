@@ -15,19 +15,15 @@ const DEFAULT_PYTHON_PATHS: &[&str] = &[
     "engine/dashboard_modules.py",
     "engine/docs_search.py",
     "engine/release_integrity.py",
-    "engine/run_cycle.py",
     "engine/stable_release.py",
     "scheduler/runner.py",
-    "collectors/pppoe.py",
-    "collectors/dhcp.py",
-    "collectors/hotspot.py",
     "builders/shaped_devices.py",
     "builders/network_json.py",
     "rules/cleanup.py",
-    "parsers/bandwidth.py",
-    "validators/preflight.py",
     "applier/atomic_writer.py",
-    "applier/libreqos_runner.py",
+    "applier/backup.py",
+    "applier/rollback.py",
+    "collectors/mikrotik_client.py",
     "monitoring/service_monitor.py",
     "templates/dashboard.html",
     "templates/base.html",
@@ -106,6 +102,14 @@ fn classify_path(path: &str) -> (&'static str, &'static str, &'static str) {
         || path == "engine/docs_search.py"
         || path == "engine/release_integrity.py"
         || path == "engine/stable_release.py"
+        || path == "scheduler/runner.py"
+        || path == "builders/shaped_devices.py"
+        || path == "builders/network_json.py"
+        || path == "rules/cleanup.py"
+        || path == "applier/atomic_writer.py"
+        || path == "applier/backup.py"
+        || path == "applier/rollback.py"
+        || path == "collectors/mikrotik_client.py"
         || path.starts_with("monitoring/")
     {
         return (
@@ -114,8 +118,7 @@ fn classify_path(path: &str) -> (&'static str, &'static str, &'static str) {
             "Flask WebUI shell, operator diagnostics, or Rust protocol bridge remains in the package.",
         );
     }
-    if path == "engine/run_cycle.py"
-        || path.starts_with("collectors/")
+    if path.starts_with("collectors/")
         || path.starts_with("builders/")
         || path.starts_with("rules/")
         || path.starts_with("parsers/")
@@ -456,8 +459,6 @@ mod tests {
             "python_paths": [
                 "app.py",
                 "engine/rust_core.py",
-                "engine/run_cycle.py",
-                "collectors/pppoe.py",
                 "templates/dashboard.html"
             ],
             "rust_core": {
@@ -496,7 +497,7 @@ mod tests {
             result
                 .get("legacy_backend_candidate_count")
                 .and_then(Value::as_u64),
-            Some(2)
+            Some(0)
         );
     }
 

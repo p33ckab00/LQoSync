@@ -26,9 +26,9 @@ check_contains config.json.example '"allow_rust_file_writes": true' file-write-a
 check_contains config.json.example '"allow_rust_libreqos_apply": true' libreqos-apply-authority
 check_contains config.json.example '"collector_output_authority": "rust_validate_all"' collector-rust-validation
 check_contains engine/config_loader.py 'full_rust_backend_authority' loader-default
-check_contains engine/run_cycle.py 'rust_full_authority_missing_file_write_flags' fail-closed-file-flag
-check_contains engine/run_cycle.py 'rust_full_authority_file_write_not_executed' fail-closed-file-write
-check_contains engine/run_cycle.py 'rust_full_authority_libreqos_apply_not_executed' fail-closed-libreqos
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_full_authority_missing_file_write_flags' fail-closed-file-flag
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_full_authority_file_write_not_executed' fail-closed-file-write
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_full_authority_libreqos_apply_not_executed' fail-closed-libreqos
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'python_mutation_fallback' promotion-lock
 check_contains docs/RUST_CORE_V758_FULL_RUST_AUTHORITY_LOCKDOWN.md 'Full Rust Authority Lockdown' docs
 

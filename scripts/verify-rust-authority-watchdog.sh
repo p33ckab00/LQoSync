@@ -32,7 +32,7 @@ check_exec scripts/rust-authority-watchdog.sh watchdog-script
 check_exec scripts/verify-rust-authority-watchdog.sh verifier-script
 check_contains config.json.example 'rust_authority_watchdog_enabled' config-watchdog-enabled
 check_contains engine/config_loader.py 'rust_authority_watchdog_enabled' loader-watchdog-default
-check_contains engine/run_cycle.py 'rust_authority_watchdog_required_failed' run-cycle-watchdog-fail-closed
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_authority_watchdog_required_failed' run-cycle-watchdog-fail-closed
 check_contains scripts/promote-rust-full-authoritative-safe.sh 'rust_authority_watchdog_enabled' promote-watchdog
 check_contains docs/RUST_CORE_V761_RUST_AUTHORITY_WATCHDOG.md 'Rust Authority Watchdog' docs
 check_contains docs/DOCUMENTATION_INDEX.md 'RUST_CORE_V810_RUST_SCHEDULER_AUTHORITY.md' docs-index

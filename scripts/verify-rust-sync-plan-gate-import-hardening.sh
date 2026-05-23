@@ -11,10 +11,10 @@ check_contains() {
   fi
 }
 check_contains engine/rust_core.py "def rust_sync_plan_authority_gate" "gate-definition"
-check_contains engine/run_cycle.py "rust_sync_plan_authority_gate" "gate-call"
-check_contains engine/run_cycle.py "local hardening" "local-import-hardening"
+check_contains engine/rust_core.py "rust_authority_gate = rust_sync_plan_authority_gate" "gate-call"
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs "build-rust-sync-engine-shadow-preview" "rust-authority-shadow-preview"
 check_contains docs/RUST_CORE_V823_SYNC_PLAN_GATE_IMPORT_HARDENING.md "name 'rust_sync_plan_authority_gate' is not defined" "operator-error-doc"
-python3 -m py_compile engine/run_cycle.py engine/rust_core.py
+python3 -m py_compile engine/rust_core.py
 if [ "$fail" -ne 0 ]; then
   exit 1
 fi

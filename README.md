@@ -2,7 +2,7 @@
 
 **LQoSync is a local appliance-style web app for MikroTik → LibreQoS synchronization.**
 
-This project is **not Django** and **not a SaaS platform**. The WebUI remains the existing Python Flask interface. The backend is migrating to the Rust daemon; Rust already owns scheduler/write/apply authority where enabled, but the live MikroTik collector path and Python run-cycle bridge are still present and must be retired deliberately.
+This project is **not Django** and **not a SaaS platform**. The WebUI remains the existing Python Flask interface. The backend authority now runs through the Rust daemon: scheduler/manual cycles, generated-file writes, LibreQoS apply, dry-run preview, run-cycle orchestration, and the legacy PPPoE/DHCP/Hotspot transformation stack have been moved out of Python.
 
 ## Canonical architecture
 
@@ -61,15 +61,15 @@ Python Flask owns:
 - forms/buttons/API wrappers
 - displaying Rust results
 - dry-run compatibility wrappers that now forward into Rust preview operations
-- live RouterOS reads until Rust live-read parity passes
-- compatibility live MikroTik collector shell until Rust live reads replace it
+- read-only RouterOS connection test helpers and operator diagnostics
+- config/user/backup UI support that does not own production run-cycle mutation
 ```
 
 ## Current stable package
 
 ```text
-v8.2.6 Python Legacy Retirement Inventory
-VERSION=2.152.6
+v8.2.7 Rust Run-Cycle Backend Retirement
+VERSION=2.152.7
 ```
 
 The old Python scheduler loop is retired by default:
@@ -85,21 +85,21 @@ The old Python scheduler loop is retired by default:
 
 The Flask UI still exposes the same buttons, but those actions are delegated to Rust scheduler authority. The scheduler and manual run command defaults now enter Rust first through `scripts/rust-run-cycle-authority.sh`, which invokes the Rust core's `run-rust-cycle-authority` operation for scheduled/manual cycles.
 
-Rust now also exposes `build-python-legacy-retirement-inventory` so backend-only Python remnants can be classified separately from the Flask WebUI shell before any guarded cleanup. The inventory is non-mutating and keeps deletion disabled by design.
+Rust now also exposes `build-python-legacy-retirement-inventory` so backend-only Python remnants can be classified separately from the Flask WebUI shell before any guarded cleanup. The Python run-cycle module, Python run-cycle bridge script, Python collector transformation modules, Python duplicate/preflight validators, and Python LibreQoS runner have been retired from the active package.
 
-Flask dry-run preview is now Rust-backed by default. The WebUI/API forwards preview mode into the Rust core's `build-rust-native-dry-run-preview` operation, so plan/live-read/shadow-bundle orchestration for that path no longer lives in Python. That preview now also builds shadow `network.json` topology in Rust through `build-rust-network-json-shadow`, compares both generated backend artifacts, and `engine.run_cycle(mode="dry_run")` short-circuits into the same Rust-native path when `rust_core.native_dry_run_preview_enabled=true`.
+Flask dry-run preview is now Rust-backed by default. The WebUI/API forwards preview mode into the Rust core's `build-rust-native-dry-run-preview` operation, so plan/live-read/shadow-bundle orchestration for that path no longer lives in Python. That preview now also builds shadow `network.json` topology in Rust through `build-rust-network-json-shadow` and compares both generated backend artifacts.
 
-Even when that native preview flag is off, `engine.run_cycle` now delegates its read-only sync-engine shadow bundle to Rust through `build-rust-sync-engine-shadow-preview`, so diffing, validation, policy shadowing, sync-plan gating, and apply-manifest preview are no longer stitched together step-by-step in Python.
+Manual and scheduled cycles now enter `run-rust-cycle-authority` directly. The WebUI force-apply action also uses Rust `execute-apply-transaction` for LibreQoS execution instead of the retired Python runner.
 
 ## Python backend deletion readiness
 
-Do not erase the Python backend yet if any of these are still true:
+Do not erase the remaining Python UI shell yet if any of these are still true:
 
 - `rust_core.native_run_cycle_authority_python_fallback` is still allowed anywhere in runtime config
 - scheduled/manual runs are not entering `run-rust-cycle-authority` first
-- legacy backend modules such as `engine/run_cycle.py` are still being kept for rollback or reference instead of being retired after verification
+- Flask still imports a Python file for UI/config/user/backup/diagnostic behavior that has no Rust/WebUI replacement yet
 
-This branch now runs manual and scheduled cycles through Rust first, and the `scripts/run_cycle_once.py` bridge has been removed. Guarded Python deletion still stays blocked until the remaining rollback-only Python backend paths are retired after verification.
+This branch now runs manual and scheduled cycles through Rust first, and the `scripts/run_cycle_once.py` bridge plus the legacy Python run-cycle/collector/apply modules have been removed. Guarded deletion now focuses on keeping the Flask WebUI shell working while Rust remains the only production backend mutation authority.
 
 ## Singularity Policy
 

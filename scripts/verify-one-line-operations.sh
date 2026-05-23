@@ -16,6 +16,7 @@ check lqosyncctl.sh "adopt-runtime-permissions.sh"
 check app.py "_dry_run_failure_result"
 check app.py "Dry-run route failed"
 check app.py "api_sync_dry_run"
+check app.py "rust_execute_apply_transaction"
 check templates/dry_run.html "Dry Run failed safely"
 if [ "$fail" -ne 0 ]; then exit 1; fi
 echo "PASS: one-line operations and dry-run hardening verified"

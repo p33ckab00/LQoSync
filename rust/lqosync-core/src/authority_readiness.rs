@@ -157,7 +157,7 @@ pub fn evaluate_authority_readiness_payload(payload: &Value) -> (Value, Vec<Diag
     }
 
     if allow_libreqos_apply {
-        warnings.push(warn("rust_libreqos_apply_not_implemented", "rust_core.allow_rust_libreqos_apply", "Rust transaction executor does not invoke LibreQoS.py in this release; Python remains authoritative for external apply."));
+        warnings.push(warn("rust_libreqos_apply_enabled", "rust_core.allow_rust_libreqos_apply", "Rust transaction executor is allowed to invoke LibreQoS apply when policy and apply transaction gates permit it."));
         risk_score += 15;
     }
 

@@ -1515,7 +1515,11 @@ pub fn run_rust_cycle_authority_payload(
                 .collect()
         })
         .unwrap_or_default();
-    let proposed_csv_text = rows_to_csv_text(&proposed_rows).unwrap_or_else(|_| empty_csv_text());
+    let proposed_csv_text = native_preview_result
+        .get("proposed_csv_text")
+        .and_then(Value::as_str)
+        .map(|text| text.to_string())
+        .unwrap_or_else(|| rows_to_csv_text(&proposed_rows).unwrap_or_else(|_| empty_csv_text()));
     let current_network_text = network_result
         .get("current_network_text")
         .and_then(Value::as_str)

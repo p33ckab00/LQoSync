@@ -966,8 +966,7 @@ fn apply_hotspot_nodes(
 ///
 /// This keeps topology generation on the Rust side for preview/shadow use. It
 /// mirrors the current Python network-mode rules closely enough for dry-run
-/// comparison, but it remains read-only until the full live run-cycle is moved
-/// out of `engine/run_cycle.py`.
+/// comparison, and the active live run-cycle now enters Rust authority directly.
 pub fn build_rust_network_json_shadow_payload(
     payload: &Value,
 ) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {

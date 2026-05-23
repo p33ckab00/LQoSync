@@ -30,9 +30,9 @@ check_contains VERSION '2.152.' version
 check_contains config.json.example 'rust_live_stable_candidate_enabled' config-live-stable
 check_contains config.json.example 'rust_authority_quarantine_enabled' config-quarantine
 check_contains engine/config_loader.py 'rust_live_stable_candidate_enabled' loader-live-stable
-check_contains engine/run_cycle.py 'rust_live_stable_gate_failed' run-cycle-live-stable-gate
-check_contains engine/run_cycle.py 'rust_authority_quarantine.v1' run-cycle-quarantine-marker
-check_contains engine/run_cycle.py 'rust_authority_last_good.v1' run-cycle-last-good
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_live_stable_gate_failed' run-cycle-live-stable-gate
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_authority_quarantine.v1' run-cycle-quarantine-marker
+check_contains rust/lqosync-core/src/rust_run_cycle_authority.rs 'rust_authority_last_good.v1' run-cycle-last-good
 check_exec scripts/rust-authority-quarantine.sh quarantine-script
 check_exec scripts/rust-authority-last-good-snapshot.sh last-good-script
 check_exec scripts/rust-authority-live-soak-monitor.sh soak-monitor-script

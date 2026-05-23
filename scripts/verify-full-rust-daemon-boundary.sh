@@ -6,6 +6,7 @@ fail=0
 check_file(){ [ -e "$1" ] && echo "ok|file|$1" || { echo "MISSING: $1" >&2; fail=1; }; }
 contains(){ local f="$1" p="$2" label="$3"; check_file "$f"; grep -q -- "$p" "$f" && echo "ok|$label|$f" || { echo "MISSING[$label]: $f lacks $p" >&2; fail=1; }; }
 not_contains(){ local f="$1" p="$2" label="$3"; check_file "$f"; if grep -q -- "$p" "$f"; then echo "FORBIDDEN[$label]: $f contains $p" >&2; fail=1; else echo "ok|absent-$label|$f"; fi; }
+absent(){ local f="$1" label="$2"; if [ -e "$f" ]; then echo "FORBIDDEN[$label]: $f still exists" >&2; fail=1; else echo "ok|absent-$label|$f"; fi; }
 
 for f in \
   scheduler/runner.py \
@@ -24,6 +25,14 @@ not_contains scheduler/runner.py 'threading.Thread(target=self._loop' python-loo
 not_contains scheduler/runner.py 'python_legacy' python-legacy-state
 not_contains scheduler/runner.py 'from engine.run_cycle import run_cycle' direct-run-cycle-import
 not_contains app.py 'from engine.run_cycle import run_cycle' app-no-run-cycle-import
+not_contains app.py 'run_libreqos_update' app-no-python-libreqos-runner
+contains app.py 'rust_execute_apply_transaction' app-rust-force-apply
+absent engine/run_cycle.py retired-run-cycle
+absent scripts/run_cycle_once.py retired-run-cycle-bridge
+absent collectors/pppoe.py retired-pppoe-collector
+absent collectors/dhcp.py retired-dhcp-collector
+absent collectors/hotspot.py retired-hotspot-collector
+absent applier/libreqos_runner.py retired-python-libreqos-runner
 contains config.json.example '"allow_python_scheduler": false' python-scheduler-disabled
 contains config.json.example '"python_mutation_fallback": false' python-mutation-fallback-disabled
 contains config.json.example '"native_run_cycle_authority_enabled": true' native-run-cycle-enabled

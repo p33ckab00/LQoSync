@@ -4,6 +4,11 @@ Version: LQoSync 2.87.0-rc1 / lqosync-core 1.7.0
 
 This release adds a read-only bridge between the current hybrid architecture and a future full Rust backend.
 
+Historical note: this v1.7 document describes an early migration phase. In
+v8.2.7, scheduler/manual run-cycle authority and LibreQoS apply execution enter
+Rust directly, and `engine/run_cycle.py` has been retired from the active
+package.
+
 ## Important status
 
 LQoSync is **not yet a full Rust backend**.
@@ -19,7 +24,7 @@ The Rust core is mature enough for authority pilots, but several production resp
 
 - Flask WebUI, auth, routes, templates
 - scheduler runner
-- `engine/run_cycle.py` orchestration
+- Python run-cycle orchestration (retired in v8.2.7)
 - RouterOS API collectors
 - final external LibreQoS.py apply runner
 - service monitor, docs, reports, notification UI
