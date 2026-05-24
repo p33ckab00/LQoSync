@@ -18,7 +18,6 @@ CORE_SERVICE_DEST="${LQOSYNC_CORE_SERVICE_DEST:-/etc/systemd/system/lqosync-core
 # is already installed on the host.
 # Allowed: restart | enable_only | leave_stopped
 SERVICE_START_POLICY="${LQOSYNC_SERVICE_START_POLICY:-restart}"
-PYTHON_BACKEND_SERVICE_ENABLED="${LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE:-false}"
 
 # Smart default: fresh LibreQoS installs get missing files created automatically.
 # If managed files already exist, interactive installs ask what to do; non-interactive
@@ -304,46 +303,20 @@ chown "$USER_NAME:$USER_NAME" "$CONFIG_PATH" "$SHAPED_DEVICES_PATH" "$NETWORK_JS
 chmod 600 "$CONFIG_PATH" || true
 chmod 664 "$SHAPED_DEVICES_PATH" "$NETWORK_JSON_PATH" || true
 
-if as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
-cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF2
-[Unit]
-Description=LQoSync Dashboard
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=$USER_NAME
-Group=$USER_NAME
-WorkingDirectory=$INSTALL_DIR
-EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=$INSTALL_DIR/venv/bin/gunicorn --workers 1 --threads 4 --timeout 300 --bind 0.0.0.0:$PORT app:app
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF2
-else
-  if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
-    echo "[LQoSync] Stopping retired Python backend service: $SERVICE_NAME"
-    systemctl stop "$SERVICE_NAME" || true
-  fi
-  systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-  rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
-  echo "[LQoSync] Python backend service retired: $SERVICE_NAME will not be installed."
+if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+  echo "[LQoSync] Stopping retired Python backend service: $SERVICE_NAME"
+  systemctl stop "$SERVICE_NAME" || true
 fi
+systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+echo "[LQoSync] Python backend service retired: $SERVICE_NAME will not be installed."
 
-if ! as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
-  if [ -x "$CORE_BIN" ] && [ -f "$INSTALL_DIR/systemd/lqosync-core.service" ]; then
-    install -m 0644 "$INSTALL_DIR/systemd/lqosync-core.service" "$CORE_SERVICE_DEST"
-    echo "[LQoSync] Rust backend service unit installed: $CORE_SERVICE_DEST"
-  else
-    echo "[LQoSync] Rust backend service binary not present yet at $CORE_BIN"
-    echo "[LQoSync] Build/install it with install-rust-stable-safe.sh or scripts/install-rust-core-daemon.sh."
-  fi
+if [ -x "$CORE_BIN" ] && [ -f "$INSTALL_DIR/systemd/lqosync-core.service" ]; then
+  install -m 0644 "$INSTALL_DIR/systemd/lqosync-core.service" "$CORE_SERVICE_DEST"
+  echo "[LQoSync] Rust backend service unit installed: $CORE_SERVICE_DEST"
+else
+  echo "[LQoSync] Rust backend service binary not present yet at $CORE_BIN"
+  echo "[LQoSync] Build/install it with install-rust-stable-safe.sh or scripts/install-rust-core-daemon.sh."
 fi
 
 SYSTEMCTL_BIN="$(command -v systemctl || echo /bin/systemctl)"
@@ -367,10 +340,7 @@ if systemctl is-active --quiet updatecsv.service; then
 fi
 
 systemctl daemon-reload
-RUNTIME_SERVICE_NAME="$SERVICE_NAME"
-if ! as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
-  RUNTIME_SERVICE_NAME="$CORE_SERVICE_NAME"
-fi
+RUNTIME_SERVICE_NAME="$CORE_SERVICE_NAME"
 if systemctl list-unit-files 2>/dev/null | grep -q "^${RUNTIME_SERVICE_NAME}\\.service"; then
   case "$SERVICE_START_POLICY" in
     restart)
@@ -392,20 +362,13 @@ if systemctl list-unit-files 2>/dev/null | grep -q "^${RUNTIME_SERVICE_NAME}\\.s
   esac
 else
   echo "[LQoSync] Runtime service not installed yet: $RUNTIME_SERVICE_NAME"
-  if ! as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
-    echo "[LQoSync] Install the Rust backend daemon with install-rust-stable-safe.sh or scripts/install-rust-core-daemon.sh."
-  fi
+  echo "[LQoSync] Install the Rust backend daemon with install-rust-stable-safe.sh or scripts/install-rust-core-daemon.sh."
 fi
 
-if as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
-  echo "[LQoSync] Installed: http://$(hostname -I | awk '{print $1}'):$PORT"
-  echo "[LQoSync] Default login: admin / adminpass"
-else
-  echo "[LQoSync] Rust backend service: $CORE_SERVICE_NAME"
-  echo "[LQoSync] Rust web console: http://$(hostname -I | awk '{print $1}'):$PORT"
-  echo "[LQoSync] Default login: admin / adminpass"
-  echo "[LQoSync] Python backend service retired by default. No Gunicorn/Flask backend unit was installed."
-fi
+echo "[LQoSync] Rust backend service: $CORE_SERVICE_NAME"
+echo "[LQoSync] Rust web console: http://$(hostname -I | awk '{print $1}'):$PORT"
+echo "[LQoSync] Default login: admin / adminpass"
+echo "[LQoSync] Python backend service retired. No Gunicorn/Flask backend unit was installed."
 echo "[LQoSync] Managed files:"
 echo "  config:        $CONFIG_PATH"
 echo "  shaped CSV:    $SHAPED_DEVICES_PATH"

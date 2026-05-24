@@ -2,7 +2,7 @@
 
 **LQoSync is a local appliance-style web app for MikroTik → LibreQoS synchronization.**
 
-This project is **not Django** and **not a SaaS platform**. The WebUI remains the existing Python Flask interface. The backend authority now runs through the Rust daemon: scheduler/manual cycles, generated-file writes, LibreQoS apply, dry-run preview, run-cycle orchestration, and the legacy PPPoE/DHCP/Hotspot transformation stack have been moved out of Python.
+This project is **not Django** and **not a SaaS platform**. The supported runtime is now a Svelte operator console served directly by the Rust backend service. Scheduler/manual cycles, generated-file writes, LibreQoS apply, dry-run preview, run-cycle orchestration, RouterOS live reads, and PPPoE/DHCP/Hotspot transformation authority run through `lqosync-core`.
 
 ## Canonical architecture
 
@@ -28,14 +28,14 @@ lqosync-core.service
 LibreQoS external middlebox
 
 lqosync web service
-  - Python Flask WebUI shell only
-  - dashboard, config, dry-run, operations, docs
-  - calls the Rust daemon through /run/lqosync-core.sock
+  - Svelte operator console
+  - Rust HTTP/API server on :9202
+  - embedded static assets served by lqosync-core
 ```
 
 ## Runtime boundary
 
-Rust is the backend authority target. Flask is retained only because it is already the working operator interface. Until the live RouterOS adapter lands in Rust, the legacy Python collector path remains the compatibility bridge and must not be deleted blindly.
+Rust is the supported backend and web runtime. The legacy Flask app and Python helper modules may remain in the repository for historical tooling, diagnostics, migration scripts, and rollback reference, but they are not installed as the backend service and cannot be started by the supported install path.
 
 ```text
 Rust owns:
@@ -55,14 +55,13 @@ Rust owns:
 - quarantine
 - set-and-forget readiness gates
 
-Python Flask owns:
-- WebUI pages
+Svelte + Rust owns:
+- operator UI
 - sessions/login/admin shell
-- forms/buttons/API wrappers
-- displaying Rust results
-- dry-run compatibility wrappers that now forward into Rust preview operations
-- read-only RouterOS connection test helpers and operator diagnostics
-- config/user/backup UI support that does not own production run-cycle mutation
+- dashboard/status/config API
+- service controls
+- generated file views
+- dry-run and manual run API wrappers
 ```
 
 ## Current stable package
@@ -83,23 +82,17 @@ The old Python scheduler loop is retired by default:
 }
 ```
 
-The Flask UI still exposes the same buttons, but those actions are delegated to Rust scheduler authority. The scheduler and manual run command defaults now enter Rust first through `scripts/rust-run-cycle-authority.sh`, which invokes the Rust core's `run-rust-cycle-authority` operation for scheduled/manual cycles.
+The Svelte UI exposes the operator workflow through the Rust HTTP/API server. Scheduler and manual run command defaults enter Rust first through `scripts/rust-run-cycle-authority.sh`, which invokes the Rust core's `run-rust-cycle-authority` operation for scheduled/manual cycles.
 
 Rust now also exposes `build-python-legacy-retirement-inventory` so backend-only Python remnants can be classified separately from the Flask WebUI shell before any guarded cleanup. The Python run-cycle module, Python run-cycle bridge script, Python collector transformation modules, Python duplicate/preflight validators, and Python LibreQoS runner have been retired from the active package.
 
-Flask dry-run preview is now Rust-backed by default. The WebUI/API forwards preview mode into the Rust core's `build-rust-native-dry-run-preview` operation, so plan/live-read/shadow-bundle orchestration for that path no longer lives in Python. That preview now also builds shadow `network.json` topology in Rust through `build-rust-network-json-shadow` and compares both generated backend artifacts.
+Dry-run preview is Rust-backed by default. The WebUI/API forwards preview mode into the Rust core's `build-rust-native-dry-run-preview` operation, so plan/live-read/shadow-bundle orchestration for that path no longer lives in Python. That preview now also builds shadow `network.json` topology in Rust through `build-rust-network-json-shadow` and compares both generated backend artifacts.
 
 Manual and scheduled cycles now enter `run-rust-cycle-authority` directly. The WebUI force-apply action also uses Rust `execute-apply-transaction` for LibreQoS execution instead of the retired Python runner.
 
-## Python backend deletion readiness
+## Python legacy cleanup
 
-Do not erase the remaining Python UI shell yet if any of these are still true:
-
-- `rust_core.native_run_cycle_authority_python_fallback` is still allowed anywhere in runtime config
-- scheduled/manual runs are not entering `run-rust-cycle-authority` first
-- Flask still imports a Python file for UI/config/user/backup/diagnostic behavior that has no Rust/WebUI replacement yet
-
-This branch now runs manual and scheduled cycles through Rust first, and the `scripts/run_cycle_once.py` bridge plus the legacy Python run-cycle/collector/apply modules have been removed. Guarded deletion now focuses on keeping the Flask WebUI shell working while Rust remains the only production backend mutation authority.
+Python is no longer a supported backend runtime. Remaining Python files are legacy/tooling assets and historical migration helpers unless a specific script says otherwise. The install and Docker startup paths retire the old Flask/Gunicorn service and start `lqosync-core`.
 
 ## Singularity Policy
 

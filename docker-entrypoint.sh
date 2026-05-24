@@ -10,6 +10,8 @@ NETWORK_JSON_PATH="${NETWORK_JSON_PATH:-$LIBREQOS_SRC_DIR/network.json}"
 INIT_POLICY="${LQOSYNC_INIT_POLICY:-smart_confirm}"
 PORT="${PORT:-9202}"
 HOST="${HOST:-0.0.0.0}"
+CORE_BIN="${LQOSYNC_CORE_BIN:-/usr/local/bin/lqosync-core}"
+CORE_SOCKET="${LQOSYNC_CORE_SOCKET:-/run/lqosync-core.sock}"
 
 case "$INIT_POLICY" in
   smart_confirm|overwrite_with_backup|preserve_existing|create_missing_only) ;;
@@ -20,17 +22,9 @@ case "$INIT_POLICY" in
     ;;
 esac
 
-as_bool() {
-  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
-    1|true|yes|y|on) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-if ! as_bool "${LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE:-false}"; then
-  echo "[LQoSync Docker] Python Gunicorn backend runtime is retired."
-  echo "[LQoSync Docker] This image no longer starts app:app by default."
-  echo "[LQoSync Docker] Use the Rust backend service on bare metal/systemd, or set LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE=true for an explicit legacy override."
+if [ ! -x "$CORE_BIN" ]; then
+  echo "[LQoSync Docker] Rust backend binary is required and was not found: $CORE_BIN" >&2
+  echo "[LQoSync Docker] Python Gunicorn/app.py backend startup has been removed." >&2
   exit 1
 fi
 
@@ -156,10 +150,18 @@ if [ "$FRESH_MANAGED_FILES" = "1" ]; then
   print_mikrotik_setup_notice
 fi
 
-echo "[LQoSync Docker] Starting LQoSync on $HOST:$PORT"
+echo "[LQoSync Docker] Starting Rust LQoSync backend on $HOST:$PORT"
 echo "[LQoSync Docker] CONFIG_PATH=$CONFIG_PATH"
 echo "[LQoSync Docker] USERS_PATH=${USERS_PATH:-$DATA_DIR/users.json}"
 echo "[LQoSync Docker] LQOSYNC_RUN_MODE=${LQOSYNC_RUN_MODE:-direct}"
 echo "[LQoSync Docker] HOST_CONTROL_MODE=${HOST_CONTROL_MODE:-direct}"
 
-exec gunicorn --workers "${GUNICORN_WORKERS:-1}" --threads "${GUNICORN_THREADS:-4}" --timeout "${GUNICORN_TIMEOUT:-300}" --bind "$HOST:$PORT" app:app
+exec "$CORE_BIN" \
+  --daemon \
+  --http \
+  --socket "$CORE_SOCKET" \
+  --scheduler \
+  --http-bind "$HOST:$PORT" \
+  --config "$CONFIG_PATH" \
+  --users "${USERS_PATH:-$DATA_DIR/users.json}" \
+  --install-dir "$DATA_DIR"

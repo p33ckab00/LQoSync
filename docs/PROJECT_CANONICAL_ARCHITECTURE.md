@@ -8,26 +8,27 @@ It is not a SaaS platform, not multi-tenant, and not a Django project.
 
 ```text
 Rust = backend authority
-Python Flask = WebUI shell only
+Svelte = operator UI
 LibreQoS = external target/middlebox
 MikroTik = data source
 ```
 
 ## Rust daemon
 
-`lqosync-core.service` is the single Rust authority daemon. It listens on:
+`lqosync-core.service` is the single Rust backend service. It listens on:
 
 ```text
 /run/lqosync-core.sock
+0.0.0.0:9202
 ```
 
-It owns scheduler authority, validation, sync planning, file mutation, transaction journaling, LibreQoS apply, recovery, rollback, quarantine, and stability gates.
+It owns scheduler authority, validation, sync planning, file mutation, transaction journaling, LibreQoS apply, recovery, rollback, quarantine, stability gates, the HTTP/API surface, and serving the embedded Svelte console.
 
-## Flask WebUI shell
+## Svelte Operator Console
 
-The existing Flask UI remains because it is already the operator interface. It should not be rewritten to Django. It should not regain scheduler or mutation authority.
+The operator UI is built with Svelte and served by `lqosync-core`. The supported runtime does not install or start a Python Flask backend service.
 
-Flask calls Rust and displays the result.
+Legacy Python files may remain as historical tooling or migration support, but they are not the backend runtime.
 
 ## MikroTik sources
 
