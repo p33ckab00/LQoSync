@@ -58,6 +58,6 @@ Service policy:   $SERVICE_START_POLICY
 
 Next for live systems:
   1. Review Config Center
-  2. Run Dry Run
-  3. Start service if not already started: sudo systemctl start lqosync
+  2. Run verification / dry-run CLI checks
+  3. Start service if not already started: sudo systemctl start lqosync-core
 NEXT

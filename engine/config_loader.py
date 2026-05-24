@@ -86,6 +86,7 @@ DEFAULT_CONFIG = {
         "require_authority_readiness": True,
         "full_rust_backend_authority": True,
         "python_mutation_fallback": False,
+        "python_backend_runtime_fallback_disabled": True,
         "full_rust_authority_supervisor_enabled": True,
         "require_rust_authority_preflight": True,
         "fail_closed_on_authority_preflight_failure": True,
@@ -137,6 +138,7 @@ DEFAULT_CONFIG = {
         "rust_stable_release_version": "v8.2.6",
         "python_runtime_role": "flask_webui_shell_only",
         "python_backend_authority_removed": True,
+        "python_backend_service_removed": True,
         "legacy_python_mutation_cleanup_complete": True,
         "native_dry_run_preview_enabled": True,
         "native_run_cycle_authority_enabled": True,
@@ -1001,6 +1003,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("require_authority_readiness", True)
     rust_core.setdefault("full_rust_backend_authority", True)
     rust_core.setdefault("python_mutation_fallback", False)
+    rust_core.setdefault("python_backend_runtime_fallback_disabled", True)
     rust_core.setdefault("full_rust_authority_supervisor_enabled", True)
     rust_core.setdefault("require_rust_authority_preflight", True)
     rust_core.setdefault("fail_closed_on_authority_preflight_failure", True)
@@ -1053,6 +1056,7 @@ def validate_config(cfg: dict):
     rust_core.setdefault("rust_stable_release_version", "v8.2.6")
     rust_core.setdefault("python_runtime_role", "flask_webui_shell_only")
     rust_core.setdefault("python_backend_authority_removed", True)
+    rust_core.setdefault("python_backend_service_removed", True)
     rust_core.setdefault("legacy_python_mutation_cleanup_complete", True)
     rust_core.setdefault("native_dry_run_preview_enabled", True)
     rust_core.setdefault("native_run_cycle_authority_enabled", True)

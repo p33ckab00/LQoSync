@@ -5,7 +5,8 @@ set -euo pipefail
 # Installs production-safe, builds/installs Rust core + daemon, verifies self-test,
 # then promotes config so Rust owns validation, sync-plan gating, atomic file
 # writes, transaction journal, and LibreQoS.py external apply execution.
-# It does not start/restart the main lqosync service unless explicitly requested.
+# It retires the Python backend service and keeps lqosync-core as the only
+# backend runtime unless a legacy override is explicitly requested.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_START_POLICY="${LQOSYNC_SERVICE_START_POLICY:-enable_only}"
@@ -32,5 +33,5 @@ fi
   bash scripts/promote-rust-full-authoritative-safe.sh
 )
 
-echo "[LQoSync Rust Full Authority] Complete. Main service start policy: $SERVICE_START_POLICY"
-echo "[LQoSync Rust Full Authority] Recommended next step: run Dry Run, review diff, then start/restart service manually."
+echo "[LQoSync Rust Full Authority] Complete. Rust backend service policy: $SERVICE_START_POLICY"
+echo "[LQoSync Rust Full Authority] Recommended next step: run verification checks, then start/restart lqosync-core manually if needed."

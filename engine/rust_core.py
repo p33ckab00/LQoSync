@@ -1421,6 +1421,8 @@ def rust_core_config(config: dict | None = None) -> dict:
         "execute_rollback": bool(cfg.get("execute_rollback", False)),
         "allow_rust_rollback_file_writes": bool(cfg.get("allow_rust_rollback_file_writes", False)),
         "rollback_authority": str(cfg.get("rollback_authority") or "preview"),
+        "python_backend_runtime_fallback_disabled": bool(cfg.get("python_backend_runtime_fallback_disabled", False)),
+        "python_backend_service_removed": bool(cfg.get("python_backend_service_removed", False)),
     }
 
 
@@ -1474,6 +1476,84 @@ def daemon_socket_available(config: dict | None = None) -> bool:
         return False
 
 
+def _rust_backend_runtime_fallback_disabled(config: dict | None = None) -> bool:
+    rc = rust_core_config(config)
+    return bool(
+        rc.get("python_backend_runtime_fallback_disabled")
+        or rc.get("python_backend_service_removed")
+    )
+
+
+def _rust_required_response(
+    op: str,
+    request_id: str | None,
+    started: float,
+    *,
+    code: str,
+    message: str,
+    mode: str,
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload_meta = {
+        "engine": "python-wrapper",
+        "mode": mode,
+        "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+    }
+    if isinstance(meta, dict):
+        payload_meta.update(meta)
+    return {
+        "version": PROTOCOL_VERSION,
+        "op": op,
+        "request_id": request_id,
+        "available": True,
+        "ok": False,
+        "skipped": False,
+        "result": {
+            "status": "rust_backend_required",
+            "message": message,
+        },
+        "errors": [{"code": code, "severity": "error", "message": message}],
+        "warnings": [],
+        "meta": payload_meta,
+    }
+
+
+def _normalize_rust_backend_only_response(
+    response: dict[str, Any],
+    *,
+    op: str,
+    request_id: str | None,
+    started: float,
+    config: dict | None = None,
+    mode: str,
+) -> dict[str, Any]:
+    if not _rust_backend_runtime_fallback_disabled(config):
+        return response
+
+    error_codes = {
+        str(item.get("code"))
+        for item in (response.get("errors") or [])
+        if isinstance(item, dict)
+    }
+    if not response.get("skipped") and response.get("available", True) and "unknown_operation" not in error_codes:
+        return response
+
+    return _rust_required_response(
+        op,
+        request_id,
+        started,
+        code="rust_backend_required_no_python_fallback",
+        message=(
+            "Rust backend runtime is required and Python fallback is disabled. "
+            f"The Rust core could not serve operation '{op}'."
+        ),
+        mode=mode,
+        meta={
+            "original_response": response,
+        },
+    )
+
+
 def call_rust_core_daemon(op: str, payload: dict[str, Any] | None = None, *, config: dict | None = None, request_id: str | None = None, timeout: int | None = None) -> dict[str, Any]:
     """Call lqosync-core over the Unix socket daemon.
 
@@ -1523,6 +1603,7 @@ def rust_core_status(config: dict | None = None) -> dict[str, Any]:
     rc = rust_core_config(config)
     binary = find_rust_core_binary(config)
     daemon_available = daemon_socket_available(config)
+    strict_rust_backend = _rust_backend_runtime_fallback_disabled(config)
     status = {
         "enabled": rc["enabled"],
         "available": bool(binary or daemon_available),
@@ -1535,8 +1616,13 @@ def rust_core_status(config: dict | None = None) -> dict[str, Any]:
         "authority_mode": rc["authority_mode"],
         "prefer_daemon": rc["prefer_daemon"],
         "unix_socket": rc["unix_socket"],
-        "mode": "daemon" if rc["prefer_daemon"] and daemon_available else ("subprocess" if binary else "python_fallback"),
+        "mode": (
+            "daemon"
+            if rc["prefer_daemon"] and daemon_available
+            else ("subprocess" if binary else ("rust_required" if strict_rust_backend else "python_fallback"))
+        ),
         "self_test_on_status": bool(rc.get("self_test_on_status", False)),
+        "python_backend_runtime_fallback_disabled": strict_rust_backend,
     }
     if rc.get("self_test_on_status"):
         status["self_test"] = rust_core_self_test(config)
@@ -1558,9 +1644,28 @@ def call_rust_core(op: str, payload: dict[str, Any] | None = None, *, config: di
         if daemon_response.get("errors") and any((e.get("code") or "").startswith("rust_core_daemon_") for e in daemon_response.get("errors", [])):
             pass
         else:
-            return daemon_response
+            return _normalize_rust_backend_only_response(
+                daemon_response,
+                op=op,
+                request_id=request_id,
+                started=started,
+                config=config,
+                mode="daemon",
+            )
     binary = find_rust_core_binary(config)
     if not binary:
+        if _rust_backend_runtime_fallback_disabled(config):
+            return _rust_required_response(
+                op,
+                request_id,
+                started,
+                code="rust_backend_binary_required",
+                message=(
+                    "Rust backend runtime is required and Python fallback is disabled. "
+                    "The lqosync-core daemon/binary is not available."
+                ),
+                mode="rust_required",
+            )
         return {
             "version": PROTOCOL_VERSION,
             "op": op,
@@ -1619,7 +1724,14 @@ def call_rust_core(op: str, payload: dict[str, Any] | None = None, *, config: di
     response["meta"].setdefault("exit_code", proc.returncode)
     if proc.stderr:
         response["meta"].setdefault("stderr", proc.stderr[:1000])
-    return response
+    return _normalize_rust_backend_only_response(
+        response,
+        op=op,
+        request_id=request_id,
+        started=started,
+        config=config,
+        mode="subprocess",
+    )
 
 
 def validate_json_state(config: dict | None, *, state: dict[str, Any], state_type: str) -> dict[str, Any]:

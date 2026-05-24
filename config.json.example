@@ -696,6 +696,8 @@
     "native_run_cycle_authority_python_fallback": false,
     "prefer_daemon": true,
     "python_backend_authority_removed": true,
+    "python_backend_runtime_fallback_disabled": true,
+    "python_backend_service_removed": true,
     "python_backend_removal_execution_contract_pilot": false,
     "python_backend_removal_execution_max_shadow_age_seconds": 900,
     "python_backend_removal_execution_mode": "contract_only",

@@ -8,30 +8,27 @@ set -euo pipefail
 # Defaults are intentionally conservative:
 #   - preserve existing /opt/libreqos/src/config.json, ShapedDevices.csv, network.json
 #   - create timestamped backups before any installer action
-#   - install/enable the lqosync systemd service but do not start/restart it
-#   - Rust core build/install is opt-in only
+#   - retire the Python backend service and keep Rust as the only backend runtime
+#   - build/install the Rust core daemon and enable it without forcing an immediate restart by default
 #
 # Common safe command:
 #   sudo bash install-production-safe.sh
 #
 # Start service manually after review:
-#   sudo systemctl start lqosync
-#
-# Optional Rust core install:
-#   sudo INSTALL_RUST_CORE=true bash install-production-safe.sh
-#   sudo INSTALL_RUST_CORE=true INSTALL_RUST_CORE_DAEMON=true bash install-production-safe.sh
+#   sudo systemctl start lqosync-core
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-/opt/LQoSync}"
 LIBREQOS_SRC_DIR="${LIBREQOS_SRC_DIR:-${LIBREQOS_SRC:-/opt/libreqos/src}}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
+CORE_SERVICE_NAME="${LQOSYNC_CORE_SERVICE_NAME:-lqosync-core}"
 INIT_POLICY="${LQOSYNC_INIT_POLICY:-preserve_existing}"
 SERVICE_START_POLICY="${LQOSYNC_SERVICE_START_POLICY:-enable_only}"
-INSTALL_RUST_CORE="${INSTALL_RUST_CORE:-false}"
-INSTALL_RUST_CORE_DAEMON="${INSTALL_RUST_CORE_DAEMON:-false}"
+INSTALL_RUST_CORE="${INSTALL_RUST_CORE:-true}"
+INSTALL_RUST_CORE_DAEMON="${INSTALL_RUST_CORE_DAEMON:-true}"
 RUN_PRECHECKS="${RUN_PRECHECKS:-true}"
 RUN_POSTCHECKS="${RUN_POSTCHECKS:-true}"
-STRICT_RUST="${STRICT_RUST:-false}"
+STRICT_RUST="${STRICT_RUST:-true}"
 TS="$(date +%Y%m%d_%H%M%S)"
 BACKUP_ROOT="${LQOSYNC_BACKUP_ROOT:-/root/lqosync_production_install_backups}"
 BACKUP_DIR="$BACKUP_ROOT/$TS"
@@ -46,6 +43,28 @@ as_bool() {
     0|false|no|n|off|'') return 1 ;;
     *) return 1 ;;
   esac
+}
+
+ensure_rust_build_toolchain() {
+  log "Ensuring Rust build toolchain is available..."
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y curl build-essential pkg-config libssl-dev
+
+  export PATH="/root/.cargo/bin:$PATH"
+  if ! command -v cargo >/dev/null 2>&1 || ! cargo --version 2>/dev/null | grep -Eq 'cargo 1\.(8[0-9]|9[0-9]|[1-9][0-9]{2})'; then
+    log "Installing/updating Rust stable toolchain with rustup..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    if [ -f /root/.cargo/env ]; then
+      # shellcheck disable=SC1091
+      . /root/.cargo/env
+    fi
+    rustup default stable
+    rustup update stable
+  fi
+  export PATH="/root/.cargo/bin:$PATH"
+  hash -r || true
+  log "cargo: $(command -v cargo) $(cargo --version 2>/dev/null || true)"
+  log "rustc: $(command -v rustc) $(rustc --version 2>/dev/null || true)"
 }
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then
@@ -84,6 +103,7 @@ backup_file "$INSTALL_DIR/users.json" "$BACKUP_DIR/users.json"
 backup_file "$INSTALL_DIR/.env" "$BACKUP_DIR/.env"
 backup_file "$INSTALL_DIR/state" "$BACKUP_DIR/state"
 backup_file "/etc/systemd/system/${SERVICE_NAME}.service" "$BACKUP_DIR/${SERVICE_NAME}.service"
+backup_file "/etc/systemd/system/${CORE_SERVICE_NAME}.service" "$BACKUP_DIR/${CORE_SERVICE_NAME}.service"
 backup_file "/etc/sudoers.d/lqosync" "$BACKUP_DIR/sudoers.lqosync"
 
 if as_bool "$RUN_PRECHECKS"; then
@@ -133,6 +153,7 @@ if as_bool "$INSTALL_RUST_CORE_DAEMON"; then
 fi
 
 if as_bool "$INSTALL_RUST_CORE"; then
+  ensure_rust_build_toolchain
   if ! command -v cargo >/dev/null 2>&1; then
     msg="Rust core requested but cargo is not installed. Install Rust/cargo first or rerun without INSTALL_RUST_CORE=true."
     if as_bool "$STRICT_RUST"; then
@@ -146,6 +167,8 @@ if as_bool "$INSTALL_RUST_CORE"; then
       bash scripts/build-rust-core.sh
       bash scripts/install-rust-core.sh
       if as_bool "$INSTALL_RUST_CORE_DAEMON"; then
+        LQOSYNC_CORE_SERVICE_START_POLICY="$SERVICE_START_POLICY" \
+        LQOSYNC_SERVICE_START_POLICY="$SERVICE_START_POLICY" \
         bash scripts/install-rust-core-daemon.sh
       fi
     )
@@ -172,7 +195,9 @@ cat > "$BACKUP_DIR/production_install_summary.json" <<JSON
   "timestamp": "$TS",
   "install_dir": "$INSTALL_DIR",
   "libreqos_src_dir": "$LIBREQOS_SRC_DIR",
-  "service_name": "$SERVICE_NAME",
+  "legacy_service_name": "$SERVICE_NAME",
+  "core_service_name": "$CORE_SERVICE_NAME",
+  "runtime_service_name": "$CORE_SERVICE_NAME",
   "init_policy": "$INIT_POLICY",
   "service_start_policy": "$SERVICE_START_POLICY",
   "install_rust_core": "$INSTALL_RUST_CORE",
@@ -181,7 +206,7 @@ cat > "$BACKUP_DIR/production_install_summary.json" <<JSON
   "safe_defaults": {
     "preserve_live_libreqos_files": true,
     "service_not_started_by_default": true,
-    "rust_core_opt_in_only": true
+    "rust_only_backend_runtime": true
   }
 }
 JSON
@@ -189,7 +214,7 @@ JSON
 log "Production-safe install wrapper complete."
 log "Backup: $BACKUP_DIR"
 if [ "$SERVICE_START_POLICY" = "enable_only" ] || [ "$SERVICE_START_POLICY" = "leave_stopped" ]; then
-  log "Next: review config, run Dry Run in UI/CLI, then start with: sudo systemctl start $SERVICE_NAME"
+  log "Next: review config, run CLI/verification checks, then start with: sudo systemctl start $CORE_SERVICE_NAME"
 else
-  log "Service was restarted by requested policy. Verify: sudo systemctl status $SERVICE_NAME --no-pager"
+  log "Service was restarted by requested policy. Verify: sudo systemctl status $CORE_SERVICE_NAME --no-pager"
 fi

@@ -2,6 +2,7 @@ import json
 import os
 import secrets
 import subprocess
+import sys
 import time
 import traceback
 import io
@@ -120,6 +121,23 @@ load_dotenv()
 CONFIG_PATH = os.getenv("CONFIG_PATH") or "/opt/libreqos/src/config.json"
 USERS_PATH = os.getenv("USERS_PATH") or "users.json"
 ensure_users_file(USERS_PATH)
+
+
+def _python_backend_service_enabled() -> bool:
+    return os.getenv("LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE", "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _running_under_gunicorn() -> bool:
+    argv = " ".join(sys.argv).lower()
+    server_software = os.getenv("SERVER_SOFTWARE", "").lower()
+    return "gunicorn" in argv or "gunicorn" in server_software
+
+
+if _running_under_gunicorn() and not _python_backend_service_enabled():
+    raise RuntimeError(
+        "Python backend service is retired. Start lqosync-core instead, "
+        "or set LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE=true for an explicit legacy override."
+    )
 
 
 def _startup_config_normalize():
@@ -3826,6 +3844,11 @@ def healthz():
 
 
 if __name__ == "__main__":
+    if not _python_backend_service_enabled():
+        raise RuntimeError(
+            "Python backend service is retired. Start lqosync-core instead, "
+            "or set LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE=true for an explicit legacy override."
+        )
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "9202"))
     debug = os.getenv("DEBUG", "false").lower() == "true"

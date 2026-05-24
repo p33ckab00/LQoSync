@@ -45,10 +45,15 @@ cp -a "$LIBREQOS_SRC/config.json" "$BACKUP_DIR/libreqos_src/config.json" 2>/dev/
 cp -a "$LIBREQOS_SRC/ShapedDevices.csv" "$BACKUP_DIR/libreqos_src/ShapedDevices.csv" 2>/dev/null || true
 cp -a "$LIBREQOS_SRC/network.json" "$BACKUP_DIR/libreqos_src/network.json" 2>/dev/null || true
 cp -a "/etc/systemd/system/lqosync.service" "$BACKUP_DIR/lqosync.service" 2>/dev/null || true
+cp -a "/etc/systemd/system/lqosync-core.service" "$BACKUP_DIR/lqosync-core.service" 2>/dev/null || true
 cp -a "/etc/sudoers.d/lqosync" "$BACKUP_DIR/sudoers.lqosync" 2>/dev/null || true
 
+if systemctl is-active --quiet lqosync-core 2>/dev/null; then
+  echo "[LQoSync ZIP Update] Stopping lqosync-core before source refresh."
+  systemctl stop lqosync-core || true
+fi
 if systemctl is-active --quiet lqosync 2>/dev/null; then
-  echo "[LQoSync ZIP Update] Stopping lqosync before source refresh."
+  echo "[LQoSync ZIP Update] Stopping retired lqosync service before source refresh."
   systemctl stop lqosync || true
 fi
 
@@ -97,5 +102,5 @@ Backup:         $BACKUP_DIR
 Service policy: $SERVICE_START_POLICY
 
 If service was not started by policy:
-  sudo systemctl start lqosync
+  sudo systemctl start lqosync-core
 NEXT

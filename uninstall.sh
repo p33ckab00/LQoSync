@@ -8,6 +8,7 @@ set -euo pipefail
 
 INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-${INSTALL_DIR:-/opt/LQoSync}}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-${SERVICE_NAME:-lqosync}}"
+CORE_SERVICE_NAME="${LQOSYNC_CORE_SERVICE_NAME:-lqosync-core}"
 RESTORE_LIBREQOS_PERMS="${RESTORE_LIBREQOS_PERMS:-true}"
 RESTORE_MODE="${RESTORE_MODE:-managed}" # managed or full
 REMOVE_RUNTIME="${REMOVE_RUNTIME:-false}"
@@ -19,11 +20,14 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-echo "[LQoSync] Stopping and disabling $SERVICE_NAME..."
+echo "[LQoSync] Stopping and disabling $SERVICE_NAME and $CORE_SERVICE_NAME..."
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+systemctl stop "$CORE_SERVICE_NAME" 2>/dev/null || true
+systemctl disable "$CORE_SERVICE_NAME" 2>/dev/null || true
 
 rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+rm -f "/etc/systemd/system/${CORE_SERVICE_NAME}.service"
 systemctl daemon-reload || true
 systemctl reset-failed || true
 

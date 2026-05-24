@@ -60,8 +60,10 @@ if [ -d "$INSTALL_DIR/.git" ]; then
 fi
 
 if command -v systemctl >/dev/null 2>&1; then
-  systemctl status lqosync --no-pager > "$BUNDLE_DIR/systemctl_lqosync.txt" 2>&1 || true
   systemctl status lqosync-core --no-pager > "$BUNDLE_DIR/systemctl_lqosync_core.txt" 2>&1 || true
+  if systemctl list-unit-files 2>/dev/null | grep -q '^lqosync\.service'; then
+    systemctl status lqosync --no-pager > "$BUNDLE_DIR/systemctl_lqosync_legacy.txt" 2>&1 || true
+  fi
 fi
 
 if [ -n "$CORE_BIN" ] && [ -x "$CORE_BIN" ]; then

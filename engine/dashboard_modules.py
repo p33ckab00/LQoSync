@@ -3,8 +3,7 @@
 This module is read-only. It gives operators and release checks a single source
 of truth for which Dashboard cards are backed by which backend source.
 
-The Dashboard remains a Flask WebUI shell. These helpers do not run collectors,
-write files, or mutate LibreQoS state.
+These helpers do not run collectors, write files, or mutate LibreQoS state.
 """
 from __future__ import annotations
 
@@ -139,11 +138,11 @@ def build_dashboard_module_wiring(
     ))
 
     modules.append(_module(
-        "flask_webui_shell",
-        "Flask WebUI shell",
-        "gunicorn/flask lqosync service",
-        "ok" if lqosync_web_state == "active" else "warn",
-        f"lqosync={lqosync_web_state}; Python role={rc.get('python_runtime_role', 'flask_webui_shell_only')}",
+        "legacy_python_backend_service",
+        "Legacy Python backend service",
+        "retired gunicorn/flask lqosync service",
+        "warn" if lqosync_web_state == "active" else "ok",
+        f"lqosync={lqosync_web_state}; Python role={rc.get('python_runtime_role', 'retired')}",
         "/",
     ))
 

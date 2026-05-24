@@ -3,15 +3,16 @@ set -euo pipefail
 
 # Promote an existing LQoSync install to Rust apply authority mode.
 # Rust owns validation, sync-plan gating, atomic file writes, transaction journal,
-# and LibreQoS.py external apply execution. Python remains the Flask WebUI shell; Rust owns scheduler authority and
-# production mutation; it no longer performs writes/apply when the Rust
-# authority flags are enabled and healthy.
+# LibreQoS.py external apply execution, scheduler authority, and the live
+# backend runtime. The legacy Python backend service is retired by default.
 
 CONFIG_PATH="${CONFIG_PATH:-/opt/libreqos/src/config.json}"
 INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-/opt/LQoSync}"
 CORE_BIN="${LQOSYNC_CORE_BIN:-$(command -v lqosync-core 2>/dev/null || true)}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
+CORE_SERVICE_NAME="${LQOSYNC_CORE_SERVICE_NAME:-lqosync-core}"
 RESTART_SERVICE="${RESTART_SERVICE:-false}"
+RETIRE_PYTHON_BACKEND_SERVICE="${RETIRE_PYTHON_BACKEND_SERVICE:-true}"
 RUN_RUST_AUTHORITY_PREFLIGHT="${RUN_RUST_AUTHORITY_PREFLIGHT:-true}"
 RUN_RUST_AUTHORITY_RECOVERY_BUNDLE="${RUN_RUST_AUTHORITY_RECOVERY_BUNDLE:-true}"
 RUN_RUST_AUTHORITY_WATCHDOG="${RUN_RUST_AUTHORITY_WATCHDOG:-true}"
@@ -89,6 +90,8 @@ rc.update({
     'require_authority_readiness': True,
     'full_rust_backend_authority': True,
     'python_mutation_fallback': False,
+    'python_backend_runtime_fallback_disabled': True,
+    'python_backend_service_removed': True,
     'full_rust_authority_supervisor_enabled': True,
     'require_rust_authority_preflight': True,
     'fail_closed_on_authority_preflight_failure': True,
@@ -229,15 +232,27 @@ log "Active boundaries:"
 log "  - Rust owns validation and sync-plan blocker enforcement."
 log "  - Rust owns atomic ShapedDevices.csv/network.json writes."
 log "  - Rust owns LibreQoS.py external apply execution."
-log "  - Python owns only Flask WebUI shell. Rust owns scheduler authority. RouterOS transport remains Python-compatible, but collector output must pass Rust validation before mutation."
+log "  - Rust owns scheduler authority and live RouterOS/backend runtime execution."
+log "  - Python backend fallback is disabled. The legacy lqosync Gunicorn service is retired by default."
 log "  - backup_before_apply=true and file_drift_policy=block."
 log "  - v8.1 Rust scheduler authority, live-stable gate, quarantine marker, and last-good snapshot are enabled by promotion."
 
+if as_bool "$RETIRE_PYTHON_BACKEND_SERVICE"; then
+  if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    log "Stopping retired Python backend service: $SERVICE_NAME"
+    systemctl stop "$SERVICE_NAME" || true
+  fi
+  systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+  rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+  systemctl daemon-reload
+  log "Retired legacy Python backend service: $SERVICE_NAME"
+fi
+
 if as_bool "$RESTART_SERVICE"; then
-  log "Restarting $SERVICE_NAME as requested..."
-  systemctl restart "$SERVICE_NAME"
+  log "Restarting $CORE_SERVICE_NAME as requested..."
+  systemctl restart "$CORE_SERVICE_NAME"
 else
-  log "Service not restarted. Run Dry Run first, then restart manually: sudo systemctl restart $SERVICE_NAME"
+  log "Service not restarted. Run verification first, then restart manually: sudo systemctl restart $CORE_SERVICE_NAME"
 fi
 
 bash scripts/rust-authority-journal-audit.sh

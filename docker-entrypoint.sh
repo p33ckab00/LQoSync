@@ -20,6 +20,20 @@ case "$INIT_POLICY" in
     ;;
 esac
 
+as_bool() {
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|y|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+if ! as_bool "${LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE:-false}"; then
+  echo "[LQoSync Docker] Python Gunicorn backend runtime is retired."
+  echo "[LQoSync Docker] This image no longer starts app:app by default."
+  echo "[LQoSync Docker] Use the Rust backend service on bare metal/systemd, or set LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE=true for an explicit legacy override."
+  exit 1
+fi
+
 mkdir -p "$DATA_DIR/backups" "$DATA_DIR/logs" "$DATA_DIR/state" "$DATA_DIR/config_backups" "$DATA_DIR/install_backups" "$LIBREQOS_SRC_DIR"
 INIT_MARKER="$DATA_DIR/state/docker_initialized"
 FORCE_INIT="${LQOSYNC_FORCE_INIT:-false}"

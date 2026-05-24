@@ -99,7 +99,12 @@ echo
 
 if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
   echo "== Service status =="
-  systemctl status lqosync --no-pager || true
+  systemctl status lqosync-core --no-pager || true
+  if systemctl list-unit-files 2>/dev/null | grep -q '^lqosync\.service'; then
+    echo
+    echo "== Retired legacy Python backend service =="
+    systemctl status lqosync --no-pager || true
+  fi
 else
   echo "== Service status =="
   echo "[INFO] systemd is not available in this environment; skipping service status."

@@ -7,15 +7,16 @@ CONFIG_PATH="${CONFIG_PATH:-$LIBREQOS_SRC_DIR/config.json}"
 SHAPED_DEVICES_PATH="${SHAPED_DEVICES_PATH:-$LIBREQOS_SRC_DIR/ShapedDevices.csv}"
 NETWORK_JSON_PATH="${NETWORK_JSON_PATH:-$LIBREQOS_SRC_DIR/network.json}"
 SERVICE_NAME="${LQOSYNC_SERVICE_NAME:-lqosync}"
+CORE_SERVICE_NAME="${LQOSYNC_CORE_SERVICE_NAME:-lqosync-core}"
 OLD_SERVICE_NAME="${LQOSYNC_OLD_SERVICE_NAME:-lqos_shaped_sync}"
 USER_NAME="${LQOSYNC_USER:-lqosync}"
 PORT="${PORT:-9202}"
-# Controls what install.sh does after writing the systemd unit.
-# Default preserves historical behavior. Production wrappers can set
-# LQOSYNC_SERVICE_START_POLICY=enable_only to avoid starting scheduler-capable
-# runtime until the operator has reviewed config and run a dry-run.
+# Controls what install.sh does after writing or reconciling runtime units.
+# In Rust-only backend mode, this policy applies to the Rust core daemon if it
+# is already installed on the host.
 # Allowed: restart | enable_only | leave_stopped
 SERVICE_START_POLICY="${LQOSYNC_SERVICE_START_POLICY:-restart}"
+PYTHON_BACKEND_SERVICE_ENABLED="${LQOSYNC_ENABLE_PYTHON_BACKEND_SERVICE:-false}"
 
 # Smart default: fresh LibreQoS installs get missing files created automatically.
 # If managed files already exist, interactive installs ask what to do; non-interactive
@@ -109,6 +110,13 @@ resolve_init_policy() {
   fi
 
   echo "[LQoSync] Final init policy: $INIT_POLICY"
+}
+
+as_bool() {
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|y|on) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 backup_existing() {
@@ -294,6 +302,7 @@ chown "$USER_NAME:$USER_NAME" "$CONFIG_PATH" "$SHAPED_DEVICES_PATH" "$NETWORK_JS
 chmod 600 "$CONFIG_PATH" || true
 chmod 664 "$SHAPED_DEVICES_PATH" "$NETWORK_JSON_PATH" || true
 
+if as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF2
 [Unit]
 Description=LQoSync Dashboard
@@ -315,6 +324,15 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF2
+else
+  if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    echo "[LQoSync] Stopping retired Python backend service: $SERVICE_NAME"
+    systemctl stop "$SERVICE_NAME" || true
+  fi
+  systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+  rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+  echo "[LQoSync] Python backend service retired: $SERVICE_NAME will not be installed."
+fi
 
 SYSTEMCTL_BIN="$(command -v systemctl || echo /bin/systemctl)"
 PYTHON_BIN="$(command -v python3 || echo /usr/bin/python3)"
@@ -323,7 +341,6 @@ $USER_NAME ALL=(ALL) NOPASSWD: $PYTHON_BIN $LIBREQOS_SRC_DIR/LibreQoS.py --updat
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_scheduler
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqos_node_manager
-$USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosync
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd lqos_scheduler
 $USER_NAME ALL=(ALL) NOPASSWD: $SYSTEMCTL_BIN restart lqosd lqos_scheduler lqos_node_manager
 EOF2
@@ -338,27 +355,43 @@ if systemctl is-active --quiet updatecsv.service; then
 fi
 
 systemctl daemon-reload
-case "$SERVICE_START_POLICY" in
-  restart)
-    systemctl enable "$SERVICE_NAME"
-    systemctl restart "$SERVICE_NAME"
-    echo "[LQoSync] Service policy: enabled and restarted"
-    ;;
-  enable_only)
-    systemctl enable "$SERVICE_NAME"
-    echo "[LQoSync] Service policy: enabled but not started/restarted"
-    echo "[LQoSync] Start manually after review: sudo systemctl start $SERVICE_NAME"
-    ;;
-  leave_stopped)
-    systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-    echo "[LQoSync] Service policy: left stopped and disabled"
-    echo "[LQoSync] Enable later: sudo systemctl enable --now $SERVICE_NAME"
-    ;;
-esac
+RUNTIME_SERVICE_NAME="$SERVICE_NAME"
+if ! as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
+  RUNTIME_SERVICE_NAME="$CORE_SERVICE_NAME"
+fi
+if systemctl list-unit-files 2>/dev/null | grep -q "^${RUNTIME_SERVICE_NAME}\\.service"; then
+  case "$SERVICE_START_POLICY" in
+    restart)
+      systemctl enable "$RUNTIME_SERVICE_NAME"
+      systemctl restart "$RUNTIME_SERVICE_NAME"
+      echo "[LQoSync] Service policy: enabled and restarted ($RUNTIME_SERVICE_NAME)"
+      ;;
+    enable_only)
+      systemctl enable "$RUNTIME_SERVICE_NAME"
+      echo "[LQoSync] Service policy: enabled but not started/restarted ($RUNTIME_SERVICE_NAME)"
+      echo "[LQoSync] Start manually after review: sudo systemctl start $RUNTIME_SERVICE_NAME"
+      ;;
+    leave_stopped)
+      systemctl disable "$RUNTIME_SERVICE_NAME" 2>/dev/null || true
+      systemctl stop "$RUNTIME_SERVICE_NAME" 2>/dev/null || true
+      echo "[LQoSync] Service policy: left stopped and disabled ($RUNTIME_SERVICE_NAME)"
+      echo "[LQoSync] Enable later: sudo systemctl enable --now $RUNTIME_SERVICE_NAME"
+      ;;
+  esac
+else
+  echo "[LQoSync] Runtime service not installed yet: $RUNTIME_SERVICE_NAME"
+  if ! as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
+    echo "[LQoSync] Install the Rust backend daemon with install-rust-stable-safe.sh or scripts/install-rust-core-daemon.sh."
+  fi
+fi
 
-echo "[LQoSync] Installed: http://$(hostname -I | awk '{print $1}'):$PORT"
-echo "[LQoSync] Default login: admin / adminpass"
+if as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
+  echo "[LQoSync] Installed: http://$(hostname -I | awk '{print $1}'):$PORT"
+  echo "[LQoSync] Default login: admin / adminpass"
+else
+  echo "[LQoSync] Rust backend service: $CORE_SERVICE_NAME"
+  echo "[LQoSync] Python backend service retired by default. No Gunicorn/Flask backend unit was installed."
+fi
 echo "[LQoSync] Managed files:"
 echo "  config:        $CONFIG_PATH"
 echo "  shaped CSV:    $SHAPED_DEVICES_PATH"

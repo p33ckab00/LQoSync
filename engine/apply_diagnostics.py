@@ -59,9 +59,9 @@ def _classify(stderr: str, stdout: str, meta: dict[str, Any]) -> dict[str, Any]:
             "target": "/setup-repair",
             "commands": [
                 "cd /opt/LQoSync",
-                "sudo systemctl edit lqosync",
+                "sudo systemctl edit lqosync-core",
                 "# add Environment=LQOSYNC_INSTALL_MODE=baremetal if needed",
-                "sudo systemctl daemon-reload && sudo systemctl restart lqosync",
+                "sudo systemctl daemon-reload && sudo systemctl restart lqosync-core",
             ],
         }
     if "permission denied" in text:
@@ -73,7 +73,7 @@ def _classify(stderr: str, stdout: str, meta: dict[str, Any]) -> dict[str, Any]:
             "commands": [
                 "cd /opt/LQoSync",
                 "sudo bash scripts/restore_libreqos_permissions.sh",
-                "sudo systemctl restart lqosync",
+                "sudo systemctl restart lqosync-core",
             ],
         }
     if "no such file" in text or "filenotfounderror" in text or "not found" in text:

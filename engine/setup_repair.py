@@ -97,8 +97,8 @@ def repair_commands() -> list[dict[str, Any]]:
     return [
         {
             "title": "Repair / reinstall bare-metal safely",
-            "description": "Reapplies service file, sudoers, ACLs, config migration, and runtime folders while preserving live LibreQoS files.",
-            "command": "cd /opt/LQoSync\nsudo systemctl stop lqosync\nsudo LQOSYNC_INIT_POLICY=preserve_existing bash install.sh\nsudo systemctl start lqosync",
+            "description": "Reapplies Rust runtime wiring, sudoers, ACLs, config migration, and runtime folders while preserving live LibreQoS files.",
+            "command": "cd /opt/LQoSync\nsudo systemctl stop lqosync-core\nsudo LQOSYNC_INIT_POLICY=preserve_existing bash install-rust-stable-safe.sh\nsudo systemctl start lqosync-core",
         },
         {
             "title": "Restore LibreQoS permissions after uninstall or stale ACLs",

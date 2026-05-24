@@ -25,4 +25,4 @@ python3 ./scripts/release_check.py
 python3 ./scripts/regression_check.py
 python3 ./scripts/stable_release_check.py
 
-echo "[LQoSync Stable] Complete. Start after review: sudo systemctl start lqosync-core lqosync"
+echo "[LQoSync Stable] Complete. Start after review: sudo systemctl start lqosync-core"

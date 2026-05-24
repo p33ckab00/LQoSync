@@ -35,15 +35,15 @@ usage() {
 LQoSync one-line control
 
 Commands:
-  install   Fresh/adopt install from GitHub branch $BRANCH, preserve LibreQoS files, build Rust, enable services without auto-start surprise.
-  update    Update existing /opt/LQoSync from GitHub branch $BRANCH, preserve LibreQoS files, rebuild Rust, verify.
+  install   Fresh/adopt install from GitHub branch $BRANCH, preserve LibreQoS files, build Rust, and enable the Rust backend service without auto-start surprise.
+  update    Update existing /opt/LQoSync from GitHub branch $BRANCH, preserve LibreQoS files, rebuild Rust, and verify the Rust-only backend runtime.
   uninstall Remove the LQoSync service/runtime integration with safe backups; keep LibreQoS working files unless explicit uninstall env vars say otherwise.
   adopt     Re-apply the lqosync runtime user, ownership, ACLs, and managed-file permissions across /opt/LQoSync and /opt/libreqos/src.
   check     Read-only status check: branch, services, ports, Rust/Cargo, config summary.
   verify    Run package + Rust authority verification scripts.
-  start     Start lqosync-core and lqosync.
-  stop      Stop lqosync and lqosync-core.
-  restart   Restart lqosync-core and lqosync.
+  start     Start lqosync-core.
+  stop      Stop lqosync-core and any stale legacy Python service.
+  restart   Restart lqosync-core.
   repair    Re-run install safely without Git update.
 
 One-line examples:
@@ -268,7 +268,11 @@ run_check() {
   echo
   echo "== Services =="
   systemctl status "$SERVICE_CORE" --no-pager -l 2>/dev/null || true
-  systemctl status "$SERVICE_WEB" --no-pager -l 2>/dev/null || true
+  if systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_WEB}\\.service"; then
+    echo
+    echo "== Retired legacy service =="
+    systemctl status "$SERVICE_WEB" --no-pager -l 2>/dev/null || true
+  fi
   echo
   echo "== Ports =="
   ss -ltnp | grep -E ':9202|:9203|:80|:443' || true
@@ -285,12 +289,32 @@ print('auto_apply=', c.get('app',{}).get('auto_apply'))
 print('rust.enabled=', c.get('rust_core',{}).get('enabled'))
 print('rust.full_authority=', c.get('rust_core',{}).get('full_rust_backend_authority'))
 print('python_mutation_fallback=', c.get('rust_core',{}).get('python_mutation_fallback'))
+print('python_backend_runtime_fallback_disabled=', c.get('rust_core',{}).get('python_backend_runtime_fallback_disabled'))
+print('python_backend_service_removed=', c.get('rust_core',{}).get('python_backend_service_removed'))
 PY
 }
 
-start_services() { systemctl daemon-reload; systemctl start "$SERVICE_CORE" 2>/dev/null || true; systemctl start "$SERVICE_WEB" 2>/dev/null || true; run_check; }
-stop_services() { systemctl stop "$SERVICE_WEB" 2>/dev/null || true; systemctl stop "$SERVICE_CORE" 2>/dev/null || true; systemctl stop lqos_shaped_sync 2>/dev/null || true; }
-restart_services() { systemctl daemon-reload; systemctl restart "$SERVICE_CORE" 2>/dev/null || true; systemctl restart "$SERVICE_WEB" 2>/dev/null || true; run_check; }
+start_services() {
+  systemctl daemon-reload
+  systemctl start "$SERVICE_CORE" 2>/dev/null || true
+  if systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_WEB}\\.service"; then
+    warn "Legacy Python backend service is still installed: $SERVICE_WEB"
+  fi
+  run_check
+}
+stop_services() {
+  systemctl stop "$SERVICE_WEB" 2>/dev/null || true
+  systemctl stop "$SERVICE_CORE" 2>/dev/null || true
+  systemctl stop lqos_shaped_sync 2>/dev/null || true
+}
+restart_services() {
+  systemctl daemon-reload
+  systemctl restart "$SERVICE_CORE" 2>/dev/null || true
+  if systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_WEB}\\.service"; then
+    warn "Legacy Python backend service remains installed: $SERVICE_WEB"
+  fi
+  run_check
+}
 
 case "$COMMAND" in
   install|update)
@@ -304,7 +328,7 @@ case "$COMMAND" in
     run_stable_install
     run_permission_adoption
     run_verify
-    log "Complete. Start WebUI with: sudo /opt/LQoSync/lqosyncctl.sh start"
+    log "Complete. Start Rust backend with: sudo /opt/LQoSync/lqosyncctl.sh start"
     ;;
   repair)
     need_root
