@@ -7,10 +7,14 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1"
+bcrypt = "0.15"
 clap = { version = "4", features = ["derive"] }
 csv = "1"
 hex = "0.4"
+include_dir = "0.7"
+rand = "0.8"
 regex = "1"
+rouille = "3.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

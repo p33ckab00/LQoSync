@@ -35,7 +35,7 @@ usage() {
 LQoSync one-line control
 
 Commands:
-  install   Fresh/adopt install from GitHub branch $BRANCH, preserve LibreQoS files, build Rust, and enable the Rust backend service without auto-start surprise.
+  install   Fresh/adopt install from GitHub branch $BRANCH, preserve LibreQoS files, build Rust, and enable the Rust backend service plus Svelte console without auto-start surprise.
   update    Update existing /opt/LQoSync from GitHub branch $BRANCH, preserve LibreQoS files, rebuild Rust, and verify the Rust-only backend runtime.
   uninstall Remove the LQoSync service/runtime integration with safe backups; keep LibreQoS working files unless explicit uninstall env vars say otherwise.
   adopt     Re-apply the lqosync runtime user, ownership, ACLs, and managed-file permissions across /opt/LQoSync and /opt/libreqos/src.
@@ -277,6 +277,9 @@ run_check() {
   echo "== Ports =="
   ss -ltnp | grep -E ':9202|:9203|:80|:443' || true
   echo
+  echo "== Rust Web Health =="
+  curl -fsS "http://127.0.0.1:9202/healthz" 2>/dev/null || echo "healthz unavailable on 127.0.0.1:9202"
+  echo
   echo "== Config summary =="
   python3 - <<PY 2>/dev/null || true
 import json
@@ -329,6 +332,7 @@ case "$COMMAND" in
     run_permission_adoption
     run_verify
     log "Complete. Start Rust backend with: sudo /opt/LQoSync/lqosyncctl.sh start"
+    log "Rust web console: http://$(hostname -I | awk '{print $1}'):9202"
     ;;
   repair)
     need_root

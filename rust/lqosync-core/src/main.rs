@@ -96,6 +96,7 @@ use lqosync_core::transaction_journal::{
 use lqosync_core::validators::{
     validate_collector_output_payload, validate_config_value, validate_files_payload,
 };
+use lqosync_core::web_server::{run_http_server, WebServerConfig};
 use serde_json::{json, Value};
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -124,21 +125,72 @@ struct Args {
     #[arg(long, default_value_t = false)]
     scheduler: bool,
 
+    /// Run the Rust HTTP/API server used by the Svelte operator UI.
+    #[arg(long, default_value_t = false)]
+    http: bool,
+
+    /// Bind address for the Rust HTTP/API server.
+    #[arg(long, default_value = "0.0.0.0:9202")]
+    http_bind: String,
+
     /// LQoSync config path used by the Rust scheduler authority loop.
     #[arg(long, default_value = "/opt/libreqos/src/config.json")]
     config: String,
+
+    /// Users file path used by the Rust web login/session layer.
+    #[arg(long, default_value = "/opt/LQoSync/users.json")]
+    users: String,
+
+    /// Install directory used by the Rust web runtime.
+    #[arg(long, default_value = "/opt/LQoSync")]
+    install_dir: String,
 }
 
 fn main() {
     let args = Args::parse();
-    if args.daemon {
-        if let Err(e) = run_daemon(&args.socket, args.scheduler, &args.config) {
-            eprintln!("lqosync-core daemon failed: {e}");
+    if args.daemon || args.http {
+        if let Err(e) = run_service(&args) {
+            eprintln!("lqosync-core service failed: {e}");
             std::process::exit(1);
         }
         return;
     }
     run_one_shot();
+}
+
+fn run_service(args: &Args) -> anyhow::Result<()> {
+    #[cfg(unix)]
+    {
+        if args.daemon && args.http {
+            let socket_path = args.socket.clone();
+            let scheduler = args.scheduler;
+            let config_path = args.config.clone();
+            thread::spawn(move || {
+                if let Err(err) = run_socket_daemon(&socket_path, scheduler, &config_path) {
+                    eprintln!("lqosync-core daemon thread failed: {err}");
+                }
+            });
+            return run_http_server(WebServerConfig {
+                bind: args.http_bind.clone(),
+                config_path: args.config.clone(),
+                users_path: args.users.clone(),
+                install_dir: args.install_dir.clone(),
+            });
+        }
+        if args.daemon {
+            return run_socket_daemon(&args.socket, args.scheduler, &args.config);
+        }
+        return run_http_server(WebServerConfig {
+            bind: args.http_bind.clone(),
+            config_path: args.config.clone(),
+            users_path: args.users.clone(),
+            install_dir: args.install_dir.clone(),
+        });
+    }
+    #[cfg(not(unix))]
+    {
+        anyhow::bail!("service mode is only supported on Unix platforms")
+    }
 }
 
 fn run_one_shot() {
@@ -163,7 +215,11 @@ fn run_one_shot() {
 }
 
 #[cfg(unix)]
-fn run_daemon(socket_path: &str, scheduler_enabled: bool, config_path: &str) -> anyhow::Result<()> {
+fn run_socket_daemon(
+    socket_path: &str,
+    scheduler_enabled: bool,
+    config_path: &str,
+) -> anyhow::Result<()> {
     let path = Path::new(socket_path);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -204,7 +260,7 @@ fn run_daemon(socket_path: &str, scheduler_enabled: bool, config_path: &str) -> 
 }
 
 #[cfg(not(unix))]
-fn run_daemon(
+fn run_socket_daemon(
     _socket_path: &str,
     _scheduler_enabled: bool,
     _config_path: &str,

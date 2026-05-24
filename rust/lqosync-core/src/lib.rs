@@ -1,9 +1,8 @@
-//! LQoSync Rust safety core.
+//! LQoSync Rust backend core.
 //!
-//! v0.1 intentionally acts as an optional sidecar validator. Python remains the
-//! WebUI/orchestrator, while this crate provides deterministic parsing and
-//! validation behind a stable JSON protocol that can be used by both a CLI and a
-//! future Unix socket daemon.
+//! This crate now owns the supported backend runtime: validation, scheduler
+//! authority, RouterOS live-read transport, Unix socket daemon operations, and
+//! the Rust web/API server used by the Svelte operator UI.
 
 #![recursion_limit = "256"]
 
@@ -91,3 +90,4 @@ pub mod transaction_history;
 pub mod transaction_journal;
 
 pub mod rust_scheduler;
+pub mod web_server;

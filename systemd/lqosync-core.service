@@ -1,11 +1,12 @@
 [Unit]
-Description=LQoSync Rust Authority Daemon
-After=network.target
+Description=LQoSync Rust Backend Service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 Environment=CONFIG_PATH=/opt/libreqos/src/config.json
-ExecStart=/usr/local/bin/lqosync-core --daemon --socket /run/lqosync-core.sock --scheduler --config /opt/libreqos/src/config.json
+ExecStart=/usr/local/bin/lqosync-core --daemon --http --socket /run/lqosync-core.sock --scheduler --http-bind 0.0.0.0:9202 --config /opt/libreqos/src/config.json --users /opt/LQoSync/users.json --install-dir /opt/LQoSync
 Restart=on-failure
 RestartSec=2
 RuntimeDirectory=lqosync-core

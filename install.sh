@@ -11,6 +11,8 @@ CORE_SERVICE_NAME="${LQOSYNC_CORE_SERVICE_NAME:-lqosync-core}"
 OLD_SERVICE_NAME="${LQOSYNC_OLD_SERVICE_NAME:-lqos_shaped_sync}"
 USER_NAME="${LQOSYNC_USER:-lqosync}"
 PORT="${PORT:-9202}"
+CORE_BIN="${LQOSYNC_CORE_DEST:-/usr/local/bin/lqosync-core}"
+CORE_SERVICE_DEST="${LQOSYNC_CORE_SERVICE_DEST:-/etc/systemd/system/lqosync-core.service}"
 # Controls what install.sh does after writing or reconciling runtime units.
 # In Rust-only backend mode, this policy applies to the Rust core daemon if it
 # is already installed on the host.
@@ -334,6 +336,16 @@ else
   echo "[LQoSync] Python backend service retired: $SERVICE_NAME will not be installed."
 fi
 
+if ! as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
+  if [ -x "$CORE_BIN" ] && [ -f "$INSTALL_DIR/systemd/lqosync-core.service" ]; then
+    install -m 0644 "$INSTALL_DIR/systemd/lqosync-core.service" "$CORE_SERVICE_DEST"
+    echo "[LQoSync] Rust backend service unit installed: $CORE_SERVICE_DEST"
+  else
+    echo "[LQoSync] Rust backend service binary not present yet at $CORE_BIN"
+    echo "[LQoSync] Build/install it with install-rust-stable-safe.sh or scripts/install-rust-core-daemon.sh."
+  fi
+fi
+
 SYSTEMCTL_BIN="$(command -v systemctl || echo /bin/systemctl)"
 PYTHON_BIN="$(command -v python3 || echo /usr/bin/python3)"
 cat > /etc/sudoers.d/lqosync <<EOF2
@@ -390,6 +402,8 @@ if as_bool "$PYTHON_BACKEND_SERVICE_ENABLED"; then
   echo "[LQoSync] Default login: admin / adminpass"
 else
   echo "[LQoSync] Rust backend service: $CORE_SERVICE_NAME"
+  echo "[LQoSync] Rust web console: http://$(hostname -I | awk '{print $1}'):$PORT"
+  echo "[LQoSync] Default login: admin / adminpass"
   echo "[LQoSync] Python backend service retired by default. No Gunicorn/Flask backend unit was installed."
 fi
 echo "[LQoSync] Managed files:"

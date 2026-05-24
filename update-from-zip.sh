@@ -103,4 +103,7 @@ Service policy: $SERVICE_START_POLICY
 
 If service was not started by policy:
   sudo systemctl start lqosync-core
+
+Rust web console:
+  http://$(hostname -I | awk '{print $1}'):9202
 NEXT

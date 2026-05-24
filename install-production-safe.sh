@@ -16,6 +16,8 @@ set -euo pipefail
 #
 # Start service manually after review:
 #   sudo systemctl start lqosync-core
+# Then open:
+#   http://<server-ip>:9202
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${LQOSYNC_INSTALL_DIR:-/opt/LQoSync}"
@@ -215,6 +217,8 @@ log "Production-safe install wrapper complete."
 log "Backup: $BACKUP_DIR"
 if [ "$SERVICE_START_POLICY" = "enable_only" ] || [ "$SERVICE_START_POLICY" = "leave_stopped" ]; then
   log "Next: review config, run CLI/verification checks, then start with: sudo systemctl start $CORE_SERVICE_NAME"
+  log "Rust web console: http://$(hostname -I | awk '{print $1}'):9202"
 else
   log "Service was restarted by requested policy. Verify: sudo systemctl status $CORE_SERVICE_NAME --no-pager"
+  log "Rust web console: http://$(hostname -I | awk '{print $1}'):9202"
 fi

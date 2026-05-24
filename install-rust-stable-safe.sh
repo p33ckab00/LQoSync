@@ -26,3 +26,4 @@ python3 ./scripts/regression_check.py
 python3 ./scripts/stable_release_check.py
 
 echo "[LQoSync Stable] Complete. Start after review: sudo systemctl start lqosync-core"
+echo "[LQoSync Stable] Rust web console: http://$(hostname -I | awk '{print $1}'):9202"

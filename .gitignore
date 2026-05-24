@@ -26,6 +26,10 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+.local/
 
 # Rust build outputs
 rust/lqosync-core/target/
+
+# Web frontend
+web/node_modules/

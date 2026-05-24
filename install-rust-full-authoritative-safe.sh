@@ -35,3 +35,4 @@ fi
 
 echo "[LQoSync Rust Full Authority] Complete. Rust backend service policy: $SERVICE_START_POLICY"
 echo "[LQoSync Rust Full Authority] Recommended next step: run verification checks, then start/restart lqosync-core manually if needed."
+echo "[LQoSync Rust Full Authority] Rust web console: http://$(hostname -I | awk '{print $1}'):9202"

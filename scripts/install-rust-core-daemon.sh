@@ -20,16 +20,16 @@ case "$SERVICE_START_POLICY" in
     else
       systemctl start "${SERVICE_NAME}.service"
     fi
-    echo "Installed and started ${SERVICE_NAME} Rust authority daemon service with scheduler authority enabled by systemd unit."
+    echo "Installed and started ${SERVICE_NAME} Rust backend service with scheduler, socket, and HTTP authority enabled by systemd unit."
     ;;
   enable_only)
     systemctl enable "${SERVICE_NAME}.service"
-    echo "Installed and enabled ${SERVICE_NAME} Rust authority daemon service without starting it."
+    echo "Installed and enabled ${SERVICE_NAME} Rust backend service without starting it."
     ;;
   leave_stopped)
     systemctl disable "${SERVICE_NAME}.service" 2>/dev/null || true
     systemctl stop "${SERVICE_NAME}.service" 2>/dev/null || true
-    echo "Installed ${SERVICE_NAME} Rust authority daemon service and left it stopped by policy."
+    echo "Installed ${SERVICE_NAME} Rust backend service and left it stopped by policy."
     ;;
   *)
     echo "Invalid LQOSYNC_CORE_SERVICE_START_POLICY=$SERVICE_START_POLICY" >&2
