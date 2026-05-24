@@ -3,7 +3,7 @@ use crate::atomic_state::atomic_write_json_state_payload;
 use crate::protocol::{Diagnostic, Severity};
 use crate::rust_native_dry_run_preview::{
     build_rust_native_dry_run_preview_payload, empty_csv_text, load_current_rows, merge_diags,
-    response_envelope, rows_to_csv_text, sha256_text,
+    response_envelope, rows_to_csv_text, sha256_text, supplied_read_results,
 };
 use crate::rust_sync_engine_shadow_preview::build_rust_sync_engine_shadow_preview_payload;
 use crate::transaction_journal::{
@@ -91,6 +91,84 @@ fn diag_messages(items: &[Diagnostic]) -> Vec<String> {
             }
         })
         .collect()
+}
+
+fn collector_authority_mode(config: &Value) -> &str {
+    str_path(
+        config,
+        &["rust_core", "collector_authority_mode"],
+        "rust_live_read_authoritative",
+    )
+}
+
+fn routeros_transport_authority_allows_live_read(config: &Value) -> bool {
+    matches!(
+        str_path(
+            config,
+            &["rust_core", "routeros_transport_authority"],
+            "plan_only",
+        ),
+        "live_read_adapter_pilot" | "live_read_adapter_authoritative"
+    )
+}
+
+fn routeros_live_read_gate_gaps(config: &Value) -> Vec<String> {
+    let mut missing = Vec::new();
+    if !bool_path(
+        config,
+        &["rust_core", "allow_rust_routeros_live_reads"],
+        false,
+    ) {
+        missing.push("allow_rust_routeros_live_reads".to_string());
+    }
+    if !bool_path(
+        config,
+        &["rust_core", "allow_rust_routeros_credentials"],
+        false,
+    ) {
+        missing.push("allow_rust_routeros_credentials".to_string());
+    }
+    if !bool_path(
+        config,
+        &["rust_core", "allow_rust_routeros_tcp_connect"],
+        false,
+    ) {
+        missing.push("allow_rust_routeros_tcp_connect".to_string());
+    }
+    if !bool_path(
+        config,
+        &["rust_core", "allow_rust_routeros_live_read_adapter"],
+        false,
+    ) {
+        missing.push("allow_rust_routeros_live_read_adapter".to_string());
+    }
+    if !bool_path(config, &["rust_core", "routeros_live_read_pilot"], false) {
+        missing.push("routeros_live_read_pilot".to_string());
+    }
+    if !bool_path(
+        config,
+        &["rust_core", "routeros_live_read_adapter_pilot"],
+        false,
+    ) {
+        missing.push("routeros_live_read_adapter_pilot".to_string());
+    }
+    if !routeros_transport_authority_allows_live_read(config) {
+        missing.push("routeros_transport_authority=live_read_adapter_authoritative".to_string());
+    }
+    missing
+}
+
+fn should_defer_routeros_transport(config: &Value, payload: &Value, mode: &str) -> bool {
+    if mode == "dry_run" {
+        return false;
+    }
+    if collector_authority_mode(config) != "rust_validated_python_transport" {
+        return false;
+    }
+    if !supplied_read_results(payload).is_empty() {
+        return false;
+    }
+    !routeros_live_read_gate_gaps(config).is_empty()
 }
 
 fn detail_text(value: &Value) -> String {
@@ -1380,9 +1458,29 @@ pub fn run_rust_cycle_authority_payload(
         map.insert("state".to_string(), current_state.clone());
     }
 
+    let transport_deferred =
+        should_defer_routeros_transport(&config, &native_preview_payload, mode);
+    let transport_gate_gaps = if transport_deferred {
+        routeros_live_read_gate_gaps(&config)
+    } else {
+        Vec::new()
+    };
+
     let (native_preview_result, preview_errors, preview_warnings) =
         build_rust_native_dry_run_preview_payload(&native_preview_payload);
-    merge_diags(&mut errors, preview_errors.clone());
+    if transport_deferred {
+        warnings.push(warning(
+            "rust_run_cycle_transport_deferred",
+            Some("rust_core.collector_authority_mode".to_string()),
+            &format!(
+                "Rust run-cycle authority deferred live RouterOS transport because collector_authority_mode={} still requires supplied RouterOS read results while these live-read gates remain off: {}.",
+                collector_authority_mode(&config),
+                transport_gate_gaps.join(", ")
+            ),
+        ));
+    } else {
+        merge_diags(&mut errors, preview_errors.clone());
+    }
     merge_diags(&mut warnings, preview_warnings.clone());
     let native_preview_envelope = response_envelope(
         "build-rust-native-dry-run-preview",
@@ -1418,6 +1516,69 @@ pub fn run_rust_cycle_authority_payload(
                 "warnings".to_string(),
                 json!(string_list(map.get("warnings"))),
             );
+        }
+        return (result, errors, warnings);
+    }
+
+    if transport_deferred {
+        let finished_at = now_unix_seconds();
+        let duration_seconds = started.elapsed().as_secs_f64();
+        let result = json!({
+            "mode": mode,
+            "status": "rust_run_cycle_transport_deferred",
+            "source": "rust_run_cycle_authority",
+            "started_at": format!("{}", finished_at.saturating_sub(duration_seconds.floor() as u64)),
+            "finished_at": format!("{}", finished_at),
+            "duration_seconds": ((duration_seconds * 1000.0).round() / 1000.0),
+            "routers_processed": 0,
+            "router_errors": [],
+            "warnings": diag_messages(&warnings),
+            "errors": [],
+            "counts": {
+                "csv_rows": 0,
+                "nodes": 0
+            },
+            "csv_changed": false,
+            "network_changed": false,
+            "files_changed": false,
+            "libreqos_triggered": false,
+            "libreqos_exit_code": Value::Null,
+            "libreqos_stdout": "",
+            "libreqos_stderr": "",
+            "diff": {
+                "csv": {},
+                "network": {},
+                "rust_native_preview": native_preview_result.pointer("/diff/rust_native_preview").cloned().unwrap_or_else(|| json!({})),
+                "rust_run_cycle_authority": {
+                    "native_preview": native_preview_envelope,
+                    "blocked_before_apply": false,
+                    "transport_deferred": true,
+                    "collector_authority_mode": collector_authority_mode(&config),
+                    "supplied_read_results_required": true,
+                    "routeros_live_read_gate_gaps": transport_gate_gaps,
+                }
+            },
+            "meta": {
+                "engine": "rust_run_cycle_authority",
+                "native_run_cycle_authority_enabled": native_enabled,
+                "native_run_cycle_authority_python_fallback": python_fallback,
+                "collector_authority_mode": collector_authority_mode(&config),
+                "transport_deferred": true,
+            },
+            "node_math": {},
+            "file_hashes": {},
+            "timings": {
+                "rust_run_cycle_authority_ms": ((duration_seconds * 1000.0 * 1000.0).round() / 1000.0),
+                "rust_native_preview_ms": native_preview_result.pointer("/timings/rust_native_dry_run_preview_ms").cloned().unwrap_or_else(|| json!(0)),
+            },
+            "timeline": [],
+        });
+        if let Err(err) = write_runtime_state(&config, &current_state, &result, mode) {
+            warnings.push(warning(
+                "rust_run_cycle_authority_state_write_failed",
+                Some("paths.runtime_state".to_string()),
+                &format!("Runtime state write failed: {err}"),
+            ));
         }
         return (result, errors, warnings);
     }
@@ -2221,4 +2382,128 @@ pub fn run_rust_cycle_authority_payload(
     }
 
     (result, errors, warnings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    fn write_text(path: &Path, text: &str) {
+        fs::write(path, text).expect("write fixture");
+    }
+
+    fn base_config(root: &Path, collector_mode: &str) -> Value {
+        json!({
+            "app": {
+                "auto_apply": false
+            },
+            "paths": {
+                "shaped_devices_csv": root.join("ShapedDevices.csv").to_string_lossy().to_string(),
+                "network_json": root.join("network.json").to_string_lossy().to_string(),
+                "runtime_state": root.join("runtime_state.json").to_string_lossy().to_string(),
+                "transaction_journal": root.join("transaction_journal.jsonl").to_string_lossy().to_string()
+            },
+            "libreqos": {
+                "cmd": "/bin/true",
+                "working_dir": root.to_string_lossy().to_string()
+            },
+            "scheduler": {
+                "enabled": true
+            },
+            "defaults": {
+                "default_pppoe_rate": "10M/10M",
+                "min_rate_percentage": 0.5
+            },
+            "routers": [{
+                "name": "RB5009",
+                "enabled": true,
+                "root_download_mbps": 100,
+                "root_upload_mbps": 100,
+                "pppoe": {
+                    "enabled": true
+                }
+            }],
+            "rust_core": {
+                "native_run_cycle_authority_enabled": true,
+                "native_run_cycle_authority_python_fallback": false,
+                "collector_authority_mode": collector_mode,
+                "allow_rust_routeros_live_reads": false,
+                "allow_rust_routeros_credentials": false,
+                "allow_rust_routeros_tcp_connect": false,
+                "allow_rust_routeros_live_read_adapter": false,
+                "routeros_live_read_pilot": false,
+                "routeros_live_read_adapter_pilot": false,
+                "routeros_transport_authority": "plan_only"
+            }
+        })
+    }
+
+    #[test]
+    fn defers_transport_when_python_transport_mode_has_no_supplied_results() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path();
+        let config_path = root.join("config.json");
+        write_text(&root.join("ShapedDevices.csv"), "Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment\n");
+        write_text(&root.join("network.json"), "{}\n");
+        write_text(
+            &config_path,
+            &(serde_json::to_string_pretty(&base_config(root, "rust_validated_python_transport"))
+                .expect("config json")
+                + "\n"),
+        );
+
+        let (result, errors, warnings) = run_rust_cycle_authority_payload(&json!({
+            "config_path": config_path.to_string_lossy().to_string(),
+            "mode": "scheduled",
+            "execute": true
+        }));
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("rust_run_cycle_transport_deferred")
+        );
+        assert!(warnings
+            .iter()
+            .any(|item| item.code == "rust_run_cycle_transport_deferred"));
+
+        let runtime: Value = serde_json::from_str(
+            &fs::read_to_string(root.join("runtime_state.json")).expect("runtime state"),
+        )
+        .expect("runtime json");
+        assert_eq!(
+            runtime.get("scheduler_state").and_then(Value::as_str),
+            Some("idle")
+        );
+        assert!(runtime.get("last_error").is_some_and(Value::is_null));
+    }
+
+    #[test]
+    fn keeps_fail_closed_preview_block_when_transport_mode_is_not_staged() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path();
+        let config_path = root.join("config.json");
+        write_text(&root.join("ShapedDevices.csv"), "Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment\n");
+        write_text(&root.join("network.json"), "{}\n");
+        write_text(
+            &config_path,
+            &(serde_json::to_string_pretty(&base_config(root, "rust_live_read_authoritative"))
+                .expect("config json")
+                + "\n"),
+        );
+
+        let (result, errors, _warnings) = run_rust_cycle_authority_payload(&json!({
+            "config_path": config_path.to_string_lossy().to_string(),
+            "mode": "scheduled",
+            "execute": true
+        }));
+
+        assert!(!errors.is_empty());
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("rust_run_cycle_preview_blocked")
+        );
+    }
 }

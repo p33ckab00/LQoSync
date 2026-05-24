@@ -20,7 +20,12 @@ fn config_value<'a>(payload: &'a Value, key: &str) -> Option<&'a Value> {
     payload
         .get("rust_core")
         .and_then(|v| v.get(key))
-        .or_else(|| payload.get("config").and_then(|c| c.get("rust_core")).and_then(|v| v.get(key)))
+        .or_else(|| {
+            payload
+                .get("config")
+                .and_then(|c| c.get("rust_core"))
+                .and_then(|v| v.get(key))
+        })
 }
 
 fn router_value(payload: &Value) -> Value {
@@ -28,12 +33,22 @@ fn router_value(payload: &Value) -> Value {
         return router.clone();
     }
     let requested = payload.get("router").and_then(Value::as_str).unwrap_or("");
-    if let Some(routers) = payload.get("config").and_then(|c| c.get("routers")).and_then(Value::as_array) {
+    if let Some(routers) = payload
+        .get("config")
+        .and_then(|c| c.get("routers"))
+        .and_then(Value::as_array)
+    {
         for router in routers {
-            if !router.get("enabled").and_then(Value::as_bool).unwrap_or(true) {
+            if !router
+                .get("enabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+            {
                 continue;
             }
-            if requested.is_empty() || router.get("name").and_then(Value::as_str).unwrap_or("") == requested {
+            if requested.is_empty()
+                || router.get("name").and_then(Value::as_str).unwrap_or("") == requested
+            {
                 return router.clone();
             }
         }
@@ -42,21 +57,28 @@ fn router_value(payload: &Value) -> Value {
 }
 
 fn u16_value(v: Option<&Value>, default: u16) -> u16 {
-    v.and_then(Value::as_u64).and_then(|n| u16::try_from(n).ok()).unwrap_or(default)
+    v.and_then(Value::as_u64)
+        .and_then(|n| u16::try_from(n).ok())
+        .unwrap_or(default)
 }
 
 fn timeout_seconds(payload: &Value) -> u64 {
     payload
         .get("timeout_seconds")
         .and_then(Value::as_u64)
-        .or_else(|| config_value(payload, "routeros_live_read_timeout_seconds").and_then(Value::as_u64))
+        .or_else(|| {
+            config_value(payload, "routeros_live_read_timeout_seconds").and_then(Value::as_u64)
+        })
         .unwrap_or(5)
         .clamp(1, 30)
 }
 
 fn sensitive_key(key: &str) -> bool {
     let lowered = key.to_ascii_lowercase();
-    lowered.contains("password") || lowered.contains("secret") || lowered.contains("token") || lowered.contains("key")
+    lowered.contains("password")
+        || lowered.contains("secret")
+        || lowered.contains("token")
+        || lowered.contains("key")
 }
 
 fn merge_diags(target: &mut Vec<Diagnostic>, mut source: Vec<Diagnostic>) {
@@ -69,11 +91,26 @@ fn encode_length(len: usize) -> Vec<u8> {
     } else if len < 0x4000 {
         vec![((len >> 8) as u8) | 0x80, (len & 0xff) as u8]
     } else if len < 0x20_0000 {
-        vec![((len >> 16) as u8) | 0xC0, ((len >> 8) & 0xff) as u8, (len & 0xff) as u8]
+        vec![
+            ((len >> 16) as u8) | 0xC0,
+            ((len >> 8) & 0xff) as u8,
+            (len & 0xff) as u8,
+        ]
     } else if len < 0x1000_0000 {
-        vec![((len >> 24) as u8) | 0xE0, ((len >> 16) & 0xff) as u8, ((len >> 8) & 0xff) as u8, (len & 0xff) as u8]
+        vec![
+            ((len >> 24) as u8) | 0xE0,
+            ((len >> 16) & 0xff) as u8,
+            ((len >> 8) & 0xff) as u8,
+            (len & 0xff) as u8,
+        ]
     } else {
-        vec![0xF0, ((len >> 24) & 0xff) as u8, ((len >> 16) & 0xff) as u8, ((len >> 8) & 0xff) as u8, (len & 0xff) as u8]
+        vec![
+            0xF0,
+            ((len >> 24) & 0xff) as u8,
+            ((len >> 16) & 0xff) as u8,
+            ((len >> 8) & 0xff) as u8,
+            (len & 0xff) as u8,
+        ]
     }
 }
 
@@ -94,11 +131,17 @@ fn decode_length<R: Read>(reader: &mut R) -> std::io::Result<usize> {
     } else if (b & 0xF0) == 0xE0 {
         let mut rest = [0u8; 3];
         reader.read_exact(&mut rest)?;
-        Ok((((b & !0xF0) as usize) << 24) | ((rest[0] as usize) << 16) | ((rest[1] as usize) << 8) | rest[2] as usize)
+        Ok((((b & !0xF0) as usize) << 24)
+            | ((rest[0] as usize) << 16)
+            | ((rest[1] as usize) << 8)
+            | rest[2] as usize)
     } else {
         let mut rest = [0u8; 4];
         reader.read_exact(&mut rest)?;
-        Ok(((rest[0] as usize) << 24) | ((rest[1] as usize) << 16) | ((rest[2] as usize) << 8) | rest[3] as usize)
+        Ok(((rest[0] as usize) << 24)
+            | ((rest[1] as usize) << 16)
+            | ((rest[2] as usize) << 8)
+            | rest[3] as usize)
     }
 }
 
@@ -120,12 +163,19 @@ fn read_sentence(stream: &mut TcpStream) -> std::io::Result<Vec<String>> {
             break;
         }
         if len > 1024 * 1024 {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "RouterOS API word is too large"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "RouterOS API word is too large",
+            ));
         }
         let mut buf = vec![0u8; len];
         stream.read_exact(&mut buf)?;
-        let word = String::from_utf8(buf)
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "RouterOS API word was not UTF-8"))?;
+        let word = String::from_utf8(buf).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "RouterOS API word was not UTF-8",
+            )
+        })?;
         words.push(word);
     }
     Ok(words)
@@ -173,7 +223,13 @@ fn read_until_done(stream: &mut TcpStream) -> std::io::Result<(Vec<Value>, Vec<V
     Ok((rows, traps, sentence_count))
 }
 
-fn live_read(payload: &Value, sentence_words: &[String], router_name: &str, source: &str, path: &str) -> Result<Value, String> {
+fn live_read(
+    payload: &Value,
+    sentence_words: &[String],
+    router_name: &str,
+    source: &str,
+    path: &str,
+) -> Result<Value, String> {
     let router = router_value(payload);
     let address = payload
         .get("address")
@@ -182,30 +238,56 @@ fn live_read(payload: &Value, sentence_words: &[String], router_name: &str, sour
         .unwrap_or("")
         .trim()
         .to_string();
-    let username = router.get("username").and_then(Value::as_str).unwrap_or("").to_string();
-    let password = router.get("password").and_then(Value::as_str).unwrap_or("").to_string();
+    let username = router
+        .get("username")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let password = router
+        .get("password")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let port = u16_value(payload.get("port").or_else(|| router.get("port")), 8728);
     if address.is_empty() {
         return Err("Router address is required for Rust RouterOS live read adapter.".to_string());
     }
     if username.is_empty() || password.is_empty() {
-        return Err("Router username and password are required for Rust RouterOS live read adapter.".to_string());
+        return Err(
+            "Router username and password are required for Rust RouterOS live read adapter."
+                .to_string(),
+        );
     }
     if sentence_words.is_empty() {
         return Err("RouterOS live read adapter requires encoded API sentence words.".to_string());
     }
     let timeout = Duration::from_secs(timeout_seconds(payload));
     let target = format!("{address}:{port}");
-    let mut addrs = target.to_socket_addrs().map_err(|e| format!("Router address resolution failed: {e}"))?;
-    let sock_addr = addrs.next().ok_or_else(|| "Router address did not resolve to a socket address.".to_string())?;
+    let mut addrs = target
+        .to_socket_addrs()
+        .map_err(|e| format!("Router address resolution failed: {e}"))?;
+    let sock_addr = addrs
+        .next()
+        .ok_or_else(|| "Router address did not resolve to a socket address.".to_string())?;
     let start = Instant::now();
-    let mut stream = TcpStream::connect_timeout(&sock_addr, timeout).map_err(|e| format!("RouterOS TCP connect failed: {e}"))?;
-    stream.set_read_timeout(Some(timeout)).map_err(|e| format!("Failed setting RouterOS read timeout: {e}"))?;
-    stream.set_write_timeout(Some(timeout)).map_err(|e| format!("Failed setting RouterOS write timeout: {e}"))?;
+    let mut stream = TcpStream::connect_timeout(&sock_addr, timeout)
+        .map_err(|e| format!("RouterOS TCP connect failed: {e}"))?;
+    stream
+        .set_read_timeout(Some(timeout))
+        .map_err(|e| format!("Failed setting RouterOS read timeout: {e}"))?;
+    stream
+        .set_write_timeout(Some(timeout))
+        .map_err(|e| format!("Failed setting RouterOS write timeout: {e}"))?;
 
-    let login_words = vec!["/login".to_string(), format!("=name={username}"), format!("=password={password}")];
-    write_sentence(&mut stream, &login_words).map_err(|e| format!("RouterOS login write failed: {e}"))?;
-    let (_login_rows, login_traps, login_sentence_count) = read_until_done(&mut stream).map_err(|e| format!("RouterOS login read failed: {e}"))?;
+    let login_words = vec![
+        "/login".to_string(),
+        format!("=name={username}"),
+        format!("=password={password}"),
+    ];
+    write_sentence(&mut stream, &login_words)
+        .map_err(|e| format!("RouterOS login write failed: {e}"))?;
+    let (_login_rows, login_traps, login_sentence_count) =
+        read_until_done(&mut stream).map_err(|e| format!("RouterOS login read failed: {e}"))?;
     if !login_traps.is_empty() {
         let trap_count = login_traps.len();
         return Ok(json!({
@@ -220,8 +302,10 @@ fn live_read(payload: &Value, sentence_words: &[String], router_name: &str, sour
         }));
     }
 
-    write_sentence(&mut stream, sentence_words).map_err(|e| format!("RouterOS read sentence write failed: {e}"))?;
-    let (rows, traps, read_sentence_count) = read_until_done(&mut stream).map_err(|e| format!("RouterOS read reply failed: {e}"))?;
+    write_sentence(&mut stream, sentence_words)
+        .map_err(|e| format!("RouterOS read sentence write failed: {e}"))?;
+    let (rows, traps, read_sentence_count) =
+        read_until_done(&mut stream).map_err(|e| format!("RouterOS read reply failed: {e}"))?;
     let status = if traps.is_empty() { "ok" } else { "trap" };
     let row_count = rows.len();
     let trap_count = traps.len();
@@ -244,8 +328,13 @@ fn live_read(payload: &Value, sentence_words: &[String], router_name: &str, sour
 }
 
 fn live_requested(payload: &Value) -> bool {
-    matches!(str_value(payload.get("adapter"), "contract"), "live" | "tcp" | "routeros")
-        || matches!(str_value(payload.get("mode"), "contract"), "live" | "live_read" | "execute_live" | "authenticated_live_read")
+    matches!(
+        str_value(payload.get("adapter"), "contract"),
+        "live" | "tcp" | "routeros"
+    ) || matches!(
+        str_value(payload.get("mode"), "contract"),
+        "live" | "live_read" | "execute_live" | "authenticated_live_read"
+    )
 }
 
 fn router_name_from_payload(payload: &Value) -> String {
@@ -270,12 +359,21 @@ fn source_from_path(path: &str) -> &'static str {
     }
 }
 
+fn authority_allows_live_read_adapter(authority: &str) -> bool {
+    matches!(
+        authority,
+        "live_read_adapter_pilot" | "live_read_adapter_authoritative"
+    )
+}
+
 /// Build or execute the guarded live RouterOS read adapter pilot.
 ///
 /// Contract mode performs no network I/O. Live mode is allowed to open one
 /// RouterOS API connection and run one read-only `print` command only when every
 /// live-read gate is enabled. Python collectors remain authoritative.
-pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn run_routeros_live_read_adapter_pilot_payload(
+    payload: &Value,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors: Vec<Diagnostic> = Vec::new();
     let mut warnings: Vec<Diagnostic> = Vec::new();
 
@@ -286,12 +384,27 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
     let router_name = router_name_from_payload(payload);
     let source = str_value(payload.get("source"), source_from_path(path));
 
-    let allow_live_reads = bool_value(config_value(payload, "allow_rust_routeros_live_reads"), false);
-    let allow_credentials = bool_value(config_value(payload, "allow_rust_routeros_credentials"), false);
-    let allow_tcp = bool_value(config_value(payload, "allow_rust_routeros_tcp_connect"), false);
-    let allow_live_adapter = bool_value(config_value(payload, "allow_rust_routeros_live_read_adapter"), false);
+    let allow_live_reads = bool_value(
+        config_value(payload, "allow_rust_routeros_live_reads"),
+        false,
+    );
+    let allow_credentials = bool_value(
+        config_value(payload, "allow_rust_routeros_credentials"),
+        false,
+    );
+    let allow_tcp = bool_value(
+        config_value(payload, "allow_rust_routeros_tcp_connect"),
+        false,
+    );
+    let allow_live_adapter = bool_value(
+        config_value(payload, "allow_rust_routeros_live_read_adapter"),
+        false,
+    );
     let live_read_pilot = bool_value(config_value(payload, "routeros_live_read_pilot"), false);
-    let live_adapter_pilot = bool_value(config_value(payload, "routeros_live_read_adapter_pilot"), false);
+    let live_adapter_pilot = bool_value(
+        config_value(payload, "routeros_live_read_adapter_pilot"),
+        false,
+    );
     let authority = config_value(payload, "routeros_transport_authority")
         .and_then(Value::as_str)
         .unwrap_or("plan_only");
@@ -301,7 +414,8 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
         map.insert("execute".to_string(), json!(false));
         map.insert("mode".to_string(), json!("rehearsal"));
     }
-    let (tcp_contract, tcp_errors, tcp_warnings) = run_routeros_tcp_connectivity_pilot_payload(&tcp_payload);
+    let (tcp_contract, tcp_errors, tcp_warnings) =
+        run_routeros_tcp_connectivity_pilot_payload(&tcp_payload);
     merge_diags(&mut errors, tcp_errors);
     merge_diags(&mut warnings, tcp_warnings);
 
@@ -309,9 +423,11 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
     if let Value::Object(ref mut map) = auth_payload {
         map.insert("adapter".to_string(), json!("fixture"));
         map.insert("mode".to_string(), json!("contract"));
-        map.entry("fixture_reply_words".to_string()).or_insert_with(|| json!(["!done"]));
+        map.entry("fixture_reply_words".to_string())
+            .or_insert_with(|| json!(["!done"]));
     }
-    let (auth_session, auth_errors, auth_warnings) = build_routeros_auth_session_contract_payload(&auth_payload);
+    let (auth_session, auth_errors, auth_warnings) =
+        build_routeros_auth_session_contract_payload(&auth_payload);
     merge_diags(&mut errors, auth_errors);
     merge_diags(&mut warnings, auth_warnings);
 
@@ -321,7 +437,8 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
         "execute": false,
         "mode": "encode"
     });
-    let (api_sentence, sentence_errors, sentence_warnings) = build_routeros_api_sentence_payload(&sentence_payload);
+    let (api_sentence, sentence_errors, sentence_warnings) =
+        build_routeros_api_sentence_payload(&sentence_payload);
     merge_diags(&mut errors, sentence_errors);
     merge_diags(&mut warnings, sentence_warnings);
 
@@ -329,15 +446,17 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
         .get("authenticated")
         .and_then(Value::as_bool)
         .unwrap_or(false)
-        && auth_session.get("status").and_then(Value::as_str) == Some("auth_session_contract_ready");
+        && auth_session.get("status").and_then(Value::as_str)
+            == Some("auth_session_contract_ready");
 
+    let authoritative_transport = authority_allows_live_read_adapter(authority);
     let gates_ready = allow_live_reads
         && allow_credentials
         && allow_tcp
         && allow_live_adapter
         && live_read_pilot
         && live_adapter_pilot
-        && authority == "live_read_adapter_pilot";
+        && authoritative_transport;
 
     let mut live_result = Value::Null;
     let mut live_read_executed = false;
@@ -352,37 +471,48 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
     let sentence_words: Vec<String> = api_sentence
         .get("sentence_words")
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(Value::as_str).map(|s| s.to_string()).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|s| s.to_string())
+                .collect()
+        })
         .unwrap_or_default();
 
     if execute || live_requested(payload) {
         if !gates_ready {
-            let mut missing = Vec::new();
+            let mut missing: Vec<String> = Vec::new();
             if !allow_live_reads {
-                missing.push("allow_rust_routeros_live_reads");
+                missing.push("allow_rust_routeros_live_reads".to_string());
             }
             if !allow_credentials {
-                missing.push("allow_rust_routeros_credentials");
+                missing.push("allow_rust_routeros_credentials".to_string());
             }
             if !allow_tcp {
-                missing.push("allow_rust_routeros_tcp_connect");
+                missing.push("allow_rust_routeros_tcp_connect".to_string());
             }
             if !allow_live_adapter {
-                missing.push("allow_rust_routeros_live_read_adapter");
+                missing.push("allow_rust_routeros_live_read_adapter".to_string());
             }
             if !live_read_pilot {
-                missing.push("routeros_live_read_pilot");
+                missing.push("routeros_live_read_pilot".to_string());
             }
             if !live_adapter_pilot {
-                missing.push("routeros_live_read_adapter_pilot");
+                missing.push("routeros_live_read_adapter_pilot".to_string());
             }
-            if authority != "live_read_adapter_pilot" {
-                missing.push("routeros_transport_authority=live_read_adapter_pilot");
+            if !authoritative_transport {
+                missing.push(
+                    "routeros_transport_authority=live_read_adapter_authoritative".to_string(),
+                );
             }
             errors.push(Diagnostic::error(
                 "routeros_live_read_adapter_gates_not_ready",
                 Some("rust_core".to_string()),
-                format!("Rust RouterOS live read adapter requested, but required gates are not enabled: {}.", missing.join(", ")),
+                format!(
+                    "Rust RouterOS live read adapter requested, but required gates are not enabled: {}.",
+                    missing.join(", ")
+                ),
             ));
             live_adapter_implemented = false;
             live_transport_supported = false;
@@ -392,15 +522,23 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
             api_sentence_write_count = 2;
             match live_read(payload, &sentence_words, &router_name, source, path) {
                 Ok(read_result) => {
-                    live_read_executed = read_result.get("status").and_then(Value::as_str) == Some("ok");
-                    api_reply_read_count = read_result.get("login_sentence_count").and_then(Value::as_u64).unwrap_or(0)
-                        + read_result.get("read_sentence_count").and_then(Value::as_u64).unwrap_or(0);
+                    live_read_executed =
+                        read_result.get("status").and_then(Value::as_str) == Some("ok");
+                    api_reply_read_count = read_result
+                        .get("login_sentence_count")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0)
+                        + read_result
+                            .get("read_sentence_count")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(0);
                     let validation_payload = json!({
                         "plan": {"commands": [{"router": router_name, "source": source, "path": path, "required": true}]},
                         "results": [read_result.clone()],
                         "strict": true
                     });
-                    let (validation, validation_errors, validation_warnings) = validate_routeros_read_results_payload(&validation_payload);
+                    let (validation, validation_errors, validation_warnings) =
+                        validate_routeros_read_results_payload(&validation_payload);
                     merge_diags(&mut errors, validation_errors);
                     merge_diags(&mut warnings, validation_warnings);
                     read_validation = validation;
@@ -433,8 +571,8 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
         "adapter": adapter,
         "requested_mode": mode,
         "authority": authority,
-        "authority_required": "live_read_adapter_pilot",
-        "full_rust_backend": false,
+        "authority_required": "live_read_adapter_authoritative",
+        "full_rust_backend": authoritative_transport,
         "live_transport_supported": live_transport_supported,
         "live_adapter_implemented": live_adapter_implemented,
         "execute_requested": execute,
@@ -458,9 +596,9 @@ pub fn run_routeros_live_read_adapter_pilot_payload(payload: &Value) -> (Value, 
         "api_sentence_write_count": api_sentence_write_count,
         "api_reply_read_count": api_reply_read_count,
         "safe_for_cleanup": false,
-        "collector_authority": "python_authoritative",
+        "collector_authority": if authoritative_transport { "rust_authoritative" } else { "shadow_only" },
         "next_stage": "rust_routeros_live_read_shadow_parity",
-        "note": "This guarded adapter can execute one read-only RouterOS API print when all live-read gates are enabled. It never writes RouterOS config, never emits credentials in output, and does not replace Python collectors."
+        "note": "This guarded adapter can execute one read-only RouterOS API print when all live-read gates are enabled. It never writes RouterOS config and never emits credentials in output."
     });
 
     (result, errors, warnings)
@@ -486,10 +624,28 @@ mod tests {
         });
         let (result, errors, _warnings) = run_routeros_live_read_adapter_pilot_payload(&payload);
         assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("live_read_adapter_contract_ready"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
-        assert_eq!(result.get("authentication_attempt_count").and_then(Value::as_u64), Some(0));
-        assert_eq!(result.get("api_sentence_write_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("live_read_adapter_contract_ready")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            result
+                .get("authentication_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            result
+                .get("api_sentence_write_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("super-secret"));
     }
@@ -506,9 +662,19 @@ mod tests {
         });
         let (result, errors, _warnings) = run_routeros_live_read_adapter_pilot_payload(&payload);
         assert!(!errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("blocked"));
-        assert!(errors.iter().any(|e| e.code == "routeros_live_read_adapter_gates_not_ready"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "routeros_live_read_adapter_gates_not_ready"));
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
     }
 
     #[test]
@@ -526,11 +692,15 @@ mod tests {
             let read = read_sentence(&mut stream).expect("read print sentence");
             assert_eq!(read[0], "/ppp/active/print");
             assert!(read.iter().any(|w| w == "=.proplist=name,address"));
-            write_sentence(&mut stream, &[
-                "!re".to_string(),
-                "=name=juan".to_string(),
-                "=address=10.0.0.2".to_string(),
-            ]).expect("write row");
+            write_sentence(
+                &mut stream,
+                &[
+                    "!re".to_string(),
+                    "=name=juan".to_string(),
+                    "=address=10.0.0.2".to_string(),
+                ],
+            )
+            .expect("write row");
             write_sentence(&mut stream, &["!done".to_string()]).expect("write read done");
         });
 
@@ -549,19 +719,43 @@ mod tests {
                 "allow_rust_routeros_live_read_adapter": true,
                 "routeros_live_read_pilot": true,
                 "routeros_live_read_adapter_pilot": true,
-                "routeros_transport_authority": "live_read_adapter_pilot",
+                "routeros_transport_authority": "live_read_adapter_authoritative",
                 "routeros_live_read_timeout_seconds": 2
             }
         });
         let (result, errors, _warnings) = run_routeros_live_read_adapter_pilot_payload(&payload);
         handle.join().expect("fixture server joined");
         assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("live_read_adapter_read_complete"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(1));
-        assert_eq!(result.get("authentication_attempt_count").and_then(Value::as_u64), Some(1));
-        assert_eq!(result.get("api_sentence_write_count").and_then(Value::as_u64), Some(2));
-        assert_eq!(result.get("collector_authority").and_then(Value::as_str), Some("python_authoritative"));
-        assert_eq!(result.get("safe_for_cleanup").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("live_read_adapter_read_complete")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            result
+                .get("authentication_attempt_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            result
+                .get("api_sentence_write_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            result.get("collector_authority").and_then(Value::as_str),
+            Some("rust_authoritative")
+        );
+        assert_eq!(
+            result.get("safe_for_cleanup").and_then(Value::as_bool),
+            Some(false)
+        );
         assert_eq!(result["read_result"]["row_count"], 1);
         assert_eq!(result["read_result"]["rows"][0]["name"], "juan");
         let text = serde_json::to_string(&result).unwrap();

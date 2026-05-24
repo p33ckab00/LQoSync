@@ -141,15 +141,15 @@ DEFAULT_CONFIG = {
         "native_dry_run_preview_enabled": True,
         "native_run_cycle_authority_enabled": True,
         "native_run_cycle_authority_python_fallback": False,
-        "routeros_transport_authority": "plan_only",
-        "allow_rust_routeros_live_reads": False,
-        "allow_rust_routeros_credentials": False,
-        "routeros_live_read_pilot": False,
+        "routeros_transport_authority": "live_read_adapter_authoritative",
+        "allow_rust_routeros_live_reads": True,
+        "allow_rust_routeros_credentials": True,
+        "routeros_live_read_pilot": True,
         "routeros_live_read_timeout_seconds": 5,
         "routeros_read_pilot_adapter": "fixture",
         "allow_rust_routeros_fixture_reads": True,
-        "routeros_tcp_connect_pilot": False,
-        "allow_rust_routeros_tcp_connect": False,
+        "routeros_tcp_connect_pilot": True,
+        "allow_rust_routeros_tcp_connect": True,
         "routeros_tcp_connect_timeout_seconds": 3,
         "routeros_auth_pilot": False,
         "routeros_auth_timeout_seconds": 5,
@@ -161,13 +161,13 @@ DEFAULT_CONFIG = {
         "routeros_authenticated_read_pilot": False,
         "allow_rust_routeros_authenticated_fixture_reads": True,
         "routeros_authenticated_read_authority": "fixture_only",
-        "routeros_live_read_adapter_pilot": False,
-        "allow_rust_routeros_live_read_adapter": False,
-        "routeros_live_read_adapter_authority": "contract_only",
+        "routeros_live_read_adapter_pilot": True,
+        "allow_rust_routeros_live_read_adapter": True,
+        "routeros_live_read_adapter_authority": "read_only_execute",
         "rust_collector_authority_pilot": False,
         "allow_rust_collector_authority": False,
         "rust_collector_authority_sources": [],
-        "collector_authority_mode": "rust_validated_python_transport",
+        "collector_authority_mode": "rust_live_read_authoritative",
         "collector_authority_require_parity_score": 99.99,
         "collector_authority_manifest_pilot": False,
         "allow_collector_authority_manifest": False,
@@ -1062,10 +1062,10 @@ def validate_config(cfg: dict):
     rust_core.setdefault("rust_scheduler_operations_required", True)
     rust_core.setdefault("rust_scheduler_fail_closed", True)
     rust_core.setdefault("scheduler_run_once_timeout_seconds", 1800)
-    rust_core.setdefault("routeros_transport_authority", "plan_only")
-    rust_core.setdefault("allow_rust_routeros_live_reads", False)
-    rust_core.setdefault("allow_rust_routeros_credentials", False)
-    rust_core.setdefault("routeros_live_read_pilot", False)
+    rust_core.setdefault("routeros_transport_authority", "live_read_adapter_authoritative")
+    rust_core.setdefault("allow_rust_routeros_live_reads", True)
+    rust_core.setdefault("allow_rust_routeros_credentials", True)
+    rust_core.setdefault("routeros_live_read_pilot", True)
     rust_core.setdefault("routeros_live_read_timeout_seconds", 5)
     rust_core.setdefault("routeros_read_pilot_adapter", "fixture")
     rust_core.setdefault("allow_rust_routeros_fixture_reads", True)
@@ -1394,7 +1394,12 @@ def validate_config(cfg: dict):
         errors.append(f"rust_core.authority_mode invalid: {rust_core.get('authority_mode')}")
     if rust_core.get("routeros_read_pilot_adapter") not in ("fixture", "disabled"):
         errors.append(f"rust_core.routeros_read_pilot_adapter invalid: {rust_core.get('routeros_read_pilot_adapter')}")
-    if rust_core.get("routeros_transport_authority") not in ("plan_only", "live_read_pilot", "live_read_adapter_pilot"):
+    if rust_core.get("routeros_transport_authority") not in (
+        "plan_only",
+        "live_read_pilot",
+        "live_read_adapter_pilot",
+        "live_read_adapter_authoritative",
+    ):
         errors.append(f"rust_core.routeros_transport_authority invalid: {rust_core.get('routeros_transport_authority')}")
     try:
         rust_core["routeros_live_read_timeout_seconds"] = max(int(rust_core.get("routeros_live_read_timeout_seconds", 5) or 5), 1)

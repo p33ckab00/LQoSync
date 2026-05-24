@@ -42,10 +42,16 @@ fn selected_router(payload: &Value) -> Value {
     let routers = config(payload).get("routers").and_then(Value::as_array);
     if let Some(routers) = routers {
         for router in routers {
-            if !router.get("enabled").and_then(Value::as_bool).unwrap_or(true) {
+            if !router
+                .get("enabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+            {
                 continue;
             }
-            if router_name.is_empty() || router.get("name").and_then(Value::as_str).unwrap_or("") == router_name {
+            if router_name.is_empty()
+                || router.get("name").and_then(Value::as_str).unwrap_or("") == router_name
+            {
                 return router.clone();
             }
         }
@@ -71,14 +77,25 @@ fn authority(payload: &Value) -> String {
 
 fn wants_execute(payload: &Value) -> bool {
     bool_value(payload.get("execute"), false)
-        || matches!(payload.get("mode").and_then(Value::as_str).unwrap_or("rehearsal"), "tcp_connect" | "live" | "execute")
+        || matches!(
+            payload
+                .get("mode")
+                .and_then(Value::as_str)
+                .unwrap_or("rehearsal"),
+            "tcp_connect" | "live" | "execute"
+        )
 }
 
-pub fn run_routeros_tcp_connectivity_pilot_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn run_routeros_tcp_connectivity_pilot_payload(
+    payload: &Value,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors: Vec<Diagnostic> = Vec::new();
     let mut warnings: Vec<Diagnostic> = Vec::new();
     let router = selected_router(payload);
-    let router_name = router.get("name").and_then(Value::as_str).unwrap_or("unknown");
+    let router_name = router
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
     let address = payload
         .get("address")
         .and_then(Value::as_str)
@@ -118,16 +135,25 @@ pub fn run_routeros_tcp_connectivity_pilot_payload(payload: &Value) -> (Value, V
         ));
     }
 
-    if execute && transport_authority != "tcp_connect_pilot" && transport_authority != "live_read_pilot" && transport_authority != "live_read_adapter_pilot" {
+    if execute
+        && transport_authority != "tcp_connect_pilot"
+        && transport_authority != "live_read_pilot"
+        && transport_authority != "live_read_adapter_pilot"
+        && transport_authority != "live_read_adapter_authoritative"
+    {
         errors.push(Diagnostic::error(
             "routeros_tcp_authority_not_enabled",
             Some("rust_core.routeros_transport_authority".to_string()),
-            "Rust RouterOS TCP connectivity pilot requires routeros_transport_authority=tcp_connect_pilot, live_read_pilot, or live_read_adapter_pilot.",
+            "Rust RouterOS TCP connectivity pilot requires routeros_transport_authority=tcp_connect_pilot, live_read_pilot, live_read_adapter_pilot, or live_read_adapter_authoritative.",
         ));
     }
 
     if !execute {
-        status = if errors.is_empty() { "tcp_connect_rehearsal".to_string() } else { "blocked".to_string() };
+        status = if errors.is_empty() {
+            "tcp_connect_rehearsal".to_string()
+        } else {
+            "blocked".to_string()
+        };
     } else if !errors.is_empty() {
         status = "blocked".to_string();
     } else {
@@ -210,9 +236,22 @@ mod tests {
         });
         let (result, errors, _warnings) = run_routeros_tcp_connectivity_pilot_payload(&payload);
         assert!(errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("tcp_connect_rehearsal"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
-        assert_eq!(result.get("authentication_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("tcp_connect_rehearsal")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            result
+                .get("authentication_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
     }
 
     #[test]
@@ -224,8 +263,16 @@ mod tests {
         });
         let (result, errors, _warnings) = run_routeros_tcp_connectivity_pilot_payload(&payload);
         assert!(!errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("blocked"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
     }
 
     #[test]
@@ -254,10 +301,26 @@ mod tests {
         let (result, errors, _warnings) = run_routeros_tcp_connectivity_pilot_payload(&payload);
         let accepted = handle.join().unwrap_or(false);
         assert!(errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("tcp_connect_success"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(1));
-        assert_eq!(result.get("authentication_attempt_count").and_then(Value::as_u64), Some(0));
-        assert!(result.get("connected").and_then(Value::as_bool).unwrap_or(false));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("tcp_connect_success")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            result
+                .get("authentication_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert!(result
+            .get("connected")
+            .and_then(Value::as_bool)
+            .unwrap_or(false));
         assert!(accepted);
     }
 }

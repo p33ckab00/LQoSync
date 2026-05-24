@@ -2056,7 +2056,7 @@ def _python_build_routeros_transport_session(payload: dict[str, Any], *, started
     warnings = list(plan_response.get("warnings") or [])
     wants_live = execute or mode == "live" or authority == "live_read_pilot"
     if wants_live:
-        errors.append({"code": "routeros_live_transport_not_implemented", "severity": "error", "path": "rust_core.routeros_transport_authority", "message": "Live Rust RouterOS transport is not implemented in this release. This operation only rehearses sessions and redacts credentials."})
+        errors.append({"code": "routeros_live_transport_rust_core_required", "severity": "error", "path": "rust_core.routeros_transport_authority", "message": "Rust RouterOS live transport requires the Rust core binary/daemon. The Python WebUI shell only rehearses sessions and redacts credentials here."})
     if allow_live_reads and not allow_credentials:
         warnings.append({"code": "routeros_credentials_not_allowed", "severity": "warning", "path": "rust_core.allow_rust_routeros_credentials", "message": "Rust live reads were requested but credential access is not allowed; no live transport can be attempted."})
     result = {
@@ -2075,7 +2075,7 @@ def _python_build_routeros_transport_session(payload: dict[str, Any], *, started
         "sessions": sessions,
         "plan": plan,
         "next_stage": "rust_routeros_transport_client_pilot",
-        "note": "This is a RouterOS transport-session rehearsal only. Rust does not connect to MikroTik or consume credentials in this release.",
+        "note": "This is a RouterOS transport-session rehearsal only. The Python WebUI shell does not emulate live Rust transport.",
     }
     return {"version": PROTOCOL_VERSION, "op": "build-routeros-transport-session", "ok": not errors, "available": False, "skipped": True, "result": result, "errors": errors, "warnings": warnings, "meta": {"engine": "python-fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)}}
 
@@ -2127,10 +2127,10 @@ def _python_build_routeros_live_read_pilot(payload: dict[str, Any], *, started: 
         errors.append({"code": "routeros_live_reads_not_allowed", "severity": "error", "path": "rust_core.allow_rust_routeros_live_reads", "message": "Rust RouterOS live reads are not allowed by configuration."})
     if execute and not allow_credentials:
         errors.append({"code": "routeros_credentials_not_allowed", "severity": "error", "path": "rust_core.allow_rust_routeros_credentials", "message": "Rust RouterOS credential access is not allowed by configuration."})
-    if execute and authority != "live_read_pilot":
-        errors.append({"code": "routeros_transport_authority_not_live_read_pilot", "severity": "error", "path": "rust_core.routeros_transport_authority", "message": "Rust RouterOS transport authority must be live_read_pilot before any live-read pilot can be attempted."})
-    if execute and pilot_enabled and allow_live_reads and allow_credentials and authority == "live_read_pilot":
-        errors.append({"code": "routeros_live_transport_adapter_not_implemented", "severity": "error", "path": "routeros_live_read_pilot", "message": "Live RouterOS socket transport is still not implemented in Rust. v2.3 only builds and gates the pilot request contract."})
+    if execute and authority not in {"live_read_pilot", "live_read_adapter_authoritative"}:
+        errors.append({"code": "routeros_transport_authority_not_live_read_pilot", "severity": "error", "path": "rust_core.routeros_transport_authority", "message": "Rust RouterOS transport authority must be live_read_pilot or live_read_adapter_authoritative before any live-read pilot can be attempted."})
+    if execute and pilot_enabled and allow_live_reads and allow_credentials and authority in {"live_read_pilot", "live_read_adapter_authoritative"}:
+        errors.append({"code": "routeros_live_transport_adapter_rust_core_required", "severity": "error", "path": "routeros_live_read_pilot", "message": "Authoritative live RouterOS reads require the Rust live-read adapter operation. The Python WebUI shell only builds this pilot contract."})
     result = {
         "mode": "routeros_live_read_pilot_contract",
         "status": "blocked" if errors else ("pilot_contract_ready" if selected else "empty"),
@@ -2146,7 +2146,7 @@ def _python_build_routeros_live_read_pilot(payload: dict[str, Any], *, started: 
         "selected_command": selected,
         "credential_material": "redacted",
         "next_stage": "rust_routeros_readonly_transport_adapter",
-        "note": "v2.3 builds a gated live-read pilot contract only. It does not open RouterOS sockets or consume credentials.",
+        "note": "This Python fallback only builds the gated live-read pilot contract. It does not open RouterOS sockets or consume credentials.",
     }
     return {"version": PROTOCOL_VERSION, "op": "build-routeros-live-read-pilot", "ok": not errors, "available": False, "skipped": True, "result": result, "errors": errors, "warnings": warnings, "meta": {"engine": "python-fallback", "duration_ms": round((time.perf_counter() - started) * 1000, 3)}}
 
@@ -2693,10 +2693,10 @@ def rust_run_routeros_authenticated_read_fixture(config: dict, payload: dict[str
 
 
 def _python_run_routeros_live_read_adapter_pilot(payload: dict[str, Any], *, started: float | None = None) -> dict[str, Any]:
-    """Fallback for v3.4 live-read adapter contract.
+    """Fallback for the Rust live-read adapter bridge.
 
-    This is contract-only. It never opens sockets, authenticates, sends API words,
-    reads RouterOS replies, or replaces Python collectors.
+    This Python WebUI shell cannot emulate authoritative RouterOS live reads.
+    It only reports that the Rust core is required for execution.
     """
     started = started or time.perf_counter()
     adapter = str((payload or {}).get("adapter") or "contract")
@@ -2705,7 +2705,7 @@ def _python_run_routeros_live_read_adapter_pilot(payload: dict[str, Any], *, sta
     live_requested = adapter in {"live", "tcp", "routeros"} or mode in {"live", "live_read", "execute_live", "authenticated_live_read"}
     errors: list[dict[str, Any]] = []
     if execute or live_requested:
-        errors.append({"code": "routeros_live_read_adapter_not_implemented", "severity": "error", "path": "adapter", "message": "Python fallback cannot execute the Rust RouterOS live read adapter."})
+        errors.append({"code": "routeros_live_read_adapter_rust_core_required", "severity": "error", "path": "adapter", "message": "Rust RouterOS live-read execution requires the Rust core binary/daemon. The Python WebUI shell cannot emulate it."})
     session = _python_build_routeros_auth_session_contract({**(payload or {}), "adapter": "fixture", "execute": True, "fixture_reply_words": (payload or {}).get("fixture_reply_words") or ["!done"]}, started=started)
     session_result = session.get("result") or {}
     authenticated = bool(session_result.get("authenticated")) and session_result.get("status") == "auth_session_contract_ready"
@@ -2735,9 +2735,9 @@ def _python_run_routeros_live_read_adapter_pilot(payload: dict[str, Any], *, sta
             "authentication_attempt_count": 0,
             "api_sentence_write_count": 0,
             "api_reply_read_count": 0,
-            "collector_authority": "python_authoritative",
+            "collector_authority": "rust_required",
             "next_stage": "rust_routeros_live_read_shadow_parity",
-            "authority_note": "Python fallback only models the live-read adapter contract. The Rust core binary is required for gated live RouterOS reads."
+            "authority_note": "The Python WebUI shell only models the live-read adapter contract. The Rust core binary/daemon is required for gated live RouterOS reads."
         },
         "errors": errors,
         "warnings": [],

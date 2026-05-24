@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from engine.config_loader import load_config, validate_config  # noqa: E402
 from engine.release_integrity import compute_release_integrity  # noqa: E402
-from collectors.mikrotik_client import test_router_connection  # noqa: E402
+from engine.rust_core import rust_run_routeros_live_read_adapter_pilot  # noqa: E402
 
 
 def ok(msg): print(f"[OK] {msg}")
@@ -21,9 +21,42 @@ def warn(msg): print(f"[WARN] {msg}")
 def fail(msg): print(f"[FAIL] {msg}")
 
 
+def rust_test_router_connection(cfg, router):
+    response = rust_run_routeros_live_read_adapter_pilot(cfg, {
+        "config": cfg,
+        "router": router,
+        "adapter": "live",
+        "mode": "live_read",
+        "execute": True,
+        "path": "/system/identity",
+        "fields": ["name"],
+    })
+    result = response.get("result") if isinstance(response.get("result"), dict) else {}
+    read_result = result.get("read_result") if isinstance(result.get("read_result"), dict) else {}
+    rows = read_result.get("rows") if isinstance(read_result.get("rows"), list) else []
+    if response.get("ok") and result.get("status") == "live_read_adapter_read_complete":
+        identity = ""
+        if rows and isinstance(rows[0], dict):
+            identity = str(rows[0].get("name") or "").strip()
+        label = str(router.get("name") or "unknown-router")
+        if identity:
+            return True, f"{label}: Rust live-read adapter ok (identity={identity})"
+        return True, f"{label}: Rust live-read adapter ok"
+    messages = [
+        str(item.get("message") or item.get("code") or "").strip()
+        for item in (response.get("errors") or [])
+        if isinstance(item, dict) and str(item.get("message") or item.get("code") or "").strip()
+    ]
+    if not messages and result.get("status"):
+        messages.append(str(result.get("status")))
+    label = str(router.get("name") or "unknown-router")
+    return False, f"{label}: {messages[0] if messages else 'Rust live-read adapter failed'}"
+
+
 def main():
     config_path = os.getenv("CONFIG_PATH") or (sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else "/opt/libreqos/src/config.json")
     router_test = "--router-test" in sys.argv
+    router_test_failed = False
     release_report = compute_release_integrity(ROOT)
     if release_report["summary"]["fail"]:
         fail(f"release integrity failed: {release_report['summary']['fail']} issue(s)")
@@ -73,9 +106,14 @@ def main():
         for r in cfg.get("routers", []):
             if not r.get("enabled", True):
                 continue
-            print(test_router_connection(r))
+            ok_result, message = rust_test_router_connection(cfg, r)
+            if ok_result:
+                ok(message)
+            else:
+                fail(message)
+                router_test_failed = True
 
-    return 1 if errors else 0
+    return 1 if errors or router_test_failed else 0
 
 
 if __name__ == "__main__":

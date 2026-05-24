@@ -31,7 +31,7 @@ except Exception as exc:
 result = data.get("result") or {}
 status = str(result.get("status") or "")
 
-success_statuses = {"success", "no_changes", "dry_run_complete"}
+success_statuses = {"success", "no_changes", "dry_run_complete", "rust_run_cycle_transport_deferred"}
 if bool(data.get("ok")) and status in success_statuses:
     raise SystemExit(0)
 

@@ -23,12 +23,17 @@ fn command_matches(cmd: &Value, router: &str, source: &str, path: &str) -> bool 
 /// the deterministic RouterOS read plan, verifies the authority gates, redacts
 /// all credential material, and returns a pilot contract for a future transport
 /// adapter. It never opens a socket and never sends RouterOS credentials.
-pub fn build_routeros_live_read_pilot_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn build_routeros_live_read_pilot_payload(
+    payload: &Value,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors: Vec<Diagnostic> = Vec::new();
     let mut warnings: Vec<Diagnostic> = Vec::new();
 
     let config = payload.get("config").cloned().unwrap_or_else(|| json!({}));
-    let rust_core = config.get("rust_core").cloned().unwrap_or_else(|| json!({}));
+    let rust_core = config
+        .get("rust_core")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let router = as_str(payload.get("router"), "");
     let source = as_str(payload.get("source"), "");
     let path = as_str(payload.get("path"), "");
@@ -62,8 +67,15 @@ pub fn build_routeros_live_read_pilot_payload(payload: &Value) -> (Value, Vec<Di
     let (plan, plan_errors, plan_warnings) = build_routeros_collector_plan_payload(&plan_payload);
     errors.extend(plan_errors);
     warnings.extend(plan_warnings);
-    let commands = plan.get("commands").and_then(Value::as_array).cloned().unwrap_or_default();
-    let selected = commands.iter().find(|cmd| command_matches(cmd, router, source, path)).cloned();
+    let commands = plan
+        .get("commands")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let selected = commands
+        .iter()
+        .find(|cmd| command_matches(cmd, router, source, path))
+        .cloned();
 
     if selected.is_none() {
         errors.push(Diagnostic::error(
@@ -80,7 +92,8 @@ pub fn build_routeros_live_read_pilot_payload(payload: &Value) -> (Value, Vec<Di
         "mode": "rehearsal",
         "execute": false,
     });
-    let (transport, transport_errors, transport_warnings) = build_routeros_transport_session_payload(&transport_payload);
+    let (transport, transport_errors, transport_warnings) =
+        build_routeros_transport_session_payload(&transport_payload);
     errors.extend(transport_errors);
     warnings.extend(transport_warnings);
 
@@ -106,18 +119,27 @@ pub fn build_routeros_live_read_pilot_payload(payload: &Value) -> (Value, Vec<Di
             "Rust RouterOS credential access is not allowed by configuration.",
         ));
     }
-    if wants_live && transport_authority != "live_read_pilot" {
+    if wants_live
+        && transport_authority != "live_read_pilot"
+        && transport_authority != "live_read_adapter_authoritative"
+    {
         errors.push(Diagnostic::error(
             "routeros_transport_authority_not_live_read_pilot",
             Some("rust_core.routeros_transport_authority".to_string()),
-            "Rust RouterOS transport authority must be live_read_pilot before any live-read pilot can be attempted.",
+            "Rust RouterOS transport authority must be live_read_pilot or live_read_adapter_authoritative before any live-read pilot can be attempted.",
         ));
     }
-    if wants_live && pilot_enabled && allow_live_reads && allow_credentials && transport_authority == "live_read_pilot" {
+    if wants_live
+        && pilot_enabled
+        && allow_live_reads
+        && allow_credentials
+        && (transport_authority == "live_read_pilot"
+            || transport_authority == "live_read_adapter_authoritative")
+    {
         errors.push(Diagnostic::error(
             "routeros_live_transport_adapter_not_implemented",
             Some("routeros_live_read_pilot".to_string()),
-            "Live RouterOS socket transport is still not implemented in Rust. v2.3 only builds and gates the pilot request contract.",
+            "This RouterOS live-read pilot remains a contract builder only. Use the Rust live-read adapter operation for authoritative read-only execution.",
         ));
     }
 
@@ -137,15 +159,17 @@ pub fn build_routeros_live_read_pilot_payload(payload: &Value) -> (Value, Vec<Di
         "empty"
     };
 
-    let selected_public = selected.map(|cmd| json!({
-        "router": cmd.get("router").cloned().unwrap_or_else(|| json!("unknown")),
-        "source": cmd.get("source").cloned().unwrap_or_else(|| json!("unknown")),
-        "path": cmd.get("path").cloned().unwrap_or_else(|| json!("")),
-        "fields": cmd.get("fields").cloned().unwrap_or_else(|| json!([])),
-        "required": cmd.get("required").cloned().unwrap_or_else(|| json!(false)),
-        "purpose": cmd.get("purpose").cloned().unwrap_or_else(|| json!("")),
-        "trust_role": cmd.get("trust_role").cloned().unwrap_or_else(|| json!("unknown")),
-    }));
+    let selected_public = selected.map(|cmd| {
+        json!({
+            "router": cmd.get("router").cloned().unwrap_or_else(|| json!("unknown")),
+            "source": cmd.get("source").cloned().unwrap_or_else(|| json!("unknown")),
+            "path": cmd.get("path").cloned().unwrap_or_else(|| json!("")),
+            "fields": cmd.get("fields").cloned().unwrap_or_else(|| json!([])),
+            "required": cmd.get("required").cloned().unwrap_or_else(|| json!(false)),
+            "purpose": cmd.get("purpose").cloned().unwrap_or_else(|| json!("")),
+            "trust_role": cmd.get("trust_role").cloned().unwrap_or_else(|| json!("unknown")),
+        })
+    });
 
     let result = json!({
         "mode": "routeros_live_read_pilot_contract",
@@ -179,8 +203,16 @@ mod tests {
         let payload = json!({"router":"R1","source":"pppoe","config":{"routers":[{"name":"R1","enabled":true,"address":"10.0.0.1","username":"admin","password":"super_private_pw_123","pppoe":{"enabled":true}}]}});
         let (result, errors, _warnings) = build_routeros_live_read_pilot_payload(&payload);
         assert!(errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("pilot_contract_ready"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("pilot_contract_ready")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("super_private_pw_123"));
         assert!(!text.contains("\"password\""));
@@ -191,8 +223,16 @@ mod tests {
         let payload = json!({"mode":"live","execute":true,"router":"R1","source":"pppoe","config":{"routers":[{"name":"R1","enabled":true,"address":"10.0.0.1","username":"admin","password":"secret","pppoe":{"enabled":true}}]}});
         let (result, errors, _warnings) = build_routeros_live_read_pilot_payload(&payload);
         assert!(!errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("blocked"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
     }
 
     #[test]
@@ -214,7 +254,14 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_live_read_pilot_payload(&payload);
         assert!(!errors.is_empty());
-        assert!(errors.iter().any(|e| e.code == "routeros_live_transport_adapter_not_implemented"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "routeros_live_transport_adapter_not_implemented"));
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
     }
 }

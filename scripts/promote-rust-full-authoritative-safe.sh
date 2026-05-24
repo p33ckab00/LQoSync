@@ -153,11 +153,20 @@ rc.update({
     'execute_rollback': False,
     'allow_rust_rollback_file_writes': False,
     'rollback_authority': 'preview',
-    'collector_authority_mode': 'rust_validated_python_transport',
+    'collector_authority_mode': 'rust_live_read_authoritative',
     'collector_output_authority': 'rust_validate_all',
     'require_collector_rust_validation': True,
     'collector_authority_require_python_fallback': False,
     'run_cycle_rust_shadow_report_enabled': True,
+    'routeros_transport_authority': 'live_read_adapter_authoritative',
+    'allow_rust_routeros_live_reads': True,
+    'allow_rust_routeros_credentials': True,
+    'allow_rust_routeros_tcp_connect': True,
+    'allow_rust_routeros_live_read_adapter': True,
+    'routeros_live_read_pilot': True,
+    'routeros_live_read_adapter_pilot': True,
+    'routeros_tcp_connect_pilot': True,
+    'routeros_live_read_adapter_authority': 'read_only_execute',
 })
 sched = cfg.setdefault('scheduler', {})
 sched.update({

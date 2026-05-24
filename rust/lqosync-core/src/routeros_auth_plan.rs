@@ -19,7 +19,13 @@ fn string_value(v: Option<&Value>, default: &str) -> String {
 
 fn wants_execute(payload: &Value) -> bool {
     bool_value(payload.get("execute"), false)
-        || matches!(payload.get("mode").and_then(Value::as_str).unwrap_or("rehearsal"), "auth" | "live" | "execute")
+        || matches!(
+            payload
+                .get("mode")
+                .and_then(Value::as_str)
+                .unwrap_or("rehearsal"),
+            "auth" | "live" | "execute"
+        )
 }
 
 fn selected_router(payload: &Value) -> Value {
@@ -30,10 +36,16 @@ fn selected_router(payload: &Value) -> Value {
     let routers = config(payload).get("routers").and_then(Value::as_array);
     if let Some(routers) = routers {
         for router in routers {
-            if !router.get("enabled").and_then(Value::as_bool).unwrap_or(true) {
+            if !router
+                .get("enabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+            {
                 continue;
             }
-            if router_name.is_empty() || router.get("name").and_then(Value::as_str).unwrap_or("") == router_name {
+            if router_name.is_empty()
+                || router.get("name").and_then(Value::as_str).unwrap_or("") == router_name
+            {
                 return router.clone();
             }
         }
@@ -52,7 +64,10 @@ fn authority(payload: &Value) -> String {
 
 fn allow_credentials(payload: &Value) -> bool {
     bool_value(payload.get("allow_credentials"), false)
-        || bool_value(rust_core(payload).get("allow_rust_routeros_credentials"), false)
+        || bool_value(
+            rust_core(payload).get("allow_rust_routeros_credentials"),
+            false,
+        )
 }
 
 fn allow_auth_pilot(payload: &Value) -> bool {
@@ -65,18 +80,47 @@ fn allow_auth_pilot(payload: &Value) -> bool {
 /// This is not an authentication adapter. It validates that the future Rust
 /// authentication stage has enough information and safety gates, while never
 /// emitting password/API key material and never opening sockets.
-pub fn build_routeros_auth_plan_payload(payload: &Value) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
+pub fn build_routeros_auth_plan_payload(
+    payload: &Value,
+) -> (Value, Vec<Diagnostic>, Vec<Diagnostic>) {
     let mut errors: Vec<Diagnostic> = Vec::new();
     let warnings: Vec<Diagnostic> = Vec::new();
 
     let router = selected_router(payload);
-    let router_name = router.get("name").and_then(Value::as_str).unwrap_or("unknown");
-    let address_present = payload.get("address").and_then(Value::as_str).map(|s| !s.trim().is_empty()).unwrap_or(false)
-        || router.get("address").and_then(Value::as_str).map(|s| !s.trim().is_empty()).unwrap_or(false);
-    let username_present = payload.get("username").and_then(Value::as_str).map(|s| !s.trim().is_empty()).unwrap_or(false)
-        || router.get("username").and_then(Value::as_str).map(|s| !s.trim().is_empty()).unwrap_or(false);
-    let password_present = payload.get("password").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false)
-        || router.get("password").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false);
+    let router_name = router
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let address_present = payload
+        .get("address")
+        .and_then(Value::as_str)
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+        || router
+            .get("address")
+            .and_then(Value::as_str)
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+    let username_present = payload
+        .get("username")
+        .and_then(Value::as_str)
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+        || router
+            .get("username")
+            .and_then(Value::as_str)
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+    let password_present = payload
+        .get("password")
+        .and_then(Value::as_str)
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+        || router
+            .get("password")
+            .and_then(Value::as_str)
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
     let port = payload
         .get("port")
         .and_then(Value::as_u64)
@@ -130,11 +174,16 @@ pub fn build_routeros_auth_plan_payload(payload: &Value) -> (Value, Vec<Diagnost
             "Rust RouterOS authentication pilot was requested, but routeros_auth_pilot is disabled.",
         ));
     }
-    if execute && transport_authority != "auth_pilot" && transport_authority != "live_read_pilot" {
+    if execute
+        && transport_authority != "auth_pilot"
+        && transport_authority != "live_read_pilot"
+        && transport_authority != "live_read_adapter_pilot"
+        && transport_authority != "live_read_adapter_authoritative"
+    {
         errors.push(Diagnostic::error(
             "routeros_auth_authority_not_enabled",
             Some("rust_core.routeros_transport_authority".to_string()),
-            "Rust RouterOS authentication pilot requires routeros_transport_authority=auth_pilot or live_read_pilot.",
+            "Rust RouterOS authentication pilot requires routeros_transport_authority=auth_pilot, live_read_pilot, live_read_adapter_pilot, or live_read_adapter_authoritative.",
         ));
     }
     if execute && errors.is_empty() {
@@ -192,9 +241,22 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_auth_plan_payload(&payload);
         assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("auth_plan_ready"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
-        assert_eq!(result.get("authentication_attempt_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("auth_plan_ready")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            result
+                .get("authentication_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("super_private_pw_123"));
         assert!(!text.contains("\"password\""));
@@ -209,9 +271,19 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_auth_plan_payload(&payload);
         assert!(!errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("blocked"));
-        assert_eq!(result.get("connection_attempt_count").and_then(Value::as_u64), Some(0));
-        assert!(errors.iter().any(|e| e.code == "routeros_credentials_not_allowed"));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert_eq!(
+            result
+                .get("connection_attempt_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "routeros_credentials_not_allowed"));
     }
 
     #[test]
@@ -227,7 +299,12 @@ mod tests {
         });
         let (result, errors, _warnings) = build_routeros_auth_plan_payload(&payload);
         assert!(!errors.is_empty());
-        assert_eq!(result.get("status").and_then(Value::as_str), Some("blocked"));
-        assert!(errors.iter().any(|e| e.code == "routeros_auth_adapter_not_implemented"));
+        assert_eq!(
+            result.get("status").and_then(Value::as_str),
+            Some("blocked")
+        );
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "routeros_auth_adapter_not_implemented"));
     }
 }

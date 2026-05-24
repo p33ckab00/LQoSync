@@ -21,7 +21,6 @@ from builders.shaped_devices import read_shaped_devices_csv, render_shaped_devic
 from builders.network_json import read_network_json, render_network_json, flatten_nodes
 from applier.backup import list_backups, delete_backup, inspect_backup, compare_backup_to_live, retention_preview
 from applier.rollback import restore_backup
-from collectors.mikrotik_client import test_router_connection, connect_to_router, get_resource_data
 from engine.audit import write_audit, tail_audit
 from engine.policy_state import load_policy_state, save_policy_state, confirm_cleanup, dismiss_confirmation
 from engine.setup_repair import compute_setup_repair_report, apply_policy_preset
@@ -1037,6 +1036,46 @@ def _get_router_from_cfg(cfg: dict, router_idx: int) -> dict:
     return routers[router_idx]
 
 
+def _rust_router_live_read(cfg: dict, router: dict, *, path: str, fields: list[str]) -> tuple[dict, list[dict]]:
+    response = rust_run_routeros_live_read_adapter_pilot(cfg, {
+        "config": cfg,
+        "router": router,
+        "adapter": "live",
+        "mode": "live_read",
+        "execute": True,
+        "path": path,
+        "fields": fields,
+    })
+    result = response.get("result") if isinstance(response.get("result"), dict) else {}
+    read_result = result.get("read_result") if isinstance(result.get("read_result"), dict) else {}
+    rows = read_result.get("rows") if isinstance(read_result.get("rows"), list) else []
+    if response.get("ok") and result.get("status") == "live_read_adapter_read_complete":
+        return result, [row for row in rows if isinstance(row, dict)]
+    messages = [
+        str(item.get("message") or item.get("code") or "").strip()
+        for item in (response.get("errors") or [])
+        if isinstance(item, dict) and str(item.get("message") or item.get("code") or "").strip()
+    ]
+    if not messages and result.get("status"):
+        messages.append(str(result.get("status")))
+    raise ValueError(messages[0] if messages else f"Rust RouterOS read failed for {router.get('name') or 'unknown router'}.")
+
+
+def _rust_test_router_connection(cfg: dict, router: dict) -> str:
+    _result, rows = _rust_router_live_read(cfg, router, path="/system/identity", fields=["name"])
+    identity = ""
+    if rows:
+        identity = str(rows[0].get("name") or "").strip()
+    if identity:
+        return f"OK via Rust live-read adapter (identity={identity})"
+    return "OK via Rust live-read adapter"
+
+
+def _rust_discover_dhcp_rows(cfg: dict, router: dict) -> list[dict]:
+    _result, rows = _rust_router_live_read(cfg, router, path="/ip/dhcp-server", fields=["name"])
+    return rows
+
+
 @app.route("/config/router/test-current", methods=["POST"])
 @admin_required
 def test_current_router():
@@ -1044,7 +1083,7 @@ def test_current_router():
     try:
         cfg = _posted_or_saved_config()
         router = _get_router_from_cfg(cfg, router_idx)
-        status = test_router_connection(router)
+        status = _rust_test_router_connection(cfg, router)
         flash(f"Router {router.get('name')} test using current UI config: {status}")
     except Exception as e:
         flash(f"Router test failed: {e}")
@@ -1058,15 +1097,7 @@ def discover_current_dhcp():
     try:
         cfg = _posted_or_saved_config()
         router = _get_router_from_cfg(cfg, router_idx)
-        pool, api, err = connect_to_router(router, retries=1)
-        if not api:
-            flash(f"DHCP discovery failed: {err}")
-            return redirect(url_for("config_page"))
-        try:
-            rows = get_resource_data(api, "/ip/dhcp-server")
-        finally:
-            try: pool.disconnect()
-            except Exception: pass
+        rows = _rust_discover_dhcp_rows(cfg, router)
         existing = {s.get("name") for s in router.setdefault("dhcp", {}).setdefault("servers", [])}
         added = 0
         for row in rows:
@@ -1102,7 +1133,7 @@ def test_router(router_idx):
     try:
         cfg = _posted_or_saved_config()
         router = _get_router_from_cfg(cfg, router_idx)
-        status = test_router_connection(router)
+        status = _rust_test_router_connection(cfg, router)
         flash(f"Router {router.get('name')} test using current UI config: {status}")
     except Exception as e:
         flash(f"Router test failed: {e}")
@@ -1117,15 +1148,7 @@ def discover_dhcp(router_idx):
     try:
         cfg = _posted_or_saved_config()
         router = _get_router_from_cfg(cfg, router_idx)
-        pool, api, err = connect_to_router(router, retries=1)
-        if not api:
-            flash(f"DHCP discovery failed: {err}")
-            return redirect(url_for("config_page"))
-        try:
-            rows = get_resource_data(api, "/ip/dhcp-server")
-        finally:
-            try: pool.disconnect()
-            except Exception: pass
+        rows = _rust_discover_dhcp_rows(cfg, router)
         existing = {s.get("name") for s in router.setdefault("dhcp", {}).setdefault("servers", [])}
         added = 0
         for row in rows:
