@@ -1,0 +1,123 @@
+{
+  "runtime": {
+    "scan_interval_active": 25,
+    "scan_interval_idle": 120,
+    "error_retry_interval": 30,
+    "id_length": 8,
+    "log_file": "",
+    "remove_inactive_entries": true
+  },
+  "libreqos": {
+    "enabled": true,
+    "command": "/opt/libreqos/src/LibreQoS.py",
+    "timeout_seconds": 300,
+    "sudo": true,
+    "shaped_devices_csv": "ShapedDevices.csv",
+    "network_json": "network.json"
+  },
+  "network": {
+    "mode": "logical_core_root",
+    "preserve_network_config": false,
+    "root_name": "LibreQoS-ROOT",
+    "root_type": "site",
+    "root_download_mbps": 620,
+    "root_upload_mbps": 620,
+    "logical_roots": {
+      "enabled": true,
+      "prefix": "LCORE",
+      "count_from_cpu": true,
+      "reserve_cores": 2,
+      "fallback_count": 4,
+      "min_count": 2,
+      "max_count": 6,
+      "distribution": "sticky_least_loaded",
+      "rebalance": true,
+      "rebalance_threshold_clients": 3,
+      "max_rebalance_moves_per_cycle": 1,
+      "state_file": "logical_core_assignments.json",
+      "capacity_mode": "full_root"
+    }
+  },
+  "bandwidth_defaults": {
+    "min_rate_percentage": 0.1,
+    "safe_min_mbps": 0.128,
+    "pppoe_default_profile": "default",
+    "pppoe_default_rate": "10M/10M",
+    "pppoe_aggregate_factor": 0.3,
+    "dhcp_default_per_client_mbps": 45,
+    "dhcp_download_factor": 1.0,
+    "dhcp_upload_factor": 1.0,
+    "hotspot_default_per_client_mbps": 10,
+    "hotspot_download_factor": 1.0,
+    "hotspot_upload_factor": 1.0
+  },
+  "telegram": {
+    "enabled": true,
+    "bot_token_env": "LQOSYNC_TELEGRAM_BOT_TOKEN",
+    "chat_id_env": "LQOSYNC_TELEGRAM_CHAT_ID",
+    "bot_token": "",
+    "chat_id": "",
+    "parse_mode": "HTML",
+    "notify_on_start": true,
+    "notify_on_changes": true,
+    "notify_on_no_changes": false,
+    "notify_on_error": true,
+    "notify_on_preflight_warning": true,
+    "include_added": true,
+    "include_updated": true,
+    "include_removed": true,
+    "include_computation": true,
+    "include_telemetry": true,
+    "max_list_items": 15
+  },
+  "routers": [
+    {
+      "name": "RB5k9-Distro",
+      "address": "10.200.1.2",
+      "port": 8728,
+      "username": "libreqos",
+      "password": "libreqos",
+      "pppoe": {
+        "enabled": true,
+        "per_plan_node": false
+      },
+      "dhcp": {
+        "enabled": true,
+        "servers": [
+          {
+            "name": "LAN",
+            "mode": "per_site",
+            "default_plan_down_mbps": 100,
+            "default_plan_up_mbps": 100,
+            "download_factor": 0.35,
+            "upload_factor": 0.35
+          },
+          {
+            "name": "Wifi5Soft",
+            "mode": "per_site",
+            "default_plan_down_mbps": 50,
+            "default_plan_up_mbps": 50,
+            "download_factor": 1.0,
+            "upload_factor": 1.0
+          },
+          {
+            "name": "LibreQoEMgt",
+            "mode": "per_site",
+            "default_plan_down_mbps": 25,
+            "default_plan_up_mbps": 25,
+            "download_factor": 1.0,
+            "upload_factor": 1.0
+          }
+        ]
+      },
+      "hotspot": {
+        "enabled": false,
+        "include_mac": true,
+        "download_limit_mbps": 10,
+        "upload_limit_mbps": 10,
+        "download_factor": 1.0,
+        "upload_factor": 1.0
+      }
+    }
+  ]
+}

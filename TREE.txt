@@ -1,0 +1,13 @@
+one-line-cli
+├── README.md
+├── TREE.txt
+├── install.sh
+├── src/
+│   └── updatecsv.py
+├── templates/
+│   └── config.json
+├── scripts/
+│   ├── verify.sh
+│   └── rollback.sh
+└── docs/
+    └── README.md
