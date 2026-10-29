@@ -74,6 +74,11 @@ fn read_current(root: &Path) -> Result<Option<Current>> {
     }
     let current: Current = toml::from_str(&fs::read_to_string(path)?)?;
     ensure!(valid_id(&current.generation), "Invalid generation pointer");
+    ensure!(
+        (!current.assignments || current.managed)
+            && (!current.core_plan || (current.managed && current.assignments)),
+        "Inconsistent generation metadata flags"
+    );
     Ok(Some(current))
 }
 pub fn is_managed(root: &Path) -> Result<bool> {
@@ -107,6 +112,8 @@ struct Current {
     managed: bool,
     #[serde(default)]
     assignments: bool,
+    #[serde(default)]
+    core_plan: bool,
 }
 pub fn current_generation(root: &Path) -> Option<String> {
     let text = fs::read_to_string(root.join("state/current.toml")).ok()?;
@@ -141,6 +148,7 @@ pub fn publish(root: &Path, plan: &Plan) -> Result<String> {
             status: "staged_local_only".into(),
             managed: false,
             assignments: false,
+            core_plan: false,
         })?,
     )?;
     Ok(id)
@@ -155,13 +163,14 @@ pub fn publish_normalized(
     plan: &Plan,
     subscribers: &[Subscriber],
 ) -> Result<Publication> {
-    publish_bundle(root, plan, subscribers, None)
+    publish_bundle(root, plan, subscribers, None, None)
 }
 fn publish_bundle(
     root: &Path,
     plan: &Plan,
     subscribers: &[Subscriber],
     state: Option<&crate::assignment::AssignmentState>,
+    core: Option<&crate::core_plan::Plan>,
 ) -> Result<Publication> {
     #[derive(Serialize)]
     struct SnapshotRef<'a> {
@@ -179,8 +188,19 @@ fn publish_bundle(
             toml::to_string_pretty(state).map_err(anyhow::Error::from)
         })
         .transpose()?;
+    let core_text = core
+        .map(|core| {
+            ensure!(
+                state.is_some(),
+                "Core plan requires assignment-aware publication"
+            );
+            crate::core_plan::validate_snapshot(core, subscribers)?;
+            // Compact derived output reduces repeated disk writes for large subscriber sets.
+            Ok::<_, anyhow::Error>(serde_json::to_string(core)?)
+        })
+        .transpose()?;
     let reusable = current
-        .filter(|c| c.managed && c.assignments == state.is_some())
+        .filter(|c| c.managed && c.assignments == state.is_some() && c.core_plan == core.is_some())
         .filter(|c| {
             let p = root.join("staging").join(&c.generation);
             fs::read_to_string(p.join("ShapedDevices.csv"))
@@ -194,12 +214,18 @@ fn publish_bundle(
                         .as_deref()
                         == Some(text)
                 })
+                && core_text.as_ref().is_none_or(|text| {
+                    fs::read_to_string(p.join("core-plan.json")).ok().as_deref() == Some(text)
+                })
                 && fs::read_to_string(p.join("subscribers.toml"))
                     .ok()
                     .as_deref()
                     == Some(&snapshot)
         });
     let generation = if let Some(c) = reusable {
+        if let Some(core) = core {
+            crate::core_plan::validate_fresh(core, crate::orchestrator::now())?;
+        }
         c.generation
     } else {
         let generation = uuid::Uuid::new_v4().to_string();
@@ -209,8 +235,15 @@ fn publish_bundle(
         if let Some(text) = &assignments {
             atomic_write(&p.join("assignments.toml"), text)?;
         }
+        if let Some(text) = &core_text {
+            atomic_write(&p.join("core-plan.json"), text)?;
+        }
         atomic_write(&p.join("ShapedDevices.csv"), &plan.csv)?;
         atomic_write(&p.join("network.json"), &plan.network)?;
+        // Disk work can outlive source freshness even when the core read is newer.
+        if let Some(core) = core {
+            crate::core_plan::validate_fresh(core, crate::orchestrator::now())?;
+        }
         atomic_write(
             &root.join("state/current.toml"),
             &toml::to_string(&Current {
@@ -218,6 +251,7 @@ fn publish_bundle(
                 status: "staged_local_only".into(),
                 managed: true,
                 assignments: state.is_some(),
+                core_plan: core.is_some(),
             })?,
         )?;
         generation
@@ -284,7 +318,18 @@ pub fn load_assignment_snapshot(
         };
         return Ok((subscribers, Default::default()));
     };
-    let path = root.join("staging").join(current.generation);
+    let (subscribers, state, _) = load_managed(root, &current)?;
+    Ok((subscribers, state))
+}
+fn load_managed(
+    root: &Path,
+    current: &Current,
+) -> Result<(
+    Vec<Subscriber>,
+    crate::assignment::AssignmentState,
+    Option<crate::core_plan::Plan>,
+)> {
+    let path = root.join("staging").join(&current.generation);
     let snapshot: Snapshot = toml::from_str(&fs::read_to_string(path.join("subscribers.toml"))?)?;
     let state = if current.assignments {
         let state = toml::from_str(&fs::read_to_string(path.join("assignments.toml"))?)?;
@@ -307,7 +352,19 @@ pub fn load_assignment_snapshot(
                 .collect(),
         }
     };
-    Ok((snapshot.subscribers, state))
+    let core = if current.core_plan {
+        ensure!(
+            current.managed && current.assignments,
+            "Core plan pointer is inconsistent"
+        );
+        let core: crate::core_plan::Plan =
+            serde_json::from_str(&fs::read_to_string(path.join("core-plan.json"))?)?;
+        crate::core_plan::validate_snapshot(&core, &snapshot.subscribers)?;
+        Some(core)
+    } else {
+        None
+    };
+    Ok((snapshot.subscribers, state, core))
 }
 pub fn publish_assigned(
     root: &Path,
@@ -315,5 +372,32 @@ pub fn publish_assigned(
     subscribers: &[Subscriber],
     state: &crate::assignment::AssignmentState,
 ) -> Result<Publication> {
-    publish_bundle(root, plan, subscribers, Some(state))
+    ensure!(
+        !read_current(root)?.is_some_and(|c| c.core_plan),
+        "Core-aware generation requires explicit orchestrated publication"
+    );
+    publish_bundle(root, plan, subscribers, Some(state), None)
+}
+pub fn publish_orchestrated(
+    root: &Path,
+    plan: &Plan,
+    subscribers: &[Subscriber],
+    state: &crate::assignment::AssignmentState,
+    core: Option<&crate::core_plan::Plan>,
+) -> Result<Publication> {
+    publish_bundle(root, plan, subscribers, Some(state), core)
+}
+pub struct CommittedCorePlan {
+    pub generation: String,
+    pub plan: crate::core_plan::Plan,
+}
+pub fn load_core_plan(root: &Path) -> Result<Option<CommittedCorePlan>> {
+    let Some(current) = read_current(root)?.filter(|c| c.core_plan) else {
+        return Ok(None);
+    };
+    let (_, _, plan) = load_managed(root, &current)?;
+    Ok(Some(CommittedCorePlan {
+        generation: current.generation,
+        plan: plan.context("Committed core plan is missing")?,
+    }))
 }

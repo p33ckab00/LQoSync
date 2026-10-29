@@ -3,6 +3,7 @@
 The WANs and Assignments pages configure intended subscriber parents for local output.
 Core routing and address-list synchronization require a future production adapter.
 These assignments do not change the actual path of subscriber traffic yet.
+The [core list planner](CORE_PLANNER.md) now previews owned per-host list changes and audits supported routing structures.
 
 ## Map WAN interfaces
 

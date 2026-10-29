@@ -126,6 +126,8 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/assignments", get(crate::assignment_web::assignments))
         .route("/assignments/pool", post(crate::assignment_web::save_pool))
         .route("/assignments/pin", post(crate::assignment_web::save_pin))
+        .route("/core-lists", get(crate::core_web::page))
+        .route("/core-lists/save", post(crate::core_web::save))
         .route("/sources", get(crate::sources_web::sources))
         .route("/sources/save", post(crate::sources_web::save))
         .route("/routers/save", post(save_router))
@@ -171,7 +173,7 @@ const CSS: &str = include_str!("style.css");
 pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
     Html(html!{ (DOCTYPE) html lang="en" {head {meta charset="utf-8";meta name="viewport" content="width=device-width, initial-scale=1";title{(title) " · LQoSync 3"}style{(maud::PreEscaped(CSS))}}
         body {aside {a.brand href="/" {span.mark{"LQ"} div{"LQoSync" small{"VERSION 3 · RUST"}}}
-            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/wans","WANs"),("/sources","Sources"),("/assignments","Assignments"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
+            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/wans","WANs"),("/sources","Sources"),("/assignments","Assignments"),("/core-lists","Core lists"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
             div.railfoot {span.dot{} " Local development" p{"Production adapters disabled"}}}
         main {header {div {p.eyebrow{"NETWORK OPERATIONS"} h1{(title)}} span.badge{"LOCAL STAGING"}}
             div.notice {strong{"Production is untouched. "} "This console writes only inside its own data directory. Core writes and LibreQoS apply are not implemented yet."}

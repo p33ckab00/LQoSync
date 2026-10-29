@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T14:09:18+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T14:40:49+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -185,3 +185,42 @@ Unfinished work: actual core address lists and routing verification, production 
 Next action: design system-owned per-subscriber core lists with route consistency checks before any router write implementation.
 No development console process was restarted by this slice. Code and route tests use isolated application data.
 Commit and push are authorized. Check the branch tip and actual remote head before a takeover.
+
+## Core planner update
+
+Goal complete: Core address-list planner and route validation UI, automatic local generation, performance/integrity review, and checks.
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`. Base: `7c7b68c`.
+Changed modules: `core_plan`, `core_routes`, `core_web`, `model`, `routeros`, `store`, `orchestrator`, `web`, and `lib`.
+Tests, README, subscriber/WAN guides, `v3/CORE_PLANNER.md`, plan, and brain notes accompany the implementation.
+
+Core lists binds WANs to their mapped core/both routers, unique address lists, and custom FIB tables.
+The planner derives individual subscriber `/32` members from the same assigned snapshot used for shaping output.
+Persistent UUID ownership markers scope add/keep/remove entries. Manual and other-owner rows remain protected.
+Overlaps, broad/DNS ambiguity, malformed markers, duplicate ownership, and dynamic/disabled owned rows block publication.
+Only current configured lists permit removals. Retired or unbound lists remain untouched.
+
+Initial route checks support RouterOS 7 direct prerouting list-to-table marks and one resolved active WAN default.
+Complex rules, PCC matchers, jumps, routing rules, FastTrack, ECMP, and ambiguous defaults require review.
+This is structural evidence only. It does not prove the packet path or implement router writes.
+Core/both reads include five new allowlisted print tables and complete route/firewall matcher fields.
+There are no mutation commands.
+
+`core-plan.json` commits as the fifth file under the authoritative generation pointer.
+The loader checks membership, IPs, parent nodes, ownership, bindings, and inventory provenance.
+Old generations remain readable. Corrupt or missing declared plans block managed publication.
+The plan records selected source routers and source/core collection timestamps.
+Final freshness checks run after file writes, immediately before the pointer changes.
+This fixes the independent review finding about distro expiry during planning or commit work.
+Regression proof: the separate-core/source test failed before the guard and passed after it.
+
+Checks: 81 functional tests, formatting, strict Clippy, build, and diff checks passed.
+Four manual benchmarks are ignored by default. The new benchmark passed separately.
+50k subscribers /60k members, debug: plan 876 ms, integrity 211 ms, compact JSON 791 ms.
+These measurements exclude network collection and disk publication.
+Actual HTTP smoke: four routes passed using isolated empty data, then the temporary process and files were removed.
+No production credentials, router configuration, LibreQoS files/packages/services, or existing processes changed.
+
+Unfinished work: actual core writes and coordinated shaping apply, representative router validation, broader routing policies, authentication, and retention.
+Next action: validate isolated real-world policy fixtures and define write-time ownership rechecks, transaction order, rollback, and actual-result verification.
+See [[10-sessions/2026-10-29-core-list-planner]] for details.
+Commit/push remain authorized. Verify the local tip and actual remote head before takeover.

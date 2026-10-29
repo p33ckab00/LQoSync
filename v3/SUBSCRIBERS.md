@@ -76,6 +76,9 @@ staging/GENERATION/
 ```
 
 The app writes all four files durably before it changes `state/current.toml`.
+With core bindings enabled, the same generation also includes `core-plan.json` before the pointer changes.
+Its membership matches the normalized snapshot and assignments. Source and core freshness gates also apply at commit.
+See [core planning](CORE_PLANNER.md) for route checks, ownership, and failure behavior.
 One atomic pointer selects the authoritative generation.
 The loader reads the snapshot from that generation.
 A missing or corrupt committed snapshot produces an error. It does not fall back to an older mirror silently.

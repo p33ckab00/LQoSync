@@ -50,6 +50,15 @@ async fn reply(stream: &mut (impl tokio::io::AsyncWrite + Unpin), words: &[Strin
 fn no_mutations_or_secret_properties_are_exposed() {
     assert!(read_properties("/interface/print").is_ok());
     for path in [
+        "/ip/firewall/address-list/print",
+        "/ip/firewall/mangle/print",
+        "/routing/table/print",
+        "/routing/rule/print",
+        "/ip/firewall/filter/print",
+    ] {
+        assert!(read_properties(path).is_ok(), "Missing core read: {path}");
+    }
+    for path in [
         "/ip/firewall/address-list/add",
         "/interface/set",
         "/system/reboot",
@@ -103,6 +112,45 @@ async fn external_client_logs_in_and_reads_tagged_rows() {
     assert_eq!(rows[0]["name"], "Mock router");
     assert!(!rows[0].contains_key("password"));
     assert!(client.read("/system/reboot").await.is_err());
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn full_mangle_reads_preserve_unknown_matchers_for_fail_closed_route_checks() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let login = sentence(&mut stream).await;
+        let mut done = vec!["!done".into()];
+        done.extend(login.into_iter().filter(|w| w.starts_with(".tag=")));
+        reply(&mut stream, &done).await;
+        let command = sentence(&mut stream).await;
+        assert_eq!(command[0], "/ip/firewall/mangle/print");
+        assert!(!command.iter().any(|w| w.starts_with("=.proplist=")));
+        let tag = command
+            .iter()
+            .find(|w| w.starts_with(".tag="))
+            .unwrap()
+            .clone();
+        reply(
+            &mut stream,
+            &[
+                "!re".into(),
+                "=chain=prerouting".into(),
+                "=future-routing-matcher=needs-review".into(),
+                tag.clone(),
+            ],
+        )
+        .await;
+        reply(&mut stream, &["!done".into(), tag]).await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    });
+    let client = Client::connect_with_password(&router(port), "fake-password")
+        .await
+        .unwrap();
+    let rows = client.read("/ip/firewall/mangle/print").await.unwrap();
+    assert_eq!(rows[0]["future-routing-matcher"], "needs-review");
     server.await.unwrap();
 }
 

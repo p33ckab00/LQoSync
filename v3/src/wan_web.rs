@@ -157,8 +157,7 @@ pub(crate) async fn commit(
         }
         a.settings = next;
         a.status =
-            "WAN/assignment settings saved. Waiting for a complete healthy local generation."
-                .into();
+            "Orchestration settings saved. Waiting for a complete healthy local generation.".into();
         Redirect::to(location).into_response()
     })
     .await

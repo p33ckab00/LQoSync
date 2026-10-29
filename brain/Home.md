@@ -12,6 +12,7 @@ status: active
 - [[10-sessions/2026-10-29-speed-rules]]
 - [[10-sessions/2026-10-29-subscriber-normalization]]
 - [[10-sessions/2026-10-29-wan-assignments]]
+- [[10-sessions/2026-10-29-core-list-planner]]
 - [[HANDOFF]]
 
 The v3 application lives in `v3/`. Existing root-level application files belong to the prior implementation.

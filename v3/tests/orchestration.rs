@@ -282,7 +282,7 @@ async fn selected_read_round_includes_a_mapped_core_router_without_subscriber_bi
         let mut done = vec!["!done".into()];
         done.extend(login.into_iter().filter(|w| w.starts_with(".tag=")));
         send_sentence(&mut stream, done).await;
-        for _ in 0..6 {
+        for _ in 0..11 {
             let command = read_sentence(&mut stream).await;
             assert!(command[0].ends_with("/print"));
             let tag = command

@@ -33,6 +33,7 @@ fn settings() -> Settings {
         auto_stage: true,
         speed_rules: Default::default(),
         assignment: Default::default(),
+        core_lists: Default::default(),
         routers: vec![],
         nodes: vec![
             node("wan", "", "manual", 620.0, 100.0),

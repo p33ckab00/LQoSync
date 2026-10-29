@@ -70,7 +70,19 @@ pub async fn refresh(s: Shared) {
             now(),
         )?;
         let plan = compile(&work_settings, &subscribers)?;
-        Ok((subscribers, plan, assignments))
+        let core = if work_settings.core_lists.bindings.is_empty() {
+            None
+        } else {
+            Some(crate::core_plan::build(
+                &work_settings,
+                &subscribers,
+                &assignments,
+                &work_inventories,
+                &work_errors,
+                now(),
+            )?)
+        };
+        Ok((subscribers, plan, assignments, core))
     })
     .await;
     let mut a = s.clone().lock_owned().await;
@@ -87,7 +99,7 @@ pub async fn refresh(s: Shared) {
         Ok(value) => value,
         Err(e) => Err(e.into()),
     };
-    let (subscribers, plan, assignments) = match result {
+    let (subscribers, plan, assignments, core) = match result {
         Ok(value) => value,
         Err(e) => {
             a.status = format!("Not normalized: {e}. Last valid snapshot and generation retained.");
@@ -96,7 +108,13 @@ pub async fn refresh(s: Shared) {
     };
     // Serialize the commit, but do file I/O on a blocking worker, not an async worker.
     let _ = tokio::task::spawn_blocking(move || {
-        match store::publish_assigned(&a.root, &plan, &subscribers, &assignments) {
+        let result = (|| -> anyhow::Result<_> {
+            if let Some(core) = &core {
+                crate::core_plan::validate_fresh(core, now())?;
+            }
+            store::publish_orchestrated(&a.root, &plan, &subscribers, &assignments, core.as_ref())
+        })();
+        match result {
             Ok(p) => {
                 a.generation = Some(p.generation);
                 a.status = format!(

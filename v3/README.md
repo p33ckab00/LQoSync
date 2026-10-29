@@ -26,6 +26,8 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Collect selected routers automatically with at most four concurrent reads. Pause stops queued reads.
 - Commit normalized snapshots with deterministic CSV/JSON output as one local generation.
 - Commit subscriber source ownership and WAN assignments in the same generation.
+- Configure per-WAN core lists and custom routing tables through the UI.
+- Build owned IPv4 `/32` add/keep/remove plans with protected manual members and conservative RouterOS 7 route checks.
 - Publish valid output automatically into a local generation directory.
 - Retain the last valid generation after an invalid snapshot or topology change.
 
@@ -51,6 +53,7 @@ Speed rules now resolve inventory into previews. See [speed rules](SPEED_RULES.m
 Source binding, stable IDs, complete snapshot publication, and scheduled read rounds are implemented.
 See [subscriber orchestration](SUBSCRIBERS.md) for health gates, overlap ownership, and limits.
 See [WAN assignments](WAN_ASSIGNMENTS.md) for interface mapping, pools, pins, and planned-load distribution.
+See [core planning](CORE_PLANNER.md) for list ownership, route audit limits, and the automatic local preview.
 Core address-list writes and production apply remain pending.
 The UI reports local output as **staged**, never as production **applied**.
 Changes to settings require a Save action. Local output publication after that save is automatic.
@@ -93,11 +96,13 @@ data/
     GENERATION/
       subscribers.toml
       assignments.toml
+      core-plan.json
       ShapedDevices.csv
       network.json
 ```
 
 The normalized snapshot, assignment state, and both output files exist before the state pointer changes.
+With core bindings enabled, the same generation includes `core-plan.json` before that pointer changes.
 Older normalized generations without assignment state remain readable.
 The committed generation is authoritative. `state/subscribers.toml` is a compatibility mirror for managed generations.
 A mirror failure produces a warning; it does not undo or hide the committed snapshot.
@@ -136,7 +141,7 @@ cargo clippy --locked --all-targets -- -D warnings
 1. Add effective RADIUS policy support, IPv6, and multi-device subscriber circuits.
 2. Expand the discovered network map. Keep it separate from the shaping tree.
 3. Validate deployment on isolated representative router fixtures before production use.
-4. Add core list ownership rules and route verification for the intended WAN assignments.
+4. Validate actual core paths and implement coordinated execution of the local address-list plan.
 5. Implement production execution for the selected adapter. Legacy uses `LibreQoS.py --updateonly`.
    V3 uses an authenticated `ReloadLibreQoS` request followed by applied-generation verification.
    A request acknowledgement is not proof that shaping was applied.

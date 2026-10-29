@@ -11,9 +11,12 @@ pub fn read_properties(path: &str) -> Result<&'static str> {
         "/system/resource/print" => "version,uptime,board-name,cpu-load,free-memory,total-memory",
         "/interface/print" => ".id,name,type,running,disabled,actual-mtu,mac-address,comment",
         "/interface/list/member/print" => "list,interface,disabled,dynamic",
-        "/ip/route/print" => {
-            "dst-address,gateway,immediate-gw,routing-table,active,distance,disabled"
-        }
+        "/ip/route/print"
+        | "/ip/firewall/mangle/print"
+        | "/ip/firewall/filter/print"
+        | "/routing/rule/print" => "*",
+        "/routing/table/print" => "name,fib,disabled,dynamic,invalid",
+        "/ip/firewall/address-list/print" => ".id,list,address,comment,dynamic,disabled,timeout",
         "/ip/neighbor/print" => "identity,interface,interface-name,address,mac-address",
         "/ppp/profile/print" => "name,rate-limit,comment",
         "/ppp/active/print" => "name,address,caller-id,service,uptime,comment",
@@ -92,10 +95,13 @@ impl Client {
     pub async fn read(&self, path: &str) -> Result<Vec<Row>> {
         let properties = read_properties(path)?;
         let query = async {
-            let command = CommandBuilder::new()
-                .command(path)
-                .attribute(".proplist", Some(properties))
-                .build();
+            // Full match fields prevent an unseen condition from passing route validation.
+            let builder = CommandBuilder::new().command(path);
+            let command = if properties == "*" {
+                builder.build()
+            } else {
+                builder.attribute(".proplist", Some(properties)).build()
+            };
             let mut receiver = self
                 .device
                 .send_command(command)
@@ -110,9 +116,7 @@ impl Client {
                             .attributes
                             .into_iter()
                             .filter_map(|(k, v)| {
-                                properties
-                                    .split(',')
-                                    .any(|p| p == k)
+                                (properties == "*" || properties.split(',').any(|p| p == k))
                                     .then_some((k, v.unwrap_or_default()))
                             })
                             .collect();
@@ -170,6 +174,9 @@ pub async fn inspect(router: &Router) -> Result<Inventory> {
             "/ip/hotspot/user/profile/print",
             "/ip/hotspot/user/print",
         ]);
+    }
+    if router.role == "core" || router.role == "both" {
+        paths.extend(crate::core_plan::EXTRA_TABLES.iter().copied());
     }
     let mut inventory = Inventory {
         router_id: router.id.clone(),
