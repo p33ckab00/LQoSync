@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T11:44:12+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T12:05:19+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -96,3 +96,28 @@ An optional `cargo test -p mikrotik-tokio` could not run because that dependency
 Application protocol tests exercise the patched transport directly.
 The dependency uses let chains; the declared Rust minimum is now 1.88.
 The actual checks ran with Rust 1.99.1.
+
+
+## Speed rules update
+
+The user authorized speed rules, performance/integrity review, commit, and push.
+Base commit for this slice: `56278d6`; branch and checkout remain unchanged.
+New modules: `v3/src/speeds.rs`, `speed_preview.rs`, and `speed_web.rs`.
+Changed: model settings, read-only RouterOS fields, web routes/inventory sharing,
+Rust dependencies, speed and web tests, documentation, and this vault.
+
+Speed resolution and UI previews are complete. Subscriber snapshot publication is not connected to inventory yet.
+See [[10-sessions/2026-10-29-speed-rules]] and `v3/SPEED_RULES.md` for exact precedence and semantic corrections.
+The old script was read as a reference. It was not run or modified.
+No production credentials, router writes, LibreQoS writes, package changes, or service restarts occurred.
+
+Checks: 39 functional tests passed; manual performance test passed separately.
+Last benchmark: 50,000 PPP sessions, 100 profiles, 220.3 ms in a debug build.
+Strict lint, formatting, diff checks, and HTTP smoke passed.
+Independent review found numeric-token and duplicate-selection defects. Both were fixed with regression tests.
+A follow-up whitespace regression was also fixed. Final review found no remaining material issue.
+Concurrent policy changes invalidate preview work; a deterministic queued-worker test verifies this.
+The preview and policy save preserve subscriber snapshots and staged generations.
+
+Next action: implement stable subscriber identity and source selection, then publish only complete valid snapshots.
+Keep the discovered map separate from the shaping tree. Do not apply production shaping in that work without scope authorization.

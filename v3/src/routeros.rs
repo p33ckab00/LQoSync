@@ -16,14 +16,15 @@ pub fn read_properties(path: &str) -> Result<&'static str> {
         }
         "/ip/neighbor/print" => "identity,interface,interface-name,address,mac-address",
         "/ppp/profile/print" => "name,rate-limit,comment",
-        "/ppp/active/print" => "name,address,caller-id,service,uptime",
+        "/ppp/active/print" => "name,address,caller-id,service,uptime,comment",
         "/ppp/secret/print" => "name,profile,disabled,comment,caller-id",
         "/ip/dhcp-server/print" => "name,interface,address-pool,disabled",
         "/ip/dhcp-server/lease/print" => {
             "address,active-address,mac-address,host-name,server,status,disabled,comment,rate-limit"
         }
         "/ip/hotspot/active/print" => "user,address,mac-address,server",
-        "/ip/hotspot/user/profile/print" => "name,rate-limit",
+        "/ip/hotspot/user/profile/print" => "name,rate-limit,comment",
+        "/ip/hotspot/user/print" => "name,profile,disabled,comment",
         _ => bail!("RouterOS command is outside the read-only allowlist"),
     })
 }
@@ -167,6 +168,7 @@ pub async fn inspect(router: &Router) -> Result<Inventory> {
             "/ip/dhcp-server/lease/print",
             "/ip/hotspot/active/print",
             "/ip/hotspot/user/profile/print",
+            "/ip/hotspot/user/print",
         ]);
     }
     let mut inventory = Inventory {

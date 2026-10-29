@@ -17,7 +17,7 @@ pub struct App {
     pub token: String,
     pub status: String,
     pub generation: Option<String>,
-    pub inventories: BTreeMap<String, crate::routeros::Inventory>,
+    pub inventories: BTreeMap<String, Arc<crate::routeros::Inventory>>,
     pub inventory_errors: BTreeMap<String, String>,
 }
 pub type Shared = Arc<Mutex<App>>;
@@ -76,6 +76,9 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/routers/save", post(save_router))
         .route("/routers/{id}/delete", post(delete_router))
         .route("/routers/{id}/inspect", post(inspect_router))
+        .route("/routers/{id}/speeds", get(crate::speed_web::router_speeds))
+        .route("/speed-rules", get(crate::speed_web::rules))
+        .route("/speed-rules/save", post(crate::speed_web::save_rules))
         .route("/nodes/save", post(save_node))
         .route("/nodes/{id}/delete", post(delete_node))
         .route("/settings/save", post(save_options))
@@ -106,17 +109,17 @@ async fn headers(req: axum::extract::Request, next: axum::middleware::Next) -> R
     r
 }
 const CSS: &str = include_str!("style.css");
-fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
+pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
     Html(html!{ (DOCTYPE) html lang="en" {head {meta charset="utf-8";meta name="viewport" content="width=device-width, initial-scale=1";title{(title) " · LQoSync 3"}style{(maud::PreEscaped(CSS))}}
         body {aside {a.brand href="/" {span.mark{"LQ"} div{"LQoSync" small{"VERSION 3 · RUST"}}}
-            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
+            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
             div.railfoot {span.dot{} " Local development" p{"Production adapters disabled"}}}
         main {header {div {p.eyebrow{"NETWORK OPERATIONS"} h1{(title)}} span.badge{"LOCAL STAGING"}}
             div.notice {strong{"Production is untouched. "} "This console writes only inside its own data directory. Core writes and LibreQoS apply are not implemented yet."}
             (content) footer {"LQoSync 3 · Rust backend and Rust-rendered UI · " (a.root.display())}}
     }}}.into_string())
 }
-fn csrf(a: &App) -> Markup {
+pub(crate) fn csrf(a: &App) -> Markup {
     html! {input type="hidden" name="token" value=(&a.token);}
 }
 fn field(label: &str, name: &str, value: &str, kind: &str) -> Markup {
@@ -125,7 +128,7 @@ fn field(label: &str, name: &str, value: &str, kind: &str) -> Markup {
 fn select(label: &str, name: &str, options: &[(&str, &str)], selected: &str) -> Markup {
     html! {label {(label) select name=(name) {@for (v,t) in options {option value=(v) selected[*v==selected] {(t)}}}}}
 }
-fn check(a: &App, token: &str) -> Result<(), (StatusCode, &'static str)> {
+pub(crate) fn check(a: &App, token: &str) -> Result<(), (StatusCode, &'static str)> {
     if token == a.token {
         Ok(())
     } else {
@@ -135,7 +138,7 @@ fn check(a: &App, token: &str) -> Result<(), (StatusCode, &'static str)> {
         ))
     }
 }
-fn error(a: &App, e: impl std::fmt::Display) -> Response {
+pub(crate) fn error(a: &App, e: impl std::fmt::Display) -> Response {
     (StatusCode::UNPROCESSABLE_ENTITY,shell(a,"Validation error",html!{section.card {h2{"Settings were not changed"}p{(e)}a href="/topology"{"Return to topology"}}})).into_response()
 }
 fn commit(a: &mut App, next: Settings) -> anyhow::Result<()> {
@@ -173,9 +176,10 @@ async fn routers(State(s): State<Shared>) -> Html<String> {
         }}
             @if let Some(e)=a.inventory_errors.get(&r.id){p.warning{(e)}}
             @if let Some(i)=a.inventories.get(&r.id){p.help{"Last inventory Unix timestamp: " (i.collected_at) ". This inventory does not replace the subscriber snapshot."}
-                @for (path,rows) in &i.tables {details {summary{(path) " · " (rows.len()) " rows"}pre{(serde_json::to_string_pretty(rows).unwrap_or_default())}}}
+                @for (path,rows) in &i.tables {details {summary{(path) " · " (rows.len()) " rows · first 20 shown"}pre{(serde_json::to_string_pretty(&rows[..rows.len().min(20)]).unwrap_or_default())}}}
                 @for (path,e) in &i.errors {p.warning{(path) ": " (e)}}
             }
+            a.button href=(format!("/routers/{}/speeds",r.id)){"Preview speed rules"}
             form.inline method="post" action=(format!("/routers/{}/inspect",r.id)){(csrf(&a))button{"Read inventory"}}
             (router_form(&a,Some(r))) form.inline method="post" action=(format!("/routers/{}/delete",r.id)){(csrf(&a)) button.danger{"Remove router"}}}}
         }section.card {h2{"Add router"}(router_form(&a,None))}},
@@ -299,7 +303,7 @@ async fn inspect_router(
                     .insert(id, format!("Inventory could not be saved: {e}"));
             } else {
                 a.inventory_errors.remove(&id);
-                a.inventories.insert(id, inventory);
+                a.inventories.insert(id, Arc::new(inventory));
             }
         }
         Err(e) => {

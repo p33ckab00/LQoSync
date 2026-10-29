@@ -12,6 +12,8 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Save inventory and per-table errors in application-local TOML. Incomplete inventory never replaces the subscriber snapshot.
 - Detect the main installed LibreQoS package. Select the legacy adapter for 2.0–2.2, or the v3 scheduler adapter for 3.x.
 - Block unknown versions and incomplete package states. Ignore the separate preflight package.
+- Preview PPP, DHCP, and Hotspot speeds with rule provenance and unresolved errors.
+- Edit minimum-rate policy in application-local TOML through the Rust UI.
 - Create and edit WAN, PPPoE, DHCP, Hotspot, and site nodes.
 - Set explicit capacities or compute subscriber aggregates with separate download and upload factors.
 - Cap computed nodes at their immediate parent. Keep subscriber rates unchanged.
@@ -35,7 +37,8 @@ Inventory status is from the last read. Concurrent router-setting changes discar
 Saved inventory files are diagnostic snapshots; the UI starts with no active inventory after a restart.
 
 Production shaping remains disabled.
-Source normalization, WAN assignment, core address-list writes, and production apply execution remain pending.
+Speed rules now resolve inventory into previews. See [speed rules](SPEED_RULES.md) for precedence and compatibility differences.
+Stable subscriber identity, source selection, complete snapshot publication, WAN assignment, core address-list writes, and production apply remain pending.
 The UI reports local output as **staged**, never as production **applied**.
 Changes to settings require a Save action. Local output publication after that save is automatic.
 

@@ -10,6 +10,8 @@ pub struct Settings {
     #[serde(default = "yes")]
     pub auto_stage: bool,
     #[serde(default)]
+    pub speed_rules: crate::speeds::SpeedRules,
+    #[serde(default)]
     pub routers: Vec<Router>,
     #[serde(default)]
     pub nodes: Vec<Node>,
@@ -25,6 +27,7 @@ impl Default for Settings {
         Self {
             interval_seconds: 30,
             auto_stage: true,
+            speed_rules: crate::speeds::SpeedRules::default(),
             routers: vec![],
             nodes: vec![],
         }
@@ -109,6 +112,7 @@ pub fn valid_id(id: &str) -> bool {
 }
 
 pub fn validate(settings: &Settings) -> Result<()> {
+    settings.speed_rules.validate()?;
     ensure!(
         (1..=86400).contains(&settings.interval_seconds),
         "Sync interval must be 1–86400 seconds"
