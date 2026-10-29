@@ -1,8 +1,8 @@
 use anyhow::{Result, bail, ensure};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
     #[serde(default = "default_interval")]
@@ -56,7 +56,7 @@ fn default_router_timeout() -> u64 {
     10
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Node {
     pub id: String,
@@ -75,7 +75,7 @@ pub struct Node {
     pub upload_factor: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Subscriber {
     pub id: String,
@@ -113,6 +113,7 @@ pub fn valid_id(id: &str) -> bool {
 
 pub fn validate(settings: &Settings) -> Result<()> {
     settings.speed_rules.validate()?;
+    crate::normalizer::validate_bindings(settings)?;
     ensure!(
         (1..=86400).contains(&settings.interval_seconds),
         "Sync interval must be 1–86400 seconds"
@@ -195,6 +196,7 @@ pub fn validate(settings: &Settings) -> Result<()> {
         let mut id = n.id.as_str();
         while !id.is_empty() {
             ensure!(seen.insert(id), "Topology contains a cycle at {id}");
+            ensure!(seen.len() <= 256, "Topology depth exceeds 256 nodes");
             let parent = settings
                 .nodes
                 .iter()
@@ -206,18 +208,14 @@ pub fn validate(settings: &Settings) -> Result<()> {
     Ok(())
 }
 
-fn beneath(settings: &Settings, id: &str, ancestor: &str) -> bool {
-    if id == ancestor {
-        return true;
-    }
-    let Some(node) = settings.nodes.iter().find(|n| n.id == id) else {
-        return false;
-    };
-    !node.parent.is_empty() && beneath(settings, &node.parent, ancestor)
-}
-
 pub fn compile(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> {
     validate(settings)?;
+    ensure!(
+        !subscribers.is_empty() || !settings.nodes.iter().any(|n| n.mode == "computed"),
+        "Waiting for a complete nonempty subscriber snapshot"
+    );
+    let nodes: HashMap<_, _> = settings.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let mut totals: HashMap<&str, (f64, f64, usize)> = HashMap::new();
     let mut subscriber_ids = HashSet::new();
     let mut ips = HashSet::new();
     for s in subscribers {
@@ -232,7 +230,7 @@ pub fn compile(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> 
             .parse::<std::net::Ipv4Addr>()?;
         ensure!(ips.insert(ip), "Duplicate subscriber IPv4 address");
         ensure!(
-            settings.nodes.iter().any(|n| n.id == s.node),
+            nodes.contains_key(s.node.as_str()),
             "Subscriber {} has an unknown node",
             s.id
         );
@@ -248,24 +246,37 @@ pub fn compile(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> 
             s.id
         );
     }
+    for subscriber in subscribers {
+        let mut id = subscriber.node.as_str();
+        while !id.is_empty() {
+            let total = totals.entry(id).or_default();
+            total.0 += subscriber.download;
+            total.1 += subscriber.upload;
+            total.2 += 1;
+            id = &nodes[id].parent;
+        }
+    }
+    let mut pruned = HashSet::new();
     let mut capacities: BTreeMap<String, Capacity> = BTreeMap::new();
     let mut remaining: Vec<_> = settings.nodes.iter().collect();
     while !remaining.is_empty() {
         let before = remaining.len();
         let mut next = Vec::new();
         for n in remaining {
+            let (sum_download, sum_upload, count) =
+                totals.get(n.id.as_str()).copied().unwrap_or_default();
+            if pruned.contains(n.parent.as_str()) || (n.mode == "computed" && count == 0) {
+                pruned.insert(n.id.as_str());
+                continue;
+            }
             if !n.parent.is_empty() && !capacities.contains_key(&n.parent) {
                 next.push(n);
                 continue;
             }
-            let members: Vec<_> = subscribers
-                .iter()
-                .filter(|s| beneath(settings, &s.node, &n.id))
-                .collect();
             let (raw_download, raw_upload) = if n.mode == "computed" {
                 (
-                    members.iter().map(|s| s.download).sum::<f64>() * n.download_factor,
-                    members.iter().map(|s| s.upload).sum::<f64>() * n.upload_factor,
+                    sum_download * n.download_factor,
+                    sum_upload * n.upload_factor,
                 )
             } else {
                 (n.download, n.upload)
@@ -297,7 +308,7 @@ pub fn compile(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> 
                     upload,
                     raw_download,
                     raw_upload,
-                    subscribers: members.len(),
+                    subscribers: count,
                 },
             );
         }
@@ -313,7 +324,9 @@ pub fn compile(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> 
     ) -> serde_json::Value {
         let mut out = serde_json::Map::new();
         for n in settings.nodes.iter().filter(|n| n.parent == parent) {
-            let c = &caps[&n.id];
+            let Some(c) = caps.get(&n.id) else {
+                continue;
+            };
             out.insert(n.id.clone(),serde_json::json!({"downloadBandwidthMbps":c.download,"uploadBandwidthMbps":c.upload,"type":"site","children":tree(settings,caps,&n.id)}));
         }
         serde_json::Value::Object(out)

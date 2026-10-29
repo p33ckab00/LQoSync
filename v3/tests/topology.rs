@@ -98,3 +98,13 @@ fn missing_rates_and_unknown_nodes_do_not_publish() {
     assert!(compile(&settings(), &[subscriber("1", "ppp", 0.0, 10.0)]).is_err());
     assert!(compile(&settings(), &[]).is_err());
 }
+
+#[test]
+fn idle_computed_branches_are_omitted_from_a_nonempty_complete_snapshot() {
+    let mut settings = settings();
+    settings.nodes.push(node("idle", "wan", "computed", 0., 0.));
+    let plan = compile(&settings, &[subscriber("1", "ppp", 50., 10.)]).unwrap();
+    assert!(!plan.capacities.contains_key("idle"));
+    let network: serde_json::Value = serde_json::from_str(&plan.network).unwrap();
+    assert!(network["wan"]["children"].get("idle").is_none());
+}

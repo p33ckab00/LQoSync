@@ -20,7 +20,7 @@ pub fn read_properties(path: &str) -> Result<&'static str> {
         "/ppp/secret/print" => "name,profile,disabled,comment,caller-id",
         "/ip/dhcp-server/print" => "name,interface,address-pool,disabled",
         "/ip/dhcp-server/lease/print" => {
-            "address,active-address,mac-address,host-name,server,status,disabled,comment,rate-limit"
+            "address,active-address,mac-address,active-mac-address,host-name,server,active-server,status,disabled,comment,rate-limit"
         }
         "/ip/hotspot/active/print" => "user,address,mac-address,server",
         "/ip/hotspot/user/profile/print" => "name,rate-limit,comment",

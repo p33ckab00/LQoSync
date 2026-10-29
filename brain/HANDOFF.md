@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T12:05:19+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T13:51:23+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -121,3 +121,33 @@ The preview and policy save preserve subscriber snapshots and staged generations
 
 Next action: implement stable subscriber identity and source selection, then publish only complete valid snapshots.
 Keep the discovered map separate from the shaping tree. Do not apply production shaping in that work without scope authorization.
+
+
+## Subscriber normalization update
+
+Goal complete: subscriber normalization, discovered source selection UI, automatic local publication, review, and verification.
+Branch/worktree remain `lqosyncv3` at `/opt/LQoSync3.0`. Base for this slice: `7623e31`.
+Last agent: Codex.
+Changed modules: `normalizer`, `orchestrator`, `sources_web`, `model`, `store`, `speed_preview`, `speed_web`, `web`, and `main`.
+Changed tests, documentation, UUID feature/lockfile, and project notes accompany the code.
+
+Sources bind exact router/profile/server metadata to real subscriber nodes.
+Scheduled collection polls only selected routers, at most four at a time. Pausing stops pending launches.
+Healthy source changes, reads, and policy saves trigger local normalization automatically.
+The snapshot and both generated files share one authoritative immutable generation pointer.
+The state snapshot is a compatibility mirror. A failed mirror does not invalidate committed data.
+Unknown, partial, stale, empty, or conflicting collections retain the last valid generation.
+
+Verification: 59 functional tests passed. Clippy, formatting, and diff checks passed.
+Two manual benchmark tests are ignored by default; the new normalization benchmark passed separately.
+Final debug measurement: 50k subscribers /100 selected profiles, 639.2 ms normalization, 921.7 ms including compilation.
+Source HTTP tests and a full local mock-router scheduled round prove automatic local publication.
+Independent review fixes cover active DHCP fields, unknown nonempty mappings, exact names, queued-read pause, and UI work placement.
+Repeat review found no remaining material issue.
+
+No production credentials were used. Mock logins use a non-secret environment value only against local mock sockets.
+No LibreQoS files, packages, services, shaping, or router configuration were changed.
+Operation and limits: `v3/SUBSCRIBERS.md` and [[10-sessions/2026-10-29-subscriber-normalization]].
+Next action: validate representative isolated router behavior before deployment or additional production integrations.
+Stable WAN/core-list assignment, effective RADIUS, IPv6/multi-device circuits, authentication, and generation retention remain future work.
+Run one app process per data directory. Production export/apply remains disabled.

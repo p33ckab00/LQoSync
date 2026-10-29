@@ -9,6 +9,8 @@ use std::collections::{HashMap, HashSet};
 pub struct SpeedEntry {
     pub service: &'static str,
     pub identity: String,
+    pub mac: String,
+    pub name: String,
     pub group: String,
     pub ipv4: String,
     pub speed: Option<ResolvedSpeed>,
@@ -28,7 +30,7 @@ impl SpeedPreview {
     }
 }
 fn text<'a>(row: &'a Row, key: &str) -> &'a str {
-    row.get(key).map(|s| s.trim()).unwrap_or("")
+    row.get(key).map(String::as_str).unwrap_or("")
 }
 fn table<'a>(inv: &'a Inventory, path: &str, errors: &mut Vec<String>) -> &'a [Row] {
     if inv.errors.contains_key(path) {
@@ -81,26 +83,38 @@ fn cached(cache: &Cache<'_>, name: &str) -> Result<ResolvedSpeed> {
         .clone()
         .map_err(anyhow::Error::msg)
 }
-fn push(
-    report: &mut SpeedPreview,
+fn entry(
     service: &'static str,
     identity: &str,
     group: &str,
     ipv4: &str,
+    row: &Row,
     result: Result<ResolvedSpeed>,
-) {
+) -> SpeedEntry {
     let (speed, error) = match result {
         Ok(value) => (Some(value), None),
         Err(e) => (None, Some(e.to_string())),
     };
-    report.entries.push(SpeedEntry {
+    let name = if service == "dhcp" && !text(row, "host-name").is_empty() {
+        text(row, "host-name")
+    } else {
+        identity
+    };
+    SpeedEntry {
         service,
         identity: identity.into(),
         group: group.into(),
         ipv4: ipv4.into(),
+        mac: if service == "dhcp" {
+            lease_mac(row)
+        } else {
+            text(row, "mac-address")
+        }
+        .into(),
+        name: name.into(),
         speed,
         error,
-    });
+    }
 }
 
 fn duplicate_keys<'a, K: Eq + std::hash::Hash>(
@@ -124,12 +138,39 @@ fn lease_address(row: &Row) -> &str {
         text(row, "active-address")
     }
 }
+fn lease_server(row: &Row) -> &str {
+    let active = text(row, "active-server");
+    if !active.is_empty() && active != "all" {
+        return active;
+    }
+    let configured = text(row, "server");
+    if configured == "all" { "" } else { configured }
+}
+fn lease_mac(row: &Row) -> &str {
+    let active = text(row, "active-mac-address");
+    if active.is_empty() {
+        text(row, "mac-address")
+    } else {
+        active
+    }
+}
 fn eligible_lease(row: &Row) -> bool {
     text(row, "disabled") != "true"
         && (text(row, "status").is_empty() || text(row, "status") == "bound")
 }
 
 pub fn preview(inv: &Inventory, rules: &SpeedRules) -> Result<SpeedPreview> {
+    preview_selected(
+        inv,
+        rules,
+        &["ppp", "dhcp", "hotspot"].into_iter().collect(),
+    )
+}
+pub(crate) fn preview_selected(
+    inv: &Inventory,
+    rules: &SpeedRules,
+    services: &HashSet<&str>,
+) -> Result<SpeedPreview> {
     rules.validate()?;
     let mut report = SpeedPreview {
         entries: vec![],
@@ -140,138 +181,154 @@ pub fn preview(inv: &Inventory, rules: &SpeedRules) -> Result<SpeedPreview> {
             .errors
             .push("The inventory collection deadline was exceeded".into());
     }
-    let active = table(inv, "/ppp/active/print", &mut report.errors);
-    let secrets = index(
-        table(inv, "/ppp/secret/print", &mut report.errors),
-        "PPP secrets",
-        &mut report.errors,
-    );
-    let profiles = index(
-        table(inv, "/ppp/profile/print", &mut report.errors),
-        "PPP profiles",
-        &mut report.errors,
-    );
     let empty = Row::new();
-    // Resolve every shared profile once, regardless of subscriber count.
-    let profile_cache: Cache<'_> = profiles
-        .iter()
-        .map(|(&name, row)| {
-            let result = row
-                .map(|r| {
-                    speeds::resolve_ppp(&empty, &empty, Some(r), rules).map_err(|e| e.to_string())
-                })
-                .unwrap_or_else(|| Err(format!("Duplicate PPP profile: {name}")));
-            (name, result)
-        })
-        .collect();
-    let duplicates = duplicate_keys(active, |r| (text(r, "name"), text(r, "address")));
-    for row in active {
-        let name = text(row, "name");
-        let address = text(row, "address");
-        let secret = lookup(&secrets, name);
-        let profile = secret.as_ref().map(|r| text(r, "profile")).unwrap_or("");
-        let result = (|| {
-            ensure!(!name.is_empty(), "PPP active identity is missing");
-            ensure!(
-                !duplicates.contains(&(name, address)),
-                "Duplicate PPP active session"
-            );
-            let secret = secret?;
-            ensure!(
-                text(secret, "disabled") != "true",
-                "PPP local user is disabled"
-            );
-            if let Some(speed) =
-                speeds::comment(text(secret, "comment"), "ppp_secret_comment", rules)?
-            {
-                return Ok(speed);
-            }
-            if let Some(speed) = speeds::comment(text(row, "comment"), "ppp_active_comment", rules)?
-            {
-                return Ok(speed);
-            }
-            cached(&profile_cache, profile)
-        })();
-        push(&mut report, "ppp", name, profile, address, result);
-    }
-    let leases = table(inv, "/ip/dhcp-server/lease/print", &mut report.errors);
-    let duplicates = duplicate_keys(leases.iter().filter(|r| eligible_lease(r)), |r| {
-        (text(r, "server"), text(r, "mac-address"), lease_address(r))
-    });
-    for row in leases {
-        if text(row, "disabled") == "true" {
-            continue;
+    if services.contains("ppp") {
+        let active = table(inv, "/ppp/active/print", &mut report.errors);
+        let secrets = index(
+            table(inv, "/ppp/secret/print", &mut report.errors),
+            "PPP secrets",
+            &mut report.errors,
+        );
+        let profiles = index(
+            table(inv, "/ppp/profile/print", &mut report.errors),
+            "PPP profiles",
+            &mut report.errors,
+        );
+        // Resolve every shared profile once, regardless of subscriber count.
+        let profile_cache: Cache<'_> = profiles
+            .iter()
+            .map(|(&name, row)| {
+                let result = row
+                    .map(|r| {
+                        speeds::resolve_ppp(&empty, &empty, Some(r), rules)
+                            .map_err(|e| e.to_string())
+                    })
+                    .unwrap_or_else(|| Err(format!("Duplicate PPP profile: {name}")));
+                (name, result)
+            })
+            .collect();
+        let duplicates = duplicate_keys(active, |r| (text(r, "name"), text(r, "address")));
+        for row in active {
+            let name = text(row, "name");
+            let address = text(row, "address");
+            let secret = lookup(&secrets, name);
+            let profile = secret.as_ref().map(|r| text(r, "profile")).unwrap_or("");
+            let result = (|| {
+                ensure!(!name.is_empty(), "PPP active identity is missing");
+                ensure!(
+                    !duplicates.contains(&(name, address)),
+                    "Duplicate PPP active session"
+                );
+                let secret = secret?;
+                ensure!(
+                    text(secret, "disabled") != "true",
+                    "PPP local user is disabled"
+                );
+                if let Some(speed) =
+                    speeds::comment(text(secret, "comment"), "ppp_secret_comment", rules)?
+                {
+                    return Ok(speed);
+                }
+                if let Some(speed) =
+                    speeds::comment(text(row, "comment"), "ppp_active_comment", rules)?
+                {
+                    return Ok(speed);
+                }
+                cached(&profile_cache, profile)
+            })();
+            report
+                .entries
+                .push(entry("ppp", name, profile, address, row, result));
         }
-        let status = text(row, "status");
-        if !status.is_empty() && status != "bound" {
-            continue;
-        }
-        let name = text(row, "mac-address");
-        let server = text(row, "server");
-        let address = if text(row, "active-address").is_empty() {
-            text(row, "address")
-        } else {
-            text(row, "active-address")
-        };
-        let result = (|| {
-            ensure!(status == "bound", "DHCP binding status is missing");
-            ensure!(
-                !name.is_empty() && !server.is_empty(),
-                "DHCP MAC or server identity is missing"
-            );
-            ensure!(
-                !duplicates.contains(&(server, name, address)),
-                "Duplicate DHCP lease"
-            );
-            speeds::resolve_dhcp(row, rules)
-        })();
-        push(&mut report, "dhcp", name, server, address, result);
     }
-    let active = table(inv, "/ip/hotspot/active/print", &mut report.errors);
-    let users = index(
-        table(inv, "/ip/hotspot/user/print", &mut report.errors),
-        "Hotspot users",
-        &mut report.errors,
-    );
-    let profiles = index(
-        table(inv, "/ip/hotspot/user/profile/print", &mut report.errors),
-        "Hotspot profiles",
-        &mut report.errors,
-    );
-    let profile_cache: Cache<'_> = profiles
-        .iter()
-        .map(|(&name, row)| {
-            let result = row
-                .map(|r| speeds::resolve_hotspot(&empty, Some(r), rules).map_err(|e| e.to_string()))
-                .unwrap_or_else(|| Err(format!("Duplicate Hotspot profile: {name}")));
-            (name, result)
-        })
-        .collect();
-    let duplicates = duplicate_keys(active, |r| (text(r, "user"), text(r, "address")));
-    for row in active {
-        let name = text(row, "user");
-        let address = text(row, "address");
-        let user = lookup(&users, name);
-        let profile = user.as_ref().map(|r| text(r, "profile")).unwrap_or("");
-        let result = (|| {
-            ensure!(!name.is_empty(), "Hotspot active identity is missing");
-            ensure!(
-                !duplicates.contains(&(name, address)),
-                "Duplicate Hotspot active session"
-            );
-            let user = user?;
-            ensure!(
-                text(user, "disabled") != "true",
-                "Hotspot local user is disabled"
-            );
-            if let Some(speed) =
-                speeds::comment(text(user, "comment"), "hotspot_user_comment", rules)?
-            {
-                return Ok(speed);
+    if services.contains("dhcp") {
+        let leases = table(inv, "/ip/dhcp-server/lease/print", &mut report.errors);
+        let duplicates = duplicate_keys(leases.iter().filter(|r| eligible_lease(r)), |r| {
+            (lease_server(r), lease_mac(r), lease_address(r))
+        });
+        for row in leases {
+            if text(row, "disabled") == "true" {
+                continue;
             }
-            cached(&profile_cache, profile)
-        })();
-        push(&mut report, "hotspot", name, profile, address, result);
+            let status = text(row, "status");
+            if !status.is_empty() && status != "bound" {
+                continue;
+            }
+            let name = lease_mac(row);
+            let server = lease_server(row);
+            let address = if text(row, "active-address").is_empty() {
+                text(row, "address")
+            } else {
+                text(row, "active-address")
+            };
+            let result = (|| {
+                ensure!(status == "bound", "DHCP binding status is missing");
+                ensure!(
+                    !name.is_empty() && !server.is_empty(),
+                    "DHCP MAC or server identity is missing"
+                );
+                ensure!(
+                    !duplicates.contains(&(server, name, address)),
+                    "Duplicate DHCP lease"
+                );
+                speeds::resolve_dhcp(row, rules)
+            })();
+            report
+                .entries
+                .push(entry("dhcp", name, server, address, row, result));
+        }
+    }
+    if services.contains("hotspot") {
+        let active = table(inv, "/ip/hotspot/active/print", &mut report.errors);
+        let users = index(
+            table(inv, "/ip/hotspot/user/print", &mut report.errors),
+            "Hotspot users",
+            &mut report.errors,
+        );
+        let profiles = index(
+            table(inv, "/ip/hotspot/user/profile/print", &mut report.errors),
+            "Hotspot profiles",
+            &mut report.errors,
+        );
+        let profile_cache: Cache<'_> = profiles
+            .iter()
+            .map(|(&name, row)| {
+                let result = row
+                    .map(|r| {
+                        speeds::resolve_hotspot(&empty, Some(r), rules).map_err(|e| e.to_string())
+                    })
+                    .unwrap_or_else(|| Err(format!("Duplicate Hotspot profile: {name}")));
+                (name, result)
+            })
+            .collect();
+        let duplicates = duplicate_keys(active, |r| (text(r, "user"), text(r, "address")));
+        for row in active {
+            let name = text(row, "user");
+            let address = text(row, "address");
+            let user = lookup(&users, name);
+            let profile = user.as_ref().map(|r| text(r, "profile")).unwrap_or("");
+            let result = (|| {
+                ensure!(!name.is_empty(), "Hotspot active identity is missing");
+                ensure!(
+                    !duplicates.contains(&(name, address)),
+                    "Duplicate Hotspot active session"
+                );
+                let user = user?;
+                ensure!(
+                    text(user, "disabled") != "true",
+                    "Hotspot local user is disabled"
+                );
+                if let Some(speed) =
+                    speeds::comment(text(user, "comment"), "hotspot_user_comment", rules)?
+                {
+                    return Ok(speed);
+                }
+                cached(&profile_cache, profile)
+            })();
+            report
+                .entries
+                .push(entry("hotspot", name, profile, address, row, result));
+        }
     }
     report.entries.sort_by(|a, b| {
         (a.service, &a.identity, &a.group, &a.ipv4).cmp(&(

@@ -19,6 +19,8 @@ pub struct App {
     pub generation: Option<String>,
     pub inventories: BTreeMap<String, Arc<crate::routeros::Inventory>>,
     pub inventory_errors: BTreeMap<String, String>,
+    pub read_epochs: BTreeMap<String, u64>,
+    next_read: u64,
 }
 pub type Shared = Arc<Mutex<App>>;
 impl App {
@@ -40,11 +42,57 @@ impl App {
             generation,
             inventories: BTreeMap::new(),
             inventory_errors: BTreeMap::new(),
+            read_epochs: BTreeMap::new(),
+            next_read: 0,
         })
+    }
+    pub fn begin_read(&mut self, id: &str) -> u64 {
+        self.next_read += 1;
+        self.read_epochs.insert(id.into(), self.next_read);
+        self.next_read
+    }
+    pub fn record_inventory(
+        &mut self,
+        id: String,
+        result: anyhow::Result<crate::routeros::Inventory>,
+    ) {
+        match result {
+            Ok(inventory) => {
+                let saved = toml::to_string_pretty(&inventory)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|text| {
+                        store::atomic_write(
+                            &self
+                                .root
+                                .join("state/router-inventory")
+                                .join(format!("{id}.toml")),
+                            &text,
+                        )
+                    });
+                if let Err(e) = saved {
+                    self.inventory_errors
+                        .insert(id, format!("Inventory could not be saved: {e}"));
+                } else {
+                    self.inventory_errors.remove(&id);
+                    self.inventories.insert(id, Arc::new(inventory));
+                }
+            }
+            Err(e) => {
+                self.inventory_errors.insert(id, e.to_string());
+            }
+        }
     }
     pub fn reconcile(&mut self) {
         if !self.settings.auto_stage {
             self.status = "Local auto-stage is paused. Production adapters are not enabled.".into();
+            return;
+        }
+        if crate::normalizer::has_bindings(&self.settings)
+            || store::is_managed(&self.root).unwrap_or(true)
+        {
+            self.status =
+                "Waiting for a fresh complete source collection. Last valid generation retained."
+                    .into();
             return;
         }
         let result = (|| -> anyhow::Result<String> {
@@ -73,6 +121,8 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/topology", get(topology))
         .route("/subscribers", get(subscribers))
         .route("/settings", get(settings))
+        .route("/sources", get(crate::sources_web::sources))
+        .route("/sources/save", post(crate::sources_web::save))
         .route("/routers/save", post(save_router))
         .route("/routers/{id}/delete", post(delete_router))
         .route("/routers/{id}/inspect", post(inspect_router))
@@ -83,6 +133,10 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/nodes/{id}/delete", post(delete_node))
         .route("/settings/save", post(save_options))
         .route("/health", get(|| async { "ok" }))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::orchestrator::after_mutation,
+        ))
         .layer(axum::middleware::from_fn(headers))
         .with_state(state)
 }
@@ -112,7 +166,7 @@ const CSS: &str = include_str!("style.css");
 pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
     Html(html!{ (DOCTYPE) html lang="en" {head {meta charset="utf-8";meta name="viewport" content="width=device-width, initial-scale=1";title{(title) " · LQoSync 3"}style{(maud::PreEscaped(CSS))}}
         body {aside {a.brand href="/" {span.mark{"LQ"} div{"LQoSync" small{"VERSION 3 · RUST"}}}
-            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
+            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/sources","Sources"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
             div.railfoot {span.dot{} " Local development" p{"Production adapters disabled"}}}
         main {header {div {p.eyebrow{"NETWORK OPERATIONS"} h1{(title)}} span.badge{"LOCAL STAGING"}}
             div.notice {strong{"Production is untouched. "} "This console writes only inside its own data directory. Core writes and LibreQoS apply are not implemented yet."}
@@ -148,8 +202,13 @@ fn commit(a: &mut App, next: Settings) -> anyhow::Result<()> {
     Ok(())
 }
 async fn overview(State(s): State<Shared>) -> Html<String> {
+    let root = s.lock().await.root.clone();
+    let count = tokio::task::spawn_blocking(move || {
+        store::load_snapshot(&root).map(|s| s.len()).unwrap_or(0)
+    })
+    .await
+    .unwrap_or(0);
     let a = s.lock().await;
-    let count = store::load_snapshot(&a.root).map(|s| s.len()).unwrap_or(0);
     shell(
         &a,
         "Overview",
@@ -229,6 +288,7 @@ async fn save_router(State(s): State<Shared>, Form(f): Form<RouterForm>) -> Resp
     if !f.original_id.is_empty() && f.id != f.original_id {
         return error(&a, "Stable IDs cannot be renamed");
     }
+    let router_id = f.id.clone();
     let r = Router {
         id: f.id,
         name: f.name,
@@ -249,9 +309,9 @@ async fn save_router(State(s): State<Shared>, Form(f): Form<RouterForm>) -> Resp
     } else {
         return error(&a, "Router no longer exists");
     }
-    let router_id = f.original_id.clone();
     match commit(&mut a, next) {
         Ok(()) => {
+            a.begin_read(&router_id);
             a.inventories.remove(&router_id);
             a.inventory_errors.remove(&router_id);
             Redirect::to("/routers").into_response()
@@ -268,48 +328,27 @@ async fn inspect_router(
     Path(id): Path<String>,
     Form(f): Form<Token>,
 ) -> Response {
-    let router = {
-        let a = s.lock().await;
+    let (router, ticket) = {
+        let mut a = s.lock().await;
         if let Err(r) = check(&a, &f.token) {
             return r.into_response();
         }
-        let Some(router) = a.settings.routers.iter().find(|r| r.id == id) else {
+        let Some(router) = a.settings.routers.iter().find(|r| r.id == id).cloned() else {
             return error(&a, "Router no longer exists");
         };
-        router.clone()
+        let ticket = a.begin_read(&id);
+        (router, ticket)
     };
     let result = crate::routeros::inspect(&router).await;
-    let mut a = s.lock().await;
-    if !a.settings.routers.contains(&router) {
-        return error(
-            &a,
-            "Router settings changed during this read; result discarded",
-        );
+    let a = s.clone().lock_owned().await;
+    if !a.settings.routers.contains(&router) || a.read_epochs.get(&id) != Some(&ticket) {
+        return error(&a, "Router read was superseded; result discarded");
     }
-    match result {
-        Ok(inventory) => {
-            let saved = toml::to_string_pretty(&inventory)
-                .map_err(anyhow::Error::from)
-                .and_then(|text| {
-                    store::atomic_write(
-                        &a.root
-                            .join("state/router-inventory")
-                            .join(format!("{id}.toml")),
-                        &text,
-                    )
-                });
-            if let Err(e) = saved {
-                a.inventory_errors
-                    .insert(id, format!("Inventory could not be saved: {e}"));
-            } else {
-                a.inventory_errors.remove(&id);
-                a.inventories.insert(id, Arc::new(inventory));
-            }
-        }
-        Err(e) => {
-            a.inventory_errors.insert(id, e.to_string());
-        }
-    }
+    let _ = tokio::task::spawn_blocking(move || {
+        let mut a = a;
+        a.record_inventory(id, result);
+    })
+    .await;
     Redirect::to("/routers").into_response()
 }
 async fn delete_router(
@@ -325,6 +364,7 @@ async fn delete_router(
     next.routers.retain(|r| r.id != id);
     match commit(&mut a, next) {
         Ok(()) => {
+            a.begin_read(&id);
             a.inventories.remove(&id);
             a.inventory_errors.remove(&id);
             Redirect::to("/routers").into_response()
@@ -333,9 +373,26 @@ async fn delete_router(
     }
 }
 async fn topology(State(s): State<Shared>) -> Html<String> {
+    let (settings, root, generation) = {
+        let a = s.lock().await;
+        (a.settings.clone(), a.root.clone(), a.generation.clone())
+    };
+    let work_settings = settings.clone();
+    let mut plan = tokio::task::spawn_blocking(move || {
+        store::load_snapshot(&root)
+            .ok()
+            .and_then(|snapshot| compile(&work_settings, &snapshot).ok())
+    })
+    .await
+    .ok()
+    .flatten();
+    if let Some(plan) = &mut plan {
+        plan.csv = plan.csv.lines().take(21).collect::<Vec<_>>().join("\n");
+    }
     let a = s.lock().await;
-    let snapshot = store::load_snapshot(&a.root).unwrap_or_default();
-    let plan = compile(&a.settings, &snapshot).ok();
+    if a.settings != settings || a.generation != generation {
+        plan = None;
+    }
     shell(
         &a,
         "Topology",
@@ -345,7 +402,7 @@ async fn topology(State(s): State<Shared>) -> Html<String> {
             (node_tree(&a,"",plan.as_ref()))
             @if plan.is_none() && !a.settings.nodes.is_empty(){p.warning{(&a.status)}}
         }section.card {h2{"Add shaping node"}(node_form(&a,None))}
-        section.card {h2{"Generated output"}@if let Some(p)=&plan {details{summary{"network.json preview"}pre{(&p.network)}}details{summary{"ShapedDevices.csv preview"}pre{(&p.csv)}}} @else {p{"A valid complete subscriber snapshot is required before computed branches can be published."}}}},
+        section.card {h2{"Generated output"}@if let Some(p)=&plan {details{summary{"network.json preview"}pre{(&p.network)}}details{summary{"ShapedDevices.csv preview · first 20 data lines"}pre{(&p.csv)}}} @else {p{"A valid complete subscriber snapshot is required before computed branches can be published."}}}},
     )
 }
 fn node_tree(a: &App, parent: &str, plan: Option<&Plan>) -> Markup {
@@ -476,24 +533,35 @@ async fn delete_node(
     }
 }
 async fn subscribers(State(s): State<Shared>) -> Html<String> {
+    let root = s.lock().await.root.clone();
+    let rows = tokio::task::spawn_blocking(move || {
+        store::load_snapshot(&root).map(|rows| {
+            let count = rows.len();
+            (count, rows.into_iter().take(200).collect::<Vec<_>>())
+        })
+    })
+    .await
+    .unwrap_or_else(|e| Err(e.into()));
     let a = s.lock().await;
-    let rows = store::load_snapshot(&a.root);
     shell(
         &a,
         "Subscribers",
         html! {
             section.card {
                 h2 {"Source-owned subscriber snapshot"}
-                p.help {"RouterOS collection is pending. This page reads the application-local state/subscribers.toml file. No sample subscribers are presented as live data."}
+                p{(&a.status)}
+                p.help{"Showing at most 200 records from the last committed generation."}
+                p.help {"This page reads the last committed local subscriber snapshot. Selected router sources update it automatically after a complete valid collection. Partial or invalid scans retain the last valid snapshot."}
                 @match rows {
-                    Ok(rows) => {
+                    Ok((count,rows)) => {
+                        p{(count) " subscribers in the committed snapshot"}
                         @if rows.is_empty() {p.empty {"No subscriber snapshot yet."}}
                         @else {
                             div.scroll {
                                 table {
                                     thead {tr {@for h in ["Circuit","Name","IPv4","Parent","Download","Upload"] {th {(h)}}}}
                                     tbody {
-                                        @for s in rows {
+                                        @for s in rows.iter().take(200) {
                                             tr {
                                                 td.mono {(&s.id)} td {(&s.name)} td.mono {(&s.ipv4)}
                                                 td {(&s.node)} td {(s.download) " Mbps"} td {(s.upload) " Mbps"}

@@ -45,3 +45,45 @@ fn generation_contains_both_artifacts_and_unchanged_data_reuses_it() {
     assert!(pointer.contains(&a));
     assert!(!pointer.contains("applied"));
 }
+
+#[test]
+fn normalized_snapshot_and_pair_switch_together_and_mirror_is_not_authority() {
+    let dir = tempfile::tempdir().unwrap();
+    let settings: Settings = toml::from_str(include_str!("../examples/settings.toml")).unwrap();
+    let subscribers = toml::from_str::<Snapshot>(include_str!("../examples/subscribers.toml"))
+        .unwrap()
+        .subscribers;
+    let plan = compile(&settings, &subscribers).unwrap();
+    let published = publish_normalized(dir.path(), &plan, &subscribers).unwrap();
+    assert!(published.mirror_warning.is_none());
+    assert_eq!(load_snapshot(dir.path()).unwrap().len(), 2);
+    let base = dir.path().join("staging").join(&published.generation);
+    assert!(base.join("subscribers.toml").exists());
+    assert!(base.join("ShapedDevices.csv").exists());
+    assert!(base.join("network.json").exists());
+    std::fs::write(dir.path().join("state/subscribers.toml"), "corrupt mirror").unwrap();
+    assert_eq!(load_snapshot(dir.path()).unwrap().len(), 2);
+    std::fs::write(base.join("subscribers.toml"), "corrupt committed snapshot").unwrap();
+    assert!(load_snapshot(dir.path()).is_err());
+}
+
+#[test]
+fn mirror_write_failure_leaves_the_authoritative_snapshot_available() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("state/subscribers.toml")).unwrap();
+    let settings: Settings = toml::from_str(include_str!("../examples/settings.toml")).unwrap();
+    let subscribers = toml::from_str::<Snapshot>(include_str!("../examples/subscribers.toml"))
+        .unwrap()
+        .subscribers;
+    let plan = compile(&settings, &subscribers).unwrap();
+    let p = publish_normalized(dir.path(), &plan, &subscribers).unwrap();
+    assert!(p.mirror_warning.is_some());
+    assert_eq!(load_snapshot(dir.path()).unwrap().len(), 2);
+    assert!(is_managed(dir.path()).unwrap());
+    assert_eq!(
+        publish_normalized(dir.path(), &plan, &subscribers)
+            .unwrap()
+            .generation,
+        p.generation
+    );
+}

@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
         loop {
             let seconds = background.lock().await.settings.interval_seconds;
             tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
-            background.lock().await.reconcile();
+            lqosync_v3::orchestrator::cycle(background.clone()).await;
         }
     });
     let listener = tokio::net::TcpListener::bind(bind).await?;

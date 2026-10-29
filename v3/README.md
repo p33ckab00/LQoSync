@@ -18,7 +18,10 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Set explicit capacities or compute subscriber aggregates with separate download and upload factors.
 - Cap computed nodes at their immediate parent. Keep subscriber rates unchanged.
 - Reject cycles, missing parents, duplicate IPv4 addresses, invalid rates, and excessive explicit capacities.
-- Read an application-local subscriber snapshot and create deterministic CSV/JSON output.
+- Bind discovered PPP profiles, DHCP servers, and Hotspot profiles to shaping nodes through Sources.
+- Normalize selected inventories with stable IDs, exact names, collision checks, and per-source health.
+- Collect selected routers automatically with at most four concurrent reads. Pause stops queued reads.
+- Commit normalized snapshots with deterministic CSV/JSON output as one local generation.
 - Publish valid output automatically into a local generation directory.
 - Retain the last valid generation after an invalid snapshot or topology change.
 
@@ -30,7 +33,10 @@ See `vendor/mikrotik-tokio/PATCHES.md` for source, license, and removal conditio
 See [the selected API documentation](https://docs.rs/mikrotik-rs/0.7.0/mikrotik_rs/).
 
 Set each router's password environment variable before starting the app.
-Save its connection settings, then select **Read inventory**. Saving alone does not connect.
+Save its connection settings, then select **Read inventory** to discover source choices.
+Create subscriber shaping nodes in Topology, then bind sources in **Sources**.
+Selected routers receive automatic read rounds on the configured interval when automatic publication is enabled.
+Existing source bindings resume collection after a restart; unbound routers are not polled automatically.
 Use a RouterOS account with read/API access. No router configuration commands are exposed.
 TLS verifies the certificate name and trust chain; there is no skip-verification option.
 Inventory status is from the last read. Concurrent router-setting changes discard the result.
@@ -38,7 +44,9 @@ Saved inventory files are diagnostic snapshots; the UI starts with no active inv
 
 Production shaping remains disabled.
 Speed rules now resolve inventory into previews. See [speed rules](SPEED_RULES.md) for precedence and compatibility differences.
-Stable subscriber identity, source selection, complete snapshot publication, WAN assignment, core address-list writes, and production apply remain pending.
+Source binding, stable IDs, complete snapshot publication, and scheduled read rounds are implemented.
+See [subscriber orchestration](SUBSCRIBERS.md) for health gates, overlap ownership, and limits.
+WAN assignment, core address-list writes, and production apply remain pending.
 The UI reports local output as **staged**, never as production **applied**.
 Changes to settings require a Save action. Local output publication after that save is automatic.
 
@@ -78,11 +86,15 @@ data/
     current.toml
   staging/
     GENERATION/
+      subscribers.toml
       ShapedDevices.csv
       network.json
 ```
 
-Both output files exist before the state pointer changes.
+The normalized snapshot and both output files exist before the state pointer changes.
+The committed generation is authoritative. `state/subscribers.toml` is a compatibility mirror for managed generations.
+A mirror failure produces a warning; it does not undo or hide the committed snapshot.
+Offline examples without source bindings still use `state/subscribers.toml` as their input.
 Identical output reuses the current generation.
 There is no export to `/opt/libreqos`, router write, package update, or service restart.
 Old local generations remain available. Retention limits are pending before long-term use.
@@ -100,9 +112,9 @@ LQOSYNC3_DATA="$PWD/data-example" cargo run --locked
 ```
 
 The snapshot rates are already in subscriber download/upload order.
-A future RouterOS adapter must convert router-oriented `rx/tx` correctly.
-The current snapshot format represents a complete successful collection.
-Per-router collection health and partial-scan preservation must exist before live collection is enabled.
+The speed resolver converts router-oriented `rx/tx` into subscriber download/upload order.
+Use offline examples only in a separate data directory without source bindings.
+Managed generations require a fresh, complete, valid selected-source collection.
 
 ## Checks
 
@@ -114,9 +126,9 @@ cargo clippy --locked --all-targets -- -D warnings
 
 ## Production work that remains
 
-1. Normalize RouterOS inventory into complete subscriber snapshots with per-source health.
+1. Add effective RADIUS policy support, IPv6, and multi-device subscriber circuits.
 2. Add WAN and neighbor discovery. Keep the network map separate from the shaping tree.
-3. Implement source selectors and stable subscriber identity across routers.
+3. Validate deployment on isolated representative router fixtures before production use.
 4. Implement stable WAN assignments and reviewed core list ownership rules.
 5. Implement production execution for the selected adapter. Legacy uses `LibreQoS.py --updateonly`.
    V3 uses an authenticated `ReloadLibreQoS` request followed by applied-generation verification.

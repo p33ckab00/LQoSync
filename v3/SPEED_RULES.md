@@ -1,7 +1,8 @@
 # Subscriber speed rules
 
 These rules resolve speeds from read-only RouterOS inventory.
-They do not change a router, subscriber snapshot, staged generation, or LibreQoS installation.
+The parser and preview do not change a router or LibreQoS installation.
+With selected sources, a healthy complete collection publishes a normalized local snapshot and generation automatically.
 
 ## Use the preview
 
@@ -96,7 +97,8 @@ cargo test --locked --test speeds inventory_50k_performance -- --ignored --nocap
 ```
 
 This is a local diagnostic measurement. It is not a production latency guarantee.
-The next step is stable subscriber identity, source selection, and complete snapshot publication.
+Source selection and complete snapshot publication are available in [subscriber orchestration](SUBSCRIBERS.md).
+Policy saves can update normalized snapshots when every selected source remains fresh and healthy.
 Do not use the preview alone as permission to replace subscribers after a partial scan.
 
 ## Sources

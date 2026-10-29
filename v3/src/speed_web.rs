@@ -29,7 +29,7 @@ pub async fn rules(State(s): State<Shared>) -> Html<String> {
                 label {"PPP profile-name fallback" select name="profile_name_fallback" {option value="true" selected[rules.profile_name_fallback]{"Enabled · explicit k/M/G suffix required"}option value="false" selected[!rules.profile_name_fallback]{"Disabled"}}}
             }button{"Save speed rules"}}
                 p.help{"Explicit router minima take precedence. Otherwise minimum = max(maximum × fraction, floor), capped at the maximum. The floor never raises a router maximum."}
-                p.help{"This save updates local policy. Existing subscriber snapshots and staged files keep their recorded rates."}}
+                p.help{"This save updates local policy. With selected sources, a healthy complete inventory automatically updates the local snapshot and output pair."}}
             section.card {h2{"Inventory previews"}
                 @for r in &a.settings.routers {p{a href=(format!("/routers/{}/speeds",r.id)){(&r.name)}}}
                 @if a.settings.routers.is_empty(){p.empty{"Configure a subscriber router, then read its inventory."}}
