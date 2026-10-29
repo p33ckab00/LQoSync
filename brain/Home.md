@@ -7,6 +7,8 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-flexible-topology]]
+- [[20-decisions/adr-0001-session-candidate-state]]
 - [[10-sessions/2026-10-30-noc-console]]
 - [[10-sessions/2026-10-30-graphify-map]]
 - [[10-sessions/2026-10-30-shared-skills]]

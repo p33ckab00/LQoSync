@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::{Context, Result, bail, ensure};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     net::Ipv4Addr,
     sync::Arc,
 };
@@ -32,32 +32,52 @@ pub fn has_bindings(settings: &Settings) -> bool {
         .nodes
         .iter()
         .any(|n| service(&n.kind).is_some() && !n.router.is_empty() && !n.source.is_empty())
+        || settings.selections.iter().any(|s| !s.exclude)
+}
+pub fn selected_routers(settings: &Settings) -> BTreeSet<&str> {
+    settings
+        .nodes
+        .iter()
+        .filter(|n| service(&n.kind).is_some() && !n.router.is_empty() && !n.source.is_empty())
+        .map(|n| n.router.as_str())
+        .chain(
+            settings
+                .selections
+                .iter()
+                .filter(|s| !s.exclude)
+                .map(|s| s.router.as_str()),
+        )
+        .collect()
+}
+pub fn is_source_node(settings: &Settings, id: &str) -> bool {
+    settings.nodes.iter().any(|n| {
+        n.id == id && service(&n.kind).is_some() && !n.router.is_empty() && !n.source.is_empty()
+    }) || settings
+        .selections
+        .iter()
+        .any(|s| !s.exclude && s.node == id)
 }
 pub fn validate_bindings(settings: &Settings) -> Result<()> {
-    let mut bindings = HashSet::new();
-    for n in &settings.nodes {
-        if let Some(service) = service(&n.kind) {
-            if n.router.is_empty() || n.source.is_empty() {
-                continue;
-            }
-            ensure!(
-                bindings.insert((&n.router, service, &n.source)),
-                "Duplicate source binding for {} / {}",
-                n.router,
-                n.source
-            );
-            ensure!(
-                settings
-                    .routers
-                    .iter()
-                    .any(|r| r.id == n.router && r.role != "core"),
-                "Subscriber source requires a distro or both-role router"
-            );
-        }
-    }
-    Ok(())
+    crate::selection::validate(settings)
 }
-fn canonical_mac(raw: &str) -> Result<String> {
+pub fn subscriber_id(router: &str, service: &str, identity: &str) -> Result<String> {
+    ensure!(
+        !router.is_empty() && matches!(service, "ppp" | "dhcp" | "hotspot"),
+        "Invalid subscriber router or service"
+    );
+    ensure!(
+        !identity.is_empty() && identity.len() <= 256,
+        "Invalid subscriber identity"
+    );
+    let canonical = if service == "dhcp" {
+        canonical_mac(identity)?
+    } else {
+        identity.into()
+    };
+    let key = serde_json::to_vec(&(router, service, canonical))?;
+    Ok(uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, &key).to_string())
+}
+pub(crate) fn canonical_mac(raw: &str) -> Result<String> {
     let value: String = raw
         .chars()
         .filter(|c| !matches!(c, ':' | '-' | '.'))
@@ -100,25 +120,46 @@ pub fn normalize(
     errors: &BTreeMap<String, String>,
     now: u64,
 ) -> Result<Vec<Subscriber>> {
+    let subscribers = collect(settings, inventories, errors, now)?;
+    if subscribers.is_empty() {
+        bail!("Selected scan is empty; last valid snapshot is retained");
+    }
+    Ok(subscribers)
+}
+pub fn collect(
+    settings: &Settings,
+    inventories: &BTreeMap<String, Arc<Inventory>>,
+    errors: &BTreeMap<String, String>,
+    now: u64,
+) -> Result<Vec<Subscriber>> {
     model::validate(settings)?;
-    validate_bindings(settings)?;
-    let bindings: HashMap<_, _> = settings
-        .nodes
+    let bindings = crate::selection::bindings(settings)?;
+    ensure!(has_bindings(settings), "No subscriber sources are selected");
+    let active_services: HashSet<_> = bindings
         .iter()
-        .filter_map(|n| {
-            service(&n.kind)
-                .filter(|_| !n.router.is_empty() && !n.source.is_empty())
-                .map(|s| ((n.router.as_str(), s, n.source.as_str()), n))
-        })
+        .filter(|b| !b.exclude)
+        .map(|b| (b.router, b.service))
         .collect();
-    ensure!(!bindings.is_empty(), "No subscriber sources are selected");
-    let mut by_router: BTreeMap<&str, HashSet<&str>> = BTreeMap::new();
-    for (router, service, _) in bindings.keys() {
-        by_router.entry(router).or_default().insert(service);
+    let mut by_router: BTreeMap<&str, Vec<_>> = BTreeMap::new();
+    for binding in &bindings {
+        if active_services.contains(&(binding.router, binding.service)) {
+            by_router.entry(binding.router).or_default().push(binding);
+        }
     }
     let mut candidates = vec![];
     let mut ids = HashSet::new();
-    for (router, services) in by_router {
+    for (router, selected) in by_router {
+        let services: HashSet<_> = selected.iter().map(|b| b.service).collect();
+        let groups: HashMap<_, _> = selected
+            .iter()
+            .filter(|b| b.selector == "group")
+            .map(|b| ((b.service, b.value.as_str()), *b))
+            .collect();
+        let individuals: HashMap<_, _> = selected
+            .iter()
+            .filter(|b| b.selector == "subscriber")
+            .map(|b| ((b.service, b.value.as_str()), *b))
+            .collect();
         ensure!(
             !errors.contains_key(router),
             "Latest inventory read failed for {router}"
@@ -160,13 +201,14 @@ pub fn normalize(
             }
             metadata.insert(service, index);
         }
-        for (r, service, source) in bindings.keys() {
-            if *r != router {
+        for binding in &selected {
+            if binding.exclude || binding.selector != "group" {
                 continue;
             }
+            let source = &binding.value;
             let row = metadata
-                .get(service)
-                .and_then(|m| m.get(source))
+                .get(binding.service)
+                .and_then(|m| m.get(source.as_str()))
                 .and_then(|r| *r)
                 .with_context(|| {
                     format!("Selected source metadata is missing or duplicated: {source}")
@@ -175,6 +217,78 @@ pub fn normalize(
                 !row.get("disabled").is_some_and(|v| v == "true"),
                 "Selected source is disabled: {source}"
             );
+        }
+        // Configured accounts must exist; dynamic leases can disappear after disconnect.
+        for service in &services {
+            let requested: HashSet<_> = selected
+                .iter()
+                .filter(|b| !b.exclude && b.service == *service && b.selector == "subscriber")
+                .map(|b| b.value.as_str())
+                .collect();
+            if requested.is_empty() {
+                continue;
+            }
+            let path = match *service {
+                "ppp" => "/ppp/secret/print",
+                "dhcp" => "/ip/dhcp-server/lease/print",
+                _ => "/ip/hotspot/user/print",
+            };
+            ensure!(
+                !inv.errors.contains_key(path),
+                "Selected subscriber metadata read failed: {path}"
+            );
+            let rows = inv
+                .tables
+                .get(path)
+                .context("Selected subscriber metadata is missing")?;
+            let mut found: HashMap<String, bool> = HashMap::new();
+            for row in rows {
+                let key = if *service == "dhcp" {
+                    let raw = row
+                        .get("active-mac-address")
+                        .filter(|v| !v.is_empty())
+                        .or_else(|| row.get("mac-address"));
+                    let Some(raw) = raw else {
+                        continue;
+                    };
+                    let Ok(mac) = canonical_mac(raw) else {
+                        continue;
+                    };
+                    mac
+                } else {
+                    row.get("name").cloned().unwrap_or_default()
+                };
+                if requested.contains(key.as_str()) {
+                    let group = if *service == "dhcp" {
+                        row.get("active-server")
+                            .filter(|v| !v.is_empty() && *v != "all")
+                            .or_else(|| row.get("server").filter(|v| !v.is_empty() && *v != "all"))
+                    } else {
+                        row.get("profile")
+                    };
+                    let group_row = group.and_then(|g| {
+                        metadata
+                            .get(service)
+                            .and_then(|m| m.get(g.as_str()))
+                            .and_then(|r| *r)
+                    });
+                    ensure!(
+                        group_row.is_some_and(|r| !r.get("disabled").is_some_and(|v| v == "true")),
+                        "Selected subscriber profile/server mapping is missing, disabled or duplicated"
+                    );
+                    let enabled = !row.get("disabled").is_some_and(|v| v == "true");
+                    found
+                        .entry(key)
+                        .and_modify(|v| *v = false)
+                        .or_insert(enabled);
+                }
+            }
+            for identity in requested {
+                ensure!(
+                    found.get(identity).copied().unwrap_or(*service == "dhcp"),
+                    "Selected subscriber metadata is missing, disabled or duplicated: {identity}"
+                );
+            }
         }
         let report = preview_selected(inv, &settings.speed_rules, &services)?;
         ensure!(
@@ -187,6 +301,24 @@ pub fn normalize(
                 .unwrap_or("unknown")
         );
         for entry in report.entries {
+            let canonical_identity = if entry.service == "dhcp" {
+                canonical_mac(&entry.mac).ok()
+            } else {
+                Some(entry.identity.clone())
+            };
+            let binding = canonical_identity
+                .as_deref()
+                .and_then(|identity| individuals.get(&(entry.service, identity)))
+                .or_else(|| groups.get(&(entry.service, entry.group.as_str())));
+            if binding.is_some_and(|b| b.exclude) {
+                continue;
+            }
+            if entry.service == "dhcp" {
+                ensure!(
+                    canonical_identity.is_some(),
+                    "Missing or invalid subscriber MAC"
+                );
+            }
             ensure!(
                 !entry.group.is_empty(),
                 "Subscriber profile/server mapping is unresolved: {}",
@@ -200,7 +332,7 @@ pub fn normalize(
                 "Subscriber source mapping is missing or duplicated: {}",
                 entry.group
             );
-            let Some(node) = bindings.get(&(router, entry.service, entry.group.as_str())) else {
+            let Some(binding) = binding else {
                 continue;
             };
             let speed = entry.speed.with_context(|| {
@@ -226,8 +358,7 @@ pub fn normalize(
             } else {
                 &entry.identity
             };
-            let key = serde_json::to_vec(&(router, entry.service, identity))?;
-            let id = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, &key).to_string();
+            let id = subscriber_id(router, entry.service, identity)?;
             ensure!(
                 ids.insert(id.clone()),
                 "Multiple sessions or leases share one subscriber identity"
@@ -237,7 +368,7 @@ pub fn normalize(
                     id,
                     name: entry.name,
                     ipv4: ip.to_string(),
-                    node: node.id.clone(),
+                    node: binding.node.into(),
                     download: speed.rates.download,
                     upload: speed.rates.upload,
                     download_min: speed.rates.download_min,
@@ -280,9 +411,6 @@ pub fn normalize(
         .filter(|(i, _)| !suppressed.contains(i))
         .map(|(_, c)| c.subscriber)
         .collect();
-    if subscribers.is_empty() {
-        bail!("Selected scan is empty; last valid snapshot is retained");
-    }
     subscribers.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(subscribers)
 }

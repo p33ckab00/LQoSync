@@ -1,6 +1,53 @@
 use lqosync_v3::{assignment::*, model::*, normalizer};
 use std::{collections::BTreeMap, sync::Arc};
 mod common;
+#[test]
+fn online_counts_balance_unequal_wans_and_allow_generic_destinations() {
+    let (mut s, invs, _) = fixture();
+    s.nodes.iter_mut().find(|n| n.id == "ppp2").unwrap().kind = "group".into();
+    s.assignment.pools.push(Pool {
+        source_node: "ppp".into(),
+        targets: vec!["ppp2".into(), "ppp".into()],
+        balance: true,
+        metric: "online_clients".into(),
+    });
+    let mut subscribers: Vec<_> = (0..40)
+        .map(|i| Subscriber {
+            id: format!("count-user-{i:03}"),
+            name: "Test".into(),
+            node: "ppp".into(),
+            ipv4: format!("192.0.2.{}", i + 1),
+            download: if i % 2 == 0 { 10. } else { 50. },
+            upload: 10.,
+            download_min: 1.,
+            upload_min: 1.,
+        })
+        .collect();
+    let assigned = assign(
+        &s,
+        &mut subscribers,
+        &AssignmentState::default(),
+        &invs,
+        &BTreeMap::new(),
+        101,
+    )
+    .unwrap();
+    assert_eq!(subscribers.iter().filter(|s| s.node == "ppp").count(), 20);
+    assert_eq!(subscribers.iter().filter(|s| s.node == "ppp2").count(), 20);
+    let mut again: Vec<_> = subscribers
+        .iter()
+        .cloned()
+        .map(|mut s| {
+            s.node = "ppp".into();
+            s
+        })
+        .collect();
+    again.reverse();
+    assert_eq!(
+        assign(&s, &mut again, &assigned, &invs, &BTreeMap::new(), 101).unwrap(),
+        assigned
+    );
+}
 fn fixture() -> (
     Settings,
     BTreeMap<String, Arc<lqosync_v3::routeros::Inventory>>,
@@ -48,6 +95,7 @@ fn pins_move_only_the_parent_and_stable_assignments_survive_reordered_scans() {
         source_node: "ppp".into(),
         targets: vec!["ppp".into(), "ppp2".into()],
         balance: false,
+        metric: "planned_load".into(),
     });
     let subscriber = subs.iter().find(|s| s.node == "ppp").unwrap().clone();
     s.assignment.pins.insert(
@@ -90,6 +138,7 @@ fn capacity_balancing_is_deterministic_and_weighted_and_keeps_existing_subscribe
         source_node: "ppp".into(),
         targets: vec!["ppp2".into(), "ppp".into()],
         balance: true,
+        metric: "planned_load".into(),
     });
     let mut subscribers: Vec<_> = (0..40)
         .map(|i| Subscriber {
@@ -155,6 +204,7 @@ fn invalid_targets_duplicate_mapping_and_failed_wan_health_are_rejected() {
         source_node: "ppp".into(),
         targets: vec!["ppp".into(), "dhcp".into()],
         balance: true,
+        metric: "planned_load".into(),
     });
     assert!(lqosync_v3::assignment::validate(&s).is_err());
     s.assignment.pools[0].targets[1] = "ppp2".into();
@@ -196,6 +246,7 @@ fn offline_assignments_survive_publication_restart_and_capacity_changes() {
         source_node: "ppp".into(),
         targets: vec!["ppp".into(), "ppp2".into()],
         balance: true,
+        metric: "planned_load".into(),
     });
     let alice = original.iter().find(|s| s.node == "ppp").unwrap();
     let mut active = original.clone();
@@ -301,6 +352,7 @@ fn assign_50k_subscribers_across_eight_wans() {
         source_node: "ppp".into(),
         targets,
         balance: true,
+        metric: "planned_load".into(),
     });
     let mut subscribers: Vec<_> = (0..50000)
         .map(|i| Subscriber {

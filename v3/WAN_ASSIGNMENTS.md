@@ -44,14 +44,16 @@ Unmapped WAN roots remain compatible with source-only operation, but cannot part
 7. Select the assignment mode.
 
 A source pool must keep its original source node.
-More destinations require the same subscriber kind: PPPoE, DHCP, or Hotspot.
+More destinations require the same subscriber kind or a generic group, site, or WAN node.
 A destination cannot belong to another selected subscriber source.
 Source collection remains attached to the original node. The destination changes only the exported subscriber parent.
 The discovered network map remains separate from the exported tree.
 
 The default mode keeps new subscribers on their source node, unless a pin selects another eligible destination.
-Optional balance mode distributes new or unassigned subscribers by planned load relative to capacity.
-It does not move subscribers with valid previous assignments.
+Automatic mode defaults to observed online client count. It reassesses new sessions and reconnects.
+Continuous sessions keep compatible assignments. Manual pins still take priority.
+The optional `planned_load` metric keeps the earlier weighted policy and historical assignment retention.
+See [session rules and candidate state](FLEXIBLE_TOPOLOGY.md).
 
 ## Assignment order and capacity
 
@@ -60,7 +62,7 @@ It calculates retained, pinned, and default subscriber loads before it distribut
 New balanced subscribers follow sorted subscriber IDs. Equal scores use sorted destination IDs.
 The same inputs produce the same result, regardless of source table order.
 
-Each candidate score uses its projected download and upload plan totals divided by WAN capacities.
+In `planned_load` mode, each candidate score uses its projected download and upload plan totals divided by WAN capacities.
 The larger directional ratio controls the score.
 An explicit destination capacity adds another ratio. The larger WAN or destination ratio controls the score.
 The app selects the destination with the smallest score.
@@ -82,7 +84,9 @@ Clear stored pins before you remove their destinations or source bindings.
 The stored-pin view includes inactive subscribers and supports search by ID.
 The current source-pool view displays the first 200 bound sources.
 
-Inactive subscribers keep their previous assignments across nonempty scans and restarts.
+In `planned_load` mode, inactive subscribers keep their previous assignments across nonempty scans and restarts.
+In online-count mode, healthy absence releases the assignment for reconsideration when the client returns.
+Candidate observations survive healthy empty scans and publication failures without replacing the last valid generation.
 Inactive records do not add plan load.
 If you remove a source binding or eligible destination, the next valid publication removes its inactive assignment records.
 Subscribers whose old destination is no longer eligible follow the current mode when they return.

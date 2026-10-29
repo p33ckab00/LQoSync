@@ -15,6 +15,8 @@ mod dhcp_speed_web;
 mod speed_web;
 
 pub mod normalizer;
+pub mod selection;
+pub mod sessions;
 
 pub mod orchestrator;
 

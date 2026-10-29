@@ -4,7 +4,7 @@ use crate::{
 };
 use axum::{
     Form,
-    extract::State,
+    extract::{Path, Query, State},
     response::{Html, IntoResponse, Redirect, Response},
 };
 use maud::html;
@@ -59,7 +59,12 @@ pub(crate) fn choices(a: &App, kind: &str) -> Vec<Choice> {
     }
     choices
 }
-pub async fn sources(State(s): State<Shared>) -> Html<String> {
+#[derive(Default, Deserialize)]
+pub struct Search {
+    #[serde(default)]
+    q: String,
+}
+pub async fn sources(State(s): State<Shared>, Query(search): Query<Search>) -> Html<String> {
     let a = s.lock().await;
     let choices: BTreeMap<_, _> = ["pppoe", "dhcp", "hotspot"]
         .into_iter()
@@ -74,16 +79,17 @@ pub async fn sources(State(s): State<Shared>) -> Html<String> {
                 p{(&a.status)}
                 @if !normalizer::has_bindings(&a.settings){p.warning{"No active source bindings. A previous managed generation remains retained until a new complete collection is available."}}
             }
+            (selection_panel_query(&a, &search.q.chars().take(256).collect::<String>()))
             @for node in a.settings.nodes.iter().filter(|n|normalizer::service(&n.kind).is_some()).take(200) {
                 @let selected=if node.router.is_empty()||node.source.is_empty(){String::new()}else{serde_json::to_string(&[&node.router,&node.source]).unwrap_or_default()};
                 section.card {h2{(&node.name) " · " (&node.kind)}p.help{"Node ID: " (&node.id)}
                     form method="post" action="/sources/save" {(csrf(&a))input type="hidden" name="node" value=(&node.id);
                         label{"Router and source" select name="selection" {
                             option value="" selected[selected.is_empty()]{"Unassigned"}
-                            @if !selected.is_empty()&&!choices[node.kind.as_str()].iter().any(|c|c.value==selected) {
+                            @if !selected.is_empty()&&!choices[node.kind.as_str()].iter().take(200).any(|c|c.value==selected) {
                                 option value=(&selected) selected{"Current selection unavailable: " (&node.router) " · " (&node.source)}
                             }
-                            @for choice in &choices[node.kind.as_str()] {option value=(&choice.value) selected[choice.value==selected]{(&choice.label)}}
+                            @for choice in choices[node.kind.as_str()].iter().take(200) {option value=(&choice.value) selected[choice.value==selected]{(&choice.label)}}
                         }}button{"Save source selection"}
                     }
                 }
@@ -136,10 +142,266 @@ pub async fn save(State(s): State<Shared>, Form(form): Form<SourceForm>) -> Resp
         .expect("node found");
     node.router = selection[0].clone();
     node.source = selection[1].clone();
-    if let Err(e) = store::save_settings(&a.root, &next) {
+    if let Err(e) =
+        validate_selection_settings(&a, &next).and_then(|_| store::save_settings(&a.root, &next))
+    {
         return error(&a, e);
     }
     a.settings = next;
     a.status = "Source selection saved. Waiting for a complete selected-source collection.".into();
     Redirect::to("/sources").into_response()
+}
+
+fn subscriber_table(kind: &str) -> Option<&'static str> {
+    match kind {
+        "pppoe" => Some("/ppp/secret/print"),
+        "dhcp" => Some("/ip/dhcp-server/lease/print"),
+        "hotspot" => Some("/ip/hotspot/user/print"),
+        _ => None,
+    }
+}
+fn identity(row: &crate::routeros::Row, kind: &str, selector: &str) -> Option<String> {
+    if kind == "dhcp" && selector == "subscriber" {
+        let raw = row
+            .get("active-mac-address")
+            .filter(|s| !s.is_empty())
+            .or_else(|| row.get("mac-address"))?;
+        normalizer::canonical_mac(raw).ok()
+    } else {
+        row.get("name").filter(|s| !s.is_empty()).cloned()
+    }
+}
+fn fresh_inventory<'a>(a: &'a App, router: &str) -> Option<&'a crate::routeros::Inventory> {
+    if !a
+        .settings
+        .routers
+        .iter()
+        .any(|r| r.id == router && r.role != "core")
+        || a.inventory_errors.contains_key(router)
+    {
+        return None;
+    }
+    let inv = a.inventories.get(router)?;
+    let now = orchestrator::now();
+    (inv.router_id == router
+        && now >= inv.collected_at
+        && now - inv.collected_at <= normalizer::MAX_INVENTORY_AGE_SECONDS
+        && !inv.errors.contains_key("collection"))
+    .then_some(inv)
+}
+fn selection_choices(a: &App, query: &str) -> Vec<Choice> {
+    let query = query.to_lowercase();
+    let mut result = vec![];
+    for router in &a.settings.routers {
+        let Some(inv) = fresh_inventory(a, &router.id) else {
+            continue;
+        };
+        for kind in ["pppoe", "dhcp", "hotspot"] {
+            for selector in ["group", "subscriber"] {
+                let path = if selector == "group" {
+                    normalizer::source_table(kind)
+                } else {
+                    subscriber_table(kind)
+                }
+                .expect("known kind");
+                if inv.errors.contains_key(path) {
+                    continue;
+                }
+                let Some(rows) = inv.tables.get(path) else {
+                    continue;
+                };
+                let mut names: BTreeMap<String, (usize, bool)> = BTreeMap::new();
+                for row in rows {
+                    if let Some(name) = identity(row, kind, selector) {
+                        let v = names.entry(name).or_default();
+                        v.0 += 1;
+                        v.1 |= row.get("disabled").is_some_and(|v| v == "true");
+                    }
+                }
+                for (name, (count, disabled)) in names {
+                    let label = format!("{} · {} · {} · {}", router.name, kind, selector, name);
+                    if count == 1 && !disabled && label.to_lowercase().contains(&query) {
+                        result.push(Choice {
+                            value: serde_json::to_string(&[
+                                router.id.as_str(),
+                                kind,
+                                selector,
+                                name.as_str(),
+                            ])
+                            .expect("string tuple"),
+                            label,
+                        });
+                        if result.len() == 200 {
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+pub(crate) fn selection_panel(a: &App) -> maud::Markup {
+    selection_panel_query(a, "")
+}
+fn selection_panel_query(a: &App, query: &str) -> maud::Markup {
+    let choices = selection_choices(a, query);
+    html! {
+        section.card { h2 {"Independent sources and exclusions"}
+            p.help {"Select a profile, server, account, or lease. Individual choices override group choices. An exclusion skips matching records. Removing a selection keeps router data and topology."}
+            form method="get" action="/sources" {label {"Search inventory" input name="q" value=(query) maxlength="256";} button {"Search"}}
+            p.help {"First 200 matching choices and selections are shown. Read fresh router inventory to update the choices."}
+            form method="post" action="/sources/selection" {(csrf(a))
+                label {"Inventory source" select name="selection" required {option value="" {"Choose a source"} @for c in choices {option value=(c.value) {(c.label)}}}}
+                label {"Destination node ID" input name="node" list="selection-nodes" maxlength="80" placeholder="Choose or enter an existing node ID";}
+                label {"Create a branch under node ID" input name="parent" list="selection-nodes" maxlength="80" placeholder="Optional parent node ID";}
+                datalist id="selection-nodes" {@for node in a.settings.nodes.iter().take(200) {option value=(&node.id) {(&node.name) " · " (&node.kind)}}}
+                label {input type="checkbox" name="exclude" value="true"; "Exclude matching records"}
+                button {"Save independent selection"}
+            }
+            div.tablewrap {table {thead {tr {th {"Router / service"} th {"Selector"} th {"Destination"} th {"Action"}}} tbody {
+                @for selection in a.settings.selections.iter().filter(|s|query.is_empty() || format!("{} {} {} {}",s.router,s.kind,s.value,s.node).to_lowercase().contains(&query.to_lowercase())).take(200) {
+                    tr {td {(&selection.router) " / " (&selection.kind)} td {(&selection.selector) ": " (&selection.value)} td {@if selection.exclude {"Excluded"} @else {(&selection.node)}} td {
+                        form method="post" action=(format!("/sources/selection/{}/delete",selection.id)) {(csrf(a)) button.danger {"Remove"}}
+                    }}
+                }
+            }}}
+        }
+    }
+}
+#[derive(Deserialize)]
+pub struct SelectionForm {
+    token: String,
+    selection: String,
+    #[serde(default)]
+    node: String,
+    #[serde(default)]
+    parent: String,
+    #[serde(default)]
+    exclude: bool,
+}
+pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionForm>) -> Response {
+    let mut a = s.lock().await;
+    if let Err(r) = check(&a, &form.token) {
+        return r.into_response();
+    }
+    let Ok([router, kind, selector, value]) = serde_json::from_str::<[String; 4]>(&form.selection)
+    else {
+        return error(&a, "Invalid source selection");
+    };
+    let Some(inv) = fresh_inventory(&a, &router) else {
+        return error(
+            &a,
+            "Source inventory is stale or unavailable; read inventory again",
+        );
+    };
+    let path = if selector == "group" {
+        normalizer::source_table(&kind)
+    } else if selector == "subscriber" {
+        subscriber_table(&kind)
+    } else {
+        None
+    };
+    let Some(path) = path else {
+        return error(&a, "Invalid source selector type");
+    };
+    if inv.errors.contains_key(path) {
+        return error(&a, "Source metadata read failed; read inventory again");
+    }
+    let canonical = if kind == "dhcp" && selector == "subscriber" {
+        match normalizer::canonical_mac(&value) {
+            Ok(v) => v,
+            Err(e) => return error(&a, e),
+        }
+    } else {
+        value.clone()
+    };
+    let found: Vec<_> = inv
+        .tables
+        .get(path)
+        .into_iter()
+        .flatten()
+        .filter(|r| identity(r, &kind, &selector).as_deref() == Some(&canonical))
+        .collect();
+    if found.len() != 1 || found[0].get("disabled").is_some_and(|v| v == "true") {
+        return error(
+            &a,
+            "Source metadata changed or is unavailable; read inventory again",
+        );
+    }
+    let mut next = a.settings.clone();
+    let mut node = form.node;
+    if !form.parent.is_empty() && !form.exclude {
+        if !next.nodes.iter().any(|n| n.id == form.parent) {
+            return error(&a, "Parent node no longer exists");
+        }
+        node = uuid::Uuid::new_v4().to_string();
+        next.nodes.push(crate::model::Node {
+            id: node.clone(),
+            name: value.clone(),
+            parent: form.parent,
+            kind: kind.clone(),
+            router: String::new(),
+            source: String::new(),
+            mode: "computed".into(),
+            download: 0.,
+            upload: 0.,
+            download_factor: 1.,
+            upload_factor: 1.,
+        });
+    }
+    next.selections.push(crate::selection::Selection {
+        id: uuid::Uuid::new_v4().to_string(),
+        router,
+        kind,
+        selector,
+        value: canonical,
+        node,
+        exclude: form.exclude,
+    });
+    if let Err(e) =
+        validate_selection_settings(&a, &next).and_then(|_| store::save_settings(&a.root, &next))
+    {
+        return error(&a, e);
+    }
+    a.settings = next;
+    a.status = "Independent source selection saved. Waiting for a complete collection.".into();
+    Redirect::to("/sources").into_response()
+}
+#[derive(Deserialize)]
+pub struct DeleteSelectionForm {
+    token: String,
+}
+pub async fn delete_selection(
+    State(s): State<Shared>,
+    Path(id): Path<String>,
+    Form(form): Form<DeleteSelectionForm>,
+) -> Response {
+    let mut a = s.lock().await;
+    if let Err(r) = check(&a, &form.token) {
+        return r.into_response();
+    }
+    if !a.settings.selections.iter().any(|s| s.id == id) {
+        return error(&a, "Selection no longer exists");
+    }
+    let mut next = a.settings.clone();
+    next.selections.retain(|s| s.id != id);
+    if let Err(e) =
+        validate_selection_settings(&a, &next).and_then(|_| store::save_settings(&a.root, &next))
+    {
+        return error(&a, e);
+    }
+    a.settings = next;
+    a.status = "Selection removed. Router data and topology are unchanged.".into();
+    Redirect::to("/sources").into_response()
+}
+
+fn validate_selection_settings(a: &App, next: &crate::model::Settings) -> anyhow::Result<()> {
+    crate::web::nodelimits(next)?;
+    let mut rows = store::load_snapshot(&a.root)?;
+    if !rows.is_empty() {
+        crate::minimums::allocate(next, &mut rows)?;
+        crate::model::compile(next, &rows)?;
+    }
+    Ok(())
 }

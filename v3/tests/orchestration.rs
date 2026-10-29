@@ -2,6 +2,84 @@ use lqosync_v3::{orchestrator, store, web::App};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 mod common;
+#[tokio::test]
+async fn healthy_absence_updates_candidate_without_replacing_output_and_failed_reads_keep_it() {
+    let (dir, state) = app();
+    {
+        let mut a = state.lock().await;
+        a.settings
+            .nodes
+            .retain(|n| n.kind == "wan" || n.kind == "pppoe");
+        a.settings.nodes[0].router = "r1".into();
+        a.settings.nodes[0].source = "wan-a".into();
+        a.settings
+            .assignment
+            .pools
+            .push(lqosync_v3::assignment::Pool {
+                source_node: "ppp".into(),
+                targets: vec!["ppp".into()],
+                balance: true,
+                metric: "online_clients".into(),
+            });
+        let i = Arc::make_mut(a.inventories.get_mut("r1").unwrap());
+        i.collected_at = orchestrator::now() - 2;
+        i.tables.get_mut("/ppp/active/print").unwrap()[0].insert(".id".into(), "*1".into());
+        i.tables.insert(
+            "/interface/print".into(),
+            vec![
+                [
+                    ("name".into(), "wan-a".into()),
+                    ("running".into(), "true".into()),
+                    ("disabled".into(), "false".into()),
+                ]
+                .into_iter()
+                .collect(),
+            ],
+        );
+    }
+    orchestrator::refresh(state.clone()).await;
+    let pointer = std::fs::read(dir.path().join("state/current.toml")).unwrap();
+    let observation = lqosync_v3::sessions::load(dir.path()).unwrap().unwrap();
+    assert_eq!(observation.active.len(), 1);
+    // An unchanged successful scan must not create another generation.
+    orchestrator::refresh(state.clone()).await;
+    assert_eq!(
+        std::fs::read(dir.path().join("state/current.toml")).unwrap(),
+        pointer
+    );
+    {
+        let mut a = state.lock().await;
+        Arc::make_mut(a.inventories.get_mut("r1").unwrap())
+            .tables
+            .get_mut("/ppp/active/print")
+            .unwrap()
+            .clear();
+        a.inventory_errors.insert("r1".into(), "Timeout".into());
+    }
+    orchestrator::refresh(state.clone()).await;
+    assert_eq!(
+        lqosync_v3::sessions::load(dir.path()).unwrap().unwrap(),
+        observation
+    );
+    {
+        let mut a = state.lock().await;
+        a.inventory_errors.clear();
+        Arc::make_mut(a.inventories.get_mut("r1").unwrap()).collected_at = orchestrator::now() - 1;
+    }
+    orchestrator::refresh(state.clone()).await;
+    assert!(
+        lqosync_v3::sessions::load(dir.path())
+            .unwrap()
+            .unwrap()
+            .active
+            .is_empty()
+    );
+    assert_eq!(
+        std::fs::read(dir.path().join("state/current.toml")).unwrap(),
+        pointer
+    );
+    assert_eq!(store::load_snapshot(dir.path()).unwrap().len(), 1);
+}
 fn app() -> (tempfile::TempDir, lqosync_v3::web::Shared) {
     let dir = tempfile::tempdir().unwrap();
     let (settings, mut inventories) = common::fixture();

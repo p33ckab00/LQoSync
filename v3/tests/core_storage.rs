@@ -4,6 +4,82 @@ use tokio::sync::Mutex;
 mod common;
 #[path = "common/core.rs"]
 mod core_fixture;
+#[tokio::test]
+async fn manual_core_conflict_preserves_output_but_advances_session_candidate_and_live_review() {
+    let (mut settings, mut inventories, _, _) = core_fixture::fixture();
+    settings
+        .assignment
+        .pools
+        .push(lqosync_v3::assignment::Pool {
+            source_node: "ppp".into(),
+            targets: vec!["ppp".into()],
+            balance: true,
+            metric: "online_clients".into(),
+        });
+    let i = Arc::make_mut(inventories.get_mut("r1").unwrap());
+    i.collected_at = orchestrator::now() - 2;
+    i.tables.get_mut("/ppp/active/print").unwrap()[0].insert(".id".into(), "*1".into());
+    let dir = tempfile::tempdir().unwrap();
+    store::save_settings(dir.path(), &settings).unwrap();
+    let mut app = App::open(dir.path().into()).unwrap();
+    app.inventories = inventories;
+    let state = Arc::new(Mutex::new(app));
+    orchestrator::refresh(state.clone()).await;
+    let pointer = std::fs::read(dir.path().join("state/current.toml")).unwrap();
+    {
+        let mut a = state.lock().await;
+        let i = Arc::make_mut(a.inventories.get_mut("r1").unwrap());
+        i.collected_at = orchestrator::now() - 1;
+        i.tables.get_mut("/ppp/active/print").unwrap()[0].insert(".id".into(), "*2".into());
+        i.tables
+            .get_mut("/ip/firewall/address-list/print")
+            .unwrap()
+            .push(core_fixture::row(&[
+                (".id", "*F"),
+                ("list", "lqos-wan"),
+                ("address", "192.0.2.1/32"),
+                ("dynamic", "false"),
+                ("disabled", "false"),
+            ]));
+    }
+    orchestrator::refresh(state.clone()).await;
+    assert_eq!(
+        std::fs::read(dir.path().join("state/current.toml")).unwrap(),
+        pointer
+    );
+    let candidate = lqosync_v3::sessions::load(dir.path()).unwrap().unwrap();
+    assert_eq!(
+        candidate.active.values().next().unwrap().id.as_deref(),
+        Some("*2")
+    );
+    assert!(state.lock().await.status.contains("protected"));
+    let a = state.lock().await;
+    let review = lqosync_v3::validation::review(
+        &a.settings,
+        &a.inventories,
+        &a.inventory_errors,
+        dir.path(),
+        orchestrator::now(),
+        lqosync_v3::core_diagnostics::Origin::Live,
+    );
+    assert!(
+        review
+            .checks
+            .iter()
+            .any(|c| c.code == "subscriber-assignment"
+                && c.status == lqosync_v3::core_diagnostics::Outcome::Pass)
+    );
+    assert!(review.checks.iter().any(|c| c.code == "core-membership"
+        && c.status == lqosync_v3::core_diagnostics::Outcome::Conflict));
+    assert_eq!(
+        lqosync_v3::sessions::load(dir.path()).unwrap().unwrap(),
+        candidate
+    );
+    assert_eq!(
+        std::fs::read(dir.path().join("state/current.toml")).unwrap(),
+        pointer
+    );
+}
 #[test]
 fn core_plan_commits_with_its_snapshot_reuses_identical_inputs_and_rejects_corruption() {
     let (s, mut inv, subs, state) = core_fixture::fixture();

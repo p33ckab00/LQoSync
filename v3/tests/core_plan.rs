@@ -287,6 +287,7 @@ fn pinned_wan_move_plans_only_the_owned_old_host_removal_and_new_list_add() {
         source_node: "ppp".into(),
         targets: vec!["ppp".into(), "ppp2".into()],
         balance: false,
+        metric: "planned_load".into(),
     });
     rows(&mut inv, "/interface/print").push(row(&[
         ("name", "uplink2"),

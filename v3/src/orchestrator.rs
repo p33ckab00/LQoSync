@@ -59,31 +59,67 @@ pub async fn refresh(s: Shared) {
     let work_errors = errors.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
         let mut subscribers =
-            normalizer::normalize(&work_settings, &work_inventories, &work_errors, now())?;
+            normalizer::collect(&work_settings, &work_inventories, &work_errors, now())?;
         let previous = store::load_assignments(&root)?;
-        let assignments = crate::assignment::assign(
-            &work_settings,
-            &mut subscribers,
-            &previous,
-            &work_inventories,
-            &work_errors,
-            now(),
-        )?;
-        crate::minimums::allocate(&work_settings, &mut subscribers)?;
-        let plan = compile(&work_settings, &subscribers)?;
-        let core = if work_settings.core_lists.bindings.is_empty() {
-            None
+        let count_mode = work_settings
+            .assignment
+            .pools
+            .iter()
+            .any(|p| p.balance && p.metric == "online_clients");
+        let (session_baseline, revision) = if count_mode {
+            let (baseline, revision) = crate::sessions::load_for_update(&root)?;
+            (baseline, Some(revision))
         } else {
-            Some(crate::core_plan::build(
+            (None, None)
+        };
+        let observation = if count_mode {
+            Some(crate::sessions::plan(
                 &work_settings,
-                &subscribers,
-                &assignments,
+                &mut subscribers,
+                &previous,
+                session_baseline.as_ref(),
                 &work_inventories,
                 &work_errors,
                 now(),
             )?)
+        } else {
+            None
         };
-        Ok((subscribers, plan, assignments, core))
+        let assignments = if let Some(o) = &observation {
+            o.assignments.clone()
+        } else {
+            crate::assignment::assign(
+                &work_settings,
+                &mut subscribers,
+                &previous,
+                &work_inventories,
+                &work_errors,
+                now(),
+            )?
+        };
+        // A healthy absence remains useful even if output admission later fails.
+        let output = (|| -> anyhow::Result<_> {
+            anyhow::ensure!(
+                !subscribers.is_empty(),
+                "Selected scan is empty; last valid snapshot is retained"
+            );
+            crate::minimums::allocate(&work_settings, &mut subscribers)?;
+            let plan = compile(&work_settings, &subscribers)?;
+            let core = if work_settings.core_lists.bindings.is_empty() {
+                None
+            } else {
+                Some(crate::core_plan::build(
+                    &work_settings,
+                    &subscribers,
+                    &assignments,
+                    &work_inventories,
+                    &work_errors,
+                    now(),
+                )?)
+            };
+            Ok((subscribers, plan, core))
+        })();
+        Ok((observation, revision, assignments, output))
     })
     .await;
     let mut a = s.clone().lock_owned().await;
@@ -100,15 +136,27 @@ pub async fn refresh(s: Shared) {
         Ok(value) => value,
         Err(e) => Err(e.into()),
     };
-    let (subscribers, plan, assignments, core) = match result {
+    let (observation, revision, assignments, output) = match result {
         Ok(value) => value,
         Err(e) => {
             a.status = format!("Not normalized: {e}. Last valid snapshot and generation retained.");
             return;
         }
     };
-    // Serialize the commit, but do file I/O on a blocking worker, not an async worker.
+    // Serialize candidate evidence and publication after the same freshness checks.
     let _ = tokio::task::spawn_blocking(move || {
+        if let Some(observation) = observation {
+            let current = now();
+            let fresh = observation.collected.values().all(|t| current >= *t && current - *t <= normalizer::MAX_INVENTORY_AGE_SECONDS);
+            if !fresh {a.status="Session observation expired; last valid snapshot and generation retained.".into();return;}
+            if let Err(e) = revision.expect("count-mode observation has its validated revision").save(&a.root, &observation) {
+                a.status=format!("Candidate session state could not be saved: {e}. Last valid generation retained.");return;
+            }
+        }
+        let (subscribers, plan, core) = match output {
+            Ok(value) => value,
+            Err(e) => {a.status=format!("Not normalized: {e}. Last valid snapshot and generation retained.");return;}
+        };
         let result = (|| -> anyhow::Result<_> {
             if let Some(core) = &core {
                 crate::core_plan::validate_fresh(core, now())?;
@@ -148,7 +196,7 @@ pub async fn cycle(s: Shared) {
             return;
         }
         let settings = a.settings.clone();
-        let selected: BTreeSet<_> = settings
+        let mut selected: BTreeSet<_> = settings
             .nodes
             .iter()
             .filter(|n| {
@@ -158,6 +206,7 @@ pub async fn cycle(s: Shared) {
             })
             .map(|n| n.router.as_str())
             .collect();
+        selected.extend(normalizer::selected_routers(&settings));
         let routers: Vec<_> = settings
             .routers
             .iter()

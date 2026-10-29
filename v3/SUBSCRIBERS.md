@@ -13,6 +13,8 @@ It does not export to LibreQoS, apply shaping, write router configuration, or ch
 
 The available sources are exact PPP profiles, DHCP servers, and Hotspot user profiles.
 One source can bind to one shaping node. Duplicate bindings are rejected.
+Independent selectors also support individual accounts, DHCP MAC identities, generic groups, and explicit exclusions.
+An individual selector overrides its group selector. See [flexible topology](FLEXIBLE_TOPOLOGY.md).
 WAN and site nodes remain topology settings. They do not select subscriber tables.
 Use **Speed rules** to inspect rate provenance and change minimum policy.
 

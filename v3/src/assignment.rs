@@ -23,6 +23,11 @@ pub struct Pool {
     pub targets: Vec<String>,
     #[serde(default)]
     pub balance: bool,
+    #[serde(default = "default_metric")]
+    pub metric: String,
+}
+fn default_metric() -> String {
+    "online_clients".into()
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -39,6 +44,7 @@ pub struct AssignmentState {
 pub struct Topology<'a> {
     pub nodes: HashMap<&'a str, &'a Node>,
     pub roots: HashMap<&'a str, &'a str>,
+    sources: HashSet<&'a str>,
 }
 impl<'a> Topology<'a> {
     pub fn new(settings: &'a Settings) -> Result<Self> {
@@ -66,7 +72,28 @@ impl<'a> Topology<'a> {
             );
             roots.insert(n.id.as_str(), cursor.id.as_str());
         }
-        Ok(Self { nodes, roots })
+        let sources = settings
+            .nodes
+            .iter()
+            .filter(|n| {
+                normalizer::service(&n.kind).is_some()
+                    && !n.router.is_empty()
+                    && !n.source.is_empty()
+            })
+            .map(|n| n.id.as_str())
+            .chain(
+                settings
+                    .selections
+                    .iter()
+                    .filter(|s| !s.exclude)
+                    .map(|s| s.node.as_str()),
+            )
+            .collect();
+        Ok(Self {
+            nodes,
+            roots,
+            sources,
+        })
     }
     pub fn root(&self, node: &str) -> Result<&'a Node> {
         let id = self.roots.get(node).context("Unknown assignment node")?;
@@ -82,17 +109,17 @@ impl<'a> Topology<'a> {
             .get(target)
             .context("Assignment target no longer exists")?;
         ensure!(
-            normalizer::service(&source.kind).is_some()
-                && !source.router.is_empty()
-                && !source.source.is_empty(),
+            self.sources.contains(source.id.as_str()),
             "Assignment source must have a subscriber source binding"
         );
         ensure!(
-            source.kind == target.kind,
-            "Assignment target must have the same subscriber kind"
+            source.kind == target.kind
+                || matches!(source.kind.as_str(), "group" | "site" | "wan")
+                || matches!(target.kind.as_str(), "group" | "site" | "wan"),
+            "Assignment target must match the service or be a generic group"
         );
         ensure!(
-            target.id == source.id || target.router.is_empty() || target.source.is_empty(),
+            target.id == source.id || !self.sources.contains(target.id.as_str()),
             "Assignment target belongs to another subscriber source"
         );
         for node in [source, target] {
@@ -135,6 +162,10 @@ pub fn validate(settings: &Settings) -> Result<()> {
     let mut sources = HashSet::new();
     let mut pools = HashMap::new();
     for pool in &settings.assignment.pools {
+        ensure!(
+            matches!(pool.metric.as_str(), "online_clients" | "planned_load"),
+            "Unknown assignment metric"
+        );
         ensure!(
             sources.insert(pool.source_node.as_str()),
             "Duplicate assignment pool"
@@ -225,13 +256,14 @@ pub fn validate_wans(
     Ok(())
 }
 fn add_load(
-    load: &mut HashMap<String, (f64, f64)>,
+    load: &mut HashMap<String, (f64, f64, usize)>,
     key: &str,
     subscriber: &Subscriber,
 ) -> Result<()> {
     let value = load.entry(key.into()).or_default();
     value.0 += subscriber.download;
     value.1 += subscriber.upload;
+    value.2 += 1;
     ensure!(
         value.0.is_finite() && value.1.is_finite(),
         "Assignment load overflow"
@@ -242,8 +274,8 @@ fn score(
     topology: &Topology<'_>,
     target: &str,
     subscriber: &Subscriber,
-    wan_load: &HashMap<String, (f64, f64)>,
-    node_load: &HashMap<String, (f64, f64)>,
+    wan_load: &HashMap<String, (f64, f64, usize)>,
+    node_load: &HashMap<String, (f64, f64, usize)>,
 ) -> Result<f64> {
     let root = topology.root(target)?;
     let load = wan_load.get(&root.id).copied().unwrap_or_default();
@@ -280,21 +312,14 @@ pub fn assign(
         .iter()
         .map(|p| (p.source_node.as_str(), p))
         .collect();
-    // Keep inactive subscribers sticky across disconnects and restarts. Policy removal
-    // invalidates the old destination; inactive records do not contribute plan load.
+    // The session planner releases disconnected count-mode clients before this step.
+    // Legacy planned-load assignments can remain sticky without contributing load.
     let mut state = AssignmentState {
         assignments: previous
             .assignments
             .iter()
             .filter(|(_, pin)| {
-                topology
-                    .nodes
-                    .get(pin.source_node.as_str())
-                    .is_some_and(|n| {
-                        normalizer::service(&n.kind).is_some()
-                            && !n.router.is_empty()
-                            && !n.source.is_empty()
-                    })
+                topology.sources.contains(pin.source_node.as_str())
                     && (pin.node == pin.source_node
                         || pools
                             .get(pin.source_node.as_str())
@@ -364,16 +389,25 @@ pub fn assign(
     for (i, source) in pending {
         let subscriber = &mut subscribers[i];
         let pool = pools[source.as_str()];
-        let mut best: Option<(f64, &str)> = None;
+        let mut best: Option<(f64, usize, &str)> = None;
         for target in &pool.targets {
-            let value = score(&topology, target, subscriber, &wan_load, &node_load)?;
-            if best
-                .is_none_or(|(old, name)| value < old || (value == old && target.as_str() < name))
-            {
-                best = Some((value, target));
+            let (value, branch_count) = if pool.metric == "online_clients" {
+                let root = topology.root(target)?;
+                (
+                    wan_load.get(&root.id).map(|v| v.2).unwrap_or(0) as f64,
+                    node_load.get(target).map(|v| v.2).unwrap_or(0),
+                )
+            } else {
+                (
+                    score(&topology, target, subscriber, &wan_load, &node_load)?,
+                    0,
+                )
+            };
+            if best.is_none_or(|old| (value, branch_count, target.as_str()) < old) {
+                best = Some((value, branch_count, target));
             }
         }
-        let target = best.context("Assignment pool is empty")?.1;
+        let target = best.context("Assignment pool is empty")?.2;
         subscriber.node = target.into();
         add_load(&mut wan_load, &topology.root(target)?.id, subscriber)?;
         add_load(&mut node_load, target, subscriber)?;

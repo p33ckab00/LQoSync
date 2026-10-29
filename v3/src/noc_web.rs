@@ -328,13 +328,30 @@ fn hierarchy(a: &App, parent: &str, selected: Option<&Node>, plan: Option<&Plan>
     }
 }
 
-pub(crate) fn topology(a: &App, selected: &str, plan: Option<&Plan>) -> Html<String> {
+pub(crate) fn topology(
+    a: &App,
+    selected: &str,
+    plan: Option<&Plan>,
+    observation: Result<&Option<crate::sessions::Observation>, &String>,
+) -> Html<String> {
     let selected = a
         .settings
         .nodes
         .iter()
         .find(|n| n.id == selected)
         .or_else(|| a.settings.nodes.first());
+    let mut counts = std::collections::BTreeMap::<String, usize>::new();
+    if let Ok(Some(observation)) = observation
+        && let Ok(topology) = crate::assignment::Topology::new(&a.settings)
+    {
+        for id in observation.active.keys() {
+            if let Some(pin) = observation.assignments.assignments.get(id)
+                && let Ok(wan) = topology.root(&pin.node)
+            {
+                *counts.entry(wan.id.clone()).or_default() += 1;
+            }
+        }
+    }
     shell(
         a,
         "Topology",
@@ -364,6 +381,7 @@ pub(crate) fn topology(a: &App, selected: &str, plan: Option<&Plan>) -> Html<Str
                                                 @for row in rows.iter().take(20) {
                                                     a.treeitem data-inventory-row href=(link) {(row.get("name").or_else(|| row.get("user")).or_else(|| row.get("active-address")).or_else(|| row.get("address")).map(String::as_str).unwrap_or("Unnamed record"))}
                                                 }
+
                                                 @if rows.len() > 20 {p.note {"First 20 records shown. Inspect the full table on Routers."}}
                                             }
                                         }
@@ -412,6 +430,19 @@ pub(crate) fn topology(a: &App, selected: &str, plan: Option<&Plan>) -> Html<Str
                     }
                 }
             }
+            @match observation {
+                Ok(Some(_)) => {
+                    section.panel.sectiongap {
+                        div.panelhead {strong{"Last observed count-mode sessions"} span.pill.blue{"CANDIDATE ONLY"}}
+                        div.tablewrap {table {thead {tr {th{"WAN"}th{"Observed clients / bound leases"}}}tbody {
+                            @for (wan,count) in counts {tr {td{(wan)}td{(count)}}}
+                        }}}
+                        div.tablefoot {"Saved source observations, not committed or applied routing. DHCP counts represent bound leases. " a href="/assignments"{"Configure pools and manual pins"}}
+                    }
+                },
+                Err(error) => {p.warning{"Candidate session state unavailable: " (error)}},
+                _=>{},
+            }
             section.panel.sectiongap {
                 div.panelhead {strong {"Configured shaping nodes"} a.btn href="#add-node" {"Add node"}}
                 div.tablewrap {table {
@@ -423,6 +454,7 @@ pub(crate) fn topology(a: &App, selected: &str, plan: Option<&Plan>) -> Html<Str
                 }}
             }
         details.panel.sectiongap #add-node {summary.panelhead {strong {"Add shaping node"}} div.panelbody {(node_form(a, None))}}
+        details.panel.sectiongap {summary.panelhead {strong{"Source selection and automatic grouping"}} div.panelbody{(crate::sources_web::selection_panel(a))}}
             section.card {h2 {"Generated output"}
                 @if let Some(p) = plan {
                     details {summary {"network.json candidate preview"} pre {(&p.network)}}

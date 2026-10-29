@@ -66,6 +66,7 @@ pub fn required_routers(settings: &Settings) -> BTreeSet<&str> {
                 })
                 .map(|n| n.router.as_str()),
         )
+        .chain(normalizer::selected_routers(settings))
         .collect()
 }
 pub fn review(
@@ -176,14 +177,36 @@ pub fn review(
         .as_ref()
         .map(|g| &g.assignments)
         .unwrap_or(&empty);
-    let assignments = match assignment::assign(
-        settings,
-        &mut subscribers,
-        previous,
-        inventories,
-        errors,
-        now,
-    ) {
+    let proposed = (|| -> anyhow::Result<_> {
+        if origin == Origin::Live
+            && settings
+                .assignment
+                .pools
+                .iter()
+                .any(|p| p.balance && p.metric == "online_clients")
+        {
+            Ok(crate::sessions::plan(
+                settings,
+                &mut subscribers,
+                previous,
+                crate::sessions::load(root)?.as_ref(),
+                inventories,
+                errors,
+                now,
+            )?
+            .assignments)
+        } else {
+            assignment::assign(
+                settings,
+                &mut subscribers,
+                previous,
+                inventories,
+                errors,
+                now,
+            )
+        }
+    })();
+    let assignments = match proposed {
         Ok(a) => a,
         Err(e) => {
             report.add("subscriber-assignment", Outcome::Conflict, e.to_string());

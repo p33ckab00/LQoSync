@@ -15,6 +15,8 @@ pub struct Settings {
     pub assignment: crate::assignment::Policy,
     #[serde(default)]
     pub core_lists: crate::core_plan::Policy,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selections: Vec<crate::selection::Selection>,
     #[serde(default)]
     pub routers: Vec<Router>,
     #[serde(default)]
@@ -34,6 +36,7 @@ impl Default for Settings {
             speed_rules: crate::speeds::SpeedRules::default(),
             assignment: Default::default(),
             core_lists: Default::default(),
+            selections: vec![],
             routers: vec![],
             nodes: vec![],
         }
@@ -167,7 +170,7 @@ pub fn validate(settings: &Settings) -> Result<()> {
         ensure!(
             matches!(
                 n.kind.as_str(),
-                "wan" | "pppoe" | "dhcp" | "hotspot" | "site"
+                "wan" | "pppoe" | "dhcp" | "hotspot" | "site" | "group"
             ),
             "Unknown node kind"
         );

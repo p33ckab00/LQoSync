@@ -20,13 +20,13 @@ pub fn read_properties(path: &str) -> Result<&'static str> {
         "/ip/firewall/address-list/print" => ".id,list,address,comment,dynamic,disabled,timeout",
         "/ip/neighbor/print" => "identity,interface,interface-name,address,mac-address",
         "/ppp/profile/print" => "name,rate-limit,comment",
-        "/ppp/active/print" => "name,address,caller-id,service,uptime,comment",
+        "/ppp/active/print" => ".id,name,address,caller-id,service,uptime,comment",
         "/ppp/secret/print" => "name,profile,disabled,comment,caller-id",
         "/ip/dhcp-server/print" => "name,interface,address-pool,disabled,comment",
         "/ip/dhcp-server/lease/print" => {
             "address,active-address,mac-address,active-mac-address,host-name,server,active-server,status,disabled,comment,rate-limit"
         }
-        "/ip/hotspot/active/print" => "user,address,mac-address,server",
+        "/ip/hotspot/active/print" => ".id,user,address,mac-address,server,uptime",
         "/ip/hotspot/user/profile/print" => "name,rate-limit,comment",
         "/ip/hotspot/user/print" => "name,profile,disabled,comment",
         _ => bail!("RouterOS command is outside the read-only allowlist"),

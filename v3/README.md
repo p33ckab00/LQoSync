@@ -11,7 +11,8 @@ Topology shows discovered inventory, the configured hierarchy, and a selected-no
 Select a node to edit its configuration. Use **Add node** to open the creation form.
 Router names open the router inspector. Existing save actions and validation rules still apply.
 Discovery links open the current source and WAN forms. They do not create nodes or change router records.
-Snapshot totals do not indicate online sessions. Balancing by online client count on reconnect remains pending.
+Snapshot totals do not indicate online sessions. Count mode uses observed active sessions and bound DHCP leases.
+See [flexible topology and reconnect assignment](FLEXIBLE_TOPOLOGY.md) for independent selectors, groups, and session rules.
 
 ## Current capabilities
 
@@ -27,7 +28,10 @@ Snapshot totals do not indicate online sessions. Balancing by online client coun
 - Create and edit WAN, PPPoE, DHCP, Hotspot, and site nodes.
 - Map discovered router interfaces to WAN roots and set their directional capacities.
 - Configure compatible subscriber destination pools and explicit subscriber pins.
-- Balance new subscribers by planned load and capacity. Preserve valid assignments across disconnects and restarts.
+- Select profiles, servers, accounts, and leases independently of the hierarchy. Individual selectors override groups and can exclude records.
+- Create named groups and create source branches from fresh inventory. Keep manual hierarchy controls.
+- Balance new or reconnected sessions by observed client count. Keep continuous sessions and manual pins stable.
+- Optionally balance by planned load and capacity with historical assignment retention.
 - Set explicit capacities or compute subscriber aggregates with separate download and upload factors.
 - Cap computed nodes at their immediate parent. Keep subscriber rates unchanged.
 - Reject cycles, missing parents, duplicate IPv4 addresses, invalid rates, and excessive explicit capacities.

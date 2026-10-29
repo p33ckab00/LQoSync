@@ -1,17 +1,20 @@
 use crate::{
-    assignment::{self, Pin, Pool},
+    assignment::{self, AssignmentState, Pin, Pool},
     model::{Settings, Subscriber},
-    normalizer, store, wan_web,
-    web::{Shared, check, csrf, error, shell},
+    normalizer, orchestrator,
+    routeros::Inventory,
+    sessions, store, wan_web,
+    web::{App, Shared, check, csrf, error, shell},
 };
 use axum::{
     Form,
     extract::{Query, State},
-    response::{IntoResponse, Response},
+    http::StatusCode,
+    response::{IntoResponse, Redirect, Response},
 };
 use maud::html;
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 #[derive(Default, Deserialize)]
 #[serde(default)]
 pub struct Page {
@@ -51,21 +54,132 @@ struct View {
     total: usize,
     offset: usize,
     stats: BTreeMap<String, (usize, f64, f64)>,
+    label: String,
+    candidate: bool,
+}
+#[derive(Clone)]
+struct Capture {
+    settings: Settings,
+    root: PathBuf,
+    generation: Option<String>,
+    inventories: BTreeMap<String, Arc<Inventory>>,
+    errors: BTreeMap<String, String>,
+    epochs: BTreeMap<String, u64>,
+}
+impl Capture {
+    fn new(a: &App) -> Self {
+        Self {
+            settings: a.settings.clone(),
+            root: a.root.clone(),
+            generation: a.generation.clone(),
+            inventories: a.inventories.clone(),
+            errors: a.inventory_errors.clone(),
+            epochs: a.read_epochs.clone(),
+        }
+    }
+    fn unchanged(&self, a: &App) -> bool {
+        a.settings == self.settings
+            && a.root == self.root
+            && a.generation == self.generation
+            && a.inventory_errors == self.errors
+            && a.read_epochs == self.epochs
+            && orchestrator::same_inventories(&a.inventories, &self.inventories)
+    }
+    fn fresh(&self) -> anyhow::Result<()> {
+        let now = orchestrator::now();
+        for router in normalizer::selected_routers(&self.settings) {
+            let inv = self
+                .inventories
+                .get(router)
+                .ok_or_else(|| anyhow::anyhow!("Selected inventory is missing"))?;
+            anyhow::ensure!(
+                now >= inv.collected_at
+                    && now - inv.collected_at <= normalizer::MAX_INVENTORY_AGE_SECONDS,
+                "Candidate inventory expired; read inventory again"
+            );
+        }
+        assignment::validate_wans(&self.settings, &self.inventories, &self.errors, now)
+    }
+}
+struct Snapshot {
+    subscribers: Vec<Subscriber>,
+    assignments: AssignmentState,
+    label: String,
+    candidate: bool,
+}
+fn assignment_view(input: &Capture) -> anyhow::Result<Snapshot> {
+    // Invalid stored state must not be hidden by a live preview or a fallback.
+    let (committed, baseline) = store::load_assignment_snapshot(&input.root)?;
+    let observation = sessions::load(&input.root)?;
+    if normalizer::has_bindings(&input.settings) {
+        let live = (|| -> anyhow::Result<_> {
+            let mut subscribers = normalizer::collect(
+                &input.settings,
+                &input.inventories,
+                &input.errors,
+                orchestrator::now(),
+            )?;
+            let count_mode = input
+                .settings
+                .assignment
+                .pools
+                .iter()
+                .any(|p| p.balance && p.metric == "online_clients");
+            let assignments = if count_mode {
+                sessions::plan(
+                    &input.settings,
+                    &mut subscribers,
+                    &baseline,
+                    observation.as_ref(),
+                    &input.inventories,
+                    &input.errors,
+                    orchestrator::now(),
+                )?
+                .assignments
+            } else {
+                assignment::assign(
+                    &input.settings,
+                    &mut subscribers,
+                    &baseline,
+                    &input.inventories,
+                    &input.errors,
+                    orchestrator::now(),
+                )?
+            };
+            Ok((subscribers, assignments))
+        })();
+        return Ok(match live {
+            Ok((subscribers, assignments)) => Snapshot {
+                subscribers, assignments, candidate: true,
+                label: "Candidate assignments · fresh selected-source inventory. Local preview only; not committed or applied.".into(),
+            },
+            Err(error) => Snapshot {
+                subscribers: committed, assignments: baseline, candidate: false,
+                label: format!("Committed snapshot · live candidate unavailable: {error}"),
+            },
+        });
+    }
+    Ok(Snapshot {
+        subscribers: committed,
+        assignments: baseline,
+        candidate: false,
+        label: "Committed snapshot · saved local assignments.".into(),
+    })
 }
 pub async fn assignments(State(s): State<Shared>, Query(page): Query<Page>) -> Response {
-    let (settings, root, generation) = {
+    let captured = {
         let a = s.lock().await;
-        (a.settings.clone(), a.root.clone(), a.generation.clone())
+        Capture::new(&a)
     };
     let q = page.q.chars().take(256).collect::<String>();
     let search = q.to_lowercase();
-    let work_settings = settings.clone();
+    let input = captured.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<View> {
-        let (subscribers, state) = store::load_assignment_snapshot(&root)?;
-        let topology = assignment::Topology::new(&work_settings)?;
+        let snapshot = assignment_view(&input)?;
+        let topology = assignment::Topology::new(&input.settings)?;
         let mut matches = vec![];
         let mut stats: BTreeMap<String, (usize, f64, f64)> = BTreeMap::new();
-        for subscriber in subscribers {
+        for subscriber in snapshot.subscribers {
             let root = topology
                 .root(&subscriber.node)
                 .map(|n| n.id.as_str())
@@ -79,7 +193,8 @@ pub async fn assignments(State(s): State<Shared>, Query(page): Query<Page>) -> R
                 || subscriber.name.to_lowercase().contains(&search)
                 || subscriber.ipv4.contains(&search)
             {
-                let source = state
+                let source = snapshot
+                    .assignments
                     .assignments
                     .get(&subscriber.id)
                     .map(|p| p.source_node.clone())
@@ -98,24 +213,35 @@ pub async fn assignments(State(s): State<Shared>, Query(page): Query<Page>) -> R
             total,
             offset,
             stats,
+            label: snapshot.label,
+            candidate: snapshot.candidate,
         })
     })
     .await;
     let a = s.lock().await;
-    if a.settings != settings || a.generation != generation {
-        return error(&a, "Settings or generation changed; reload assignments");
+    if !captured.unchanged(&a) {
+        return error(
+            &a,
+            "Settings, generation or inventory changed; reload assignments",
+        );
     }
     let view = match result {
         Ok(Ok(v)) => v,
         Ok(Err(e)) => return error(&a, e),
         Err(_) => return error(&a, "Assignment view worker failed"),
     };
+    if view.candidate
+        && let Err(e) = captured.fresh()
+    {
+        return error(&a, e);
+    }
     shell(&a,"Assignments",html!{
-        section.card{h2{"Subscriber WAN assignments"}p{(&a.status)}p.help{"These are intended local shaping assignments. Core routing and address-list synchronization are not implemented."}
+        section.card{h2{"Subscriber WAN assignments"}p{(&view.label)}p{(&a.status)}p.help{"These are intended local shaping assignments. Core routing and address-list synchronization are not implemented."}
             div.tablewrap{table{thead{tr{th{"WAN"}th{"Subscribers"}th{"Plan load ↓ / ↑ Mbps"}}}tbody{@for (wan,(count,download,upload)) in &view.stats {tr{td{(wan)}td{(count)}td{(download) " / " (upload)}}}}}}
         }
-        section.card{h2{"Source destination pools"}p.help{"Create matching subscriber branches under mapped WAN roots in Topology. Pins override balancing. Valid previous assignments remain stable; enabling balance does not move existing subscribers."}
-            @for source in a.settings.nodes.iter().filter(|n|normalizer::service(&n.kind).is_some()&&!n.router.is_empty()&&!n.source.is_empty()).take(200){
+        section.card{h2{"Source destination pools"}p.help{"Choose branches or custom groups under mapped WAN roots. Pins override balancing. Online-count mode keeps continuous sessions stable and reassesses new sessions or reconnects."}
+            @let source_ids:std::collections::HashSet<_>=a.settings.nodes.iter().filter(|n|normalizer::service(&n.kind).is_some()&&!n.router.is_empty()&&!n.source.is_empty()).map(|n|n.id.as_str()).chain(a.settings.selections.iter().filter(|s|!s.exclude).map(|s|s.node.as_str())).collect();
+            @for source in a.settings.nodes.iter().filter(|n|source_ids.contains(n.id.as_str())).take(200){
                 @let pool=a.settings.assignment.pools.iter().find(|p|p.source_node==source.id);
                 @let targets=allowed(&a.settings,&source.id);
                 details{summary{(&source.name) " · " (&source.id)}
@@ -123,7 +249,9 @@ pub async fn assignments(State(s): State<Shared>, Query(page): Query<Page>) -> R
                     form method="post" action="/assignments/pool"{(csrf(&a))input type="hidden" name="source" value=(&source.id);input type="hidden" name="action" value="add";
                         label{"Add compatible destination" select name="target"{@for target in assignment::eligible_targets(&a.settings,&source.id).unwrap_or_default().iter().filter(|t|!targets.contains(t)){option value=(target){(target)}}}}button{"Add destination"}}
                     form method="post" action="/assignments/pool"{(csrf(&a))input type="hidden" name="source" value=(&source.id);input type="hidden" name="action" value="mode";
-                        label{"New subscriber assignment" select name="balance"{option value="false" selected[pool.is_none_or(|p|!p.balance)]{"Original source / explicit pins"}option value="true" selected[pool.is_some_and(|p|p.balance)]{"Balance new subscribers by planned load / capacity"}}}button{"Save assignment mode"}}
+                        label{"Assignment mode" select name="balance"{option value="false" selected[pool.is_none_or(|p|!p.balance)]{"Original source / explicit pins"}option value="true" selected[pool.is_some_and(|p|p.balance)]{"Automatic balancing"}}}
+                        label{"Automatic metric" select name="metric"{option value="online_clients" selected[pool.is_none_or(|p|p.metric=="online_clients")]{"Online clients · reassess on reconnect"}option value="planned_load" selected[pool.is_some_and(|p|p.metric=="planned_load")]{"Planned Mbps / capacity · retain assignments"}}}
+                        button{"Save assignment mode"}}
                     @if pool.is_some(){form method="post" action="/assignments/pool"{(csrf(&a))input type="hidden" name="source" value=(&source.id);input type="hidden" name="action" value="delete";button.danger{"Delete pool"}}}
                 }
             }
@@ -154,6 +282,7 @@ pub struct PoolForm {
     target: String,
     action: String,
     balance: Option<bool>,
+    metric: Option<String>,
 }
 pub async fn save_pool(State(s): State<Shared>, Form(f): Form<PoolForm>) -> Response {
     let a = s.lock().await;
@@ -162,9 +291,7 @@ pub async fn save_pool(State(s): State<Shared>, Form(f): Form<PoolForm>) -> Resp
     }
     let mut next = a.settings.clone();
     let source = next.nodes.iter().find(|n| n.id == f.source);
-    if !source.is_some_and(|n| {
-        normalizer::service(&n.kind).is_some() && !n.router.is_empty() && !n.source.is_empty()
-    }) {
+    if !source.is_some_and(|n| normalizer::is_source_node(&next, &n.id)) {
         return error(&a, "Choose a bound subscriber source");
     }
     if f.action == "delete" {
@@ -180,6 +307,7 @@ pub async fn save_pool(State(s): State<Shared>, Form(f): Form<PoolForm>) -> Resp
                 source_node: f.source.clone(),
                 targets: vec![f.source.clone()],
                 balance: false,
+                metric: "online_clients".into(),
             });
         }
         let pool = next
@@ -199,6 +327,9 @@ pub async fn save_pool(State(s): State<Shared>, Form(f): Form<PoolForm>) -> Resp
                 let Some(balance) = f.balance else {
                     return error(&a, "Select an assignment mode");
                 };
+                if let Some(metric) = f.metric {
+                    pool.metric = metric;
+                }
                 pool.balance = balance;
             }
             _ => return error(&a, "Invalid pool action"),
@@ -225,7 +356,7 @@ pub async fn save_pin(State(s): State<Shared>, Form(f): Form<PinForm>) -> Respon
     let previous = a.settings.clone();
     let mut next = previous.clone();
     let generation = a.generation.clone();
-    let root = a.root.clone();
+    let captured = Capture::new(&a);
     if f.target.is_empty() {
         if next.assignment.pins.remove(&f.id).is_none() {
             return error(&a, "Subscriber pin no longer exists");
@@ -234,31 +365,55 @@ pub async fn save_pin(State(s): State<Shared>, Form(f): Form<PinForm>) -> Respon
         return wan_web::commit(s, previous, generation, next, "/assignments").await;
     }
     drop(a);
-    let id = f.id.clone();
-    let result = tokio::task::spawn_blocking(move || -> anyhow::Result<Pin> {
-        let (subscribers, state) = store::load_assignment_snapshot(&root)?;
-        anyhow::ensure!(
-            subscribers.iter().any(|s| s.id == id),
-            "Subscriber is absent from the committed snapshot"
+    let mut a = s.clone().lock_owned().await;
+    if !captured.unchanged(&a) {
+        return error(
+            &a,
+            "Settings, generation or inventory changed; reload before saving",
         );
-        state
-            .assignments
-            .get(&id)
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Subscriber source ownership is missing"))
+    }
+    // Keep the captured inventory and its read tickets unchanged through the save.
+    tokio::task::spawn_blocking(move || {
+        let result = (|| -> anyhow::Result<()> {
+            let snapshot = assignment_view(&captured)?;
+            anyhow::ensure!(
+                snapshot
+                    .subscribers
+                    .iter()
+                    .any(|subscriber| subscriber.id == f.id),
+                "Subscriber is absent from the current assignment view"
+            );
+            let pin = snapshot
+                .assignments
+                .assignments
+                .get(&f.id)
+                .ok_or_else(|| anyhow::anyhow!("Subscriber source ownership is missing"))?;
+            next.assignment.pins.insert(
+                f.id,
+                Pin {
+                    source_node: pin.source_node.clone(),
+                    node: f.target,
+                },
+            );
+            crate::web::nodelimits(&next)?;
+            assignment::validate(&next)?;
+            if snapshot.candidate {
+                captured.fresh()?;
+            }
+            store::save_settings(&a.root, &next)?;
+            Ok(())
+        })();
+        if let Err(e) = result {
+            return error(&a, e);
+        }
+        a.settings = next;
+        a.status =
+            "Subscriber pin saved. Candidate assignments remain separate from committed output."
+                .into();
+        Redirect::to("/assignments").into_response()
     })
-    .await;
-    let pin = match result {
-        Ok(Ok(pin)) => pin,
-        Ok(Err(e)) => return error(&*s.lock().await, e),
-        Err(_) => return error(&*s.lock().await, "Pin lookup worker failed"),
-    };
-    next.assignment.pins.insert(
-        f.id,
-        Pin {
-            source_node: pin.source_node,
-            node: f.target,
-        },
-    );
-    wan_web::commit(s, previous, generation, next, "/assignments").await
+    .await
+    .unwrap_or_else(|_| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "Pin save worker failed").into_response()
+    })
 }

@@ -132,6 +132,14 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/validation", get(crate::validation_web::page))
         .route("/sources", get(crate::sources_web::sources))
         .route("/sources/save", post(crate::sources_web::save))
+        .route(
+            "/sources/selection",
+            post(crate::sources_web::save_selection),
+        )
+        .route(
+            "/sources/selection/{id}/delete",
+            post(crate::sources_web::delete_selection),
+        )
         .route("/routers/save", post(save_router))
         .route("/routers/{id}/delete", post(delete_router))
         .route("/routers/{id}/inspect", post(inspect_router))
@@ -366,22 +374,27 @@ async fn topology(State(s): State<Shared>, Query(selection): Query<Selection>) -
         (a.settings.clone(), a.root.clone(), a.generation.clone())
     };
     let work_settings = settings.clone();
-    let mut plan = tokio::task::spawn_blocking(move || {
-        store::load_snapshot(&root)
+    let view = tokio::task::spawn_blocking(move || {
+        let plan = store::load_snapshot(&root)
             .ok()
-            .and_then(|snapshot| compile(&work_settings, &snapshot).ok())
+            .and_then(|snapshot| compile(&work_settings, &snapshot).ok());
+        (
+            plan,
+            crate::sessions::load(&root).map_err(|e| e.to_string()),
+        )
     })
     .await
-    .ok()
-    .flatten();
+    .unwrap_or_else(|e| (None, Err(e.to_string())));
+    let (mut plan, mut observation) = view;
     if let Some(plan) = &mut plan {
         plan.csv = plan.csv.lines().take(21).collect::<Vec<_>>().join("\n");
     }
     let a = s.lock().await;
     if a.settings != settings || a.generation != generation {
         plan = None;
+        observation = Ok(None);
     }
-    crate::noc_web::topology(&a, &selection.selected, plan.as_ref())
+    crate::noc_web::topology(&a, &selection.selected, plan.as_ref(), observation.as_ref())
 }
 
 pub(crate) fn node_form(a: &App, n: Option<&Node>) -> Markup {
@@ -389,7 +402,7 @@ pub(crate) fn node_form(a: &App, n: Option<&Node>) -> Markup {
     html! {form method="post" action="/nodes/save" {(csrf(a))input type="hidden" name="original_id" value=(value(|n|&n.id));div.formgrid{
         (field("Stable node ID","id",value(|n|&n.id),"text")) (field("Display name","name",value(|n|&n.name),"text"))
         label{"Parent" select name="parent" {option value="" selected[n.is_none_or(|n|n.parent.is_empty())]{"No parent · WAN root"}@for p in &a.settings.nodes { @if n.is_none_or(|n|n.id!=p.id) {option value=(&p.id) selected[n.is_some_and(|n|n.parent==p.id)]{(&p.name)}}}}}
-        (select("Node type","kind",&[("wan","WAN root"),("pppoe","PPPoE profile"),("dhcp","DHCP server"),("hotspot","Hotspot"),("site","Site / backhaul")],n.map(|n|n.kind.as_str()).unwrap_or("wan")))
+        (select("Node type","kind",&[("wan","WAN root"),("group","Custom group"),("pppoe","PPPoE profile"),("dhcp","DHCP server"),("hotspot","Hotspot"),("site","Site / backhaul")],n.map(|n|n.kind.as_str()).unwrap_or("wan")))
         label{"Source router" select name="router" {option value=""{"Unassigned"}@for r in &a.settings.routers {option value=(&r.id) selected[n.is_some_and(|n|n.router==r.id)]{(&r.name)}}}}
         label{"Source profile / server / interface" input name="source" value=(value(|n|&n.source));}
         (select("Capacity mode","mode",&[("manual","Manual / explicit"),("computed","Subscriber aggregate × factor")],n.map(|n|n.mode.as_str()).unwrap_or("manual")))

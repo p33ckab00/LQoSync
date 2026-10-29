@@ -7,11 +7,52 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-30T01:11:24+08:00 (Asia/Shanghai).
+Updated: 2026-10-30T07:09:19+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Base: `f22cfbf8d974c10300a7a704cd7a712509d9827d` from `lqosync-in-rust`.
+
+## Flexible topology and reconnect assignment complete
+
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Source baseline: `df120ed`.
+The NOC console and prior shared workflow/map artifacts were committed and pushed as `df120ed` before this slice.
+The user authorized implementation, performance review, correction, and commit/push after successful checks.
+
+Independent selectors now support group and individual sources, exclusions, generic destinations, and automatic branch creation.
+Legacy node bindings remain valid. Source IDs and subscriber identities remain independent of hierarchy edits.
+Pools default to online client count, with explicit planned-load mode still available.
+Continuous sessions keep compatible assignments. New sessions and reconnects can rebalance; manual pins take priority.
+Candidate observations use private `state/online-assignments.toml`, separate from the committed generation.
+Healthy empty scans or core admission failures can preserve session evidence while retaining the last valid output.
+Live Validation, core planning, and output share the same assignment planner. Candidate-only clients can receive validated manual pins.
+
+Changed modules: selection, sessions, model, normalizer, assignment, orchestrator, routeros, validation, source UI, assignment UI, web, and NOC presentation.
+Tests, `v3/FLEXIBLE_TOPOLOGY.md`, guides, design/plan, the session note, and ADR accompany the code.
+No dependency change occurred. Private runtime data remains ignored.
+
+Final checks: 177 tests passed, zero failed. Eleven manual benchmarks remain ignored in the normal suite.
+Format, strict all-target Clippy, JavaScript syntax, and diff whitespace checks passed.
+Four relevant 50k-client/selector workloads passed separately. Browser checks passed on 12 routes at 1440px, 390px, and 320px.
+Browser checks also saved/restored a group parent and inspected source controls, candidate labels, and assignment metrics.
+Independent review found exclusion, DHCP absence/identity, candidate pin, and same-second evidence defects. Regressions reproduced them before correction.
+Final independent source review found no material issue.
+
+Debug timing: 50k/100-profile normalization 665 ms, complete in-memory compilation pipeline 1.291 seconds.
+The legacy 50k/8-WAN assignment path took 559 ms for new clients and 232 ms for retained clients.
+The new 50k/2-WAN session workload took about 1.003 seconds for assignment and 1.221 seconds for retention in a standalone run.
+Candidate load took 2.731 seconds; durable save took 1.059 seconds standalone versus 7.890 seconds under concurrent checks.
+The publication path avoids a second TOML parse by checking the already validated file revision before save.
+These debug single-run results do not establish a production latency guarantee.
+
+Limits: DHCP counts prove bound leases, not physical connectivity. Polling needs observable absence, handle change, or uptime reset to detect reconnect.
+Keep one process per data directory. Corrupt candidate data fails closed. Older binaries need their matching settings backup for rollback.
+No credentials or production inventory were read. No live settings, router configuration, LibreQoS files/packages/services, or shaping changed.
+The live console still runs its prior process. Only isolated preview processes were started and stopped for checks.
+The Graphify map remains at its earlier source baseline. Confirm new module relationships in code until a later graph update.
+Next: authorized activation of the verified console, then protected manual membership review before any future router writer.
+See [[10-sessions/2026-10-30-flexible-topology]] and [[20-decisions/adr-0001-session-candidate-state]].
+This note forms part of the verified behavior commit. Verify the branch tip against the remote before takeover.
 
 ## Compact NOC console update
 
