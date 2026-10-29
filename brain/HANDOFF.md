@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T19:20:50+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T19:55:46+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -327,3 +327,33 @@ Actual end-to-end validation remains Unavailable until setup and supported polic
 Router writer, coordinated shaping apply, full packet-path validation, authentication, and retention remain unfinished.
 See [[10-sessions/2026-10-29-connection-mark-validation]] and `v3/VALIDATION.md`.
 Commit/push remain authorized. Verify the actual remote branch hash against the local tip before takeover.
+
+
+## Actual local configuration complete
+
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`, base `6bafc91`.
+The user confirmed two 320/320 Mbps WANs, factor 1.0, and automatic balancing for all service types.
+PPP profile WAN is the source/default only. No subscriber pins exist.
+The agent configured the current UI: two WAN roots, six service branches, ten source branches, ten source bindings/pools, and two core list/table mappings.
+Sources comprise three DHCP servers, six PPP profiles, and the default Hotspot profile. Management DHCP remains excluded.
+Hotspot has no active clients or finite rate evidence. Future unresolved rates must block publication.
+Router connection settings and confirmed CA paths remain unchanged. Automatic collection/local publication is enabled.
+
+Live Validation passed inventory health, speeds, assignment, and shaping capacity for 25 subscribers.
+Candidate split: WAN1 has 12 clients (3 DHCP, 9 PPPoE), WAN2 has 13 (1 DHCP, 12 PPPoE).
+Each WAN carries 650 Mbps of total plan rates under a 320 Mbps root cap.
+The unchanged 50 percent minimum policy totals 325 Mbps per WAN. Review this 5 Mbps excess before any production use.
+Seven core findings remain: three complex-prerouting and four conditional-matcher findings. Core membership is Unsupported.
+No generation was published. End-to-end remains Unavailable without a committed generation. Candidate assignments are not committed sticky state or actual routes.
+
+The private `v3/data/state/setup-preview/` contains a candidate pair and records from the compiled app library.
+Its nine exported nodes have 25 unique CSV identities/IPs, valid parents, and directional ancestor caps.
+The installed v3 preflight validated the topology and 25 circuits with pre-install exit 0 under filesystem-write confinement.
+This is a file-pair compatibility check, not packet-path or runtime clearance.
+Fresh verified reads completed 14 distro and 11 core tables without errors. Eight UI routes and scheduled collection passed.
+No app code changed or application tests repeated. No router or LibreQoS change occurred.
+
+Changed Git files: Home, this handoff, and the actual-setup-review session note. Only sanitized project notes belong in the commit.
+Private settings, backups, reports, credentials, and candidate files remain ignored. Do not copy them to Git.
+Next: review the remaining core policy support and aggregate minimum rates without bypassing gates or changing router rules.
+See [[10-sessions/2026-10-29-actual-setup-review]]. Commit/push authorization continues.
