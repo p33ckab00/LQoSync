@@ -12,6 +12,8 @@ pub struct Settings {
     #[serde(default)]
     pub speed_rules: crate::speeds::SpeedRules,
     #[serde(default)]
+    pub assignment: crate::assignment::Policy,
+    #[serde(default)]
     pub routers: Vec<Router>,
     #[serde(default)]
     pub nodes: Vec<Node>,
@@ -28,6 +30,7 @@ impl Default for Settings {
             interval_seconds: 30,
             auto_stage: true,
             speed_rules: crate::speeds::SpeedRules::default(),
+            assignment: Default::default(),
             routers: vec![],
             nodes: vec![],
         }
@@ -205,6 +208,7 @@ pub fn validate(settings: &Settings) -> Result<()> {
             id = &parent.parent;
         }
     }
+    crate::assignment::validate(settings)?;
     Ok(())
 }
 

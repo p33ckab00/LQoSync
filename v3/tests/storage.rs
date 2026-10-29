@@ -57,6 +57,17 @@ fn normalized_snapshot_and_pair_switch_together_and_mirror_is_not_authority() {
     let published = publish_normalized(dir.path(), &plan, &subscribers).unwrap();
     assert!(published.mirror_warning.is_none());
     assert_eq!(load_snapshot(dir.path()).unwrap().len(), 2);
+    let initial_assignments = load_assignments(dir.path()).unwrap();
+    for subscriber in &subscribers {
+        assert_eq!(
+            initial_assignments.assignments[&subscriber.id].source_node,
+            subscriber.node
+        );
+        assert_eq!(
+            initial_assignments.assignments[&subscriber.id].node,
+            subscriber.node
+        );
+    }
     let base = dir.path().join("staging").join(&published.generation);
     assert!(base.join("subscribers.toml").exists());
     assert!(base.join("ShapedDevices.csv").exists());
@@ -86,4 +97,53 @@ fn mirror_write_failure_leaves_the_authoritative_snapshot_available() {
             .generation,
         p.generation
     );
+}
+
+#[test]
+fn assignments_commit_with_the_snapshot_and_survive_restart_and_corruption_is_blocked() {
+    use lqosync_v3::assignment::{AssignmentState, Pin};
+    let dir = tempfile::tempdir().unwrap();
+    let settings: Settings = toml::from_str(include_str!("../examples/settings.toml")).unwrap();
+    let subscribers = toml::from_str::<Snapshot>(include_str!("../examples/subscribers.toml"))
+        .unwrap()
+        .subscribers;
+    let state = AssignmentState {
+        assignments: subscribers
+            .iter()
+            .map(|s| {
+                (
+                    s.id.clone(),
+                    Pin {
+                        source_node: s.node.clone(),
+                        node: s.node.clone(),
+                    },
+                )
+            })
+            .collect(),
+    };
+    let plan = compile(&settings, &subscribers).unwrap();
+    let published = publish_assigned(dir.path(), &plan, &subscribers, &state).unwrap();
+    assert_eq!(load_assignments(dir.path()).unwrap(), state);
+    let (snapshot, loaded) = load_assignment_snapshot(dir.path()).unwrap();
+    assert_eq!(snapshot, subscribers);
+    assert_eq!(loaded, state);
+    assert_eq!(
+        publish_assigned(dir.path(), &plan, &subscribers, &state)
+            .unwrap()
+            .generation,
+        published.generation
+    );
+    let path = dir
+        .path()
+        .join("staging")
+        .join(published.generation)
+        .join("assignments.toml");
+    let mut bad = state.clone();
+    bad.assignments.values_mut().next().unwrap().node = "other-node".into();
+    std::fs::write(&path, toml::to_string(&bad).unwrap()).unwrap();
+    assert!(load_assignments(dir.path()).is_err());
+    std::fs::remove_file(&path).unwrap();
+    assert!(load_assignments(dir.path()).is_err());
+    std::fs::write(path, "corrupt assignment state").unwrap();
+    assert!(load_assignments(dir.path()).is_err());
 }

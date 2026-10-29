@@ -37,6 +37,77 @@ async fn healthy_selected_inventory_automatically_publishes_and_failed_reads_kee
     );
     assert!(state.lock().await.status.contains("Last valid snapshot"));
 }
+
+#[tokio::test]
+async fn mapped_wan_health_failure_retains_the_last_consistent_assignment_generation() {
+    let (dir, state) = app();
+    {
+        let mut a = state.lock().await;
+        a.settings.nodes[0].router = "r1".into();
+        a.settings.nodes[0].source = "uplink".into();
+        Arc::make_mut(a.inventories.get_mut("r1").unwrap())
+            .tables
+            .insert(
+                "/interface/print".into(),
+                vec![
+                    [
+                        ("name".into(), "uplink".into()),
+                        ("running".into(), "true".into()),
+                        ("disabled".into(), "false".into()),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ],
+            );
+    }
+    orchestrator::refresh(state.clone()).await;
+    let pointer = std::fs::read(dir.path().join("state/current.toml")).unwrap();
+    let before = store::load_assignments(dir.path()).unwrap();
+    {
+        let mut a = state.lock().await;
+        Arc::make_mut(a.inventories.get_mut("r1").unwrap())
+            .tables
+            .get_mut("/interface/print")
+            .unwrap()[0]
+            .insert("running".into(), "false".into());
+    }
+    orchestrator::refresh(state.clone()).await;
+    assert_eq!(
+        pointer,
+        std::fs::read(dir.path().join("state/current.toml")).unwrap()
+    );
+    assert_eq!(before, store::load_assignments(dir.path()).unwrap());
+    assert!(
+        state
+            .lock()
+            .await
+            .status
+            .contains("down, disabled or has unknown status")
+    );
+    let generation = store::current_generation(dir.path()).unwrap();
+    std::fs::write(
+        dir.path()
+            .join("staging")
+            .join(generation)
+            .join("assignments.toml"),
+        "invalid assignment file",
+    )
+    .unwrap();
+    {
+        let mut a = state.lock().await;
+        Arc::make_mut(a.inventories.get_mut("r1").unwrap())
+            .tables
+            .get_mut("/interface/print")
+            .unwrap()[0]
+            .insert("running".into(), "true".into());
+    }
+    orchestrator::refresh(state.clone()).await;
+    assert_eq!(
+        pointer,
+        std::fs::read(dir.path().join("state/current.toml")).unwrap()
+    );
+    assert!(state.lock().await.status.contains("Last valid snapshot"));
+}
 #[tokio::test]
 async fn paused_sources_do_not_collect_or_publish() {
     let (dir, state) = app();
@@ -189,6 +260,76 @@ async fn send_sentence(stream: &mut tokio::net::TcpStream, words: Vec<String>) {
     }
     bytes.push(0);
     stream.write_all(&bytes).await.unwrap();
+}
+
+#[tokio::test]
+async fn selected_read_round_includes_a_mapped_core_router_without_subscriber_bindings() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut settings, inventories) = common::fixture();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let mut core = settings.routers[0].clone();
+    core.id = "core".into();
+    core.role = "core".into();
+    core.port = listener.local_addr().unwrap().port();
+    core.password_env = "PATH".into();
+    settings.routers.push(core);
+    settings.nodes[0].router = "core".into();
+    settings.nodes[0].source = "uplink".into();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let login = read_sentence(&mut stream).await;
+        assert_eq!(login[0], "/login");
+        let mut done = vec!["!done".into()];
+        done.extend(login.into_iter().filter(|w| w.starts_with(".tag=")));
+        send_sentence(&mut stream, done).await;
+        for _ in 0..6 {
+            let command = read_sentence(&mut stream).await;
+            assert!(command[0].ends_with("/print"));
+            let tag = command
+                .iter()
+                .find(|w| w.starts_with(".tag="))
+                .unwrap()
+                .clone();
+            if command[0] == "/interface/print" {
+                send_sentence(
+                    &mut stream,
+                    vec![
+                        "!re".into(),
+                        tag.clone(),
+                        "=name=uplink".into(),
+                        "=running=true".into(),
+                        "=disabled=false".into(),
+                    ],
+                )
+                .await;
+            }
+            send_sentence(&mut stream, vec!["!done".into(), tag]).await;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    });
+    store::save_settings(dir.path(), &settings).unwrap();
+    let mut a = App::open(dir.path().into()).unwrap();
+    a.inventories = inventories;
+    let state = Arc::new(Mutex::new(a));
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        orchestrator::cycle(state.clone()),
+    )
+    .await
+    .unwrap();
+    let a = state.lock().await;
+    assert!(a.read_epochs.contains_key("core"));
+    assert!(
+        a.inventories["core"].tables["/interface/print"]
+            .iter()
+            .any(|r| r.get("name").is_some_and(|n| n == "uplink"))
+    );
+    assert!(!a.inventory_errors.contains_key("core"));
+    // The unconfigured distro credential fails before connecting; no generation may publish.
+    assert!(a.inventory_errors.contains_key("r1"));
+    assert!(!dir.path().join("state/current.toml").exists());
+    drop(a);
+    server.await.unwrap();
 }
 #[tokio::test]
 async fn scheduled_mock_router_collection_reaches_a_committed_subscriber_generation() {

@@ -32,6 +32,7 @@ fn settings() -> Settings {
         interval_seconds: 30,
         auto_stage: true,
         speed_rules: Default::default(),
+        assignment: Default::default(),
         routers: vec![],
         nodes: vec![
             node("wan", "", "manual", 620.0, 100.0),

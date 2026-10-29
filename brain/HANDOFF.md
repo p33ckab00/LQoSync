@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T13:51:23+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T14:09:18+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -151,3 +151,37 @@ Operation and limits: `v3/SUBSCRIBERS.md` and [[10-sessions/2026-10-29-subscribe
 Next action: validate representative isolated router behavior before deployment or additional production integrations.
 Stable WAN/core-list assignment, effective RADIUS, IPv6/multi-device circuits, authentication, and generation retention remain future work.
 Run one app process per data directory. Production export/apply remains disabled.
+
+## WAN assignment update
+
+Goal complete: WAN mapping and subscriber assignment UI, automatic local publication, performance/integrity review, and verification.
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`. Base: `a156ec7`.
+Changed modules: `assignment`, `assignment_web`, `wan_web`, `model`, `orchestrator`, `store`, `web`, and `lib`.
+Tests, `v3/WAN_ASSIGNMENTS.md`, README, subscriber guide, plan, and project notes accompany the code.
+
+WAN node router/source fields hold the explicit interface mapping. Manual root capacities remain authoritative.
+Mapped WAN core routers join collection. Fresh complete interface health gates normalized publication.
+Source pools permit compatible same-kind targets without another source binding.
+Pins override assignments. Optional planned-load balancing applies to new/unassigned subscribers only.
+Valid previous assignments remain stable across disconnects, capacity changes, restart, and pin removal.
+The state keeps inactive records without adding their load. Policy removal prunes ineligible inactive records.
+This is an intended exported parent. Actual subscriber routing remains unchanged.
+
+`assignments.toml` now commits with the snapshot and output pair before the authoritative generation pointer changes.
+The loader checks active identity/parent consistency and blocks missing or corrupt declared assignment state.
+Older normalized generations remain readable and seed ownership from subscriber parents.
+Settings and generation guards protect concurrent edits and publication.
+Subscriber pages contain at most 100 rows. Pagination preserves encoded search.
+Source-pool controls currently display the first 200 bound sources.
+
+Checks: 68 functional tests passed, formatting and strict Clippy passed, diff checks passed.
+The new manual benchmark passed separately: 50,000 subscribers across eight WANs.
+Debug assignment timings: new 525 ms, retained 229 ms. Collection and disk publication are excluded.
+Independent review fixes cover offline ownership loss and search pagination. Follow-up review found no remaining material issue.
+HTTP tests verify forms and automatic publication. Local mocks verify core collection and WAN failure retention.
+No LibreQoS files, packages, services, shaping, or router configuration changed.
+
+Unfinished work: actual core address lists and routing verification, production apply, authentication, retention, and representative router validation.
+Next action: design system-owned per-subscriber core lists with route consistency checks before any router write implementation.
+No development console process was restarted by this slice. Code and route tests use isolated application data.
+Commit and push are authorized. Check the branch tip and actual remote head before a takeover.

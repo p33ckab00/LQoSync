@@ -17,7 +17,7 @@ WAN and site nodes remain topology settings. They do not select subscriber table
 Use **Speed rules** to inspect rate provenance and change minimum policy.
 
 A source save, successful inventory read, or policy save triggers local normalization when sources are bound.
-Scheduled rounds read only routers with selected sources, with at most four concurrent reads.
+Scheduled rounds read routers with selected sources or mapped WANs, with at most four concurrent reads.
 The configured interval starts after the previous round ends.
 Pausing automatic publication also pauses scheduled collection and normalized publication.
 Already running reads stop or finish before their deadlines. Queued routers do not start after a pause is observed.
@@ -70,15 +70,19 @@ A normalized generation contains:
 ```text
 staging/GENERATION/
   subscribers.toml
+  assignments.toml
   ShapedDevices.csv
   network.json
 ```
 
-The app writes all three files durably before it changes `state/current.toml`.
+The app writes all four files durably before it changes `state/current.toml`.
 One atomic pointer selects the authoritative generation.
 The loader reads the snapshot from that generation.
 A missing or corrupt committed snapshot produces an error. It does not fall back to an older mirror silently.
-Identical snapshots and outputs reuse the current generation.
+Identical snapshots, assignment state, and outputs reuse the current generation.
+Older normalized generations without assignment state remain readable.
+The loader derives their initial source ownership from the subscriber parent nodes.
+See [WAN assignments](WAN_ASSIGNMENTS.md) for stable assignments, pins, and WAN health gates.
 
 `state/subscribers.toml` is a compatibility mirror after a managed publication.
 A mirror write failure produces a visible warning. The committed generation remains usable.

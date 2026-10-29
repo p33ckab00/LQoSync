@@ -40,7 +40,7 @@ pub async fn after_mutation(State(s): State<Shared>, request: Request, next: Nex
     response
 }
 pub async fn refresh(s: Shared) {
-    let (settings, inventories, errors, epochs) = {
+    let (settings, inventories, errors, epochs, root, generation) = {
         let a = s.lock().await;
         if !a.settings.auto_stage || !normalizer::has_bindings(&a.settings) {
             return;
@@ -50,20 +50,32 @@ pub async fn refresh(s: Shared) {
             a.inventories.clone(),
             a.inventory_errors.clone(),
             a.read_epochs.clone(),
+            a.root.clone(),
+            a.generation.clone(),
         )
     };
     let work_settings = settings.clone();
     let work_inventories = inventories.clone();
     let work_errors = errors.clone();
     let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-        let subscribers =
+        let mut subscribers =
             normalizer::normalize(&work_settings, &work_inventories, &work_errors, now())?;
+        let previous = store::load_assignments(&root)?;
+        let assignments = crate::assignment::assign(
+            &work_settings,
+            &mut subscribers,
+            &previous,
+            &work_inventories,
+            &work_errors,
+            now(),
+        )?;
         let plan = compile(&work_settings, &subscribers)?;
-        Ok((subscribers, plan))
+        Ok((subscribers, plan, assignments))
     })
     .await;
     let mut a = s.clone().lock_owned().await;
     if a.settings != settings
+        || a.generation != generation
         || a.inventory_errors != errors
         || a.read_epochs != epochs
         || !same_inventories(&a.inventories, &inventories)
@@ -75,7 +87,7 @@ pub async fn refresh(s: Shared) {
         Ok(value) => value,
         Err(e) => Err(e.into()),
     };
-    let (subscribers, plan) = match result {
+    let (subscribers, plan, assignments) = match result {
         Ok(value) => value,
         Err(e) => {
             a.status = format!("Not normalized: {e}. Last valid snapshot and generation retained.");
@@ -84,7 +96,7 @@ pub async fn refresh(s: Shared) {
     };
     // Serialize the commit, but do file I/O on a blocking worker, not an async worker.
     let _ = tokio::task::spawn_blocking(move || {
-        match store::publish_normalized(&a.root, &plan, &subscribers) {
+        match store::publish_assigned(&a.root, &plan, &subscribers, &assignments) {
             Ok(p) => {
                 a.generation = Some(p.generation);
                 a.status = format!(
@@ -121,7 +133,7 @@ pub async fn cycle(s: Shared) {
             .nodes
             .iter()
             .filter(|n| {
-                normalizer::service(&n.kind).is_some()
+                (normalizer::service(&n.kind).is_some() || n.kind == "wan")
                     && !n.source.is_empty()
                     && !n.router.is_empty()
             })

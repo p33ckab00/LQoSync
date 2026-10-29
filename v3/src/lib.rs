@@ -15,3 +15,8 @@ pub mod normalizer;
 pub mod orchestrator;
 
 mod sources_web;
+
+pub mod assignment;
+
+mod assignment_web;
+mod wan_web;

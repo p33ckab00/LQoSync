@@ -105,6 +105,8 @@ struct Current {
     status: String,
     #[serde(default)]
     managed: bool,
+    #[serde(default)]
+    assignments: bool,
 }
 pub fn current_generation(root: &Path) -> Option<String> {
     let text = fs::read_to_string(root.join("state/current.toml")).ok()?;
@@ -138,6 +140,7 @@ pub fn publish(root: &Path, plan: &Plan) -> Result<String> {
             generation: id.clone(),
             status: "staged_local_only".into(),
             managed: false,
+            assignments: false,
         })?,
     )?;
     Ok(id)
@@ -152,24 +155,50 @@ pub fn publish_normalized(
     plan: &Plan,
     subscribers: &[Subscriber],
 ) -> Result<Publication> {
+    publish_bundle(root, plan, subscribers, None)
+}
+fn publish_bundle(
+    root: &Path,
+    plan: &Plan,
+    subscribers: &[Subscriber],
+    state: Option<&crate::assignment::AssignmentState>,
+) -> Result<Publication> {
     #[derive(Serialize)]
     struct SnapshotRef<'a> {
         subscribers: &'a [Subscriber],
     }
     let snapshot = toml::to_string_pretty(&SnapshotRef { subscribers })?;
     let current = read_current(root)?;
-    let reusable = current.filter(|c| c.managed).filter(|c| {
-        let p = root.join("staging").join(&c.generation);
-        fs::read_to_string(p.join("ShapedDevices.csv"))
-            .ok()
-            .as_deref()
-            == Some(&plan.csv)
-            && fs::read_to_string(p.join("network.json")).ok().as_deref() == Some(&plan.network)
-            && fs::read_to_string(p.join("subscribers.toml"))
+    ensure!(
+        state.is_some() || !current.as_ref().is_some_and(|c| c.assignments),
+        "Assignment-aware generation requires assignment-aware publication"
+    );
+    let assignments = state
+        .map(|state| {
+            validate_assignment_snapshot(subscribers, state)?;
+            toml::to_string_pretty(state).map_err(anyhow::Error::from)
+        })
+        .transpose()?;
+    let reusable = current
+        .filter(|c| c.managed && c.assignments == state.is_some())
+        .filter(|c| {
+            let p = root.join("staging").join(&c.generation);
+            fs::read_to_string(p.join("ShapedDevices.csv"))
                 .ok()
                 .as_deref()
-                == Some(&snapshot)
-    });
+                == Some(&plan.csv)
+                && fs::read_to_string(p.join("network.json")).ok().as_deref() == Some(&plan.network)
+                && assignments.as_ref().is_none_or(|text| {
+                    fs::read_to_string(p.join("assignments.toml"))
+                        .ok()
+                        .as_deref()
+                        == Some(text)
+                })
+                && fs::read_to_string(p.join("subscribers.toml"))
+                    .ok()
+                    .as_deref()
+                    == Some(&snapshot)
+        });
     let generation = if let Some(c) = reusable {
         c.generation
     } else {
@@ -177,6 +206,9 @@ pub fn publish_normalized(
         let p = root.join("staging").join(&generation);
         durable_directory(&p)?;
         atomic_write(&p.join("subscribers.toml"), &snapshot)?;
+        if let Some(text) = &assignments {
+            atomic_write(&p.join("assignments.toml"), text)?;
+        }
         atomic_write(&p.join("ShapedDevices.csv"), &plan.csv)?;
         atomic_write(&p.join("network.json"), &plan.network)?;
         atomic_write(
@@ -185,6 +217,7 @@ pub fn publish_normalized(
                 generation: generation.clone(),
                 status: "staged_local_only".into(),
                 managed: true,
+                assignments: state.is_some(),
             })?,
         )?;
         generation
@@ -205,4 +238,82 @@ pub fn publish_normalized(
         generation,
         mirror_warning,
     })
+}
+
+fn validate_assignment_snapshot(
+    subscribers: &[Subscriber],
+    state: &crate::assignment::AssignmentState,
+) -> Result<()> {
+    for (id, pin) in &state.assignments {
+        ensure!(
+            !id.is_empty() && valid_id(&pin.source_node) && valid_id(&pin.node),
+            "Invalid stored assignment identity or node"
+        );
+    }
+    let mut seen = std::collections::HashSet::new();
+    for subscriber in subscribers {
+        ensure!(
+            seen.insert(&subscriber.id),
+            "Duplicate subscriber ID in committed snapshot"
+        );
+        let record = state
+            .assignments
+            .get(&subscriber.id)
+            .context("Committed subscriber assignment is missing")?;
+        ensure!(
+            record.node == subscriber.node && !record.source_node.is_empty(),
+            "Committed assignment does not match subscriber parent"
+        );
+    }
+    Ok(())
+}
+pub fn load_assignments(root: &Path) -> Result<crate::assignment::AssignmentState> {
+    Ok(load_assignment_snapshot(root)?.1)
+}
+pub fn load_assignment_snapshot(
+    root: &Path,
+) -> Result<(Vec<Subscriber>, crate::assignment::AssignmentState)> {
+    let Some(current) = read_current(root)?.filter(|c| c.managed) else {
+        // Use this pointer decision for the whole read, even if a publisher switches
+        // to a managed generation concurrently.
+        let path = root.join("state/subscribers.toml");
+        let subscribers = if path.exists() {
+            toml::from_str::<Snapshot>(&fs::read_to_string(path)?)?.subscribers
+        } else {
+            vec![]
+        };
+        return Ok((subscribers, Default::default()));
+    };
+    let path = root.join("staging").join(current.generation);
+    let snapshot: Snapshot = toml::from_str(&fs::read_to_string(path.join("subscribers.toml"))?)?;
+    let state = if current.assignments {
+        let state = toml::from_str(&fs::read_to_string(path.join("assignments.toml"))?)?;
+        validate_assignment_snapshot(&snapshot.subscribers, &state)?;
+        state
+    } else {
+        crate::assignment::AssignmentState {
+            assignments: snapshot
+                .subscribers
+                .iter()
+                .map(|s| {
+                    (
+                        s.id.clone(),
+                        crate::assignment::Pin {
+                            source_node: s.node.clone(),
+                            node: s.node.clone(),
+                        },
+                    )
+                })
+                .collect(),
+        }
+    };
+    Ok((snapshot.subscribers, state))
+}
+pub fn publish_assigned(
+    root: &Path,
+    plan: &Plan,
+    subscribers: &[Subscriber],
+    state: &crate::assignment::AssignmentState,
+) -> Result<Publication> {
+    publish_bundle(root, plan, subscribers, Some(state))
 }

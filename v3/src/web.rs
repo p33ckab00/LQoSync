@@ -121,6 +121,11 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/topology", get(topology))
         .route("/subscribers", get(subscribers))
         .route("/settings", get(settings))
+        .route("/wans", get(crate::wan_web::wans))
+        .route("/wans/save", post(crate::wan_web::save_wan))
+        .route("/assignments", get(crate::assignment_web::assignments))
+        .route("/assignments/pool", post(crate::assignment_web::save_pool))
+        .route("/assignments/pin", post(crate::assignment_web::save_pin))
         .route("/sources", get(crate::sources_web::sources))
         .route("/sources/save", post(crate::sources_web::save))
         .route("/routers/save", post(save_router))
@@ -166,7 +171,7 @@ const CSS: &str = include_str!("style.css");
 pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
     Html(html!{ (DOCTYPE) html lang="en" {head {meta charset="utf-8";meta name="viewport" content="width=device-width, initial-scale=1";title{(title) " · LQoSync 3"}style{(maud::PreEscaped(CSS))}}
         body {aside {a.brand href="/" {span.mark{"LQ"} div{"LQoSync" small{"VERSION 3 · RUST"}}}
-            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/sources","Sources"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
+            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/wans","WANs"),("/sources","Sources"),("/assignments","Assignments"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
             div.railfoot {span.dot{} " Local development" p{"Production adapters disabled"}}}
         main {header {div {p.eyebrow{"NETWORK OPERATIONS"} h1{(title)}} span.badge{"LOCAL STAGING"}}
             div.notice {strong{"Production is untouched. "} "This console writes only inside its own data directory. Core writes and LibreQoS apply are not implemented yet."}
@@ -490,7 +495,7 @@ async fn save_node(State(s): State<Shared>, Form(f): Form<NodeForm>) -> Response
         Err(e) => error(&a, e),
     }
 }
-fn nodelimits(s: &Settings) -> anyhow::Result<()> {
+pub(crate) fn nodelimits(s: &Settings) -> anyhow::Result<()> {
     validate(s)?;
     for n in &s.nodes {
         if n.mode == "manual" {
