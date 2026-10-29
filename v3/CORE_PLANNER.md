@@ -36,14 +36,24 @@ This is separate from LibreQoS version detection, which remains compatible with 
 Core and `both` inventory reads include address lists, full mangle/filter/rule fields, and routing tables.
 Only allowlisted `print` operations are available.
 
-Each configured list needs exactly one enabled direct rule in `prerouting`:
+Each configured list needs exactly one supported routing consumer in `prerouting`.
+The direct form uses:
 
 - `action=mark-routing`
 - `src-address-list` equals the configured positive list name.
 - `new-routing-mark` equals the configured custom table.
 - `passthrough=false`
 
-The audit supports an optional `dst-address-type=!local` condition.
+The connection-mark form starts with one positive source-list classifier for new unmarked connections.
+A later prerouting consumer uses the same positive source list and connection mark.
+The classifier requires passthrough. The consumer requires `passthrough=false`.
+Duplicate producers, consumers, unknown matchers, and reversed rule order block the plan.
+
+WAN ingress marks can also link to output routing for router replies through the same WAN.
+That link does not replace the subscriber routing consumer.
+The [validation guide](VALIDATION.md) defines both supported forms and their limits.
+
+The audit supports an optional `dst-address-type=!local` condition on forward rules.
 Unrestricted source/destination addresses can use `0.0.0.0/0`.
 Other packet matchers and complex prerouting actions require manual review.
 The audit blocks unknown fields.
@@ -52,7 +62,7 @@ Comments, counters, log fields, and normal status fields do not select packets.
 Each table must exist once, have FIB enabled, and contain one active default route.
 Its resolved `immediate-gw` must identify the mapped WAN interface.
 Discard defaults, ECMP, multiple active defaults, and wrong interfaces block the plan.
-Enabled routing rules, FastTrack, jumps, PCC/connection-mark conditions, and unsupported matchers also block the plan.
+Enabled routing rules, FastTrack, jumps, PCC, unsupported connection-mark conditions, and unknown matchers also block the plan.
 The orchestration status shows the first failure.
 The [Core review page](CORE_REVIEW.md) shows multiple findings through the same route analyzer.
 RouterOS can return the enabled FIB switch as `fib=""`. The analyzer accepts this specific representation.

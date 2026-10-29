@@ -79,6 +79,18 @@ fn actual_routeros_policy_projection_replays_unsupported_findings_without_false_
     assert_eq!(policy_fixture::signature(&report), fixture.expected_codes);
     let core = &report.cores[0];
     assert_eq!(core.wans.len(), 2);
+    assert_eq!(core.connection_paths.len(), 2);
+    assert!(core.connection_paths.iter().all(|p| p.direction
+        == lqosync_v3::core_connections::Direction::RouterReply
+        && p.status == core_diagnostics::Outcome::Pass));
+    assert_eq!(
+        core.connection_paths
+            .iter()
+            .map(|p| (p.direction, p.status))
+            .collect::<Vec<_>>(),
+        fixture.expected_paths
+    );
+
     assert!(
         core.wans
             .iter()

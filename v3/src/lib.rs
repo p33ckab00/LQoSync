@@ -20,6 +20,7 @@ mod sources_web;
 
 pub mod assignment;
 mod core_analysis;
+pub mod core_connections;
 pub mod core_diagnostics;
 pub mod core_plan;
 mod core_review_web;
@@ -29,3 +30,6 @@ pub mod policy_fixture;
 
 mod assignment_web;
 mod wan_web;
+
+pub mod validation;
+mod validation_web;

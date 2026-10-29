@@ -11,6 +11,9 @@ impl Aliases {
         if value.is_empty() {
             return String::new();
         }
+        if kind == "mark" && value == "no-mark" {
+            return "no-mark".into();
+        }
         if kind == "table" && value == "main" {
             return "main".into();
         }
@@ -166,8 +169,16 @@ pub fn project(inventory: &Inventory) -> Inventory {
                             "unknown".into()
                         }
                     }
-                    "connection-state"
-                    | "protocol"
+                    "connection-state" => {
+                        if value.split(',').all(|s| {
+                            ["new", "established", "related", "invalid", "untracked"].contains(&s)
+                        }) {
+                            value.clone()
+                        } else {
+                            "redacted".into()
+                        }
+                    }
+                    "protocol"
                     | "src-port"
                     | "dst-port"
                     | "tcp-flags"
@@ -237,6 +248,11 @@ pub fn signature(report: &Report) -> BTreeMap<String, usize> {
 pub struct Fixture {
     pub scope: String,
     pub expected_codes: BTreeMap<String, usize>,
+    #[serde(default)]
+    pub expected_paths: Vec<(
+        crate::core_connections::Direction,
+        crate::core_diagnostics::Outcome,
+    )>,
     pub inventory: Inventory,
 }
 pub fn fixture(inventory: &Inventory) -> anyhow::Result<Fixture> {
@@ -265,10 +281,21 @@ pub fn fixture(inventory: &Inventory) -> anyhow::Result<Fixture> {
         101,
         crate::core_diagnostics::Origin::Saved,
     );
+    let paths = |r: &Report| {
+        r.cores
+            .iter()
+            .flat_map(|c| c.connection_paths.iter().map(|p| (p.direction, p.status)))
+            .collect::<Vec<_>>()
+    };
+    let expected_paths = paths(&before);
+    anyhow::ensure!(
+        expected_paths == paths(&after),
+        "Sanitized routing projection changed connection-path results; do not export this fixture"
+    );
     let expected_codes = signature(&before);
     anyhow::ensure!(
         expected_codes == signature(&after),
         "Sanitized routing projection changed diagnostic codes; do not export this fixture"
     );
-    Ok(Fixture{scope:"Actual-policy routing-field projection. Address containment and packet behavior are not replayed.".into(),expected_codes,inventory:projected})
+    Ok(Fixture{scope:"Actual-policy routing-field projection. Address containment and packet behavior are not replayed.".into(),expected_codes,expected_paths,inventory:projected})
 }

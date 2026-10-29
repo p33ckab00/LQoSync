@@ -30,6 +30,8 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Configure per-WAN core lists and custom routing tables through the UI.
 - Build owned IPv4 `/32` add/keep/remove plans with protected manual members and conservative RouterOS 7 route checks.
 - Review actual core policy with multiple per-WAN findings and separate live, saved, stale, and incomplete inventory labels.
+- Trace supported subscriber-forward and router-reply connection-mark paths separately.
+- Review subscriber speeds, assignments, CSV/JSON, and the committed core plan on Validation without publication.
 - Publish valid output automatically into a local generation directory.
 - Retain the last valid generation after an invalid snapshot or topology change.
 
@@ -57,6 +59,7 @@ Source binding, stable IDs, complete snapshot publication, and scheduled read ro
 See [subscriber orchestration](SUBSCRIBERS.md) for health gates, overlap ownership, and limits.
 See [WAN assignments](WAN_ASSIGNMENTS.md) for interface mapping, pools, pins, and planned-load distribution.
 See [core planning](CORE_PLANNER.md) for list ownership, route audit limits, and the automatic local preview.
+See [end-to-end validation](VALIDATION.md) for live/saved review, connection-mark support, output integrity, and setup requirements.
 Core address-list writes and production apply remain pending.
 The UI reports local output as **staged**, never as production **applied**.
 Changes to settings require a Save action. Local output publication after that save is automatic.

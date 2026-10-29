@@ -2,6 +2,7 @@
 
 The **Core review** page reports structural route findings for configured core and both-role routers.
 It shares the route analyzer with the core list planner.
+Connection-mark links distinguish subscriber forwarding from router replies. See [end-to-end validation](VALIDATION.md).
 It does not send router writes, change subscriber assignments, or apply LibreQoS output.
 
 ## Credentials and TLS
@@ -65,8 +66,8 @@ These paths remain **Observed only**. The app does not create WAN roots or list 
 A global `mapping-required` finding blocks a pass.
 Select the actual WAN interface, source list, and custom table explicitly before you plan members.
 
-The analyzer supports direct RouterOS 7 prerouting source-list marks and one resolved WAN default.
-Active PCC, connection-mark conditions, complex prerouting actions, FastTrack, routing rules, and ambiguous defaults require further review.
+The analyzer supports direct RouterOS 7 source-list marks, narrow connection-mark paths, and one resolved WAN default.
+Active PCC, unsupported connection-mark conditions, complex prerouting actions, FastTrack, routing rules, and ambiguous defaults require further review.
 Disabled rules do not trigger active PCC or FastTrack counts.
 The review does not simulate NAT, VRFs, connection state, or all firewall behavior.
 See [core planning](CORE_PLANNER.md) for the full supported subset.
@@ -100,7 +101,8 @@ For a historical review without network access:
 cargo run --locked --bin core-validate -- --saved
 ```
 
-Exit code zero means the input review completed. It does not mean the policy passed.
+Without `--end-to-end`, exit code zero means the input review completed. It does not mean the policy passed.
+With `--end-to-end`, a non-passing review returns nonzero after it saves the local report.
 Missing, failed, or partial core input produces a nonzero exit code after it saves the local report.
 Saved or stale inventory remains historical evidence regardless of the exit code.
 
@@ -111,7 +113,7 @@ cargo run --locked --bin core-validate -- --saved --fixture
 ```
 
 The export aliases names and replaces private values. It removes comments and unrelated fields.
-It checks finding-code counts before and after projection.
+It checks finding-code counts and connection-path directions/statuses before and after projection.
 
 This projection does not preserve address containment or all packet behavior.
 Review exports before you share them. Raw inventory and reports remain private.

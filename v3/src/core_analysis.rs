@@ -37,12 +37,17 @@ impl Findings {
         }
     }
 }
+pub(crate) struct Analysis {
+    pub findings: Vec<Finding>,
+    pub connection_paths: Vec<crate::core_connections::ConnectionPath>,
+}
 pub(crate) fn analyze(
     inventory: &Inventory,
     bindings: &[&Binding],
     interfaces: &HashMap<&str, &str>,
-) -> Vec<Finding> {
-    let mut f = Findings(vec![]);
+) -> Analysis {
+    let connections = crate::core_connections::analyze(inventory, bindings, interfaces);
+    let mut f = Findings(connections.findings);
     let empty = Row::new();
     let rows = |path: &str| inventory.tables.get(path).map(Vec::as_slice).unwrap_or(&[]);
     let resource = rows("/system/resource/print");
@@ -136,7 +141,7 @@ pub(crate) fn analyze(
     let by_list: HashMap<_, _> = bindings.iter().map(|b| (b.list.as_str(), *b)).collect();
     let by_table: HashMap<_, _> = bindings.iter().map(|b| (b.table.as_str(), *b)).collect();
     let mut found = HashMap::<&str, usize>::new();
-    for rule in rows("/ip/firewall/mangle/print") {
+    for (rule_index, rule) in rows("/ip/firewall/mangle/print").iter().enumerate() {
         let path = "/ip/firewall/mangle/print";
         match enabled(rule) {
             Ok(false) => continue,
@@ -190,6 +195,9 @@ pub(crate) fn analyze(
         if chain != "prerouting" {
             continue;
         }
+        if connections.classifiers.contains(&rule_index) {
+            continue;
+        }
         if !rule.get("action").is_some_and(|a| a == "mark-routing") {
             let code = if rule.contains_key("per-connection-classifier") {
                 "pcc-policy"
@@ -217,6 +225,7 @@ pub(crate) fn analyze(
                 ".id" | "chain" | "action" | "src-address-list" | "new-routing-mark"
                 | "passthrough" | "disabled" | "dynamic" | "invalid" | "comment" | "bytes"
                 | "packets" | "log" | "log-prefix" => {}
+                "connection-mark" if connections.forward_routes.contains(&rule_index) => {}
                 "dst-address-type" if value.is_empty() || value == "!local" => {}
                 "src-address" | "dst-address" if value == "0.0.0.0/0" => {}
                 _ => f.add(
@@ -391,5 +400,8 @@ pub(crate) fn analyze(
             );
         }
     }
-    f.0
+    Analysis {
+        findings: f.0,
+        connection_paths: connections.paths,
+    }
 }

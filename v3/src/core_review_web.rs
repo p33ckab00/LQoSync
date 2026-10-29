@@ -79,6 +79,15 @@ pub async fn page(State(s): State<Shared>, Query(page): Query<Page>) -> Response
                 @if core.wans.len()>200{p.help{"First 200 paths shown. The report evaluates all configured paths."}}
                 @if core.observed_paths_omitted>0{p.help{(core.observed_paths_omitted) " additional observed paths were omitted from analysis (limit 512). Review is incomplete."}}
                 @if core.wans.is_empty(){p{"No mapped or observed custom-table WAN paths are available."}}
+                h3{"Connection-mark paths"}
+                p.help{"Mark-link checks identify subscriber forwarding separately from WAN ingress/router replies. Overall WAN findings and inventory health still apply."}
+                div.tablewrap{table{thead{tr{@for title in ["Direction / list","Connection mark","Table / mapped WAN interface","Rule references","Mark-link check"]{th{(title)}}}}tbody{
+                    @for path in core.connection_paths.iter().take(200){tr{
+                        td{(format!("{:?}",path.direction))br;(&path.source_list)}td{(&path.connection_mark)}td{(&path.table)br;(&path.interface)}
+                        td{(&path.classifier_row) " → " (&path.routing_row)}td{(format!("{:?}",path.status))}
+                    }}
+                }}}
+                @if core.connection_paths.len()>200{p.help{"First 200 connection paths shown. Analysis limits appear as global findings."}}
                 p.help{"Global findings affect every WAN on this core. A structural pass requires fresh complete live input for any later planning step."}
                 div.tablewrap{table{thead{tr{@for title in ["Result / reason","Scope","Source","Detail"]{th{(title)}}}}tbody{
                     @for f in &core.findings{tr{td{(format!("{:?}",f.status))br;(&f.code)}td{(if f.wan.is_empty(){"All WANs"}else{f.wan.as_str()})}td{(&f.table)br;(&f.row)}td{(&f.message)}}}

@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T18:54:32+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T19:20:50+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -294,3 +294,36 @@ Next action: select per-server policy on Speed rules and bind each DHCP server t
 Broader core-policy support, router writes, coordinated apply, authentication, and retention remain unfinished.
 See [[10-sessions/2026-10-29-dhcp-server-speeds]] and `v3/SPEED_RULES.md`.
 Commit/push authorization continues. Verify the actual remote head before takeover.
+
+
+## Connection-mark and output validator update
+
+Goal complete: read-only connection-mark analysis and end-to-end output review, performance/integrity review, and checks.
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`. Base: `3b99e33`.
+Changed modules: core_connections, core_analysis, core_routes, core_diagnostics, core_review_web, validation, validation_web, store, core-validate, policy_fixture, web, and lib.
+Tests, sanitized fixture, guides, implementation plan, and project notes accompany the code.
+
+The user chose validator completion first. Configure actual WAN capacities, subscriber sources, and core bindings through the UI later.
+Do not invent topology, rates, or WAN/list/table relationships. Existing settings contain no topology or core bindings.
+The actual core has two WAN-ingress marks for router replies, separate from direct subscriber list routing.
+Both narrow reply mark-link checks pass. Overall policy remains Unsupported with eight findings: three complex-prerouting, four conditional-matcher, and one mapping-required.
+No subscriber-forward connection-mark chain or packet-path proof has been established.
+
+Validation compares current captured inputs with one committed local generation: snapshot, assignments, CSV, JSON, and core plan.
+Review never publishes or promotes historical input. Missing setup/generation produces Unavailable.
+CLI `--end-to-end` requires Pass for exit code zero after it saves the private report.
+Independent review fixed reply classifiers that excluded local destinations and false successful CLI exit codes.
+Failing regressions preceded both fixes. No additional material issue was reported.
+
+Checks: 111 functional tests passed; seven manual benchmarks are ignored by default.
+The 500-marked-WAN /100k-route benchmark passed separately at 28.8 ms debug, excluding collection and disk I/O.
+Formatting, strict Clippy, binary build, diff checks, and four-route isolated HTTP smoke passed.
+The latest binary now runs in the LQoSync loopback console. Fresh verified reads returned 14 distro and 11 core tables with zero errors.
+Validation and Core review live routes passed. Actual settings, CA paths, and generation pointer remained unchanged.
+Only the LQoSync console was restarted. No router configuration, LibreQoS files/packages/services, or production shaping changed.
+
+Next action: configure the intended WAN/source/core mappings in the UI, then review remaining conditional/bypass policies.
+Actual end-to-end validation remains Unavailable until setup and supported policy produce a committed generation.
+Router writer, coordinated shaping apply, full packet-path validation, authentication, and retention remain unfinished.
+See [[10-sessions/2026-10-29-connection-mark-validation]] and `v3/VALIDATION.md`.
+Commit/push remain authorized. Verify the actual remote branch hash against the local tip before takeover.

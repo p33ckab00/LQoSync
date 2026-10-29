@@ -26,7 +26,7 @@ pub(crate) fn audit(
     interfaces: &HashMap<&str, &str>,
 ) -> Result<()> {
     let findings = crate::core_analysis::analyze(inventory, bindings, interfaces);
-    if let Some(finding) = findings.first() {
+    if let Some(finding) = findings.findings.first() {
         anyhow::bail!("{}", finding.message);
     }
     Ok(())

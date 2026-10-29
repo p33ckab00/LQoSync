@@ -64,6 +64,7 @@ pub struct CoreReview {
     pub findings: Vec<Finding>,
     pub wans: Vec<WanReview>,
     pub observed_paths_omitted: usize,
+    pub connection_paths: Vec<crate::core_connections::ConnectionPath>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Report {
@@ -187,6 +188,7 @@ pub fn review(
                 format!("Only the first 512 observed paths were analyzed; {observed_paths_omitted} additional paths were omitted"));
         }
         let mut counts = Counts::default();
+        let mut connection_paths = vec![];
         let health = match inventory {
             None if errors.contains_key(&router.id) => Health::Failed,
             None => Health::Missing,
@@ -248,7 +250,9 @@ pub fn review(
                 .iter()
                 .map(|(k, v)| (k.as_str(), v.as_str()))
                 .collect();
-            for f in crate::core_analysis::analyze(i, &refs, &interface_refs) {
+            let analysis = crate::core_analysis::analyze(i, &refs, &interface_refs);
+            connection_paths = analysis.connection_paths;
+            for f in analysis.findings {
                 findings.add(
                     f.status,
                     &f.code,
@@ -304,6 +308,7 @@ pub fn review(
             findings: findings.0,
             wans,
             observed_paths_omitted,
+            connection_paths,
         });
     }
     Report { origin, cores }
@@ -312,13 +317,21 @@ pub fn saved(
     settings: &Settings,
     root: &Path,
 ) -> (BTreeMap<String, Arc<Inventory>>, BTreeMap<String, String>) {
+    saved_routers(
+        settings
+            .routers
+            .iter()
+            .filter(|r| r.role == "core" || r.role == "both"),
+        root,
+    )
+}
+pub fn saved_routers<'a>(
+    routers: impl IntoIterator<Item = &'a crate::model::Router>,
+    root: &Path,
+) -> (BTreeMap<String, Arc<Inventory>>, BTreeMap<String, String>) {
     let mut inventories = BTreeMap::new();
     let mut errors = BTreeMap::new();
-    for router in settings
-        .routers
-        .iter()
-        .filter(|r| r.role == "core" || r.role == "both")
-    {
+    for router in routers {
         let result = (|| -> anyhow::Result<Inventory> {
             anyhow::ensure!(
                 crate::model::valid_id(&router.id),

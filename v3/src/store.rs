@@ -401,3 +401,48 @@ pub fn load_core_plan(root: &Path) -> Result<Option<CommittedCorePlan>> {
         plan: plan.context("Committed core plan is missing")?,
     }))
 }
+
+pub(crate) struct ReviewGeneration {
+    pub generation: String,
+    pub subscribers: Vec<Subscriber>,
+    pub assignments: crate::assignment::AssignmentState,
+    pub core: Option<crate::core_plan::Plan>,
+    pub csv: String,
+    pub network: String,
+}
+pub(crate) fn review_generation(root: &Path) -> Result<Option<ReviewGeneration>> {
+    let Some(current) = read_current(root)? else {
+        return Ok(None);
+    };
+    ensure!(
+        current.managed && current.assignments,
+        "Review requires a managed assignment generation"
+    );
+    let path = root.join("staging").join(&current.generation);
+    for name in [
+        "subscribers.toml",
+        "assignments.toml",
+        "ShapedDevices.csv",
+        "network.json",
+    ] {
+        ensure!(
+            fs::metadata(path.join(name))?.len() <= 64 * 1024 * 1024,
+            "Review artifact exceeds size limit"
+        );
+    }
+    if current.core_plan {
+        ensure!(
+            fs::metadata(path.join("core-plan.json"))?.len() <= 64 * 1024 * 1024,
+            "Review core plan exceeds size limit"
+        );
+    }
+    let (subscribers, assignments, core) = load_managed(root, &current)?;
+    Ok(Some(ReviewGeneration {
+        generation: current.generation,
+        subscribers,
+        assignments,
+        core,
+        csv: fs::read_to_string(path.join("ShapedDevices.csv"))?,
+        network: fs::read_to_string(path.join("network.json"))?,
+    }))
+}
