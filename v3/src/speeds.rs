@@ -10,6 +10,19 @@ pub struct SpeedRules {
     pub min_rate_fraction: f64,
     pub min_floor_mbps: f64,
     pub profile_name_fallback: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub dhcp_servers: Vec<DhcpServerRule>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DhcpServerRule {
+    pub router: String,
+    pub server: String,
+    pub mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upload: Option<f64>,
 }
 impl Default for SpeedRules {
     fn default() -> Self {
@@ -17,11 +30,12 @@ impl Default for SpeedRules {
             min_rate_fraction: 0.5,
             min_floor_mbps: 0.128,
             profile_name_fallback: true,
+            dhcp_servers: vec![],
         }
     }
 }
 impl SpeedRules {
-    pub fn validate(&self) -> Result<()> {
+    fn validate_minimums(&self) -> Result<()> {
         ensure!(
             self.min_rate_fraction.is_finite() && (0.0..=1.0).contains(&self.min_rate_fraction),
             "Minimum rate fraction must be 0–1"
@@ -30,6 +44,46 @@ impl SpeedRules {
             self.min_floor_mbps.is_finite() && self.min_floor_mbps >= 0.0,
             "Minimum floor must be finite and nonnegative"
         );
+        Ok(())
+    }
+    pub fn validate(&self) -> Result<()> {
+        self.validate_minimums()?;
+        let mut keys = std::collections::HashSet::new();
+        ensure!(
+            self.dhcp_servers.len() <= 10_000,
+            "Too many DHCP server rules"
+        );
+        for rule in &self.dhcp_servers {
+            ensure!(
+                crate::model::valid_id(&rule.router)
+                    && !rule.server.is_empty()
+                    && rule.server.len() <= 4096,
+                "DHCP rule requires a router ID and exact server name"
+            );
+            ensure!(
+                keys.insert((&rule.router, &rule.server)),
+                "Duplicate DHCP server speed rule"
+            );
+            ensure!(
+                ["auto", "comment", "name", "manual"].contains(&rule.mode.as_str()),
+                "Unknown DHCP speed mode"
+            );
+            ensure!(
+                rule.download.is_some() == rule.upload.is_some(),
+                "Both DHCP manual rates are required together"
+            );
+            ensure!(
+                rule.mode != "manual" || rule.download.is_some(),
+                "Manual DHCP mode requires rates"
+            );
+            ensure!(
+                [rule.download, rule.upload]
+                    .into_iter()
+                    .flatten()
+                    .all(|v| v.is_finite() && v > 0.0),
+                "DHCP manual rates must be finite and positive"
+            );
+        }
         Ok(())
     }
 }
@@ -88,7 +142,7 @@ fn resolved(
     burst_ignored: bool,
     rules: &SpeedRules,
 ) -> Result<ResolvedSpeed> {
-    rules.validate()?;
+    rules.validate_minimums()?;
     ensure!(
         download.is_finite() && upload.is_finite() && download > 0.0 && upload > 0.0,
         "No finite positive maximum; unlimited rates need an explicit plan"
@@ -254,11 +308,85 @@ pub fn resolve_ppp(
     }
     bail!("PPP has no finite router-authored speed rule")
 }
-pub fn resolve_dhcp(lease: &Row, rules: &SpeedRules) -> Result<ResolvedSpeed> {
-    if let Some(speed) = comment(text(lease, "comment"), "dhcp_lease_comment", rules)? {
-        return Ok(speed);
+static DHCP_NAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)((?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)[kmg](?:/(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)[kmg])?)$",
+    )
+    .expect("constant DHCP name expression")
+});
+fn dhcp_name(name: &str, rules: &SpeedRules) -> Result<Option<ResolvedSpeed>> {
+    ensure!(name.len() <= 4096, "DHCP server name is too long");
+    let Some(found) = DHCP_NAME.captures(name) else {
+        ensure!(!COMMENT.is_match(name), "Malformed DHCP server name speed");
+        return Ok(None);
+    };
+    let token = found.get(1).expect("capture exists");
+    let prefix = &name[..token.start()];
+    let last = prefix.chars().next_back();
+    let exponent_prefix = prefix.strip_suffix(['+', '-']).unwrap_or(prefix);
+    let mut chars = exponent_prefix.chars().rev();
+    let exponent = chars.next().is_some_and(|c| c == 'e' || c == 'E')
+        && chars.next().is_some_and(|c| c.is_ascii_digit() || c == '.');
+    ensure!(
+        !last.is_some_and(|c| c.is_ascii_digit() || matches!(c, '.' | '/'))
+            && !prefix.trim_end().ends_with('/')
+            && !exponent
+            && !COMMENT.is_match(prefix),
+        "Malformed or ambiguous DHCP server name speed"
+    );
+    let (download, upload) = pair(token.as_str(), 1.0)?;
+    resolved(
+        download,
+        upload,
+        None,
+        "dhcp_server_name",
+        name,
+        false,
+        rules,
+    )
+    .map(Some)
+}
+pub fn resolve_dhcp(server: &Row, rules: &SpeedRules) -> Result<ResolvedSpeed> {
+    resolve_dhcp_server(server, None, rules)
+}
+pub fn resolve_dhcp_server(
+    server: &Row,
+    policy: Option<&DhcpServerRule>,
+    rules: &SpeedRules,
+) -> Result<ResolvedSpeed> {
+    ensure!(
+        server.get("disabled").is_none_or(|v| v == "false"),
+        "DHCP server is disabled or has unknown status"
+    );
+    let mode = policy.map(|p| p.mode.as_str()).unwrap_or("auto");
+    if mode == "auto" || mode == "comment" {
+        if let Some(speed) = comment(text(server, "comment"), "dhcp_server_comment", rules)? {
+            return Ok(speed);
+        }
+        ensure!(mode == "auto", "DHCP server comment has no finite speed");
     }
-    rate(text(lease, "rate-limit"), "dhcp_lease_rate_limit", rules)
+    if mode == "auto" || mode == "name" {
+        if let Some(speed) = dhcp_name(text(server, "name"), rules)? {
+            return Ok(speed);
+        }
+        ensure!(mode == "auto", "DHCP server name has no finite speed");
+    }
+    ensure!(
+        mode == "auto" || mode == "manual",
+        "Unknown DHCP speed mode"
+    );
+    let policy = policy.context("DHCP server has no finite speed rule or manual setting")?;
+    let download = policy.download.context("DHCP manual download is missing")?;
+    let upload = policy.upload.context("DHCP manual upload is missing")?;
+    resolved(
+        download,
+        upload,
+        None,
+        "dhcp_server_manual",
+        &format!("{download}M/{upload}M"),
+        false,
+        rules,
+    )
 }
 pub fn resolve_hotspot(
     user: &Row,

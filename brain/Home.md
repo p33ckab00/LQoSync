@@ -14,6 +14,7 @@ status: active
 - [[10-sessions/2026-10-29-wan-assignments]]
 - [[10-sessions/2026-10-29-core-list-planner]]
 - [[10-sessions/2026-10-29-actual-core-validation]]
+- [[10-sessions/2026-10-29-dhcp-server-speeds]]
 - [[HANDOFF]]
 
 The v3 application lives in `v3/`. Existing root-level application files belong to the prior implementation.

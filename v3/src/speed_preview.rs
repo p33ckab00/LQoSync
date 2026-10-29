@@ -242,6 +242,29 @@ pub(crate) fn preview_selected(
         }
     }
     if services.contains("dhcp") {
+        let servers = index(
+            table(inv, "/ip/dhcp-server/print", &mut report.errors),
+            "DHCP servers",
+            &mut report.errors,
+        );
+        let policies: HashMap<_, _> = rules
+            .dhcp_servers
+            .iter()
+            .filter(|p| p.router == inv.router_id)
+            .map(|p| (p.server.as_str(), p))
+            .collect();
+        let server_cache: Cache<'_> = servers
+            .iter()
+            .map(|(&name, row)| {
+                let result = row
+                    .map(|r| {
+                        speeds::resolve_dhcp_server(r, policies.get(name).copied(), rules)
+                            .map_err(|e| e.to_string())
+                    })
+                    .unwrap_or_else(|| Err(format!("Duplicate DHCP server: {name}")));
+                (name, result)
+            })
+            .collect();
         let leases = table(inv, "/ip/dhcp-server/lease/print", &mut report.errors);
         let duplicates = duplicate_keys(leases.iter().filter(|r| eligible_lease(r)), |r| {
             (lease_server(r), lease_mac(r), lease_address(r))
@@ -271,7 +294,7 @@ pub(crate) fn preview_selected(
                     !duplicates.contains(&(server, name, address)),
                     "Duplicate DHCP lease"
                 );
-                speeds::resolve_dhcp(row, rules)
+                cached(&server_cache, server)
             })();
             report
                 .entries

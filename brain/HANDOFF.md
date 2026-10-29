@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T15:14:42+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T18:54:32+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -258,3 +258,39 @@ Unfinished work: explicit WAN bindings, broader connection-mark policy support, 
 Next action: confirm intended WAN/list/table relationships and design support for the actual connection-mark policy before a writer.
 See [[10-sessions/2026-10-29-actual-core-validation]] and `v3/CORE_REVIEW.md`.
 Commit/push are authorized. Verify the actual remote branch hash against the local tip before a takeover.
+
+
+## DHCP server speed update
+
+Goal complete: all three DHCP server speed sources, per-server UI, normalization integration, performance/integrity review, and checks.
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`. Base: `0b365ab`.
+Changed modules: speeds, speed_preview, speed_web, dhcp_speed_web, sources_web, routeros, model, web, and lib.
+Tests, shared fixtures, guides, the plan, and project notes accompany the code.
+
+The user selected DHCP server comment, name, and per-server manual settings.
+Rules use exact router/server keys under `speed_rules.dhcp_servers`.
+The agent default is Auto: comment, unit-marked name suffix, then configured manual fallback.
+Explicit Comment, Name, and Manual modes are also available. Manual values are subscriber download/upload Mbps.
+Bound leases inherit the actual server's rule. Lease comment/rate overrides no longer apply.
+Branch capacities, aggregation factors, and WAN caps remain separate.
+Unknown or invalid server evidence blocks resolution. Failed new policy keeps the last valid local generation.
+Old settings remain readable. Lease-only plans need finite server policy before their next valid publication.
+No manual defaults were inserted into actual settings.
+
+The UI discovers fresh server choices, saves local rules, rejects stale forms, preserves rules on global saves, and supports removal.
+Each shared server is parsed once per preview. Minimum-rate checks avoid repeated full-policy scans in subscriber loops.
+Independent review found one malformed-name suffix bug. A failing regression preceded the slash/whitespace guard.
+Space and tab cases pass. The review found no additional material issue.
+
+Checks: 100 functional tests passed; six manual benchmarks remain ignored by default.
+The new DHCP benchmark passed separately: 50k leases /1,000 server rules, 245.8 ms debug, excluding collection and disk I/O.
+Formatting, strict Clippy, build, diff checks, and four-route isolated HTTP smoke passed.
+The verified latest binary now runs in the LQoSync web process. Existing app settings and confirmed CA paths remained unchanged during this reload.
+Fresh verified reads completed 14 distro and 11 core tables, zero errors. Four DHCP servers include collected comments.
+The preceding read-only support steps configured both independently confirmed CA files in this app only.
+MikroTik configuration, LibreQoS files/packages/services, and production shaping remain unchanged.
+
+Next action: select per-server policy on Speed rules and bind each DHCP server to its intended shaping node.
+Broader core-policy support, router writes, coordinated apply, authentication, and retention remain unfinished.
+See [[10-sessions/2026-10-29-dhcp-server-speeds]] and `v3/SPEED_RULES.md`.
+Commit/push authorization continues. Verify the actual remote head before takeover.

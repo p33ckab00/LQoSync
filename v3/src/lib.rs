@@ -9,6 +9,7 @@ pub mod speeds;
 
 pub mod speed_preview;
 
+mod dhcp_speed_web;
 mod speed_web;
 
 pub mod normalizer;

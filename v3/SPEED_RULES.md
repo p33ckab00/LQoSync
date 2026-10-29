@@ -1,6 +1,6 @@
 # Subscriber speed rules
 
-These rules resolve speeds from read-only RouterOS inventory.
+These rules resolve subscriber speeds from RouterOS inventory and explicit per-server DHCP policy.
 The parser and preview do not change a router or LibreQoS installation.
 With selected sources, a healthy complete collection publishes a normalized local snapshot and generation automatically.
 
@@ -23,7 +23,7 @@ External RADIUS overrides and unknown user mappings need separate collection sup
 | Source | First match, in order |
 | --- | --- |
 | PPP | Secret comment, active comment, profile comment, profile rate, profile-name suffix |
-| DHCP | Lease comment, lease rate |
+| DHCP Auto | DHCP server comment, server-name speed suffix, configured per-server manual rates |
 | Hotspot | Local user comment, profile comment, profile rate |
 
 Comments keep the legacy subscriber download/upload order.
@@ -37,6 +37,59 @@ A name such as `service2026` does not supply a speed.
 Disable this fallback if router names do not encode plans.
 An explicit invalid or unlimited profile rate never falls through to the profile name.
 No local default maximum is assigned to unresolved users.
+
+## DHCP server policy
+
+Open **Speed rules → DHCP server speeds** after a fresh subscriber-router inventory read.
+Select the exact router and DHCP server. Choose Auto, Server comment, Server name, or Manual.
+Save the server rule. Existing automatic local publication checks run after the save.
+Global minimum-policy saves preserve all per-server rules.
+Stale server forms cannot overwrite a newer settings revision.
+
+Auto uses these sources in order:
+
+1. Server comment, for example `Site A | 25M/5M`.
+2. Server-name suffix, for example `DHCP-25M` or `DHCP-25M/5M`.
+3. Configured manual download and upload values.
+
+Each source uses subscriber download/upload order. A single rate is symmetric.
+Manual values use Mbps. They apply to each subscriber on that server.
+Branch capacity, aggregation factors, and WAN caps remain separate topology controls.
+
+Comment and name rules are orchestration conventions. They do not create RouterOS bandwidth policy.
+
+Auto falls through only when a source contains no speed rule.
+Malformed, ambiguous, zero, or unlimited rules remain unresolved.
+
+An explicit mode reads only its selected source. Manual mode can explicitly override router text.
+Remove a local rule to restore Auto without a manual fallback.
+The app does not guess a speed if no source supplies a finite positive value.
+
+The lookup uses the lease's actual `active-server`, or its configured server when no actual server exists.
+A wildcard `server=all` alone cannot identify a source.
+
+Router IDs and server names form the rule key. Server names remain exact, including spaces.
+Failed, missing, duplicate, disabled, or unknown server status cannot supply a speed.
+The collector reads server comments through the existing print allowlist. It sends no configuration writes.
+
+For Auto or Comment mode, collect fresh inventory after this upgrade so the recorded server metadata includes comments.
+
+```toml
+[[speed_rules.dhcp_servers]]
+router = "example-distro"
+server = "dhcp-site-a"
+mode = "auto" # auto, comment, name, manual
+download = 25.0
+upload = 5.0
+```
+
+Without a rule, a server uses Auto and has no manual fallback.
+Older application settings remain readable. Existing lease-only plans need a server rule before their next valid publication.
+
+The last valid local generation remains selected while the new speed is unresolved.
+Do not run an older binary against settings that contain the new per-server table.
+The UI shows the first 200 configured rules and first 200 discovered server choices.
+Larger configurations remain available in application-local TOML.
 
 ## Router rate fields
 
@@ -73,8 +126,8 @@ The old `config.json` is not read or imported by this module.
 PPP keeps the comment precedence from `updatecsv.py`.
 Router rate directions and bare-rate units now follow RouterOS semantics.
 The legacy script treated the first rate as download and bare numbers as Mbps.
-DHCP per-site and Hotspot local default speeds are not copied.
-The app reads the lease or mapped Hotspot profile instead.
+DHCP uses the selected server policy for each bound lease. Lease comments and rates no longer supply subscriber speeds.
+Hotspot local default speeds are not copied. The app reads the mapped Hotspot profile instead.
 DHCP previews include bound, enabled leases. Missing binding status remains unresolved.
 Unknown or disabled local users remain unresolved.
 A failed required table cannot supply rates from its partial rows.
@@ -82,18 +135,20 @@ Duplicate session keys reject every conflicting entry, independent of input orde
 
 ## Performance and integrity
 
-User and profile joins use hash indexes. Each shared profile is parsed once per preview.
+User, profile, and DHCP server joins use hash indexes. Each shared profile or DHCP server is parsed once per preview.
+The per-server policy index is built once per router preview. Full policy validation runs once, outside subscriber loops.
 Regular expressions are compiled once per process.
 The app shares immutable inventories through `Arc`; preview requests do not clone every router row.
 Preview computation runs outside the application lock and async worker.
 The app shows at most 200 entries and 100 source errors per preview.
 Counts include all entries. Raw router table pages show the first 20 rows per table.
 
-The manual synthetic measurement covers 50,000 PPP sessions and 100 shared profiles.
+Manual measurements cover 50,000 PPP sessions with 100 profiles and 50,000 DHCP leases with 1,000 server rules.
 Run it with:
 
 ```bash
 cargo test --locked --test speeds inventory_50k_performance -- --ignored --nocapture
+cargo test --locked --test dhcp_server_speeds preview_50k_dhcp -- --ignored --nocapture
 ```
 
 This is a local diagnostic measurement. It is not a production latency guarantee.

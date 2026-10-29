@@ -14,6 +14,7 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Block unknown versions and incomplete package states. Ignore the separate preflight package.
 - Preview PPP, DHCP, and Hotspot speeds with rule provenance and unresolved errors.
 - Edit minimum-rate policy in application-local TOML through the Rust UI.
+- Set DHCP subscriber speeds from server comments, server-name suffixes, or per-server manual rules.
 - Create and edit WAN, PPPoE, DHCP, Hotspot, and site nodes.
 - Map discovered router interfaces to WAN roots and set their directional capacities.
 - Configure compatible subscriber destination pools and explicit subscriber pins.

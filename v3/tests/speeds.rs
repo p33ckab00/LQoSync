@@ -116,10 +116,7 @@ fn comments_are_strict_and_do_not_salvage_bad_pairs() {
     .unwrap();
     assert_rates(&s, 25., 5.);
     let s = resolve_dhcp(
-        &row(&[
-            ("comment", "ordinary customer note"),
-            ("rate-limit", "5M/25M"),
-        ]),
+        &row(&[("comment", "ordinary server note"), ("name", "DHCP-25M/5M")]),
         &SpeedRules::default(),
     )
     .unwrap();
@@ -152,6 +149,10 @@ fn inventory() -> Inventory {
             (
                 "/ppp/profile/print",
                 vec![row(&[("name", "Plan100M"), ("rate-limit", "10M/50M")])],
+            ),
+            (
+                "/ip/dhcp-server/print",
+                vec![row(&[("name", "dhcp1"), ("comment", "Site|25M/5M")])],
             ),
             (
                 "/ip/dhcp-server/lease/print",

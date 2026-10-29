@@ -49,7 +49,10 @@ pub fn fixture() -> (Settings, BTreeMap<String, Arc<Inventory>>) {
             "/ppp/profile/print",
             vec![row(&[("name", "Plan"), ("rate-limit", "10M/50M")])],
         ),
-        ("/ip/dhcp-server/print", vec![row(&[("name", "dhcp1")])]),
+        (
+            "/ip/dhcp-server/print",
+            vec![row(&[("name", "dhcp1"), ("comment", "Site|20M/5M")])],
+        ),
         (
             "/ip/dhcp-server/lease/print",
             vec![row(&[

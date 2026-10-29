@@ -267,6 +267,17 @@ fn preview_inventory() -> lqosync_v3::routeros::Inventory {
         tables.insert(path.into(), vec![]);
     }
     tables.insert(
+        "/ip/dhcp-server/print".into(),
+        vec![
+            [
+                ("name".into(), "dhcp1".into()),
+                ("comment".into(), "<script>alert(1)</script>|25M/5M".into()),
+            ]
+            .into_iter()
+            .collect(),
+        ],
+    );
+    tables.insert(
         "/ip/dhcp-server/lease/print".into(),
         (0..210)
             .map(|i| {
@@ -324,7 +335,7 @@ async fn speed_preview_is_bounded_escaped_and_never_publishes() {
     )
     .unwrap();
     assert!(body.contains("210 resolved"));
-    assert!(body.contains("dhcp_lease_comment"));
+    assert!(body.contains("dhcp_server_comment"));
     assert!(body.contains("&lt;script&gt;"));
     assert!(!body.contains("<script>"));
     assert!(!body.contains("02:00:00:00:00:D1"));

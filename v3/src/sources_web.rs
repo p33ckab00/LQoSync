@@ -11,11 +11,11 @@ use maud::html;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-struct Choice {
-    value: String,
-    label: String,
+pub(crate) struct Choice {
+    pub(crate) value: String,
+    pub(crate) label: String,
 }
-fn choices(a: &App, kind: &str) -> Vec<Choice> {
+pub(crate) fn choices(a: &App, kind: &str) -> Vec<Choice> {
     let Some(path) = normalizer::source_table(kind) else {
         return vec![];
     };
@@ -31,6 +31,7 @@ fn choices(a: &App, kind: &str) -> Vec<Choice> {
         if inventory.router_id != router.id
             || now < inventory.collected_at
             || now - inventory.collected_at > normalizer::MAX_INVENTORY_AGE_SECONDS
+            || inventory.errors.contains_key("collection")
             || inventory.errors.contains_key(path)
         {
             continue;

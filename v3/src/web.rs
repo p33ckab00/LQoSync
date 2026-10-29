@@ -137,6 +137,7 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/routers/{id}/speeds", get(crate::speed_web::router_speeds))
         .route("/speed-rules", get(crate::speed_web::rules))
         .route("/speed-rules/save", post(crate::speed_web::save_rules))
+        .route("/speed-rules/dhcp", post(crate::dhcp_speed_web::save))
         .route("/nodes/save", post(save_node))
         .route("/nodes/{id}/delete", post(delete_node))
         .route("/settings/save", post(save_options))

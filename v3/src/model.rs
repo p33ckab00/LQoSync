@@ -148,6 +148,15 @@ pub fn validate(settings: &Settings) -> Result<()> {
             "Router timeout must be 1–30 seconds"
         );
     }
+    for rule in &settings.speed_rules.dhcp_servers {
+        ensure!(
+            settings
+                .routers
+                .iter()
+                .any(|r| r.id == rule.router && r.role != "core"),
+            "DHCP speed rule refers to an unknown subscriber router"
+        );
+    }
     let mut ids = HashSet::new();
     for n in &settings.nodes {
         ensure!(

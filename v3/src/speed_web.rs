@@ -19,8 +19,8 @@ pub async fn rules(State(s): State<Shared>) -> Html<String> {
         &a,
         "Speed rules",
         html! {
-            section.card {h2{"Router-owned maximum speeds"}p{"PPP: secret comment → active comment → profile comment → profile rate → unit-marked profile name."}
-                p{"DHCP: lease comment → lease rate. Hotspot: local user comment → profile comment → profile rate."}
+            section.card {h2{"Subscriber maximum speeds"}p{"PPP: secret comment → active comment → profile comment → profile rate → unit-marked profile name."}
+                p{"DHCP: server comment → server name → per-server manual fallback. Hotspot: local user comment → profile comment → profile rate."}
                 p{"Comments use customer download/upload order. Router rate fields use receive/transmit order and bare bits per second. Missing finite rates stay unresolved."}
                 p.help{"Router burst fields are validated but this preview uses only the sustained maximum. It does not export burst policy."}}
             section.card {h2{"Minimum rate policy"}form method="post" action="/speed-rules/save" {(csrf(&a))div.formgrid {
@@ -30,6 +30,7 @@ pub async fn rules(State(s): State<Shared>) -> Html<String> {
             }button{"Save speed rules"}}
                 p.help{"Explicit router minima take precedence. Otherwise minimum = max(maximum × fraction, floor), capped at the maximum. The floor never raises a router maximum."}
                 p.help{"This save updates local policy. With selected sources, a healthy complete inventory automatically updates the local snapshot and output pair."}}
+            (crate::dhcp_speed_web::controls(&a))
             section.card {h2{"Inventory previews"}
                 @for r in &a.settings.routers {p{a href=(format!("/routers/{}/speeds",r.id)){(&r.name)}}}
                 @if a.settings.routers.is_empty(){p.empty{"Configure a subscriber router, then read its inventory."}}
@@ -54,6 +55,7 @@ pub async fn save_rules(State(s): State<Shared>, Form(f): Form<RulesForm>) -> Re
         min_rate_fraction: f.min_rate_fraction,
         min_floor_mbps: f.min_floor_mbps,
         profile_name_fallback: f.profile_name_fallback,
+        dhcp_servers: next.speed_rules.dhcp_servers.clone(),
     };
     if let Err(e) = store::save_settings(&a.root, &next) {
         return error(&a, e);
@@ -103,7 +105,7 @@ pub async fn router_speeds(State(s): State<Shared>, Path(id): Path<String>) -> R
             div.tablewrap {table {thead {tr {@for title in ["Source","Identity / group","IPv4","Maximum ↓ / ↑ Mbps","Minimum ↓ / ↑ Mbps","Rule / error"] {th{(title)}}}}
                 tbody {@for e in report.entries.iter().take(200){tr {td{(e.service)}td{(&e.identity)br;small{(&e.group)}}td.mono{(&e.ipv4)}
                     @if let Some(speed)=&e.speed {td{(speed.rates.download) " / " (speed.rates.upload)}td{(speed.rates.download_min) " / " (speed.rates.upload_min)}
-                        td{(speed.source)details{summary{"Router rule"}pre{(&speed.raw)}}@if speed.burst_ignored {small{"Burst policy is not exported"}}}}
+                        td{(speed.source)details{summary{"Speed rule"}pre{(&speed.raw)}}@if speed.burst_ignored {small{"Burst policy is not exported"}}}}
                     @else {td{"—"}td{"—"}td.warning{(e.error.as_deref().unwrap_or("Unresolved"))}}
                 }}}
             }}
