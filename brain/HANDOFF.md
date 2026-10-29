@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T14:40:49+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T15:14:42+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -224,3 +224,37 @@ Unfinished work: actual core writes and coordinated shaping apply, representativ
 Next action: validate isolated real-world policy fixtures and define write-time ownership rechecks, transaction order, rollback, and actual-result verification.
 See [[10-sessions/2026-10-29-core-list-planner]] for details.
 Commit/push remain authorized. Verify the local tip and actual remote head before takeover.
+
+
+## Actual core review update
+
+Goal complete: read-only actual policy diagnostics, private TOML credentials, UI, performance/integrity review, and checks.
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`. Base: `7141844`.
+Changed files include the new credentials loader, shared core analyzer, diagnostics, review UI, fixture projector, and diagnostic CLI.
+Router collection paths, model validation, guides, tests, sanitized fixtures, and project notes accompany the code.
+
+The user completed private credentials and independently confirmed the private CA fingerprint.
+Only the app-local core CA path changed. Verified RouterOS 7.25 reads completed 11 tables with zero table errors.
+Raw inventory and credentials remain under ignored application data. Do not inspect or copy secrets during a takeover.
+Actual findings: five complex-prerouting, four conditional-matcher, and one mapping-required.
+Two paths remain observed only. No explicit WAN/list/table bindings exist in current local settings.
+PCC and FastTrack entries are disabled. Active counts are zero.
+Connection-mark policy remains unsupported. Subscriber-to-WAN paths and writer readiness are not proven.
+
+Diagnostics and planning share one conservative route analyzer.
+Saved data stays historical and cannot enter live collection or publish output through review.
+Specific FIB switch support fixes an actual empty-value representation. Other boolean flags remain strict.
+Independent review identified silent observed-path truncation. The report now includes an explicit global finding and omitted count.
+Regression tests cover that limit, unknown filter actions, FIB, credential redaction, saved/live separation, and superseded UI work.
+The sanitized actual-policy projection preserves the finding histogram, not full address or packet semantics.
+
+Checks: 95 functional tests passed. Five manual benchmarks are ignored by default.
+The new benchmark passed separately: 1,000 mapped WANs /100k routes /50k list rows, 28.1 ms debug review.
+Formatting, strict Clippy, diff checks, and four-route isolated HTTP smoke passed.
+A final verified read repeated the actual results. No generation was published by review or smoke.
+No router configuration, LibreQoS files/packages/services, or existing processes changed.
+
+Unfinished work: explicit WAN bindings, broader connection-mark policy support, isolated packet-path validation, router writer, and coordinated shaping apply.
+Next action: confirm intended WAN/list/table relationships and design support for the actual connection-mark policy before a writer.
+See [[10-sessions/2026-10-29-actual-core-validation]] and `v3/CORE_REVIEW.md`.
+Commit/push are authorized. Verify the actual remote branch hash against the local tip before a takeover.

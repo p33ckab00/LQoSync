@@ -128,6 +128,7 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/assignments/pin", post(crate::assignment_web::save_pin))
         .route("/core-lists", get(crate::core_web::page))
         .route("/core-lists/save", post(crate::core_web::save))
+        .route("/core-review", get(crate::core_review_web::page))
         .route("/sources", get(crate::sources_web::sources))
         .route("/sources/save", post(crate::sources_web::save))
         .route("/routers/save", post(save_router))
@@ -173,7 +174,7 @@ const CSS: &str = include_str!("style.css");
 pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
     Html(html!{ (DOCTYPE) html lang="en" {head {meta charset="utf-8";meta name="viewport" content="width=device-width, initial-scale=1";title{(title) " · LQoSync 3"}style{(maud::PreEscaped(CSS))}}
         body {aside {a.brand href="/" {span.mark{"LQ"} div{"LQoSync" small{"VERSION 3 · RUST"}}}
-            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/wans","WANs"),("/sources","Sources"),("/assignments","Assignments"),("/core-lists","Core lists"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
+            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/wans","WANs"),("/sources","Sources"),("/assignments","Assignments"),("/core-lists","Core lists"),("/core-review","Core review"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
             div.railfoot {span.dot{} " Local development" p{"Production adapters disabled"}}}
         main {header {div {p.eyebrow{"NETWORK OPERATIONS"} h1{(title)}} span.badge{"LOCAL STAGING"}}
             div.notice {strong{"Production is untouched. "} "This console writes only inside its own data directory. Core writes and LibreQoS apply are not implemented yet."}
@@ -256,13 +257,13 @@ fn router_form(a: &App, r: Option<&Router>) -> Markup {
     html! {form method="post" action="/routers/save" {(csrf(a)) input type="hidden" name="original_id" value=(value(|r|&r.id));div.formgrid{
         (field("Stable router ID","id",value(|r|&r.id),"text")) (field("Display name","name",value(|r|&r.name),"text"))
         (field("Host / IP","host",value(|r|&r.host),"text")) (field("API port","port",&r.map(|r|r.port).unwrap_or(8729).to_string(),"number"))
-        (field("API username","username",value(|r|&r.username),"text")) (field("Password environment variable","password_env",value(|r|&r.password_env),"text"))
+        (field("API username","username",value(|r|&r.username),"text")) label{"Password environment reference · optional with credentials.toml" input name="password_env" value=(value(|r|&r.password_env));}
         (select("Router role","role",&[("core","Core / edge"),("distro","Subscriber router"),("both","Core and subscribers")],r.map(|r|r.role.as_str()).unwrap_or("distro")))
         (select("API transport","tls",&[("true","TLS"),("false","Plain TCP")],if r.is_none_or(|r|r.tls){"true"}else{"false"}))
         label{"TLS certificate name · optional" input name="tls_server_name" value=(value(|r|&r.tls_server_name));}
         label{"Custom CA PEM path · optional" input name="tls_ca_file" value=(value(|r|&r.tls_ca_file));}
         (field("Operation timeout · seconds","timeout_seconds",&r.map(|r|r.timeout_seconds).unwrap_or(10).to_string(),"number"))
-    }p.help{"TLS validates certificates. Configure your CA and certificate name when required. Saving does not connect; Read inventory uses only allowlisted print commands."}button{"Save router"}}}
+    }p.help{"Read-only passwords can use this application's private credentials.toml, keyed by router ID, or an environment reference. Passwords are never displayed here. TLS validates certificates. Saving does not connect; Read inventory uses only allowlisted print commands."}button{"Save router"}}}
 }
 #[derive(Deserialize)]
 struct RouterForm {
@@ -335,7 +336,7 @@ async fn inspect_router(
     Path(id): Path<String>,
     Form(f): Form<Token>,
 ) -> Response {
-    let (router, ticket) = {
+    let (router, ticket, root) = {
         let mut a = s.lock().await;
         if let Err(r) = check(&a, &f.token) {
             return r.into_response();
@@ -344,9 +345,9 @@ async fn inspect_router(
             return error(&a, "Router no longer exists");
         };
         let ticket = a.begin_read(&id);
-        (router, ticket)
+        (router, ticket, a.root.clone())
     };
-    let result = crate::routeros::inspect(&router).await;
+    let result = crate::routeros::inspect_from(&router, &root).await;
     let a = s.clone().lock_owned().await;
     if !a.settings.routers.contains(&router) || a.read_epochs.get(&id) != Some(&ticket) {
         return error(&a, "Router read was superseded; result discarded");

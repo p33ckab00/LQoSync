@@ -153,6 +153,13 @@ impl Inventory {
 pub async fn inspect(router: &Router) -> Result<Inventory> {
     let password = std::env::var(&router.password_env)
         .map_err(|_| anyhow::anyhow!("Configured password environment variable is missing"))?;
+    inspect_with_password(router, password).await
+}
+pub async fn inspect_from(router: &Router, root: &std::path::Path) -> Result<Inventory> {
+    let password = crate::credentials::password(root, router).await?;
+    inspect_with_password(router, password).await
+}
+async fn inspect_with_password(router: &Router, password: String) -> Result<Inventory> {
     let client = Client::connect_with_password(router, &password).await?;
     drop(password);
     let mut paths = vec![

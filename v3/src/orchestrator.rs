@@ -23,7 +23,7 @@ pub fn now() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
-fn same_inventories(
+pub(crate) fn same_inventories(
     a: &std::collections::BTreeMap<String, Arc<routeros::Inventory>>,
     b: &std::collections::BTreeMap<String, Arc<routeros::Inventory>>,
 ) -> bool {
@@ -135,7 +135,7 @@ pub async fn refresh(s: Shared) {
 }
 
 pub async fn cycle(s: Shared) {
-    let (settings, routers) = {
+    let (settings, routers, root) = {
         let mut a = s.lock().await;
         if !a.settings.auto_stage {
             return;
@@ -164,14 +164,15 @@ pub async fn cycle(s: Shared) {
             .map(|r| (r.clone(), a.begin_read(&r.id)))
             .collect();
         a.status = "Reading selected routers. Last valid local generation remains active.".into();
-        (settings, routers)
+        (settings, routers, a.root.clone())
     };
     let mut pending = routers.into_iter();
     let mut tasks = tokio::task::JoinSet::new();
     for _ in 0..4 {
         if let Some((router, ticket)) = pending.next() {
+            let root = root.clone();
             tasks.spawn(async move {
-                let result = routeros::inspect(&router).await;
+                let result = routeros::inspect_from(&router, &root).await;
                 (router.id, ticket, result)
             });
         }
@@ -194,8 +195,9 @@ pub async fn cycle(s: Shared) {
             }
         }
         if let Some((router, ticket)) = pending.next() {
+            let root = root.clone();
             tasks.spawn(async move {
-                let result = routeros::inspect(&router).await;
+                let result = routeros::inspect_from(&router, &root).await;
                 (router.id, ticket, result)
             });
         }

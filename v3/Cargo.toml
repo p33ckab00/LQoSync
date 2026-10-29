@@ -3,6 +3,7 @@ name = "lqosync-v3"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
+default-run = "lqosync-v3"
 
 [dependencies]
 anyhow = "1"

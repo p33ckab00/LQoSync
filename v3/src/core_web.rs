@@ -53,7 +53,7 @@ fn tables(a: &crate::web::App, router: &str) -> Vec<String> {
         if let Some(name) = row
             .get("name")
             .filter(|n| core_plan::valid_name(n) && n.as_str() != "main")
-            && crate::core_routes::flag(row, "fib", false).unwrap_or(false)
+            && crate::core_routes::fib(row).unwrap_or(false)
             && !crate::core_routes::flag(row, "disabled", false).unwrap_or(true)
             && !crate::core_routes::flag(row, "invalid", false).unwrap_or(true)
         {

@@ -201,9 +201,7 @@ async fn router_inventory_requires_token_and_keeps_snapshot_after_connection_err
             .unwrap();
         assert_eq!(response.status(), status);
     }
-    assert!(
-        state.lock().await.inventory_errors["test"].contains("environment variable is missing")
-    );
+    assert!(state.lock().await.inventory_errors["test"].contains("No local TOML credential"));
     assert_eq!(
         std::fs::read(dir.path().join("state/subscribers.toml")).unwrap(),
         snapshot

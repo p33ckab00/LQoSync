@@ -53,7 +53,11 @@ Each table must exist once, have FIB enabled, and contain one active default rou
 Its resolved `immediate-gw` must identify the mapped WAN interface.
 Discard defaults, ECMP, multiple active defaults, and wrong interfaces block the plan.
 Enabled routing rules, FastTrack, jumps, PCC/connection-mark conditions, and unsupported matchers also block the plan.
-The UI displays the first failure through the orchestration status.
+The orchestration status shows the first failure.
+The [Core review page](CORE_REVIEW.md) shows multiple findings through the same route analyzer.
+RouterOS can return the enabled FIB switch as `fib=""`. The analyzer accepts this specific representation.
+Other empty boolean flags remain unknown and block the plan.
+See the official [routing table reference](https://manual.mikrotik.com/docs/cli-reference/routing/table/).
 
 These are conservative structural checks. They do not prove the actual traffic path.
 The audit does not simulate NAT, VRFs, destination-specific routes, connection state, or all firewall behavior.

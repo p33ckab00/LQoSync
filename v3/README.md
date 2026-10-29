@@ -7,7 +7,7 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 
 ## Current capabilities
 
-- Register router settings with password environment references, verified TLS, optional custom CA, and operation deadlines.
+- Register router settings with private TOML credentials or environment references, verified TLS, a custom CA, and operation deadlines.
 - Read allowlisted router identity, interfaces, routes, neighbors, and subscriber source tables on demand.
 - Save inventory and per-table errors in application-local TOML. Incomplete inventory never replaces the subscriber snapshot.
 - Detect the main installed LibreQoS package. Select the legacy adapter for 2.0–2.2, or the v3 scheduler adapter for 3.x.
@@ -28,6 +28,7 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Commit subscriber source ownership and WAN assignments in the same generation.
 - Configure per-WAN core lists and custom routing tables through the UI.
 - Build owned IPv4 `/32` add/keep/remove plans with protected manual members and conservative RouterOS 7 route checks.
+- Review actual core policy with multiple per-WAN findings and separate live, saved, stale, and incomplete inventory labels.
 - Publish valid output automatically into a local generation directory.
 - Retain the last valid generation after an invalid snapshot or topology change.
 
@@ -38,7 +39,8 @@ A documented local patch to `mikrotik-tokio` prevents dropped rows during respon
 See `vendor/mikrotik-tokio/PATCHES.md` for source, license, and removal conditions.
 See [the selected API documentation](https://docs.rs/mikrotik-rs/0.7.0/mikrotik_rs/).
 
-Set each router's password environment variable before starting the app.
+Store router passwords in private application-local `credentials.toml`, or set each router's password environment variable before you start the app.
+See [core review](CORE_REVIEW.md) for the credential format, verified TLS, and diagnostic commands.
 Save its connection settings, then select **Read inventory** to discover source choices.
 Create subscriber shaping nodes in Topology, then bind sources in **Sources**.
 Selected routers receive automatic read rounds on the configured interval when automatic publication is enabled.
@@ -87,6 +89,8 @@ Set `LQOSYNC3_BIND` to change the loopback address or port.
 ```text
 data/
   settings.toml
+  credentials.toml  # private, ignored by Git
+  tls/              # application-local trust files
   state/
     subscribers.toml
     router-inventory/

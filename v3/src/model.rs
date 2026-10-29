@@ -139,8 +139,9 @@ pub fn validate(settings: &Settings) -> Result<()> {
             "Unknown router role"
         );
         ensure!(
-            valid_id(&r.password_env) && !r.username.trim().is_empty(),
-            "Username and password environment reference are required"
+            (r.password_env.is_empty() || valid_id(&r.password_env))
+                && !r.username.trim().is_empty(),
+            "Username is required; password environment reference must be empty or a valid identifier"
         );
         ensure!(
             (1..=30).contains(&r.timeout_seconds),
