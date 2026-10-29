@@ -1,0 +1,38 @@
+{
+  "method": "Approximate token counts against a naive full-corpus baseline. Not measured usage or savings.",
+  "result": {
+    "corpus_tokens": 85930,
+    "corpus_words": 64448,
+    "nodes": 892,
+    "edges": 2384,
+    "avg_query_tokens": 1636,
+    "reduction_ratio": 52.5,
+    "per_question": [
+      {
+        "question": "how does authentication work",
+        "query_tokens": 1634,
+        "reduction": 52.6
+      },
+      {
+        "question": "what is the main entry point",
+        "query_tokens": 1632,
+        "reduction": 52.7
+      },
+      {
+        "question": "how are errors handled",
+        "query_tokens": 1638,
+        "reduction": 52.5
+      },
+      {
+        "question": "what connects the data layer to the api",
+        "query_tokens": 1649,
+        "reduction": 52.1
+      },
+      {
+        "question": "what are the core abstractions",
+        "query_tokens": 1627,
+        "reduction": 52.8
+      }
+    ]
+  }
+}

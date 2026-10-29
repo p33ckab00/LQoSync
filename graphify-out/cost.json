@@ -1,0 +1,15 @@
+{
+  "runs": [
+    {
+      "date": "2026-10-29T16:17:55.698578+00:00",
+      "files": 97,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "token_usage_available": false,
+      "semantic_backend": "session agents"
+    }
+  ],
+  "total_input_tokens": 0,
+  "total_output_tokens": 0,
+  "note": "Zero counters are placeholders. Session agent usage was unavailable; these counters are not measured cost."
+}

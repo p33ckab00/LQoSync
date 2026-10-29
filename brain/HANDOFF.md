@@ -7,11 +7,65 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T23:59:29+08:00 (Asia/Shanghai).
+Updated: 2026-10-30T01:11:24+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Base: `f22cfbf8d974c10300a7a704cd7a712509d9827d` from `lqosync-in-rust`.
+
+## Compact NOC console update
+
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Source baseline: `32eb255`.
+The user selected an attached HTML design. The console now uses its CSS with actual application data and forms.
+Overview, router search/inspector, and the three-pane topology workspace use the reference layout.
+The other pages share the compact shell, tables, forms, and responsive style.
+Display density, mobile navigation, and collapsed creation forms work through a same-origin script.
+Save/delete handlers, tokens, ownership checks, and publication gates remain intact.
+
+Changed: `v3/src/{noc_web.rs,console.js,style.css,web.rs,lib.rs}`, `v3/tests/web.rs`, and `v3/README.md`.
+The design and plan are `docs/superpowers/{specs/2026-10-30-noc-console-design.md,plans/2026-10-30-noc-console.md}`.
+Home, this handoff, and the new session note record the work. Earlier skill/graph changes remain preserved.
+
+Checks: 130 Rust tests passed, zero failed, nine manual benchmarks ignored. Format, strict Clippy, and binary build passed.
+Browser checks passed on 12 routes at 1440px, 390px, and 320px widths with temporary application data.
+Checks cover overflow, script policy, density, router search, node selection, creation forms, and mobile keyboard navigation.
+Independent review found a closed-sidebar focus defect. The reproduced browser check passed after the fix.
+Follow-up review found no material issue. Reference CSS comparison, JavaScript syntax, and diff whitespace checks passed.
+
+The live console remains on its prior process. No live service restart, router write, or LibreQoS change occurred.
+Private credentials and production inventory were not read. The Graphify map predates the UI changes and this note.
+The user put flexible topology ahead of protected membership migration.
+Future work: operator-selected hierarchy/categories and manual/automatic orchestration, with no RouterOS deletion from topology removal.
+Automatic assignment must use online client count for new sessions/reconnects, stay stable during a session, and honor manual pins.
+Topology, core membership plans, and shaping output must share the intended assignment. Failed reads must not imply disconnects.
+These behavior changes are not implemented here. Current planned-load balancing and assignment retention still apply.
+Next: review the visual result and complete the topology/reconnect design. Preserve protected manual membership throughout.
+See [[10-sessions/2026-10-30-noc-console]].
+
+## Graphify map update
+
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Source baseline: `32eb255`.
+Goal complete: map the v3 code, guides, plans, and project notes with Graphify.
+Outputs: `graphify-out/graph.html`, `graph.json`, `GRAPH_REPORT.md`, `HEALTH.txt`, and `SCOPE.md`.
+Saved exclusions and the manifest support later updates. Local caches and temporary files remain ignored.
+Checks: complete coverage of 38 documents, graph endpoints, source paths, query/explanation smoke, HTML export, and diff whitespace.
+The graph has 892 nodes and 2,384 links in 54 named communities.
+Limits: 369 unresolved references, 62 external placeholders, and 42 combined repeated links. Agent token usage was unavailable.
+No runtime, router, or LibreQoS changes occurred. Application tests did not run for this map.
+Next: query the map before broad code searches. Confirm results in the source files.
+Use semantic `--update` to include this final handoff, Home edits, and the new capture note.
+See [[10-sessions/2026-10-30-graphify-map]]. Prior product work remains the protected membership review.
+
+## Shared skills update
+
+The user authorized the shared TI skill workflow for LQoSync v3.
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Base for this task: `32eb255`.
+Added `AGENTS.md` and a `CLAUDE.md` entry point. Updated Home, this handoff, and the shared-skills session note.
+The instructions use existing skills and retain this project's own vault and operational limits.
+Checks: shared skill paths, project references, note links, and diff whitespace. No application tests ran for this documentation change.
+No runtime or production changes occurred. No new application work formed part of this task.
+Next: use this workflow to review protected manual membership and a per-host migration plan without writes or ownership bypass.
+See [[10-sessions/2026-10-30-shared-skills]]. Earlier implementation checks below are historical results.
 
 ## Goal
 

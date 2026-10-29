@@ -9,6 +9,193 @@ use tokio::sync::Mutex;
 use tower::ServiceExt;
 
 #[tokio::test]
+async fn noc_inventory_browser_escapes_names_omits_extra_fields_and_labels_read_health() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = App::open(dir.path().into()).unwrap();
+    state.settings.routers.push(toml::from_str("id='lab'\nname='Lab'\nhost='192.0.2.1'\nport=8729\nusername='reader'\npassword_env='UNSET_NOC_TEST'\nrole='distro'\ntls=true\n").unwrap());
+    state.inventories.insert(
+        "lab".into(),
+        Arc::new(lqosync_v3::routeros::Inventory {
+            router_id: "lab".into(),
+            collected_at: lqosync_v3::orchestrator::now(),
+            errors: Default::default(),
+            tables: [(
+                "/ppp/secret/print".into(),
+                vec![
+                    ([
+                        ("name".into(), "<b>test-account</b>".into()),
+                        ("password".into(), "synthetic-hidden-value".into()),
+                    ]
+                    .into_iter()
+                    .collect()),
+                ],
+            )]
+            .into_iter()
+            .collect(),
+        }),
+    );
+    let state = Arc::new(Mutex::new(state));
+    let app = routes(state.clone());
+    for (age, failure, expected) in [
+        (0, false, "Complete"),
+        (600, false, "Stale / invalid age"),
+        (0, true, "Read failed"),
+    ] {
+        {
+            let mut a = state.lock().await;
+            Arc::make_mut(a.inventories.get_mut("lab").unwrap()).collected_at =
+                lqosync_v3::orchestrator::now() - age;
+            if failure {
+                a.inventory_errors
+                    .insert("lab".into(), "Test read failure".into());
+            }
+        }
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/topology")
+                    .header("host", "localhost:9303")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = String::from_utf8(
+            response
+                .into_body()
+                .collect()
+                .await
+                .unwrap()
+                .to_bytes()
+                .to_vec(),
+        )
+        .unwrap();
+        assert!(body.contains(&format!(">{expected}</span>")));
+        assert!(body.contains("&lt;b&gt;test-account&lt;/b&gt;"));
+        assert!(!body.contains("<b>test-account</b>"));
+        assert!(!body.contains("synthetic-hidden-value"));
+    }
+    assert!(!dir.path().join("state/current.toml").exists());
+}
+
+#[tokio::test]
+async fn noc_console_preserves_real_routes_and_serves_only_same_origin_script() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(Mutex::new(App::open(dir.path().into()).unwrap()));
+    let app = routes(state);
+    for path in [
+        "/",
+        "/routers",
+        "/topology",
+        "/wans",
+        "/sources",
+        "/assignments",
+        "/subscribers",
+        "/speed-rules",
+        "/core-lists",
+        "/core-review",
+        "/validation",
+        "/settings",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header("host", "localhost:9303")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        let policy = response.headers()["content-security-policy"]
+            .to_str()
+            .unwrap();
+        assert!(!policy.contains("script-src 'unsafe-inline'"));
+        let body = String::from_utf8(
+            response
+                .into_body()
+                .collect()
+                .await
+                .unwrap()
+                .to_bytes()
+                .to_vec(),
+        )
+        .unwrap();
+        assert!(body.contains("ISP Operations"), "{path}");
+        assert!(body.contains("Subscriber control"), "{path}");
+        assert!(body.contains("Routing &amp; verification"), "{path}");
+        assert!(body.contains("aria-current=\"page\""), "{path}");
+        assert!(body.contains("src=\"/assets/console.js\""), "{path}");
+        assert!(!body.contains("DEMO DATA"), "{path}");
+    }
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/assets/console.js")
+                .header("host", "localhost:9303")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        response.headers()["content-type"]
+            .to_str()
+            .unwrap()
+            .contains("javascript")
+    );
+}
+
+#[tokio::test]
+async fn noc_topology_inspector_escapes_names_and_preserves_node_forms() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = App::open(dir.path().into()).unwrap();
+    state.settings = toml::from_str(include_str!("../examples/settings.toml")).unwrap();
+    let selected = state.settings.nodes.last_mut().unwrap();
+    selected.name = "<script>alert(1)</script>".into();
+    let id = selected.id.clone();
+    let app = routes(Arc::new(Mutex::new(state)));
+    for selection in [&id, "missing-node"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/topology?selected={selection}"))
+                    .header("host", "localhost:9303")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = String::from_utf8(
+            response
+                .into_body()
+                .collect()
+                .await
+                .unwrap()
+                .to_bytes()
+                .to_vec(),
+        )
+        .unwrap();
+        assert!(body.contains("Selected-item inspector"));
+        assert!(body.contains("Discovered inventory"));
+        assert!(body.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+        assert!(!body.contains("<script>alert(1)</script>"));
+        assert!(body.contains("action=\"/nodes/save\""));
+        assert!(body.contains("name=\"token\""));
+        if *selection == id {
+            assert!(body.contains(&format!("action=\"/nodes/{id}/delete\"")));
+        }
+    }
+}
+
+#[tokio::test]
 async fn all_pages_render_and_reject_mutation_without_token() {
     let dir = tempfile::tempdir().unwrap();
     let state = Arc::new(Mutex::new(App::open(dir.path().into()).unwrap()));

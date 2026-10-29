@@ -7,6 +7,9 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-noc-console]]
+- [[10-sessions/2026-10-30-graphify-map]]
+- [[10-sessions/2026-10-30-shared-skills]]
 - [[10-sessions/2026-10-29-rust-foundation]]
 - [[10-sessions/2026-10-29-routeros-adapters]]
 - [[10-sessions/2026-10-29-speed-rules]]

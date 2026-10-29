@@ -1,12 +1,12 @@
 use crate::{model::*, store};
 use axum::{
     Form, Router as HttpRouter,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{StatusCode, header},
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use maud::{DOCTYPE, Markup, html};
+use maud::{Markup, html};
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
@@ -143,6 +143,15 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/nodes/{id}/delete", post(delete_node))
         .route("/settings/save", post(save_options))
         .route("/health", get(|| async { "ok" }))
+        .route(
+            "/assets/console.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("console.js"),
+                )
+            }),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             crate::orchestrator::after_mutation,
@@ -172,16 +181,8 @@ async fn headers(req: axum::extract::Request, next: axum::middleware::Next) -> R
         .insert(header::X_CONTENT_TYPE_OPTIONS, "nosniff".parse().unwrap());
     r
 }
-const CSS: &str = include_str!("style.css");
 pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
-    Html(html!{ (DOCTYPE) html lang="en" {head {meta charset="utf-8";meta name="viewport" content="width=device-width, initial-scale=1";title{(title) " · LQoSync 3"}style{(maud::PreEscaped(CSS))}}
-        body {aside {a.brand href="/" {span.mark{"LQ"} div{"LQoSync" small{"VERSION 3 · RUST"}}}
-            nav {@for (url,label) in [("/","Overview"),("/routers","Routers"),("/topology","Topology"),("/wans","WANs"),("/sources","Sources"),("/assignments","Assignments"),("/core-lists","Core lists"),("/core-review","Core review"),("/validation","Validation"),("/speed-rules","Speed rules"),("/subscribers","Subscribers"),("/settings","Settings")] {a href=(url) class=(if label==title {"active"} else {""}) {(label)}}}
-            div.railfoot {span.dot{} " Local development" p{"Production adapters disabled"}}}
-        main {header {div {p.eyebrow{"NETWORK OPERATIONS"} h1{(title)}} span.badge{"LOCAL STAGING"}}
-            div.notice {strong{"Production is untouched. "} "This console writes only inside its own data directory. Core writes and LibreQoS apply are not implemented yet."}
-            (content) footer {"LQoSync 3 · Rust backend and Rust-rendered UI · " (a.root.display())}}
-    }}}.into_string())
+    crate::noc_web::shell(a, title, content)
 }
 pub(crate) fn csrf(a: &App) -> Markup {
     html! {input type="hidden" name="token" value=(&a.token);}
@@ -219,42 +220,19 @@ async fn overview(State(s): State<Shared>) -> Html<String> {
     .await
     .unwrap_or(0);
     let a = s.lock().await;
-    shell(
-        &a,
-        "Overview",
-        html! {div.metrics {@for (label,value) in [("Managed routers",a.settings.routers.len()),("WAN roots",a.settings.nodes.iter().filter(|n|n.kind=="wan").count()),("Subscriber snapshot",count)] {section.card {p.eyebrow{(label)}div.number{(value)}}}}
-            section.card {div.sectionhead{h2{"Automation pipeline"}span.badge{(if a.settings.auto_stage {"AUTO-STAGE ON"} else {"PAUSED"})}}
-                div.pipeline {span{"Collect"}span{"→"}span{"Build topology"}span{"→"}span{"Stage pair"}span{"→"}span.muted{"Production apply · pending"}}
-                p{(&a.status)}@if let Some(g)=&a.generation {p.mono{"Local generation: " (g)}}}
-            div.grid {section.card {h2{"Start with your routers"}p{"Register core and subscriber routers. Credentials use environment references."}a.button href="/routers"{"Configure routers"}}
-                section.card {h2{"Define the shaping hierarchy"}p{"Create WAN roots, then PPPoE, DHCP, Hotspot or site branches. Each branch has real capacity."}a.button href="/topology"{"Build topology"}}}
-        },
-    )
+    crate::noc_web::overview(&a, count)
 }
-async fn routers(State(s): State<Shared>) -> Html<String> {
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct Selection {
+    selected: String,
+}
+async fn routers(State(s): State<Shared>, Query(selection): Query<Selection>) -> Html<String> {
     let a = s.lock().await;
-    shell(
-        &a,
-        "Routers",
-        html! {section.card {div.sectionhead{h2{"Router inventory"}span.badge{(a.settings.routers.len()) " configured"}}
-        @if a.settings.routers.is_empty(){p.empty{"No routers yet. Add a router below. Inventory reads occur only when requested."}}
-        @for r in &a.settings.routers {details {summary {strong{(&r.name)} " · " (&r.host) " · " (&r.role) span.badge{
-            @if a.inventory_errors.contains_key(&r.id) {"READ FAILED"}
-            @else if let Some(i)=a.inventories.get(&r.id){@if i.complete(){"LAST READ COMPLETE"}@else{"LAST READ PARTIAL"}}
-            @else {"NOT CHECKED"}
-        }}
-            @if let Some(e)=a.inventory_errors.get(&r.id){p.warning{(e)}}
-            @if let Some(i)=a.inventories.get(&r.id){p.help{"Last inventory Unix timestamp: " (i.collected_at) ". This inventory does not replace the subscriber snapshot."}
-                @for (path,rows) in &i.tables {details {summary{(path) " · " (rows.len()) " rows · first 20 shown"}pre{(serde_json::to_string_pretty(&rows[..rows.len().min(20)]).unwrap_or_default())}}}
-                @for (path,e) in &i.errors {p.warning{(path) ": " (e)}}
-            }
-            a.button href=(format!("/routers/{}/speeds",r.id)){"Preview speed rules"}
-            form.inline method="post" action=(format!("/routers/{}/inspect",r.id)){(csrf(&a))button{"Read inventory"}}
-            (router_form(&a,Some(r))) form.inline method="post" action=(format!("/routers/{}/delete",r.id)){(csrf(&a)) button.danger{"Remove router"}}}}
-        }section.card {h2{"Add router"}(router_form(&a,None))}},
-    )
+    crate::noc_web::routers(&a, &selection.selected)
 }
-fn router_form(a: &App, r: Option<&Router>) -> Markup {
+
+pub(crate) fn router_form(a: &App, r: Option<&Router>) -> Markup {
     let value = |f: fn(&Router) -> &str| r.map(f).unwrap_or("");
     html! {form method="post" action="/routers/save" {(csrf(a)) input type="hidden" name="original_id" value=(value(|r|&r.id));div.formgrid{
         (field("Stable router ID","id",value(|r|&r.id),"text")) (field("Display name","name",value(|r|&r.name),"text"))
@@ -382,7 +360,7 @@ async fn delete_router(
         Err(e) => error(&a, e),
     }
 }
-async fn topology(State(s): State<Shared>) -> Html<String> {
+async fn topology(State(s): State<Shared>, Query(selection): Query<Selection>) -> Html<String> {
     let (settings, root, generation) = {
         let a = s.lock().await;
         (a.settings.clone(), a.root.clone(), a.generation.clone())
@@ -403,29 +381,10 @@ async fn topology(State(s): State<Shared>) -> Html<String> {
     if a.settings != settings || a.generation != generation {
         plan = None;
     }
-    shell(
-        &a,
-        "Topology",
-        html! {section.card {div.sectionhead{h2{"Shaping tree"}span.badge{"REAL QUEUES ONLY"}}
-            p.help{"The discovered network map is separate. Every exported node is a real shaping node."}
-            @if a.settings.nodes.is_empty(){p.empty{"Create an explicit WAN root, then add subscriber branches."}}
-            (node_tree(&a,"",plan.as_ref()))
-            @if plan.is_none() && !a.settings.nodes.is_empty(){p.warning{(&a.status)}}
-        }section.card {h2{"Add shaping node"}(node_form(&a,None))}
-        section.card {h2{"Generated output"}@if let Some(p)=&plan {details{summary{"network.json preview"}pre{(&p.network)}}details{summary{"ShapedDevices.csv preview · first 20 data lines"}pre{(&p.csv)}}} @else {p{"A valid complete subscriber snapshot is required before computed branches can be published."}}}},
-    )
+    crate::noc_web::topology(&a, &selection.selected, plan.as_ref())
 }
-fn node_tree(a: &App, parent: &str, plan: Option<&Plan>) -> Markup {
-    html! {ul.tree {@for n in a.settings.nodes.iter().filter(|n|n.parent==parent) {li {details {summary {strong{(&n.name)} " · " (&n.kind) span.badge{(&n.mode)}
-        @if let Some(c)=plan.and_then(|p|p.capacities.get(&n.id)) {span.rate{(format!("↓ {:.2}  ↑ {:.2} Mbps · {} subscribers",c.download,c.upload,c.subscribers))}}
-        @else if n.mode=="manual" {span.rate{(format!("↓ {}  ↑ {} Mbps",n.download,n.upload))}}
-        }
-        @if let Some(c)=plan.and_then(|p|p.capacities.get(&n.id)) {p.help{(format!("Computed / explicit: {:.2}/{:.2} Mbps. Effective: {:.2}/{:.2} Mbps. Parent caps apply independently.",c.raw_download,c.raw_upload,c.download,c.upload))}}
-        (node_form(a,Some(n))) form.inline method="post" action=(format!("/nodes/{}/delete",n.id)){(csrf(a))button.danger{"Remove node"}}}
-        (node_tree(a,&n.id,plan))}}
-    }}
-}
-fn node_form(a: &App, n: Option<&Node>) -> Markup {
+
+pub(crate) fn node_form(a: &App, n: Option<&Node>) -> Markup {
     let value = |f: fn(&Node) -> &str| n.map(f).unwrap_or("");
     html! {form method="post" action="/nodes/save" {(csrf(a))input type="hidden" name="original_id" value=(value(|n|&n.id));div.formgrid{
         (field("Stable node ID","id",value(|n|&n.id),"text")) (field("Display name","name",value(|n|&n.name),"text"))

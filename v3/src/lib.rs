@@ -2,6 +2,7 @@ pub mod credentials;
 pub mod libreqos;
 pub mod minimums;
 pub mod model;
+mod noc_web;
 pub mod routeros;
 pub mod store;
 pub mod web;

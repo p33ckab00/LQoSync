@@ -5,6 +5,14 @@ This branch starts the new Rust application. The existing application remains in
 The backend uses Axum. The web UI uses Maud templates written in Rust.
 No Python backend, JavaScript UI framework, database, or Node build is required.
 
+The compact NOC console follows the supplied dark design with grouped navigation and dense tables.
+Use the top bar to change display density. This choice stays in the browser.
+Topology shows discovered inventory, the configured hierarchy, and a selected-node inspector.
+Select a node to edit its configuration. Use **Add node** to open the creation form.
+Router names open the router inspector. Existing save actions and validation rules still apply.
+Discovery links open the current source and WAN forms. They do not create nodes or change router records.
+Snapshot totals do not indicate online sessions. Balancing by online client count on reconnect remains pending.
+
 ## Current capabilities
 
 - Register router settings with private TOML credentials or environment references, verified TLS, a custom CA, and operation deadlines.

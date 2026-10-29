@@ -1,0 +1,584 @@
+{
+  "v3/Cargo.toml": {
+    "mtime": 1793256631.0845323,
+    "seen": 1793290675.6945317,
+    "ast_hash": "3d7a5d5be278b2ef25fd2ae7ed645e3d",
+    "semantic_hash": "3d7a5d5be278b2ef25fd2ae7ed645e3d"
+  },
+  "v3/src/assignment.rs": {
+    "mtime": 1793254068.1916046,
+    "seen": 1793290675.6945364,
+    "ast_hash": "93323e200e7b304e03ebcf8e2e1d666c",
+    "semantic_hash": "93323e200e7b304e03ebcf8e2e1d666c"
+  },
+  "v3/src/assignment_web.rs": {
+    "mtime": 1793254068.1956048,
+    "seen": 1793290675.694539,
+    "ast_hash": "9e307df13c12c337000a4330f7d58b88",
+    "semantic_hash": "9e307df13c12c337000a4330f7d58b88"
+  },
+  "v3/src/bin/core-validate.rs": {
+    "mtime": 1793272446.6030643,
+    "seen": 1793290675.6945403,
+    "ast_hash": "2be7f7f47220d875744e608574152f01",
+    "semantic_hash": "2be7f7f47220d875744e608574152f01"
+  },
+  "v3/src/core_analysis.rs": {
+    "mtime": 1793275712.9460928,
+    "seen": 1793290675.6945415,
+    "ast_hash": "4862135257cf4b4ba57476e58aa12fac",
+    "semantic_hash": "4862135257cf4b4ba57476e58aa12fac"
+  },
+  "v3/src/core_connections.rs": {
+    "mtime": 1793272384.5416074,
+    "seen": 1793290675.694543,
+    "ast_hash": "e5dd3cdfd4337116d2184ff19ef262ed",
+    "semantic_hash": "e5dd3cdfd4337116d2184ff19ef262ed"
+  },
+  "v3/src/core_diagnostics.rs": {
+    "mtime": 1793275535.4959414,
+    "seen": 1793290675.694544,
+    "ast_hash": "689b82f1ffaac8705489950ce1a64ada",
+    "semantic_hash": "689b82f1ffaac8705489950ce1a64ada"
+  },
+  "v3/src/core_plan.rs": {
+    "mtime": 1793275529.7868721,
+    "seen": 1793290675.6945453,
+    "ast_hash": "2a726f6ae6522da39669808f60f5b2cf",
+    "semantic_hash": "2a726f6ae6522da39669808f60f5b2cf"
+  },
+  "v3/src/core_review_web.rs": {
+    "mtime": 1793289077.3951645,
+    "seen": 1793290675.6945462,
+    "ast_hash": "fa80d6017f0e87697d3983ce7b5a1667",
+    "semantic_hash": "fa80d6017f0e87697d3983ce7b5a1667"
+  },
+  "v3/src/core_routes.rs": {
+    "mtime": 1793271760.3082123,
+    "seen": 1793290675.6945472,
+    "ast_hash": "db5537fff4d7d7b81dd242f42e6841ea",
+    "semantic_hash": "db5537fff4d7d7b81dd242f42e6841ea"
+  },
+  "v3/src/core_scopes.rs": {
+    "mtime": 1793289020.457742,
+    "seen": 1793290675.6945481,
+    "ast_hash": "d46c0610264443e278bb2b1a88ba26f7",
+    "semantic_hash": "d46c0610264443e278bb2b1a88ba26f7"
+  },
+  "v3/src/core_web.rs": {
+    "mtime": 1793257139.7942796,
+    "seen": 1793290675.6945496,
+    "ast_hash": "390c8601502a1235b7b67fc82a78f099",
+    "semantic_hash": "390c8601502a1235b7b67fc82a78f099"
+  },
+  "v3/src/credentials.rs": {
+    "mtime": 1793256631.1695347,
+    "seen": 1793290675.6945508,
+    "ast_hash": "88ebd84ff440f36f25997796c10f6adb",
+    "semantic_hash": "88ebd84ff440f36f25997796c10f6adb"
+  },
+  "v3/src/dhcp_speed_web.rs": {
+    "mtime": 1793260518.8104448,
+    "seen": 1793290675.6945517,
+    "ast_hash": "0139eaf914397940a7611657c3efb4c9",
+    "semantic_hash": "0139eaf914397940a7611657c3efb4c9"
+  },
+  "v3/src/lib.rs": {
+    "mtime": 1793275712.972093,
+    "seen": 1793290675.6945531,
+    "ast_hash": "f7d650e966fc9907393298a3c6df1f34",
+    "semantic_hash": "f7d650e966fc9907393298a3c6df1f34"
+  },
+  "v3/src/libreqos.rs": {
+    "mtime": 1793245279.7776625,
+    "seen": 1793290675.694554,
+    "ast_hash": "b8cfba411fa5f12659b6f65d7a7753a8",
+    "semantic_hash": "b8cfba411fa5f12659b6f65d7a7753a8"
+  },
+  "v3/src/main.rs": {
+    "mtime": 1793247198.353385,
+    "seen": 1793290675.694555,
+    "ast_hash": "0ea522482bac92f38de0b92b41b63c74",
+    "semantic_hash": "0ea522482bac92f38de0b92b41b63c74"
+  },
+  "v3/src/minimums.rs": {
+    "mtime": 1793289077.3951645,
+    "seen": 1793290675.6945562,
+    "ast_hash": "53e42f7dc394796bc9d88b147acb2d07",
+    "semantic_hash": "53e42f7dc394796bc9d88b147acb2d07"
+  },
+  "v3/src/model.rs": {
+    "mtime": 1793275712.979093,
+    "seen": 1793290675.6945574,
+    "ast_hash": "5c92b84272c6646a953836f1caa49278",
+    "semantic_hash": "5c92b84272c6646a953836f1caa49278"
+  },
+  "v3/src/normalizer.rs": {
+    "mtime": 1793252940.2627363,
+    "seen": 1793290675.6945584,
+    "ast_hash": "6f92b2627bd9a1889abb7f763d2ad096",
+    "semantic_hash": "6f92b2627bd9a1889abb7f763d2ad096"
+  },
+  "v3/src/orchestrator.rs": {
+    "mtime": 1793275712.9860933,
+    "seen": 1793290675.6945596,
+    "ast_hash": "a6518d02e8b7b02e8cc90bc0cd99c854",
+    "semantic_hash": "a6518d02e8b7b02e8cc90bc0cd99c854"
+  },
+  "v3/src/policy_fixture.rs": {
+    "mtime": 1793275712.9930933,
+    "seen": 1793290675.6945605,
+    "ast_hash": "b7ec45644b947e3c3fb9a55c51f5c74f",
+    "semantic_hash": "b7ec45644b947e3c3fb9a55c51f5c74f"
+  },
+  "v3/src/routeros.rs": {
+    "mtime": 1793275529.7868721,
+    "seen": 1793290675.6945617,
+    "ast_hash": "e81358f217e26906f48685efa8777c25",
+    "semantic_hash": "e81358f217e26906f48685efa8777c25"
+  },
+  "v3/src/sources_web.rs": {
+    "mtime": 1793260518.7254448,
+    "seen": 1793290675.6945632,
+    "ast_hash": "8acd4bebe1af8c1d56e6c817840beeab",
+    "semantic_hash": "8acd4bebe1af8c1d56e6c817840beeab"
+  },
+  "v3/src/speed_preview.rs": {
+    "mtime": 1793260439.3394268,
+    "seen": 1793290675.6945643,
+    "ast_hash": "cc6e8b395d26e9c401387c6c7748ee8e",
+    "semantic_hash": "cc6e8b395d26e9c401387c6c7748ee8e"
+  },
+  "v3/src/speed_web.rs": {
+    "mtime": 1793275948.803946,
+    "seen": 1793290675.6945653,
+    "ast_hash": "4865e0df20b9203a162bf2aef8a4c6ed",
+    "semantic_hash": "4865e0df20b9203a162bf2aef8a4c6ed"
+  },
+  "v3/src/speeds.rs": {
+    "mtime": 1793271101.2936037,
+    "seen": 1793290675.6945665,
+    "ast_hash": "ba5dc5d35629996efa8cf2253b8539a3",
+    "semantic_hash": "ba5dc5d35629996efa8cf2253b8539a3"
+  },
+  "v3/src/store.rs": {
+    "mtime": 1793271932.960378,
+    "seen": 1793290675.6945674,
+    "ast_hash": "57bd6124e76f8b7b9838e2d0836ed5a1",
+    "semantic_hash": "57bd6124e76f8b7b9838e2d0836ed5a1"
+  },
+  "v3/src/validation.rs": {
+    "mtime": 1793275633.7211328,
+    "seen": 1793290675.6945686,
+    "ast_hash": "e1c90d21bfda1d8b612f870397cbe3ad",
+    "semantic_hash": "e1c90d21bfda1d8b612f870397cbe3ad"
+  },
+  "v3/src/validation_web.rs": {
+    "mtime": 1793271932.9653778,
+    "seen": 1793290675.6945698,
+    "ast_hash": "777c1bb2684ebb26e4ae22a4133073e7",
+    "semantic_hash": "777c1bb2684ebb26e4ae22a4133073e7"
+  },
+  "v3/src/wan_web.rs": {
+    "mtime": 1793255553.6290696,
+    "seen": 1793290675.6945708,
+    "ast_hash": "013da4e7f83c488de79f1a442199e935",
+    "semantic_hash": "013da4e7f83c488de79f1a442199e935"
+  },
+  "v3/src/web.rs": {
+    "mtime": 1793289020.5237424,
+    "seen": 1793290675.6945717,
+    "ast_hash": "f5b684d29821881e9bf5dfb8fd2be95f",
+    "semantic_hash": "f5b684d29821881e9bf5dfb8fd2be95f"
+  },
+  "v3/tests/assignments.rs": {
+    "mtime": 1793289281.206872,
+    "seen": 1793290675.6945727,
+    "ast_hash": "c69ce37c892e9ebabb0a9f6ad88255d1",
+    "semantic_hash": "c69ce37c892e9ebabb0a9f6ad88255d1"
+  },
+  "v3/tests/common/core.rs": {
+    "mtime": 1793255553.5200686,
+    "seen": 1793290675.6945739,
+    "ast_hash": "ec15594a8fb4be0593abe1e4513c2fa0",
+    "semantic_hash": "ec15594a8fb4be0593abe1e4513c2fa0"
+  },
+  "v3/tests/common/mod.rs": {
+    "mtime": 1793260518.854445,
+    "seen": 1793290675.694575,
+    "ast_hash": "8fcc7e0c0f31e5bc8e5864a66d8db046",
+    "semantic_hash": "8fcc7e0c0f31e5bc8e5864a66d8db046"
+  },
+  "v3/tests/connection_paths.rs": {
+    "mtime": 1793272384.6966085,
+    "seen": 1793290675.694576,
+    "ast_hash": "e87998b2a0096b287e00c561960b6f4e",
+    "semantic_hash": "e87998b2a0096b287e00c561960b6f4e"
+  },
+  "v3/tests/core_diagnostics.rs": {
+    "mtime": 1793257767.0119874,
+    "seen": 1793290675.6945775,
+    "ast_hash": "86dcc465cbb7dbdc9e46bb720d8a663b",
+    "semantic_hash": "86dcc465cbb7dbdc9e46bb720d8a663b"
+  },
+  "v3/tests/core_plan.rs": {
+    "mtime": 1793255879.4256294,
+    "seen": 1793290675.6945784,
+    "ast_hash": "b548a73e05e9ca8dd9387bc06dc73e87",
+    "semantic_hash": "b548a73e05e9ca8dd9387bc06dc73e87"
+  },
+  "v3/tests/core_review_ui.rs": {
+    "mtime": 1793257767.0239875,
+    "seen": 1793290675.6945794,
+    "ast_hash": "c7be6256ea81bd60df5586c419badc31",
+    "semantic_hash": "c7be6256ea81bd60df5586c419badc31"
+  },
+  "v3/tests/core_storage.rs": {
+    "mtime": 1793255879.4286294,
+    "seen": 1793290675.6945806,
+    "ast_hash": "bdff81ee1961b1eb11f29a12140c2321",
+    "semantic_hash": "bdff81ee1961b1eb11f29a12140c2321"
+  },
+  "v3/tests/core_ui.rs": {
+    "mtime": 1793289020.5627427,
+    "seen": 1793290675.6945817,
+    "ast_hash": "adac8aa9e66fa653e21395c8177cb618",
+    "semantic_hash": "adac8aa9e66fa653e21395c8177cb618"
+  },
+  "v3/tests/credentials.rs": {
+    "mtime": 1793256631.2225363,
+    "seen": 1793290675.6945827,
+    "ast_hash": "9f2dc098621931230f8d85d29bdb9ee4",
+    "semantic_hash": "9f2dc098621931230f8d85d29bdb9ee4"
+  },
+  "v3/tests/dhcp_server_speeds.rs": {
+    "mtime": 1793271077.6825168,
+    "seen": 1793290675.694584,
+    "ast_hash": "c5fe3a931b6ce38f83e39b4e89602241",
+    "semantic_hash": "c5fe3a931b6ce38f83e39b4e89602241"
+  },
+  "v3/tests/dhcp_speed_ui.rs": {
+    "mtime": 1793260612.6716318,
+    "seen": 1793290675.694586,
+    "ast_hash": "b1c103b0d9f9317309b99496e887c64b",
+    "semantic_hash": "b1c103b0d9f9317309b99496e887c64b"
+  },
+  "v3/tests/libreqos.rs": {
+    "mtime": 1793245273.1795852,
+    "seen": 1793290675.6945872,
+    "ast_hash": "35b8a1788cf1cea0a5eb834f8b9215e3",
+    "semantic_hash": "35b8a1788cf1cea0a5eb834f8b9215e3"
+  },
+  "v3/tests/minimum_allocation.rs": {
+    "mtime": 1793289077.597166,
+    "seen": 1793290675.6945882,
+    "ast_hash": "b4534f002d90c0e24bf0c0133f956263",
+    "semantic_hash": "b4534f002d90c0e24bf0c0133f956263"
+  },
+  "v3/tests/normalization.rs": {
+    "mtime": 1793289281.2528722,
+    "seen": 1793290675.6945891,
+    "ast_hash": "70f403dbb629a790df57a1aa1056796c",
+    "semantic_hash": "70f403dbb629a790df57a1aa1056796c"
+  },
+  "v3/tests/orchestration.rs": {
+    "mtime": 1793255334.3653498,
+    "seen": 1793290675.69459,
+    "ast_hash": "917fbf77e6069e68490d0b3ea2779998",
+    "semantic_hash": "917fbf77e6069e68490d0b3ea2779998"
+  },
+  "v3/tests/policy_fixture.rs": {
+    "mtime": 1793275948.8049462,
+    "seen": 1793290675.6945915,
+    "ast_hash": "ee939575f034f14ec2d054feb20123d0",
+    "semantic_hash": "ee939575f034f14ec2d054feb20123d0"
+  },
+  "v3/tests/routeros.rs": {
+    "mtime": 1793275864.7389297,
+    "seen": 1793290675.6945925,
+    "ast_hash": "1ee3a0af0d4967c746c3d80483f341ab",
+    "semantic_hash": "1ee3a0af0d4967c746c3d80483f341ab"
+  },
+  "v3/tests/scoped_routing.rs": {
+    "mtime": 1793289020.5977428,
+    "seen": 1793290675.6945934,
+    "ast_hash": "507dbadd66fabe71afae6636aaef5d07",
+    "semantic_hash": "507dbadd66fabe71afae6636aaef5d07"
+  },
+  "v3/tests/sources.rs": {
+    "mtime": 1793247627.8411396,
+    "seen": 1793290675.6945946,
+    "ast_hash": "8b0405fb622ad799d58d57030fb4167b",
+    "semantic_hash": "8b0405fb622ad799d58d57030fb4167b"
+  },
+  "v3/tests/speeds.rs": {
+    "mtime": 1793260518.9084451,
+    "seen": 1793290675.6945956,
+    "ast_hash": "b02bef958a404e6e02e7606b56344b71",
+    "semantic_hash": "b02bef958a404e6e02e7606b56344b71"
+  },
+  "v3/tests/storage.rs": {
+    "mtime": 1793254203.0566092,
+    "seen": 1793290675.6945965,
+    "ast_hash": "22a9c24fb9447d142b1f3e025529cec7",
+    "semantic_hash": "22a9c24fb9447d142b1f3e025529cec7"
+  },
+  "v3/tests/topology.rs": {
+    "mtime": 1793255243.0506346,
+    "seen": 1793290675.6945977,
+    "ast_hash": "c279e335a25095884429cc14d1f32388",
+    "semantic_hash": "c279e335a25095884429cc14d1f32388"
+  },
+  "v3/tests/validation_ui.rs": {
+    "mtime": 1793272597.228743,
+    "seen": 1793290675.694599,
+    "ast_hash": "5c4587be15c29636bcd4cd6290151bae",
+    "semantic_hash": "5c4587be15c29636bcd4cd6290151bae"
+  },
+  "v3/tests/wan_ui.rs": {
+    "mtime": 1793289281.2878726,
+    "seen": 1793290675.6945999,
+    "ast_hash": "20b157afc9889878cc1ee9de5278bd09",
+    "semantic_hash": "20b157afc9889878cc1ee9de5278bd09"
+  },
+  "v3/tests/web.rs": {
+    "mtime": 1793260572.1785312,
+    "seen": 1793290675.6946013,
+    "ast_hash": "eb78d058cfa7a0203882f1c4d505da09",
+    "semantic_hash": "eb78d058cfa7a0203882f1c4d505da09"
+  },
+  "v3/vendor/mikrotik-tokio/Cargo.toml": {
+    "mtime": 1153704088.0,
+    "seen": 1793290675.6946023,
+    "ast_hash": "412a555e79557de5e6580238ca8a6227",
+    "semantic_hash": "412a555e79557de5e6580238ca8a6227"
+  },
+  "AGENTS.md": {
+    "mtime": 1793290331.8769987,
+    "seen": 1793290675.6946032,
+    "ast_hash": "a02b9f627199a8821a48a1e395793c6b",
+    "semantic_hash": "a02b9f627199a8821a48a1e395793c6b"
+  },
+  "CLAUDE.md": {
+    "mtime": 1793290309.4987435,
+    "seen": 1793290675.6946044,
+    "ast_hash": "e3972143bb49ef375101e09315878d1a",
+    "semantic_hash": "e3972143bb49ef375101e09315878d1a"
+  },
+  "README.md": {
+    "mtime": 1793243308.3742158,
+    "seen": 1793290675.6946054,
+    "ast_hash": "cf2176c2e17ecf0612ba0de2d362f16b",
+    "semantic_hash": "cf2176c2e17ecf0612ba0de2d362f16b"
+  },
+  "brain/10-sessions/2026-10-29-actual-core-validation.md": {
+    "mtime": 1793258082.326774,
+    "seen": 1793290675.6946063,
+    "ast_hash": "0393f5376291aaa48780f3cfbacd72ba",
+    "semantic_hash": "0393f5376291aaa48780f3cfbacd72ba"
+  },
+  "brain/10-sessions/2026-10-29-actual-setup-review.md": {
+    "mtime": 1793274967.164999,
+    "seen": 1793290675.6946073,
+    "ast_hash": "7d8d00c92c816a271622e650850bc287",
+    "semantic_hash": "7d8d00c92c816a271622e650850bc287"
+  },
+  "brain/10-sessions/2026-10-29-connection-mark-validation.md": {
+    "mtime": 1793272850.2595875,
+    "seen": 1793290675.6946084,
+    "ast_hash": "aea4648aaeb12772ba0794724fd41b84",
+    "semantic_hash": "aea4648aaeb12772ba0794724fd41b84"
+  },
+  "brain/10-sessions/2026-10-29-core-list-planner.md": {
+    "mtime": 1793256124.3730285,
+    "seen": 1793290675.6946094,
+    "ast_hash": "21f5e2a1783d9feec648437936a55157",
+    "semantic_hash": "21f5e2a1783d9feec648437936a55157"
+  },
+  "brain/10-sessions/2026-10-29-dhcp-server-speeds.md": {
+    "mtime": 1793271272.8113515,
+    "seen": 1793290675.6946104,
+    "ast_hash": "61a0d87e09c3c17f9145073332f48c38",
+    "semantic_hash": "61a0d87e09c3c17f9145073332f48c38"
+  },
+  "brain/10-sessions/2026-10-29-routeros-adapters.md": {
+    "mtime": 1793245468.3988676,
+    "seen": 1793290675.6946115,
+    "ast_hash": "7eacf7b5890bf4fa29bb447bb31dbf9f",
+    "semantic_hash": "7eacf7b5890bf4fa29bb447bb31dbf9f"
+  },
+  "brain/10-sessions/2026-10-29-rust-foundation.md": {
+    "mtime": 1793243308.3402154,
+    "seen": 1793290675.6946127,
+    "ast_hash": "c44c9a3332cb7f24053f811f95670ce2",
+    "semantic_hash": "c44c9a3332cb7f24053f811f95670ce2"
+  },
+  "brain/10-sessions/2026-10-29-scoped-routing-minimums.md": {
+    "mtime": 1793289569.1036513,
+    "seen": 1793290675.6946137,
+    "ast_hash": "22630090172ec5b4a665bb55b418c695",
+    "semantic_hash": "22630090172ec5b4a665bb55b418c695"
+  },
+  "brain/10-sessions/2026-10-29-speed-rules.md": {
+    "mtime": 1793246749.688484,
+    "seen": 1793290675.6946151,
+    "ast_hash": "976176b47ba63336a52571e0dd88209e",
+    "semantic_hash": "976176b47ba63336a52571e0dd88209e"
+  },
+  "brain/10-sessions/2026-10-29-subscriber-normalization.md": {
+    "mtime": 1793253083.8633127,
+    "seen": 1793290675.694616,
+    "ast_hash": "1feece473b470e3387ac6b94964d8602",
+    "semantic_hash": "1feece473b470e3387ac6b94964d8602"
+  },
+  "brain/10-sessions/2026-10-29-wan-assignments.md": {
+    "mtime": 1793254202.8046072,
+    "seen": 1793290675.694617,
+    "ast_hash": "5ef3d0dfe934626576ea9b9c7fc1e4e7",
+    "semantic_hash": "5ef3d0dfe934626576ea9b9c7fc1e4e7"
+  },
+  "brain/10-sessions/2026-10-30-shared-skills.md": {
+    "mtime": 1793290320.7708719,
+    "seen": 1793290675.6946182,
+    "ast_hash": "95640a8ada03565ce4cc39092585f645",
+    "semantic_hash": "95640a8ada03565ce4cc39092585f645"
+  },
+  "brain/HANDOFF.md": {
+    "mtime": 1793290331.9189992,
+    "seen": 1793290675.6946192,
+    "ast_hash": "2c9eba6f2e8000aa23f0902e957859e0",
+    "semantic_hash": "2c9eba6f2e8000aa23f0902e957859e0"
+  },
+  "brain/Home.md": {
+    "mtime": 1793290309.4987435,
+    "seen": 1793290675.6946204,
+    "ast_hash": "12154050de0ab8e0c3a61d4a19a8b4c9",
+    "semantic_hash": "12154050de0ab8e0c3a61d4a19a8b4c9"
+  },
+  "docs/superpowers/plans/2026-10-29-actual-core-validation.md": {
+    "mtime": 1793258082.326774,
+    "seen": 1793290675.6946213,
+    "ast_hash": "0066a494936a1ef69b27623208834993",
+    "semantic_hash": "0066a494936a1ef69b27623208834993"
+  },
+  "docs/superpowers/plans/2026-10-29-connection-mark-validation.md": {
+    "mtime": 1793272858.7458386,
+    "seen": 1793290675.6946225,
+    "ast_hash": "f2a5375b895ffafb7f6781467d57fab3",
+    "semantic_hash": "f2a5375b895ffafb7f6781467d57fab3"
+  },
+  "docs/superpowers/plans/2026-10-29-core-list-planner.md": {
+    "mtime": 1793256124.3740287,
+    "seen": 1793290675.6946237,
+    "ast_hash": "606b94f8ea29442719f05820b9e52145",
+    "semantic_hash": "606b94f8ea29442719f05820b9e52145"
+  },
+  "docs/superpowers/plans/2026-10-29-dhcp-server-speeds.md": {
+    "mtime": 1793271272.8113515,
+    "seen": 1793290675.6946247,
+    "ast_hash": "a0f461a7a2bf8240c3f1a189796e45b7",
+    "semantic_hash": "a0f461a7a2bf8240c3f1a189796e45b7"
+  },
+  "docs/superpowers/plans/2026-10-29-lqosync-v3-foundation.md": {
+    "mtime": 1793243500.0132124,
+    "seen": 1793290675.694626,
+    "ast_hash": "e30edbb97934ab274166532b5d9c22bc",
+    "semantic_hash": "e30edbb97934ab274166532b5d9c22bc"
+  },
+  "docs/superpowers/plans/2026-10-29-routeros-version-adapters.md": {
+    "mtime": 1793245503.74528,
+    "seen": 1793290675.6946273,
+    "ast_hash": "638e4906214772476d1d2eac514ea392",
+    "semantic_hash": "638e4906214772476d1d2eac514ea392"
+  },
+  "docs/superpowers/plans/2026-10-29-scoped-routing-minimums.md": {
+    "mtime": 1793289569.1036513,
+    "seen": 1793290675.6946287,
+    "ast_hash": "5b4f1ed16a0e8cbeda30cd2919ee393d",
+    "semantic_hash": "5b4f1ed16a0e8cbeda30cd2919ee393d"
+  },
+  "docs/superpowers/plans/2026-10-29-speed-rules.md": {
+    "mtime": 1793246749.688484,
+    "seen": 1793290675.6946297,
+    "ast_hash": "1caeb70c5d6b3e2d45b7061b913284b7",
+    "semantic_hash": "1caeb70c5d6b3e2d45b7061b913284b7"
+  },
+  "docs/superpowers/plans/2026-10-29-subscriber-normalization.md": {
+    "mtime": 1793253083.8643126,
+    "seen": 1793290675.6946309,
+    "ast_hash": "30ebcfff63583983561298842b8684c9",
+    "semantic_hash": "30ebcfff63583983561298842b8684c9"
+  },
+  "docs/superpowers/plans/2026-10-29-wan-assignments.md": {
+    "mtime": 1793254238.8018777,
+    "seen": 1793290675.694632,
+    "ast_hash": "3b0e3d194d0895beb12d75246522c43d",
+    "semantic_hash": "3b0e3d194d0895beb12d75246522c43d"
+  },
+  "docs/superpowers/specs/2026-10-29-lqosync-v3-design.md": {
+    "mtime": 1793243029.7714574,
+    "seen": 1793290675.6946337,
+    "ast_hash": "4594944c5e16cf970ba9e0b40d6f83e0",
+    "semantic_hash": "4594944c5e16cf970ba9e0b40d6f83e0"
+  },
+  "v3/CORE_PLANNER.md": {
+    "mtime": 1793276080.3275352,
+    "seen": 1793290675.6946347,
+    "ast_hash": "23514b296b72c498b89b0baf40197f4c",
+    "semantic_hash": "23514b296b72c498b89b0baf40197f4c"
+  },
+  "v3/CORE_REVIEW.md": {
+    "mtime": 1793276080.326535,
+    "seen": 1793290675.694636,
+    "ast_hash": "57ef1e948129bb9a626c451717a76855",
+    "semantic_hash": "57ef1e948129bb9a626c451717a76855"
+  },
+  "v3/README.md": {
+    "mtime": 1793289281.0458705,
+    "seen": 1793290675.694637,
+    "ast_hash": "52b6cd2af797c3aec3de2997ad262de9",
+    "semantic_hash": "52b6cd2af797c3aec3de2997ad262de9"
+  },
+  "v3/SCOPED_ROUTING.md": {
+    "mtime": 1793289367.8326712,
+    "seen": 1793290675.694638,
+    "ast_hash": "ea5432afc351146137b427d697adefa3",
+    "semantic_hash": "ea5432afc351146137b427d697adefa3"
+  },
+  "v3/SPEED_RULES.md": {
+    "mtime": 1793276080.326535,
+    "seen": 1793290675.6946392,
+    "ast_hash": "1326cfd33df4120bd59a74aa9a725382",
+    "semantic_hash": "1326cfd33df4120bd59a74aa9a725382"
+  },
+  "v3/SUBSCRIBERS.md": {
+    "mtime": 1793255969.0883346,
+    "seen": 1793290675.6946404,
+    "ast_hash": "d53fba449933e19dd1a65b9d897b1bd4",
+    "semantic_hash": "d53fba449933e19dd1a65b9d897b1bd4"
+  },
+  "v3/VALIDATION.md": {
+    "mtime": 1793276080.3275352,
+    "seen": 1793290675.6946414,
+    "ast_hash": "97b8f60a51b51b88bf68a4cc288b7add",
+    "semantic_hash": "97b8f60a51b51b88bf68a4cc288b7add"
+  },
+  "v3/WAN_ASSIGNMENTS.md": {
+    "mtime": 1793289281.0458705,
+    "seen": 1793290675.6946425,
+    "ast_hash": "a7bfde42c61142f8c862c80e88fce531",
+    "semantic_hash": "a7bfde42c61142f8c862c80e88fce531"
+  },
+  "v3/vendor/mikrotik-tokio/PATCHES.md": {
+    "mtime": 1793245440.7495449,
+    "seen": 1793290675.6946437,
+    "ast_hash": "f2823ab0742912de6b5bd7ae4bea3146",
+    "semantic_hash": "f2823ab0742912de6b5bd7ae4bea3146"
+  },
+  "v3/vendor/mikrotik-tokio/README.md": {
+    "mtime": 1153704088.0,
+    "seen": 1793290675.6946447,
+    "ast_hash": "cd29fe004762668649650c547e66f2e4",
+    "semantic_hash": "cd29fe004762668649650c547e66f2e4"
+  }
+}
