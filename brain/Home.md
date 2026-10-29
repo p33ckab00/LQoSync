@@ -8,6 +8,7 @@ status: active
 # LQoSync 3 knowledge
 
 - [[10-sessions/2026-10-29-rust-foundation]]
+- [[10-sessions/2026-10-29-routeros-adapters]]
 - [[HANDOFF]]
 
 The v3 application lives in `v3/`. Existing root-level application files belong to the prior implementation.

@@ -31,7 +31,7 @@ impl Default for Settings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Router {
     pub id: String,
@@ -42,6 +42,15 @@ pub struct Router {
     pub password_env: String,
     pub role: String,
     pub tls: bool,
+    #[serde(default)]
+    pub tls_server_name: String,
+    #[serde(default)]
+    pub tls_ca_file: String,
+    #[serde(default = "default_router_timeout")]
+    pub timeout_seconds: u64,
+}
+fn default_router_timeout() -> u64 {
+    10
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +130,10 @@ pub fn validate(settings: &Settings) -> Result<()> {
         ensure!(
             valid_id(&r.password_env) && !r.username.trim().is_empty(),
             "Username and password environment reference are required"
+        );
+        ensure!(
+            (1..=30).contains(&r.timeout_seconds),
+            "Router timeout must be 1–30 seconds"
         );
     }
     let mut ids = HashSet::new();

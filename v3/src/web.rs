@@ -8,7 +8,7 @@ use axum::{
 };
 use maud::{DOCTYPE, Markup, html};
 use serde::Deserialize;
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
 pub struct App {
@@ -17,6 +17,8 @@ pub struct App {
     pub token: String,
     pub status: String,
     pub generation: Option<String>,
+    pub inventories: BTreeMap<String, crate::routeros::Inventory>,
+    pub inventory_errors: BTreeMap<String, String>,
 }
 pub type Shared = Arc<Mutex<App>>;
 impl App {
@@ -36,6 +38,8 @@ impl App {
             status: "Waiting for a subscriber snapshot. Production adapters are not enabled."
                 .into(),
             generation,
+            inventories: BTreeMap::new(),
+            inventory_errors: BTreeMap::new(),
         })
     }
     pub fn reconcile(&mut self) {
@@ -71,6 +75,7 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/settings", get(settings))
         .route("/routers/save", post(save_router))
         .route("/routers/{id}/delete", post(delete_router))
+        .route("/routers/{id}/inspect", post(inspect_router))
         .route("/nodes/save", post(save_node))
         .route("/nodes/{id}/delete", post(delete_node))
         .route("/settings/save", post(save_options))
@@ -160,8 +165,18 @@ async fn routers(State(s): State<Shared>) -> Html<String> {
         &a,
         "Routers",
         html! {section.card {div.sectionhead{h2{"Router inventory"}span.badge{(a.settings.routers.len()) " configured"}}
-        @if a.settings.routers.is_empty(){p.empty{"No routers yet. Add a router below. No connection is made in this delivery."}}
-        @for r in &a.settings.routers {details {summary {strong{(&r.name)} " · " (&r.host) " · " (&r.role) span.badge{"NOT CONNECTED"}}
+        @if a.settings.routers.is_empty(){p.empty{"No routers yet. Add a router below. Inventory reads occur only when requested."}}
+        @for r in &a.settings.routers {details {summary {strong{(&r.name)} " · " (&r.host) " · " (&r.role) span.badge{
+            @if a.inventory_errors.contains_key(&r.id) {"READ FAILED"}
+            @else if let Some(i)=a.inventories.get(&r.id){@if i.complete(){"LAST READ COMPLETE"}@else{"LAST READ PARTIAL"}}
+            @else {"NOT CHECKED"}
+        }}
+            @if let Some(e)=a.inventory_errors.get(&r.id){p.warning{(e)}}
+            @if let Some(i)=a.inventories.get(&r.id){p.help{"Last inventory Unix timestamp: " (i.collected_at) ". This inventory does not replace the subscriber snapshot."}
+                @for (path,rows) in &i.tables {details {summary{(path) " · " (rows.len()) " rows"}pre{(serde_json::to_string_pretty(rows).unwrap_or_default())}}}
+                @for (path,e) in &i.errors {p.warning{(path) ": " (e)}}
+            }
+            form.inline method="post" action=(format!("/routers/{}/inspect",r.id)){(csrf(&a))button{"Read inventory"}}
             (router_form(&a,Some(r))) form.inline method="post" action=(format!("/routers/{}/delete",r.id)){(csrf(&a)) button.danger{"Remove router"}}}}
         }section.card {h2{"Add router"}(router_form(&a,None))}},
     )
@@ -174,7 +189,10 @@ fn router_form(a: &App, r: Option<&Router>) -> Markup {
         (field("API username","username",value(|r|&r.username),"text")) (field("Password environment variable","password_env",value(|r|&r.password_env),"text"))
         (select("Router role","role",&[("core","Core / edge"),("distro","Subscriber router"),("both","Core and subscribers")],r.map(|r|r.role.as_str()).unwrap_or("distro")))
         (select("API transport","tls",&[("true","TLS"),("false","Plain TCP")],if r.is_none_or(|r|r.tls){"true"}else{"false"}))
-    }p.help{"No router password is stored in TOML. Connection and discovery adapters are pending."}button{"Save router"}}}
+        label{"TLS certificate name · optional" input name="tls_server_name" value=(value(|r|&r.tls_server_name));}
+        label{"Custom CA PEM path · optional" input name="tls_ca_file" value=(value(|r|&r.tls_ca_file));}
+        (field("Operation timeout · seconds","timeout_seconds",&r.map(|r|r.timeout_seconds).unwrap_or(10).to_string(),"number"))
+    }p.help{"TLS validates certificates. Configure your CA and certificate name when required. Saving does not connect; Read inventory uses only allowlisted print commands."}button{"Save router"}}}
 }
 #[derive(Deserialize)]
 struct RouterForm {
@@ -188,6 +206,15 @@ struct RouterForm {
     password_env: String,
     role: String,
     tls: bool,
+    #[serde(default)]
+    tls_server_name: String,
+    #[serde(default)]
+    tls_ca_file: String,
+    #[serde(default = "router_timeout")]
+    timeout_seconds: u64,
+}
+fn router_timeout() -> u64 {
+    10
 }
 async fn save_router(State(s): State<Shared>, Form(f): Form<RouterForm>) -> Response {
     let mut a = s.lock().await;
@@ -207,6 +234,9 @@ async fn save_router(State(s): State<Shared>, Form(f): Form<RouterForm>) -> Resp
         password_env: f.password_env,
         role: f.role,
         tls: f.tls,
+        tls_server_name: f.tls_server_name,
+        tls_ca_file: f.tls_ca_file,
+        timeout_seconds: f.timeout_seconds,
     };
     if f.original_id.is_empty() {
         next.routers.push(r);
@@ -215,14 +245,68 @@ async fn save_router(State(s): State<Shared>, Form(f): Form<RouterForm>) -> Resp
     } else {
         return error(&a, "Router no longer exists");
     }
+    let router_id = f.original_id.clone();
     match commit(&mut a, next) {
-        Ok(()) => Redirect::to("/routers").into_response(),
+        Ok(()) => {
+            a.inventories.remove(&router_id);
+            a.inventory_errors.remove(&router_id);
+            Redirect::to("/routers").into_response()
+        }
         Err(e) => error(&a, e),
     }
 }
 #[derive(Deserialize)]
 struct Token {
     token: String,
+}
+async fn inspect_router(
+    State(s): State<Shared>,
+    Path(id): Path<String>,
+    Form(f): Form<Token>,
+) -> Response {
+    let router = {
+        let a = s.lock().await;
+        if let Err(r) = check(&a, &f.token) {
+            return r.into_response();
+        }
+        let Some(router) = a.settings.routers.iter().find(|r| r.id == id) else {
+            return error(&a, "Router no longer exists");
+        };
+        router.clone()
+    };
+    let result = crate::routeros::inspect(&router).await;
+    let mut a = s.lock().await;
+    if !a.settings.routers.contains(&router) {
+        return error(
+            &a,
+            "Router settings changed during this read; result discarded",
+        );
+    }
+    match result {
+        Ok(inventory) => {
+            let saved = toml::to_string_pretty(&inventory)
+                .map_err(anyhow::Error::from)
+                .and_then(|text| {
+                    store::atomic_write(
+                        &a.root
+                            .join("state/router-inventory")
+                            .join(format!("{id}.toml")),
+                        &text,
+                    )
+                });
+            if let Err(e) = saved {
+                a.inventory_errors
+                    .insert(id, format!("Inventory could not be saved: {e}"));
+            } else {
+                a.inventory_errors.remove(&id);
+                a.inventories.insert(id, inventory);
+            }
+        }
+        Err(e) => {
+            a.inventory_errors.insert(id, e.to_string());
+        }
+    }
+    Redirect::to("/routers").into_response()
 }
 async fn delete_router(
     State(s): State<Shared>,
@@ -236,7 +320,11 @@ async fn delete_router(
     let mut next = a.settings.clone();
     next.routers.retain(|r| r.id != id);
     match commit(&mut a, next) {
-        Ok(()) => Redirect::to("/routers").into_response(),
+        Ok(()) => {
+            a.inventories.remove(&id);
+            a.inventory_errors.remove(&id);
+            Redirect::to("/routers").into_response()
+        }
         Err(e) => error(&a, e),
     }
 }
@@ -419,11 +507,17 @@ async fn subscribers(State(s): State<Shared>) -> Html<String> {
     )
 }
 async fn settings(State(s): State<Shared>) -> Html<String> {
+    let detection = crate::libreqos::detect().await;
     let a = s.lock().await;
     shell(
         &a,
         "Settings",
-        html! {section.card{h2{"Automation settings"}form method="post" action="/settings/save"{(csrf(&a))div.formgrid{(field("Snapshot check interval · seconds","interval_seconds",&a.settings.interval_seconds.to_string(),"number"))
+        html! {section.card{h2{"LibreQoS compatibility"}
+            p{"Detected main package: " strong{(detection.version.as_deref().unwrap_or("Unavailable"))}}
+            @if let Some(adapter)=&detection.adapter {p{strong{(adapter.label())}}p.mono{(adapter.request_description())}}
+            p.help{(&detection.detail)}p.help{"Detection is read-only. The preflight package version does not determine the running LibreQoS version. Older releases outside 2.0–2.2 and future major releases require compatibility validation."}
+        }
+        section.card{h2{"Automation settings"}form method="post" action="/settings/save"{(csrf(&a))div.formgrid{(field("Snapshot check interval · seconds","interval_seconds",&a.settings.interval_seconds.to_string(),"number"))
             (select("Local automatic publication","auto_stage",&[("true","Enabled"),("false","Paused")],if a.settings.auto_stage{"true"}else{"false"}))}button{"Save settings"}}
             p.help{"Valid edits trigger local publication automatically. This delivery does not activate production auto-apply."}}
             section.card{h2{"Storage"}p.mono{(a.root.join("settings.toml").display())}p{"Settings and runtime state remain inside this application. No database is required."}}

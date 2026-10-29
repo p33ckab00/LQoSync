@@ -151,3 +151,62 @@ async fn manual_child_over_computed_parent_does_not_change_settings() {
         std::fs::read(dir.path().join("settings.toml")).unwrap()
     );
 }
+
+#[tokio::test]
+async fn router_inventory_requires_token_and_keeps_snapshot_after_connection_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(Mutex::new(App::open(dir.path().into()).unwrap()));
+    let token = state.lock().await.token.clone();
+    let app = routes(state.clone());
+    std::fs::create_dir_all(dir.path().join("state")).unwrap();
+    let snapshot = b"subscribers = []\n";
+    std::fs::write(dir.path().join("state/subscribers.toml"), snapshot).unwrap();
+    // Omit the new TLS fields to verify compatibility with earlier forms/settings.
+    let form = format!(
+        "token={token}&original_id=&id=test&name=Test&host=127.0.0.1&port=1&username=reader&password_env=LQOSYNC_TEST_UNSET_INVENTORY_PASSWORD_93&role=core&tls=false"
+    );
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/routers/save")
+                .header("host", "localhost:9303")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(Body::from(form))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    let stored = lqosync_v3::store::load_settings(dir.path()).unwrap();
+    assert_eq!(stored.routers[0].timeout_seconds, 10);
+    assert!(stored.routers[0].tls_ca_file.is_empty());
+    for (value, status) in [
+        ("invalid", StatusCode::FORBIDDEN),
+        (token.as_str(), StatusCode::SEE_OTHER),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/routers/test/inspect")
+                    .header("host", "localhost:9303")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::from(format!("token={value}")))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), status);
+    }
+    assert!(
+        state.lock().await.inventory_errors["test"].contains("environment variable is missing")
+    );
+    assert_eq!(
+        std::fs::read(dir.path().join("state/subscribers.toml")).unwrap(),
+        snapshot
+    );
+    assert!(!dir.path().join("state/router-inventory/test.toml").exists());
+}
