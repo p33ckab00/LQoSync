@@ -40,6 +40,7 @@ impl Findings {
 pub(crate) struct Analysis {
     pub findings: Vec<Finding>,
     pub connection_paths: Vec<crate::core_connections::ConnectionPath>,
+    pub forward_scopes: Vec<crate::core_scopes::ForwardScope>,
 }
 pub(crate) fn analyze(
     inventory: &Inventory,
@@ -47,7 +48,9 @@ pub(crate) fn analyze(
     interfaces: &HashMap<&str, &str>,
 ) -> Analysis {
     let connections = crate::core_connections::analyze(inventory, bindings, interfaces);
+    let scopes = crate::core_scopes::analyze(inventory, bindings, interfaces);
     let mut f = Findings(connections.findings);
+    f.0.extend(scopes.findings);
     let empty = Row::new();
     let rows = |path: &str| inventory.tables.get(path).map(Vec::as_slice).unwrap_or(&[]);
     let resource = rows("/system/resource/print");
@@ -195,7 +198,7 @@ pub(crate) fn analyze(
         if chain != "prerouting" {
             continue;
         }
-        if connections.classifiers.contains(&rule_index) {
+        if connections.classifiers.contains(&rule_index) || scopes.bypasses.contains(&rule_index) {
             continue;
         }
         if !rule.get("action").is_some_and(|a| a == "mark-routing") {
@@ -226,6 +229,8 @@ pub(crate) fn analyze(
                 | "passthrough" | "disabled" | "dynamic" | "invalid" | "comment" | "bytes"
                 | "packets" | "log" | "log-prefix" => {}
                 "connection-mark" if connections.forward_routes.contains(&rule_index) => {}
+                "in-interface-list" | "dst-address-list" if scopes.routes.contains(&rule_index) => {
+                }
                 "dst-address-type" if value.is_empty() || value == "!local" => {}
                 "src-address" | "dst-address" if value == "0.0.0.0/0" => {}
                 _ => f.add(
@@ -403,5 +408,6 @@ pub(crate) fn analyze(
     Analysis {
         findings: f.0,
         connection_paths: connections.paths,
+        forward_scopes: scopes.scopes,
     }
 }

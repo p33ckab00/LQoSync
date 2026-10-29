@@ -7,7 +7,7 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-29T19:55:46+08:00 (Asia/Shanghai).
+Updated: 2026-10-29T23:59:29+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
@@ -357,3 +357,35 @@ Changed Git files: Home, this handoff, and the actual-setup-review session note.
 Private settings, backups, reports, credentials, and candidate files remain ignored. Do not copy them to Git.
 Next: review the remaining core policy support and aggregate minimum rates without bypassing gates or changing router rules.
 See [[10-sessions/2026-10-29-actual-setup-review]]. Commit/push authorization continues.
+
+
+## Scoped routing and minimum allocation complete
+
+Last agent: Codex. Branch/worktree: `lqosyncv3`, `/opt/LQoSync3.0`. Base: `1a51b9e`.
+The user authorized automatic proportional minimum allocation with floors and narrow support for the seven routing findings.
+The analyzer reads interface-list definitions and members. Indexed evidence and a 512-candidate budget bound scope work.
+Known filter/mangle writers cannot mutate a checked exclusion list. RAW, scripts, and external updates remain outside this structural review.
+Publication and Validation allocate effective minima after assignment. The compiler independently enforces every ancestor budget.
+Source-managed topology edits validate an allocated temporary copy. Failures preserve caller records and prior generations.
+
+Independent review found three defects: mutable exclusion writers, a topology-edit caller gap, and quadratic lookups.
+All were corrected. Regressions failed before the fixes and passed after them.
+Additional regressions cover full exclusion unions, exact-floor rounding, and tiny positive capacity tolerance.
+Checks: 127 functional tests passed, zero failed. Nine manual benchmarks are ignored by default.
+Formatting, strict Clippy, binary build, diff checks, and eight live UI routes passed.
+Final debug results: 50k minimum allocation 288.4 ms; indexed 5,001-member scope 33.1 ms versus 2.515 s before indexing.
+The 50k/8-WAN and 50k/100-profile pipeline workloads also passed.
+
+The latest verified console now runs. Fresh UI collection returned 14 distro and 12 core tables without errors.
+The latest candidate has 26 clients, split 12/14, with approximately 320 Mbps effective minimum totals per WAN/direction.
+Router maxima, the configured floor, and the base minimum fraction remain unchanged.
+Route findings are zero. Core membership remains Conflict: all 26 candidates overlap protected manual entries; 17 proposed WANs differ from current membership evidence.
+No generation was published. End-to-end remains Unavailable without committed output. Do not claim that routing or shaping has been applied.
+The private candidate pair passed the existing v3 preflight: topology validated, at least 26 circuits, pre-install exit 0 under write confinement.
+LibreQoS `2.2.202608181454` remains held. No router configuration or LibreQoS change occurred. Only the LQoSync web process was restarted.
+
+Changed modules: core_scopes, minimums, core_analysis, core_diagnostics, core_plan, core_review_web, routeros, model, orchestrator, validation, web, speed_web, policy_fixture, and lib.
+Synthetic tests, sanitized actual fixture, guides, plan, and notes accompany the change. No dependency or settings schema change.
+Private settings, credentials, raw inventory, and candidate reports must remain ignored.
+Next: review protected manual membership and a per-host migration plan without writes or ownership bypass.
+See [[10-sessions/2026-10-29-scoped-routing-minimums]]. Commit/push authorization continues. Verify remote head against the local tip.

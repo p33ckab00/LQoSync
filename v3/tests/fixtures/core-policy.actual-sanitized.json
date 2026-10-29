@@ -1,8 +1,6 @@
 {
   "scope": "Actual-policy routing-field projection. Address containment and packet behavior are not replayed.",
   "expected_codes": {
-    "complex-prerouting": 3,
-    "conditional-matcher": 4,
     "mapping-required": 1
   },
   "expected_paths": [
@@ -15,10 +13,121 @@
       "pass"
     ]
   ],
+  "expected_scopes": [
+    [
+      2,
+      [
+        "OSPF (IP protocol 89)",
+        "UDP destination ports 3784,3785"
+      ]
+    ],
+    [
+      2,
+      [
+        "OSPF (IP protocol 89)",
+        "UDP destination ports 3784,3785"
+      ]
+    ]
+  ],
   "inventory": {
     "router_id": "fixture-core",
     "collected_at": 100,
     "tables": {
+      "/interface/list/member/print": [
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0015",
+          "list": "list-0039"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0016",
+          "list": "list-0039"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0017",
+          "list": "list-0039"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0013",
+          "list": "list-0044"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0014",
+          "list": "list-0044"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0009",
+          "list": "list-0035"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "interface-0001",
+          "list": "list-0035"
+        }
+      ],
+      "/interface/list/print": [
+        {
+          "builtin": "true",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0040"
+        },
+        {
+          "builtin": "true",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0041"
+        },
+        {
+          "builtin": "true",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0042"
+        },
+        {
+          "builtin": "true",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0043"
+        },
+        {
+          "builtin": "false",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0044"
+        },
+        {
+          "builtin": "false",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0039"
+        },
+        {
+          "builtin": "false",
+          "dynamic": "false",
+          "exclude": "",
+          "include": "",
+          "name": "list-0035"
+        }
+      ],
       "/interface/print": [
         {
           ".id": "*1",
@@ -302,7 +411,7 @@
           "chain": "input",
           "dynamic": "false",
           "invalid": "false",
-          "protocol": "redacted"
+          "protocol": "ospf"
         },
         {
           ".id": "*8",
@@ -328,20 +437,20 @@
           ".id": "*A",
           "action": "accept",
           "chain": "input",
-          "dst-port": "redacted",
+          "dst-port": "3784,3785",
           "dynamic": "false",
           "invalid": "false",
-          "protocol": "redacted",
+          "protocol": "udp",
           "src-address": "198.18.0.10"
         },
         {
           ".id": "*B",
           "action": "accept",
           "chain": "input",
-          "dst-port": "redacted",
+          "dst-port": "3784,3785",
           "dynamic": "false",
           "invalid": "false",
-          "protocol": "redacted",
+          "protocol": "udp",
           "src-address": "198.18.0.11"
         },
         {
@@ -416,16 +525,16 @@
           "chain": "prerouting",
           "dynamic": "false",
           "invalid": "false",
-          "protocol": "redacted"
+          "protocol": "ospf"
         },
         {
           ".id": "*3",
           "action": "accept",
           "chain": "prerouting",
-          "dst-port": "redacted",
+          "dst-port": "3784,3785",
           "dynamic": "false",
           "invalid": "false",
-          "protocol": "redacted"
+          "protocol": "udp"
         },
         {
           ".id": "*4",

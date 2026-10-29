@@ -69,6 +69,7 @@ pub async fn refresh(s: Shared) {
             &work_errors,
             now(),
         )?;
+        crate::minimums::allocate(&work_settings, &mut subscribers)?;
         let plan = compile(&work_settings, &subscribers)?;
         let core = if work_settings.core_lists.bindings.is_empty() {
             None

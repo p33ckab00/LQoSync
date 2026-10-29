@@ -52,7 +52,10 @@ impl Aliases {
 pub fn project(inventory: &Inventory) -> Inventory {
     let mut aliases = Aliases::default();
     let mut tables = BTreeMap::new();
-    for path in crate::core_plan::CORE_TABLES {
+    for path in crate::core_plan::CORE_TABLES
+        .iter()
+        .chain(["/interface/list/print", "/interface/list/member/print"].iter())
+    {
         let Some(rows) = inventory.tables.get(*path) else {
             continue;
         };
@@ -78,10 +81,13 @@ pub fn project(inventory: &Inventory) -> Inventory {
                     }
                     "name" if *path == "/interface/print" => aliases.name("interface", value),
                     "name" if *path == "/routing/table/print" => aliases.name("table", value),
+                    "name" if *path == "/interface/list/print" => aliases.name("list", value),
+                    "include" | "exclude" => aliases.name("list", value),
                     "name" => continue,
                     "fib" if value.is_empty() => String::new(),
                     "disabled" | "invalid" | "dynamic" | "running" | "active" | "fib" | "ecmp"
-                    | "blackhole" | "unreachable" | "prohibit" | "passthrough" | "log" => {
+                    | "blackhole" | "unreachable" | "prohibit" | "passthrough" | "log"
+                    | "builtin" => {
                         if value == "true" || value == "false" {
                             value.clone()
                         } else {
@@ -178,6 +184,13 @@ pub fn project(inventory: &Inventory) -> Inventory {
                             "redacted".into()
                         }
                     }
+                    "protocol" if ["ospf", "89", "udp", "17"].contains(&value.as_str()) => {
+                        value.clone()
+                    }
+                    "dst-port" if ["3784,3785", "3785,3784"].contains(&value.as_str()) => {
+                        value.clone()
+                    }
+                    "timeout" if value.is_empty() || value == "0s" => value.clone(),
                     "protocol"
                     | "src-port"
                     | "dst-port"
@@ -210,7 +223,10 @@ pub fn project(inventory: &Inventory) -> Inventory {
             .errors
             .keys()
             .filter(|k| {
-                k.as_str() == "collection" || crate::core_plan::CORE_TABLES.contains(&k.as_str())
+                k.as_str() == "collection"
+                    || crate::core_plan::CORE_TABLES.contains(&k.as_str())
+                    || ["/interface/list/print", "/interface/list/member/print"]
+                        .contains(&k.as_str())
             })
             .map(|k| (k.clone(), "redacted table error".into()))
             .collect(),
@@ -253,6 +269,8 @@ pub struct Fixture {
         crate::core_connections::Direction,
         crate::core_diagnostics::Outcome,
     )>,
+    #[serde(default)]
+    pub expected_scopes: Vec<(usize, Vec<String>)>,
     pub inventory: Inventory,
 }
 pub fn fixture(inventory: &Inventory) -> anyhow::Result<Fixture> {
@@ -288,6 +306,21 @@ pub fn fixture(inventory: &Inventory) -> anyhow::Result<Fixture> {
             .collect::<Vec<_>>()
     };
     let expected_paths = paths(&before);
+    let scopes = |r: &Report| {
+        r.cores
+            .iter()
+            .flat_map(|c| {
+                c.forward_scopes
+                    .iter()
+                    .map(|s| (s.ingress_interfaces.len(), s.excluded_protocols.clone()))
+            })
+            .collect::<Vec<_>>()
+    };
+    let expected_scopes = scopes(&before);
+    anyhow::ensure!(
+        expected_scopes == scopes(&after),
+        "Sanitized routing projection changed forwarding scopes; do not export this fixture"
+    );
     anyhow::ensure!(
         expected_paths == paths(&after),
         "Sanitized routing projection changed connection-path results; do not export this fixture"
@@ -297,5 +330,5 @@ pub fn fixture(inventory: &Inventory) -> anyhow::Result<Fixture> {
         expected_codes == signature(&after),
         "Sanitized routing projection changed diagnostic codes; do not export this fixture"
     );
-    Ok(Fixture{scope:"Actual-policy routing-field projection. Address containment and packet behavior are not replayed.".into(),expected_codes,expected_paths,inventory:projected})
+    Ok(Fixture{scope:"Actual-policy routing-field projection. Address containment and packet behavior are not replayed.".into(),expected_codes,expected_paths,expected_scopes,inventory:projected})
 }

@@ -205,6 +205,10 @@ pub fn review(
         Outcome::Pass,
         "Every selected subscriber has a compatible branch and explicit WAN root",
     );
+    match crate::minimums::allocate(settings,&mut subscribers) {
+        Ok(allocation)=>report.add("subscriber-minimums",Outcome::Pass,format!("Effective minimums fit every ancestor; {} subscribers adjusted across {} constrained directions",allocation.adjusted_subscribers,allocation.constrained_directions)),
+        Err(e)=>{report.add("subscriber-minimums",Outcome::Conflict,e.to_string());return report;}
+    }
     let shaping = match model::compile(settings, &subscribers) {
         Ok(p) => p,
         Err(e) => {

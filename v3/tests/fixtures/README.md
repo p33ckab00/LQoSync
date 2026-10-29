@@ -13,21 +13,20 @@ Replace the fixture pair before expiry.
 ## Actual core policy projection
 
 `core-policy.actual-sanitized.json` derives from a verified read of a RouterOS 7.25 core on 2026-10-29.
-The source collection completed 11 tables without table errors.
+The refreshed source collection completed 12 tables without table errors, including interface-list definitions.
 The fixture contains only the fields that the route analyzer needs.
 Private identifiers, comments, IP addresses, MAC addresses, and credential data are absent.
 Names use consistent aliases. Conditional values use synthetic values.
 
-The fixture preserves two observed custom-table paths and the route finding histogram:
+The fixture preserves two observed custom-table paths, two checked forwarding scopes, and the route finding histogram:
 
-- `complex-prerouting`: 3
-- `conditional-matcher`: 4
 - `mapping-required`: 1
 
 PCC and FastTrack entries exist but are disabled. Their active counts remain zero.
 The FIB switch uses the actual presence-only representation.
 Known `no-mark` and `connection-state=new` tokens preserve two supported router-reply mark links.
-No subscriber-forward connection-mark link is invented. Early bypass and conditional forwarding findings remain blocked.
+No subscriber-forward connection-mark link is invented.
+Known protocol tokens and static interface-list definitions preserve the narrow forwarding scopes and their explicit exclusions.
 This fixture tests structural route findings. It does not reproduce address containment, subscriber membership, packet behavior, or WAN assignments.
-The export rejects a projection if finding-code counts or connection-path directions/statuses differ from the source review.
+The export rejects a projection if finding counts, connection-path results, or scope membership counts/exclusions differ from the source review.
 This check does not prove full policy equivalence.

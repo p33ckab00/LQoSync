@@ -21,6 +21,7 @@ pub const CORE_TABLES: &[&str] = &[
     "/ip/firewall/filter/print",
 ];
 pub const EXTRA_TABLES: &[&str] = &[
+    "/interface/list/print",
     "/routing/table/print",
     "/routing/rule/print",
     "/ip/firewall/address-list/print",
@@ -145,7 +146,7 @@ pub fn host(address: &str) -> Result<u32> {
         "Core list addresses must be individual IPv4 /32 hosts",
     )?))
 }
-fn span(address: &str) -> Result<(u32, u32)> {
+pub(crate) fn span(address: &str) -> Result<(u32, u32)> {
     if let Some((first, last)) = address.split_once('-') {
         let first = host(first)?;
         let last = host(last)?;

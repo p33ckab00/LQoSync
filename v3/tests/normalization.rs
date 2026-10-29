@@ -106,6 +106,8 @@ fn unselected_service_failure_does_not_override_selected_service_health() {
 fn normalize_and_compile_50k_subscribers() {
     let (mut settings, mut inventories) = fixture();
     settings.nodes.retain(|n| n.kind == "wan");
+    settings.nodes[0].download = 10000.;
+    settings.nodes[0].upload = 10000.;
     let base = common::fixture().0.nodes[1].clone();
     for i in 0..100 {
         let mut node = base.clone();
@@ -157,15 +159,16 @@ fn normalize_and_compile_50k_subscribers() {
             .collect(),
     );
     let start = std::time::Instant::now();
-    let subscribers = normalize(&settings, &inventories, &BTreeMap::new(), 101).unwrap();
+    let mut subscribers = normalize(&settings, &inventories, &BTreeMap::new(), 101).unwrap();
     let normalized = start.elapsed();
+    lqosync_v3::minimums::allocate(&settings, &mut subscribers).unwrap();
     let plan = lqosync_v3::model::compile(&settings, &subscribers).unwrap();
     let total = start.elapsed();
     assert_eq!(subscribers.len(), 50_000);
     assert_eq!(plan.capacities["wan"].subscribers, 50_000);
     assert_eq!(plan.capacities.len(), 101);
     eprintln!(
-        "50k subscribers /100 selected profiles: normalize={normalized:?}, normalize+compile={total:?} (debug={})",
+        "50k subscribers /100 selected profiles: normalize={normalized:?}, normalize+minimums+compile={total:?} (debug={})",
         cfg!(debug_assertions)
     );
 }

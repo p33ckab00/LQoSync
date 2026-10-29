@@ -23,12 +23,14 @@ pub async fn rules(State(s): State<Shared>) -> Html<String> {
                 p{"DHCP: server comment → server name → per-server manual fallback. Hotspot: local user comment → profile comment → profile rate."}
                 p{"Comments use customer download/upload order. Router rate fields use receive/transmit order and bare bits per second. Missing finite rates stay unresolved."}
                 p.help{"Router burst fields are validated but this preview uses only the sustained maximum. It does not export burst policy."}}
-            section.card {h2{"Minimum rate policy"}form method="post" action="/speed-rules/save" {(csrf(&a))div.formgrid {
+            section.card {h2{"Minimum rate policy"}
+                p.help{"The fraction sets requested minimums. After WAN assignment, automatic allocation reserves each subscriber floor and proportionally reduces remaining minimums to fit every branch and WAN. Floors cannot exceed subscriber maxima. If floors cannot fit, publication stops. Subscriber maximum speeds stay unchanged."}
+                form method="post" action="/speed-rules/save" {(csrf(&a))div.formgrid {
                 label {"Minimum rate fraction · 0–1" input type="number" step="any" min="0" max="1" required name="min_rate_fraction" value=(rules.min_rate_fraction);}
                 label {"Minimum floor · Mbps" input type="number" step="any" min="0" required name="min_floor_mbps" value=(rules.min_floor_mbps);}
                 label {"PPP profile-name fallback" select name="profile_name_fallback" {option value="true" selected[rules.profile_name_fallback]{"Enabled · explicit k/M/G suffix required"}option value="false" selected[!rules.profile_name_fallback]{"Disabled"}}}
             }button{"Save speed rules"}}
-                p.help{"Explicit router minima take precedence. Otherwise minimum = max(maximum × fraction, floor), capped at the maximum. The floor never raises a router maximum."}
+                p.help{"Router minima set the requested values. Otherwise requested minimum = max(maximum × fraction, floor), capped at the maximum. Automatic allocation applies floors and ancestor budgets to these requests."}
                 p.help{"This save updates local policy. With selected sources, a healthy complete inventory automatically updates the local snapshot and output pair."}}
             (crate::dhcp_speed_web::controls(&a))
             section.card {h2{"Inventory previews"}

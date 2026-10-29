@@ -227,6 +227,11 @@ pub fn validate(settings: &Settings) -> Result<()> {
 }
 
 pub fn compile(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> {
+    let plan = compile_unallocated(settings, subscribers)?;
+    crate::minimums::validate(settings, subscribers, &plan)?;
+    Ok(plan)
+}
+pub(crate) fn compile_unallocated(settings: &Settings, subscribers: &[Subscriber]) -> Result<Plan> {
     validate(settings)?;
     ensure!(
         !subscribers.is_empty() || !settings.nodes.iter().any(|n| n.mode == "computed"),

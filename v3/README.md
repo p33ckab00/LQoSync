@@ -14,6 +14,7 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Block unknown versions and incomplete package states. Ignore the separate preflight package.
 - Preview PPP, DHCP, and Hotspot speeds with rule provenance and unresolved errors.
 - Edit minimum-rate policy in application-local TOML through the Rust UI.
+- Fit effective subscriber minimums proportionally within every branch/WAN capacity while preserving configured floors and router maximums.
 - Set DHCP subscriber speeds from server comments, server-name suffixes, or per-server manual rules.
 - Create and edit WAN, PPPoE, DHCP, Hotspot, and site nodes.
 - Map discovered router interfaces to WAN roots and set their directional capacities.
@@ -32,6 +33,7 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 - Review actual core policy with multiple per-WAN findings and separate live, saved, stale, and incomplete inventory labels.
 - Trace supported subscriber-forward and router-reply connection-mark paths separately.
 - Review subscriber speeds, assignments, CSV/JSON, and the committed core plan on Validation without publication.
+- Review explicit static ingress and destination/control-protocol scopes on Core review. See [scoped routing](SCOPED_ROUTING.md).
 - Publish valid output automatically into a local generation directory.
 - Retain the last valid generation after an invalid snapshot or topology change.
 

@@ -68,7 +68,8 @@ The app selects the destination with the smallest score.
 This calculation uses subscriber plan rates, not measured traffic.
 Plan totals can exceed WAN capacity. The score is not an admission limit.
 The topology compiler caps computed aggregate capacities at their immediate parents.
-Subscriber speeds, minimum rates, IDs, and IPv4 addresses remain unchanged.
+The assignment step preserves subscriber maximum speeds, requested minimums, IDs, and IPv4 addresses.
+Automatic minimum allocation then fits effective minimums within ancestor budgets before publication. See [speed rules](SPEED_RULES.md).
 
 ## Subscriber controls and persistence
 

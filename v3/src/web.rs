@@ -487,7 +487,12 @@ async fn save_node(State(s): State<Shared>, Form(f): Form<NodeForm>) -> Response
         return error(&a, e);
     }
     match store::load_snapshot(&a.root) {
-        Ok(rows) if !rows.is_empty() => {
+        Ok(mut rows) if !rows.is_empty() => {
+            if crate::normalizer::has_bindings(&next)
+                && let Err(e) = crate::minimums::allocate(&next, &mut rows)
+            {
+                return error(&a, e);
+            }
             if let Err(e) = compile(&next, &rows) {
                 return error(&a, e);
             }

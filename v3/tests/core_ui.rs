@@ -195,6 +195,7 @@ async fn preview_is_paginated_search_is_encoded_and_markup_is_escaped() {
         orchestrator::now(),
     )
     .unwrap();
+    lqosync_v3::minimums::allocate(&s, &mut subs).unwrap();
     let shape = model::compile(&s, &subs).unwrap();
     let p =
         store::publish_orchestrated(dir.path(), &shape, &subs, &assignments, Some(&core)).unwrap();

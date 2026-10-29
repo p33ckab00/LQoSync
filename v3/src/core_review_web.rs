@@ -79,6 +79,14 @@ pub async fn page(State(s): State<Shared>, Query(page): Query<Page>) -> Response
                 @if core.wans.len()>200{p.help{"First 200 paths shown. The report evaluates all configured paths."}}
                 @if core.observed_paths_omitted>0{p.help{(core.observed_paths_omitted) " additional observed paths were omitted from analysis (limit 512). Review is incomplete."}}
                 @if core.wans.is_empty(){p{"No mapped or observed custom-table WAN paths are available."}}
+                h3{"Checked forwarding scopes"}
+                p.help{"A scope checks only packets arriving on its listed interfaces, outside the excluded destination list and control-protocol bypasses. It does not prove subscriber ingress or all packet paths."}
+                @for scope in core.forward_scopes.iter().take(200){
+                    p{strong{(&scope.wan)} " · source list " (&scope.source_list) " · ingress " (&scope.ingress_list) ": " (scope.ingress_interfaces.iter().take(32).cloned().collect::<Vec<_>>().join(", ")) " · excludes destination list " (&scope.excluded_destination_list)}
+                    @if scope.ingress_interfaces.len()>32{p.help{"First 32 ingress interfaces shown; all " (scope.ingress_interfaces.len()) " members checked."}}
+                    @if !scope.excluded_protocols.is_empty(){p.help{"Protocol exclusions: " (scope.excluded_protocols.join("; "))}}
+                }
+                @if core.forward_scopes.len()>200{p.help{"First 200 forwarding scopes shown. Analysis limits remain explicit findings."}}
                 h3{"Connection-mark paths"}
                 p.help{"Mark-link checks identify subscriber forwarding separately from WAN ingress/router replies. Overall WAN findings and inventory health still apply."}
                 div.tablewrap{table{thead{tr{@for title in ["Direction / list","Connection mark","Table / mapped WAN interface","Rule references","Mark-link check"]{th{(title)}}}}tbody{

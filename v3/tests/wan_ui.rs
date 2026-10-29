@@ -268,7 +268,7 @@ async fn assignment_pagination_preserves_encoded_search_and_bounds_large_offsets
     let dir = tempfile::tempdir().unwrap();
     let settings: Settings = toml::from_str(include_str!("../examples/settings.toml")).unwrap();
     store::save_settings(dir.path(), &settings).unwrap();
-    let subscribers: Vec<_> = (0..130)
+    let mut subscribers: Vec<_> = (0..130)
         .map(|i| Subscriber {
             id: format!("user-{i:03}"),
             name: if i < 120 {
@@ -284,6 +284,7 @@ async fn assignment_pagination_preserves_encoded_search_and_bounds_large_offsets
             upload_min: 1.,
         })
         .collect();
+    lqosync_v3::minimums::allocate(&settings, &mut subscribers).unwrap();
     let plan = lqosync_v3::model::compile(&settings, &subscribers).unwrap();
     store::publish_normalized(dir.path(), &plan, &subscribers).unwrap();
     let app = routes(Arc::new(Mutex::new(App::open(dir.path().into()).unwrap())));

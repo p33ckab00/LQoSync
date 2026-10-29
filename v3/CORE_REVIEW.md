@@ -67,6 +67,8 @@ A global `mapping-required` finding blocks a pass.
 Select the actual WAN interface, source list, and custom table explicitly before you plan members.
 
 The analyzer supports direct RouterOS 7 source-list marks, narrow connection-mark paths, and one resolved WAN default.
+The [scoped forwarding checks](SCOPED_ROUTING.md) support explicit static ingress lists and paired destination/control-protocol exclusions.
+The UI reports these limits separately from connection-mark links and inventory health.
 Active PCC, unsupported connection-mark conditions, complex prerouting actions, FastTrack, routing rules, and ambiguous defaults require further review.
 Disabled rules do not trigger active PCC or FastTrack counts.
 The review does not simulate NAT, VRFs, connection state, or all firewall behavior.

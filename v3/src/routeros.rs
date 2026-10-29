@@ -11,6 +11,7 @@ pub fn read_properties(path: &str) -> Result<&'static str> {
         "/system/resource/print" => "version,uptime,board-name,cpu-load,free-memory,total-memory",
         "/interface/print" => ".id,name,type,running,disabled,actual-mtu,mac-address,comment",
         "/interface/list/member/print" => "list,interface,disabled,dynamic",
+        "/interface/list/print" => "name,include,exclude,dynamic,builtin",
         "/ip/route/print"
         | "/ip/firewall/mangle/print"
         | "/ip/firewall/filter/print"

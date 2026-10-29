@@ -55,6 +55,7 @@ The [validation guide](VALIDATION.md) defines both supported forms and their lim
 
 The audit supports an optional `dst-address-type=!local` condition on forward rules.
 Unrestricted source/destination addresses can use `0.0.0.0/0`.
+Explicit static ingress-list and paired destination/control-protocol scopes have a [narrow supported form](SCOPED_ROUTING.md).
 Other packet matchers and complex prerouting actions require manual review.
 The audit blocks unknown fields.
 Comments, counters, log fields, and normal status fields do not select packets.
@@ -79,7 +80,8 @@ and [mangle reference](https://manual.mikrotik.com/docs/cli-reference/ip/firewal
 
 The desired members use the active normalized subscriber snapshot and its assigned WAN parents.
 Each subscriber contributes one individual IPv4 `/32` member to the configured WAN list.
-The planner preserves subscriber speeds, minimum rates, identities, and IPs.
+The planner uses the effective subscriber minimums allocated before compilation.
+It preserves those minimums, maximum speeds, identities, and IPs.
 Inactive assignment records do not create desired members.
 
 The first core mapping creates a persistent UUID in `settings.toml` under `core_lists.owner`.

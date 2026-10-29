@@ -104,12 +104,30 @@ Burst, threshold, time, priority, and minimum fields receive syntax checks.
 The preview exports no burst or priority policy. It reports the sustained maximum and minimum only.
 Zero or unlimited maximum rates remain unresolved because they do not define a finite shaping plan.
 
-Explicit router minima take precedence.
-Otherwise, each direction uses `min(max(maximum * fraction, floor), maximum)`.
+Explicit router minima set the requested values.
+Otherwise, each direction requests `min(max(maximum * fraction, floor), maximum)`.
 Defaults: fraction `0.5`, floor `0.128` Mbps.
 The floor never increases a maximum or makes a minimum exceed it.
 Maxima keep the router value. There is no legacy rounding or forced maximum floor.
 Node aggregation factors and WAN caps remain separate topology settings.
+
+After WAN assignment, automatic minimum allocation fits requests within every shaping ancestor.
+Each direction reserves each subscriber's configured floor, capped by that subscriber's maximum.
+The allocator then reduces remaining minimum headroom proportionally when an ancestor budget requires it.
+It processes ancestors before descendants and preserves all subscriber maximum speeds, identities, IPs, and parent assignments.
+The floor can raise a smaller requested minimum. It never exceeds the subscriber maximum.
+If floors cannot fit a branch or WAN, publication stops and retains the previous generation.
+
+For example, 325 Mbps of requested minimums under a 320 Mbps WAN receives proportional adjustment toward 320 Mbps.
+The base fraction remains unchanged. Future client counts receive a new calculation automatically.
+No fixed percentage workaround or subscriber maximum reduction is required.
+
+The snapshot and CSV contain the same effective minimums.
+The source preview shows requested router/policy values before WAN allocation.
+Validation reports the number of adjusted subscribers and constrained directions.
+The compiler independently rejects aggregate minimums above any ancestor.
+Allocation is deterministic. A failed allocation does not change the caller's records.
+Calculations permit a small relative floating-point tolerance at an exact capacity boundary.
 
 ```toml
 [speed_rules]

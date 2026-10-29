@@ -65,6 +65,7 @@ pub struct CoreReview {
     pub wans: Vec<WanReview>,
     pub observed_paths_omitted: usize,
     pub connection_paths: Vec<crate::core_connections::ConnectionPath>,
+    pub forward_scopes: Vec<crate::core_scopes::ForwardScope>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Report {
@@ -189,6 +190,7 @@ pub fn review(
         }
         let mut counts = Counts::default();
         let mut connection_paths = vec![];
+        let mut forward_scopes = vec![];
         let health = match inventory {
             None if errors.contains_key(&router.id) => Health::Failed,
             None => Health::Missing,
@@ -252,6 +254,7 @@ pub fn review(
                 .collect();
             let analysis = crate::core_analysis::analyze(i, &refs, &interface_refs);
             connection_paths = analysis.connection_paths;
+            forward_scopes = analysis.forward_scopes;
             for f in analysis.findings {
                 findings.add(
                     f.status,
@@ -309,6 +312,7 @@ pub fn review(
             wans,
             observed_paths_omitted,
             connection_paths,
+            forward_scopes,
         });
     }
     Report { origin, cores }

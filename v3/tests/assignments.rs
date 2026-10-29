@@ -350,6 +350,7 @@ fn assign_50k_subscribers_across_eight_wans() {
     .unwrap();
     let retained_elapsed = start.elapsed();
     assert_eq!(first, retained);
+    lqosync_v3::minimums::allocate(&settings, &mut subscribers).unwrap();
     let plan = lqosync_v3::model::compile(&settings, &subscribers).unwrap();
     assert_eq!(plan.csv.lines().count(), 50001);
     eprintln!(

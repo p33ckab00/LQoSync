@@ -25,6 +25,7 @@ The review reuses the same components as local publication:
 
 - Normalize selected subscribers with stable IDs, finite speeds, and unique addresses.
 - Assign compatible branches and explicit WAN roots.
+- Allocate effective minimums proportionally within branch/WAN budgets while preserving per-subscriber floors and maximum speeds.
 - Compile the topology, directional capacities, CSV, and JSON.
 - Validate subscriber `/32` ownership and supported core routing policy.
 - Compare the committed snapshot, assignments, CSV, JSON, and core plan with those candidate results.
@@ -75,7 +76,8 @@ Unknown matchers, duplicate producers, implicit mark clearing, and unmodeled out
 
 Mark-link status checks the connection-mark relationship only.
 Overall WAN findings still check defaults, interfaces, FIB state, unsupported rules, and inventory health.
-Early prerouting bypasses, interface-list conditions, destination-list conditions, active PCC, and FastTrack still require separate review.
+The [scoped forwarding checks](SCOPED_ROUTING.md) define supported earlier bypasses and static interface/destination-list conditions.
+Other conditional policies, active PCC, and FastTrack remain blockers.
 The validator does not simulate NAT, RAW, VRFs, connection state transitions, or all firewall packet behavior.
 It does not recommend removal of existing router rules to force a pass.
 

@@ -50,6 +50,7 @@ async fn reply(stream: &mut (impl tokio::io::AsyncWrite + Unpin), words: &[Strin
 fn no_mutations_or_secret_properties_are_exposed() {
     assert!(read_properties("/interface/print").is_ok());
     for path in [
+        "/interface/list/print",
         "/ip/firewall/address-list/print",
         "/ip/firewall/mangle/print",
         "/routing/table/print",

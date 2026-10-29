@@ -60,7 +60,7 @@ fn fixture_projection_removes_private_content_and_keeps_route_finding_codes() {
 }
 
 #[test]
-fn actual_routeros_policy_projection_replays_unsupported_findings_without_false_fib_conflicts() {
+fn actual_routeros_policy_projection_replays_checked_scopes_without_false_fib_conflicts() {
     let fixture: lqosync_v3::policy_fixture::Fixture =
         serde_json::from_str(include_str!("fixtures/core-policy.actual-sanitized.json")).unwrap();
     let settings = policy_fixture::settings();
@@ -91,11 +91,21 @@ fn actual_routeros_policy_projection_replays_unsupported_findings_without_false_
         fixture.expected_paths
     );
 
+    assert_eq!(core.forward_scopes.len(), 2);
+    assert_eq!(
+        core.forward_scopes
+            .iter()
+            .map(|s| (s.ingress_interfaces.len(), s.excluded_protocols.clone()))
+            .collect::<Vec<_>>(),
+        fixture.expected_scopes
+    );
     assert!(
         core.wans
             .iter()
             .all(|w| w.status == core_diagnostics::Outcome::Unsupported)
     );
+    assert_eq!(core.findings.len(), 1);
+    assert_eq!(core.findings[0].code, "mapping-required");
     assert_eq!(core.counts.pcc_rules, 0);
     assert_eq!(core.counts.fasttrack_rules, 0);
     assert!(!core.findings.iter().any(|f| f.code == "table-fib"));
