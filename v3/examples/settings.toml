@@ -1,0 +1,24 @@
+interval_seconds = 30
+auto_stage = true
+
+[[nodes]]
+id = "wan1"
+name = "WAN 1"
+kind = "wan"
+mode = "manual"
+download = 620.0
+upload = 100.0
+download_factor = 1.0
+upload_factor = 1.0
+
+[[nodes]]
+id = "ppp50"
+name = "PPPoE profile 50M"
+parent = "wan1"
+kind = "pppoe"
+source = "profile-50M"
+mode = "computed"
+download = 0.0
+upload = 0.0
+download_factor = 0.35
+upload_factor = 0.5

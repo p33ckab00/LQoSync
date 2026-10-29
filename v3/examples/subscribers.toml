@@ -1,0 +1,19 @@
+[[subscribers]]
+id = "sample-1"
+name = "Offline example A"
+ipv4 = "192.0.2.10/32"
+node = "ppp50"
+download = 50.0
+upload = 20.0
+download_min = 5.0
+upload_min = 2.0
+
+[[subscribers]]
+id = "sample-2"
+name = "Offline example B"
+ipv4 = "192.0.2.11/32"
+node = "ppp50"
+download = 50.0
+upload = 20.0
+download_min = 5.0
+upload_min = 2.0

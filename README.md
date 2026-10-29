@@ -1,3 +1,6 @@
+> **LQoSync v3 development branch:** The new Rust backend and Rust-rendered web UI are in [v3/](v3/README.md).
+> The documentation below describes the previous application. Production adapters for the new app are not enabled.
+
 # LQoSync
 
 **LQoSync is a local appliance-style web app for MikroTik → LibreQoS synchronization.**
