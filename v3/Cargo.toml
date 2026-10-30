@@ -6,6 +6,7 @@ rust-version = "1.88"
 default-run = "lqosync-v3"
 
 [dependencies]
+libc = "0.2"
 anyhow = "1"
 regex = "1"
 axum = "0.8"
@@ -29,3 +30,4 @@ http-body-util = "0.1"
 
 [patch.crates-io]
 mikrotik-tokio = { path = "vendor/mikrotik-tokio" }
+mikrotik-proto = { path = "vendor/mikrotik-proto" }

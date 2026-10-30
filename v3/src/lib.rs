@@ -46,3 +46,6 @@ pub mod topology_edits;
 mod dynamic_web;
 
 pub mod core_migration;
+
+pub mod core_adapter;
+pub mod migration_fence;

@@ -78,8 +78,8 @@ See [subscriber orchestration](SUBSCRIBERS.md) for health gates, overlap ownersh
 See [WAN assignments](WAN_ASSIGNMENTS.md) for interface mapping, pools, pins, and planned-load distribution.
 See [core planning](CORE_PLANNER.md) for list ownership, route audit limits, and the automatic local preview.
 See [end-to-end validation](VALIDATION.md) for live/saved review, connection-mark support, output integrity, and setup requirements.
-Core address-list writes and production apply remain pending.
-An isolated [migration engine](CORE_MIGRATION.md) provides guarded execution and rollback tests. Its production transport and console integration remain pending.
+Automatic core writes and production shaping apply remain pending. The separate [maintenance CLI](CORE_MAINTENANCE.md) provides explicit guarded migration and rollback.
+The [migration engine](CORE_MIGRATION.md) supplies the guarded journal. The console and scheduler do not invoke the maintenance writer.
 The UI reports local output as **staged**, never as production **applied**.
 Changes to settings require a Save action. Local output publication after that save is automatic.
 

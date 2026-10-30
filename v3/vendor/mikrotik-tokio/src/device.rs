@@ -293,7 +293,7 @@ async fn route_event(
                 let _ = conn.cancel_command(tag);
             }
         }
-        Event::Done { tag } | Event::Empty { tag } | Event::Trap { tag, .. } => {
+        Event::Done { tag, .. } | Event::Empty { tag } | Event::Trap { tag, .. } => {
             let tag = *tag;
             if let Some(sender) = response_map.remove(&tag) {
                 let _ = sender.send(event).await;

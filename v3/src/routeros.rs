@@ -93,6 +93,64 @@ impl Client {
             .context("Router connection/login timed out")??;
         Ok(Self { device, deadline })
     }
+    pub(crate) async fn migration_command(
+        &self,
+        action: &str,
+        fields: &[(&str, &str)],
+    ) -> Result<Option<String>> {
+        let keys = fields
+            .iter()
+            .map(|(k, _)| *k)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = match action {
+            "add" => vec!["list", "address", "comment", "disabled"],
+            "set" => vec![".id", "address"],
+            "remove" => vec![".id"],
+            _ => bail!("Unsupported migration command"),
+        };
+        ensure!(
+            keys == expected.into_iter().collect() && keys.len() == fields.len(),
+            "Unsupported migration fields"
+        );
+        let query = async {
+            let path = format!("/ip/firewall/address-list/{action}");
+            let mut builder = CommandBuilder::new().command(&path);
+            for (key, value) in fields {
+                builder = builder.attribute(key, Some(*value));
+            }
+            let mut receiver = self.device.send_command(builder.build()).await?;
+            if let Some(event) = receiver.recv().await {
+                match event {
+                    Event::Done { attributes, .. } => {
+                        if action == "add" {
+                            ensure!(
+                                attributes.len() == 1,
+                                "Unexpected add completion attributes"
+                            );
+                            let id = attributes
+                                .get("ret")
+                                .and_then(|v| v.clone())
+                                .context("Missing returned add ID")?;
+                            ensure!(
+                                id.strip_prefix('*').is_some_and(|s| !s.is_empty()
+                                    && s.len() <= 32
+                                    && s.bytes().all(|b| b.is_ascii_hexdigit())),
+                                "Invalid returned row ID"
+                            );
+                            return Ok(Some(id));
+                        }
+                        ensure!(attributes.is_empty(), "Unexpected completion attributes");
+                        return Ok(None);
+                    }
+                    _ => bail!("Uncertain RouterOS migration result; inspect the pending journal"),
+                }
+            }
+            bail!("Router migration response ended without completion")
+        };
+        tokio::time::timeout(self.deadline, query)
+            .await
+            .context("Router migration timed out; outcome is unknown")?
+    }
     pub async fn read(&self, path: &str) -> Result<Vec<Row>> {
         let properties = read_properties(path)?;
         let query = async {

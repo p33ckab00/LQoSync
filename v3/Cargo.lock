@@ -374,6 +374,7 @@ dependencies = [
  "axum",
  "csv",
  "http-body-util",
+ "libc",
  "maud",
  "mikrotik-rs",
  "regex",
@@ -427,8 +428,6 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "mikrotik-proto"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dda0dde0f7cf87dcf49effafc6a1dd8129676cdf3e6b18dcf4b4ca3102f140a"
 dependencies = [
  "hashbrown 0.15.5",
  "thiserror",

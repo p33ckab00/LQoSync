@@ -158,3 +158,9 @@ A healthy console does not prove that production shaping changed.
 
 The console commands do not control `lqosync-updatecsv.service`, `lqosd.service`, or other LibreQoS services.
 These separate services stay active when you stop this console.
+
+## Core maintenance
+
+See [the maintenance CLI guide](CORE_MAINTENANCE.md) for explicit protected-row migration and recovery.
+The maintenance CLI requires every console for the same data directory to stop first.
+Do not run maintenance commands to restart the console.

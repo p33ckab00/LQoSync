@@ -1,8 +1,8 @@
 # Guarded core migration engine
 
 The `core_migration` module implements the isolated execution engine and rollback journal.
-It does not install a production RouterOS transport, a console write route, or a background writer.
-The current console and RouterOS client remain read-only. This module does not publish output or apply LibreQoS changes.
+The separate [maintenance CLI](CORE_MAINTENANCE.md) supplies the production transport, process fence, and observed-WAN bootstrap.
+The console and scheduler remain read-only. They do not invoke maintenance automatically. LibreQoS apply remains disabled.
 
 ## Plan preparation
 
@@ -75,6 +75,7 @@ It preserves intents for all requests with unknown outcomes.
 
 A transport error can occur after a successful write. The engine treats that outcome as unknown.
 A pending intent blocks automatic retries and rollback, also after process restart.
+A transport can report typed `RequestNotSent` only for a preflight failure before the mutation request starts. The engine durably clears that known-unsent intent.
 Do not remove an unknown addition by comment or address. Its returned ID may be unavailable.
 Inspect the journal and reconcile the actual router state through a separately authorized recovery procedure.
 
@@ -92,7 +93,7 @@ The journal lock does not exclude another journal or another RouterOS producer.
 
 ## Required production integration
 
-A production adapter is a separate deliverable. It must satisfy the `Transport` contract before this engine can affect real routers.
+The maintenance adapter implements this contract. External writer exclusion still requires an operator-controlled maintenance window.
 
 - Hold an exclusive writer fence across the complete forward or rollback call. Include other address-list producers in the maintenance procedure.
 

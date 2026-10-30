@@ -2,7 +2,8 @@
 
 The **Core lists** page configures local per-subscriber address-list plans.
 Save or collection changes trigger the planner automatically when automatic publication is enabled.
-The app does not send router writes or change LibreQoS.
+The console and scheduler do not send router writes or change LibreQoS.
+The separate [maintenance CLI](CORE_MAINTENANCE.md) can execute an explicitly authorized protected-row migration.
 The plan is a preview, not a RouterOS script or a sequence ready for execution.
 
 ## Configure the planner

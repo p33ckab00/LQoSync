@@ -13,6 +13,24 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Production adapter complete; live migration pending
+
+Updated: 2026-10-30T18:15:32+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-adapter`. Worktree: `/tmp/lqosync-core-adapter`. Base: `b5717dd`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Added the local maintenance CLI, scoped RouterOS adapter, console lease, persistent recovery marker, and observed-WAN bootstrap.
+Changed files include the adapter, fence, CLI, router protocol patches, engine error handling, console lease, tests, guides, and project notes.
+Fresh actual validation runs separately. The CLI does not publish the application current generation or apply LibreQoS output.
+Unknown network outcomes retain pending state. Exact returned IDs are mandatory. Known-unsent preflight errors remain recoverable.
+Bootstrap recovery accepts only the exact state before or after its candidate CAS save.
+Checks: 232 tests passed, zero failures, 12 ignored. All 60 parallel lease stress runs passed.
+Format, strict Clippy, diff, documentation links, and Bash syntax checks passed. Final review found no material defect.
+No live router writes, credentials, settings, services, or LibreQoS output changed.
+Next: regenerate fresh private evidence, review exact protected rows, and obtain live migration authorization.
+Stop consoles and establish exclusive external RouterOS writer access before that separately authorized stage.
+See [[10-sessions/2026-10-30-core-production-adapter]] and `v3/CORE_MAINTENANCE.md`.
+Earlier integration-pending statements below describe historical stages.
+
 ## Isolated migration engine complete; production integration pending
 
 Updated: 2026-10-30T17:11:56+08:00 (Asia/Shanghai). Last agent: Codex.

@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct App {
+    _writer_lease: Arc<crate::migration_fence::Lease>,
     pub root: PathBuf,
     pub settings: Settings,
     pub token: String,
@@ -32,9 +33,11 @@ impl App {
             !root.starts_with("/opt/libreqos") && !root.starts_with("/etc/libreqos"),
             "Application state must be separate from LibreQoS"
         );
+        let writer_lease = Arc::new(crate::migration_fence::Lease::console(&root)?);
         let settings = store::load_settings(&root)?;
         let generation = store::current_generation(&root);
         Ok(Self {
+            _writer_lease: writer_lease,
             root,
             settings,
             token: uuid::Uuid::new_v4().to_string(),

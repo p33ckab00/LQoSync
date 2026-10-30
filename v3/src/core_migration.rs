@@ -143,6 +143,15 @@ impl Plan {
     pub fn revision(&self) -> Result<String> {
         Ok(uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, &serde_json::to_vec(self)?).to_string())
     }
+    pub fn preview(&self) -> Result<serde_json::Value> {
+        Ok(serde_json::to_value(self.operations()?)?)
+    }
+    pub fn expires_at(&self) -> u64 {
+        self.expires_at
+    }
+    pub fn baseline(&self) -> &Evidence {
+        &self.baseline
+    }
     pub fn owner(&self) -> &str {
         &self.owner
     }
@@ -362,6 +371,18 @@ impl Plan {
 /// Each observation must collect complete fresh rows plus configuration/session evidence.
 /// Writes must target only the supplied fields/ID, recheck expected rows, and report returned add IDs.
 /// This contract is not a RouterOS atomic transaction. No production adapter exists in this module.
+#[derive(Debug)]
+pub struct RequestNotSent;
+impl std::fmt::Display for RequestNotSent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Migration preflight rejected; no mutation request was sent"
+        )
+    }
+}
+impl std::error::Error for RequestNotSent {}
+
 pub trait Transport {
     fn observe(&mut self) -> impl Future<Output = Result<Evidence>>;
     fn add(&mut self, router: &str, member: &Member) -> impl Future<Output = Result<String>>;
@@ -559,6 +580,17 @@ impl Executor {
         }
         Ok(())
     }
+    fn transport_result<T>(&mut self, result: Result<T>) -> Result<T> {
+        if result
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.downcast_ref::<RequestNotSent>().is_some())
+        {
+            self.journal.pending = None;
+            self.save()?;
+        }
+        result
+    }
     fn ready(&self) -> Result<()> {
         ensure!(
             !self.poisoned,
@@ -656,17 +688,15 @@ impl Executor {
             });
             self.save()?;
             self.before_request(captured_at, true)?;
-            let returned_id = match &op {
-                Operation::Add { router, member } => Some(io.add(router, member).await?),
+            let result = match &op {
+                Operation::Add { router, member } => io.add(router, member).await.map(Some),
                 Operation::Narrow {
                     router,
                     before,
                     address,
-                } => {
-                    io.set_address(router, before, address).await?;
-                    None
-                }
+                } => io.set_address(router, before, address).await.map(|_| None),
             };
+            let returned_id = self.transport_result(result)?;
             if let Some(id) = &returned_id {
                 ensure!(
                     !id.is_empty()
@@ -711,7 +741,7 @@ impl Executor {
             });
             self.save()?;
             self.before_request(captured_at, false)?;
-            match &done.operation {
+            let result = match &done.operation {
                 Operation::Narrow {
                     router,
                     before,
@@ -719,14 +749,15 @@ impl Executor {
                 } => {
                     let mut expected = before.clone();
                     expected.address = address.clone();
-                    io.set_address(router, &expected, &before.address).await?;
+                    io.set_address(router, &expected, &before.address).await
                 }
                 Operation::Add { router, member } => {
                     let mut expected = member.clone();
                     expected.id = done.returned_id.context("Missing returned add ID")?;
-                    io.remove(router, &expected).await?;
+                    io.remove(router, &expected).await
                 }
-            }
+            };
+            self.transport_result(result)?;
             self.journal.completed[index].undone = true;
             self.journal.pending = None;
             self.save()?;
