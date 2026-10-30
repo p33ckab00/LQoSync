@@ -13,11 +13,11 @@ use axum::{
 use maud::html;
 use serde::Deserialize;
 use std::collections::BTreeMap;
-struct Interface {
-    value: String,
-    label: String,
+pub(crate) struct Interface {
+    pub(crate) value: String,
+    pub(crate) label: String,
 }
-fn interfaces(a: &App) -> Vec<Interface> {
+pub(crate) fn interfaces(a: &App) -> Vec<Interface> {
     let mut choices = vec![];
     let now = orchestrator::now();
     for router in &a.settings.routers {
@@ -66,6 +66,9 @@ fn interfaces(a: &App) -> Vec<Interface> {
 }
 pub async fn wans(State(s): State<Shared>) -> Html<String> {
     let a = s.lock().await;
+    if a.settings.dynamic.is_some() {
+        return shell(&a, "WANs", crate::dynamic_web::wan_panel(&a));
+    }
     let choices = interfaces(&a);
     shell(
         &a,
@@ -151,6 +154,7 @@ pub(crate) async fn commit(
     tokio::task::spawn_blocking(move || {
         if let Err(e) = crate::web::nodelimits(&next)
             .and_then(|_| assignment::validate(&next))
+            .and_then(|_| crate::dynamic_web::validate_evidence_edit(&a, &next))
             .and_then(|_| store::save_settings(&a.root, &next))
         {
             return error(&a, e);

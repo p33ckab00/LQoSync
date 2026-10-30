@@ -52,6 +52,11 @@ pub fn save_settings(root: &Path, settings: &Settings) -> Result<()> {
             let backup = root.join("state/settings-before-dynamic.toml");
             if !backup.exists() {
                 atomic_write(&backup, &raw)?;
+            } else {
+                ensure!(
+                    fs::read_to_string(&backup)? == raw,
+                    "Existing migration backup does not match these legacy settings; preserve a matching backup before migrating"
+                );
             }
         }
     }

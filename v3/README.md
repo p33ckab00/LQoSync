@@ -8,7 +8,8 @@ No Python backend, JavaScript UI framework, database, or Node build is required.
 The compact NOC console follows the supplied dark design with grouped navigation and dense tables.
 Use the top bar to change display density. This choice stays in the browser.
 Topology shows discovered inventory, the configured hierarchy, and a selected-node inspector.
-Select a node to edit its configuration. Use **Add node** to open the creation form.
+Use the cog beside an item to edit its configuration in a native modal. **Add node** opens the creation dialog.
+Dialogs keep forms out of the main layout and preserve entered values after a failed save.
 Router names open the router inspector. Existing save actions and validation rules still apply.
 Discovery links open the current source and WAN forms. They do not create nodes or change router records.
 Snapshot totals do not indicate online sessions. Count mode uses observed active sessions and bound DHCP leases.
@@ -23,11 +24,13 @@ See [flexible topology and reconnect assignment](FLEXIBLE_TOPOLOGY.md) for indep
 - Block unknown versions and incomplete package states. Ignore the separate preflight package.
 - Preview PPP, DHCP, and Hotspot speeds with rule provenance and unresolved errors.
 - Edit minimum-rate policy in application-local TOML through the Rust UI.
-- Fit effective subscriber minimums proportionally within every branch/WAN capacity while preserving configured floors and router maximums.
+- Fit effective subscriber minimums within exported ancestors and shared routing WAN budgets while preserving floors and router maximums.
 - Set DHCP subscriber speeds from server comments, server-name suffixes, or per-server manual rules.
-- Create and edit WAN, PPPoE, DHCP, Hotspot, and site nodes.
+- Create, promote, demote, and remove custom exported nodes with explicit replacements for dependencies.
+- Use flat roots, arbitrary branches, shared destinations, and independent roots without mandatory service layers.
+- Keep routing WAN identity independent of exported ancestry through a reversible settings conversion.
 - Map discovered router interfaces to WAN roots and set their directional capacities.
-- Configure compatible subscriber destination pools and explicit subscriber pins.
+- Select eligible exported node/WAN pairs and explicit subscriber pins. Keep legacy pools readable.
 - Select profiles, servers, accounts, and leases independently of the hierarchy. Individual selectors override groups and can exclude records.
 - Create named groups and create source branches from fresh inventory. Keep manual hierarchy controls.
 - Balance new or reconnected sessions by observed client count. Keep continuous sessions and manual pins stable.

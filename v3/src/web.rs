@@ -11,6 +11,7 @@ use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
+#[derive(Clone)]
 pub struct App {
     pub root: PathBuf,
     pub settings: Settings,
@@ -150,6 +151,10 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/nodes/save", post(save_node))
         .route("/nodes/{id}/delete", post(delete_node))
         .route("/settings/save", post(save_options))
+        .route("/dynamic/enable", post(crate::dynamic_web::enable_dynamic))
+        .route("/dynamic/node", post(crate::dynamic_web::node_edit))
+        .route("/dynamic/policy", post(crate::dynamic_web::policy_edit))
+        .route("/dynamic/wan", post(crate::dynamic_web::wan_edit))
         .route("/health", get(|| async { "ok" }))
         .route(
             "/assets/console.js",
@@ -215,6 +220,7 @@ pub(crate) fn error(a: &App, e: impl std::fmt::Display) -> Response {
     (StatusCode::UNPROCESSABLE_ENTITY,shell(a,"Validation error",html!{section.card {h2{"Settings were not changed"}p{(e)}a href="/topology"{"Return to topology"}}})).into_response()
 }
 fn commit(a: &mut App, next: Settings) -> anyhow::Result<()> {
+    crate::dynamic_web::validate_evidence_edit(a, &next)?;
     store::save_settings(&a.root, &next)?;
     a.settings = next;
     a.reconcile();
@@ -399,12 +405,12 @@ async fn topology(State(s): State<Shared>, Query(selection): Query<Selection>) -
 
 pub(crate) fn node_form(a: &App, n: Option<&Node>) -> Markup {
     let value = |f: fn(&Node) -> &str| n.map(f).unwrap_or("");
-    html! {form method="post" action="/nodes/save" {(csrf(a))input type="hidden" name="original_id" value=(value(|n|&n.id));div.formgrid{
+    html! {form method="post" action="/nodes/save" {(csrf(a))input type="hidden" name="original_id" value=(value(|n|&n.id)); input type="hidden" name="revision" value=(crate::topology_edits::revision(&a.settings).unwrap_or_default());div.formgrid{
         (field("Stable node ID","id",value(|n|&n.id),"text")) (field("Display name","name",value(|n|&n.name),"text"))
-        label{"Parent" select name="parent" {option value="" selected[n.is_none_or(|n|n.parent.is_empty())]{"No parent · WAN root"}@for p in &a.settings.nodes { @if n.is_none_or(|n|n.id!=p.id) {option value=(&p.id) selected[n.is_some_and(|n|n.parent==p.id)]{(&p.name)}}}}}
-        (select("Node type","kind",&[("wan","WAN root"),("group","Custom group"),("pppoe","PPPoE profile"),("dhcp","DHCP server"),("hotspot","Hotspot"),("site","Site / backhaul")],n.map(|n|n.kind.as_str()).unwrap_or("wan")))
-        label{"Source router" select name="router" {option value=""{"Unassigned"}@for r in &a.settings.routers {option value=(&r.id) selected[n.is_some_and(|n|n.router==r.id)]{(&r.name)}}}}
-        label{"Source profile / server / interface" input name="source" value=(value(|n|&n.source));}
+        label{"Parent" select name="parent" {option value="" selected[n.is_none_or(|n|n.parent.is_empty())]{(if a.settings.dynamic.is_some(){"Independent root"}else{"No parent · WAN root"})}@for p in &a.settings.nodes { @if n.is_none_or(|n|n.id!=p.id) {option value=(&p.id) selected[n.is_some_and(|n|n.parent==p.id)]{(&p.name)}}}}}
+        (select("Node type","kind",&[("wan","WAN root"),("group","Custom group"),("pppoe","PPPoE profile"),("dhcp","DHCP server"),("hotspot","Hotspot"),("site","Site / backhaul")],n.map(|n|n.kind.as_str()).unwrap_or(if a.settings.dynamic.is_some(){"group"}else{"wan"})))
+        @if a.settings.dynamic.is_none() {label{"Source router" select name="router" {option value=""{"Unassigned"}@for r in &a.settings.routers {option value=(&r.id) selected[n.is_some_and(|n|n.router==r.id)]{(&r.name)}}}}
+        label{"Source profile / server / interface" input name="source" value=(value(|n|&n.source));}} @else {input type="hidden" name="router" value="";input type="hidden" name="source" value="";}
         (select("Capacity mode","mode",&[("manual","Manual / explicit"),("computed","Subscriber aggregate × factor")],n.map(|n|n.mode.as_str()).unwrap_or("manual")))
         @for (label,key,v) in [("Explicit download Mbps","download",n.map(|n|n.download).unwrap_or(0.0)),("Explicit upload Mbps","upload",n.map(|n|n.upload).unwrap_or(0.0)),("Download factor","download_factor",n.map(|n|n.download_factor).unwrap_or(1.0)),("Upload factor","upload_factor",n.map(|n|n.upload_factor).unwrap_or(1.0))] {label{(label)input type="number" step="any" min="0" name=(key) value=(v) required;}}
     }p.help{"Subscriber rates remain source-owned. Computed group capacities are capped at the immediate parent. Stable IDs are the exported JSON keys and CSV parents."}button{"Save node"}}}
@@ -412,6 +418,8 @@ pub(crate) fn node_form(a: &App, n: Option<&Node>) -> Markup {
 #[derive(Deserialize)]
 struct NodeForm {
     token: String,
+    #[serde(default)]
+    revision: String,
     original_id: String,
     id: String,
     name: String,
@@ -429,6 +437,11 @@ async fn save_node(State(s): State<Shared>, Form(f): Form<NodeForm>) -> Response
     let mut a = s.lock().await;
     if let Err(r) = check(&a, &f.token) {
         return r.into_response();
+    }
+    if a.settings.dynamic.is_some()
+        && f.revision != crate::topology_edits::revision(&a.settings).unwrap_or_default()
+    {
+        return error(&a, "Settings changed; reload before saving");
     }
     if !f.original_id.is_empty() && f.id != f.original_id {
         return error(&a, "Stable IDs cannot be renamed");
@@ -459,7 +472,7 @@ async fn save_node(State(s): State<Shared>, Form(f): Form<NodeForm>) -> Response
         return error(&a, e);
     }
     match store::load_snapshot(&a.root) {
-        Ok(mut rows) if !rows.is_empty() => {
+        Ok(mut rows) if !rows.is_empty() && next.dynamic.is_none() => {
             if crate::normalizer::has_bindings(&next)
                 && let Err(e) = crate::minimums::allocate(&next, &mut rows)
             {
@@ -506,6 +519,12 @@ async fn delete_node(
         return r.into_response();
     }
     let mut next = a.settings.clone();
+    if next.dynamic.is_some() {
+        return error(
+            &a,
+            "Use Remove with explicit replacements in the node inspector",
+        );
+    }
     next.nodes.retain(|n| n.id != id);
     if store::load_snapshot(&a.root)
         .unwrap_or_default()

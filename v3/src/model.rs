@@ -215,16 +215,15 @@ pub fn validate(settings: &Settings) -> Result<()> {
             );
         }
     }
+    let node_index: HashMap<_, _> = settings.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     for n in &settings.nodes {
         let mut seen = HashSet::new();
         let mut id = n.id.as_str();
         while !id.is_empty() {
             ensure!(seen.insert(id), "Topology contains a cycle at {id}");
             ensure!(seen.len() <= 256, "Topology depth exceeds 256 nodes");
-            let parent = settings
-                .nodes
-                .iter()
-                .find(|n| n.id == id)
+            let parent = node_index
+                .get(id)
                 .ok_or_else(|| anyhow::anyhow!("Unknown parent {id}"))?;
             id = &parent.parent;
         }

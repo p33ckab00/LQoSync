@@ -374,7 +374,10 @@ pub fn plan(
         let Some(previous) = previous else {
             return true;
         };
-        previous.active.get(id).is_some_and(|old| {
+        // A retained record without session metadata is a first observation of
+        // a formerly manual/planned source. Healthy count-mode absence already
+        // removes its assignment, so missing metadata alone is not a reconnect.
+        previous.active.get(id).is_none_or(|old| {
             old.source_node == current.source_node
                 && old.router == current.router
                 && old.service == current.service

@@ -1,0 +1,72 @@
+# Synthetic browser fixture. No live inventory or credentials.
+interval_seconds=30
+auto_stage=false
+[[routers]]
+id="r1"
+name="Synthetic router"
+host="127.0.0.1"
+port=1
+username="reader"
+password_env="UNSET_SYNTHETIC_PREVIEW"
+role="distro"
+tls=false
+
+[[nodes]]
+id="root"
+name="Root"
+parent=""
+kind="group"
+router=""
+source=""
+mode="manual"
+download=1000.0
+upload=1000.0
+download_factor=1.0
+upload_factor=1.0
+
+[[nodes]]
+id="branch"
+name="Branch"
+parent="root"
+kind="group"
+router=""
+source=""
+mode="manual"
+download=500.0
+upload=500.0
+download_factor=1.0
+upload_factor=1.0
+
+[[selections]]
+id="source-one"
+router="r1"
+kind="pppoe"
+selector="group"
+value="Synthetic profile"
+node=""
+exclude=false
+[dynamic]
+version=1
+pins={}
+[[dynamic.wans]]
+id="wan-a"
+name="WAN A"
+router="r1"
+interface="ether1"
+download=1000.0
+upload=1000.0
+[[dynamic.wans]]
+id="wan-b"
+name="WAN B"
+router="r1"
+interface="ether2"
+download=1000.0
+upload=1000.0
+[[dynamic.policies]]
+id="shared"
+name="Synthetic clients"
+selections=["source-one"]
+targets=[{node="branch",wan="wan-a"},{node="root",wan="wan-b"}]
+default={node="branch",wan="wan-a"}
+balance=false
+metric="online_clients"

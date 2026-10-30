@@ -80,7 +80,7 @@ pub async fn sources(State(s): State<Shared>, Query(search): Query<Search>) -> H
                 @if !normalizer::has_bindings(&a.settings){p.warning{"No active source bindings. A previous managed generation remains retained until a new complete collection is available."}}
             }
             (selection_panel_query(&a, &search.q.chars().take(256).collect::<String>()))
-            @for node in a.settings.nodes.iter().filter(|n|normalizer::service(&n.kind).is_some()).take(200) {
+            @for node in a.settings.nodes.iter().filter(|n|a.settings.dynamic.is_none()&&normalizer::service(&n.kind).is_some()).take(200) {
                 @let selected=if node.router.is_empty()||node.source.is_empty(){String::new()}else{serde_json::to_string(&[&node.router,&node.source]).unwrap_or_default()};
                 section.card {h2{(&node.name) " · " (&node.kind)}p.help{"Node ID: " (&node.id)}
                     form method="post" action="/sources/save" {(csrf(&a))input type="hidden" name="node" value=(&node.id);
@@ -246,12 +246,17 @@ pub(crate) fn selection_panel(a: &App) -> maud::Markup {
 }
 fn selection_panel_query(a: &App, query: &str) -> maud::Markup {
     let choices = selection_choices(a, query);
+    let revision = crate::topology_edits::revision(&a.settings).unwrap_or_default();
     html! {
         section.card { h2 {"Independent sources and exclusions"}
             p.help {"Select a profile, server, account, or lease. Individual choices override group choices. An exclusion skips matching records. Removing a selection keeps router data and topology."}
             form method="get" action="/sources" {label {"Search inventory" input name="q" value=(query) maxlength="256";} button {"Search"}}
             p.help {"First 200 matching choices and selections are shown. Read fresh router inventory to update the choices."}
-            form method="post" action="/sources/selection" {(csrf(a))
+            form method="post" action="/sources/selection" {(crate::dynamic_web::guards_revision(a,&revision))
+                @if let Some(c)=&a.settings.dynamic {
+                    label{"Assignment policy" select name="policy"{option value=""{"Create a policy for this selection"}@for p in &c.policies{option value=(&p.id){(if p.name.is_empty(){&p.id}else{&p.name}) " · " (&p.id)}}}}
+                    label{"Routing WAN for a new policy" select name="wan"{option value=""{"Choose a WAN for a new policy"}@for w in &c.wans{option value=(&w.id){(&w.name) " · " (&w.id)}}}}
+                }
                 label {"Inventory source" select name="selection" required {option value="" {"Choose a source"} @for c in choices {option value=(c.value) {(c.label)}}}}
                 label {"Destination node ID" input name="node" list="selection-nodes" maxlength="80" placeholder="Choose or enter an existing node ID";}
                 label {"Create a branch under node ID" input name="parent" list="selection-nodes" maxlength="80" placeholder="Optional parent node ID";}
@@ -261,8 +266,9 @@ fn selection_panel_query(a: &App, query: &str) -> maud::Markup {
             }
             div.tablewrap {table {thead {tr {th {"Router / service"} th {"Selector"} th {"Destination"} th {"Action"}}} tbody {
                 @for selection in a.settings.selections.iter().filter(|s|query.is_empty() || format!("{} {} {} {}",s.router,s.kind,s.value,s.node).to_lowercase().contains(&query.to_lowercase())).take(200) {
-                    tr {td {(&selection.router) " / " (&selection.kind)} td {(&selection.selector) ": " (&selection.value)} td {@if selection.exclude {"Excluded"} @else {(&selection.node)}} td {
-                        form method="post" action=(format!("/sources/selection/{}/delete",selection.id)) {(csrf(a)) button.danger {"Remove"}}
+                    tr {td {(&selection.router) " / " (&selection.kind)} td {(&selection.selector) ": " (&selection.value)} td {@if selection.exclude {"Excluded"} @else if let Some(c)=&a.settings.dynamic {@if let Some(p)=c.policies.iter().find(|p|p.selections.contains(&selection.id)){(&p.id)}} @else {(&selection.node)}} td {
+                        (crate::dynamic_web::source_editor(a,selection,&revision))
+                        form method="post" action=(format!("/sources/selection/{}/delete",selection.id)) {(crate::dynamic_web::guards_revision(a,&revision)) button.danger {"Remove"}}
                     }}
                 }
             }}}
@@ -272,6 +278,14 @@ fn selection_panel_query(a: &App, query: &str) -> maud::Markup {
 #[derive(Deserialize)]
 pub struct SelectionForm {
     token: String,
+    #[serde(default)]
+    revision: String,
+    #[serde(default)]
+    original_id: String,
+    #[serde(default)]
+    policy: String,
+    #[serde(default)]
+    wan: String,
     selection: String,
     #[serde(default)]
     node: String,
@@ -284,6 +298,11 @@ pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionF
     let mut a = s.lock().await;
     if let Err(r) = check(&a, &form.token) {
         return r.into_response();
+    }
+    if a.settings.dynamic.is_some()
+        && form.revision != crate::topology_edits::revision(&a.settings).unwrap_or_default()
+    {
+        return error(&a, "Settings changed; reload before saving");
     }
     let Ok([router, kind, selector, value]) = serde_json::from_str::<[String; 4]>(&form.selection)
     else {
@@ -330,6 +349,12 @@ pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionF
         );
     }
     let mut next = a.settings.clone();
+    if a.settings.dynamic.is_some() && !form.policy.is_empty() && !form.parent.is_empty() {
+        return error(
+            &a,
+            "Choose an existing policy or create a branch for a new policy",
+        );
+    }
     let mut node = form.node;
     if !form.parent.is_empty() && !form.exclude {
         if !next.nodes.iter().any(|n| n.id == form.parent) {
@@ -340,7 +365,11 @@ pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionF
             id: node.clone(),
             name: value.clone(),
             parent: form.parent,
-            kind: kind.clone(),
+            kind: if next.dynamic.is_some() {
+                "group".into()
+            } else {
+                kind.clone()
+            },
             router: String::new(),
             source: String::new(),
             mode: "computed".into(),
@@ -350,8 +379,81 @@ pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionF
             upload_factor: 1.,
         });
     }
+    let selection_id = if form.original_id.is_empty() {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        if next.dynamic.is_none() || !next.selections.iter().any(|s| s.id == form.original_id) {
+            return error(&a, "Source selection no longer exists");
+        }
+        form.original_id.clone()
+    };
+    if let Some(c) = &mut next.dynamic {
+        if !form.original_id.is_empty() {
+            if let Some(old) = c
+                .policies
+                .iter()
+                .find(|p| p.selections.contains(&selection_id))
+                && (form.exclude || old.id != form.policy)
+            {
+                if c.pins.values().any(|pin| pin.policy == old.id) {
+                    return error(
+                        &a,
+                        "Clear stored pins in the old policy before excluding or regrouping this selection",
+                    );
+                }
+                if !form.exclude {
+                    let preserves =
+                        if let Some(new) = c.policies.iter().find(|p| p.id == form.policy) {
+                            old.targets.iter().all(|t| new.targets.contains(t))
+                        } else {
+                            old.targets
+                                .iter()
+                                .all(|t| t.node == node && t.wan == form.wan)
+                        };
+                    if !preserves {
+                        return error(
+                            &a,
+                            "Use explicit destination replacement before moving this selection to a policy with different destinations",
+                        );
+                    }
+                }
+            }
+            for p in &mut c.policies {
+                p.selections.retain(|id| id != &selection_id);
+            }
+        }
+        if !form.exclude {
+            if !form.policy.is_empty() {
+                let Some(p) = c.policies.iter_mut().find(|p| p.id == form.policy) else {
+                    return error(&a, "Assignment policy no longer exists");
+                };
+                p.selections.push(selection_id.clone());
+            } else {
+                let target = crate::dynamic::Target {
+                    node: node.clone(),
+                    wan: form.wan,
+                };
+                c.policies.push(crate::dynamic::Policy {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    name: value.clone(),
+                    selections: vec![selection_id.clone()],
+                    targets: vec![target.clone()],
+                    default: target,
+                    balance: false,
+                    metric: "online_clients".into(),
+                });
+            }
+        }
+        c.policies.retain(|p| !p.selections.is_empty());
+        let policies: std::collections::HashSet<_> =
+            c.policies.iter().map(|p| p.id.as_str()).collect();
+        c.replacements
+            .retain(|r| policies.contains(r.policy.as_str()));
+        node.clear();
+    }
+    next.selections.retain(|s| s.id != selection_id);
     next.selections.push(crate::selection::Selection {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: selection_id,
         router,
         kind,
         selector,
@@ -371,6 +473,8 @@ pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionF
 #[derive(Deserialize)]
 pub struct DeleteSelectionForm {
     token: String,
+    #[serde(default)]
+    revision: String,
 }
 pub async fn delete_selection(
     State(s): State<Shared>,
@@ -381,11 +485,26 @@ pub async fn delete_selection(
     if let Err(r) = check(&a, &form.token) {
         return r.into_response();
     }
+    if a.settings.dynamic.is_some()
+        && form.revision != crate::topology_edits::revision(&a.settings).unwrap_or_default()
+    {
+        return error(&a, "Settings changed; reload before saving");
+    }
     if !a.settings.selections.iter().any(|s| s.id == id) {
         return error(&a, "Selection no longer exists");
     }
     let mut next = a.settings.clone();
     next.selections.retain(|s| s.id != id);
+    if let Some(c) = &mut next.dynamic {
+        for p in &mut c.policies {
+            p.selections.retain(|s| s != &id);
+        }
+        c.policies.retain(|p| !p.selections.is_empty());
+        let policies: std::collections::HashSet<_> =
+            c.policies.iter().map(|p| p.id.as_str()).collect();
+        c.replacements
+            .retain(|r| policies.contains(r.policy.as_str()));
+    }
     if let Err(e) =
         validate_selection_settings(&a, &next).and_then(|_| store::save_settings(&a.root, &next))
     {
@@ -397,6 +516,10 @@ pub async fn delete_selection(
 }
 
 fn validate_selection_settings(a: &App, next: &crate::model::Settings) -> anyhow::Result<()> {
+    if next.dynamic.is_some() {
+        crate::web::nodelimits(next)?;
+        return crate::dynamic_web::validate_evidence_edit(a, next);
+    }
     crate::web::nodelimits(next)?;
     let mut rows = store::load_snapshot(&a.root)?;
     if !rows.is_empty() {

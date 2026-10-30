@@ -168,7 +168,28 @@ pub fn validate_assigned(
     };
     crate::dynamic::validate_routes(state)?;
     let wans: HashMap<_, _> = config.wans.iter().map(|w| (w.id.as_str(), w)).collect();
-    let policies: HashMap<_, _> = config.policies.iter().map(|p| (p.id.as_str(), p)).collect();
+    let sources: HashMap<_, _> = config
+        .policies
+        .iter()
+        .flat_map(|p| {
+            p.selections
+                .iter()
+                .map(move |id| (id.as_str(), p.id.as_str()))
+        })
+        .collect();
+    let targets: HashMap<_, std::collections::HashSet<_>> = config
+        .policies
+        .iter()
+        .map(|p| {
+            (
+                p.id.as_str(),
+                p.targets
+                    .iter()
+                    .map(|t| (t.node.as_str(), t.wan.as_str()))
+                    .collect(),
+            )
+        })
+        .collect();
     let mut sums = HashMap::<&str, (f64, f64)>::new();
     for sub in subs {
         let route = state
@@ -179,15 +200,11 @@ pub fn validate_assigned(
             route.node == sub.node,
             "Subscriber route does not match exported parent"
         );
-        let p = policies
-            .get(route.policy.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Assignment policy no longer exists"))?;
         ensure!(
-            p.selections.contains(&route.selection)
-                && p.targets.contains(&crate::dynamic::Target {
-                    node: route.node.clone(),
-                    wan: route.wan.clone()
-                }),
+            sources.get(route.selection.as_str()) == Some(&route.policy.as_str())
+                && targets
+                    .get(route.policy.as_str())
+                    .is_some_and(|ts| ts.contains(&(route.node.as_str(), route.wan.as_str()))),
             "Subscriber route is outside its selected policy"
         );
         ensure!(
@@ -273,7 +290,7 @@ pub fn allocate_assigned(
         }
     }
     validate_assigned(settings, &planned, state)?;
-    model::compile(settings, &planned)?;
+    // WAN reductions cannot increase the validated ancestor minimums.
     result.adjusted_subscribers = subs
         .iter()
         .zip(&planned)

@@ -5,6 +5,23 @@ Core routing and address-list synchronization require a future production adapte
 These assignments do not change the actual path of subscriber traffic yet.
 The [core list planner](CORE_PLANNER.md) now previews owned per-host list changes and audits supported routing structures.
 
+## Independent topology
+
+After **Enable independent topology**, WANs defines routing WANs separately from the exported tree.
+Create or edit a WAN with its cog. The selected router/interface and directional capacities belong to its stable WAN ID.
+One router/interface pair still maps to only one routing WAN.
+A WAN can serve several exported roots. An exported node can receive clients assigned to several WANs.
+The selected destination pair records both identities. Core plans use its WAN, while CSV/JSON use its node.
+
+Source policies can combine services and share eligible pairs. Each policy requires a valid default in its eligible set.
+The former source node need not remain eligible. Destinations do not need a matching service kind or an exclusive source owner.
+Use explicit replacements when removing destinations. Active and inactive pins must retain valid policy ownership.
+Root promotion and demotion do not change the routing WAN.
+See [dynamic topology and modal controls](FLEXIBLE_TOPOLOGY.md) for conversion and operator procedures.
+
+The sections below describe the compatible legacy configuration path where routing WANs remain exported roots.
+Assignment order, session rules, and ownership gates also apply to the independent path.
+
 ## Map WAN interfaces
 
 1. Configure the core or edge router on the Routers page.
@@ -119,3 +136,11 @@ The benchmark checks 50,000 subscribers across eight equal-capacity WANs.
 It verifies equal distribution, retained assignments, unchanged rates, and successful CSV compilation.
 The initial debug measurement was 525 ms for new assignments and 229 ms for retained assignments.
 These measurements exclude network collection and disk publication. They are not production latency guarantees.
+
+Run the independent-selector and shared-budget workload from `v3/`:
+
+```bash
+cargo test --locked --test dynamic_performance -- --ignored --nocapture
+```
+
+It verifies 50,000 individual source selections, a flat root across two WANs, continuity, reconnect balance, shared minimum budgets, and candidate persistence.

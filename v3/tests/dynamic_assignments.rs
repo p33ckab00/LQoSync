@@ -143,3 +143,101 @@ fn independent_roots_share_the_same_routing_wan_minimum_budget() {
     assert!(rows.iter().map(|r| r.upload_min).sum::<f64>() <= 4. + 1e-8);
     assert_eq!(a.routes.len(), 3);
 }
+
+#[test]
+fn explicit_node_replacement_updates_continuous_sessions_without_changing_wans() {
+    use lqosync_v3::topology_edits::{self, Operation};
+    let (mut s, i) = fixture();
+    let e = BTreeMap::new();
+    let mut rows = normalizer::collect(&s, &i, &e, 101).unwrap();
+    let first = sessions::plan(
+        &s,
+        &mut rows,
+        &AssignmentState::default(),
+        None,
+        &i,
+        &e,
+        101,
+    )
+    .unwrap();
+    let mut replacement = s.nodes[0].clone();
+    replacement.id = "replacement".into();
+    s.nodes.push(replacement);
+    s = topology_edits::preview(
+        &s,
+        Operation::Remove {
+            id: "wan".into(),
+            replacement: Some("replacement".into()),
+            child_parent: None,
+        },
+    )
+    .unwrap()
+    .settings;
+    let mut rows = normalizer::collect(&s, &i, &e, 101).unwrap();
+    let next = sessions::plan(
+        &s,
+        &mut rows,
+        &AssignmentState::default(),
+        Some(&first),
+        &i,
+        &e,
+        101,
+    )
+    .unwrap();
+    for (id, r) in &next.assignments.routes {
+        assert_eq!(r.node, "replacement");
+        assert_eq!(r.wan, first.assignments.routes[id].wan);
+    }
+}
+#[test]
+fn planned_load_retains_offline_routes_for_future_sessions() {
+    let (mut s, mut i) = fixture();
+    for p in &mut s.dynamic.as_mut().unwrap().policies {
+        p.metric = "planned_load".into();
+    }
+    let e = BTreeMap::new();
+    let mut rows = normalizer::collect(&s, &i, &e, 101).unwrap();
+    let first =
+        assignment::assign(&s, &mut rows, &AssignmentState::default(), &i, &e, 101).unwrap();
+    let alice = normalizer::subscriber_id("r1", "ppp", "alice").unwrap();
+    Arc::make_mut(i.get_mut("r1").unwrap())
+        .tables
+        .get_mut("/ppp/active/print")
+        .unwrap()
+        .clear();
+    let mut rows = normalizer::collect(&s, &i, &e, 101).unwrap();
+    let second = assignment::assign(&s, &mut rows, &first, &i, &e, 101).unwrap();
+    assert_eq!(second.routes[&alice], first.routes[&alice]);
+}
+
+#[test]
+fn enabling_count_mode_adopts_unobserved_continuous_assignments() {
+    let (mut s, i) = fixture();
+    let e = BTreeMap::new();
+    for p in &mut s.dynamic.as_mut().unwrap().policies {
+        p.balance = false;
+    }
+    let mut rows = normalizer::collect(&s, &i, &e, 101).unwrap();
+    let state =
+        assignment::assign(&s, &mut rows, &AssignmentState::default(), &i, &e, 101).unwrap();
+    let previous = sessions::Observation {
+        assignments: state.clone(),
+        active: BTreeMap::new(),
+        collected: [("r1".into(), 100)].into_iter().collect(),
+    };
+    for p in &mut s.dynamic.as_mut().unwrap().policies {
+        p.balance = true;
+    }
+    let mut rows = normalizer::collect(&s, &i, &e, 101).unwrap();
+    let observed = sessions::plan(
+        &s,
+        &mut rows,
+        &AssignmentState::default(),
+        Some(&previous),
+        &i,
+        &e,
+        101,
+    )
+    .unwrap();
+    assert_eq!(observed.assignments, state);
+}

@@ -169,7 +169,7 @@ pub(crate) fn overview(a: &App, count: usize) -> Html<String> {
         html! {
             div.grid.stats {
                 (stat("Managed routers", a.settings.routers.len(), "Configured sources"))
-                (stat("WAN roots", a.settings.nodes.iter().filter(|n| n.kind == "wan").count(), "Configured shaping roots"))
+                (stat("Routing WANs", crate::dynamic::wan_nodes(&a.settings).len(), "Configured WAN mappings"))
                 (stat("Subscribers", count, "Snapshot total · not online sessions"))
                 (stat("Output state", if a.generation.is_some() {"STAGED"} else {"UNAVAILABLE"}, "Local generation only"))
             }
@@ -185,11 +185,11 @@ pub(crate) fn overview(a: &App, count: usize) -> Html<String> {
                     div.panelhead {strong {"WAN capacity and source mapping"} a.btn href="/wans" {"Manage WANs"}}
                     div.tablewrap {table {
                         thead {tr {th {"WAN"} th {"Configured down / up"} th {"Router / interface"} th {"Mode"}}}
-                        tbody {@for n in a.settings.nodes.iter().filter(|n| n.kind == "wan") {
+                        tbody {@for n in crate::dynamic::wan_nodes(&a.settings) {
                             tr {td.strong {(&n.name)} td {(n.download) " / " (n.upload) " Mbps"} td {(&n.router) " / " (&n.source)} td {(&n.mode)}}
                         }}
                     }}
-                    @if !a.settings.nodes.iter().any(|n| n.kind == "wan") {p.emptystate {"No WAN roots configured. Create a root in Topology."}}
+                    @if crate::dynamic::wan_nodes(&a.settings).is_empty() {p.emptystate {"No WAN roots configured. Create a root in Topology."}}
                     div.tablefoot {"Configured capacities are not measured traffic utilization."}
                 }
                 section.panel {
@@ -341,12 +341,14 @@ pub(crate) fn topology(
         .find(|n| n.id == selected)
         .or_else(|| a.settings.nodes.first());
     let mut counts = std::collections::BTreeMap::<String, usize>::new();
-    if let Ok(Some(observation)) = observation
-        && let Ok(topology) = crate::assignment::Topology::new(&a.settings)
-    {
+    if let Ok(Some(observation)) = observation {
+        let topology = crate::assignment::Topology::new(&a.settings).ok();
         for id in observation.active.keys() {
-            if let Some(pin) = observation.assignments.assignments.get(id)
-                && let Ok(wan) = topology.root(&pin.node)
+            if let Some(route) = observation.assignments.routes.get(id) {
+                *counts.entry(route.wan.clone()).or_default() += 1;
+            } else if let Some(pin) = observation.assignments.assignments.get(id)
+                && let Some(t) = &topology
+                && let Ok(wan) = t.root(&pin.node)
             {
                 *counts.entry(wan.id.clone()).or_default() += 1;
             }
@@ -356,6 +358,7 @@ pub(crate) fn topology(
         a,
         "Topology",
         html! {
+            @if a.settings.dynamic.is_none(){(crate::dynamic_web::enable(a))}
             div.workbench {
                 section.workpane {
                     div.workhead {"Discovered inventory" span.micro {"READ ONLY"}}
@@ -399,7 +402,7 @@ pub(crate) fn topology(
                     div.workhead {"Network hierarchy" span.micro {"LOCAL PLAN"}}
                     div.workcenter {
                         div.toponote {span {"Exported shaping tree"} span {(a.settings.nodes.len()) " configured nodes"}}
-                        div.corenode {"Configured WAN roots"} div.corestem {}
+                        div.corenode {(if a.settings.dynamic.is_some(){"Exported shaping roots"}else{"Configured WAN roots"})} div.corestem {}
                         div.wangrid {(hierarchy(a, "", selected, plan))}
                         @if a.settings.nodes.is_empty() {p.emptystate {"Create a WAN root, then add branches."}}
                         @if plan.is_none() && !a.settings.nodes.is_empty() {p.note {"Snapshot capacity preview unavailable. Configured capacities appear where available."}}
@@ -412,7 +415,7 @@ pub(crate) fn topology(
                         @if let Some(n) = selected {
                             div {
                                 div.kind {(&n.kind)} h3 {(&n.name)} div.micro.mono {(&n.id)}
-                                div.kv {span {"Parent"} strong {(if n.parent.is_empty() {"WAN root"} else {&n.parent})}}
+                                div.kv {span {"Parent"} strong {(if n.parent.is_empty() {"Independent root"} else {&n.parent})}}
                                 div.kv {span {"Capacity mode"} strong {(&n.mode)}}
                                 @if let Some(c) = plan.and_then(|p| p.capacities.get(&n.id)) {
                                     div.kv {span {"Effective down / up"} strong {(format!("{:.2} / {:.2} Mbps", c.download, c.upload))}}
@@ -423,7 +426,8 @@ pub(crate) fn topology(
                             }
                             div {
                                 details {summary {"Edit configuration"} (node_form(a, Some(n)))}
-                                form method="post" action=(format!("/nodes/{}/delete", n.id)) {(csrf(a)) button.danger {"Remove node"}}
+                                @if a.settings.dynamic.is_some(){(crate::dynamic_web::node_tools(a,n))} @else {
+                                form method="post" action=(format!("/nodes/{}/delete", n.id)) {(csrf(a)) button.danger {"Remove node"}}}
                                 p.note {"Removal keeps router records unchanged. Reassign subscribers and dependent branches before removal."}
                             }
                         } @else {p.note {"Select a node after creating the first WAN root."}}

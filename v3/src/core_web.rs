@@ -157,7 +157,7 @@ pub async fn page(State(s): State<Shared>, Query(page): Query<Page>) -> Response
             p.help{"Map the WAN to a core/both router first. Read fresh inventory. Each list needs a direct prerouting mark to its custom table and an active default through that WAN. Complex policy requires review."}
             @if let Some(message)=&load_error{p{(message)}}
         }
-        @for wan in a.settings.nodes.iter().filter(|n|n.kind=="wan") {
+        @for wan in crate::dynamic::wan_nodes(&a.settings) {
             @let binding=a.settings.core_lists.bindings.iter().find(|b|b.wan==wan.id);
             @let choices=tables(&a,&wan.router);
             section.card {h2{(&wan.name) " · " (&wan.id)}

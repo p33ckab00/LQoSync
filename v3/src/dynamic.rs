@@ -16,6 +16,8 @@ pub struct Config {
     pub policies: Vec<Policy>,
     #[serde(default)]
     pub pins: BTreeMap<String, DynamicPin>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub replacements: Vec<Replacement>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +39,8 @@ pub struct Target {
 #[serde(deny_unknown_fields)]
 pub struct Policy {
     pub id: String,
+    #[serde(default)]
+    pub name: String,
     pub selections: Vec<String>,
     pub targets: Vec<Target>,
     pub default: Target,
@@ -48,6 +52,13 @@ pub struct Policy {
 pub struct DynamicPin {
     pub policy: String,
     pub target: Target,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Replacement {
+    pub policy: String,
+    pub from: Target,
+    pub to: Target,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -145,6 +156,10 @@ pub fn validate(s: &Settings) -> Result<()> {
             "Invalid or duplicate assignment policy ID"
         );
         ensure!(
+            p.name.len() <= 256 && !p.name.chars().any(char::is_control),
+            "Policy name is invalid"
+        );
+        ensure!(
             matches!(p.metric.as_str(), "online_clients" | "planned_load"),
             "Unknown assignment metric"
         );
@@ -180,6 +195,24 @@ pub fn validate(s: &Settings) -> Result<()> {
             .all(|x| owned.contains(&x.id)),
         "Every selected source requires one assignment policy"
     );
+    let index = replacement_index(c);
+    let mut transitions = HashSet::new();
+    for r in &c.replacements {
+        ensure!(
+            transitions.insert((&r.policy, &r.from)) && r.from != r.to,
+            "Duplicate or circular destination replacement"
+        );
+        ensure!(
+            [&r.from.node, &r.from.wan, &r.to.node, &r.to.wan]
+                .iter()
+                .all(|id| model::valid_id(id)),
+            "Invalid replacement identity"
+        );
+        let p = policies
+            .get(r.policy.as_str())
+            .context("Replacement policy no longer exists")?;
+        resolve_with(&index, p, &r.from)?;
+    }
     for (id, pin) in &c.pins {
         uuid::Uuid::parse_str(id).context("A subscriber pin requires a normalized UUID")?;
         ensure!(
@@ -252,6 +285,12 @@ pub fn migrate(s: &Settings) -> Result<Settings> {
         };
         policies.push(Policy {
             id: node.into(),
+            name: s
+                .nodes
+                .iter()
+                .find(|n| n.id == node)
+                .map(|n| n.name.clone())
+                .unwrap_or_else(|| node.into()),
             selections,
             targets: targets.iter().map(|n| target(n)).collect::<Result<_>>()?,
             default: target(node)?,
@@ -308,6 +347,7 @@ pub fn migrate(s: &Settings) -> Result<Settings> {
         wans,
         policies,
         pins,
+        replacements: vec![],
     });
     model::validate(&next)?;
     Ok(next)
@@ -352,44 +392,73 @@ pub fn adopt(
         .iter()
         .map(|r| (r.id.as_str(), r.node.as_str()))
         .collect();
+    let source_policies: HashMap<_, _> = c
+        .policies
+        .iter()
+        .flat_map(|p| p.selections.iter().map(move |id| (id.as_str(), p)))
+        .collect();
+    let legacy_policies: HashMap<_, _> = c.policies.iter().map(|p| (p.id.as_str(), p)).collect();
+    let replacements = replacement_index(c);
     let mut state = old.clone();
     for (id, pin) in &old.assignments {
         if old.routes.contains_key(id) {
             continue;
         }
-        let Some(source) = current.get(id.as_str()) else {
-            // Inactive manual pins live in configuration, not in session evidence.
-            state.assignments.remove(id);
-            continue;
+        let source = if let Some(source) = current.get(id.as_str()) {
+            (*source).to_string()
+        } else {
+            let policy = legacy_policies
+                .get(pin.source_node.as_str())
+                .or_else(|| source_policies.get(pin.source_node.as_str()))
+                .context("Inactive legacy evidence has no unambiguous policy")?;
+            if policy.selections.contains(&pin.source_node) {
+                pin.source_node.clone()
+            } else {
+                ensure!(
+                    policy.selections.len() == 1,
+                    "Inactive legacy evidence has ambiguous source ownership; resolve it before migration"
+                );
+                policy.selections[0].clone()
+            }
         };
-        let p = c
-            .policies
-            .iter()
-            .find(|p| p.selections.iter().any(|x| x == source))
+        let p = source_policies
+            .get(source.as_str())
             .context("Selected source has no policy")?;
         ensure!(
-            pin.source_node == p.id || pin.source_node == *source,
+            pin.source_node == p.id || pin.source_node == source,
             "Legacy evidence source has an ambiguous policy"
         );
-        let matches: Vec<_> = p.targets.iter().filter(|t| t.node == pin.node).collect();
+        let matches: std::collections::BTreeSet<_> = p
+            .targets
+            .iter()
+            .chain(
+                c.replacements
+                    .iter()
+                    .filter(|r| r.policy == p.id)
+                    .map(|r| &r.from),
+            )
+            .filter(|t| t.node == pin.node)
+            .cloned()
+            .collect();
         ensure!(
             matches.len() == 1,
             "Legacy destination has an ambiguous WAN; restore its mapping before migration"
         );
+        let target = resolve_with(&replacements, p, matches.first().expect("one target"))?;
         state.assignments.insert(
             id.clone(),
             crate::assignment::Pin {
-                source_node: (*source).into(),
-                node: pin.node.clone(),
+                source_node: source.clone(),
+                node: target.node.clone(),
             },
         );
         state.routes.insert(
             id.clone(),
             Route {
-                selection: (*source).into(),
+                selection: source.clone(),
                 policy: p.id.clone(),
-                node: pin.node.clone(),
-                wan: matches[0].wan.clone(),
+                node: target.node,
+                wan: target.wan,
             },
         );
     }
@@ -412,7 +481,45 @@ pub fn assign_targets(
         .collect();
     let wans: HashMap<_, _> = c.wans.iter().map(|w| (w.id.as_str(), w)).collect();
     let mut planned = rows.to_vec();
+    let replacements = replacement_index(c);
+    let nodes: HashMap<_, _> = s.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let mut state = AssignmentState::default();
+    for (id, r) in &previous.routes {
+        if let Some(p) = policies.get(r.selection.as_str()) {
+            let target = resolve_with(
+                &replacements,
+                p,
+                &Target {
+                    node: r.node.clone(),
+                    wan: r.wan.clone(),
+                },
+            )?;
+            ensure!(
+                r.policy == p.id
+                    || p.targets.contains(&Target {
+                        node: r.node.clone(),
+                        wan: r.wan.clone()
+                    }),
+                "A changed source policy must preserve its assigned destination or provide an explicit replacement"
+            );
+            state.routes.insert(
+                id.clone(),
+                Route {
+                    node: target.node.clone(),
+                    wan: target.wan,
+                    policy: p.id.clone(),
+                    ..r.clone()
+                },
+            );
+            state.assignments.insert(
+                id.clone(),
+                crate::assignment::Pin {
+                    source_node: r.selection.clone(),
+                    node: target.node,
+                },
+            );
+        }
+    }
     let mut wan_load = HashMap::<String, (usize, f64, f64)>::new();
     let mut node_load = HashMap::<String, (usize, f64, f64)>::new();
     let mut pending = vec![];
@@ -485,10 +592,10 @@ pub fn assign_targets(
                 wan: old.wan.clone(),
             };
             ensure!(
-                old.policy == p.id && p.targets.contains(&target),
-                "An active assignment requires an explicit destination replacement"
+                old.policy == p.id || p.targets.contains(&target),
+                "A changed source policy must preserve its active destination"
             );
-            Some(target)
+            Some(resolve_with(&replacements, p, &target)?)
         } else if !p.balance {
             Some(p.default.clone())
         } else {
@@ -500,7 +607,6 @@ pub fn assign_targets(
             pending.push((i, source));
         }
     }
-    drop(put);
     pending.sort_by(|(a, _), (b, _)| planned[*a].id.cmp(&planned[*b].id));
     for (i, source) in pending {
         let row = &mut planned[i];
@@ -513,7 +619,17 @@ pub fn assign_targets(
                 w.0 as f64
             } else {
                 let cap = wans[t.wan.as_str()];
-                ((w.1 + row.download) / cap.download).max((w.2 + row.upload) / cap.upload)
+                let score =
+                    ((w.1 + row.download) / cap.download).max((w.2 + row.upload) / cap.upload);
+                let node = nodes[t.node.as_str()];
+                if node.mode == "manual" {
+                    score.max(
+                        ((n.1 + row.download) / node.download)
+                            .max((n.2 + row.upload) / node.upload),
+                    )
+                } else {
+                    score
+                }
             };
             ensure!(score.is_finite(), "Assignment load overflow");
             let value = (score, if p.metric == "online_clients" { n.0 } else { 0 }, t);
@@ -555,4 +671,28 @@ pub fn assign_targets(
     validate_routes(&state)?;
     rows.clone_from_slice(&planned);
     Ok(state)
+}
+
+type ReplacementIndex<'a> = HashMap<(&'a str, &'a Target), &'a Target>;
+fn replacement_index(config: &Config) -> ReplacementIndex<'_> {
+    config
+        .replacements
+        .iter()
+        .map(|r| ((r.policy.as_str(), &r.from), &r.to))
+        .collect()
+}
+fn resolve_with(index: &ReplacementIndex<'_>, policy: &Policy, target: &Target) -> Result<Target> {
+    let mut current = target.clone();
+    let mut seen = HashSet::new();
+    while !policy.targets.contains(&current) {
+        ensure!(
+            seen.insert(current.clone()) && seen.len() <= 256,
+            "Destination replacement contains a cycle or exceeds its limit"
+        );
+        current = (*index
+            .get(&(policy.id.as_str(), &current))
+            .context("An active assignment requires an explicit destination replacement")?)
+        .clone();
+    }
+    Ok(current)
 }

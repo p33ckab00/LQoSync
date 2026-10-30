@@ -184,7 +184,7 @@ pub fn review(
         .map(|g| &g.assignments)
         .unwrap_or(&empty);
     let proposed = (|| -> anyhow::Result<_> {
-        if origin == Origin::Live && crate::dynamic::count_mode(&settings) {
+        if origin == Origin::Live && crate::dynamic::count_mode(settings) {
             Ok(crate::sessions::plan(
                 settings,
                 &mut subscribers,
