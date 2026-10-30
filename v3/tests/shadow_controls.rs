@@ -107,3 +107,74 @@ fn console_coordinator_cannot_be_reused_for_another_data_directory() {
     assert!(!other.path().join("state").exists());
     assert!(coordinator.begin(d.path(), "revision").is_ok());
 }
+
+#[test]
+fn durable_pause_invalidates_other_coordinators_and_survives_reconfiguration() {
+    let d = tempfile::tempdir().unwrap();
+    let first = Coordinator::for_root(d.path()).unwrap();
+    let second = Coordinator::for_root(d.path()).unwrap();
+    first.configure("revision", true);
+    second.configure("revision", true);
+    let ticket = first.begin(d.path(), "revision").unwrap();
+    second.pause_all().unwrap();
+    assert!(ticket.check("revision").is_err());
+    first.configure("revision", true);
+    assert!(ticket.check("revision").is_err());
+    drop(ticket);
+    assert!(first.begin(d.path(), "revision").is_err());
+    let restarted = Coordinator::for_root(d.path()).unwrap();
+    restarted.configure("revision", true);
+    assert!(restarted.begin(d.path(), "revision").is_err());
+}
+
+#[test]
+fn shadow_ticket_cannot_revive_after_observed_control_loss() {
+    let d = tempfile::tempdir().unwrap();
+    let c = Coordinator::for_root(d.path()).unwrap();
+    c.configure("revision", true);
+    let ticket = c.begin(d.path(), "revision").unwrap();
+    let remote = Coordinator::for_root(d.path()).unwrap();
+    remote.configure("revision", true);
+    remote.pause_all().unwrap();
+    assert!(ticket.check("revision").is_err());
+    std::fs::remove_file(d.path().join("state/core-control-state.json")).unwrap();
+    assert!(ticket.check("revision").is_err());
+}
+
+#[test]
+fn distributed_process_probe() {
+    use std::io::Write;
+    let Ok(root) = std::env::var("LQOSYNC_DISTRIBUTED_PROBE_ROOT") else {
+        return;
+    };
+    let c = Coordinator::for_root(std::path::Path::new(&root)).unwrap();
+    c.configure("probe", true);
+    let ticket = c.begin(std::path::Path::new(&root), "probe").unwrap();
+    println!("DISTRIBUTED_READY");
+    std::io::stdout().flush().unwrap();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).unwrap();
+    assert!(ticket.check("probe").is_err());
+}
+#[test]
+fn pause_reaches_a_ticket_in_another_process() {
+    use std::io::{BufRead, Write};
+    let d = tempfile::tempdir().unwrap();
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "distributed_process_probe", "--nocapture"])
+        .env("LQOSYNC_DISTRIBUTED_PROBE_ROOT", d.path())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut output = std::io::BufReader::new(child.stdout.take().unwrap());
+    let ready = (&mut output)
+        .lines()
+        .any(|line| line.unwrap() == "DISTRIBUTED_READY");
+    assert!(ready);
+    let c = Coordinator::for_root(d.path()).unwrap();
+    c.configure("probe", true);
+    c.pause_all().unwrap();
+    child.stdin.take().unwrap().write_all(b"check\n").unwrap();
+    assert!(child.wait().unwrap().success());
+}

@@ -399,7 +399,7 @@ pub struct Executor {
 }
 enum WriterLease {
     Offline(Lease),
-    Coordinated(crate::core_coordination::CoordinatedLease),
+    Coordinated(Box<crate::core_coordination::CoordinatedLease>),
 }
 impl WriterLease {
     fn finish(self) -> Result<()> {
@@ -538,7 +538,7 @@ impl Executor {
         let mut this = Self {
             path,
             journal,
-            lease: Some(WriterLease::Coordinated(lease)),
+            lease: Some(WriterLease::Coordinated(Box::new(lease))),
             poisoned: false,
             completion_window: None,
         };
@@ -567,11 +567,7 @@ impl Executor {
         Ok(())
     }
     fn rows(&self) -> Result<Rows> {
-        let mut rows = self.journal.batch.baseline.clone();
-        for r in &self.journal.history {
-            apply(&mut rows, &r.operation, r.returned_id.as_deref())?;
-        }
-        Ok(rows)
+        self.journal.rows()
     }
     fn inverse(&self, index: usize) -> Result<Operation> {
         self.journal.inverse(index)
@@ -720,6 +716,13 @@ mod tests {
 }
 
 impl Journal {
+    fn rows(&self) -> Result<Rows> {
+        let mut rows = self.batch.baseline.clone();
+        for r in &self.history {
+            apply(&mut rows, &r.operation, r.returned_id.as_deref())?;
+        }
+        Ok(rows)
+    }
     fn validate(&self) -> Result<()> {
         let j = self;
         ensure!(
@@ -810,6 +813,9 @@ pub struct OperationReview {
     pub kind: String,
     pub router: String,
     pub row_id: Option<String>,
+    pub address: String,
+    pub from_list: Option<String>,
+    pub to_list: Option<String>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct JournalReview {
@@ -828,7 +834,21 @@ fn operation_review(op: &Operation, returned: Option<&str>) -> OperationReview {
         Operation::Remove { before, .. } => ("Remove", Some(before.id.clone())),
         Operation::Move { before, .. } => ("Move", Some(before.id.clone())),
     };
+    let (address, from_list, to_list) = match op {
+        Operation::Add { member, .. } => (member.address.clone(), None, Some(member.list.clone())),
+        Operation::Remove { before, .. } => {
+            (before.address.clone(), Some(before.list.clone()), None)
+        }
+        Operation::Move { before, after, .. } => (
+            before.address.clone(),
+            Some(before.list.clone()),
+            Some(after.list.clone()),
+        ),
+    };
     OperationReview {
+        address,
+        from_list,
+        to_list,
         kind: kind.into(),
         router: op.router().into(),
         row_id: id,
@@ -836,17 +856,7 @@ fn operation_review(op: &Operation, returned: Option<&str>) -> OperationReview {
 }
 /// Pure saved-record inspection. This function cannot acquire a writer lease or verify live rows.
 pub fn inspect_journal(raw: &str, revision: &str) -> Result<JournalReview> {
-    ensure!(
-        raw.len() <= 64 * 1024 * 1024,
-        "Writer journal exceeds inspection limit"
-    );
-    let j: Journal = serde_json::from_str(raw)?;
-    ensure!(
-        j.schema == 1 && j.batch.revision()? == revision,
-        "Writer journal identity or schema changed"
-    );
-    j.batch.validate()?;
-    j.validate()?;
+    let j = read_journal(raw, revision)?;
     Ok(JournalReview {
         revision: revision.into(),
         direction: if j.mode == Mode::Forward {
@@ -864,5 +874,89 @@ pub fn inspect_journal(raw: &str, revision: &str) -> Result<JournalReview> {
             .last()
             .map(|r| operation_review(&r.operation, r.returned_id.as_deref())),
         saved_verified: j.verified,
+    })
+}
+
+fn read_journal(raw: &str, revision: &str) -> Result<Journal> {
+    ensure!(
+        raw.len() <= 64 * 1024 * 1024,
+        "Writer journal exceeds inspection limit"
+    );
+    let j: Journal = serde_json::from_str(raw)?;
+    ensure!(
+        j.schema == 1 && j.batch.revision()? == revision,
+        "Writer journal identity or schema changed"
+    );
+    j.batch.validate()?;
+    j.validate()?;
+    Ok(j)
+}
+
+/// Read-only evidence assessment. This type is deliberately not an executor grant.
+#[derive(Debug, Serialize)]
+pub struct RecoveryAssessment {
+    pub revision: String,
+    pub journal_fingerprint: String,
+    pub captured_at: u64,
+    pub valid_until: u64,
+    pub next_forward: Option<OperationReview>,
+    pub next_rollback: Option<OperationReview>,
+}
+impl RecoveryAssessment {
+    pub fn is_fresh(&self, now: u64) -> bool {
+        self.captured_at <= now && now - self.captured_at <= 30 && now <= self.valid_until
+    }
+    pub fn require_execution_approval(&self) -> Result<()> {
+        anyhow::bail!(
+            "Recovery assessment is not approval; fresh worker guard reconstruction and isolated RouterOS acceptance remain required"
+        )
+    }
+}
+/// Match all known saved results to complete fresh actual evidence. Never infer an unknown reply.
+pub fn assess_recovery(
+    raw: &str,
+    revision: &str,
+    mut evidence: Evidence,
+    now: u64,
+) -> Result<RecoveryAssessment> {
+    let j = read_journal(raw, revision)?;
+    ensure!(
+        j.pending.is_none(),
+        "Unknown request outcome; recovery approval and rollback remain blocked"
+    );
+    ensure!(
+        evidence.captured_at <= now
+            && now - evidence.captured_at <= 30
+            && now <= evidence.valid_until,
+        "Recovery evidence expired or future-dated"
+    );
+    normalize(&mut evidence.rows)?;
+    ensure!(
+        evidence.context == j.batch.context && evidence.rows == j.rows()?,
+        "Recovery context or complete actual membership changed"
+    );
+    let next_forward = if j.mode == Mode::Forward {
+        j.batch
+            .operations
+            .get(j.forward)
+            .map(|op| operation_review(op, None))
+    } else {
+        None
+    };
+    let next_rollback = if j.undo < j.forward {
+        Some(operation_review(&j.inverse(j.forward - 1 - j.undo)?, None))
+    } else {
+        None
+    };
+    Ok(RecoveryAssessment {
+        revision: revision.into(),
+        journal_fingerprint: uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, raw.as_bytes())
+            .to_string(),
+        captured_at: evidence.captured_at,
+        valid_until: evidence
+            .valid_until
+            .min(evidence.captured_at.saturating_add(30)),
+        next_forward,
+        next_rollback,
     })
 }

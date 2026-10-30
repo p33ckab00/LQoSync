@@ -14,10 +14,13 @@ fn operation(value: Option<&crate::core_writer::OperationReview>) -> String {
     value
         .map(|v| {
             format!(
-                "{} · {} · {}",
+                "{} · {} · {} · {} · {} → {}",
                 v.kind,
                 v.router,
-                v.row_id.as_deref().unwrap_or("No returned ID")
+                v.row_id.as_deref().unwrap_or("No returned ID"),
+                v.address,
+                v.from_list.as_deref().unwrap_or("—"),
+                v.to_list.as_deref().unwrap_or("—")
             )
         })
         .unwrap_or_else(|| "None recorded".into())
@@ -43,8 +46,8 @@ fn content(report: Result<Report, anyhow::Error>) -> Markup {
                     h2 {"Writer journal " (&journal.revision)}
                     p {(&journal.direction) " · " (journal.completed) "/" (journal.operations) " forward results · " (journal.undone) " rollback results"}
                     div.cardgrid {
-                        div {h3 {"Pending intent"}p {(operation(journal.pending.as_ref()))}}
-                        div {h3 {"Last known result"}p {(operation(journal.last_known.as_ref()))}}
+                        div {h3 {"Pending intent"}p style="overflow-wrap:anywhere" {(operation(journal.pending.as_ref()))}}
+                        div {h3 {"Last known result"}p style="overflow-wrap:anywhere" {(operation(journal.last_known.as_ref()))}}
                         div {h3 {"Saved verification"}p {@if journal.saved_verified {"Batch verification was saved. Historical only; freshness must be re-established."}@else {"No completed batch verification is saved."}}}
                     }
                 }}

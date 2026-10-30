@@ -192,3 +192,5 @@ LibreQoS v2.2 remains unchanged and held during this work.
 See [shadow pause and recovery inspection](SHADOW_CONTROLS.md) for read-only coordination and the separate local recovery viewer.
 
 The [coordinated worker library](CORE_WORKER.md#coordinated-library-open) has mock protocol tests. It has no runtime activation action.
+
+See [durable pause and recovery assessment](DISTRIBUTED_CONTROL.md) for cross-process cancellation and fresh read-only recovery checks.

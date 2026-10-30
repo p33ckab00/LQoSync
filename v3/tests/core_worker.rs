@@ -784,3 +784,23 @@ fn coordinated_drop_revokes_detached_approval_and_keeps_recovery_fenced() {
     );
     assert!(d.path().join("state/core-migration-active.json").exists());
 }
+
+#[tokio::test]
+async fn another_console_durable_pause_revokes_worker_without_a_router_request() {
+    let d = tempfile::tempdir().unwrap();
+    let (s, inv) = fixture();
+    let (p, source) = prepared(s, inv, d.path(), "");
+    lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+    let a = lqosync_v3::web::App::open(d.path().into()).unwrap();
+    let revision = p.revision().unwrap();
+    let mut worker = p
+        .open_coordinated(d.path(), &revision, source, &a.core_coordinator)
+        .unwrap();
+    let remote = lqosync_v3::core_coordination::Coordinator::for_root(d.path()).unwrap();
+    remote.configure(&core_console::revision(&a.settings).unwrap(), true);
+    remote.pause_all().unwrap();
+    assert!(!worker.approval().active());
+    assert!(worker.forward().await.is_err());
+    assert!(worker.rollback().await.is_err());
+    assert!(d.path().join("state/core-migration-active.json").exists());
+}

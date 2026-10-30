@@ -26,6 +26,21 @@ impl Coordinator {
             ..Default::default()
         }))))
     }
+    /// Durable pause. Stale local configuration cannot clear it.
+    pub fn pause_all(&self) -> Result<()> {
+        let (root, revision) = {
+            let mut p = self.0.lock().unwrap_or_else(|p| p.into_inner());
+            p.enabled = false;
+            p.epoch = p.epoch.wrapping_add(1);
+            (
+                p.root
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("Coordinator is not bound"))?,
+                p.revision.clone(),
+            )
+        };
+        crate::core_shared_control::pause(&root, &revision)
+    }
     pub fn configure(&self, revision: &str, enabled: bool) {
         let mut policy = self.0.lock().unwrap_or_else(|p| p.into_inner());
         if policy.revision != revision || policy.enabled != enabled {
@@ -33,6 +48,10 @@ impl Coordinator {
             policy.revision = revision.into();
             policy.enabled = enabled;
         }
+    }
+    fn matches_policy(&self, epoch: u64, revision: &str) -> bool {
+        let p = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        p.enabled && p.epoch == epoch && p.revision == revision
     }
     /// Call from the blocking pool. The extra shared lease preserves maintenance exclusion.
     pub fn begin(&self, root: &Path, revision: &str) -> Result<Ticket> {
@@ -50,6 +69,7 @@ impl Coordinator {
             p.root.get_or_insert_with(|| root.clone());
             p.epoch
         };
+        let shared = crate::core_shared_control::capture(&root, revision)?;
         let console = Lease::console(&root)?;
         let file = OpenOptions::new()
             .read(true)
@@ -67,6 +87,8 @@ impl Coordinator {
         let ticket = Ticket {
             coordinator: self.clone(),
             root,
+            shared,
+            valid: AtomicBool::new(true),
             epoch,
             _console: console,
             file,
@@ -78,16 +100,24 @@ impl Coordinator {
 pub struct Ticket {
     coordinator: Coordinator,
     root: PathBuf,
+    shared: Option<crate::core_shared_control::State>,
+    valid: AtomicBool,
     epoch: u64,
     _console: Lease,
     file: File,
 }
 impl Ticket {
     pub fn check(&self, revision: &str) -> Result<()> {
-        let p = self.coordinator.0.lock().unwrap_or_else(|p| p.into_inner());
+        let valid = self.valid.load(Ordering::SeqCst)
+            && self.coordinator.matches_policy(self.epoch, revision)
+            && crate::core_shared_control::matches(&self.root, &self.shared, revision)
+            && self.coordinator.matches_policy(self.epoch, revision);
+        if !valid {
+            self.valid.store(false, Ordering::SeqCst);
+        }
         ensure!(
-            p.enabled && p.epoch == self.epoch && p.revision == revision,
-            "Shadow work cancelled by pause or changed settings"
+            valid,
+            "Shadow work cancelled by pause, control loss, or changed settings"
         );
         Ok(())
     }
@@ -109,14 +139,19 @@ pub(crate) struct WriterGuard {
     epoch: u64,
     revision: String,
     alive: Arc<AtomicBool>,
+    root: PathBuf,
+    shared: Option<crate::core_shared_control::State>,
 }
 impl WriterGuard {
     pub(crate) fn active(&self) -> bool {
-        let p = self.coordinator.0.lock().unwrap_or_else(|p| p.into_inner());
-        self.alive.load(Ordering::SeqCst)
-            && p.enabled
-            && p.epoch == self.epoch
-            && p.revision == self.revision
+        let active = self.alive.load(Ordering::SeqCst)
+            && self.coordinator.matches_policy(self.epoch, &self.revision)
+            && crate::core_shared_control::matches(&self.root, &self.shared, &self.revision)
+            && self.coordinator.matches_policy(self.epoch, &self.revision);
+        if !active {
+            self.alive.store(false, Ordering::SeqCst);
+        }
+        active
     }
 }
 /// Owns the same process slot as previews while retaining maintenance exclusion.
@@ -138,11 +173,14 @@ impl Coordinator {
             "Invalid batch revision"
         );
         let ticket = self.begin(root, revision)?;
+        crate::core_shared_control::require_initialized(&ticket.shared)?;
         let guard = WriterGuard {
             coordinator: self.clone(),
             epoch: ticket.epoch,
             revision: revision.into(),
             alive: Arc::new(AtomicBool::new(true)),
+            root: ticket.root.clone(),
+            shared: ticket.shared.clone(),
         };
         Ok(CoordinatedLease {
             ticket,

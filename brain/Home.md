@@ -47,3 +47,5 @@ Use the v3 README and design document for current capabilities and limits.
 - [[10-sessions/2026-10-31-shadow-controls]]
 
 - [[10-sessions/2026-10-31-coordinated-worker]]
+
+- [[10-sessions/2026-10-31-distributed-controls]]

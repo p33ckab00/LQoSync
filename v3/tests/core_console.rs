@@ -404,7 +404,9 @@ fn cancelled_preview_caller_does_not_leave_the_worker_permanently_busy() {
 async fn pause_requires_current_revision_and_token_and_invalidates_shadow_ticket() {
     let d = tempfile::tempdir().unwrap();
     let mut a = App::open(d.path().into()).unwrap();
+    a.settings = fixture().0;
     a.settings.auto_stage = false;
+    lqosync_v3::store::save_settings(d.path(), &a.settings).unwrap();
     let token = a.token.clone();
     let revision = core_console::revision(&a.settings).unwrap();
     a.core_coordinator.configure(&revision, true);

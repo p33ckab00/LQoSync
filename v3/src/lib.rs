@@ -67,3 +67,5 @@ pub mod core_coordination;
 
 pub mod core_recovery;
 pub mod core_recovery_web;
+
+mod core_shared_control;

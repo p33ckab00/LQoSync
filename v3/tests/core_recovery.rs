@@ -271,3 +271,68 @@ fn invalid_utf8_exhausts_the_remaining_inspection_budget() {
     assert!(report.limited);
     assert_eq!(report.issues.len(), 1);
 }
+
+#[tokio::test]
+async fn recovery_assessment_binds_exact_history_and_fresh_evidence_without_approval() {
+    let d = tempfile::tempdir().unwrap();
+    let path = journal(d.path(), "unverified").await;
+    let raw = std::fs::read_to_string(&path).unwrap();
+    let revision = path.file_stem().unwrap().to_str().unwrap();
+    let now = lqosync_v3::orchestrator::now();
+    let fresh = || Evidence {
+        context: "context".into(),
+        captured_at: now,
+        valid_until: now + 30,
+        rows: BTreeMap::from([("core".into(), vec![member("*AA", "one", "wan1")])]),
+    };
+    let review = lqosync_v3::core_writer::assess_recovery(&raw, revision, fresh(), now).unwrap();
+    assert!(review.next_forward.is_none());
+    assert_eq!(
+        review.next_rollback.as_ref().unwrap().row_id.as_deref(),
+        Some("*AA")
+    );
+    assert!(review.require_execution_approval().is_err());
+    assert!(!review.is_fresh(now + 31));
+    for change in ["context", "row", "stale", "future", "expired", "incomplete"] {
+        let mut e = fresh();
+        match change {
+            "context" => e.context = "changed".into(),
+            "row" => e.rows.get_mut("core").unwrap()[0].list = "two".into(),
+            "stale" => e.captured_at = now - 31,
+            "future" => e.captured_at = now + 1,
+            "expired" => e.valid_until = now - 1,
+            "incomplete" => {
+                e.rows.clear();
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            lqosync_v3::core_writer::assess_recovery(&raw, revision, e, now).is_err(),
+            "{change}"
+        );
+    }
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), raw);
+    assert!(d.path().join("state/core-migration-active.json").exists());
+}
+
+#[tokio::test]
+async fn matching_rows_cannot_resolve_an_unknown_recovery_outcome() {
+    let d = tempfile::tempdir().unwrap();
+    let path = journal(d.path(), "lost").await;
+    let raw = std::fs::read_to_string(&path).unwrap();
+    let now = lqosync_v3::orchestrator::now();
+    let evidence = Evidence {
+        context: "context".into(),
+        captured_at: now,
+        valid_until: now + 30,
+        rows: BTreeMap::from([("core".into(), vec![])]),
+    };
+    let err = lqosync_v3::core_writer::assess_recovery(
+        &raw,
+        path.file_stem().unwrap().to_str().unwrap(),
+        evidence,
+        now,
+    )
+    .unwrap_err();
+    assert!(err.to_string().contains("Unknown"));
+}

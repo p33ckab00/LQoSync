@@ -37,6 +37,7 @@ impl App {
         );
         let writer_lease = Arc::new(crate::migration_fence::Lease::console(&root)?);
         let settings = store::load_settings(&root)?;
+        crate::core_shared_control::initialize(&root, &settings)?;
         let generation = store::current_generation(&root);
         let core_coordinator = crate::core_coordination::Coordinator::for_root(&root)?;
         core_coordinator.configure(
@@ -662,6 +663,7 @@ mod coordination_tests {
         let revision = crate::core_console::revision(&a.settings).unwrap();
         // Isolate the save/epoch contract from source preparation and middleware refresh.
         a.core_coordinator.configure(&revision, true);
+        crate::core_shared_control::publish(d.path(), &revision, true, false).unwrap();
         let lease = a
             .core_coordinator
             .begin_writer(d.path(), &revision, &uuid::Uuid::new_v4().to_string())

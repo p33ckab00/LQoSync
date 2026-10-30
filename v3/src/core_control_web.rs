@@ -10,6 +10,13 @@ use axum::{
 use maud::html;
 use serde::Deserialize;
 pub async fn page(State(shared): State<Shared>) -> Response {
+    let root = shared.lock().await.root.clone();
+    let shared_status =
+        tokio::task::spawn_blocking(move || crate::core_shared_control::status(&root))
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or("Shared control unavailable; writes blocked");
     let a = shared.lock().await;
     let config = a.settings.core_control.clone().unwrap_or_default();
     let health = a.settings.wan_health.clone().unwrap_or_default();
@@ -51,7 +58,7 @@ pub async fn page(State(shared): State<Shared>) -> Response {
  @if let Some(plan)=&a.core_runtime.preview{section.card{h2{"Reconciliation decisions"}p{(plan.decisions.len()) " decisions · at most 100 displayed · desired state is not applied shaping"}table{thead{tr{th{"Subscriber"}th{"Decision"}th{"Detail"}}}tbody{@for decision in plan.decisions.iter().take(100){@let (id,kind,detail)=describe(decision);tr{td{(id)}td{(kind)}td{(detail)}}}}}}
  }
  }
- section.card{h2{"Shadow worker and recovery"}p{"Shadow computation is serialized per data directory. A shadow ticket cannot authorize router writes."}
+ section.card{h2{"Shadow worker and recovery"}p{(shared_status)}p{"Shadow computation is serialized per data directory. A shadow ticket cannot authorize router writes."}
  p{@if a.core_runtime.busy {"A shadow computation is active."}@else {"No shadow computation is active in this console."}}
  form method="post" action="/core-control/pause"{(csrf(&a))input type="hidden" name="revision" value=(&revision);button{"Pause shadow preview"}}
  p{a href="/core-recovery" {"Inspect saved writer journals"}}
@@ -129,7 +136,7 @@ pub async fn save(State(shared): State<Shared>, Form(f): Form<ControlForm>) -> R
     h.failure_rounds = f.failure_rounds;
     h.success_rounds = f.success_rounds;
     h.recovery_seconds = f.recovery_seconds;
-    persist(a, next).await
+    persist(a, next, true).await
 }
 #[derive(Deserialize)]
 pub struct ProbeForm {
@@ -176,14 +183,25 @@ pub async fn probes(State(shared): State<Shared>, Form(f): Form<ProbeForm>) -> R
         "remove" => {}
         _ => return error(&a, "Unknown probe action"),
     }
-    persist(a, next).await
+    persist(a, next, false).await
 }
 async fn persist(
     mut a: tokio::sync::OwnedMutexGuard<crate::web::App>,
     next: crate::model::Settings,
+    resume: bool,
 ) -> Response {
     tokio::task::spawn_blocking(move || {
-        if let Err(e) = crate::store::save_settings(&a.root, &next) {
+        let result = if resume
+            && next
+                .core_control
+                .as_ref()
+                .is_some_and(|c| c.mode == Mode::Preview)
+        {
+            crate::store::save_settings_with_control_resume(&a.root, &a.settings, &next)
+        } else {
+            crate::store::save_settings(&a.root, &next)
+        };
+        if let Err(e) = result {
             return error(&a, e);
         }
         a.replace_settings(next);
@@ -214,6 +232,8 @@ pub async fn pause(State(shared): State<Shared>, Form(form): Form<PauseForm>) ->
     }
     let mut next = a.settings.clone();
     next.core_control.get_or_insert_with(Default::default).mode = Mode::Paused;
-    a.core_coordinator.configure(&form.revision, false);
-    persist(a, next).await
+    if let Err(e) = a.core_coordinator.pause_all() {
+        return error(&a, e);
+    }
+    persist(a, next, false).await
 }

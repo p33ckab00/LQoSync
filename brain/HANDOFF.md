@@ -795,3 +795,26 @@ Local epochs require the same coordinator. They do not deliver pause across cons
 No scheduler, CLI, HTTP action, or accepted automatic mode enables this library. No lab is available.
 Preserve unrelated frontend planning edits in the main checkout.
 See [[10-sessions/2026-10-31-coordinated-worker]] and `v3/CORE_WORKER.md`.
+
+
+## Durable pause and recovery assessment verified; execution approval remains blocked
+
+Updated: 2026-10-31T07:03:59+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/distributed-controls`. Worktree: `/home/pi/lqosync-distributed-controls`. Base: `6500d83`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: implement cross-process cancellation and read-only recovery assessment with no destructive live changes.
+Changed files: core_shared_control, coordinator, writer assessment and pure history helper, store settings transaction, web initialization, core policy persistence, recovery display, tests, guides, ledger, and notes.
+Shared generations and inhibit state revoke old work. Failed saves and lost initialized state remain paused. Ordinary saves cannot clear an inhibit.
+Explicit Preview save compares persisted settings before it resumes controls. All old grants remain revoked.
+The durable control-lock anchor distinguishes first initialization from state loss. Do not delete state or locks to force progress.
+Fresh review found three defects. Their regression checks failed before fixes and passed afterward.
+Actual child-process pause and separate-console worker revocation passed. Recovery assessment rejects unknown outcomes, stale evidence, changed context, and incomplete membership.
+Assessment is not an execution grant. The viewer remains GET-only and shows exact saved IP/list scope without a live verification caller.
+Final checks: format passed, 326 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
+Five-width Chromium checks passed with a synthetic pending journal. Documentation paths, links, and diff checks passed.
+No performance benchmark ran. No live router access, production setting, shaping output, package change, service change, or restart occurred.
+Next: persist the worker guard for reviewed recovery approval, then separately authorized isolated RouterOS acceptance before runtime activation.
+No lab is available. No HTTP, CLI, scheduler, or accepted automatic mode enables writes.
+Older binaries, other hosts, and external router writers do not participate in these controls. A pause cannot recall an in-flight request.
+Preserve unrelated frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-distributed-controls]] and `v3/DISTRIBUTED_CONTROL.md`.

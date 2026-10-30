@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-fn durable_directory(path: &Path) -> Result<()> {
+pub(crate) fn durable_directory(path: &Path) -> Result<()> {
     if path.is_dir() {
         return Ok(());
     }
@@ -44,6 +44,17 @@ pub fn atomic_write(path: &Path, text: &str) -> Result<()> {
 
 pub fn save_settings(root: &Path, settings: &Settings) -> Result<()> {
     validate(settings)?;
+    crate::core_shared_control::save(root, settings, None, || write_settings(root, settings))
+}
+pub(crate) fn save_settings_with_control_resume(
+    root: &Path,
+    previous: &Settings,
+    next: &Settings,
+) -> Result<()> {
+    validate(next)?;
+    crate::core_shared_control::save(root, next, Some(previous), || write_settings(root, next))
+}
+fn write_settings(root: &Path, settings: &Settings) -> Result<()> {
     let path = root.join("settings.toml");
     if settings.dynamic.is_some() && path.exists() {
         let raw = fs::read_to_string(&path)?;

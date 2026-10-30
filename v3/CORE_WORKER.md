@@ -44,7 +44,8 @@ Approval checks the local coordinator epoch. Pause and every successful settings
 A restore of previous settings does not restore the old grant. Lease drop also revokes detached approval handles.
 Fresh source verification checks persisted settings and actual router evidence after awaited collection work.
 
-These local epoch checks require the same console coordinator. They do not provide distributed pause delivery to another console process.
+[Durable control generations](DISTRIBUTED_CONTROL.md) also revoke work across updated console processes with the same canonical data directory.
+Old binaries, other hosts, and external router writers do not participate.
 A request that already entered the transport can complete after pause. Do not infer that pause reverses an in-flight request.
 
 Coordinated open accepts new sessions only. It cannot resume an old journal, replace another marker, or reconstruct approval after restart.
@@ -104,5 +105,5 @@ They also cover approval, directory binding, batch limits, routing-policy change
 Mocks do not prove RouterOS field behavior, WAN attribution, same-ID moves, connection-mark behavior, or uninterrupted failover.
 
 [Shadow controls](SHADOW_CONTROLS.md) add read-only coordination, pause, and saved-journal inspection.
-Coordinated execution has mock protocol proof. Runtime activation, distributed controls, recovery approval, and isolated RouterOS acceptance remain pending.
+Coordinated execution has mock protocol proof. Runtime activation, recovery execution approval, and isolated RouterOS acceptance remain pending.
 Keep automatic writes disabled until those stages and the exact production scope have passed review.

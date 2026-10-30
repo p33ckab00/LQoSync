@@ -12,7 +12,7 @@ See [Core control](CORE_CONTROL.md) and [the offline worker](CORE_WORKER.md).
 3. Check that the policy shows **Paused**.
 
 The action checks the form token and current settings revision before it saves the paused policy.
-Pause invalidates active shadow tickets in that console. The console discards their results.
+Pause invalidates active shadow tickets across updated processes with the same data directory. The console discards their results.
 
 A computation that already started can finish its CPU work. It cannot authorize a router mutation.
 To resume previews, use the policy cog and select **Preview**. Automatic mode remains blocked.
@@ -68,6 +68,7 @@ One asynchronous inspection runs at a time per viewer process. A limited report 
 Records from the protected-row maintenance engine have a different schema. Use [its recovery guide](CORE_MAINTENANCE.md).
 
 Approval, resume, rollback, and marker removal remain locked. There is no HTTP action to bypass these limits.
-Coordinated worker code has mock tests. Runtime activation, distributed controls, recovery grants, and RouterOS lab acceptance remain pending.
+Coordinated worker code has mock tests. Runtime activation, recovery execution grants, and RouterOS lab acceptance remain pending.
+See [durable pause and recovery assessment](DISTRIBUTED_CONTROL.md) for cross-process cancellation and exact saved operation details.
 Isolated RouterOS acceptance and separate production authorization remain necessary before router writes.
 Mock tests do not prove uninterrupted production traffic or RouterOS field behavior.

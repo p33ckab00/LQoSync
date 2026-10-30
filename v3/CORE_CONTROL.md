@@ -74,7 +74,7 @@ The existing recovery marker and maintenance lease still prevent unsafe console 
 Do not remove a marker to start the console. Use [writer recovery](CORE_WRITER.md) or [maintenance recovery](CORE_MAINTENANCE.md).
 
 The [coordinated worker library](CORE_WORKER.md#coordinated-library-open) serializes exact-approved mock execution beside a console.
-No HTTP, CLI, scheduler, or automatic option starts it. Distributed controls and recovery approval remain incomplete.
+No HTTP, CLI, scheduler, or automatic option starts it. [Durable pause](DISTRIBUTED_CONTROL.md) now revokes old work across updated processes. Recovery execution approval remains blocked.
 It must verify fresh sources, sessions, settings, health, and complete actual core rows before each mutation.
 Isolated RouterOS acceptance must prove probe fields, WAN attribution, same-ID transitions, and connection-mark limits.
 Production activation requires a separately reviewed scope and authorization.
