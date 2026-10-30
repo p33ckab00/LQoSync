@@ -1,5 +1,4 @@
 use crate::{
-    model::compile,
     normalizer,
     routeros::{self},
     store,
@@ -61,11 +60,7 @@ pub async fn refresh(s: Shared) {
         let mut subscribers =
             normalizer::collect(&work_settings, &work_inventories, &work_errors, now())?;
         let previous = store::load_assignments(&root)?;
-        let count_mode = work_settings
-            .assignment
-            .pools
-            .iter()
-            .any(|p| p.balance && p.metric == "online_clients");
+        let count_mode = crate::dynamic::count_mode(&work_settings);
         let (session_baseline, revision) = if count_mode {
             let (baseline, revision) = crate::sessions::load_for_update(&root)?;
             (baseline, Some(revision))
@@ -103,8 +98,8 @@ pub async fn refresh(s: Shared) {
                 !subscribers.is_empty(),
                 "Selected scan is empty; last valid snapshot is retained"
             );
-            crate::minimums::allocate(&work_settings, &mut subscribers)?;
-            let plan = compile(&work_settings, &subscribers)?;
+            crate::minimums::allocate_assigned(&work_settings, &mut subscribers, &assignments)?;
+            let plan = crate::model::compile_assigned(&work_settings, &subscribers, &assignments)?;
             let core = if work_settings.core_lists.bindings.is_empty() {
                 None
             } else {
@@ -207,6 +202,9 @@ pub async fn cycle(s: Shared) {
             .map(|n| n.router.as_str())
             .collect();
         selected.extend(normalizer::selected_routers(&settings));
+        if let Some(c) = &settings.dynamic {
+            selected.extend(c.wans.iter().map(|w| w.router.as_str()));
+        }
         let routers: Vec<_> = settings
             .routers
             .iter()

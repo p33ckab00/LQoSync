@@ -132,6 +132,19 @@ pub fn collect(
     errors: &BTreeMap<String, String>,
     now: u64,
 ) -> Result<Vec<Subscriber>> {
+    Ok(collect_with_sources(settings, inventories, errors, now)?.subscribers)
+}
+#[derive(Debug, Clone)]
+pub struct Collection {
+    pub subscribers: Vec<Subscriber>,
+    pub sources: BTreeMap<String, String>,
+}
+pub fn collect_with_sources(
+    settings: &Settings,
+    inventories: &BTreeMap<String, Arc<Inventory>>,
+    errors: &BTreeMap<String, String>,
+    now: u64,
+) -> Result<Collection> {
     model::validate(settings)?;
     let bindings = crate::selection::bindings(settings)?;
     ensure!(has_bindings(settings), "No subscriber sources are selected");
@@ -412,5 +425,12 @@ pub fn collect(
         .map(|(_, c)| c.subscriber)
         .collect();
     subscribers.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(subscribers)
+    let sources = subscribers
+        .iter()
+        .map(|s| (s.id.clone(), s.node.clone()))
+        .collect();
+    Ok(Collection {
+        subscribers,
+        sources,
+    })
 }

@@ -67,6 +67,12 @@ pub fn required_routers(settings: &Settings) -> BTreeSet<&str> {
                 .map(|n| n.router.as_str()),
         )
         .chain(normalizer::selected_routers(settings))
+        .chain(
+            settings
+                .dynamic
+                .iter()
+                .flat_map(|c| c.wans.iter().map(|w| w.router.as_str())),
+        )
         .collect()
 }
 pub fn review(
@@ -119,7 +125,7 @@ pub fn review(
         return report;
     }
     let configured =
-        normalizer::has_bindings(settings) && settings.nodes.iter().any(|n| n.kind == "wan");
+        normalizer::has_bindings(settings) && !crate::dynamic::wan_nodes(settings).is_empty();
     if !configured {
         report.add(
             "source-setup",
@@ -178,13 +184,7 @@ pub fn review(
         .map(|g| &g.assignments)
         .unwrap_or(&empty);
     let proposed = (|| -> anyhow::Result<_> {
-        if origin == Origin::Live
-            && settings
-                .assignment
-                .pools
-                .iter()
-                .any(|p| p.balance && p.metric == "online_clients")
-        {
+        if origin == Origin::Live && crate::dynamic::count_mode(&settings) {
             Ok(crate::sessions::plan(
                 settings,
                 &mut subscribers,
@@ -213,11 +213,19 @@ pub fn review(
             return report;
         }
     };
-    let topology = assignment::Topology::new(settings).expect("validated assignment topology");
+    let topology = if settings.dynamic.is_none() {
+        Some(assignment::Topology::new(settings).expect("validated topology"))
+    } else {
+        None
+    };
     let mut coverage = BTreeMap::<String, usize>::new();
     for s in &subscribers {
-        let wan = topology.root(&s.node).expect("validated assignment root");
-        *coverage.entry(wan.id.clone()).or_default() += 1;
+        let wan = if let Some(t) = &topology {
+            t.root(&s.node).expect("validated root").id.as_str()
+        } else {
+            assignments.routes[&s.id].wan.as_str()
+        };
+        *coverage.entry(wan.into()).or_default() += 1;
     }
     report.coverage = coverage
         .into_iter()
@@ -228,11 +236,11 @@ pub fn review(
         Outcome::Pass,
         "Every selected subscriber has a compatible branch and explicit WAN root",
     );
-    match crate::minimums::allocate(settings,&mut subscribers) {
+    match crate::minimums::allocate_assigned(settings,&mut subscribers,&assignments) {
         Ok(allocation)=>report.add("subscriber-minimums",Outcome::Pass,format!("Effective minimums fit every ancestor; {} subscribers adjusted across {} constrained directions",allocation.adjusted_subscribers,allocation.constrained_directions)),
         Err(e)=>{report.add("subscriber-minimums",Outcome::Conflict,e.to_string());return report;}
     }
-    let shaping = match model::compile(settings, &subscribers) {
+    let shaping = match model::compile_assigned(settings, &subscribers, &assignments) {
         Ok(p) => p,
         Err(e) => {
             report.add("shaping-capacity", Outcome::Conflict, e.to_string());

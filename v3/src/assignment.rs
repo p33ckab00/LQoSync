@@ -38,6 +38,8 @@ pub struct Pin {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AssignmentState {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub routes: BTreeMap<String, crate::dynamic::Route>,
     pub assignments: BTreeMap<String, Pin>,
 }
 
@@ -144,6 +146,9 @@ pub fn eligible_targets(settings: &Settings, source: &str) -> Result<Vec<String>
     Ok(targets)
 }
 pub fn validate(settings: &Settings) -> Result<()> {
+    if settings.dynamic.is_some() {
+        return crate::dynamic::validate(settings);
+    }
     let mut interfaces = HashSet::new();
     for root in settings
         .nodes
@@ -202,10 +207,10 @@ pub fn validate_wans(
     now: u64,
 ) -> Result<()> {
     let mut indexed: HashMap<&str, HashMap<&str, Option<&crate::routeros::Row>>> = HashMap::new();
-    for root in settings
-        .nodes
+    let wan_nodes = crate::dynamic::wan_nodes(settings);
+    for root in wan_nodes
         .iter()
-        .filter(|n| n.kind == "wan" && !n.router.is_empty() && !n.source.is_empty())
+        .filter(|n| !n.router.is_empty() && !n.source.is_empty())
     {
         ensure!(
             !errors.contains_key(&root.router),
@@ -305,6 +310,9 @@ pub fn assign(
 ) -> Result<AssignmentState> {
     validate(settings)?;
     validate_wans(settings, inventories, errors, now)?;
+    if settings.dynamic.is_some() {
+        return crate::dynamic::assign_targets(settings, subscribers, previous);
+    }
     let topology = Topology::new(settings)?;
     let pools: HashMap<_, _> = settings
         .assignment
@@ -315,6 +323,7 @@ pub fn assign(
     // The session planner releases disconnected count-mode clients before this step.
     // Legacy planned-load assignments can remain sticky without contributing load.
     let mut state = AssignmentState {
+        routes: BTreeMap::new(),
         assignments: previous
             .assignments
             .iter()

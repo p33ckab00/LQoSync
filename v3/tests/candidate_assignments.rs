@@ -74,6 +74,7 @@ fn fixture(root: &std::path::Path) -> (Shared, String, String) {
     );
     let id = normalizer::subscriber_id("r1", "ppp", "alice").unwrap();
     let baseline = AssignmentState {
+        routes: Default::default(),
         assignments: [(
             id.clone(),
             Pin {

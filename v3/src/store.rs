@@ -44,6 +44,17 @@ pub fn atomic_write(path: &Path, text: &str) -> Result<()> {
 
 pub fn save_settings(root: &Path, settings: &Settings) -> Result<()> {
     validate(settings)?;
+    let path = root.join("settings.toml");
+    if settings.dynamic.is_some() && path.exists() {
+        let raw = fs::read_to_string(&path)?;
+        let previous: Settings = toml::from_str(&raw)?;
+        if previous.dynamic.is_none() {
+            let backup = root.join("state/settings-before-dynamic.toml");
+            if !backup.exists() {
+                atomic_write(&backup, &raw)?;
+            }
+        }
+    }
     atomic_write(
         &root.join("settings.toml"),
         &toml::to_string_pretty(settings)?,
@@ -278,6 +289,7 @@ fn validate_assignment_snapshot(
     subscribers: &[Subscriber],
     state: &crate::assignment::AssignmentState,
 ) -> Result<()> {
+    crate::dynamic::validate_routes(state)?;
     for (id, pin) in &state.assignments {
         ensure!(
             !id.is_empty() && valid_id(&pin.source_node) && valid_id(&pin.node),
@@ -337,6 +349,7 @@ fn load_managed(
         state
     } else {
         crate::assignment::AssignmentState {
+            routes: Default::default(),
             assignments: snapshot
                 .subscribers
                 .iter()

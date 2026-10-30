@@ -119,12 +119,7 @@ fn assignment_view(input: &Capture) -> anyhow::Result<Snapshot> {
                 &input.errors,
                 orchestrator::now(),
             )?;
-            let count_mode = input
-                .settings
-                .assignment
-                .pools
-                .iter()
-                .any(|p| p.balance && p.metric == "online_clients");
+            let count_mode = crate::dynamic::count_mode(&input.settings);
             let assignments = if count_mode {
                 sessions::plan(
                     &input.settings,

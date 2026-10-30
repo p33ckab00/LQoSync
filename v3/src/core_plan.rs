@@ -97,7 +97,8 @@ pub fn validate(settings: &Settings) -> Result<()> {
         !policy.owner.is_empty(),
         "Core lists require a persistent ownership UUID"
     );
-    let nodes: HashMap<_, _> = settings.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let wan_nodes = crate::dynamic::wan_nodes(settings);
+    let nodes: HashMap<_, _> = wan_nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let routers: HashMap<_, _> = settings
         .routers
         .iter()
@@ -295,7 +296,17 @@ pub fn build(
         "Core plans require bindings and a nonempty fresh subscriber snapshot"
     );
     crate::assignment::validate_wans(settings, inventories, errors, now)?;
-    let topology = crate::assignment::Topology::new(settings)?;
+    let topology = if settings.dynamic.is_none() {
+        Some(crate::assignment::Topology::new(settings)?)
+    } else {
+        None
+    };
+    crate::dynamic::validate_routes(assignments)?;
+    let wan_nodes = crate::dynamic::wan_nodes(settings);
+    let wan_interfaces: HashMap<_, _> = wan_nodes
+        .iter()
+        .map(|w| (w.id.as_str(), w.source.as_str()))
+        .collect();
     let mut bindings = settings.core_lists.bindings.clone();
     bindings.sort_by(|a, b| a.wan.cmp(&b.wan));
     let by_wan: HashMap<_, _> = bindings.iter().map(|b| (b.wan.as_str(), b)).collect();
@@ -305,12 +316,7 @@ pub fn build(
     }
     let interfaces: HashMap<_, _> = bindings
         .iter()
-        .map(|b| {
-            (
-                b.wan.as_str(),
-                topology.nodes[b.wan.as_str()].source.as_str(),
-            )
-        })
+        .map(|b| (b.wan.as_str(), wan_interfaces[b.wan.as_str()]))
         .collect();
     let mut inventory_at = BTreeMap::new();
     for (router, bs) in &by_router {
@@ -357,9 +363,21 @@ pub fn build(
             record.node == sub.node,
             "Subscriber assignment parent is inconsistent"
         );
-        let root = topology.root(&sub.node)?;
+        let wan = if let Some(topology) = &topology {
+            topology.root(&sub.node)?.id.as_str()
+        } else {
+            let route = assignments
+                .routes
+                .get(&sub.id)
+                .context("Subscriber routing assignment is missing")?;
+            ensure!(
+                route.node == sub.node,
+                "Subscriber routing parent is inconsistent"
+            );
+            route.wan.as_str()
+        };
         let binding = by_wan
-            .get(root.id.as_str())
+            .get(wan)
             .context("Every active subscriber WAN needs a core list binding")?;
         let ip = host(&sub.ipv4)?;
         ensure!(
@@ -385,15 +403,9 @@ pub fn build(
             },
         );
     }
-    let mut source_routers: Vec<_> = settings
-        .nodes
-        .iter()
-        .filter(|n| {
-            crate::normalizer::service(&n.kind).is_some()
-                && !n.router.is_empty()
-                && !n.source.is_empty()
-        })
-        .map(|n| n.router.clone())
+    let mut source_routers: Vec<_> = crate::normalizer::selected_routers(settings)
+        .into_iter()
+        .map(str::to_string)
         .collect();
     source_routers.sort();
     source_routers.dedup();

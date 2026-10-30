@@ -157,3 +157,128 @@ pub fn allocate(settings: &Settings, subscribers: &mut [Subscriber]) -> Result<A
     }
     Ok(result)
 }
+
+pub fn validate_assigned(
+    settings: &Settings,
+    subs: &[Subscriber],
+    state: &crate::assignment::AssignmentState,
+) -> Result<()> {
+    let Some(config) = &settings.dynamic else {
+        return Ok(());
+    };
+    crate::dynamic::validate_routes(state)?;
+    let wans: HashMap<_, _> = config.wans.iter().map(|w| (w.id.as_str(), w)).collect();
+    let policies: HashMap<_, _> = config.policies.iter().map(|p| (p.id.as_str(), p)).collect();
+    let mut sums = HashMap::<&str, (f64, f64)>::new();
+    for sub in subs {
+        let route = state
+            .routes
+            .get(&sub.id)
+            .ok_or_else(|| anyhow::anyhow!("Subscriber routing assignment is missing"))?;
+        ensure!(
+            route.node == sub.node,
+            "Subscriber route does not match exported parent"
+        );
+        let p = policies
+            .get(route.policy.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Assignment policy no longer exists"))?;
+        ensure!(
+            p.selections.contains(&route.selection)
+                && p.targets.contains(&crate::dynamic::Target {
+                    node: route.node.clone(),
+                    wan: route.wan.clone()
+                }),
+            "Subscriber route is outside its selected policy"
+        );
+        ensure!(
+            wans.contains_key(route.wan.as_str()),
+            "Subscriber routing WAN is unavailable"
+        );
+        let total = sums.entry(&route.wan).or_default();
+        total.0 += sub.download_min;
+        total.1 += sub.upload_min;
+    }
+    for (id, (download, upload)) in sums {
+        let w = wans[id];
+        ensure!(
+            download.is_finite()
+                && upload.is_finite()
+                && download <= w.download + tolerance(w.download)
+                && upload <= w.upload + tolerance(w.upload),
+            "Aggregate subscriber minimums exceed routing WAN capacity at {id}"
+        );
+    }
+    Ok(())
+}
+pub fn allocate_assigned(
+    settings: &Settings,
+    subs: &mut [Subscriber],
+    state: &crate::assignment::AssignmentState,
+) -> Result<Allocation> {
+    let Some(config) = &settings.dynamic else {
+        return allocate(settings, subs);
+    };
+    crate::dynamic::validate_routes(state)?;
+    let mut planned = subs.to_vec();
+    let mut result = allocate(settings, &mut planned)?;
+    let mut members = HashMap::<&str, Vec<usize>>::new();
+    for (i, sub) in planned.iter().enumerate() {
+        let route = state
+            .routes
+            .get(&sub.id)
+            .ok_or_else(|| anyhow::anyhow!("Subscriber routing assignment is missing"))?;
+        members.entry(&route.wan).or_default().push(i);
+    }
+    for w in &config.wans {
+        let Some(indices) = members.get(w.id.as_str()) else {
+            continue;
+        };
+        for (d, capacity) in [w.download, w.upload].into_iter().enumerate() {
+            let value = |s: &Subscriber| if d == 0 { s.download_min } else { s.upload_min };
+            let floor = |s: &Subscriber| {
+                settings
+                    .speed_rules
+                    .min_floor_mbps
+                    .min(if d == 0 { s.download } else { s.upload })
+            };
+            let floors: f64 = indices.iter().map(|i| floor(&planned[*i])).sum();
+            ensure!(
+                floors.is_finite() && floors <= capacity + tolerance(capacity),
+                "Subscriber minimum floor cannot fit routing WAN capacity at {}",
+                w.id
+            );
+            let total: f64 = indices.iter().map(|i| value(&planned[*i])).sum();
+            ensure!(total.is_finite(), "Routing WAN minimum total overflow");
+            if total > capacity + tolerance(capacity) {
+                let headroom: f64 = indices
+                    .iter()
+                    .map(|i| value(&planned[*i]) - floor(&planned[*i]))
+                    .sum();
+                ensure!(
+                    headroom.is_finite() && headroom > 0.,
+                    "Routing WAN minimum floor cannot fit"
+                );
+                let factor = ((capacity - floors).max(0.) / headroom).min(1.) * (1. - 1e-12);
+                for &i in indices {
+                    let s = &mut planned[i];
+                    let v = floor(s) + (value(s) - floor(s)) * factor;
+                    if d == 0 {
+                        s.download_min = v
+                    } else {
+                        s.upload_min = v
+                    };
+                }
+                result.constrained_directions += 1;
+            }
+        }
+    }
+    validate_assigned(settings, &planned, state)?;
+    model::compile(settings, &planned)?;
+    result.adjusted_subscribers = subs
+        .iter()
+        .zip(&planned)
+        .filter(|(a, b)| a.download_min != b.download_min || a.upload_min != b.upload_min)
+        .count();
+    subs.clone_from_slice(&planned);
+    Ok(result)
+}

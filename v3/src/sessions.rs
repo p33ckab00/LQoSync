@@ -46,6 +46,7 @@ fn normalized_id(id: &str) -> bool {
     uuid::Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id)
 }
 fn validate(state: &Observation) -> Result<()> {
+    crate::dynamic::validate_routes(&state.assignments)?;
     ensure!(
         state.assignments.assignments.len() <= MAX_RECORDS && state.active.len() <= MAX_RECORDS,
         "Candidate observation exceeds record limit"
@@ -186,6 +187,28 @@ pub fn plan(
     if let Some(previous) = previous {
         validate(previous)?;
     }
+    let adopted;
+    let adopted_committed;
+    let (committed, previous) = if settings.dynamic.is_some() {
+        adopted_committed = crate::dynamic::adopt(settings, subscribers, committed)?;
+        adopted = previous
+            .map(|p| -> Result<Observation> {
+                let mut p = p.clone();
+                p.assignments = crate::dynamic::adopt(settings, subscribers, &p.assignments)?;
+                for (id, session) in &mut p.active {
+                    if let Some(pin) = p.assignments.assignments.get(id) {
+                        session.source_node = pin.source_node.clone();
+                    }
+                }
+                p.active
+                    .retain(|id, _| p.assignments.assignments.contains_key(id));
+                Ok(p)
+            })
+            .transpose()?;
+        (&adopted_committed, adopted.as_ref())
+    } else {
+        (committed, previous)
+    };
     let bindings = selection::bindings(settings)?;
     let mut services: BTreeMap<&str, HashSet<&str>> = BTreeMap::new();
     for binding in &bindings {
@@ -231,13 +254,21 @@ pub fn plan(
         }
         collected.insert(router.to_string(), inv.collected_at);
     }
-    let count_sources: HashSet<_> = settings
-        .assignment
-        .pools
-        .iter()
-        .filter(|pool| pool.balance && pool.metric == "online_clients")
-        .map(|pool| pool.source_node.as_str())
-        .collect();
+    let count_sources: HashSet<&str> = if let Some(c) = &settings.dynamic {
+        c.policies
+            .iter()
+            .filter(|p| p.balance && p.metric == "online_clients")
+            .flat_map(|p| p.selections.iter().map(String::as_str))
+            .collect()
+    } else {
+        settings
+            .assignment
+            .pools
+            .iter()
+            .filter(|pool| pool.balance && pool.metric == "online_clients")
+            .map(|pool| pool.source_node.as_str())
+            .collect()
+    };
     let selected: HashMap<_, _> = subscribers
         .iter()
         .filter(|s| count_sources.contains(s.node.as_str()))
@@ -354,6 +385,9 @@ pub fn plan(
                 }
         })
     });
+    baseline
+        .routes
+        .retain(|id, _| baseline.assignments.contains_key(id));
     let mut planned = subscribers.to_vec();
     let assignments =
         assignment::assign(settings, &mut planned, &baseline, inventories, errors, now)?;

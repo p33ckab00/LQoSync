@@ -147,7 +147,8 @@ pub fn review(
     now: u64,
     origin: Origin,
 ) -> Report {
-    let nodes: HashMap<_, _> = settings.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let wan_nodes = crate::dynamic::wan_nodes(settings);
+    let nodes: HashMap<_, _> = wan_nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let mut cores = vec![];
     for router in settings
         .routers

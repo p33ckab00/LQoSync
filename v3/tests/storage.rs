@@ -108,6 +108,7 @@ fn assignments_commit_with_the_snapshot_and_survive_restart_and_corruption_is_bl
         .unwrap()
         .subscribers;
     let state = AssignmentState {
+        routes: Default::default(),
         assignments: subscribers
             .iter()
             .map(|s| {

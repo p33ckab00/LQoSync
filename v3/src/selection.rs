@@ -15,6 +15,7 @@ pub struct Selection {
     pub kind: String,
     pub selector: String,
     pub value: String,
+    #[serde(default)]
     pub node: String,
     #[serde(default)]
     pub exclude: bool,
@@ -57,7 +58,11 @@ pub(crate) fn bindings(settings: &Settings) -> Result<Vec<Binding<'_>>> {
             service,
             selector: &s.selector,
             value,
-            node: &s.node,
+            node: if settings.dynamic.is_some() {
+                &s.id
+            } else {
+                &s.node
+            },
             exclude: s.exclude,
         });
     }
@@ -88,7 +93,7 @@ pub fn validate(settings: &Settings) -> Result<()> {
             !s.value.is_empty() && s.value.len() <= 256 && !s.value.chars().any(char::is_control),
             "Invalid source selector value"
         );
-        if !s.exclude || !s.node.is_empty() {
+        if settings.dynamic.is_none() && (!s.exclude || !s.node.is_empty()) {
             let node = nodes
                 .get(s.node.as_str())
                 .ok_or_else(|| anyhow::anyhow!("Selection refers to an unknown node"))?;

@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic: Option<crate::dynamic::Config>,
     #[serde(default = "default_interval")]
     pub interval_seconds: u64,
     #[serde(default = "yes")]
@@ -31,6 +33,7 @@ fn yes() -> bool {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            dynamic: None,
             interval_seconds: 30,
             auto_stage: true,
             speed_rules: crate::speeds::SpeedRules::default(),
@@ -189,7 +192,9 @@ pub fn validate(settings: &Settings) -> Result<()> {
                 .all(|v| v.is_finite() && *v >= 0.0),
             "Capacity values must be finite and nonnegative"
         );
-        if n.parent.is_empty() {
+        if settings.dynamic.is_some() {
+            // Exported roots are independent of routing WAN identities.
+        } else if n.parent.is_empty() {
             ensure!(
                 n.kind == "wan" && n.mode == "manual",
                 "Each root must be an explicit WAN"
@@ -399,4 +404,14 @@ pub(crate) fn compile_unallocated(settings: &Settings, subscribers: &[Subscriber
         csv,
         network,
     })
+}
+
+pub fn compile_assigned(
+    settings: &Settings,
+    subscribers: &[Subscriber],
+    assignments: &crate::assignment::AssignmentState,
+) -> Result<Plan> {
+    let plan = compile(settings, subscribers)?;
+    crate::minimums::validate_assigned(settings, subscribers, assignments)?;
+    Ok(plan)
 }

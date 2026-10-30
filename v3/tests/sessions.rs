@@ -167,6 +167,7 @@ fn advance(i: &mut Inventories, epoch: u64, handle: &str, uptime: &str) {
 }
 fn committed_on(target: &str) -> AssignmentState {
     AssignmentState {
+        routes: Default::default(),
         assignments: [(
             normalizer::subscriber_id("r1", "ppp", "alice").unwrap(),
             Pin {
