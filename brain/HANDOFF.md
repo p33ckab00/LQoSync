@@ -7,11 +7,147 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-30T14:02:38+08:00 (Asia/Shanghai).
-Last agent: Codex.
+Updated: 2026-10-31T07:51:14+08:00 (Asia/Shanghai).
+Last agent: Claude Code.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
-Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
+Code: `9a35d24`. Earlier base references below are historical.
+Sections are in newest-first order. Read the first section for the current state.
+
+## Independent check of the recovery guard stage
+
+Updated: 2026-10-31T07:51:14+08:00 (Asia/Shanghai). Last agent: Claude Code.
+The remote `lqosyncv3` branch contains `9a35d24`. Commit `fede33e` added the frontend planning documents.
+Format and strict all-target Clippy passed. A full run under host load reported two failed tests. The failed test names were not captured.
+A clean rerun passed: 331 passed, zero failed, 12 ignored. Five reruns of `orchestration` and `core_console` passed.
+The two failures agree with the known scheduler mock timeouts under load. Do not run CPU stress tests on this host.
+This host is the production shaper. `lqosd`, `lqos_scheduler`, and `lqosync-updatecsv` run here.
+Next: design isolated RouterOS acceptance. The operator must choose the lab host before any lab work starts.
+
+## Persisted worker guard and reviewed recovery verified
+
+Updated: 2026-10-31T07:31:11+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/recovery-guard`. Worktree: `/home/pi/lqosync-recovery-guard`. Base: `a366cd8`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: persist original worker context and require exact reviewed recovery approval with code and mocks only.
+Changed files: core_worker and recovery module, writer, coordination, artifact reader, migration fence, strict settings reader, worker tests, guides, ledger, and notes.
+The worker saves a bounded private guard manifest before any send. Recovery review holds the existing exclusive fence and does not create recovery records.
+Approval binds fresh evidence, exact artifact bytes, direction, nonce, shared generation, and a short deadline. It cannot extend the original forward deadline.
+Unknown outcomes, changed sources, missing settings, lost state, and stale continuity remain blocked. Pause and lease drop revoke authority.
+Final checks: format passed; 331 tests passed, zero failed, 12 ignored; strict all-target Clippy passed.
+Seventeen focused worker tests passed, including loopback forward recovery and exact rollback.
+A missing-settings regression failed before the strict reader fix and passed afterward. Fresh branch review and final-delta review found no concrete defect.
+An intermediate full run had two existing scheduler mock timeouts during a concurrent build. The final full run passed with no concurrent build and unchanged test deadlines.
+Documentation paths, links, and diff checks passed. No UI change, browser test, dependency change, or performance benchmark formed part of this stage.
+No live router access, production configuration, shaping output, service change, or restart occurred. Private artifacts remain outside Git.
+Next: separately authorized isolated RouterOS acceptance before runtime activation. No lab is available. No HTTP, CLI, scheduler, or automatic mode activates this library.
+Preserve unrelated frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-recovery-guard]] and `v3/RECOVERY_GUARD.md`.
+
+
+## Durable pause and recovery assessment verified; execution approval remains blocked
+
+Updated: 2026-10-31T07:03:59+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/distributed-controls`. Worktree: `/home/pi/lqosync-distributed-controls`. Base: `6500d83`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: implement cross-process cancellation and read-only recovery assessment with no destructive live changes.
+Changed files: core_shared_control, coordinator, writer assessment and pure history helper, store settings transaction, web initialization, core policy persistence, recovery display, tests, guides, ledger, and notes.
+Shared generations and inhibit state revoke old work. Failed saves and lost initialized state remain paused. Ordinary saves cannot clear an inhibit.
+Explicit Preview save compares persisted settings before it resumes controls. All old grants remain revoked.
+The durable control-lock anchor distinguishes first initialization from state loss. Do not delete state or locks to force progress.
+Fresh review found three defects. Their regression checks failed before fixes and passed afterward.
+Actual child-process pause and separate-console worker revocation passed. Recovery assessment rejects unknown outcomes, stale evidence, changed context, and incomplete membership.
+Assessment is not an execution grant. The viewer remains GET-only and shows exact saved IP/list scope without a live verification caller.
+Final checks: format passed, 326 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
+Five-width Chromium checks passed with a synthetic pending journal. Documentation paths, links, and diff checks passed.
+No performance benchmark ran. No live router access, production setting, shaping output, package change, service change, or restart occurred.
+Next: persist the worker guard for reviewed recovery approval, then separately authorized isolated RouterOS acceptance before runtime activation.
+No lab is available. No HTTP, CLI, scheduler, or accepted automatic mode enables writes.
+Older binaries, other hosts, and external router writers do not participate in these controls. A pause cannot recall an in-flight request.
+Preserve unrelated frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-distributed-controls]] and `v3/DISTRIBUTED_CONTROL.md`.
+
+
+## Coordinated worker library verified; runtime activation remains disabled
+
+Updated: 2026-10-31T06:47:37+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/coordinated-worker`. Worktree: `/home/pi/lqosync-coordinated-worker`. Base: `3d4e973`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: implement coordinated execution with code and mock tests without destructive live MikroTik changes.
+Changed files: core_coordination, core_worker, core_writer, core_console helper visibility, web settings replacement, settings handlers, tests, guides, ledger, and notes.
+The explicit library open holds a shared console lease and the exclusive shadow slot. Offline and maintenance opens remain exclusive.
+Grants bind to root, policy revision, batch, epoch, and lease lifetime. New coordinated sessions cannot resume old journals.
+Pause and successful settings replacements revoke prior grants. Every production settings replacement uses the common setter.
+Fresh review found missing revocation in ordinary settings handlers. Its regression failed before the fix and passed afterward.
+Mock protocol cases cover known replies, exact rollback, lost replies, and cancellation during an in-flight request.
+Final checks: format passed, 314 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
+Documentation links and diff checks passed. The STE heuristic received manual review for technical terms.
+No UI layout or dependency changed. No new browser test or performance benchmark ran for this backend stage.
+No live router access, production settings, shaping output, package change, service change, or restart occurred.
+Next: distributed controls, recovery approval, and separately authorized isolated RouterOS acceptance before any runtime activation.
+Local epochs require the same coordinator. They do not deliver pause across console processes or recall an in-flight request.
+No scheduler, CLI, HTTP action, or accepted automatic mode enables this library. No lab is available.
+Preserve unrelated frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-coordinated-worker]] and `v3/CORE_WORKER.md`.
+
+
+## Shadow controls complete; online mutation coordination pending
+
+Updated: 2026-10-31T06:35:36+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/shadow-controls`. Worktree: `/home/pi/lqosync-shadow-controls`. Base: `6921171`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: add shadow pause and read-only journal controls with code and mock tests only.
+Changed files: core_coordination, core_console, core_control_web, core_recovery, core_recovery_web, core_writer validation extraction, web/lib, viewer binary, tests, guides, and notes.
+The shadow lock serializes work across processes. Local tickets invalidate on pause. Persisted settings checks reject external policy drift.
+The separate GET-only viewer can inspect saved records while the normal console remains blocked by its unchanged recovery fence.
+Approval, resume, rollback, and marker removal have no HTTP action. The offline writer still requires an exclusive lease.
+Fresh review found two defects. Both received failing regression tests, fixes, and passing checks.
+Final checks: format passed, 308 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
+Five-width Chromium checks passed with synthetic records. Documentation links and diff checks passed.
+No live router access, production settings, shaping output, package changes, service changes, or live restart occurred.
+Next: actual online mutation coordination and separate recovery grants, then isolated RouterOS acceptance before production authorization.
+No lab is available. Mock tests cannot replace lab acceptance or prove uninterrupted traffic.
+Preserve the separate frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-shadow-controls]] and `v3/SHADOW_CONTROLS.md`.
+
+
+## Offline worker and verifier integration; lab acceptance pending
+
+Updated: 2026-10-31T06:14:13+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-worker`. Worktree: `/home/pi/lqosync-core-worker`. Base: `b6efb03`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: connect fresh verification to bounded execution with code and mock tests only.
+Changed files: core_worker, helper extraction in core_console/sessions/wan_health, module export, tests, guides, ledger, and notes.
+RouterSource reads settings and actual routers. The verifier checks canonical root, all selected sessions/rates, health, policy, approval, and complete actual rows.
+The exclusive offline lease remains unchanged. No automatic, HTTP, CLI, or scheduler caller exists.
+Fresh review found no concrete defects. Final full-suite result: 295 passed, zero failures, 12 ignored.
+The existing 50,000-session workload passed. Debug times: collect 592.8 ms, assign 854.9 ms, retain 1.062 s, candidate save 1.331 s, candidate load 2.448 s.
+This measures the synthetic session pipeline, not end-to-end worker throughput or a paired baseline comparison.
+No live router reads/writes, production settings, shaping output, package changes, service changes, or restart occurred.
+Next: online console coordination, journal controls, recovery approval, and separately authorized isolated RouterOS acceptance.
+The operator has no lab available. Do not replace lab evidence with mock results.
+Preserve the separate frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-core-worker]] and `v3/CORE_WORKER.md`.
+
+
+## Core console preview verified; integrated writer pending
+
+Updated: 2026-10-30T23:08:51+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-console`. Worktree: `/tmp/lqosync-core-console`. Base: `b51af71`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: connect health and reconciliation previews to the scheduler and modal controls.
+Changed files: core_console, core_control_web, model, scheduler, RouterOS optional reads, navigation, modal recognition, tests, guides, plan, and notes.
+Automatic mode rejects. No writer caller, production verifier, or lease upgrade exists.
+The preview discards superseded results and cleanup receipts after incomplete observations.
+Health-only ticks preserve the ordinary publication interval. Caller cancellation cannot strand busy state.
+Eight focused console tests passed. Format and strict Clippy passed. Final full-suite result: 287 passed, zero failures, 12 ignored.
+Five-width Chromium checks passed. Fresh review found no remaining material defect.
+No live router reads/writes, production settings, shaping outputs, credentials, service changes, or restart occurred.
+Next: complete Task 4 writer coordination, live verifier, journal controls, and interruption tests.
+Keep automatic writes disabled until isolated RouterOS acceptance and concrete rollout authorization exist.
+Preserve the separate frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-30-core-console-preview]] and `v3/CORE_CONTROL.md`.
+
 
 ## Frontend stack selected; skills and plan complete
 
@@ -748,128 +884,3 @@ Synthetic tests, sanitized actual fixture, guides, plan, and notes accompany the
 Private settings, credentials, raw inventory, and candidate reports must remain ignored.
 Next: review protected manual membership and a per-host migration plan without writes or ownership bypass.
 See [[10-sessions/2026-10-29-scoped-routing-minimums]]. Commit/push authorization continues. Verify remote head against the local tip.
-
-
-## Core console preview verified; integrated writer pending
-
-Updated: 2026-10-30T23:08:51+08:00 (Asia/Shanghai). Last agent: Codex.
-Branch: `codex/core-console`. Worktree: `/tmp/lqosync-core-console`. Base: `b51af71`.
-Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
-Goal: connect health and reconciliation previews to the scheduler and modal controls.
-Changed files: core_console, core_control_web, model, scheduler, RouterOS optional reads, navigation, modal recognition, tests, guides, plan, and notes.
-Automatic mode rejects. No writer caller, production verifier, or lease upgrade exists.
-The preview discards superseded results and cleanup receipts after incomplete observations.
-Health-only ticks preserve the ordinary publication interval. Caller cancellation cannot strand busy state.
-Eight focused console tests passed. Format and strict Clippy passed. Final full-suite result: 287 passed, zero failures, 12 ignored.
-Five-width Chromium checks passed. Fresh review found no remaining material defect.
-No live router reads/writes, production settings, shaping outputs, credentials, service changes, or restart occurred.
-Next: complete Task 4 writer coordination, live verifier, journal controls, and interruption tests.
-Keep automatic writes disabled until isolated RouterOS acceptance and concrete rollout authorization exist.
-Preserve the separate frontend planning edits in the main checkout.
-See [[10-sessions/2026-10-30-core-console-preview]] and `v3/CORE_CONTROL.md`.
-
-
-## Offline worker and verifier integration; lab acceptance pending
-
-Updated: 2026-10-31T06:14:13+08:00 (Asia/Shanghai). Last agent: Codex.
-Branch: `codex/core-worker`. Worktree: `/home/pi/lqosync-core-worker`. Base: `b6efb03`.
-Target: `lqosyncv3` in `/opt/LQoSync3.0`.
-Goal: connect fresh verification to bounded execution with code and mock tests only.
-Changed files: core_worker, helper extraction in core_console/sessions/wan_health, module export, tests, guides, ledger, and notes.
-RouterSource reads settings and actual routers. The verifier checks canonical root, all selected sessions/rates, health, policy, approval, and complete actual rows.
-The exclusive offline lease remains unchanged. No automatic, HTTP, CLI, or scheduler caller exists.
-Fresh review found no concrete defects. Final full-suite result: 295 passed, zero failures, 12 ignored.
-The existing 50,000-session workload passed. Debug times: collect 592.8 ms, assign 854.9 ms, retain 1.062 s, candidate save 1.331 s, candidate load 2.448 s.
-This measures the synthetic session pipeline, not end-to-end worker throughput or a paired baseline comparison.
-No live router reads/writes, production settings, shaping output, package changes, service changes, or restart occurred.
-Next: online console coordination, journal controls, recovery approval, and separately authorized isolated RouterOS acceptance.
-The operator has no lab available. Do not replace lab evidence with mock results.
-Preserve the separate frontend planning edits in the main checkout.
-See [[10-sessions/2026-10-31-core-worker]] and `v3/CORE_WORKER.md`.
-
-
-## Shadow controls complete; online mutation coordination pending
-
-Updated: 2026-10-31T06:35:36+08:00 (Asia/Shanghai). Last agent: Codex.
-Branch: `codex/shadow-controls`. Worktree: `/home/pi/lqosync-shadow-controls`. Base: `6921171`.
-Target: `lqosyncv3` in `/opt/LQoSync3.0`.
-Goal: add shadow pause and read-only journal controls with code and mock tests only.
-Changed files: core_coordination, core_console, core_control_web, core_recovery, core_recovery_web, core_writer validation extraction, web/lib, viewer binary, tests, guides, and notes.
-The shadow lock serializes work across processes. Local tickets invalidate on pause. Persisted settings checks reject external policy drift.
-The separate GET-only viewer can inspect saved records while the normal console remains blocked by its unchanged recovery fence.
-Approval, resume, rollback, and marker removal have no HTTP action. The offline writer still requires an exclusive lease.
-Fresh review found two defects. Both received failing regression tests, fixes, and passing checks.
-Final checks: format passed, 308 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
-Five-width Chromium checks passed with synthetic records. Documentation links and diff checks passed.
-No live router access, production settings, shaping output, package changes, service changes, or live restart occurred.
-Next: actual online mutation coordination and separate recovery grants, then isolated RouterOS acceptance before production authorization.
-No lab is available. Mock tests cannot replace lab acceptance or prove uninterrupted traffic.
-Preserve the separate frontend planning edits in the main checkout.
-See [[10-sessions/2026-10-31-shadow-controls]] and `v3/SHADOW_CONTROLS.md`.
-
-
-## Coordinated worker library verified; runtime activation remains disabled
-
-Updated: 2026-10-31T06:47:37+08:00 (Asia/Shanghai). Last agent: Codex.
-Branch: `codex/coordinated-worker`. Worktree: `/home/pi/lqosync-coordinated-worker`. Base: `3d4e973`.
-Target: `lqosyncv3` in `/opt/LQoSync3.0`.
-Goal: implement coordinated execution with code and mock tests without destructive live MikroTik changes.
-Changed files: core_coordination, core_worker, core_writer, core_console helper visibility, web settings replacement, settings handlers, tests, guides, ledger, and notes.
-The explicit library open holds a shared console lease and the exclusive shadow slot. Offline and maintenance opens remain exclusive.
-Grants bind to root, policy revision, batch, epoch, and lease lifetime. New coordinated sessions cannot resume old journals.
-Pause and successful settings replacements revoke prior grants. Every production settings replacement uses the common setter.
-Fresh review found missing revocation in ordinary settings handlers. Its regression failed before the fix and passed afterward.
-Mock protocol cases cover known replies, exact rollback, lost replies, and cancellation during an in-flight request.
-Final checks: format passed, 314 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
-Documentation links and diff checks passed. The STE heuristic received manual review for technical terms.
-No UI layout or dependency changed. No new browser test or performance benchmark ran for this backend stage.
-No live router access, production settings, shaping output, package change, service change, or restart occurred.
-Next: distributed controls, recovery approval, and separately authorized isolated RouterOS acceptance before any runtime activation.
-Local epochs require the same coordinator. They do not deliver pause across console processes or recall an in-flight request.
-No scheduler, CLI, HTTP action, or accepted automatic mode enables this library. No lab is available.
-Preserve unrelated frontend planning edits in the main checkout.
-See [[10-sessions/2026-10-31-coordinated-worker]] and `v3/CORE_WORKER.md`.
-
-
-## Durable pause and recovery assessment verified; execution approval remains blocked
-
-Updated: 2026-10-31T07:03:59+08:00 (Asia/Shanghai). Last agent: Codex.
-Branch: `codex/distributed-controls`. Worktree: `/home/pi/lqosync-distributed-controls`. Base: `6500d83`.
-Target: `lqosyncv3` in `/opt/LQoSync3.0`.
-Goal: implement cross-process cancellation and read-only recovery assessment with no destructive live changes.
-Changed files: core_shared_control, coordinator, writer assessment and pure history helper, store settings transaction, web initialization, core policy persistence, recovery display, tests, guides, ledger, and notes.
-Shared generations and inhibit state revoke old work. Failed saves and lost initialized state remain paused. Ordinary saves cannot clear an inhibit.
-Explicit Preview save compares persisted settings before it resumes controls. All old grants remain revoked.
-The durable control-lock anchor distinguishes first initialization from state loss. Do not delete state or locks to force progress.
-Fresh review found three defects. Their regression checks failed before fixes and passed afterward.
-Actual child-process pause and separate-console worker revocation passed. Recovery assessment rejects unknown outcomes, stale evidence, changed context, and incomplete membership.
-Assessment is not an execution grant. The viewer remains GET-only and shows exact saved IP/list scope without a live verification caller.
-Final checks: format passed, 326 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
-Five-width Chromium checks passed with a synthetic pending journal. Documentation paths, links, and diff checks passed.
-No performance benchmark ran. No live router access, production setting, shaping output, package change, service change, or restart occurred.
-Next: persist the worker guard for reviewed recovery approval, then separately authorized isolated RouterOS acceptance before runtime activation.
-No lab is available. No HTTP, CLI, scheduler, or accepted automatic mode enables writes.
-Older binaries, other hosts, and external router writers do not participate in these controls. A pause cannot recall an in-flight request.
-Preserve unrelated frontend planning edits in the main checkout.
-See [[10-sessions/2026-10-31-distributed-controls]] and `v3/DISTRIBUTED_CONTROL.md`.
-
-
-## Persisted worker guard and reviewed recovery verified
-
-Updated: 2026-10-31T07:31:11+08:00 (Asia/Shanghai). Last agent: Codex.
-Branch: `codex/recovery-guard`. Worktree: `/home/pi/lqosync-recovery-guard`. Base: `a366cd8`.
-Target: `lqosyncv3` in `/opt/LQoSync3.0`.
-Goal: persist original worker context and require exact reviewed recovery approval with code and mocks only.
-Changed files: core_worker and recovery module, writer, coordination, artifact reader, migration fence, strict settings reader, worker tests, guides, ledger, and notes.
-The worker saves a bounded private guard manifest before any send. Recovery review holds the existing exclusive fence and does not create recovery records.
-Approval binds fresh evidence, exact artifact bytes, direction, nonce, shared generation, and a short deadline. It cannot extend the original forward deadline.
-Unknown outcomes, changed sources, missing settings, lost state, and stale continuity remain blocked. Pause and lease drop revoke authority.
-Final checks: format passed; 331 tests passed, zero failed, 12 ignored; strict all-target Clippy passed.
-Seventeen focused worker tests passed, including loopback forward recovery and exact rollback.
-A missing-settings regression failed before the strict reader fix and passed afterward. Fresh branch review and final-delta review found no concrete defect.
-An intermediate full run had two existing scheduler mock timeouts during a concurrent build. The final full run passed with no concurrent build and unchanged test deadlines.
-Documentation paths, links, and diff checks passed. No UI change, browser test, dependency change, or performance benchmark formed part of this stage.
-No live router access, production configuration, shaping output, service change, or restart occurred. Private artifacts remain outside Git.
-Next: separately authorized isolated RouterOS acceptance before runtime activation. No lab is available. No HTTP, CLI, scheduler, or automatic mode activates this library.
-Preserve unrelated frontend planning edits in the main checkout.
-See [[10-sessions/2026-10-31-recovery-guard]] and `v3/RECOVERY_GUARD.md`.
