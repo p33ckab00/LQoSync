@@ -5,6 +5,11 @@ This branch starts the new Rust application. The existing application remains in
 The backend uses Axum. The web UI uses Maud templates written in Rust.
 No Python backend, JavaScript UI framework, database, or Node build is required.
 
+The operator selected Dioxus and Rust/UI for the next frontend. The current runtime still uses Maud.
+See the [migration design](../docs/superpowers/specs/2026-10-30-dioxus-rust-ui-design.md)
+and [implementation plan](../docs/superpowers/plans/2026-10-30-dioxus-rust-ui.md).
+The planned frontend adds a WebAssembly and Tailwind asset build. Its implementation and deployment remain pending.
+
 The compact NOC console follows the supplied dark design with grouped navigation and dense tables.
 Primary text uses 14px fonts. Secondary labels use at least 12px. Small settings, WAN, core mapping, and source policy cards use three columns on wide screens, two on medium screens, and one on narrow screens.
 Use the top bar to change display density. This choice stays in the browser.

@@ -7,6 +7,8 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-frontend-skills-plan]]
+- [[20-decisions/adr-0003-dioxus-rust-ui]]
 - [[10-sessions/2026-10-30-core-writer]]
 - [[10-sessions/2026-10-30-core-reconciliation-planner]]
 - [[10-sessions/2026-10-30-wan-health-preview]]

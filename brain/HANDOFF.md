@@ -13,6 +13,40 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Frontend stack selected; skills and plan complete
+
+Updated: 2026-10-30T22:54:38+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `lqosyncv3`. Worktree: `/opt/LQoSync3.0`. Baseline: `b51af71`.
+Goal: install the two requested design skills, update Tandem, and plan Dioxus with Rust/UI.
+The operator explicitly limited this task to skills, Tandem, and a migration plan.
+Current application code and dependencies remain unchanged. Maud still serves the console.
+
+Installed `ui-ux` and `frontend-design` under `/home/pi/.agents/skills/` with the Codex Skill Installer.
+Both `/home/pi/.claude/skills/` and `/home/pi/.codex/skills/` link to these shared installations.
+Updated the maintained Tandem skill, its session hook, and its shared Codex discovery entry.
+External skill changes are outside this repository. Backup: `/tmp/lqosync-tandem-20261030/`.
+Optional companion skills and inspector tools were not installed.
+
+Repository changes: migration design and plan, ADR 0003, session note, Home, this handoff, and `v3/README.md`.
+The plan adds a separate Dioxus browser crate, keeps Axum, and migrates pages through a same-origin preview.
+The UI/UX search database has no Dioxus preset. Use general UX guidance and official framework sources.
+Rust/UI uses source components. Its installation page contains conflicting Leptos guidance.
+Pin compatible Dioxus source and tooling, then compile a component before migration work.
+
+Fresh checks: both installed skills and the shared Codex Tandem entry passed the skill validator.
+The UI/UX search script returned the expected keyboard focus guidance.
+Tandem Bash syntax, session-hook JSON, and all six skill discovery paths passed checks.
+Local documentation links and Brain note links passed. The diff whitespace check passed.
+The Codex validator rejects the maintained Claude source's pre-existing `argument-hint` metadata.
+That Claude metadata remains intact. The Codex entry passed validation.
+The STE heuristic ran. Technical-name and list warnings remain after prose review; this is not a compliance certification.
+No Rust or browser tests ran because this task changed only skills and documentation.
+The existing graph was queried for recall. It was not rebuilt for these planning notes.
+
+Next: execute Task 1 of the frontend plan when implementation is authorized.
+No frontend migration, live router action, production change, dependency install, or service restart occurred.
+See [[10-sessions/2026-10-30-frontend-skills-plan]] and [[20-decisions/adr-0003-dioxus-rust-ui]].
+
 ## Guarded writer library verified; live integration pending
 
 Updated: 2026-10-30T22:38:15+08:00 (Asia/Shanghai). Last agent: Codex.
