@@ -7,11 +7,28 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-30T12:49:30+08:00 (Asia/Shanghai).
+Updated: 2026-10-30T13:37:59+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
+
+## Core membership audit complete; live migration pending
+
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Live code and process remain unchanged.
+Authorized audit and preview are complete. The live conflict is not resolved, and no actual output was staged.
+Fresh reads found eight protected broad rows in bound lists. Five overlap the 26 selected clients; three are unaffected. Five outside rows remain untouched.
+Existing core membership is 9/17; candidate membership is 13/13. Fourteen memberships differ, so a direct cutover would move continuous clients.
+A continuity-preserving preview retains observed WANs, modifies five broad rows, adds three residual rows, and adds 26 owned hosts.
+All other address memberships are preserved by checked set subtraction. The model produces zero WAN membership moves.
+All ten output checks Pass in the separate private simulation. Actual core membership remains Conflict and no committed generation exists.
+Settings and actual list rows remained unchanged during the audit. Customer-level evidence and rollback details stay private under `/home/pi/.local/state/lqosync3/`.
+Changed Git files: the audit session note, Home, and this handoff. No application code, credentials, router configuration, or LibreQoS output changed.
+The existing updatecsv service still runs and was not modified. Its source reads routers and can write LibreQoS output.
+Next: design and verify the guarded migration/rollback executor and long-running writer, including a fresh observed-WAN baseline and competing-writer checks.
+The application client remains read-only. Obtain explicit protected-entry migration authorization before production writes.
+Keep actual and simulated validation separate; never bypass ownership or publication gates.
+See [[10-sessions/2026-10-30-core-membership-audit]].
 
 ## Live dynamic topology activation complete
 
