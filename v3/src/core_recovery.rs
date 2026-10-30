@@ -184,3 +184,37 @@ pub async fn inspect_async(root: std::path::PathBuf) -> Result<Report> {
     .await
     .context("Recovery inspection worker failed")?
 }
+
+/// Read exact worker artifacts through pinned directory descriptors. No record is created.
+pub(crate) fn worker_artifacts(root: &Path, id: &str) -> Result<(String, Option<String>)> {
+    ensure!(revision(id), "Invalid worker revision");
+    let root = root.canonicalize()?;
+    let directory = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
+        .open(&root)?;
+    let state = child(&directory, "state", true)?.context("Missing recovery state")?;
+    let raw_marker = text(&state, "core-migration-active.json", &mut 65536)?
+        .context("Missing recovery marker")?;
+    let marker: Marker = serde_json::from_str(&raw_marker)?;
+    let expected = root.join("state/core-writer").join(format!("{id}.json"));
+    ensure!(
+        marker.revision == id && marker.journal == expected.to_string_lossy(),
+        "Recovery marker scope changed"
+    );
+    let writer = child(&state, "core-writer", true)?.context("Missing writer records")?;
+    let mut budget = BUDGET;
+    let journal =
+        text(&writer, &format!("{id}.json"), &mut budget)?.context("Missing writer journal")?;
+    let manifest = if let Some(worker) = child(&state, "core-worker", true)? {
+        text(&worker, &format!("{id}.json"), &mut budget)?
+    } else {
+        None
+    };
+    ensure!(
+        text(&state, "core-migration-active.json", &mut 65536)?.as_deref()
+            == Some(raw_marker.as_str()),
+        "Recovery marker changed during read"
+    );
+    Ok((journal, manifest))
+}

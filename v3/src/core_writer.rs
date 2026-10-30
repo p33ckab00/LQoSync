@@ -104,6 +104,12 @@ impl Batch {
     pub fn revision(&self) -> Result<String> {
         digest(self)
     }
+    pub(crate) fn context(&self) -> &str {
+        &self.context
+    }
+    pub(crate) fn deadline(&self) -> u64 {
+        self.expires_at
+    }
     pub fn baseline(&self) -> &Rows {
         &self.baseline
     }
@@ -400,13 +406,46 @@ pub struct Executor {
 enum WriterLease {
     Offline(Lease),
     Coordinated(Box<crate::core_coordination::CoordinatedLease>),
+    Reviewed(Box<ReviewedLease>),
 }
 impl WriterLease {
     fn finish(self) -> Result<()> {
         match self {
             Self::Offline(lease) => lease.finish(),
             Self::Coordinated(lease) => lease.finish(),
+            Self::Reviewed(lease) => lease.finish(),
         }
+    }
+}
+struct ReviewedLease {
+    lease: Option<Lease>,
+    guard: crate::core_coordination::WriterGuard,
+    root: PathBuf,
+    revision: String,
+    manifest_fingerprint: String,
+}
+impl ReviewedLease {
+    fn finish(mut self) -> Result<()> {
+        ensure!(self.guard.active(), "Recovery grant revoked");
+        let (raw, manifest) = crate::core_recovery::worker_artifacts(&self.root, &self.revision)?;
+        ensure!(
+            inspect_journal(&raw, &self.revision)?.saved_verified
+                && digest(&manifest.context("Missing worker guard")?)? == self.manifest_fingerprint,
+            "Recovery records changed before completion"
+        );
+        ensure!(
+            self.guard.active(),
+            "Recovery grant revoked during completion check"
+        );
+        self.lease
+            .take()
+            .context("Missing recovery lease")?
+            .finish()
+    }
+}
+impl Drop for ReviewedLease {
+    fn drop(&mut self) {
+        self.guard.revoke();
     }
 }
 fn apply(rows: &mut Rows, op: &Operation, ret: Option<&str>) -> Result<()> {
@@ -543,6 +582,87 @@ impl Executor {
             completion_window: None,
         };
         this.validate_journal()?;
+        this.save()?;
+        Ok(this)
+    }
+    pub(crate) fn save_worker_guard(&self, guard: &impl Serialize) -> Result<()> {
+        let revision = self.journal.batch.revision()?;
+        ensure!(
+            digest(guard)? == self.journal.batch.context,
+            "Worker guard differs from batch context"
+        );
+        let root = self
+            .path
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .context("Invalid worker journal location")?;
+        let (journal, previous) = crate::core_recovery::worker_artifacts(root, &revision)?;
+        let raw = serde_json::to_string(
+            &serde_json::json!({"schema":1,"revision":revision,"guard":guard}),
+        )?;
+        // Reserve space for at most 20 forward and 20 inverse receipts within the reader budget.
+        ensure!(
+            raw.len()
+                .saturating_add(journal.len())
+                .saturating_add(128 * 1024)
+                <= 64 * 1024 * 1024,
+            "Worker artifacts exceed the bounded recovery budget"
+        );
+        if let Some(previous) = previous {
+            ensure!(previous == raw, "Persisted worker guard changed");
+        } else {
+            ensure!(
+                self.journal.forward == 0
+                    && self.journal.undo == 0
+                    && self.journal.pending.is_none(),
+                "Cannot attach a guard after execution started"
+            );
+            let directory = root.join("state/core-worker");
+            match std::fs::create_dir(&directory) {
+                Ok(()) => {
+                    std::fs::File::open(root.join("state"))?.sync_all()?;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(e) => return Err(e.into()),
+            }
+            ensure!(
+                std::fs::symlink_metadata(&directory)?.is_dir(),
+                "Unsafe worker guard directory"
+            );
+            store::atomic_write(&directory.join(format!("{revision}.json")), &raw)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn resume_reviewed(
+        root: &Path,
+        raw: &str,
+        revision: &str,
+        lease: Lease,
+        guard: crate::core_coordination::WriterGuard,
+        manifest_fingerprint: String,
+    ) -> Result<Self> {
+        let mut journal = read_journal(raw, revision)?;
+        ensure!(
+            journal.pending.is_none() && guard.active(),
+            "Unknown outcome or revoked recovery grant"
+        );
+        journal.verified = false;
+        let mut this = Self {
+            path: root
+                .join("state/core-writer")
+                .join(format!("{revision}.json")),
+            journal,
+            lease: Some(WriterLease::Reviewed(Box::new(ReviewedLease {
+                lease: Some(lease),
+                guard,
+                root: root.into(),
+                revision: revision.into(),
+                manifest_fingerprint,
+            }))),
+            poisoned: false,
+            completion_window: None,
+        };
         this.save()?;
         Ok(this)
     }
@@ -959,4 +1079,13 @@ pub fn assess_recovery(
         next_forward,
         next_rollback,
     })
+}
+
+pub(crate) fn recovery_batch(raw: &str, revision: &str) -> Result<Batch> {
+    let j = read_journal(raw, revision)?;
+    ensure!(
+        j.pending.is_none(),
+        "Unknown request outcome; recovery is blocked"
+    );
+    Ok(j.batch)
 }

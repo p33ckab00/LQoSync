@@ -93,8 +93,9 @@ An uncertain request blocks retry and rollback. A dropped worker does not remove
 A settings or source failure revokes the grant. Expired or revoked approval cannot authorize worker rollback or finalization.
 Do not delete the marker or edit the journal to force progress.
 
-This stage has no cold-resume approval interface or saved guard manifest.
-A restart cannot reconstruct approval automatically. Recovery needs separate review through the lower-level executor contract.
+The worker now saves an original guard manifest before execution.
+[Reviewed recovery](RECOVERY_GUARD.md) adds an explicit library-only approval gate with fresh source checks and exact artifact binding.
+A restart cannot reconstruct approval automatically. Long continuity gaps and unknown outcomes remain blocked.
 The protected-row maintenance CLI uses a different schema and cannot recover a writer journal.
 See [guarded writer recovery](CORE_WRITER.md) and [maintenance](CORE_MAINTENANCE.md).
 
@@ -105,5 +106,5 @@ They also cover approval, directory binding, batch limits, routing-policy change
 Mocks do not prove RouterOS field behavior, WAN attribution, same-ID moves, connection-mark behavior, or uninterrupted failover.
 
 [Shadow controls](SHADOW_CONTROLS.md) add read-only coordination, pause, and saved-journal inspection.
-Coordinated execution has mock protocol proof. Runtime activation, recovery execution approval, and isolated RouterOS acceptance remain pending.
+Coordinated execution has mock protocol proof. The recovery library has mock approval and execution tests. Runtime activation and isolated RouterOS acceptance remain pending.
 Keep automatic writes disabled until those stages and the exact production scope have passed review.

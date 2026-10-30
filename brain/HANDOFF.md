@@ -818,3 +818,24 @@ No lab is available. No HTTP, CLI, scheduler, or accepted automatic mode enables
 Older binaries, other hosts, and external router writers do not participate in these controls. A pause cannot recall an in-flight request.
 Preserve unrelated frontend planning edits in the main checkout.
 See [[10-sessions/2026-10-31-distributed-controls]] and `v3/DISTRIBUTED_CONTROL.md`.
+
+
+## Persisted worker guard and reviewed recovery verified
+
+Updated: 2026-10-31T07:31:11+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/recovery-guard`. Worktree: `/home/pi/lqosync-recovery-guard`. Base: `a366cd8`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: persist original worker context and require exact reviewed recovery approval with code and mocks only.
+Changed files: core_worker and recovery module, writer, coordination, artifact reader, migration fence, strict settings reader, worker tests, guides, ledger, and notes.
+The worker saves a bounded private guard manifest before any send. Recovery review holds the existing exclusive fence and does not create recovery records.
+Approval binds fresh evidence, exact artifact bytes, direction, nonce, shared generation, and a short deadline. It cannot extend the original forward deadline.
+Unknown outcomes, changed sources, missing settings, lost state, and stale continuity remain blocked. Pause and lease drop revoke authority.
+Final checks: format passed; 331 tests passed, zero failed, 12 ignored; strict all-target Clippy passed.
+Seventeen focused worker tests passed, including loopback forward recovery and exact rollback.
+A missing-settings regression failed before the strict reader fix and passed afterward. Fresh branch review and final-delta review found no concrete defect.
+An intermediate full run had two existing scheduler mock timeouts during a concurrent build. The final full run passed with no concurrent build and unchanged test deadlines.
+Documentation paths, links, and diff checks passed. No UI change, browser test, dependency change, or performance benchmark formed part of this stage.
+No live router access, production configuration, shaping output, service change, or restart occurred. Private artifacts remain outside Git.
+Next: separately authorized isolated RouterOS acceptance before runtime activation. No lab is available. No HTTP, CLI, scheduler, or automatic mode activates this library.
+Preserve unrelated frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-recovery-guard]] and `v3/RECOVERY_GUARD.md`.

@@ -113,6 +113,7 @@ fn warm(
     state
 }
 
+#[derive(Clone)]
 struct MockSource {
     s: Settings,
     inv: BTreeMap<String, Arc<Inventory>>,
@@ -344,6 +345,7 @@ async fn reply(s: &mut TcpStream, words: Vec<String>) {
     let _ = s.write_all(&b).await;
 }
 
+#[derive(Clone)]
 struct WireSource {
     source: MockSource,
     db: Arc<tokio::sync::Mutex<Vec<Row>>>,
@@ -364,13 +366,19 @@ impl Source for WireSource {
 }
 #[tokio::test]
 async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
-    for (coordinated, lost, cancelled) in [
-        (false, false, false),
-        (false, true, false),
-        (true, false, false),
-        (true, true, false),
-        (true, false, true),
+    use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+    for (coordinated, lost, cancelled, recovery) in [
+        (false, false, false, None),
+        (false, true, false, None),
+        (true, false, false, None),
+        (true, true, false, None),
+        (true, false, true, None),
+        (false, false, false, Some(RecoveryAction::Rollback)),
+        (false, true, false, Some(RecoveryAction::Rollback)),
+        (true, false, false, Some(RecoveryAction::Rollback)),
+        (false, false, false, Some(RecoveryAction::Forward)),
     ] {
+        let recover = recovery.is_some();
         let d = tempfile::tempdir().unwrap();
         let (mut s, inv) = fixture();
         for selection in &mut s.selections {
@@ -401,61 +409,63 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
         let sent = Arc::new(tokio::sync::Notify::new());
         let received = sent.clone();
         let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            while let Some(words) = sentence(&mut stream).await {
-                let command = words[0].as_str();
-                let tag = words
-                    .iter()
-                    .find(|v| v.starts_with(".tag="))
-                    .unwrap()
-                    .clone();
-                let attrs: BTreeMap<String, String> = words
-                    .iter()
-                    .filter_map(|w| w.strip_prefix('=')?.split_once('='))
-                    .map(|(a, b)| (a.into(), b.into()))
-                    .collect();
-                match command {
-                    "/login" => {}
-                    "/ip/firewall/address-list/print" => {
-                        for row in remote.lock().await.iter() {
-                            let mut response = vec!["!re".into(), tag.clone()];
-                            response.extend(row.iter().map(|(k, v)| format!("={k}={v}")));
-                            reply(&mut stream, response).await;
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                while let Some(words) = sentence(&mut stream).await {
+                    let command = words[0].as_str();
+                    let tag = words
+                        .iter()
+                        .find(|v| v.starts_with(".tag="))
+                        .unwrap()
+                        .clone();
+                    let attrs: BTreeMap<String, String> = words
+                        .iter()
+                        .filter_map(|w| w.strip_prefix('=')?.split_once('='))
+                        .map(|(a, b)| (a.into(), b.into()))
+                        .collect();
+                    match command {
+                        "/login" => {}
+                        "/ip/firewall/address-list/print" => {
+                            for row in remote.lock().await.iter() {
+                                let mut response = vec!["!re".into(), tag.clone()];
+                                response.extend(row.iter().map(|(k, v)| format!("={k}={v}")));
+                                reply(&mut stream, response).await;
+                            }
                         }
-                    }
-                    "/ip/firewall/address-list/add" => {
-                        calls.lock().await.push(command.into());
-                        assert_eq!(
-                            attrs.keys().map(String::as_str).collect::<Vec<_>>(),
-                            vec!["address", "comment", "disabled", "list"]
-                        );
-                        remote.lock().await.push(core_fixture::row(&[
-                            (".id", "*AC"),
-                            ("address", &attrs["address"]),
-                            ("list", &attrs["list"]),
-                            ("comment", &attrs["comment"]),
-                            ("disabled", "false"),
-                            ("dynamic", "false"),
-                        ]));
-                        if cancelled {
-                            received.notify_one();
-                            std::future::pending::<()>().await;
+                        "/ip/firewall/address-list/add" => {
+                            calls.lock().await.push(command.into());
+                            assert_eq!(
+                                attrs.keys().map(String::as_str).collect::<Vec<_>>(),
+                                vec!["address", "comment", "disabled", "list"]
+                            );
+                            remote.lock().await.push(core_fixture::row(&[
+                                (".id", "*AC"),
+                                ("address", &attrs["address"]),
+                                ("list", &attrs["list"]),
+                                ("comment", &attrs["comment"]),
+                                ("disabled", "false"),
+                                ("dynamic", "false"),
+                            ]));
+                            if cancelled {
+                                received.notify_one();
+                                std::future::pending::<()>().await;
+                            }
+                            if lost {
+                                break;
+                            }
+                            reply(&mut stream, vec!["!done".into(), tag, "=ret=*AC".into()]).await;
+                            continue;
                         }
-                        if lost {
-                            break;
+                        "/ip/firewall/address-list/remove" => {
+                            calls.lock().await.push(command.into());
+                            assert_eq!(attrs.get(".id").map(String::as_str), Some("*AC"));
+                            assert_eq!(attrs.len(), 1);
+                            remote.lock().await.clear();
                         }
-                        reply(&mut stream, vec!["!done".into(), tag, "=ret=*AC".into()]).await;
-                        continue;
+                        _ => panic!("Unscoped worker command {command}"),
                     }
-                    "/ip/firewall/address-list/remove" => {
-                        calls.lock().await.push(command.into());
-                        assert_eq!(attrs.get(".id").map(String::as_str), Some("*AC"));
-                        assert_eq!(attrs.len(), 1);
-                        remote.lock().await.clear();
-                    }
-                    _ => panic!("Unscoped worker command {command}"),
+                    reply(&mut stream, vec!["!done".into(), tag]).await;
                 }
-                reply(&mut stream, vec!["!done".into(), tag]).await;
             }
         });
         std::fs::write(
@@ -465,8 +475,10 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
         .unwrap();
         let (p, source) = prepared(s, inv, d.path(), "");
         let revision = p.revision().unwrap();
-        let console = if coordinated {
+        if coordinated || recover {
             lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+        }
+        let console = if coordinated {
             Some(lqosync_v3::web::App::open(d.path().into()).unwrap())
         } else {
             None
@@ -475,6 +487,7 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
             source,
             db: db.clone(),
         };
+        let recovery_source = source.clone();
         let mut worker = if let Some(console) = &console {
             p.open_coordinated(d.path(), &revision, source, &console.core_coordinator)
         } else {
@@ -482,6 +495,32 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
         }
         .unwrap();
         let approval = worker.approval();
+        if recovery == Some(RecoveryAction::Forward) {
+            drop(worker);
+            drop(console);
+            let review = Recovery::review(
+                d.path(),
+                &revision,
+                RecoveryAction::Forward,
+                recovery_source,
+                20,
+            )
+            .await
+            .unwrap();
+            let approved = review.revision().unwrap();
+            let mut recovered = review.approve(&approved).await.unwrap();
+            let grant = recovered.approval();
+            assert!(recovered.rollback().await.is_err());
+            recovered.forward().await.unwrap();
+            recovered.finish().unwrap();
+            assert!(!grant.active());
+            assert_eq!(commands.lock().await.len(), 1);
+            assert_eq!(db.lock().await.len(), 1);
+            assert!(!d.path().join("state/core-migration-active.json").exists());
+            assert!(!d.path().join("state/current.toml").exists());
+            server.abort();
+            continue;
+        }
         if cancelled {
             {
                 let work = worker.forward();
@@ -502,11 +541,49 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
             assert_eq!(commands.lock().await.len(), 1);
             drop(worker);
             assert!(lqosync_v3::web::App::open(d.path().into()).is_err());
+            if recover {
+                use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+                drop(console);
+                let error = Recovery::review(
+                    d.path(),
+                    &revision,
+                    RecoveryAction::Rollback,
+                    recovery_source,
+                    20,
+                )
+                .await
+                .err()
+                .unwrap();
+                assert!(error.to_string().contains("Unknown"), "{error}");
+                assert_eq!(commands.lock().await.len(), 1);
+            }
         } else {
             worker.forward().await.unwrap();
             assert_eq!(db.lock().await.len(), 1);
-            worker.rollback().await.unwrap();
-            worker.finish().unwrap();
+            if recover {
+                use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+                drop(worker);
+                drop(console);
+                let review = Recovery::review(
+                    d.path(),
+                    &revision,
+                    RecoveryAction::Rollback,
+                    recovery_source,
+                    20,
+                )
+                .await
+                .unwrap();
+                let approved = review.revision().unwrap();
+                let mut recovered = review.approve(&approved).await.unwrap();
+                let grant = recovered.approval();
+                assert!(recovered.forward().await.is_err());
+                recovered.rollback().await.unwrap();
+                recovered.finish().unwrap();
+                assert!(!grant.active());
+            } else {
+                worker.rollback().await.unwrap();
+                worker.finish().unwrap();
+            }
             assert!(db.lock().await.is_empty());
             assert!(!d.path().join("state/core-migration-active.json").exists());
             assert_eq!(commands.lock().await.len(), 2);
@@ -803,4 +880,276 @@ async fn another_console_durable_pause_revokes_worker_without_a_router_request()
     assert!(worker.forward().await.is_err());
     assert!(worker.rollback().await.is_err());
     assert!(d.path().join("state/core-migration-active.json").exists());
+}
+
+#[tokio::test]
+async fn persisted_guard_allows_exact_read_only_recovery_review_after_drop() {
+    use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+    let d = tempfile::tempdir().unwrap();
+    let (s, inv) = fixture();
+    let (p, source) = prepared(s, inv, d.path(), "");
+    lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+    let revision = p.revision().unwrap();
+    let resumed_source = MockSource {
+        s: source.s.clone(),
+        inv: source.inv.clone(),
+        root: source.root.clone(),
+        previous: source.previous.clone(),
+        change: String::new(),
+    };
+    drop(p.open(d.path(), &revision, source).unwrap());
+    let path = d.path().join(format!("state/core-worker/{revision}.json"));
+    assert!(path.exists());
+    let journal = d.path().join(format!("state/core-writer/{revision}.json"));
+    let before = std::fs::read(&journal).unwrap();
+    let review = Recovery::review(
+        d.path(),
+        &revision,
+        RecoveryAction::Forward,
+        resumed_source,
+        20,
+    )
+    .await
+    .unwrap();
+    assert_ne!(review.revision().unwrap(), revision);
+    assert_eq!(review.proposal().approval, review.revision().unwrap());
+    assert_eq!(review.proposal().action, RecoveryAction::Forward);
+    assert!(review.proposal().assessment.next_forward.is_some());
+    assert_eq!(std::fs::read(&journal).unwrap(), before);
+    drop(review);
+    assert!(d.path().join("state/core-migration-active.json").exists());
+}
+
+#[tokio::test]
+async fn recovery_rejects_missing_corrupt_foreign_and_unknown_records_without_writes() {
+    use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+    for change in [
+        "manifest_missing",
+        "manifest_symlink",
+        "manifest_schema",
+        "manifest_guard",
+        "journal_unknown",
+        "marker_missing",
+        "console",
+        "root",
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let (s, inv) = fixture();
+        let (p, source) = prepared(s, inv, d.path(), "");
+        lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+        let revision = p.revision().unwrap();
+        let copy = source.clone();
+        drop(p.open(d.path(), &revision, source).unwrap());
+        let manifest = d.path().join(format!("state/core-worker/{revision}.json"));
+        let journal = d.path().join(format!("state/core-writer/{revision}.json"));
+        let marker = d.path().join("state/core-migration-active.json");
+        match change {
+            "manifest_missing" => std::fs::remove_file(&manifest).unwrap(),
+            "manifest_symlink" => {
+                std::fs::remove_file(&manifest).unwrap();
+                let target = other.path().join("guard.json");
+                std::fs::write(&target, "synthetic private record").unwrap();
+                std::os::unix::fs::symlink(target, &manifest).unwrap();
+            }
+            "manifest_schema" | "manifest_guard" => {
+                let mut m: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+                if change == "manifest_schema" {
+                    m["schema"] = 9.into();
+                } else {
+                    m["guard"]["revision"] = "changed".into();
+                }
+                std::fs::write(&manifest, serde_json::to_vec(&m).unwrap()).unwrap();
+            }
+            "journal_unknown" => {
+                let mut j: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&journal).unwrap()).unwrap();
+                j["pending"] = j["batch"]["operations"][0].clone();
+                std::fs::write(&journal, serde_json::to_vec(&j).unwrap()).unwrap();
+            }
+            "marker_missing" => std::fs::remove_file(&marker).unwrap(),
+            _ => {}
+        }
+        // A raw shared lease models an already-running console despite the recovery marker.
+        let lock = if change == "console" {
+            Some(
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(d.path().join("state/application-writer.lock"))
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+        if let Some(lock) = &lock {
+            use std::os::fd::AsRawFd;
+            // SAFETY: lock owns a live descriptor; flock retains no Rust pointer.
+            assert_eq!(
+                unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+                0
+            );
+        }
+        let before = std::fs::read(&journal).unwrap();
+        let marker_before = std::fs::read(&marker).ok();
+        assert!(
+            Recovery::review(
+                if change == "root" {
+                    other.path()
+                } else {
+                    d.path()
+                },
+                &revision,
+                RecoveryAction::Forward,
+                copy,
+                20
+            )
+            .await
+            .is_err(),
+            "{change}"
+        );
+        assert_eq!(std::fs::read(&journal).unwrap(), before);
+        assert_eq!(std::fs::read(&marker).ok(), marker_before);
+        drop(lock);
+    }
+}
+
+#[tokio::test]
+async fn recovery_approval_binds_exact_bytes_scope_expiry_and_pause() {
+    use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+    for change in [
+        "approval",
+        "journal",
+        "manifest",
+        "pause",
+        "expiry",
+        "direction",
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let (s, inv) = fixture();
+        let (p, source) = prepared(s, inv, d.path(), "");
+        lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+        let revision = p.revision().unwrap();
+        let copy = source.clone();
+        let settings_revision = core_console::revision(&source.s).unwrap();
+        drop(p.open(d.path(), &revision, source).unwrap());
+        let review = Recovery::review(
+            d.path(),
+            &revision,
+            RecoveryAction::Forward,
+            copy,
+            if change == "expiry" { 1 } else { 20 },
+        )
+        .await
+        .unwrap();
+        let approved = review.revision().unwrap();
+        let journal = d.path().join(format!("state/core-writer/{revision}.json"));
+        let manifest = d.path().join(format!("state/core-worker/{revision}.json"));
+        match change {
+            "journal" | "manifest" => {
+                use std::io::Write;
+                std::fs::OpenOptions::new()
+                    .append(true)
+                    .open(if change == "journal" {
+                        &journal
+                    } else {
+                        &manifest
+                    })
+                    .unwrap()
+                    .write_all(b" ")
+                    .unwrap();
+            }
+            "pause" => {
+                let c = lqosync_v3::core_coordination::Coordinator::for_root(d.path()).unwrap();
+                c.configure(&settings_revision, true);
+                c.pause_all().unwrap();
+            }
+            "expiry" => tokio::time::sleep(std::time::Duration::from_millis(2100)).await,
+            _ => {}
+        }
+        let before = std::fs::read(&journal).unwrap();
+        let result = review
+            .approve(if change == "approval" {
+                &revision
+            } else {
+                &approved
+            })
+            .await;
+        if change == "direction" {
+            let mut worker = result.unwrap();
+            let grant = worker.approval();
+            assert!(worker.rollback().await.is_err());
+            drop(worker);
+            assert!(!grant.active());
+        } else {
+            assert!(result.is_err(), "{change}");
+        }
+        assert_eq!(std::fs::read(&journal).unwrap(), before);
+        assert!(d.path().join("state/core-migration-active.json").exists());
+    }
+}
+
+#[derive(Clone)]
+struct ChangingRecoverySource {
+    inner: MockSource,
+    signal: Arc<std::sync::Mutex<String>>,
+}
+impl Source for ChangingRecoverySource {
+    async fn capture(&mut self) -> anyhow::Result<Snapshot> {
+        self.inner.change = self.signal.lock().unwrap().clone();
+        self.inner.capture().await
+    }
+    async fn confirm(&mut self, revision: &str) -> anyhow::Result<()> {
+        self.inner.confirm(revision).await
+    }
+}
+#[tokio::test]
+async fn recovery_recollects_sources_before_approval() {
+    use lqosync_v3::core_worker::{Recovery, RecoveryAction};
+    for change in [
+        "settings",
+        "reconnect",
+        "rates",
+        "policy",
+        "reboot",
+        "error",
+        "late-revoke",
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let (s, inv) = fixture();
+        let (p, source) = prepared(s, inv, d.path(), "");
+        lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+        let revision = p.revision().unwrap();
+        let copy = source.clone();
+        drop(p.open(d.path(), &revision, source).unwrap());
+        let signal = Arc::new(std::sync::Mutex::new(String::new()));
+        let review = Recovery::review(
+            d.path(),
+            &revision,
+            RecoveryAction::Forward,
+            ChangingRecoverySource {
+                inner: copy,
+                signal: signal.clone(),
+            },
+            20,
+        )
+        .await
+        .unwrap();
+        let approved = review.revision().unwrap();
+        *signal.lock().unwrap() = change.into();
+        let path = d.path().join(format!("state/core-writer/{revision}.json"));
+        let before = std::fs::read(&path).unwrap();
+        assert!(review.approve(&approved).await.is_err(), "{change}");
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+}
+
+#[tokio::test]
+async fn read_only_router_source_does_not_recreate_missing_settings() {
+    let d = tempfile::tempdir().unwrap();
+    let mut source = RouterSource::new(d.path()).unwrap();
+    assert!(source.preview().await.is_err());
+    assert!(!d.path().join("settings.toml").exists());
+    assert_eq!(std::fs::read_dir(d.path()).unwrap().count(), 0);
 }

@@ -143,6 +143,28 @@ pub(crate) struct WriterGuard {
     shared: Option<crate::core_shared_control::State>,
 }
 impl WriterGuard {
+    pub(crate) fn recovery(root: &Path, revision: &str) -> Result<Self> {
+        let coordinator = Coordinator::for_root(root)?;
+        coordinator.configure(revision, true);
+        let shared = crate::core_shared_control::capture(root, revision)?;
+        crate::core_shared_control::require_initialized(&shared)?;
+        let epoch = coordinator
+            .0
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .epoch;
+        Ok(Self {
+            coordinator,
+            epoch,
+            revision: revision.into(),
+            alive: Arc::new(AtomicBool::new(true)),
+            root: root.canonicalize()?,
+            shared,
+        })
+    }
+    pub(crate) fn revoke(&self) {
+        self.alive.store(false, Ordering::SeqCst);
+    }
     pub(crate) fn active(&self) -> bool {
         let active = self.alive.load(Ordering::SeqCst)
             && self.coordinator.matches_policy(self.epoch, &self.revision)

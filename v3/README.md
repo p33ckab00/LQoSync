@@ -194,3 +194,5 @@ See [shadow pause and recovery inspection](SHADOW_CONTROLS.md) for read-only coo
 The [coordinated worker library](CORE_WORKER.md#coordinated-library-open) has mock protocol tests. It has no runtime activation action.
 
 See [durable pause and recovery assessment](DISTRIBUTED_CONTROL.md) for cross-process cancellation and fresh read-only recovery checks.
+
+See [persisted worker guards and recovery approval](RECOVERY_GUARD.md) for the tested library gate. Runtime recovery activation remains absent.

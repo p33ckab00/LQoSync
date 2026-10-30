@@ -11,11 +11,16 @@ pub struct Lease {
 }
 impl Lease {
     fn lock(root: &Path, exclusive: bool) -> Result<Self> {
-        fs::create_dir_all(root.join("state"))?;
+        Self::lock_mode(root, exclusive, true)
+    }
+    fn lock_mode(root: &Path, exclusive: bool, create: bool) -> Result<Self> {
+        if create {
+            fs::create_dir_all(root.join("state"))?;
+        }
         let file = OpenOptions::new()
             .read(true)
             .write(true)
-            .create(true)
+            .create(create)
             .truncate(false)
             .mode(0o600)
             .custom_flags(libc::O_NOFOLLOW)
@@ -53,6 +58,13 @@ impl Lease {
             "Migration recovery is pending"
         );
         Ok(lease)
+    }
+    pub(crate) fn recovery(root: &Path, revision: &str) -> Result<(Self, String, Option<String>)> {
+        let mut lease = Self::lock_mode(root, true, false)?;
+        // The artifact reader validates the matching marker without following its supplied path.
+        let (journal, manifest) = crate::core_recovery::worker_artifacts(root, revision)?;
+        lease.marker = Some(root.join("state/core-migration-active.json"));
+        Ok((lease, journal, manifest))
     }
     pub fn maintenance(root: &Path, journal: &str, revision: &str) -> Result<Self> {
         let mut lease = Self::lock(root, true)?;

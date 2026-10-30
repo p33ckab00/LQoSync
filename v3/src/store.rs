@@ -83,7 +83,10 @@ pub fn load_settings(root: &Path) -> Result<Settings> {
         save_settings(root, &s)?;
         return Ok(s);
     }
-    let s: Settings = toml::from_str(&fs::read_to_string(path)?)?;
+    read_existing_settings(root)
+}
+pub(crate) fn read_existing_settings(root: &Path) -> Result<Settings> {
+    let s: Settings = toml::from_str(&fs::read_to_string(root.join("settings.toml"))?)?;
     validate(&s)?;
     Ok(s)
 }

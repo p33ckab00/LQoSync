@@ -52,6 +52,7 @@ Changed, incomplete, expired, or future-dated evidence rejects.
 
 An assessment is not execution approval. It cannot create an executor, get a writer lease, send a command, or remove a marker.
 `require_execution_approval` always rejects at this stage.
-A persisted worker guard and separate recovery authorization remain necessary before a recovery execution path can exist.
+A separate [persisted worker guard and recovery gate](RECOVERY_GUARD.md) now provides explicit library-only approval.
+That gate recollects evidence and checks exact artifacts. This pure assessment cannot replace it.
 No approval, resume, rollback, or marker-removal HTTP action exists.
 Isolated RouterOS acceptance and exact production authorization remain necessary before live activation.

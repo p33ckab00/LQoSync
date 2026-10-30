@@ -216,3 +216,9 @@ These separate services stay active when you stop this console.
 See [the maintenance CLI guide](CORE_MAINTENANCE.md) for explicit protected-row migration and recovery.
 The maintenance CLI requires every console for the same data directory to stop first.
 Do not run maintenance commands to restart the console.
+
+## Health and recovery scope
+
+A successful `/health` response proves console availability only. It does not prove that migration or recovery is safe.
+See [persisted guards and reviewed recovery](RECOVERY_GUARD.md) for the library checks and current limits.
+No command in this guide activates that recovery library or bypasses a pending marker.

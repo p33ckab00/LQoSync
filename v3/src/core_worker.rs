@@ -10,7 +10,7 @@ use crate::{
     wan_health::{self, HealthStatus},
 };
 use anyhow::{Context, Result, ensure};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     future::Future,
@@ -103,7 +103,7 @@ impl RouterSource {
     }
     async fn settings(&self) -> Result<Settings> {
         let root = self.root.clone();
-        tokio::task::spawn_blocking(move || crate::store::load_settings(&root)).await?
+        tokio::task::spawn_blocking(move || crate::store::read_existing_settings(&root)).await?
     }
     async fn read(&mut self, reconcile: bool) -> Result<Snapshot> {
         let settings = self.settings().await?;
@@ -210,7 +210,8 @@ impl Source for RouterSource {
         Ok(())
     }
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Guard {
     root: PathBuf,
     revision: String,
@@ -475,6 +476,7 @@ impl Prepared {
         open: impl FnOnce(Batch) -> Result<Executor>,
     ) -> Result<Worker<S>> {
         let executor = open(self.batch)?;
+        executor.save_worker_guard(&self.guard)?;
         let approval = Approval {
             enabled: Arc::new(AtomicBool::new(true)),
             expires_at: self.expires_at,
@@ -491,6 +493,7 @@ impl Prepared {
             executor,
             io,
             approval,
+            recovery_action: None,
         })
     }
 }
@@ -541,7 +544,11 @@ impl<S: Source> Verifier for GuardedVerifier<S> {
         result
     }
 }
+mod recovery;
+pub use recovery::{Recovery, RecoveryAction, RecoveryReview};
+
 pub struct Worker<S> {
+    recovery_action: Option<RecoveryAction>,
     executor: Executor,
     io: RouterTransport<GuardedVerifier<S>>,
     approval: Approval,
@@ -551,9 +558,19 @@ impl<S: Source> Worker<S> {
         self.approval.clone()
     }
     pub async fn forward(&mut self) -> Result<()> {
+        ensure!(
+            self.recovery_action
+                .is_none_or(|a| a == RecoveryAction::Forward),
+            "Recovery approval is for rollback only"
+        );
         self.executor.forward(&mut self.io).await
     }
     pub async fn rollback(&mut self) -> Result<()> {
+        ensure!(
+            self.recovery_action
+                .is_none_or(|a| a == RecoveryAction::Rollback),
+            "Recovery approval is for forward only"
+        );
         self.executor.rollback(&mut self.io).await
     }
     pub fn finish(self) -> Result<()> {
