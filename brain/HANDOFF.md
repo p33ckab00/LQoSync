@@ -7,11 +7,63 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-30T07:09:19+08:00 (Asia/Shanghai).
+Updated: 2026-10-30T12:37:50+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
-Base: `f22cfbf8d974c10300a7a704cd7a712509d9827d` from `lqosync-in-rust`.
+Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
+
+## Dynamic topology implementation complete
+
+Goal complete: approved dynamic topology, modal configuration, performance checks, review corrections, and code commit/push.
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`.
+Code commits: `7c48e06` and `9070d1b`. GitHub was verified at `9070d1b41e626ed6ebcf835d975b6f40ef88d71f` before this documentation capture.
+Main was fast-forwarded to the exact verified code. The isolated `v3/` source tree matched main.
+Changed code covers dynamic identities/routes, migration, assignment/session planning, shared budgets, core/output validation, topology operations, source/WAN/pin controls, and native dialogs.
+Guides and synthetic tests accompany the code. The plan, spec, session note, ADR, Home, activation notes, and this handoff are part of the documentation capture.
+Final checks: 196 tests passed, zero failures, 12 ignored. Format, strict Clippy, locked build, JavaScript syntax, and both packaged browser scripts passed.
+The manual 50k workload passed. Policy HTTP rendering took 1.433 seconds without evidence and 5.651 seconds with the stored candidate, in debug mode.
+One fresh review found five Important and two Minor issues. All were corrected and verified. No material finding remains unresolved.
+An existing mock-router timeout occurred once under load; the isolated test and final full run passed without changing its timeout.
+The synthetic preview stopped. The live console remains on the earlier activated `ac4c922` build; no restart or production action occurred.
+Unfinished feature work: none in the approved slice. Live activation and production execution remain separate operational tasks.
+Next: activate the new build under separate restart authorization, then select the actual desired hierarchy, sources, and WAN pairs. Do not infer production configuration from fixtures.
+Legacy source edits that would orphan unresolved evidence are rejected until a valid dynamic generation is published. Matching private data is required for an older-binary rollback.
+The Graphify map remains a baseline. Confirm current relationships in source.
+See [[10-sessions/2026-10-30-dynamic-topology]] and [[20-decisions/adr-0002-independent-topology-routing]].
+
+## Dynamic topology design (historical)
+
+The user requires optional service layers, flat roots, arbitrary branches, configurable destinations, and add/remove/promote/demote operations.
+The user explicitly confirmed independent top-level roots with preserved WAN/core associations.
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Source baseline: `ac4c922`.
+Read `/opt/libreqos/src/updatecsv.py` without modification or execution.
+Draft design: `docs/superpowers/specs/2026-10-30-dynamic-topology-design.md`.
+The design separates source identities, exported parents, and routing WANs. It defines removal replacements and compatibility requirements.
+The user also requested modal configuration forms, cog buttons, and correct layer order throughout the console.
+The updated design includes dialog behavior, focus, scroll, errors, and overlay acceptance checks.
+The independent builder review below predates this addition. The addition received a local review.
+Independent builder review reported no important unanswered question. Diff checks passed. No application tests ran for this design task.
+No application code, live configuration, router records, or LibreQoS output changed. The activated console remains intact.
+Changed Git files: the draft spec, dynamic design session note, Home, and this handoff. Prior activation notes remain uncommitted and preserved.
+Implementation plan: `docs/superpowers/plans/2026-10-30-dynamic-topology.md`.
+The user asked for the next step after the modal discussion. The plan now defines six tasks and their test gates.
+This planning handoff was superseded by the completed implementation above.
+Subsequent user instructions authorized execution of the approved design and plan.
+See [[10-sessions/2026-10-30-dynamic-topology-design]].
+
+## Console activation complete
+
+The user authorized the console restart. Active code: `ac4c922`, branch `lqosyncv3`, checkout `/opt/LQoSync3.0`.
+The console now runs as PID `3379628` on `127.0.0.1:9303` with its existing launch environment and data directory.
+The locked binary build, health check, and six UI routes passed.
+Fresh collection returned 14 and 12 tables with zero errors. The candidate has 26 clients with a 13/13 WAN split.
+Inventory health, subscriber speeds, and shaping capacity passed. Core membership remains Conflict. No committed generation exists.
+Settings and credential metadata remain unchanged. Monitored production service PIDs remain unchanged.
+No router configuration, LibreQoS output, or production shaping changed.
+Changed Git files for this activation: Home, this handoff, and the console activation session note. Runtime files remain private and ignored.
+Next: confirm the final hierarchy, observe reconnect continuity, and review protected manual membership before any router migration.
+See [[10-sessions/2026-10-30-console-activation]]. Earlier activation statements below are historical.
 
 ## Flexible topology and reconnect assignment complete
 
