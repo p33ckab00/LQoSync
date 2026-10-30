@@ -1,0 +1,18 @@
+[Unit]
+Description=LQoSync v3 web console
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/LQoSync3.0/v3
+Environment=LQOSYNC3_DATA=/opt/LQoSync3.0/v3/data
+Environment=LQOSYNC3_BIND=127.0.0.1:9303
+ExecStart=/opt/LQoSync3.0/v3/target/debug/lqosync-v3
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

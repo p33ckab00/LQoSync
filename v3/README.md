@@ -102,6 +102,11 @@ Then open `http://127.0.0.1:9303` on your computer.
 The development console accepts loopback connections only. It has no user login yet.
 Form tokens protect settings edits. Do not expose it through a public proxy.
 
+## Start, restart, stop, and disable
+
+See [the operations guide](OPERATIONS.md) for manual commands and optional systemd installation.
+The service template does not change the host until you install it.
+
 ## Application data
 
 By default, the app uses `data/` under the current directory.

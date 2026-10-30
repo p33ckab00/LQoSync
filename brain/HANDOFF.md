@@ -13,6 +13,16 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Console operations guide complete
+
+Updated: 2026-10-30T14:05:38+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`.
+Added `v3/OPERATIONS.md` and an optional `v3/systemd/lqosync-v3.service` template. The README links to the guide.
+Verified the current manual process, unit syntax, shell syntax, documentation paths, and diff.
+The guide covers manual operation, one-time service installation, start, restart, stop, disable, logs, and health checks.
+The systemd unit is not installed. The live process remains unchanged. UI build activation remains pending.
+Next action: use the guide to activate the console or install the service when authorized.
+
 ## Console readability update complete; activation pending
 
 Updated: 2026-10-30T14:02:38+08:00 (Asia/Shanghai).
