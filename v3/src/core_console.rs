@@ -196,12 +196,11 @@ pub async fn refresh(shared: Shared) {
     });
     let _ = worker.await;
 }
-/// Pure inventory evaluation except reading existing local session/generation state. Does not persist candidates.
-pub fn compute(
+/// Evaluate health without reconciliation or local candidate persistence.
+pub(crate) fn health_snapshot(
     settings: &Settings,
     inventories: &BTreeMap<String, Arc<Inventory>>,
     errors: &BTreeMap<String, String>,
-    root: &std::path::Path,
     previous: &Runtime,
     now: u64,
 ) -> Result<Runtime> {
@@ -210,7 +209,6 @@ pub fn compute(
         enabled(settings),
         "Health preview is not configured or is paused"
     );
-    let config = settings.core_control.as_ref().unwrap();
     let health_config = settings.wan_health.as_ref().unwrap();
     let dynamic = settings
         .dynamic
@@ -250,6 +248,19 @@ pub fn compute(
             wan_health::evaluate(health_config, old, evidence, now)?,
         );
     }
+    Ok(runtime)
+}
+pub fn compute(
+    settings: &Settings,
+    inventories: &BTreeMap<String, Arc<Inventory>>,
+    errors: &BTreeMap<String, String>,
+    root: &std::path::Path,
+    previous: &Runtime,
+    now: u64,
+) -> Result<Runtime> {
+    let mut runtime = health_snapshot(settings, inventories, errors, previous, now)?;
+    let config = settings.core_control.as_ref().unwrap();
+    let same = previous.settings_revision == runtime.settings_revision;
     let plan_result = (|| -> Result<()> {
         let mut raw = crate::normalizer::collect(settings, inventories, errors, now)?;
         let saved = match previous.observation.as_ref().filter(|_| same) {

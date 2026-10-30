@@ -2,13 +2,15 @@
 
 The `core_writer` library executes bounded owned-host batches with durable recovery journals.
 `core_writer_transport` provides scoped RouterOS I/O with the existing credential and verified TLS client.
-No CLI, web endpoint, scheduler, or continuous writer invokes these modules yet.
+The [offline worker library](CORE_WORKER.md) connects a fresh verifier to these modules.
+No CLI, web endpoint, scheduler, or continuous writer enables production execution.
 This implementation does not enable production writes or change console startup behavior.
 The existing protected-row maintenance engine retains its separate schema and membership-preservation rules.
 
 ## Integration boundary
 
-A future integration must get explicit writer authorization and supply a `Verifier` implementation.
+An integration must get explicit writer authorization and supply a `Verifier` implementation.
+The offline worker now supplies the first fresh source/health verifier.
 That verifier must freshly check settings revision, source identities, session continuity, WAN health, and enable authorization.
 It must return actual complete address-list rows for every core router in the configured bindings.
 Its context must identify the exact safety conditions under which the approved decisions remain valid.

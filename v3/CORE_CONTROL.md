@@ -6,6 +6,7 @@ These values describe a local preview. They do not prove router changes or produ
 
 Automatic writes remain blocked in this build. Both the form and settings validation reject automatic mode.
 The guarded writer library has no console caller.
+A separate [offline worker](CORE_WORKER.md) now connects a fresh verifier without an automatic enable action.
 
 ## Configure the preview
 

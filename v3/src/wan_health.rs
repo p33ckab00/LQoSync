@@ -478,6 +478,11 @@ pub fn settings_revision(settings: &crate::model::Settings) -> Result<String> {
 }
 impl State {
     /// A later read must not extend the lifetime of the last completed sample.
+    pub(crate) fn verification_deadline(&self, maximum_age: u64) -> u64 {
+        self.checked_at
+            .min(self.last_sample_at)
+            .saturating_add(maximum_age.min(self.evidence_seconds))
+    }
     pub fn status_at(&self, now: u64, maximum_age: u64) -> HealthStatus {
         let ttl = maximum_age.min(self.evidence_seconds);
         if ttl == 0

@@ -184,6 +184,46 @@ pub fn plan(
     errors: &BTreeMap<String, String>,
     now: u64,
 ) -> Result<Observation> {
+    plan_inner(
+        settings,
+        subscribers,
+        committed,
+        previous,
+        inventories,
+        errors,
+        now,
+        false,
+    )
+}
+/// Capture every selected session, including manual and planned-load policies.
+pub(crate) fn all_sessions(
+    settings: &Settings,
+    subscribers: &mut [Subscriber],
+    inventories: &BTreeMap<String, Arc<Inventory>>,
+    now: u64,
+) -> Result<Observation> {
+    plan_inner(
+        settings,
+        subscribers,
+        &AssignmentState::default(),
+        None,
+        inventories,
+        &BTreeMap::new(),
+        now,
+        true,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+fn plan_inner(
+    settings: &Settings,
+    subscribers: &mut [Subscriber],
+    committed: &AssignmentState,
+    previous: Option<&Observation>,
+    inventories: &BTreeMap<String, Arc<Inventory>>,
+    errors: &BTreeMap<String, String>,
+    now: u64,
+    capture_all: bool,
+) -> Result<Observation> {
     if let Some(previous) = previous {
         validate(previous)?;
     }
@@ -271,7 +311,7 @@ pub fn plan(
     };
     let selected: HashMap<_, _> = subscribers
         .iter()
-        .filter(|s| count_sources.contains(s.node.as_str()))
+        .filter(|s| capture_all || count_sources.contains(s.node.as_str()))
         .map(|s| (s.id.as_str(), s))
         .collect();
     let allowed: HashSet<_> = bindings

@@ -76,6 +76,7 @@ Speed rules now resolve inventory into previews. See [speed rules](SPEED_RULES.m
 Source binding, stable IDs, complete snapshot publication, and scheduled read rounds are implemented.
 See [subscriber orchestration](SUBSCRIBERS.md) for health gates, overlap ownership, and limits.
 See [WAN assignments](WAN_ASSIGNMENTS.md) for interface mapping, pools, pins, and planned-load distribution.
+See [offline worker verification](CORE_WORKER.md) for fresh guards, exact approval, exclusive fencing, and mock-test limits.
 See [Core control](CORE_CONTROL.md) for scheduled read-only health and balancing previews with modal policy controls.
 See [guarded core writer](CORE_WRITER.md) for the bounded execution library and its unconnected production boundary.
 See [core reconciliation](CORE_RECONCILE.md) for the pure health-aware decision library and its current limits.

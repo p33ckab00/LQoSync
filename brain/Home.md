@@ -38,6 +38,7 @@ status: active
 - [[10-sessions/2026-10-29-actual-setup-review]]
 - [[10-sessions/2026-10-29-scoped-routing-minimums]]
 - [[10-sessions/2026-10-30-core-console-preview]]
+- [[10-sessions/2026-10-31-core-worker]]
 - [[HANDOFF]]
 
 The v3 application lives in `v3/`. Existing root-level application files belong to the prior implementation.

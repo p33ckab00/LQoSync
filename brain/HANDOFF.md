@@ -733,3 +733,22 @@ Next: complete Task 4 writer coordination, live verifier, journal controls, and 
 Keep automatic writes disabled until isolated RouterOS acceptance and concrete rollout authorization exist.
 Preserve the separate frontend planning edits in the main checkout.
 See [[10-sessions/2026-10-30-core-console-preview]] and `v3/CORE_CONTROL.md`.
+
+
+## Offline worker and verifier integration; lab acceptance pending
+
+Updated: 2026-10-31T06:14:13+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-worker`. Worktree: `/home/pi/lqosync-core-worker`. Base: `b6efb03`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: connect fresh verification to bounded execution with code and mock tests only.
+Changed files: core_worker, helper extraction in core_console/sessions/wan_health, module export, tests, guides, ledger, and notes.
+RouterSource reads settings and actual routers. The verifier checks canonical root, all selected sessions/rates, health, policy, approval, and complete actual rows.
+The exclusive offline lease remains unchanged. No automatic, HTTP, CLI, or scheduler caller exists.
+Fresh review found no concrete defects. Final full-suite result: 295 passed, zero failures, 12 ignored.
+The existing 50,000-session workload passed. Debug times: collect 592.8 ms, assign 854.9 ms, retain 1.062 s, candidate save 1.331 s, candidate load 2.448 s.
+This measures the synthetic session pipeline, not end-to-end worker throughput or a paired baseline comparison.
+No live router reads/writes, production settings, shaping output, package changes, service changes, or restart occurred.
+Next: online console coordination, journal controls, recovery approval, and separately authorized isolated RouterOS acceptance.
+The operator has no lab available. Do not replace lab evidence with mock results.
+Preserve the separate frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-core-worker]] and `v3/CORE_WORKER.md`.

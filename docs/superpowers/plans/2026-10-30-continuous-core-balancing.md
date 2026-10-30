@@ -135,3 +135,13 @@ See `v3/CORE_CONTROL.md` and the core console execution ledger.
 
 Task 4 preview verification: 287 tests passed, zero failures, 12 ignored. Format and strict Clippy passed.
 Eight console tests, 11 scheduler tests, and five-width Chromium checks passed. Fresh review found no remaining material defect.
+
+
+Offline worker/verifier stage: the new library connects fresh source/health/policy checks to scoped transport and bounded execution.
+The canonical data root and exact batch revision bind approval. All policy modes receive session continuity checks.
+The existing exclusive offline fence remains unchanged. Online console coordination and journal/recovery controls remain Task 4 work.
+The operator selected code and mocks because no RouterOS lab is available. Real acceptance remains pending.
+See `v3/CORE_WORKER.md` and the 2026-10-31 worker ledger.
+
+Offline worker stage checks: 295 tests passed, zero failures, 12 ignored. Format, strict Clippy, and fresh review passed.
+The existing 50,000-session synthetic workload also passed. Real RouterOS acceptance remains pending.
