@@ -7,6 +7,7 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-core-migration-engine]]
 - [[10-sessions/2026-10-30-core-membership-refresh]]
 - [[10-sessions/2026-10-30-console-readability]]
 - [[10-sessions/2026-10-30-core-membership-audit]]

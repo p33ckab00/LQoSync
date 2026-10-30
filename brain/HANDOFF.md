@@ -13,6 +13,23 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Isolated migration engine complete; production integration pending
+
+Updated: 2026-10-30T17:11:56+08:00 (Asia/Shanghai). Last agent: Codex.
+Development branch: `codex/core-migration`. Worktree: `/tmp/lqosync-core-migration`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`. Base: `85d989c`.
+Added the isolated Rust executor, private journal, synthetic tests, guide, and implementation plan.
+It preserves every list's IPv4 membership, retains protected IDs/comments, and reverses known successful operations exactly.
+Unknown outcomes block automatic retries and rollback. The executor does not guess the identity of an addition after a lost reply.
+Checks: 217 tests passed, zero failures, 12 ignored. Format, strict Clippy, diff, and documentation path checks passed.
+One fresh review found two issues. Regression tests reproduced both, fixes passed, and follow-up review found no remaining actionable issue.
+Changed files: `core_migration.rs`, module export, tests, migration guide, README, plan, and project notes.
+No production transport, console write route, candidate bootstrap integration, continuous writer, or publication integration was added.
+No credentials, router writes, service restarts, or LibreQoS apply occurred.
+Next: implement and test the production adapter and authenticated authorization, writer fencing, observed-WAN bootstrap, and actual validation integration.
+The private migration preview must be regenerated from fresh evidence before production approval and execution.
+See [[10-sessions/2026-10-30-core-migration-engine]].
+
 ## Fresh core audit and preview complete
 
 Updated: 2026-10-30T14:17:38+08:00 (Asia/Shanghai). Last agent: Codex.

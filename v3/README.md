@@ -79,6 +79,7 @@ See [WAN assignments](WAN_ASSIGNMENTS.md) for interface mapping, pools, pins, an
 See [core planning](CORE_PLANNER.md) for list ownership, route audit limits, and the automatic local preview.
 See [end-to-end validation](VALIDATION.md) for live/saved review, connection-mark support, output integrity, and setup requirements.
 Core address-list writes and production apply remain pending.
+An isolated [migration engine](CORE_MIGRATION.md) provides guarded execution and rollback tests. Its production transport and console integration remain pending.
 The UI reports local output as **staged**, never as production **applied**.
 Changes to settings require a Save action. Local output publication after that save is automatic.
 

@@ -44,3 +44,5 @@ pub mod dynamic;
 pub mod topology_edits;
 
 mod dynamic_web;
+
+pub mod core_migration;
