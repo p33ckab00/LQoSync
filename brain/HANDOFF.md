@@ -13,6 +13,21 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Fresh core audit and preview complete
+
+Updated: 2026-10-30T14:17:38+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`.
+The operator accepted the UI. Earlier UI activation-pending statements below are historical.
+Fresh audit: two routers, 27 selected clients, observed core split 9/18, candidate split 13/14, and 14 logical route differences.
+Private preview: five protected-row updates, two residual additions, 27 owned host additions, zero modeled WAN membership moves.
+All ten simulated checks passed. Actual membership remains Conflict and no actual committed generation exists.
+A second read confirmed stable lists, normalized clients, observed routes, and settings.
+Independent interval-union and modeled rollback checks passed. These checks do not prove real write or rollback execution.
+Changed Git files: this handoff, Home, and the refresh session note. No application code or production state changed.
+Evidence remains private under `/home/pi/.local/state/lqosync3/`.
+Next: design and test the guarded executor and rollback recovery. Obtain explicit protected-entry authorization before production writes.
+See [[10-sessions/2026-10-30-core-membership-refresh]].
+
 ## Console operations guide complete
 
 Updated: 2026-10-30T14:05:38+08:00 (Asia/Shanghai). Last agent: Codex.
