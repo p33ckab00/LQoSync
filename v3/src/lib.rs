@@ -49,3 +49,5 @@ pub mod core_migration;
 
 pub mod core_adapter;
 pub mod migration_fence;
+
+pub mod wan_health;

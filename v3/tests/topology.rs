@@ -30,6 +30,7 @@ fn subscriber(id: &str, node: &str, down: f64, up: f64) -> Subscriber {
 fn settings() -> Settings {
     Settings {
         dynamic: None,
+        wan_health: None,
         interval_seconds: 30,
         auto_stage: true,
         speed_rules: Default::default(),

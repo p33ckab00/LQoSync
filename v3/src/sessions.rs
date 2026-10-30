@@ -95,7 +95,7 @@ fn active_or_configured<'a>(row: &'a Row, active: &str, configured: &str) -> &'a
         value
     }
 }
-fn uptime(raw: &str) -> Result<u64> {
+pub(crate) fn uptime(raw: &str) -> Result<u64> {
     ensure!(
         !raw.is_empty() && raw.len() <= 128,
         "Invalid session uptime"

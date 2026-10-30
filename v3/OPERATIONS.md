@@ -7,6 +7,56 @@ Keep this directory to preserve settings, credentials, and application state.
 As of 2026-10-30, the live console uses a manual background process.
 The repository includes a systemd template. The template is not installed automatically.
 
+## Quick restart for the current server
+
+Run these commands in the server terminal as `pi`.
+Use this section for the current manual process. The systemd commands require service installation first.
+A restart does not require a build unless you want to load code changes.
+
+1. Stop the console:
+
+```bash
+pkill -TERM -f '^/opt/LQoSync3.0/v3/target/debug/lqosync-v3$'
+```
+
+If no console exists, this command returns status 1. Continue with the next check.
+
+2. Check that the console stopped:
+
+```bash
+pgrep -af '^/opt/LQoSync3.0/v3/target/debug/lqosync-v3$'
+```
+
+Continue only when this command shows no process. If it shows a process, wait and check again.
+
+3. Copy this complete block to start the console in the background:
+
+```bash
+cd /opt/LQoSync3.0/v3
+LQOSYNC3_DATA=/opt/LQoSync3.0/v3/data LQOSYNC3_BIND=127.0.0.1:9303 nohup /opt/LQoSync3.0/v3/target/debug/lqosync-v3 >> /opt/LQoSync3.0/v3/data/state/web-console.log 2>&1 < /dev/null &
+```
+
+Wait two seconds. Then check the console:
+
+```bash
+curl --fail --silent --show-error http://127.0.0.1:9303/health
+```
+
+Expected result: `ok`. Open `http://127.0.0.1:9303` in the server browser.
+If your browser runs on another computer, use the SSH tunnel in **Open the console** below.
+
+If the check fails, read the recent log:
+
+```bash
+tail -n 30 /opt/LQoSync3.0/v3/data/state/web-console.log
+```
+
+`Address already in use` means another process uses the port. Complete the stop and process checks before another start.
+If the log reports migration recovery, use the maintenance recovery procedure. Do not remove recovery markers.
+
+To stop only, complete steps 1 and 2. The current manual setup does not start automatically after a reboot.
+Core maintenance commands do not start or restart the console.
+
 ## Check the current setup
 
 ```bash

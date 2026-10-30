@@ -7,6 +7,9 @@ use std::{collections::BTreeMap, sync::Arc, time::Duration};
 pub type Row = BTreeMap<String, String>;
 pub fn read_properties(path: &str) -> Result<&'static str> {
     Ok(match path {
+        "/tool/netwatch/print" => {
+            ".id,host,type,disabled,status,done-tests,interval,timeout,src-address,up-script,down-script,test-script"
+        }
         "/system/identity/print" => "name",
         "/system/resource/print" => "version,uptime,board-name,cpu-load,free-memory,total-memory",
         "/interface/print" => ".id,name,type,running,disabled,actual-mtu,mac-address,comment",

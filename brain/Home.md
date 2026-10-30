@@ -7,6 +7,8 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-wan-health-preview]]
+- [[10-sessions/2026-10-30-continuous-core-balancing-design]]
 - [[10-sessions/2026-10-30-core-production-adapter]]
 - [[10-sessions/2026-10-30-core-migration-engine]]
 - [[10-sessions/2026-10-30-core-membership-refresh]]

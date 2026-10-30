@@ -76,6 +76,7 @@ Speed rules now resolve inventory into previews. See [speed rules](SPEED_RULES.m
 Source binding, stable IDs, complete snapshot publication, and scheduled read rounds are implemented.
 See [subscriber orchestration](SUBSCRIBERS.md) for health gates, overlap ownership, and limits.
 See [WAN assignments](WAN_ASSIGNMENTS.md) for interface mapping, pools, pins, and planned-load distribution.
+See [WAN health preview](WAN_HEALTH.md) for optional read-only Netwatch checks and verification limits.
 See [core planning](CORE_PLANNER.md) for list ownership, route audit limits, and the automatic local preview.
 See [end-to-end validation](VALIDATION.md) for live/saved review, connection-mark support, output integrity, and setup requirements.
 Automatic core writes and production shaping apply remain pending. The separate [maintenance CLI](CORE_MAINTENANCE.md) provides explicit guarded migration and rollback.

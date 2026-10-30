@@ -13,6 +13,37 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## WAN health preview implemented; writer still pending
+
+Updated: 2026-10-30T18:54:37+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/wan-health`. Worktree: `/tmp/lqosync-wan-health`. Base: `7a9f198`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Added optional health settings, pure state transitions, conservative Netwatch parsing, and `wan-health-preview`.
+The CLI only reads selected health tables. It saves no settings, inventory, health state, or assignments.
+Changed code: health module, CLI, Settings field/validation, read allowlist, shared uptime visibility, tests, and one existing Settings fixture.
+Included earlier authorized design, plan, notes, and quick restart guide edits. Preserve all of them during takeover.
+Checks: 243 tests passed, zero failures, 12 ignored. Eleven focused health/CLI tests passed.
+Format, strict Clippy, diff, documentation links, Bash syntax, and TOML example checks passed.
+Fresh review found no material defect. Isolated RouterOS field and completion behavior proof remains pending.
+No live router reads/writes, settings changes, service changes, or restart occurred during this implementation.
+The console does not yet display or consume health. Automatic balancing and live migration remain disabled/on hold.
+Next: reconciliation planner and health-aware destination eligibility. Do not call preview evidence production failover proof.
+See [[10-sessions/2026-10-30-wan-health-preview]].
+
+## Continuous balancing design ready; live migration on hold
+
+Updated: 2026-10-30T18:39:42+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Code baseline: `7a9f198`.
+The operator accepted active-client failover on confirmed WAN failure, with possible connection interruption.
+Added the continuous core balancing spec and implementation plan. No runtime code changed.
+Changed files: the new spec/plan/session note, Home, and this handoff.
+Preserve the earlier uncommitted quick restart changes in `v3/OPERATIONS.md`.
+Document links and diff checks passed. No new Rust tests ran for this planning task.
+Live migration remains on hold. No router writes or restart occurred in this design task.
+Next: health-state and preview implementation in an isolated worktree, then execute the remaining plan tasks.
+Probe attribution and same-core transition behavior require isolated RouterOS proof before live rollout.
+See [[10-sessions/2026-10-30-continuous-core-balancing-design]].
+
 ## Production adapter complete; live migration pending
 
 Updated: 2026-10-30T18:15:32+08:00 (Asia/Shanghai). Last agent: Codex.
