@@ -59,3 +59,8 @@ Next: activate the new build in a separately authorized restart, then select the
 Keep protected manual membership and all publication gates intact.
 
 See [[20-decisions/adr-0002-independent-topology-routing]], [[20-decisions/adr-0001-session-candidate-state]], and [[2026-10-30-dynamic-topology-design]].
+
+## Activation follow-up
+
+The user subsequently authorized activation and actual topology configuration. The new build now runs in the live console.
+See [[2026-10-30-dynamic-topology-activation]] for the current runtime, configuration, and validation results.

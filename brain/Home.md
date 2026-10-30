@@ -7,6 +7,7 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-dynamic-topology-activation]]
 - [[10-sessions/2026-10-30-dynamic-topology]]
 - [[20-decisions/adr-0002-independent-topology-routing]]
 - [[10-sessions/2026-10-30-dynamic-topology-design]]

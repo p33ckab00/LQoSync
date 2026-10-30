@@ -7,11 +7,30 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-30T12:37:50+08:00 (Asia/Shanghai).
+Updated: 2026-10-30T12:49:30+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
+
+## Live dynamic topology activation complete
+
+The user authorized activation, actual topology configuration, and the live console restart.
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`. Active code: `9070d1b`.
+Live PID: `3564997`, loopback port `9303`. The previous PID `3379628` stopped gracefully.
+The verified binary was installed with the existing environment and application data directory. A private matching rollback backup was retained.
+The operator selected two roots with profile/server branches and removal of the fixed service layers.
+Current configuration: two roots, 20 branches, ten sources/policies, and 20 eligible node/WAN pairs. Six fixed service layers are removed.
+All policies retain online-client reconnect balancing. Existing WAN capacities, physical mappings, core bindings, speeds, pins, and stable source identities remain preserved.
+Fresh reads returned 14 and 12 tables, zero errors. Candidate: 26 active clients, 26 routes, 13/13 WAN split.
+All 26 continuous clients kept their WAN assignments. Live inventory, speed, assignment, minimum, and capacity checks passed.
+Fresh locked build, executable verification, nine HTTP routes, and read-only browser checks at three widths passed.
+Credential metadata and other monitored service process IDs remain unchanged. No code or dependency changed.
+Core membership still reports Conflict. No committed generation exists, and no router write or LibreQoS apply occurred.
+Changed Git files: this handoff, Home, the activation session note, and a follow-up link in the implementation session note.
+Unfinished activation work: none. Next: review the protected core membership conflict before production publication or routing changes.
+Rollback records remain private under `/home/pi/.local/state/lqosync3/`; do not copy their contents into notes or Git.
+See [[10-sessions/2026-10-30-dynamic-topology-activation]]. Earlier pre-activation runtime statements below are historical.
 
 ## Dynamic topology implementation complete
 
