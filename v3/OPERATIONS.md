@@ -52,7 +52,9 @@ tail -n 30 /opt/LQoSync3.0/v3/data/state/web-console.log
 ```
 
 `Address already in use` means another process uses the port. Complete the stop and process checks before another start.
-If the log reports migration recovery, use the maintenance recovery procedure. Do not remove recovery markers.
+If the log reports migration recovery, do not remove recovery markers.
+Use the [read-only recovery viewer](SHADOW_CONTROLS.md) to inspect saved writer records.
+Protected-row migrations use the separate [maintenance recovery procedure](CORE_MAINTENANCE.md).
 
 To stop only, complete steps 1 and 2. The current manual setup does not start automatically after a reboot.
 Core maintenance commands do not start or restart the console.

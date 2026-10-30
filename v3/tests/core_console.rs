@@ -279,7 +279,14 @@ fn failed_source_keeps_health_diagnostics_but_discards_plan_and_cleanup() {
 #[test]
 fn queued_preview_rejects_changed_settings_reads_and_read_errors() {
     use std::future::Future;
-    for change in ["settings", "read", "error", "inventory", "pause"] {
+    for change in [
+        "settings",
+        "read",
+        "error",
+        "inventory",
+        "pause",
+        "external_pause",
+    ] {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .max_blocking_threads(1)
@@ -290,6 +297,7 @@ fn queued_preview_rejects_changed_settings_reads_and_read_errors() {
             let (settings, inventories) = fixture();
             let mut a = App::open(d.path().into()).unwrap();
             a.settings = settings;
+            lqosync_v3::store::save_settings(d.path(), &a.settings).unwrap();
             a.inventories = inventories;
             let shared = Arc::new(Mutex::new(a));
             let (started_tx, started_rx) = tokio::sync::oneshot::channel();
@@ -322,6 +330,11 @@ fn queued_preview_rejects_changed_settings_reads_and_read_errors() {
                         a.inventories.insert("r1".into(), Arc::new(inventory));
                     }
                     "pause" => a.settings.core_control.as_mut().unwrap().mode = Mode::Paused,
+                    "external_pause" => {
+                        let mut next = a.settings.clone();
+                        next.core_control.as_mut().unwrap().mode = Mode::Paused;
+                        lqosync_v3::store::save_settings(d.path(), &next).unwrap();
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -336,6 +349,8 @@ fn queued_preview_rejects_changed_settings_reads_and_read_errors() {
             assert!(a.core_runtime.health.is_empty());
             assert!(a.core_runtime.status.contains(if change == "pause" {
                 "paused"
+            } else if change == "external_pause" {
+                "blocked"
             } else {
                 "superseded"
             }));
@@ -356,6 +371,7 @@ fn cancelled_preview_caller_does_not_leave_the_worker_permanently_busy() {
         let revision = core_console::revision(&settings).unwrap();
         let mut a = App::open(d.path().into()).unwrap();
         a.settings = settings;
+        lqosync_v3::store::save_settings(d.path(), &a.settings).unwrap();
         a.inventories = inventories;
         let shared = Arc::new(Mutex::new(a));
         let (started_tx, started_rx) = tokio::sync::oneshot::channel();
@@ -382,4 +398,41 @@ fn cancelled_preview_caller_does_not_leave_the_worker_permanently_busy() {
         .await
         .expect("cancelled caller left preview stuck");
     });
+}
+
+#[tokio::test]
+async fn pause_requires_current_revision_and_token_and_invalidates_shadow_ticket() {
+    let d = tempfile::tempdir().unwrap();
+    let mut a = App::open(d.path().into()).unwrap();
+    a.settings.auto_stage = false;
+    let token = a.token.clone();
+    let revision = core_console::revision(&a.settings).unwrap();
+    a.core_coordinator.configure(&revision, true);
+    let ticket = a.core_coordinator.begin(d.path(), &revision).unwrap();
+    let shared = Arc::new(Mutex::new(a));
+    for (t, r, accepted) in [
+        ("wrong", revision.as_str(), false),
+        (token.as_str(), "stale", false),
+        (token.as_str(), revision.as_str(), true),
+    ] {
+        let out = routes(shared.clone())
+            .oneshot(
+                Request::builder()
+                    .header("host", "127.0.0.1:9303")
+                    .method("POST")
+                    .uri("/core-control/pause")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(Body::from(format!("token={t}&revision={r}")))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(out.status().is_redirection(), accepted);
+        assert_eq!(ticket.check(&revision).is_err(), accepted);
+    }
+    drop(ticket);
+    drop(shared);
+    let reopened = App::open(d.path().into()).unwrap();
+    assert_eq!(reopened.settings.core_control.unwrap().mode, Mode::Paused);
+    assert!(!d.path().join("state/core-migration-active.json").exists());
 }

@@ -62,3 +62,8 @@ pub mod core_console;
 mod core_control_web;
 
 pub mod core_worker;
+
+pub mod core_coordination;
+
+pub mod core_recovery;
+pub mod core_recovery_web;

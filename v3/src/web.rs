@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct App {
+    pub core_coordinator: crate::core_coordination::Coordinator,
     pub core_runtime: crate::core_console::Runtime,
     _writer_lease: Arc<crate::migration_fence::Lease>,
     pub root: PathBuf,
@@ -37,8 +38,14 @@ impl App {
         let writer_lease = Arc::new(crate::migration_fence::Lease::console(&root)?);
         let settings = store::load_settings(&root)?;
         let generation = store::current_generation(&root);
+        let core_coordinator = crate::core_coordination::Coordinator::default();
+        core_coordinator.configure(
+            &crate::core_console::revision(&settings)?,
+            crate::core_console::enabled(&settings),
+        );
         Ok(Self {
             core_runtime: Default::default(),
+            core_coordinator,
             _writer_lease: writer_lease,
             root,
             settings,
@@ -133,6 +140,8 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/assignments/pool", post(crate::assignment_web::save_pool))
         .route("/assignments/pin", post(crate::assignment_web::save_pin))
         .route("/core-control", get(crate::core_control_web::page))
+        .route("/core-recovery", get(crate::core_recovery_web::console))
+        .route("/core-control/pause", post(crate::core_control_web::pause))
         .route("/core-control/save", post(crate::core_control_web::save))
         .route(
             "/core-control/probes",
@@ -183,7 +192,7 @@ pub fn routes(state: Shared) -> HttpRouter {
         .layer(axum::middleware::from_fn(headers))
         .with_state(state)
 }
-async fn headers(req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+pub(crate) async fn headers(req: axum::extract::Request, next: axum::middleware::Next) -> Response {
     let trusted_host = req
         .headers()
         .get(header::HOST)

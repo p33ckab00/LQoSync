@@ -103,9 +103,22 @@ pub fn monitor_router(settings: &Settings, router: &str) -> bool {
             })
         })
 }
+fn persisted_policy(root: &std::path::Path, expected: &str) -> Result<()> {
+    // Do not recreate a removed settings file during a preview check.
+    let current: Settings = toml::from_str(&std::fs::read_to_string(root.join("settings.toml"))?)?;
+    ensure!(
+        enabled(&current) && revision(&current)? == expected,
+        "Persisted settings changed or preview paused in another console"
+    );
+    Ok(())
+}
 pub async fn refresh(shared: Shared) {
-    let (settings, inventories, errors, epochs, root, previous, ticket) = {
+    let (settings, inventories, errors, epochs, root, previous, ticket, coordinator) = {
         let mut a = shared.lock().await;
+        a.core_coordinator.configure(
+            &revision(&a.settings).unwrap_or_default(),
+            enabled(&a.settings),
+        );
         if !enabled(&a.settings) {
             let epoch = a.core_runtime.epoch.wrapping_add(1);
             a.core_runtime = Runtime {
@@ -143,6 +156,7 @@ pub async fn refresh(shared: Shared) {
                 ..Default::default()
             },
             a.core_runtime.epoch,
+            a.core_coordinator.clone(),
         )
     };
     // Finish bookkeeping even if the HTTP caller disconnects or its task is cancelled.
@@ -151,14 +165,20 @@ pub async fn refresh(shared: Shared) {
         let work_inventories = inventories.clone();
         let work_errors = errors.clone();
         let result = tokio::task::spawn_blocking(move || {
-            compute(
+            let revision = revision(&work_settings)?;
+            let ticket = coordinator.begin(&root, &revision)?;
+            persisted_policy(&root, &revision)?;
+            let runtime = compute(
                 &work_settings,
                 &work_inventories,
                 &work_errors,
                 &root,
                 &previous,
                 crate::orchestrator::now(),
-            )
+            )?;
+            ticket.check(&revision)?;
+            persisted_policy(&root, &revision)?;
+            Ok::<_, anyhow::Error>(runtime)
         })
         .await;
         let mut a = shared.lock().await;

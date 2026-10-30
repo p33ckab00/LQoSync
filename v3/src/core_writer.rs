@@ -494,54 +494,7 @@ impl Executor {
         Ok(this)
     }
     fn validate_journal(&self) -> Result<()> {
-        let j = &self.journal;
-        ensure!(
-            j.forward <= j.batch.operations.len()
-                && j.undo <= j.forward
-                && j.history.len() == j.forward + j.undo,
-            "Inconsistent writer progress"
-        );
-        ensure!(
-            j.mode == Mode::Rollback || j.undo == 0,
-            "Invalid rollback progress"
-        );
-        let mut rows = j.batch.baseline.clone();
-        for (i, r) in j.history.iter().enumerate() {
-            let expected = if i < j.forward {
-                j.batch.operations[i].clone()
-            } else {
-                self.inverse(j.forward - 1 - (i - j.forward))?
-            };
-            ensure!(
-                r.operation == expected,
-                "Journal operation differs from batch history"
-            );
-            apply(&mut rows, &r.operation, r.returned_id.as_deref())?;
-        }
-        if let Some(p) = &j.pending {
-            let expected = if j.mode == Mode::Forward {
-                j.batch
-                    .operations
-                    .get(j.forward)
-                    .context("Pending past end of batch")?
-                    .clone()
-            } else {
-                ensure!(j.undo < j.forward, "Pending past rollback end");
-                self.inverse(j.forward - 1 - j.undo)?
-            };
-            ensure!(*p == expected && !j.verified, "Invalid pending operation");
-        }
-        ensure!(
-            !j.verified
-                || j.pending.is_none()
-                    && if j.mode == Mode::Forward {
-                        j.forward == j.batch.operations.len()
-                    } else {
-                        j.undo == j.forward
-                    },
-            "Invalid verification state"
-        );
-        Ok(())
+        self.journal.validate()
     }
     fn save(&mut self) -> Result<()> {
         if let Err(e) =
@@ -568,37 +521,7 @@ impl Executor {
         Ok(rows)
     }
     fn inverse(&self, index: usize) -> Result<Operation> {
-        let receipt = &self.journal.history[index];
-        Ok(match &receipt.operation {
-            Operation::Add { router, member } => {
-                let mut m = member.clone();
-                m.id = receipt
-                    .returned_id
-                    .clone()
-                    .context("Missing returned addition ID")?;
-                Operation::Remove {
-                    router: router.clone(),
-                    before: m,
-                }
-            }
-            Operation::Remove { router, before } => {
-                let mut m = before.clone();
-                m.id.clear();
-                Operation::Add {
-                    router: router.clone(),
-                    member: m,
-                }
-            }
-            Operation::Move {
-                router,
-                before,
-                after,
-            } => Operation::Move {
-                router: router.clone(),
-                before: after.clone(),
-                after: before.clone(),
-            },
-        })
+        self.journal.inverse(index)
     }
     fn guard(&self, e: &mut Evidence, forward: bool) -> Result<()> {
         let now = crate::orchestrator::now();
@@ -741,4 +664,152 @@ mod tests {
         assert!(super::completion_fresh(Some((100, 110)), 110));
         assert!(!super::completion_fresh(Some((100, 110)), 111));
     }
+}
+
+impl Journal {
+    fn validate(&self) -> Result<()> {
+        let j = self;
+        ensure!(
+            j.forward <= j.batch.operations.len()
+                && j.undo <= j.forward
+                && j.history.len() == j.forward + j.undo,
+            "Inconsistent writer progress"
+        );
+        ensure!(
+            j.mode == Mode::Rollback || j.undo == 0,
+            "Invalid rollback progress"
+        );
+        let mut rows = j.batch.baseline.clone();
+        for (i, r) in j.history.iter().enumerate() {
+            let expected = if i < j.forward {
+                j.batch.operations[i].clone()
+            } else {
+                self.inverse(j.forward - 1 - (i - j.forward))?
+            };
+            ensure!(
+                r.operation == expected,
+                "Journal operation differs from batch history"
+            );
+            apply(&mut rows, &r.operation, r.returned_id.as_deref())?;
+        }
+        if let Some(p) = &j.pending {
+            let expected = if j.mode == Mode::Forward {
+                j.batch
+                    .operations
+                    .get(j.forward)
+                    .context("Pending past end of batch")?
+                    .clone()
+            } else {
+                ensure!(j.undo < j.forward, "Pending past rollback end");
+                self.inverse(j.forward - 1 - j.undo)?
+            };
+            ensure!(*p == expected && !j.verified, "Invalid pending operation");
+        }
+        ensure!(
+            !j.verified
+                || j.pending.is_none()
+                    && if j.mode == Mode::Forward {
+                        j.forward == j.batch.operations.len()
+                    } else {
+                        j.undo == j.forward
+                    },
+            "Invalid verification state"
+        );
+        Ok(())
+    }
+    fn inverse(&self, index: usize) -> Result<Operation> {
+        let receipt = &self.history[index];
+        Ok(match &receipt.operation {
+            Operation::Add { router, member } => {
+                let mut m = member.clone();
+                m.id = receipt
+                    .returned_id
+                    .clone()
+                    .context("Missing returned addition ID")?;
+                Operation::Remove {
+                    router: router.clone(),
+                    before: m,
+                }
+            }
+            Operation::Remove { router, before } => {
+                let mut m = before.clone();
+                m.id.clear();
+                Operation::Add {
+                    router: router.clone(),
+                    member: m,
+                }
+            }
+            Operation::Move {
+                router,
+                before,
+                after,
+            } => Operation::Move {
+                router: router.clone(),
+                before: after.clone(),
+                after: before.clone(),
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct OperationReview {
+    pub kind: String,
+    pub router: String,
+    pub row_id: Option<String>,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct JournalReview {
+    pub revision: String,
+    pub direction: String,
+    pub operations: usize,
+    pub completed: usize,
+    pub undone: usize,
+    pub pending: Option<OperationReview>,
+    pub last_known: Option<OperationReview>,
+    pub saved_verified: bool,
+}
+fn operation_review(op: &Operation, returned: Option<&str>) -> OperationReview {
+    let (kind, id) = match op {
+        Operation::Add { .. } => ("Add", returned.map(str::to_string)),
+        Operation::Remove { before, .. } => ("Remove", Some(before.id.clone())),
+        Operation::Move { before, .. } => ("Move", Some(before.id.clone())),
+    };
+    OperationReview {
+        kind: kind.into(),
+        router: op.router().into(),
+        row_id: id,
+    }
+}
+/// Pure saved-record inspection. This function cannot acquire a writer lease or verify live rows.
+pub fn inspect_journal(raw: &str, revision: &str) -> Result<JournalReview> {
+    ensure!(
+        raw.len() <= 64 * 1024 * 1024,
+        "Writer journal exceeds inspection limit"
+    );
+    let j: Journal = serde_json::from_str(raw)?;
+    ensure!(
+        j.schema == 1 && j.batch.revision()? == revision,
+        "Writer journal identity or schema changed"
+    );
+    j.batch.validate()?;
+    j.validate()?;
+    Ok(JournalReview {
+        revision: revision.into(),
+        direction: if j.mode == Mode::Forward {
+            "Forward"
+        } else {
+            "Rollback"
+        }
+        .into(),
+        operations: j.batch.operations.len(),
+        completed: j.forward,
+        undone: j.undo,
+        pending: j.pending.as_ref().map(|op| operation_review(op, None)),
+        last_known: j
+            .history
+            .last()
+            .map(|r| operation_review(&r.operation, r.returned_id.as_deref())),
+        saved_verified: j.verified,
+    })
 }

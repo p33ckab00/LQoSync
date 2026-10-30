@@ -188,3 +188,5 @@ cargo clippy --locked --all-targets -- -D warnings
 7. Test failure recovery in an isolated environment before production activation.
 
 LibreQoS v2.2 remains unchanged and held during this work.
+
+See [shadow pause and recovery inspection](SHADOW_CONTROLS.md) for read-only coordination and the separate local recovery viewer.

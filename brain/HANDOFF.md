@@ -752,3 +752,23 @@ Next: online console coordination, journal controls, recovery approval, and sepa
 The operator has no lab available. Do not replace lab evidence with mock results.
 Preserve the separate frontend planning edits in the main checkout.
 See [[10-sessions/2026-10-31-core-worker]] and `v3/CORE_WORKER.md`.
+
+
+## Shadow controls complete; online mutation coordination pending
+
+Updated: 2026-10-31T06:35:36+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/shadow-controls`. Worktree: `/home/pi/lqosync-shadow-controls`. Base: `6921171`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: add shadow pause and read-only journal controls with code and mock tests only.
+Changed files: core_coordination, core_console, core_control_web, core_recovery, core_recovery_web, core_writer validation extraction, web/lib, viewer binary, tests, guides, and notes.
+The shadow lock serializes work across processes. Local tickets invalidate on pause. Persisted settings checks reject external policy drift.
+The separate GET-only viewer can inspect saved records while the normal console remains blocked by its unchanged recovery fence.
+Approval, resume, rollback, and marker removal have no HTTP action. The offline writer still requires an exclusive lease.
+Fresh review found two defects. Both received failing regression tests, fixes, and passing checks.
+Final checks: format passed, 308 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
+Five-width Chromium checks passed with synthetic records. Documentation links and diff checks passed.
+No live router access, production settings, shaping output, package changes, service changes, or live restart occurred.
+Next: actual online mutation coordination and separate recovery grants, then isolated RouterOS acceptance before production authorization.
+No lab is available. Mock tests cannot replace lab acceptance or prove uninterrupted traffic.
+Preserve the separate frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-shadow-controls]] and `v3/SHADOW_CONTROLS.md`.

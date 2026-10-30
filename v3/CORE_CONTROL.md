@@ -67,7 +67,9 @@ Ordinary local staging retains its existing persistence behavior.
 
 ## Remaining live integration
 
-The console has no mutation worker, production verifier, pending-journal controls, or last-operation report.
+The console has no mutation worker or online mutation grant.
+[Shadow controls](SHADOW_CONTROLS.md) add pause and read-only saved-journal reports.
+Known results remain separate from historical saved verification. Approval and resume remain locked.
 The existing recovery marker and maintenance lease still prevent unsafe console startup.
 Do not remove a marker to start the console. Use [writer recovery](CORE_WRITER.md) or [maintenance recovery](CORE_MAINTENANCE.md).
 

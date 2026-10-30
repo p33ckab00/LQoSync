@@ -76,5 +76,6 @@ Mock API tests cover fresh reads, settings changes, session changes, exact add/r
 They also cover approval, directory binding, batch limits, routing-policy changes, and console exclusion.
 Mocks do not prove RouterOS field behavior, WAN attribution, same-ID moves, connection-mark behavior, or uninterrupted failover.
 
-Online console lease coordination, journal controls, recovery approval, and isolated RouterOS acceptance remain pending.
+[Shadow controls](SHADOW_CONTROLS.md) add read-only coordination, pause, and saved-journal inspection.
+Online mutation coordination, recovery approval, and isolated RouterOS acceptance remain pending.
 Keep automatic writes disabled until those stages and the exact production scope have passed review.

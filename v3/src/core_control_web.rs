@@ -51,7 +51,12 @@ pub async fn page(State(shared): State<Shared>) -> Response {
  @if let Some(plan)=&a.core_runtime.preview{section.card{h2{"Reconciliation decisions"}p{(plan.decisions.len()) " decisions · at most 100 displayed · desired state is not applied shaping"}table{thead{tr{th{"Subscriber"}th{"Decision"}th{"Detail"}}}tbody{@for decision in plan.decisions.iter().take(100){@let (id,kind,detail)=describe(decision);tr{td{(id)}td{(kind)}td{(detail)}}}}}}
  }
  }
- section.card{h2{"Recovery and applied state"}p{"No integrated writer has run. Existing maintenance recovery markers prevent console startup. Router membership and staged shaping remain separate from production applied output."}}
+ section.card{h2{"Shadow worker and recovery"}p{"Shadow computation is serialized per data directory. A shadow ticket cannot authorize router writes."}
+ p{@if a.core_runtime.busy {"A shadow computation is active."}@else {"No shadow computation is active in this console."}}
+ form method="post" action="/core-control/pause"{(csrf(&a))input type="hidden" name="revision" value=(&revision);button{"Pause shadow preview"}}
+ p{a href="/core-recovery" {"Inspect saved writer journals"}}
+ p.help{"Approval and resume remain locked. Normal console startup remains blocked by unresolved recovery. Use the separate read-only viewer to inspect that state."}
+ }
  }).into_response()
 }
 fn describe(d: &crate::core_reconcile::Decision) -> (&str, &str, String) {
@@ -182,6 +187,10 @@ async fn persist(
             return error(&a, e);
         }
         a.settings = next;
+        a.core_coordinator.configure(
+            &core_console::revision(&a.settings).unwrap_or_default(),
+            core_console::enabled(&a.settings),
+        );
         let epoch = a.core_runtime.epoch.wrapping_add(1);
         a.core_runtime = core_console::Runtime {
             epoch,
@@ -192,4 +201,23 @@ async fn persist(
     })
     .await
     .unwrap_or_else(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response())
+}
+
+#[derive(Deserialize)]
+pub struct PauseForm {
+    token: String,
+    revision: String,
+}
+pub async fn pause(State(shared): State<Shared>, Form(form): Form<PauseForm>) -> Response {
+    let a = shared.clone().lock_owned().await;
+    if let Err(response) = check(&a, &form.token) {
+        return response.into_response();
+    }
+    if core_console::revision(&a.settings).ok().as_deref() != Some(&form.revision) {
+        return error(&a, "Settings changed; reload before pausing");
+    }
+    let mut next = a.settings.clone();
+    next.core_control.get_or_insert_with(Default::default).mode = Mode::Paused;
+    a.core_coordinator.configure(&form.revision, false);
+    persist(a, next).await
 }
