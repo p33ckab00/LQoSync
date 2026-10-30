@@ -11,6 +11,18 @@ const origin = 'http://127.0.0.1:19304'; // Synthetic preview only. Never point 
   await page.setViewportSize({width,height:900});
   for(const route of routes){const response=await page.goto(origin+route);assert.equal(response.status(),200,route);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`overflow ${width} ${route}`);}
  }
+ for(const [width,columns] of [[1440,3],[1100,2],[720,1],[390,1],[320,1]]){
+  await page.setViewportSize({width,height:900});
+  for(const route of ['/settings','/wans','/core-lists','/assignments']){
+   await page.goto(origin+route);
+   assert(await page.evaluate(()=>parseFloat(getComputedStyle(document.body).fontSize)>=14),`body font ${route}`);
+   assert(await page.locator('.cardgrid').count()>0,`missing card grid ${route}`);
+   for(const grid of await page.locator('.cardgrid').all()){
+    assert.equal(await grid.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),columns,`card columns ${width} ${route}`);
+   }
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`card overflow ${width} ${route}`);
+  }
+ }
  await page.setViewportSize({width:1440,height:900});await page.goto(origin+'/topology');
  const nodeCog=page.locator('.configcog').filter({hasText:'⚙'});
  assert(await nodeCog.count()>0);
@@ -48,6 +60,6 @@ const origin = 'http://127.0.0.1:19304'; // Synthetic preview only. Never point 
   assert(await dialog.evaluate(d=>{const b=d.querySelector('header button').getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2).closest('dialog')===d}));
   await page.keyboard.press('Escape');
  }
- assert.deepEqual(errors,[]);console.log('PASS: 12 routes x 3 widths; cog dialogs, top layer, focus/Tab/Escape, drafts, invalid/save/retry, field associations, rejected token, 720px zoom-equivalent/mobile menu and bounds.');
+ assert.deepEqual(errors,[]);console.log('PASS: readable fonts and 3/2/1 card columns; 12 routes x 3 widths; cog dialogs, top layer, focus/Tab/Escape, drafts, invalid/save/retry, field associations, rejected token, 720px zoom-equivalent/mobile menu and bounds.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack);process.exit(1)});

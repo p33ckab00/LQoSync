@@ -7,11 +7,23 @@ status: active
 
 # LQoSync 3 handoff
 
-Updated: 2026-10-30T13:37:59+08:00 (Asia/Shanghai).
+Updated: 2026-10-30T14:02:38+08:00 (Asia/Shanghai).
 Last agent: Codex.
 Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
+
+## Console readability update complete; activation pending
+
+Updated: 2026-10-30T14:02:38+08:00 (Asia/Shanghai).
+Goal: increase readable fonts and group small cards into two or three columns.
+Last agent: Codex. Branch: `lqosyncv3`. Checkout: `/opt/LQoSync3.0`.
+Changed files: shared CSS, settings/WAN/core/policy markup, browser checks, README, and project notes.
+Checks passed: format, locked build, 196 Rust tests (12 ignored), Clippy with warnings denied, both synthetic browser scripts, and diff review.
+The live console process remains unchanged. No router writes, production apply, or service restart occurred.
+Unfinished work: activate this verified console build when a restart is authorized.
+Next action: activate the UI build, then return to the separately gated core membership migration.
+See [[10-sessions/2026-10-30-console-readability]].
 
 ## Core membership audit complete; live migration pending
 

@@ -216,7 +216,7 @@ pub(crate) fn policies(
     html! {section.card{h2{"Selected source policies"}p.help{"Select eligible node/WAN pairs. Mixed services can share destinations. Continuous sessions keep compatible pairs; new sessions and reconnects can balance."}
        form method="get" action="/assignments"{label{"Find policy name or ID" input name="policy_q" value=(&policy_query);}label{"Find destination node or WAN ID" input name="target_q" value=(&target_query);}button{"Filter policies"}}
        p.help{"First 200 matching policies and destinations per policy are shown. Source summaries show the first 20 members. Use filters to find other entries."}
-       @for p in c.policies.iter().filter(|p| policy_query.is_empty() || format!("{} {}",p.id,p.name).to_lowercase().contains(&policy_query)).take(200) {
+       div.cardgrid { @for p in c.policies.iter().filter(|p| policy_query.is_empty() || format!("{} {}",p.id,p.name).to_lowercase().contains(&policy_query)).take(200) {
        section.card{h3{(if p.name.is_empty(){&p.id}else{&p.name})}p.help{(&p.id)}p.help{@for id in p.selections.iter().take(20){@if let Some(x)=selections.get(id.as_str()){(&x.kind) " / " (&x.value) " · "}} (p.selections.len()) " selected sources"}
        p{(if p.balance{"Automatic"}else{"Manual default / pins"}) " · " (&p.metric)}
        @for target in p.targets.iter().filter(|t| target_query.is_empty() || format!("{} {}",t.node,t.wan).to_lowercase().contains(&target_query)).take(200) {
@@ -234,6 +234,7 @@ pub(crate) fn policies(
        label{"Default destination" select name="target"{@for target in &p.targets{option value=(target_key(target)) selected[target==&p.default]{(target_label(&a.settings,&target_key(target)))}}}}button{"Save assignment policy"}}
        }
        }
+       }
        @if c.policies.is_empty(){p{"Select sources on Sources to create the first policy."}}
        }}
 }
@@ -242,7 +243,7 @@ pub(crate) fn wan_panel(a: &App) -> Markup {
     let choices = wan_web::interfaces(a);
     let c = a.settings.dynamic.as_ref().unwrap();
     html! {section.card{h2{"Routing WANs"}p.help{"These mappings are independent of exported roots. One WAN can serve several roots, and one root can serve clients on several WANs."}}
-    @for current in c.wans.iter().map(Some).chain(std::iter::once(None)) {
+    div.cardgrid { @for current in c.wans.iter().map(Some).chain(std::iter::once(None)) {
     @let id=current.map(|w|w.id.as_str()).unwrap_or("");
     @let selected=current.map(|w|serde_json::to_string(&[&w.router,&w.interface]).unwrap()).unwrap_or_default();
     section.card{h2{(current.map(|w|w.name.as_str()).unwrap_or("Add routing WAN"))}
@@ -256,7 +257,9 @@ pub(crate) fn wan_panel(a: &App) -> Markup {
     }
     }
     }
+    }
 }
+
 #[derive(Deserialize)]
 #[serde(default)]
 pub(crate) struct EditForm {

@@ -75,7 +75,7 @@ pub async fn wans(State(s): State<Shared>) -> Html<String> {
         "WANs",
         html! {
             section.card {h2{"WAN interface mapping"}p{"Select the router interface for each WAN root. Interface discovery does not identify the real subscriber route automatically."}p.help{"Read router inventory first. Mapping and capacity edits update local staging automatically when selected sources are healthy."}p{(&a.status)}}
-            @for node in a.settings.nodes.iter().filter(|n|n.kind=="wan") {
+            div.cardgrid { @for node in a.settings.nodes.iter().filter(|n|n.kind=="wan") {
                 @let selected=if node.router.is_empty()||node.source.is_empty(){String::new()}else{serde_json::to_string(&[&node.router,&node.source]).unwrap_or_default()};
                 section.card {h2{(&node.name)}p.help{"WAN root: " (&node.id)}form method="post" action="/wans/save"{(csrf(&a))input type="hidden" name="node" value=(&node.id);div.formgrid{
                     label{"Router / interface" select name="selection" {option value="" selected[selected.is_empty()]{"Unmapped"}
@@ -85,6 +85,7 @@ pub async fn wans(State(s): State<Shared>) -> Html<String> {
                     label{"WAN download · Mbps" input type="number" min="0" step="any" required name="download" value=(node.download);}
                     label{"WAN upload · Mbps" input type="number" min="0" step="any" required name="upload" value=(node.upload);}
                 }button{"Save WAN mapping"}}}
+            }
             }
             section.card{p.help{"Use Topology to add WAN roots and real subscriber branches. Interface health gates publication; existing subscribers are not moved automatically during an outage."}a href="/routers"{"Routers"} " · " a href="/topology"{"Topology"} " · " a href="/assignments"{"Subscriber assignments"}}
         },

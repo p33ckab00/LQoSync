@@ -7,6 +7,7 @@ status: active
 
 # LQoSync 3 knowledge
 
+- [[10-sessions/2026-10-30-console-readability]]
 - [[10-sessions/2026-10-30-core-membership-audit]]
 - [[10-sessions/2026-10-30-dynamic-topology-activation]]
 - [[10-sessions/2026-10-30-dynamic-topology]]

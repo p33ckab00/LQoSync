@@ -590,7 +590,7 @@ async fn settings(State(s): State<Shared>) -> Html<String> {
     shell(
         &a,
         "Settings",
-        html! {section.card{h2{"LibreQoS compatibility"}
+        html! {div.cardgrid {section.card{h2{"LibreQoS compatibility"}
             p{"Detected main package: " strong{(detection.version.as_deref().unwrap_or("Unavailable"))}}
             @if let Some(adapter)=&detection.adapter {p{strong{(adapter.label())}}p.mono{(adapter.request_description())}}
             p.help{(&detection.detail)}p.help{"Detection is read-only. The preflight package version does not determine the running LibreQoS version. Older releases outside 2.0–2.2 and future major releases require compatibility validation."}
@@ -599,7 +599,7 @@ async fn settings(State(s): State<Shared>) -> Html<String> {
             (select("Local automatic publication","auto_stage",&[("true","Enabled"),("false","Paused")],if a.settings.auto_stage{"true"}else{"false"}))}button{"Save settings"}}
             p.help{"Valid edits trigger local publication automatically. This delivery does not activate production auto-apply."}}
             section.card{h2{"Storage"}p.mono{(a.root.join("settings.toml").display())}p{"Settings and runtime state remain inside this application. No database is required."}}
-        },
+        }},
     )
 }
 #[derive(Deserialize)]

@@ -18,7 +18,8 @@ node tests/browser/configuration.cjs
 node tests/browser/dynamic-topology.cjs
 ```
 
-The first script checks 12 routes at desktop and mobile widths, dialog layer order, keyboard focus, draft retention, validation errors, rejected tokens, and retries.
+The first script checks readable body fonts and three/two/one card columns at five widths.
+It checks 12 routes at desktop and mobile widths, dialog layer order, keyboard focus, draft retention, validation errors, rejected tokens, and retries.
 It also checks a 720px layout, equivalent to a 1440px browser at 200 percent zoom.
 The second script checks promotion, demotion, removal with a replacement, impact labels, policy edits, and independent root creation and removal.
 The fixture contains one root, one branch, one policy, two routing WANs, and a loopback placeholder router. Automatic collection is paused.
