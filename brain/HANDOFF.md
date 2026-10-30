@@ -13,6 +13,26 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Guarded writer library verified; live integration pending
+
+Updated: 2026-10-30T22:38:15+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-writer`. Worktree: `/tmp/lqosync-core-writer`. Base: `909b4b8`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Added the bounded owned-host executor, scoped RouterOS transport, and recovery tests/guides.
+Changed files: core_writer, core_writer_transport, RouterOS scoped method extraction, module exports, tests, guides, ledger, and Brain notes.
+No CLI, web endpoint, scheduler, production verifier, or enable action calls the writer.
+The integration must supply fresh settings/source/session/health/authorization context and actual complete core rows.
+The existing exclusive maintenance lease serializes this offline stage. Console integration remains Task 4.
+Batches contain at most 20 mutations. Unknown outcomes block retry/rollback and retain recovery fencing.
+Rollback recreates deleted hosts with actual replacement IDs; it cannot restore deleted RouterOS IDs.
+Review defects were reproduced and fixed: incomplete core scope, stale post-read context, inherited completion, and failed later re-verification.
+Completion finalization now requires fresh runtime evidence; it cannot trust saved verification or expired confidence.
+Fresh checks: 278 tests passed, zero failures, 12 ignored. Twenty-one writer tests and one completion-window unit test passed.
+Format, strict Clippy, diff, documentation links, and Bash syntax checks passed. Final review found no outstanding defect.
+No live router reads/writes, production settings, shaping outputs, credentials, service changes, or restart occurred.
+Next: implement Task 4 console/scheduler integration and disabled-by-default controls. Keep production writes on hold.
+See [[10-sessions/2026-10-30-core-writer]] and `v3/CORE_WRITER.md`.
+
 ## Pure reconciliation planner verified; live writer pending
 
 Updated: 2026-10-30T20:06:38+08:00 (Asia/Shanghai). Last agent: Codex.

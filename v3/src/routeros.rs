@@ -115,6 +115,18 @@ impl Client {
             keys == expected.into_iter().collect() && keys.len() == fields.len(),
             "Unsupported migration fields"
         );
+        self.address_list_command(action, fields).await
+    }
+    pub(crate) async fn move_owned_host(&self, id: &str, list: &str, comment: &str) -> Result<()> {
+        self.address_list_command("set", &[(".id", id), ("list", list), ("comment", comment)])
+            .await?;
+        Ok(())
+    }
+    async fn address_list_command(
+        &self,
+        action: &str,
+        fields: &[(&str, &str)],
+    ) -> Result<Option<String>> {
         let query = async {
             let path = format!("/ip/firewall/address-list/{action}");
             let mut builder = CommandBuilder::new().command(&path);

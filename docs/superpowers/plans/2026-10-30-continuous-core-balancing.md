@@ -64,20 +64,21 @@ Moves carry exact before/after members and the unchanged row ID. The planner is 
 
 ## Task 3: Scoped writer and durable recovery
 
-Files: create `v3/src/core_writer.rs` and `v3/tests/core_writer.rs`; modify `v3/src/routeros.rs` and `v3/src/migration_fence.rs` only as required.
+Files: create `v3/src/core_writer.rs`, `v3/src/core_writer_transport.rs`, and `v3/tests/core_writer.rs`; modify `v3/src/routeros.rs`. Reuse `migration_fence` without changing its shared-lease behavior.
 
 Interfaces: the writer consumes one revision-bound `ReconcilePlan` and fresh evidence. A transport exposes exact owned-host add, remove, and same-core list/comment change operations.
 Use a separate reconciliation journal schema; do not relax the maintenance engine membership-preservation invariant.
 
-- [ ] Write failing wire tests for allowed field sets, returned add IDs, same-ID moves, complete precondition checks, traps, lost replies, and missing IDs.
-- [ ] Confirm RED with `cargo test --locked --test core_writer`.
-- [ ] Implement a crate-private scoped move command that permits only `.id`, `list`, and `comment` after full ownership validation.
-- [ ] Journal intent before send and result before further work. Known-unsent errors differ from unknown network outcomes.
-- [ ] Serialize console writer work and exclude maintenance across processes. Do not upgrade a lifetime shared lease in place without a tested coordination design.
-- [ ] Recheck settings revision, source identity, health freshness, and complete actual rows before each mutation.
-- [ ] Verify exact actual rows afterward. Stop dependent work on uncertainty; retain recovery state across restart.
-- [ ] Test crash boundaries, foreign changes, settings drift, batch limit 20, competing processes, and no marker bypass.
-- [ ] Run wire tests to GREEN and review rollback semantics for additions, removals, and list changes. Commit.
+- [x] Write failing wire tests for allowed field sets, returned add IDs, same-ID moves, complete precondition checks, traps, lost replies, and missing IDs.
+- [x] Confirm RED with `cargo test --locked --test core_writer`.
+- [x] Implement a crate-private scoped move command that permits only `.id`, `list`, and `comment` after full ownership validation.
+- [x] Journal intent before send and result before further work. Known-unsent errors differ from unknown network outcomes.
+- [ ] Integrate console worker serialization in Task 4. The isolated Task 3 executor uses an exclusive offline lease and excludes consoles/maintenance across processes.
+- [x] Recheck settings revision, source identity, health freshness, and complete actual rows before each mutation.
+- [x] Verify exact actual rows afterward. Stop dependent work on uncertainty; retain recovery state across restart.
+- [x] Test crash boundaries, foreign changes, settings drift, batch limit 20, competing processes, and no marker bypass.
+- [x] Run wire tests to GREEN and review rollback semantics for additions, removals, and list changes. Commit.
+
 
 ## Task 4: Console controls, scheduler, and publication
 
@@ -108,7 +109,7 @@ Interfaces: an authenticated settings action selects preview, paused, or automat
 Health configuration, state machine, conservative provider, and read-only CLI are implemented.
 Verification: 243 tests passed, zero failures, 12 manual tests ignored. Format and strict Clippy passed.
 Focused health/provider and CLI checks: 11 passed. Fresh review found no material defect.
-The provider still requires isolated RouterOS field/completion verification. Task 2 is implemented and verified: 256 tests passed, zero failures, 12 ignored. Tasks 3–5 remain pending.
+The provider still requires isolated RouterOS field/completion verification. Task 2 is implemented and verified: 256 tests passed, zero failures, 12 ignored. Task 3 library is implemented. Console integration and Tasks 4–5 remain pending.
 No production reads, writes, settings changes, or restarts occurred during implementation.
 See the WAN health execution ledger and `v3/WAN_HEALTH.md`.
 
@@ -116,3 +117,10 @@ Task 2 verification: 13 reconciliation tests passed. Format and strict Clippy pa
 Fresh review fixes cover cached source indices, revision-bound health, and completed-sample freshness.
 Later RED/GREEN regressions cover first session metadata, manual cleanup, and down destination interfaces.
 No live caller, writer, router read/write, settings change, or restart was introduced.
+
+Task 3 implementation ruling: the scoped production transport requires an integration-supplied fresh Verifier. No live caller or enable action exists.
+It uses the existing exclusive offline maintenance lease. Integrated console worker coordination belongs to Task 4 and remains pending.
+Rollback of a deletion restores fields under the actual newly returned RouterOS ID; it cannot restore a deleted internal ID.
+Task 3 final checks: 278 tests passed, zero failures, 12 ignored. Format and strict Clippy passed.
+Twenty-one writer tests and one deterministic completion-window unit test passed.
+Final review found no outstanding defect. No live caller, production verifier, or automatic enable path exists.

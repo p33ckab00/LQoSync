@@ -3,7 +3,8 @@
 The `core_reconcile` library produces decisions from fresh source observations, actual core rows, and WAN health evidence.
 It has no live caller, scheduler hook, HTTP action, or RouterOS mutation method.
 It does not save assignments or publish shaping output.
-The continuous writer and UI controls remain separate implementation phases.
+A separate [guarded writer library](CORE_WRITER.md) implements bounded execution and recovery.
+Continuous scheduling, UI controls, and live authorization remain separate implementation phases.
 
 ## Inputs and validation
 
