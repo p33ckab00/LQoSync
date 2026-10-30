@@ -500,7 +500,7 @@ pub async fn save_pin(State(s): State<Shared>, Form(f): Form<PinForm>) -> Respon
         if let Err(e) = result {
             return error(&a, e);
         }
-        a.settings = next;
+        a.replace_settings(next);
         a.status =
             "Subscriber pin saved. Candidate assignments remain separate from committed output."
                 .into();

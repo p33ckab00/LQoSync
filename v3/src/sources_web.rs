@@ -147,7 +147,7 @@ pub async fn save(State(s): State<Shared>, Form(form): Form<SourceForm>) -> Resp
     {
         return error(&a, e);
     }
-    a.settings = next;
+    a.replace_settings(next);
     a.status = "Source selection saved. Waiting for a complete selected-source collection.".into();
     Redirect::to("/sources").into_response()
 }
@@ -466,7 +466,7 @@ pub async fn save_selection(State(s): State<Shared>, Form(form): Form<SelectionF
     {
         return error(&a, e);
     }
-    a.settings = next;
+    a.replace_settings(next);
     a.status = "Independent source selection saved. Waiting for a complete collection.".into();
     Redirect::to("/sources").into_response()
 }
@@ -510,7 +510,7 @@ pub async fn delete_selection(
     {
         return error(&a, e);
     }
-    a.settings = next;
+    a.replace_settings(next);
     a.status = "Selection removed. Router data and topology are unchanged.".into();
     Redirect::to("/sources").into_response()
 }

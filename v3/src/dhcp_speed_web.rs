@@ -128,6 +128,6 @@ pub async fn save(State(s): State<Shared>, Form(f): Form<ServerForm>) -> Respons
     if let Err(e) = store::save_settings(&a.root, &next) {
         return error(&a, e);
     }
-    a.settings = next;
+    a.replace_settings(next);
     Redirect::to("/speed-rules").into_response()
 }

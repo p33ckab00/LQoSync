@@ -96,3 +96,14 @@ fn killed_process_releases_the_shadow_slot_without_marker_removal() {
     assert!(coordinator.begin(d.path(), "probe").is_ok());
     assert!(!d.path().join("state/core-migration-active.json").exists());
 }
+
+#[test]
+fn console_coordinator_cannot_be_reused_for_another_data_directory() {
+    let d = tempfile::tempdir().unwrap();
+    let other = tempfile::tempdir().unwrap();
+    let coordinator = Coordinator::for_root(d.path()).unwrap();
+    coordinator.configure("revision", true);
+    assert!(coordinator.begin(other.path(), "revision").is_err());
+    assert!(!other.path().join("state").exists());
+    assert!(coordinator.begin(d.path(), "revision").is_ok());
+}

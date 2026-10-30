@@ -393,9 +393,21 @@ struct Journal {
 pub struct Executor {
     path: PathBuf,
     journal: Journal,
-    lease: Option<Lease>,
+    lease: Option<WriterLease>,
     poisoned: bool,
     completion_window: Option<(u64, u64)>,
+}
+enum WriterLease {
+    Offline(Lease),
+    Coordinated(crate::core_coordination::CoordinatedLease),
+}
+impl WriterLease {
+    fn finish(self) -> Result<()> {
+        match self {
+            Self::Offline(lease) => lease.finish(),
+            Self::Coordinated(lease) => lease.finish(),
+        }
+    }
 }
 fn apply(rows: &mut Rows, op: &Operation, ret: Option<&str>) -> Result<()> {
     let members = rows
@@ -484,12 +496,53 @@ impl Executor {
         let mut this = Self {
             path,
             journal,
-            lease: Some(lease),
+            lease: Some(WriterLease::Offline(lease)),
             poisoned: false,
             completion_window: None,
         };
         this.validate_journal()?;
         this.journal.verified = false;
+        this.save()?;
+        Ok(this)
+    }
+    pub(crate) fn open_coordinated(
+        root: &Path,
+        batch: Batch,
+        approved: &str,
+        mut lease: crate::core_coordination::CoordinatedLease,
+    ) -> Result<Self> {
+        batch.validate()?;
+        let revision = batch.revision()?;
+        ensure!(revision == approved, "Exact batch approval required");
+        let now = crate::orchestrator::now();
+        ensure!(
+            batch.created_at <= now && now <= batch.expires_at,
+            "New writer batch is expired or future-dated"
+        );
+        let root = root.canonicalize()?;
+        ensure!(
+            !root.starts_with("/opt/libreqos") && !root.starts_with("/etc/libreqos"),
+            "Use separate application data"
+        );
+        let path = lease.start(&root, &revision)?;
+        let journal = Journal {
+            schema: 1,
+            batch,
+            history: vec![],
+            forward: 0,
+            undo: 0,
+            mode: Mode::Forward,
+            pending: None,
+            verified: false,
+        };
+        let mut this = Self {
+            path,
+            journal,
+            lease: Some(WriterLease::Coordinated(lease)),
+            poisoned: false,
+            completion_window: None,
+        };
+        this.validate_journal()?;
         this.save()?;
         Ok(this)
     }

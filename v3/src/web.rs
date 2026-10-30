@@ -38,7 +38,7 @@ impl App {
         let writer_lease = Arc::new(crate::migration_fence::Lease::console(&root)?);
         let settings = store::load_settings(&root)?;
         let generation = store::current_generation(&root);
-        let core_coordinator = crate::core_coordination::Coordinator::default();
+        let core_coordinator = crate::core_coordination::Coordinator::for_root(&root)?;
         core_coordinator.configure(
             &crate::core_console::revision(&settings)?,
             crate::core_console::enabled(&settings),
@@ -58,6 +58,15 @@ impl App {
             read_epochs: BTreeMap::new(),
             next_read: 0,
         })
+    }
+    /// Install successfully saved settings and revoke prior policy-bound work immediately.
+    pub(crate) fn replace_settings(&mut self, next: Settings) {
+        let revision = crate::core_console::revision(&next);
+        self.core_coordinator.configure(
+            revision.as_deref().unwrap_or(""),
+            revision.is_ok() && crate::core_console::enabled(&next),
+        );
+        self.settings = next;
     }
     pub fn begin_read(&mut self, id: &str) -> u64 {
         self.next_read += 1;
@@ -242,7 +251,7 @@ pub(crate) fn error(a: &App, e: impl std::fmt::Display) -> Response {
 fn commit(a: &mut App, next: Settings) -> anyhow::Result<()> {
     crate::dynamic_web::validate_evidence_edit(a, &next)?;
     store::save_settings(&a.root, &next)?;
-    a.settings = next;
+    a.replace_settings(next);
     a.reconcile();
     Ok(())
 }
@@ -639,5 +648,40 @@ async fn save_options(State(s): State<Shared>, Form(f): Form<OptionsForm>) -> Re
     match commit(&mut a, next) {
         Ok(()) => Redirect::to("/settings").into_response(),
         Err(e) => error(&a, e),
+    }
+}
+
+#[cfg(test)]
+mod coordination_tests {
+    use super::*;
+    #[tokio::test]
+    async fn ordinary_settings_handler_permanently_revokes_prior_grants() {
+        let d = tempfile::tempdir().unwrap();
+        let a = App::open(d.path().into()).unwrap();
+        let original = a.settings.interval_seconds;
+        let revision = crate::core_console::revision(&a.settings).unwrap();
+        // Isolate the save/epoch contract from source preparation and middleware refresh.
+        a.core_coordinator.configure(&revision, true);
+        let lease = a
+            .core_coordinator
+            .begin_writer(d.path(), &revision, &uuid::Uuid::new_v4().to_string())
+            .unwrap();
+        let guard = lease.guard();
+        let token = a.token.clone();
+        let shared = Arc::new(Mutex::new(a));
+        assert!(guard.active());
+        for interval_seconds in [original + 1, original] {
+            let out = save_options(
+                State(shared.clone()),
+                Form(OptionsForm {
+                    token: token.clone(),
+                    interval_seconds,
+                    auto_stage: false,
+                }),
+            )
+            .await;
+            assert!(out.status().is_redirection());
+            assert!(!guard.active());
+        }
     }
 }

@@ -364,7 +364,13 @@ impl Source for WireSource {
 }
 #[tokio::test]
 async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
-    for lost in [false, true] {
+    for (coordinated, lost, cancelled) in [
+        (false, false, false),
+        (false, true, false),
+        (true, false, false),
+        (true, true, false),
+        (true, false, true),
+    ] {
         let d = tempfile::tempdir().unwrap();
         let (mut s, inv) = fixture();
         for selection in &mut s.selections {
@@ -392,6 +398,8 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
         let remote = db.clone();
         let commands = Arc::new(tokio::sync::Mutex::new(Vec::<String>::new()));
         let calls = commands.clone();
+        let sent = Arc::new(tokio::sync::Notify::new());
+        let received = sent.clone();
         let server = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.unwrap();
             while let Some(words) = sentence(&mut stream).await {
@@ -429,6 +437,10 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
                             ("disabled", "false"),
                             ("dynamic", "false"),
                         ]));
+                        if cancelled {
+                            received.notify_one();
+                            std::future::pending::<()>().await;
+                        }
                         if lost {
                             break;
                         }
@@ -453,18 +465,38 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
         .unwrap();
         let (p, source) = prepared(s, inv, d.path(), "");
         let revision = p.revision().unwrap();
-        let mut worker = p
-            .open(
-                d.path(),
-                &revision,
-                WireSource {
-                    source,
-                    db: db.clone(),
-                },
-            )
-            .unwrap();
-        if lost {
-            assert!(worker.forward().await.is_err());
+        let console = if coordinated {
+            lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+            Some(lqosync_v3::web::App::open(d.path().into()).unwrap())
+        } else {
+            None
+        };
+        let source = WireSource {
+            source,
+            db: db.clone(),
+        };
+        let mut worker = if let Some(console) = &console {
+            p.open_coordinated(d.path(), &revision, source, &console.core_coordinator)
+        } else {
+            p.open(d.path(), &revision, source)
+        }
+        .unwrap();
+        let approval = worker.approval();
+        if cancelled {
+            {
+                let work = worker.forward();
+                tokio::pin!(work);
+                tokio::select! {
+                    out = &mut work => panic!("Request completed before cancellation: {out:?}"),
+                    _ = sent.notified() => {},
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => panic!("No mock request received"),
+                }
+            }
+        }
+        if lost || cancelled {
+            if lost {
+                assert!(worker.forward().await.is_err());
+            }
             assert!(worker.forward().await.is_err());
             assert!(worker.rollback().await.is_err());
             assert_eq!(commands.lock().await.len(), 1);
@@ -478,6 +510,9 @@ async fn scoped_wire_worker_verifies_add_rollback_and_freezes_lost_reply() {
             assert!(db.lock().await.is_empty());
             assert!(!d.path().join("state/core-migration-active.json").exists());
             assert_eq!(commands.lock().await.len(), 2);
+        }
+        if coordinated {
+            assert!(!approval.active());
         }
         assert!(!d.path().join("state/current.toml").exists());
         server.abort();
@@ -561,4 +596,191 @@ async fn fresh_router_source_reads_netwatch_and_rejects_mid_collection_settings_
             );
         }
     }
+}
+
+#[tokio::test]
+async fn coordinated_open_coexists_with_console_but_pause_is_final_for_that_worker() {
+    let d = tempfile::tempdir().unwrap();
+    let (s, inv) = fixture();
+    let settings_revision = core_console::revision(&s).unwrap();
+    let (p, source) = prepared(s, inv, d.path(), "");
+    let revision = p.revision().unwrap();
+    let a = lqosync_v3::web::App::open(d.path().into()).unwrap();
+    lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+    let coordinator = a.core_coordinator.clone();
+    coordinator.configure(&settings_revision, true);
+    let mut worker = p
+        .open_coordinated(d.path(), &revision, source, &coordinator)
+        .unwrap();
+    assert!(worker.approval().active());
+    assert!(lqosync_v3::migration_fence::Lease::exclusive(d.path()).is_err());
+    assert!(coordinator.begin(d.path(), &settings_revision).is_err());
+    coordinator.configure(&settings_revision, false);
+    assert!(!worker.approval().active());
+    coordinator.configure(&settings_revision, true);
+    assert!(!worker.approval().active());
+    assert!(worker.forward().await.is_err());
+    assert!(worker.rollback().await.is_err());
+    assert!(worker.finish().is_err());
+    assert!(d.path().join("state/core-migration-active.json").exists());
+    assert!(lqosync_v3::web::App::open(d.path().into()).is_err());
+}
+
+#[test]
+fn coordinated_open_rejects_foreign_scope_busy_slot_and_prior_records_without_replacing_them() {
+    for change in [
+        "batch",
+        "root",
+        "paused",
+        "settings",
+        "busy",
+        "journal",
+        "marker",
+        "persisted_pause",
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let (s, inv) = fixture();
+        let (p, source) = prepared(s, inv, d.path(), "");
+        let revision = p.revision().unwrap();
+        let settings_revision = core_console::revision(&source.s).unwrap();
+        lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+        let a = lqosync_v3::web::App::open(d.path().into()).unwrap();
+        let marker = d.path().join("state/core-migration-active.json");
+        let journal = d
+            .path()
+            .join("state/core-writer")
+            .join(format!("{revision}.json"));
+        let mut busy = None;
+        match change {
+            "paused" => a.core_coordinator.configure(&settings_revision, false),
+            "settings" => a.core_coordinator.configure("another", true),
+            "busy" => {
+                busy = Some(
+                    a.core_coordinator
+                        .begin(d.path(), &settings_revision)
+                        .unwrap(),
+                )
+            }
+            "journal" => {
+                std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
+                std::fs::write(&journal, "preserve journal").unwrap();
+            }
+            "marker" => std::fs::write(&marker, "preserve marker").unwrap(),
+            "persisted_pause" => {
+                let mut next = source.s.clone();
+                next.core_control.as_mut().unwrap().mode = core_console::Mode::Paused;
+                lqosync_v3::store::save_settings(d.path(), &next).unwrap();
+            }
+            _ => {}
+        }
+        let before = std::fs::read(&marker).ok();
+        let journal_before = std::fs::read(&journal).ok();
+        let root = if change == "root" {
+            other.path()
+        } else {
+            d.path()
+        };
+        assert!(
+            p.open_coordinated(
+                root,
+                if change == "batch" {
+                    "wrong"
+                } else {
+                    &revision
+                },
+                source,
+                &a.core_coordinator
+            )
+            .is_err(),
+            "{change}"
+        );
+        assert_eq!(std::fs::read(&marker).ok(), before, "{change}");
+        assert_eq!(std::fs::read(&journal).ok(), journal_before, "{change}");
+        drop(busy);
+    }
+}
+
+struct PausingSource {
+    inner: MockSource,
+    coordinator: lqosync_v3::core_coordination::Coordinator,
+    settings_revision: String,
+    phase: &'static str,
+}
+impl Source for PausingSource {
+    async fn capture(&mut self) -> anyhow::Result<Snapshot> {
+        let result = self.inner.capture().await?;
+        tokio::task::yield_now().await;
+        if self.phase == "capture" {
+            self.coordinator.configure(&self.settings_revision, false);
+        }
+        Ok(result)
+    }
+    async fn confirm(&mut self, revision: &str) -> anyhow::Result<()> {
+        self.inner.confirm(revision).await?;
+        tokio::task::yield_now().await;
+        if self.phase == "confirm" {
+            self.coordinator.configure(&self.settings_revision, false);
+        }
+        Ok(())
+    }
+}
+#[tokio::test]
+async fn coordinated_pause_during_awaited_verification_prevents_any_connection_or_send() {
+    for phase in ["capture", "confirm"] {
+        let d = tempfile::tempdir().unwrap();
+        let (mut s, inv) = fixture();
+        // An unused loopback listener detects any unexpected connection attempt.
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        s.routers[0].port = listener.local_addr().unwrap().port();
+        let (p, inner) = prepared(s, inv, d.path(), "");
+        lqosync_v3::store::save_settings(d.path(), &inner.s).unwrap();
+        let a = lqosync_v3::web::App::open(d.path().into()).unwrap();
+        let source = PausingSource {
+            settings_revision: core_console::revision(&inner.s).unwrap(),
+            inner,
+            coordinator: a.core_coordinator.clone(),
+            phase,
+        };
+        let revision = p.revision().unwrap();
+        let mut worker = p
+            .open_coordinated(d.path(), &revision, source, &a.core_coordinator)
+            .unwrap();
+        let error = worker.forward().await.unwrap_err().to_string();
+        assert!(error.contains("revoked"), "{phase}: {error}");
+        assert!(!worker.approval().active());
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), listener.accept())
+                .await
+                .is_err()
+        );
+        let report = lqosync_v3::core_recovery::inspect(d.path()).unwrap();
+        assert_eq!(report.journals[0].completed, 0);
+        assert!(report.journals[0].pending.is_none());
+        drop(worker);
+        assert!(d.path().join("state/core-migration-active.json").exists());
+    }
+}
+
+#[test]
+fn coordinated_drop_revokes_detached_approval_and_keeps_recovery_fenced() {
+    let d = tempfile::tempdir().unwrap();
+    let (s, inv) = fixture();
+    let (p, source) = prepared(s, inv, d.path(), "");
+    lqosync_v3::store::save_settings(d.path(), &source.s).unwrap();
+    let a = lqosync_v3::web::App::open(d.path().into()).unwrap();
+    let revision = p.revision().unwrap();
+    let worker = p
+        .open_coordinated(d.path(), &revision, source, &a.core_coordinator)
+        .unwrap();
+    let approval = worker.approval();
+    assert!(approval.active());
+    drop(worker);
+    assert!(!approval.active());
+    assert!(
+        a.core_coordinator
+            .begin(d.path(), &core_console::revision(&a.settings).unwrap())
+            .is_err()
+    );
+    assert!(d.path().join("state/core-migration-active.json").exists());
 }

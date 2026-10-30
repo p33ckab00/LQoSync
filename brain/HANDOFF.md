@@ -772,3 +772,26 @@ Next: actual online mutation coordination and separate recovery grants, then iso
 No lab is available. Mock tests cannot replace lab acceptance or prove uninterrupted traffic.
 Preserve the separate frontend planning edits in the main checkout.
 See [[10-sessions/2026-10-31-shadow-controls]] and `v3/SHADOW_CONTROLS.md`.
+
+
+## Coordinated worker library verified; runtime activation remains disabled
+
+Updated: 2026-10-31T06:47:37+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/coordinated-worker`. Worktree: `/home/pi/lqosync-coordinated-worker`. Base: `3d4e973`.
+Target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: implement coordinated execution with code and mock tests without destructive live MikroTik changes.
+Changed files: core_coordination, core_worker, core_writer, core_console helper visibility, web settings replacement, settings handlers, tests, guides, ledger, and notes.
+The explicit library open holds a shared console lease and the exclusive shadow slot. Offline and maintenance opens remain exclusive.
+Grants bind to root, policy revision, batch, epoch, and lease lifetime. New coordinated sessions cannot resume old journals.
+Pause and successful settings replacements revoke prior grants. Every production settings replacement uses the common setter.
+Fresh review found missing revocation in ordinary settings handlers. Its regression failed before the fix and passed afterward.
+Mock protocol cases cover known replies, exact rollback, lost replies, and cancellation during an in-flight request.
+Final checks: format passed, 314 tests passed, zero failures, 12 ignored, strict all-target Clippy passed.
+Documentation links and diff checks passed. The STE heuristic received manual review for technical terms.
+No UI layout or dependency changed. No new browser test or performance benchmark ran for this backend stage.
+No live router access, production settings, shaping output, package change, service change, or restart occurred.
+Next: distributed controls, recovery approval, and separately authorized isolated RouterOS acceptance before any runtime activation.
+Local epochs require the same coordinator. They do not deliver pause across console processes or recall an in-flight request.
+No scheduler, CLI, HTTP action, or accepted automatic mode enables this library. No lab is available.
+Preserve unrelated frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-31-coordinated-worker]] and `v3/CORE_WORKER.md`.

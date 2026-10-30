@@ -160,7 +160,7 @@ pub(crate) async fn commit(
         {
             return error(&a, e);
         }
-        a.settings = next;
+        a.replace_settings(next);
         a.status =
             "Orchestration settings saved. Waiting for a complete healthy local generation.".into();
         Redirect::to(location).into_response()

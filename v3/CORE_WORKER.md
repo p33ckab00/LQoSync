@@ -1,4 +1,4 @@
-# Guarded offline worker and fresh verifier
+# Guarded worker and fresh verifier
 
 `core_worker` connects fresh verification to the scoped RouterOS transport and the bounded executor.
 This stage adds a library. No CLI, HTTP action, scheduler, or automatic-mode option starts it.
@@ -23,10 +23,37 @@ Each later batch needs fresh preparation and review.
 `Prepared::open` requires that revision and the same canonical data directory.
 A batch from directory A cannot get a different fence in directory B.
 The unchanged exclusive executor lease excludes every console, maintenance operation, and competing writer for that directory.
-This worker cannot run alongside the live console. Do not stop the live console to try this library without separate authorization.
+The offline open cannot run alongside a console. Do not stop the live console to try this library without separate authorization.
 
 Approval starts closed. An exact approved open creates one expiring grant.
 A caller can keep `Worker::approval` and revoke it. No method silently restores a revoked grant.
+
+## Coordinated library open
+
+`Prepared::open_coordinated` adds a separate, explicit library path. No deployed action calls it.
+The caller must pass the existing console's `core_coordinator`, the exact approved batch revision, and a fresh source.
+The coordinator binds to one canonical data directory. A coordinator from another directory rejects.
+The open checks persisted settings before it creates a recovery marker.
+
+The coordinated worker retains a shared application lease and holds the same exclusive process slot as shadow previews.
+This allows the existing console to remain open. It excludes maintenance, offline writers, shadow work, and other coordinated workers.
+New consoles still reject an active recovery marker.
+This does not create a RouterOS transaction or exclude external router scripts and administrators.
+
+Approval checks the local coordinator epoch. Pause and every successful settings replacement revoke prior work immediately.
+A restore of previous settings does not restore the old grant. Lease drop also revokes detached approval handles.
+Fresh source verification checks persisted settings and actual router evidence after awaited collection work.
+
+These local epoch checks require the same console coordinator. They do not provide distributed pause delivery to another console process.
+A request that already entered the transport can complete after pause. Do not infer that pause reverses an in-flight request.
+
+Coordinated open accepts new sessions only. It cannot resume an old journal, replace another marker, or reconstruct approval after restart.
+Cancellation, lost replies, and unsuccessful completion preserve the recovery marker.
+Only freshly verified completion with active approval can remove its matching marker.
+The read-only [recovery viewer](SHADOW_CONTROLS.md) can inspect retained records. It cannot approve recovery.
+
+The console rejects automatic mode. There is no scheduler, CLI, or HTTP activation for this library path.
+Do not add a live caller before isolated RouterOS acceptance and separately reviewed production authorization.
 
 ## Fresh verification
 
@@ -77,5 +104,5 @@ They also cover approval, directory binding, batch limits, routing-policy change
 Mocks do not prove RouterOS field behavior, WAN attribution, same-ID moves, connection-mark behavior, or uninterrupted failover.
 
 [Shadow controls](SHADOW_CONTROLS.md) add read-only coordination, pause, and saved-journal inspection.
-Online mutation coordination, recovery approval, and isolated RouterOS acceptance remain pending.
+Coordinated execution has mock protocol proof. Runtime activation, distributed controls, recovery approval, and isolated RouterOS acceptance remain pending.
 Keep automatic writes disabled until those stages and the exact production scope have passed review.

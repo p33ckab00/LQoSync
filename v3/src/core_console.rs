@@ -103,7 +103,7 @@ pub fn monitor_router(settings: &Settings, router: &str) -> bool {
             })
         })
 }
-fn persisted_policy(root: &std::path::Path, expected: &str) -> Result<()> {
+pub(crate) fn persisted_policy(root: &std::path::Path, expected: &str) -> Result<()> {
     // Do not recreate a removed settings file during a preview check.
     let current: Settings = toml::from_str(&std::fs::read_to_string(root.join("settings.toml"))?)?;
     ensure!(

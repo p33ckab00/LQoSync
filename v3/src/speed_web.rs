@@ -62,7 +62,7 @@ pub async fn save_rules(State(s): State<Shared>, Form(f): Form<RulesForm>) -> Re
     if let Err(e) = store::save_settings(&a.root, &next) {
         return error(&a, e);
     }
-    a.settings = next;
+    a.replace_settings(next);
     Redirect::to("/speed-rules").into_response()
 }
 pub async fn router_speeds(State(s): State<Shared>, Path(id): Path<String>) -> Response {

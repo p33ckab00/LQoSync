@@ -1,7 +1,8 @@
 # Shadow coordination and recovery inspection
 
 Core control remains a read-only preview. Automatic writes remain disabled.
-The offline worker still requires an exclusive lease. It cannot run beside the normal console.
+The offline worker still requires an exclusive lease. Its offline open cannot run beside the normal console.
+A separate [coordinated library path](CORE_WORKER.md#coordinated-library-open) has no automatic, CLI, or HTTP caller.
 See [Core control](CORE_CONTROL.md) and [the offline worker](CORE_WORKER.md).
 
 ## Pause the preview
@@ -67,6 +68,6 @@ One asynchronous inspection runs at a time per viewer process. A limited report 
 Records from the protected-row maintenance engine have a different schema. Use [its recovery guide](CORE_MAINTENANCE.md).
 
 Approval, resume, rollback, and marker removal remain locked. There is no HTTP action to bypass these limits.
-Actual online writer coordination and recovery grants remain pending.
+Coordinated worker code has mock tests. Runtime activation, distributed controls, recovery grants, and RouterOS lab acceptance remain pending.
 Isolated RouterOS acceptance and separate production authorization remain necessary before router writes.
 Mock tests do not prove uninterrupted production traffic or RouterOS field behavior.

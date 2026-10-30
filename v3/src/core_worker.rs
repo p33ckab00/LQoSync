@@ -1,4 +1,4 @@
-//! Fresh verification and bounded offline execution. No console or automatic enable caller exists.
+//! Fresh verification and bounded execution. No HTTP, CLI, or automatic enable caller exists.
 use crate::{
     core_console::{self, Runtime},
     core_writer::{Batch, Evidence, Executor, Rows},
@@ -25,13 +25,19 @@ use std::{
 pub struct Approval {
     enabled: Arc<AtomicBool>,
     expires_at: u64,
+    coordination: Option<crate::core_coordination::WriterGuard>,
 }
 impl Approval {
     pub fn revoke(&self) {
         self.enabled.store(false, Ordering::SeqCst);
     }
     pub fn active(&self) -> bool {
-        self.enabled.load(Ordering::SeqCst) && crate::orchestrator::now() <= self.expires_at
+        self.enabled.load(Ordering::SeqCst)
+            && crate::orchestrator::now() <= self.expires_at
+            && self
+                .coordination
+                .as_ref()
+                .is_none_or(|guard| guard.active())
     }
 }
 /// Capture actual selected routers, not cached App inventory. Confirm settings after all parsing work.
@@ -429,10 +435,50 @@ impl Prepared {
             crate::orchestrator::now() <= self.expires_at,
             "Worker approval expired"
         );
-        let executor = Executor::open(root, self.batch, approved)?;
+        self.build(root, source, None, |batch| {
+            Executor::open(root, batch, approved)
+        })
+    }
+    /// Library-only coordinated execution. No automatic, scheduler, CLI, or HTTP caller exists.
+    /// Exact approval is mandatory. This method cannot resume an existing journal.
+    pub fn open_coordinated<S: Source>(
+        self,
+        root: &Path,
+        approved: &str,
+        source: S,
+        coordinator: &crate::core_coordination::Coordinator,
+    ) -> Result<Worker<S>> {
+        ensure!(
+            root.canonicalize()? == self.guard.root,
+            "Prepared batch belongs to another data directory"
+        );
+        ensure!(
+            self.revision()? == approved,
+            "Exact batch approval required"
+        );
+        ensure!(
+            crate::orchestrator::now() <= self.expires_at,
+            "Worker approval expired"
+        );
+        core_console::persisted_policy(root, &self.guard.revision)?;
+        let lease = coordinator.begin_writer(root, &self.guard.revision, approved)?;
+        let coordination = lease.guard();
+        self.build(root, source, Some(coordination), |batch| {
+            Executor::open_coordinated(root, batch, approved, lease)
+        })
+    }
+    fn build<S: Source>(
+        self,
+        root: &Path,
+        source: S,
+        coordination: Option<crate::core_coordination::WriterGuard>,
+        open: impl FnOnce(Batch) -> Result<Executor>,
+    ) -> Result<Worker<S>> {
+        let executor = open(self.batch)?;
         let approval = Approval {
             enabled: Arc::new(AtomicBool::new(true)),
             expires_at: self.expires_at,
+            coordination,
         };
         let verifier = GuardedVerifier {
             context: digest(&self.guard)?,
@@ -478,7 +524,7 @@ impl<S: Source> Verifier for GuardedVerifier<S> {
             self.source.confirm(&next.revision).await?;
             ensure!(
                 self.approval.active() && crate::orchestrator::now() <= until,
-                "Approval or verification expired after collection"
+                "Approval revoked or verification expired after collection"
             );
             self.last = next;
             Ok(Evidence {
@@ -523,6 +569,7 @@ mod tests {
         let approval = Approval {
             enabled: Arc::new(AtomicBool::new(true)),
             expires_at: crate::orchestrator::now() - 1,
+            coordination: None,
         };
         assert!(!approval.active());
         let approval = Approval {

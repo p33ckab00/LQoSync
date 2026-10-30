@@ -186,11 +186,7 @@ async fn persist(
         if let Err(e) = crate::store::save_settings(&a.root, &next) {
             return error(&a, e);
         }
-        a.settings = next;
-        a.core_coordinator.configure(
-            &core_console::revision(&a.settings).unwrap_or_default(),
-            core_console::enabled(&a.settings),
-        );
+        a.replace_settings(next);
         let epoch = a.core_runtime.epoch.wrapping_add(1);
         a.core_runtime = core_console::Runtime {
             epoch,
