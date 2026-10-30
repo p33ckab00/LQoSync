@@ -34,6 +34,7 @@ pub async fn after_mutation(State(s): State<Shared>, request: Request, next: Nex
     let post = request.method() == Method::POST;
     let response = next.run(request).await;
     if post && response.status().is_redirection() {
+        crate::core_console::refresh(s.clone()).await;
         refresh(s).await;
     }
     response
@@ -179,15 +180,21 @@ pub async fn refresh(s: Shared) {
 }
 
 pub async fn cycle(s: Shared) {
+    cycle_with_publication(s, true).await;
+}
+/// Health ticks collect and preview without accelerating ordinary generation publication.
+pub async fn cycle_with_publication(s: Shared, publish: bool) {
     let (settings, routers, root) = {
         let mut a = s.lock().await;
-        if !a.settings.auto_stage {
+        if !a.settings.auto_stage && !crate::core_console::enabled(&a.settings) {
             return;
         }
-        if !normalizer::has_bindings(&a.settings) {
+        if !normalizer::has_bindings(&a.settings) && !crate::core_console::enabled(&a.settings) {
             drop(a);
-            let mut a = s.clone().lock_owned().await;
-            let _ = tokio::task::spawn_blocking(move || a.reconcile()).await;
+            if publish {
+                let mut a = s.clone().lock_owned().await;
+                let _ = tokio::task::spawn_blocking(move || a.reconcile()).await;
+            }
             return;
         }
         let settings = a.settings.clone();
@@ -219,8 +226,13 @@ pub async fn cycle(s: Shared) {
     for _ in 0..4 {
         if let Some((router, ticket)) = pending.next() {
             let root = root.clone();
+            let health = crate::core_console::monitor_router(&settings, &router.id);
             tasks.spawn(async move {
-                let result = routeros::inspect_from(&router, &root).await;
+                let result = if health {
+                    routeros::inspect_health_from(&router, &root).await
+                } else {
+                    routeros::inspect_from(&router, &root).await
+                };
                 (router.id, ticket, result)
             });
         }
@@ -237,15 +249,22 @@ pub async fn cycle(s: Shared) {
         }
         {
             let a = s.lock().await;
-            if !a.settings.auto_stage || a.settings != settings {
+            if (!a.settings.auto_stage && !crate::core_console::enabled(&a.settings))
+                || a.settings != settings
+            {
                 tasks.abort_all();
                 return;
             }
         }
         if let Some((router, ticket)) = pending.next() {
             let root = root.clone();
+            let health = crate::core_console::monitor_router(&settings, &router.id);
             tasks.spawn(async move {
-                let result = routeros::inspect_from(&router, &root).await;
+                let result = if health {
+                    routeros::inspect_health_from(&router, &root).await
+                } else {
+                    routeros::inspect_from(&router, &root).await
+                };
                 (router.id, ticket, result)
             });
         }
@@ -265,5 +284,8 @@ pub async fn cycle(s: Shared) {
         }
     })
     .await;
-    refresh(s).await;
+    crate::core_console::refresh(s.clone()).await;
+    if publish {
+        refresh(s).await;
+    }
 }

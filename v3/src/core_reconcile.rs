@@ -17,7 +17,7 @@ use std::{
     sync::Arc,
 };
 const MEMBERS: &str = "/ip/firewall/address-list/print";
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Options {
     pub evacuate_active: bool,

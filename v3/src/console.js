@@ -57,7 +57,7 @@ document.querySelectorAll('a[href^="#"]').forEach((link) => {
 });
 
 // Native dialogs keep configuration outside the page's stacking contexts.
-const configurationPaths = /^\/(?:nodes\/save|nodes\/[^/]+\/delete|routers\/save|routers\/[^/]+\/delete|settings\/save|sources\/save|sources\/selection(?:\/[^/]+\/delete)?|wans\/save|assignments\/(?:pool|pin)|speed-rules\/(?:save|dhcp)|core-lists\/save|dynamic\/[^/]+)$/;
+const configurationPaths = /^\/(?:nodes\/save|nodes\/[^/]+\/delete|routers\/save|routers\/[^/]+\/delete|settings\/save|sources\/save|sources\/selection(?:\/[^/]+\/delete)?|wans\/save|assignments\/(?:pool|pin)|speed-rules\/(?:save|dhcp)|core-control\/(?:save|probes)|core-lists\/save|dynamic\/[^/]+)$/;
 let activeEditor = null;
 let editorScroll = "";
 

@@ -411,54 +411,175 @@ async fn selected_read_round_includes_a_mapped_core_router_without_subscriber_bi
 }
 #[tokio::test]
 async fn scheduled_mock_router_collection_reaches_a_committed_subscriber_generation() {
-    let dir = tempfile::tempdir().unwrap();
-    let (mut settings, inventories) = common::fixture();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    settings.routers[0].port = listener.local_addr().unwrap().port();
-    settings.routers[0].password_env = "PATH".into();
-    let tables = inventories["r1"].tables.clone();
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let login = read_sentence(&mut stream).await;
-        assert_eq!(login[0], "/login");
-        let mut done = vec!["!done".into()];
-        done.extend(login.into_iter().filter(|w| w.starts_with(".tag=")));
-        send_sentence(&mut stream, done).await;
-        for _ in 0..14 {
-            let command = read_sentence(&mut stream).await;
-            assert!(command[0].ends_with("/print"));
-            let tag = command
-                .iter()
-                .find(|w| w.starts_with(".tag="))
-                .unwrap()
-                .clone();
-            if let Some(rows) = tables.get(&command[0]) {
-                for row in rows {
-                    let mut reply = vec!["!re".into(), tag.clone()];
-                    reply.extend(row.iter().map(|(k, v)| format!("={k}={v}")));
-                    send_sentence(&mut stream, reply).await;
+    for publish in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut settings, inventories) = common::fixture();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        settings.routers[0].port = listener.local_addr().unwrap().port();
+        settings.routers[0].password_env = "PATH".into();
+        let tables = inventories["r1"].tables.clone();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let login = read_sentence(&mut stream).await;
+            assert_eq!(login[0], "/login");
+            let mut done = vec!["!done".into()];
+            done.extend(login.into_iter().filter(|w| w.starts_with(".tag=")));
+            send_sentence(&mut stream, done).await;
+            for _ in 0..14 {
+                let command = read_sentence(&mut stream).await;
+                assert!(command[0].ends_with("/print"));
+                let tag = command
+                    .iter()
+                    .find(|w| w.starts_with(".tag="))
+                    .unwrap()
+                    .clone();
+                if let Some(rows) = tables.get(&command[0]) {
+                    for row in rows {
+                        let mut reply = vec!["!re".into(), tag.clone()];
+                        reply.extend(row.iter().map(|(k, v)| format!("={k}={v}")));
+                        send_sentence(&mut stream, reply).await;
+                    }
                 }
+                send_sentence(&mut stream, vec!["!done".into(), tag]).await;
             }
-            send_sentence(&mut stream, vec!["!done".into(), tag]).await;
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        });
+        store::save_settings(dir.path(), &settings).unwrap();
+        let state = Arc::new(Mutex::new(App::open(dir.path().into()).unwrap()));
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            orchestrator::cycle_with_publication(state.clone(), publish),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            store::load_snapshot(dir.path()).unwrap().len(),
+            if publish { 3 } else { 0 }
+        );
+        assert!(state.lock().await.inventory_errors.is_empty());
+        if publish {
+            assert!(
+                state
+                    .lock()
+                    .await
+                    .status
+                    .contains("3 normalized subscribers")
+            );
         }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    });
-    store::save_settings(dir.path(), &settings).unwrap();
-    let state = Arc::new(Mutex::new(App::open(dir.path().into()).unwrap()));
-    tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        orchestrator::cycle(state.clone()),
-    )
-    .await
-    .unwrap();
-    assert_eq!(store::load_snapshot(dir.path()).unwrap().len(), 3);
-    assert!(state.lock().await.inventory_errors.is_empty());
-    assert!(
-        state
-            .lock()
-            .await
-            .status
-            .contains("3 normalized subscribers")
-    );
-    server.await.unwrap();
+        server.await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn optional_netwatch_failure_blocks_preview_but_preserves_ordinary_publication() {
+    use lqosync_v3::{
+        core_console, dynamic,
+        wan_health::{self, Monitor, Probe},
+    };
+    for auto_stage in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut settings, mut inventories) = common::fixture();
+        Arc::make_mut(inventories.get_mut("r1").unwrap())
+            .tables
+            .insert(
+                "/interface/print".into(),
+                vec![
+                    [
+                        ("name".into(), "uplink".into()),
+                        ("running".into(), "true".into()),
+                        ("disabled".into(), "false".into()),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ],
+            );
+        let tables = inventories["r1"].tables.clone();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        settings.routers[0].role = "both".into();
+        settings.routers[0].port = listener.local_addr().unwrap().port();
+        settings.routers[0].password_env = "PATH".into();
+        settings.nodes[0].router = "r1".into();
+        settings.nodes[0].source = "uplink".into();
+        let mut settings = dynamic::migrate(&settings).unwrap();
+        settings.auto_stage = auto_stage;
+        settings.core_control = Some(core_console::Config::default());
+        settings.wan_health = Some(wan_health::Config {
+            monitors: vec![Monitor {
+                wan: "wan".into(),
+                probes: [
+                    Probe {
+                        id: "*AA".into(),
+                        target: "1.1.1.1".parse().unwrap(),
+                    },
+                    Probe {
+                        id: "*BB".into(),
+                        target: "8.8.8.8".parse().unwrap(),
+                    },
+                ],
+            }],
+            ..Default::default()
+        });
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let login = read_sentence(&mut stream).await;
+            let mut done = vec!["!done".into()];
+            done.extend(login.into_iter().filter(|w| w.starts_with(".tag=")));
+            send_sentence(&mut stream, done).await;
+            let mut paths = vec![];
+            for _ in 0..(14 + lqosync_v3::core_plan::EXTRA_TABLES.len() + 1) {
+                let command = read_sentence(&mut stream).await;
+                assert!(command[0].ends_with("/print"));
+                paths.push(command[0].clone());
+                let tag = command
+                    .iter()
+                    .find(|w| w.starts_with(".tag="))
+                    .unwrap()
+                    .clone();
+                if command[0] == wan_health::NETWATCH {
+                    send_sentence(
+                        &mut stream,
+                        vec![
+                            "!trap".into(),
+                            tag.clone(),
+                            "=message=permission denied".into(),
+                        ],
+                    )
+                    .await;
+                } else if let Some(rows) = tables.get(&command[0]) {
+                    for row in rows {
+                        let mut reply = vec!["!re".into(), tag.clone()];
+                        reply.extend(row.iter().map(|(k, v)| format!("={k}={v}")));
+                        send_sentence(&mut stream, reply).await;
+                    }
+                }
+                send_sentence(&mut stream, vec!["!done".into(), tag]).await;
+            }
+            paths
+        });
+        store::save_settings(dir.path(), &settings).unwrap();
+        let state = Arc::new(Mutex::new(App::open(dir.path().into()).unwrap()));
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            orchestrator::cycle(state.clone()),
+        )
+        .await
+        .unwrap();
+        assert!(
+            server
+                .await
+                .unwrap()
+                .iter()
+                .any(|p| p == wan_health::NETWATCH)
+        );
+        let a = state.lock().await;
+        assert!(
+            a.inventories["r1"]
+                .errors
+                .contains_key(wan_health::NETWATCH)
+        );
+        assert!(a.core_runtime.health.contains_key("wan"));
+        assert!(a.core_runtime.preview.is_none());
+        assert_eq!(dir.path().join("state/current.toml").exists(), auto_stage);
+        assert!(!dir.path().join("state/core-migration-active.json").exists());
+    }
 }

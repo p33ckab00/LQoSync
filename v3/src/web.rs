@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct App {
+    pub core_runtime: crate::core_console::Runtime,
     _writer_lease: Arc<crate::migration_fence::Lease>,
     pub root: PathBuf,
     pub settings: Settings,
@@ -37,6 +38,7 @@ impl App {
         let settings = store::load_settings(&root)?;
         let generation = store::current_generation(&root);
         Ok(Self {
+            core_runtime: Default::default(),
             _writer_lease: writer_lease,
             root,
             settings,
@@ -130,6 +132,12 @@ pub fn routes(state: Shared) -> HttpRouter {
         .route("/assignments", get(crate::assignment_web::assignments))
         .route("/assignments/pool", post(crate::assignment_web::save_pool))
         .route("/assignments/pin", post(crate::assignment_web::save_pin))
+        .route("/core-control", get(crate::core_control_web::page))
+        .route("/core-control/save", post(crate::core_control_web::save))
+        .route(
+            "/core-control/probes",
+            post(crate::core_control_web::probes),
+        )
         .route("/core-lists", get(crate::core_web::page))
         .route("/core-lists/save", post(crate::core_web::save))
         .route("/core-review", get(crate::core_review_web::page))

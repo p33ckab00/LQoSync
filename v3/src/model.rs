@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 #[serde(deny_unknown_fields)]
 pub struct Settings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub core_control: Option<crate::core_console::Config>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wan_health: Option<crate::wan_health::Config>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dynamic: Option<crate::dynamic::Config>,
@@ -37,6 +39,7 @@ impl Default for Settings {
         Self {
             dynamic: None,
             wan_health: None,
+            core_control: None,
             interval_seconds: 30,
             auto_stage: true,
             speed_rules: crate::speeds::SpeedRules::default(),
@@ -128,6 +131,9 @@ pub fn valid_id(id: &str) -> bool {
 
 pub fn validate(settings: &Settings) -> Result<()> {
     settings.speed_rules.validate()?;
+    if let Some(c) = &settings.core_control {
+        c.validate()?;
+    }
     if let Some(config) = &settings.wan_health {
         config.validate_settings(settings)?;
     }

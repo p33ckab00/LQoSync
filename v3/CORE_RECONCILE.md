@@ -1,10 +1,11 @@
 # Health-aware core reconciliation planner
 
 The `core_reconcile` library produces decisions from fresh source observations, actual core rows, and WAN health evidence.
-It has no live caller, scheduler hook, HTTP action, or RouterOS mutation method.
+The [Core control preview](CORE_CONTROL.md) calls this library from the scheduler and after configuration saves.
+The library has no RouterOS mutation method.
 It does not save assignments or publish shaping output.
 A separate [guarded writer library](CORE_WRITER.md) implements bounded execution and recovery.
-Continuous scheduling, UI controls, and live authorization remain separate implementation phases.
+Live worker integration and production authorization remain separate implementation phases.
 
 ## Inputs and validation
 

@@ -233,7 +233,15 @@ pub async fn inspect_from(router: &Router, root: &std::path::Path) -> Result<Inv
     let password = crate::credentials::password(root, router).await?;
     inspect_with_password(router, password).await
 }
+/// Configured console preview only; ordinary inventory reads retain their original table set.
+pub async fn inspect_health_from(router: &Router, root: &std::path::Path) -> Result<Inventory> {
+    let password = crate::credentials::password(root, router).await?;
+    inspect_with_health(router, password, true).await
+}
 async fn inspect_with_password(router: &Router, password: String) -> Result<Inventory> {
+    inspect_with_health(router, password, false).await
+}
+async fn inspect_with_health(router: &Router, password: String, health: bool) -> Result<Inventory> {
     let client = Client::connect_with_password(router, &password).await?;
     drop(password);
     let mut paths = vec![
@@ -258,6 +266,9 @@ async fn inspect_with_password(router: &Router, password: String) -> Result<Inve
     }
     if router.role == "core" || router.role == "both" {
         paths.extend(crate::core_plan::EXTRA_TABLES.iter().copied());
+        if health {
+            paths.push(crate::wan_health::NETWATCH);
+        }
     }
     let mut inventory = Inventory {
         router_id: router.id.clone(),

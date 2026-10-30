@@ -2,7 +2,7 @@
 
 The `wan-health-preview` CLI reads selected Netwatch probes and produces JSON health reports.
 It does not change router configuration, save inventory, change assignments, or start a writer.
-The console does not display or consume these health states yet.
+The [Core control page](CORE_CONTROL.md) can collect and display separate in-memory health and reconciliation previews.
 Without WAN health configuration, the CLI reports `configured: false` and makes no router connections.
 
 ## Requirements
@@ -85,7 +85,7 @@ A failed read clears confidence. It does not prove that a WAN failed.
 A confirmed state can persist through sub-threshold failures or recovery rounds until evidence expires.
 
 These values are preview evidence. They do not count subscribers, change WAN assignments, or prove the actual traffic path.
-The [reconciliation planner](CORE_RECONCILE.md) is a separate pure library. The writer, modal controls, and rollout authorization remain pending.
+The [reconciliation planner](CORE_RECONCILE.md) is a separate pure library. Modal controls and scheduled previews exist. Integrated mutation workers and rollout authorization remain pending.
 
 ## Verification limit
 

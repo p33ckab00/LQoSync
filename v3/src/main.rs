@@ -19,10 +19,16 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(Mutex::new(app));
     let background = state.clone();
     tokio::spawn(async move {
+        let mut last_publication = tokio::time::Instant::now();
         loop {
-            let seconds = background.lock().await.settings.interval_seconds;
+            let seconds = lqosync_v3::core_console::interval(&background.lock().await.settings);
             tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
-            lqosync_v3::orchestrator::cycle(background.clone()).await;
+            let interval = background.lock().await.settings.interval_seconds;
+            let publish = last_publication.elapsed().as_secs() >= interval;
+            lqosync_v3::orchestrator::cycle_with_publication(background.clone(), publish).await;
+            if publish {
+                last_publication = tokio::time::Instant::now();
+            }
         }
     });
     let listener = tokio::net::TcpListener::bind(bind).await?;

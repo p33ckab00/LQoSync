@@ -86,8 +86,8 @@ Files: modify `v3/src/web.rs`, `v3/src/orchestrator.rs`, the existing form/rende
 
 Interfaces: an authenticated settings action selects preview, paused, or automatic mode with a current settings revision. A bounded worker consumes the latest valid reconciliation plan.
 
-- [ ] Write failing tests for default preview, pause, stale forms, token checks, enable prerequisites, and settings changes during queued work.
-- [ ] Add modal controls for probes, failure mode, pin override, cleanup grace, thresholds, and batch size.
+- [x] Write failing tests for default preview, pause, stale forms, token checks, enable prerequisites, and settings changes during queued work.
+- [x] Add modal controls for probes, failure mode, pin override, cleanup grace, thresholds, and batch size.
 - [ ] Show desired/observed counts, health reasons, blocked moves, pending journals, and last verified operation separately from applied shaping.
 - [ ] Keep network I/O outside the App lock. Bound collection concurrency and serialize mutations per router.
 - [ ] Validate actual membership before normal output publication. A candidate or list update must never claim production shaping apply.
@@ -124,3 +124,14 @@ Rollback of a deletion restores fields under the actual newly returned RouterOS 
 Task 3 final checks: 278 tests passed, zero failures, 12 ignored. Format and strict Clippy passed.
 Twenty-one writer tests and one deterministic completion-window unit test passed.
 Final review found no outstanding defect. No live caller, production verifier, or automatic enable path exists.
+
+
+Task 4 preview stage: scheduler and modal controls now expose health and reconciliation without a writer caller.
+Automatic mode rejects until isolated acceptance, a live verifier, and console/writer lease coordination exist.
+Health-only ticks preserve the ordinary publication interval. Read concurrency remains at most four.
+Unknown counts replace stale or incomplete plans. Source failures retain available health diagnostics and discard cleanup receipts.
+Task 4 remains incomplete: mutation coordination, journal controls, last verified operations, and next-send pause checks need integration.
+See `v3/CORE_CONTROL.md` and the core console execution ledger.
+
+Task 4 preview verification: 287 tests passed, zero failures, 12 ignored. Format and strict Clippy passed.
+Eight console tests, 11 scheduler tests, and five-width Chromium checks passed. Fresh review found no remaining material defect.

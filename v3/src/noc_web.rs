@@ -66,6 +66,7 @@ pub(crate) fn shell(a: &App, title: &str, content: Markup) -> Html<String> {
             "Routing & verification",
             &[
                 ("/core-lists", "Core lists", "☷"),
+                ("/core-control", "Core control", "⚙"),
                 ("/core-review", "Core review", "◎"),
                 ("/validation", "Validation", "✓"),
             ],

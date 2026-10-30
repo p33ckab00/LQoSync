@@ -31,6 +31,7 @@ fn settings() -> Settings {
     Settings {
         dynamic: None,
         wan_health: None,
+        core_control: None,
         interval_seconds: 30,
         auto_stage: true,
         speed_rules: Default::default(),

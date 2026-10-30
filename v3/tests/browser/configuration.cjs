@@ -6,14 +6,14 @@ const origin = 'http://127.0.0.1:19304'; // Synthetic preview only. Never point 
  try {
  const page=await browser.newPage({viewport:{width:1440,height:900}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const routes=['/','/routers','/topology','/wans','/sources','/assignments','/subscribers','/speed-rules','/core-lists','/core-review','/validation','/settings'];
+ const routes=['/','/routers','/topology','/wans','/sources','/assignments','/subscribers','/speed-rules','/core-lists','/core-review','/core-control','/validation','/settings'];
  for(const width of [1440,390,320]){
   await page.setViewportSize({width,height:900});
   for(const route of routes){const response=await page.goto(origin+route);assert.equal(response.status(),200,route);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`overflow ${width} ${route}`);}
  }
  for(const [width,columns] of [[1440,3],[1100,2],[720,1],[390,1],[320,1]]){
   await page.setViewportSize({width,height:900});
-  for(const route of ['/settings','/wans','/core-lists','/assignments']){
+  for(const route of ['/settings','/wans','/core-lists','/assignments','/core-control']){
    await page.goto(origin+route);
    assert(await page.evaluate(()=>parseFloat(getComputedStyle(document.body).fontSize)>=14),`body font ${route}`);
    assert(await page.locator('.cardgrid').count()>0,`missing card grid ${route}`);

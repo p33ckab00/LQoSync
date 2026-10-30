@@ -714,3 +714,22 @@ Synthetic tests, sanitized actual fixture, guides, plan, and notes accompany the
 Private settings, credentials, raw inventory, and candidate reports must remain ignored.
 Next: review protected manual membership and a per-host migration plan without writes or ownership bypass.
 See [[10-sessions/2026-10-29-scoped-routing-minimums]]. Commit/push authorization continues. Verify remote head against the local tip.
+
+
+## Core console preview verified; integrated writer pending
+
+Updated: 2026-10-30T23:08:51+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-console`. Worktree: `/tmp/lqosync-core-console`. Base: `b51af71`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Goal: connect health and reconciliation previews to the scheduler and modal controls.
+Changed files: core_console, core_control_web, model, scheduler, RouterOS optional reads, navigation, modal recognition, tests, guides, plan, and notes.
+Automatic mode rejects. No writer caller, production verifier, or lease upgrade exists.
+The preview discards superseded results and cleanup receipts after incomplete observations.
+Health-only ticks preserve the ordinary publication interval. Caller cancellation cannot strand busy state.
+Eight focused console tests passed. Format and strict Clippy passed. Final full-suite result: 287 passed, zero failures, 12 ignored.
+Five-width Chromium checks passed. Fresh review found no remaining material defect.
+No live router reads/writes, production settings, shaping outputs, credentials, service changes, or restart occurred.
+Next: complete Task 4 writer coordination, live verifier, journal controls, and interruption tests.
+Keep automatic writes disabled until isolated RouterOS acceptance and concrete rollout authorization exist.
+Preserve the separate frontend planning edits in the main checkout.
+See [[10-sessions/2026-10-30-core-console-preview]] and `v3/CORE_CONTROL.md`.
