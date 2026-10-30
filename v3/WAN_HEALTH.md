@@ -79,11 +79,13 @@ Stop the process with Ctrl+C. The preview does not require a console restart or 
 One successful target makes a round successful. Both probe counters must advance before a round can contribute.
 Counter jumps count as one observed round. Repeated reads cannot refresh evidence freshness.
 A router/probe reset, policy change, or clock reversal resets the baseline.
+Evidence includes its canonical settings revision and WAN identity for downstream validation.
+Consumers must check the completed-sample lifetime through `State::status_at`, not only the last read timestamp.
 A failed read clears confidence. It does not prove that a WAN failed.
 A confirmed state can persist through sub-threshold failures or recovery rounds until evidence expires.
 
 These values are preview evidence. They do not count subscribers, change WAN assignments, or prove the actual traffic path.
-The reconciliation planner, writer, modal controls, and rollout authorization remain separate implementation phases.
+The [reconciliation planner](CORE_RECONCILE.md) is a separate pure library. The writer, modal controls, and rollout authorization remain pending.
 
 ## Verification limit
 

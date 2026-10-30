@@ -164,7 +164,7 @@ pub(crate) fn span(address: &str) -> Result<(u32, u32)> {
     let ip = host(address)?;
     Ok((ip, ip))
 }
-fn owned<'a>(comment: &'a str, owner: &str) -> Result<Option<(&'a str, &'a str)>> {
+pub(crate) fn owned<'a>(comment: &'a str, owner: &str) -> Result<Option<(&'a str, &'a str)>> {
     let prefix = format!("lqosync3:{owner}:");
     let Some(rest) = comment.strip_prefix(&prefix) else {
         return Ok(None);

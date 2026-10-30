@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
         .context("Existing settings.toml required; preview never creates defaults")?;
     let settings: model::Settings = toml::from_str(&raw)?;
     model::validate(&settings)?;
-    let revision = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, raw.as_bytes()).to_string();
+    let revision = wan_health::settings_revision(&settings)?;
     let Some(config) = settings
         .wan_health
         .as_ref()

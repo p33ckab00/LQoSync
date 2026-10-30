@@ -52,15 +52,15 @@ Files: create `v3/src/core_reconcile.rs` and `v3/tests/core_reconcile.rs`; modif
 Interfaces: define `ReconcilePlan` with reasons and typed `Keep`, `Add`, `Remove`, `Move`, and `Blocked` decisions. Inputs include source observation, health state, settings revision, actual owned rows, and prior cleanup evidence.
 Moves carry exact before/after members and the unchanged row ID. The planner is pure and does not send commands.
 
-- [ ] Write failing tests for arrivals, reconnects, retained sessions, manual mode, pinned clients, and failed-WAN evacuation.
-- [ ] Add tests for unknown health, no healthy destination, pin override off/on, and stable recovery without forced failback.
-- [ ] Run `cargo test --locked --test core_reconcile`; confirm RED.
-- [ ] Reuse current count scoring and deterministic tie-breaking. Count retained and pinned online clients before assigning arrivals or evacuees.
-- [ ] Track confirmed absence separately from a collection failure. Do not treat wholly empty scans as mass-removal authority.
-- [ ] Test exact 30-second cleanup boundary, IP changes, IP reuse, overlapping residuals, and cross-core destinations.
-- [ ] Separate structural route errors from source availability. Preserve strict destination checks and reject unknown routing structures.
-- [ ] Test that a failed source route permits only supported evacuation while malformed destinations still block.
-- [ ] Run focused tests to GREEN. Commit the tested planner without a live caller.
+- [x] Write failing tests for arrivals, reconnects, retained sessions, manual mode, pinned clients, and failed-WAN evacuation.
+- [x] Add tests for unknown health, no healthy destination, pin override off/on, and stable recovery without forced failback.
+- [x] Run `cargo test --locked --test core_reconcile`; confirm RED.
+- [x] Reuse current count scoring and deterministic tie-breaking. Count retained and pinned online clients before assigning arrivals or evacuees.
+- [x] Track confirmed absence separately from a collection failure. Do not treat wholly empty scans as mass-removal authority.
+- [x] Test exact 30-second cleanup boundary, IP changes, IP reuse, overlapping residuals, and cross-core destinations.
+- [x] Separate structural route errors from source availability. Preserve strict destination checks and reject unknown routing structures.
+- [x] Test that a failed source route permits only supported evacuation while malformed destinations still block.
+- [x] Run focused tests to GREEN. Commit the tested planner without a live caller.
 
 ## Task 3: Scoped writer and durable recovery
 
@@ -108,6 +108,11 @@ Interfaces: an authenticated settings action selects preview, paused, or automat
 Health configuration, state machine, conservative provider, and read-only CLI are implemented.
 Verification: 243 tests passed, zero failures, 12 manual tests ignored. Format and strict Clippy passed.
 Focused health/provider and CLI checks: 11 passed. Fresh review found no material defect.
-The provider still requires isolated RouterOS field/completion verification. Tasks 2–5 remain pending.
+The provider still requires isolated RouterOS field/completion verification. Task 2 is implemented and verified: 256 tests passed, zero failures, 12 ignored. Tasks 3–5 remain pending.
 No production reads, writes, settings changes, or restarts occurred during implementation.
 See the WAN health execution ledger and `v3/WAN_HEALTH.md`.
+
+Task 2 verification: 13 reconciliation tests passed. Format and strict Clippy passed.
+Fresh review fixes cover cached source indices, revision-bound health, and completed-sample freshness.
+Later RED/GREEN regressions cover first session metadata, manual cleanup, and down destination interfaces.
+No live caller, writer, router read/write, settings change, or restart was introduced.

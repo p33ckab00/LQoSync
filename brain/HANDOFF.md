@@ -13,6 +13,25 @@ Branch: `lqosyncv3`.
 Checkout: `/opt/LQoSync3.0`.
 Code: `9070d1b`; source baseline: `ac4c922`. Earlier base references below are historical.
 
+## Pure reconciliation planner verified; live writer pending
+
+Updated: 2026-10-30T20:06:38+08:00 (Asia/Shanghai). Last agent: Codex.
+Branch: `codex/core-reconcile`. Worktree: `/tmp/lqosync-core-reconcile`. Base: `e96de2a`.
+Integration target: `lqosyncv3` in `/opt/LQoSync3.0`.
+Added the pure health-aware reconciliation planner and synthetic tests. No live caller or transport exists.
+Changed files include core_reconcile, shared dynamic/session helpers, availability-aware route analysis, health evidence binding, CLI revision generation, guides, plan ledger, and notes.
+New decisions cover healthy arrivals/reconnects, stable sessions, failed-WAN evacuation, explicit pin override, and confirmed offline cleanup.
+Protected residuals, reused IPs, IP changes, cross-core moves, and unverified targets remain blocked.
+Settings/WAN identity and completed-sample freshness bind health to decisions. Current healthy destination interfaces must also be enabled/running.
+Source-router indices are cached. Shared continuity preserves eligible clients when session metadata first appears.
+Manual cleanup uses the current non-excluded source selection. Input errors require discarding cleanup receipts.
+Format and strict Clippy passed. Fresh review found no remaining material issue.
+Final full suite: 256 tests passed, zero failures, 12 ignored. Thirteen reconciliation tests passed.
+Format, strict Clippy, diff, documentation links, and Bash syntax checks passed.
+No live router reads/writes, credentials, production settings, shaping output, or services changed.
+Next: implement guarded writer and recovery. Isolated RouterOS provider/transition acceptance and explicit live authorization remain required.
+See [[10-sessions/2026-10-30-core-reconciliation-planner]] and `v3/CORE_RECONCILE.md`.
+
 ## WAN health preview implemented; writer still pending
 
 Updated: 2026-10-30T18:54:37+08:00 (Asia/Shanghai). Last agent: Codex.

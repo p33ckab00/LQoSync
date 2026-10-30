@@ -45,7 +45,7 @@ fn handle_valid(id: &str) -> bool {
 fn normalized_id(id: &str) -> bool {
     uuid::Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id)
 }
-fn validate(state: &Observation) -> Result<()> {
+pub(crate) fn validate(state: &Observation) -> Result<()> {
     crate::dynamic::validate_routes(&state.assignments)?;
     ensure!(
         state.assignments.assignments.len() <= MAX_RECORDS && state.active.len() <= MAX_RECORDS,
@@ -377,16 +377,10 @@ pub fn plan(
         // A retained record without session metadata is a first observation of
         // a formerly manual/planned source. Healthy count-mode absence already
         // removes its assignment, so missing metadata alone is not a reconnect.
-        previous.active.get(id).is_none_or(|old| {
-            old.source_node == current.source_node
-                && old.router == current.router
-                && old.service == current.service
-                && old.id == current.id
-                && match (old.uptime, current.uptime) {
-                    (Some(old), Some(new)) => new >= old,
-                    _ => true,
-                }
-        })
+        previous
+            .active
+            .get(id)
+            .is_none_or(|old| continuous(old, current))
     });
     baseline
         .routes
@@ -465,6 +459,17 @@ impl Revision {
 
 pub fn save(root: &Path, state: &Observation) -> Result<()> {
     load_for_update(root)?.1.save(root, state)
+}
+
+pub(crate) fn continuous(old: &Session, current: &Session) -> bool {
+    old.source_node == current.source_node
+        && old.router == current.router
+        && old.service == current.service
+        && old.id == current.id
+        && match (old.uptime, current.uptime) {
+            (Some(a), Some(b)) => b >= a,
+            _ => true,
+        }
 }
 
 #[cfg(test)]

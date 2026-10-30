@@ -142,6 +142,10 @@ pub enum HealthStatus {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Evidence {
+    #[serde(default)]
+    pub settings_revision: String,
+    #[serde(default)]
+    pub wan: String,
     pub context: String,
     pub observed_at: u64,
     pub router_uptime: u64,
@@ -154,6 +158,12 @@ pub struct State {
     pub status: HealthStatus,
     pub reason: String,
     pub checked_at: u64,
+    #[serde(default)]
+    pub settings_revision: String,
+    #[serde(default)]
+    pub wan: String,
+    #[serde(default)]
+    evidence_seconds: u64,
     context: String,
     counters: [u64; 2],
     router_uptime: u64,
@@ -162,11 +172,14 @@ pub struct State {
     failures: u32,
     recovering_since: Option<u64>,
 }
-fn baseline(e: &Evidence, now: u64, reason: &str) -> State {
+fn baseline(e: &Evidence, now: u64, reason: &str, config: &Config) -> State {
     State {
         status: HealthStatus::Unknown,
         reason: reason.into(),
         checked_at: now,
+        settings_revision: e.settings_revision.clone(),
+        wan: e.wan.clone(),
+        evidence_seconds: config.evidence_seconds,
         context: e.context.clone(),
         counters: e.counters,
         router_uptime: e.router_uptime,
@@ -188,6 +201,8 @@ pub fn evaluate(
         Err(reason) => {
             return Ok(baseline(
                 &Evidence {
+                    settings_revision: String::new(),
+                    wan: String::new(),
                     context: String::new(),
                     observed_at: now,
                     router_uptime: 0,
@@ -196,22 +211,28 @@ pub fn evaluate(
                 },
                 now,
                 &reason,
+                config,
             ));
         }
     };
     if e.context.is_empty() || e.observed_at > now || now - e.observed_at > config.evidence_seconds
     {
-        let mut s = baseline(&e, now, "Invalid, future-dated or stale evidence");
+        let mut s = baseline(&e, now, "Invalid, future-dated or stale evidence", config);
         s.context.clear();
         return Ok(s);
     }
     e.context = uuid::Uuid::new_v5(
         &uuid::Uuid::NAMESPACE_OID,
-        &serde_json::to_vec(&(config, &e.context))?,
+        &serde_json::to_vec(&(config, &e.context, &e.settings_revision, &e.wan))?,
     )
     .to_string();
     let Some(old) = previous else {
-        return Ok(baseline(&e, now, "Waiting for new completed probe rounds"));
+        return Ok(baseline(
+            &e,
+            now,
+            "Waiting for new completed probe rounds",
+            config,
+        ));
     };
     if old.context != e.context
         || now < old.checked_at
@@ -226,6 +247,7 @@ pub fn evaluate(
             &e,
             now,
             "Evidence context changed, clock reversed, or router/probe restarted",
+            config,
         ));
     }
     if now.saturating_sub(old.last_sample_at) > config.evidence_seconds {
@@ -233,6 +255,7 @@ pub fn evaluate(
             &e,
             now,
             "Probe progress is stale; new baseline required",
+            config,
         ));
     }
     let mut s = old.clone();
@@ -439,10 +462,33 @@ pub fn from_inventory(
     )
     .to_string();
     Ok(Evidence {
+        settings_revision: policy_revision.into(),
+        wan: monitor.wan.clone(),
         context,
         observed_at: inventory.collected_at,
         router_uptime: uptime,
         counters,
         passed,
     })
+}
+
+/// Canonical settings identity shared by preview and reconciliation.
+pub fn settings_revision(settings: &crate::model::Settings) -> Result<String> {
+    Ok(uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, &serde_json::to_vec(settings)?).to_string())
+}
+impl State {
+    /// A later read must not extend the lifetime of the last completed sample.
+    pub fn status_at(&self, now: u64, maximum_age: u64) -> HealthStatus {
+        let ttl = maximum_age.min(self.evidence_seconds);
+        if ttl == 0
+            || now < self.checked_at
+            || now < self.last_sample_at
+            || now - self.checked_at > ttl
+            || now - self.last_sample_at > ttl
+        {
+            HealthStatus::Unknown
+        } else {
+            self.status
+        }
+    }
 }

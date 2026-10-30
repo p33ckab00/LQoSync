@@ -464,10 +464,11 @@ pub fn adopt(
     }
     Ok(state)
 }
-pub fn assign_targets(
+fn assign_targets_with(
     s: &Settings,
     rows: &mut [crate::model::Subscriber],
     previous: &AssignmentState,
+    eligible: impl Fn(&Target) -> bool,
 ) -> Result<AssignmentState> {
     let c = s
         .dynamic
@@ -613,6 +614,9 @@ pub fn assign_targets(
         let p = policies[source.as_str()];
         let mut best: Option<(f64, usize, &Target)> = None;
         for t in &p.targets {
+            if !eligible(t) {
+                continue;
+            }
             let w = wan_load.get(&t.wan).copied().unwrap_or_default();
             let n = node_load.get(&t.node).copied().unwrap_or_default();
             let score = if p.metric == "online_clients" {
@@ -695,4 +699,23 @@ fn resolve_with(index: &ReplacementIndex<'_>, policy: &Policy, target: &Target) 
         .clone();
     }
     Ok(current)
+}
+
+/// Existing assignment behavior: every configured destination remains eligible.
+pub fn assign_targets(
+    s: &Settings,
+    rows: &mut [crate::model::Subscriber],
+    previous: &AssignmentState,
+) -> Result<AssignmentState> {
+    assign_targets_with(s, rows, previous, |_| true)
+}
+/// Health filters only pending assignments; retained/pinned clients are counted first.
+pub(crate) fn assign_targets_eligible(
+    s: &Settings,
+    rows: &mut [crate::model::Subscriber],
+    healthy: &std::collections::BTreeSet<String>,
+) -> Result<AssignmentState> {
+    assign_targets_with(s, rows, &AssignmentState::default(), |t| {
+        healthy.contains(&t.wan)
+    })
 }

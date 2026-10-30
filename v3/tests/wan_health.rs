@@ -1,6 +1,8 @@
 use lqosync_v3::wan_health::{Config, Evidence, HealthStatus, State, evaluate};
 fn evidence(at: u64, count: u64, up: bool) -> Evidence {
     Evidence {
+        settings_revision: String::new(),
+        wan: String::new(),
         context: "policy-a".into(),
         observed_at: at,
         router_uptime: at + 1000,

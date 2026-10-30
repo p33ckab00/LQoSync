@@ -47,6 +47,19 @@ pub(crate) fn analyze(
     bindings: &[&Binding],
     interfaces: &HashMap<&str, &str>,
 ) -> Analysis {
+    analyze_available(
+        inventory,
+        bindings,
+        interfaces,
+        &std::collections::HashSet::new(),
+    )
+}
+pub(crate) fn analyze_available(
+    inventory: &Inventory,
+    bindings: &[&Binding],
+    interfaces: &HashMap<&str, &str>,
+    unavailable: &std::collections::HashSet<&str>,
+) -> Analysis {
     let connections = crate::core_connections::analyze(inventory, bindings, interfaces);
     let scopes = crate::core_scopes::analyze(inventory, bindings, interfaces);
     let mut f = Findings(connections.findings);
@@ -299,6 +312,9 @@ pub(crate) fn analyze(
         };
         match (flag(route, "active", false), flag(route, "disabled", false)) {
             (Ok(true), Ok(false)) => defaults.entry(table).or_default().push(route),
+            (Ok(false), Ok(false)) if unavailable.contains(binding.wan.as_str()) => {
+                defaults.entry(table).or_default().push(route)
+            }
             (Err(_), _) | (_, Err(_)) => f.add(
                 Outcome::Unavailable,
                 "unknown-status",
