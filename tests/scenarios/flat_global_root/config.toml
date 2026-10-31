@@ -1,0 +1,30 @@
+# Checks (aggregate factor 0.5, DHCP factor 0.5, min 50 %):
+#   PPP-Tower-A = (10 + 10) x 0.5 = 10 / 10
+#   HS-Tower-A  = 1 user x 10/5 x 1.0 = 10 / 5
+#   PLAN-DHCP-25M-5M-Tower-B = 25/5 x 0.5 = 12.5 / 2.5
+#   PLAN-DHCP-10M-Tower-B    = (10 + 10) x 0.5 = 10 / 10
+#   Circuit: PPP 10/10 min 5/5; HS 10/5 min 5/2.5; Ana 25/5 min 12.5/2.5; Ben, Cy 10/10 min 5/5
+[network]
+mode = "flat_global_root"
+[[routers]]
+name = "Tower-A"
+address = "192.0.2.1"
+username = "lqosync-read"
+password_file = "/etc/lqosync3/secrets/Tower-A.password"
+[routers.pppoe]
+enabled = true
+[routers.hotspot]
+enabled = true
+include_mac = true
+download_limit_mbps = 10
+upload_limit_mbps = 5
+[[routers]]
+name = "Tower-B"
+address = "192.0.2.1"
+username = "lqosync-read"
+password_file = "/etc/lqosync3/secrets/Tower-B.password"
+[routers.dhcp]
+enabled = true
+[[routers.dhcp.servers]]
+name = "PLANS"
+mode = "per_plan"

@@ -1,0 +1,8 @@
+Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,Parent Node ID,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment
+C0000301,DHCP-Ana,D0000301,Ana,,,02:00:00:00:20:01,100.66.2.2,,12.5,2.5,25,5,Ana
+N0005,DHCP-Ben,N0006,Ben,,,02:00:00:00:20:02,100.66.2.3,,5,5,10,10,Ben
+N0007,DHCP-Cy,N0008,Cy,,,02:00:00:00:20:03,100.66.2.4,,5,5,10,10,Cy
+N0003,HS-020000001101,N0004,guest1,,,02:00:00:00:11:01,100.65.0.2,,5,2.5,10,5,HS
+C0000101,a1,D0000101,a1,,,02:00:00:00:10:01,100.64.1.1,,5,5,10,10,PPP
+N0001,a2,N0002,a2,,,02:00:00:00:10:02,100.64.1.2,,5,5,10,10,PPP
+S0001,fixed-ap,S0002,fixed-ap,,,02:00:00:00:ff:01,100.64.9.1,,5,5,10,10,static

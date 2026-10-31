@@ -1,0 +1,30 @@
+{
+    "DHCP-IOT-Hub-1": {
+        "children": {},
+        "downloadBandwidthMbps": 20.0,
+        "id": "lq3-1b4a06be07846add",
+        "type": "site",
+        "uploadBandwidthMbps": 10.0
+    },
+    "DHCP-LAN-Hub-1": {
+        "children": {},
+        "downloadBandwidthMbps": 100.0,
+        "id": "lq3-468bd7be2000daf6",
+        "type": "site",
+        "uploadBandwidthMbps": 100.0
+    },
+    "Gold-Hub-1": {
+        "children": {},
+        "downloadBandwidthMbps": 52.5,
+        "id": "lq3-3fac2a02b0faebac",
+        "type": "site",
+        "uploadBandwidthMbps": 52.5
+    },
+    "Silver-Hub-1": {
+        "children": {},
+        "downloadBandwidthMbps": 17.5,
+        "id": "lq3-13287de13eb621bb",
+        "type": "site",
+        "uploadBandwidthMbps": 1.75
+    }
+}

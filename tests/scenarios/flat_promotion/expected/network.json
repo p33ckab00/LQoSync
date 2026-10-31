@@ -1,0 +1,44 @@
+{
+    "DHCP-Ana": {
+        "children": {},
+        "downloadBandwidthMbps": 25.0,
+        "id": "lq3-c-C0000301",
+        "type": "client",
+        "uploadBandwidthMbps": 5.0
+    },
+    "DHCP-Ben": {
+        "children": {},
+        "downloadBandwidthMbps": 10.0,
+        "id": "lq3-c-N0005",
+        "type": "client",
+        "uploadBandwidthMbps": 10.0
+    },
+    "DHCP-Cy": {
+        "children": {},
+        "downloadBandwidthMbps": 10.0,
+        "id": "lq3-c-N0007",
+        "type": "client",
+        "uploadBandwidthMbps": 10.0
+    },
+    "HS-020000001101": {
+        "children": {},
+        "downloadBandwidthMbps": 10.0,
+        "id": "lq3-c-N0003",
+        "type": "client",
+        "uploadBandwidthMbps": 5.0
+    },
+    "a1": {
+        "children": {},
+        "downloadBandwidthMbps": 10.0,
+        "id": "lq3-c-C0000101",
+        "type": "client",
+        "uploadBandwidthMbps": 10.0
+    },
+    "a2": {
+        "children": {},
+        "downloadBandwidthMbps": 10.0,
+        "id": "lq3-c-N0001",
+        "type": "client",
+        "uploadBandwidthMbps": 10.0
+    }
+}

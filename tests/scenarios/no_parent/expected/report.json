@@ -1,0 +1,13 @@
+{
+    "added": [
+        "a2",
+        "HS-020000001101",
+        "DHCP-Ben",
+        "DHCP-Cy"
+    ],
+    "alerts": 0,
+    "held": [],
+    "removed": [
+        "old-a"
+    ]
+}

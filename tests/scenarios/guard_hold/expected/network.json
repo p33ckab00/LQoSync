@@ -1,0 +1,9 @@
+{
+    "PPP-R1": {
+        "children": {},
+        "downloadBandwidthMbps": 100.0,
+        "id": "lq3-2d4ccbd9d4c5f83c",
+        "type": "plan",
+        "uploadBandwidthMbps": 100.0
+    }
+}

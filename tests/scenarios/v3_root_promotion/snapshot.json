@@ -1,0 +1,93 @@
+{
+  "routers": {
+    "Hub-1": {
+      "ppp_secret": [
+        {
+          "name": "g1",
+          "disabled": "false",
+          "profile": "Gold"
+        },
+        {
+          "name": "g2",
+          "disabled": "false",
+          "profile": "Gold"
+        },
+        {
+          "name": "g3",
+          "disabled": "false",
+          "profile": "Gold"
+        },
+        {
+          "name": "s1",
+          "disabled": "false",
+          "profile": "Silver"
+        }
+      ],
+      "ppp_active": [
+        {
+          "name": "g1",
+          "address": "100.64.0.11",
+          "caller-id": "02:00:00:00:00:11"
+        },
+        {
+          "name": "g2",
+          "address": "100.64.0.12",
+          "caller-id": "02:00:00:00:00:12"
+        },
+        {
+          "name": "g3",
+          "address": "100.64.0.13",
+          "caller-id": "02:00:00:00:00:13"
+        },
+        {
+          "name": "s1",
+          "address": "100.64.0.21",
+          "caller-id": "02:00:00:00:00:21"
+        }
+      ],
+      "ppp_profile": [
+        {
+          "name": "Gold",
+          "comment": "50M"
+        },
+        {
+          "name": "Silver",
+          "rate-limit": "5M/50M"
+        }
+      ],
+      "dhcp_server": [
+        {
+          "name": "LAN"
+        },
+        {
+          "name": "IOT"
+        },
+        {
+          "name": "EMPTY"
+        }
+      ],
+      "dhcp_lease": [
+        {
+          "server": "LAN",
+          "host-name": "pc-1",
+          "mac-address": "02:00:00:00:02:01",
+          "address": "100.66.0.2",
+          "status": "bound"
+        },
+        {
+          "server": "LAN",
+          "host-name": "pc-2",
+          "mac-address": "02:00:00:00:02:02",
+          "address": "100.66.0.3",
+          "status": "bound"
+        },
+        {
+          "server": "IOT",
+          "mac-address": "02:00:00:00:03:01",
+          "address": "100.66.1.2",
+          "status": "bound"
+        }
+      ]
+    }
+  }
+}

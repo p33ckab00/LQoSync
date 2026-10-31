@@ -1,0 +1,38 @@
+{
+  "routers": {
+    "Tower-A": {
+      "ppp_secret": [
+        {
+          "name": "a1",
+          "disabled": "false"
+        },
+        {
+          "name": "a2",
+          "disabled": "false"
+        }
+      ],
+      "ppp_active": [
+        {
+          "name": "a1",
+          "address": "100.64.1.1",
+          "caller-id": "02:00:00:00:10:01"
+        },
+        {
+          "name": "a2",
+          "address": "100.64.1.2",
+          "caller-id": "02:00:00:00:10:02"
+        }
+      ],
+      "hotspot_active": [
+        {
+          "user": "guest1",
+          "mac-address": "02:00:00:00:11:01",
+          "address": "100.65.0.2"
+        }
+      ]
+    }
+  },
+  "results": {
+    "Tower-B": "failed"
+  }
+}

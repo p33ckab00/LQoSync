@@ -1,0 +1,190 @@
+{
+  "routers": {
+    "R1": {
+      "ppp_secret": [
+        {
+          "name": "p000",
+          "disabled": "false"
+        },
+        {
+          "name": "p001",
+          "disabled": "false"
+        },
+        {
+          "name": "p002",
+          "disabled": "false"
+        },
+        {
+          "name": "p003",
+          "disabled": "false"
+        },
+        {
+          "name": "p004",
+          "disabled": "false"
+        },
+        {
+          "name": "p005",
+          "disabled": "false"
+        },
+        {
+          "name": "p006",
+          "disabled": "false"
+        },
+        {
+          "name": "p007",
+          "disabled": "false"
+        },
+        {
+          "name": "p008",
+          "disabled": "false"
+        },
+        {
+          "name": "p009",
+          "disabled": "false"
+        },
+        {
+          "name": "p010",
+          "disabled": "false"
+        },
+        {
+          "name": "p011",
+          "disabled": "false"
+        },
+        {
+          "name": "p012",
+          "disabled": "false"
+        },
+        {
+          "name": "p013",
+          "disabled": "false"
+        },
+        {
+          "name": "p014",
+          "disabled": "false"
+        },
+        {
+          "name": "p015",
+          "disabled": "false"
+        },
+        {
+          "name": "p016",
+          "disabled": "false"
+        },
+        {
+          "name": "p017",
+          "disabled": "false"
+        },
+        {
+          "name": "p018",
+          "disabled": "false"
+        },
+        {
+          "name": "p019",
+          "disabled": "false"
+        }
+      ],
+      "ppp_active": [
+        {
+          "name": "p000",
+          "address": "100.64.2.1",
+          "caller-id": "02:00:00:01:00:00"
+        },
+        {
+          "name": "p001",
+          "address": "100.64.2.2",
+          "caller-id": "02:00:00:01:00:01"
+        },
+        {
+          "name": "p002",
+          "address": "100.64.2.3",
+          "caller-id": "02:00:00:01:00:02"
+        },
+        {
+          "name": "p003",
+          "address": "100.64.2.4",
+          "caller-id": "02:00:00:01:00:03"
+        },
+        {
+          "name": "p004",
+          "address": "100.64.2.5",
+          "caller-id": "02:00:00:01:00:04"
+        },
+        {
+          "name": "p005",
+          "address": "100.64.2.6",
+          "caller-id": "02:00:00:01:00:05"
+        },
+        {
+          "name": "p006",
+          "address": "100.64.2.7",
+          "caller-id": "02:00:00:01:00:06"
+        },
+        {
+          "name": "p007",
+          "address": "100.64.2.8",
+          "caller-id": "02:00:00:01:00:07"
+        },
+        {
+          "name": "p008",
+          "address": "100.64.2.9",
+          "caller-id": "02:00:00:01:00:08"
+        },
+        {
+          "name": "p009",
+          "address": "100.64.2.10",
+          "caller-id": "02:00:00:01:00:09"
+        },
+        {
+          "name": "p010",
+          "address": "100.64.2.11",
+          "caller-id": "02:00:00:01:00:0a"
+        },
+        {
+          "name": "p011",
+          "address": "100.64.2.12",
+          "caller-id": "02:00:00:01:00:0b"
+        },
+        {
+          "name": "p012",
+          "address": "100.64.2.13",
+          "caller-id": "02:00:00:01:00:0c"
+        },
+        {
+          "name": "p013",
+          "address": "100.64.2.14",
+          "caller-id": "02:00:00:01:00:0d"
+        },
+        {
+          "name": "p014",
+          "address": "100.64.2.15",
+          "caller-id": "02:00:00:01:00:0e"
+        },
+        {
+          "name": "p015",
+          "address": "100.64.2.16",
+          "caller-id": "02:00:00:01:00:0f"
+        },
+        {
+          "name": "p016",
+          "address": "100.64.2.17",
+          "caller-id": "02:00:00:01:00:10"
+        },
+        {
+          "name": "p017",
+          "address": "100.64.2.18",
+          "caller-id": "02:00:00:01:00:11"
+        },
+        {
+          "name": "p018",
+          "address": "100.64.2.19",
+          "caller-id": "02:00:00:01:00:12"
+        },
+        {
+          "name": "p019",
+          "address": "100.64.2.20",
+          "caller-id": "02:00:00:01:00:13"
+        }
+      ]
+    }
+  }
+}

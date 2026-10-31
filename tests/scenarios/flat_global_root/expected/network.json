@@ -1,0 +1,9 @@
+{
+    "LibreQoS-Network": {
+        "children": {},
+        "downloadBandwidthMbps": 640.0,
+        "id": "lq3-f7ce402486df4f45",
+        "type": "site",
+        "uploadBandwidthMbps": 640.0
+    }
+}

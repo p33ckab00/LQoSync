@@ -1,0 +1,40 @@
+# Checks (aggregate factor 0.35, min 10 %):
+#   Gold-Hub-1   = 3 users x 50 = 150 x 0.35 = 52.5 / 52.5
+#   Silver-Hub-1 = rate-limit 5M/50M is rx/tx, so 50/5 -> 50 x 0.35 = 17.5, 5 x 0.35 = 1.75
+#   DHCP-LAN-Hub-1 = 2 leases x 50 x 1.0 = 100;  DHCP-IOT-Hub-1 = 1 x 20/10 x 1.0 = 20/10;  no EMPTY node
+#   Circuit: Gold 50/50 min 5/5; Silver 50/5 min 5/0.5; LAN 50/50 min 5/5; IOT 20/10 min 2/1
+[network]
+mode = "root_promotion"
+[bandwidth_defaults]
+min_rate_percentage = 0.1
+pppoe_aggregate_factor = 0.35
+[backstop_caps.pppoe]
+enabled = true
+download_mbps = 620
+upload_mbps = 620
+[[routers]]
+name = "Hub-1"
+address = "192.0.2.1"
+username = "lqosync-read"
+password_file = "/etc/lqosync3/secrets/Hub-1.password"
+[routers.pppoe]
+enabled = true
+per_plan_node = true
+[routers.dhcp]
+enabled = true
+[[routers.dhcp.servers]]
+name = "LAN"
+default_plan_down_mbps = 50
+default_plan_up_mbps = 50
+download_factor = 1.0
+upload_factor = 1.0
+[[routers.dhcp.servers]]
+name = "IOT"
+default_plan_down_mbps = 20
+default_plan_up_mbps = 10
+download_factor = 1.0
+upload_factor = 1.0
+[[routers.dhcp.servers]]
+name = "EMPTY"
+default_plan_down_mbps = 30
+default_plan_up_mbps = 30

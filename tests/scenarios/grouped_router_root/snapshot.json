@@ -1,0 +1,65 @@
+{
+  "routers": {
+    "Tower-A": {
+      "ppp_secret": [
+        {
+          "name": "a1",
+          "disabled": "false"
+        },
+        {
+          "name": "a2",
+          "disabled": "false"
+        }
+      ],
+      "ppp_active": [
+        {
+          "name": "a1",
+          "address": "100.64.1.1",
+          "caller-id": "02:00:00:00:10:01"
+        },
+        {
+          "name": "a2",
+          "address": "100.64.1.2",
+          "caller-id": "02:00:00:00:10:02"
+        }
+      ],
+      "hotspot_active": [
+        {
+          "user": "guest1",
+          "mac-address": "02:00:00:00:11:01",
+          "address": "100.65.0.2"
+        }
+      ]
+    },
+    "Tower-B": {
+      "dhcp_server": [
+        {
+          "name": "PLANS"
+        }
+      ],
+      "dhcp_lease": [
+        {
+          "server": "PLANS",
+          "host-name": "h1",
+          "mac-address": "02:00:00:00:20:01",
+          "address": "100.66.2.2",
+          "comment": "Ana|25M/5M"
+        },
+        {
+          "server": "PLANS",
+          "host-name": "h2",
+          "mac-address": "02:00:00:00:20:02",
+          "address": "100.66.2.3",
+          "comment": "Ben|10M"
+        },
+        {
+          "server": "PLANS",
+          "host-name": "h3",
+          "mac-address": "02:00:00:00:20:03",
+          "address": "100.66.2.4",
+          "comment": "Cy|10M"
+        }
+      ]
+    }
+  }
+}

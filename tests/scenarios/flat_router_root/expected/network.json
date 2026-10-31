@@ -1,0 +1,16 @@
+{
+    "Tower-A": {
+        "children": {},
+        "downloadBandwidthMbps": 640.0,
+        "id": "lq3-2dab5a14d28286aa",
+        "type": "site",
+        "uploadBandwidthMbps": 640.0
+    },
+    "Tower-B": {
+        "children": {},
+        "downloadBandwidthMbps": 640.0,
+        "id": "lq3-2da85c14d2805439",
+        "type": "site",
+        "uploadBandwidthMbps": 640.0
+    }
+}

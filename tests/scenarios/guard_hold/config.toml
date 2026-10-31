@@ -1,0 +1,10 @@
+# Checks: 60 of 80 rows go. 60 > max_removed_count 50, so the guard holds them.
+[network]
+mode = "root_promotion"
+[[routers]]
+name = "R1"
+address = "192.0.2.1"
+username = "lqosync-read"
+password_file = "/etc/lqosync3/secrets/R1.password"
+[routers.pppoe]
+enabled = true

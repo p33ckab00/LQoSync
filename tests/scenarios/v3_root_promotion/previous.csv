@@ -1,0 +1,7 @@
+Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment
+C0000011,g1,D0000011,g1,Gold-Hub-1,02:00:00:00:00:11,100.64.0.11,,5.0,5.0,50.0,50.0,PPP
+C0000012,g2,D0000012,g2,Gold-Hub-1,02:00:00:00:00:12,100.64.0.12,,5.0,5.0,50.0,50.0,PPP
+C0000021,s1,D0000021,s1,Silver-Hub-1,02:00:00:00:00:21,100.64.0.21,,0.5,5.0,5.0,50.0,PPP
+C0000099,gone,D0000099,gone,Gold-Hub-1,02:00:00:00:00:99,100.64.0.99,,5.0,5.0,50.0,50.0,PPP
+C0000201,DHCP-pc-1,D0000201,pc-1,DHCP-LAN-Hub-1,02:00:00:00:02:01,100.66.0.2,,5.0,5.0,50.0,50.0,pc-1
+S0001,fixed-ap,S0002,fixed-ap,,02:00:00:00:ff:01,100.64.9.1,,5,5,10,10,static
