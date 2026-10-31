@@ -81,6 +81,17 @@ pub fn check(rows: &[CsvRow], network: &Value, mode: NetworkMode) -> anyhow::Res
                 row.parent_node
             );
         }
+        if let Some(p) = rate_problem(row) {
+            bail!("{p}");
+        }
+    }
+    Ok(())
+}
+
+/// The LibreQoS rate rules for one row. `None` if LibreQoS accepts the rates.
+pub fn rate_problem(row: &CsvRow) -> Option<String> {
+    let name = &row.circuit_name;
+    let check = || -> anyhow::Result<()> {
         let dmin = rate(row, "Download Min Mbps", &row.download_min)?;
         let umin = rate(row, "Upload Min Mbps", &row.upload_min)?;
         let dmax = rate(row, "Download Max Mbps", &row.download_max)?;
@@ -97,8 +108,9 @@ pub fn check(rows: &[CsvRow], network: &Value, mode: NetworkMode) -> anyhow::Res
             dmin >= 0.1 && umin >= 0.1,
             "circuit \"{name}\": a min rate is below 0.1 Mbps (LibreQoS rule)"
         );
-    }
-    Ok(())
+        Ok(())
+    };
+    check().err().map(|e| format!("{e:#}"))
 }
 
 #[cfg(test)]

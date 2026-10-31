@@ -1,5 +1,6 @@
 //! The TUI state, the keys, the mouse, and the draw code.
 
+use super::data::Data;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -8,6 +9,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use std::sync::Arc;
 
 /// The tabs, in the order of the spec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,7 +76,9 @@ pub struct App {
     pub modal: Option<Modal>,
     /// The tab title rectangles of the last draw, for the mouse.
     pub tab_rects: Vec<Rect>,
-    config_text: String,
+    pub data: Data,
+    /// Unix seconds of the last data.
+    pub now: u64,
     config_error: Option<String>,
     settings_offset: u16,
 }
@@ -87,10 +91,34 @@ impl App {
             message: None,
             modal: None,
             tab_rects: Vec::new(),
-            config_text,
+            data: Data {
+                config_text: Arc::new(config_text),
+                ..Data::default()
+            },
+            now: 0,
             config_error,
             settings_offset: 0,
         }
+    }
+
+    /// New data from the loader. `now` is Unix seconds.
+    pub fn set_data(&mut self, data: Data, now: u64) {
+        self.data = data;
+        self.now = now;
+    }
+
+    /// A text field of `status.json`, or `unknown`.
+    pub fn status_str(&self, key: &str) -> String {
+        self.data
+            .status
+            .as_ref()
+            .and_then(|s| s[key].as_str().map(str::to_string))
+            .unwrap_or_else(|| "unknown".into())
+    }
+
+    /// A number field of `status.json`.
+    pub fn status_u64(&self, key: &str) -> Option<u64> {
+        self.data.status.as_ref().and_then(|s| s[key].as_u64())
     }
 
     pub fn on_key(&mut self, k: KeyEvent) -> Action {
@@ -204,22 +232,42 @@ impl App {
     }
 
     fn draw_header(&self, f: &mut Frame, area: Rect) {
+        let service = self
+            .data
+            .service
+            .as_ref()
+            .map_or("unknown", |u| u.active.as_str());
+        let updated = self.status_u64("updated");
+        let age = updated.map_or("unknown".into(), |u| {
+            format!("{}s ago", self.now.saturating_sub(u))
+        });
+        let next = match (updated, self.status_u64("next_scan_seconds")) {
+            (Some(u), Some(n)) => format!("{}s", (u + n).saturating_sub(self.now)),
+            _ => "unknown".into(),
+        };
+        let text = format!(
+            " | service {service} | mode {} | target {} | last cycle {age} | next scan {next} ",
+            self.status_str("mode"),
+            self.status_str("target")
+        );
+        // The most important parts first: a narrow terminal cuts the end.
         let mut spans = vec![Span::styled(
             " lqosync3 ",
             Style::new().add_modifier(Modifier::BOLD),
         )];
-        if let Some(e) = &self.config_error {
-            spans.push(Span::styled(
-                format!(" config error: {e} "),
-                Style::new().fg(Color::Red),
-            ));
-        }
         if self.read_only {
             spans.push(Span::styled(
                 " READ-ONLY (not root) ",
                 Style::new().fg(Color::Black).bg(Color::Yellow),
             ));
         }
+        if let Some(e) = &self.config_error {
+            spans.push(Span::styled(
+                format!(" config error: {e} "),
+                Style::new().fg(Color::Red),
+            ));
+        }
+        spans.push(Span::raw(text));
         f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 
@@ -249,7 +297,7 @@ impl App {
 
     fn draw_settings(&self, f: &mut Frame, area: Rect) {
         f.render_widget(
-            Paragraph::new(self.config_text.as_str())
+            Paragraph::new(self.data.config_text.as_str())
                 .scroll((self.settings_offset, 0))
                 .block(
                     Block::default()
@@ -359,6 +407,39 @@ mod tests {
         assert!(s.x > m.x && s.y == m.y, "{m:?} {s:?}");
         let (m, s) = split_main(Rect::new(0, 0, 80, 30));
         assert!(s.y > m.y && s.x == m.x, "{m:?} {s:?}");
+    }
+
+    #[test]
+    fn header_shows_unknown_without_status_and_the_values_with_it() {
+        let mut a = app(false);
+        let top = |a: &mut App| draw(a, 140, 10).lines().next().unwrap().to_string();
+        let h = top(&mut a);
+        assert!(
+            h.contains("service unknown") && h.contains("mode unknown"),
+            "{h}"
+        );
+        let d = Data {
+            status: Some(Arc::new(serde_json::json!(
+                {"mode": "apply", "target": "v2_pair", "updated": 1000, "next_scan_seconds": 120}
+            ))),
+            service: Some(crate::tui::proc::Unit {
+                load: "loaded".into(),
+                active: "active".into(),
+                main_pid: 7,
+            }),
+            ..Data::default()
+        };
+        a.set_data(d, 1030);
+        let h = top(&mut a);
+        for want in [
+            "service active",
+            "mode apply",
+            "target v2_pair",
+            "last cycle 30s ago",
+            "next scan 90s",
+        ] {
+            assert!(h.contains(want), "{want}: {h}");
+        }
     }
 
     #[test]

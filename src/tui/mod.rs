@@ -1,6 +1,8 @@
 //! `lqosync3 tui`: a terminal view of the service. The draw code reads only memory.
 
 pub mod app;
+pub mod data;
+pub mod proc;
 
 use app::{Action, App};
 use ratatui::Terminal;
@@ -14,6 +16,7 @@ use ratatui::crossterm::terminal::{
 };
 use std::io::stdout;
 use std::path::Path;
+use std::sync::mpsc::{self, TryRecvError};
 use std::time::{Duration, Instant};
 
 /// Give the terminal back: normal mode, normal screen, mouse to the terminal. Errors are ignored.
@@ -53,10 +56,28 @@ pub fn install_panic_hook(restore: fn()) {
     }));
 }
 
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+/// The message of a worker that stopped.
+fn panic_text(r: std::thread::Result<()>) -> String {
+    match r {
+        Ok(()) => "no error".into(),
+        Err(p) => p
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| p.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "a panic".into()),
+    }
+}
+
 /// `lqosync3 tui`.
 pub fn run(config: &Path) -> anyhow::Result<()> {
     let config_text = std::fs::read_to_string(config).unwrap_or_default();
-    let (_cfg, config_error) = match crate::cli::read_config(config) {
+    let (cfg, config_error) = match crate::cli::read_config(config) {
         Ok((c, _)) => (c, None),
         Err(e) => (crate::config::defaults().clone(), Some(format!("{e:#}"))),
     };
@@ -71,19 +92,39 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
     let mut term = Terminal::new(CrosstermBackend::new(stdout()))?;
 
+    let (tx, rx) = mpsc::channel();
+    let mut loader = Some(data::spawn_loader(&cfg, config.to_path_buf(), tx)?);
+
     let tick = Duration::from_secs(1);
     let mut last_tick = Instant::now();
     let mut dirty = true;
     loop {
+        loop {
+            match rx.try_recv() {
+                Ok(d) => {
+                    app.set_data(d, unix_now());
+                    dirty = true;
+                }
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    if let Some(h) = loader.take() {
+                        app.message = Some(format!("the loader stopped: {}", panic_text(h.join())));
+                        dirty = true;
+                    }
+                    break;
+                }
+            }
+        }
         if dirty {
             term.draw(|f| app.draw(f))?;
             dirty = false;
         }
-        let wait = tick.saturating_sub(last_tick.elapsed());
-        if !event::poll(wait)? {
+        if last_tick.elapsed() >= tick {
             // The clocks change each second.
             last_tick = Instant::now();
             dirty = true;
+        }
+        if !event::poll(Duration::from_millis(100))? {
             continue;
         }
         let action = match event::read()? {
