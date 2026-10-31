@@ -64,4 +64,8 @@ The pure [recovery assessment](DISTRIBUTED_CONTROL.md) remains read-only and can
 The [recovery viewer](SHADOW_CONTROLS.md) still has locked action buttons and GET-only routes.
 Use synthetic sources and isolated loopback peers for the current tests.
 Isolated RouterOS acceptance and separately reviewed production authorization remain necessary before runtime activation.
+
+Production acceptance on 2026-10-31 found a practical limit. A new process needs about 50 seconds of probe rounds
+before WAN health is Healthy. That is longer than the 30-second continuity window, so reviewed recovery from a
+new process stops with "Source continuity window expired". Any change to that window needs a separate design review.
 Mocks do not prove uninterrupted traffic, actual probe behavior, or RouterOS connection-mark behavior.

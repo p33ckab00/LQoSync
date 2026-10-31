@@ -44,11 +44,16 @@ This replaces the earlier plan to stop the console and narrow the live settings.
 - With `--execute`, it runs the preview again and builds a new batch. The approval is the `--expect` operation:
   the command opens the worker only for a batch with exactly that operation. It then runs forward, an optional
   rollback of at most 10 seconds after the forward, and finish.
-- The approval window is 180 seconds. A failure keeps the recovery marker. Use reviewed recovery. Do not delete the marker.
+- The approval window is 180 seconds. A failure keeps the recovery marker. Do not delete the marker.
 
 ## Limits found in review
 
-- No CLI runs reviewed recovery yet. If a run fails after a send, remove the owned row on the router by its `.id`.
+- Reviewed recovery cannot run from a new process. The source continuity window is at most 30 seconds,
+  and a new source needs about 50 seconds of probe rounds before WAN health is Healthy.
+  A live test of a recovery command stopped with "Source continuity window expired". The command was removed.
+- `core-worker-run` therefore tries an immediate rollback in the same process when the forward fails.
+  The library refuses that rollback after an unknown outcome or a failed verification, because both revoke the grant.
+- After any other failure, or a process crash, remove the owned row on the router by its `.id`.
   The subscriber then uses the `main` default (wan1). Keep the acceptance directory state as evidence.
 - The acceptance directory has its own fence and marker. The live console cannot see them.
   Before any live write path is enabled, check `v3/data/state/acceptance/b-root/state` for a marker.
