@@ -13,6 +13,7 @@ Read [[HANDOFF]] first for the current state.
 - [[2026-10-31-project-setup-and-v3-simulation]]
 - [[2026-10-31-updatecsv-dissection]]
 - [[2026-10-31-plan1-core-build]]
+- [[2026-10-31-first-live-shadow-run]]
 
 ## Decisions
 - [[ADR-0001-one-model-many-writers]] — accepted

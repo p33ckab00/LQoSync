@@ -46,7 +46,7 @@ None at this time.
 
 ### Next action
 
-1. Manual shadow run on the production shaper (Plan 2 Task 9 step 5). It needs the operator's approval and a read-only RouterOS user. Steps: build `cargo build --release`, write `/etc/lqosync3/lqosync3.toml` with `mode = "shadow"`, put the password in a `0600` root file, run `lqosync3 check`, `lqosync3 once`, `lqosync3 diff`.
+1. Shadow service on the production shaper: `lqosync3.service` operates in `shadow` mode since 2026-10-31 14:51. After 2026-11-01 14:51, run `sudo lqosync3 diff`. If the result is the same as the first run (one known difference), do the cutover to `apply` mode (OPERATIONS.md, "Cutover from the Python service"). The cutover needs the operator's approval.
 2. Plan 2b: Telegram.
 3. Plan 3: LibreQoS v3 detection and writers.
 
@@ -59,4 +59,5 @@ Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must ins
 ### Production state
 
 - `lqosync-updatecsv.service` (Python) operates and writes the live LibreQoS files. Nobody changed it.
+- `lqosync3.service` operates in `shadow` mode. It writes only `/var/lib/lqosync3/`. Config: `/etc/lqosync3/lqosync3.toml`. Secret: `/etc/lqosync3/secrets/FSEHub-Distro.password` (`0600` root). Refer to [[2026-10-31-first-live-shadow-run]].
 - LibreQoS 2.2 operates. Nobody changed it.
