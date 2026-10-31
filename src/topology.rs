@@ -45,15 +45,15 @@ pub fn group_node_id(router: &str, group: &GroupKey) -> String {
     node_id(kind, router, key)
 }
 
-/// The template and the v2 default type of a group node.
-fn template<'a>(cfg: &'a Config, group: &GroupKey) -> (&'a NodeTemplate, &'static str) {
+/// The `[nodes]` template of a group node.
+fn template<'a>(cfg: &'a Config, group: &GroupKey) -> &'a NodeTemplate {
     let n = &cfg.nodes;
     match group {
-        GroupKey::Ppp => (&n.ppp, "plan"),
-        GroupKey::PppPlan(_) => (&n.ppp_plan, "plan"),
-        GroupKey::Hotspot => (&n.hotspot, "site"),
-        GroupKey::DhcpSite(_) => (&n.dhcp_site, "site"),
-        GroupKey::DhcpPlan(_) => (&n.dhcp_plan, "plan"),
+        GroupKey::Ppp => &n.ppp,
+        GroupKey::PppPlan(_) => &n.ppp_plan,
+        GroupKey::Hotspot => &n.hotspot,
+        GroupKey::DhcpSite(_) => &n.dhcp_site,
+        GroupKey::DhcpPlan(_) => &n.dhcp_plan,
     }
 }
 
@@ -67,7 +67,6 @@ pub fn group_node_name(cfg: &Config, router: &str, group: &GroupKey) -> String {
         _ => "{none}",
     };
     template(cfg, group)
-        .0
         .name
         .replace("{router}", router)
         .replace(field, key)
@@ -269,7 +268,7 @@ pub fn build_nodes(
         }
         for (key, t) in groups {
             let rate = group_rate(cfg, &g.router, &key, &t);
-            let (tpl, v2_type) = template(cfg, &key);
+            let tpl = template(cfg, &key);
             put(
                 &mut nodes,
                 &mut made,
@@ -279,7 +278,7 @@ pub fn build_nodes(
                     id: group_node_id(&g.router, &key),
                     router: Some(g.router.clone()),
                     parent: parent_of(&g.router),
-                    r#type: tpl.type_for(v2_type, v3),
+                    r#type: tpl.type_for(v3),
                     down: rate.down,
                     up: rate.up,
                     seeded: false,
@@ -332,6 +331,19 @@ fn find_mut<'a>(tree: &'a mut Map<String, Value>, name: &str) -> Option<&'a mut 
     })
 }
 
+/// The number of parents of a node in the node map. A parent loop stops the count.
+fn depth<'a>(nodes: &'a BTreeMap<String, StoredNode>, mut n: &'a StoredNode) -> usize {
+    let mut d = 0;
+    while let Some(p) = n.parent.as_deref().and_then(|p| nodes.get(p)) {
+        d += 1;
+        n = p;
+        if d > nodes.len() {
+            break;
+        }
+    }
+    d
+}
+
 /// Make the nested network.json. With `preserved`, keep the operator nodes and
 /// replace only the nodes that the tool made in the last cycle.
 pub fn to_network_json(
@@ -356,7 +368,11 @@ pub fn to_network_json(
         let kids = take_children(&mut tree, name);
         tree.insert(name.clone(), node_json(n, kids));
     }
-    for (name, n) in nodes.iter().filter(|(_, n)| n.parent.is_some()) {
+    // Parents before children: sort by depth in the node map, then by name.
+    let mut children: Vec<(&String, &StoredNode)> =
+        nodes.iter().filter(|(_, n)| n.parent.is_some()).collect();
+    children.sort_by_key(|(name, n)| (depth(nodes, n), (*name).clone()));
+    for (name, n) in children {
         let parent = n.parent.as_deref().unwrap_or_default();
         match find_mut(&mut tree, parent).and_then(|p| p.get_mut("children")) {
             Some(Value::Object(kids)) => {
@@ -690,5 +706,28 @@ upload_factor = 1.0
             v["R1"]["children"]["Mid"]["children"]["Leaf"].is_object(),
             "{v}"
         );
+    }
+
+    #[test]
+    fn deep_chains_nest_in_parent_first_order() {
+        let mk = |id: &str, parent: Option<&str>| StoredNode {
+            id: id.into(),
+            router: None,
+            parent: parent.map(String::from),
+            r#type: "site".into(),
+            down: 1.0,
+            up: 1.0,
+            seeded: true,
+        };
+        let mut nodes = BTreeMap::new();
+        nodes.insert("Site".to_string(), mk("s", None));
+        nodes.insert("Tower".to_string(), mk("t", Some("Site")));
+        nodes.insert("PPP-R1".to_string(), mk("p", Some("Tower")));
+        let v = to_network_json(&nodes, None, &none());
+        assert!(
+            v["Site"]["children"]["Tower"]["children"]["PPP-R1"].is_object(),
+            "{v}"
+        );
+        assert_eq!(v.as_object().unwrap().len(), 1);
     }
 }

@@ -94,7 +94,14 @@ fn scenarios_match_expected_output() {
         let v3 = case.starts_with("v3_");
         let mut n = 0;
         let snap: Snapshot = serde_json::from_str(&read(&dir.join("snapshot.json"))).unwrap();
-        let mut out = cycle(&cfg, &seed_state(&other, 1_000), &statics, snap, v3, &mut n);
+        let mut out = cycle(
+            &cfg,
+            &seed_state(&other, &cfg.circuits, 1_000),
+            &statics,
+            snap,
+            v3,
+            &mut n,
+        );
         let second = dir.join("snapshot2.json");
         if second.exists() {
             let snap: Snapshot = serde_json::from_str(&read(&second)).unwrap();

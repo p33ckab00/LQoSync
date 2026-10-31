@@ -7,8 +7,8 @@ use anyhow::{Context, bail, ensure};
 use serde::Deserialize;
 use std::collections::BTreeSet;
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub runtime: Runtime,
     pub router_access: RouterAccess,
@@ -42,7 +42,7 @@ pub enum LogLevel {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Runtime {
     pub mode: RuntimeMode,
     pub scan_interval_active: u64,
@@ -56,23 +56,6 @@ pub struct Runtime {
     pub state_dir: String,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Runtime {
-            mode: RuntimeMode::Shadow,
-            scan_interval_active: 25,
-            scan_interval_idle: 120,
-            error_retry_interval: 30,
-            id_length: 8,
-            remove_inactive_entries: true,
-            static_comment: "static".into(),
-            subscriber_grace: 0,
-            log_level: LogLevel::Info,
-            state_dir: "/var/lib/lqosync3".into(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OfflineAction {
@@ -81,7 +64,7 @@ pub enum OfflineAction {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct RouterAccess {
     pub connect_timeout: u64,
     pub api_timeout: u64,
@@ -91,35 +74,12 @@ pub struct RouterAccess {
     pub offline_action: OfflineAction,
 }
 
-impl Default for RouterAccess {
-    fn default() -> Self {
-        RouterAccess {
-            connect_timeout: 5,
-            api_timeout: 10,
-            read_retries: 2,
-            retry_delay: 3,
-            offline_after: 300,
-            offline_action: OfflineAction::Remove,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Safety {
     pub enabled: bool,
     pub max_removed_percent: f64,
     pub max_removed_count: usize,
-}
-
-impl Default for Safety {
-    fn default() -> Self {
-        Safety {
-            enabled: true,
-            max_removed_percent: 20.0,
-            max_removed_count: 50,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -132,7 +92,7 @@ pub enum Target {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Libreqos {
     pub target: Target,
     pub directory: String,
@@ -142,21 +102,6 @@ pub struct Libreqos {
     pub v2_args: Vec<String>,
     pub v2_timeout: u64,
     pub v3_status_timeout: u64,
-}
-
-impl Default for Libreqos {
-    fn default() -> Self {
-        Libreqos {
-            target: Target::Auto,
-            directory: "/opt/libreqos/src".into(),
-            state_directory: "/opt/libreqos/state".into(),
-            v3_config: "/etc/libreqos/lqos.conf".into(),
-            v2_command: "/opt/libreqos/src/LibreQoS.py".into(),
-            v2_args: vec!["--updateonly".into()],
-            v2_timeout: 300,
-            v3_status_timeout: 60,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -171,7 +116,7 @@ pub enum NetworkMode {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Network {
     pub mode: NetworkMode,
     pub preserve_network_config: bool,
@@ -181,63 +126,38 @@ pub struct Network {
     pub root_upload_mbps: f64,
 }
 
-impl Default for Network {
-    fn default() -> Self {
-        Network {
-            mode: NetworkMode::GroupedRouterRoot,
-            preserve_network_config: false,
-            root_name: "LibreQoS-Network".into(),
-            root_type: "site".into(),
-            root_download_mbps: 640.0,
-            root_upload_mbps: 640.0,
-        }
-    }
-}
-
 /// Name template and optional type of a node that the tool makes.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NodeTemplate {
     pub name: String,
+    /// One type for both LibreQoS versions. It overrides `v2_type` and `v3_type`.
     #[serde(rename = "type", default)]
     pub r#type: Option<String>,
+    pub v2_type: String,
+    pub v3_type: String,
 }
 
 impl NodeTemplate {
-    fn named(name: &str) -> Self {
-        NodeTemplate {
-            name: name.into(),
-            r#type: None,
-        }
-    }
-
-    /// The explicit type, else "site" on v3, else the v2 default (ADR-0006).
-    pub fn type_for(&self, v2_default: &str, v3: bool) -> String {
+    /// The node type for the target (ADR-0006).
+    pub fn type_for(&self, v3: bool) -> String {
         match &self.r#type {
             Some(t) => t.clone(),
-            None if v3 => "site".into(),
-            None => v2_default.into(),
+            None if v3 => self.v3_type.clone(),
+            None => self.v2_type.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct ClientTemplate {
     #[serde(rename = "type")]
     pub r#type: String,
 }
 
-impl Default for ClientTemplate {
-    fn default() -> Self {
-        ClientTemplate {
-            r#type: "client".into(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Nodes {
     pub ppp: NodeTemplate,
     pub ppp_plan: NodeTemplate,
@@ -247,35 +167,15 @@ pub struct Nodes {
     pub client: ClientTemplate,
 }
 
-impl Default for Nodes {
-    fn default() -> Self {
-        Nodes {
-            ppp: NodeTemplate::named("PPP-{router}"),
-            ppp_plan: NodeTemplate::named("{profile}-{router}"),
-            hotspot: NodeTemplate::named("HS-{router}"),
-            dhcp_site: NodeTemplate::named("DHCP-{server}-{router}"),
-            dhcp_plan: NodeTemplate::named("PLAN-DHCP-{plan}-{router}"),
-            client: ClientTemplate::default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct CircuitNames {
     pub pppoe: String,
     pub hotspot: String,
     pub dhcp: String,
-}
-
-impl Default for CircuitNames {
-    fn default() -> Self {
-        CircuitNames {
-            pppoe: "{user}".into(),
-            hotspot: "HS-{key}".into(),
-            dhcp: "DHCP-{key}".into(),
-        }
-    }
+    pub comment_pppoe: String,
+    pub comment_hotspot: String,
+    pub comment_dhcp: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -304,34 +204,18 @@ pub enum PppSource {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Speed {
     pub rate_limit_order: RateLimitOrder,
     pub unitless_unit: UnitlessUnit,
     pub profile_name_regex: String,
     pub pppoe_sources: Vec<PppSource>,
-}
-
-impl Default for Speed {
-    fn default() -> Self {
-        Speed {
-            rate_limit_order: RateLimitOrder::RouterosRxTx,
-            unitless_unit: UnitlessUnit::Bps,
-            profile_name_regex: r"(\d+(?:\.\d+)?)\s*([kKmMgG])".into(),
-            pppoe_sources: vec![
-                PppSource::SecretComment,
-                PppSource::ActiveComment,
-                PppSource::ProfileComment,
-                PppSource::ProfileRateLimit,
-                PppSource::ProfileName,
-                PppSource::Default,
-            ],
-        }
-    }
+    pub dhcp_per_site_sources: Vec<DhcpSource>,
+    pub dhcp_per_plan_sources: Vec<DhcpSource>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct BandwidthDefaults {
     pub min_rate_percentage: f64,
     pub safe_min_mbps: f64,
@@ -347,27 +231,8 @@ pub struct BandwidthDefaults {
     pub hotspot_upload_factor: f64,
 }
 
-impl Default for BandwidthDefaults {
-    fn default() -> Self {
-        BandwidthDefaults {
-            min_rate_percentage: 0.5,
-            safe_min_mbps: 0.128,
-            max_floor_mbps: 0.2,
-            pppoe_default_profile: "default".into(),
-            pppoe_default_rate: "10M/10M".into(),
-            pppoe_aggregate_factor: 0.5,
-            dhcp_default_per_client_mbps: 15.0,
-            dhcp_download_factor: 0.5,
-            dhcp_upload_factor: 0.5,
-            hotspot_default_per_client_mbps: 10.0,
-            hotspot_download_factor: 1.0,
-            hotspot_upload_factor: 1.0,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct BackstopCap {
     pub enabled: bool,
     pub download_mbps: f64,
@@ -376,15 +241,6 @@ pub struct BackstopCap {
 }
 
 impl BackstopCap {
-    fn new(mbps: f64) -> Self {
-        BackstopCap {
-            enabled: false,
-            download_mbps: mbps,
-            upload_mbps: mbps,
-            multiplier: 1.0,
-        }
-    }
-
     /// The cap rate, or `None` if the cap is off.
     pub fn limit(&self) -> Option<Rate> {
         self.enabled.then_some(Rate {
@@ -394,38 +250,22 @@ impl BackstopCap {
     }
 }
 
-impl Default for BackstopCap {
-    fn default() -> Self {
-        BackstopCap::new(600.0)
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct BackstopCaps {
     pub pppoe: BackstopCap,
     pub dhcp: BackstopCap,
     pub hotspot: BackstopCap,
 }
 
-impl Default for BackstopCaps {
-    fn default() -> Self {
-        BackstopCaps {
-            pppoe: BackstopCap::new(600.0),
-            dhcp: BackstopCap::new(250.0),
-            hotspot: BackstopCap::new(100.0),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct Telegram {
     pub enabled: bool,
     pub bot_token_file: String,
-    pub bot_token_env: Option<String>,
+    pub bot_token_env: String,
     pub chat_id: String,
-    pub chat_id_env: Option<String>,
+    pub chat_id_env: String,
     pub timeout: u64,
     pub max_message_chars: usize,
     pub notify_on_changes: bool,
@@ -439,68 +279,31 @@ pub struct Telegram {
     pub max_list_items: usize,
 }
 
-impl Default for Telegram {
-    fn default() -> Self {
-        Telegram {
-            enabled: false,
-            bot_token_file: "/etc/lqosync3/secrets/telegram.token".into(),
-            bot_token_env: None,
-            chat_id: String::new(),
-            chat_id_env: None,
-            timeout: 10,
-            max_message_chars: 3900,
-            notify_on_changes: true,
-            notify_on_error: true,
-            notify_on_preflight_warning: true,
-            include_added: true,
-            include_updated: true,
-            include_removed: true,
-            include_computation: true,
-            include_telemetry: true,
-            max_list_items: 15,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouterCfg {
     pub name: String,
     pub address: String,
-    #[serde(default = "default_port")]
     pub port: u16,
-    #[serde(default = "yes")]
     pub tls: bool,
     pub username: String,
     pub password_file: String,
-    #[serde(default)]
     pub pppoe: PppoeCfg,
-    #[serde(default)]
     pub hotspot: HotspotCfg,
-    #[serde(default)]
     pub dhcp: DhcpCfg,
     /// More exclusions for this router. The tool joins them with the global `[exclude]`.
-    #[serde(default)]
     pub exclude: Exclude,
 }
 
-fn default_port() -> u16 {
-    8729
-}
-
-fn yes() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PppoeCfg {
     pub enabled: bool,
     pub per_plan_node: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct HotspotCfg {
     pub enabled: bool,
     pub include_mac: bool,
@@ -508,19 +311,6 @@ pub struct HotspotCfg {
     pub upload_limit_mbps: Option<f64>,
     pub download_factor: Option<f64>,
     pub upload_factor: Option<f64>,
-}
-
-impl Default for HotspotCfg {
-    fn default() -> Self {
-        HotspotCfg {
-            enabled: false,
-            include_mac: true,
-            download_limit_mbps: None,
-            upload_limit_mbps: None,
-            download_factor: None,
-            upload_factor: None,
-        }
-    }
 }
 
 impl HotspotCfg {
@@ -545,8 +335,8 @@ impl HotspotCfg {
 
 /// Subscribers that the tool does not shape. Names accept `*` wildcards (case is ignored).
 /// IPs are IPv4 addresses or CIDR blocks.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Exclude {
     pub dhcp_servers: Vec<String>,
     pub ppp_profiles: Vec<String>,
@@ -565,25 +355,16 @@ pub fn parse_ipv4_net(s: &str) -> Option<(u32, u32)> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(deny_unknown_fields)]
 pub struct DhcpCfg {
     pub enabled: bool,
     pub require_bound: bool,
     /// Read all DHCP servers from the router, as for PPP. `false` uses only `servers`.
     pub discover: bool,
+    /// The mode of a server without its own `[[routers.dhcp.servers]]` entry.
+    pub server_mode: DhcpMode,
     /// Settings for some servers. A discovered server that is not here uses the defaults.
     pub servers: Vec<DhcpServer>,
-}
-
-impl Default for DhcpCfg {
-    fn default() -> Self {
-        DhcpCfg {
-            enabled: false,
-            require_bound: false,
-            discover: true,
-            servers: Vec::new(),
-        }
-    }
 }
 
 impl DhcpCfg {
@@ -595,7 +376,7 @@ impl DhcpCfg {
             .cloned()
             .unwrap_or_else(|| DhcpServer {
                 name: name.to_string(),
-                mode: DhcpMode::PerSite,
+                mode: self.server_mode,
                 speed_sources: None,
                 default_plan_down_mbps: None,
                 default_plan_up_mbps: None,
@@ -605,10 +386,9 @@ impl DhcpCfg {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DhcpMode {
-    #[default]
     PerSite,
     PerPlan,
 }
@@ -625,7 +405,6 @@ pub enum DhcpSource {
 #[serde(deny_unknown_fields)]
 pub struct DhcpServer {
     pub name: String,
-    #[serde(default)]
     pub mode: DhcpMode,
     #[serde(default)]
     pub speed_sources: Option<Vec<DhcpSource>>,
@@ -640,13 +419,13 @@ pub struct DhcpServer {
 }
 
 impl DhcpServer {
-    /// The speed sources in order. The default depends on the mode.
-    pub fn sources(&self) -> Vec<DhcpSource> {
+    /// The speed sources in order. Without its own list, the server uses the list of its mode in `[speed]`.
+    pub fn sources(&self, speed: &Speed) -> Vec<DhcpSource> {
         self.speed_sources
             .clone()
             .unwrap_or_else(|| match self.mode {
-                DhcpMode::PerSite => vec![DhcpSource::ServerComment, DhcpSource::Settings],
-                DhcpMode::PerPlan => vec![DhcpSource::LeaseComment],
+                DhcpMode::PerSite => speed.dhcp_per_site_sources.clone(),
+                DhcpMode::PerPlan => speed.dhcp_per_plan_sources.clone(),
             })
     }
 
@@ -666,6 +445,104 @@ impl DhcpServer {
             self.download_factor.unwrap_or(bd.dhcp_download_factor),
             self.upload_factor.unwrap_or(bd.dhcp_upload_factor),
         )
+    }
+}
+
+/// The embedded default settings. `config/defaults.toml` is the only source of default values.
+const DEFAULTS_TOML: &str = include_str!("../config/defaults.toml");
+
+fn defaults_table() -> toml::Table {
+    toml::from_str(DEFAULTS_TOML).expect("config/defaults.toml is valid TOML")
+}
+
+/// The default config, with no routers. Built one time from `config/defaults.toml`.
+pub fn defaults() -> &'static Config {
+    static CFG: std::sync::OnceLock<Config> = std::sync::OnceLock::new();
+    CFG.get_or_init(|| {
+        Config::merge(defaults_table(), toml::Table::new())
+            .expect("config/defaults.toml matches the config types")
+    })
+}
+
+/// Put `over` on top of `base`: tables merge key by key, all other values replace.
+fn deep_merge(base: &mut toml::Table, over: toml::Table) {
+    for (k, v) in over {
+        match (base.get_mut(&k), v) {
+            (Some(toml::Value::Table(b)), toml::Value::Table(o)) => deep_merge(b, o),
+            (_, v) => {
+                base.insert(k, v);
+            }
+        }
+    }
+}
+
+macro_rules! default_from_file {
+    ($($ty:ident => $field:ident),* $(,)?) => {
+        $(impl Default for $ty {
+            fn default() -> Self {
+                defaults().$field.clone()
+            }
+        })*
+    };
+}
+
+default_from_file!(
+    Runtime => runtime, RouterAccess => router_access, Safety => safety, Libreqos => libreqos,
+    Network => network, Nodes => nodes, CircuitNames => circuits, Speed => speed,
+    BandwidthDefaults => bandwidth_defaults, BackstopCaps => backstop_caps, Telegram => telegram,
+    Exclude => exclude,
+);
+
+impl Default for Config {
+    fn default() -> Self {
+        defaults().clone()
+    }
+}
+
+impl Config {
+    /// Merge a user table over the defaults, apply `[router_defaults]` to each router, and read the types.
+    fn merge(mut base: toml::Table, mut user: toml::Table) -> anyhow::Result<Config> {
+        let mut router_defaults = match base.remove("router_defaults") {
+            Some(toml::Value::Table(t)) => t,
+            _ => toml::Table::new(),
+        };
+        match user.remove("router_defaults") {
+            Some(toml::Value::Table(t)) => deep_merge(&mut router_defaults, t),
+            Some(_) => bail!("config: [router_defaults] must be a table"),
+            None => {}
+        }
+        let routers = match user.remove("routers") {
+            Some(toml::Value::Array(a)) => a,
+            Some(_) => bail!("config: routers must be a list of [[routers]] tables"),
+            None => Vec::new(),
+        };
+        deep_merge(&mut base, user);
+        let mut merged = Vec::new();
+        for r in routers {
+            let toml::Value::Table(r) = r else {
+                bail!("config: each [[routers]] entry must be a table");
+            };
+            let mut m = router_defaults.clone();
+            deep_merge(&mut m, r);
+            // A listed DHCP server without a mode uses the router server_mode.
+            if let Some(toml::Value::Table(dhcp)) = m.get_mut("dhcp") {
+                let mode = dhcp.get("server_mode").cloned();
+                if let (Some(mode), Some(toml::Value::Array(servers))) =
+                    (mode, dhcp.get_mut("servers"))
+                {
+                    for s in servers.iter_mut() {
+                        if let toml::Value::Table(s) = s {
+                            s.entry("mode").or_insert(mode.clone());
+                        }
+                    }
+                }
+            }
+            merged.push(toml::Value::Table(m));
+        }
+        base.insert("routers".into(), toml::Value::Array(merged));
+        // The path tells the operator where the bad key is, for example routers[1].pppoe.
+        serde_path_to_error::deserialize::<_, Config>(toml::Value::Table(base))
+            .map_err(|e| anyhow::anyhow!("config: {}: {}", e.path(), e.inner()))
     }
 }
 
@@ -769,7 +646,8 @@ impl Config {
 
     /// Parse a TOML text and check all values.
     pub fn from_toml_str(s: &str) -> anyhow::Result<Config> {
-        let cfg: Config = toml::from_str(s).context("config: TOML parse error")?;
+        let user: toml::Table = toml::from_str(s).context("config: TOML parse error")?;
+        let cfg = Config::merge(defaults_table(), user)?;
         cfg.validate()?;
         Ok(cfg)
     }
@@ -830,7 +708,7 @@ impl Config {
                     r.name,
                     s.name
                 );
-                let src = s.sources();
+                let src = s.sources(&self.speed);
                 ensure!(
                     !src.is_empty(),
                     "config: router \"{}\" server \"{}\": speed_sources is empty",
@@ -1032,6 +910,72 @@ impl Config {
                 ensure!(t.contains(p), "config: {k} must contain {p}");
             }
         }
+        // Only the known fields: a typo such as {usr} would stay as text in each name.
+        let fields = regex::Regex::new(r"\{[^{}]*\}").expect("valid regex");
+        for (k, t, allowed) in [
+            ("nodes.ppp.name", &nd.ppp.name, &["{router}"][..]),
+            ("nodes.hotspot.name", &nd.hotspot.name, &["{router}"]),
+            (
+                "nodes.ppp_plan.name",
+                &nd.ppp_plan.name,
+                &["{profile}", "{router}"],
+            ),
+            (
+                "nodes.dhcp_site.name",
+                &nd.dhcp_site.name,
+                &["{server}", "{router}"],
+            ),
+            (
+                "nodes.dhcp_plan.name",
+                &nd.dhcp_plan.name,
+                &["{plan}", "{router}"],
+            ),
+            (
+                "circuits.pppoe",
+                &self.circuits.pppoe,
+                &["{user}", "{router}"],
+            ),
+            (
+                "circuits.hotspot",
+                &self.circuits.hotspot,
+                &["{key}", "{router}"],
+            ),
+            ("circuits.dhcp", &self.circuits.dhcp, &["{key}", "{router}"]),
+        ] {
+            for m in fields.find_iter(t) {
+                ensure!(
+                    allowed.contains(&m.as_str()),
+                    "config: {k}: {} is not a known field; use {}",
+                    m.as_str(),
+                    allowed.join(", ")
+                );
+            }
+        }
+
+        ensure!(
+            !sp.dhcp_per_site_sources.is_empty(),
+            "config: speed.dhcp_per_site_sources must not be empty"
+        );
+        ensure!(
+            !sp.dhcp_per_plan_sources.is_empty(),
+            "config: speed.dhcp_per_plan_sources must not be empty"
+        );
+        ensure!(
+            !sp.dhcp_per_site_sources.contains(&DhcpSource::LeaseComment),
+            "config: speed.dhcp_per_site_sources must not contain lease_comment"
+        );
+        // A tool row with the static comment comes back as an operator row and is never removed.
+        let stat = rt.static_comment.trim();
+        for (k, v) in [
+            ("comment_pppoe", &self.circuits.comment_pppoe),
+            ("comment_hotspot", &self.circuits.comment_hotspot),
+            ("comment_dhcp", &self.circuits.comment_dhcp),
+        ] {
+            ensure!(
+                !v.trim().eq_ignore_ascii_case(stat),
+                "config: circuits.{k} must not be the same as runtime.static_comment \"{stat}\""
+            );
+        }
 
         if self.targets_v3() == Some(true) && n.mode == NetworkMode::NoParent {
             bail!(
@@ -1124,13 +1068,13 @@ mod tests {
     #[test]
     fn node_type_defaults_follow_target() {
         let c = Config::from_toml_str(MIN).unwrap();
-        assert_eq!(c.nodes.ppp_plan.type_for("plan", false), "plan");
-        assert_eq!(c.nodes.ppp_plan.type_for("plan", true), "site");
+        assert_eq!(c.nodes.ppp_plan.type_for(false), "plan");
+        assert_eq!(c.nodes.ppp_plan.type_for(true), "site");
         let c = Config::from_toml_str(&format!(
             "[nodes]\nppp_plan={{name=\"{{profile}}-{{router}}\",type=\"ap\"}}\n{MIN}"
         ))
         .unwrap();
-        assert_eq!(c.nodes.ppp_plan.type_for("plan", true), "ap");
+        assert_eq!(c.nodes.ppp_plan.type_for(true), "ap");
     }
 
     #[test]
@@ -1145,12 +1089,12 @@ mod tests {
         );
         let c = Config::from_toml_str(&s("per_plan", "")).unwrap();
         assert_eq!(
-            c.routers[0].dhcp.servers[0].sources(),
+            c.routers[0].dhcp.servers[0].sources(&c.speed),
             vec![DhcpSource::LeaseComment]
         );
         let c = Config::from_toml_str(&s("per_site", "")).unwrap();
         assert_eq!(
-            c.routers[0].dhcp.servers[0].sources(),
+            c.routers[0].dhcp.servers[0].sources(&c.speed),
             vec![DhcpSource::ServerComment, DhcpSource::Settings]
         );
     }
@@ -1207,5 +1151,83 @@ mod tests {
             ),
             ("GUEST", DhcpMode::PerSite, None)
         );
+    }
+
+    #[test]
+    fn router_defaults_apply_to_each_router_and_a_router_overrides_them() {
+        let two = format!("{MIN}{}", MIN.replace("R1", "R2") + "port=8000\n");
+        let c = Config::from_toml_str(&format!(
+            "[router_defaults]\nport=8728\n[router_defaults.pppoe]\nenabled=true\n{two}"
+        ))
+        .unwrap();
+        assert_eq!(
+            (c.routers[0].port, c.routers[0].pppoe.enabled),
+            (8728, true)
+        );
+        assert_eq!(c.routers[1].port, 8000);
+    }
+
+    #[test]
+    fn every_default_comes_from_the_defaults_file() {
+        let file: toml::Table = toml::from_str(DEFAULTS_TOML).unwrap();
+        assert_eq!(
+            file["runtime"]["scan_interval_active"].as_integer(),
+            Some(defaults().runtime.scan_interval_active as i64)
+        );
+        assert_eq!(file["router_defaults"]["port"].as_integer(), Some(8729));
+        assert!(defaults().routers.is_empty());
+    }
+
+    #[test]
+    fn unknown_template_fields_are_rejected() {
+        for bad in [
+            "[circuits]\npppoe=\"{user}-{usr}\"\n",
+            "[nodes.ppp]\nname=\"PPP-{router}-{site}\"\n",
+            "[circuits]\nhotspot=\"HS-{key}-{profile}\"\n",
+        ] {
+            let e = Config::from_toml_str(&format!("{bad}{MIN}")).unwrap_err();
+            assert!(format!("{e:#}").contains('{'), "{bad}: {e:#}");
+        }
+        Config::from_toml_str(&format!("[circuits]\npppoe=\"{{user}}@{{router}}\"\n{MIN}"))
+            .unwrap();
+    }
+
+    #[test]
+    fn config_errors_name_the_key_path() {
+        let e = format!(
+            "{:#}",
+            Config::from_toml_str(&format!("[runtime]\nscan_interval_active=\"x\"\n{MIN}"))
+                .unwrap_err()
+        );
+        assert!(e.contains("runtime.scan_interval_active"), "{e}");
+        let e = format!(
+            "{:#}",
+            Config::from_toml_str(&format!("{MIN}[routers.pppoe]\nenabeld=true\n")).unwrap_err()
+        );
+        assert!(
+            e.contains("routers[0].pppoe") && e.contains("enabeld"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn global_dhcp_source_lists_are_checked() {
+        for bad in [
+            "[speed]\ndhcp_per_site_sources=[]\n",
+            "[speed]\ndhcp_per_plan_sources=[]\n",
+            "[speed]\ndhcp_per_site_sources=[\"lease_comment\"]\n",
+        ] {
+            assert!(
+                Config::from_toml_str(&format!("{bad}{MIN}")).is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_circuit_comment_must_not_be_the_static_comment() {
+        let e = Config::from_toml_str(&format!("[circuits]\ncomment_pppoe=\" Static \"\n{MIN}"))
+            .unwrap_err();
+        assert!(format!("{e:#}").contains("static_comment"), "{e:#}");
     }
 }

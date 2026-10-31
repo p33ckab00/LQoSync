@@ -10,6 +10,10 @@ Read these documents first. If two documents do not agree, this document is corr
 - `updatecsv.py` is a guide for the domain rules only (ADR-0007). Do not copy its output format or its defects.
 - `brain/30-knowledge/v3-node-handling.md`: the LibreQoS v3 node rules, with evidence.
 
+## 0. Settings
+
+`config/defaults.toml` is the only source of default values. The binary embeds it. `Config::from_toml_str` merges the user file on top of it, and merges `[router_defaults]` into each `[[routers]]` entry. The `Default` impls read the same file.
+
 ## 1. Delivery in five plans
 
 | Plan | Result | Network access |

@@ -1,5 +1,6 @@
 //! CSV read, static rows, seed, and the state file.
 
+use crate::config::CircuitNames;
 use crate::model::{CsvRow, Source, State, StoredCircuit, StoredNode};
 use anyhow::{Context, ensure};
 use std::collections::BTreeMap;
@@ -28,14 +29,21 @@ pub fn split_static(rows: Vec<CsvRow>, static_comment: &str) -> (Vec<CsvRow>, Ve
 }
 
 /// Make a first state from the rows of the current CSV. The caller removes the static rows.
-pub fn seed_state(rows: &[CsvRow], now: u64) -> State {
+pub fn seed_state(rows: &[CsvRow], names: &CircuitNames, now: u64) -> State {
+    // The fixed text before {key} in a template, for example "HS-" in "HS-{key}".
+    let prefix = |t: &str| t.split('{').next().unwrap_or_default().to_string();
+    let (hs, dhcp) = (prefix(&names.hotspot), prefix(&names.dhcp));
     let mut st = State::default();
     for row in rows {
-        let source = if row.comment.trim().eq_ignore_ascii_case("PPP") {
+        let source = if row
+            .comment
+            .trim()
+            .eq_ignore_ascii_case(names.comment_pppoe.trim())
+        {
             Source::Ppp
-        } else if row.circuit_name.starts_with("HS-") {
+        } else if !hs.is_empty() && row.circuit_name.starts_with(&hs) {
             Source::Hotspot
-        } else if row.circuit_name.starts_with("DHCP-") {
+        } else if !dhcp.is_empty() && row.circuit_name.starts_with(&dhcp) {
             Source::Dhcp
         } else {
             Source::Unknown
@@ -149,7 +157,12 @@ mod tests {
         // All rows stay: a multi-device circuit has several rows with one name.
         assert_eq!(rows.len(), 2);
         // The seed keeps one circuit for each name: the later row wins.
-        assert_eq!(seed_state(&rows, 1).circuits["x"].row.circuit_id, "C");
+        assert_eq!(
+            seed_state(&rows, &crate::config::CircuitNames::default(), 1).circuits["x"]
+                .row
+                .circuit_id,
+            "C"
+        );
     }
 
     #[test]
@@ -178,6 +191,7 @@ mod tests {
                 mk("DHCP-pc", "pc"),
                 mk("odd", "x"),
             ],
+            &crate::config::CircuitNames::default(),
             7,
         );
         assert_eq!(st.circuits["alice"].source, Source::Ppp);
@@ -212,10 +226,32 @@ mod tests {
 
     #[test]
     fn state_json_round_trip_and_version_check() {
-        let st = seed_state(&[], 1);
+        let st = seed_state(&[], &crate::config::CircuitNames::default(), 1);
         assert_eq!(State::from_json(&st.to_json()).unwrap().version, 1);
         assert!(
             State::from_json(r#"{"version":2,"circuits":{},"nodes":{},"routers":{}}"#).is_err()
         );
+    }
+
+    #[test]
+    fn seed_uses_the_configured_names_and_comments() {
+        let names = crate::config::CircuitNames {
+            comment_pppoe: "PPPoE".into(),
+            hotspot: "WIFI-{key}".into(),
+            ..Default::default()
+        };
+        let mk = |n: &str, c: &str| CsvRow {
+            circuit_name: n.into(),
+            comment: c.into(),
+            ..Default::default()
+        };
+        let st = seed_state(
+            &[mk("alice", "PPPoE"), mk("WIFI-AA", "HS"), mk("HS-BB", "HS")],
+            &names,
+            1,
+        );
+        assert_eq!(st.circuits["alice"].source, Source::Ppp);
+        assert_eq!(st.circuits["WIFI-AA"].source, Source::Hotspot);
+        assert_eq!(st.circuits["HS-BB"].source, Source::Unknown);
     }
 }

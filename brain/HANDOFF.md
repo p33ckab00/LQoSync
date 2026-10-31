@@ -49,14 +49,17 @@ None at this time.
 Write Plan 2 (runtime): collector with `mikrotik-rs` (TLS, `.proplist`, timeouts, parallel routers, router states), apply (lock, hash, atomic write with `fsync`, backups, `shadow`), `status.json`, signals, Telegram, CLI `check`, `once`, `run`, `diff`, and the systemd unit.
 Plan 2 must call `seed_state` and `seed_nodes` on the first run. The core is in `src/`; the entry point is `cycle::assemble()`.
 
-Deferred minor items from the Plan 1 review (fix in Plan 2 or later):
-- A comment speed `0M/0M` gives 0.2, not the next source.
-- An unknown `{placeholder}` in a template is not rejected at load.
-- A router that is missing from the cycle input ignores `subscriber_grace`.
-- `flag_on` reads any value other than `false` as on.
-- `to_network_json` inserts children in name order, not depth order.
-- A router with no source enabled collects nothing; `check` must warn.
-- Duplicate-IP drops are not counted by the removal guard.
+Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
+
+Open from the Plan 1 review: `check` must warn about a router with no source enabled (Plan 2).
+
+Deferred minor items from the defaults review (2026-10-31):
+- A list in `[[routers]]` replaces the same list from `[router_defaults]` (the global `[exclude]` joins). Write this in CONFIGURATION.md.
+- `[router_defaults]` accepts `name`, `address`, `username`, `password_file`. Reject them there.
+- An empty `v2_type`, `v3_type`, `type`, or `root_type` loads and writes `"type": ""`. Add a non-empty check.
+- A comment speed with one zero value (`10M/0M`) falls through without a report line.
+- The CONFIGURATION.md example is a partial copy of `config/defaults.toml`. Make it a pointer, or test that the keys match.
+- The installed binary cannot print the embedded defaults. Add `lqosync3 defaults` (Plan 2 CLI).
 
 ### Production state
 

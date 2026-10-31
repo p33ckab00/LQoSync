@@ -269,7 +269,7 @@ pub fn assemble(
             let remove = match e.router.as_deref() {
                 None => all_online && aged,
                 Some(r) => match state_of.get(r) {
-                    None => true,
+                    None => aged,
                     Some(RouterResult::Online(_)) => aged,
                     Some(RouterResult::Offline) => {
                         cfg.router_access.offline_action == OfflineAction::Remove
@@ -339,6 +339,8 @@ pub fn assemble(
         }
     }
     let mut dropped_names: HashSet<String> = HashSet::new();
+    let rows_before_dedupe = rows.len();
+    let mut stale_drops = 0usize;
     for (ip, mut names) in by_ip.into_iter() {
         let static_holder = static_ip.get(ip.as_str()).map(|s| s.to_string());
         if names.len() < 2 && static_holder.is_none() {
@@ -353,6 +355,9 @@ pub fn assemble(
             None => (names[0].clone(), &names[1..]),
         };
         for dropped in losers {
+            if rows.get(dropped).is_some_and(|e| !e.collected_now) {
+                stale_drops += 1;
+            }
             dropped_names.insert(dropped.clone());
             rows.remove(dropped);
             members.remove(dropped);
@@ -365,6 +370,16 @@ pub fn assemble(
         }
     }
 
+    // The duplicate pass is not held (LibreQoS rejects a duplicate IP), but a large drop gets an alert.
+    let s = &cfg.safety;
+    if s.enabled
+        && (stale_drops > s.max_removed_count
+            || stale_drops as f64 * 100.0 > rows_before_dedupe as f64 * s.max_removed_percent)
+    {
+        report.alerts.push(format!(
+            "duplicate IP pass dropped {stale_drops} old rows in one cycle; check the router address pools"
+        ));
+    }
     report.added.retain(|n| !dropped_names.contains(n));
     report.updated.retain(|(n, _)| !dropped_names.contains(n));
 
@@ -1245,5 +1260,64 @@ mod tests {
             out.network
         );
         assert!(out.network["PPP-R1"].is_object());
+    }
+
+    #[test]
+    fn grace_also_applies_to_a_router_not_in_the_config() {
+        // Cycle 1: R9 is in the config. Cycle 2: R9 is gone from the config.
+        let with_r9 = Config::from_toml_str(&format!(
+            "[runtime]\nsubscriber_grace=600\n[safety]\nenabled=false\n[router_defaults.pppoe]\nenabled=true\n{}",
+            ["R1", "R9"].map(|n| format!("[[routers]]\nname=\"{n}\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n")).concat()
+        ))
+        .unwrap();
+        let mut first = run(
+            &with_r9,
+            &State::default(),
+            vec![
+                ("R1", ppp(&[])),
+                (
+                    "R9",
+                    ppp(&[("recent", "100.64.0.1"), ("old", "100.64.0.2")]),
+                ),
+            ],
+        );
+        first.state.circuits.get_mut("recent").unwrap().last_seen = NOW - 300;
+        first.state.circuits.get_mut("old").unwrap().last_seen = NOW - 600;
+        let c = cfg("root_promotion", "[runtime]\nsubscriber_grace=600");
+        let out = run(&c, &first.state, vec![("R1", ppp(&[])), ("R2", ppp(&[]))]);
+        assert_eq!(names(&out), ["recent"]);
+    }
+
+    #[test]
+    fn many_duplicate_ip_drops_raise_an_alert() {
+        let c = Config::from_toml_str(&format!(
+            "[runtime]\nsubscriber_grace=600\n{}",
+            rp_toml_with_guard()
+        ))
+        .unwrap();
+        let st = state(
+            (0..100)
+                .map(|i| {
+                    stored(
+                        &format!("u{i:03}"),
+                        Some("R1"),
+                        &format!("100.64.1.{i}"),
+                        &format!("K{i}"),
+                        NOW - 30,
+                    )
+                })
+                .collect(),
+        );
+        // 60 new names get the IPs of 60 old rows that grace keeps: the duplicate pass drops 60 rows.
+        let fresh: Vec<_> = (0..60)
+            .map(|i| (format!("n{i:03}"), format!("100.64.1.{i}")))
+            .collect();
+        let out = run(&c, &st, vec![("R1", ppp_owned(&fresh))]);
+        assert_eq!(out.report.duplicates.len(), 60);
+        assert!(
+            out.report.alerts.iter().any(|a| a.contains("duplicate")),
+            "{:?}",
+            out.report.alerts
+        );
     }
 }

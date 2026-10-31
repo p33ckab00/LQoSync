@@ -1,0 +1,179 @@
+# lqosync3 default settings.
+#
+# This file holds every setting and its default value. The binary embeds it.
+# Your /etc/lqosync3/lqosync3.toml only needs the keys that you change, plus [[routers]].
+# A key that is not in this file is an error (spelling check).
+# Rates are in Mbps. Intervals and timeouts are in seconds.
+
+[runtime]
+mode = "shadow"                 # shadow | apply
+scan_interval_active = 25       # seconds, after a change
+scan_interval_idle = 120        # seconds, when there is no change
+error_retry_interval = 30       # seconds, after a cycle error
+id_length = 8                   # length of new circuit IDs and device IDs (4 to 32)
+remove_inactive_entries = true
+static_comment = "static"       # a row with this Comment is never removed (case is ignored)
+subscriber_grace = 0            # seconds that a missing subscriber stays before removal
+log_level = "info"              # error | warn | info | debug
+state_dir = "/var/lib/lqosync3"
+
+[router_access]
+connect_timeout = 5             # seconds, for the TCP connection and the login
+api_timeout = 10                # seconds, for each RouterOS API call
+read_retries = 2                # more attempts for a failed read in the same cycle
+retry_delay = 3                 # seconds between two attempts
+offline_after = 300             # seconds (300 = 5 minutes) without a connection, then the router is offline
+offline_action = "remove"       # remove | keep
+
+[safety]
+enabled = true                  # hold a write that removes too many rows
+max_removed_percent = 20        # percent of the circuits in one cycle
+max_removed_count = 50          # rows in one cycle
+
+[libreqos]
+target = "auto"                 # auto | v2_pair | v3_pair | v3_network
+directory = "/opt/libreqos/src" # LibreQoS lqos_directory
+state_directory = "/opt/libreqos/state"
+v3_config = "/etc/libreqos/lqos.conf"
+v2_command = "/opt/libreqos/src/LibreQoS.py"
+v2_args = ["--updateonly"]
+v2_timeout = 300                # seconds
+v3_status_timeout = 60          # seconds to wait for lqosd to accept the new files
+
+[network]
+mode = "grouped_router_root"    # grouped_router_root | flat_router_root | flat_global_root | no_parent | root_promotion | flat_promotion
+preserve_network_config = false
+root_name = "LibreQoS-Network"  # root name for flat_global_root
+root_type = "site"
+root_download_mbps = 640
+root_upload_mbps = 640
+
+# Names and types of the nodes that the tool makes.
+# Name fields: {router}, and {profile} / {server} / {plan} where shown.
+# v2_type is for LibreQoS 2.x, v3_type for LibreQoS 3.x. Add type = "..." to use one type for both.
+[nodes.ppp]
+name = "PPP-{router}"
+v2_type = "plan"
+v3_type = "site"
+
+[nodes.ppp_plan]
+name = "{profile}-{router}"
+v2_type = "plan"
+v3_type = "site"
+
+[nodes.hotspot]
+name = "HS-{router}"
+v2_type = "site"
+v3_type = "site"
+
+[nodes.dhcp_site]
+name = "DHCP-{server}-{router}"
+v2_type = "site"
+v3_type = "site"
+
+[nodes.dhcp_plan]
+name = "PLAN-DHCP-{plan}-{router}"
+v2_type = "plan"
+v3_type = "site"
+
+[nodes.client]                  # flat_promotion only
+type = "client"
+
+[circuits]                      # Circuit Name and Comment of each source
+pppoe = "{user}"                # fields: {user}, {router}
+hotspot = "HS-{key}"            # fields: {key} (MAC without colons, or the user), {router}
+dhcp = "DHCP-{key}"             # fields: {key} (client name, host name, or MAC without colons), {router}
+comment_pppoe = "PPP"
+comment_hotspot = "HS"
+comment_dhcp = "DHCP"           # used when a lease has no client name
+
+[speed]
+rate_limit_order = "routeros_rx_tx"    # routeros_rx_tx | download_upload
+unitless_unit = "bps"                  # bps | mbps
+profile_name_regex = '(\d+(?:\.\d+)?)\s*([kKmMgG])'
+pppoe_sources = ["secret_comment", "active_comment", "profile_comment", "profile_rate_limit", "profile_name", "default"]
+dhcp_per_site_sources = ["server_comment", "settings"]   # lease_comment is not allowed here
+dhcp_per_plan_sources = ["lease_comment"]
+
+[bandwidth_defaults]
+min_rate_percentage = 0.50
+safe_min_mbps = 0.128           # floor of the min rate, 0.1 or more
+max_floor_mbps = 0.2            # floor of the max rate, 0.2 or more (LibreQoS rule)
+pppoe_default_profile = "default"
+pppoe_default_rate = "10M/10M"
+pppoe_aggregate_factor = 0.50
+dhcp_default_per_client_mbps = 15
+dhcp_download_factor = 0.5
+dhcp_upload_factor = 0.5
+hotspot_default_per_client_mbps = 10
+hotspot_download_factor = 1.0
+hotspot_upload_factor = 1.0
+
+[backstop_caps.pppoe]
+enabled = false
+download_mbps = 600
+upload_mbps = 600
+multiplier = 1.0
+
+[backstop_caps.dhcp]
+enabled = false
+download_mbps = 250
+upload_mbps = 250
+multiplier = 1.0
+
+[backstop_caps.hotspot]
+enabled = false
+download_mbps = 100
+upload_mbps = 100
+multiplier = 1.0
+
+[telegram]
+enabled = false
+bot_token_file = "/etc/lqosync3/secrets/telegram.token"
+bot_token_env = ""              # optional: name of an environment variable with the token
+chat_id = ""
+chat_id_env = ""                # optional: name of an environment variable with the chat ID
+timeout = 10                    # seconds, for each send
+max_message_chars = 3900        # the tool splits a longer message
+notify_on_changes = true
+notify_on_error = true
+notify_on_preflight_warning = true
+include_added = true
+include_updated = true
+include_removed = true
+include_computation = true
+include_telemetry = true
+max_list_items = 15
+
+[exclude]                       # subscribers that the tool does not shape, for all routers
+dhcp_servers = []               # DHCP server names; "*" is a wildcard, case is ignored
+ppp_profiles = []               # PPP profile names; "*" is a wildcard, case is ignored
+ips = []                        # IPv4 addresses or CIDR blocks, for PPP, Hotspot, and DHCP
+
+# Defaults for each [[routers]] entry. A router entry changes only the keys that it sets.
+# Change a key here (in your file) to change it for all routers.
+[router_defaults]
+port = 8729                     # 8729 = API over TLS, 8728 = plain API
+tls = true
+
+[router_defaults.pppoe]
+enabled = false
+per_plan_node = false
+
+[router_defaults.hotspot]
+enabled = false
+include_mac = true
+# download_limit_mbps, upload_limit_mbps, download_factor, upload_factor:
+# not set means the [bandwidth_defaults] hotspot values.
+
+[router_defaults.dhcp]
+enabled = false
+require_bound = false           # true = use only leases with status "bound"
+discover = true                 # read all DHCP servers from the router, as for PPP
+server_mode = "per_site"        # mode of a server without its own entry: per_site | per_plan
+servers = []                    # optional [[routers.dhcp.servers]] entries: settings for one server
+
+[router_defaults.exclude]       # more exclusions for each router (joined with [exclude])
+dhcp_servers = []
+ppp_profiles = []
+ips = []

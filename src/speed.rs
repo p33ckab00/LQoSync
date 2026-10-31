@@ -125,7 +125,7 @@ impl SpeedParser {
             if let Some(c) = re.captures(s) {
                 let v =
                     |i: usize, u: usize| to_mbps(c[i].parse().unwrap_or(0.0), &c[u], self.unitless);
-                return finite(Rate {
+                return usable(Rate {
                     down: v(1, 2),
                     up: v(3, 4),
                 });
@@ -133,7 +133,7 @@ impl SpeedParser {
         }
         let c = self.single.captures(s)?;
         let v: f64 = c[1].parse().ok()?;
-        finite(Rate { down: v, up: v })
+        usable(Rate { down: v, up: v })
     }
 
     /// Speed from a RouterOS `rate-limit` value. Only the first rate pair counts.
@@ -254,5 +254,11 @@ mod tests {
         assert_eq!(p().comment(&big), None);
         assert_eq!(p().rate_limit(&format!("{big}/{big}")), None);
         assert_eq!(p().profile_name(&format!("Gold-{big}")), None);
+    }
+
+    #[test]
+    fn zero_comment_speed_is_no_rate() {
+        assert_eq!(p().comment("0M/0M"), None);
+        assert_eq!(p().comment("Plan 0M"), None);
     }
 }

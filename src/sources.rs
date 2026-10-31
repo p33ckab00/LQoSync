@@ -33,10 +33,10 @@ fn f<'a>(row: &'a RosRow, key: &str) -> &'a str {
     row.get(key).map_or("", |v| v.trim())
 }
 
-/// A RouterOS flag is on if it is present and not "false".
+/// A RouterOS flag is on only for "true" or "yes" (case is ignored).
 fn flag_on(row: &RosRow, key: &str) -> bool {
     let v = f(row, key);
-    !v.is_empty() && !v.eq_ignore_ascii_case("false")
+    v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes")
 }
 
 fn mac_key(mac: &str) -> String {
@@ -155,10 +155,8 @@ fn collect_ppp(
     for p in &snap.ppp_profile {
         profiles.entry(f(p, "name")).or_insert(p);
     }
-    let default_rate = parse_default_rate(&bd.pppoe_default_rate).unwrap_or(Rate {
-        down: 10.0,
-        up: 10.0,
-    });
+    let default_rate = parse_default_rate(&bd.pppoe_default_rate)
+        .expect("config validation parses pppoe_default_rate");
     let mut no_secret = 0usize;
     for (&user, &act) in &active {
         if user.is_empty() {
@@ -207,7 +205,7 @@ fn collect_ppp(
             device_name: user.to_string(),
             mac: mac.to_string(),
             ipv4: f(act, "address").to_string(),
-            comment: "PPP".into(),
+            comment: cfg.circuits.comment_pppoe.clone(),
             source: Source::Ppp,
             base,
             group: if router.pppoe.per_plan_node {
@@ -256,7 +254,7 @@ fn collect_hotspot(
             },
             mac: mac.to_string(),
             ipv4: f(row, "address").to_string(),
-            comment: "HS".into(),
+            comment: cfg.circuits.comment_hotspot.clone(),
             source: Source::Hotspot,
             base,
             group: GroupKey::Hotspot,
@@ -298,7 +296,7 @@ fn collect_dhcp(
     names.retain(|n| !disabled.contains(&n.as_str()) && !ex.server(n));
     for name in &names {
         let server = router.dhcp.server(name);
-        let sources = server.sources();
+        let sources = server.sources(&cfg.speed);
         let server_comment = snap
             .dhcp_server
             .iter()
@@ -359,7 +357,7 @@ fn collect_dhcp(
                 mac: mac.to_string(),
                 ipv4: ip.to_string(),
                 comment: if client.is_empty() {
-                    "DHCP".into()
+                    cfg.circuits.comment_dhcp.clone()
                 } else {
                     client.to_string()
                 },
@@ -694,5 +692,18 @@ mode = "per_plan"
                   {"server":"GUEST","host-name":"b","mac-address":"02:00:00:00:07:02","address":"100.66.7.2"}]}"#,
         );
         assert_eq!(names_of(&run(&c, &s).0), ["p2", "DHCP-a"]);
+    }
+
+    #[test]
+    fn only_true_or_yes_turns_a_flag_on() {
+        let s = snap(
+            r#"{"ppp_secret":[{"name":"a","disabled":"no"},{"name":"b","disabled":"yes"},{"name":"c","inactive":"TRUE"},{"name":"d","disabled":"false"}],
+                "ppp_active":[{"name":"a"},{"name":"b"},{"name":"c"},{"name":"d"}]}"#,
+        );
+        let (out, _) = run(&cfg(false), &s);
+        assert_eq!(
+            out.iter().map(|x| x.name.as_str()).collect::<Vec<_>>(),
+            ["a", "d"]
+        );
     }
 }

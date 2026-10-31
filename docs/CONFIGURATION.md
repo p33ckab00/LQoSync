@@ -3,9 +3,18 @@
 The tool reads one TOML file. The default path is `/etc/lqosync3/lqosync3.toml`.
 Use `--config <path>` to read a different file.
 
+## Default settings
+
+All default values are in [`config/defaults.toml`](../config/defaults.toml). The binary embeds this file, and the code has no other default values.
+Your `/etc/lqosync3/lqosync3.toml` holds only the keys that you change, plus `[[routers]]`. The tool puts your keys on top of the defaults.
+
+- `[router_defaults]` holds the defaults of each `[[routers]]` entry (port, TLS, sources, DHCP discovery, exclusions). Set a key in your `[router_defaults]` to change it for all routers. A `[[routers]]` entry changes only the keys that it sets.
+- A key that is not in `config/defaults.toml` is an error.
+
 ## Rules
 
-- The loader rejects an unknown key. A spelling error stops the start and shows the key name.
+- The loader rejects an unknown key or a wrong value type. The error shows the key path, for example `runtime.scan_interval_active` or `routers[1].pppoe`.
+- `circuits.comment_pppoe`, `comment_hotspot`, and `comment_dhcp` set the Comment column of each source. They must not be the same as `runtime.static_comment`.
 - Do not put a password or a token in the TOML file. Use a `*_file` key or a `*_env` key.
 - Each secret file must have mode `0600` and owner `root`. If not, the tool does not start.
 - Rates are in Mbps. Intervals and timeouts are in seconds.
@@ -205,7 +214,7 @@ upload_factor = 1.0
 The tool reads all DHCP servers from `/ip/dhcp-server` on each router, as it reads all PPP secrets. A server needs no entry in the TOML file.
 
 - A server that is disabled on the router is skipped.
-- A server without a `[[routers.dhcp.servers]]` entry uses the defaults: `mode = "per_site"`, the speed sources of `per_site`, `dhcp_default_per_client_mbps`, and the DHCP factors of `[bandwidth_defaults]`.
+- A server without a `[[routers.dhcp.servers]]` entry uses the defaults: `routers.dhcp.server_mode` (default `per_site`), the speed sources of `per_site`, `dhcp_default_per_client_mbps`, and the DHCP factors of `[bandwidth_defaults]`.
 - Add a `[[routers.dhcp.servers]]` entry only to change one server, for example its rate or `mode = "per_plan"`.
 - Set `discover = false` to use only the listed servers.
 
@@ -282,10 +291,10 @@ The tool finds a speed for each subscriber. It tries the sources in the list ord
 | `lease_comment` | The comment of the lease. The text before `|` is the client name. |
 | `settings` | `default_plan_down_mbps` and `default_plan_up_mbps` of the server |
 
-The default list depends on `mode`:
+The default list depends on `mode`. It comes from `[speed]`:
 
-- `per_site`: `["server_comment", "settings"]`.
-- `per_plan`: `["lease_comment"]`.
+- `per_site`: `speed.dhcp_per_site_sources` (default `["server_comment", "settings"]`).
+- `per_plan`: `speed.dhcp_per_plan_sources` (default `["lease_comment"]`).
 
 With `per_site`, the loader rejects `lease_comment`. The site node rate is the lease count multiplied by one server rate, so all leases of the server must have the same rate.
 
@@ -325,7 +334,7 @@ Use `shadow` to compare the output with the Python service before the cutover.
 
 ## Node types
 
-If a `[nodes]` entry has no `type`, the tool uses this default:
+Each `[nodes]` entry has `v2_type` and `v3_type`. Add `type = "..."` to use one type for both targets. The defaults are:
 
 | Node | `v2_pair` | `v3_pair`, `v3_network` |
 |------|-----------|--------------------------|
@@ -334,7 +343,7 @@ If a `[nodes]` entry has no `type`, the tool uses this default:
 | `client` | `client` | `client` |
 
 LibreQoS v3 with `compile_mode = "ap_site"` can keep only `site` and `ap` nodes. Refer to [ADR-0006](../brain/20-decisions/ADR-0006-v3-guards-and-node-types.md).
-A `type` in `[nodes]` applies to all targets.
+`type` in a `[nodes]` entry applies to all targets.
 
 ## LibreQoS v3 checks
 
