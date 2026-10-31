@@ -109,7 +109,7 @@ where
         let start = Instant::now();
         let state_dir = Path::new(&self.cfg.runtime.state_dir).to_path_buf();
         let mut status = Status {
-            version: 1,
+            version: 2,
             updated: now,
             mode: match self.cfg.runtime.mode {
                 RuntimeMode::Shadow => "shadow".into(),
@@ -263,7 +263,7 @@ where
             now,
         };
         let mut out = assemble(input, &mut || random_id(id_len))?;
-        status.report = ReportSummary::from_report(&out.report);
+        status.report = ReportSummary::from_report(&out.report, &out.rows, &state);
         out.state.routers = memos;
 
         // The state first: if the process stops here, the next cycle gives the same files.

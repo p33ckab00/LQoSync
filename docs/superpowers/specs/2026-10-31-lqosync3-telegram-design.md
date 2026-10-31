@@ -34,7 +34,8 @@ The memory holds the events of the last cycle, also when a send failed. A failed
 - Body: mode, target, files changed, reload result, next scan.
 - `include_telemetry`: the cycle time, and one line for each router with its state, rows, and read time.
 - Summary counts: added, updated, removed, held, duplicates, warnings.
-- `include_added`, `include_updated`, `include_removed`: the circuit names. An updated circuit also shows its changed columns.
+- `include_added`, `include_removed`: one line for each circuit with its name, IPv4, max rates, and parent node.
+- `include_updated`: one line for each circuit with its name, IPv4, and each changed column as `old -> new`. A rate column is compared as a number, so `25.0` and `25` are the same.
 - Held circuits, duplicates, alerts, and warnings: always shown when present.
 - An error text shows at most 20 lines and 1000 characters. Each line is a separate `<code>` element, so a split keeps valid HTML. The reload line shows only the first line of the reload result.
 - An empty token file is an error.

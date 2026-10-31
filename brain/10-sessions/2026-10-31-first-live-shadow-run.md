@@ -36,8 +36,19 @@ Run lqosync3 in `shadow` mode against the live router and compare the result wit
 - Test: removed `/var/lib/lqosync3/candidate/network.json`, then sent `SIGUSR1`. The cycle wrote the candidate again, and the message `[shadow] OK: lqosync3 candidate files changed` arrived in the chat.
 - Until the cutover, the chat gets messages from two tools: the Python service and lqosync3 (`[shadow]`).
 
+## Cutover to apply (15:35 UTC)
+
+The operator chose the cutover before the 24-hour shadow period ended.
+
+- Backup: `/var/backups/lqosync/20261031T153517Z` (the last Python files).
+- Stopped `lqosync3.service`. Stopped and disabled `lqosync-updatecsv.service`. Set `runtime.mode = "apply"`.
+- Removed `/var/lib/lqosync3/state.json`, so the first cycle took the circuit IDs from the live files.
+- First cycle: `updated 27 | files changed: true | reload: ok`. The next cycle gave updated 0.
+- `LibreQoS.py --validate`: `Rust validated ShapedDevices.csv`, `ShapedDevices.csv passed validation`, `network.json passed validation`. LibreQoS 2.2 accepts the 14 columns and the node `id` key (ADR-0005 check done).
+- The circuit IDs stayed (for example `TISZWB5U`). The files kept the owner `pi:pi` and the mode `0644`.
+- Telegram: `OK: lqosync3 update applied`.
+- Operator feedback: the Updated list showed only column names. The 27 updates were format only (`25.0` to `25`) and the new `Parent Node ID`. Fix: compare rates as numbers, and show the values (`old -> new`) and the IPv4, rates and parent of added and removed circuits.
+
 ## Open items
 
-- After 24 hours (2026-11-01 15:24 UTC, from the binary change), run `sudo lqosync3 diff` again.
-- The cutover to `apply` mode needs the operator's approval.
 - Plain API: think about `api-ssl` (port 8729) with `tls_ca_file` later.

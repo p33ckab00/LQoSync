@@ -2,7 +2,7 @@
 
 use crate::config::Telegram;
 use crate::secrets::read_secret;
-use crate::status::Status;
+use crate::status::{CircuitInfo, Status, UpdatedInfo};
 use rustls::pki_types::ServerName;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -77,6 +77,38 @@ fn code_block(out: &mut Vec<String>, label: &str, text: &str) {
             .take(20)
             .map(|l| format!("<code>{}</code>", esc(&cap(l, 300)))),
     );
+}
+
+/// "name  ip  down/up Mbps<sep>parent", without the empty parts.
+fn circuit_line(c: &CircuitInfo, sep: &str) -> String {
+    let mut t = c.name.clone();
+    if !c.ipv4.is_empty() {
+        t += &format!("  {}", c.ipv4);
+    }
+    if !c.download_max.is_empty() {
+        t += &format!("  {}/{} Mbps", c.download_max, c.upload_max);
+    }
+    if !c.parent.is_empty() {
+        t += &format!("{sep}{}", c.parent);
+    }
+    t
+}
+
+/// "name  ip: column old -> new, ...". An empty value shows as "(empty)".
+fn updated_line(u: &UpdatedInfo) -> String {
+    let v = |x: &str| {
+        if x.is_empty() {
+            "(empty)".to_string()
+        } else {
+            x.to_string()
+        }
+    };
+    let changes: Vec<String> = u
+        .changes
+        .iter()
+        .map(|(col, old, new)| format!("{col} {} -> {}", v(old), v(new)))
+        .collect();
+    format!("{}  {}: {}", u.name, u.ipv4, changes.join(", "))
 }
 
 fn list(out: &mut Vec<String>, title: &str, items: &[String], max: usize) {
@@ -217,18 +249,20 @@ impl Notifier {
         }
         out.push(String::new());
         if tg.include_added {
-            list(&mut out, "Added", &rep.added, max);
+            let added: Vec<String> = rep.added.iter().map(|c| circuit_line(c, " -> ")).collect();
+            list(&mut out, "Added", &added, max);
         }
         if tg.include_updated {
-            let updated: Vec<String> = rep
-                .updated
-                .iter()
-                .map(|(c, cols)| format!("{c} ({})", cols.join(", ")))
-                .collect();
+            let updated: Vec<String> = rep.updated.iter().map(updated_line).collect();
             list(&mut out, "Updated", &updated, max);
         }
         if tg.include_removed {
-            list(&mut out, "Removed", &rep.removed, max);
+            let removed: Vec<String> = rep
+                .removed
+                .iter()
+                .map(|c| circuit_line(c, ", from "))
+                .collect();
+            list(&mut out, "Removed", &removed, max);
         }
         list(&mut out, "Held by the removal guard", &rep.held, max);
         let dups: Vec<String> = rep
@@ -400,7 +434,7 @@ pub async fn send_all(tg: &Telegram, text: &str, owner_uid: u32) -> Result<(), S
 mod tests {
     use super::*;
     use crate::config::Telegram;
-    use crate::status::{ReportSummary, RouterStatus, Status};
+    use crate::status::{ReportSummary, RouterStatus};
 
     fn tg() -> Telegram {
         Telegram {
@@ -412,7 +446,7 @@ mod tests {
 
     fn st(mode: &str, state: &'static str) -> Status {
         Status {
-            version: 1,
+            version: 2,
             updated: 0,
             mode: mode.into(),
             target: "v2_pair".into(),
@@ -458,16 +492,30 @@ mod tests {
         let mut s = st("apply", "online");
         s.files_changed = true;
         s.reload = "ok".into();
-        s.report.added = vec!["alice".into()];
-        s.report.updated = vec![("bob".into(), vec!["IPv4".into()])];
-        s.report.removed = vec!["carol".into()];
+        let info = |n: &str, ip: &str, d: &str, u: &str, p: &str| CircuitInfo {
+            name: n.into(),
+            ipv4: ip.into(),
+            download_max: d.into(),
+            upload_max: u.into(),
+            parent: p.into(),
+        };
+        s.report.added = vec![info("alice", "100.64.0.2", "25", "5", "PPP-R1")];
+        s.report.updated = vec![UpdatedInfo {
+            name: "bob".into(),
+            ipv4: "100.64.0.3".into(),
+            changes: vec![
+                ("IPv4".into(), "100.64.0.9".into(), "100.64.0.3".into()),
+                ("Parent Node ID".into(), "".into(), "lq3-1".into()),
+            ],
+        }];
+        s.report.removed = vec![info("carol", "100.64.0.4", "10", "10", "PPP-R1")];
         s.report.counts = [("added", 1), ("updated", 1), ("removed", 1)].into();
         let m = n.message(&tg(), &s).unwrap();
         assert!(m.starts_with("OK: <b>lqosync3 update applied</b>"), "{m}");
         for t in [
-            "alice",
-            "bob (IPv4)",
-            "carol",
+            "- alice  100.64.0.2  25/5 Mbps -&gt; PPP-R1",
+            "- bob  100.64.0.3: IPv4 100.64.0.9 -&gt; 100.64.0.3, Parent Node ID (empty) -&gt; lq3-1",
+            "- carol  100.64.0.4  10/10 Mbps, from PPP-R1",
             "<b>Reload:</b> ok",
             "- Added: 1",
         ] {
@@ -573,8 +621,16 @@ mod tests {
         let mut n = Notifier::default();
         let mut s = st("apply", "online");
         s.files_changed = true;
-        s.report.added = (0..5).map(|i| format!("u{i}")).collect();
-        s.report.added.push("<b>&x".into());
+        s.report.added = (0..5)
+            .map(|i| CircuitInfo {
+                name: format!("u{i}"),
+                ..CircuitInfo::default()
+            })
+            .collect();
+        s.report.added.push(CircuitInfo {
+            name: "<b>&x".into(),
+            ..CircuitInfo::default()
+        });
         let t = Telegram {
             max_list_items: 2,
             ..tg()

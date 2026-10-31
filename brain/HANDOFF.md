@@ -46,7 +46,7 @@ None at this time.
 
 ### Next action
 
-1. Shadow service on the production shaper: `lqosync3.service` operates in `shadow` mode. The binary changed at 2026-10-31 15:24 UTC (commit `056a91e`, Telegram on). After 2026-11-01 15:24 UTC, run `sudo lqosync3 diff`. If the result is the same as the first run (one known difference), do the cutover to `apply` mode (OPERATIONS.md, "Cutover from the Python service"). The cutover needs the operator's approval.
+1. Cutover done on 2026-10-31 15:36 UTC: `lqosync3.service` operates in `apply` mode and writes the live LibreQoS files. `lqosync-updatecsv.service` (Python) is stopped and disabled. Backup of the last Python files: `/var/backups/lqosync/20261031T153517Z`. Rollback: OPERATIONS.md, "Rollback to the Python service".
 2. Plan 2b (Telegram) is done and operates on the shaper: `[telegram] enabled = true`, chat `810741035`, token in `/etc/lqosync3/secrets/telegram.token`. The test message arrived at 15:24 UTC.
 3. Plan 3: LibreQoS v3 detection and writers.
 
@@ -57,13 +57,12 @@ Plan 2 and defaults review minor items: fixed on 2026-10-31 (one test for each).
 Deferred minor items from the Plan 2b review (2026-10-31):
 - The error memory uses the full error text. If LibreQoS stderr changes in each run (time, PID), each reload retry sends a new alert. A duplicate-IP alert with a count that changes does the same. Fix: compare only the first line, or a key without numbers.
 - `include_computation` was removed. An old config with this key does not load (`deny_unknown_fields`). The live config does not have it.
-- `status.json` `report.updated` changed to `[[name, [columns]]]`, but `version` is still 1.
 - `post_json` cannot read a chunked answer. If Telegram sends one, the send waits until `timeout` and logs a false failure.
 
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 
 ### Production state
 
-- `lqosync-updatecsv.service` (Python) operates and writes the live LibreQoS files. Nobody changed it.
-- `lqosync3.service` operates in `shadow` mode. It writes only `/var/lib/lqosync3/`. Config: `/etc/lqosync3/lqosync3.toml`. Secret: `/etc/lqosync3/secrets/FSEHub-Distro.password` (`0600` root). Refer to [[2026-10-31-first-live-shadow-run]].
+- `lqosync-updatecsv.service` (Python) is stopped and disabled since 2026-10-31 15:35 UTC.
+- `lqosync3.service` operates in `apply` mode since 2026-10-31 15:36 UTC. It writes `/opt/libreqos/src/ShapedDevices.csv` and `network.json`, and runs `LibreQoS.py --updateonly`. Config: `/etc/lqosync3/lqosync3.toml`. Secret: `/etc/lqosync3/secrets/FSEHub-Distro.password` (`0600` root). Refer to [[2026-10-31-first-live-shadow-run]].
 - LibreQoS 2.2 operates. Nobody changed it.

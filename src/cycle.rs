@@ -26,7 +26,8 @@ pub enum RouterResult {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Report {
     pub added: Vec<String>,
-    pub updated: Vec<(String, Vec<String>)>,
+    /// `(circuit, [(column, old value, new value)])`
+    pub updated: Vec<(String, Vec<Change>)>,
     pub removed: Vec<String>,
     /// Rows that the removal guard kept.
     pub held: Vec<String>,
@@ -67,24 +68,47 @@ struct Entry {
     collected_now: bool,
 }
 
-/// The rate fields and node fields of a row, in CSV column order, for the change list.
-fn changed_columns(old: &CsvRow, new: &CsvRow) -> Vec<String> {
+/// One changed column: `(column, old value, new value)`.
+pub type Change = (String, String, String);
+
+/// The changed fields of a row, in CSV column order. A rate is compared as a number ("25.0" = "25").
+fn changed_columns(old: &CsvRow, new: &CsvRow) -> Vec<Change> {
     let pairs = [
-        ("Device Name", &old.device_name, &new.device_name),
-        ("Parent Node", &old.parent_node, &new.parent_node),
-        ("Parent Node ID", &old.parent_node_id, &new.parent_node_id),
-        ("MAC", &old.mac, &new.mac),
-        ("IPv4", &old.ipv4, &new.ipv4),
-        ("Download Min Mbps", &old.download_min, &new.download_min),
-        ("Upload Min Mbps", &old.upload_min, &new.upload_min),
-        ("Download Max Mbps", &old.download_max, &new.download_max),
-        ("Upload Max Mbps", &old.upload_max, &new.upload_max),
-        ("Comment", &old.comment, &new.comment),
+        ("Device Name", &old.device_name, &new.device_name, false),
+        ("Parent Node", &old.parent_node, &new.parent_node, false),
+        (
+            "Parent Node ID",
+            &old.parent_node_id,
+            &new.parent_node_id,
+            false,
+        ),
+        ("MAC", &old.mac, &new.mac, false),
+        ("IPv4", &old.ipv4, &new.ipv4, false),
+        (
+            "Download Min Mbps",
+            &old.download_min,
+            &new.download_min,
+            true,
+        ),
+        ("Upload Min Mbps", &old.upload_min, &new.upload_min, true),
+        (
+            "Download Max Mbps",
+            &old.download_max,
+            &new.download_max,
+            true,
+        ),
+        ("Upload Max Mbps", &old.upload_max, &new.upload_max, true),
+        ("Comment", &old.comment, &new.comment, false),
     ];
+    let same = |a: &str, b: &str, rate: bool| {
+        a == b
+            || (rate
+                && matches!((a.trim().parse::<f64>(), b.trim().parse::<f64>()), (Ok(x), Ok(y)) if x == y))
+    };
     pairs
         .iter()
-        .filter(|(_, a, b)| a != b)
-        .map(|(k, _, _)| k.to_string())
+        .filter(|(_, a, b, rate)| !same(a, b, *rate))
+        .map(|(k, a, b, _)| (k.to_string(), a.to_string(), b.to_string()))
         .collect()
 }
 
@@ -1318,6 +1342,37 @@ mod tests {
             out.report.alerts.iter().any(|a| a.contains("duplicate")),
             "{:?}",
             out.report.alerts
+        );
+    }
+
+    #[test]
+    fn changed_columns_compare_rates_as_numbers_and_keep_values() {
+        let old = CsvRow {
+            download_max: "25.0".into(),
+            upload_max: "25.0".into(),
+            ipv4: "10.0.0.1".into(),
+            ..CsvRow::default()
+        };
+        let new = CsvRow {
+            download_max: "25".into(),
+            upload_max: "35".into(),
+            ipv4: "10.0.0.2".into(),
+            ..CsvRow::default()
+        };
+        assert_eq!(
+            changed_columns(&old, &new),
+            [
+                (
+                    "IPv4".to_string(),
+                    "10.0.0.1".to_string(),
+                    "10.0.0.2".to_string()
+                ),
+                (
+                    "Upload Max Mbps".to_string(),
+                    "25.0".to_string(),
+                    "35".to_string()
+                ),
+            ]
         );
     }
 }
