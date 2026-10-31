@@ -19,6 +19,8 @@ It rejects output mangle rules, with one exception: reply routing for inbound co
 An accepted output rule uses `mark-routing` and matches only a `connection-mark`.
 Every enabled rule that sets that mark must be in `prerouting` with `connection-state=new`.
 Probe connections start on the router, so such a mark cannot apply to a probe.
+The provider reads current rules only. Existing connections keep old marks after a rule change.
+After you change a mangle rule that sets a connection mark, remove the connections to the probe targets.
 See the [reply routing design](../docs/superpowers/specs/2026-10-31-health-reply-routing-design.md).
 It requires a uniquely enabled/running mapped interface and active static probe routes.
 An absent or inactive probe route produces Unknown. This first provider does not yet infer physical-link failure from that condition.

@@ -14,6 +14,20 @@ Checkout: `/opt/LQoSync3.0`.
 Code: `9a35d24`. Earlier base references below are historical.
 Sections are in newest-first order. Read the first section for the current state.
 
+## WAN health reports Healthy on the production core
+
+Updated: 2026-10-31T09:25:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
+The operator added four ICMP Netwatch probes and four main-table host routes on `RB5k9Core`.
+wan1: `*1` 9.9.9.9 and `*2` 208.67.222.222 through `pppoe-out1`.
+wan2: `*3` 149.112.112.112 and `*4` 9.9.9.10 through `pppoe-out2`. The first wan2 target, 208.67.220.220, did not answer.
+The operator saved these probes in the console. The old console binary had no Core control page, so the console was rebuilt and restarted.
+The provider now accepts output reply routing (`*C1`, `*C2`) and PPPoE interface-only probe gateways.
+Read-only `wan-health-preview` reported wan1 and wan2 Healthy after the recovery delay.
+Final checks: format and strict Clippy passed; 346 passed, zero failed, 12 ignored.
+No router write occurred from LQoSync. Automatic mode remains rejected.
+Next: Phase 2 with one known subscriber, then Approach B through the executor path.
+See `docs/superpowers/specs/2026-10-31-health-reply-routing-design.md` and `v3/WAN_HEALTH.md`.
+
 ## RouterOS acceptance Phase 1 passed on the production core
 
 Updated: 2026-10-31T08:40:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
