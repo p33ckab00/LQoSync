@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "PPPoE Speed Sources"
-location: "L296"
+community: "Speed and DHCP Sources"
+location: "L197"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/PPPoE_Speed_Sources
+  - community/Speed_and_DHCP_Sources
 ---
 
 # PppSource
@@ -22,4 +22,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/PPPoE_Speed_Sources
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources

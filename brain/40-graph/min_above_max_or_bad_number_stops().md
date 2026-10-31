@@ -1,12 +1,12 @@
 ---
 source_file: "src/validate.rs"
 type: "code"
-community: "Validation and Network Modes"
-location: "L170"
+community: "Validation"
+location: "L180"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Validation
 ---
 
 # min_above_max_or_bad_number_stops()
@@ -17,4 +17,4 @@ tags:
 - [[row()_1]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Validation

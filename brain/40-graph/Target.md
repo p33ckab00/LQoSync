@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "LibreQoS Targets"
-location: "L126"
+location: "L87"
 tags:
   - graphify/code
   - graphify/EXTRACTED

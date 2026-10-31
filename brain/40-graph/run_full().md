@@ -2,7 +2,7 @@
 source_file: "src/cycle.rs"
 type: "code"
 community: "Cycle Assembly"
-location: "L531"
+location: "L574"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -24,6 +24,8 @@ tags:
 - [[ids()]] - `calls` [EXTRACTED]
 - [[run()]] - `calls` [EXTRACTED]
 - [[state()]] - `references` [EXTRACTED]
+- [[static_multi_device_circuit_keeps_all_rows()]] - `calls` [EXTRACTED]
 - [[static_row_passes_through_and_collected_replaces_it()]] - `calls` [EXTRACTED]
+- [[static_row_wins_a_duplicate_ip()]] - `calls` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

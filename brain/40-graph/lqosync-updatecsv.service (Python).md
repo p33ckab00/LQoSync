@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Router State Decisions"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Router_State_Decisions
 ---
 
 # lqosync-updatecsv.service (Python)
@@ -15,4 +15,4 @@ tags:
 - [[Shadow mode]] - `conceptually_related_to` [EXTRACTED]
 - [[updatecsv.py]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Router_State_Decisions

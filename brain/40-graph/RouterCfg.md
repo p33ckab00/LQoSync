@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Router Circuit Collection"
-location: "L466"
+location: "L284"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,8 +12,10 @@ tags:
 # RouterCfg
 
 ## Connections
+- [[dot-new()]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[DhcpCfg]] - `references` [EXTRACTED]
+- [[Exclude]] - `references` [EXTRACTED]
 - [[HotspotCfg]] - `references` [EXTRACTED]
 - [[PppoeCfg]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `references` [EXTRACTED]

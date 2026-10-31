@@ -1,19 +1,17 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "rationale"
-community: "Collector and Router State"
+community: "Architecture Parts"
 location: "L85"
 tags:
   - graphify/rationale
-  - graphify/INFERRED
-  - community/Collector_and_Router_State
+  - graphify/EXTRACTED
+  - community/Architecture_Parts
 ---
 
 # Router State Machine (online/failed/unreachable/offline)
 
 ## Connections
 - [[Collector (RouterOS API reads)]] - `implements` [EXTRACTED]
-- [[Router State settings (offline_after, offline_action)]] - `implements` [INFERRED]
-- [[RouterResult (OnlineFailedUnreachableOffline)]] - `implements` [INFERRED]
 
-#graphify/rationale #graphify/INFERRED #community/Collector_and_Router_State
+#graphify/rationale #graphify/EXTRACTED #community/Architecture_Parts

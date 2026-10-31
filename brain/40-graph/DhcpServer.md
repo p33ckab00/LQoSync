@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "DHCP Settings"
-location: "L568"
+location: "L406"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -13,6 +13,7 @@ tags:
 
 ## Connections
 - [[dot-factors()]] - `method` [EXTRACTED]
+- [[dot-server()]] - `references` [EXTRACTED]
 - [[dot-settings_rate()]] - `method` [EXTRACTED]
 - [[dot-sources()]] - `method` [EXTRACTED]
 - [[DhcpCfg]] - `references` [EXTRACTED]

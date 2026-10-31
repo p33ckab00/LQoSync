@@ -20,6 +20,7 @@ tags:
 - [[collect_hotspot()]] - `references` [EXTRACTED]
 - [[collect_ppp()]] - `references` [EXTRACTED]
 - [[collect_router()]] - `references` [EXTRACTED]
+- [[names_of()]] - `references` [EXTRACTED]
 - [[run()_1]] - `references` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 

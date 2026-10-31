@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "DHCP Settings"
-location: "L606"
+location: "L443"
 tags:
   - graphify/code
   - graphify/EXTRACTED

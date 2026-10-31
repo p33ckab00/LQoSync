@@ -1,17 +1,18 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Runtime Settings"
-location: "L59"
+community: "Embedded Defaults Merge"
+location: "L497"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runtime_Settings
+  - community/Embedded_Defaults_Merge
 ---
 
 # .default()
 
 ## Connections
-- [[Runtime]] - `method` [EXTRACTED]
+- [[Config]] - `method` [EXTRACTED]
+- [[defaults()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runtime_Settings
+#graphify/code #graphify/EXTRACTED #community/Embedded_Defaults_Merge

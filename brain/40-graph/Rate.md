@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Parsing"
+community: "Speed and DHCP Sources"
 location: "L9"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Parsing
+  - community/Speed_and_DHCP_Sources
 ---
 
 # Rate
@@ -24,6 +24,7 @@ tags:
 - [[config.rs]] - `imports_from` [EXTRACTED]
 - [[count_rate()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
+- [[finite()]] - `references` [EXTRACTED]
 - [[group_rate()]] - `references` [EXTRACTED]
 - [[parse_default_rate()]] - `references` [EXTRACTED]
 - [[plan_label()]] - `references` [EXTRACTED]
@@ -32,5 +33,6 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
+- [[usable()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Parsing
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources

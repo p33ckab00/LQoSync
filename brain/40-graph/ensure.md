@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Validation and Network Modes"
+community: "State File and CSV Read"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/State_File_and_CSV_Read
 ---
 
 # ensure
@@ -15,4 +15,4 @@ tags:
 - [[state.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/concept #graphify/EXTRACTED #community/State_File_and_CSV_Read

@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Scenario Test Harness"
-location: "L170"
+community: "Model Types"
+location: "L174"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Model_Types
 ---
 
 # .default()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[State]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Model_Types

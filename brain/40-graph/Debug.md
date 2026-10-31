@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Runtime Settings"
-location: "L40"
+location: "L41"
 tags:
   - graphify/code
   - graphify/EXTRACTED

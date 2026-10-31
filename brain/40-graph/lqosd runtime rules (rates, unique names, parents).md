@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/v3-node-handling.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Scenario Test Harness"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Decisions_and_Session_Notes
+  - community/Scenario_Test_Harness
 ---
 
 # lqosd runtime rules (rates, unique names, parents)
@@ -16,4 +16,4 @@ tags:
 - [[max_floor_mbps (0.2)  safe_min_mbps (0.1)]] - `references` [INFERRED]
 - [[v3 bridge boot gate]] - `conceptually_related_to` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/INFERRED #community/Scenario_Test_Harness

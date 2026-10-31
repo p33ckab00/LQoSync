@@ -2,7 +2,7 @@
 source_file: "src/sources.rs"
 type: "code"
 community: "Router Circuit Collection"
-location: "L77"
+location: "L139"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,8 +12,11 @@ tags:
 # collect_ppp()
 
 ## Connections
+- [[dot-ip()]] - `calls` [EXTRACTED]
+- [[dot-profile()]] - `calls` [EXTRACTED]
 - [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
+- [[Excluder]] - `references` [EXTRACTED]
 - [[PppPlan]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[RouterSnapshot]] - `references` [EXTRACTED]

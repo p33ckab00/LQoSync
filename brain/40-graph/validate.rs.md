@@ -1,12 +1,12 @@
 ---
 source_file: "src/validate.rs"
 type: "code"
-community: "Validation and Network Modes"
+community: "Validation"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Validation
 ---
 
 # validate.rs
@@ -30,6 +30,7 @@ tags:
 - [[json]] - `imports_from` [EXTRACTED]
 - [[min_above_max_or_bad_number_stops()]] - `contains` [EXTRACTED]
 - [[missing_parent_stops_except_in_no_parent()]] - `contains` [EXTRACTED]
+- [[multi_device_circuit_passes_but_shared_device_id_stops()]] - `contains` [EXTRACTED]
 - [[net()_1]] - `contains` [EXTRACTED]
 - [[parent_node_id_must_match_the_parent_node()]] - `contains` [EXTRACTED]
 - [[rate()_1]] - `contains` [EXTRACTED]
@@ -38,4 +39,4 @@ tags:
 - [[super]] - `imports_from` [EXTRACTED]
 - [[valid_rows_pass()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Validation

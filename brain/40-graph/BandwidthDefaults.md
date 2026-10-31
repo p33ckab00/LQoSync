@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "DHCP Settings"
-location: "L334"
+location: "L219"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,7 +12,6 @@ tags:
 # BandwidthDefaults
 
 ## Connections
-- [[dot-default()_13]] - `method` [EXTRACTED]
 - [[dot-factors()]] - `references` [EXTRACTED]
 - [[dot-factors()_1]] - `references` [EXTRACTED]
 - [[dot-per_client()]] - `references` [EXTRACTED]

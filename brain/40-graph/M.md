@@ -1,12 +1,12 @@
 ---
 source_file: "src/validate.rs"
 type: "code"
-community: "Validation and Network Modes"
-location: "L118"
+community: "Network Modes"
+location: "L128"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Network_Modes
 ---
 
 # M
@@ -15,4 +15,4 @@ tags:
 - [[NetworkMode]] - `references` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Network_Modes

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Targets and Applier"
+community: "Architecture Parts"
 location: "L160"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Targets_and_Applier
+  - community/Architecture_Parts
 ---
 
 # Removal procedure
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[lqosync-updatecsv.service (Python service)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Targets_and_Applier
+#graphify/concept #graphify/INFERRED #community/Architecture_Parts

@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "rationale"
-community: "Decisions and Session Notes"
+community: "Router State Decisions"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Router_State_Decisions
 ---
 
 # Shadow mode
@@ -18,4 +18,4 @@ tags:
 - [[Semantic compare with live files before cutover]] - `conceptually_related_to` [INFERRED]
 - [[lqosync-updatecsv.service (Python)]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/rationale #graphify/EXTRACTED #community/Router_State_Decisions

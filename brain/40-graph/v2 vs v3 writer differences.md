@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Output Files and State Store"
+community: "Architecture Parts"
 location: "L127"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Output_Files_and_State_Store
+  - community/Architecture_Parts
 ---
 
 # v2 vs v3 writer differences
@@ -15,4 +15,4 @@ tags:
 - [[Validator]] - `rationale_for` [INFERRED]
 - [[Writers (one per target)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Output_Files_and_State_Store
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

@@ -1,17 +1,17 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/model.rs"
 type: "code"
-community: "Topology and Node IDs"
-location: "L11"
+community: "Circuit Sources"
+location: "L98"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_IDs
+  - community/Circuit_Sources
 ---
 
 # Ppp
 
 ## Connections
-- [[GroupKey]] - `case_of` [EXTRACTED]
+- [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_IDs
+#graphify/code #graphify/EXTRACTED #community/Circuit_Sources

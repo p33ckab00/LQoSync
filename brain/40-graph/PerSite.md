@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "DHCP Settings"
-location: "L554"
+location: "L392"
 tags:
   - graphify/code
   - graphify/EXTRACTED

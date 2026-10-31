@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "Circuit Sources"
 location: "L101"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Circuit_Sources
 ---
 
 # Unknown
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Circuit_Sources

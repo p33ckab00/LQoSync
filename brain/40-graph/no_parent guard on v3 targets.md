@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0006-v3-guards-and-node-types.md"
 type: "rationale"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # no_parent guard on v3 targets
@@ -17,4 +17,4 @@ tags:
 - [[Target auto-detection]] - `references` [EXTRACTED]
 - [[v3 bridge boot gate]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/rationale #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

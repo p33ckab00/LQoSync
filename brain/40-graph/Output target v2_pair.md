@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # Output target v2_pair
@@ -15,4 +15,4 @@ tags:
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Target auto-detection]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

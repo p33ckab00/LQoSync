@@ -1,19 +1,19 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Config Rules and Modes"
-location: "L307"
+community: "DHCP Discovery and Exclusions"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_Rules_and_Modes
+  - community/DHCP_Discovery_and_Exclusions
 ---
 
 # LibreQoS v3 checks (no_parent, compile_mode)
 
 ## Connections
-- [[LibreQoS v3 topology.compile_mode]] - `references` [EXTRACTED]
-- [[Six Network Modes]] - `references` [EXTRACTED]
+- [[ADR-0006 v3 guards and node types]] - `implements` [INFERRED]
+- [[Configuration reference]] - `references` [EXTRACTED]
 - [[Task 1 Crate scaffold and config]] - `implements` [EXTRACTED]
+- [[lqosync3 check]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_Rules_and_Modes
+#graphify/concept #graphify/EXTRACTED #community/DHCP_Discovery_and_Exclusions

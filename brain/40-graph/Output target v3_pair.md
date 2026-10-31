@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # Output target v3_pair
@@ -17,4 +17,4 @@ tags:
 - [[lqosd inotify file watcher]] - `references` [EXTRACTED]
 - [[no_parent guard on v3 targets]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

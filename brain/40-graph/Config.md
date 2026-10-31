@@ -1,24 +1,29 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router Circuit Collection"
+community: "Config Root and Checks"
 location: "L12"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Config_Root_and_Checks
 ---
 
 # Config
 
 ## Connections
+- [[dot-check_finite()]] - `method` [EXTRACTED]
+- [[dot-default()_1]] - `method` [EXTRACTED]
 - [[dot-from_toml_str()]] - `method` [EXTRACTED]
+- [[dot-merge()]] - `method` [EXTRACTED]
+- [[dot-new()]] - `references` [EXTRACTED]
 - [[dot-targets_v3()]] - `method` [EXTRACTED]
 - [[dot-validate()]] - `method` [EXTRACTED]
 - [[BackstopCaps]] - `references` [EXTRACTED]
 - [[BandwidthDefaults]] - `references` [EXTRACTED]
 - [[CircuitNames]] - `references` [EXTRACTED]
 - [[CycleInput]] - `references` [EXTRACTED]
+- [[Exclude]] - `references` [EXTRACTED]
 - [[Libreqos]] - `references` [EXTRACTED]
 - [[Network]] - `references` [EXTRACTED]
 - [[Nodes]] - `references` [EXTRACTED]
@@ -32,6 +37,7 @@ tags:
 - [[cfg()]] - `references` [EXTRACTED]
 - [[cfg()_2]] - `references` [EXTRACTED]
 - [[cfg()_1]] - `references` [EXTRACTED]
+- [[cfg_text()]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `references` [EXTRACTED]
 - [[collect_hotspot()]] - `references` [EXTRACTED]
 - [[collect_ppp()]] - `references` [EXTRACTED]
@@ -39,6 +45,7 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[cycle()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
+- [[defaults()]] - `references` [EXTRACTED]
 - [[group_node_name()]] - `references` [EXTRACTED]
 - [[group_rate()]] - `references` [EXTRACTED]
 - [[guard_cfg()]] - `references` [EXTRACTED]
@@ -54,4 +61,4 @@ tags:
 - [[template()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks

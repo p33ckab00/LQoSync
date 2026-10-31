@@ -1,12 +1,12 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "v3 Node Rules"
 location: "L77"
 tags:
   - graphify/code
   - graphify/INFERRED
-  - community/Scenario_Test_Harness
+  - community/v3_Node_Rules
 ---
 
 # scenarios_match_expected_output()
@@ -22,4 +22,4 @@ tags:
 - [[seed_state()]] - `calls` [INFERRED]
 - [[split_static()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/INFERRED #community/Scenario_Test_Harness
+#graphify/code #graphify/INFERRED #community/v3_Node_Rules

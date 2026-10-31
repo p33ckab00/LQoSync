@@ -1,19 +1,21 @@
 ---
-source_file: "src/config.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "Backstop Caps"
-location: "L378"
+community: "Router Circuit Collection"
+location: "L85"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Backstop_Caps
+  - community/Router_Circuit_Collection
 ---
 
 # .new()
 
 ## Connections
-- [[dot-default()_5]] - `calls` [EXTRACTED]
-- [[dot-default()_6]] - `calls` [EXTRACTED]
-- [[BackstopCap]] - `method` [EXTRACTED]
+- [[Config]] - `references` [EXTRACTED]
+- [[Excluder'a]] - `method` [EXTRACTED]
+- [[RouterCfg]] - `references` [EXTRACTED]
+- [[collect_router()]] - `calls` [EXTRACTED]
+- [[parse_ipv4_net()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/EXTRACTED #community/Backstop_Caps
+#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection

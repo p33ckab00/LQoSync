@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/v3-node-handling.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Scenario Test Harness"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Scenario_Test_Harness
 ---
 
 # v3 name-derived legacy node id
@@ -15,4 +15,4 @@ tags:
 - [[Stable node id (lq3- FNV-1a 64)]] - `conceptually_related_to` [EXTRACTED]
 - [[v3 offline compile results]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness

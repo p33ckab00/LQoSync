@@ -2,7 +2,7 @@
 source_file: "src/cycle.rs"
 type: "code"
 community: "Cycle Assembly"
-location: "L719"
+location: "L762"
 tags:
   - graphify/code
   - graphify/EXTRACTED

@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0005-topology-follows-v3.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Scenario Test Harness"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Scenario_Test_Harness
 ---
 
 # Parent Node ID column
@@ -15,4 +15,4 @@ tags:
 - [[ADR-0005 Topology follows v3]] - `rationale_for` [EXTRACTED]
 - [[Stable node id (lq3- FNV-1a 64)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness

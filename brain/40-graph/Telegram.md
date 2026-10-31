@@ -1,19 +1,18 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Loading"
-location: "L422"
+community: "Config Root and Checks"
+location: "L263"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config_Root_and_Checks
 ---
 
 # Telegram
 
 ## Connections
-- [[dot-default()_12]] - `method` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Loading
+#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks

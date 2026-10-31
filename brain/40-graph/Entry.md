@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "Circuit Sources"
 location: "L61"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Circuit_Sources
 ---
 
 # Entry
@@ -16,4 +16,4 @@ tags:
 - [[Source]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Circuit_Sources

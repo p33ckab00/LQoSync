@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Offline Action"
-location: "L79"
+location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED

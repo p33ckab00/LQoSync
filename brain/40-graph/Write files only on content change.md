@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "rationale"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # Write files only on content change
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/rationale #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

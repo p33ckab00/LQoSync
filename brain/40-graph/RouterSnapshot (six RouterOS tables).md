@@ -1,18 +1,17 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
-type: "concept"
-community: "Pure Core Design"
-location: "L38"
+type: "code"
+community: "Plan 1 Session and Review"
 tags:
-  - graphify/concept
+  - graphify/code
   - graphify/EXTRACTED
-  - community/Pure_Core_Design
+  - community/Plan_1_Session_and_Review
 ---
 
 # RouterSnapshot (six RouterOS tables)
 
 ## Connections
 - [[RouterResult (OnlineFailedUnreachableOffline)]] - `references` [EXTRACTED]
-- [[Task 3 Model, state file, and seed]] - `implements` [EXTRACTED]
+- [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Pure_Core_Design
+#graphify/code #graphify/EXTRACTED #community/Plan_1_Session_and_Review

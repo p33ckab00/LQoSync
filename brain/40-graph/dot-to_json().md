@@ -2,7 +2,7 @@
 source_file: "src/state.rs"
 type: "code"
 community: "State JSON"
-location: "L120"
+location: "L113"
 tags:
   - graphify/code
   - graphify/EXTRACTED

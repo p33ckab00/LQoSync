@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Offline Action"
-location: "L84"
+location: "L68"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,7 +12,6 @@ tags:
 # RouterAccess
 
 ## Connections
-- [[dot-default()_7]] - `method` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[OfflineAction]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]

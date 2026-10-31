@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Collector and Router State"
+community: "Architecture Parts"
 location: "L47"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Collector_and_Router_State
+  - community/Architecture_Parts
 ---
 
 # Circuit Model
@@ -15,4 +15,4 @@ tags:
 - [[Collector (RouterOS API reads)]] - `shares_data_with` [EXTRACTED]
 - [[Validator]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Collector_and_Router_State
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

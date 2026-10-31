@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0008-terminal-ui.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Terminal UI"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Terminal_UI
 ---
 
 # status.json state file
@@ -15,4 +15,4 @@ tags:
 - [[Temp file then rename write]] - `semantically_similar_to` [INFERRED]
 - [[lqosync3 tui (ratatuicrossterm)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Terminal_UI

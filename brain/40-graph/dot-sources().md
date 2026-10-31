@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Speed Sources"
-location: "L586"
+community: "Speed and DHCP Sources"
+location: "L423"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Speed_Sources
+  - community/Speed_and_DHCP_Sources
 ---
 
 # .sources()
@@ -15,5 +15,6 @@ tags:
 - [[dot-validate()]] - `calls` [EXTRACTED]
 - [[DhcpServer]] - `method` [EXTRACTED]
 - [[DhcpSource]] - `references` [EXTRACTED]
+- [[Speed]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Speed_Sources
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources

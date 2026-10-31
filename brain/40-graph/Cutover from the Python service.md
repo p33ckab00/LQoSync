@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Targets and Applier"
+community: "Architecture Parts"
 location: "L74"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Targets_and_Applier
+  - community/Architecture_Parts
 ---
 
 # Cutover from the Python service
@@ -17,6 +17,5 @@ tags:
 - [[Rollback to the Python service]] - `conceptually_related_to` [INFERRED]
 - [[Runtime modes (shadow  apply)]] - `references` [EXTRACTED]
 - [[lqosync-updatecsv.service (Python service)]] - `references` [EXTRACTED]
-- [[lqosync3 diff semantic compare]] - `conceptually_related_to` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Targets_and_Applier
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

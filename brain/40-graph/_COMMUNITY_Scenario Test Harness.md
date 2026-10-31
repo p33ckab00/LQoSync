@@ -1,77 +1,35 @@
 ---
 type: community
-cohesion: 0.06
-members: 62
+cohesion: 0.18
+members: 20
 ---
 
 # Scenario Test Harness
 
-**Cohesion:** 0.06 - loosely connected
-**Members:** 62 nodes
+**Cohesion:** 0.18 - loosely connected
+**Members:** 20 nodes
 
 ## Members
-- [[dot-default()]] - code - src/model.rs
-- [[dot-names()]] - code - src/model.rs
-- [[Columns]] - code - src/model.rs
-- [[CsvRow]] - code - src/model.rs
-- [[Dhcp]] - code - src/model.rs
-- [[Entry]] - code - src/cycle.rs
-- [[GuardHold]] - code - src/model.rs
-- [[HDR]] - code - src/state.rs
-- [[Hotspot]] - code - src/model.rs
-- [[Ppp]] - code - src/model.rs
-- [[RouterMemo]] - code - src/model.rs
-- [[Snapshot]] - code - tests/scenarios.rs
-- [[Source]] - code - src/model.rs
-- [[State]] - code - src/model.rs
-- [[Unknown]] - code - src/model.rs
-- [[V2]] - code - src/model.rs
-- [[V2_COLUMNS]] - code - src/model.rs
-- [[V3]] - code - src/model.rs
-- [[V3_COLUMNS]] - code - src/model.rs
-- [[Value]] - code
-- [[Value_1]] - code
-- [[assemble]] - concept
-- [[btreemap]] - concept
-- [[csv_header_sort_and_quoting()]] - code - src/writer/pair.rs
-- [[csv_headers_for_v2_and_v3()]] - code - src/writer/pair.rs
-- [[csv_quotes_like_python()]] - code - src/writer/pair.rs
-- [[cycle()]] - code - tests/scenarios.rs
-- [[cycleinput_1]] - concept
-- [[deserialize]] - concept
-- [[field()]] - code - src/writer/pair.rs
-- [[fs]] - concept
-- [[model.rs]] - code - src/model.rs
-- [[network_json_has_python_layout()]] - code - src/writer/pair.rs
-- [[pair.rs]] - code - src/writer/pair.rs
-- [[path]] - concept
-- [[pathbuf]] - concept
-- [[read()]] - code - tests/scenarios.rs
-- [[read_csv]] - concept
-- [[read_csv()]] - code - src/state.rs
-- [[read_csv_accepts_bom_crlf_and_missing_columns()]] - code - src/state.rs
-- [[read_csv_skips_blank_names_and_later_duplicate_wins()]] - code - src/state.rs
-- [[render_csv]] - concept
-- [[render_csv()]] - code - src/writer/pair.rs
-- [[render_network_json]] - concept
-- [[render_network_json()]] - code - src/writer/pair.rs
-- [[report_json()]] - code - tests/scenarios.rs
-- [[results()]] - code - tests/scenarios.rs
-- [[row()]] - code - src/writer/pair.rs
-- [[scenarios.rs]] - code - tests/scenarios.rs
-- [[scenarios_match_expected_output()]] - code - tests/scenarios.rs
-- [[seed_infers_source_and_keeps_ids()]] - code - src/state.rs
-- [[seed_nodes()]] - code - src/state.rs
-- [[seed_nodes_reads_the_tree_with_parents_and_ids()]] - code - src/state.rs
-- [[seed_state]] - concept
-- [[seed_state()]] - code - src/state.rs
-- [[serialize]] - concept
-- [[split_static]] - concept
-- [[split_static()]] - code - src/state.rs
-- [[split_static_ignores_case()]] - code - src/state.rs
-- [[state.rs]] - code - src/state.rs
-- [[state_json_round_trip_and_version_check()]] - code - src/state.rs
-- [[super]] - concept
+- [[1415 CSV columns (v2_pairv3_pair)]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[ADR-0005 Topology follows v3]] - document - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[ADR-0006 v3 guards and node types]] - document - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
+- [[Group nodes typed site on v3]] - rationale - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
+- [[How LibreQoS v3 handles nodes]] - document - brain/30-knowledge/v3-node-handling.md
+- [[Node rules]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[Node types (v2_type  v3_type)]] - concept - docs/CONFIGURATION.md
+- [[Parent Node ID column]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[Stable lq3- node id (FNV-1a 64 of kindrouterkey)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[Stable node id (lq3- FNV-1a 64)]] - rationale - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[Task 5 Topology (build_nodes, to_network_json)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[Tool must reject duplicate IP and node name]] - concept - brain/30-knowledge/libreqos-v3-ingress-facts.md
+- [[compile_mode (flatap_onlyap_sitefull)]] - concept - brain/30-knowledge/v3-node-handling.md
+- [[compile_mode not full warning]] - concept - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
+- [[flat_promotion parent fix]] - rationale - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[lqosd runtime rules (rates, unique names, parents)]] - concept - brain/30-knowledge/v3-node-handling.md
+- [[max_floor_mbps (0.2)  safe_min_mbps (0.1)]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[v3 bridge boot gate]] - concept - brain/30-knowledge/v3-node-handling.md
+- [[v3 name-derived legacy node id]] - concept - brain/30-knowledge/v3-node-handling.md
+- [[v3 offline compile results]] - concept - brain/30-knowledge/v3-node-handling.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -81,16 +39,16 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 25 edges to [[_COMMUNITY_Cycle Assembly]]
-- 11 edges to [[_COMMUNITY_Router Circuit Collection]]
-- 8 edges to [[_COMMUNITY_Topology and Node IDs]]
-- 7 edges to [[_COMMUNITY_Validation and Network Modes]]
-- 2 edges to [[_COMMUNITY_Speed Parsing]]
-- 2 edges to [[_COMMUNITY_Config Loading]]
+- 14 edges to [[_COMMUNITY_Early Sessions and ADRs]]
+- 12 edges to [[_COMMUNITY_Plan 1 Session and Review]]
+- 5 edges to [[_COMMUNITY_DHCP Discovery and Exclusions]]
+- 3 edges to [[_COMMUNITY_Router State Decisions]]
+- 1 edge to [[_COMMUNITY_Architecture Parts]]
+- 1 edge to [[_COMMUNITY_v3 Ingress Evidence]]
 
 ## Top bridge nodes
-- [[super]] - degree 8, connects to 6 communities
-- [[state.rs]] - degree 21, connects to 4 communities
-- [[CsvRow]] - degree 25, connects to 3 communities
-- [[model.rs]] - degree 15, connects to 3 communities
-- [[btreemap]] - degree 6, connects to 3 communities
+- [[ADR-0005 Topology follows v3]] - degree 19, connects to 4 communities
+- [[ADR-0006 v3 guards and node types]] - degree 13, connects to 3 communities
+- [[How LibreQoS v3 handles nodes]] - degree 12, connects to 3 communities
+- [[Task 5 Topology (build_nodes, to_network_json)]] - degree 5, connects to 3 communities
+- [[1415 CSV columns (v2_pairv3_pair)]] - degree 5, connects to 2 communities

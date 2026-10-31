@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Topology and Node IDs"
+community: "Topology and Node Templates"
 location: "L10"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_IDs
+  - community/Topology_and_Node_Templates
 ---
 
 # GroupKey
@@ -15,8 +15,8 @@ tags:
 - [[Collected]] - `references` [EXTRACTED]
 - [[DhcpPlan]] - `case_of` [EXTRACTED]
 - [[DhcpSite]] - `case_of` [EXTRACTED]
-- [[Hotspot_1]] - `case_of` [EXTRACTED]
-- [[Ppp_1]] - `case_of` [EXTRACTED]
+- [[Hotspot]] - `case_of` [EXTRACTED]
+- [[Ppp]] - `case_of` [EXTRACTED]
 - [[PppPlan]] - `case_of` [EXTRACTED]
 - [[RouterGroups]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
@@ -29,4 +29,4 @@ tags:
 - [[template()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_IDs
+#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates

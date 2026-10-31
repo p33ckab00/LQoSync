@@ -1,19 +1,19 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "document"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 location: "L1"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # Operations (LQoSync3)
 
 ## Connections
-- [[Brain Home (MOC)]] - `references` [EXTRACTED]
-- [[Handoff]] - `references` [EXTRACTED]
+- [[Handoff (current project state)]] - `references` [EXTRACTED]
+- [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/document #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

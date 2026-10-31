@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Speed Parsing"
+community: "State File and CSV Read"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Parsing
+  - community/State_File_and_CSV_Read
 ---
 
 # context
@@ -16,4 +16,4 @@ tags:
 - [[state.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Parsing
+#graphify/concept #graphify/EXTRACTED #community/State_File_and_CSV_Read

@@ -2,7 +2,7 @@
 source_file: "src/cycle.rs"
 type: "code"
 community: "Cycle Assembly"
-location: "L567"
+location: "L610"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -25,6 +25,8 @@ tags:
 - [[rows_of_a_router_not_in_config_are_removed()]] - `calls` [EXTRACTED]
 - [[same_name_on_two_routers_later_router_wins()]] - `calls` [EXTRACTED]
 - [[seed_rows_go_only_when_all_routers_online()]] - `calls` [EXTRACTED]
+- [[static_multi_device_circuit_keeps_all_rows()]] - `calls` [EXTRACTED]
 - [[static_row_passes_through_and_collected_replaces_it()]] - `calls` [EXTRACTED]
+- [[static_row_wins_a_duplicate_ip()]] - `calls` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

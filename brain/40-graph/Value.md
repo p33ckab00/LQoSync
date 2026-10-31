@@ -1,16 +1,17 @@
 ---
 source_file: ""
 type: "code"
-community: "Scenario Test Harness"
+community: "Cycle Assembly"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Cycle_Assembly
 ---
 
 # Value
 
 ## Connections
-- [[seed_nodes()]] - `references` [EXTRACTED]
+- [[CycleInput]] - `references` [EXTRACTED]
+- [[CycleOutput]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

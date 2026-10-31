@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Speed Sources"
-location: "L560"
+community: "Speed and DHCP Sources"
+location: "L398"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Speed_Sources
+  - community/Speed_and_DHCP_Sources
 ---
 
 # DhcpSource
@@ -17,7 +17,8 @@ tags:
 - [[LeaseComment]] - `case_of` [EXTRACTED]
 - [[ServerComment]] - `case_of` [EXTRACTED]
 - [[Settings]] - `case_of` [EXTRACTED]
+- [[Speed]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Speed_Sources
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources

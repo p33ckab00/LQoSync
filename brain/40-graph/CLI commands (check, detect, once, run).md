@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Targets and Applier"
+community: "Architecture Parts"
 location: "L19"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Targets_and_Applier
+  - community/Architecture_Parts
 ---
 
 # CLI commands (check, detect, once, run)
@@ -15,4 +15,4 @@ tags:
 - [[Target Detector]] - `references` [INFERRED]
 - [[install.sh one-line installer]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Targets_and_Applier
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

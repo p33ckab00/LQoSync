@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/updatecsv-py-dissection.md"
 type: "code"
-community: "Decisions and Session Notes"
+community: "Router State Decisions"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Router_State_Decisions
 ---
 
 # updatecsv.py
@@ -20,4 +20,4 @@ tags:
 - [[updatecsv.py defects to fix]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/code #graphify/EXTRACTED #community/Router_State_Decisions

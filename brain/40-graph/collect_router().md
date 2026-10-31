@@ -2,7 +2,7 @@
 source_file: "src/sources.rs"
 type: "code"
 community: "Router Circuit Collection"
-location: "L57"
+location: "L118"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,6 +12,7 @@ tags:
 # collect_router()
 
 ## Connections
+- [[dot-new()]] - `calls` [EXTRACTED]
 - [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]

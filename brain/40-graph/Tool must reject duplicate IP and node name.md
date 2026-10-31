@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/libreqos-v3-ingress-facts.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Scenario Test Harness"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Scenario_Test_Harness
 ---
 
 # Tool must reject duplicate IP and node name
@@ -14,4 +14,4 @@ tags:
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[lqosd runtime rules (rates, unique names, parents)]] - `semantically_similar_to` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness

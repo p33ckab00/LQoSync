@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "rationale"
-community: "Collector and Router State"
+community: "Architecture Parts"
 location: "L141"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Collector_and_Router_State
+  - community/Architecture_Parts
 ---
 
 # Performance Rules
@@ -15,4 +15,4 @@ tags:
 - [[Applier (hash, atomic write, reload)]] - `rationale_for` [EXTRACTED]
 - [[Collector (RouterOS API reads)]] - `rationale_for` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Collector_and_Router_State
+#graphify/rationale #graphify/EXTRACTED #community/Architecture_Parts

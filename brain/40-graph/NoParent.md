@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Validation and Network Modes"
-location: "L167"
+community: "Network Modes"
+location: "L113"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Network_Modes
 ---
 
 # NoParent
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[NetworkMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Network_Modes

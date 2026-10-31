@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0005-topology-follows-v3.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Scenario Test Harness"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Scenario_Test_Harness
 ---
 
 # 14/15 CSV columns (v2_pair/v3_pair)
@@ -17,4 +17,4 @@ tags:
 - [[Parent Node ID column]] - `references` [EXTRACTED]
 - [[Shadow mode]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness

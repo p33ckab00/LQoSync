@@ -1,12 +1,12 @@
 ---
 source_file: "src/validate.rs"
 type: "code"
-community: "Validation and Network Modes"
-location: "L121"
+community: "Validation"
+location: "L131"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Validation
 ---
 
 # valid_rows_pass()
@@ -17,4 +17,4 @@ tags:
 - [[row()_1]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Validation

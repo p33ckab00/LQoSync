@@ -1,17 +1,17 @@
 ---
-source_file: "src/model.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "Scenario Test Harness"
-location: "L99"
+community: "Topology and Node Templates"
+location: "L13"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_and_Node_Templates
 ---
 
 # Hotspot
 
 ## Connections
-- [[Source]] - `case_of` [EXTRACTED]
+- [[GroupKey]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates

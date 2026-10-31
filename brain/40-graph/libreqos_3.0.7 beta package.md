@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "v3 Ingress Evidence"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/v3_Ingress_Evidence
 ---
 
 # libreqos_3.0.7 beta package
@@ -15,4 +15,4 @@ tags:
 - [[Offline v3 simulation]] - `references` [EXTRACTED]
 - [[Session 2026-10-31 project setup and v3 simulation]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/v3_Ingress_Evidence

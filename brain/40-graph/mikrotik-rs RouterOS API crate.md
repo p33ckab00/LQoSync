@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # mikrotik-rs RouterOS API crate
@@ -16,4 +16,4 @@ tags:
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[RouterOS listen command (untested)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

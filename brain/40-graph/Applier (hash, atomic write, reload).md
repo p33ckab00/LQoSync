@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Targets and Applier"
+community: "Architecture Parts"
 location: "L53"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Targets_and_Applier
+  - community/Architecture_Parts
 ---
 
 # Applier (hash, atomic write, reload)
@@ -14,7 +14,6 @@ tags:
 ## Connections
 - [[Applied backups (last 10 versions)]] - `conceptually_related_to` [INFERRED]
 - [[Performance Rules]] - `rationale_for` [EXTRACTED]
-- [[Runtime modes (shadow  apply)]] - `conceptually_related_to` [INFERRED]
 - [[lqosd (LibreQoS daemon)]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Targets_and_Applier
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

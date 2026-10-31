@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Backstop Caps"
-location: "L388"
+location: "L245"
 tags:
   - graphify/code
   - graphify/EXTRACTED

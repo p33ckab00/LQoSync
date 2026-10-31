@@ -1,17 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Cycle Assembly"
+community: "v3 Node Rules"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/v3_Node_Rules
 ---
 
 # Value
 
 ## Connections
-- [[CycleInput]] - `references` [EXTRACTED]
-- [[CycleOutput]] - `references` [EXTRACTED]
+- [[render_network_json()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/v3_Node_Rules

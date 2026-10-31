@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "DHCP Settings"
-location: "L552"
+location: "L391"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,6 +12,7 @@ tags:
 # DhcpMode
 
 ## Connections
+- [[DhcpCfg]] - `references` [EXTRACTED]
 - [[DhcpServer]] - `references` [EXTRACTED]
 - [[PerPlan]] - `case_of` [EXTRACTED]
 - [[PerSite]] - `case_of` [EXTRACTED]

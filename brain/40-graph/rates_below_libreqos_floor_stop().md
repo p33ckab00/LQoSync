@@ -1,12 +1,12 @@
 ---
 source_file: "src/validate.rs"
 type: "code"
-community: "Validation and Network Modes"
-location: "L181"
+community: "Validation"
+location: "L191"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Validation
 ---
 
 # rates_below_libreqos_floor_stop()
@@ -15,4 +15,4 @@ tags:
 - [[row()_1]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Validation

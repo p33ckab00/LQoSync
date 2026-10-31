@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "CSV Writer and Columns"
 location: "L86"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/CSV_Writer_and_Columns
 ---
 
 # .names()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Columns]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/CSV_Writer_and_Columns

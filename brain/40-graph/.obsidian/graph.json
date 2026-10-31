@@ -1,213 +1,241 @@
 {
   "colorGroups": [
     {
-      "query": "tag:#community/Decisions_and_Session_Notes",
+      "query": "tag:#community/Cycle_Assembly",
       "color": {
         "a": 1,
         "rgb": 5142951
       }
     },
     {
-      "query": "tag:#community/Scenario_Test_Harness",
+      "query": "tag:#community/Topology_and_Node_Templates",
       "color": {
         "a": 1,
         "rgb": 15896107
-      }
-    },
-    {
-      "query": "tag:#community/Cycle_Assembly",
-      "color": {
-        "a": 1,
-        "rgb": 14767961
-      }
-    },
-    {
-      "query": "tag:#community/Topology_and_Node_IDs",
-      "color": {
-        "a": 1,
-        "rgb": 7780274
-      }
-    },
-    {
-      "query": "tag:#community/Speed_Parsing",
-      "color": {
-        "a": 1,
-        "rgb": 5873999
       }
     },
     {
       "query": "tag:#community/Router_Circuit_Collection",
       "color": {
         "a": 1,
+        "rgb": 14767961
+      }
+    },
+    {
+      "query": "tag:#community/Speed_and_DHCP_Sources",
+      "color": {
+        "a": 1,
+        "rgb": 7780274
+      }
+    },
+    {
+      "query": "tag:#community/Architecture_Parts",
+      "color": {
+        "a": 1,
+        "rgb": 5873999
+      }
+    },
+    {
+      "query": "tag:#community/DHCP_Discovery_and_Exclusions",
+      "color": {
+        "a": 1,
         "rgb": 15583560
       }
     },
     {
-      "query": "tag:#community/Validation_and_Network_Modes",
+      "query": "tag:#community/Plan_1_Session_and_Review",
       "color": {
         "a": 1,
         "rgb": 11565729
+      }
+    },
+    {
+      "query": "tag:#community/Early_Sessions_and_ADRs",
+      "color": {
+        "a": 1,
+        "rgb": 16752039
+      }
+    },
+    {
+      "query": "tag:#community/Router_State_Decisions",
+      "color": {
+        "a": 1,
+        "rgb": 10253663
+      }
+    },
+    {
+      "query": "tag:#community/Validation",
+      "color": {
+        "a": 1,
+        "rgb": 12234924
+      }
+    },
+    {
+      "query": "tag:#community/Scenario_Test_Harness",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/v3_Node_Rules",
+      "color": {
+        "a": 1,
+        "rgb": 15896107
       }
     },
     {
       "query": "tag:#community/Config_Loading",
       "color": {
         "a": 1,
-        "rgb": 16752039
+        "rgb": 14767961
       }
     },
     {
-      "query": "tag:#community/Targets_and_Applier",
+      "query": "tag:#community/v3_Ingress_Evidence",
       "color": {
         "a": 1,
-        "rgb": 10253663
+        "rgb": 7780274
+      }
+    },
+    {
+      "query": "tag:#community/State_File_and_CSV_Read",
+      "color": {
+        "a": 1,
+        "rgb": 5873999
+      }
+    },
+    {
+      "query": "tag:#community/CSV_Writer_and_Columns",
+      "color": {
+        "a": 1,
+        "rgb": 15583560
       }
     },
     {
       "query": "tag:#community/DHCP_Settings",
       "color": {
         "a": 1,
-        "rgb": 12234924
+        "rgb": 11565729
       }
     },
     {
-      "query": "tag:#community/Config_Rules_and_Modes",
+      "query": "tag:#community/Model_Types",
       "color": {
         "a": 1,
-        "rgb": 5142951
+        "rgb": 16752039
       }
     },
     {
-      "query": "tag:#community/Output_Files_and_State_Store",
+      "query": "tag:#community/Config_Root_and_Checks",
       "color": {
         "a": 1,
-        "rgb": 15896107
-      }
-    },
-    {
-      "query": "tag:#community/Speed_Rules_Design",
-      "color": {
-        "a": 1,
-        "rgb": 14767961
+        "rgb": 10253663
       }
     },
     {
       "query": "tag:#community/Runtime_Settings",
       "color": {
         "a": 1,
-        "rgb": 7780274
-      }
-    },
-    {
-      "query": "tag:#community/Collector_and_Router_State",
-      "color": {
-        "a": 1,
-        "rgb": 5873999
-      }
-    },
-    {
-      "query": "tag:#community/Pure_Core_Design",
-      "color": {
-        "a": 1,
-        "rgb": 15583560
-      }
-    },
-    {
-      "query": "tag:#community/Cycle_and_Node_Rules",
-      "color": {
-        "a": 1,
-        "rgb": 11565729
-      }
-    },
-    {
-      "query": "tag:#community/Node_Templates",
-      "color": {
-        "a": 1,
-        "rgb": 16752039
-      }
-    },
-    {
-      "query": "tag:#community/DHCP_Speed_Sources",
-      "color": {
-        "a": 1,
-        "rgb": 10253663
-      }
-    },
-    {
-      "query": "tag:#community/LibreQoS_Targets",
-      "color": {
-        "a": 1,
         "rgb": 12234924
       }
     },
     {
-      "query": "tag:#community/PPPoE_Speed_Sources",
+      "query": "tag:#community/Network_Modes",
       "color": {
         "a": 1,
         "rgb": 5142951
       }
     },
     {
-      "query": "tag:#community/Backstop_Caps",
+      "query": "tag:#community/Terminal_UI",
       "color": {
         "a": 1,
         "rgb": 15896107
       }
     },
     {
-      "query": "tag:#community/Offline_Action",
+      "query": "tag:#community/Embedded_Defaults_Merge",
       "color": {
         "a": 1,
         "rgb": 14767961
       }
     },
     {
-      "query": "tag:#community/Scenario_Tests_Task",
+      "query": "tag:#community/LibreQoS_Targets",
       "color": {
         "a": 1,
         "rgb": 7780274
       }
     },
     {
-      "query": "tag:#community/State_JSON",
+      "query": "tag:#community/Circuit_Sources",
       "color": {
         "a": 1,
         "rgb": 5873999
       }
     },
     {
-      "query": "tag:#community/v3sim_Script",
+      "query": "tag:#community/Offline_Action",
       "color": {
         "a": 1,
         "rgb": 15583560
       }
     },
     {
-      "query": "tag:#community/Telegram_Notifier",
+      "query": "tag:#community/Backstop_Caps",
       "color": {
         "a": 1,
         "rgb": 11565729
       }
     },
     {
-      "query": "tag:#community/Crate_Root",
+      "query": "tag:#community/State_JSON",
       "color": {
         "a": 1,
         "rgb": 16752039
       }
     },
     {
-      "query": "tag:#community/Library_Root",
+      "query": "tag:#community/Config_Doc_Test",
       "color": {
         "a": 1,
         "rgb": 10253663
       }
     },
     {
-      "query": "tag:#community/Writer_Module",
+      "query": "tag:#community/v3sim_Script",
       "color": {
         "a": 1,
         "rgb": 12234924
+      }
+    },
+    {
+      "query": "tag:#community/Telegram_Notifier",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/Crate_Root",
+      "color": {
+        "a": 1,
+        "rgb": 15896107
+      }
+    },
+    {
+      "query": "tag:#community/Library_Root",
+      "color": {
+        "a": 1,
+        "rgb": 14767961
+      }
+    },
+    {
+      "query": "tag:#community/Writer_Module",
+      "color": {
+        "a": 1,
+        "rgb": 7780274
       }
     }
   ]

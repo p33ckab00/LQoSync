@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Collector and Router State"
+community: "Architecture Parts"
 location: "L45"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Collector_and_Router_State
+  - community/Architecture_Parts
 ---
 
 # Collector (RouterOS API reads)
@@ -19,4 +19,4 @@ tags:
 - [[Router State Machine (onlinefailedunreachableoffline)]] - `implements` [EXTRACTED]
 - [[RouterOS listen change detection (future)]] - `conceptually_related_to` [AMBIGUOUS]
 
-#graphify/concept #graphify/EXTRACTED #community/Collector_and_Router_State
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

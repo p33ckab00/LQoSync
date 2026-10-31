@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Validation and Network Modes"
+community: "Validation"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation_and_Network_Modes
+  - community/Validation
 ---
 
 # Map
@@ -14,4 +14,4 @@ tags:
 - [[collect_nodes()]] - `references` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation_and_Network_Modes
+#graphify/code #graphify/EXTRACTED #community/Validation

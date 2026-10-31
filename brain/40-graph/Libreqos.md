@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "LibreQoS Targets"
-location: "L135"
+location: "L96"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,7 +12,6 @@ tags:
 # Libreqos
 
 ## Connections
-- [[dot-default()_4]] - `method` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[Target]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]

@@ -1,19 +1,18 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Loading"
-location: "L108"
+community: "Config Root and Checks"
+location: "L79"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config_Root_and_Checks
 ---
 
 # Safety
 
 ## Connections
-- [[dot-default()_11]] - `method` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Loading
+#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks

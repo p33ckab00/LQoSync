@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Scenario Test Harness"
+community: "Model Types"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Model_Types
 ---
 
 # deserialize
@@ -15,4 +15,4 @@ tags:
 - [[model.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/concept #graphify/EXTRACTED #community/Model_Types

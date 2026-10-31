@@ -2,7 +2,7 @@
 source_file: "src/sources.rs"
 type: "code"
 community: "Router Circuit Collection"
-location: "L158"
+location: "L228"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,8 +12,10 @@ tags:
 # collect_hotspot()
 
 ## Connections
+- [[dot-ip()]] - `calls` [EXTRACTED]
 - [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
+- [[Excluder]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[RouterSnapshot]] - `references` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]

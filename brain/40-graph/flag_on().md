@@ -13,6 +13,7 @@ tags:
 
 ## Connections
 - [[RosRow]] - `references` [EXTRACTED]
+- [[collect_dhcp()]] - `calls` [EXTRACTED]
 - [[collect_ppp()]] - `calls` [EXTRACTED]
 - [[f()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]

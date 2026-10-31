@@ -1,12 +1,12 @@
 ---
 source_file: "src/topology.rs"
 type: "code"
-community: "Topology and Node IDs"
-location: "L454"
+community: "Topology and Node Templates"
+location: "L508"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_IDs
+  - community/Topology_and_Node_Templates
 ---
 
 # grouped_router_root_nests_groups_under_router()
@@ -17,4 +17,4 @@ tags:
 - [[net()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_IDs
+#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates

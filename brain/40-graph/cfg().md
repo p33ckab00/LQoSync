@@ -2,7 +2,7 @@
 source_file: "src/cycle.rs"
 type: "code"
 community: "Cycle Assembly"
-location: "L454"
+location: "L497"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -16,9 +16,11 @@ tags:
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[flat_promotion_has_no_client_node_for_a_static_row()]] - `calls` [EXTRACTED]
 - [[flat_promotion_parent_is_own_client_node()]] - `calls` [EXTRACTED]
+- [[grace_also_applies_to_a_router_not_in_the_config()]] - `calls` [EXTRACTED]
 - [[grace_keeps_a_missing_subscriber()]] - `calls` [EXTRACTED]
 - [[group_counts_skip_duplicate_ip_circuits()]] - `calls` [EXTRACTED]
 - [[offline_remove_ignores_grace_and_keep_keeps()]] - `calls` [EXTRACTED]
+- [[recycled_ip_goes_to_the_new_subscriber()]] - `calls` [EXTRACTED]
 - [[remove_inactive_entries_false_removes_nothing()]] - `calls` [EXTRACTED]
 - [[rp()]] - `calls` [EXTRACTED]
 - [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]

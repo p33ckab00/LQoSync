@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "Decisions and Session Notes"
+community: "v3 Ingress Evidence"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/v3_Ingress_Evidence
 ---
 
 # lqosd inotify file watcher
@@ -19,4 +19,4 @@ tags:
 - [[Temp file then rename write]] - `references` [EXTRACTED]
 - [[lqosd (v3 control plane)]] - `implements` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/v3_Ingress_Evidence

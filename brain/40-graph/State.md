@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Scenario Test Harness"
-location: "L160"
+community: "Model Types"
+location: "L164"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Model_Types
 ---
 
 # State
@@ -26,4 +26,4 @@ tags:
 - [[seed_state()]] - `references` [EXTRACTED]
 - [[state.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Model_Types

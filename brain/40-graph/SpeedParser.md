@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Parsing"
-location: "L89"
+community: "Speed and DHCP Sources"
+location: "L99"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Parsing
+  - community/Speed_and_DHCP_Sources
 ---
 
 # SpeedParser
@@ -28,4 +28,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Parsing
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources

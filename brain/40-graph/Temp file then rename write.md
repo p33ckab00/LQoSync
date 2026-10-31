@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/libreqos-v3-ingress-facts.md"
 type: "rationale"
-community: "Decisions and Session Notes"
+community: "Router State Decisions"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Router_State_Decisions
 ---
 
 # Temp file then rename write
@@ -16,4 +16,4 @@ tags:
 - [[status.json state file]] - `semantically_similar_to` [INFERRED]
 - [[updatecsv.py defects to fix]] - `conceptually_related_to` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/rationale #graphify/EXTRACTED #community/Router_State_Decisions

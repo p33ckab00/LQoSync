@@ -1,17 +1,17 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Output Files and State Store"
-location: "L312"
+community: "DHCP Discovery and Exclusions"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Output_Files_and_State_Store
+  - community/DHCP_Discovery_and_Exclusions
 ---
 
 # Name templates ([nodes], [circuits])
 
 ## Connections
-- [[State Store (state.json)]] - `references` [EXTRACTED]
+- [[Circuit rules for each source]] - `references` [INFERRED]
+- [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Output_Files_and_State_Store
+#graphify/concept #graphify/EXTRACTED #community/DHCP_Discovery_and_Exclusions

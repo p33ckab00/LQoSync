@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "Model Types"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Model_Types
 ---
 
 # model.rs
@@ -28,4 +28,4 @@ tags:
 - [[deserialize]] - `imports_from` [EXTRACTED]
 - [[serialize]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/Model_Types

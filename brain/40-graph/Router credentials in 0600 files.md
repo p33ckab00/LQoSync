@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "rationale"
-community: "Decisions and Session Notes"
+community: "Terminal UI"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Terminal_UI
 ---
 
 # Router credentials in 0600 files
@@ -14,4 +14,4 @@ tags:
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[TUI config editor (toml_edit)]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/rationale #graphify/EXTRACTED #community/Terminal_UI

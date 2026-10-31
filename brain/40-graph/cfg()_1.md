@@ -1,18 +1,19 @@
 ---
 source_file: "src/topology.rs"
 type: "code"
-community: "Topology and Node IDs"
-location: "L347"
+community: "Topology and Node Templates"
+location: "L401"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_IDs
+  - community/Topology_and_Node_Templates
 ---
 
 # cfg()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
+- [[a_kept_child_keeps_its_operator_children()]] - `calls` [EXTRACTED]
 - [[backstop_cap_limits_group()]] - `calls` [EXTRACTED]
 - [[carried_nodes_of_failed_router_stay()]] - `calls` [EXTRACTED]
 - [[flat_promotion_gives_one_client_node_per_row()]] - `calls` [EXTRACTED]
@@ -25,4 +26,4 @@ tags:
 - [[topology.rs]] - `contains` [EXTRACTED]
 - [[v3_flag_makes_group_nodes_site()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_IDs
+#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates

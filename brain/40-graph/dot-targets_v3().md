@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Speed Sources"
-location: "L623"
+community: "Config Root and Checks"
+location: "L656"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Speed_Sources
+  - community/Config_Root_and_Checks
 ---
 
 # .targets_v3()
@@ -15,4 +15,4 @@ tags:
 - [[dot-validate()]] - `calls` [EXTRACTED]
 - [[Config]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Speed_Sources
+#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks

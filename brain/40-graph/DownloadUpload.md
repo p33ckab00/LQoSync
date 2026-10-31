@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed Parsing"
-location: "L283"
+community: "Speed and DHCP Sources"
+location: "L184"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Parsing
+  - community/Speed_and_DHCP_Sources
 ---
 
 # DownloadUpload
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[RateLimitOrder]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Parsing
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources

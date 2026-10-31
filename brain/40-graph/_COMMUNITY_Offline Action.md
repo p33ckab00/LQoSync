@@ -1,16 +1,15 @@
 ---
 type: community
-cohesion: 0.40
-members: 5
+cohesion: 0.50
+members: 4
 ---
 
 # Offline Action
 
-**Cohesion:** 0.40 - moderately connected
-**Members:** 5 nodes
+**Cohesion:** 0.50 - moderately connected
+**Members:** 4 nodes
 
 ## Members
-- [[dot-default()_7]] - code - src/config.rs
 - [[Keep]] - code - src/config.rs
 - [[OfflineAction]] - code - src/config.rs
 - [[Remove]] - code - src/config.rs
@@ -25,9 +24,9 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 2 edges to [[_COMMUNITY_Config Loading]]
+- 1 edge to [[_COMMUNITY_Config Root and Checks]]
 - 1 edge to [[_COMMUNITY_Cycle Assembly]]
-- 1 edge to [[_COMMUNITY_Router Circuit Collection]]
 
 ## Top bridge nodes
 - [[OfflineAction]] - degree 5, connects to 2 communities
-- [[RouterAccess]] - degree 4, connects to 2 communities
+- [[RouterAccess]] - degree 3, connects to 2 communities

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Targets and Applier"
+community: "Architecture Parts"
 location: "L102"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Targets_and_Applier
+  - community/Architecture_Parts
 ---
 
 # lqosync-updatecsv.service (Python service)
@@ -17,4 +17,4 @@ tags:
 - [[Rollback to the Python service]] - `references` [EXTRACTED]
 - [[install.sh one-line installer]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Targets_and_Applier
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

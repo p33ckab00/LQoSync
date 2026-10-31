@@ -1,12 +1,12 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "v3 Node Rules"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/v3_Node_Rules
 ---
 
 # scenarios.rs
@@ -38,4 +38,4 @@ tags:
 - [[seed_state]] - `imports_from` [EXTRACTED]
 - [[split_static]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/v3_Node_Rules

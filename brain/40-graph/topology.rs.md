@@ -1,12 +1,12 @@
 ---
 source_file: "src/topology.rs"
 type: "code"
-community: "Topology and Node IDs"
+community: "Topology and Node Templates"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_IDs
+  - community/Topology_and_Node_Templates
 ---
 
 # topology.rs
@@ -24,8 +24,10 @@ tags:
 - [[Rate]] - `imports_from` [EXTRACTED]
 - [[RouterGroups]] - `contains` [EXTRACTED]
 - [[StoredNode]] - `imports_from` [EXTRACTED]
-- [[Value_3]] - `imports_from` [EXTRACTED]
+- [[Value_1]] - `imports_from` [EXTRACTED]
+- [[a_kept_child_keeps_its_operator_children()]] - `contains` [EXTRACTED]
 - [[backstop_cap_limits_group()]] - `contains` [EXTRACTED]
+- [[bail]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[build_nodes()]] - `contains` [EXTRACTED]
 - [[carried_nodes_of_failed_router_stay()]] - `contains` [EXTRACTED]
@@ -33,6 +35,8 @@ tags:
 - [[clamp()]] - `imports_from` [EXTRACTED]
 - [[client_node_id()]] - `contains` [EXTRACTED]
 - [[count_rate()]] - `contains` [EXTRACTED]
+- [[deep_chains_nest_in_parent_first_order()]] - `contains` [EXTRACTED]
+- [[depth()]] - `contains` [EXTRACTED]
 - [[find_mut()]] - `contains` [EXTRACTED]
 - [[flat_promotion_gives_one_client_node_per_row()]] - `contains` [EXTRACTED]
 - [[flat_router_root_and_flat_global_root_make_roots_only()]] - `contains` [EXTRACTED]
@@ -44,6 +48,7 @@ tags:
 - [[grouped_router_root_nests_groups_under_router()]] - `contains` [EXTRACTED]
 - [[groups()]] - `contains` [EXTRACTED]
 - [[groups_json()]] - `contains` [EXTRACTED]
+- [[hashmap]] - `imports_from` [EXTRACTED]
 - [[id()]] - `contains` [EXTRACTED]
 - [[id_does_not_change_with_the_name_template()]] - `contains` [EXTRACTED]
 - [[is_grouped()]] - `contains` [EXTRACTED]
@@ -58,12 +63,14 @@ tags:
 - [[parent_for_each_mode()]] - `contains` [EXTRACTED]
 - [[ppp_node_exists_with_zero_users()]] - `contains` [EXTRACTED]
 - [[preserve_keeps_manual_nodes_and_drops_old_generated()]] - `contains` [EXTRACTED]
+- [[put()]] - `contains` [EXTRACTED]
 - [[r()]] - `contains` [EXTRACTED]
 - [[remove_named()]] - `contains` [EXTRACTED]
 - [[root_promotion_puts_groups_at_top()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
+- [[take_children()]] - `contains` [EXTRACTED]
 - [[template()]] - `contains` [EXTRACTED]
 - [[to_network_json()]] - `contains` [EXTRACTED]
 - [[v3_flag_makes_group_nodes_site()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_IDs
+#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates

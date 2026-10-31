@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Collector and Router State"
+community: "Architecture Parts"
 location: "L11"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Collector_and_Router_State
+  - community/Architecture_Parts
 ---
 
 # MikroTik RouterOS API
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Collector (RouterOS API reads)]] - `shares_data_with` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Collector_and_Router_State
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

@@ -1,21 +1,20 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Node Templates"
-location: "L240"
+community: "Config Root and Checks"
+location: "L161"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Node_Templates
+  - community/Config_Root_and_Checks
 ---
 
 # Nodes
 
 ## Connections
-- [[dot-default()_3]] - `method` [EXTRACTED]
 - [[ClientTemplate]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[NodeTemplate]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks

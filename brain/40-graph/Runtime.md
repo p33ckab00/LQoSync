@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Runtime Settings"
-location: "L45"
+location: "L46"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,7 +12,6 @@ tags:
 # Runtime
 
 ## Connections
-- [[dot-default()_1]] - `method` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[LogLevel]] - `references` [EXTRACTED]
 - [[RuntimeMode]] - `references` [EXTRACTED]

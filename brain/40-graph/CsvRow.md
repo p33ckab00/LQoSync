@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Scenario Test Harness"
+community: "CSV Writer and Columns"
 location: "L8"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/CSV_Writer_and_Columns
 ---
 
 # CsvRow
@@ -35,7 +35,8 @@ tags:
 - [[seed_state()]] - `references` [EXTRACTED]
 - [[split_static()]] - `references` [EXTRACTED]
 - [[state.rs]] - `imports_from` [EXTRACTED]
+- [[static_row()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/code #graphify/EXTRACTED #community/CSV_Writer_and_Columns

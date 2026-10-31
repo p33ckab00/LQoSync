@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Targets and Applier"
+community: "Architecture Parts"
 location: "L24"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Targets_and_Applier
+  - community/Architecture_Parts
 ---
 
 # lqosd (LibreQoS daemon)
@@ -17,4 +17,4 @@ tags:
 - [[ShapedDevices.csv]] - `references` [EXTRACTED]
 - [[libreqos_network.json]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Targets_and_Applier
+#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts

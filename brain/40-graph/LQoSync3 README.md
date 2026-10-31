@@ -1,20 +1,20 @@
 ---
 source_file: "README.md"
 type: "document"
-community: "Decisions and Session Notes"
+community: "Early Sessions and ADRs"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Decisions_and_Session_Notes
+  - community/Early_Sessions_and_ADRs
 ---
 
 # LQoSync3 README
 
 ## Connections
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
-- [[Brain Home (MOC)]] - `references` [EXTRACTED]
-- [[Configuration (LQoSync3)]] - `references` [EXTRACTED]
-- [[Handoff]] - `references` [EXTRACTED]
+- [[Configuration reference]] - `references` [EXTRACTED]
+- [[Handoff (current project state)]] - `references` [EXTRACTED]
+- [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[Installation (LQoSync3)]] - `references` [EXTRACTED]
 - [[LQoSync3 (lqosync3 tool)]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
@@ -29,4 +29,4 @@ tags:
 - [[lqosync-updatecsv.service (Python)]] - `references` [EXTRACTED]
 - [[mikrotik-rs RouterOS API crate]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Decisions_and_Session_Notes
+#graphify/document #graphify/EXTRACTED #community/Early_Sessions_and_ADRs

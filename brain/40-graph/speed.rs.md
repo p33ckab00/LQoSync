@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Parsing"
+community: "Speed and DHCP Sources"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Parsing
+  - community/Speed_and_DHCP_Sources
 ---
 
 # speed.rs
@@ -24,8 +24,10 @@ tags:
 - [[comment_forms()]] - `contains` [EXTRACTED]
 - [[context]] - `imports_from` [EXTRACTED]
 - [[default_rate_and_circuit_rates()]] - `contains` [EXTRACTED]
+- [[finite()]] - `contains` [EXTRACTED]
 - [[fmt_rate()]] - `contains` [EXTRACTED]
 - [[legacy()]] - `contains` [EXTRACTED]
+- [[overlong_number_is_no_rate()]] - `contains` [EXTRACTED]
 - [[p()]] - `contains` [EXTRACTED]
 - [[parse_default_rate()]] - `contains` [EXTRACTED]
 - [[parse_pair()]] - `contains` [EXTRACTED]
@@ -37,5 +39,7 @@ tags:
 - [[round_and_format()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 - [[to_mbps()]] - `contains` [EXTRACTED]
+- [[usable()]] - `contains` [EXTRACTED]
+- [[zero_comment_speed_is_no_rate()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Parsing
+#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
