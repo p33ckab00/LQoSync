@@ -16,6 +16,7 @@ static_comment = "static"       # a row with this Comment is never removed (case
 subscriber_grace = 0            # seconds that a missing subscriber stays before removal
 log_level = "info"              # error | warn | info | debug
 state_dir = "/var/lib/lqosync3"
+keep_backups = 10               # backup folders of the old LibreQoS files to keep (apply mode)
 
 [router_access]
 connect_timeout = 5             # seconds, for the TCP connection and the login

@@ -54,6 +54,8 @@ pub struct Runtime {
     pub subscriber_grace: u64,
     pub log_level: LogLevel,
     pub state_dir: String,
+    /// Backup folders to keep in `<state_dir>/applied/` (apply mode).
+    pub keep_backups: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -859,6 +861,10 @@ impl Config {
         ] {
             ensure!(v > 0, "config: {k} must be > 0");
         }
+        ensure!(
+            rt.keep_backups >= 1,
+            "config: runtime.keep_backups must be 1 or more"
+        );
         ensure!(
             (4..=32).contains(&rt.id_length),
             "config: runtime.id_length must be 4 to 32"
