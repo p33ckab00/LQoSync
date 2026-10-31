@@ -175,4 +175,4 @@ lqosync3/
   tests/
 ```
 
-The crate is in the folder `lqosync3/` on the branch `lqosync3` of `https://github.com/p33ckab00/LQoSync.git`. The branch has no shared history with the other branches. The crate does not use code from `v3/` or from the other branches.
+The crate is at the root of the branch `lqosync3` of `https://github.com/p33ckab00/LQoSync.git`. The branch has no shared history with the other branches. The crate does not use code from `v3/` or from the other branches.

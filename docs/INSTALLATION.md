@@ -19,17 +19,17 @@ This document gives the one-line installation, the manual installation, the chec
 Use this command on the shaper:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/lqosync3/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/install.sh | sudo bash
 ```
 
 > [!note]
-> The tool is in the folder `lqosync3/` on the branch `lqosync3` of `p33ckab00/LQoSync`. The branch has no shared history with the other branches.
+> The tool is at the root of the branch `lqosync3` of `p33ckab00/LQoSync`. The branch has no shared history with the other branches.
 > The file `install.sh` at the root of the other branches is a different installer. Do not use it for this tool.
 
 To install from a local clone, use this command:
 
 ```bash
-sudo bash /home/pi/LQoSync3.0/lqosync3/install.sh
+sudo bash /home/pi/LQoSync3.0/install.sh
 ```
 
 ### Installer options
@@ -45,7 +45,7 @@ sudo bash /home/pi/LQoSync3.0/lqosync3/install.sh
 Example with an import of the current Python configuration:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/lqosync3/install.sh | sudo bash -s -- --import-json /opt/libreqos/src/config.json
+curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/install.sh | sudo bash -s -- --import-json /opt/libreqos/src/config.json
 ```
 
 ### What the installer does

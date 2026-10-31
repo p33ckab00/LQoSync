@@ -23,6 +23,7 @@ Take `updatecsv.py` apart before a new Rust build from scratch. Put all policy v
 ## Results
 
 - Made a Git repository in `/home/pi/LQoSync3.0` with the orphan branch `lqosync3` and the remote `origin`. Moved `README.md`, `docs/`, `brain/`, and `graphify-out/` into `lqosync3/`. No commit.
+- Pushed the orphan branch `lqosync3` (commit `8dc54a7`). Then moved all files from `lqosync3/` to the repository root, so that the code is in `/src`.
 - Renamed the tool to `lqosync3` in the documents. The Python unit `lqosync-updatecsv.service` keeps its name.
 
 - The operator decided: a failed router keeps its subscribers. An offline router loses them.

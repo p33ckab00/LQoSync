@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- All paths are relative to `/home/pi/LQoSync3.0/lqosync3/`. The crate root is this folder. The crate name is `lqosync3`.
+- All paths are relative to the repository root `/home/pi/LQoSync3.0/`. The crate root is the repository root. The crate name is `lqosync3`.
 - Git: branch `lqosync3`, repository root `/home/pi/LQoSync3.0`. Commit locally. Do not push.
 - `export PATH=$HOME/.cargo/bin:$PATH` before each `cargo` command.
 - Runtime dependencies: only `serde` (feature `derive`), `serde_json`, `toml`, `csv`, `regex`, `anyhow`. No `serde_json` feature `preserve_order`. No other crate in Plan 1.
@@ -172,7 +172,7 @@ Run: `cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --che
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lqosync3/Cargo.toml lqosync3/Cargo.lock lqosync3/src lqosync3/tests lqosync3/.gitignore
+git add Cargo.toml Cargo.lock src tests .gitignore
 git commit -m "feat(config): add TOML config with defaults and checks"
 ```
 
