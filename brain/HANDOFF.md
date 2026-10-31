@@ -14,6 +14,25 @@ Checkout: `/opt/LQoSync3.0`.
 Code: `9a35d24`. Earlier base references below are historical.
 Sections are in newest-first order. Read the first section for the current state.
 
+## RouterOS acceptance Phase 2 passed with one live subscriber
+
+Updated: 2026-10-31T10:10:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
+The operator selected `10.0.100.220` (PPPoE `RowenaEstilloso` on `RB5k9Distro`) and accepted two connection drops.
+The operator first removed the manual WAN rows for that address. It then used the `main` default through wan1.
+`core-acceptance --address 10.0.100.220 --subscriber 6c607ca4-1da1-51e6-a402-802aa35bd43b --execute` passed.
+Owned row `*1E` kept its ID through add to wan1, move to wan2, a 60-second hold, move back, and remove.
+The address-list returned to the 13-row baseline. Static mangle, route, and table rows did not change.
+Connection samples by NAT reply address: before the move, all on `172.16.1.247` (wan1).
+During the hold, new connections used `172.16.1.246` (wan2). Old entries kept `172.16.1.247` and slowly expired.
+After the move back, the two wan2 entries kept `172.16.1.246`. Conntrack keeps the NAT address of each connection.
+These samples do not prove whether old connections stopped. They prove that new connections follow the list at once.
+One conntrack read failed before the add. The fixed command records such a failure and continues.
+A fresh review found four Important items before the run. Three were fixed. Signal handling was deferred: the agent ran the command without a timeout wrapper.
+Final checks: format and strict Clippy passed; 351 passed, zero failed, 12 ignored.
+Two `tests/web.rs` tests failed once under full-suite load with "Another process is saving control settings". They passed in four separate runs and in the next full run.
+Next: Approach B through the executor path, or a decision on a per-host migration plan for the protected PPPoE pool ranges.
+See `docs/superpowers/specs/2026-10-31-routeros-acceptance-phase2-design.md`.
+
 ## WAN health reports Healthy on the production core
 
 Updated: 2026-10-31T09:25:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
