@@ -108,9 +108,10 @@ async fn main() -> Result<()> {
             "--expect" => expect = Some(parse_expect(it.next().context(USAGE)?)?),
             "--rollback-after" => {
                 let secs: u64 = it.next().context(USAGE)?.parse().context(USAGE)?;
+                // The source continuity window is at most 30 s, and one capture takes several seconds.
                 ensure!(
-                    (1..=60).contains(&secs),
-                    "Rollback hold must be 1–60 seconds"
+                    (1..=10).contains(&secs),
+                    "Rollback hold must be 1–10 seconds"
                 );
                 rollback_after = Some(secs);
             }

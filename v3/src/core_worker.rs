@@ -336,7 +336,7 @@ impl Guard {
                     );
                 }
             }
-            policy.insert(binding.router.clone(), digest(&tables)?);
+            policy.insert(binding.router.clone(), policy_digest(&tables)?);
         }
         Ok((
             Self {
@@ -384,6 +384,25 @@ impl Guard {
         );
         Ok(())
     }
+}
+/// RouterOS returns rule counters in mangle and filter rows. They change on every read and are not policy.
+/// Every other field and the rule order stay in the digest.
+fn policy_digest(tables: &BTreeMap<&str, &Vec<crate::routeros::Row>>) -> Result<String> {
+    let stripped = tables
+        .iter()
+        .map(|(path, rows)| {
+            let rows = rows
+                .iter()
+                .map(|r| {
+                    r.iter()
+                        .filter(|(k, _)| !matches!(k.as_str(), "bytes" | "packets"))
+                        .collect::<BTreeMap<_, _>>()
+                })
+                .collect::<Vec<_>>();
+            (*path, rows)
+        })
+        .collect::<BTreeMap<_, _>>();
+    digest(&stripped)
 }
 pub struct Prepared {
     batch: Batch,
@@ -581,6 +600,39 @@ impl<S: Source> Worker<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn policy_digest_ignores_rule_counters_only() {
+        let row = |bytes: &str, action: &str| -> crate::routeros::Row {
+            [
+                ("chain", "prerouting"),
+                ("action", action),
+                ("bytes", bytes),
+                ("packets", bytes),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+        };
+        let digest_of = |rows: Vec<crate::routeros::Row>| {
+            let mut tables = BTreeMap::new();
+            tables.insert("/ip/firewall/mangle/print", &rows);
+            policy_digest(&tables).unwrap()
+        };
+        // RouterOS rule counters change on every read. They are not routing policy.
+        assert_eq!(
+            digest_of(vec![row("1", "accept")]),
+            digest_of(vec![row("999", "accept")])
+        );
+        assert_ne!(
+            digest_of(vec![row("1", "accept")]),
+            digest_of(vec![row("1", "drop")])
+        );
+        assert_ne!(
+            digest_of(vec![row("1", "accept"), row("1", "drop")]),
+            digest_of(vec![row("1", "drop"), row("1", "accept")]),
+            "rule order stays part of the policy"
+        );
+    }
     #[test]
     fn expired_approval_never_authorizes_verification() {
         let approval = Approval {

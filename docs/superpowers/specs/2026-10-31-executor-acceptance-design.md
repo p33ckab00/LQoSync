@@ -29,7 +29,8 @@ This replaces the earlier plan to stop the console and narrow the live settings.
 1. Pin to wan1 (`source-pppoe-tier-15m-wan2--wan1`). Expected: `add` to `WAN1-CUSTOMERS`. Forward, then finish.
    Traffic does not change, because wan1 is also the `main` default.
 2. Pin to wan2 (`source-pppoe-tier-15m-wan2`). Expected: `move` to `WAN2-CUSTOMERS`.
-   Forward, hold 30 seconds, roll back, then finish. The subscriber uses wan2 during the hold.
+   Forward, hold 10 seconds, roll back, then finish. The subscriber uses wan2 during the hold.
+   The hold must stay short. The source continuity window is at most 30 seconds, and each capture takes time.
 3. Cleanup: the operator removes the owned row on the router. A `remove` decision needs 30 seconds of offline evidence.
    Removal of the owned wan1 row does not change traffic.
 
@@ -40,8 +41,19 @@ This replaces the earlier plan to stop the console and narrow the live settings.
 - It runs up to 12 preview rounds. It stops at the first round whose plan has exactly the expected operation,
   no other mutation, and no Blocked decision.
 - Without `--execute`, it prints the batch revision and sends no write.
-- With `--execute`, it opens the worker with that exact revision, then runs forward, optional rollback, and finish.
+- With `--execute`, it runs the preview again and builds a new batch. The approval is the `--expect` operation:
+  the command opens the worker only for a batch with exactly that operation. It then runs forward, an optional
+  rollback of at most 10 seconds after the forward, and finish.
 - The approval window is 180 seconds. A failure keeps the recovery marker. Use reviewed recovery. Do not delete the marker.
+
+## Limits found in review
+
+- No CLI runs reviewed recovery yet. If a run fails after a send, remove the owned row on the router by its `.id`.
+  The subscriber then uses the `main` default (wan1). Keep the acceptance directory state as evidence.
+- The acceptance directory has its own fence and marker. The live console cannot see them.
+  Before any live write path is enabled, check `v3/data/state/acceptance/b-root/state` for a marker.
+- The first run of batch 1 stopped before any send. The guard digest included mangle and filter rule counters.
+  Those counters change on every read. The guard now ignores `bytes` and `packets` only.
 
 ## Approaches
 
