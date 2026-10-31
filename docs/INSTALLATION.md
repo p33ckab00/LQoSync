@@ -119,6 +119,9 @@ The installer does not do these actions:
    ExecReload=/bin/kill -HUP $MAINPID
    Restart=on-failure
    RestartSec=10
+   # Stop sends SIGTERM to lqosync3 only; it finishes the cycle, and a running LibreQoS.py is not stopped.
+   KillMode=mixed
+   TimeoutStopSec=600
    User=root
    NoNewPrivileges=yes
    ProtectSystem=full

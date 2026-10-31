@@ -63,6 +63,8 @@ enum Answer {
     Empty,
     Trap(String),
     Silent,
+    /// One row with raw value bytes (for example Latin-1 text from Winbox).
+    Raw(Vec<(String, Vec<u8>)>),
 }
 
 type Log = Arc<Mutex<Vec<Vec<String>>>>;
@@ -90,6 +92,10 @@ async fn mock(
                         .collect();
                     let mut out = Vec::new();
                     if words.first().map(String::as_str) == Some("/login") {
+                        // A router whose API hangs at login: no answer at all.
+                        if password == "SILENT" {
+                            continue;
+                        }
                         if words.iter().any(|w| w == &format!("=password={password}")) {
                             out.extend(sentence(&[vec!["!done".to_string()], tag].concat()));
                         } else {
@@ -109,6 +115,22 @@ async fn mock(
                         let path = words.first().cloned().unwrap_or_default();
                         match answer(path.trim_end_matches("/print")) {
                             Answer::Silent => continue,
+                            Answer::Raw(fields) => {
+                                let mut raw = word("!re");
+                                for t in &tag {
+                                    raw.extend(word(t));
+                                }
+                                for (k, v) in fields {
+                                    let mut w = format!("={k}=").into_bytes();
+                                    w.extend(v);
+                                    let n = w.len();
+                                    raw.push(n as u8);
+                                    raw.extend(w);
+                                }
+                                raw.push(0);
+                                out.extend(raw);
+                                out.extend(sentence(&[vec!["!done".to_string()], tag].concat()));
+                            }
                             Answer::Empty => {
                                 out.extend(sentence(&[vec!["!empty".to_string()], tag].concat()))
                             }
@@ -303,4 +325,54 @@ async fn silent_router_times_out_and_does_not_block_another() {
         "the good router waited {:?}",
         rg.1
     );
+}
+
+#[tokio::test]
+async fn login_stall_is_failed_not_unreachable() {
+    let (port, _) = mock(|_| Answer::Rows(vec![]), "SILENT").await;
+    let s = setup(port);
+    let e = read_router(&s.connector, &mut None, &s.router, &s.access)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(e, ReadError::Timeout(_)),
+        "a hung API is not an unreachable router: {e:?}"
+    );
+}
+
+#[tokio::test]
+async fn latin1_values_are_decoded() {
+    let (port, _) = mock(
+        |p| {
+            if p == "/ppp/secret" {
+                Answer::Raw(vec![
+                    ("name".into(), b"jos\xe9".to_vec()),
+                    ("comment".into(), b"Jos\xe9|25M/5M".to_vec()),
+                ])
+            } else {
+                Answer::Rows(vec![])
+            }
+        },
+        "good",
+    )
+    .await;
+    let s = setup(port);
+    let snap = read_router(&s.connector, &mut None, &s.router, &s.access)
+        .await
+        .unwrap();
+    assert_eq!(snap.ppp_secret[0]["name"], "jos\u{e9}");
+    assert_eq!(snap.ppp_secret[0]["comment"], "Jos\u{e9}|25M/5M");
+}
+
+#[tokio::test]
+async fn tls_without_verify_does_not_panic() {
+    let (port, _) = mock(|_| Answer::Rows(vec![]), "good").await;
+    let mut s = setup(port);
+    s.router.tls = true;
+    s.router.tls_verify = false;
+    // The mock speaks plain TCP, so the TLS handshake fails. It must fail, not panic.
+    let e = read_router(&s.connector, &mut None, &s.router, &s.access)
+        .await
+        .unwrap_err();
+    assert!(!matches!(e, ReadError::Login(_)), "{e:?}");
 }

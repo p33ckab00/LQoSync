@@ -79,12 +79,21 @@ pub fn read_live(
     let net_path = lqos_dir.join("network.json");
     let network = if need_network {
         match std::fs::read_to_string(&net_path) {
-            Ok(t) => Some(serde_json::from_str(&t).with_context(|| {
-                format!(
-                    "{} is not valid JSON; fix it before the next cycle",
-                    net_path.display()
-                )
-            })?),
+            Ok(t) => {
+                let v: serde_json::Value = serde_json::from_str(&t).with_context(|| {
+                    format!(
+                        "{} is not valid JSON; fix it before the next cycle",
+                        net_path.display()
+                    )
+                })?;
+                if !v.is_object() {
+                    bail!(
+                        "{} must hold a JSON object of nodes; fix it before the next cycle",
+                        net_path.display()
+                    );
+                }
+                Some(v)
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e).with_context(|| format!("cannot read {}", net_path.display())),
         }
@@ -311,5 +320,14 @@ mod tests {
             .await
             .unwrap_err();
         assert!(e.contains("time"), "{e}");
+    }
+
+    #[test]
+    fn network_json_must_be_an_object() {
+        let d = tempfile::tempdir().unwrap();
+        for bad in ["[]", "null", "5"] {
+            std::fs::write(d.path().join("network.json"), bad).unwrap();
+            assert!(read_live(d.path(), "static", true).is_err(), "{bad}");
+        }
     }
 }

@@ -19,6 +19,52 @@ pub struct MikrotikSession {
     device: MikrotikDevice,
 }
 
+/// A certificate verifier that accepts any certificate (`tls_verify = false`).
+#[derive(Debug)]
+struct AnyCertificate(Arc<rustls::crypto::CryptoProvider>);
+
+impl rustls::client::danger::ServerCertVerifier for AnyCertificate {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
+    }
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
+    }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        self.0.signature_verification_algorithms.supported_schemes()
+    }
+}
+
 /// The rustls client config for a router: its CA file, or the public CAs.
 pub fn tls_client_config(router: &RouterCfg) -> Result<Arc<rustls::ClientConfig>, ReadError> {
     let mut roots = rustls::RootCertStore::empty();
@@ -36,11 +82,18 @@ pub fn tls_client_config(router: &RouterCfg) -> Result<Arc<rustls::ClientConfig>
         }
     }
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let cfg = rustls::ClientConfig::builder_with_provider(provider)
+    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
         .with_safe_default_protocol_versions()
-        .map_err(|e| ReadError::Tls(e.to_string()))?
-        .with_root_certificates(roots)
-        .with_no_client_auth();
+        .map_err(|e| ReadError::Tls(e.to_string()))?;
+    let cfg = if router.tls_verify {
+        builder.with_root_certificates(roots).with_no_client_auth()
+    } else {
+        // tls_verify = false: encrypt, but accept any certificate. The handshake signatures are still checked.
+        builder
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(AnyCertificate(provider)))
+            .with_no_client_auth()
+    };
     Ok(Arc::new(cfg))
 }
 
@@ -54,7 +107,14 @@ fn map_err(e: DeviceError) -> ReadError {
             if tls {
                 ReadError::Tls(io.to_string())
             } else {
-                ReadError::Unreachable(io.to_string())
+                use std::io::ErrorKind::*;
+                match io.kind() {
+                    ConnectionRefused | TimedOut | HostUnreachable | NetworkUnreachable => {
+                        ReadError::Unreachable(io.to_string())
+                    }
+                    // The TCP connect passed: a reset or an early close is a protocol problem.
+                    _ => ReadError::Protocol(io.to_string()),
+                }
             }
         }
         DeviceError::Authentication { response } => ReadError::Login(response.message),
@@ -70,27 +130,47 @@ impl Connector for MikrotikConnector {
     fn connect(
         &self,
         router: &RouterCfg,
-        _access: &RouterAccess,
+        access: &RouterAccess,
     ) -> impl Future<Output = Result<MikrotikSession, ReadError>> + Send {
         let router = router.clone();
+        let connect_timeout = std::time::Duration::from_secs(access.connect_timeout);
         let owner_uid = self.owner_uid;
         async move {
             let password = read_secret(Path::new(&router.password_file), owner_uid)
                 .map_err(|e| ReadError::Login(format!("{e:#}")))?;
             let addr = (router.address.clone(), router.port);
+            // Only a failed TCP connect means "unreachable". A hung login or TLS handshake later is a failure.
+            match tokio::time::timeout(
+                connect_timeout,
+                tokio::net::TcpStream::connect(addr.clone()),
+            )
+            .await
+            {
+                Ok(Ok(_probe)) => {}
+                Ok(Err(e)) => {
+                    return Err(ReadError::Unreachable(format!(
+                        "{}:{}: {e}",
+                        router.address, router.port
+                    )));
+                }
+                Err(_) => {
+                    return Err(ReadError::Unreachable(format!(
+                        "{}:{}: TCP connect took more than {} s",
+                        router.address,
+                        router.port,
+                        connect_timeout.as_secs()
+                    )));
+                }
+            }
             let device = if !router.tls {
                 MikrotikDevice::connect(addr, &router.username, Some(&password)).await
-            } else if !router.tls_verify {
-                eprintln!(
-                    "warning: router {}: tls_verify = false, the certificate is not checked",
-                    router.name
-                );
-                MikrotikDevice::builder(addr)
-                    .credentials(&router.username, Some(&password))
-                    .tls_insecure()
-                    .connect()
-                    .await
             } else {
+                if !router.tls_verify {
+                    eprintln!(
+                        "warning: router {}: tls_verify = false, the certificate is not checked",
+                        router.name
+                    );
+                }
                 let cfg = tls_client_config(&router)?;
                 let name = ServerName::try_from(router.address.clone())
                     .map_err(|e| ReadError::Tls(format!("address {}: {e}", router.address)))?;
@@ -123,13 +203,27 @@ impl RouterSession for MikrotikSession {
             let mut rows = Vec::new();
             while let Some(event) = rx.recv().await {
                 match event {
-                    Event::Reply { response, .. } => rows.push(
-                        response
-                            .attributes
-                            .into_iter()
-                            .map(|(k, v)| (k, v.unwrap_or_default()))
-                            .collect(),
-                    ),
+                    Event::Reply { response, .. } => {
+                        let raw = response.attributes_raw;
+                        rows.push(
+                            response
+                                .attributes
+                                .into_iter()
+                                .map(|(k, v)| {
+                                    let v = v.unwrap_or_else(|| {
+                                        // shortcut: a value that is not UTF-8 (Winbox writes Windows text) is read as
+                                        // Latin-1; CP1252 differs only in 0x80-0x9F. Use a codepage crate if that matters.
+                                        raw.get(&k)
+                                            .and_then(|b| b.as_ref())
+                                            .map_or(String::new(), |b| {
+                                                b.iter().map(|&c| c as char).collect()
+                                            })
+                                    });
+                                    (k, v)
+                                })
+                                .collect(),
+                        )
+                    }
                     Event::Done { .. } | Event::Empty { .. } => return Ok(rows),
                     Event::Trap { response, .. } => return Err(ReadError::Trap(response.message)),
                     Event::Fatal { reason } => {

@@ -88,6 +88,7 @@ async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
             owner_uid: SECRET_OWNER_UID,
         }),
     );
+    runner.lock()?;
     let (mut hup, mut usr1) = (
         signal(SignalKind::hangup())?,
         signal(SignalKind::user_defined1())?,
@@ -155,6 +156,7 @@ async fn main() {
                     owner_uid: SECRET_OWNER_UID,
                 }),
             );
+            runner.lock().unwrap_or_else(|e| exit_with(e));
             let s = runner.cycle(now(), force).await;
             print_summary(&s);
             if s.error.is_some() {

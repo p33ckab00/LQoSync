@@ -123,10 +123,10 @@ pub async fn read_router<C: Connector>(
             tokio::time::sleep(Duration::from_secs(access.retry_delay)).await;
         }
         if session.is_none() {
-            let connect = tokio::time::timeout(
-                Duration::from_secs(access.connect_timeout),
-                c.connect(router, access),
-            );
+            // The connector reports a failed TCP connect as Unreachable. A login or TLS handshake
+            // that hangs after that is a Timeout, so the router keeps its rows.
+            let limit = Duration::from_secs(access.connect_timeout + access.api_timeout);
+            let connect = tokio::time::timeout(limit, c.connect(router, access));
             match connect.await {
                 Ok(Ok(s)) => *session = Some(s),
                 Ok(Err(e)) => {
@@ -134,9 +134,9 @@ pub async fn read_router<C: Connector>(
                     continue;
                 }
                 Err(_) => {
-                    last = ReadError::Unreachable(format!(
-                        "connect took more than {} s",
-                        access.connect_timeout
+                    last = ReadError::Timeout(format!(
+                        "connect and login took more than {} s",
+                        limit.as_secs()
                     ));
                     continue;
                 }
@@ -172,6 +172,7 @@ mod tests {
         script: Script,
         connects: Arc<AtomicUsize>,
         stall: Option<Duration>,
+        stall_connect: bool,
     }
     struct FakeSession(Fake);
 
@@ -184,7 +185,12 @@ mod tests {
         ) -> impl Future<Output = Result<FakeSession, ReadError>> + Send {
             self.connects.fetch_add(1, Ordering::SeqCst);
             let me = self.clone();
-            async move { Ok(FakeSession(me)) }
+            async move {
+                if me.stall_connect {
+                    tokio::time::sleep(Duration::from_secs(3600)).await;
+                }
+                Ok(FakeSession(me))
+            }
         }
     }
     impl RouterSession for FakeSession {
@@ -292,5 +298,19 @@ mod tests {
         read_router(&f, &mut s, &r, &a).await.unwrap();
         read_router(&f, &mut s, &r, &a).await.unwrap();
         assert_eq!(f.connects.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn stalled_connect_is_a_timeout_not_unreachable() {
+        let (r, a) = ppp_router();
+        let f = Fake {
+            stall_connect: true,
+            ..Fake::default()
+        };
+        let mut s = None;
+        assert!(matches!(
+            read_router(&f, &mut s, &r, &a).await,
+            Err(ReadError::Timeout(_))
+        ));
     }
 }

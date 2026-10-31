@@ -54,6 +54,8 @@ pub struct Runner<C: Connector + 'static> {
     pub cfg: Config,
     connector: Arc<C>,
     sessions: HashMap<String, Option<C::Session>>,
+    /// The instance lock. Taken at the first cycle and held while the runner lives.
+    lock: Option<std::fs::File>,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -75,7 +77,16 @@ where
             cfg,
             connector,
             sessions: HashMap::new(),
+            lock: None,
         }
+    }
+
+    /// Take the instance lock on `state_dir` and hold it while the runner lives.
+    pub fn lock(&mut self) -> anyhow::Result<()> {
+        if self.lock.is_none() {
+            self.lock = Some(files::lock(Path::new(&self.cfg.runtime.state_dir))?);
+        }
+        Ok(())
     }
 
     /// Use a new config. The sessions close, because an address or a password can change.
@@ -104,9 +115,22 @@ where
             reload: "skipped".into(),
             error: None,
         };
+        // Without the lock, another process owns the files: write nothing, not even the status.
+        if let Err(e) = self.lock() {
+            let error = Some(format!("{e:#}"));
+            status.error = error.clone();
+            return CycleSummary {
+                changed: false,
+                error,
+                status,
+            };
+        }
         let result = self.cycle_inner(now, force, &state_dir, &mut status).await;
         let (changed, error) = match result {
-            Ok(changed) => (changed, None),
+            Ok((changed, None)) => (changed, None),
+            Ok((changed, Some(reload))) => {
+                (changed, Some(format!("LibreQoS reload failed: {reload}")))
+            }
             Err(e) => (false, Some(format!("{e:#}"))),
         };
         status.files_changed = changed;
@@ -133,13 +157,12 @@ where
         force: bool,
         state_dir: &Path,
         status: &mut Status,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<(bool, Option<String>)> {
         if matches!(self.cfg.libreqos.target, Target::V3Pair | Target::V3Network) {
             anyhow::bail!(
                 "LibreQoS v3 targets come in Plan 3; use target = \"v2_pair\" or \"auto\""
             );
         }
-        let _lock = files::lock(state_dir)?;
         let lqos_dir = Path::new(&self.cfg.libreqos.directory).to_path_buf();
         let first_run = !state_dir.join("state.json").exists();
         let live = files::read_live(
@@ -150,19 +173,32 @@ where
         let state = files::load_state(state_dir, &live, &self.cfg.circuits, now)?;
 
         // Read all routers at the same time. Each task owns its session and gives it back.
-        let mut tasks = tokio::task::JoinSet::new();
+        let mut tasks = Vec::new();
         for router in self.cfg.routers.clone() {
             let mut session = self.sessions.remove(&router.name).flatten();
             let (conn, access) = (self.connector.clone(), self.cfg.router_access.clone());
-            tasks.spawn(async move {
-                let t = Instant::now();
-                let out = read_router(&*conn, &mut session, &router, &access).await;
-                (router.name, out, session, t.elapsed().as_millis() as u64)
-            });
+            let name = router.name.clone();
+            tasks.push((
+                name,
+                tokio::spawn(async move {
+                    let t = Instant::now();
+                    let out = read_router(&*conn, &mut session, &router, &access).await;
+                    (out, session, t.elapsed().as_millis() as u64)
+                }),
+            ));
         }
         let mut outcomes = HashMap::new();
-        while let Some(done) = tasks.join_next().await {
-            let (name, out, session, ms) = done?;
+        for (name, task) in tasks {
+            // A task that panics fails only its own router.
+            let (out, session, ms) = task.await.unwrap_or_else(|e| {
+                (
+                    Err(crate::routeros::ReadError::Protocol(format!(
+                        "the read task stopped: {e}"
+                    ))),
+                    None,
+                    0,
+                )
+            });
             self.sessions.insert(name.clone(), session);
             outcomes.insert(name, (out, ms));
         }
@@ -248,20 +284,28 @@ where
         }
         files::write_if_changed(&csv_path, csv.as_bytes())?;
         files::write_if_changed(&net_path, net.as_bytes())?;
-        if changed && self.cfg.runtime.mode == RuntimeMode::Apply {
+        // A failed reload stays pending until it works, also when the files do not change again.
+        let pending = state_dir.join("reload-pending");
+        let mut reload_error = None;
+        if self.cfg.runtime.mode == RuntimeMode::Apply && (changed || pending.exists()) {
             let l = &self.cfg.libreqos;
-            status.reload = match files::run_reload(
-                &l.v2_command,
-                &l.v2_args,
-                Duration::from_secs(l.v2_timeout),
-            )
-            .await
+            match files::run_reload(&l.v2_command, &l.v2_args, Duration::from_secs(l.v2_timeout))
+                .await
             {
-                Ok(()) => "ok".into(),
-                Err(e) => e,
-            };
+                Ok(()) => {
+                    status.reload = "ok".into();
+                    if pending.exists() {
+                        std::fs::remove_file(&pending)?;
+                    }
+                }
+                Err(e) => {
+                    status.reload = e.clone();
+                    files::write_if_changed(&pending, e.as_bytes())?;
+                    reload_error = Some(e);
+                }
+            }
         }
-        Ok(changed)
+        Ok((changed, reload_error))
     }
 }
 
@@ -280,6 +324,7 @@ mod tests {
     struct Fake {
         rows: Mutex<BTreeMap<String, BTreeMap<String, Vec<RosRow>>>>,
         failing: Mutex<HashSet<String>>,
+        panicking: Mutex<HashSet<String>>,
     }
     struct FakeSession {
         router: String,
@@ -299,7 +344,11 @@ mod tests {
                 router: r.name.clone(),
                 fake: self.0.clone(),
             };
-            async move { Ok(s) }
+            let boom = self.0.panicking.lock().unwrap().contains(&r.name);
+            async move {
+                assert!(!boom, "test panic in a router task");
+                Ok(s)
+            }
         }
     }
     impl RouterSession for FakeSession {
@@ -540,5 +589,69 @@ mod tests {
             "{id}"
         );
         assert_ne!(random_id(8), random_id(8));
+    }
+
+    #[tokio::test]
+    async fn a_panicking_router_task_fails_only_that_router() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(&e, "shadow", "");
+        let mut r2 = c.routers[0].clone();
+        r2.name = "R2".into();
+        c.routers.push(r2);
+        e.fake.panicking.lock().unwrap().insert("R2".into());
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let states: Vec<_> = s
+            .status
+            .routers
+            .iter()
+            .map(|r| (r.name.as_str(), r.state))
+            .collect();
+        assert_eq!(states, [("R1", "online"), ("R2", "failed")]);
+    }
+
+    #[tokio::test]
+    async fn failed_reload_is_retried_until_it_works() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(&e, "apply", "");
+        c.libreqos.v2_command = "/bin/false".into();
+        c.libreqos.v2_args = vec![];
+        let mut r = runner(&e, c.clone());
+        let s1 = r.cycle(1_000, false).await;
+        assert!(
+            s1.error.as_deref().unwrap_or_default().contains("reload"),
+            "{:?}",
+            s1.error
+        );
+        let s2 = r.cycle(1_025, false).await;
+        assert!(!s2.changed);
+        assert!(
+            s2.error.as_deref().unwrap_or_default().contains("reload"),
+            "the reload must run again: {:?}",
+            s2.error
+        );
+        c.libreqos.v2_command = "/bin/true".into();
+        r.set_config(c);
+        let s3 = r.cycle(1_050, false).await;
+        assert_eq!((s3.error, s3.status.reload.as_str()), (None, "ok"));
+        let s4 = r.cycle(1_075, false).await;
+        assert_eq!(s4.status.reload, "skipped");
+    }
+
+    #[tokio::test]
+    async fn a_held_lock_stops_the_cycle_without_touching_status() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let _other = crate::files::lock(&e.state).unwrap();
+        let s = runner(&e, cfg(&e, "shadow", "")).cycle(1_000, false).await;
+        assert!(
+            s.error
+                .as_deref()
+                .unwrap_or_default()
+                .contains("another lqosync3")
+        );
+        assert!(!e.state.join("status.json").exists());
     }
 }
