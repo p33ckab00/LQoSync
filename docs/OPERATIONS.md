@@ -29,12 +29,41 @@ All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml
 | `lqosync3 run` | Operates as a service. The systemd unit uses this command. |
 | `lqosync3 defaults` | Prints all settings with their default values. |
 | `lqosync3 detect` | Prints the target that `libreqos.target = "auto"` selects, and the reason. |
+| `lqosync3 tui` | Opens the terminal view: ShapedDevices, Network, Settings (read-only), Journal, Dashboard. Refer to "Terminal view". |
 
 Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again. A bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
-After each cycle, `<state_dir>/status.json` shows the router states, the changes, and any error.
-If a reload with a bad config fails, `config_error` in `status.json` shows the error until a good reload. A cycle starts immediately after each reload signal, so `status.json` shows the result at once.
+After each cycle, `<state_dir>/status.json` (version 3) shows the router states, the changes, and any error. It also shows `config_path`, `config_digest`, `cycle_seq`, `pid`, `trigger` (`start`, `timer`, `sync_now`, `reload`, `once`), `program_version`, and `telegram` (the last send: `disabled`, `none`, `ok`, or the error).
+After each reload signal, the service writes `status.json` at once with `trigger = "reload"` and the `config_digest` of the loaded file. If the new config is bad, `config_error` shows the error until a good reload, and the old config stays. Then a cycle starts.
+`lqosync3 check` gives a warning if the config file on disk is not the loaded config (the digests are different). Send `SIGHUP` to load it.
+After each router read, the service writes `<state_dir>/snapshot.json` (mode `0600`). It holds the router tables of the last cycle, and no secret. Plan 4b uses it for the settings preview.
 
 Each command returns `0` if it succeeds. It returns a different value if it fails.
+
+## Terminal view
+
+Start the terminal view on the shaper:
+
+```bash
+sudo lqosync3 tui
+```
+
+- Without `sudo`, the view is read-only. The header shows `READ-ONLY (not root)`, and `S` and `R` do not operate.
+- The view reads the files and `status.json` each `tui.refresh_ms`. It does not change the service. It does not restart the service.
+- Click a tab, or push `1` to `5`, or `Tab`.
+
+| Tab | Keys |
+|-----|------|
+| 1 ShapedDevices | `/` search (name, ID, MAC, IP), `o` next sort column, `i` reverse order, `Enter` open the parent node |
+| 2 Network | `Space` open or close a node, `e` expand all, `c` collapse all, `/` search |
+| 3 Settings | `Up`/`Down` scroll. The editor comes with Plan 4b. |
+| 4 Journal | `l` level filter, `/` search, `f` follow, `Shift`+arrows or the mouse select lines, `y` copy, `s` select mode |
+| 5 Dashboard | `S` sync now (asks first, releases a guard hold), `R` reload the config |
+
+- `S` sends `SIGUSR1` and `R` sends `SIGHUP` to the MainPID of `tui.service_unit`. The TUI first checks that the process name is `lqosync3`. The result comes from `status.json`, not from the signal. If no result comes in `tui.apply_verify_timeout` seconds, the footer shows "no result from the service".
+- `y` copies with OSC 52. The terminal does not show if the copy arrived. If the text does not arrive, push `s` (select mode): the mouse goes to the terminal, and the normal terminal selection operates. Push `s` again to end. `tui.osc52 = false` turns OSC 52 off.
+- The Journal tab can read the journal only as root, or as a member of the group `adm` or `systemd-journal`. If not, the tab shows the `journalctl` hint in red.
+- An unknown value shows `unknown`, never `0`. A file error shows in red in the footer.
+- `q` or `Ctrl+C` stops the view.
 
 ## Daily tasks
 

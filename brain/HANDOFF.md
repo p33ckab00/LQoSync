@@ -49,7 +49,8 @@ None at this time.
 1. Cutover done on 2026-10-31 15:36 UTC: `lqosync3.service` operates in `apply` mode and writes the live LibreQoS files. `lqosync-updatecsv.service` (Python) is stopped and disabled. Backup of the last Python files: `/var/backups/lqosync/20261031T153517Z`. Rollback: OPERATIONS.md, "Rollback to the Python service".
 2. Plan 2b (Telegram) is done and operates on the shaper: `[telegram] enabled = true`, chat `810741035`, token in `/etc/lqosync3/secrets/telegram.token`. The test message arrived at 15:24 UTC.
 3. Plan 3 (LibreQoS v3) is done in code: `src/detect.rs`, `src/writer/v3network.rs`, `lqosync3 detect`. The production shaper (2.2, fixed `target = "v2_pair"`) does not use it yet. The `v3_network` output passed the offline 3.0.7 parser (spec "Offline check result"). Open: a test on an operating v3 shaper, the `lqosd` accept check (`v3_status_timeout`), `libreqos-v3-preflight`.
-4. Next: Plan 4 (TUI) or Plan 5 (installer).
+4. Plan 4a (TUI, read-only screens and actions) is done in code: `lqosync3 tui`, `src/tui/`. The service writes `status.json` version 3 and `snapshot.json`. The installed binary on the shaper is still the Plan 3 build: deploy the new build to get the new status fields. Plan: `docs/superpowers/plans/2026-10-31-lqosync3-tui-4a.md`.
+5. Next: Plan 4b (Settings editor: key metadata, edit, validate, preview, confirm, apply, verify), then Plan 5 (installer).
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
 

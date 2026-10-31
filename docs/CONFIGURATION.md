@@ -367,6 +367,18 @@ Set `telegram.enabled = true` to send messages. Refer to the [Telegram design](s
 - A send failure gives the log line `warning: telegram: ...`. It does not change the cycle result or the files.
 - `notify_on_preflight_warning` has an effect only with LibreQoS v3 (Plan 3).
 
+## Terminal view
+
+The `[tui]` keys are for `lqosync3 tui` only. The service does not read them. Refer to OPERATIONS.md, "Terminal view".
+
+- `refresh_ms` (100 to 60000): the time between two reads of `status.json`, the files, `systemctl`, and `/proc`.
+- `journal_lines` (1 to 100000): the lines that the Journal tab keeps.
+- `max_file_mb` (1 to 4096): a larger `ShapedDevices.csv`, `network.json`, or `libreqos_network.json` is not loaded. The screen keeps the last data and shows an error.
+- `osc52`: `y` copies with OSC 52. With `false`, select with the terminal (`s`).
+- `apply_verify_timeout` (5 to 3600 seconds): the time to wait for the result of sync now and reload in `status.json`.
+- `service_unit`: the systemd unit of the service. The TUI reads its state and MainPID, and sends the signals to that PID.
+- `lqosd_units`: the TUI shows the state of the first unit in this list that exists.
+
 ## Runtime modes
 
 | `runtime.mode` | Router reads | LibreQoS files | Reload |
