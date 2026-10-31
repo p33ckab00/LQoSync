@@ -146,6 +146,15 @@ pub struct RouterMemo {
     pub unreachable_since: Option<u64>,
 }
 
+/// A removal that the guard holds until the next cycle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GuardHold {
+    /// FNV-1a 64 of the removed names in name order, joined with a newline.
+    pub fingerprint: u64,
+    pub since: u64,
+    pub count: usize,
+}
+
 /// The contents of `state.json`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
@@ -153,6 +162,8 @@ pub struct State {
     pub circuits: BTreeMap<String, StoredCircuit>,
     pub nodes: BTreeMap<String, StoredNode>,
     pub routers: BTreeMap<String, RouterMemo>,
+    #[serde(default)]
+    pub guard: Option<GuardHold>,
 }
 
 impl Default for State {
@@ -162,6 +173,7 @@ impl Default for State {
             circuits: BTreeMap::new(),
             nodes: BTreeMap::new(),
             routers: BTreeMap::new(),
+            guard: None,
         }
     }
 }

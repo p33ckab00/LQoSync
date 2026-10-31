@@ -1,8 +1,8 @@
 //! CSV read, static rows, seed, and the state file.
 
-use crate::model::{CsvRow, Source, State, StoredCircuit};
+use crate::model::{CsvRow, Source, State, StoredCircuit, StoredNode};
 use anyhow::{Context, ensure};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Read `ShapedDevices.csv` text with 13, 14, or 15 columns, by header name.
 /// A row with an empty Circuit Name is skipped. A later row with the same name
@@ -59,6 +59,51 @@ pub fn seed_state(rows: &[CsvRow], now: u64) -> State {
         );
     }
     st
+}
+
+/// Read the nodes of the current network.json for the first state.
+/// A node without an `id` gets a stable `lq3-` ID from its name.
+pub fn seed_nodes(network: &serde_json::Value) -> BTreeMap<String, StoredNode> {
+    fn walk(
+        tree: &serde_json::Map<String, serde_json::Value>,
+        parent: Option<&str>,
+        out: &mut BTreeMap<String, StoredNode>,
+    ) {
+        for (name, node) in tree {
+            let num = |k: &str| {
+                node.get(k)
+                    .and_then(serde_json::Value::as_f64)
+                    .unwrap_or(0.0)
+            };
+            let id = node
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .map_or_else(|| crate::topology::node_id("seed", "", name), String::from);
+            out.insert(
+                name.clone(),
+                StoredNode {
+                    id,
+                    router: None,
+                    parent: parent.map(String::from),
+                    r#type: node
+                        .get("type")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("site")
+                        .to_string(),
+                    down: num("downloadBandwidthMbps"),
+                    up: num("uploadBandwidthMbps"),
+                },
+            );
+            if let Some(serde_json::Value::Object(kids)) = node.get("children") {
+                walk(kids, Some(name), out);
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    if let serde_json::Value::Object(tree) = network {
+        walk(tree, None, &mut out);
+    }
+    out
 }
 
 impl State {
@@ -152,6 +197,22 @@ mod tests {
             ),
             (None, 7)
         );
+    }
+
+    #[test]
+    fn seed_nodes_reads_the_tree_with_parents_and_ids() {
+        let net = serde_json::json!({
+            "Hub": {"children": {"Tier-1": {"children": {}, "downloadBandwidthMbps": 157.5, "type": "plan", "uploadBandwidthMbps": 157.5}},
+                    "downloadBandwidthMbps": 620.0, "id": "given-id", "type": "site", "uploadBandwidthMbps": 620.0}});
+        let n = seed_nodes(&net);
+        assert_eq!(n["Hub"].id, "given-id");
+        assert_eq!((n["Hub"].parent.clone(), n["Hub"].down), (None, 620.0));
+        assert_eq!(n["Tier-1"].parent.as_deref(), Some("Hub"));
+        assert_eq!(
+            (n["Tier-1"].r#type.as_str(), n["Tier-1"].router.clone()),
+            ("plan", None)
+        );
+        assert!(n["Tier-1"].id.starts_with("lq3-"));
     }
 
     #[test]
