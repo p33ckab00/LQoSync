@@ -68,6 +68,16 @@ Deferred minor items from the Plan 3 review (2026-10-31):
 - `diff` when the detection fails: it compares the pair files.
 - `v3_network` with `preserve_network_config = true` reads the old `network.json` each cycle, but does not write it.
 
+Deferred minor items from the Plan 4a review (2026-10-31):
+- The action wait (`tui.apply_verify_timeout = 120`) can end before a long v2 cycle (`libreqos.v2_timeout = 300`) ends. The TUI then shows "no result" and the action completes later.
+- Just after a service restart, the old `pid` in `status.json` gives a false "the service restarted" message for an action.
+- The digest check compares with the `--config` text of the TUI. That file can be a different file from `config_path`, or empty if the TUI cannot read it.
+- A `status.json` read or parse error shows no reason (all values show `unknown`).
+- IPv4 sorts as text (`10.0.0.10` before `10.0.0.9`).
+- The Network detail "circuits" counts device rows.
+- The perf test does not time the name sort or the full `App::draw`.
+- The Journal selection anchor moves when old lines drop from a full buffer.
+
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 
 ### Production state
