@@ -3,7 +3,8 @@
 use crate::model::{Columns, CsvRow};
 use serde::Serialize;
 
-fn field<'a>(row: &'a CsvRow, column: &str) -> &'a str {
+/// The value of one named CSV column of a row.
+pub fn field<'a>(row: &'a CsvRow, column: &str) -> &'a str {
     match column {
         "Circuit ID" => &row.circuit_id,
         "Circuit Name" => &row.circuit_name,
