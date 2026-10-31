@@ -3,6 +3,7 @@
 pub mod cli;
 pub mod config;
 pub mod cycle;
+pub mod mikrotik;
 pub mod model;
 pub mod routeros;
 pub mod routerstate;
