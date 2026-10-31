@@ -34,15 +34,14 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 7 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 8 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 3 edges to [[_COMMUNITY_Status and Diff 3]]
 - 2 edges to [[_COMMUNITY_MikroTik Session 4]]
 - 2 edges to [[_COMMUNITY_Router Reads 2]]
-- 1 edge to [[_COMMUNITY_Topology 3]]
 - 1 edge to [[_COMMUNITY_MikroTik Session 3]]
 
 ## Top bridge nodes
-- [[Installation]] - degree 14, connects to 4 communities
+- [[Installation]] - degree 14, connects to 3 communities
 - [[Runtime modes (shadow, apply)]] - degree 4, connects to 2 communities
 - [[Cutover from the Python service]] - degree 5, connects to 1 community
 - [[Manual installation]] - degree 3, connects to 1 community

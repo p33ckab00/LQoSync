@@ -48,10 +48,10 @@ SORT file.name ASC
 - 3 edges to [[_COMMUNITY_Topology]]
 - 3 edges to [[_COMMUNITY_Runner Cycle]]
 - 2 edges to [[_COMMUNITY_Config]]
-- 2 edges to [[_COMMUNITY_CLI and Checks]]
+- 2 edges to [[_COMMUNITY_Community 14]]
 - 1 edge to [[_COMMUNITY_Circuit Collection]]
 - 1 edge to [[_COMMUNITY_Status and Diff 2]]
-- 1 edge to [[_COMMUNITY_File Safety]]
+- 1 edge to [[_COMMUNITY_Community 4]]
 
 ## Top bridge nodes
 - [[validate.rs]] - degree 26, connects to 5 communities

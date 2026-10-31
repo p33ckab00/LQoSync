@@ -1,24 +1,22 @@
 ---
 type: community
-members: 22
+members: 21
 ---
 
 # File Safety
 
-**Members:** 22 nodes
+**Members:** 21 nodes
 
 ## Members
-- [[CsvRow_1]] - code
 - [[File_1]] - code
 - [[HDR]] - code - src/files.rs
 - [[Live]] - code - src/files.rs
-- [[Value_2]] - code
+- [[Value_1]] - code
 - [[backup()]] - code - src/files.rs
 - [[backup_keeps_the_last_n()]] - code - src/files.rs
+- [[backup_keeps_the_new_folder_and_other_folders()]] - code - src/files.rs
 - [[bad_network_json_stops_when_needed()]] - code - src/files.rs
-- [[bail]] - concept
 - [[files.rs]] - code - src/files.rs
-- [[load_state()]] - code - src/files.rs
 - [[load_state_seeds_on_first_run_and_reads_after()]] - code - src/files.rs
 - [[lock()]] - code - src/files.rs
 - [[network_json_must_be_an_object()]] - code - src/files.rs
@@ -29,6 +27,7 @@ members: 22
 - [[second_lock_fails()]] - code - src/files.rs
 - [[write]] - concept
 - [[write_if_changed()]] - code - src/files.rs
+- [[write_if_changed_keeps_the_mode_of_the_old_file()]] - code - src/files.rs
 - [[write_if_changed_skips_same_bytes_and_leaves_no_temp_file()]] - code - src/files.rs
 
 ## Live Query (requires Dataview plugin)
@@ -39,19 +38,18 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 10 edges to [[_COMMUNITY_CircuitNames]]
+- 8 edges to [[_COMMUNITY_CircuitNames]]
+- 2 edges to [[_COMMUNITY_Cycle Assembly]]
 - 2 edges to [[_COMMUNITY_Runner Cycle]]
-- 2 edges to [[_COMMUNITY_Scenario Tests]]
-- 2 edges to [[_COMMUNITY_CLI and Checks]]
-- 1 edge to [[_COMMUNITY_Cycle Assembly]]
+- 2 edges to [[_COMMUNITY_Community 20]]
+- 1 edge to [[_COMMUNITY_Community 48]]
 - 1 edge to [[_COMMUNITY_Status and Diff]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 2]]
-- 1 edge to [[_COMMUNITY_Topology]]
-- 1 edge to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Community 4]]
+- 1 edge to [[_COMMUNITY_Community 14]]
+- 1 edge to [[_COMMUNITY_Community 18]]
 
 ## Top bridge nodes
-- [[files.rs]] - degree 31, connects to 6 communities
-- [[bail]] - degree 6, connects to 5 communities
-- [[load_state()]] - degree 7, connects to 2 communities
-- [[read_live()]] - degree 6, connects to 1 community
+- [[files.rs]] - degree 33, connects to 9 communities
+- [[read_live()]] - degree 6, connects to 2 communities
+- [[Live]] - degree 5, connects to 2 communities
+- [[load_state_seeds_on_first_run_and_reads_after()]] - degree 4, connects to 1 community

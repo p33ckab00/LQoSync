@@ -1,19 +1,18 @@
 ---
-source_file: "src/writer/pair.rs"
+source_file: "src/routeros.rs"
 type: "code"
-community: "LibreQoS v3 2"
-location: "L80"
+community: "Community 6"
+location: "L237"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_2
+  - community/Community_6
 ---
 
 # row()
 
 ## Connections
-- [[CsvRow_5]] - `references` [EXTRACTED]
-- [[csv_header_sort_and_quoting()]] - `calls` [EXTRACTED]
-- [[pair.rs]] - `contains` [EXTRACTED]
+- [[RosRow]] - `references` [EXTRACTED]
+- [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2
+#graphify/code #graphify/EXTRACTED #community/Community_6

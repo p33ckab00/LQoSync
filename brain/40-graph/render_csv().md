@@ -13,8 +13,8 @@ tags:
 
 ## Connections
 - [[dot-cycle_inner()]] - `calls` [INFERRED]
-- [[Columns_1]] - `references` [EXTRACTED]
-- [[CsvRow_5]] - `references` [EXTRACTED]
+- [[Columns]] - `references` [EXTRACTED]
+- [[CsvRow]] - `references` [EXTRACTED]
 - [[csv_header_sort_and_quoting()]] - `calls` [EXTRACTED]
 - [[field()]] - `calls` [EXTRACTED]
 - [[pair.rs]] - `contains` [EXTRACTED]

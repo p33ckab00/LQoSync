@@ -25,12 +25,13 @@ All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml
 | `lqosync3 check` | Reads and validates the TOML file and the secret files. Checks the folders. Makes no router connection. |
 | `lqosync3 once` | Does one cycle in the configured mode. In `shadow` mode it writes only `<state_dir>/candidate/`. |
 | `lqosync3 once --force` | The same, and it releases a removal guard hold. |
-| `lqosync3 diff` | Compares `<state_dir>/candidate/` with the live LibreQoS files: circuits and nodes added, removed, and changed. |
+| `lqosync3 diff` | Compares `<state_dir>/candidate/` with the live LibreQoS files: circuits and nodes added, removed, and changed. It operates only in `shadow` mode. If there are no candidate files, it stops with an error. Run `once` in `shadow` mode first. |
 | `lqosync3 run` | Operates as a service. The systemd unit uses this command. |
 | `lqosync3 defaults` | Prints all settings with their default values. |
 
-Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again; a bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
+Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again. A bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
 After each cycle, `<state_dir>/status.json` shows the router states, the changes, and any error.
+If a reload with a bad config fails, `config_error` in `status.json` shows the error until a good reload. A cycle starts immediately after each reload signal, so `status.json` shows the result at once.
 `lqosync3 detect` comes with LibreQoS v3 support (Plan 3).
 
 Each command returns `0` if it succeeds. It returns a different value if it fails.
@@ -66,7 +67,7 @@ Each cycle writes one summary line. The line has the counts of added, updated, a
    sudo lqosync3 check
    ```
 
-3. Show the changes that the new configuration makes:
+3. Show the changes that the new configuration makes. In `apply` mode, `once` writes the live files. Use a copy of the config with `mode = "shadow"` and a different `state_dir` for this step.
 
    ```bash
    sudo lqosync3 once     # in shadow mode: writes only <state_dir>/candidate/
@@ -189,7 +190,13 @@ The tool supports both versions. The upgrade changes the output target. Do this 
 
 ## Backups that the tool keeps
 
-In `apply` mode, the tool keeps the last 10 applied versions of each file in `/var/lib/lqosync3/applied/`. Each version has a timestamp and a SHA-256 hash.
+In `apply` mode, the tool makes a backup of the live files before it replaces them. Each backup is a folder in `/var/lib/lqosync3/applied/`. The folder name is the Unix time in seconds, with 12 digits.
+
+- The tool keeps the newest `runtime.keep_backups` folders (default 10).
+- The tool removes only folders with a 12-digit name. It never removes the backup that it just made.
+- Other folders in `applied/` stay. You can keep a manual copy there.
+
+The tool writes `network.json` before `ShapedDevices.csv`. Each new file gets the mode and the owner of the old file.
 
 ## Troubleshooting
 

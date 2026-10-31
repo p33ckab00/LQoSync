@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Runner Cycle"
-location: "L70"
+location: "L72"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,6 +12,7 @@ tags:
 # Runner<C>
 
 ## Connections
+- [[dot-config_failed()]] - `method` [EXTRACTED]
 - [[dot-cycle()]] - `method` [EXTRACTED]
 - [[dot-cycle_inner()]] - `method` [EXTRACTED]
 - [[dot-lock()]] - `method` [EXTRACTED]

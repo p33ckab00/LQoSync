@@ -2,7 +2,7 @@
 source_file: "src/sources.rs"
 type: "code"
 community: "Circuit Collection"
-location: "L226"
+location: "L254"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -17,7 +17,7 @@ tags:
 - [[Config]] - `references` [EXTRACTED]
 - [[Excluder]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_4]] - `references` [EXTRACTED]
+- [[RouterSnapshot]] - `references` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]
 - [[f()]] - `calls` [EXTRACTED]
 - [[mac_key()]] - `calls` [EXTRACTED]

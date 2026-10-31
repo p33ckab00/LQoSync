@@ -13,13 +13,14 @@ tags:
 
 ## Connections
 - [[CircuitNames]] - `imports_from` [EXTRACTED]
-- [[CsvRow_1]] - `imports_from` [EXTRACTED]
+- [[CsvRow]] - `imports_from` [EXTRACTED]
 - [[File_1]] - `imports_from` [EXTRACTED]
 - [[HDR]] - `contains` [EXTRACTED]
 - [[Live]] - `contains` [EXTRACTED]
-- [[State_1]] - `imports_from` [EXTRACTED]
+- [[State]] - `imports_from` [EXTRACTED]
 - [[backup()]] - `contains` [EXTRACTED]
 - [[backup_keeps_the_last_n()]] - `contains` [EXTRACTED]
+- [[backup_keeps_the_new_folder_and_other_folders()]] - `contains` [EXTRACTED]
 - [[bad_network_json_stops_when_needed()]] - `contains` [EXTRACTED]
 - [[bail]] - `imports_from` [EXTRACTED]
 - [[context]] - `imports_from` [EXTRACTED]
@@ -42,6 +43,7 @@ tags:
 - [[super]] - `imports_from` [EXTRACTED]
 - [[write]] - `imports_from` [EXTRACTED]
 - [[write_if_changed()]] - `contains` [EXTRACTED]
+- [[write_if_changed_keeps_the_mode_of_the_old_file()]] - `contains` [EXTRACTED]
 - [[write_if_changed_skips_same_bytes_and_leaves_no_temp_file()]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/File_Safety

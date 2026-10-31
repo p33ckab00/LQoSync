@@ -1,12 +1,12 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "Mock Router Tests"
+community: "Community 6"
 location: "L331"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/Community_6
 ---
 
 # login_stall_is_failed_not_unreachable()
@@ -18,4 +18,4 @@ tags:
 - [[read_router()]] - `calls` [INFERRED]
 - [[setup()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/Community_6

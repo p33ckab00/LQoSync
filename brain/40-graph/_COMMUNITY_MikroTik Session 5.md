@@ -26,10 +26,11 @@ SORT file.name ASC
 ## Connections to other communities
 - 5 edges to [[_COMMUNITY_Router Reads 2]]
 - 2 edges to [[_COMMUNITY_MikroTik Session 4]]
-- 2 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 1 edge to [[_COMMUNITY_Router Reads 3]]
 - 1 edge to [[_COMMUNITY_Topology 2]]
 - 1 edge to [[_COMMUNITY_Status and Diff 3]]
+- 1 edge to [[_COMMUNITY_Community 41]]
+- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
 
 ## Top bridge nodes
 - [[MikrotikConnector  MikrotikSession  tls_client_config]] - degree 6, connects to 2 communities

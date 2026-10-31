@@ -110,6 +110,7 @@ pub async fn read_snapshot<S: RouterSession>(
 }
 
 /// Read one router with retries. A failed attempt closes the session; the next one connects again.
+/// A login error is not retried: the same password gives the same answer.
 pub async fn read_router<C: Connector>(
     c: &C,
     session: &mut Option<C::Session>,
@@ -118,7 +119,11 @@ pub async fn read_router<C: Connector>(
 ) -> Result<RouterSnapshot, ReadError> {
     let attempts = 1 + access.read_retries;
     let mut last = ReadError::Protocol("no attempt".into());
-    for n in 0..attempts {
+    // mikrotik-tokio 0.3 has no TCP keepalive, so a kept session can be dead after an idle time.
+    // Its failure gets one reconnect at once, which does not use a retry.
+    let mut free_reconnect = session.is_some();
+    let mut n = 0;
+    while n < attempts {
         if n > 0 {
             tokio::time::sleep(Duration::from_secs(access.retry_delay)).await;
         }
@@ -129,8 +134,10 @@ pub async fn read_router<C: Connector>(
             let connect = tokio::time::timeout(limit, c.connect(router, access));
             match connect.await {
                 Ok(Ok(s)) => *session = Some(s),
+                Ok(Err(e @ ReadError::Login(_))) => return Err(e),
                 Ok(Err(e)) => {
                     last = e;
+                    n += 1;
                     continue;
                 }
                 Err(_) => {
@@ -138,6 +145,7 @@ pub async fn read_router<C: Connector>(
                         "connect and login took more than {} s",
                         limit.as_secs()
                     ));
+                    n += 1;
                     continue;
                 }
             }
@@ -148,8 +156,12 @@ pub async fn read_router<C: Connector>(
             Err(e) => {
                 *session = None;
                 last = e;
+                if std::mem::take(&mut free_reconnect) {
+                    continue;
+                }
             }
         }
+        n += 1;
     }
     Err(last)
 }
@@ -173,6 +185,7 @@ mod tests {
         connects: Arc<AtomicUsize>,
         stall: Option<Duration>,
         stall_connect: bool,
+        connect_err: Option<ReadError>,
     }
     struct FakeSession(Fake);
 
@@ -188,6 +201,9 @@ mod tests {
             async move {
                 if me.stall_connect {
                     tokio::time::sleep(Duration::from_secs(3600)).await;
+                }
+                if let Some(e) = me.connect_err.clone() {
+                    return Err(e);
                 }
                 Ok(FakeSession(me))
             }
@@ -312,5 +328,36 @@ mod tests {
             read_router(&f, &mut s, &r, &a).await,
             Err(ReadError::Timeout(_))
         ));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_login_error_is_not_retried() {
+        let (r, a) = ppp_router();
+        let f = Fake {
+            connect_err: Some(ReadError::Login("bad password file".into())),
+            ..Fake::default()
+        };
+        let mut s = None;
+        assert!(matches!(
+            read_router(&f, &mut s, &r, &a).await,
+            Err(ReadError::Login(_))
+        ));
+        assert_eq!(f.connects.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_dead_kept_session_reconnects_without_a_retry() {
+        let (r, mut a) = ppp_router();
+        a.read_retries = 0;
+        let f = Fake::default();
+        let mut s = None;
+        read_router(&f, &mut s, &r, &a).await.unwrap();
+        // The kept session is dead: the first call of the next cycle fails.
+        f.script
+            .lock()
+            .unwrap()
+            .push_back(Err(ReadError::Timeout("dead".into())));
+        read_router(&f, &mut s, &r, &a).await.unwrap();
+        assert_eq!(f.connects.load(Ordering::SeqCst), 2);
     }
 }

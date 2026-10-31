@@ -13,8 +13,8 @@ tags:
 
 ## Connections
 - [[CircuitNames]] - `references` [EXTRACTED]
-- [[CsvRow_3]] - `references` [EXTRACTED]
-- [[State_1]] - `references` [EXTRACTED]
+- [[CsvRow]] - `references` [EXTRACTED]
+- [[State]] - `references` [EXTRACTED]
 - [[files.rs]] - `imports_from` [EXTRACTED]
 - [[load_state()]] - `calls` [INFERRED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]

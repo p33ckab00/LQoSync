@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "AtomicUsize"
+community: "Community 6"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/AtomicUsize
+  - community/Community_6
 ---
 
 # fmt
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[routeros.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/AtomicUsize
+#graphify/concept #graphify/EXTRACTED #community/Community_6

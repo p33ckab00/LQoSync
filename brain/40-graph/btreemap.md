@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Cycle Assembly"
+community: "Community 48"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/Community_48
 ---
 
 # btreemap
@@ -21,4 +21,4 @@ tags:
 - [[status.rs]] - `imports_from` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/concept #graphify/EXTRACTED #community/Community_48

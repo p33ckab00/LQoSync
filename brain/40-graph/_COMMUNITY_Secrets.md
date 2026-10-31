@@ -1,17 +1,19 @@
 ---
 type: community
-members: 42
+members: 45
 ---
 
 # Secrets
 
-**Members:** 42 nodes
+**Members:** 45 nodes
 
 ## Members
 - [[dot-comment()]] - code - src/speed.rs
+- [[dot-comment_raw()]] - code - src/speed.rs
 - [[dot-new()_2]] - code - src/speed.rs
 - [[dot-profile_name()]] - code - src/speed.rs
 - [[dot-rate_limit()]] - code - src/speed.rs
+- [[dot-zero_rate()]] - code - src/speed.rs
 - [[ActiveComment]] - code - src/config.rs
 - [[Bps]] - code - src/config.rs
 - [[CircuitRates]] - code - src/speed.rs
@@ -50,6 +52,7 @@ members: 42
 - [[to_mbps()]] - code - src/speed.rs
 - [[usable()]] - code - src/speed.rs
 - [[zero_comment_speed_is_no_rate()]] - code - src/speed.rs
+- [[zero_rate_finds_a_zero_speed_comment()]] - code - src/speed.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -59,17 +62,18 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
+- 15 edges to [[_COMMUNITY_Circuit Collection]]
 - 7 edges to [[_COMMUNITY_Topology]]
+- 5 edges to [[_COMMUNITY_Config]]
 - 5 edges to [[_COMMUNITY_Cycle Assembly]]
-- 4 edges to [[_COMMUNITY_Config]]
-- 2 edges to [[_COMMUNITY_LibreQoS v3]]
-- 2 edges to [[_COMMUNITY_Circuit Collection]]
+- 2 edges to [[_COMMUNITY_Community 26]]
+- 1 edge to [[_COMMUNITY_Community 33]]
 - 1 edge to [[_COMMUNITY_Runner Cycle]]
-- 1 edge to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_Community 14]]
 
 ## Top bridge nodes
-- [[speed.rs]] - degree 29, connects to 3 communities
-- [[Speed]] - degree 9, connects to 3 communities
-- [[Rate]] - degree 15, connects to 2 communities
+- [[Rate]] - degree 24, connects to 6 communities
+- [[speed.rs]] - degree 30, connects to 3 communities
+- [[SpeedParser]] - degree 18, connects to 2 communities
 - [[PppSource]] - degree 9, connects to 2 communities
-- [[SpeedParser]] - degree 11, connects to 1 community
+- [[Speed]] - degree 9, connects to 2 communities

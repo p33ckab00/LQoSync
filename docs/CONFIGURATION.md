@@ -9,6 +9,8 @@ All default values are in [`config/defaults.toml`](../config/defaults.toml). The
 Your `/etc/lqosync3/lqosync3.toml` holds only the keys that you change, plus `[[routers]]`. The tool puts your keys on top of the defaults.
 
 - `[router_defaults]` holds the defaults of each `[[routers]]` entry (port, TLS, sources, DHCP discovery, exclusions). Set a key in your `[router_defaults]` to change it for all routers. A `[[routers]]` entry changes only the keys that it sets.
+- A list in a `[[routers]]` entry replaces the same list of `[router_defaults]`. Example: `routers.exclude.ips` replaces `router_defaults.exclude.ips`. The global `[exclude]` lists are different: the tool adds them to the router lists.
+- `[router_defaults]` must not have `name`, `address`, `username`, or `password_file`. Set these keys in each `[[routers]]` entry.
 - A key that is not in `config/defaults.toml` is an error.
 
 ## Rules
@@ -314,6 +316,8 @@ A comment gives a speed in one of these forms. The first form found wins.
 
 Forms 1 and 2 accept the units `k`, `M`, and `G`. Form 3 accepts only `M`, because a name like `Wifi 5G` is not a speed. The unit must end the word: `5Main` is not a speed. Comments always use the download/upload order.
 
+A speed with a zero value, for example `10M/0M`, is not used. The tool writes a warning line in the cycle report, and the next speed source applies.
+
 ### Rate direction and units
 
 | Key | Value | Meaning |
@@ -344,6 +348,7 @@ Each `[nodes]` entry has `v2_type` and `v3_type`. Add `type = "..."` to use one 
 
 LibreQoS v3 with `compile_mode = "ap_site"` can keep only `site` and `ap` nodes. Refer to [ADR-0006](../brain/20-decisions/ADR-0006-v3-guards-and-node-types.md).
 `type` in a `[nodes]` entry applies to all targets.
+A node type must not be empty. This rule also applies to `network.root_type` and `nodes.client.type`.
 
 ## LibreQoS v3 checks
 

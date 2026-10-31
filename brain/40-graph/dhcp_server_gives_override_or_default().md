@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3"
-location: "L1147"
+community: "Community 26"
+location: "L1175"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3
+  - community/Community_26
 ---
 
 # dhcp_server_gives_override_or_default()
@@ -16,4 +16,4 @@ tags:
 - [[dot-server()]] - `calls` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3
+#graphify/code #graphify/EXTRACTED #community/Community_26

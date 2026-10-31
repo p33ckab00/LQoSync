@@ -2,7 +2,7 @@
 source_file: "src/status.rs"
 type: "code"
 community: "Runner Cycle"
-location: "L87"
+location: "L89"
 tags:
   - graphify/code
   - graphify/EXTRACTED

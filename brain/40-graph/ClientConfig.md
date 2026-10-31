@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "MikroTik Session 2"
+community: "Community 6"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_2
+  - community/Community_6
 ---
 
 # ClientConfig
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[tls_client_config()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_2
+#graphify/code #graphify/EXTRACTED #community/Community_6

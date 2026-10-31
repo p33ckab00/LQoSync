@@ -12,7 +12,6 @@ tags:
 # usable()
 
 ## Connections
-- [[dot-comment()]] - `calls` [EXTRACTED]
 - [[dot-profile_name()]] - `calls` [EXTRACTED]
 - [[dot-rate_limit()]] - `calls` [EXTRACTED]
 - [[Rate]] - `references` [EXTRACTED]

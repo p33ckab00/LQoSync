@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3"
+community: "Community 26"
 location: "L365"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3
+  - community/Community_26
 ---
 
 # DhcpCfg
@@ -18,4 +18,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3
+#graphify/code #graphify/EXTRACTED #community/Community_26

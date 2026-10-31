@@ -12,7 +12,7 @@ tags:
 # field()
 
 ## Connections
-- [[CsvRow_5]] - `references` [EXTRACTED]
+- [[CsvRow]] - `references` [EXTRACTED]
 - [[diff.rs]] - `imports_from` [EXTRACTED]
 - [[diff_pair()]] - `calls` [INFERRED]
 - [[pair.rs]] - `contains` [EXTRACTED]

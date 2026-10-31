@@ -1,12 +1,12 @@
 ---
 source_file: "brain/HANDOFF.md"
 type: "rationale"
-community: "CLI and Checks 2"
+community: "Community 41"
 location: "L33"
 tags:
   - graphify/rationale
   - graphify/INFERRED
-  - community/CLI_and_Checks_2
+  - community/Community_41
 ---
 
 # ADR-0004 TOML policy, Python defaults
@@ -16,4 +16,4 @@ tags:
 - [[configdefaults.toml embedded defaults]] - `rationale_for` [INFERRED]
 - [[updatecsv.py dissection]] - `conceptually_related_to` [INFERRED]
 
-#graphify/rationale #graphify/INFERRED #community/CLI_and_Checks_2
+#graphify/rationale #graphify/INFERRED #community/Community_41

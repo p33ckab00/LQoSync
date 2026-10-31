@@ -13,8 +13,8 @@ tags:
 
 ## Connections
 - [[Value_5]] - `references` [EXTRACTED]
-- [[diff()]] - `calls` [INFERRED]
 - [[diff.rs]] - `contains` [EXTRACTED]
+- [[diff_dirs()]] - `calls` [EXTRACTED]
 - [[diff_ignores_column_order_row_order_and_number_text()]] - `calls` [EXTRACTED]
 - [[diff_reports_added_removed_changed()]] - `calls` [EXTRACTED]
 - [[field()]] - `calls` [INFERRED]

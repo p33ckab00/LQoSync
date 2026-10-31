@@ -1,12 +1,12 @@
 ---
 source_file: "src/secrets.rs"
 type: "code"
-community: "CLI and Checks"
+community: "Community 14"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_14
 ---
 
 # secrets.rs
@@ -26,4 +26,4 @@ tags:
 - [[rejects_wrong_owner()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_14

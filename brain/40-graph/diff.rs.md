@@ -12,14 +12,18 @@ tags:
 # diff.rs
 
 ## Connections
-- [[CsvRow_4]] - `imports_from` [EXTRACTED]
+- [[CsvRow]] - `imports_from` [EXTRACTED]
 - [[NEW14]] - `contains` [EXTRACTED]
 - [[OLD13]] - `contains` [EXTRACTED]
 - [[Value_5]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
+- [[diff_config()]] - `contains` [EXTRACTED]
+- [[diff_dirs()]] - `contains` [EXTRACTED]
+- [[diff_dirs_needs_candidate_files()]] - `contains` [EXTRACTED]
 - [[diff_ignores_column_order_row_order_and_number_text()]] - `contains` [EXTRACTED]
 - [[diff_pair()]] - `contains` [EXTRACTED]
 - [[diff_reports_added_removed_changed()]] - `contains` [EXTRACTED]
+- [[diff_stops_in_apply_mode()]] - `contains` [EXTRACTED]
 - [[field()]] - `imports_from` [EXTRACTED]
 - [[group()]] - `contains` [EXTRACTED]
 - [[header()]] - `contains` [EXTRACTED]

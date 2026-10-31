@@ -52,19 +52,9 @@ None at this time.
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
 
-Deferred minor items from the Plan 2 review: SIGHUP error not in status.json; backup pruning by name sort; write `network.json` before `ShapedDevices.csv` (both after `state.json`); `diff` with no candidate; no retry skip for a secret-file error; file mode and owner after the atomic rename; no TCP keepalive.
+Plan 2 and defaults review minor items: fixed on 2026-10-31 (one test for each). TCP keepalive is not possible: `mikrotik-tokio` 0.3 makes the TCP socket and has no keepalive option. In its place, a kept session that fails gets one reconnect at once, and this reconnect does not use a retry.
 
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
-
-Open from the Plan 1 review: `check` must warn about a router with no source enabled (Plan 2).
-
-Deferred minor items from the defaults review (2026-10-31):
-- A list in `[[routers]]` replaces the same list from `[router_defaults]` (the global `[exclude]` joins). Write this in CONFIGURATION.md.
-- `[router_defaults]` accepts `name`, `address`, `username`, `password_file`. Reject them there.
-- An empty `v2_type`, `v3_type`, `type`, or `root_type` loads and writes `"type": ""`. Add a non-empty check.
-- A comment speed with one zero value (`10M/0M`) falls through without a report line.
-- The CONFIGURATION.md example is a partial copy of `config/defaults.toml`. Make it a pointer, or test that the keys match.
-- The installed binary cannot print the embedded defaults. Add `lqosync3 defaults` (Plan 2 CLI).
 
 ### Production state
 

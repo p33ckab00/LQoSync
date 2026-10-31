@@ -1,11 +1,11 @@
 ---
 type: community
-members: 27
+members: 28
 ---
 
 # Config
 
-**Members:** 27 nodes
+**Members:** 28 nodes
 
 ## Members
 - [[dot-from_toml_str()]] - code - src/config.rs
@@ -24,11 +24,12 @@ members: 27
 - [[global_dhcp_source_lists_are_checked()]] - code - src/config.rs
 - [[minimal_config_gets_documented_defaults()]] - code - src/config.rs
 - [[node_type_defaults_follow_target()]] - code - src/config.rs
+- [[node_types_must_not_be_empty()]] - code - src/config.rs
 - [[non_finite_values_are_rejected()]] - code - src/config.rs
 - [[out_of_range_values_are_rejected()]] - code - src/config.rs
-- [[parse_ipv4_net()]] - code - src/config.rs
 - [[per_site_rejects_lease_comment_and_defaults_follow_mode()]] - code - src/config.rs
 - [[router_defaults_apply_to_each_router_and_a_router_overrides_them()]] - code - src/config.rs
+- [[router_defaults_reject_router_only_keys()]] - code - src/config.rs
 - [[router_example_in_defaults_file_loads_two_routers()]] - code - src/config.rs
 - [[router_list_problems_are_rejected()]] - code - src/config.rs
 - [[tls_keys_have_defaults_and_can_change()]] - code - src/config.rs
@@ -44,27 +45,28 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 9 edges to [[_COMMUNITY_Circuit Collection]]
-- 7 edges to [[_COMMUNITY_LibreQoS v3]]
-- 5 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 10 edges to [[_COMMUNITY_Circuit Collection]]
+- 7 edges to [[_COMMUNITY_Community 26]]
+- 5 edges to [[_COMMUNITY_Secrets]]
 - 5 edges to [[_COMMUNITY_dot-default()]]
-- 4 edges to [[_COMMUNITY_Secrets]]
 - 3 edges to [[_COMMUNITY_Runner Cycle]]
 - 3 edges to [[_COMMUNITY_CLI and Checks 4]]
-- 3 edges to [[_COMMUNITY_CLI and Checks]]
+- 2 edges to [[_COMMUNITY_Router State]]
+- 2 edges to [[_COMMUNITY_Community 33]]
 - 2 edges to [[_COMMUNITY_LibreQoS v3 3]]
 - 2 edges to [[_COMMUNITY_hashmap]]
+- 2 edges to [[_COMMUNITY_Community 6]]
+- 2 edges to [[_COMMUNITY_Community 14]]
 - 1 edge to [[_COMMUNITY_CircuitNames]]
-- 1 edge to [[_COMMUNITY_Router State]]
 - 1 edge to [[_COMMUNITY_LogLevel]]
-- 1 edge to [[_COMMUNITY_OfflineAction]]
+- 1 edge to [[_COMMUNITY_Community 22]]
 - 1 edge to [[_COMMUNITY_Config 3]]
-- 1 edge to [[_COMMUNITY_File Safety]]
-- 1 edge to [[_COMMUNITY_Cycle Assembly]]
+- 1 edge to [[_COMMUNITY_Community 4]]
+- 1 edge to [[_COMMUNITY_Community 48]]
 
 ## Top bridge nodes
-- [[config.rs]] - degree 64, connects to 17 communities
-- [[dot-from_toml_str()]] - degree 16, connects to 3 communities
-- [[parse_ipv4_net()]] - degree 3, connects to 1 community
+- [[config.rs]] - degree 68, connects to 17 communities
+- [[dot-from_toml_str()]] - degree 18, connects to 3 communities
 - [[per_site_rejects_lease_comment_and_defaults_follow_mode()]] - degree 3, connects to 1 community
 - [[PppoeCfg]] - degree 2, connects to 1 community
+- [[Safety]] - degree 2, connects to 1 community

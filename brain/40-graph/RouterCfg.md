@@ -12,9 +12,9 @@ tags:
 # RouterCfg
 
 ## Connections
-- [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[dot-connect()_1]] - `references` [EXTRACTED]
 - [[dot-connect()_2]] - `references` [EXTRACTED]
+- [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[dot-connect()]] - `references` [EXTRACTED]
 - [[dot-new()_1]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]

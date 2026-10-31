@@ -37,19 +37,19 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 10 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 11 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 9 edges to [[_COMMUNITY_Topology 2]]
 - 9 edges to [[_COMMUNITY_Speed Rules]]
 - 5 edges to [[_COMMUNITY_Speed Rules 2]]
 - 3 edges to [[_COMMUNITY_Router Reads 2]]
-- 2 edges to [[_COMMUNITY_Topology 3]]
 - 2 edges to [[_COMMUNITY_Status and Diff 4]]
 - 1 edge to [[_COMMUNITY_Status and Diff 3]]
+- 1 edge to [[_COMMUNITY_Community 41]]
 - 1 edge to [[_COMMUNITY_MikroTik Session 4]]
 
 ## Top bridge nodes
 - [[lqosync3 core design spec]] - degree 34, connects to 8 communities
-- [[2026-10-31 Plan 1 lqosync3 core library session]] - degree 12, connects to 4 communities
+- [[2026-10-31 Plan 1 lqosync3 core library session]] - degree 12, connects to 3 communities
 - [[lqosync3 Core Implementation Plan (Plan 1)]] - degree 8, connects to 3 communities
 - [[Project phase Plan 1 core and Plan 2 runtime done]] - degree 4, connects to 3 communities
 - [[Task 6 Cycle assembly and validation]] - degree 4, connects to 2 communities

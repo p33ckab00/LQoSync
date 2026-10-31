@@ -2,7 +2,7 @@
 source_file: "src/diff.rs"
 type: "code"
 community: "Status and Diff 2"
-location: "L190"
+location: "L227"
 tags:
   - graphify/code
   - graphify/EXTRACTED

@@ -68,6 +68,8 @@ pub struct Status {
     /// skipped | ok | the error text
     pub reload: String,
     pub error: Option<String>,
+    /// The last config reload (SIGHUP) failed: the old config stays in use.
+    pub config_error: Option<String>,
 }
 
 impl Status {
@@ -108,6 +110,7 @@ mod tests {
             files_changed: true,
             reload: "skipped".into(),
             error: None,
+            config_error: None,
         };
         let v: serde_json::Value = serde_json::from_str(&st.to_json()).unwrap();
         for k in [
@@ -122,6 +125,7 @@ mod tests {
             "files_changed",
             "reload",
             "error",
+            "config_error",
         ] {
             assert!(v.get(k).is_some(), "missing {k}");
         }

@@ -145,6 +145,43 @@ pub fn diff_pair(
     Ok(lines.join("\n") + "\n")
 }
 
+/// Compare the candidate pair in `cand` with the live pair in `live`. A missing live file is empty.
+/// A missing candidate CSV is an error: an empty candidate would show each live circuit as removed.
+pub fn diff_dirs(live: &std::path::Path, cand: &std::path::Path) -> anyhow::Result<String> {
+    let cand_csv = cand.join("ShapedDevices.csv");
+    anyhow::ensure!(
+        cand_csv.exists(),
+        "no candidate files in {}; run `lqosync3 once` in shadow mode first",
+        cand.display()
+    );
+    let text = |p: &std::path::Path| std::fs::read_to_string(p).unwrap_or_default();
+    let json = |p: &std::path::Path| -> anyhow::Result<Value> {
+        let t = text(p);
+        Ok(if t.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(&t).map_err(|e| anyhow::anyhow!("{}: {e}", p.display()))?
+        })
+    };
+    diff_pair(
+        &text(&live.join("ShapedDevices.csv")),
+        &text(&cand_csv),
+        &json(&live.join("network.json"))?,
+        &json(&cand.join("network.json"))?,
+    )
+}
+
+/// `lqosync3 diff`: the shadow candidate against the live files of the config.
+/// In apply mode the tool writes the live files directly, so a candidate is old and is not compared.
+pub fn diff_config(cfg: &crate::config::Config) -> anyhow::Result<String> {
+    anyhow::ensure!(
+        cfg.runtime.mode == crate::config::RuntimeMode::Shadow,
+        "diff compares the shadow candidate; runtime.mode is apply, so no candidate is written. Use a copy of the config with mode = \"shadow\" and a different state_dir"
+    );
+    let cand = std::path::Path::new(&cfg.runtime.state_dir).join("candidate");
+    diff_dirs(std::path::Path::new(&cfg.libreqos.directory), &cand)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +237,29 @@ mod tests {
         // alice exists in both files with the same values: a new Parent Node ID column is not a change.
         let out = diff_pair(OLD13, NEW14, &net, &net).unwrap();
         assert!(!out.contains("~ circuit alice"), "{out}");
+    }
+
+    #[test]
+    fn diff_dirs_needs_candidate_files() {
+        let d = tempfile::tempdir().unwrap();
+        let (live, cand) = (d.path().join("lqos"), d.path().join("candidate"));
+        std::fs::create_dir_all(&live).unwrap();
+        std::fs::write(live.join("ShapedDevices.csv"), "Circuit ID,Circuit Name\n").unwrap();
+        let e = diff_dirs(&live, &cand).unwrap_err();
+        assert!(format!("{e:#}").contains("lqosync3 once"), "{e:#}");
+        std::fs::create_dir_all(&cand).unwrap();
+        std::fs::write(cand.join("ShapedDevices.csv"), "Circuit ID,Circuit Name\n").unwrap();
+        std::fs::write(cand.join("network.json"), "{}").unwrap();
+        assert!(diff_dirs(&live, &cand).is_ok());
+    }
+
+    #[test]
+    fn diff_stops_in_apply_mode() {
+        let c = crate::config::Config::from_toml_str(
+            "[runtime]\nmode=\"apply\"\n[[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        )
+        .unwrap();
+        let e = diff_config(&c).unwrap_err();
+        assert!(format!("{e:#}").contains("shadow"), "{e:#}");
     }
 }

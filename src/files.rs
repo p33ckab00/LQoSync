@@ -46,6 +46,13 @@ pub fn write_if_changed(path: &Path, bytes: &[u8]) -> anyhow::Result<bool> {
     let tmp = dir.join(format!(".{name}.tmp-{}", std::process::id()));
     let mut f = File::create(&tmp).with_context(|| format!("cannot write {}", tmp.display()))?;
     f.write_all(bytes)?;
+    // The new file gets the mode and the owner of the old file (LibreQoS can use a group or a user).
+    if let Ok(old) = std::fs::metadata(path) {
+        use std::os::unix::fs::MetadataExt;
+        f.set_permissions(old.permissions())?;
+        // Only root can give a file to a different user. If not root, the owner stays the same.
+        let _ = std::os::unix::fs::fchown(&f, Some(old.uid()), Some(old.gid()));
+    }
     f.sync_all()?;
     drop(f);
     std::fs::rename(&tmp, path)
@@ -129,6 +136,7 @@ pub fn load_state(
 }
 
 /// Copy the existing `sources` into `<applied_dir>/<stamp>/`, then keep only the newest `keep` folders.
+/// Only folders with a 12-digit name are removed, and never the new one (the clock can go back).
 pub fn backup(
     applied_dir: &Path,
     sources: &[&Path],
@@ -144,13 +152,18 @@ pub fn backup(
         std::fs::copy(src, dir.join(name))
             .with_context(|| format!("cannot copy {}", src.display()))?;
     }
+    let ours = |p: &Path| {
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.len() == 12 && n.bytes().all(|b| b.is_ascii_digit()))
+    };
     let mut folders: Vec<_> = std::fs::read_dir(applied_dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
         .map(|e| e.path())
+        .filter(|p| p.is_dir() && *p != dir && ours(p))
         .collect();
     folders.sort();
-    let extra = folders.len().saturating_sub(keep);
+    let extra = folders.len().saturating_sub(keep.saturating_sub(1));
     for old in &folders[..extra] {
         std::fs::remove_dir_all(old).with_context(|| format!("cannot remove {}", old.display()))?;
     }
@@ -276,32 +289,15 @@ mod tests {
         std::fs::write(&src, "x").unwrap();
         let applied = d.path().join("applied");
         for i in 0..5 {
-            backup(
-                &applied,
-                &[src.as_path()],
-                &format!("2026-10-31T00:00:0{i}Z"),
-                3,
-            )
-            .unwrap();
+            backup(&applied, &[src.as_path()], &format!("00000000000{i}"), 3).unwrap();
         }
         let mut names: Vec<String> = std::fs::read_dir(&applied)
             .unwrap()
             .map(|e| e.unwrap().file_name().into_string().unwrap())
             .collect();
         names.sort();
-        assert_eq!(
-            names,
-            [
-                "2026-10-31T00:00:02Z",
-                "2026-10-31T00:00:03Z",
-                "2026-10-31T00:00:04Z"
-            ]
-        );
-        assert!(
-            applied
-                .join("2026-10-31T00:00:04Z/ShapedDevices.csv")
-                .exists()
-        );
+        assert_eq!(names, ["000000000002", "000000000003", "000000000004"]);
+        assert!(applied.join("000000000004/ShapedDevices.csv").exists());
     }
 
     #[tokio::test]
@@ -329,5 +325,36 @@ mod tests {
             std::fs::write(d.path().join("network.json"), bad).unwrap();
             assert!(read_live(d.path(), "static", true).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn backup_keeps_the_new_folder_and_other_folders() {
+        let d = tempfile::tempdir().unwrap();
+        let src = d.path().join("ShapedDevices.csv");
+        std::fs::write(&src, "x").unwrap();
+        let applied = d.path().join("applied");
+        std::fs::create_dir_all(applied.join("manual-copy")).unwrap();
+        backup(&applied, &[src.as_path()], "000000002000", 2).unwrap();
+        backup(&applied, &[src.as_path()], "000000003000", 2).unwrap();
+        // The clock went back: the new folder has the lowest name, but it stays.
+        backup(&applied, &[src.as_path()], "000000001000", 2).unwrap();
+        let mut names: Vec<String> = std::fs::read_dir(&applied)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["000000001000", "000000003000", "manual-copy"]);
+    }
+
+    #[test]
+    fn write_if_changed_keeps_the_mode_of_the_old_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("ShapedDevices.csv");
+        std::fs::write(&p, "old").unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o640)).unwrap();
+        assert!(write_if_changed(&p, b"new").unwrap());
+        let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o640);
     }
 }

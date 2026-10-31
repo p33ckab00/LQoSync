@@ -12,7 +12,10 @@ tags:
 
 ## Connections
 - [[2026-10-31 Plan 1 lqosync3 core library session]] - `conceptually_related_to` [INFERRED]
+- [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
+- [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
 - [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
 - [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
 - [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
@@ -26,6 +29,7 @@ tags:
 - [[Installation]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
+- [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[Manual shadow run on production shaper (next action)]] - `references` [EXTRACTED]
 - [[Naming branch, crate, binary, service lqosync3]] - `references` [EXTRACTED]
 - [[Operations]] - `references` [EXTRACTED]
@@ -37,6 +41,7 @@ tags:
 - [[Removal guard on (20% or 50 rows held)]] - `references` [EXTRACTED]
 - [[Repository branch lqosync3 (no shared history)]] - `references` [EXTRACTED]
 - [[Router library mikrotik-rs =0.9.0 in this project only]] - `references` [EXTRACTED]
+- [[Session 2026-10-31 project setup and v3 simulation]] - `references` [EXTRACTED]
 - [[Speed rules decision (routeros_rx_tx, unitless bps)]] - `references` [EXTRACTED]
 - [[Verification checks (cargo test, clippy, fmt, v3sim check.sh)]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `references` [EXTRACTED]

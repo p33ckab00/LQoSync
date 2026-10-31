@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Runner Cycle"
-location: "L154"
+location: "L164"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -15,6 +15,7 @@ tags:
 - [[dot-cycle()]] - `calls` [EXTRACTED]
 - [[RunnerC]] - `method` [EXTRACTED]
 - [[Status]] - `references` [EXTRACTED]
+- [[assemble()]] - `calls` [INFERRED]
 - [[classify()]] - `calls` [INFERRED]
 - [[random_id()]] - `calls` [EXTRACTED]
 - [[read()]] - `calls` [EXTRACTED]

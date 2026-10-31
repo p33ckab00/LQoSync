@@ -12,7 +12,7 @@ tags:
 # memo()
 
 ## Connections
-- [[RouterMemo_1]] - `references` [EXTRACTED]
+- [[RouterMemo]] - `references` [EXTRACTED]
 - [[first_unreachable_sets_since()]] - `calls` [EXTRACTED]
 - [[login_tls_trap_timeout_are_failed_and_keep_memo()]] - `calls` [EXTRACTED]
 - [[offline_after_zero_is_offline_at_once()]] - `calls` [EXTRACTED]

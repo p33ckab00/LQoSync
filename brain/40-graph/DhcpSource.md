@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3"
+community: "Circuit Collection"
 location: "L404"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3
+  - community/Circuit_Collection
 ---
 
 # DhcpSource
@@ -21,4 +21,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

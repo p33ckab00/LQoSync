@@ -1,12 +1,12 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "Mock Router Tests"
+community: "Community 6"
 location: "L61"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/Community_6
 ---
 
 # Answer
@@ -21,4 +21,4 @@ tags:
 - [[mock_router.rs]] - `contains` [EXTRACTED]
 - [[secrets()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/Community_6

@@ -1,19 +1,18 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "Mock Router Tests"
+community: "Community 6"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/Community_6
 ---
 
 # mock_router.rs
 
 ## Connections
 - [[Answer]] - `contains` [EXTRACTED]
-- [[Config]] - `imports_from` [EXTRACTED]
 - [[Log]] - `contains` [EXTRACTED]
 - [[MikrotikConnector]] - `imports_from` [EXTRACTED]
 - [[RouterAccess]] - `imports_from` [EXTRACTED]
@@ -24,6 +23,7 @@ tags:
 - [[asyncreadext]] - `imports_from` [EXTRACTED]
 - [[asyncwriteext]] - `imports_from` [EXTRACTED]
 - [[closed_port_is_unreachable()]] - `contains` [EXTRACTED]
+- [[config.rs]] - `imports_from` [EXTRACTED]
 - [[duration]] - `imports_from` [EXTRACTED]
 - [[empty_table_is_ok()]] - `contains` [EXTRACTED]
 - [[instant]] - `imports_from` [EXTRACTED]
@@ -49,4 +49,4 @@ tags:
 - [[word()]] - `contains` [EXTRACTED]
 - [[wrong_password_is_login_error()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/Community_6

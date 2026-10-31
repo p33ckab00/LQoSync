@@ -12,7 +12,7 @@ tags:
 # seed_nodes()
 
 ## Connections
-- [[StoredNode_1]] - `references` [EXTRACTED]
+- [[StoredNode]] - `references` [EXTRACTED]
 - [[Value_4]] - `references` [EXTRACTED]
 - [[files.rs]] - `imports_from` [EXTRACTED]
 - [[load_state()]] - `calls` [INFERRED]

@@ -41,17 +41,16 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 9 edges to [[_COMMUNITY_Topology 3]]
+- 16 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 9 edges to [[_COMMUNITY_Topology 4]]
-- 7 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 6 edges to [[_COMMUNITY_Speed Rules 2]]
 - 4 edges to [[_COMMUNITY_MikroTik Session 3]]
 - 3 edges to [[_COMMUNITY_Speed Rules]]
 - 1 edge to [[_COMMUNITY_MikroTik Session 5]]
 
 ## Top bridge nodes
-- [[ADR-0005 Topology follows v3]] - degree 21, connects to 5 communities
-- [[ADR-0006 v3 guards and node types]] - degree 14, connects to 4 communities
+- [[ADR-0005 Topology follows v3]] - degree 21, connects to 4 communities
+- [[ADR-0006 v3 guards and node types]] - degree 14, connects to 3 communities
 - [[How LibreQoS v3 handles nodes]] - degree 13, connects to 2 communities
 - [[Node rules]] - degree 7, connects to 2 communities
 - [[1415 CSV columns (v2_pairv3_pair)]] - degree 5, connects to 2 communities

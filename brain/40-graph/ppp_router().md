@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "AtomicUsize"
-location: "L214"
+community: "Community 6"
+location: "L230"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/AtomicUsize
+  - community/Community_6
 ---
 
 # ppp_router()
@@ -14,6 +14,8 @@ tags:
 ## Connections
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
+- [[a_dead_kept_session_reconnects_without_a_retry()]] - `calls` [EXTRACTED]
+- [[a_login_error_is_not_retried()]] - `calls` [EXTRACTED]
 - [[gives_last_error_after_all_retries()]] - `calls` [EXTRACTED]
 - [[reads_only_enabled_tables()]] - `calls` [EXTRACTED]
 - [[retry_reconnects_and_succeeds()]] - `calls` [EXTRACTED]
@@ -22,4 +24,4 @@ tags:
 - [[stalled_call_times_out()]] - `calls` [EXTRACTED]
 - [[stalled_connect_is_a_timeout_not_unreachable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/AtomicUsize
+#graphify/code #graphify/EXTRACTED #community/Community_6

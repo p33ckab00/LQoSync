@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3"
-location: "L662"
+community: "Circuit Collection"
+location: "L671"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3
+  - community/Circuit_Collection
 ---
 
 # .targets_v3()
@@ -15,4 +15,4 @@ tags:
 - [[dot-validate()]] - `calls` [EXTRACTED]
 - [[Config]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

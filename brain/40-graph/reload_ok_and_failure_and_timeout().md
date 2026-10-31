@@ -2,7 +2,7 @@
 source_file: "src/files.rs"
 type: "code"
 community: "File Safety"
-location: "L308"
+location: "L304"
 tags:
   - graphify/code
   - graphify/EXTRACTED

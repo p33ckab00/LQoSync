@@ -513,7 +513,16 @@ impl Config {
             _ => toml::Table::new(),
         };
         match user.remove("router_defaults") {
-            Some(toml::Value::Table(t)) => deep_merge(&mut router_defaults, t),
+            Some(toml::Value::Table(t)) => {
+                // These keys are different for each router. A shared value would be a mistake.
+                for k in ["name", "address", "username", "password_file"] {
+                    ensure!(
+                        !t.contains_key(k),
+                        "config: router_defaults.{k} is not allowed; set {k} in each [[routers]] entry"
+                    );
+                }
+                deep_merge(&mut router_defaults, t)
+            }
             Some(_) => bail!("config: [router_defaults] must be a table"),
             None => {}
         }
@@ -920,6 +929,25 @@ impl Config {
                 ensure!(t.contains(p), "config: {k} must contain {p}");
             }
         }
+        // An empty type writes "type": "" to network.json.
+        let mut types = vec![
+            ("network.root_type".to_string(), n.root_type.clone()),
+            ("nodes.client.type".to_string(), nd.client.r#type.clone()),
+        ];
+        for (k, t) in [
+            ("ppp", &nd.ppp),
+            ("ppp_plan", &nd.ppp_plan),
+            ("hotspot", &nd.hotspot),
+            ("dhcp_site", &nd.dhcp_site),
+            ("dhcp_plan", &nd.dhcp_plan),
+        ] {
+            types.push((format!("nodes.{k}.v2_type"), t.v2_type.clone()));
+            types.push((format!("nodes.{k}.v3_type"), t.v3_type.clone()));
+            types.extend(t.r#type.clone().map(|v| (format!("nodes.{k}.type"), v)));
+        }
+        for (k, v) in types {
+            ensure!(!v.trim().is_empty(), "config: {k} must not be empty");
+        }
         // Only the known fields: a typo such as {usr} would stay as text in each name.
         let fields = regex::Regex::new(r"\{[^{}]*\}").expect("valid regex");
         for (k, t, allowed) in [
@@ -1286,5 +1314,32 @@ mod tests {
         );
         let c = Config::from_toml_str(MIN).unwrap();
         assert!(c.routers[0].tls_verify && c.routers[0].tls_ca_file.is_empty());
+    }
+
+    #[test]
+    fn router_defaults_reject_router_only_keys() {
+        for k in ["name", "address", "username", "password_file"] {
+            let e =
+                Config::from_toml_str(&format!("[router_defaults]\n{k}=\"x\"\n{MIN}")).unwrap_err();
+            let t = format!("{e:#}");
+            assert!(t.contains("router_defaults") && t.contains(k), "{t}");
+        }
+    }
+
+    #[test]
+    fn node_types_must_not_be_empty() {
+        for extra in [
+            "[nodes.ppp]\nv2_type=\"\"\n",
+            "[nodes.dhcp_plan]\nv3_type=\" \"\n",
+            "[nodes.hotspot]\ntype=\"\"\n",
+            "[network]\nroot_type=\"\"\n",
+            "[nodes.client]\ntype=\"\"\n",
+        ] {
+            let e = Config::from_toml_str(&format!("{extra}{MIN}")).unwrap_err();
+            assert!(
+                format!("{e:#}").contains("must not be empty"),
+                "{extra}: {e:#}"
+            );
+        }
     }
 }

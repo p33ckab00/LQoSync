@@ -2,7 +2,7 @@
 
 use lqosync3::cli::{self, Command, Level};
 use lqosync3::config::Config;
-use lqosync3::diff::diff_pair;
+use lqosync3::diff::diff_config;
 use lqosync3::mikrotik::MikrotikConnector;
 use lqosync3::runner::{CycleSummary, Runner};
 use std::path::Path;
@@ -58,29 +58,6 @@ fn print_summary(s: &CycleSummary) {
     }
 }
 
-fn read_or_empty(p: &Path) -> String {
-    std::fs::read_to_string(p).unwrap_or_default()
-}
-
-fn diff(cfg: &Config) -> anyhow::Result<String> {
-    let cand = Path::new(&cfg.runtime.state_dir).join("candidate");
-    let live = Path::new(&cfg.libreqos.directory);
-    let json = |p: &Path| -> anyhow::Result<serde_json::Value> {
-        let t = read_or_empty(p);
-        Ok(if t.trim().is_empty() {
-            serde_json::json!({})
-        } else {
-            serde_json::from_str(&t)?
-        })
-    };
-    diff_pair(
-        &read_or_empty(&live.join("ShapedDevices.csv")),
-        &read_or_empty(&cand.join("ShapedDevices.csv")),
-        &json(&live.join("network.json"))?,
-        &json(&cand.join("network.json"))?,
-    )
-}
-
 async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
     let mut runner = Runner::new(
         cfg.clone(),
@@ -112,7 +89,10 @@ async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
                     eprintln!("config reloaded from {}", path.display());
                     runner.set_config(cfg.clone());
                 }
-                Err(e) => eprintln!("error: config reload failed, the old config stays: {e:#}"),
+                Err(e) => {
+                    eprintln!("error: config reload failed, the old config stays: {e:#}");
+                    runner.config_failed(format!("{e:#}"));
+                }
             },
             _ = term.recv() => break,
             _ = int.recv() => break,
@@ -163,7 +143,7 @@ async fn main() {
                 std::process::exit(1);
             }
         }
-        Command::Diff => print!("{}", diff(&cfg).unwrap_or_else(|e| exit_with(e))),
+        Command::Diff => print!("{}", diff_config(&cfg).unwrap_or_else(|e| exit_with(e))),
         Command::Run => run(&parsed.config, cfg)
             .await
             .unwrap_or_else(|e| exit_with(e)),

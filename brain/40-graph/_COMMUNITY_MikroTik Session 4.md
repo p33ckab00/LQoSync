@@ -31,15 +31,16 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 10 edges to [[_COMMUNITY_Router Reads 2]]
-- 3 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 2 edges to [[_COMMUNITY_Config 2]]
+- 2 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 2 edges to [[_COMMUNITY_Status and Diff 3]]
 - 2 edges to [[_COMMUNITY_Router Reads 3]]
 - 2 edges to [[_COMMUNITY_MikroTik Session 5]]
 - 1 edge to [[_COMMUNITY_Topology 4]]
+- 1 edge to [[_COMMUNITY_Community 41]]
 
 ## Top bridge nodes
-- [[lqosync3 runtime design (Plan 2)]] - degree 19, connects to 6 communities
+- [[lqosync3 runtime design (Plan 2)]] - degree 19, connects to 7 communities
 - [[Files lock, state.json, status.json, candidate, applied]] - degree 8, connects to 3 communities
 - [[Mock RouterOS server tests (testsmock_router.rs)]] - degree 4, connects to 1 community
 - [[Instance lock statelqosync3.lock (Filetry_lock)]] - degree 4, connects to 1 community

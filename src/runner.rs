@@ -56,6 +56,8 @@ pub struct Runner<C: Connector + 'static> {
     sessions: HashMap<String, Option<C::Session>>,
     /// The instance lock. Taken at the first cycle and held while the runner lives.
     lock: Option<std::fs::File>,
+    /// The error of the last config reload, until a good reload.
+    config_error: Option<String>,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -78,6 +80,7 @@ where
             connector,
             sessions: HashMap::new(),
             lock: None,
+            config_error: None,
         }
     }
 
@@ -93,6 +96,12 @@ where
     pub fn set_config(&mut self, cfg: Config) {
         self.cfg = cfg;
         self.sessions.clear();
+        self.config_error = None;
+    }
+
+    /// A config reload failed. The old config stays, and `status.json` shows the error.
+    pub fn config_failed(&mut self, error: String) {
+        self.config_error = Some(error);
     }
 
     /// Run one cycle. `force` releases a guard hold (a manual sync).
@@ -114,6 +123,7 @@ where
             files_changed: false,
             reload: "skipped".into(),
             error: None,
+            config_error: self.config_error.clone(),
         };
         // Without the lock, another process owns the files: write nothing, not even the status.
         if let Err(e) = self.lock() {
@@ -282,8 +292,9 @@ where
                 self.cfg.runtime.keep_backups,
             )?;
         }
-        files::write_if_changed(&csv_path, csv.as_bytes())?;
+        // The nodes first: each Parent Node of the new CSV is then already in network.json.
         files::write_if_changed(&net_path, net.as_bytes())?;
+        files::write_if_changed(&csv_path, csv.as_bytes())?;
         // A failed reload stays pending until it works, also when the files do not change again.
         let pending = state_dir.join("reload-pending");
         let mut reload_error = None;
@@ -653,5 +664,33 @@ mod tests {
                 .contains("another lqosync3")
         );
         assert!(!e.state.join("status.json").exists());
+    }
+
+    #[tokio::test]
+    async fn a_config_reload_error_shows_in_status_until_a_good_reload() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let c = cfg(&e, "shadow", "");
+        let mut r = runner(&e, c.clone());
+        r.config_failed("bad key".into());
+        let s = r.cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let st: serde_json::Value =
+            serde_json::from_str(&read(&e.state.join("status.json"))).unwrap();
+        assert_eq!(st["config_error"], "bad key");
+        r.set_config(c);
+        let s = r.cycle(1_025, false).await;
+        assert_eq!(s.status.config_error, None);
+    }
+
+    #[tokio::test]
+    async fn network_json_is_written_before_the_csv() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        // A write of network.json that fails must leave the CSV as it was.
+        std::fs::create_dir_all(e.state.join("candidate/network.json")).unwrap();
+        let s = runner(&e, cfg(&e, "shadow", "")).cycle(1_000, false).await;
+        assert!(s.error.is_some());
+        assert!(!e.state.join("candidate/ShapedDevices.csv").exists());
     }
 }

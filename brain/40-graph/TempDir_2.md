@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "CLI and Checks"
+community: "Community 4"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_4
 ---
 
 # TempDir
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[Env_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_4

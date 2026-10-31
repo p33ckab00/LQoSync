@@ -8,7 +8,7 @@ members: 6
 **Members:** 6 nodes
 
 ## Members
-- [[dot-default()_1]] - code - src/config.rs
+- [[dot-default()]] - code - src/config.rs
 - [[dot-merge()]] - code - src/config.rs
 - [[Table]] - code
 - [[deep_merge()]] - code - src/config.rs
@@ -31,4 +31,4 @@ SORT file.name ASC
 - [[defaults()]] - degree 5, connects to 2 communities
 - [[defaults_table()]] - degree 4, connects to 1 community
 - [[deep_merge()]] - degree 3, connects to 1 community
-- [[dot-default()_1]] - degree 2, connects to 1 community
+- [[dot-default()]] - degree 2, connects to 1 community

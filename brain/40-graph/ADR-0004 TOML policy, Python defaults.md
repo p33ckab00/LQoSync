@@ -16,6 +16,7 @@ tags:
 - [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[ADR-0009 DHCP discovery and exclusions]] - `references` [EXTRACTED]
 - [[All policy in TOML]] - `rationale_for` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[Profile name number+unit rule]] - `rationale_for` [EXTRACTED]
 - [[Session updatecsv.py dissection]] - `references` [EXTRACTED]

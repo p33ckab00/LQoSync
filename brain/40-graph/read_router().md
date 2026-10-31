@@ -1,27 +1,28 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Mock Router Tests"
-location: "L113"
+community: "Community 6"
+location: "L114"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/Community_6
 ---
 
 # read_router()
 
 ## Connections
-- [[dot-connect()_2]] - `calls` [EXTRACTED]
+- [[dot-connect()_3]] - `calls` [EXTRACTED]
 - [[dot-cycle_inner()]] - `calls` [INFERRED]
 - [[C_1]] - `references` [EXTRACTED]
 - [[Protocol]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_1]] - `references` [EXTRACTED]
+- [[RouterSnapshot]] - `references` [EXTRACTED]
 - [[Session_1]] - `references` [EXTRACTED]
 - [[Timeout]] - `references` [EXTRACTED]
+- [[a_dead_kept_session_reconnects_without_a_retry()]] - `calls` [EXTRACTED]
 - [[closed_port_is_unreachable()]] - `calls` [INFERRED]
 - [[empty_table_is_ok()]] - `calls` [INFERRED]
 - [[latin1_values_are_decoded()]] - `calls` [INFERRED]
@@ -38,4 +39,4 @@ tags:
 - [[trap_is_a_trap_error()]] - `calls` [INFERRED]
 - [[wrong_password_is_login_error()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/Community_6

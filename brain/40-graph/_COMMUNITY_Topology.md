@@ -18,7 +18,7 @@ members: 52
 - [[PppPlan]] - code - src/sources.rs
 - [[RouterGroups]] - code - src/topology.rs
 - [[StoredNode]] - code - src/model.rs
-- [[Value_3]] - code
+- [[Value_2]] - code
 - [[a_kept_child_keeps_its_operator_children()]] - code - src/topology.rs
 - [[backstop_cap_limits_group()]] - code - src/topology.rs
 - [[build_nodes()]] - code - src/topology.rs
@@ -69,20 +69,22 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 20 edges to [[_COMMUNITY_Cycle Assembly]]
+- 17 edges to [[_COMMUNITY_Cycle Assembly]]
 - 13 edges to [[_COMMUNITY_Circuit Collection]]
 - 7 edges to [[_COMMUNITY_Secrets]]
+- 3 edges to [[_COMMUNITY_Community 48]]
 - 3 edges to [[_COMMUNITY_hashmap]]
+- 2 edges to [[_COMMUNITY_CircuitNames]]
 - 2 edges to [[_COMMUNITY_CLI and Checks 4]]
-- 1 edge to [[_COMMUNITY_LibreQoS v3]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 3]]
+- 1 edge to [[_COMMUNITY_Community 26]]
+- 1 edge to [[_COMMUNITY_Community 33]]
 - 1 edge to [[_COMMUNITY_Runner Cycle]]
 - 1 edge to [[_COMMUNITY_Status and Diff 2]]
-- 1 edge to [[_COMMUNITY_File Safety]]
+- 1 edge to [[_COMMUNITY_Community 4]]
 
 ## Top bridge nodes
-- [[topology.rs]] - degree 60, connects to 10 communities
+- [[topology.rs]] - degree 60, connects to 11 communities
+- [[StoredNode]] - degree 13, connects to 3 communities
 - [[build_nodes()]] - degree 21, connects to 2 communities
 - [[GroupKey]] - degree 16, connects to 2 communities
 - [[parent_for()]] - degree 10, connects to 2 communities
-- [[group_rate()]] - degree 8, connects to 2 communities

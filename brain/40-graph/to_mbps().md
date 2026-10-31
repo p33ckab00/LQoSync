@@ -12,7 +12,7 @@ tags:
 # to_mbps()
 
 ## Connections
-- [[dot-comment()]] - `calls` [EXTRACTED]
+- [[dot-comment_raw()]] - `calls` [EXTRACTED]
 - [[dot-profile_name()]] - `calls` [EXTRACTED]
 - [[UnitlessUnit]] - `references` [EXTRACTED]
 - [[parse_pair()]] - `calls` [EXTRACTED]

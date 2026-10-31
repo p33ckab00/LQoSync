@@ -12,7 +12,7 @@ tags:
 # plan_label()
 
 ## Connections
-- [[Rate_1]] - `references` [EXTRACTED]
+- [[Rate]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 

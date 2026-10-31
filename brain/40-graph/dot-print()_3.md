@@ -1,20 +1,20 @@
 ---
-source_file: "src/mikrotik.rs"
+source_file: "src/routeros.rs"
 type: "code"
-community: "MikroTik Session 2"
-location: "L191"
+community: "Community 6"
+location: "L42"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_2
+  - community/Community_6
 ---
 
 # .print()
 
 ## Connections
-- [[MikrotikSession]] - `method` [EXTRACTED]
 - [[Output_2]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
-- [[RosRow_3]] - `references` [EXTRACTED]
+- [[RosRow]] - `references` [EXTRACTED]
+- [[RouterSession]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_2
+#graphify/code #graphify/EXTRACTED #community/Community_6

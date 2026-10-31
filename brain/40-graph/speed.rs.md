@@ -41,5 +41,6 @@ tags:
 - [[to_mbps()]] - `contains` [EXTRACTED]
 - [[usable()]] - `contains` [EXTRACTED]
 - [[zero_comment_speed_is_no_rate()]] - `contains` [EXTRACTED]
+- [[zero_rate_finds_a_zero_speed_comment()]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Secrets

@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "Community 48"
 location: "L155"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/Community_48
 ---
 
 # GuardHold
@@ -16,4 +16,4 @@ tags:
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/Community_48

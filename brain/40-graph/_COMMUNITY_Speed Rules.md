@@ -38,11 +38,10 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 9 edges to [[_COMMUNITY_Topology 4]]
-- 6 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 7 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 3 edges to [[_COMMUNITY_Topology 2]]
 - 3 edges to [[_COMMUNITY_Speed Rules 2]]
 - 2 edges to [[_COMMUNITY_MikroTik Session]]
-- 1 edge to [[_COMMUNITY_Topology 3]]
 - 1 edge to [[_COMMUNITY_Router Reads 2]]
 - 1 edge to [[_COMMUNITY_Router Reads 3]]
 

@@ -12,8 +12,8 @@ tags:
 # pair.rs
 
 ## Connections
-- [[Columns_1]] - `imports_from` [EXTRACTED]
-- [[CsvRow_5]] - `imports_from` [EXTRACTED]
+- [[Columns]] - `imports_from` [EXTRACTED]
+- [[CsvRow]] - `imports_from` [EXTRACTED]
 - [[csv_header_sort_and_quoting()]] - `contains` [EXTRACTED]
 - [[csv_headers_for_v2_and_v3()]] - `contains` [EXTRACTED]
 - [[csv_quotes_like_python()]] - `contains` [EXTRACTED]
@@ -21,7 +21,7 @@ tags:
 - [[network_json_has_python_layout()]] - `contains` [EXTRACTED]
 - [[render_csv()]] - `contains` [EXTRACTED]
 - [[render_network_json()]] - `contains` [EXTRACTED]
-- [[row()_2]] - `contains` [EXTRACTED]
+- [[row()_1]] - `contains` [EXTRACTED]
 - [[serialize]] - `imports_from` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 

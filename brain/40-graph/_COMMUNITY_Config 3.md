@@ -1,15 +1,16 @@
 ---
 type: community
-members: 2
+members: 3
 ---
 
 # Config 3
 
-**Members:** 2 nodes
+**Members:** 3 nodes
 
 ## Members
 - [[config_doc.rs]] - code - tests/config_doc.rs
 - [[example_in_configuration_md_parses()]] - code - tests/config_doc.rs
+- [[example_values_match_the_defaults_file()]] - code - tests/config_doc.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -22,4 +23,4 @@ SORT file.name ASC
 - 1 edge to [[_COMMUNITY_Config]]
 
 ## Top bridge nodes
-- [[config_doc.rs]] - degree 2, connects to 1 community
+- [[config_doc.rs]] - degree 3, connects to 1 community

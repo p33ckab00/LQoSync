@@ -12,7 +12,7 @@ tags:
 # f()
 
 ## Connections
-- [[RosRow_4]] - `references` [EXTRACTED]
+- [[RosRow]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `calls` [EXTRACTED]
 - [[collect_hotspot()]] - `calls` [EXTRACTED]
 - [[collect_ppp()]] - `calls` [EXTRACTED]

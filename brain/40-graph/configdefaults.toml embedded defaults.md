@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "CLI and Checks 2"
+community: "Community 41"
 location: "L8"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/Community_41
 ---
 
 # config/defaults.toml embedded defaults
@@ -18,4 +18,4 @@ tags:
 - [[Configuration]] - `references` [EXTRACTED]
 - [[router_defaults per-router defaults]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/concept #graphify/EXTRACTED #community/Community_41

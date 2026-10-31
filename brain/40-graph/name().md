@@ -12,7 +12,7 @@ tags:
 # name()
 
 ## Connections
-- [[RouterResult_3]] - `references` [EXTRACTED]
+- [[RouterResult]] - `references` [EXTRACTED]
 - [[routerstate.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

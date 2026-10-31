@@ -1,15 +1,17 @@
 ---
 type: community
-members: 10
+members: 13
 ---
 
 # LibreQoS v3 2
 
-**Members:** 10 nodes
+**Members:** 13 nodes
 
 ## Members
-- [[Columns_1]] - code
-- [[CsvRow_5]] - code
+- [[dot-names()]] - code - src/model.rs
+- [[Columns]] - code - src/model.rs
+- [[V2]] - code - src/model.rs
+- [[V3]] - code - src/model.rs
 - [[csv_header_sort_and_quoting()]] - code - src/writer/pair.rs
 - [[csv_headers_for_v2_and_v3()]] - code - src/writer/pair.rs
 - [[csv_quotes_like_python()]] - code - src/writer/pair.rs
@@ -17,7 +19,8 @@ members: 10
 - [[network_json_has_python_layout()]] - code - src/writer/pair.rs
 - [[pair.rs]] - code - src/writer/pair.rs
 - [[render_csv()]] - code - src/writer/pair.rs
-- [[row()_2]] - code - src/writer/pair.rs
+- [[row()_1]] - code - src/writer/pair.rs
+- [[serialize]] - concept
 
 ## Live Query (requires Dataview plugin)
 
@@ -28,12 +31,14 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 5 edges to [[_COMMUNITY_Runner Cycle]]
-- 3 edges to [[_COMMUNITY_Scenario Tests]]
+- 4 edges to [[_COMMUNITY_Cycle Assembly]]
+- 4 edges to [[_COMMUNITY_Community 20]]
+- 2 edges to [[_COMMUNITY_Community 48]]
 - 2 edges to [[_COMMUNITY_Status and Diff 2]]
-- 1 edge to [[_COMMUNITY_Cycle Assembly]]
 
 ## Top bridge nodes
-- [[pair.rs]] - degree 12, connects to 2 communities
-- [[render_csv()]] - degree 9, connects to 2 communities
-- [[Columns_1]] - degree 4, connects to 2 communities
-- [[field()]] - degree 5, connects to 1 community
+- [[pair.rs]] - degree 12, connects to 3 communities
+- [[render_csv()]] - degree 9, connects to 3 communities
+- [[Columns]] - degree 8, connects to 3 communities
+- [[field()]] - degree 5, connects to 2 communities
+- [[serialize]] - degree 3, connects to 2 communities

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "CLI and Checks 2"
+community: "Community 41"
 location: "L11"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/Community_41
 ---
 
 # [router_defaults] per-router defaults
@@ -18,4 +18,4 @@ tags:
 - [[TLS (tls_verify, tls_ca_file, webpki-roots)]] - `references` [INFERRED]
 - [[configdefaults.toml embedded defaults]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/concept #graphify/EXTRACTED #community/Community_41

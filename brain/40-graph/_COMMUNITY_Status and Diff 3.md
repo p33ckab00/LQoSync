@@ -32,9 +32,9 @@ SORT file.name ASC
 ## Connections to other communities
 - 6 edges to [[_COMMUNITY_Router Reads 2]]
 - 3 edges to [[_COMMUNITY_Config 2]]
-- 2 edges to [[_COMMUNITY_Topology 3]]
+- 3 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 2 edges to [[_COMMUNITY_MikroTik Session 4]]
-- 2 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 1 edge to [[_COMMUNITY_Topology 3]]
 - 1 edge to [[_COMMUNITY_Topology 4]]
 - 1 edge to [[_COMMUNITY_MikroTik Session 3]]
 - 1 edge to [[_COMMUNITY_MikroTik Session 5]]

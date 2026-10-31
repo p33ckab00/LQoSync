@@ -119,13 +119,13 @@ impl SpeedParser {
         })
     }
 
-    /// Speed from a comment, in download/upload order.
-    pub fn comment(&self, s: &str) -> Option<Rate> {
+    /// The first speed in a comment, also a zero speed, in download/upload order.
+    fn comment_raw(&self, s: &str) -> Option<Rate> {
         for re in [&self.pipe, &self.pair] {
             if let Some(c) = re.captures(s) {
                 let v =
                     |i: usize, u: usize| to_mbps(c[i].parse().unwrap_or(0.0), &c[u], self.unitless);
-                return usable(Rate {
+                return finite(Rate {
                     down: v(1, 2),
                     up: v(3, 4),
                 });
@@ -133,7 +133,18 @@ impl SpeedParser {
         }
         let c = self.single.captures(s)?;
         let v: f64 = c[1].parse().ok()?;
-        usable(Rate { down: v, up: v })
+        finite(Rate { down: v, up: v })
+    }
+
+    /// Speed from a comment, in download/upload order.
+    pub fn comment(&self, s: &str) -> Option<Rate> {
+        self.comment_raw(s).and_then(usable)
+    }
+
+    /// The comment has a speed with a zero value, for example `10M/0M`.
+    pub fn zero_rate(&self, s: &str) -> bool {
+        self.comment_raw(s)
+            .is_some_and(|r| r.down <= 0.0 || r.up <= 0.0)
     }
 
     /// Speed from a RouterOS `rate-limit` value. Only the first rate pair counts.
@@ -260,5 +271,13 @@ mod tests {
     fn zero_comment_speed_is_no_rate() {
         assert_eq!(p().comment("0M/0M"), None);
         assert_eq!(p().comment("Plan 0M"), None);
+    }
+
+    #[test]
+    fn zero_rate_finds_a_zero_speed_comment() {
+        assert!(p().zero_rate("|10M/0M"));
+        assert!(p().zero_rate("Plan 0M"));
+        assert!(!p().zero_rate("10M/2M"));
+        assert!(!p().zero_rate("no speed"));
     }
 }

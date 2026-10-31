@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Router Reads"
+community: "Community 6"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/Community_6
 ---
 
 # S
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[read_snapshot()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/Community_6

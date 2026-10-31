@@ -1,12 +1,12 @@
 ---
 source_file: "src/secrets.rs"
 type: "code"
-community: "CLI and Checks"
+community: "Community 14"
 location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_14
 ---
 
 # missing_file_names_the_path()
@@ -15,4 +15,4 @@ tags:
 - [[read_secret()]] - `calls` [EXTRACTED]
 - [[secrets.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_14

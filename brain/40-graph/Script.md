@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "AtomicUsize"
-location: "L167"
+community: "Community 6"
+location: "L179"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/AtomicUsize
+  - community/Community_6
 ---
 
 # Script
@@ -15,4 +15,4 @@ tags:
 - [[Fake_1]] - `references` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/AtomicUsize
+#graphify/code #graphify/EXTRACTED #community/Community_6

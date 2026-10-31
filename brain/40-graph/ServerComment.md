@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3"
+community: "Circuit Collection"
 location: "L405"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3
+  - community/Circuit_Collection
 ---
 
 # ServerComment
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpSource]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

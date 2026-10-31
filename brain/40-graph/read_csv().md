@@ -12,7 +12,7 @@ tags:
 # read_csv()
 
 ## Connections
-- [[CsvRow_3]] - `references` [EXTRACTED]
+- [[CsvRow]] - `references` [EXTRACTED]
 - [[diff.rs]] - `imports_from` [EXTRACTED]
 - [[diff_pair()]] - `calls` [INFERRED]
 - [[files.rs]] - `imports_from` [EXTRACTED]

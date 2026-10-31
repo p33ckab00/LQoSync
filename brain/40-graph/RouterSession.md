@@ -1,18 +1,18 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Router Reads"
+community: "Community 6"
 location: "L40"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/Community_6
 ---
 
 # RouterSession
 
 ## Connections
-- [[dot-print()_2]] - `method` [EXTRACTED]
+- [[dot-print()_3]] - `method` [EXTRACTED]
 - [[FakeSession_1]] - `implements` [EXTRACTED]
 - [[FakeSession]] - `implements` [EXTRACTED]
 - [[MikrotikSession]] - `implements` [EXTRACTED]
@@ -20,4 +20,4 @@ tags:
 - [[routeros.rs]] - `contains` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/Community_6

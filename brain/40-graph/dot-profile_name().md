@@ -2,7 +2,7 @@
 source_file: "src/speed.rs"
 type: "code"
 community: "Secrets"
-location: "L150"
+location: "L161"
 tags:
   - graphify/code
   - graphify/EXTRACTED

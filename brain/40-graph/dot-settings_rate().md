@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 3"
+community: "Community 26"
 location: "L438"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_3
+  - community/Community_26
 ---
 
 # .settings_rate()
@@ -14,6 +14,6 @@ tags:
 ## Connections
 - [[BandwidthDefaults]] - `references` [EXTRACTED]
 - [[DhcpServer]] - `method` [EXTRACTED]
-- [[Rate_2]] - `references` [EXTRACTED]
+- [[Rate]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_3
+#graphify/code #graphify/EXTRACTED #community/Community_26

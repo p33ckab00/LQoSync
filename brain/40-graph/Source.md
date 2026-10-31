@@ -12,6 +12,7 @@ tags:
 # Source
 
 ## Connections
+- [[Collected]] - `references` [EXTRACTED]
 - [[Dhcp]] - `case_of` [EXTRACTED]
 - [[Entry]] - `references` [EXTRACTED]
 - [[Hotspot]] - `case_of` [EXTRACTED]
@@ -20,5 +21,7 @@ tags:
 - [[Unknown]] - `case_of` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
+- [[sources.rs]] - `imports_from` [EXTRACTED]
+- [[state.rs]] - `imports_from` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

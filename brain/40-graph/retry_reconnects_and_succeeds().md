@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "AtomicUsize"
-location: "L248"
+community: "Community 6"
+location: "L264"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/AtomicUsize
+  - community/Community_6
 ---
 
 # retry_reconnects_and_succeeds()
@@ -16,4 +16,4 @@ tags:
 - [[ppp_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/AtomicUsize
+#graphify/code #graphify/EXTRACTED #community/Community_6

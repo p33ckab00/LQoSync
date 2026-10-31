@@ -13,11 +13,12 @@ tags:
 
 ## Connections
 - [[CircuitNames]] - `imports_from` [EXTRACTED]
-- [[CsvRow_3]] - `imports_from` [EXTRACTED]
+- [[CsvRow]] - `imports_from` [EXTRACTED]
 - [[HDR_1]] - `contains` [EXTRACTED]
-- [[Source_1]] - `imports_from` [EXTRACTED]
-- [[State_1]] - `imports_from` [EXTRACTED]
-- [[StoredNode_1]] - `imports_from` [EXTRACTED]
+- [[Source]] - `imports_from` [EXTRACTED]
+- [[State]] - `imports_from` [EXTRACTED]
+- [[StoredCircuit]] - `imports_from` [EXTRACTED]
+- [[StoredNode]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[context]] - `imports_from` [EXTRACTED]
 - [[ensure]] - `imports_from` [EXTRACTED]
@@ -32,7 +33,6 @@ tags:
 - [[split_static()]] - `contains` [EXTRACTED]
 - [[split_static_ignores_case()]] - `contains` [EXTRACTED]
 - [[state_json_round_trip_and_version_check()]] - `contains` [EXTRACTED]
-- [[storedcircuit_1]] - `imports_from` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/CircuitNames

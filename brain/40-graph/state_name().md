@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Runner Cycle"
-location: "L61"
+location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[dot-cycle_inner()]] - `calls` [EXTRACTED]
-- [[RouterResult_1]] - `references` [EXTRACTED]
+- [[RouterResult]] - `references` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Runner_Cycle

@@ -13,7 +13,9 @@ tags:
 
 ## Connections
 - [[Rate]] - `references` [EXTRACTED]
+- [[collect_ppp()]] - `calls` [INFERRED]
 - [[parse_pair()]] - `calls` [EXTRACTED]
+- [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 - [[usable()]] - `calls` [EXTRACTED]
 

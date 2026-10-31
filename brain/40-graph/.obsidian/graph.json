@@ -29,24 +29,10 @@
       }
     },
     {
-      "query": "tag:#community/CLI_and_Checks",
-      "color": {
-        "a": 1,
-        "rgb": 5873999
-      }
-    },
-    {
       "query": "tag:#community/Secrets",
       "color": {
         "a": 1,
         "rgb": 15583560
-      }
-    },
-    {
-      "query": "tag:#community/Mock_Router_Tests",
-      "color": {
-        "a": 1,
-        "rgb": 11565729
       }
     },
     {
@@ -99,13 +85,6 @@
       }
     },
     {
-      "query": "tag:#community/Router_Reads",
-      "color": {
-        "a": 1,
-        "rgb": 5873999
-      }
-    },
-    {
       "query": "tag:#community/Topology_4",
       "color": {
         "a": 1,
@@ -127,13 +106,6 @@
       }
     },
     {
-      "query": "tag:#community/MikroTik_Session_2",
-      "color": {
-        "a": 1,
-        "rgb": 10253663
-      }
-    },
-    {
       "query": "tag:#community/Speed_Rules_2",
       "color": {
         "a": 1,
@@ -141,24 +113,10 @@
       }
     },
     {
-      "query": "tag:#community/Scenario_Tests",
-      "color": {
-        "a": 1,
-        "rgb": 5142951
-      }
-    },
-    {
       "query": "tag:#community/CircuitNames",
       "color": {
         "a": 1,
         "rgb": 15896107
-      }
-    },
-    {
-      "query": "tag:#community/AtomicUsize",
-      "color": {
-        "a": 1,
-        "rgb": 14767961
       }
     },
     {
@@ -180,13 +138,6 @@
       "color": {
         "a": 1,
         "rgb": 15583560
-      }
-    },
-    {
-      "query": "tag:#community/LibreQoS_v3",
-      "color": {
-        "a": 1,
-        "rgb": 11565729
       }
     },
     {
@@ -229,13 +180,6 @@
       "color": {
         "a": 1,
         "rgb": 14767961
-      }
-    },
-    {
-      "query": "tag:#community/CLI_and_Checks_3",
-      "color": {
-        "a": 1,
-        "rgb": 7780274
       }
     },
     {
@@ -285,13 +229,6 @@
       "color": {
         "a": 1,
         "rgb": 5142951
-      }
-    },
-    {
-      "query": "tag:#community/OfflineAction",
-      "color": {
-        "a": 1,
-        "rgb": 15896107
       }
     },
     {

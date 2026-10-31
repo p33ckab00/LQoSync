@@ -1,11 +1,11 @@
 ---
 source_file: "brain/Home.md"
 type: "document"
-community: "Topology 3"
+community: "CLI and Checks 2"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Topology_3
+  - community/CLI_and_Checks_2
 ---
 
 # Home (vault map of content)
@@ -35,4 +35,4 @@ tags:
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Topology_3
+#graphify/document #graphify/EXTRACTED #community/CLI_and_Checks_2

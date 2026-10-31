@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "AtomicUsize"
-location: "L280"
+community: "Community 6"
+location: "L296"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/AtomicUsize
+  - community/Community_6
 ---
 
 # stalled_call_times_out()
@@ -15,4 +15,4 @@ tags:
 - [[ppp_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/AtomicUsize
+#graphify/code #graphify/EXTRACTED #community/Community_6

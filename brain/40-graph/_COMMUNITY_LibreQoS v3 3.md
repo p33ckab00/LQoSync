@@ -25,7 +25,7 @@ SORT file.name ASC
 ## Connections to other communities
 - 2 edges to [[_COMMUNITY_Config]]
 - 1 edge to [[_COMMUNITY_Circuit Collection]]
-- 1 edge to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_Community 4]]
 - 1 edge to [[_COMMUNITY_Runner Cycle]]
 
 ## Top bridge nodes

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "CLI and Checks"
+community: "Community 4"
 location: "L87"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_4
 ---
 
 # reload()
@@ -17,4 +17,4 @@ tags:
 - [[load_config()]] - `calls` [EXTRACTED]
 - [[reload_keeps_old_config_on_error()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_4

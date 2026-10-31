@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Mock Router Tests"
+community: "Community 6"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/Community_6
 ---
 
 # instant
@@ -14,4 +14,4 @@ tags:
 - [[mock_router.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/concept #graphify/EXTRACTED #community/Community_6

@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 3"
+community: "Community 26"
 location: "L221"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_3
+  - community/Community_26
 ---
 
 # BandwidthDefaults
@@ -19,4 +19,4 @@ tags:
 - [[Config]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_3
+#graphify/code #graphify/EXTRACTED #community/Community_26

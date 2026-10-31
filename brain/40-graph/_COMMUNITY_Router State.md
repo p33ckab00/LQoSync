@@ -1,17 +1,23 @@
 ---
 type: community
-members: 15
+members: 23
 ---
 
 # Router State
 
-**Members:** 15 nodes
+**Members:** 23 nodes
 
 ## Members
+- [[Failed]] - code - src/cycle.rs
+- [[Keep]] - code - src/config.rs
+- [[Offline]] - code - src/cycle.rs
+- [[OfflineAction]] - code - src/config.rs
+- [[Online]] - code - src/cycle.rs
+- [[Remove]] - code - src/config.rs
 - [[RouterAccess]] - code - src/config.rs
-- [[RouterMemo_1]] - code
-- [[RouterResult_3]] - code
-- [[RouterSnapshot_3]] - code
+- [[RouterMemo]] - code - src/model.rs
+- [[RouterResult]] - code - src/cycle.rs
+- [[Unreachable]] - code - src/cycle.rs
 - [[acc()]] - code - src/routerstate.rs
 - [[classify()]] - code - src/routerstate.rs
 - [[first_unreachable_sets_since()]] - code - src/routerstate.rs
@@ -21,6 +27,8 @@ members: 15
 - [[offline_after_zero_is_offline_at_once()]] - code - src/routerstate.rs
 - [[offline_at_offline_after()]] - code - src/routerstate.rs
 - [[ok_is_online_and_clears_memo()]] - code - src/routerstate.rs
+- [[ppp()]] - code - src/cycle.rs
+- [[ppp_owned()]] - code - src/cycle.rs
 - [[routerstate.rs]] - code - src/routerstate.rs
 - [[unreachable_before_offline_after()]] - code - src/routerstate.rs
 
@@ -32,17 +40,18 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 6 edges to [[_COMMUNITY_Runner Cycle]]
-- 4 edges to [[_COMMUNITY_Router Reads]]
-- 3 edges to [[_COMMUNITY_MikroTik Session 2]]
-- 2 edges to [[_COMMUNITY_AtomicUsize]]
-- 2 edges to [[_COMMUNITY_Mock Router Tests]]
-- 1 edge to [[_COMMUNITY_Circuit Collection]]
-- 1 edge to [[_COMMUNITY_OfflineAction]]
-- 1 edge to [[_COMMUNITY_Config]]
+- 10 edges to [[_COMMUNITY_Community 6]]
+- 8 edges to [[_COMMUNITY_Runner Cycle]]
+- 7 edges to [[_COMMUNITY_Cycle Assembly]]
+- 4 edges to [[_COMMUNITY_Circuit Collection]]
+- 2 edges to [[_COMMUNITY_Config]]
+- 2 edges to [[_COMMUNITY_Community 20]]
+- 2 edges to [[_COMMUNITY_Community 48]]
+- 1 edge to [[_COMMUNITY_Community 18]]
 
 ## Top bridge nodes
-- [[RouterAccess]] - degree 17, connects to 8 communities
-- [[routerstate.rs]] - degree 16, connects to 2 communities
-- [[classify()]] - degree 14, connects to 2 communities
-- [[RouterMemo_1]] - degree 4, connects to 1 community
+- [[RouterAccess]] - degree 17, connects to 5 communities
+- [[RouterResult]] - degree 18, connects to 4 communities
+- [[routerstate.rs]] - degree 16, connects to 3 communities
+- [[classify()]] - degree 14, connects to 3 communities
+- [[RouterMemo]] - degree 6, connects to 2 communities

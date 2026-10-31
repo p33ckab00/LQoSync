@@ -1,12 +1,12 @@
 ---
 source_file: "src/mikrotik.rs"
 type: "code"
-community: "MikroTik Session 2"
+community: "Community 18"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_2
+  - community/Community_18
 ---
 
 # mikrotik.rs
@@ -19,7 +19,7 @@ tags:
 - [[MikrotikDevice]] - `imports_from` [EXTRACTED]
 - [[MikrotikSession]] - `contains` [EXTRACTED]
 - [[ReadError]] - `imports_from` [EXTRACTED]
-- [[RosRow_3]] - `imports_from` [EXTRACTED]
+- [[RosRow]] - `imports_from` [EXTRACTED]
 - [[RouterAccess]] - `imports_from` [EXTRACTED]
 - [[RouterCfg]] - `imports_from` [EXTRACTED]
 - [[RouterSession]] - `imports_from` [EXTRACTED]
@@ -32,4 +32,4 @@ tags:
 - [[read_secret()]] - `imports_from` [EXTRACTED]
 - [[tls_client_config()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_2
+#graphify/code #graphify/EXTRACTED #community/Community_18

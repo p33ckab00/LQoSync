@@ -13,8 +13,8 @@ tags:
 
 ## Connections
 - [[GroupKey]] - `references` [EXTRACTED]
-- [[Rate_1]] - `references` [EXTRACTED]
-- [[Source_1]] - `references` [EXTRACTED]
+- [[Rate]] - `references` [EXTRACTED]
+- [[Source]] - `references` [EXTRACTED]
 - [[by_name()]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `references` [EXTRACTED]
 - [[collect_hotspot()]] - `references` [EXTRACTED]

@@ -2,7 +2,7 @@
 source_file: "src/sources.rs"
 type: "code"
 community: "Circuit Collection"
-location: "L265"
+location: "L293"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -20,9 +20,10 @@ tags:
 - [[DhcpSite]] - `references` [EXTRACTED]
 - [[Excluder]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_4]] - `references` [EXTRACTED]
-- [[SpeedParser_1]] - `references` [EXTRACTED]
+- [[RouterSnapshot]] - `references` [EXTRACTED]
+- [[SpeedParser]] - `references` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]
+- [[comment_rate()]] - `calls` [EXTRACTED]
 - [[f()]] - `calls` [EXTRACTED]
 - [[flag_on()]] - `calls` [EXTRACTED]
 - [[mac_key()]] - `calls` [EXTRACTED]

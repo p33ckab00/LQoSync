@@ -12,7 +12,7 @@ tags:
 # status.rs
 
 ## Connections
-- [[Report_1]] - `imports_from` [EXTRACTED]
+- [[Report]] - `imports_from` [EXTRACTED]
 - [[ReportSummary]] - `contains` [EXTRACTED]
 - [[RouterStatus]] - `contains` [EXTRACTED]
 - [[Status]] - `contains` [EXTRACTED]

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Cycle Assembly"
+community: "LibreQoS v3 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/LibreQoS_v3_2
 ---
 
 # serialize
@@ -15,4 +15,4 @@ tags:
 - [[pair.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/concept #graphify/EXTRACTED #community/LibreQoS_v3_2

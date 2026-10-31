@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3"
+community: "Community 26"
 location: "L398"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3
+  - community/Community_26
 ---
 
 # PerSite
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3
+#graphify/code #graphify/EXTRACTED #community/Community_26

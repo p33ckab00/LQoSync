@@ -30,9 +30,9 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 7 edges to [[_COMMUNITY_Topology 3]]
-- 5 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 9 edges to [[_COMMUNITY_CLI and Checks 2]]
 - 4 edges to [[_COMMUNITY_Topology 2]]
+- 3 edges to [[_COMMUNITY_Topology 3]]
 - 3 edges to [[_COMMUNITY_Speed Rules 2]]
 - 1 edge to [[_COMMUNITY_Config 2]]
 - 1 edge to [[_COMMUNITY_Status and Diff 3]]

@@ -136,6 +136,22 @@ pub fn collect_router(
     out
 }
 
+/// A comment rate. A comment with a zero speed gives a report line; then the next source applies.
+fn comment_rate(
+    speed: &SpeedParser,
+    text: &str,
+    at: &str,
+    report: &mut Vec<String>,
+) -> Option<Rate> {
+    let r = speed.comment(text);
+    if r.is_none() && speed.zero_rate(text) {
+        report.push(format!(
+            "{at}: comment \"{text}\" has a zero speed; the next speed source is used"
+        ));
+    }
+    r
+}
+
 fn collect_ppp(
     cfg: &Config,
     router: &RouterCfg,
@@ -157,6 +173,13 @@ fn collect_ppp(
     }
     let default_rate = parse_default_rate(&bd.pppoe_default_rate)
         .expect("config validation parses pppoe_default_rate");
+    // One line for each profile, not for each user of the profile.
+    if cfg.speed.pppoe_sources.contains(&PppSource::ProfileComment) {
+        for (name, p) in &profiles {
+            let at = format!("router {}: PPP profile {name}", router.name);
+            comment_rate(speed, f(p, "comment"), &at, report);
+        }
+    }
     let mut no_secret = 0usize;
     for (&user, &act) in &active {
         if user.is_empty() {
@@ -177,13 +200,18 @@ fn collect_ppp(
             continue;
         }
         let prof = profiles.get(profile).copied();
+        let at = format!("router {}: PPP user {user}", router.name);
         let base = cfg
             .speed
             .pppoe_sources
             .iter()
             .find_map(|src| match src {
-                PppSource::SecretComment => speed.comment(f(sec, "comment")),
-                PppSource::ActiveComment => speed.comment(f(act, "comment")),
+                PppSource::SecretComment => {
+                    comment_rate(speed, f(sec, "comment"), &format!("{at} secret"), report)
+                }
+                PppSource::ActiveComment => {
+                    comment_rate(speed, f(act, "comment"), &format!("{at} active"), report)
+                }
                 PppSource::ProfileComment => prof.and_then(|p| speed.comment(f(p, "comment"))),
                 PppSource::ProfileRateLimit => {
                     prof.and_then(|p| speed.rate_limit(f(p, "rate-limit")))
@@ -302,6 +330,11 @@ fn collect_dhcp(
             .iter()
             .find(|r| f(r, "name") == server.name)
             .map_or("", |r| f(r, "comment"));
+        // One line for each server, not for each lease.
+        if sources.contains(&DhcpSource::ServerComment) {
+            let at = format!("router {}: DHCP server {}", router.name, server.name);
+            comment_rate(speed, server_comment, &at, report);
+        }
         // The server-level rate: the first server-level source that gives a rate.
         let server_rate = |from: &DhcpSource| match from {
             DhcpSource::ServerComment => speed.comment(server_comment),
@@ -322,7 +355,12 @@ fn collect_dhcp(
             }
             let lease_comment = f(lease, "comment");
             let Some(base) = sources.iter().find_map(|src| match src {
-                DhcpSource::LeaseComment => speed.comment(lease_comment),
+                DhcpSource::LeaseComment => comment_rate(
+                    speed,
+                    lease_comment,
+                    &format!("router {}: DHCP lease {ip}", router.name),
+                    report,
+                ),
                 other => server_rate(other),
             }) else {
                 report.push(format!(
@@ -472,6 +510,41 @@ mode = "per_plan"
         // PPPoE output is in name order.
         let names: Vec<_> = out.iter().map(|x| x.name.as_str()).collect();
         assert_eq!(names, ["u1", "u2", "u3", "u4", "u5", "u6"]);
+    }
+
+    #[test]
+    fn zero_speed_comments_give_a_report_line() {
+        let s = snap(
+            r#"{"ppp_secret":[{"name":"z","profile":"P","comment":"|10M/0M"}],"ppp_active":[{"name":"z"}],
+                "ppp_profile":[{"name":"P","comment":"20M/4M"}],
+                "dhcp_server":[{"name":"LAN","comment":"0M/5M"}],
+                "dhcp_lease":[{"server":"LAN","address":"10.0.0.5","mac-address":"AA:BB:CC:00:00:05"},
+                              {"server":"LAN","address":"10.0.0.6","mac-address":"AA:BB:CC:00:00:06"},
+                              {"server":"PLANS","address":"10.1.0.5","mac-address":"AA:BB:CC:00:01:05","comment":"Bob|0M/0M"}]}"#,
+        );
+        let (out, rep) = run(&cfg(false), &s);
+        assert_eq!(by_name(&out, "z").base, rate(20.0, 4.0));
+        let zero: Vec<_> = rep.iter().filter(|l| l.contains("zero speed")).collect();
+        assert_eq!(
+            zero.len(),
+            3,
+            "one line for each comment, not for each lease: {rep:?}"
+        );
+        assert!(zero.iter().any(|l| l.contains("PPP user z")), "{zero:?}");
+        assert!(zero.iter().any(|l| l.contains("server LAN")), "{zero:?}");
+        assert!(zero.iter().any(|l| l.contains("10.1.0.5")), "{zero:?}");
+    }
+
+    #[test]
+    fn a_zero_speed_profile_comment_gives_one_line() {
+        let s = snap(
+            r#"{"ppp_secret":[{"name":"a","profile":"Z"},{"name":"b","profile":"Z"}],"ppp_active":[{"name":"a"},{"name":"b"}],
+                "ppp_profile":[{"name":"Z","comment":"0M/0M"}]}"#,
+        );
+        let (_, rep) = run(&cfg(false), &s);
+        let zero: Vec<_> = rep.iter().filter(|l| l.contains("zero speed")).collect();
+        assert_eq!(zero.len(), 1, "{rep:?}");
+        assert!(zero[0].contains("profile Z"), "{zero:?}");
     }
 
     #[test]

@@ -14,9 +14,9 @@ tags:
 ## Connections
 - [[ReadError]] - `imports_from` [EXTRACTED]
 - [[RouterAccess]] - `imports_from` [EXTRACTED]
-- [[RouterMemo_1]] - `imports_from` [EXTRACTED]
-- [[RouterResult_3]] - `imports_from` [EXTRACTED]
-- [[RouterSnapshot_3]] - `imports_from` [EXTRACTED]
+- [[RouterMemo]] - `imports_from` [EXTRACTED]
+- [[RouterResult]] - `imports_from` [EXTRACTED]
+- [[RouterSnapshot]] - `imports_from` [EXTRACTED]
 - [[acc()]] - `contains` [EXTRACTED]
 - [[classify()]] - `contains` [EXTRACTED]
 - [[first_unreachable_sets_since()]] - `contains` [EXTRACTED]
