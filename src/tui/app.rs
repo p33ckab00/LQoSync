@@ -2,6 +2,7 @@
 
 use super::data::Data;
 use super::devices::DevicesView;
+use super::network::NetworkView;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -79,8 +80,7 @@ pub struct App {
     pub tab_rects: Vec<Rect>,
     pub data: Data,
     pub devices: DevicesView,
-    /// A node for the Network tab to expand and select.
-    pub reveal: Option<String>,
+    pub network: NetworkView,
     /// Unix seconds of the last data.
     pub now: u64,
     config_error: Option<String>,
@@ -100,7 +100,7 @@ impl App {
                 ..Data::default()
             },
             devices: DevicesView::default(),
-            reveal: None,
+            network: NetworkView::default(),
             now: 0,
             config_error,
             settings_offset: 0,
@@ -112,6 +112,7 @@ impl App {
         self.data = data;
         self.now = now;
         self.devices.on_data(&self.data);
+        self.network.on_data(&self.data);
     }
 
     /// A text field of `status.json`, or `unknown`.
@@ -143,7 +144,9 @@ impl App {
             return Action::Quit;
         }
         // A search box has all keys.
-        if self.tab == Tab::Devices && self.devices.editing {
+        if (self.tab == Tab::Devices && self.devices.editing)
+            || (self.tab == Tab::Network && self.network.editing)
+        {
             return self.tab_key(k);
         }
         match k.code {
@@ -172,8 +175,11 @@ impl App {
         if self.tab == Tab::Devices
             && let Some(node) = self.devices.on_key(k, &self.data)
         {
-            self.reveal = Some(node);
+            self.network.reveal(&self.data, &node);
             self.tab = Tab::Network;
+        }
+        if self.tab == Tab::Network {
+            self.network.on_key(k, &self.data);
         }
         if self.tab == Tab::Settings {
             match k.code {
@@ -221,6 +227,7 @@ impl App {
         self.draw_tabs(f, tabs);
         match self.tab {
             Tab::Devices => self.devices.draw(f, main, &self.data),
+            Tab::Network => self.network.draw(f, main, &self.data),
             Tab::Settings => self.draw_settings(f, main),
             _ => f.render_widget(
                 Paragraph::new("loading").block(Block::default().borders(Borders::ALL)),
@@ -231,6 +238,10 @@ impl App {
             Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",
             Tab::Devices => {
                 "/ search  o sort  i reverse  Enter parent node  q quit  1-5 tabs  S sync  R reload"
+            }
+            Tab::Network if self.network.editing => "type to search  Enter done  Esc clear",
+            Tab::Network => {
+                "Space open/close  e expand all  c collapse all  / search  q quit  1-5 tabs"
             }
             Tab::Settings => "Up/Down scroll  q quit  1-5 tabs  S sync  R reload",
             _ => "q quit  1-5/Tab tabs  S sync now  R reload",
@@ -480,11 +491,15 @@ mod tests {
             rows: Arc::new(vec![row]),
             row_search: Arc::new(vec!["alice".into()]),
             flags: Arc::new(vec![0]),
+            tree: Arc::new(serde_json::json!({"Site": {"children": {"AP": {}}}})),
             ..Data::default()
         };
         a.set_data(d, 0);
         a.on_key(key(KeyCode::Enter));
-        assert_eq!((a.tab, a.reveal.as_deref()), (Tab::Network, Some("AP")));
+        assert_eq!(
+            (a.tab, a.network.selected_name()),
+            (Tab::Network, Some("AP"))
+        );
     }
 
     #[test]
