@@ -155,6 +155,8 @@ ips = []                        # IPv4 addresses or CIDR blocks, for PPP, Hotspo
 [router_defaults]
 port = 8729                     # 8729 = API over TLS, 8728 = plain API
 tls = true
+tls_verify = true               # check the router certificate; false = accept any (warning)
+tls_ca_file = ""                # PEM file with your router CA; empty = public CAs
 
 [router_defaults.pppoe]
 enabled = false

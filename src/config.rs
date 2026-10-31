@@ -286,6 +286,10 @@ pub struct RouterCfg {
     pub address: String,
     pub port: u16,
     pub tls: bool,
+    /// Check the router certificate. `false` accepts any certificate (a warning at each connect).
+    pub tls_verify: bool,
+    /// PEM file with the CA of the router certificate. Empty uses the public CAs.
+    pub tls_ca_file: String,
     pub username: String,
     pub password_file: String,
     pub pppoe: PppoeCfg,
@@ -449,7 +453,7 @@ impl DhcpServer {
 }
 
 /// The embedded default settings. `config/defaults.toml` is the only source of default values.
-const DEFAULTS_TOML: &str = include_str!("../config/defaults.toml");
+pub const DEFAULTS_TOML: &str = include_str!("../config/defaults.toml");
 
 fn defaults_table() -> toml::Table {
     toml::from_str(DEFAULTS_TOML).expect("config/defaults.toml is valid TOML")
@@ -1262,5 +1266,19 @@ mod tests {
             (8728, false, false, false)
         );
         assert_eq!(tower.dhcp.servers[0].mode, DhcpMode::PerPlan);
+    }
+
+    #[test]
+    fn tls_keys_have_defaults_and_can_change() {
+        let c = Config::from_toml_str(&format!(
+            "{MIN}tls_verify=false\ntls_ca_file=\"/etc/ca.pem\"\n"
+        ))
+        .unwrap();
+        assert_eq!(
+            (c.routers[0].tls_verify, c.routers[0].tls_ca_file.as_str()),
+            (false, "/etc/ca.pem")
+        );
+        let c = Config::from_toml_str(MIN).unwrap();
+        assert!(c.routers[0].tls_verify && c.routers[0].tls_ca_file.is_empty());
     }
 }
