@@ -18,5 +18,6 @@ pub mod speed;
 pub mod state;
 pub mod status;
 pub mod topology;
+pub mod tui;
 pub mod validate;
 pub mod writer;

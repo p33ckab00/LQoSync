@@ -8,8 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str =
-    "usage: lqosync3 <check | detect | once [--force] | run | diff | defaults> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults> [--config <path>]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
@@ -19,6 +18,7 @@ pub enum Command {
     Diff,
     Defaults,
     Detect,
+    Tui,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +35,9 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let mut it = args.iter().skip(1);
     while let Some(a) = it.next() {
         match a.as_str() {
-            "check" | "detect" | "once" | "run" | "diff" | "defaults" if command.is_none() => {
+            "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults"
+                if command.is_none() =>
+            {
                 command = Some(a.clone())
             }
             "--force" => force = true,
@@ -53,6 +55,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
         Some("diff") => Command::Diff,
         Some("defaults") => Command::Defaults,
         Some("detect") => Command::Detect,
+        Some("tui") => Command::Tui,
         _ => bail!("no command\n{USAGE}"),
     };
     Ok(Args { command, config })
@@ -327,6 +330,15 @@ mod tests {
             texts(&check(&c, e.uid), Level::Error)
                 .join("\n")
                 .contains("/nonexistent/status")
+        );
+    }
+
+    #[test]
+    fn tui_command_parses() {
+        let a = parse(&s(&["lqosync3", "tui", "--config", "/x.toml"])).unwrap();
+        assert_eq!(
+            (a.command, a.config),
+            (Command::Tui, PathBuf::from("/x.toml"))
         );
     }
 

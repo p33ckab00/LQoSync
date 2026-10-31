@@ -21,6 +21,7 @@ pub struct Config {
     pub bandwidth_defaults: BandwidthDefaults,
     pub backstop_caps: BackstopCaps,
     pub telegram: Telegram,
+    pub tui: Tui,
     pub exclude: Exclude,
     pub routers: Vec<RouterCfg>,
 }
@@ -282,6 +283,18 @@ pub struct Telegram {
     pub include_removed: bool,
     pub include_telemetry: bool,
     pub max_list_items: usize,
+}
+
+/// `lqosync3 tui`. The service does not use these keys.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Tui {
+    pub refresh_ms: u64,
+    pub journal_lines: usize,
+    pub max_file_mb: u64,
+    pub osc52: bool,
+    pub service_unit: String,
+    pub lqosd_units: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -901,6 +914,23 @@ impl Config {
             (100..=4096).contains(&tg.max_message_chars),
             "config: telegram.max_message_chars must be 100 to 4096 (Telegram limit)"
         );
+        let tui = &self.tui;
+        ensure!(
+            (100..=60_000).contains(&tui.refresh_ms),
+            "config: tui.refresh_ms must be 100 to 60000"
+        );
+        ensure!(
+            (1..=100_000).contains(&tui.journal_lines),
+            "config: tui.journal_lines must be 1 to 100000"
+        );
+        ensure!(
+            (1..=4096).contains(&tui.max_file_mb),
+            "config: tui.max_file_mb must be 1 to 4096"
+        );
+        ensure!(
+            !tui.service_unit.trim().is_empty(),
+            "config: tui.service_unit must not be empty"
+        );
 
         let sf = &self.safety;
         ensure!(
@@ -1359,6 +1389,34 @@ mod tests {
                 format!("{e:#}").contains("must not be empty"),
                 "{extra}: {e:#}"
             );
+        }
+    }
+
+    #[test]
+    fn tui_values_are_checked() {
+        let c = Config::from_toml_str(MIN).unwrap();
+        assert_eq!(
+            (
+                c.tui.refresh_ms,
+                c.tui.journal_lines,
+                c.tui.max_file_mb,
+                c.tui.osc52
+            ),
+            (1000, 2000, 50, true)
+        );
+        assert_eq!(c.tui.service_unit, "lqosync3.service");
+        assert_eq!(
+            c.tui.lqosd_units,
+            ["lqosd.service", "libreqos-lqosd.service"]
+        );
+        for (bad, key) in [
+            ("refresh_ms=50", "tui.refresh_ms"),
+            ("journal_lines=0", "tui.journal_lines"),
+            ("max_file_mb=0", "tui.max_file_mb"),
+            ("service_unit=\" \"", "tui.service_unit"),
+        ] {
+            let e = Config::from_toml_str(&format!("[tui]\n{bad}\n{MIN}")).unwrap_err();
+            assert!(format!("{e:#}").contains(key), "{bad}: {e:#}");
         }
     }
 

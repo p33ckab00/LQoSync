@@ -149,6 +149,14 @@ include_removed = true
 include_telemetry = true
 max_list_items = 15
 
+[tui]                           # lqosync3 tui only; the service does not read these keys
+refresh_ms = 1000               # milliseconds between two reads of the status, the files, and the process
+journal_lines = 2000            # lines that the Journal tab keeps
+max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded
+osc52 = true                    # y copies with OSC 52; false: select with the terminal (s)
+service_unit = "lqosync3.service"
+lqosd_units = ["lqosd.service", "libreqos-lqosd.service"]   # the first unit that exists gives the lqosd state
+
 [exclude]                       # subscribers that the tool does not shape, for all routers
 dhcp_servers = []               # DHCP server names; "*" is a wildcard, case is ignored
 ppp_profiles = []               # PPP profile names; "*" is a wildcard, case is ignored

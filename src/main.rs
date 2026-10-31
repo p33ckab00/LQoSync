@@ -150,6 +150,11 @@ async fn main() {
         print!("{}", lqosync3::config::DEFAULTS_TOML);
         return;
     }
+    // The TUI starts also with a bad config file: it shows the error.
+    if parsed.command == Command::Tui {
+        lqosync3::tui::run(&parsed.config).unwrap_or_else(|e| exit_with(e));
+        return;
+    }
     let (cfg, digest) = cli::read_config(&parsed.config).unwrap_or_else(|e| exit_with(e));
     match parsed.command {
         Command::Check => {
@@ -194,6 +199,6 @@ async fn main() {
         Command::Run => run(&parsed.config, cfg, digest)
             .await
             .unwrap_or_else(|e| exit_with(e)),
-        Command::Defaults => unreachable!("handled above"),
+        Command::Defaults | Command::Tui => unreachable!("handled above"),
     }
 }
