@@ -122,8 +122,12 @@ async fn sessions(root: &Path, settings: &Settings) -> Result<Vec<Row>> {
     }
     Ok(out)
 }
-async fn paths(client: &routeros::Client, ip: &str) -> Result<BTreeMap<String, usize>> {
-    Ok(wan_paths(&client.read(CONNECTIONS).await?, ip))
+/// A failed connection sample is recorded, not fatal. A stop here would leave the subscriber on wan2.
+async fn sample(client: &routeros::Client, ip: &str) -> serde_json::Value {
+    match client.read(CONNECTIONS).await {
+        Ok(rows) => json!(wan_paths(&rows, ip)),
+        Err(e) => json!({"sample_error": format!("{e:#}")}),
+    }
 }
 
 enum Step {
@@ -225,8 +229,8 @@ async fn main() -> Result<()> {
     }
     let mut report = vec![];
     if args.live {
-        let p = paths(&client, &args.address).await?;
-        println!("Before: connections by public address: {p:?}");
+        let p = sample(&client, &args.address).await;
+        println!("Before: connections by public address: {p}");
         report.push(json!({"step": "before", "paths": p}));
     }
     if !args.execute {
@@ -244,7 +248,9 @@ async fn main() -> Result<()> {
     let result: Result<()> = async {
         let mut current = baseline.clone();
         for (n, step) in steps.iter().enumerate() {
-            if let (Some(start), false) = (&session, matches!(step, Step::Hold)) {
+            if let Some(start) = &session
+                && needs_session(step, &list2)
+            {
                 same_session(start, &sessions(&root, &settings).await?, &args.address)?;
             }
             match step {
@@ -301,11 +307,11 @@ async fn main() -> Result<()> {
                     current = moved;
                 }
                 Step::Hold => {
-                    for sample in 1..=HOLD_SAMPLES {
+                    for n in 1..=HOLD_SAMPLES {
                         tokio::time::sleep(Duration::from_secs(SAMPLE_SECONDS)).await;
-                        let p = paths(&client, &args.address).await?;
-                        println!("Hold sample {sample}: connections by public address: {p:?}");
-                        report.push(json!({"step": "hold", "sample": sample, "paths": p}));
+                        let p = sample(&client, &args.address).await;
+                        println!("Hold sample {n}: connections by public address: {p}");
+                        report.push(json!({"step": "hold", "sample": n, "paths": p}));
                     }
                 }
                 Step::Remove => {
@@ -322,18 +328,19 @@ async fn main() -> Result<()> {
                         )
                         .await?;
                     let removed = list(&client).await?;
-                    report.push(
-                        json!({"step": "remove", "id": id, "present": find(&removed, &id).is_ok()}),
-                    );
+                    let present = find(&removed, &id).is_ok();
+                    report.push(json!({"step": "remove", "id": id, "present": present}));
+                    if !present {
+                        (test_id, sent) = (None, false);
+                    }
                     check_same(&baseline, &removed)?;
-                    (test_id, sent) = (None, false);
                     println!("Remove passed: address-list equals the baseline");
                     current = removed;
                 }
             }
             if args.live && !matches!(step, Step::Hold) {
-                let p = paths(&client, &args.address).await?;
-                println!("After step {}: connections by public address: {p:?}", n + 1);
+                let p = sample(&client, &args.address).await;
+                println!("After step {}: connections by public address: {p}", n + 1);
                 report.push(json!({"after_step": n + 1, "paths": p}));
             }
         }
@@ -365,6 +372,9 @@ async fn main() -> Result<()> {
                 args.address
             );
             eprintln!("Remove only that row.");
+        }
+        if args.live && (test_id.is_some() || sent) {
+            eprintln!("The subscriber may use wan2 until this row is removed.");
         }
     }
     let phase = if args.live { "phase2" } else { "phase1" };
@@ -485,6 +495,15 @@ fn strip_counters(rows: &[Row]) -> Vec<Row> {
         })
         .collect()
 }
+/// Only steps that route the subscriber onto a new path need the same session.
+/// Reverting or removing our own row is always safe.
+fn needs_session(step: &Step, list2: &str) -> bool {
+    match step {
+        Step::Add(..) => true,
+        Step::Move(list, _) => list == list2,
+        Step::Hold | Step::Remove => false,
+    }
+}
 fn session_for<'a>(rows: &'a [Row], ip: &str) -> Result<&'a Row> {
     let hits = rows
         .iter()
@@ -603,6 +622,16 @@ mod tests {
             "test identity on a live address"
         );
         assert!(a(&["--bogus"]).is_err());
+    }
+    #[test]
+    fn session_check_only_guards_steps_that_route_the_subscriber_away() {
+        let (l1, l2) = ("WAN1-CUSTOMERS".to_string(), "WAN2-CUSTOMERS".to_string());
+        assert!(needs_session(&Step::Add(l1.clone(), W1.into()), &l2));
+        assert!(needs_session(&Step::Move(l2.clone(), W2.into()), &l2));
+        // Reverting our own row is always safe, so a session change must not block it.
+        assert!(!needs_session(&Step::Move(l1, W1.into()), &l2));
+        assert!(!needs_session(&Step::Remove, &l2));
+        assert!(!needs_session(&Step::Hold, &l2));
     }
     #[test]
     fn session_requires_exactly_one_active_match() {

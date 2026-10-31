@@ -23,8 +23,11 @@ The v3 subscriber identity is `6c607ca4-1da1-51e6-a402-802aa35bd43b`.
 5. Move the row back to `WAN1-CUSTOMERS`.
 6. Remove the row. The address-list must equal the baseline.
 
-Before each write, the PPP session must have the same `.id` and name. A reconnect stops the command.
+Before the add and before the move to wan2, the PPP session must have the same `.id` and name.
+A reconnect stops the command at those steps. The move back and the remove do not check the session,
+because a revert of the owned row is always safe.
 After each step, the command records connection counts per reply destination address (the NAT public address).
+A failed connection sample is recorded in the report. It does not stop the test.
 
 ## Limits
 
