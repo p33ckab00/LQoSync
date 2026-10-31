@@ -8,7 +8,7 @@ members: 6
 **Members:** 6 nodes
 
 ## Members
-- [[dot-default()]] - code - src/config.rs
+- [[dot-default()_1]] - code - src/config.rs
 - [[dot-merge()]] - code - src/config.rs
 - [[Table]] - code
 - [[deep_merge()]] - code - src/config.rs
@@ -24,11 +24,11 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 5 edges to [[_COMMUNITY_Config]]
-- 3 edges to [[_COMMUNITY_Circuit Collection]]
+- 3 edges to [[_COMMUNITY_CLI and Checks 3]]
 
 ## Top bridge nodes
 - [[dot-merge()]] - degree 5, connects to 2 communities
 - [[defaults()]] - degree 5, connects to 2 communities
 - [[defaults_table()]] - degree 4, connects to 1 community
 - [[deep_merge()]] - degree 3, connects to 1 community
-- [[dot-default()]] - degree 2, connects to 1 community
+- [[dot-default()_1]] - degree 2, connects to 1 community

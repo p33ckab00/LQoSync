@@ -13,7 +13,6 @@ tags:
 
 ## Connections
 - [[Files lock, state.json, status.json, candidate, applied]] - `references` [EXTRACTED]
-- [[filesload_state (state.json or seed)]] - `implements` [INFERRED]
 - [[lqosync3 runtime design (Plan 2)]] - `references` [EXTRACTED]
 
 #graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_4

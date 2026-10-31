@@ -12,10 +12,10 @@ tags:
 # diff.rs
 
 ## Connections
-- [[CsvRow]] - `imports_from` [EXTRACTED]
+- [[CsvRow_1]] - `imports_from` [EXTRACTED]
 - [[NEW14]] - `contains` [EXTRACTED]
 - [[OLD13]] - `contains` [EXTRACTED]
-- [[Value_5]] - `imports_from` [EXTRACTED]
+- [[Value_1]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[diff_config()]] - `contains` [EXTRACTED]
 - [[diff_dirs()]] - `contains` [EXTRACTED]
@@ -24,13 +24,13 @@ tags:
 - [[diff_pair()]] - `contains` [EXTRACTED]
 - [[diff_reports_added_removed_changed()]] - `contains` [EXTRACTED]
 - [[diff_stops_in_apply_mode()]] - `contains` [EXTRACTED]
-- [[field()]] - `imports_from` [EXTRACTED]
+- [[field]] - `imports_from` [EXTRACTED]
 - [[group()]] - `contains` [EXTRACTED]
 - [[header()]] - `contains` [EXTRACTED]
 - [[json]] - `imports_from` [EXTRACTED]
 - [[map_2]] - `imports_from` [EXTRACTED]
 - [[nodes()]] - `contains` [EXTRACTED]
-- [[read_csv()]] - `imports_from` [EXTRACTED]
+- [[read_csv]] - `imports_from` [EXTRACTED]
 - [[same()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 

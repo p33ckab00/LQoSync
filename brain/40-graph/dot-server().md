@@ -1,19 +1,19 @@
 ---
-source_file: "src/config.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "Community 26"
-location: "L378"
+community: "Circuit Collection"
+location: "L102"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_26
+  - community/Circuit_Collection
 ---
 
 # .server()
 
 ## Connections
-- [[DhcpCfg]] - `method` [EXTRACTED]
-- [[DhcpServer]] - `references` [EXTRACTED]
-- [[dhcp_server_gives_override_or_default()]] - `calls` [EXTRACTED]
+- [[Excluder'a]] - `method` [EXTRACTED]
+- [[collect_dhcp()]] - `calls` [EXTRACTED]
+- [[glob()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_26
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

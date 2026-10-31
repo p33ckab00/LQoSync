@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "LibreQoS v3 2"
+community: "LibreQoS v3"
 location: "L86"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_2
+  - community/LibreQoS_v3
 ---
 
 # .names()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Columns]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

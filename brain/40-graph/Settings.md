@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Circuit Collection"
+community: "Secrets"
 location: "L407"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/Secrets
 ---
 
 # Settings
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpSource]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Secrets

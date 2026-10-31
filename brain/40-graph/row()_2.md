@@ -1,18 +1,18 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Router Reads"
 location: "L237"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Router_Reads
 ---
 
 # row()
 
 ## Connections
-- [[RosRow]] - `references` [EXTRACTED]
+- [[RosRow_3]] - `references` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Router_Reads

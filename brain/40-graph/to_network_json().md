@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[StoredNode]] - `references` [EXTRACTED]
-- [[Value_2]] - `references` [EXTRACTED]
+- [[Value_4]] - `references` [EXTRACTED]
 - [[a_kept_child_keeps_its_operator_children()]] - `calls` [EXTRACTED]
 - [[assemble()]] - `calls` [INFERRED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
@@ -21,7 +21,7 @@ tags:
 - [[depth()]] - `calls` [EXTRACTED]
 - [[find_mut()]] - `calls` [EXTRACTED]
 - [[flat_promotion_gives_one_client_node_per_row()]] - `calls` [EXTRACTED]
-- [[net()]] - `calls` [EXTRACTED]
+- [[net()_1]] - `calls` [EXTRACTED]
 - [[node_json()]] - `calls` [EXTRACTED]
 - [[preserve_keeps_manual_nodes_and_drops_old_generated()]] - `calls` [EXTRACTED]
 - [[remove_named()]] - `calls` [EXTRACTED]

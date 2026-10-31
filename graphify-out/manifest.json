@@ -37,9 +37,9 @@
   },
   "brain/HANDOFF.md": {
     "mtime": 1793447558.3704593,
-    "seen": 1793457217.7211554,
+    "seen": 1793457910.872011,
     "ast_hash": "b513125d4c8397df3ff18344cac66edd",
-    "semantic_hash": ""
+    "semantic_hash": "b513125d4c8397df3ff18344cac66edd"
   },
   "brain/Home.md": {
     "mtime": 1793440951.3454375,
@@ -55,15 +55,15 @@
   },
   "docs/CONFIGURATION.md": {
     "mtime": 1793447558.3704593,
-    "seen": 1793457217.7211595,
+    "seen": 1793457910.8720124,
     "ast_hash": "c0d3b1ac353637e838f8bd16f1ca7ae5",
-    "semantic_hash": ""
+    "semantic_hash": "c0d3b1ac353637e838f8bd16f1ca7ae5"
   },
   "docs/INSTALLATION.md": {
     "mtime": 1793445632.63207,
-    "seen": 1793457217.7211604,
+    "seen": 1793457910.8720136,
     "ast_hash": "44d031b09d6fa4e9a63f0bea4693c051",
-    "semantic_hash": ""
+    "semantic_hash": "44d031b09d6fa4e9a63f0bea4693c051"
   },
   "docs/LIBREQOS-V3-INGRESS.md": {
     "mtime": 1793426671.9738798,
@@ -73,9 +73,9 @@
   },
   "docs/OPERATIONS.md": {
     "mtime": 1793457184.5143414,
-    "seen": 1793457217.721163,
+    "seen": 1793457910.872015,
     "ast_hash": "407fd548403a53f0cecbe1ca26c88934",
-    "semantic_hash": ""
+    "semantic_hash": "407fd548403a53f0cecbe1ca26c88934"
   },
   "Cargo.toml": {
     "mtime": 1793443504.0110133,
@@ -85,9 +85,9 @@
   },
   "src/config.rs": {
     "mtime": 1793457074.4856873,
-    "seen": 1793457217.7210982,
+    "seen": 1793457910.8719764,
     "ast_hash": "e68dac9752eabe5be9e1e1258fac6933",
-    "semantic_hash": ""
+    "semantic_hash": "e68dac9752eabe5be9e1e1258fac6933"
   },
   "src/cycle.rs": {
     "mtime": 1793441662.4044707,
@@ -109,15 +109,15 @@
   },
   "src/sources.rs": {
     "mtime": 1793457147.9561148,
-    "seen": 1793457217.721116,
+    "seen": 1793457910.871995,
     "ast_hash": "deb3c3cd7509c52fb334976b454be500",
-    "semantic_hash": ""
+    "semantic_hash": "deb3c3cd7509c52fb334976b454be500"
   },
   "src/speed.rs": {
     "mtime": 1793447287.6594326,
-    "seen": 1793457217.7211175,
+    "seen": 1793457910.8719962,
     "ast_hash": "ec7c0ee461725788af83e869f4e9a01f",
-    "semantic_hash": ""
+    "semantic_hash": "ec7c0ee461725788af83e869f4e9a01f"
   },
   "src/state.rs": {
     "mtime": 1793442265.8451781,
@@ -151,9 +151,9 @@
   },
   "tests/config_doc.rs": {
     "mtime": 1793447534.5291927,
-    "seen": 1793457217.7211263,
+    "seen": 1793457910.872006,
     "ast_hash": "9451a92e5b2acec3aac7d7995eed2a46",
-    "semantic_hash": ""
+    "semantic_hash": "9451a92e5b2acec3aac7d7995eed2a46"
   },
   "tests/scenarios.rs": {
     "mtime": 1793442240.885649,
@@ -253,21 +253,21 @@
   },
   "src/diff.rs": {
     "mtime": 1793457170.442253,
-    "seen": 1793457217.7211022,
+    "seen": 1793457910.871981,
     "ast_hash": "a6665d91a734bc971808e4b0f97c3af9",
-    "semantic_hash": ""
+    "semantic_hash": "a6665d91a734bc971808e4b0f97c3af9"
   },
   "src/files.rs": {
     "mtime": 1793457074.5046873,
-    "seen": 1793457217.7211037,
+    "seen": 1793457910.871982,
     "ast_hash": "28ba9a9ee638f0ef41dc314b5c1a0b7c",
-    "semantic_hash": ""
+    "semantic_hash": "28ba9a9ee638f0ef41dc314b5c1a0b7c"
   },
   "src/main.rs": {
     "mtime": 1793457170.442253,
-    "seen": 1793457217.7211065,
+    "seen": 1793457910.871985,
     "ast_hash": "744c3152163cbb26a19e8ec0d32323bd",
-    "semantic_hash": ""
+    "semantic_hash": "744c3152163cbb26a19e8ec0d32323bd"
   },
   "src/mikrotik.rs": {
     "mtime": 1793445239.0437498,
@@ -277,9 +277,9 @@
   },
   "src/routeros.rs": {
     "mtime": 1793447418.3318927,
-    "seen": 1793457217.7211108,
+    "seen": 1793457910.8719895,
     "ast_hash": "029beb4085c276cbc86afcaeb1eded47",
-    "semantic_hash": ""
+    "semantic_hash": "029beb4085c276cbc86afcaeb1eded47"
   },
   "src/routerstate.rs": {
     "mtime": 1793443472.2396133,
@@ -289,9 +289,9 @@
   },
   "src/runner.rs": {
     "mtime": 1793447463.413397,
-    "seen": 1793457217.7211137,
+    "seen": 1793457910.871992,
     "ast_hash": "1f73353419fc0b79b6d4b55175d12272",
-    "semantic_hash": ""
+    "semantic_hash": "1f73353419fc0b79b6d4b55175d12272"
   },
   "src/secrets.rs": {
     "mtime": 1793443421.005965,
@@ -301,9 +301,9 @@
   },
   "src/status.rs": {
     "mtime": 1793447448.5352306,
-    "seen": 1793457217.7211196,
+    "seen": 1793457910.8719988,
     "ast_hash": "bded6399f08812df62ec9cb68364aca6",
-    "semantic_hash": ""
+    "semantic_hash": "bded6399f08812df62ec9cb68364aca6"
   },
   "tests/mock_router.rs": {
     "mtime": 1793445239.07975,
@@ -319,8 +319,8 @@
   },
   "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md": {
     "mtime": 1793445632.63507,
-    "seen": 1793457217.7211661,
+    "seen": 1793457910.8720164,
     "ast_hash": "20d64ed60ebebcc6f7a3f3f16a0d3bf0",
-    "semantic_hash": ""
+    "semantic_hash": "20d64ed60ebebcc6f7a3f3f16a0d3bf0"
   }
 }

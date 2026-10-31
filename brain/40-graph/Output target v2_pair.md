@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "MikroTik Session 3"
+community: "Topology 6"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/Topology_6
 ---
 
 # Output target v2_pair
@@ -15,4 +15,4 @@ tags:
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Target auto-detection]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/concept #graphify/EXTRACTED #community/Topology_6

@@ -1,14 +1,14 @@
 {
   "colorGroups": [
     {
-      "query": "tag:#community/Cycle_Assembly",
+      "query": "tag:#community/MikroTik_Session",
       "color": {
         "a": 1,
         "rgb": 5142951
       }
     },
     {
-      "query": "tag:#community/Runner_Cycle",
+      "query": "tag:#community/Circuit_Collection",
       "color": {
         "a": 1,
         "rgb": 15896107
@@ -22,105 +22,77 @@
       }
     },
     {
-      "query": "tag:#community/Circuit_Collection",
+      "query": "tag:#community/CLI_and_Checks",
       "color": {
         "a": 1,
         "rgb": 7780274
-      }
-    },
-    {
-      "query": "tag:#community/Secrets",
-      "color": {
-        "a": 1,
-        "rgb": 15583560
-      }
-    },
-    {
-      "query": "tag:#community/CLI_and_Checks_2",
-      "color": {
-        "a": 1,
-        "rgb": 16752039
-      }
-    },
-    {
-      "query": "tag:#community/Config",
-      "color": {
-        "a": 1,
-        "rgb": 10253663
-      }
-    },
-    {
-      "query": "tag:#community/hashmap",
-      "color": {
-        "a": 1,
-        "rgb": 12234924
-      }
-    },
-    {
-      "query": "tag:#community/Topology_2",
-      "color": {
-        "a": 1,
-        "rgb": 5142951
-      }
-    },
-    {
-      "query": "tag:#community/Topology_3",
-      "color": {
-        "a": 1,
-        "rgb": 15896107
-      }
-    },
-    {
-      "query": "tag:#community/File_Safety",
-      "color": {
-        "a": 1,
-        "rgb": 14767961
-      }
-    },
-    {
-      "query": "tag:#community/MikroTik_Session",
-      "color": {
-        "a": 1,
-        "rgb": 7780274
-      }
-    },
-    {
-      "query": "tag:#community/Topology_4",
-      "color": {
-        "a": 1,
-        "rgb": 15583560
       }
     },
     {
       "query": "tag:#community/Speed_Rules",
       "color": {
         "a": 1,
+        "rgb": 5873999
+      }
+    },
+    {
+      "query": "tag:#community/CLI_and_Checks_2",
+      "color": {
+        "a": 1,
+        "rgb": 15583560
+      }
+    },
+    {
+      "query": "tag:#community/Mock_Router_Tests",
+      "color": {
+        "a": 1,
         "rgb": 11565729
       }
     },
     {
-      "query": "tag:#community/Router_Reads_2",
+      "query": "tag:#community/Topology_2",
       "color": {
         "a": 1,
         "rgb": 16752039
       }
     },
     {
-      "query": "tag:#community/Speed_Rules_2",
+      "query": "tag:#community/File_Safety",
+      "color": {
+        "a": 1,
+        "rgb": 10253663
+      }
+    },
+    {
+      "query": "tag:#community/Config",
       "color": {
         "a": 1,
         "rgb": 12234924
       }
     },
     {
-      "query": "tag:#community/CircuitNames",
+      "query": "tag:#community/hashmap",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/MikroTik_Session_2",
       "color": {
         "a": 1,
         "rgb": 15896107
       }
     },
     {
-      "query": "tag:#community/Config_2",
+      "query": "tag:#community/Session_Notes",
+      "color": {
+        "a": 1,
+        "rgb": 14767961
+      }
+    },
+    {
+      "query": "tag:#community/Speed_Rules_2",
       "color": {
         "a": 1,
         "rgb": 7780274
@@ -134,143 +106,269 @@
       }
     },
     {
-      "query": "tag:#community/Router_State",
+      "query": "tag:#community/MikroTik_Session_3",
       "color": {
         "a": 1,
         "rgb": 15583560
-      }
-    },
-    {
-      "query": "tag:#community/CertificateDer",
-      "color": {
-        "a": 1,
-        "rgb": 16752039
       }
     },
     {
       "query": "tag:#community/Status_and_Diff_2",
       "color": {
         "a": 1,
+        "rgb": 11565729
+      }
+    },
+    {
+      "query": "tag:#community/fs",
+      "color": {
+        "a": 1,
+        "rgb": 16752039
+      }
+    },
+    {
+      "query": "tag:#community/Router_State",
+      "color": {
+        "a": 1,
         "rgb": 10253663
       }
     },
     {
-      "query": "tag:#community/MikroTik_Session_3",
+      "query": "tag:#community/Speed_Rules_3",
       "color": {
         "a": 1,
         "rgb": 12234924
       }
     },
     {
-      "query": "tag:#community/MikroTik_Session_4",
+      "query": "tag:#community/Router_Reads",
       "color": {
         "a": 1,
         "rgb": 5142951
       }
     },
     {
-      "query": "tag:#community/Status_and_Diff_3",
+      "query": "tag:#community/Topology_3",
       "color": {
         "a": 1,
         "rgb": 15896107
       }
     },
     {
-      "query": "tag:#community/LibreQoS_v3_2",
+      "query": "tag:#community/btreemap",
       "color": {
         "a": 1,
         "rgb": 14767961
       }
     },
     {
-      "query": "tag:#community/Status_and_Diff_4",
-      "color": {
-        "a": 1,
-        "rgb": 5873999
-      }
-    },
-    {
-      "query": "tag:#community/MikroTik_Session_5",
-      "color": {
-        "a": 1,
-        "rgb": 15583560
-      }
-    },
-    {
-      "query": "tag:#community/default",
-      "color": {
-        "a": 1,
-        "rgb": 11565729
-      }
-    },
-    {
-      "query": "tag:#community/LibreQoS_v3_3",
-      "color": {
-        "a": 1,
-        "rgb": 16752039
-      }
-    },
-    {
-      "query": "tag:#community/Router_Reads_3",
-      "color": {
-        "a": 1,
-        "rgb": 10253663
-      }
-    },
-    {
-      "query": "tag:#community/LogLevel",
-      "color": {
-        "a": 1,
-        "rgb": 12234924
-      }
-    },
-    {
-      "query": "tag:#community/CLI_and_Checks_4",
-      "color": {
-        "a": 1,
-        "rgb": 5142951
-      }
-    },
-    {
-      "query": "tag:#community/Config_3",
-      "color": {
-        "a": 1,
-        "rgb": 14767961
-      }
-    },
-    {
-      "query": "tag:#community/checksh",
+      "query": "tag:#community/Mock_Router_Tests_2",
       "color": {
         "a": 1,
         "rgb": 7780274
       }
     },
     {
-      "query": "tag:#community/Notifier_Telegram",
+      "query": "tag:#community/MikroTik_Session_4",
       "color": {
         "a": 1,
         "rgb": 5873999
       }
     },
     {
-      "query": "tag:#community/lqosync3",
+      "query": "tag:#community/Config_2",
       "color": {
         "a": 1,
         "rgb": 15583560
       }
     },
     {
-      "query": "tag:#community/librs",
+      "query": "tag:#community/Config_3",
       "color": {
         "a": 1,
         "rgb": 11565729
       }
     },
     {
-      "query": "tag:#community/modrs",
+      "query": "tag:#community/MikroTik_Session_5",
       "color": {
         "a": 1,
         "rgb": 16752039
+      }
+    },
+    {
+      "query": "tag:#community/CertificateDer",
+      "color": {
+        "a": 1,
+        "rgb": 10253663
+      }
+    },
+    {
+      "query": "tag:#community/Topology_4",
+      "color": {
+        "a": 1,
+        "rgb": 12234924
+      }
+    },
+    {
+      "query": "tag:#community/Status_and_Diff_3",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/Topology_5",
+      "color": {
+        "a": 1,
+        "rgb": 15896107
+      }
+    },
+    {
+      "query": "tag:#community/BandwidthDefaults",
+      "color": {
+        "a": 1,
+        "rgb": 14767961
+      }
+    },
+    {
+      "query": "tag:#community/Secrets",
+      "color": {
+        "a": 1,
+        "rgb": 7780274
+      }
+    },
+    {
+      "query": "tag:#community/LibreQoS_v3",
+      "color": {
+        "a": 1,
+        "rgb": 5873999
+      }
+    },
+    {
+      "query": "tag:#community/Decisions",
+      "color": {
+        "a": 1,
+        "rgb": 15583560
+      }
+    },
+    {
+      "query": "tag:#community/CLI_and_Checks_3",
+      "color": {
+        "a": 1,
+        "rgb": 11565729
+      }
+    },
+    {
+      "query": "tag:#community/Speed_Rules_4",
+      "color": {
+        "a": 1,
+        "rgb": 16752039
+      }
+    },
+    {
+      "query": "tag:#community/Status_and_Diff_4",
+      "color": {
+        "a": 1,
+        "rgb": 10253663
+      }
+    },
+    {
+      "query": "tag:#community/Topology_6",
+      "color": {
+        "a": 1,
+        "rgb": 12234924
+      }
+    },
+    {
+      "query": "tag:#community/Plan_2_Runtime",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/Session_Notes_2",
+      "color": {
+        "a": 1,
+        "rgb": 15896107
+      }
+    },
+    {
+      "query": "tag:#community/Router_State_2",
+      "color": {
+        "a": 1,
+        "rgb": 14767961
+      }
+    },
+    {
+      "query": "tag:#community/Status_and_Diff_5",
+      "color": {
+        "a": 1,
+        "rgb": 7780274
+      }
+    },
+    {
+      "query": "tag:#community/default",
+      "color": {
+        "a": 1,
+        "rgb": 5873999
+      }
+    },
+    {
+      "query": "tag:#community/LibreQoS_v3_2",
+      "color": {
+        "a": 1,
+        "rgb": 15583560
+      }
+    },
+    {
+      "query": "tag:#community/State",
+      "color": {
+        "a": 1,
+        "rgb": 11565729
+      }
+    },
+    {
+      "query": "tag:#community/Config_4",
+      "color": {
+        "a": 1,
+        "rgb": 16752039
+      }
+    },
+    {
+      "query": "tag:#community/checksh",
+      "color": {
+        "a": 1,
+        "rgb": 10253663
+      }
+    },
+    {
+      "query": "tag:#community/Notifier_Telegram",
+      "color": {
+        "a": 1,
+        "rgb": 12234924
+      }
+    },
+    {
+      "query": "tag:#community/lqosync3",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/librs",
+      "color": {
+        "a": 1,
+        "rgb": 15896107
+      }
+    },
+    {
+      "query": "tag:#community/modrs",
+      "color": {
+        "a": 1,
+        "rgb": 14767961
       }
     }
   ]

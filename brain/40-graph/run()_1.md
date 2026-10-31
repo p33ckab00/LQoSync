@@ -1,21 +1,32 @@
 ---
-source_file: "src/main.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "Status and Diff"
-location: "L61"
+community: "Circuit Collection"
+location: "L452"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Circuit_Collection
 ---
 
 # run()
 
 ## Connections
+- [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
-- [[main()]] - `calls` [EXTRACTED]
-- [[main.rs]] - `contains` [EXTRACTED]
-- [[now()]] - `calls` [EXTRACTED]
-- [[print_summary()]] - `calls` [EXTRACTED]
+- [[RouterSnapshot_1]] - `references` [EXTRACTED]
+- [[a_zero_speed_profile_comment_gives_one_line()]] - `calls` [EXTRACTED]
+- [[collect_router()]] - `calls` [EXTRACTED]
+- [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]
+- [[dhcp_per_site_filters_and_names()]] - `calls` [EXTRACTED]
+- [[dhcp_server_comment_beats_settings()]] - `calls` [EXTRACTED]
+- [[dhcp_servers_are_discovered_like_ppp()]] - `calls` [EXTRACTED]
+- [[hotspot_key_rules()]] - `calls` [EXTRACTED]
+- [[only_true_or_yes_turns_a_flag_on()]] - `calls` [EXTRACTED]
+- [[ppp_mac_falls_back_to_secret_caller_id()]] - `calls` [EXTRACTED]
+- [[ppp_needs_active_and_enabled_secret()]] - `calls` [EXTRACTED]
+- [[ppp_speed_chain_order()]] - `calls` [EXTRACTED]
+- [[sources.rs]] - `contains` [EXTRACTED]
+- [[zero_speed_comments_give_a_report_line()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

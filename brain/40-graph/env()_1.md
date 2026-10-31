@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "Community 4"
+community: "CLI and Checks"
 location: "L215"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_4
+  - community/CLI_and_Checks
 ---
 
 # env()
@@ -19,4 +19,4 @@ tags:
 - [[cli.rs]] - `contains` [EXTRACTED]
 - [[reload_keeps_old_config_on_error()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_4
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

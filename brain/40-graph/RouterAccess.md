@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router State"
+community: "Session Notes 2"
 location: "L70"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Session_Notes_2
 ---
 
 # RouterAccess
@@ -14,8 +14,8 @@ tags:
 ## Connections
 - [[dot-connect()_1]] - `references` [EXTRACTED]
 - [[dot-connect()_2]] - `references` [EXTRACTED]
-- [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[dot-connect()]] - `references` [EXTRACTED]
+- [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[OfflineAction]] - `references` [EXTRACTED]
 - [[Setup]] - `references` [EXTRACTED]
@@ -30,4 +30,4 @@ tags:
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Session_Notes_2

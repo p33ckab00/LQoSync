@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[CsvRow]] - `references` [EXTRACTED]
-- [[check()_1]] - `calls` [EXTRACTED]
+- [[check()]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/hashmap

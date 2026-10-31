@@ -1,17 +1,19 @@
 ---
 source_file: ""
 type: "code"
-community: "Cycle Assembly"
+community: "hashmap"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/hashmap
 ---
 
 # Value
 
 ## Connections
-- [[CycleInput]] - `references` [EXTRACTED]
-- [[CycleOutput]] - `references` [EXTRACTED]
+- [[check()]] - `references` [EXTRACTED]
+- [[collect_nodes()]] - `references` [EXTRACTED]
+- [[net()]] - `references` [EXTRACTED]
+- [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/hashmap

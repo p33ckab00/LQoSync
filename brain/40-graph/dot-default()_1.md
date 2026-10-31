@@ -1,17 +1,18 @@
 ---
-source_file: "src/model.rs"
+source_file: "src/config.rs"
 type: "code"
-community: "Community 48"
-location: "L174"
+community: ".default()"
+location: "L503"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_48
+  - community/default
 ---
 
 # .default()
 
 ## Connections
-- [[State]] - `method` [EXTRACTED]
+- [[Config]] - `method` [EXTRACTED]
+- [[defaults()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_48
+#graphify/code #graphify/EXTRACTED #community/default

@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Community 26"
+community: "BandwidthDefaults"
 location: "L449"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_26
+  - community/BandwidthDefaults
 ---
 
 # .factors()
@@ -15,4 +15,4 @@ tags:
 - [[BandwidthDefaults]] - `references` [EXTRACTED]
 - [[DhcpServer]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_26
+#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults

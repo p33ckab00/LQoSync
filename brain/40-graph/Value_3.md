@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Community 20"
+community: "fs"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_20
+  - community/fs
 ---
 
 # Value
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[render_network_json()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_20
+#graphify/code #graphify/EXTRACTED #community/fs

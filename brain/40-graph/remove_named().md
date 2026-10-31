@@ -12,9 +12,9 @@ tags:
 # remove_named()
 
 ## Connections
-- [[Map]] - `references` [EXTRACTED]
+- [[Map_1]] - `references` [EXTRACTED]
 - [[StoredNode]] - `references` [EXTRACTED]
-- [[Value_2]] - `references` [EXTRACTED]
+- [[Value_4]] - `references` [EXTRACTED]
 - [[to_network_json()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 

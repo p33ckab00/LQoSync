@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Speed Rules"
+community: "Speed Rules 4"
 location: "L48"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Speed_Rules
+  - community/Speed_Rules_4
 ---
 
 # Speed Rules
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Task 2 Rate format and speed rules (SpeedParser)]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Speed_Rules
+#graphify/concept #graphify/INFERRED #community/Speed_Rules_4

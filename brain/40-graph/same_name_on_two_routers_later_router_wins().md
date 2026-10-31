@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L864"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # same_name_on_two_routers_later_router_wins()
@@ -14,6 +14,6 @@ tags:
 ## Connections
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[rp()]] - `calls` [EXTRACTED]
-- [[run()]] - `calls` [EXTRACTED]
+- [[run()_2]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

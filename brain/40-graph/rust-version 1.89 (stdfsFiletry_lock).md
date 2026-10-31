@@ -13,7 +13,6 @@ tags:
 
 ## Connections
 - [[Instance lock statelqosync3.lock (Filetry_lock)]] - `rationale_for` [EXTRACTED]
-- [[Requirements (Ubuntu 24.04, LibreQoS 2.0-2.2  3.x, Rust 1.88+)]] - `conceptually_related_to` [AMBIGUOUS]
 - [[lqosync3 runtime design (Plan 2)]] - `references` [EXTRACTED]
 
 #graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session_4

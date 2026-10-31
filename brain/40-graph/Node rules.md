@@ -11,7 +11,7 @@ tags:
 # Node rules
 
 ## Connections
-- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
 - [[Cycle assembly rules]] - `references` [EXTRACTED]
 - [[Node types (v2_type, v3_type)]] - `implements` [INFERRED]

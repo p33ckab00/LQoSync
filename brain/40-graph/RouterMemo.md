@@ -17,6 +17,5 @@ tags:
 - [[memo()]] - `references` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
-- [[runner.rs]] - `imports_from` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

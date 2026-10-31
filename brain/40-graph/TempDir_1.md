@@ -1,16 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Community 14"
+community: "MikroTik Session 3"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_14
+  - community/MikroTik_Session_3
 ---
 
 # TempDir
 
 ## Connections
-- [[file()]] - `references` [EXTRACTED]
+- [[Setup]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_14
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3

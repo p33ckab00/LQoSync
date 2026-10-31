@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "btreemap"
 location: "L61"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/btreemap
 ---
 
 # Entry
@@ -16,4 +16,4 @@ tags:
 - [[Source]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/btreemap

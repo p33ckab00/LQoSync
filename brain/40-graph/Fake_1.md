@@ -1,24 +1,24 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Session Notes"
 location: "L182"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Session_Notes
 ---
 
 # Fake
 
 ## Connections
-- [[dot-connect()_3]] - `method` [EXTRACTED]
+- [[dot-connect()]] - `method` [EXTRACTED]
 - [[AtomicUsize]] - `references` [EXTRACTED]
 - [[Connector]] - `implements` [EXTRACTED]
-- [[FakeSession_1]] - `references` [EXTRACTED]
+- [[FakeSession]] - `references` [EXTRACTED]
 - [[Mutex_1]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[Script]] - `references` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Session_Notes

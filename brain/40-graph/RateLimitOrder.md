@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 location: "L185"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # RateLimitOrder
@@ -19,4 +19,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[speed.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

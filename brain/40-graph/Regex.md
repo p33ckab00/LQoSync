@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # Regex
@@ -14,4 +14,4 @@ tags:
 - [[SpeedParser]] - `references` [EXTRACTED]
 - [[speed.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

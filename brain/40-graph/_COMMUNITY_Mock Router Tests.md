@@ -1,0 +1,66 @@
+---
+type: community
+members: 34
+---
+
+# Mock Router Tests
+
+**Members:** 34 nodes
+
+## Members
+- [[Answer]] - code - tests/mock_router.rs
+- [[C_1]] - code
+- [[Empty]] - code - tests/mock_router.rs
+- [[Log]] - code - tests/mock_router.rs
+- [[Raw]] - code - tests/mock_router.rs
+- [[Rows]] - code - tests/mock_router.rs
+- [[Silent]] - code - tests/mock_router.rs
+- [[TcpStream]] - code
+- [[Trap_1]] - code - tests/mock_router.rs
+- [[asyncreadext]] - concept
+- [[asyncwriteext]] - concept
+- [[closed_port_is_unreachable()]] - code - tests/mock_router.rs
+- [[empty_table_is_ok()]] - code - tests/mock_router.rs
+- [[instant]] - concept
+- [[latin1_values_are_decoded()]] - code - tests/mock_router.rs
+- [[login_stall_is_failed_not_unreachable()]] - code - tests/mock_router.rs
+- [[mock()]] - code - tests/mock_router.rs
+- [[mock_router.rs]] - code - tests/mock_router.rs
+- [[mutex_2]] - concept
+- [[proplist_is_sent()]] - code - tests/mock_router.rs
+- [[read_len()]] - code - tests/mock_router.rs
+- [[read_router()]] - code - src/routeros.rs
+- [[read_sentence()]] - code - tests/mock_router.rs
+- [[readerror_1]] - concept
+- [[reads_300_rows_sent_in_one_write()]] - code - tests/mock_router.rs
+- [[secrets()]] - code - tests/mock_router.rs
+- [[sentence()]] - code - tests/mock_router.rs
+- [[setup()]] - code - tests/mock_router.rs
+- [[silent_router_times_out_and_does_not_block_another()]] - code - tests/mock_router.rs
+- [[tcplistener]] - concept
+- [[tls_without_verify_does_not_panic()]] - code - tests/mock_router.rs
+- [[trap_is_a_trap_error()]] - code - tests/mock_router.rs
+- [[word()]] - code - tests/mock_router.rs
+- [[wrong_password_is_login_error()]] - code - tests/mock_router.rs
+
+## Live Query (requires Dataview plugin)
+
+```dataview
+TABLE source_file, type FROM #community/Mock_Router_Tests
+SORT file.name ASC
+```
+
+## Connections to other communities
+- 6 edges to [[_COMMUNITY_Router Reads]]
+- 5 edges to [[_COMMUNITY_MikroTik Session 3]]
+- 5 edges to [[_COMMUNITY_MikroTik Session]]
+- 5 edges to [[_COMMUNITY_Session Notes]]
+- 2 edges to [[_COMMUNITY_Session Notes 2]]
+- 2 edges to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_Config]]
+
+## Top bridge nodes
+- [[mock_router.rs]] - degree 36, connects to 5 communities
+- [[read_router()]] - degree 26, connects to 5 communities
+- [[setup()]] - degree 12, connects to 1 community
+- [[instant]] - degree 2, connects to 1 community

@@ -1,19 +1,19 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L610"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # rp()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[cfg()]] - `calls` [EXTRACTED]
+- [[cfg()_3]] - `calls` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[duplicate_ip_existing_vs_existing_keeps_collected()]] - `calls` [EXTRACTED]
 - [[duplicate_ip_new_vs_existing_keeps_existing()]] - `calls` [EXTRACTED]
@@ -29,4 +29,4 @@ tags:
 - [[static_row_passes_through_and_collected_replaces_it()]] - `calls` [EXTRACTED]
 - [[static_row_wins_a_duplicate_ip()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

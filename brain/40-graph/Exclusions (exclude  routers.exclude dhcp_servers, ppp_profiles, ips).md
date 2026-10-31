@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0009-dhcp-discovery-and-exclusions.md"
 type: "rationale"
-community: "Speed Rules"
+community: "Speed Rules 4"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Speed_Rules_4
 ---
 
 # Exclusions ([exclude] / [routers.exclude]: dhcp_servers, ppp_profiles, ips)
@@ -16,4 +16,4 @@ tags:
 - [[Circuit rules for each source]] - `implements` [INFERRED]
 - [[Removal guard (safety)]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules_4

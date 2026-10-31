@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Community 6"
+community: "Session Notes"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Session_Notes
 ---
 
 # vecdeque
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[routeros.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Community_6
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

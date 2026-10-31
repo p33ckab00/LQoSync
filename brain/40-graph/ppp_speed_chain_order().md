@@ -12,8 +12,8 @@ tags:
 # ppp_speed_chain_order()
 
 ## Connections
-- [[cfg()_3]] - `calls` [EXTRACTED]
-- [[run()_2]] - `calls` [EXTRACTED]
+- [[cfg()_1]] - `calls` [EXTRACTED]
+- [[run()_1]] - `calls` [EXTRACTED]
 - [[snap()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 

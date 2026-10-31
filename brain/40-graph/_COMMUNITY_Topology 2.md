@@ -1,37 +1,43 @@
 ---
 type: community
-members: 24
+members: 30
 ---
 
 # Topology 2
 
-**Members:** 24 nodes
+**Members:** 30 nodes
 
 ## Members
-- [[1415 CSV columns (v2_pairv3_pair)]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
-- [[ADR-0005 Topology follows v3]] - document - brain/20-decisions/ADR-0005-topology-follows-v3.md
-- [[ADR-0006 v3 guards and node types]] - document - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
-- [[Group nodes typed site on v3]] - rationale - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
-- [[How LibreQoS v3 handles nodes]] - document - brain/30-knowledge/v3-node-handling.md
-- [[LibreQoS v3 checks (no_parent fails, compile_mode warning)]] - concept - docs/CONFIGURATION.md
+- [[2026-10-31 Plan 1 lqosync3 core library session]] - document - brain/10-sessions/2026-10-31-plan1-core-build.md
+- [[ADR-0007 Fresh design, not a port_1]] - document - brain/20-decisions/ADR-0007-fresh-design-not-a-port.md
+- [[Cycle assembly rules]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[CycleOutput {rows, nodes, state, report}]] - code - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[Delivery in five plans (core, runtime, v3, TUI, install)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
 - [[LibreQoS v3 topology.compile_mode]] - concept - docs/ARCHITECTURE.md
 - [[Node rules]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
-- [[Node types (v2_type, v3_type)]] - concept - docs/CONFIGURATION.md
-- [[Parent Node ID column]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[Plan 1 global constraints]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[Plan 1 review fixes (commit 529fa36)]] - concept - brain/10-sessions/2026-10-31-plan1-core-build.md
+- [[Plan 1 review focus (edge cases)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[Removal guard fingerprint (FNV-1a 64 of removed names)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[RouterResult (OnlineFailedUnreachableOffline)]] - code - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[RouterSnapshot (six RouterOS tables)]] - code - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[Scenario tests (replace golden parity tests)]] - concept - brain/20-decisions/ADR-0007-fresh-design-not-a-port.md
+- [[Scenario tests (synthetic fixtures)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
 - [[Six Network Modes]] - concept - docs/ARCHITECTURE.md
 - [[Stable lq3- node id (FNV-1a 64 of kindrouterkey)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
-- [[Stable node id (lq3- FNV-1a 64)]] - rationale - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[State seed (seed_state  seed_nodes)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[Task 3 Model, state file, and seed]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
 - [[Task 5 Topology (build_nodes, to_network_json)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
-- [[Tool must reject duplicate IP and node name]] - concept - brain/30-knowledge/libreqos-v3-ingress-facts.md
+- [[Task 6 Cycle assembly and validation]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[Task 8 Scenario tests and v3 check]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
 - [[Topology Builder]] - concept - docs/ARCHITECTURE.md
-- [[compile_mode (flatap_onlyap_sitefull)]] - concept - brain/30-knowledge/v3-node-handling.md
-- [[compile_mode not full warning]] - concept - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
-- [[flat_promotion parent fix]] - rationale - brain/20-decisions/ADR-0005-topology-follows-v3.md
-- [[lqosd runtime rules (rates, unique names, parents)]] - concept - brain/30-knowledge/v3-node-handling.md
-- [[max_floor_mbps (0.2)  safe_min_mbps (0.1)]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
-- [[v3 bridge boot gate]] - concept - brain/30-knowledge/v3-node-handling.md
-- [[v3 name-derived legacy node id]] - concept - brain/30-knowledge/v3-node-handling.md
-- [[v3 offline compile results]] - concept - brain/30-knowledge/v3-node-handling.md
+- [[Validation]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[cycleassemble() pure core function]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[lqosync3 Core Implementation Plan (Plan 1)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[lqosync3 core crate (config, speed, model, state, sources, topology, cycle, validate, writer)]] - code - brain/10-sessions/2026-10-31-plan1-core-build.md
+- [[lqosync3 core design spec]] - document - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[state.json state file]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[toolsv3simcheck.sh (v3 compiler check)]] - code - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -41,16 +47,19 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 16 edges to [[_COMMUNITY_CLI and Checks 2]]
-- 9 edges to [[_COMMUNITY_Topology 4]]
-- 6 edges to [[_COMMUNITY_Speed Rules 2]]
-- 4 edges to [[_COMMUNITY_MikroTik Session 3]]
-- 3 edges to [[_COMMUNITY_Speed Rules]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 5]]
+- 11 edges to [[_COMMUNITY_Topology 3]]
+- 7 edges to [[_COMMUNITY_Speed Rules 2]]
+- 7 edges to [[_COMMUNITY_Topology 4]]
+- 7 edges to [[_COMMUNITY_Speed Rules 4]]
+- 2 edges to [[_COMMUNITY_Speed Rules 3]]
+- 2 edges to [[_COMMUNITY_Router State 2]]
+- 2 edges to [[_COMMUNITY_Status and Diff 5]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 4]]
+- 1 edge to [[_COMMUNITY_Status and Diff 3]]
 
 ## Top bridge nodes
-- [[ADR-0005 Topology follows v3]] - degree 21, connects to 4 communities
-- [[ADR-0006 v3 guards and node types]] - degree 14, connects to 3 communities
-- [[How LibreQoS v3 handles nodes]] - degree 13, connects to 2 communities
+- [[lqosync3 core design spec]] - degree 32, connects to 6 communities
+- [[ADR-0007 Fresh design, not a port_1]] - degree 12, connects to 5 communities
+- [[Cycle assembly rules]] - degree 8, connects to 3 communities
+- [[2026-10-31 Plan 1 lqosync3 core library session]] - degree 11, connects to 2 communities
 - [[Node rules]] - degree 7, connects to 2 communities
-- [[1415 CSV columns (v2_pairv3_pair)]] - degree 5, connects to 2 communities

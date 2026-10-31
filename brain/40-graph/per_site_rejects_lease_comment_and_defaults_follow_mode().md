@@ -14,6 +14,5 @@ tags:
 ## Connections
 - [[dot-from_toml_str()]] - `calls` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
-- [[s()]] - `calls` [INFERRED]
 
 #graphify/code #graphify/EXTRACTED #community/Config

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "LibreQoS v3 2"
+community: "btreemap"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_2
+  - community/btreemap
 ---
 
 # serialize
@@ -15,4 +15,4 @@ tags:
 - [[pair.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/LibreQoS_v3_2
+#graphify/concept #graphify/EXTRACTED #community/btreemap

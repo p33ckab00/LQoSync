@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "concept"
-community: "Status and Diff 4"
+community: "Topology 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff_4
+  - community/Topology_2
 ---
 
 # Delivery in five plans (core, runtime, v3, TUI, install)
@@ -15,4 +15,4 @@ tags:
 - [[lqosync3 Core Implementation Plan (Plan 1)]] - `references` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff_4
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

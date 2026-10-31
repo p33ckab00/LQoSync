@@ -2,7 +2,7 @@
 source_file: "docs/INSTALLATION.md"
 type: "concept"
 community: "Config 2"
-location: "L35-49"
+location: "L35"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
@@ -12,8 +12,8 @@ tags:
 # Installer options (--mode, --version, --from-source, --import-json, --no-start)
 
 ## Connections
-- [[Installation]] - `references` [EXTRACTED]
-- [[Map from config.json and planned import-json]] - `conceptually_related_to` [INFERRED]
-- [[One-line installer install.sh (target contract)]] - `references` [EXTRACTED]
+- [[Runtime modes (shadow  apply)]] - `references` [EXTRACTED]
+- [[install.sh one-line installer (target contract)]] - `references` [EXTRACTED]
+- [[lqosync3 import-json (planned)]] - `references` [INFERRED]
 
 #graphify/concept #graphify/EXTRACTED #community/Config_2

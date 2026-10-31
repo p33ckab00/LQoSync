@@ -1,17 +1,17 @@
 ---
-source_file: "src/state.rs"
+source_file: "src/files.rs"
 type: "code"
-community: "CircuitNames"
-location: "L133"
+community: "File Safety"
+location: "L207"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CircuitNames
+  - community/File_Safety
 ---
 
 # HDR
 
 ## Connections
-- [[state.rs]] - `contains` [EXTRACTED]
+- [[files.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CircuitNames
+#graphify/code #graphify/EXTRACTED #community/File_Safety

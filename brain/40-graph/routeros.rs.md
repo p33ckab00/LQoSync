@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Session Notes"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Session_Notes
 ---
 
 # routeros.rs
@@ -15,14 +15,14 @@ tags:
 - [[AtomicUsize]] - `imports_from` [EXTRACTED]
 - [[Connector]] - `contains` [EXTRACTED]
 - [[Fake_1]] - `contains` [EXTRACTED]
-- [[FakeSession_1]] - `contains` [EXTRACTED]
+- [[FakeSession]] - `contains` [EXTRACTED]
 - [[Mutex_1]] - `imports_from` [EXTRACTED]
 - [[ReadError]] - `contains` [EXTRACTED]
-- [[RosRow]] - `imports_from` [EXTRACTED]
+- [[RosRow_3]] - `imports_from` [EXTRACTED]
 - [[RouterAccess]] - `imports_from` [EXTRACTED]
 - [[RouterCfg]] - `imports_from` [EXTRACTED]
 - [[RouterSession]] - `contains` [EXTRACTED]
-- [[RouterSnapshot]] - `imports_from` [EXTRACTED]
+- [[RouterSnapshot_2]] - `imports_from` [EXTRACTED]
 - [[Script]] - `contains` [EXTRACTED]
 - [[TABLES]] - `contains` [EXTRACTED]
 - [[a_dead_kept_session_reconnects_without_a_retry()]] - `contains` [EXTRACTED]
@@ -45,4 +45,4 @@ tags:
 - [[super]] - `imports_from` [EXTRACTED]
 - [[vecdeque]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Session_Notes

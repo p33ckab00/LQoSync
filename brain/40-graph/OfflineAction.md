@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router State"
+community: "Session Notes 2"
 location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Session_Notes_2
 ---
 
 # OfflineAction
@@ -18,4 +18,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Session_Notes_2

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "Community 4"
+community: "CLI and Checks"
 location: "L208"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_4
+  - community/CLI_and_Checks
 ---
 
 # Env
@@ -16,4 +16,4 @@ tags:
 - [[cli.rs]] - `contains` [EXTRACTED]
 - [[env()_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_4
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

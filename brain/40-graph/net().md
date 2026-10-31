@@ -1,27 +1,24 @@
 ---
-source_file: "src/topology.rs"
+source_file: "src/validate.rs"
 type: "code"
-community: "Topology"
-location: "L468"
+community: "hashmap"
+location: "L125"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology
+  - community/hashmap
 ---
 
 # net()
 
 ## Connections
-- [[Config]] - `references` [EXTRACTED]
-- [[RouterGroups]] - `references` [EXTRACTED]
-- [[Value_2]] - `references` [EXTRACTED]
-- [[build_nodes()]] - `calls` [EXTRACTED]
-- [[flat_router_root_and_flat_global_root_make_roots_only()]] - `calls` [EXTRACTED]
-- [[grouped_router_root_nests_groups_under_router()]] - `calls` [EXTRACTED]
-- [[id_does_not_change_with_the_name_template()]] - `calls` [EXTRACTED]
-- [[none()]] - `calls` [EXTRACTED]
-- [[to_network_json()]] - `calls` [EXTRACTED]
-- [[topology.rs]] - `contains` [EXTRACTED]
-- [[v3_flag_makes_group_nodes_site()]] - `calls` [EXTRACTED]
+- [[Value]] - `references` [EXTRACTED]
+- [[duplicate_circuit_id_stops()]] - `calls` [EXTRACTED]
+- [[min_above_max_or_bad_number_stops()]] - `calls` [EXTRACTED]
+- [[missing_parent_stops_except_in_no_parent()]] - `calls` [EXTRACTED]
+- [[multi_device_circuit_passes_but_shared_device_id_stops()]] - `calls` [EXTRACTED]
+- [[parent_node_id_must_match_the_parent_node()]] - `calls` [EXTRACTED]
+- [[valid_rows_pass()]] - `calls` [EXTRACTED]
+- [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology
+#graphify/code #graphify/EXTRACTED #community/hashmap

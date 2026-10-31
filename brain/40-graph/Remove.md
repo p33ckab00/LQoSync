@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router State"
+community: "Session Notes 2"
 location: "L64"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Session_Notes_2
 ---
 
 # Remove
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[OfflineAction]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Session_Notes_2

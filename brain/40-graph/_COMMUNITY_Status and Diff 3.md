@@ -8,19 +8,19 @@ members: 13
 **Members:** 13 nodes
 
 ## Members
-- [[Backups that the tool keeps (last 10 in varliblqosync3applied)]] - concept - docs/OPERATIONS.md
-- [[Command reference (check, once, once --force, diff, run, defaults)]] - concept - docs/OPERATIONS.md
-- [[Daily tasks (systemctl status, journalctl)]] - concept - docs/OPERATIONS.md
-- [[Operational rules (one apply tool per shaper, start in shadow)]] - rationale - docs/OPERATIONS.md
-- [[Operations]] - document - docs/OPERATIONS.md
-- [[Plan 3 LibreQoS v3 detection and writers]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[Process run loop, SIGUSR1, SIGHUP, SIGTERMSIGINT, once, check, diff, defaults]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Signals SIGHUP reload, SIGUSR1 cycle now]] - concept - docs/OPERATIONS.md
-- [[cliCommand (check, once --force, run, diff, defaults)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[diffdiff_pair (semantic pair diff)]] - code - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[filesbackup with runtime.keep_backups = 10]] - code - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[lqosync3 detect (Plan 3)]] - concept - docs/OPERATIONS.md
-- [[lqosync3 once --dry-run]] - concept - docs/OPERATIONS.md
+- [[ADR-0006 v3 guards and node types_1]] - rationale - brain/HANDOFF.md
+- [[Checks after installation]] - concept - docs/INSTALLATION.md
+- [[Command reference]] - concept - docs/OPERATIONS.md
+- [[LibreQoS v3 checks (no_parent, compile_mode)]] - concept - docs/CONFIGURATION.md
+- [[Next action manual shadow run on production shaper]] - concept - brain/HANDOFF.md
+- [[Node types (v2_type, v3_type)]] - concept - docs/CONFIGURATION.md
+- [[network mode (grouped_router_root, flat_promotion, no_parent, ...)]] - concept - docs/CONFIGURATION.md
+- [[clicheck  CheckLine]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[cliparse  cliCommand]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[lqosync3 check]] - concept - docs/OPERATIONS.md
+- [[lqosync3 defaults]] - concept - docs/OPERATIONS.md
+- [[lqosync3 diff]] - concept - docs/OPERATIONS.md
+- [[lqosync3 once --force]] - concept - docs/OPERATIONS.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -30,18 +30,17 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 6 edges to [[_COMMUNITY_Router Reads 2]]
+- 5 edges to [[_COMMUNITY_Status and Diff]]
+- 3 edges to [[_COMMUNITY_Speed Rules 3]]
 - 3 edges to [[_COMMUNITY_Config 2]]
-- 3 edges to [[_COMMUNITY_CLI and Checks 2]]
-- 2 edges to [[_COMMUNITY_MikroTik Session 4]]
-- 1 edge to [[_COMMUNITY_Topology 3]]
-- 1 edge to [[_COMMUNITY_Topology 4]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
+- 2 edges to [[_COMMUNITY_Decisions]]
+- 1 edge to [[_COMMUNITY_Mock Router Tests 2]]
 - 1 edge to [[_COMMUNITY_MikroTik Session 5]]
+- 1 edge to [[_COMMUNITY_Topology 2]]
 
 ## Top bridge nodes
-- [[Operations]] - degree 16, connects to 6 communities
-- [[Process run loop, SIGUSR1, SIGHUP, SIGTERMSIGINT, once, check, diff, defaults]] - degree 4, connects to 2 communities
-- [[Plan 3 LibreQoS v3 detection and writers]] - degree 3, connects to 2 communities
-- [[cliCommand (check, once --force, run, diff, defaults)]] - degree 5, connects to 1 community
-- [[filesbackup with runtime.keep_backups = 10]] - degree 3, connects to 1 community
+- [[Command reference]] - degree 8, connects to 3 communities
+- [[lqosync3 check]] - degree 6, connects to 2 communities
+- [[lqosync3 diff]] - degree 6, connects to 2 communities
+- [[Next action manual shadow run on production shaper]] - degree 5, connects to 1 community
+- [[lqosync3 once --force]] - degree 5, connects to 1 community

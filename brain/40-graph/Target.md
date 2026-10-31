@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3 3"
+community: "LibreQoS v3 2"
 location: "L89"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_3
+  - community/LibreQoS_v3_2
 ---
 
 # Target
@@ -21,4 +21,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_3
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2

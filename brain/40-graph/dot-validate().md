@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Circuit Collection"
+community: "CLI and Checks 3"
 location: "L679"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/CLI_and_Checks_3
 ---
 
 # .validate()
@@ -18,4 +18,4 @@ tags:
 - [[dot-targets_v3()]] - `calls` [EXTRACTED]
 - [[Config]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_3

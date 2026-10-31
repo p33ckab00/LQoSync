@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Runner Cycle"
+community: "MikroTik Session"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session
 ---
 
 # super
@@ -28,4 +28,4 @@ tags:
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

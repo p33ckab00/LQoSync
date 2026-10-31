@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Router Reads"
 location: "L18"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Router_Reads
 ---
 
 # Timeout
@@ -17,4 +17,4 @@ tags:
 - [[read_router()]] - `references` [EXTRACTED]
 - [[read_snapshot()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Router_Reads

@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Router Reads"
 location: "L26"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Router_Reads
 ---
 
 # .fmt()
@@ -15,4 +15,4 @@ tags:
 - [[Formatter]] - `references` [EXTRACTED]
 - [[ReadError]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Router_Reads

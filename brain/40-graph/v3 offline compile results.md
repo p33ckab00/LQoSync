@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/v3-node-handling.md"
 type: "concept"
-community: "Topology 2"
+community: "Topology 3"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Topology_2
+  - community/Topology_3
 ---
 
 # v3 offline compile results
@@ -16,4 +16,4 @@ tags:
 - [[flat_promotion parent fix]] - `references` [INFERRED]
 - [[v3 name-derived legacy node id]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Topology_2
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

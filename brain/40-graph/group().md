@@ -12,7 +12,7 @@ tags:
 # group()
 
 ## Connections
-- [[CsvRow]] - `references` [EXTRACTED]
+- [[CsvRow_1]] - `references` [EXTRACTED]
 - [[diff.rs]] - `contains` [EXTRACTED]
 - [[diff_pair()]] - `calls` [EXTRACTED]
 

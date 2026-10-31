@@ -11,7 +11,7 @@ tags:
 # Speed source order TOML lists
 
 ## Connections
-- [[ADR-0004 TOML policy, Python defaults]] - `rationale_for` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults_1]] - `rationale_for` [EXTRACTED]
 - [[All policy in TOML]] - `references` [EXTRACTED]
 
 #graphify/concept #graphify/EXTRACTED #community/Speed_Rules_2

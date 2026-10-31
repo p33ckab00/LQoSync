@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "fs"
 location: "L71"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/fs
 ---
 
 # changed_columns()
@@ -16,4 +16,4 @@ tags:
 - [[assemble()]] - `calls` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/fs

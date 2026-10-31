@@ -1,19 +1,19 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "MikroTik Session 5"
-location: "L192-203"
+community: "Decisions"
+location: "L201"
 tags:
   - graphify/concept
-  - graphify/INFERRED
-  - community/MikroTik_Session_5
+  - graphify/EXTRACTED
+  - community/Decisions
 ---
 
 # Troubleshooting table
 
 ## Connections
-- [[LibreQoS v3 checks (no_parent fails, compile_mode warning)]] - `conceptually_related_to` [INFERRED]
-- [[Operations]] - `references` [EXTRACTED]
-- [[Secret files (_file  _env, mode 0600, owner root)]] - `references` [INFERRED]
+- [[Operations (docs)]] - `references` [EXTRACTED]
+- [[Secret files (_file keys, mode 0600, owner root)]] - `references` [INFERRED]
+- [[lqosd (LibreQoS v3 daemon)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/INFERRED #community/MikroTik_Session_5
+#graphify/concept #graphify/EXTRACTED #community/Decisions

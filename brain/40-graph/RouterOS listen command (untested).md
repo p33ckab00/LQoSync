@@ -1,11 +1,11 @@
 ---
 source_file: "brain/10-sessions/2026-10-31-updatecsv-dissection.md"
 type: "concept"
-community: "MikroTik Session 3"
+community: "Topology 4"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/Topology_4
 ---
 
 # RouterOS listen command (untested)
@@ -14,4 +14,4 @@ tags:
 - [[Session updatecsv.py dissection]] - `references` [EXTRACTED]
 - [[mikrotik-rs RouterOS API crate]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/concept #graphify/EXTRACTED #community/Topology_4

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L567"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # ids()
@@ -17,4 +17,4 @@ tags:
 - [[seeded_nodes_survive_preserve_mode()]] - `calls` [EXTRACTED]
 - [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

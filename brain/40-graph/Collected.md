@@ -14,14 +14,14 @@ tags:
 ## Connections
 - [[GroupKey]] - `references` [EXTRACTED]
 - [[Rate]] - `references` [EXTRACTED]
-- [[Source]] - `references` [EXTRACTED]
+- [[Source_1]] - `references` [EXTRACTED]
 - [[by_name()]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `references` [EXTRACTED]
 - [[collect_hotspot()]] - `references` [EXTRACTED]
 - [[collect_ppp()]] - `references` [EXTRACTED]
 - [[collect_router()]] - `references` [EXTRACTED]
 - [[names_of()]] - `references` [EXTRACTED]
-- [[run()_2]] - `references` [EXTRACTED]
+- [[run()_1]] - `references` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Circuit_Collection

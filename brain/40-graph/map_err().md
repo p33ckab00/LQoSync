@@ -1,12 +1,12 @@
 ---
 source_file: "src/mikrotik.rs"
 type: "code"
-community: "Community 18"
+community: "MikroTik Session 3"
 location: "L101"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_18
+  - community/MikroTik_Session_3
 ---
 
 # map_err()
@@ -16,4 +16,4 @@ tags:
 - [[ReadError]] - `references` [EXTRACTED]
 - [[mikrotik.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_18
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3

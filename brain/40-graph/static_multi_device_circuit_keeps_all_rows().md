@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L1209"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # static_multi_device_circuit_keeps_all_rows()
@@ -17,4 +17,4 @@ tags:
 - [[run_full()]] - `calls` [EXTRACTED]
 - [[static_row()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

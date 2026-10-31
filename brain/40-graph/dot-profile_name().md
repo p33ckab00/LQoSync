@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 location: "L161"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # .profile_name()
@@ -17,4 +17,4 @@ tags:
 - [[to_mbps()]] - `calls` [EXTRACTED]
 - [[usable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

@@ -1,12 +1,12 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "Community 20"
+community: "fs"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_20
+  - community/fs
 ---
 
 # scenarios.rs
@@ -38,4 +38,4 @@ tags:
 - [[seed_state()]] - `imports_from` [EXTRACTED]
 - [[split_static()]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_20
+#graphify/code #graphify/EXTRACTED #community/fs

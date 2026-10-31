@@ -1,12 +1,12 @@
 ---
 source_file: "src/main.rs"
 type: "code"
-community: "Status and Diff"
+community: "MikroTik Session"
 location: "L22"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/MikroTik_Session
 ---
 
 # exit_with()
@@ -15,4 +15,4 @@ tags:
 - [[main()]] - `calls` [EXTRACTED]
 - [[main.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

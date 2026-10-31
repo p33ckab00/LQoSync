@@ -1,21 +1,20 @@
 ---
-source_file: "src/runner.rs"
+source_file: "src/mikrotik.rs"
 type: "code"
-community: "Runner Cycle"
-location: "L366"
+community: "MikroTik Session 3"
+location: "L191"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session_3
 ---
 
 # .print()
 
 ## Connections
-- [[dot-lock()]] - `calls` [EXTRACTED]
-- [[FakeSession]] - `method` [EXTRACTED]
+- [[MikrotikSession]] - `method` [EXTRACTED]
 - [[Output]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RosRow]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3

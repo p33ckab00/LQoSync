@@ -1,30 +1,30 @@
 ---
-source_file: "src/runner.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "Runner Cycle"
-location: "L440"
+community: "Circuit Collection"
+location: "L446"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/Circuit_Collection
 ---
 
 # cfg()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[Env]] - `references` [EXTRACTED]
-- [[a_config_reload_error_shows_in_status_until_a_good_reload()]] - `calls` [EXTRACTED]
-- [[a_held_lock_stops_the_cycle_without_touching_status()]] - `calls` [EXTRACTED]
-- [[a_panicking_router_task_fails_only_that_router()]] - `calls` [EXTRACTED]
-- [[apply_backs_up_writes_and_reloads()]] - `calls` [EXTRACTED]
-- [[assemble_error_writes_nothing()]] - `calls` [EXTRACTED]
-- [[failed_reload_is_retried_until_it_works()]] - `calls` [EXTRACTED]
-- [[failed_router_keeps_rows_and_status_says_failed()]] - `calls` [EXTRACTED]
-- [[network_json_is_written_before_the_csv()]] - `calls` [EXTRACTED]
-- [[restart_after_state_write_gives_same_files()]] - `calls` [EXTRACTED]
-- [[runner.rs]] - `contains` [EXTRACTED]
-- [[second_cycle_without_change_writes_nothing()]] - `calls` [EXTRACTED]
-- [[shadow_writes_candidates_only()]] - `calls` [EXTRACTED]
+- [[a_zero_speed_profile_comment_gives_one_line()]] - `calls` [EXTRACTED]
+- [[circuit_templates_can_use_router()]] - `calls` [EXTRACTED]
+- [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]
+- [[dhcp_per_site_filters_and_names()]] - `calls` [EXTRACTED]
+- [[dhcp_server_comment_beats_settings()]] - `calls` [EXTRACTED]
+- [[disabled_sources_give_nothing()]] - `calls` [EXTRACTED]
+- [[hotspot_key_rules()]] - `calls` [EXTRACTED]
+- [[only_true_or_yes_turns_a_flag_on()]] - `calls` [EXTRACTED]
+- [[ppp_mac_falls_back_to_secret_caller_id()]] - `calls` [EXTRACTED]
+- [[ppp_needs_active_and_enabled_secret()]] - `calls` [EXTRACTED]
+- [[ppp_speed_chain_order()]] - `calls` [EXTRACTED]
+- [[sources.rs]] - `contains` [EXTRACTED]
+- [[zero_speed_comments_give_a_report_line()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

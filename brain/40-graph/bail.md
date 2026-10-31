@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Community 4"
+community: "File Safety"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Community_4
+  - community/File_Safety
 ---
 
 # bail
@@ -18,4 +18,4 @@ tags:
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Community_4
+#graphify/concept #graphify/EXTRACTED #community/File_Safety

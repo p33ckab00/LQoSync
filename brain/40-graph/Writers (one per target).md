@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session"
+community: "MikroTik Session 2"
 location: "L52"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/MikroTik_Session_2
 ---
 
 # Writers (one per target)
@@ -20,4 +20,4 @@ tags:
 - [[network.json]] - `shares_data_with` [EXTRACTED]
 - [[v2 vs v3 writer differences]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_2

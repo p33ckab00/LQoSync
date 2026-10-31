@@ -1,28 +1,30 @@
 ---
-source_file: "src/cycle.rs"
+source_file: "src/runner.rs"
 type: "code"
-community: "Cycle Assembly"
-location: "L497"
+community: "MikroTik Session"
+location: "L440"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/MikroTik_Session
 ---
 
 # cfg()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[cycle.rs]] - `contains` [EXTRACTED]
-- [[flat_promotion_has_no_client_node_for_a_static_row()]] - `calls` [EXTRACTED]
-- [[flat_promotion_parent_is_own_client_node()]] - `calls` [EXTRACTED]
-- [[grace_also_applies_to_a_router_not_in_the_config()]] - `calls` [EXTRACTED]
-- [[grace_keeps_a_missing_subscriber()]] - `calls` [EXTRACTED]
-- [[group_counts_skip_duplicate_ip_circuits()]] - `calls` [EXTRACTED]
-- [[offline_remove_ignores_grace_and_keep_keeps()]] - `calls` [EXTRACTED]
-- [[recycled_ip_goes_to_the_new_subscriber()]] - `calls` [EXTRACTED]
-- [[remove_inactive_entries_false_removes_nothing()]] - `calls` [EXTRACTED]
-- [[rp()]] - `calls` [EXTRACTED]
-- [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]
+- [[Env]] - `references` [EXTRACTED]
+- [[a_config_reload_error_shows_in_status_until_a_good_reload()]] - `calls` [EXTRACTED]
+- [[a_held_lock_stops_the_cycle_without_touching_status()]] - `calls` [EXTRACTED]
+- [[a_panicking_router_task_fails_only_that_router()]] - `calls` [EXTRACTED]
+- [[apply_backs_up_writes_and_reloads()]] - `calls` [EXTRACTED]
+- [[assemble_error_writes_nothing()]] - `calls` [EXTRACTED]
+- [[failed_reload_is_retried_until_it_works()]] - `calls` [EXTRACTED]
+- [[failed_router_keeps_rows_and_status_says_failed()]] - `calls` [EXTRACTED]
+- [[network_json_is_written_before_the_csv()]] - `calls` [EXTRACTED]
+- [[restart_after_state_write_gives_same_files()]] - `calls` [EXTRACTED]
+- [[runner.rs]] - `contains` [EXTRACTED]
+- [[second_cycle_without_change_writes_nothing()]] - `calls` [EXTRACTED]
+- [[shadow_writes_candidates_only()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

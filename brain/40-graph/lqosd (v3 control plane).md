@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "Topology 3"
+community: "Topology 5"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Topology_3
+  - community/Topology_5
 ---
 
 # lqosd (v3 control plane)
@@ -14,4 +14,4 @@ tags:
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 - [[lqosd inotify file watcher]] - `implements` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Topology_3
+#graphify/concept #graphify/EXTRACTED #community/Topology_5

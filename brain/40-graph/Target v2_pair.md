@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session"
+community: "MikroTik Session 2"
 location: "L64"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/MikroTik_Session_2
 ---
 
 # Target v2_pair
@@ -16,4 +16,4 @@ tags:
 - [[Target Detector]] - `references` [EXTRACTED]
 - [[Task 7 Pair writer (render_csv, render_network_json)]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_2

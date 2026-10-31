@@ -1,16 +1,18 @@
 ---
 source_file: ""
 type: "code"
-community: "File Safety"
+community: "Status and Diff 2"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/File_Safety
+  - community/Status_and_Diff_2
 ---
 
 # Value
 
 ## Connections
-- [[Live]] - `references` [EXTRACTED]
+- [[diff.rs]] - `imports_from` [EXTRACTED]
+- [[diff_pair()]] - `references` [EXTRACTED]
+- [[nodes()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/File_Safety
+#graphify/code #graphify/EXTRACTED #community/Status_and_Diff_2

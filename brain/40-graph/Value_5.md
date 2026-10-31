@@ -1,18 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Status and Diff 2"
+community: "Config 3"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff_2
+  - community/Config_3
 ---
 
 # Value
 
 ## Connections
-- [[diff.rs]] - `imports_from` [EXTRACTED]
-- [[diff_pair()]] - `references` [EXTRACTED]
-- [[nodes()]] - `references` [EXTRACTED]
+- [[seed_nodes()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff_2
+#graphify/code #graphify/EXTRACTED #community/Config_3

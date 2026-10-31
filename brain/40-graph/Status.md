@@ -1,12 +1,12 @@
 ---
 source_file: "src/status.rs"
 type: "code"
-community: "Runner Cycle"
+community: "MikroTik Session"
 location: "L58"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session
 ---
 
 # Status
@@ -20,4 +20,4 @@ tags:
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

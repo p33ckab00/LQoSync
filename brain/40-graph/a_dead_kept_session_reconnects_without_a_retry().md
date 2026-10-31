@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Session Notes"
 location: "L349"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Session_Notes
 ---
 
 # a_dead_kept_session_reconnects_without_a_retry()
@@ -17,4 +17,4 @@ tags:
 - [[read_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Session_Notes

@@ -1,12 +1,12 @@
 ---
 source_file: "tests/config_doc.rs"
 type: "code"
-community: "Config 3"
+community: "Config 4"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Config_4
 ---
 
 # config_doc.rs
@@ -16,4 +16,4 @@ tags:
 - [[example_in_configuration_md_parses()]] - `contains` [EXTRACTED]
 - [[example_values_match_the_defaults_file()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Config_4

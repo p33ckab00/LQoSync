@@ -17,7 +17,7 @@ tags:
 - [[carried_nodes_of_failed_router_stay()]] - `calls` [EXTRACTED]
 - [[deep_chains_nest_in_parent_first_order()]] - `calls` [EXTRACTED]
 - [[flat_promotion_gives_one_client_node_per_row()]] - `calls` [EXTRACTED]
-- [[net()]] - `calls` [EXTRACTED]
+- [[net()_1]] - `calls` [EXTRACTED]
 - [[preserve_keeps_manual_nodes_and_drops_old_generated()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 

@@ -1,18 +1,18 @@
 ---
 source_file: "src/status.rs"
 type: "code"
-community: "Runner Cycle"
+community: "MikroTik Session"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session
 ---
 
 # status.rs
 
 ## Connections
-- [[Report]] - `imports_from` [EXTRACTED]
+- [[Report_1]] - `imports_from` [EXTRACTED]
 - [[ReportSummary]] - `contains` [EXTRACTED]
 - [[RouterStatus]] - `contains` [EXTRACTED]
 - [[Status]] - `contains` [EXTRACTED]
@@ -21,4 +21,4 @@ tags:
 - [[status_json_has_the_spec_fields()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

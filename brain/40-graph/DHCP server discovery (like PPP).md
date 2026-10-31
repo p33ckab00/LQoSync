@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0009-dhcp-discovery-and-exclusions.md"
 type: "rationale"
-community: "Speed Rules"
+community: "Speed Rules 4"
 tags:
   - graphify/rationale
   - graphify/INFERRED
-  - community/Speed_Rules
+  - community/Speed_Rules_4
 ---
 
 # DHCP server discovery (like PPP)
@@ -15,4 +15,4 @@ tags:
 - [[Circuit rules for each source]] - `implements` [INFERRED]
 - [[updatecsv.py dissection]] - `conceptually_related_to` [INFERRED]
 
-#graphify/rationale #graphify/INFERRED #community/Speed_Rules
+#graphify/rationale #graphify/INFERRED #community/Speed_Rules_4

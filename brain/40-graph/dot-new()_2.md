@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 location: "L109"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # .new()
@@ -17,4 +17,4 @@ tags:
 - [[legacy()]] - `calls` [EXTRACTED]
 - [[p()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

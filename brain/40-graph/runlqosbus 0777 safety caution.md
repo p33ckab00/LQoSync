@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "rationale"
-community: "Topology 3"
+community: "Topology 5"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Topology_3
+  - community/Topology_5
 ---
 
 # /run/lqos/bus 0777 safety caution
@@ -15,4 +15,4 @@ tags:
 - [[Offline v3 simulation]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `semantically_similar_to` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Topology_3
+#graphify/rationale #graphify/EXTRACTED #community/Topology_5

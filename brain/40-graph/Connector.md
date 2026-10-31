@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "MikroTik Session 3"
 location: "L50"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/MikroTik_Session_3
 ---
 
 # Connector
@@ -20,4 +20,4 @@ tags:
 - [[routeros.rs]] - `contains` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3

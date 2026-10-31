@@ -12,7 +12,6 @@ tags:
 # mikrotik-tokio 0.1.0 16-reply burst cancel bug
 
 ## Connections
-- [[Mock RouterOS server tests (testsmock_router.rs)]] - `references` [EXTRACTED]
 - [[Test strategy (fake session, mock RouterOS server, temp folders)]] - `conceptually_related_to` [EXTRACTED]
 - [[mikrotik-rs =0.9.0 (mikrotik-tokio 0.3.0)]] - `rationale_for` [EXTRACTED]
 

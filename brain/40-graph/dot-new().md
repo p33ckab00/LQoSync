@@ -1,12 +1,12 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "Runner Cycle"
+community: "MikroTik Session"
 location: "L77"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session
 ---
 
 # .new()
@@ -17,4 +17,4 @@ tags:
 - [[RunnerC]] - `method` [EXTRACTED]
 - [[runner()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

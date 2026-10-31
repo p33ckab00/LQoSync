@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 location: "L15"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # round3()
@@ -15,4 +15,4 @@ tags:
 - [[clamp()]] - `calls` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

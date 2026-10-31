@@ -13,10 +13,9 @@ tags:
 
 ## Connections
 - [[Atomic write (temp file, sync_all, rename, fsync folder; only on byte change)]] - `references` [EXTRACTED]
-- [[Backups that the tool keeps (last 10 in varliblqosync3applied)]] - `conceptually_related_to` [INFERRED]
 - [[First-run seed (seed_state, seed_nodes from live files)]] - `references` [EXTRACTED]
 - [[Instance lock statelqosync3.lock (Filetry_lock)]] - `references` [EXTRACTED]
-- [[Runtime modes (shadow, apply)]] - `conceptually_related_to` [INFERRED]
+- [[Runtime modes (shadow  apply)]] - `conceptually_related_to` [INFERRED]
 - [[Write order state.json first, then LibreQoS pair]] - `references` [EXTRACTED]
 - [[lqosync3 runtime design (Plan 2)]] - `references` [EXTRACTED]
 - [[status.json status file]] - `references` [EXTRACTED]

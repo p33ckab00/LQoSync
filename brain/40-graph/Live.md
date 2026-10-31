@@ -12,8 +12,8 @@ tags:
 # Live
 
 ## Connections
-- [[CsvRow]] - `references` [EXTRACTED]
-- [[Value_1]] - `references` [EXTRACTED]
+- [[CsvRow_2]] - `references` [EXTRACTED]
+- [[Value_6]] - `references` [EXTRACTED]
 - [[files.rs]] - `contains` [EXTRACTED]
 - [[load_state()]] - `references` [EXTRACTED]
 - [[read_live()]] - `references` [EXTRACTED]

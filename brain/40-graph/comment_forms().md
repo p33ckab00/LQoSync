@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 location: "L204"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # comment_forms()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

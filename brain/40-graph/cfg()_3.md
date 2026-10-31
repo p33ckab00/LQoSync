@@ -1,30 +1,28 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/cycle.rs"
 type: "code"
-community: "Circuit Collection"
-location: "L446"
+community: "CLI and Checks 2"
+location: "L497"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/CLI_and_Checks_2
 ---
 
 # cfg()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[a_zero_speed_profile_comment_gives_one_line()]] - `calls` [EXTRACTED]
-- [[circuit_templates_can_use_router()]] - `calls` [EXTRACTED]
-- [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]
-- [[dhcp_per_site_filters_and_names()]] - `calls` [EXTRACTED]
-- [[dhcp_server_comment_beats_settings()]] - `calls` [EXTRACTED]
-- [[disabled_sources_give_nothing()]] - `calls` [EXTRACTED]
-- [[hotspot_key_rules()]] - `calls` [EXTRACTED]
-- [[only_true_or_yes_turns_a_flag_on()]] - `calls` [EXTRACTED]
-- [[ppp_mac_falls_back_to_secret_caller_id()]] - `calls` [EXTRACTED]
-- [[ppp_needs_active_and_enabled_secret()]] - `calls` [EXTRACTED]
-- [[ppp_speed_chain_order()]] - `calls` [EXTRACTED]
-- [[sources.rs]] - `contains` [EXTRACTED]
-- [[zero_speed_comments_give_a_report_line()]] - `calls` [EXTRACTED]
+- [[cycle.rs]] - `contains` [EXTRACTED]
+- [[flat_promotion_has_no_client_node_for_a_static_row()]] - `calls` [EXTRACTED]
+- [[flat_promotion_parent_is_own_client_node()]] - `calls` [EXTRACTED]
+- [[grace_also_applies_to_a_router_not_in_the_config()]] - `calls` [EXTRACTED]
+- [[grace_keeps_a_missing_subscriber()]] - `calls` [EXTRACTED]
+- [[group_counts_skip_duplicate_ip_circuits()]] - `calls` [EXTRACTED]
+- [[offline_remove_ignores_grace_and_keep_keeps()]] - `calls` [EXTRACTED]
+- [[recycled_ip_goes_to_the_new_subscriber()]] - `calls` [EXTRACTED]
+- [[remove_inactive_entries_false_removes_nothing()]] - `calls` [EXTRACTED]
+- [[rp()]] - `calls` [EXTRACTED]
+- [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

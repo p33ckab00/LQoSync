@@ -1,22 +1,19 @@
 ---
 type: community
-members: 23
+members: 20
 ---
 
 # Router State
 
-**Members:** 23 nodes
+**Members:** 20 nodes
 
 ## Members
 - [[Failed]] - code - src/cycle.rs
-- [[Keep]] - code - src/config.rs
 - [[Offline]] - code - src/cycle.rs
-- [[OfflineAction]] - code - src/config.rs
 - [[Online]] - code - src/cycle.rs
-- [[Remove]] - code - src/config.rs
-- [[RouterAccess]] - code - src/config.rs
 - [[RouterMemo]] - code - src/model.rs
 - [[RouterResult]] - code - src/cycle.rs
+- [[RouterSnapshot]] - code - src/model.rs
 - [[Unreachable]] - code - src/cycle.rs
 - [[acc()]] - code - src/routerstate.rs
 - [[classify()]] - code - src/routerstate.rs
@@ -40,18 +37,17 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 10 edges to [[_COMMUNITY_Community 6]]
-- 8 edges to [[_COMMUNITY_Runner Cycle]]
-- 7 edges to [[_COMMUNITY_Cycle Assembly]]
-- 4 edges to [[_COMMUNITY_Circuit Collection]]
-- 2 edges to [[_COMMUNITY_Config]]
-- 2 edges to [[_COMMUNITY_Community 20]]
-- 2 edges to [[_COMMUNITY_Community 48]]
-- 1 edge to [[_COMMUNITY_Community 18]]
+- 6 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 5 edges to [[_COMMUNITY_fs]]
+- 3 edges to [[_COMMUNITY_btreemap]]
+- 3 edges to [[_COMMUNITY_Session Notes 2]]
+- 2 edges to [[_COMMUNITY_Router Reads]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
+- 1 edge to [[_COMMUNITY_MikroTik Session]]
 
 ## Top bridge nodes
-- [[RouterAccess]] - degree 17, connects to 5 communities
-- [[RouterResult]] - degree 18, connects to 4 communities
+- [[RouterSnapshot]] - degree 8, connects to 4 communities
 - [[routerstate.rs]] - degree 16, connects to 3 communities
-- [[classify()]] - degree 14, connects to 3 communities
-- [[RouterMemo]] - degree 6, connects to 2 communities
+- [[RouterResult]] - degree 16, connects to 2 communities
+- [[classify()]] - degree 12, connects to 2 communities
+- [[acc()]] - degree 8, connects to 1 community

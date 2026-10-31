@@ -1,19 +1,19 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/config.rs"
 type: "code"
-community: "Circuit Collection"
-location: "L102"
+community: "BandwidthDefaults"
+location: "L378"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/BandwidthDefaults
 ---
 
 # .server()
 
 ## Connections
-- [[Excluder'a]] - `method` [EXTRACTED]
-- [[collect_dhcp()]] - `calls` [EXTRACTED]
-- [[glob()]] - `calls` [EXTRACTED]
+- [[DhcpCfg]] - `method` [EXTRACTED]
+- [[DhcpServer]] - `references` [EXTRACTED]
+- [[dhcp_server_gives_override_or_default()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults

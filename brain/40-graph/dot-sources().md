@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Circuit Collection"
+community: "Secrets"
 location: "L429"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/Secrets
 ---
 
 # .sources()
@@ -17,4 +17,4 @@ tags:
 - [[DhcpSource]] - `references` [EXTRACTED]
 - [[Speed]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Secrets

@@ -1,34 +1,31 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "Runner Cycle"
+community: "MikroTik Session"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session
 ---
 
 # runner.rs
 
 ## Connections
-- [[Columns]] - `imports_from` [EXTRACTED]
 - [[Config]] - `imports_from` [EXTRACTED]
 - [[Connector]] - `imports_from` [EXTRACTED]
-- [[CycleInput]] - `imports_from` [EXTRACTED]
 - [[CycleSummary]] - `contains` [EXTRACTED]
 - [[Env]] - `contains` [EXTRACTED]
 - [[Fake]] - `contains` [EXTRACTED]
 - [[FakeConnector]] - `contains` [EXTRACTED]
-- [[FakeSession]] - `contains` [EXTRACTED]
+- [[FakeSession_1]] - `contains` [EXTRACTED]
 - [[Mutex]] - `imports_from` [EXTRACTED]
 - [[ReadError]] - `imports_from` [EXTRACTED]
 - [[ReportSummary]] - `imports_from` [EXTRACTED]
-- [[RosRow]] - `imports_from` [EXTRACTED]
+- [[RosRow_1]] - `imports_from` [EXTRACTED]
 - [[RouterAccess]] - `imports_from` [EXTRACTED]
 - [[RouterCfg]] - `imports_from` [EXTRACTED]
-- [[RouterMemo]] - `imports_from` [EXTRACTED]
-- [[RouterResult]] - `imports_from` [EXTRACTED]
+- [[RouterResult_1]] - `imports_from` [EXTRACTED]
 - [[RouterSession]] - `imports_from` [EXTRACTED]
 - [[RouterStatus]] - `imports_from` [EXTRACTED]
 - [[Runner]] - `contains` [EXTRACTED]
@@ -42,11 +39,13 @@ tags:
 - [[a_panicking_router_task_fails_only_that_router()]] - `contains` [EXTRACTED]
 - [[apply_backs_up_writes_and_reloads()]] - `contains` [EXTRACTED]
 - [[arc]] - `imports_from` [EXTRACTED]
-- [[assemble()]] - `imports_from` [EXTRACTED]
+- [[assemble]] - `imports_from` [EXTRACTED]
 - [[assemble_error_writes_nothing()]] - `contains` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
-- [[cfg()_1]] - `contains` [EXTRACTED]
-- [[classify()]] - `imports_from` [EXTRACTED]
+- [[cfg()]] - `contains` [EXTRACTED]
+- [[classify]] - `imports_from` [EXTRACTED]
+- [[columns_1]] - `imports_from` [EXTRACTED]
+- [[cycleinput_1]] - `imports_from` [EXTRACTED]
 - [[duration]] - `imports_from` [EXTRACTED]
 - [[env()]] - `contains` [EXTRACTED]
 - [[failed_reload_is_retried_until_it_works()]] - `contains` [EXTRACTED]
@@ -64,9 +63,10 @@ tags:
 - [[read]] - `imports_from` [EXTRACTED]
 - [[read()]] - `contains` [EXTRACTED]
 - [[read_router()]] - `imports_from` [EXTRACTED]
-- [[render_csv()]] - `imports_from` [EXTRACTED]
-- [[render_network_json()]] - `imports_from` [EXTRACTED]
+- [[render_csv]] - `imports_from` [EXTRACTED]
+- [[render_network_json]] - `imports_from` [EXTRACTED]
 - [[restart_after_state_write_gives_same_files()]] - `contains` [EXTRACTED]
+- [[routermemo_1]] - `imports_from` [EXTRACTED]
 - [[row()]] - `contains` [EXTRACTED]
 - [[runner()]] - `contains` [EXTRACTED]
 - [[second_cycle_without_change_writes_nothing()]] - `contains` [EXTRACTED]
@@ -75,4 +75,4 @@ tags:
 - [[super]] - `imports_from` [EXTRACTED]
 - [[users()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

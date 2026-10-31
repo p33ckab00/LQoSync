@@ -1,21 +1,21 @@
 ---
-source_file: "src/runner.rs"
+source_file: "src/routeros.rs"
 type: "code"
-community: "Runner Cycle"
-location: "L340"
+community: "Session Notes"
+location: "L190"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/Session_Notes
 ---
 
 # FakeSession
 
 ## Connections
 - [[dot-connect()]] - `references` [EXTRACTED]
-- [[dot-print()]] - `method` [EXTRACTED]
-- [[Fake]] - `references` [EXTRACTED]
+- [[dot-print()_1]] - `method` [EXTRACTED]
+- [[Fake_1]] - `references` [EXTRACTED]
 - [[RouterSession]] - `implements` [EXTRACTED]
-- [[runner.rs]] - `contains` [EXTRACTED]
+- [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/Session_Notes

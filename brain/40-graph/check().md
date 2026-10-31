@@ -1,23 +1,28 @@
 ---
-source_file: "src/cli.rs"
+source_file: "src/validate.rs"
 type: "code"
-community: "Community 4"
-location: "L93"
+community: "hashmap"
+location: "L47"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_4
+  - community/hashmap
 ---
 
 # check()
 
 ## Connections
-- [[CheckLine]] - `references` [EXTRACTED]
-- [[Config]] - `references` [EXTRACTED]
-- [[check_finds_plain_api_and_no_source_router()]] - `calls` [EXTRACTED]
-- [[check_reports_a_bad_secret_and_a_missing_lqos_dir()]] - `calls` [EXTRACTED]
-- [[cli.rs]] - `contains` [EXTRACTED]
-- [[line()]] - `calls` [EXTRACTED]
-- [[read_secret()]] - `calls` [INFERRED]
+- [[CsvRow]] - `references` [EXTRACTED]
+- [[NetworkMode]] - `references` [EXTRACTED]
+- [[Value]] - `references` [EXTRACTED]
+- [[collect_nodes()]] - `calls` [EXTRACTED]
+- [[duplicate_circuit_id_stops()]] - `calls` [EXTRACTED]
+- [[min_above_max_or_bad_number_stops()]] - `calls` [EXTRACTED]
+- [[missing_parent_stops_except_in_no_parent()]] - `calls` [EXTRACTED]
+- [[multi_device_circuit_passes_but_shared_device_id_stops()]] - `calls` [EXTRACTED]
+- [[parent_node_id_must_match_the_parent_node()]] - `calls` [EXTRACTED]
+- [[rate()_1]] - `calls` [EXTRACTED]
+- [[valid_rows_pass()]] - `calls` [EXTRACTED]
+- [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_4
+#graphify/code #graphify/EXTRACTED #community/hashmap

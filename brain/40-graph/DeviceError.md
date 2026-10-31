@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Community 18"
+community: "MikroTik Session 3"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_18
+  - community/MikroTik_Session_3
 ---
 
 # DeviceError
@@ -14,4 +14,4 @@ tags:
 - [[map_err()]] - `references` [EXTRACTED]
 - [[mikrotik.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_18
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3

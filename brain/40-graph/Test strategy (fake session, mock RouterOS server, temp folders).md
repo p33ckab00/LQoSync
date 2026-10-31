@@ -12,7 +12,6 @@ tags:
 # Test strategy (fake session, mock RouterOS server, temp folders)
 
 ## Connections
-- [[Mock RouterOS server tests (testsmock_router.rs)]] - `implements` [INFERRED]
 - [[lqosync3 runtime design (Plan 2)]] - `references` [EXTRACTED]
 - [[mikrotik-tokio 0.1.0 16-reply burst cancel bug]] - `conceptually_related_to` [EXTRACTED]
 

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session"
+community: "MikroTik Session 2"
 location: "L66"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/MikroTik_Session_2
 ---
 
 # Target v3_network
@@ -15,4 +15,4 @@ tags:
 - [[Target Detector]] - `references` [EXTRACTED]
 - [[libreqos_network.json]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_2

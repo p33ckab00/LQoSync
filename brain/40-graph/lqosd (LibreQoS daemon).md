@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session"
+community: "MikroTik Session 2"
 location: "L24"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/MikroTik_Session_2
 ---
 
 # lqosd (LibreQoS daemon)
@@ -16,4 +16,4 @@ tags:
 - [[ShapedDevices.csv]] - `references` [EXTRACTED]
 - [[libreqos_network.json]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_2

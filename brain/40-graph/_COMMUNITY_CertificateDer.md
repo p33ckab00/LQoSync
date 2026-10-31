@@ -31,9 +31,8 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 2 edges to [[_COMMUNITY_Community 18]]
-- 1 edge to [[_COMMUNITY_Community 6]]
+- 3 edges to [[_COMMUNITY_MikroTik Session 3]]
 
 ## Top bridge nodes
-- [[AnyCertificate]] - degree 8, connects to 2 communities
+- [[AnyCertificate]] - degree 8, connects to 1 community
 - [[ServerName]] - degree 2, connects to 1 community

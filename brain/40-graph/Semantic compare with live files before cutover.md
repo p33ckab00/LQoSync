@@ -11,7 +11,7 @@ tags:
 # Semantic compare with live files before cutover
 
 ## Connections
-- [[ADR-0007 Fresh design, not a port]] - `rationale_for` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port_1]] - `rationale_for` [EXTRACTED]
 - [[Shadow mode]] - `conceptually_related_to` [INFERRED]
 
 #graphify/concept #graphify/EXTRACTED #community/Speed_Rules_2

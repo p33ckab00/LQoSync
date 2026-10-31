@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Session Notes"
 location: "L230"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Session_Notes
 ---
 
 # ppp_router()
@@ -24,4 +24,4 @@ tags:
 - [[stalled_call_times_out()]] - `calls` [EXTRACTED]
 - [[stalled_connect_is_a_timeout_not_unreachable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Session_Notes

@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "LibreQoS v3 2"
+community: "LibreQoS v3"
 location: "L43"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_2
+  - community/LibreQoS_v3
 ---
 
 # Columns
@@ -18,7 +18,6 @@ tags:
 - [[model.rs]] - `contains` [EXTRACTED]
 - [[pair.rs]] - `imports_from` [EXTRACTED]
 - [[render_csv()]] - `references` [EXTRACTED]
-- [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

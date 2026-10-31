@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "Community 49"
+community: "State"
 location: "L111"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_49
+  - community/State
 ---
 
 # .from_json()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[State_1]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_49
+#graphify/code #graphify/EXTRACTED #community/State

@@ -1,12 +1,12 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "Community 20"
+community: "fs"
 location: "L17"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_20
+  - community/fs
 ---
 
 # Snapshot
@@ -17,4 +17,4 @@ tags:
 - [[results()]] - `references` [EXTRACTED]
 - [[scenarios.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_20
+#graphify/code #graphify/EXTRACTED #community/fs

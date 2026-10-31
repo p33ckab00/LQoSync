@@ -1,37 +1,51 @@
 ---
 type: community
-members: 24
+members: 38
 ---
 
 # CLI and Checks 2
 
-**Members:** 24 nodes
+**Members:** 38 nodes
 
 ## Members
-- [[ADR-0001 One model, many writers]] - rationale - brain/20-decisions/ADR-0001-one-model-many-writers.md
-- [[ADR-0002 v3 target selection]] - rationale - brain/20-decisions/ADR-0002-v3-target-selection.md
-- [[ADR-0003 Router failed vs offline]] - document - brain/20-decisions/ADR-0003-router-failed-vs-offline.md
-- [[Architecture (LQoSync3)]] - document - docs/ARCHITECTURE.md
-- [[Comment speed format (Name25M5M, 25M5M, 25M)]] - rationale - docs/CONFIGURATION.md
-- [[Configuration]] - document - docs/CONFIGURATION.md
-- [[Handoff]] - document - brain/HANDOFF.md
-- [[Home (vault map of content)]] - document - brain/Home.md
-- [[LibreQoS v3 ingress facts]] - document - brain/30-knowledge/libreqos-v3-ingress-facts.md
-- [[Loader rules (unknown key, type, range rejection)]] - concept - docs/CONFIGURATION.md
-- [[Naming branch, crate, binary, service lqosync3]] - concept - brain/HANDOFF.md
-- [[PPPoE speed order decision]] - concept - brain/HANDOFF.md
-- [[PPPoE speed sources (speed.pppoe_sources)]] - concept - docs/CONFIGURATION.md
-- [[Policy in TOML, formats in code]] - rationale - docs/CONFIGURATION.md
-- [[Rate direction and units (rate_limit_order, unitless_unit)]] - concept - docs/CONFIGURATION.md
-- [[Router state (online, failed, unreachable, offline)]] - concept - docs/CONFIGURATION.md
-- [[Router state classification (RouterResult, unreachable_since)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Session 2026-10-31 project setup and v3 simulation]] - document - brain/10-sessions/2026-10-31-project-setup-and-v3-simulation.md
-- [[Session updatecsv.py dissection]] - document - brain/10-sessions/2026-10-31-updatecsv-dissection.md
-- [[Speed rules decision (routeros_rx_tx, unitless bps)]] - rationale - brain/HANDOFF.md
-- [[Verification checks (cargo test, clippy, fmt, v3sim check.sh)]] - concept - brain/HANDOFF.md
-- [[offline_after  offline_action]] - rationale - docs/CONFIGURATION.md
-- [[topology_import.json (internal, do not write)]] - concept - brain/30-knowledge/libreqos-v3-ingress-facts.md
-- [[v3 offline simulation method]] - document - brain/30-knowledge/v3-offline-simulation-method.md
+- [[NOW]] - code - src/cycle.rs
+- [[a_row_that_stays_keeps_its_group_node()]] - code - src/cycle.rs
+- [[cfg()_3]] - code - src/cycle.rs
+- [[cycle.rs]] - code - src/cycle.rs
+- [[duplicate_ip_existing_vs_existing_keeps_collected()]] - code - src/cycle.rs
+- [[duplicate_ip_new_vs_existing_keeps_existing()]] - code - src/cycle.rs
+- [[empty_online_router_removes_its_rows()]] - code - src/cycle.rs
+- [[failed_and_unreachable_router_keep_rows_and_nodes()]] - code - src/cycle.rs
+- [[flat_promotion_has_no_client_node_for_a_static_row()]] - code - src/cycle.rs
+- [[flat_promotion_parent_is_own_client_node()]] - code - src/cycle.rs
+- [[get()]] - code - src/cycle.rs
+- [[grace_also_applies_to_a_router_not_in_the_config()]] - code - src/cycle.rs
+- [[grace_keeps_a_missing_subscriber()]] - code - src/cycle.rs
+- [[group_counts_skip_duplicate_ip_circuits()]] - code - src/cycle.rs
+- [[id_collision_asks_for_another_id()]] - code - src/cycle.rs
+- [[ids()]] - code - src/cycle.rs
+- [[many_duplicate_ip_drops_raise_an_alert()]] - code - src/cycle.rs
+- [[new_circuit_gets_new_ids_and_existing_keeps_them()]] - code - src/cycle.rs
+- [[node_name_collision_stops_with_clear_message()]] - code - src/cycle.rs
+- [[offline_remove_ignores_grace_and_keep_keeps()]] - code - src/cycle.rs
+- [[online_router_removes_rows_not_seen()]] - code - src/cycle.rs
+- [[recycled_ip_goes_to_the_new_subscriber()]] - code - src/cycle.rs
+- [[remove_inactive_entries_false_removes_nothing()]] - code - src/cycle.rs
+- [[rows_of_a_router_not_in_config_are_removed()]] - code - src/cycle.rs
+- [[rp()]] - code - src/cycle.rs
+- [[run()_2]] - code - src/cycle.rs
+- [[run_full()]] - code - src/cycle.rs
+- [[same_name_on_two_routers_later_router_wins()]] - code - src/cycle.rs
+- [[same_name_twice_in_one_router_keeps_first_and_warns()]] - code - src/cycle.rs
+- [[seed_rows_go_only_when_all_routers_online()]] - code - src/cycle.rs
+- [[seeded_nodes_survive_preserve_mode()]] - code - src/cycle.rs
+- [[state()]] - code - src/cycle.rs
+- [[static_multi_device_circuit_keeps_all_rows()]] - code - src/cycle.rs
+- [[static_row()]] - code - src/cycle.rs
+- [[static_row_passes_through_and_collected_replaces_it()]] - code - src/cycle.rs
+- [[static_row_wins_a_duplicate_ip()]] - code - src/cycle.rs
+- [[stored()]] - code - src/cycle.rs
+- [[v3_with_no_parent_stops()]] - code - src/cycle.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -41,25 +55,23 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 16 edges to [[_COMMUNITY_Topology 2]]
-- 16 edges to [[_COMMUNITY_Speed Rules 2]]
-- 11 edges to [[_COMMUNITY_Topology 4]]
-- 10 edges to [[_COMMUNITY_Topology 3]]
-- 9 edges to [[_COMMUNITY_MikroTik Session 3]]
-- 8 edges to [[_COMMUNITY_Config 2]]
-- 7 edges to [[_COMMUNITY_Speed Rules]]
-- 6 edges to [[_COMMUNITY_Router Reads 2]]
-- 6 edges to [[_COMMUNITY_Community 41]]
-- 3 edges to [[_COMMUNITY_Status and Diff 3]]
-- 3 edges to [[_COMMUNITY_Status and Diff 4]]
-- 2 edges to [[_COMMUNITY_MikroTik Session 4]]
-- 1 edge to [[_COMMUNITY_Router Reads 3]]
+- 18 edges to [[_COMMUNITY_Status and Diff 4]]
+- 14 edges to [[_COMMUNITY_fs]]
+- 10 edges to [[_COMMUNITY_Topology]]
+- 8 edges to [[_COMMUNITY_btreemap]]
+- 6 edges to [[_COMMUNITY_Router State]]
+- 5 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 4 edges to [[_COMMUNITY_hashmap]]
+- 4 edges to [[_COMMUNITY_LibreQoS v3]]
+- 3 edges to [[_COMMUNITY_Speed Rules]]
+- 1 edge to [[_COMMUNITY_Session Notes 2]]
+- 1 edge to [[_COMMUNITY_Circuit Collection]]
+- 1 edge to [[_COMMUNITY_File Safety]]
 - 1 edge to [[_COMMUNITY_MikroTik Session]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 5]]
 
 ## Top bridge nodes
-- [[Handoff]] - degree 34, connects to 12 communities
-- [[Configuration]] - degree 37, connects to 10 communities
-- [[Home (vault map of content)]] - degree 23, connects to 9 communities
-- [[LibreQoS v3 ingress facts]] - degree 14, connects to 4 communities
-- [[Architecture (LQoSync3)]] - degree 10, connects to 4 communities
+- [[cycle.rs]] - degree 87, connects to 13 communities
+- [[run_full()]] - degree 15, connects to 5 communities
+- [[run()_2]] - degree 31, connects to 4 communities
+- [[stored()]] - degree 6, connects to 3 communities
+- [[state()]] - degree 20, connects to 2 communities

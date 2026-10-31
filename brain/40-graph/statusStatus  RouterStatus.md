@@ -1,19 +1,18 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
-type: "code"
-community: "Router Reads 2"
-location: "L179-181"
+type: "concept"
+community: "Mock Router Tests 2"
+location: "L180"
 tags:
-  - graphify/code
+  - graphify/concept
   - graphify/EXTRACTED
-  - community/Router_Reads_2
+  - community/Mock_Router_Tests_2
 ---
 
 # status::Status / RouterStatus
 
 ## Connections
-- [[Runnercycle (lock, read, classify, assemble, write, reload, status)]] - `calls` [EXTRACTED]
-- [[lqosync3 Runtime Implementation Plan (Plan 2)]] - `references` [EXTRACTED]
-- [[status.json status file]] - `implements` [EXTRACTED]
+- [[state_dirstatus.json]] - `implements` [INFERRED]
+- [[runnerRunnercycle (one full cycle)]] - `shares_data_with` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads_2
+#graphify/concept #graphify/EXTRACTED #community/Mock_Router_Tests_2

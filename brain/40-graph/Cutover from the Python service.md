@@ -2,7 +2,7 @@
 source_file: "docs/OPERATIONS.md"
 type: "concept"
 community: "Config 2"
-location: "L81-120"
+location: "L83"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
@@ -12,10 +12,12 @@ tags:
 # Cutover from the Python service
 
 ## Connections
-- [[Installation]] - `references` [EXTRACTED]
-- [[Operations]] - `references` [EXTRACTED]
-- [[Production state Python lqosync-updatecsv.service and LibreQoS 2.2 unchanged]] - `conceptually_related_to` [INFERRED]
-- [[Rollback to the Python service]] - `conceptually_related_to` [EXTRACTED]
-- [[Runtime modes (shadow, apply)]] - `conceptually_related_to` [INFERRED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
+- [[Operations (docs)]] - `references` [EXTRACTED]
+- [[Runtime modes (shadow  apply)]] - `references` [EXTRACTED]
+- [[ShapedDevices.csv]] - `references` [EXTRACTED]
+- [[diffdiff_pair (semantic pair diff)]] - `semantically_similar_to` [INFERRED]
+- [[lqosync-updatecsv.service (live Python service)]] - `references` [EXTRACTED]
+- [[network.json]] - `references` [EXTRACTED]
 
 #graphify/concept #graphify/EXTRACTED #community/Config_2

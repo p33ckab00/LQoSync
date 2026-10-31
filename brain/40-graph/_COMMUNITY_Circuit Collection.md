@@ -1,38 +1,31 @@
 ---
 type: community
-members: 59
+members: 52
 ---
 
 # Circuit Collection
 
-**Members:** 59 nodes
+**Members:** 52 nodes
 
 ## Members
-- [[dot-check_finite()]] - code - src/config.rs
 - [[dot-ip()]] - code - src/sources.rs
 - [[dot-new()_1]] - code - src/sources.rs
 - [[dot-profile()]] - code - src/sources.rs
-- [[dot-server()_1]] - code - src/sources.rs
-- [[dot-sources()]] - code - src/config.rs
-- [[dot-targets_v3()]] - code - src/config.rs
-- [[dot-validate()]] - code - src/config.rs
+- [[dot-server()]] - code - src/sources.rs
 - [[Collected]] - code - src/sources.rs
-- [[Config]] - code - src/config.rs
 - [[DISCOVER]] - code - src/sources.rs
-- [[DhcpSource]] - code - src/config.rs
-- [[Exclude]] - code - src/config.rs
+- [[DhcpPlan]] - code - src/sources.rs
+- [[DhcpSite]] - code - src/sources.rs
 - [[Excluder]] - code - src/sources.rs
 - [[Excluder'a]] - code - src/sources.rs
-- [[LeaseComment]] - code - src/config.rs
+- [[PppPlan]] - code - src/sources.rs
 - [[ROUTER]] - code - src/sources.rs
-- [[RosRow]] - code - src/model.rs
-- [[RouterCfg]] - code - src/config.rs
-- [[RouterSnapshot]] - code - src/model.rs
-- [[ServerComment]] - code - src/config.rs
-- [[Settings]] - code - src/config.rs
+- [[RosRow_2]] - code
+- [[RouterSnapshot_1]] - code
+- [[Source_1]] - code
 - [[a_zero_speed_profile_comment_gives_one_line()]] - code - src/sources.rs
 - [[by_name()]] - code - src/sources.rs
-- [[cfg()_3]] - code - src/sources.rs
+- [[cfg()_1]] - code - src/sources.rs
 - [[cfg_text()]] - code - src/sources.rs
 - [[circuit_templates_can_use_router()]] - code - src/sources.rs
 - [[collect_dhcp()]] - code - src/sources.rs
@@ -63,7 +56,7 @@ members: 59
 - [[ppp_needs_active_and_enabled_secret()]] - code - src/sources.rs
 - [[ppp_speed_chain_order()]] - code - src/sources.rs
 - [[rate()]] - code - src/sources.rs
-- [[run()_2]] - code - src/sources.rs
+- [[run()_1]] - code - src/sources.rs
 - [[snap()]] - code - src/sources.rs
 - [[sources.rs]] - code - src/sources.rs
 - [[zero_speed_comments_give_a_report_line()]] - code - src/sources.rs
@@ -76,30 +69,21 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 18 edges to [[_COMMUNITY_Community 6]]
-- 15 edges to [[_COMMUNITY_Secrets]]
-- 14 edges to [[_COMMUNITY_Runner Cycle]]
-- 13 edges to [[_COMMUNITY_Topology]]
-- 12 edges to [[_COMMUNITY_Cycle Assembly]]
-- 10 edges to [[_COMMUNITY_Config]]
-- 6 edges to [[_COMMUNITY_Community 26]]
-- 5 edges to [[_COMMUNITY_Community 20]]
-- 4 edges to [[_COMMUNITY_Router State]]
-- 4 edges to [[_COMMUNITY_Community 4]]
-- 3 edges to [[_COMMUNITY_dot-default()]]
-- 3 edges to [[_COMMUNITY_Community 48]]
-- 2 edges to [[_COMMUNITY_Status and Diff]]
-- 2 edges to [[_COMMUNITY_Community 18]]
-- 1 edge to [[_COMMUNITY_CircuitNames]]
-- 1 edge to [[_COMMUNITY_LibreQoS v3 3]]
-- 1 edge to [[_COMMUNITY_hashmap]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 4]]
-- 1 edge to [[_COMMUNITY_Community 33]]
-- 1 edge to [[_COMMUNITY_Status and Diff 2]]
+- 11 edges to [[_COMMUNITY_Speed Rules]]
+- 9 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 6 edges to [[_COMMUNITY_MikroTik Session 3]]
+- 5 edges to [[_COMMUNITY_Topology]]
+- 2 edges to [[_COMMUNITY_Secrets]]
+- 1 edge to [[_COMMUNITY_BandwidthDefaults]]
+- 1 edge to [[_COMMUNITY_Config]]
+- 1 edge to [[_COMMUNITY_MikroTik Session]]
+- 1 edge to [[_COMMUNITY_btreemap]]
+- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
+- 1 edge to [[_COMMUNITY_fs]]
 
 ## Top bridge nodes
-- [[Config]] - degree 61, connects to 17 communities
-- [[sources.rs]] - degree 54, connects to 6 communities
-- [[RouterCfg]] - degree 25, connects to 5 communities
-- [[RouterSnapshot]] - degree 18, connects to 5 communities
-- [[RosRow]] - degree 15, connects to 4 communities
+- [[sources.rs]] - degree 54, connects to 8 communities
+- [[collect_router()]] - degree 13, connects to 5 communities
+- [[collect_dhcp()]] - degree 17, connects to 3 communities
+- [[collect_ppp()]] - degree 15, connects to 3 communities
+- [[Collected]] - degree 11, connects to 2 communities

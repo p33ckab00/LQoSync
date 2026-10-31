@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L1178"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # node_name_collision_stops_with_clear_message()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[cycle.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

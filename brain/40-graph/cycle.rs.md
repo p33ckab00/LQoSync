@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # cycle.rs
@@ -38,7 +38,7 @@ tags:
 - [[bail]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[build_nodes()]] - `imports_from` [EXTRACTED]
-- [[cfg()]] - `contains` [EXTRACTED]
+- [[cfg()_3]] - `contains` [EXTRACTED]
 - [[changed_columns()]] - `contains` [EXTRACTED]
 - [[circuit_rates()]] - `imports_from` [EXTRACTED]
 - [[client_node_id()]] - `imports_from` [EXTRACTED]
@@ -82,7 +82,7 @@ tags:
 - [[rows_of_a_router_not_in_config_are_removed()]] - `contains` [EXTRACTED]
 - [[rp()]] - `contains` [EXTRACTED]
 - [[rp_toml_with_guard()]] - `contains` [EXTRACTED]
-- [[run()]] - `contains` [EXTRACTED]
+- [[run()_2]] - `contains` [EXTRACTED]
 - [[run_full()]] - `contains` [EXTRACTED]
 - [[same_name_on_two_routers_later_router_wins()]] - `contains` [EXTRACTED]
 - [[same_name_twice_in_one_router_keeps_first_and_warns()]] - `contains` [EXTRACTED]
@@ -100,4 +100,4 @@ tags:
 - [[v3_with_no_parent_stops()]] - `contains` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

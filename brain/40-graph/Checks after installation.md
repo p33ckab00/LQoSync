@@ -1,17 +1,19 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Config 2"
-location: "L144-167"
+community: "Status and Diff 3"
+location: "L144"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/Status_and_Diff_3
 ---
 
 # Checks after installation
 
 ## Connections
-- [[Installation]] - `references` [EXTRACTED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
+- [[lqosync3 diff]] - `references` [EXTRACTED]
+- [[lqosync3 once --force]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff_3

@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "concept"
-community: "Speed Rules"
+community: "Topology 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Topology_2
 ---
 
 # Cycle assembly rules
@@ -20,4 +20,4 @@ tags:
 - [[cycleassemble() pure core function]] - `implements` [INFERRED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

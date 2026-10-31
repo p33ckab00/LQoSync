@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config"
+community: "CLI and Checks 3"
 location: "L265"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config
+  - community/CLI_and_Checks_3
 ---
 
 # Telegram
@@ -15,4 +15,4 @@ tags:
 - [[Config]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_3

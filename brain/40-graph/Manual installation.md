@@ -1,19 +1,20 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Config 2"
-location: "L71-139"
+community: "MikroTik Session 5"
+location: "L71"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/MikroTik_Session_5
 ---
 
 # Manual installation
 
 ## Connections
-- [[Configuration]] - `references` [EXTRACTED]
-- [[Installation]] - `references` [EXTRACTED]
-- [[lqosync3.service systemd unit (KillMode=mixed, TimeoutStopSec=600)]] - `references` [EXTRACTED]
+- [[Configuration (docs)]] - `references` [EXTRACTED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
+- [[Secret files (_file keys, mode 0600, owner root)]] - `references` [INFERRED]
+- [[lqosync3.service systemd unit]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_5

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "Community 4"
+community: "CLI and Checks"
 location: "L9"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_4
+  - community/CLI_and_Checks
 ---
 
 # DEFAULT_CONFIG
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[cli.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_4
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

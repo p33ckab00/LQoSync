@@ -1,12 +1,12 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "Runner Cycle"
+community: "MikroTik Session"
 location: "L335"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/MikroTik_Session
 ---
 
 # Fake
@@ -14,9 +14,9 @@ tags:
 ## Connections
 - [[Env]] - `references` [EXTRACTED]
 - [[FakeConnector]] - `references` [EXTRACTED]
-- [[FakeSession]] - `references` [EXTRACTED]
+- [[FakeSession_1]] - `references` [EXTRACTED]
 - [[Mutex]] - `references` [EXTRACTED]
-- [[RosRow]] - `references` [EXTRACTED]
+- [[RosRow_1]] - `references` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

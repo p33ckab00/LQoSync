@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CircuitNames"
+community: "Config 3"
 location: "L174"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CircuitNames
+  - community/Config_3
 ---
 
 # CircuitNames
@@ -19,4 +19,4 @@ tags:
 - [[seed_state()]] - `references` [EXTRACTED]
 - [[state.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CircuitNames
+#graphify/code #graphify/EXTRACTED #community/Config_3

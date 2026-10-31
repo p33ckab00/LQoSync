@@ -14,6 +14,5 @@ tags:
 ## Connections
 - [[Files lock, state.json, status.json, candidate, applied]] - `references` [EXTRACTED]
 - [[lqosync3 runtime design (Plan 2)]] - `references` [EXTRACTED]
-- [[statusStatus  RouterStatus]] - `implements` [EXTRACTED]
 
 #graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_4

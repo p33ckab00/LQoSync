@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Runner Cycle"
+community: "Plan 2 Runtime"
 location: "L31"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runner_Cycle
+  - community/Plan_2_Runtime
 ---
 
 # Shadow
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[RuntimeMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runner_Cycle
+#graphify/code #graphify/EXTRACTED #community/Plan_2_Runtime

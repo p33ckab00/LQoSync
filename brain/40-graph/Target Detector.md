@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session"
+community: "MikroTik Session 2"
 location: "L51"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/MikroTik_Session_2
 ---
 
 # Target Detector
@@ -18,4 +18,4 @@ tags:
 - [[Target v3_pair]] - `references` [EXTRACTED]
 - [[Writers (one per target)]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_2

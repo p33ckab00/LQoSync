@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Router Reads"
 location: "L14"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Router_Reads
 ---
 
 # Login
@@ -15,4 +15,4 @@ tags:
 - [[ReadError]] - `case_of` [EXTRACTED]
 - [[a_login_error_is_not_retried()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Router_Reads

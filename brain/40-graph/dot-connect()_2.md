@@ -1,22 +1,22 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Router Reads"
 location: "L52"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Router_Reads
 ---
 
 # .connect()
 
 ## Connections
 - [[Connector]] - `method` [EXTRACTED]
-- [[Output_2]] - `references` [EXTRACTED]
+- [[Output_1]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[Session_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Router_Reads

@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Secrets"
+community: "Speed Rules"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Speed_Rules
 ---
 
 # speed.rs
@@ -43,4 +43,4 @@ tags:
 - [[zero_comment_speed_is_no_rate()]] - `contains` [EXTRACTED]
 - [[zero_rate_finds_a_zero_speed_comment()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

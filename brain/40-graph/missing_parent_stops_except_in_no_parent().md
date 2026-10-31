@@ -12,9 +12,9 @@ tags:
 # missing_parent_stops_except_in_no_parent()
 
 ## Connections
-- [[check()_1]] - `calls` [EXTRACTED]
-- [[net()_1]] - `calls` [EXTRACTED]
-- [[row()_3]] - `calls` [EXTRACTED]
+- [[check()]] - `calls` [EXTRACTED]
+- [[net()]] - `calls` [EXTRACTED]
+- [[row()_1]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/hashmap

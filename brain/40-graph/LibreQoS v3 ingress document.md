@@ -1,22 +1,20 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "document"
-community: "Topology 3"
+community: "Topology 5"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Topology_3
+  - community/Topology_5
 ---
 
 # LibreQoS v3 ingress document
 
 ## Connections
 - [[runlqosbus 0777 safety caution]] - `references` [EXTRACTED]
-- [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Last-good topology retention]] - `references` [EXTRACTED]
-- [[LibreQoS upgrade from 2.2 to 3.x]] - `conceptually_related_to` [INFERRED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[LibreQoS.py --updateonly no-op in v3]] - `references` [EXTRACTED]
 - [[Offline v3 simulation]] - `references` [EXTRACTED]
@@ -30,4 +28,4 @@ tags:
 - [[topology_import.json (internal)]] - `references` [EXTRACTED]
 - [[v3 schema validation results]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Topology_3
+#graphify/document #graphify/EXTRACTED #community/Topology_5

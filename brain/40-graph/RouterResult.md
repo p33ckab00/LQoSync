@@ -25,10 +25,8 @@ tags:
 - [[ppp_owned()]] - `references` [EXTRACTED]
 - [[results()]] - `references` [EXTRACTED]
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
-- [[run()]] - `references` [EXTRACTED]
+- [[run()_2]] - `references` [EXTRACTED]
 - [[run_full()]] - `references` [EXTRACTED]
-- [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
-- [[state_name()]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

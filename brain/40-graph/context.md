@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Community 14"
+community: "CLI and Checks"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Community_14
+  - community/CLI_and_Checks
 ---
 
 # context
@@ -19,4 +19,4 @@ tags:
 - [[state.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Community_14
+#graphify/concept #graphify/EXTRACTED #community/CLI_and_Checks

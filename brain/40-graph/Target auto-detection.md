@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "rationale"
-community: "MikroTik Session 3"
+community: "Topology 6"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/Topology_6
 ---
 
 # Target auto-detection
@@ -18,4 +18,4 @@ tags:
 - [[topology source setting]] - `references` [EXTRACTED]
 - [[no_parent guard on v3 targets]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/rationale #graphify/EXTRACTED #community/Topology_6

@@ -1,12 +1,12 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "Community 20"
+community: "fs"
 location: "L77"
 tags:
   - graphify/code
   - graphify/INFERRED
-  - community/Community_20
+  - community/fs
 ---
 
 # scenarios_match_expected_output()
@@ -22,4 +22,4 @@ tags:
 - [[seed_state()]] - `calls` [INFERRED]
 - [[split_static()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/INFERRED #community/Community_20
+#graphify/code #graphify/INFERRED #community/fs

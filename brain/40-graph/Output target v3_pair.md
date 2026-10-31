@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "MikroTik Session 3"
+community: "Topology 6"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/Topology_6
 ---
 
 # Output target v3_pair
@@ -17,4 +17,4 @@ tags:
 - [[lqosd inotify file watcher]] - `references` [EXTRACTED]
 - [[no_parent guard on v3 targets]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/concept #graphify/EXTRACTED #community/Topology_6

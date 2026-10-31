@@ -1,18 +1,18 @@
 ---
 source_file: "docs/CONFIGURATION.md"
-type: "rationale"
-community: "CLI and Checks 2"
-location: "L307-315"
+type: "concept"
+community: "Speed Rules 3"
+location: "L309"
 tags:
-  - graphify/rationale
-  - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - graphify/concept
+  - graphify/INFERRED
+  - community/Speed_Rules_3
 ---
 
 # Comment speed format (Name|25M/5M, 25M/5M, 25M)
 
 ## Connections
-- [[Configuration]] - `references` [EXTRACTED]
-- [[PPPoE speed sources (speed.pppoe_sources)]] - `conceptually_related_to` [INFERRED]
+- [[DHCP speed_sources (server_comment, lease_comment, settings)]] - `references` [INFERRED]
+- [[speed.pppoe_sources]] - `references` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/concept #graphify/INFERRED #community/Speed_Rules_3

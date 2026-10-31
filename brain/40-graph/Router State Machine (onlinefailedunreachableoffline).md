@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "rationale"
-community: "MikroTik Session"
+community: "MikroTik Session 2"
 location: "L85"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/MikroTik_Session_2
 ---
 
 # Router State Machine (online/failed/unreachable/offline)
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Collector (RouterOS API reads)]] - `implements` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session_2

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "CLI and Checks 2"
 location: "L574"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/CLI_and_Checks_2
 ---
 
 # run_full()
@@ -22,10 +22,10 @@ tags:
 - [[flat_promotion_has_no_client_node_for_a_static_row()]] - `calls` [EXTRACTED]
 - [[guard_releases_on_force()]] - `calls` [EXTRACTED]
 - [[ids()]] - `calls` [EXTRACTED]
-- [[run()]] - `calls` [EXTRACTED]
+- [[run()_2]] - `calls` [EXTRACTED]
 - [[state()]] - `references` [EXTRACTED]
 - [[static_multi_device_circuit_keeps_all_rows()]] - `calls` [EXTRACTED]
 - [[static_row_passes_through_and_collected_replaces_it()]] - `calls` [EXTRACTED]
 - [[static_row_wins_a_duplicate_ip()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

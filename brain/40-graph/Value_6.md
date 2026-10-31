@@ -1,19 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "hashmap"
+community: "File Safety"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/hashmap
+  - community/File_Safety
 ---
 
 # Value
 
 ## Connections
-- [[check()_1]] - `references` [EXTRACTED]
-- [[collect_nodes()]] - `references` [EXTRACTED]
-- [[net()_1]] - `references` [EXTRACTED]
-- [[validate.rs]] - `imports_from` [EXTRACTED]
+- [[Live]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/hashmap
+#graphify/code #graphify/EXTRACTED #community/File_Safety

@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "concept"
-community: "Speed Rules"
+community: "Speed Rules 4"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Speed_Rules_4
 ---
 
 # Circuit rules for each source
@@ -21,4 +21,4 @@ tags:
 - [[Task 4 Circuit collection (collect_router)]] - `implements` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules_4

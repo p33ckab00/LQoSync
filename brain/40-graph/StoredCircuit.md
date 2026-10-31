@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Cycle Assembly"
+community: "btreemap"
 location: "L125"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Cycle_Assembly
+  - community/btreemap
 ---
 
 # StoredCircuit
@@ -21,4 +21,4 @@ tags:
 - [[state.rs]] - `imports_from` [EXTRACTED]
 - [[stored()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly
+#graphify/code #graphify/EXTRACTED #community/btreemap

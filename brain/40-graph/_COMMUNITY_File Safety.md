@@ -1,22 +1,26 @@
 ---
 type: community
-members: 21
+members: 28
 ---
 
 # File Safety
 
-**Members:** 21 nodes
+**Members:** 28 nodes
 
 ## Members
+- [[CsvRow_2]] - code
 - [[File_1]] - code
-- [[HDR]] - code - src/files.rs
+- [[HDR_1]] - code - src/files.rs
 - [[Live]] - code - src/files.rs
-- [[Value_1]] - code
+- [[State_2]] - code
+- [[Value_6]] - code
 - [[backup()]] - code - src/files.rs
 - [[backup_keeps_the_last_n()]] - code - src/files.rs
 - [[backup_keeps_the_new_folder_and_other_folders()]] - code - src/files.rs
 - [[bad_network_json_stops_when_needed()]] - code - src/files.rs
+- [[bail]] - concept
 - [[files.rs]] - code - src/files.rs
+- [[load_state()]] - code - src/files.rs
 - [[load_state_seeds_on_first_run_and_reads_after()]] - code - src/files.rs
 - [[lock()]] - code - src/files.rs
 - [[network_json_must_be_an_object()]] - code - src/files.rs
@@ -25,6 +29,9 @@ members: 21
 - [[reload_ok_and_failure_and_timeout()]] - code - src/files.rs
 - [[run_reload()]] - code - src/files.rs
 - [[second_lock_fails()]] - code - src/files.rs
+- [[seed_nodes]] - concept
+- [[seed_state]] - concept
+- [[split_static]] - concept
 - [[write]] - concept
 - [[write_if_changed()]] - code - src/files.rs
 - [[write_if_changed_keeps_the_mode_of_the_old_file()]] - code - src/files.rs
@@ -38,18 +45,17 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 8 edges to [[_COMMUNITY_CircuitNames]]
-- 2 edges to [[_COMMUNITY_Cycle Assembly]]
-- 2 edges to [[_COMMUNITY_Runner Cycle]]
-- 2 edges to [[_COMMUNITY_Community 20]]
-- 1 edge to [[_COMMUNITY_Community 48]]
-- 1 edge to [[_COMMUNITY_Status and Diff]]
-- 1 edge to [[_COMMUNITY_Community 4]]
-- 1 edge to [[_COMMUNITY_Community 14]]
-- 1 edge to [[_COMMUNITY_Community 18]]
+- 3 edges to [[_COMMUNITY_MikroTik Session]]
+- 2 edges to [[_COMMUNITY_Config 3]]
+- 2 edges to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Topology]]
+- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
+- 1 edge to [[_COMMUNITY_Status and Diff 2]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
+- 1 edge to [[_COMMUNITY_Config]]
 
 ## Top bridge nodes
-- [[files.rs]] - degree 33, connects to 9 communities
-- [[read_live()]] - degree 6, connects to 2 communities
-- [[Live]] - degree 5, connects to 2 communities
-- [[load_state_seeds_on_first_run_and_reads_after()]] - degree 4, connects to 1 community
+- [[files.rs]] - degree 33, connects to 5 communities
+- [[bail]] - degree 6, connects to 5 communities
+- [[load_state()]] - degree 5, connects to 1 community

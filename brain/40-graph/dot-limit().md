@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Community 33"
+community: "Speed Rules"
 location: "L247"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_33
+  - community/Speed_Rules
 ---
 
 # .limit()
@@ -15,4 +15,4 @@ tags:
 - [[BackstopCap]] - `method` [EXTRACTED]
 - [[Rate]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_33
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules

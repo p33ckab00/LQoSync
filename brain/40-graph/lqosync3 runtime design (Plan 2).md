@@ -25,7 +25,6 @@ tags:
 - [[TLS (tls_verify, tls_ca_file, webpki-roots)]] - `references` [EXTRACTED]
 - [[Test strategy (fake session, mock RouterOS server, temp folders)]] - `references` [EXTRACTED]
 - [[Write order state.json first, then LibreQoS pair]] - `references` [EXTRACTED]
-- [[lqosync3 Runtime Implementation Plan (Plan 2)]] - `implements` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 - [[mikrotik-rs =0.9.0 (mikrotik-tokio 0.3.0)]] - `references` [EXTRACTED]
 - [[rust-version 1.89 (stdfsFiletry_lock)]] - `references` [EXTRACTED]

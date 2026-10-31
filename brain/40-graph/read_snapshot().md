@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Community 6"
+community: "Router Reads"
 location: "L73"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_6
+  - community/Router_Reads
 ---
 
 # read_snapshot()
@@ -14,10 +14,10 @@ tags:
 ## Connections
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot]] - `references` [EXTRACTED]
+- [[RouterSnapshot_2]] - `references` [EXTRACTED]
 - [[S]] - `references` [EXTRACTED]
 - [[Timeout]] - `references` [EXTRACTED]
 - [[read_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_6
+#graphify/code #graphify/EXTRACTED #community/Router_Reads

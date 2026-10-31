@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Status and Diff"
+community: "MikroTik Session"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/MikroTik_Session
 ---
 
 # command
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[main.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

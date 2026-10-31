@@ -1,17 +1,20 @@
 ---
 source_file: ""
 type: "code"
-community: "hashmap"
+community: "Topology"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/hashmap
+  - community/Topology
 ---
 
 # Map
 
 ## Connections
-- [[collect_nodes()]] - `references` [EXTRACTED]
-- [[validate.rs]] - `imports_from` [EXTRACTED]
+- [[find_mut()]] - `references` [EXTRACTED]
+- [[node_json()]] - `references` [EXTRACTED]
+- [[remove_named()]] - `references` [EXTRACTED]
+- [[take_children()]] - `references` [EXTRACTED]
+- [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/hashmap
+#graphify/code #graphify/EXTRACTED #community/Topology

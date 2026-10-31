@@ -1,18 +1,18 @@
 ---
 source_file: "docs/CONFIGURATION.md"
-type: "rationale"
-community: "Speed Rules"
-location: "L353-359"
+type: "concept"
+community: "Speed Rules 3"
+location: "L358"
 tags:
-  - graphify/rationale
+  - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Speed_Rules_3
 ---
 
 # Name templates ([nodes], [circuits])
 
 ## Connections
+- [[etclqosync3lqosync3.toml]] - `references` [EXTRACTED]
 - [[Circuit rules for each source]] - `references` [INFERRED]
-- [[Configuration]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules_3

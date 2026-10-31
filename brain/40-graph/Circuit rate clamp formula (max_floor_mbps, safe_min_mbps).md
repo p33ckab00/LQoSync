@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "rationale"
-community: "Speed Rules"
+community: "Speed Rules 4"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Speed_Rules_4
 ---
 
 # Circuit rate clamp formula (max_floor_mbps, safe_min_mbps)
@@ -15,4 +15,4 @@ tags:
 - [[Task 2 Rate format and speed rules (SpeedParser)]] - `implements` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules_4

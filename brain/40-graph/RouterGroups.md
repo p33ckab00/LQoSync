@@ -17,7 +17,7 @@ tags:
 - [[build_nodes()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[groups()]] - `references` [EXTRACTED]
-- [[net()]] - `references` [EXTRACTED]
+- [[net()_1]] - `references` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Topology

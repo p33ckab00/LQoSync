@@ -2,7 +2,7 @@
 source_file: "docs/INSTALLATION.md"
 type: "concept"
 community: "Config 2"
-location: "L169-191"
+location: "L169"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
@@ -12,6 +12,7 @@ tags:
 # Removal procedure
 
 ## Connections
-- [[Installation]] - `references` [EXTRACTED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
+- [[lqosync-updatecsv.service (live Python service)]] - `references` [INFERRED]
 
 #graphify/concept #graphify/EXTRACTED #community/Config_2

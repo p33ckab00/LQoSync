@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[cfg()_2]] - `calls` [EXTRACTED]
 - [[groups()]] - `calls` [EXTRACTED]
-- [[net()]] - `calls` [EXTRACTED]
+- [[net()_1]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Topology

@@ -1,16 +1,23 @@
 ---
 source_file: ""
 type: "code"
-community: "CircuitNames"
+community: "Topology"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CircuitNames
+  - community/Topology
 ---
 
 # Value
 
 ## Connections
-- [[seed_nodes()]] - `references` [EXTRACTED]
+- [[find_mut()]] - `references` [EXTRACTED]
+- [[groups_json()]] - `references` [EXTRACTED]
+- [[net()_1]] - `references` [EXTRACTED]
+- [[node_json()]] - `references` [EXTRACTED]
+- [[remove_named()]] - `references` [EXTRACTED]
+- [[take_children()]] - `references` [EXTRACTED]
+- [[to_network_json()]] - `references` [EXTRACTED]
+- [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CircuitNames
+#graphify/code #graphify/EXTRACTED #community/Topology

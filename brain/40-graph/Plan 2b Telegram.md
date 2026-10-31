@@ -1,18 +1,19 @@
 ---
-source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
+source_file: "brain/HANDOFF.md"
 type: "concept"
-community: "Router Reads 2"
-location: "L230"
+community: "Status and Diff"
+location: "L50"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Router_Reads_2
+  - community/Status_and_Diff
 ---
 
 # Plan 2b: Telegram
 
 ## Connections
-- [[Handoff]] - `references` [EXTRACTED]
+- [[Handoff 2026-10-31 (documentation phase)]] - `references` [EXTRACTED]
+- [[telegram notification settings]] - `conceptually_related_to` [INFERRED]
 - [[lqosync3 Runtime Implementation Plan (Plan 2)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Router_Reads_2
+#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff

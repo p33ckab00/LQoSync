@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "Community 22"
+community: "CLI and Checks"
 location: "L16"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_22
+  - community/CLI_and_Checks
 ---
 
 # Check
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Command]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_22
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
