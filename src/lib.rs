@@ -2,5 +2,6 @@
 
 pub mod config;
 pub mod model;
+pub mod sources;
 pub mod speed;
 pub mod state;
