@@ -104,6 +104,10 @@ The rules follow the domain rules of `updatecsv.py`, with the changes in `docs/C
 | DHCP `per_site` | `dhcp_lease` with `server` = server name, a `mac-address`, and `active-address` or `address`. With `require_bound`, also `status = "bound"`. | `dhcp` with `{key}` = `host-name`, else MAC without colons | the key | `mac-address` | `active-address`, else `address` | `host-name`, else `DHCP` |
 | DHCP `per_plan` | Same | `dhcp` with `{key}` = the text before `|` in the lease comment, else `host-name`, else MAC | the key | Same | Same | the client name, else `DHCP` |
 
+DHCP servers: with `routers.dhcp.discover = true` (default), the servers are the `dhcp_server` rows of the router in reply order, then the `[[routers.dhcp.servers]]` names that are not in the reply. A server that is disabled on the router, or that matches `exclude.dhcp_servers`, is skipped. A server without an entry uses `DhcpCfg::server(name)` defaults.
+
+Exclusions: `[exclude]` and `[routers.exclude]` together. A PPP user whose profile matches `ppp_profiles`, and any subscriber whose IPv4 is in `ips`, is skipped before rule 4. Names use `*` wildcards and ignore case. ADR-0009.
+
 IPv6 and Anchor Node ID are always empty. Parent Node ID is the `id` of the parent node (section 6), or empty. The fields compare as strings. The rate fields use `fmt_rate` (section 8).
 
 Rates of one circuit:

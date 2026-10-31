@@ -155,6 +155,11 @@ include_computation = true
 include_telemetry = true
 max_list_items = 15
 
+[exclude]                       # subscribers that the tool does not shape, for all routers
+dhcp_servers = []               # DHCP server names; "*" is a wildcard, case is ignored. Example: ["Mgt*"]
+ppp_profiles = []               # PPP profile names; "*" is a wildcard. Example: ["default-encryption"]
+ips = []                        # IPv4 addresses or CIDR blocks. Example: ["100.64.9.0/24", "10.0.0.1"]
+
 [[routers]]
 name = "Router-1"
 address = "192.0.2.1"
@@ -178,8 +183,14 @@ upload_factor = 1.0
 [routers.dhcp]
 enabled = true
 require_bound = false           # true = use only leases with status "bound"
+discover = true                 # read all DHCP servers from the router, as for PPP
 
-[[routers.dhcp.servers]]
+[routers.exclude]               # more exclusions for this router only (joined with [exclude])
+dhcp_servers = []
+ppp_profiles = []
+ips = []
+
+[[routers.dhcp.servers]]        # optional: settings for one server; other servers use the defaults
 name = "LAN"
 mode = "per_site"               # per_site | per_plan
 speed_sources = ["server_comment", "settings"]
@@ -188,6 +199,27 @@ default_plan_up_mbps = 50
 download_factor = 1.0
 upload_factor = 1.0
 ```
+
+## DHCP servers
+
+The tool reads all DHCP servers from `/ip/dhcp-server` on each router, as it reads all PPP secrets. A server needs no entry in the TOML file.
+
+- A server that is disabled on the router is skipped.
+- A server without a `[[routers.dhcp.servers]]` entry uses the defaults: `mode = "per_site"`, the speed sources of `per_site`, `dhcp_default_per_client_mbps`, and the DHCP factors of `[bandwidth_defaults]`.
+- Add a `[[routers.dhcp.servers]]` entry only to change one server, for example its rate or `mode = "per_plan"`.
+- Set `discover = false` to use only the listed servers.
+
+## Exclusions
+
+`[exclude]` applies to all routers. `[routers.exclude]` adds more rules for one router. The tool uses both lists.
+
+| Key | Matches | Effect |
+|-----|---------|--------|
+| `dhcp_servers` | DHCP server names. `*` is a wildcard. Case is ignored. | The tool does not read the leases of the server. |
+| `ppp_profiles` | PPP profile names of the secret. `*` is a wildcard. Case is ignored. | The tool skips the PPP users of the profile. |
+| `ips` | IPv4 addresses or CIDR blocks. | The tool skips each PPP, Hotspot, or DHCP subscriber with an address in the list. |
+
+An excluded subscriber is not in the files. If it was in the files before, the tool removes it as a subscriber that is not present. The removal guard applies.
 
 ## Removal guard
 

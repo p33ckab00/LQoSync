@@ -1,6 +1,6 @@
 //! Circuit collection: RouterOS rows of one router to circuits.
 
-use crate::config::{Config, DhcpMode, DhcpSource, PppSource, RouterCfg};
+use crate::config::{Config, DhcpMode, DhcpSource, PppSource, RouterCfg, parse_ipv4_net};
 use crate::model::{RosRow, RouterSnapshot, Source};
 use crate::speed::{Rate, SpeedParser, parse_default_rate};
 use std::collections::BTreeMap;
@@ -53,6 +53,67 @@ pub fn plan_label(r: Rate) -> String {
     }
 }
 
+/// `*` matches any text. Case is ignored.
+fn glob(pattern: &str, text: &str) -> bool {
+    let (p, t) = (pattern.to_lowercase(), text.to_lowercase());
+    let parts: Vec<&str> = p.split('*').collect();
+    if parts.len() == 1 {
+        return p == t;
+    }
+    let (first, last) = (parts[0], parts[parts.len() - 1]);
+    if !t.starts_with(first) || !t[first.len()..].ends_with(last) {
+        return false;
+    }
+    let mut rest = &t[first.len()..t.len() - last.len()];
+    for mid in &parts[1..parts.len() - 1] {
+        match rest.find(mid) {
+            Some(i) => rest = &rest[i + mid.len()..],
+            None => return false,
+        }
+    }
+    true
+}
+
+/// The exclusion rules of one router: the global `[exclude]` and the router `exclude`.
+struct Excluder<'a> {
+    servers: Vec<&'a str>,
+    profiles: Vec<&'a str>,
+    nets: Vec<(u32, u32)>,
+}
+
+impl<'a> Excluder<'a> {
+    fn new(cfg: &'a Config, router: &'a RouterCfg) -> Self {
+        let both = [&cfg.exclude, &router.exclude];
+        Excluder {
+            servers: both
+                .iter()
+                .flat_map(|x| x.dhcp_servers.iter().map(String::as_str))
+                .collect(),
+            profiles: both
+                .iter()
+                .flat_map(|x| x.ppp_profiles.iter().map(String::as_str))
+                .collect(),
+            nets: both
+                .iter()
+                .flat_map(|x| x.ips.iter().filter_map(|i| parse_ipv4_net(i)))
+                .collect(),
+        }
+    }
+    fn server(&self, name: &str) -> bool {
+        self.servers.iter().any(|p| glob(p, name))
+    }
+    fn profile(&self, name: &str) -> bool {
+        self.profiles.iter().any(|p| glob(p, name))
+    }
+    fn ip(&self, ip: &str) -> bool {
+        let Ok(a) = ip.trim().parse::<std::net::Ipv4Addr>() else {
+            return false;
+        };
+        let a = u32::from(a);
+        self.nets.iter().any(|(net, mask)| a & mask == *net)
+    }
+}
+
 /// Collect the circuits of one router: PPPoE in name order, then Hotspot and DHCP in reply order.
 pub fn collect_router(
     cfg: &Config,
@@ -61,15 +122,16 @@ pub fn collect_router(
     speed: &SpeedParser,
     report: &mut Vec<String>,
 ) -> Vec<Collected> {
+    let ex = Excluder::new(cfg, router);
     let mut out = Vec::new();
     if router.pppoe.enabled {
-        collect_ppp(cfg, router, snap, speed, report, &mut out);
+        collect_ppp(cfg, router, snap, speed, &ex, report, &mut out);
     }
     if router.hotspot.enabled {
-        collect_hotspot(cfg, router, snap, &mut out);
+        collect_hotspot(cfg, router, snap, &ex, &mut out);
     }
     if router.dhcp.enabled {
-        collect_dhcp(cfg, router, snap, speed, report, &mut out);
+        collect_dhcp(cfg, router, snap, speed, &ex, report, &mut out);
     }
     out
 }
@@ -79,6 +141,7 @@ fn collect_ppp(
     router: &RouterCfg,
     snap: &RouterSnapshot,
     speed: &SpeedParser,
+    ex: &Excluder,
     report: &mut Vec<String>,
     out: &mut Vec<Collected>,
 ) {
@@ -112,6 +175,9 @@ fn collect_ppp(
             "" => bd.pppoe_default_profile.as_str(),
             p => p,
         };
+        if ex.profile(profile) || ex.ip(f(act, "address")) {
+            continue;
+        }
         let prof = profiles.get(profile).copied();
         let base = cfg
             .speed
@@ -163,6 +229,7 @@ fn collect_hotspot(
     cfg: &Config,
     router: &RouterCfg,
     snap: &RouterSnapshot,
+    ex: &Excluder,
     out: &mut Vec<Collected>,
 ) {
     let base = router.hotspot.per_client(&cfg.bandwidth_defaults);
@@ -173,7 +240,7 @@ fn collect_hotspot(
         } else {
             user.to_string()
         };
-        if key.is_empty() {
+        if key.is_empty() || ex.ip(f(row, "address")) {
             continue;
         }
         out.push(Collected {
@@ -202,11 +269,35 @@ fn collect_dhcp(
     router: &RouterCfg,
     snap: &RouterSnapshot,
     speed: &SpeedParser,
+    ex: &Excluder,
     report: &mut Vec<String>,
     out: &mut Vec<Collected>,
 ) {
     let bd = &cfg.bandwidth_defaults;
-    for server in &router.dhcp.servers {
+    // Servers, as for PPP: all servers on the router (in reply order) and the listed ones.
+    let disabled: Vec<&str> = snap
+        .dhcp_server
+        .iter()
+        .filter(|r| flag_on(r, "disabled"))
+        .map(|r| f(r, "name"))
+        .collect();
+    let mut names: Vec<String> = Vec::new();
+    if router.dhcp.discover {
+        names.extend(
+            snap.dhcp_server
+                .iter()
+                .map(|r| f(r, "name").to_string())
+                .filter(|n| !n.is_empty()),
+        );
+    }
+    for s in &router.dhcp.servers {
+        if !names.contains(&s.name) {
+            names.push(s.name.clone());
+        }
+    }
+    names.retain(|n| !disabled.contains(&n.as_str()) && !ex.server(n));
+    for name in &names {
+        let server = router.dhcp.server(name);
         let sources = server.sources();
         let server_comment = snap
             .dhcp_server
@@ -228,7 +319,7 @@ fn collect_dhcp(
             if f(lease, "server") != server.name || mac.is_empty() || ip.is_empty() {
                 continue;
             }
-            if router.dhcp.require_bound && f(lease, "status") != "bound" {
+            if ex.ip(ip) || (router.dhcp.require_bound && f(lease, "status") != "bound") {
                 continue;
             }
             let lease_comment = f(lease, "comment");
@@ -527,5 +618,81 @@ mode = "per_plan"
         c.circuits.pppoe = "{user}@{router}".into();
         let s = snap(r#"{"ppp_secret":[{"name":"alice"}],"ppp_active":[{"name":"alice"}]}"#);
         assert_eq!(run(&c, &s).0[0].name, "alice@R1");
+    }
+
+    fn cfg_text(extra_global: &str, extra_router: &str) -> Config {
+        Config::from_toml_str(&format!(
+            "{extra_global}\n[[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n\
+             [routers.pppoe]\nenabled=true\n[routers.hotspot]\nenabled=true\n[routers.dhcp]\nenabled=true\n{extra_router}\n"
+        ))
+        .unwrap()
+    }
+    fn names_of(out: &[Collected]) -> Vec<&str> {
+        out.iter().map(|x| x.name.as_str()).collect()
+    }
+    const DISCOVER: &str = r#"{"dhcp_server":[{"name":"LAN"},{"name":"GUEST"},{"name":"OFF","disabled":"true"},{"name":"MgtNet"}],
+        "dhcp_lease":[
+          {"server":"LAN","host-name":"a","mac-address":"02:00:00:00:07:01","address":"100.66.7.1"},
+          {"server":"GUEST","host-name":"b","mac-address":"02:00:00:00:07:02","address":"100.66.7.2"},
+          {"server":"OFF","host-name":"c","mac-address":"02:00:00:00:07:03","address":"100.66.7.3"},
+          {"server":"MgtNet","host-name":"d","mac-address":"02:00:00:00:07:04","address":"100.66.7.4"}]}"#;
+
+    #[test]
+    fn dhcp_servers_are_discovered_like_ppp() {
+        let c = cfg_text("", "");
+        let (out, _) = run(&c, &snap(DISCOVER));
+        assert_eq!(names_of(&out), ["DHCP-a", "DHCP-b", "DHCP-d"]);
+        let b = by_name(&out, "DHCP-b");
+        // No config entry for GUEST: the default rate applies (dhcp_default_per_client_mbps = 15).
+        assert_eq!(
+            (b.base, b.group.clone()),
+            (rate(15.0, 15.0), GroupKey::DhcpSite("GUEST".into()))
+        );
+    }
+
+    #[test]
+    fn discover_off_uses_only_listed_servers() {
+        let c = cfg_text(
+            "",
+            "discover=false\n[[routers.dhcp.servers]]\nname=\"GUEST\"\n",
+        );
+        assert_eq!(names_of(&run(&c, &snap(DISCOVER)).0), ["DHCP-b"]);
+    }
+
+    #[test]
+    fn excluded_dhcp_server_names_use_wildcards() {
+        let c = cfg_text(
+            "",
+            "[routers.exclude]\ndhcp_servers=[\"mgt*\", \"GUEST\"]\n",
+        );
+        assert_eq!(names_of(&run(&c, &snap(DISCOVER)).0), ["DHCP-a"]);
+    }
+
+    #[test]
+    fn excluded_ppp_profiles_are_skipped() {
+        let c = cfg_text("[exclude]\nppp_profiles=[\"default-*\"]", "");
+        let s = snap(
+            r#"{"ppp_secret":[{"name":"a","profile":"default-encryption"},{"name":"b","profile":"Gold"}],
+                "ppp_active":[{"name":"a"},{"name":"b"}]}"#,
+        );
+        assert_eq!(names_of(&run(&c, &s).0), ["b"]);
+    }
+
+    #[test]
+    fn excluded_ips_apply_to_all_sources_and_merge_router_lists() {
+        let c = cfg_text(
+            "[exclude]\nips=[\"100.64.0.0/30\"]",
+            "[routers.exclude]\nips=[\"100.66.7.2\"]\n",
+        );
+        let s = snap(
+            r#"{"ppp_secret":[{"name":"p1"},{"name":"p2"}],
+                "ppp_active":[{"name":"p1","address":"100.64.0.2"},{"name":"p2","address":"100.64.0.5"}],
+                "hotspot_active":[{"user":"h1","address":"100.64.0.1"}],
+                "dhcp_server":[{"name":"LAN"},{"name":"GUEST"}],
+                "dhcp_lease":[
+                  {"server":"LAN","host-name":"a","mac-address":"02:00:00:00:07:01","address":"100.66.7.1"},
+                  {"server":"GUEST","host-name":"b","mac-address":"02:00:00:00:07:02","address":"100.66.7.2"}]}"#,
+        );
+        assert_eq!(names_of(&run(&c, &s).0), ["p2", "DHCP-a"]);
     }
 }

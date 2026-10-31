@@ -23,6 +23,7 @@ Read [[HANDOFF]] first for the current state.
 - [[ADR-0006-v3-guards-and-node-types]] — accepted
 - [[ADR-0007-fresh-design-not-a-port]] — accepted
 - [[ADR-0008-terminal-ui]] — accepted
+- [[ADR-0009-dhcp-discovery-and-exclusions]] — accepted
 
 ## Knowledge
 - [[libreqos-v3-ingress-facts]]

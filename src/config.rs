@@ -21,6 +21,7 @@ pub struct Config {
     pub bandwidth_defaults: BandwidthDefaults,
     pub backstop_caps: BackstopCaps,
     pub telegram: Telegram,
+    pub exclude: Exclude,
     pub routers: Vec<RouterCfg>,
 }
 
@@ -478,6 +479,9 @@ pub struct RouterCfg {
     pub hotspot: HotspotCfg,
     #[serde(default)]
     pub dhcp: DhcpCfg,
+    /// More exclusions for this router. The tool joins them with the global `[exclude]`.
+    #[serde(default)]
+    pub exclude: Exclude,
 }
 
 fn default_port() -> u16 {
@@ -539,12 +543,66 @@ impl HotspotCfg {
     }
 }
 
+/// Subscribers that the tool does not shape. Names accept `*` wildcards (case is ignored).
+/// IPs are IPv4 addresses or CIDR blocks.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct Exclude {
+    pub dhcp_servers: Vec<String>,
+    pub ppp_profiles: Vec<String>,
+    pub ips: Vec<String>,
+}
+
+/// Parse "a.b.c.d" or "a.b.c.d/n" to `(network, mask)`.
+pub fn parse_ipv4_net(s: &str) -> Option<(u32, u32)> {
+    let (addr, len) = match s.trim().split_once('/') {
+        Some((a, l)) => (a, l.parse::<u32>().ok().filter(|l| *l <= 32)?),
+        None => (s.trim(), 32),
+    };
+    let ip = u32::from(addr.parse::<std::net::Ipv4Addr>().ok()?);
+    let mask = if len == 0 { 0 } else { u32::MAX << (32 - len) };
+    Some((ip & mask, mask))
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct DhcpCfg {
     pub enabled: bool,
     pub require_bound: bool,
+    /// Read all DHCP servers from the router, as for PPP. `false` uses only `servers`.
+    pub discover: bool,
+    /// Settings for some servers. A discovered server that is not here uses the defaults.
     pub servers: Vec<DhcpServer>,
+}
+
+impl Default for DhcpCfg {
+    fn default() -> Self {
+        DhcpCfg {
+            enabled: false,
+            require_bound: false,
+            discover: true,
+            servers: Vec::new(),
+        }
+    }
+}
+
+impl DhcpCfg {
+    /// The settings of one server: its `[[routers.dhcp.servers]]` entry, or the defaults.
+    pub fn server(&self, name: &str) -> DhcpServer {
+        self.servers
+            .iter()
+            .find(|s| s.name == name)
+            .cloned()
+            .unwrap_or_else(|| DhcpServer {
+                name: name.to_string(),
+                mode: DhcpMode::PerSite,
+                speed_sources: None,
+                default_plan_down_mbps: None,
+                default_plan_up_mbps: None,
+                download_factor: None,
+                upload_factor: None,
+            })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -731,6 +789,28 @@ impl Config {
             !self.routers.is_empty(),
             "config: [[routers]] must have one router or more"
         );
+        let check_exclude = |at: &str, x: &Exclude| -> anyhow::Result<()> {
+            for (k, list) in [
+                ("dhcp_servers", &x.dhcp_servers),
+                ("ppp_profiles", &x.ppp_profiles),
+            ] {
+                ensure!(
+                    list.iter().all(|n| !n.trim().is_empty()),
+                    "config: {at}.{k} must not have an empty name"
+                );
+            }
+            for ip in &x.ips {
+                ensure!(
+                    parse_ipv4_net(ip).is_some(),
+                    "config: {at}.ips: \"{ip}\" is not an IPv4 address or CIDR block"
+                );
+            }
+            Ok(())
+        };
+        check_exclude("exclude", &self.exclude)?;
+        for r in &self.routers {
+            check_exclude(&format!("router \"{}\": exclude", r.name), &r.exclude)?;
+        }
         let mut names = BTreeSet::new();
         for r in &self.routers {
             ensure!(
@@ -1087,5 +1167,45 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    #[test]
+    fn exclusions_parse_and_bad_ip_is_rejected() {
+        let c = Config::from_toml_str(&format!(
+            "[exclude]\nips=[\"100.64.9.0/24\",\"100.64.0.7\"]\nppp_profiles=[\"default-*\"]\n{MIN}[routers.exclude]\ndhcp_servers=[\"Mgt*\"]\n"
+        ))
+        .unwrap();
+        assert_eq!(c.exclude.ips.len(), 2);
+        assert_eq!(c.routers[0].exclude.dhcp_servers, vec!["Mgt*".to_string()]);
+        for bad in [
+            "[exclude]\nips=[\"100.64.9.0/33\"]\n",
+            "[exclude]\nips=[\"not-an-ip\"]\n",
+            "[exclude]\nppp_profiles=[\"\"]\n",
+        ] {
+            assert!(
+                Config::from_toml_str(&format!("{bad}{MIN}")).is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn dhcp_server_gives_override_or_default() {
+        let c = Config::from_toml_str(&format!(
+            "{MIN}[routers.dhcp]\nenabled=true\n[[routers.dhcp.servers]]\nname=\"LAN\"\ndefault_plan_down_mbps=50\n"
+        ))
+        .unwrap();
+        let d = &c.routers[0].dhcp;
+        assert!(d.discover);
+        assert_eq!(d.server("LAN").default_plan_down_mbps, Some(50.0));
+        let other = d.server("GUEST");
+        assert_eq!(
+            (
+                other.name.as_str(),
+                other.mode,
+                other.default_plan_down_mbps
+            ),
+            ("GUEST", DhcpMode::PerSite, None)
+        );
     }
 }
