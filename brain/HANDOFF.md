@@ -14,6 +14,30 @@ Checkout: `/opt/LQoSync3.0`.
 Code: `9a35d24`. Earlier base references below are historical.
 Sections are in newest-first order. Read the first section for the current state.
 
+## Guarded executor passed on the production core (Approach B)
+
+Updated: 2026-10-31T11:20:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
+`core-worker-run` ran the full guarded path for one live subscriber, `10.0.100.220` (`RowenaEstilloso`).
+The run used a separate acceptance directory, `v3/data/state/acceptance/b-root`, with one selection, one policy, and a pin.
+The live console and live settings did not change.
+Batch 1: add to `WAN1-CUSTOMERS`, forward, verify, finish. Traffic did not change.
+Batch 2: move to `WAN2-CUSTOMERS`, hold 10 seconds, roll back to `WAN1-CUSTOMERS`, verify, finish. The subscriber used wan2 for about 10 seconds.
+Both runs removed their recovery marker. Journals stay in `b-root/state` as evidence.
+The live runs found two defects that mocks did not show. Both are fixed with failing tests first:
+- `fee7052`: the routing-policy guard included mangle and filter `bytes`/`packets` counters. The worker could never send.
+- `04d6294`: the reconciler planned Add rows as `IP/32`. RouterOS stores `IP`, so completion verification failed after a successful add.
+Earlier failed runs are archived in `b-root-run1-state` (no send) and `b-root-run2-state` (one add, removed by the operator).
+The copied `credentials.toml` was removed from `b-root`. Regenerate the directory before another run.
+Owned row `*21` (`10.0.100.220`, `WAN1-CUSTOMERS`) remains on the router. Its removal does not change traffic.
+Open items:
+- No CLI runs reviewed recovery. A failed run after a send needs a manual row removal on the router.
+- `core_plan` (used by `core-migrate`) also plans `/32` hosts. Check it before any protected-range migration.
+- The acceptance directory fence and marker are invisible to the live console. Check `b-root/state` before any live write path.
+- `v3/target` filled the root disk to 100% (31G). It was cleaned to 82%. Clean it regularly: `cargo clean -p lqosync-v3`.
+Final checks: format and strict Clippy passed; 354 passed, zero failed, 12 ignored.
+Next: decide the cleanup of `*21`, then the recovery CLI or the protected-range migration plan.
+See `docs/superpowers/specs/2026-10-31-executor-acceptance-design.md`.
+
 ## RouterOS acceptance Phase 2 passed with one live subscriber
 
 Updated: 2026-10-31T10:10:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
