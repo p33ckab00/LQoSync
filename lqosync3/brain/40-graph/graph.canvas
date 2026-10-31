@@ -1,0 +1,1635 @@
+{
+  "nodes": [
+    {
+      "id": "g0",
+      "type": "group",
+      "label": "Sync Pipeline Internals",
+      "x": 0,
+      "y": 0,
+      "width": 880,
+      "height": 520,
+      "color": "1"
+    },
+    {
+      "id": "n_docs_architecture_applier",
+      "type": "file",
+      "file": "Applier.md",
+      "x": 20,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture",
+      "type": "file",
+      "file": "Architecture document.md",
+      "x": 220,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_atomic_write_rename",
+      "type": "file",
+      "file": "Atomic write via temp file and rename.md",
+      "x": 420,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_circuit_model",
+      "type": "file",
+      "file": "Circuit model.md",
+      "x": 620,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_collector",
+      "type": "file",
+      "file": "Collector.md",
+      "x": 20,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_notifier",
+      "type": "file",
+      "file": "Notifier (Telegram).md",
+      "x": 220,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_performance_rules",
+      "type": "file",
+      "file": "Performance rules.md",
+      "x": 420,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_content_hash_skip",
+      "type": "file",
+      "file": "SHA-256 content hash skip.md",
+      "x": 620,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_network_modes",
+      "type": "file",
+      "file": "Six network modes.md",
+      "x": 20,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_target_selection_flow",
+      "type": "file",
+      "file": "Target selection flowchart.md",
+      "x": 220,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_topology_builder",
+      "type": "file",
+      "file": "Topology builder.md",
+      "x": 420,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_validator",
+      "type": "file",
+      "file": "Validator.md",
+      "x": 620,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "type": "file",
+      "file": "libreqos_network.json schema 2.md",
+      "x": 20,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_compile_mode_full",
+      "type": "file",
+      "file": "topology.compile_mode = full.md",
+      "x": 220,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_validation_results",
+      "type": "file",
+      "file": "v3 schema validation results.md",
+      "x": 420,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g1",
+      "type": "group",
+      "label": "Operations and Cutover",
+      "x": 960,
+      "y": 0,
+      "width": 880,
+      "height": 420,
+      "color": "2"
+    },
+    {
+      "id": "n_docs_operations_applied_backups",
+      "type": "file",
+      "file": "Applied version backups (last 10).md",
+      "x": 980,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations_command_reference",
+      "type": "file",
+      "file": "Command reference (check, detect, once, run).md",
+      "x": 1180,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations_cutover_procedure",
+      "type": "file",
+      "file": "Cutover from the Python service.md",
+      "x": 1380,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_lqosync_updatecsv",
+      "type": "file",
+      "file": "LQoSync UpdateCSV (Rust tool).md",
+      "x": 1580,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_configuration_config_json_map",
+      "type": "file",
+      "file": "Map from config.json to TOML.md",
+      "x": 980,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations_operational_rules",
+      "type": "file",
+      "file": "Operational rules.md",
+      "x": 1180,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations",
+      "type": "file",
+      "file": "Operations document.md",
+      "x": 1380,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations_rollback_procedure",
+      "type": "file",
+      "file": "Rollback to the Python service.md",
+      "x": 1580,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations_troubleshooting",
+      "type": "file",
+      "file": "Troubleshooting table.md",
+      "x": 980,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_mikrotik_rs",
+      "type": "file",
+      "file": "mikrotik-rs RouterOS API crate.md",
+      "x": 1180,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_updatecsv_py",
+      "type": "file",
+      "file": "updatecsv.py (Python predecessor).md",
+      "x": 1380,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g2",
+      "type": "group",
+      "label": "LibreQoS v3 Runtime Evidence",
+      "x": 1920,
+      "y": 0,
+      "width": 880,
+      "height": 420,
+      "color": "3"
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "type": "file",
+      "file": "runlqosbus 0777 safety caution.md",
+      "x": 1940,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_last_good_topology",
+      "type": "file",
+      "file": "Last-good topology retention.md",
+      "x": 2140,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress",
+      "type": "file",
+      "file": "LibreQoS v3 ingress document.md",
+      "x": 2340,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_updateonly_noop",
+      "type": "file",
+      "file": "LibreQoS.py --updateonly no-op in v3.md",
+      "x": 2540,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_offline_simulation",
+      "type": "file",
+      "file": "Offline v3 simulation.md",
+      "x": 1940,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_liblqos_python_binding",
+      "type": "file",
+      "file": "liblqos_python.so binding.md",
+      "x": 2140,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "type": "file",
+      "file": "libreqos-v3-preflight.md",
+      "x": 2340,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "type": "file",
+      "file": "libreqos_3.0.7 beta package.md",
+      "x": 2540,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_lqosd",
+      "type": "file",
+      "file": "lqosd (v3 control plane).md",
+      "x": 1940,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "type": "file",
+      "file": "lqosd inotify file watcher.md",
+      "x": 2140,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_topology_import_json",
+      "type": "file",
+      "file": "topology_import.json (internal).md",
+      "x": 2340,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g3",
+      "type": "group",
+      "label": "Output Target Selection",
+      "x": 0,
+      "y": 600,
+      "width": 660,
+      "height": 420,
+      "color": "4"
+    },
+    {
+      "id": "n_readme",
+      "type": "file",
+      "file": "LQoSync UpdateCSV README.md",
+      "x": 20,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_operations_v3_upgrade_procedure",
+      "type": "file",
+      "file": "LibreQoS upgrade 2.2 to 3.x.md",
+      "x": 220,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_target_detector",
+      "type": "file",
+      "file": "Target detector.md",
+      "x": 420,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_writers",
+      "type": "file",
+      "file": "Writers (one per target).md",
+      "x": 20,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_libreqos_v3_ingress_topology_source",
+      "type": "file",
+      "file": "topology source in lqos.conf.md",
+      "x": 220,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_auto_target",
+      "type": "file",
+      "file": "target = auto.md",
+      "x": 420,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_v2_pair_target",
+      "type": "file",
+      "file": "v2_pair target.md",
+      "x": 20,
+      "y": 840,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_v3_network_target",
+      "type": "file",
+      "file": "v3_network target.md",
+      "x": 220,
+      "y": 840,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_v3_pair_target",
+      "type": "file",
+      "file": "v3_pair target.md",
+      "x": 420,
+      "y": 840,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g4",
+      "type": "group",
+      "label": "Brain Vault Notes",
+      "x": 960,
+      "y": 600,
+      "width": 660,
+      "height": 420,
+      "color": "5"
+    },
+    {
+      "id": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "type": "file",
+      "file": "ADR-0001 One model, many writers.md",
+      "x": 980,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "type": "file",
+      "file": "ADR-0002 v3 target selection.md",
+      "x": 1180,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_home",
+      "type": "file",
+      "file": "Brain Home (MOC).md",
+      "x": 1380,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_handoff",
+      "type": "file",
+      "file": "Handoff note.md",
+      "x": 980,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "type": "file",
+      "file": "LibreQoS v3 ingress facts.md",
+      "x": 1180,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "type": "file",
+      "file": "Session 2026-10-31 project setup and v3 simulation.md",
+      "x": 1380,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "type": "file",
+      "file": "v3 offline simulation method.md",
+      "x": 980,
+      "y": 840,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g5",
+      "type": "group",
+      "label": "Configuration and Secrets",
+      "x": 1920,
+      "y": 600,
+      "width": 660,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_docs_configuration_updatecsv_toml",
+      "type": "file",
+      "file": "etclqosyncupdatecsv.toml.md",
+      "x": 1940,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_config_loader",
+      "type": "file",
+      "file": "Config loader.md",
+      "x": 2140,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_configuration",
+      "type": "file",
+      "file": "Configuration document.md",
+      "x": 2340,
+      "y": 680,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_read_only_router_access",
+      "type": "file",
+      "file": "Read-only router access rule.md",
+      "x": 1940,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_configuration_secret_files",
+      "type": "file",
+      "file": "Secret files (_file, mode 0600 root).md",
+      "x": 2140,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_configuration_import_json_command",
+      "type": "file",
+      "file": "import-json command (planned).md",
+      "x": 2340,
+      "y": 760,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g6",
+      "type": "group",
+      "label": "Speed Rules and Open Decisions",
+      "x": 0,
+      "y": 1100,
+      "width": 660,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_docs_configuration_backstop_caps",
+      "type": "file",
+      "file": "Backstop caps.md",
+      "x": 20,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_configuration_speed_rules_open_item",
+      "type": "file",
+      "file": "Open item speed rule direction and units.md",
+      "x": 220,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_brain_handoff_operator_decisions",
+      "type": "file",
+      "file": "Operator decisions pending (speed rules, crate location, repo URL).md",
+      "x": 420,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_crate_layout",
+      "type": "file",
+      "file": "Proposed crate layout.md",
+      "x": 20,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_architecture_speed_rules",
+      "type": "file",
+      "file": "Speed rules.md",
+      "x": 220,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g7",
+      "type": "group",
+      "label": "Installation",
+      "x": 960,
+      "y": 1100,
+      "width": 660,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_docs_installation_post_install_checks",
+      "type": "file",
+      "file": "Checks after installation.md",
+      "x": 980,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_installation",
+      "type": "file",
+      "file": "Installation document.md",
+      "x": 1180,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_installation_removal_procedure",
+      "type": "file",
+      "file": "Removal procedure.md",
+      "x": 1380,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_installation_install_sh",
+      "type": "file",
+      "file": "install.sh one-line installer.md",
+      "x": 980,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_docs_installation_systemd_unit",
+      "type": "file",
+      "file": "lqosync-updatecsv-rs.service.md",
+      "x": 1180,
+      "y": 1260,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g8",
+      "type": "group",
+      "label": "Runtime Mode",
+      "x": 1920,
+      "y": 1100,
+      "width": 600,
+      "height": 400,
+      "color": "3"
+    },
+    {
+      "id": "n_docs_configuration_runtime_mode",
+      "type": "file",
+      "file": "runtime.mode (shadow  apply).md",
+      "x": 1940,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_shadow_mode",
+      "type": "file",
+      "file": "shadow mode.md",
+      "x": 2140,
+      "y": 1180,
+      "width": 180,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_docs_architecture_applier_docs_architecture_atomic_write_rename",
+      "fromNode": "n_docs_architecture_applier",
+      "toNode": "n_docs_architecture_atomic_write_rename",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_applier_docs_architecture_content_hash_skip",
+      "fromNode": "n_docs_architecture_applier",
+      "toNode": "n_docs_architecture_content_hash_skip",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_applier",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_applier",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_circuit_model",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_circuit_model",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_validator_docs_architecture_circuit_model",
+      "fromNode": "n_docs_architecture_validator",
+      "toNode": "n_docs_architecture_circuit_model",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_collector_docs_architecture_circuit_model",
+      "fromNode": "n_docs_architecture_collector",
+      "toNode": "n_docs_architecture_circuit_model",
+      "label": "shares_data_with [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_writers_docs_architecture_circuit_model",
+      "fromNode": "n_docs_architecture_writers",
+      "toNode": "n_docs_architecture_circuit_model",
+      "label": "shares_data_with [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_collector",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_collector",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_collector_readme_mikrotik_rs",
+      "fromNode": "n_docs_architecture_collector",
+      "toNode": "n_readme_mikrotik_rs",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_network_modes_docs_architecture_compile_mode_full",
+      "fromNode": "n_docs_architecture_network_modes",
+      "toNode": "n_docs_architecture_compile_mode_full",
+      "label": "conceptually_related_to [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_compile_mode_full",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_compile_mode_full",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_v3_upgrade_procedure_docs_architecture_compile_mode_full",
+      "fromNode": "n_docs_operations_v3_upgrade_procedure",
+      "toNode": "n_docs_architecture_compile_mode_full",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_compile_mode_full_docs_libreqos_v3_ingress_topology_source",
+      "fromNode": "n_docs_architecture_compile_mode_full",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_source",
+      "label": "conceptually_related_to [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_topology_builder_docs_architecture_network_modes",
+      "fromNode": "n_docs_architecture_topology_builder",
+      "toNode": "n_docs_architecture_network_modes",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_network_modes",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_network_modes",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_notifier",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_notifier",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_target_selection_flow",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_target_selection_flow",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_target_selection_flow_readme_auto_target",
+      "fromNode": "n_docs_architecture_target_selection_flow",
+      "toNode": "n_readme_auto_target",
+      "label": "implements [INFERRED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0002_v3_target_selection_docs_architecture_target_selection_flow",
+      "fromNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "toNode": "n_docs_architecture_target_selection_flow",
+      "label": "rationale_for [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_topology_builder",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_topology_builder",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_topology_builder_readme_updatecsv_py",
+      "fromNode": "n_docs_architecture_topology_builder",
+      "toNode": "n_readme_updatecsv_py",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_validator",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_validator",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_validator_docs_libreqos_v3_ingress_validation_results",
+      "fromNode": "n_docs_architecture_validator",
+      "toNode": "n_docs_libreqos_v3_ingress_validation_results",
+      "label": "rationale_for [INFERRED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_validation_results_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "fromNode": "n_docs_libreqos_v3_ingress_validation_results",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_v3_network_target_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "fromNode": "n_readme_v3_network_target",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_network_json_schema_2",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_validation_results",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_validation_results",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_docs_architecture",
+      "fromNode": "n_brain_home",
+      "toNode": "n_docs_architecture",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_brain_20_decisions_adr_0001_one_model_many_writers",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_brain_handoff",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_brain_handoff",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_config_loader",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_config_loader",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_crate_layout",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_crate_layout",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_performance_rules",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_performance_rules",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_speed_rules",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_speed_rules",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_target_detector",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_target_detector",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_docs_architecture_writers",
+      "fromNode": "n_docs_architecture",
+      "toNode": "n_docs_architecture_writers",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_architecture",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_architecture",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_atomic_write_rename_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "fromNode": "n_docs_architecture_atomic_write_rename",
+      "toNode": "n_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "label": "rationale_for [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_performance_rules_docs_architecture_atomic_write_rename",
+      "fromNode": "n_docs_architecture_performance_rules",
+      "toNode": "n_docs_architecture_atomic_write_rename",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_performance_rules_docs_architecture_content_hash_skip",
+      "fromNode": "n_docs_architecture_performance_rules",
+      "toNode": "n_docs_architecture_content_hash_skip",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_config_json_map",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_config_json_map",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_config_json_map_readme_updatecsv_py",
+      "fromNode": "n_docs_configuration_config_json_map",
+      "toNode": "n_readme_updatecsv_py",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_applied_backups",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_applied_backups",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_command_reference",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_command_reference",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_command_reference_docs_architecture_target_detector",
+      "fromNode": "n_docs_operations_command_reference",
+      "toNode": "n_docs_architecture_target_detector",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_cutover_procedure",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_cutover_procedure",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_cutover_procedure_docs_installation",
+      "fromNode": "n_docs_operations_cutover_procedure",
+      "toNode": "n_docs_installation",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_cutover_procedure_readme_shadow_mode",
+      "fromNode": "n_docs_operations_cutover_procedure",
+      "toNode": "n_readme_shadow_mode",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_rollback_procedure_docs_operations_cutover_procedure",
+      "fromNode": "n_docs_operations_rollback_procedure",
+      "toNode": "n_docs_operations_cutover_procedure",
+      "label": "conceptually_related_to [INFERRED]"
+    },
+    {
+      "id": "e_docs_operations_cutover_procedure_readme_updatecsv_py",
+      "fromNode": "n_docs_operations_cutover_procedure",
+      "toNode": "n_readme_updatecsv_py",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_rollback_procedure",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_rollback_procedure",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_troubleshooting",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_troubleshooting",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_troubleshooting_docs_libreqos_v3_ingress_last_good_topology",
+      "fromNode": "n_docs_operations_troubleshooting",
+      "toNode": "n_docs_libreqos_v3_ingress_last_good_topology",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_readme_readme_lqosync_updatecsv",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_lqosync_updatecsv",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_lqosync_updatecsv_readme_mikrotik_rs",
+      "fromNode": "n_readme_lqosync_updatecsv",
+      "toNode": "n_readme_mikrotik_rs",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_lqosync_updatecsv_readme_updatecsv_py",
+      "fromNode": "n_readme_lqosync_updatecsv",
+      "toNode": "n_readme_updatecsv_py",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0001_one_model_many_writers_readme_mikrotik_rs",
+      "fromNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "toNode": "n_readme_mikrotik_rs",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0001_one_model_many_writers_readme_updatecsv_py",
+      "fromNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "toNode": "n_readme_updatecsv_py",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_docs_operations",
+      "fromNode": "n_brain_home",
+      "toNode": "n_docs_operations",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_operational_rules",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_operational_rules",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_docs_operations_v3_upgrade_procedure",
+      "fromNode": "n_docs_operations",
+      "toNode": "n_docs_operations_v3_upgrade_procedure",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_last_good_topology",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_last_good_topology",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_lqosd_file_watcher_docs_libreqos_v3_ingress_last_good_topology",
+      "fromNode": "n_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "toNode": "n_docs_libreqos_v3_ingress_last_good_topology",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_liblqos_python_binding",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_liblqos_python_binding",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_offline_simulation_docs_libreqos_v3_ingress_liblqos_python_binding",
+      "fromNode": "n_docs_libreqos_v3_ingress_offline_simulation",
+      "toNode": "n_docs_libreqos_v3_ingress_liblqos_python_binding",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_offline_simulation_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "fromNode": "n_docs_libreqos_v3_ingress_offline_simulation",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "fromNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_3_0_7_package",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_v3_upgrade_procedure_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "fromNode": "n_docs_operations_v3_upgrade_procedure",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "fromNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "toNode": "n_docs_libreqos_v3_ingress_libreqos_v3_preflight",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_lqosd_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "fromNode": "n_docs_libreqos_v3_ingress_lqosd",
+      "toNode": "n_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_lqosd",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_lqosd",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_lqosd_file_watcher",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_offline_simulation",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_offline_simulation",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_offline_simulation_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "fromNode": "n_docs_libreqos_v3_ingress_offline_simulation",
+      "toNode": "n_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_30_knowledge_v3_offline_simulation_method_docs_libreqos_v3_ingress_offline_simulation",
+      "fromNode": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "toNode": "n_docs_libreqos_v3_ingress_offline_simulation",
+      "label": "semantically_similar_to [INFERRED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_topology_import_json",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_import_json",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0002_v3_target_selection_docs_libreqos_v3_ingress_topology_import_json",
+      "fromNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_import_json",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_updateonly_noop",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_updateonly_noop",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_30_knowledge_libreqos_v3_ingress_facts_docs_libreqos_v3_ingress",
+      "fromNode": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "toNode": "n_docs_libreqos_v3_ingress",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_docs_libreqos_v3_ingress",
+      "fromNode": "n_brain_home",
+      "toNode": "n_docs_libreqos_v3_ingress",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_libreqos_v3_ingress_docs_libreqos_v3_ingress_topology_source",
+      "fromNode": "n_docs_libreqos_v3_ingress",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_source",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_30_knowledge_v3_offline_simulation_method_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "fromNode": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "toNode": "n_docs_libreqos_v3_ingress_lqos_bus_safety",
+      "label": "semantically_similar_to [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_target_detector_docs_architecture_writers",
+      "fromNode": "n_docs_architecture_target_detector",
+      "toNode": "n_docs_architecture_writers",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_target_detector_docs_libreqos_v3_ingress_topology_source",
+      "fromNode": "n_docs_architecture_target_detector",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_source",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0002_v3_target_selection_docs_architecture_target_detector",
+      "fromNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "toNode": "n_docs_architecture_target_detector",
+      "label": "rationale_for [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_writers_readme_v2_pair_target",
+      "fromNode": "n_docs_architecture_writers",
+      "toNode": "n_readme_v2_pair_target",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_writers_readme_v3_network_target",
+      "fromNode": "n_docs_architecture_writers",
+      "toNode": "n_readme_v3_network_target",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_writers_readme_v3_pair_target",
+      "fromNode": "n_docs_architecture_writers",
+      "toNode": "n_readme_v3_pair_target",
+      "label": "implements [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0001_one_model_many_writers_docs_architecture_writers",
+      "fromNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "toNode": "n_docs_architecture_writers",
+      "label": "rationale_for [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_v3_upgrade_procedure_docs_libreqos_v3_ingress_topology_source",
+      "fromNode": "n_docs_operations_v3_upgrade_procedure",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_source",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_v3_pair_target_docs_libreqos_v3_ingress_topology_source",
+      "fromNode": "n_readme_v3_pair_target",
+      "toNode": "n_docs_libreqos_v3_ingress_topology_source",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_operations_v3_upgrade_procedure_readme_v3_network_target",
+      "fromNode": "n_docs_operations_v3_upgrade_procedure",
+      "toNode": "n_readme_v3_network_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_operations_v3_upgrade_procedure_readme_v3_pair_target",
+      "fromNode": "n_docs_operations_v3_upgrade_procedure",
+      "toNode": "n_readme_v3_pair_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_readme_auto_target",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_auto_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_auto_target_readme_v2_pair_target",
+      "fromNode": "n_readme_auto_target",
+      "toNode": "n_readme_v2_pair_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_auto_target_readme_v3_network_target",
+      "fromNode": "n_readme_auto_target",
+      "toNode": "n_readme_v3_network_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_auto_target_readme_v3_pair_target",
+      "fromNode": "n_readme_auto_target",
+      "toNode": "n_readme_v3_pair_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_readme_v2_pair_target",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_v2_pair_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_readme_v3_network_target",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_v3_network_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_readme_v3_pair_target",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_v3_pair_target",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_readme",
+      "fromNode": "n_brain_home",
+      "toNode": "n_readme",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_readme_read_only_router_access",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_read_only_router_access",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_readme_readme_shadow_mode",
+      "fromNode": "n_readme",
+      "toNode": "n_readme_shadow_mode",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation_brain_20_decisions_adr_0001_one_model_many_writers",
+      "fromNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "toNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation_brain_20_decisions_adr_0002_v3_target_selection",
+      "fromNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "toNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "fromNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "toNode": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation_brain_30_knowledge_v3_offline_simulation_method",
+      "fromNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "toNode": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_handoff_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "fromNode": "n_brain_handoff",
+      "toNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "fromNode": "n_brain_home",
+      "toNode": "n_brain_10_sessions_2026_10_31_project_setup_and_v3_simulation",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0002_v3_target_selection_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "fromNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "toNode": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_30_knowledge_libreqos_v3_ingress_facts_brain_30_knowledge_v3_offline_simulation_method",
+      "fromNode": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "toNode": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_handoff_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "fromNode": "n_brain_handoff",
+      "toNode": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "fromNode": "n_brain_home",
+      "toNode": "n_brain_30_knowledge_libreqos_v3_ingress_facts",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_handoff_brain_30_knowledge_v3_offline_simulation_method",
+      "fromNode": "n_brain_handoff",
+      "toNode": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_brain_30_knowledge_v3_offline_simulation_method",
+      "fromNode": "n_brain_home",
+      "toNode": "n_brain_30_knowledge_v3_offline_simulation_method",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_handoff_brain_20_decisions_adr_0001_one_model_many_writers",
+      "fromNode": "n_brain_handoff",
+      "toNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_handoff_brain_20_decisions_adr_0002_v3_target_selection",
+      "fromNode": "n_brain_handoff",
+      "toNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_handoff_brain_handoff_operator_decisions",
+      "fromNode": "n_brain_handoff",
+      "toNode": "n_brain_handoff_operator_decisions",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_brain_handoff",
+      "fromNode": "n_brain_home",
+      "toNode": "n_brain_handoff",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_brain_handoff",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_brain_handoff",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_brain_20_decisions_adr_0001_one_model_many_writers",
+      "fromNode": "n_brain_home",
+      "toNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_brain_20_decisions_adr_0002_v3_target_selection",
+      "fromNode": "n_brain_home",
+      "toNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_docs_configuration",
+      "fromNode": "n_brain_home",
+      "toNode": "n_docs_configuration",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_home_docs_installation",
+      "fromNode": "n_brain_home",
+      "toNode": "n_docs_installation",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_brain_20_decisions_adr_0001_one_model_many_writers_brain_20_decisions_adr_0002_v3_target_selection",
+      "fromNode": "n_brain_20_decisions_adr_0001_one_model_many_writers",
+      "toNode": "n_brain_20_decisions_adr_0002_v3_target_selection",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_architecture_config_loader_docs_configuration_secret_files",
+      "fromNode": "n_docs_architecture_config_loader",
+      "toNode": "n_docs_configuration_secret_files",
+      "label": "implements [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_config_loader_docs_configuration_updatecsv_toml",
+      "fromNode": "n_docs_architecture_config_loader",
+      "toNode": "n_docs_configuration_updatecsv_toml",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_import_json_command",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_import_json_command",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_install_sh_docs_configuration_import_json_command",
+      "fromNode": "n_docs_installation_install_sh",
+      "toNode": "n_docs_configuration_import_json_command",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_updatecsv_toml",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_updatecsv_toml",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_backstop_caps",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_backstop_caps",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_runtime_mode",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_runtime_mode",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_secret_files",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_secret_files",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_docs_configuration_speed_rules_open_item",
+      "fromNode": "n_docs_configuration",
+      "toNode": "n_docs_configuration_speed_rules_open_item",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_docs_configuration",
+      "fromNode": "n_docs_installation",
+      "toNode": "n_docs_configuration",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_secret_files_readme_read_only_router_access",
+      "fromNode": "n_docs_configuration_secret_files",
+      "toNode": "n_readme_read_only_router_access",
+      "label": "semantically_similar_to [INFERRED]"
+    },
+    {
+      "id": "e_brain_handoff_operator_decisions_docs_architecture_crate_layout",
+      "fromNode": "n_brain_handoff_operator_decisions",
+      "toNode": "n_docs_architecture_crate_layout",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_brain_handoff_operator_decisions_docs_configuration_speed_rules_open_item",
+      "fromNode": "n_brain_handoff_operator_decisions",
+      "toNode": "n_docs_configuration_speed_rules_open_item",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_architecture_speed_rules_docs_configuration_backstop_caps",
+      "fromNode": "n_docs_architecture_speed_rules",
+      "toNode": "n_docs_configuration_backstop_caps",
+      "label": "implements [INFERRED]"
+    },
+    {
+      "id": "e_docs_configuration_speed_rules_open_item_docs_architecture_speed_rules",
+      "fromNode": "n_docs_configuration_speed_rules_open_item",
+      "toNode": "n_docs_architecture_speed_rules",
+      "label": "references [INFERRED]"
+    },
+    {
+      "id": "e_docs_installation_docs_installation_install_sh",
+      "fromNode": "n_docs_installation",
+      "toNode": "n_docs_installation_install_sh",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_install_sh_docs_installation_systemd_unit",
+      "fromNode": "n_docs_installation_install_sh",
+      "toNode": "n_docs_installation_systemd_unit",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_install_sh_readme_shadow_mode",
+      "fromNode": "n_docs_installation_install_sh",
+      "toNode": "n_readme_shadow_mode",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_docs_installation_post_install_checks",
+      "fromNode": "n_docs_installation",
+      "toNode": "n_docs_installation_post_install_checks",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_docs_installation_removal_procedure",
+      "fromNode": "n_docs_installation",
+      "toNode": "n_docs_installation_removal_procedure",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_installation_docs_installation_systemd_unit",
+      "fromNode": "n_docs_installation",
+      "toNode": "n_docs_installation_systemd_unit",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_docs_configuration_runtime_mode_readme_shadow_mode",
+      "fromNode": "n_docs_configuration_runtime_mode",
+      "toNode": "n_readme_shadow_mode",
+      "label": "references [EXTRACTED]"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "README.md": {
+    "mtime": 1793426450.9626026,
+    "seen": 1793426836.7918067,
+    "ast_hash": "3f7b3ba2cc677525777797f268fa6cc3",
+    "semantic_hash": "3f7b3ba2cc677525777797f268fa6cc3"
+  },
+  "brain/10-sessions/2026-10-31-project-setup-and-v3-simulation.md": {
+    "mtime": 1793426645.0797083,
+    "seen": 1793426836.7918115,
+    "ast_hash": "ac7e3b2c2e9698b15d641615ed745918",
+    "semantic_hash": "ac7e3b2c2e9698b15d641615ed745918"
+  },
+  "brain/20-decisions/ADR-0001-one-model-many-writers.md": {
+    "mtime": 1793426620.8895574,
+    "seen": 1793426836.7918139,
+    "ast_hash": "7a80d6f87f80fa2e1e2963080d6611e5",
+    "semantic_hash": "7a80d6f87f80fa2e1e2963080d6611e5"
+  },
+  "brain/20-decisions/ADR-0002-v3-target-selection.md": {
+    "mtime": 1793426621.9645638,
+    "seen": 1793426836.7918158,
+    "ast_hash": "4195f40463702e80f8ccb570a33c3c58",
+    "semantic_hash": "4195f40463702e80f8ccb570a33c3c58"
+  },
+  "brain/30-knowledge/libreqos-v3-ingress-facts.md": {
+    "mtime": 1793426623.0575707,
+    "seen": 1793426836.791817,
+    "ast_hash": "7215df2b6b523d4ed3c040af1f2f5b76",
+    "semantic_hash": "7215df2b6b523d4ed3c040af1f2f5b76"
+  },
+  "brain/30-knowledge/v3-offline-simulation-method.md": {
+    "mtime": 1793426671.9698799,
+    "seen": 1793426836.7918181,
+    "ast_hash": "015ec06083c516f1adfc7929508c145b",
+    "semantic_hash": "015ec06083c516f1adfc7929508c145b"
+  },
+  "brain/HANDOFF.md": {
+    "mtime": 1793426646.170715,
+    "seen": 1793426836.7918196,
+    "ast_hash": "88e37537769a95671ad5c2234643ab05",
+    "semantic_hash": "88e37537769a95671ad5c2234643ab05"
+  },
+  "brain/Home.md": {
+    "mtime": 1793426653.0417585,
+    "seen": 1793426836.7918205,
+    "ast_hash": "df2524c152c8fc2937d5a9c2ed49e506",
+    "semantic_hash": "df2524c152c8fc2937d5a9c2ed49e506"
+  },
+  "docs/ARCHITECTURE.md": {
+    "mtime": 1793426591.1373763,
+    "seen": 1793426836.7918215,
+    "ast_hash": "be0c616457e1a226cb7b9c3bcae286d1",
+    "semantic_hash": "be0c616457e1a226cb7b9c3bcae286d1"
+  },
+  "docs/CONFIGURATION.md": {
+    "mtime": 1793426671.9718797,
+    "seen": 1793426836.7918227,
+    "ast_hash": "20997f4cb2cfbed78a9b9524241f5240",
+    "semantic_hash": "20997f4cb2cfbed78a9b9524241f5240"
+  },
+  "docs/INSTALLATION.md": {
+    "mtime": 1793426671.97288,
+    "seen": 1793426836.7918239,
+    "ast_hash": "0700a29b73509db6136c9f79a70a242b",
+    "semantic_hash": "0700a29b73509db6136c9f79a70a242b"
+  },
+  "docs/LIBREQOS-V3-INGRESS.md": {
+    "mtime": 1793426671.9738798,
+    "seen": 1793426836.791825,
+    "ast_hash": "2b5e6fa4b20c9dc6807e3d56c51679ab",
+    "semantic_hash": "2b5e6fa4b20c9dc6807e3d56c51679ab"
+  },
+  "docs/OPERATIONS.md": {
+    "mtime": 1793426671.9688797,
+    "seen": 1793426836.7918262,
+    "ast_hash": "3244b9d5abacb3125108394d6a280633",
+    "semantic_hash": "3244b9d5abacb3125108394d6a280633"
+  }
+}
