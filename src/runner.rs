@@ -78,6 +78,12 @@ where
         }
     }
 
+    /// Use a new config. The sessions close, because an address or a password can change.
+    pub fn set_config(&mut self, cfg: Config) {
+        self.cfg = cfg;
+        self.sessions.clear();
+    }
+
     /// Run one cycle. `force` releases a guard hold (a manual sync).
     pub async fn cycle(&mut self, now: u64, force: bool) -> CycleSummary {
         let start = Instant::now();

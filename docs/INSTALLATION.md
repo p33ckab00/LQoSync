@@ -105,19 +105,24 @@ The installer does not do these actions:
 
 7. Install the service unit as `/etc/systemd/system/lqosync3.service`:
 
+   The file is [`systemd/lqosync3.service`](../systemd/lqosync3.service):
+
    ```ini
    [Unit]
-   Description=LQoSync3 MikroTik to LibreQoS sync
+   Description=lqosync3: MikroTik subscriber sync for LibreQoS
    After=network-online.target
    Wants=network-online.target
 
    [Service]
    Type=simple
    ExecStart=/usr/local/bin/lqosync3 run --config /etc/lqosync3/lqosync3.toml
+   ExecReload=/bin/kill -HUP $MAINPID
    Restart=on-failure
    RestartSec=10
    User=root
-   ProtectHome=yes
+   NoNewPrivileges=yes
+   ProtectSystem=full
+   ReadWritePaths=/var/lib/lqosync3 /opt/libreqos/src
 
    [Install]
    WantedBy=multi-user.target
@@ -144,7 +149,8 @@ The installer does not do these actions:
 2. Make sure that the tool selected the correct target:
 
    ```bash
-   sudo lqosync3 detect
+   sudo lqosync3 once
+   sudo lqosync3 diff
    ```
 
    Expected result on LibreQoS 2.2: `target=v2_pair`.

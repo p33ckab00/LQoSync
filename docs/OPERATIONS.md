@@ -18,13 +18,20 @@ This document gives the operational rules and procedures for LQoSync3.
 
 ## Command reference
 
+All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml`.
+
 | Command | Effect |
 |---------|--------|
-| `lqosync3 check` | Reads and validates the TOML file and the secret files. Makes no router connection. |
-| `lqosync3 detect` | Shows the LibreQoS version, the v3 topology source, the v3 compile mode, and the selected target. |
-| `lqosync3 once --dry-run` | Does one cycle. Shows the changes. Writes no LibreQoS file. |
-| `lqosync3 once` | Does one cycle in the configured mode. |
+| `lqosync3 check` | Reads and validates the TOML file and the secret files. Checks the folders. Makes no router connection. |
+| `lqosync3 once` | Does one cycle in the configured mode. In `shadow` mode it writes only `<state_dir>/candidate/`. |
+| `lqosync3 once --force` | The same, and it releases a removal guard hold. |
+| `lqosync3 diff` | Compares `<state_dir>/candidate/` with the live LibreQoS files: circuits and nodes added, removed, and changed. |
 | `lqosync3 run` | Operates as a service. The systemd unit uses this command. |
+| `lqosync3 defaults` | Prints all settings with their default values. |
+
+Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again; a bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
+After each cycle, `<state_dir>/status.json` shows the router states, the changes, and any error.
+`lqosync3 detect` comes with LibreQoS v3 support (Plan 3).
 
 Each command returns `0` if it succeeds. It returns a different value if it fails.
 
