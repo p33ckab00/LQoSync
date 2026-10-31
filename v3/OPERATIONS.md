@@ -222,3 +222,31 @@ Do not run maintenance commands to restart the console.
 A successful `/health` response proves console availability only. It does not prove that migration or recovery is safe.
 See [persisted guards and reviewed recovery](RECOVERY_GUARD.md) for the library checks and current limits.
 No command in this guide activates that recovery library or bypasses a pending marker.
+
+## RouterOS acceptance, Phase 1
+
+`core-acceptance` tests address-list add, same-ID move, and remove on `RB5k9Core` with one test host.
+The test host is `192.0.2.254`. RFC 5737 reserves this address, so no subscriber traffic uses it.
+The command does not change `ShapedDevices.csv`, `network.json`, settings, services, or other router rows.
+See the [Phase 1 design](../docs/superpowers/specs/2026-10-31-routeros-acceptance-phase1-design.md).
+
+Do a dry run first. The dry run reads the router and sends no write:
+
+```bash
+LQOSYNC3_DATA=/opt/LQoSync3.0/v3/data /opt/LQoSync3.0/v3/target/debug/core-acceptance
+```
+
+Send the three test writes only with operator approval:
+
+```bash
+LQOSYNC3_DATA=/opt/LQoSync3.0/v3/data /opt/LQoSync3.0/v3/target/debug/core-acceptance --execute
+```
+
+The command stops at the first failed check and does not retry a request.
+If it stops after the add, it prints the test row ID. Remove only that row:
+
+```
+/ip firewall address-list remove <id>
+```
+
+The private report goes to `data/state/acceptance/phase1-<unix-seconds>.json`. Keep it outside Git.

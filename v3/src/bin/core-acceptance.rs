@@ -1,14 +1,218 @@
 //! Manual RouterOS acceptance, Phase 1: one test host on one core router.
 //! See docs/superpowers/specs/2026-10-31-routeros-acceptance-phase1-design.md.
-use anyhow::{Context, Result, ensure};
-use lqosync_v3::{core_migration::Member, routeros::Row};
-use std::collections::BTreeMap;
+use anyhow::{Context, Result, bail, ensure};
+use lqosync_v3::{
+    core_migration::{Member, RequestNotSent},
+    core_plan,
+    core_writer::{Evidence, Operation, Transport},
+    core_writer_transport::{RouterTransport, Verifier, members},
+    credentials, orchestrator,
+    routeros::{self, Row},
+    store,
+};
+use serde_json::json;
+use std::{collections::BTreeMap, path::PathBuf};
 
 const TEST_ADDRESS: &str = "192.0.2.254";
-const TEST_SUBSCRIBER: &str = "acceptance-test";
+/// Fixed test identity. Owned markers require a canonical UUID.
+const TEST_SUBSCRIBER: &str = "acce5500-0000-4000-8000-000000000001";
+const ROUTER: &str = "RB5k9Core";
+const LIST_PATH: &str = "/ip/firewall/address-list/print";
+const TABLES: [&str; 3] = [
+    "/ip/firewall/mangle/print",
+    "/ip/route/print",
+    "/routing/table/print",
+];
 
-fn main() -> Result<()> {
-    anyhow::bail!("Usage: core-acceptance [--execute]")
+/// Fresh address-list read of the test router. The transport preflight adds its scope checks.
+struct Fresh {
+    client: routeros::Client,
+}
+impl Verifier for Fresh {
+    async fn verify(&mut self) -> Result<Evidence> {
+        let now = orchestrator::now();
+        Ok(Evidence {
+            context: "acceptance-phase1".into(),
+            captured_at: now,
+            valid_until: now + 30,
+            rows: [(ROUTER.to_string(), list(&self.client).await?)].into(),
+        })
+    }
+}
+async fn list(client: &routeros::Client) -> Result<Vec<Member>> {
+    members(&client.read(LIST_PATH).await?)
+}
+async fn tables(client: &routeros::Client) -> Result<BTreeMap<&'static str, Vec<Row>>> {
+    let mut out = BTreeMap::new();
+    for t in TABLES {
+        out.insert(t, strip_counters(&client.read(t).await?));
+    }
+    Ok(out)
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    let execute = match args.as_slice() {
+        [] => false,
+        [a] if a == "--execute" => true,
+        _ => bail!("Usage: core-acceptance [--execute]"),
+    };
+    let root = std::env::var_os("LQOSYNC3_DATA")
+        .map(PathBuf::from)
+        .unwrap_or(std::env::current_dir()?.join("data"))
+        .canonicalize()?;
+    ensure!(
+        !root.starts_with("/opt/libreqos") && !root.starts_with("/etc/libreqos"),
+        "Use the LQoSync application data directory"
+    );
+    let settings = store::load_settings(&root)?;
+    let router = settings
+        .routers
+        .iter()
+        .find(|r| r.id == ROUTER)
+        .context("Router RB5k9Core is not configured")?
+        .clone();
+    let list_for = |wan: &str| {
+        settings
+            .core_lists
+            .bindings
+            .iter()
+            .find(|b| b.router == ROUTER && b.wan == wan)
+            .map(|b| b.list.clone())
+            .with_context(|| format!("No {wan} binding on {ROUTER}"))
+    };
+    let (list1, list2) = (list_for("wan1")?, list_for("wan2")?);
+    let owner = &settings.core_lists.owner;
+    let mark1 = core_plan::marker(owner, TEST_SUBSCRIBER, "wan1");
+    let mark2 = core_plan::marker(owner, TEST_SUBSCRIBER, "wan2");
+
+    let password = credentials::password(&root, &router).await?;
+    let client = routeros::Client::connect_with_password(&router, &password).await?;
+    let baseline = list(&client).await?;
+    check_same(&baseline, &list(&client).await?)
+        .context("Two address-list reads without a change differ")?;
+    check_clear(&baseline)?;
+    let start_tables = tables(&client).await?;
+    println!("Router: {ROUTER}; test host: {TEST_ADDRESS}");
+    println!("Step 1: add to {list1} with comment {mark1}");
+    println!("Step 2: move to {list2} with comment {mark2}; the row ID must not change");
+    println!("Step 3: remove by row ID; all rows must equal the baseline");
+    println!("Baseline: {} address-list rows", baseline.len());
+    for (t, rows) in &start_tables {
+        println!("Baseline: {t}: {} rows", rows.len());
+    }
+    if !execute {
+        drop(password);
+        println!("Dry run: no write sent. Add --execute to send the three test writes.");
+        return Ok(());
+    }
+    let verifier = Fresh {
+        client: routeros::Client::connect_with_password(&router, &password).await?,
+    };
+    drop(password);
+    let mut transport = RouterTransport::new(&root, settings.clone(), verifier)?;
+
+    let mut report = vec![];
+    let (mut sent, mut test_id) = (false, None::<String>);
+    let result: Result<()> = async {
+        let want = Member {
+            id: String::new(),
+            list: list1.clone(),
+            address: TEST_ADDRESS.into(),
+            comment: mark1.clone(),
+            dynamic: false,
+            disabled: false,
+            timeout: None,
+        };
+        let guard = transport.observe().await?;
+        let add = Operation::Add {
+            router: ROUTER.into(),
+            member: want.clone(),
+        };
+        let id = match transport.execute(&add, &guard).await {
+            Err(e) if e.downcast_ref::<RequestNotSent>().is_some() => return Err(e),
+            r => {
+                sent = true;
+                r?.context("Add returned no row ID")?
+            }
+        };
+        test_id = Some(id.clone());
+        let added = list(&client).await?;
+        report.push(json!({"step": "add", "id": id, "row": find(&added, &id).ok()}));
+        check_added(&baseline, &added, &id, &want)?;
+        println!("Add passed: row {id}");
+
+        let before = find(&added, &id)?.clone();
+        let after = Member {
+            list: list2.clone(),
+            comment: mark2.clone(),
+            ..before.clone()
+        };
+        let guard = transport.observe().await?;
+        let mv = Operation::Move {
+            router: ROUTER.into(),
+            before: before.clone(),
+            after,
+        };
+        transport.execute(&mv, &guard).await?;
+        let moved = list(&client).await?;
+        report.push(json!({"step": "move", "id": id, "row": find(&moved, &id).ok()}));
+        check_moved(&added, &moved, &id, &list2, &mark2)?;
+        println!("Move passed: row {id} kept its ID");
+
+        let row = find(&moved, &id)?.clone();
+        let guard = transport.observe().await?;
+        transport
+            .execute(
+                &Operation::Remove {
+                    router: ROUTER.into(),
+                    before: row,
+                },
+                &guard,
+            )
+            .await?;
+        let removed = list(&client).await?;
+        report.push(json!({"step": "remove", "id": id, "present": find(&removed, &id).is_ok()}));
+        check_same(&baseline, &removed)?;
+        test_id = None;
+        println!("Remove passed: address-list equals the baseline");
+
+        let end_tables = tables(&client).await?;
+        for (t, rows) in &start_tables {
+            ensure!(
+                end_tables.get(t) == Some(rows),
+                "{t} changed during the test"
+            );
+        }
+        println!("Baseline tables unchanged");
+        Ok(())
+    }
+    .await;
+    let now = orchestrator::now();
+    let outcome = match &result {
+        Ok(()) => "passed".to_string(),
+        Err(e) => format!("{e:#}"),
+    };
+    report.push(json!({"outcome": outcome}));
+    store::atomic_write(
+        &root.join(format!("state/acceptance/phase1-{now}.json")),
+        &serde_json::to_string_pretty(&report)?,
+    )?;
+    if let Err(e) = result {
+        if let Some(id) = &test_id {
+            eprintln!("Test row {id} can remain. Remove only that row:");
+            eprintln!("/ip firewall address-list remove {id}");
+        } else if sent {
+            eprintln!(
+                "Check for a row with address {TEST_ADDRESS} and comment {mark1} or {mark2}."
+            );
+            eprintln!("Remove only that row.");
+        }
+        return Err(e);
+    }
+    println!("Phase 1 passed");
+    Ok(())
 }
 
 fn by_id(rows: &[Member]) -> BTreeMap<&str, &Member> {
@@ -117,9 +321,15 @@ mod tests {
     fn base() -> Vec<Member> {
         vec![m("*A", "WAN1-CUSTOMERS", "10.15.0.0/24", "IPoE vlan10")]
     }
-    const W1: &str = "lqosync3:o:acceptance-test:wan1";
-    const W2: &str = "lqosync3:o:acceptance-test:wan2";
+    const W1: &str = "lqosync3:o:acce5500-0000-4000-8000-000000000001:wan1";
+    const W2: &str = "lqosync3:o:acce5500-0000-4000-8000-000000000001:wan2";
 
+    #[test]
+    fn test_subscriber_is_canonical_uuid() {
+        let id = uuid::Uuid::parse_str(TEST_SUBSCRIBER).expect("UUID");
+        assert!(!id.is_nil());
+        assert_eq!(id.to_string(), TEST_SUBSCRIBER);
+    }
     #[test]
     fn clear_rejects_test_address() {
         assert!(check_clear(&[m("*1", "X", "192.0.2.254", "")]).is_err());
