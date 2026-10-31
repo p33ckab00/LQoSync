@@ -177,3 +177,43 @@ servers = []                    # optional [[routers.dhcp.servers]] entries: set
 dhcp_servers = []
 ppp_profiles = []
 ips = []
+
+# ---------------------------------------------------------------------------
+# ROUTERS: put them in /etc/lqosync3/lqosync3.toml, not in this file.
+# Add one [[routers]] block for each MikroTik router. There is no limit.
+# Each block changes only the keys that it sets; [router_defaults] above gives the rest.
+# The tool reads all routers at the same time and keeps a state for each one.
+# A test copies the lines below without "# " and loads them, so they stay valid.
+#
+# EXAMPLE-START
+# [[routers]]
+# name = "Hub-1"                                   # unique name; used in node names
+# address = "192.0.2.1"                            # IP or DNS name of the router API
+# username = "lqosync-read"                        # a read-only RouterOS user
+# password_file = "/etc/lqosync3/secrets/Hub-1.password"   # mode 0600, owner root
+# [routers.pppoe]
+# enabled = true
+# per_plan_node = true
+# [routers.dhcp]
+# enabled = true                                   # all DHCP servers are read (discover = true)
+# [routers.exclude]
+# dhcp_servers = ["Mgt*"]                          # this router only
+#
+# [[routers]]
+# name = "Tower-2"
+# address = "192.0.2.2"
+# port = 8728                                      # plain API on this router
+# tls = false
+# username = "lqosync-read"
+# password_file = "/etc/lqosync3/secrets/Tower-2.password"
+# [routers.hotspot]
+# enabled = true
+# download_limit_mbps = 10
+# upload_limit_mbps = 5
+# [routers.dhcp]
+# enabled = true
+# discover = false                                 # only the servers below
+# [[routers.dhcp.servers]]
+# name = "PLANS"
+# mode = "per_plan"
+# EXAMPLE-END

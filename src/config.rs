@@ -1230,4 +1230,37 @@ mod tests {
             .unwrap_err();
         assert!(format!("{e:#}").contains("static_comment"), "{e:#}");
     }
+
+    #[test]
+    fn router_example_in_defaults_file_loads_two_routers() {
+        let start = DEFAULTS_TOML.find("# EXAMPLE-START\n").unwrap();
+        let end = DEFAULTS_TOML.find("# EXAMPLE-END").unwrap();
+        let example: String = DEFAULTS_TOML[start..end]
+            .lines()
+            .skip(1)
+            .map(|l| {
+                l.strip_prefix("# ")
+                    .or_else(|| l.strip_prefix('#'))
+                    .unwrap_or(l)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let c = Config::from_toml_str(&example).unwrap();
+        assert_eq!(c.routers.len(), 2);
+        let (hub, tower) = (&c.routers[0], &c.routers[1]);
+        assert_eq!(
+            (hub.port, hub.tls, hub.pppoe.enabled, hub.dhcp.discover),
+            (8729, true, true, true)
+        );
+        assert_eq!(
+            (
+                tower.port,
+                tower.tls,
+                tower.pppoe.enabled,
+                tower.dhcp.discover
+            ),
+            (8728, false, false, false)
+        );
+        assert_eq!(tower.dhcp.servers[0].mode, DhcpMode::PerPlan);
+    }
 }
