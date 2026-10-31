@@ -5,7 +5,7 @@ use crate::model::{CsvRow, State};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct RouterStatus {
     pub name: String,
     /// online | failed | unreachable | offline
@@ -101,7 +101,23 @@ impl ReportSummary {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+/// The reason for a status write.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Trigger {
+    /// The first cycle after the service start.
+    #[default]
+    Start,
+    Timer,
+    /// SIGUSR1.
+    SyncNow,
+    /// SIGHUP: the config was read again (good or bad).
+    Reload,
+    /// `lqosync3 once`.
+    Once,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Status {
     pub version: u32,
     pub updated: u64,
@@ -117,6 +133,16 @@ pub struct Status {
     pub error: Option<String>,
     /// The last config reload (SIGHUP) failed: the old config stays in use.
     pub config_error: Option<String>,
+    pub config_path: String,
+    /// `cli::config_digest` of the loaded config file.
+    pub config_digest: String,
+    /// The number of cycles of this process. It starts again at 1 after a restart.
+    pub cycle_seq: u64,
+    pub pid: u32,
+    pub trigger: Trigger,
+    pub program_version: String,
+    /// The last Telegram send: disabled | none | ok | the error text.
+    pub telegram: String,
 }
 
 impl Status {
@@ -158,6 +184,7 @@ mod tests {
             reload: "skipped".into(),
             error: None,
             config_error: None,
+            ..Status::default()
         };
         let v: serde_json::Value = serde_json::from_str(&st.to_json()).unwrap();
         for k in [
@@ -173,6 +200,13 @@ mod tests {
             "reload",
             "error",
             "config_error",
+            "config_path",
+            "config_digest",
+            "cycle_seq",
+            "pid",
+            "trigger",
+            "program_version",
+            "telegram",
         ] {
             assert!(v.get(k).is_some(), "missing {k}");
         }

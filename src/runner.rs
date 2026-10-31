@@ -7,7 +7,7 @@ use crate::files;
 use crate::model::{Columns, RouterMemo};
 use crate::routeros::{Connector, TABLES, read_router};
 use crate::routerstate::classify;
-use crate::status::{ReportSummary, RouterStatus, Status};
+use crate::status::{ReportSummary, RouterStatus, Status, Trigger};
 use crate::writer::pair::{render_csv, render_network_json};
 use crate::writer::v3network::render_libreqos_network;
 use std::collections::{BTreeMap, HashMap};
@@ -60,6 +60,14 @@ pub struct Runner<C: Connector + 'static> {
     lock: Option<std::fs::File>,
     /// The error of the last config reload, until a good reload.
     config_error: Option<String>,
+    /// The reason for the next cycle. The caller sets it.
+    pub trigger: Trigger,
+    config_path: String,
+    config_digest: String,
+    cycle_seq: u64,
+    telegram: String,
+    /// The last status written.
+    last: Option<Status>,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -69,6 +77,34 @@ fn state_name(r: &RouterResult) -> &'static str {
         RouterResult::Unreachable => "unreachable",
         RouterResult::Offline => "offline",
     }
+}
+
+/// `<state_dir>/snapshot.json`: the router reads of this cycle. It holds subscriber data, so mode 0600.
+fn write_snapshot(
+    state_dir: &Path,
+    routers: &[(String, RouterResult)],
+    statuses: &[RouterStatus],
+    now: u64,
+) -> anyhow::Result<()> {
+    let list: Vec<serde_json::Value> = routers
+        .iter()
+        .zip(statuses)
+        .map(|((name, r), st)| {
+            let snapshot = match r {
+                RouterResult::Online(s) => serde_json::to_value(s).expect("snapshot serializes"),
+                _ => serde_json::Value::Null,
+            };
+            serde_json::json!({
+                "name": name,
+                "state": state_name(r),
+                "read_at": now,
+                "read_ms": st.read_ms,
+                "snapshot": snapshot,
+            })
+        })
+        .collect();
+    let v = serde_json::json!({"version": 1, "taken": now, "routers": list});
+    files::write_private(&state_dir.join("snapshot.json"), v.to_string().as_bytes())
 }
 
 impl<C> Runner<C>
@@ -83,7 +119,76 @@ where
             sessions: HashMap::new(),
             lock: None,
             config_error: None,
+            trigger: Trigger::Start,
+            config_path: String::new(),
+            config_digest: String::new(),
+            cycle_seq: 0,
+            telegram: "none".into(),
+            last: None,
         }
+    }
+
+    /// The config file and the digest of its loaded text, for `status.json`.
+    pub fn set_source(&mut self, path: &Path, digest: String) {
+        self.config_path = path.display().to_string();
+        self.config_digest = digest;
+    }
+
+    /// The result of the last Telegram send. A new value is written to `status.json` at once.
+    pub fn set_telegram(&mut self, result: String) {
+        if self.telegram == result {
+            return;
+        }
+        self.telegram = result;
+        if let Some(mut s) = self.last.take() {
+            s.telegram = self.telegram.clone();
+            self.write_status(s);
+        }
+    }
+
+    /// Write `status.json` at once after a config reload (good or bad), before the next cycle.
+    /// `cycle_seq` and the cycle data stay the same.
+    pub fn write_reload_status(&mut self, now: u64) {
+        if self.lock().is_err() {
+            return;
+        }
+        let mut s = self.last.take().unwrap_or_else(|| self.base_status(now));
+        s.trigger = Trigger::Reload;
+        s.updated = now;
+        s.config_path = self.config_path.clone();
+        s.config_digest = self.config_digest.clone();
+        s.config_error = self.config_error.clone();
+        self.write_status(s);
+    }
+
+    fn base_status(&self, now: u64) -> Status {
+        Status {
+            version: 3,
+            updated: now,
+            mode: match self.cfg.runtime.mode {
+                RuntimeMode::Shadow => "shadow".into(),
+                RuntimeMode::Apply => "apply".into(),
+            },
+            target: target_name(self.cfg.libreqos.target).into(),
+            reload: "skipped".into(),
+            config_error: self.config_error.clone(),
+            config_path: self.config_path.clone(),
+            config_digest: self.config_digest.clone(),
+            cycle_seq: self.cycle_seq,
+            pid: std::process::id(),
+            trigger: self.trigger,
+            program_version: env!("CARGO_PKG_VERSION").into(),
+            telegram: self.telegram.clone(),
+            ..Status::default()
+        }
+    }
+
+    fn write_status(&mut self, s: Status) {
+        let path = Path::new(&self.cfg.runtime.state_dir).join("status.json");
+        if let Err(e) = files::write_if_changed(&path, s.to_json().as_bytes()) {
+            eprintln!("error: cannot write status.json: {e:#}");
+        }
+        self.last = Some(s);
     }
 
     /// Take the instance lock on `state_dir` and hold it while the runner lives.
@@ -110,23 +215,7 @@ where
     pub async fn cycle(&mut self, now: u64, force: bool) -> CycleSummary {
         let start = Instant::now();
         let state_dir = Path::new(&self.cfg.runtime.state_dir).to_path_buf();
-        let mut status = Status {
-            version: 2,
-            updated: now,
-            mode: match self.cfg.runtime.mode {
-                RuntimeMode::Shadow => "shadow".into(),
-                RuntimeMode::Apply => "apply".into(),
-            },
-            target: target_name(self.cfg.libreqos.target).into(),
-            cycle_ms: 0,
-            next_scan_seconds: 0,
-            routers: Vec::new(),
-            report: ReportSummary::default(),
-            files_changed: false,
-            reload: "skipped".into(),
-            error: None,
-            config_error: self.config_error.clone(),
-        };
+        let mut status = self.base_status(now);
         // Without the lock, another process owns the files: write nothing, not even the status.
         if let Err(e) = self.lock() {
             let error = Some(format!("{e:#}"));
@@ -137,6 +226,8 @@ where
                 status,
             };
         }
+        self.cycle_seq += 1;
+        status.cycle_seq = self.cycle_seq;
         let result = self.cycle_inner(now, force, &state_dir, &mut status).await;
         let (changed, error) = match result {
             Ok((changed, None)) => (changed, None),
@@ -154,12 +245,7 @@ where
             status,
         };
         summary.status.next_scan_seconds = summary.next_sleep(&self.cfg.runtime);
-        if let Err(e) = files::write_if_changed(
-            &state_dir.join("status.json"),
-            summary.status.to_json().as_bytes(),
-        ) {
-            eprintln!("error: cannot write status.json: {e:#}");
-        }
+        self.write_status(summary.status.clone());
         summary
     }
 
@@ -250,6 +336,10 @@ where
             });
             memos.insert(router.name.clone(), memo);
             routers.push((router.name.clone(), result));
+        }
+        // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
+        if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {
+            eprintln!("warning: cannot write snapshot.json: {e:#}");
         }
 
         let id_len = self.cfg.runtime.id_length;
@@ -352,6 +442,7 @@ mod tests {
     use crate::config::{Config, RouterAccess, RouterCfg};
     use crate::model::RosRow;
     use crate::routeros::{Connector, ReadError, RouterSession};
+    use crate::status::Trigger;
     use std::collections::{BTreeMap, HashSet};
     use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
@@ -795,5 +886,115 @@ mod tests {
         assert_eq!((s.error, s.status.target.as_str()), (None, "v2_pair"));
         assert!(!read(&e.lqos.join("ShapedDevices.csv")).contains("Anchor Node ID"));
         assert!(e.lqos.join("reloaded").exists());
+    }
+
+    fn status(e: &Env) -> serde_json::Value {
+        serde_json::from_str(&read(&e.state.join("status.json"))).unwrap()
+    }
+
+    #[tokio::test]
+    async fn status_has_digest_seq_pid_trigger() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        r.set_source(Path::new("/etc/x.toml"), "abc".into());
+        r.cycle(1_000, false).await;
+        assert_eq!(status(&e)["trigger"], "start");
+        r.trigger = Trigger::SyncNow;
+        let s = r.cycle(1_001, true).await;
+        assert_eq!(s.status.cycle_seq, 2);
+        let st = status(&e);
+        assert_eq!(st["version"], 3);
+        assert_eq!(st["cycle_seq"], 2);
+        assert_eq!(st["trigger"], "sync_now");
+        assert_eq!(st["pid"], std::process::id());
+        assert_eq!(st["config_digest"], "abc");
+        assert_eq!(st["config_path"], "/etc/x.toml");
+        assert_eq!(st["program_version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(st["telegram"], "none");
+    }
+
+    #[tokio::test]
+    async fn reload_status_keeps_the_cycle_seq() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        r.cycle(1_000, false).await;
+        r.config_failed("x".into());
+        r.write_reload_status(2_000);
+        let st = status(&e);
+        assert_eq!(st["trigger"], "reload");
+        assert_eq!(st["config_error"], "x");
+        assert_eq!(st["updated"], 2_000);
+        assert_eq!(st["cycle_seq"], 1);
+        assert_eq!(st["routers"][0]["state"], "online");
+    }
+
+    #[tokio::test]
+    async fn reload_status_without_a_cycle() {
+        let e = env();
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        r.set_source(Path::new("/etc/x.toml"), "abc".into());
+        r.write_reload_status(5);
+        let st = status(&e);
+        assert_eq!(st["trigger"], "reload");
+        assert_eq!(st["cycle_seq"], 0);
+        assert_eq!(st["config_digest"], "abc");
+        assert_eq!(st["pid"], std::process::id());
+    }
+
+    #[tokio::test]
+    async fn telegram_result_is_written_at_once() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        r.cycle(1_000, false).await;
+        r.set_telegram("ok".into());
+        assert_eq!(status(&e)["telegram"], "ok");
+    }
+
+    #[tokio::test]
+    async fn snapshot_json_has_each_router_and_mode_0600() {
+        use std::os::unix::fs::PermissionsExt;
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        std::fs::create_dir_all(&e.state).unwrap();
+        let tmp = e.state.join("snapshot.json.tmp");
+        std::fs::write(&tmp, "old").unwrap();
+        std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let mut c = cfg(&e, "shadow", "");
+        let mut r2 = c.routers[0].clone();
+        r2.name = "R2".into();
+        c.routers.push(r2);
+        e.fake.failing.lock().unwrap().insert("R2".into());
+        runner(&e, c).cycle(1_000, false).await;
+        let path = e.state.join("snapshot.json");
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+        let v: serde_json::Value = serde_json::from_str(&read(&path)).unwrap();
+        assert_eq!(v["version"], 1);
+        assert_eq!(v["taken"], 1_000);
+        let rs = v["routers"].as_array().unwrap();
+        assert_eq!(
+            (rs[0]["name"].as_str(), rs[0]["state"].as_str()),
+            (Some("R1"), Some("online"))
+        );
+        assert_eq!(rs[0]["read_at"], 1_000);
+        assert!(rs[0]["read_ms"].is_u64());
+        assert_eq!(rs[0]["snapshot"]["ppp_active"][0]["name"], "alice");
+        assert_eq!(
+            (rs[1]["state"].as_str(), rs[1]["snapshot"].is_null()),
+            (Some("failed"), true)
+        );
+    }
+
+    #[tokio::test]
+    async fn snapshot_write_error_does_not_stop_the_cycle() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        std::fs::create_dir_all(e.state.join("snapshot.json.tmp")).unwrap();
+        let s = runner(&e, cfg(&e, "shadow", "")).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        assert!(read(&e.state.join("candidate/ShapedDevices.csv")).contains("alice"));
     }
 }

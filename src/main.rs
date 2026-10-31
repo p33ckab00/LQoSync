@@ -6,6 +6,7 @@ use lqosync3::diff::diff_config;
 use lqosync3::mikrotik::MikrotikConnector;
 use lqosync3::notify::{Notifier, send_all};
 use lqosync3::runner::{CycleSummary, Runner};
+use lqosync3::status::Trigger;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -60,15 +61,26 @@ fn print_summary(s: &CycleSummary) {
 }
 
 /// Send the Telegram message of the cycle, if it has an event. A failure is only a log line.
-async fn notify(n: &mut Notifier, cfg: &Config, s: &CycleSummary) {
-    if let Some(text) = n.message(&cfg.telegram, &s.status)
-        && let Err(e) = send_all(&cfg.telegram, &text, SECRET_OWNER_UID).await
-    {
-        eprintln!("warning: telegram: {e}");
+/// Returns the send result for `status.json`, or `None` if nothing was sent.
+async fn notify(n: &mut Notifier, cfg: &Config, s: &CycleSummary) -> Option<String> {
+    // The notifier keeps its event memory also when Telegram is off.
+    let text = n.message(&cfg.telegram, &s.status);
+    if !cfg.telegram.enabled {
+        return Some("disabled".into());
     }
+    let text = text?;
+    Some(
+        match send_all(&cfg.telegram, &text, SECRET_OWNER_UID).await {
+            Ok(()) => "ok".into(),
+            Err(e) => {
+                eprintln!("warning: telegram: {e}");
+                e.to_string()
+            }
+        },
+    )
 }
 
-async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
+async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result<()> {
     let mut runner = Runner::new(
         cfg.clone(),
         Arc::new(MikrotikConnector {
@@ -76,6 +88,7 @@ async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
         }),
     );
     runner.lock()?;
+    runner.set_source(path, digest.clone());
     let (mut hup, mut usr1) = (
         signal(SignalKind::hangup())?,
         signal(SignalKind::user_defined1())?,
@@ -89,23 +102,35 @@ async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
     loop {
         let summary = runner.cycle(now(), force).await;
         print_summary(&summary);
-        notify(&mut notifier, &runner.cfg, &summary).await;
+        if let Some(t) = notify(&mut notifier, &runner.cfg, &summary).await {
+            runner.set_telegram(t);
+        }
         force = false;
+        runner.trigger = Trigger::Timer;
         let sleep =
             tokio::time::sleep(Duration::from_secs(summary.next_sleep(&runner.cfg.runtime)));
         tokio::select! {
             _ = sleep => {}
-            _ = usr1.recv() => force = true,
-            _ = hup.recv() => match cli::reload(&mut cfg, path) {
-                Ok(()) => {
-                    eprintln!("config reloaded from {}", path.display());
-                    runner.set_config(cfg.clone());
+            _ = usr1.recv() => {
+                force = true;
+                runner.trigger = Trigger::SyncNow;
+            }
+            _ = hup.recv() => {
+                match cli::reload(&mut cfg, &mut digest, path) {
+                    Ok(()) => {
+                        eprintln!("config reloaded from {}", path.display());
+                        runner.set_config(cfg.clone());
+                        runner.set_source(path, digest.clone());
+                    }
+                    Err(e) => {
+                        eprintln!("error: config reload failed, the old config stays: {e:#}");
+                        runner.config_failed(format!("{e:#}"));
+                    }
                 }
-                Err(e) => {
-                    eprintln!("error: config reload failed, the old config stays: {e:#}");
-                    runner.config_failed(format!("{e:#}"));
-                }
-            },
+                // The TUI waits for this status: write it now, not after the next cycle.
+                runner.write_reload_status(now());
+                runner.trigger = Trigger::Reload;
+            }
             _ = term.recv() => break,
             _ = int.recv() => break,
         }
@@ -125,10 +150,11 @@ async fn main() {
         print!("{}", lqosync3::config::DEFAULTS_TOML);
         return;
     }
-    let cfg = cli::load_config(&parsed.config).unwrap_or_else(|e| exit_with(e));
+    let (cfg, digest) = cli::read_config(&parsed.config).unwrap_or_else(|e| exit_with(e));
     match parsed.command {
         Command::Check => {
-            let lines = cli::check(&cfg, SECRET_OWNER_UID);
+            let mut lines = cli::check(&cfg, SECRET_OWNER_UID);
+            lines.extend(cli::digest_line(Path::new(&cfg.runtime.state_dir), &digest));
             for l in &lines {
                 let tag = match l.level {
                     Level::Ok => "OK   ",
@@ -149,9 +175,13 @@ async fn main() {
                 }),
             );
             runner.lock().unwrap_or_else(|e| exit_with(e));
+            runner.set_source(&parsed.config, digest);
+            runner.trigger = Trigger::Once;
             let s = runner.cycle(now(), force).await;
             print_summary(&s);
-            notify(&mut Notifier::default(), &runner.cfg, &s).await;
+            if let Some(t) = notify(&mut Notifier::default(), &runner.cfg, &s).await {
+                runner.set_telegram(t);
+            }
             if s.error.is_some() {
                 std::process::exit(1);
             }
@@ -161,7 +191,7 @@ async fn main() {
             Err(e) => exit_with(e),
         },
         Command::Diff => print!("{}", diff_config(&cfg).unwrap_or_else(|e| exit_with(e))),
-        Command::Run => run(&parsed.config, cfg)
+        Command::Run => run(&parsed.config, cfg, digest)
             .await
             .unwrap_or_else(|e| exit_with(e)),
         Command::Defaults => unreachable!("handled above"),

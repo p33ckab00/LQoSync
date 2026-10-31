@@ -61,6 +61,27 @@ pub fn write_if_changed(path: &Path, bytes: &[u8]) -> anyhow::Result<bool> {
     Ok(true)
 }
 
+/// Write `bytes` to `path` with mode 0600, through a temporary file with mode 0600 and a rename.
+/// No sync: use it only for a cache that the next cycle writes again.
+pub fn write_private(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+    let tmp = path.with_file_name(format!("{name}.tmp"));
+    let mut f = File::options()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp)
+        .with_context(|| format!("cannot write {}", tmp.display()))?;
+    // An old temporary file keeps its mode, so set the mode before the data goes in.
+    f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    f.write_all(bytes)?;
+    drop(f);
+    std::fs::rename(&tmp, path)
+        .with_context(|| format!("cannot rename {} to {}", tmp.display(), path.display()))
+}
+
 /// The live LibreQoS files of this cycle.
 #[derive(Debug, Clone, Default)]
 pub struct Live {

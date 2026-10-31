@@ -88,17 +88,36 @@ pub fn target_name(t: Target) -> &'static str {
     }
 }
 
-/// Read and check the config file.
-pub fn load_config(path: &Path) -> anyhow::Result<Config> {
-    let text =
-        std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
-    Config::from_toml_str(&text).with_context(|| format!("{}", path.display()))
+/// The digest of a config file text: 16 hex digits (FNV-1a 64).
+pub fn config_digest(bytes: &[u8]) -> String {
+    format!("{:016x}", crate::topology::fnv1a64(bytes))
 }
 
-/// Read the config again. On an error, `cfg` stays the same.
-pub fn reload(cfg: &mut Config, path: &Path) -> anyhow::Result<()> {
-    *cfg = load_config(path)?;
+/// Read and check the config file. Also gives the digest of the same bytes.
+pub fn read_config(path: &Path) -> anyhow::Result<(Config, String)> {
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let cfg = Config::from_toml_str(&text).with_context(|| format!("{}", path.display()))?;
+    Ok((cfg, config_digest(text.as_bytes())))
+}
+
+/// Read the config again. On an error, `cfg` and `digest` stay the same.
+pub fn reload(cfg: &mut Config, digest: &mut String, path: &Path) -> anyhow::Result<()> {
+    (*cfg, *digest) = read_config(path)?;
     Ok(())
+}
+
+/// A warning if `status.json` in `state_dir` shows a loaded config that is not `digest` (the file on disk).
+pub fn digest_line(state_dir: &Path, digest: &str) -> Option<CheckLine> {
+    let text = std::fs::read_to_string(state_dir.join("status.json")).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let loaded = v["config_digest"].as_str().filter(|d| !d.is_empty())?;
+    (loaded != digest).then(|| {
+        line(
+            Level::Warn,
+            format!("the config file on disk is not the loaded config (status.json has {loaded}, the file has {digest}); send SIGHUP to load it"),
+        )
+    })
 }
 
 /// The checks of `lqosync3 check` (runtime design section 8). `owner_uid` is the required secret owner.
@@ -322,13 +341,43 @@ mod tests {
     #[test]
     fn reload_keeps_old_config_on_error() {
         let e = env("[routers.pppoe]\nenabled=true\n", "");
-        let mut cfg = load_config(&e.path).unwrap();
+        let (mut cfg, mut digest) = read_config(&e.path).unwrap();
+        assert_eq!(digest, config_digest(e.toml.as_bytes()));
+        let first = digest.clone();
         std::fs::write(&e.path, "[runtime]\nscan_intervall=5\n").unwrap();
-        assert!(reload(&mut cfg, &e.path).is_err());
-        assert_eq!(cfg.routers[0].name, "R1");
+        assert!(reload(&mut cfg, &mut digest, &e.path).is_err());
+        assert_eq!((cfg.routers[0].name.as_str(), &digest), ("R1", &first));
         std::fs::write(&e.path, e.toml.replace("\"R1\"", "\"R2\"")).unwrap();
-        reload(&mut cfg, &e.path).unwrap();
+        reload(&mut cfg, &mut digest, &e.path).unwrap();
         assert_eq!(cfg.routers[0].name, "R2");
+        assert_ne!(digest, first);
+    }
+
+    #[test]
+    fn config_digest_is_stable_and_16_hex() {
+        let d = config_digest(b"a");
+        assert_eq!(d, config_digest(b"a"));
+        assert_ne!(d, config_digest(b"b"));
+        assert_eq!(d.len(), 16);
+        assert!(d.chars().all(|c| c.is_ascii_hexdigit()), "{d}");
+    }
+
+    #[test]
+    fn check_warns_when_the_file_is_not_loaded() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("status.json"), r#"{"config_digest":"aaa"}"#).unwrap();
+        let l = digest_line(dir.path(), "bbb").unwrap();
+        assert_eq!(l.level, Level::Warn);
+        assert!(l.text.contains("not the loaded config"), "{}", l.text);
+        assert_eq!(digest_line(dir.path(), "aaa"), None);
+    }
+
+    #[test]
+    fn check_has_no_warning_without_status_json() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(digest_line(dir.path(), "bbb"), None);
+        std::fs::write(dir.path().join("status.json"), r#"{"version":2}"#).unwrap();
+        assert_eq!(digest_line(dir.path(), "bbb"), None);
     }
 
     #[test]

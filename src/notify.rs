@@ -464,6 +464,7 @@ mod tests {
             reload: "skipped".into(),
             error: None,
             config_error: None,
+            ..Status::default()
         }
     }
 

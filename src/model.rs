@@ -105,7 +105,7 @@ pub enum Source {
 pub type RosRow = BTreeMap<String, String>;
 
 /// The raw RouterOS rows of one router, in reply order.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RouterSnapshot {
     #[serde(default)]
     pub ppp_secret: Vec<RosRow>,
