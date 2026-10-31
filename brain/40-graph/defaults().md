@@ -1,21 +1,21 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config 3"
-location: "L466"
+community: "Community 29"
+location: "L468"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Community_29
 ---
 
 # defaults()
 
 ## Connections
-- [[dot-default()]] - `calls` [EXTRACTED]
+- [[dot-default()_1]] - `calls` [EXTRACTED]
 - [[dot-merge()]] - `calls` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[defaults_table()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Community_29

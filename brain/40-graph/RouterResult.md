@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Community 7"
+community: "Community 35"
 location: "L18"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_7
+  - community/Community_35
 ---
 
 # RouterResult
@@ -31,4 +31,4 @@ tags:
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 - [[state_name()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_7
+#graphify/code #graphify/EXTRACTED #community/Community_35

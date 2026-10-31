@@ -1,12 +1,12 @@
 ---
 source_file: "src/diff.rs"
 type: "code"
-community: "Status and Diff"
+community: "Community 17"
 location: "L176"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Community_17
 ---
 
 # diff_config()
@@ -15,6 +15,7 @@ tags:
 - [[Config]] - `references` [INFERRED]
 - [[diff.rs]] - `contains` [EXTRACTED]
 - [[diff_dirs()]] - `calls` [EXTRACTED]
+- [[diff_stops_for_v3_network()]] - `calls` [EXTRACTED]
 - [[diff_stops_in_apply_mode()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/code #graphify/EXTRACTED #community/Community_17

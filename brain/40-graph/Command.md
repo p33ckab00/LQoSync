@@ -15,6 +15,7 @@ tags:
 - [[Args]] - `references` [EXTRACTED]
 - [[Check]] - `case_of` [EXTRACTED]
 - [[Defaults]] - `case_of` [EXTRACTED]
+- [[Detect]] - `case_of` [EXTRACTED]
 - [[Diff]] - `case_of` [EXTRACTED]
 - [[Once]] - `case_of` [EXTRACTED]
 - [[Run]] - `case_of` [EXTRACTED]

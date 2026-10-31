@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Router State"
-location: "L456"
+location: "L482"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -17,5 +17,7 @@ tags:
 - [[assemble_error_writes_nothing()]] - `calls` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]
 - [[shadow_writes_candidates_only()]] - `calls` [EXTRACTED]
+- [[v3_network_writes_only_the_json_and_reports_skipped_circuits()]] - `calls` [EXTRACTED]
+- [[v3_pair_writes_15_columns_and_runs_no_reload()]] - `calls` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

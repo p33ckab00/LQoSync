@@ -11,7 +11,7 @@ tags:
 # All policy in TOML
 
 ## Connections
-- [[ADR-0004 TOML policy, Python defaults_1]] - `rationale_for` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `rationale_for` [EXTRACTED]
 - [[Fresh design, not a port]] - `conceptually_related_to` [EXTRACTED]
 - [[Speed source order TOML lists]] - `references` [EXTRACTED]
 - [[TUI config editor (toml_edit)]] - `references` [INFERRED]

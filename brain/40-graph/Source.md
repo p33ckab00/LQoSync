@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Community 7"
+community: "Community 14"
 location: "L97"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_7
+  - community/Community_14
 ---
 
 # Source
@@ -15,8 +15,8 @@ tags:
 - [[Collected]] - `references` [EXTRACTED]
 - [[Dhcp]] - `case_of` [EXTRACTED]
 - [[Entry]] - `references` [EXTRACTED]
-- [[Hotspot_1]] - `case_of` [EXTRACTED]
-- [[Ppp_1]] - `case_of` [EXTRACTED]
+- [[Hotspot]] - `case_of` [EXTRACTED]
+- [[Ppp]] - `case_of` [EXTRACTED]
 - [[StoredCircuit]] - `references` [EXTRACTED]
 - [[Unknown]] - `case_of` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
@@ -24,4 +24,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[state.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_7
+#graphify/code #graphify/EXTRACTED #community/Community_14

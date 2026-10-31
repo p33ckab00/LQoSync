@@ -12,11 +12,11 @@ tags:
 
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
-- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
-- [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
-- [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[Circuit rate clamp formula (max_floor_mbps, safe_min_mbps)]] - `references` [EXTRACTED]
 - [[Circuit rules for each source]] - `references` [EXTRACTED]

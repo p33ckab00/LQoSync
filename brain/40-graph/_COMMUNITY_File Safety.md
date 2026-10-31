@@ -13,8 +13,8 @@ members: 38
 - [[HDR]] - code - src/files.rs
 - [[HDR_1]] - code - src/state.rs
 - [[Live]] - code - src/files.rs
-- [[Value_5]] - code
 - [[Value_6]] - code
+- [[Value_7]] - code
 - [[backup()]] - code - src/files.rs
 - [[backup_keeps_the_last_n()]] - code - src/files.rs
 - [[backup_keeps_the_new_folder_and_other_folders()]] - code - src/files.rs
@@ -55,20 +55,24 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 19 edges to [[_COMMUNITY_Community 7]]
-- 4 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 11 edges to [[_COMMUNITY_Community 14]]
+- 10 edges to [[_COMMUNITY_Community 22]]
+- 5 edges to [[_COMMUNITY_Community 17]]
 - 3 edges to [[_COMMUNITY_Topology]]
-- 3 edges to [[_COMMUNITY_Telegram Notifier]]
 - 2 edges to [[_COMMUNITY_Config]]
-- 2 edges to [[_COMMUNITY_Status and Diff]]
-- 2 edges to [[_COMMUNITY_Router State]]
-- 1 edge to [[_COMMUNITY_Config 3]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 2 edges to [[_COMMUNITY_Secrets]]
+- 1 edge to [[_COMMUNITY_Circuit Collection]]
 - 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Router State]]
+- 1 edge to [[_COMMUNITY_Community 40]]
+- 1 edge to [[_COMMUNITY_Community 7]]
+- 1 edge to [[_COMMUNITY_Community 24]]
 - 1 edge to [[_COMMUNITY_Community 15]]
 
 ## Top bridge nodes
-- [[files.rs]] - degree 33, connects to 5 communities
-- [[bail]] - degree 6, connects to 5 communities
-- [[state.rs]] - degree 22, connects to 4 communities
-- [[read_csv()]] - degree 10, connects to 2 communities
-- [[CircuitNames]] - degree 6, connects to 2 communities
+- [[bail]] - degree 8, connects to 7 communities
+- [[files.rs]] - degree 33, connects to 6 communities
+- [[state.rs]] - degree 22, connects to 5 communities
+- [[seed_state()]] - degree 12, connects to 3 communities
+- [[read_csv()]] - degree 10, connects to 3 communities

@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Community 7"
+community: "Community 14"
 location: "L43"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_7
+  - community/Community_14
 ---
 
 # Columns
@@ -21,4 +21,4 @@ tags:
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_7
+#graphify/code #graphify/EXTRACTED #community/Community_14

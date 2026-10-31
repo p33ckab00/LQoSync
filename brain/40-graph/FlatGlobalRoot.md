@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "hashmap"
-location: "L114"
+location: "L116"
 tags:
   - graphify/code
   - graphify/EXTRACTED

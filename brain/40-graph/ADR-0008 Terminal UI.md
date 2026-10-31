@@ -11,7 +11,7 @@ tags:
 # ADR-0008 Terminal UI
 
 ## Connections
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[Delivery in five plans (core, runtime, v3, TUI, install)]] - `references` [INFERRED]
 - [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]

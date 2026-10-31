@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config 3"
-location: "L122"
+community: "hashmap"
+location: "L124"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/hashmap
 ---
 
 # Network
@@ -16,4 +16,4 @@ tags:
 - [[NetworkMode]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/hashmap

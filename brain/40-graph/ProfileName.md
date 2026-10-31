@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Community 23"
-location: "L204"
+location: "L206"
 tags:
   - graphify/code
   - graphify/EXTRACTED

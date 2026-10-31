@@ -2,7 +2,7 @@
 source_file: "src/cli.rs"
 type: "code"
 community: "Telegram Notifier 2"
-location: "L292"
+location: "L323"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[cli.rs]] - `contains` [EXTRACTED]
-- [[env()_1]] - `calls` [EXTRACTED]
+- [[env()_2]] - `calls` [EXTRACTED]
 - [[load_config()]] - `calls` [EXTRACTED]
 - [[reload()]] - `calls` [EXTRACTED]
 

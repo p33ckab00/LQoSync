@@ -11,7 +11,7 @@ tags:
 # offline_action (default remove)
 
 ## Connections
-- [[ADR-0003 Router failed vs offline_1]] - `rationale_for` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline]] - `rationale_for` [EXTRACTED]
 - [[Router state model (onlinefailedunreachableoffline)]] - `references` [EXTRACTED]
 
 #graphify/concept #graphify/EXTRACTED #community/Speed_Rules_2

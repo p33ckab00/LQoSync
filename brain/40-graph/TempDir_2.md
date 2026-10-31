@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Telegram Notifier 2"
+community: "Community 40"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Telegram_Notifier_2
+  - community/Community_40
 ---
 
 # TempDir
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[Env_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2
+#graphify/code #graphify/EXTRACTED #community/Community_40

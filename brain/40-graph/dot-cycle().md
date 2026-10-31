@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Router State"
-location: "L108"
+location: "L110"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -22,11 +22,15 @@ tags:
 - [[a_panicking_router_task_fails_only_that_router()]] - `calls` [EXTRACTED]
 - [[apply_backs_up_writes_and_reloads()]] - `calls` [EXTRACTED]
 - [[assemble_error_writes_nothing()]] - `calls` [EXTRACTED]
+- [[auto_on_v2_gives_the_v2_pair()]] - `calls` [EXTRACTED]
 - [[failed_reload_is_retried_until_it_works()]] - `calls` [EXTRACTED]
 - [[failed_router_keeps_rows_and_status_says_failed()]] - `calls` [EXTRACTED]
 - [[network_json_is_written_before_the_csv()]] - `calls` [EXTRACTED]
 - [[restart_after_state_write_gives_same_files()]] - `calls` [EXTRACTED]
 - [[second_cycle_without_change_writes_nothing()]] - `calls` [EXTRACTED]
 - [[shadow_writes_candidates_only()]] - `calls` [EXTRACTED]
+- [[target_name()]] - `calls` [INFERRED]
+- [[v3_network_writes_only_the_json_and_reports_skipped_circuits()]] - `calls` [EXTRACTED]
+- [[v3_pair_writes_15_columns_and_runs_no_reload()]] - `calls` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

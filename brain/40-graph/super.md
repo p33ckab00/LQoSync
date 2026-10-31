@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Telegram Notifier"
+community: "Community 14"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Community_14
 ---
 
 # super
@@ -14,6 +14,7 @@ tags:
 - [[cli.rs]] - `imports_from` [EXTRACTED]
 - [[config.rs]] - `imports_from` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
+- [[detect.rs]] - `imports_from` [EXTRACTED]
 - [[diff.rs]] - `imports_from` [EXTRACTED]
 - [[files.rs]] - `imports_from` [EXTRACTED]
 - [[notify.rs]] - `imports_from` [EXTRACTED]
@@ -27,6 +28,7 @@ tags:
 - [[state.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `imports_from` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
+- [[v3network.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/concept #graphify/EXTRACTED #community/Community_14

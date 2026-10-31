@@ -1,19 +1,19 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "document"
-community: "Community 16"
+community: "Community 26"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Community_16
+  - community/Community_26
 ---
 
 # Configuration reference
 
 ## Connections
-- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
-- [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[Comment speed format (Name25M5M)]] - `references` [EXTRACTED]
 - [[DHCP server discovery]] - `references` [EXTRACTED]
@@ -43,4 +43,4 @@ tags:
 - [[lqosync3 import-json (planned)]] - `references` [EXTRACTED]
 - [[rate_limit_order and unitless_unit]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Community_16
+#graphify/document #graphify/EXTRACTED #community/Community_26

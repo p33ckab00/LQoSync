@@ -17,6 +17,7 @@ tags:
 - [[State]] - `references` [EXTRACTED]
 - [[files.rs]] - `imports_from` [EXTRACTED]
 - [[load_state()]] - `calls` [INFERRED]
+- [[prefix()]] - `calls` [INFERRED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios_match_expected_output()]] - `calls` [INFERRED]
 - [[seed_infers_source_and_keeps_ids()]] - `calls` [EXTRACTED]

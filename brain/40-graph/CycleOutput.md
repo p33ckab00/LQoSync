@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Community 7"
+community: "Community 22"
 location: "L54"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_7
+  - community/Community_22
 ---
 
 # CycleOutput
@@ -26,4 +26,4 @@ tags:
 - [[run_full()]] - `references` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_7
+#graphify/code #graphify/EXTRACTED #community/Community_22

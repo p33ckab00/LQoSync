@@ -12,7 +12,7 @@ tags:
 # .print()
 
 ## Connections
-- [[FakeSession_1]] - `method` [EXTRACTED]
+- [[FakeSession]] - `method` [EXTRACTED]
 - [[Output_1]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RosRow]] - `references` [EXTRACTED]

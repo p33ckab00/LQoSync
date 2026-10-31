@@ -11,6 +11,6 @@ tags:
 # Value
 
 ## Connections
-- [[seed_nodes()]] - `references` [EXTRACTED]
+- [[Live]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/File_Safety

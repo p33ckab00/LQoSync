@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Community 7"
+community: "Community 22"
 location: "L40"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_7
+  - community/Community_22
 ---
 
 # CycleInput
@@ -22,4 +22,4 @@ tags:
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_7
+#graphify/code #graphify/EXTRACTED #community/Community_22

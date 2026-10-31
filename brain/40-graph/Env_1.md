@@ -1,19 +1,20 @@
 ---
-source_file: "src/cli.rs"
+source_file: "src/detect.rs"
 type: "code"
-community: "Telegram Notifier 2"
-location: "L212"
+community: "Community 40"
+location: "L97"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Telegram_Notifier_2
+  - community/Community_40
 ---
 
 # Env
 
 ## Connections
+- [[Libreqos]] - `references` [EXTRACTED]
 - [[TempDir_2]] - `references` [EXTRACTED]
-- [[cli.rs]] - `contains` [EXTRACTED]
+- [[detect.rs]] - `contains` [EXTRACTED]
 - [[env()_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2
+#graphify/code #graphify/EXTRACTED #community/Community_40

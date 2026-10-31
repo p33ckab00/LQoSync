@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Topology"
-location: "L145"
+location: "L147"
 tags:
   - graphify/code
   - graphify/EXTRACTED

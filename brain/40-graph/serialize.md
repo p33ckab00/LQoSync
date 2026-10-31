@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Status and Diff"
+community: "Community 14"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Community_14
 ---
 
 # serialize
@@ -15,4 +15,4 @@ tags:
 - [[pair.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/concept #graphify/EXTRACTED #community/Community_14

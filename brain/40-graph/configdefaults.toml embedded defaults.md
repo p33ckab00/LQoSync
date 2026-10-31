@@ -1,12 +1,12 @@
 ---
 source_file: "brain/HANDOFF.md"
 type: "concept"
-community: "Community 16"
+community: "Community 26"
 location: "L63"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Community_16
+  - community/Community_26
 ---
 
 # config/defaults.toml embedded defaults
@@ -15,4 +15,4 @@ tags:
 - [[Defaults layering over configdefaults.toml]] - `references` [INFERRED]
 - [[Handoff]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Community_16
+#graphify/concept #graphify/EXTRACTED #community/Community_26

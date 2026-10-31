@@ -12,7 +12,7 @@ tags:
 # Plan 2 global constraints
 
 ## Connections
-- [[ADR-0007 Fresh design, not a port]] - `cites` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port_1]] - `cites` [EXTRACTED]
 - [[Operational rules]] - `semantically_similar_to` [INFERRED]
 - [[lqosync3 Runtime Implementation Plan (Plan 2)]] - `references` [EXTRACTED]
 

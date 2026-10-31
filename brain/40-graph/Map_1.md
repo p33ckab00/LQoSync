@@ -1,20 +1,17 @@
 ---
 source_file: ""
 type: "code"
-community: "Topology"
+community: "Community 17"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology
+  - community/Community_17
 ---
 
 # Map
 
 ## Connections
-- [[find_mut()]] - `references` [EXTRACTED]
-- [[node_json()]] - `references` [EXTRACTED]
-- [[remove_named()]] - `references` [EXTRACTED]
-- [[take_children()]] - `references` [EXTRACTED]
-- [[topology.rs]] - `imports_from` [EXTRACTED]
+- [[v3network.rs]] - `imports_from` [EXTRACTED]
+- [[walk()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology
+#graphify/code #graphify/EXTRACTED #community/Community_17

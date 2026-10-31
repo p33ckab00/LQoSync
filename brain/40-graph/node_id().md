@@ -20,5 +20,7 @@ tags:
 - [[parent_for()]] - `calls` [EXTRACTED]
 - [[stored()]] - `calls` [INFERRED]
 - [[topology.rs]] - `contains` [EXTRACTED]
+- [[v3network.rs]] - `imports_from` [EXTRACTED]
+- [[walk()]] - `calls` [INFERRED]
 
 #graphify/code #graphify/EXTRACTED #community/Topology

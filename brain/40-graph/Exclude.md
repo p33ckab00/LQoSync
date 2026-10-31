@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config 3"
-location: "L347"
+community: "Circuit Collection"
+location: "L349"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Circuit_Collection
 ---
 
 # Exclude
@@ -16,4 +16,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

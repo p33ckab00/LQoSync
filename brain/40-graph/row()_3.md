@@ -1,18 +1,19 @@
 ---
-source_file: "src/routeros.rs"
+source_file: "src/runner.rs"
 type: "code"
-community: "Community 9"
-location: "L237"
+community: "Router State"
+location: "L417"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_9
+  - community/Router_State
 ---
 
 # row()
 
 ## Connections
 - [[RosRow]] - `references` [EXTRACTED]
-- [[routeros.rs]] - `contains` [EXTRACTED]
+- [[runner.rs]] - `contains` [EXTRACTED]
+- [[users()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_9
+#graphify/code #graphify/EXTRACTED #community/Router_State

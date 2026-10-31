@@ -78,20 +78,6 @@
       }
     },
     {
-      "query": "tag:#community/Topology_3",
-      "color": {
-        "a": 1,
-        "rgb": 5873999
-      }
-    },
-    {
-      "query": "tag:#community/Status_and_Diff",
-      "color": {
-        "a": 1,
-        "rgb": 16752039
-      }
-    },
-    {
       "query": "tag:#community/MikroTik_Session_5",
       "color": {
         "a": 1,
@@ -106,13 +92,6 @@
       }
     },
     {
-      "query": "tag:#community/Topology_4",
-      "color": {
-        "a": 1,
-        "rgb": 14767961
-      }
-    },
-    {
       "query": "tag:#community/CertificateDer",
       "color": {
         "a": 1,
@@ -120,24 +99,10 @@
       }
     },
     {
-      "query": "tag:#community/Status_and_Diff_2",
-      "color": {
-        "a": 1,
-        "rgb": 11565729
-      }
-    },
-    {
       "query": "tag:#community/Speed_Rules_3",
       "color": {
         "a": 1,
         "rgb": 16752039
-      }
-    },
-    {
-      "query": "tag:#community/Config_3",
-      "color": {
-        "a": 1,
-        "rgb": 12234924
       }
     },
     {
@@ -155,24 +120,10 @@
       }
     },
     {
-      "query": "tag:#community/LibreQoS_v3_2",
-      "color": {
-        "a": 1,
-        "rgb": 5142951
-      }
-    },
-    {
       "query": "tag:#community/LogLevel",
       "color": {
         "a": 1,
         "rgb": 15896107
-      }
-    },
-    {
-      "query": "tag:#community/OfflineAction",
-      "color": {
-        "a": 1,
-        "rgb": 7780274
       }
     },
     {

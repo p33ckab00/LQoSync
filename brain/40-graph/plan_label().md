@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Secrets"
+community: "Circuit Collection"
 location: "L47"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Circuit_Collection
 ---
 
 # plan_label()
@@ -16,4 +16,4 @@ tags:
 - [[collect_dhcp()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

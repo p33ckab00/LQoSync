@@ -1,11 +1,11 @@
 ---
 type: community
-members: 26
+members: 27
 ---
 
 # hashmap
 
-**Members:** 26 nodes
+**Members:** 27 nodes
 
 ## Members
 - [[FlatGlobalRoot]] - code - src/config.rs
@@ -14,6 +14,7 @@ members: 26
 - [[GroupedRouterRoot]] - code - src/config.rs
 - [[M]] - code - src/validate.rs
 - [[Map]] - code
+- [[Network]] - code - src/config.rs
 - [[NetworkMode]] - code - src/config.rs
 - [[NoParent]] - code - src/config.rs
 - [[RootPromotion]] - code - src/config.rs
@@ -43,19 +44,20 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 8 edges to [[_COMMUNITY_Community 7]]
+- 5 edges to [[_COMMUNITY_Community 14]]
+- 4 edges to [[_COMMUNITY_Community 7]]
 - 3 edges to [[_COMMUNITY_Topology]]
-- 2 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 2 edges to [[_COMMUNITY_Config]]
+- 2 edges to [[_COMMUNITY_Community 17]]
 - 2 edges to [[_COMMUNITY_Router State]]
-- 1 edge to [[_COMMUNITY_Config 3]]
-- 1 edge to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_Telegram Notifier]]
-- 1 edge to [[_COMMUNITY_Status and Diff]]
+- 1 edge to [[_COMMUNITY_Circuit Collection]]
 - 1 edge to [[_COMMUNITY_File Safety]]
+- 1 edge to [[_COMMUNITY_Secrets]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier 2]]
 
 ## Top bridge nodes
-- [[validate.rs]] - degree 26, connects to 5 communities
-- [[NetworkMode]] - degree 14, connects to 4 communities
-- [[hashmap]] - degree 4, connects to 3 communities
+- [[validate.rs]] - degree 26, connects to 6 communities
+- [[hashmap]] - degree 5, connects to 4 communities
+- [[NetworkMode]] - degree 14, connects to 3 communities
+- [[Network]] - degree 3, connects to 2 communities
 - [[hashset]] - degree 3, connects to 2 communities
-- [[check()]] - degree 12, connects to 1 community

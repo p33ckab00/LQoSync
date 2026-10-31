@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/libreqos-v3-ingress-facts.md"
 type: "concept"
-community: "Topology 2"
+community: "Session Notes"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Topology_2
+  - community/Session_Notes
 ---
 
 # libreqos_network.json schema_version 2
@@ -14,4 +14,4 @@ tags:
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[v3_network output target (libreqos_network.json)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Topology_2
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

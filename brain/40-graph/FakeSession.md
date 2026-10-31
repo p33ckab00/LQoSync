@@ -1,21 +1,21 @@
 ---
-source_file: "src/runner.rs"
+source_file: "src/routeros.rs"
 type: "code"
-community: "Router State"
-location: "L340"
+community: "Community 19"
+location: "L190"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Community_19
 ---
 
 # FakeSession
 
 ## Connections
-- [[dot-connect()_3]] - `references` [EXTRACTED]
-- [[dot-print()_3]] - `method` [EXTRACTED]
-- [[Fake]] - `references` [EXTRACTED]
+- [[dot-connect()_2]] - `references` [EXTRACTED]
+- [[dot-print()_1]] - `method` [EXTRACTED]
+- [[Fake_1]] - `references` [EXTRACTED]
 - [[RouterSession]] - `implements` [EXTRACTED]
-- [[runner.rs]] - `contains` [EXTRACTED]
+- [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Community_19

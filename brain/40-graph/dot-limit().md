@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Secrets"
-location: "L247"
+community: "Config"
+location: "L249"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Config
 ---
 
 # .limit()
@@ -15,4 +15,4 @@ tags:
 - [[BackstopCap]] - `method` [EXTRACTED]
 - [[Rate]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Config

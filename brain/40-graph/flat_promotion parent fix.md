@@ -1,17 +1,17 @@
 ---
 source_file: "brain/20-decisions/ADR-0005-topology-follows-v3.md"
 type: "rationale"
-community: "Topology 4"
+community: "Topology 2"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Topology_4
+  - community/Topology_2
 ---
 
 # flat_promotion parent fix
 
 ## Connections
-- [[ADR-0005 Topology follows v3_1]] - `rationale_for` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `rationale_for` [EXTRACTED]
 - [[v3 offline compile results]] - `references` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Topology_4
+#graphify/rationale #graphify/EXTRACTED #community/Topology_2

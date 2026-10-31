@@ -11,7 +11,7 @@ tags:
 # Router state model (online/failed/unreachable/offline)
 
 ## Connections
-- [[ADR-0003 Router failed vs offline_1]] - `rationale_for` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline]] - `rationale_for` [EXTRACTED]
 - [[offline_action (default remove)]] - `references` [EXTRACTED]
 - [[offline_after (default 300 s)]] - `references` [EXTRACTED]
 - [[updatecsv.py]] - `references` [EXTRACTED]

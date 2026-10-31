@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[Fake_1]] - `method` [EXTRACTED]
-- [[FakeSession_1]] - `references` [EXTRACTED]
+- [[FakeSession]] - `references` [EXTRACTED]
 - [[Output_1]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]

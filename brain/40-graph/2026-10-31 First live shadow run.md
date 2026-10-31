@@ -1,11 +1,11 @@
 ---
 source_file: "brain/10-sessions/2026-10-31-first-live-shadow-run.md"
 type: "document"
-community: "Status and Diff 2"
+community: "Community 26"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Status_and_Diff_2
+  - community/Community_26
 ---
 
 # 2026-10-31 First live shadow run
@@ -21,4 +21,4 @@ tags:
 - [[Production state (Python live, lqosync3 shadow, LibreQoS 2.2)]] - `references` [EXTRACTED]
 - [[Shadow run results (62 rows, 167 ms, 26 text-only updates)]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Status_and_Diff_2
+#graphify/document #graphify/EXTRACTED #community/Community_26

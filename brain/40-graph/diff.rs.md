@@ -1,12 +1,12 @@
 ---
 source_file: "src/diff.rs"
 type: "code"
-community: "Status and Diff"
+community: "Community 17"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Community_17
 ---
 
 # diff.rs
@@ -23,15 +23,16 @@ tags:
 - [[diff_ignores_column_order_row_order_and_number_text()]] - `contains` [EXTRACTED]
 - [[diff_pair()]] - `contains` [EXTRACTED]
 - [[diff_reports_added_removed_changed()]] - `contains` [EXTRACTED]
+- [[diff_stops_for_v3_network()]] - `contains` [EXTRACTED]
 - [[diff_stops_in_apply_mode()]] - `contains` [EXTRACTED]
 - [[field()]] - `imports_from` [EXTRACTED]
 - [[group()]] - `contains` [EXTRACTED]
 - [[header()]] - `contains` [EXTRACTED]
 - [[json]] - `imports_from` [EXTRACTED]
-- [[map_2]] - `imports_from` [EXTRACTED]
+- [[map_3]] - `imports_from` [EXTRACTED]
 - [[nodes()]] - `contains` [EXTRACTED]
 - [[read_csv()]] - `imports_from` [EXTRACTED]
 - [[same()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/code #graphify/EXTRACTED #community/Community_17

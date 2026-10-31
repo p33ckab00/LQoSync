@@ -11,8 +11,9 @@ tags:
 # ADR-0002 v3 target selection
 
 ## Connections
+- [[2026-10-31-lqosync3-v3-design]] - `references` [EXTRACTED]
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
-- [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
+- [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
 - [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]

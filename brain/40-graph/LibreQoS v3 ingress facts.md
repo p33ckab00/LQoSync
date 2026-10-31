@@ -11,8 +11,9 @@ tags:
 # LibreQoS v3 ingress facts
 
 ## Connections
+- [[2026-10-31-lqosync3-v3-design]] - `references` [EXTRACTED]
 - [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
 - [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]

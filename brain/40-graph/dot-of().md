@@ -1,12 +1,12 @@
 ---
 source_file: "src/status.rs"
 type: "code"
-community: "Telegram Notifier"
+community: "Community 14"
 location: "L30"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Community_14
 ---
 
 # .of()
@@ -16,4 +16,4 @@ tags:
 - [[CircuitInfo]] - `method` [EXTRACTED]
 - [[CsvRow]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/code #graphify/EXTRACTED #community/Community_14

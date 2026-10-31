@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Community 23"
-location: "L430"
+community: "Community 28"
+location: "L432"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_23
+  - community/Community_28
 ---
 
 # .sources()
@@ -17,4 +17,4 @@ tags:
 - [[DhcpSource]] - `references` [EXTRACTED]
 - [[Speed]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_23
+#graphify/code #graphify/EXTRACTED #community/Community_28

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Router State"
+community: "Community 24"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Community_24
 ---
 
 # duration
@@ -18,4 +18,4 @@ tags:
 - [[routeros.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Router_State
+#graphify/concept #graphify/EXTRACTED #community/Community_24

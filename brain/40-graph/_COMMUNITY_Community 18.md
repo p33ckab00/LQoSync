@@ -1,20 +1,17 @@
 ---
 type: community
-members: 48
+members: 42
 ---
 
 # Community 18
 
-**Members:** 48 nodes
+**Members:** 42 nodes
 
 ## Members
-- [[ADR-0008 Terminal UI (lqosync3 tui, Plan 4)]] - rationale - brain/HANDOFF.md
-- [[ADR-0009]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[Applier (hash, atomic write, reload)]] - concept - docs/ARCHITECTURE.md
 - [[Circuit Model]] - concept - docs/ARCHITECTURE.md
 - [[Collector (RouterOS API reads)]] - concept - docs/ARCHITECTURE.md
 - [[Config Loader]] - concept - docs/ARCHITECTURE.md
-- [[Core design spec (2026-10-31-lqosync3-core-design.md)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[CycleSummarynext_sleep]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[MikroTik RouterOS API]] - concept - docs/ARCHITECTURE.md
 - [[Performance Rules]] - rationale - docs/ARCHITECTURE.md
@@ -23,7 +20,6 @@ members: 48
 - [[Router State Machine (onlinefailedunreachableoffline)]] - rationale - docs/ARCHITECTURE.md
 - [[RouterCfg.tls_verify  tls_ca_file]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[RouterSession  Connector traits]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[Runtime design spec (2026-10-31-lqosync3-runtime-design.md)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[ShapedDevices.csv]] - concept - docs/ARCHITECTURE.md
 - [[Signals (SIGHUP reload, USR1 cycle now)]] - concept - docs/OPERATIONS.md
 - [[State Store (state.json)]] - concept - docs/ARCHITECTURE.md
@@ -31,7 +27,6 @@ members: 48
 - [[Target v2_pair]] - concept - docs/ARCHITECTURE.md
 - [[Target v3_network]] - concept - docs/ARCHITECTURE.md
 - [[Target v3_pair]] - concept - docs/ARCHITECTURE.md
-- [[Task 7 Pair writer (render_csv, render_network_json)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
 - [[Validator]] - concept - docs/ARCHITECTURE.md
 - [[Writers (one per target)]] - concept - docs/ARCHITECTURE.md
 - [[cycleassemble (pure core)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
@@ -43,7 +38,6 @@ members: 48
 - [[fileswrite_if_changed (atomic write)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[libreqos_network.json]] - concept - docs/ARCHITECTURE.md
 - [[lqosd (LibreQoS daemon)]] - concept - docs/ARCHITECTURE.md
-- [[lqosync3 Runtime Implementation Plan (Plan 2)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[lqosync3.service systemd unit]] - concept - docs/INSTALLATION.md
 - [[main run loop (tokioselect! on sleep and signals)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[mikrotikMikrotikConnector  MikrotikSession]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
@@ -65,16 +59,16 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 5 edges to [[_COMMUNITY_Community 16]]
-- 4 edges to [[_COMMUNITY_Session Notes]]
+- 3 edges to [[_COMMUNITY_Session Notes]]
+- 3 edges to [[_COMMUNITY_Community 30]]
+- 2 edges to [[_COMMUNITY_Community 16]]
 - 1 edge to [[_COMMUNITY_Topology 2]]
-- 1 edge to [[_COMMUNITY_Topology 3]]
-- 1 edge to [[_COMMUNITY_Community 36]]
-- 1 edge to [[_COMMUNITY_Status and Diff 2]]
+- 1 edge to [[_COMMUNITY_Community 26]]
+- 1 edge to [[_COMMUNITY_Speed Rules 3]]
 
 ## Top bridge nodes
-- [[lqosync3 Runtime Implementation Plan (Plan 2)]] - degree 7, connects to 2 communities
+- [[runnerRunnercycle (one full cycle)]] - degree 12, connects to 2 communities
 - [[Signals (SIGHUP reload, USR1 cycle now)]] - degree 4, connects to 2 communities
-- [[runnerRunnercycle (one full cycle)]] - degree 12, connects to 1 community
 - [[Collector (RouterOS API reads)]] - degree 6, connects to 1 community
 - [[Target Detector]] - degree 5, connects to 1 community
+- [[lqosync3.service systemd unit]] - degree 4, connects to 1 community

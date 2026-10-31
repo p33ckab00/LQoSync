@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Secrets"
+community: "Circuit Collection"
 location: "L140"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Circuit_Collection
 ---
 
 # comment_rate()
@@ -18,4 +18,4 @@ tags:
 - [[collect_ppp()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

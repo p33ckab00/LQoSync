@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Secrets"
-location: "L187"
+community: "Community 28"
+location: "L189"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Community_28
 ---
 
 # RouterosRxTx
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[RateLimitOrder]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Community_28

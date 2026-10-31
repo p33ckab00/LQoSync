@@ -12,8 +12,8 @@ tags:
 
 ## Connections
 - [[2026-10-31 Plan 1 lqosync3 core library session]] - `references` [EXTRACTED]
-- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
-- [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[Orphan branch lqosync3]] - `references` [EXTRACTED]

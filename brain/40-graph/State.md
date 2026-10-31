@@ -1,18 +1,18 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Community 7"
+community: "Community 22"
 location: "L164"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Community_7
+  - community/Community_22
 ---
 
 # State
 
 ## Connections
-- [[dot-default()_1]] - `method` [EXTRACTED]
+- [[dot-default()]] - `method` [EXTRACTED]
 - [[dot-from_report()]] - `references` [EXTRACTED]
 - [[CycleInput]] - `references` [EXTRACTED]
 - [[CycleOutput]] - `references` [EXTRACTED]
@@ -30,4 +30,4 @@ tags:
 - [[state.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Community_7
+#graphify/code #graphify/EXTRACTED #community/Community_22

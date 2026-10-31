@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Router State"
-location: "L335"
+location: "L361"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[Env]] - `references` [EXTRACTED]
 - [[FakeConnector]] - `references` [EXTRACTED]
-- [[FakeSession]] - `references` [EXTRACTED]
+- [[FakeSession_1]] - `references` [EXTRACTED]
 - [[Mutex]] - `references` [EXTRACTED]
 - [[RosRow]] - `references` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]

@@ -1,12 +1,12 @@
 ---
 source_file: "src/main.rs"
 type: "code"
-community: "Router State"
+community: "Community 24"
 location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Community_24
 ---
 
 # notify()
@@ -20,4 +20,4 @@ tags:
 - [[run()]] - `calls` [EXTRACTED]
 - [[send_all()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Community_24

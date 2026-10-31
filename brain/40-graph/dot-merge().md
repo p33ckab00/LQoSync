@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config 3"
-location: "L511"
+community: "Community 29"
+location: "L513"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Community_29
 ---
 
 # .merge()
@@ -18,4 +18,4 @@ tags:
 - [[deep_merge()]] - `calls` [EXTRACTED]
 - [[defaults()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Community_29

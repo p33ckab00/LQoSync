@@ -1,12 +1,12 @@
 ---
 source_file: "src/notify.rs"
 type: "code"
-community: "Telegram Notifier"
+community: "Community 16"
 location: "L57"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Community_16
 ---
 
 # Notifier
@@ -18,4 +18,4 @@ tags:
 - [[notify()]] - `references` [EXTRACTED]
 - [[notify.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/code #graphify/EXTRACTED #community/Community_16

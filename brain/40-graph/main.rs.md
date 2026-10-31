@@ -1,12 +1,12 @@
 ---
 source_file: "src/main.rs"
 type: "code"
-community: "Router State"
+community: "Community 24"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Community_24
 ---
 
 # main.rs
@@ -37,4 +37,4 @@ tags:
 - [[systemtime]] - `imports_from` [EXTRACTED]
 - [[unix_epoch]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Community_24

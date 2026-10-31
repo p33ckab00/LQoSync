@@ -12,8 +12,8 @@ tags:
 
 ## Connections
 - [[2026-10-31 First live shadow run]] - `references` [EXTRACTED]
-- [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[Case-insensitive  wildcard name matching]] - `references` [EXTRACTED]
 - [[Circuit rules for each source]] - `cites` [EXTRACTED]
 - [[DHCP server discovery (like PPP)]] - `references` [EXTRACTED]

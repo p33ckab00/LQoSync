@@ -1,19 +1,19 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config 3"
+community: "Circuit Collection"
 location: "L12"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Circuit_Collection
 ---
 
 # Config
 
 ## Connections
 - [[dot-check_finite()]] - `method` [EXTRACTED]
-- [[dot-default()]] - `method` [EXTRACTED]
+- [[dot-default()_1]] - `method` [EXTRACTED]
 - [[dot-from_toml_str()]] - `method` [EXTRACTED]
 - [[dot-merge()]] - `method` [EXTRACTED]
 - [[dot-new()]] - `references` [EXTRACTED]
@@ -75,4 +75,4 @@ tags:
 - [[template()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

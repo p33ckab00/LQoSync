@@ -1,11 +1,11 @@
 ---
 type: community
-members: 17
+members: 18
 ---
 
 # Community 15
 
-**Members:** 17 nodes
+**Members:** 18 nodes
 
 ## Members
 - [[dot-connect()]] - code - src/mikrotik.rs
@@ -16,6 +16,7 @@ members: 17
 - [[MikrotikDevice]] - code
 - [[MikrotikSession]] - code - src/mikrotik.rs
 - [[Output]] - code
+- [[RouterSession]] - code - src/routeros.rs
 - [[Setup]] - code - tests/mock_router.rs
 - [[TempDir]] - code
 - [[arc]] - concept
@@ -34,21 +35,22 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
+- 7 edges to [[_COMMUNITY_Community 19]]
+- 6 edges to [[_COMMUNITY_Router State]]
 - 6 edges to [[_COMMUNITY_Circuit Collection]]
-- 5 edges to [[_COMMUNITY_Router State]]
-- 5 edges to [[_COMMUNITY_Community 9]]
-- 5 edges to [[_COMMUNITY_Community 19]]
 - 4 edges to [[_COMMUNITY_Community 0]]
 - 4 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 3 edges to [[_COMMUNITY_Community 24]]
 - 3 edges to [[_COMMUNITY_Router State 2]]
 - 3 edges to [[_COMMUNITY_CertificateDer]]
+- 2 edges to [[_COMMUNITY_Community 9]]
 - 2 edges to [[_COMMUNITY_Telegram Notifier]]
-- 1 edge to [[_COMMUNITY_Community 7]]
+- 1 edge to [[_COMMUNITY_Community 22]]
 - 1 edge to [[_COMMUNITY_File Safety]]
 
 ## Top bridge nodes
 - [[mikrotik.rs]] - degree 19, connects to 6 communities
-- [[path]] - degree 8, connects to 5 communities
+- [[path]] - degree 8, connects to 6 communities
+- [[arc]] - degree 6, connects to 5 communities
 - [[dot-connect()]] - degree 8, connects to 4 communities
-- [[arc]] - degree 6, connects to 4 communities
-- [[MikrotikConnector]] - degree 6, connects to 3 communities
+- [[RouterSession]] - degree 7, connects to 3 communities

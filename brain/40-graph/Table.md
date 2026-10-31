@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Config 3"
+community: "Community 29"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Community_29
 ---
 
 # Table
@@ -15,4 +15,4 @@ tags:
 - [[deep_merge()]] - `references` [EXTRACTED]
 - [[defaults_table()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Community_29

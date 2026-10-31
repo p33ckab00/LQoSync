@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Community 16"
+community: "Community 26"
 location: "L6-14"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Community_16
+  - community/Community_26
 ---
 
 # Defaults layering over config/defaults.toml
@@ -15,4 +15,4 @@ tags:
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[configdefaults.toml embedded defaults]] - `references` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Community_16
+#graphify/rationale #graphify/EXTRACTED #community/Community_26

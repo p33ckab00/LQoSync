@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Community 16"
+community: "Community 26"
 location: "L404"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Community_16
+  - community/Community_26
 ---
 
 # lqosync3 import-json (planned)
@@ -15,4 +15,4 @@ tags:
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[Map from config.json]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Community_16
+#graphify/concept #graphify/EXTRACTED #community/Community_26

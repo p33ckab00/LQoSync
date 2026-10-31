@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Community 16"
+community: "Community 26"
 location: "L26-33"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Community_16
+  - community/Community_26
 ---
 
 # Policy in TOML, formats in code
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Community_16
+#graphify/rationale #graphify/EXTRACTED #community/Community_26

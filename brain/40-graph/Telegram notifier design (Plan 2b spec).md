@@ -11,8 +11,8 @@ tags:
 # Telegram notifier design (Plan 2b spec)
 
 ## Connections
-- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
 - [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[Event memory (no repeat, no retry, in-process)]] - `references` [EXTRACTED]
 - [[HTML message format and split]] - `references` [EXTRACTED]

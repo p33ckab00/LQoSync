@@ -1,12 +1,12 @@
 ---
 source_file: "src/writer/pair.rs"
 type: "code"
-community: "Status and Diff"
+community: "Community 14"
 location: "L107"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Community_14
 ---
 
 # csv_quotes_like_python()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[pair.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/code #graphify/EXTRACTED #community/Community_14

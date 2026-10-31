@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Community 16"
+community: "Community 26"
 location: "L322-329"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Community_16
+  - community/Community_26
 ---
 
 # rate_limit_order and unitless_unit
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Community_16
+#graphify/rationale #graphify/EXTRACTED #community/Community_26

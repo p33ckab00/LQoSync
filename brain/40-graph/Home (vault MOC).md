@@ -1,11 +1,11 @@
 ---
 source_file: "brain/Home.md"
 type: "document"
-community: "Community 36"
+community: "Topology 2"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Community_36
+  - community/Topology_2
 ---
 
 # Home (vault MOC)
@@ -15,11 +15,11 @@ tags:
 - [[2026-10-31 Plan 1 lqosync3 core library session]] - `references` [EXTRACTED]
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
 - [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
-- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
-- [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
-- [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[ADR-0008 Terminal UI]] - `references` [EXTRACTED]
 - [[ADR-0009 DHCP discovery and exclusions_1]] - `references` [EXTRACTED]
 - [[ADR-0009 DHCP discovery and exclusions]] - `references` [EXTRACTED]
@@ -34,4 +34,4 @@ tags:
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Community_36
+#graphify/document #graphify/EXTRACTED #community/Topology_2

@@ -12,8 +12,8 @@ tags:
 # find_mut()
 
 ## Connections
-- [[Map_1]] - `references` [EXTRACTED]
-- [[Value_2]] - `references` [EXTRACTED]
+- [[Map_2]] - `references` [EXTRACTED]
+- [[Value_5]] - `references` [EXTRACTED]
 - [[to_network_json()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 

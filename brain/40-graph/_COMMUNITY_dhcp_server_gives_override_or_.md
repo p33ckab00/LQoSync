@@ -31,10 +31,9 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 7 edges to [[_COMMUNITY_Config]]
-- 3 edges to [[_COMMUNITY_Circuit Collection]]
-- 2 edges to [[_COMMUNITY_Community 23]]
+- 4 edges to [[_COMMUNITY_Circuit Collection]]
+- 2 edges to [[_COMMUNITY_Community 28]]
 - 2 edges to [[_COMMUNITY_Secrets]]
-- 1 edge to [[_COMMUNITY_Config 3]]
 - 1 edge to [[_COMMUNITY_Topology]]
 
 ## Top bridge nodes

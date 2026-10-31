@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[StoredNode]] - `references` [EXTRACTED]
-- [[Value_2]] - `references` [EXTRACTED]
+- [[Value_5]] - `references` [EXTRACTED]
 - [[a_kept_child_keeps_its_operator_children()]] - `calls` [EXTRACTED]
 - [[assemble()]] - `calls` [INFERRED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]

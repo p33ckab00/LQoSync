@@ -13,8 +13,8 @@ tags:
 
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
-- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Session updatecsv.py dissection]] - `references` [EXTRACTED]

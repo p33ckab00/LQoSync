@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "File Safety"
-location: "L174"
+location: "L176"
 tags:
   - graphify/code
   - graphify/EXTRACTED

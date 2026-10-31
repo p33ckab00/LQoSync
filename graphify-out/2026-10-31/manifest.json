@@ -36,10 +36,10 @@
     "semantic_hash": "015ec06083c516f1adfc7929508c145b"
   },
   "brain/HANDOFF.md": {
-    "mtime": 1793459499.1506805,
-    "seen": 1793459673.5419865,
-    "ast_hash": "7a25c9ff1cc3c8dd9404b0d8e1ca4166",
-    "semantic_hash": "7a25c9ff1cc3c8dd9404b0d8e1ca4166"
+    "mtime": 1793461364.94765,
+    "seen": 1793461566.374447,
+    "ast_hash": "48f7ed8ae75ba67503fa342f824ba7de",
+    "semantic_hash": ""
   },
   "brain/Home.md": {
     "mtime": 1793458419.2105749,
@@ -90,10 +90,10 @@
     "semantic_hash": "5eff02840a55aa5509d3c1edf234fd2a"
   },
   "src/cycle.rs": {
-    "mtime": 1793441662.4044707,
-    "seen": 1793441919.0775886,
-    "ast_hash": "2c3b0757a0283a7f85895c527ce4e696",
-    "semantic_hash": "2c3b0757a0283a7f85895c527ce4e696"
+    "mtime": 1793461251.9017096,
+    "seen": 1793461566.3743875,
+    "ast_hash": "8c41be2f63b19b54b84f80475f72d3ed",
+    "semantic_hash": ""
   },
   "src/lib.rs": {
     "mtime": 1793458979.257788,
@@ -288,10 +288,10 @@
     "semantic_hash": "2994c3ddd10e9af40a798bd7d817768e"
   },
   "src/runner.rs": {
-    "mtime": 1793447463.413397,
-    "seen": 1793457910.871992,
-    "ast_hash": "1f73353419fc0b79b6d4b55175d12272",
-    "semantic_hash": "1f73353419fc0b79b6d4b55175d12272"
+    "mtime": 1793461225.7542434,
+    "seen": 1793461566.3744028,
+    "ast_hash": "27f41ee51827d63db4492e404b8980ef",
+    "semantic_hash": ""
   },
   "src/secrets.rs": {
     "mtime": 1793443421.005965,
@@ -300,10 +300,10 @@
     "semantic_hash": "e7d8387905f7fb1222c2c83f9112fdf2"
   },
   "src/status.rs": {
-    "mtime": 1793458865.7287242,
-    "seen": 1793459673.5419712,
-    "ast_hash": "bf4c5c54572ace62468b79cbde7e68ea",
-    "semantic_hash": "bf4c5c54572ace62468b79cbde7e68ea"
+    "mtime": 1793461333.7041252,
+    "seen": 1793461566.3744094,
+    "ast_hash": "64c11744d71be01896b92495dc8439fe",
+    "semantic_hash": ""
   },
   "tests/mock_router.rs": {
     "mtime": 1793445239.07975,
@@ -324,16 +324,16 @@
     "semantic_hash": "20d64ed60ebebcc6f7a3f3f16a0d3bf0"
   },
   "src/notify.rs": {
-    "mtime": 1793459471.5844204,
-    "seen": 1793459673.5419598,
-    "ast_hash": "2fffcd91f18a32c565740d09be2b0e10",
-    "semantic_hash": "2fffcd91f18a32c565740d09be2b0e10"
+    "mtime": 1793461306.9906697,
+    "seen": 1793461566.3743987,
+    "ast_hash": "4b939d7e855dbeca67bd1ce5b1df3f0a",
+    "semantic_hash": ""
   },
   "brain/10-sessions/2026-10-31-first-live-shadow-run.md": {
-    "mtime": 1793458419.2105749,
-    "seen": 1793459673.5419853,
-    "ast_hash": "b7a295f10f77c59b2dd948091352272b",
-    "semantic_hash": "b7a295f10f77c59b2dd948091352272b"
+    "mtime": 1793461364.94765,
+    "seen": 1793461566.374423,
+    "ast_hash": "a4dd18149ae3058c7a3697a807667dad",
+    "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-31-lqosync3-telegram.md": {
     "mtime": 1793458764.1217747,
@@ -342,9 +342,9 @@
     "semantic_hash": "143bfe18ec34dc7e7599714012da4f1b"
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md": {
-    "mtime": 1793459453.4752495,
-    "seen": 1793459673.5419927,
-    "ast_hash": "43b90acc9db41032fea6adfcf784d50d",
-    "semantic_hash": "43b90acc9db41032fea6adfcf784d50d"
+    "mtime": 1793461364.94765,
+    "seen": 1793461566.3744633,
+    "ast_hash": "65b1f95322febfa1944eeb1020337748",
+    "semantic_hash": ""
   }
 }

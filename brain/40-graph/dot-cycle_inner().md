@@ -2,7 +2,7 @@
 source_file: "src/runner.rs"
 type: "code"
 community: "Router State"
-location: "L164"
+location: "L166"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -20,8 +20,8 @@ tags:
 - [[random_id()]] - `calls` [EXTRACTED]
 - [[read()]] - `calls` [EXTRACTED]
 - [[read_router()]] - `calls` [INFERRED]
-- [[render_csv()]] - `calls` [INFERRED]
-- [[render_network_json()]] - `calls` [INFERRED]
+- [[render_libreqos_network()]] - `calls` [INFERRED]
 - [[state_name()]] - `calls` [EXTRACTED]
+- [[target_name()]] - `calls` [INFERRED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

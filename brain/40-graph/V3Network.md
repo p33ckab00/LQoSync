@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "LibreQoS v3 2"
+community: "Community 40"
 location: "L93"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_2
+  - community/Community_40
 ---
 
 # V3Network
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Target]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2
+#graphify/code #graphify/EXTRACTED #community/Community_40

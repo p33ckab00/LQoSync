@@ -2,7 +2,7 @@
 source_file: "src/cli.rs"
 type: "code"
 community: "Telegram Notifier 2"
-location: "L183"
+location: "L196"
 tags:
   - graphify/code
   - graphify/EXTRACTED

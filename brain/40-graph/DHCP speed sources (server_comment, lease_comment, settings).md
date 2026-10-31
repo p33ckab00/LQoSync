@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Status and Diff 2"
+community: "Community 26"
 location: "L289-304"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Status_and_Diff_2
+  - community/Community_26
 ---
 
 # DHCP speed sources (server_comment, lease_comment, settings)
@@ -16,4 +16,4 @@ tags:
 - [[DHCP-libreqos 25 to 35 Mbps difference]] - `references` [INFERRED]
 - [[Task 1 Crate scaffold and config]] - `implements` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Status_and_Diff_2
+#graphify/rationale #graphify/EXTRACTED #community/Community_26

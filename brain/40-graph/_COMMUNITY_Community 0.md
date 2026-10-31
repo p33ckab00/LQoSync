@@ -9,6 +9,7 @@ members: 32
 
 ## Members
 - [[Answer]] - code - tests/mock_router.rs
+- [[C]] - code
 - [[Empty]] - code - tests/mock_router.rs
 - [[Log]] - code - tests/mock_router.rs
 - [[Raw]] - code - tests/mock_router.rs
@@ -16,8 +17,6 @@ members: 32
 - [[Silent]] - code - tests/mock_router.rs
 - [[TcpStream]] - code
 - [[Trap]] - code - tests/mock_router.rs
-- [[asyncreadext]] - concept
-- [[asyncwriteext]] - concept
 - [[closed_port_is_unreachable()]] - code - tests/mock_router.rs
 - [[empty_table_is_ok()]] - code - tests/mock_router.rs
 - [[instant]] - concept
@@ -28,6 +27,7 @@ members: 32
 - [[mutex_2]] - concept
 - [[proplist_is_sent()]] - code - tests/mock_router.rs
 - [[read_len()]] - code - tests/mock_router.rs
+- [[read_router()]] - code - src/routeros.rs
 - [[read_sentence()]] - code - tests/mock_router.rs
 - [[readerror_1]] - concept
 - [[reads_300_rows_sent_in_one_write()]] - code - tests/mock_router.rs
@@ -49,18 +49,19 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 10 edges to [[_COMMUNITY_Community 19]]
+- 6 edges to [[_COMMUNITY_Community 19]]
 - 4 edges to [[_COMMUNITY_Community 15]]
+- 4 edges to [[_COMMUNITY_Community 9]]
+- 3 edges to [[_COMMUNITY_Circuit Collection]]
+- 3 edges to [[_COMMUNITY_Router State]]
+- 2 edges to [[_COMMUNITY_Router State 2]]
 - 2 edges to [[_COMMUNITY_Telegram Notifier 2]]
-- 2 edges to [[_COMMUNITY_Router State]]
 - 2 edges to [[_COMMUNITY_Telegram Notifier]]
-- 1 edge to [[_COMMUNITY_Router State 2]]
-- 1 edge to [[_COMMUNITY_Circuit Collection]]
 - 1 edge to [[_COMMUNITY_Config]]
+- 1 edge to [[_COMMUNITY_Community 24]]
 
 ## Top bridge nodes
 - [[mock_router.rs]] - degree 36, connects to 7 communities
+- [[read_router()]] - degree 26, connects to 5 communities
 - [[setup()]] - degree 12, connects to 1 community
-- [[latin1_values_are_decoded()]] - degree 6, connects to 1 community
-- [[reads_300_rows_sent_in_one_write()]] - degree 6, connects to 1 community
-- [[login_stall_is_failed_not_unreachable()]] - degree 5, connects to 1 community
+- [[instant]] - degree 2, connects to 1 community

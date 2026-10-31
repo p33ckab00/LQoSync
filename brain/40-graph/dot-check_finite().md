@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config 3"
-location: "L567"
+community: "Community 28"
+location: "L569"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Community_28
 ---
 
 # .check_finite()
@@ -15,4 +15,4 @@ tags:
 - [[dot-validate()]] - `calls` [EXTRACTED]
 - [[Config]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Community_28

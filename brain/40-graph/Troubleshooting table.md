@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Topology 3"
+community: "Community 26"
 location: "L232-243"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Topology_3
+  - community/Community_26
 ---
 
 # Troubleshooting table
@@ -15,4 +15,4 @@ tags:
 - [[LibreQoS v3 checks (no_parent, compile_mode)]] - `references` [INFERRED]
 - [[Operations guide]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Topology_3
+#graphify/concept #graphify/EXTRACTED #community/Community_26

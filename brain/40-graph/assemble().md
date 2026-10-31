@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Community 7"
+community: "Community 22"
 location: "L116"
 tags:
   - graphify/code
   - graphify/INFERRED
-  - community/Community_7
+  - community/Community_22
 ---
 
 # assemble()
@@ -32,4 +32,4 @@ tags:
 - [[to_network_json()]] - `calls` [INFERRED]
 - [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/INFERRED #community/Community_7
+#graphify/code #graphify/INFERRED #community/Community_22

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Status and Diff"
+community: "Community 17"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Community_17
 ---
 
 # map
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[diff.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/concept #graphify/EXTRACTED #community/Community_17

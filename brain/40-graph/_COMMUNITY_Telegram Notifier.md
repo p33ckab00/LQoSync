@@ -1,28 +1,22 @@
 ---
 type: community
-members: 64
+members: 58
 ---
 
 # Telegram Notifier
 
-**Members:** 64 nodes
+**Members:** 58 nodes
 
 ## Members
-- [[dot-from_report()]] - code - src/status.rs
 - [[dot-message()]] - code - src/notify.rs
-- [[dot-of()]] - code - src/status.rs
 - [[dot-to_json()]] - code - src/status.rs
-- [[Change]] - code - src/cycle.rs
 - [[CircuitInfo]] - code - src/status.rs
 - [[ClientConfig]] - code
 - [[JoinHandle]] - code
-- [[Notifier]] - code - src/notify.rs
-- [[Report]] - code - src/cycle.rs
 - [[ReportSummary]] - code - src/status.rs
 - [[RouterStatus]] - code - src/status.rs
 - [[S]] - code
 - [[Status]] - code - src/status.rs
-- [[Task 2 Events and message]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
 - [[Task 3 Transport (post_json, send, token, chat_id)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
 - [[Telegram]] - code - src/config.rs
 - [[UpdatedInfo]] - code - src/status.rs
@@ -32,9 +26,10 @@ members: 64
 - [[an_empty_token_is_an_error()]] - code - src/notify.rs
 - [[an_error_is_sent_once_then_cleared()]] - code - src/notify.rs
 - [[asyncread]] - concept
+- [[asyncreadext]] - concept
 - [[asyncwrite]] - concept
+- [[asyncwriteext]] - concept
 - [[body_complete()]] - code - src/notify.rs
-- [[btreemap]] - concept
 - [[cap()]] - code - src/notify.rs
 - [[chat_id()]] - code - src/notify.rs
 - [[circuit_line()]] - code - src/notify.rs
@@ -66,7 +61,6 @@ members: 64
 - [[status.rs]] - code - src/status.rs
 - [[status_json_has_the_spec_fields()]] - code - src/status.rs
 - [[summary_takes_values_from_rows_and_the_old_state()]] - code - src/status.rs
-- [[super]] - concept
 - [[tg()]] - code - src/notify.rs
 - [[tls_config()]] - code - src/notify.rs
 - [[token()]] - code - src/notify.rs
@@ -81,27 +75,21 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 13 edges to [[_COMMUNITY_Community 7]]
-- 11 edges to [[_COMMUNITY_Router State]]
-- 8 edges to [[_COMMUNITY_Community 16]]
-- 4 edges to [[_COMMUNITY_Telegram Notifier 2]]
-- 4 edges to [[_COMMUNITY_Status and Diff]]
-- 3 edges to [[_COMMUNITY_File Safety]]
-- 2 edges to [[_COMMUNITY_Config]]
+- 13 edges to [[_COMMUNITY_Community 14]]
+- 7 edges to [[_COMMUNITY_Community 16]]
+- 4 edges to [[_COMMUNITY_Router State]]
+- 3 edges to [[_COMMUNITY_Community 24]]
 - 2 edges to [[_COMMUNITY_Community 0]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier 2]]
 - 2 edges to [[_COMMUNITY_Community 15]]
-- 2 edges to [[_COMMUNITY_Topology]]
-- 2 edges to [[_COMMUNITY_Circuit Collection]]
-- 1 edge to [[_COMMUNITY_Config 3]]
+- 1 edge to [[_COMMUNITY_Circuit Collection]]
+- 1 edge to [[_COMMUNITY_Config]]
+- 1 edge to [[_COMMUNITY_Community 22]]
 - 1 edge to [[_COMMUNITY_CertificateDer]]
-- 1 edge to [[_COMMUNITY_hashmap]]
-- 1 edge to [[_COMMUNITY_Router State 2]]
-- 1 edge to [[_COMMUNITY_Secrets]]
-- 1 edge to [[_COMMUNITY_Community 9]]
 
 ## Top bridge nodes
-- [[super]] - degree 17, connects to 12 communities
-- [[btreemap]] - degree 10, connects to 6 communities
-- [[notify.rs]] - degree 56, connects to 5 communities
+- [[notify.rs]] - degree 56, connects to 6 communities
 - [[status.rs]] - degree 14, connects to 2 communities
+- [[Status]] - degree 10, connects to 2 communities
 - [[Telegram]] - degree 9, connects to 2 communities
+- [[ReportSummary]] - degree 7, connects to 2 communities
