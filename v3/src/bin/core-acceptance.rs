@@ -137,8 +137,10 @@ async fn main() -> Result<()> {
                 r?.context("Add returned no row ID")?
             }
         };
-        test_id = Some(id.clone());
         let added = list(&client).await?;
+        if confirmed_test_row(&baseline, &added, &id, &mark1) {
+            test_id = Some(id.clone());
+        }
         report.push(json!({"step": "add", "id": id, "row": find(&added, &id).ok()}));
         check_added(&baseline, &added, &id, &want)?;
         println!("Add passed: row {id}");
@@ -195,11 +197,8 @@ async fn main() -> Result<()> {
         Err(e) => format!("{e:#}"),
     };
     report.push(json!({"outcome": outcome}));
-    store::atomic_write(
-        &root.join(format!("state/acceptance/phase1-{now}.json")),
-        &serde_json::to_string_pretty(&report)?,
-    )?;
-    if let Err(e) = result {
+    // Print cleanup guidance before the report write, so a write failure cannot hide it.
+    if result.is_err() {
         if let Some(id) = &test_id {
             eprintln!("Test row {id} can remain. Remove only that row:");
             eprintln!("/ip firewall address-list remove {id}");
@@ -209,8 +208,17 @@ async fn main() -> Result<()> {
             );
             eprintln!("Remove only that row.");
         }
-        return Err(e);
     }
+    let written = serde_json::to_string_pretty(&report)
+        .map_err(anyhow::Error::from)
+        .and_then(|text| {
+            store::atomic_write(
+                &root.join(format!("state/acceptance/phase1-{now}.json")),
+                &text,
+            )
+        });
+    result?;
+    written?;
     println!("Phase 1 passed");
     Ok(())
 }
@@ -227,6 +235,14 @@ fn find<'a>(rows: &'a [Member], id: &str) -> Result<&'a Member> {
     rows.iter()
         .find(|r| r.id == id)
         .with_context(|| format!("Test row {id} is missing"))
+}
+/// True only for a new row with the test address and marker. Only such a row may be named for removal.
+fn confirmed_test_row(baseline: &[Member], added: &[Member], id: &str, marker: &str) -> bool {
+    !by_id(baseline).contains_key(id)
+        && find(added, id).is_ok_and(|r| {
+            r.address.strip_suffix("/32").unwrap_or(&r.address) == TEST_ADDRESS
+                && r.comment == marker
+        })
 }
 /// Stop before any write if the test host or its marker already exists.
 fn check_clear(rows: &[Member]) -> Result<()> {
@@ -324,6 +340,18 @@ mod tests {
     const W1: &str = "lqosync3:o:acce5500-0000-4000-8000-000000000001:wan1";
     const W2: &str = "lqosync3:o:acce5500-0000-4000-8000-000000000001:wan2";
 
+    #[test]
+    fn cleanup_id_only_for_confirmed_new_test_row() {
+        let new = m("*20", "WAN1-CUSTOMERS", TEST_ADDRESS, W1);
+        let added = [base(), vec![new]].concat();
+        assert!(confirmed_test_row(&base(), &added, "*20", W1));
+        // A returned ID that names an existing production row must never become a removal target.
+        assert!(!confirmed_test_row(&base(), &added, "*A", W1));
+        // A returned ID that is absent from the read is not a confirmed test row.
+        assert!(!confirmed_test_row(&base(), &added, "*21", W1));
+        let wrong = [base(), vec![m("*20", "WAN1-CUSTOMERS", "10.0.0.9", W1)]].concat();
+        assert!(!confirmed_test_row(&base(), &wrong, "*20", W1));
+    }
     #[test]
     fn test_subscriber_is_canonical_uuid() {
         let id = uuid::Uuid::parse_str(TEST_SUBSCRIBER).expect("UUID");

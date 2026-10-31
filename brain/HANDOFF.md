@@ -14,6 +14,28 @@ Checkout: `/opt/LQoSync3.0`.
 Code: `9a35d24`. Earlier base references below are historical.
 Sections are in newest-first order. Read the first section for the current state.
 
+## RouterOS acceptance Phase 1 passed on the production core
+
+Updated: 2026-10-31T08:40:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
+The operator approved Approach A: one test host on the production core, with no lab and no VM.
+The operator required no destructive change on the router.
+`core-acceptance --execute` ran on `RB5k9Core` with test host `192.0.2.254` (RFC 5737).
+Add returned row `*1B`. The move to `WAN2-CUSTOMERS` kept `*1B`. Only `list` and `comment` changed.
+The remove restored the 13-row baseline. Mangle, routes, and routing tables did not change.
+A later `core-validate` run reported Fresh, 0 findings, and no test row.
+Owned markers require a canonical UUID. The test identity is `acce5500-0000-4000-8000-000000000001`.
+The first execute attempt stopped in preflight with a malformed marker. It sent no request.
+A fresh review found two cleanup-message defects. Both received failing tests and fixes.
+Final checks: format and strict Clippy passed; 344 passed, zero failed, 12 ignored.
+Phase 0 (read-only) found that the WAN health provider rejects the enabled output mangle rules `*C1` and `*C2`.
+Those rules route router replies for inbound WAN connections. Keep them. Health shows Unknown until the provider accepts them.
+`settings.toml` has only a `wan1` monitor with sample probe IDs `*A` and `*B`. Confirm the actual Netwatch IDs.
+The operator updated stale comments on address-list pins `*9`, `*C`, `*F`, and `*10`. The pins stay enabled.
+`lqosync-updatecsv` continues to run. This test did not change `ShapedDevices.csv` or `network.json`.
+Not proved: Netwatch probe fields, the executor journal path, and traffic impact of a real subscriber move.
+Next: the health provider fix for connection-mark-only output rules, then Phase 2 with one known subscriber.
+See `docs/superpowers/specs/2026-10-31-routeros-acceptance-phase1-design.md` and `v3/OPERATIONS.md`.
+
 ## Independent check of the recovery guard stage
 
 Updated: 2026-10-31T07:51:14+08:00 (Asia/Shanghai). Last agent: Claude Code.
