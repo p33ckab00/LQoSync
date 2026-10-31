@@ -67,6 +67,11 @@ fn unix_now() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
+/// The MainPID of the service from systemd now.
+fn fresh_pid(cfg: &crate::config::Config) -> Option<u32> {
+    data::systemctl_show("systemctl", &cfg.tui.service_unit, &["MainPID"]).map(|u| u.main_pid)
+}
+
 /// The message of a worker that stopped.
 fn panic_text(r: std::thread::Result<()>) -> String {
     match r {
@@ -177,11 +182,13 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 dashboard::Kind::SyncNow,
                 &app.data,
                 unix_now(),
+                fresh_pid(&cfg),
             )),
             Action::Reload => app.action_sent(dashboard::send(
                 dashboard::Kind::Reload,
                 &app.data,
                 unix_now(),
+                fresh_pid(&cfg),
             )),
             Action::None => {}
         }

@@ -47,6 +47,12 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
     let null = Value::Null;
     let st = d.status.as_deref().unwrap_or(&null);
     let s = |k: &str| st[k].as_str().map_or("unknown".to_string(), str::to_string);
+    // With no status.json, "no error" is not known.
+    let none = if d.status.is_some() {
+        "none"
+    } else {
+        "unknown"
+    };
     let n = |v: &Value| v.as_u64().map_or("unknown".to_string(), |x| x.to_string());
     let mut out: Vec<String> = vec![
         "[service]".into(),
@@ -80,10 +86,10 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
                 .map_or("unknown".into(), |b| b.to_string())
         ),
         format!("reload: {}", s("reload")),
-        format!("error: {}", st["error"].as_str().unwrap_or("none")),
+        format!("error: {}", st["error"].as_str().unwrap_or(none)),
         format!(
             "config error: {}",
-            st["config_error"].as_str().unwrap_or("none")
+            st["config_error"].as_str().unwrap_or(none)
         ),
         format!("telegram: {}", s("telegram")),
         "[routers]".into(),
@@ -94,10 +100,16 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
                 let rows: u64 = r["rows"]
                     .as_object()
                     .map_or(0, |m| m.values().filter_map(Value::as_u64).sum());
+                let state = r["state"].as_str().unwrap_or("unknown");
+                // A router that is not online has no row counts.
+                let rows = if state == "online" {
+                    format!("{rows} rows")
+                } else {
+                    "rows unknown".into()
+                };
                 let mut l = format!(
-                    "{}: {}, {rows} rows, {} ms",
+                    "{}: {state}, {rows}, {} ms",
                     r["name"].as_str().unwrap_or("?"),
-                    r["state"].as_str().unwrap_or("unknown"),
                     n(&r["read_ms"])
                 );
                 if let Some(e) = r["error"].as_str() {
@@ -261,8 +273,9 @@ pub fn wait_result(sent: &Sent, status: Option<&Value>, now: u64, timeout: u64) 
 }
 
 /// Send `SIGUSR1` (sync now) or `SIGHUP` (reload) to the MainPID of the service.
-pub fn send(kind: Kind, d: &Data, now: u64) -> Result<Sent, String> {
-    let main_pid = d.service.as_ref().map_or(0, |u| u.main_pid);
+/// `main_pid` comes from systemd at the send, not from the last loader sample (the service can restart).
+pub fn send(kind: Kind, d: &Data, now: u64, main_pid: Option<u32>) -> Result<Sent, String> {
+    let main_pid = main_pid.ok_or("cannot read the MainPID from systemd (systemctl show)")?;
     let pid = signal_target(main_pid, std::process::id(), |p| {
         std::fs::read_to_string(format!("/proc/{p}/comm")).ok()
     })?;
@@ -535,6 +548,37 @@ mod tests {
             json!({"pid": 7, "trigger": "reload", "updated": 1_002, "config_error": "line 3"});
         assert!(
             matches!(wait_result(&sent, Some(&bad), 1_003, 120), Wait::Done(m) if m.contains("old config stays"))
+        );
+    }
+
+    #[test]
+    fn send_uses_the_fresh_main_pid_not_the_cached_one() {
+        let mut d = data(json!({}));
+        // The cached sample is this process; the fresh systemd value says that the service stopped.
+        d.service = Some(Unit {
+            load: "loaded".into(),
+            active: "active".into(),
+            main_pid: std::process::id(),
+        });
+        let e = send(Kind::Reload, &d, 1_000, Some(0)).unwrap_err();
+        assert!(e.contains("no MainPID"), "{e}");
+        let e = send(Kind::Reload, &d, 1_000, None).unwrap_err();
+        assert!(e.contains("systemd"), "{e}");
+    }
+
+    #[test]
+    fn no_status_and_a_failed_router_show_unknown() {
+        let t = text(&Data::default());
+        for want in ["error: unknown", "config error: unknown"] {
+            assert!(t.iter().any(|l| l == want), "{want}: {t:#?}");
+        }
+        let d = data(
+            json!({"routers": [{"name": "R1", "state": "failed", "rows": {}, "read_ms": 5, "error": "trap"}]}),
+        );
+        let t = text(&d);
+        assert!(
+            t.iter().any(|l| l.starts_with("R1: failed, rows unknown")),
+            "{t:#?}"
         );
     }
 

@@ -168,6 +168,8 @@ impl App {
     }
 
     pub fn on_key(&mut self, k: KeyEvent) -> Action {
+        // A message shows until the next key, so a later loader error can show.
+        self.message = None;
         if let Some(m) = self.modal {
             self.modal = None;
             return match (m, k.code) {
@@ -684,6 +686,29 @@ mod tests {
         assert!(a.pending.is_none());
         a.action_sent(Err("PID 9 is \"bash\", not lqosync3".into()));
         assert!(a.message.as_deref().unwrap().contains("bash"));
+    }
+
+    #[test]
+    fn a_key_press_clears_the_message_so_errors_show() {
+        let mut a = app(true);
+        a.on_key(key(KeyCode::Char('S')));
+        assert!(a.message.is_some());
+        a.set_data(
+            Data {
+                errors: vec!["cannot read /x/ShapedDevices.csv".into()],
+                ..Data::default()
+            },
+            0,
+        );
+        a.on_key(key(KeyCode::Down));
+        assert!(a.message.is_none());
+        assert!(
+            draw(&mut a, 120, 10)
+                .lines()
+                .last()
+                .unwrap()
+                .contains("cannot read")
+        );
     }
 
     #[test]

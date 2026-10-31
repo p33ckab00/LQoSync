@@ -52,6 +52,24 @@ fn stamp(p: &Path) -> Stamp {
     Some((m.modified().ok()?, m.len()))
 }
 
+/// `<systemctl> show -p <prop>... <unit>`. Stderr is dropped, so it does not draw over the screen.
+pub fn systemctl_show(systemctl: &str, unit: &str, props: &[&str]) -> Option<Unit> {
+    let mut cmd = std::process::Command::new(systemctl);
+    cmd.arg("show");
+    for p in props {
+        cmd.args(["-p", p]);
+    }
+    let out = cmd
+        .arg(unit)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| parse_unit(&String::from_utf8_lossy(&out.stdout)))
+}
+
 /// Reads the inputs. Parses a file only when its modification time or size changed.
 pub struct Loader {
     cfg: Config,
@@ -84,19 +102,7 @@ impl Loader {
     }
 
     fn show(&self, unit: &str, props: &[&str]) -> Option<Unit> {
-        let mut cmd = std::process::Command::new(&self.systemctl);
-        cmd.arg("show");
-        for p in props {
-            cmd.args(["-p", p]);
-        }
-        let out = cmd
-            .arg(unit)
-            .stderr(std::process::Stdio::null())
-            .output()
-            .ok()?;
-        out.status
-            .success()
-            .then(|| parse_unit(&String::from_utf8_lossy(&out.stdout)))
+        systemctl_show(&self.systemctl, unit, props)
     }
 
     /// Read a file that is not larger than `max_file_mb`.
@@ -211,21 +217,22 @@ impl Loader {
             } else {
                 let csv = self.read_limited(&inputs[0], &mut errors);
                 // No network.json is normal for a flat network.
-                let net = inputs[1]
-                    .exists()
-                    .then(|| self.read_limited(&inputs[1], &mut errors))
-                    .flatten();
+                // A network.json that exists but cannot be read or parsed keeps the last data.
+                let tree = if inputs[1].exists() {
+                    self.read_limited(&inputs[1], &mut errors).and_then(|t| {
+                        serde_json::from_str::<Value>(&t)
+                            .map_err(|e| errors.push(format!("{}: {e}", inputs[1].display())))
+                            .ok()
+                    })
+                } else {
+                    Some(Value::Null)
+                };
                 csv.and_then(|c| {
                     crate::state::read_csv(&c)
                         .map_err(|e| errors.push(format!("{}: {e:#}", inputs[0].display())))
                         .ok()
                 })
-                .map(|rows| {
-                    let tree = net
-                        .and_then(|t| serde_json::from_str(&t).ok())
-                        .unwrap_or(Value::Null);
-                    (rows, tree)
-                })
+                .zip(tree)
             };
             // A failed read keeps the old data and the old stamps, so the next refresh tries again.
             if let Some((rows, tree)) = parsed {
@@ -506,6 +513,23 @@ mod tests {
         let c = l.load();
         assert!(!Arc::ptr_eq(&a.rows, &c.rows));
         assert_eq!(c.rows.len(), 2);
+    }
+
+    #[test]
+    fn a_bad_network_json_keeps_the_last_data_and_shows_an_error() {
+        let (e, mut l) = env();
+        pair(&e, "c1,alice,d1,alice,AP,,10.0.0.2,,1,1,10,10,\n");
+        let a = l.load();
+        std::fs::write(e.lqos.join("network.json"), "{bad").unwrap();
+        for _ in 0..2 {
+            let b = l.load();
+            assert!(Arc::ptr_eq(&a.tree, &b.tree) && Arc::ptr_eq(&a.rows, &b.rows));
+            assert!(
+                b.errors.iter().any(|x| x.contains("network.json")),
+                "{:?}",
+                b.errors
+            );
+        }
     }
 
     #[test]

@@ -285,7 +285,7 @@ pub struct Telegram {
     pub max_list_items: usize,
 }
 
-/// `lqosync3 tui`. The service does not use these keys.
+/// `lqosync3 tui`. The service does not use these keys, but it checks them.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Tui {

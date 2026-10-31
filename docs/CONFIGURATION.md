@@ -169,7 +169,7 @@ include_removed = true
 include_telemetry = true
 max_list_items = 15
 
-[tui]                           # lqosync3 tui only; the service does not read these keys
+[tui]                           # used by lqosync3 tui only; the service checks them at start and at reload
 refresh_ms = 1000               # milliseconds between two reads of the status, the files, and the process
 journal_lines = 2000            # lines that the Journal tab keeps
 max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded
@@ -369,7 +369,7 @@ Set `telegram.enabled = true` to send messages. Refer to the [Telegram design](s
 
 ## Terminal view
 
-The `[tui]` keys are for `lqosync3 tui` only. The service does not read them. Refer to OPERATIONS.md, "Terminal view".
+The `[tui]` keys are for `lqosync3 tui` only. The service does not use them, but it checks them as all other keys. A bad `[tui]` key stops the start of the service, and a reload with a bad key keeps the old config. Run `lqosync3 check` after a change. Refer to OPERATIONS.md, "Terminal view".
 
 - `refresh_ms` (100 to 60000): the time between two reads of `status.json`, the files, `systemctl`, and `/proc`.
 - `journal_lines` (1 to 100000): the lines that the Journal tab keeps.
