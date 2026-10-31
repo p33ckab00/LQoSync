@@ -154,15 +154,16 @@ multiplier = 1.0
 enabled = false
 bot_token_file = "/etc/lqosync3/secrets/telegram.token"
 chat_id = ""
+api_host = "api.telegram.org"   # Telegram Bot API server (HTTPS)
+api_port = 443
 timeout = 10                    # seconds, for each send
 max_message_chars = 3900        # the tool splits a longer message
 notify_on_changes = true
 notify_on_error = true
-notify_on_preflight_warning = true
+notify_on_preflight_warning = true   # LibreQoS v3 only (Plan 3)
 include_added = true
 include_updated = true
 include_removed = true
-include_computation = true
 include_telemetry = true
 max_list_items = 15
 
@@ -327,6 +328,18 @@ A speed with a zero value, for example `10M/0M`, is not used. The tool writes a 
 | `unitless_unit` | `bps` (default) | `10` is 10 bit/s (RouterOS behavior). |
 | | `mbps` | `10` is 10 Mbps (`updatecsv.py` behavior). |
 
+## Telegram
+
+Set `telegram.enabled = true` to send messages. Refer to the [Telegram design](superpowers/specs/2026-10-31-lqosync3-telegram-design.md).
+
+- The token is in `telegram.bot_token_file` (mode `0600`, owner `root`). If the variable named in `bot_token_env` is set and not empty, the tool uses it.
+- `chat_id` or `chat_id_env` must be set when `enabled = true`.
+- The tool sends one message for each cycle with an event: files changed, a new cycle error or config error, an error cleared, a router state change, or a removal guard hold.
+- The tool does not send the same error again in each cycle. After a restart, the first cycle can send a router alert again.
+- In `shadow` mode, each title starts with `[shadow]`.
+- A send failure gives the log line `warning: telegram: ...`. It does not change the cycle result or the files.
+- `notify_on_preflight_warning` has an effect only with LibreQoS v3 (Plan 3).
+
 ## Runtime modes
 
 | `runtime.mode` | Router reads | LibreQoS files | Reload |
@@ -377,7 +390,8 @@ The section names stay the same. These keys change.
 | `libreqos.sudo` | (removed) | The service operates as `root`. |
 | `libreqos.shaped_devices_csv`, `libreqos.network_json` | `libreqos.directory` | The file names are fixed by LibreQoS. |
 | `telegram.bot_token` | `telegram.bot_token_file` | Put the token in a file. |
-| `telegram.bot_token_env`, `telegram.chat_id_env` | Same | Optional. A file key has priority. |
+| `telegram.bot_token_env`, `telegram.chat_id_env` | Same | Optional. The environment variable has priority if it is set and not empty. |
+| `telegram.include_computation` | (removed) | lqosync3 has no computation report. |
 | `telegram.parse_mode` | (removed) | Always `HTML`. |
 | `telegram.notify_on_start`, `telegram.notify_on_no_changes` | (removed) | `updatecsv.py` does not use them. |
 | `routers[].password` | `routers[].password_file` | Put the password in a file. |

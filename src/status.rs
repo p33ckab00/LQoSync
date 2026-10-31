@@ -19,7 +19,8 @@ pub struct RouterStatus {
 pub struct ReportSummary {
     pub counts: BTreeMap<&'static str, usize>,
     pub added: Vec<String>,
-    pub updated: Vec<String>,
+    /// `(circuit, changed columns)`
+    pub updated: Vec<(String, Vec<String>)>,
     pub removed: Vec<String>,
     pub held: Vec<String>,
     /// `(ip, kept, dropped)`
@@ -44,7 +45,7 @@ impl ReportSummary {
         ReportSummary {
             counts,
             added: r.added.clone(),
-            updated: r.updated.iter().map(|(n, _)| n.clone()).collect(),
+            updated: r.updated.clone(),
             removed: r.removed.clone(),
             held: r.held.clone(),
             duplicates: r.duplicates.clone(),

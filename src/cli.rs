@@ -157,11 +157,15 @@ pub fn check(cfg: &Config, owner_uid: u32) -> Vec<CheckLine> {
             ),
         ));
     }
-    if cfg.telegram.enabled {
-        out.push(line(
-            Level::Warn,
-            "telegram.enabled: Telegram comes in Plan 2b; no message is sent yet",
-        ));
+    let tg = &cfg.telegram;
+    if tg.enabled {
+        match crate::notify::token(tg, owner_uid) {
+            Ok(_) => out.push(line(Level::Ok, "telegram: the bot token is readable")),
+            Err(e) => out.push(line(Level::Error, format!("telegram: {e}"))),
+        }
+        if crate::notify::chat_id(tg).is_empty() {
+            out.push(line(Level::Error, "telegram: the chat ID is empty"));
+        }
     }
     out
 }
@@ -294,5 +298,20 @@ mod tests {
         std::fs::write(&e.path, e.toml.replace("\"R1\"", "\"R2\"")).unwrap();
         reload(&mut cfg, &e.path).unwrap();
         assert_eq!(cfg.routers[0].name, "R2");
+    }
+
+    #[test]
+    fn check_reads_the_telegram_token_when_enabled() {
+        let e = env(
+            "[routers.pppoe]\nenabled=true\n",
+            "[telegram]\nenabled=true\nchat_id=\"1\"\nbot_token_file=\"/nonexistent/telegram.token\"\n",
+        );
+        let lines = check(&Config::from_toml_str(&e.toml).unwrap(), e.uid);
+        let err = texts(&lines, Level::Error).join("\n");
+        assert!(err.contains("telegram"), "{lines:?}");
+        assert!(
+            !texts(&lines, Level::Warn).join("\n").contains("Plan 2b"),
+            "{lines:?}"
+        );
     }
 }

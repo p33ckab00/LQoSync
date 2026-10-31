@@ -268,6 +268,8 @@ pub struct Telegram {
     pub bot_token_env: String,
     pub chat_id: String,
     pub chat_id_env: String,
+    pub api_host: String,
+    pub api_port: u16,
     pub timeout: u64,
     pub max_message_chars: usize,
     pub notify_on_changes: bool,
@@ -276,7 +278,6 @@ pub struct Telegram {
     pub include_added: bool,
     pub include_updated: bool,
     pub include_removed: bool,
-    pub include_computation: bool,
     pub include_telemetry: bool,
     pub max_list_items: usize,
 }
@@ -883,6 +884,22 @@ impl Config {
             "config: runtime.static_comment must not be empty"
         );
 
+        let tg = &self.telegram;
+        if tg.enabled {
+            ensure!(
+                !(tg.chat_id.trim().is_empty() && tg.chat_id_env.trim().is_empty()),
+                "config: telegram.chat_id or telegram.chat_id_env must be set when telegram.enabled = true"
+            );
+            ensure!(
+                !tg.api_host.trim().is_empty(),
+                "config: telegram.api_host must not be empty"
+            );
+        }
+        ensure!(
+            (100..=4096).contains(&tg.max_message_chars),
+            "config: telegram.max_message_chars must be 100 to 4096 (Telegram limit)"
+        );
+
         let sf = &self.safety;
         ensure!(
             sf.max_removed_percent > 0.0 && sf.max_removed_percent <= 100.0,
@@ -1341,5 +1358,20 @@ mod tests {
                 "{extra}: {e:#}"
             );
         }
+    }
+
+    #[test]
+    fn telegram_needs_a_chat_id_when_enabled() {
+        let e = Config::from_toml_str(&format!("[telegram]\nenabled=true\n{MIN}")).unwrap_err();
+        assert!(format!("{e:#}").contains("telegram.chat_id"), "{e:#}");
+        let ok = format!("[telegram]\nenabled=true\nchat_id=\"1\"\n{MIN}");
+        let c = Config::from_toml_str(&ok).unwrap();
+        assert_eq!(
+            (c.telegram.api_host.as_str(), c.telegram.api_port),
+            ("api.telegram.org", 443)
+        );
+        let e = Config::from_toml_str(&ok.replace("chat_id=", "max_message_chars=50\nchat_id="))
+            .unwrap_err();
+        assert!(format!("{e:#}").contains("max_message_chars"), "{e:#}");
     }
 }

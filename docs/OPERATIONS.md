@@ -188,6 +188,37 @@ The tool supports both versions. The upgrade changes the output target. Do this 
 > [!note]
 > In v3, `LibreQoS.py --updateonly` does nothing. The tool does not start it on v3. `lqosd` reads the changed files by itself.
 
+## Turn on Telegram
+
+1. Write the bot token to the secret file:
+
+   ```bash
+   sudo install -m 0600 /dev/null /etc/lqosync3/secrets/telegram.token
+   sudo nano /etc/lqosync3/secrets/telegram.token
+   ```
+
+2. In `/etc/lqosync3/lqosync3.toml`, set:
+
+   ```toml
+   [telegram]
+   enabled = true
+   chat_id = "<chat ID>"
+   ```
+
+3. Check the configuration:
+
+   ```bash
+   sudo lqosync3 check
+   ```
+
+   Expected result: `OK    telegram: the bot token is readable`.
+
+4. Reload the service:
+
+   ```bash
+   sudo systemctl reload lqosync3.service
+   ```
+
 ## Backups that the tool keeps
 
 In `apply` mode, the tool makes a backup of the live files before it replaces them. Each backup is a folder in `/var/lib/lqosync3/applied/`. The folder name is the Unix time in seconds, with 12 digits.

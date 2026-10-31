@@ -4,6 +4,7 @@ use lqosync3::cli::{self, Command, Level};
 use lqosync3::config::Config;
 use lqosync3::diff::diff_config;
 use lqosync3::mikrotik::MikrotikConnector;
+use lqosync3::notify::{Notifier, send_all};
 use lqosync3::runner::{CycleSummary, Runner};
 use std::path::Path;
 use std::sync::Arc;
@@ -58,6 +59,15 @@ fn print_summary(s: &CycleSummary) {
     }
 }
 
+/// Send the Telegram message of the cycle, if it has an event. A failure is only a log line.
+async fn notify(n: &mut Notifier, cfg: &Config, s: &CycleSummary) {
+    if let Some(text) = n.message(&cfg.telegram, &s.status)
+        && let Err(e) = send_all(&cfg.telegram, &text, SECRET_OWNER_UID).await
+    {
+        eprintln!("warning: telegram: {e}");
+    }
+}
+
 async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
     let mut runner = Runner::new(
         cfg.clone(),
@@ -75,9 +85,11 @@ async fn run(path: &Path, mut cfg: Config) -> anyhow::Result<()> {
         signal(SignalKind::interrupt())?,
     );
     let mut force = false;
+    let mut notifier = Notifier::default();
     loop {
         let summary = runner.cycle(now(), force).await;
         print_summary(&summary);
+        notify(&mut notifier, &runner.cfg, &summary).await;
         force = false;
         let sleep =
             tokio::time::sleep(Duration::from_secs(summary.next_sleep(&runner.cfg.runtime)));
@@ -139,6 +151,7 @@ async fn main() {
             runner.lock().unwrap_or_else(|e| exit_with(e));
             let s = runner.cycle(now(), force).await;
             print_summary(&s);
+            notify(&mut Notifier::default(), &runner.cfg, &s).await;
             if s.error.is_some() {
                 std::process::exit(1);
             }

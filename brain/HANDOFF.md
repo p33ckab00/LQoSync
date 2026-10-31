@@ -47,12 +47,18 @@ None at this time.
 ### Next action
 
 1. Shadow service on the production shaper: `lqosync3.service` operates in `shadow` mode since 2026-10-31 14:51. After 2026-11-01 14:51, run `sudo lqosync3 diff`. If the result is the same as the first run (one known difference), do the cutover to `apply` mode (OPERATIONS.md, "Cutover from the Python service"). The cutover needs the operator's approval.
-2. Plan 2b: Telegram.
+2. Plan 2b (Telegram) is done in code: `src/notify.rs`. To use it on the shaper, install the new binary, write `/etc/lqosync3/secrets/telegram.token`, and set `[telegram] enabled = true` with the chat ID. Refer to OPERATIONS.md, "Turn on Telegram".
 3. Plan 3: LibreQoS v3 detection and writers.
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
 
 Plan 2 and defaults review minor items: fixed on 2026-10-31 (one test for each). TCP keepalive is not possible: `mikrotik-tokio` 0.3 makes the TCP socket and has no keepalive option. In its place, a kept session that fails gets one reconnect at once, and this reconnect does not use a retry.
+
+Deferred minor items from the Plan 2b review (2026-10-31):
+- The error memory uses the full error text. If LibreQoS stderr changes in each run (time, PID), each reload retry sends a new alert. A duplicate-IP alert with a count that changes does the same. Fix: compare only the first line, or a key without numbers.
+- `include_computation` was removed. An old config with this key does not load (`deny_unknown_fields`). The live config does not have it.
+- `status.json` `report.updated` changed to `[[name, [columns]]]`, but `version` is still 1.
+- `post_json` cannot read a chunked answer. If Telegram sends one, the send waits until `timeout` and logs a false failure.
 
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 

@@ -5,7 +5,7 @@ It replaces `/opt/libreqos/src/updatecsv.py`. It reads its settings from one TOM
 It supports LibreQoS 2.0 to 2.2 and LibreQoS 3.x.
 
 > [!warning] Status: LibreQoS 2.x in shadow testing
-> The binary works for LibreQoS 2.x (`check`, `once`, `run`, `diff`, `defaults`). LibreQoS v3, Telegram, the TUI, and `install.sh` are not done yet.
+> The binary works for LibreQoS 2.x (`check`, `once`, `run`, `diff`, `defaults`). Telegram messages work. LibreQoS v3, the TUI, and `install.sh` are not done yet.
 > Run in `shadow` mode and compare with `lqosync3 diff` before you use `apply` on a production shaper.
 
 ## What the tool does
