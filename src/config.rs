@@ -754,8 +754,8 @@ impl Config {
             ensure!(v > 0.0, "config: bandwidth_defaults.{k} must be > 0");
         }
         ensure!(
-            bd.pppoe_default_rate.contains('/'),
-            "config: bandwidth_defaults.pppoe_default_rate must be \"<down>/<up>\""
+            crate::speed::parse_default_rate(&bd.pppoe_default_rate).is_some(),
+            "config: bandwidth_defaults.pppoe_default_rate must be \"<down>/<up>\", for example \"10M/10M\""
         );
 
         let n = &self.network;
