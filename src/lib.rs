@@ -4,6 +4,7 @@ pub mod cli;
 pub mod config;
 pub mod cycle;
 pub mod model;
+pub mod secrets;
 pub mod sources;
 pub mod speed;
 pub mod state;
