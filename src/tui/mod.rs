@@ -3,7 +3,9 @@
 pub mod app;
 pub mod data;
 pub mod devices;
+pub mod journal;
 pub mod network;
+pub mod osc52;
 pub mod proc;
 
 use app::{Action, App};
@@ -86,6 +88,10 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     // SAFETY: geteuid has no preconditions and cannot fail.
     let read_only = unsafe { libc::geteuid() } != 0;
     let mut app = App::new(read_only, config_text, config_error);
+    app.osc52 = cfg.tui.osc52;
+    app.journal = journal::JournalView::new(cfg.tui.journal_lines);
+    let (jtx, jrx) = mpsc::channel();
+    let mut journal_child = None;
 
     // ratatui::init is not used: its panic hook restores the terminal on any thread.
     install_panic_hook(restore_terminal);
@@ -117,6 +123,20 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 }
             }
         }
+        // The journal starts at the first open of its tab, and then keeps its lines.
+        if app.tab == app::Tab::Journal && journal_child.is_none() {
+            journal_child = Some(journal::spawn_journal(
+                "journalctl",
+                &cfg.tui.service_unit,
+                cfg.tui.journal_lines,
+                jtx.clone(),
+            ));
+        }
+        let batch: Vec<_> = jrx.try_iter().collect();
+        if !batch.is_empty() {
+            app.journal.push_batch(batch);
+            dirty = true;
+        }
         if dirty {
             term.draw(|f| app.draw(f))?;
             dirty = false;
@@ -145,7 +165,13 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                     execute!(stdout(), EnableMouseCapture)?;
                 }
             }
-            Action::None | Action::SyncNow | Action::Reload | Action::Copy(_) => {}
+            Action::Copy(text) => {
+                use std::io::Write;
+                let mut out = stdout();
+                out.write_all(osc52::osc52(&text).as_bytes())?;
+                out.flush()?;
+            }
+            Action::None | Action::SyncNow | Action::Reload => {}
         }
     }
     Ok(())

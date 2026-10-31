@@ -2,7 +2,9 @@
 
 use super::data::Data;
 use super::devices::DevicesView;
+use super::journal::JournalView;
 use super::network::NetworkView;
+use super::osc52::MAX_COPY;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -81,6 +83,11 @@ pub struct App {
     pub data: Data,
     pub devices: DevicesView,
     pub network: NetworkView,
+    pub journal: JournalView,
+    /// `tui.osc52`.
+    pub osc52: bool,
+    /// The mouse belongs to the terminal (select mode).
+    pub select_mode: bool,
     /// Unix seconds of the last data.
     pub now: u64,
     config_error: Option<String>,
@@ -101,6 +108,9 @@ impl App {
             },
             devices: DevicesView::default(),
             network: NetworkView::default(),
+            journal: JournalView::new(2000),
+            osc52: true,
+            select_mode: false,
             now: 0,
             config_error,
             settings_offset: 0,
@@ -146,6 +156,7 @@ impl App {
         // A search box has all keys.
         if (self.tab == Tab::Devices && self.devices.editing)
             || (self.tab == Tab::Network && self.network.editing)
+            || (self.tab == Tab::Journal && self.journal.editing)
         {
             return self.tab_key(k);
         }
@@ -181,6 +192,22 @@ impl App {
         if self.tab == Tab::Network {
             self.network.on_key(k, &self.data);
         }
+        if self.tab == Tab::Journal {
+            match k.code {
+                KeyCode::Char('y') if !self.journal.editing => return self.copy(),
+                KeyCode::Char('s') if !self.journal.editing => {
+                    self.select_mode = !self.select_mode;
+                    self.message = Some(if self.select_mode {
+                        "select mode: the mouse belongs to the terminal; press s again to end"
+                            .into()
+                    } else {
+                        "select mode ended".into()
+                    });
+                    return Action::SelectMode(self.select_mode);
+                }
+                _ => self.journal.on_key(k),
+            }
+        }
         if self.tab == Tab::Settings {
             match k.code {
                 KeyCode::Down => self.settings_offset = self.settings_offset.saturating_add(1),
@@ -191,6 +218,29 @@ impl App {
             }
         }
         Action::None
+    }
+
+    /// Copy the selected journal lines with OSC 52.
+    fn copy(&mut self) -> Action {
+        let text = self.journal.selection_text();
+        if !self.osc52 {
+            self.message = Some(
+                "OSC 52 is off (tui.osc52 = false); press s and select with the terminal".into(),
+            );
+            return Action::None;
+        }
+        if text.len() > MAX_COPY {
+            self.message = Some(format!(
+                "the selection is too large for OSC 52 ({} bytes, limit {MAX_COPY}); press s and select with the terminal",
+                text.len()
+            ));
+            return Action::None;
+        }
+        self.message = Some(
+            "sent to the terminal clipboard (not confirmed); if it did not arrive, press s and select with the terminal"
+                .into(),
+        );
+        Action::Copy(text)
     }
 
     /// Read-only mode (not root) blocks an action. Shows the reason.
@@ -211,6 +261,8 @@ impl App {
                 .position(|r| r.contains((m.column, m.row).into()))
         {
             self.tab = Tab::ALL[i];
+        } else if self.tab == Tab::Journal {
+            self.journal.on_mouse(m);
         }
         Action::None
     }
@@ -228,6 +280,7 @@ impl App {
         match self.tab {
             Tab::Devices => self.devices.draw(f, main, &self.data),
             Tab::Network => self.network.draw(f, main, &self.data),
+            Tab::Journal => self.journal.draw(f, main),
             Tab::Settings => self.draw_settings(f, main),
             _ => f.render_widget(
                 Paragraph::new("loading").block(Block::default().borders(Borders::ALL)),
@@ -242,6 +295,10 @@ impl App {
             Tab::Network if self.network.editing => "type to search  Enter done  Esc clear",
             Tab::Network => {
                 "Space open/close  e expand all  c collapse all  / search  q quit  1-5 tabs"
+            }
+            Tab::Journal if self.journal.editing => "type to search  Enter done  Esc clear",
+            Tab::Journal => {
+                "l level  / search  f follow  Shift+arrows or mouse select  y copy  s select mode  q quit"
             }
             Tab::Settings => "Up/Down scroll  q quit  1-5 tabs  S sync  R reload",
             _ => "q quit  1-5/Tab tabs  S sync now  R reload",
@@ -359,6 +416,7 @@ fn center(area: Rect, w: u16, h: u16) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tui::journal::JournalMsg;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::crossterm::event::{
@@ -509,6 +567,51 @@ mod tests {
         assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::None);
         a.on_key(key(KeyCode::Char('2')));
         assert_eq!((a.tab, a.devices.query.as_str()), (Tab::Devices, "q2"));
+    }
+
+    fn journal_app(lines: &[&str]) -> App {
+        let mut a = app(false);
+        a.journal.push_batch(
+            lines
+                .iter()
+                .map(|l| JournalMsg::Line(l.to_string()))
+                .collect(),
+        );
+        a.on_key(key(KeyCode::Char('4')));
+        a
+    }
+
+    #[test]
+    fn y_on_journal_copies_with_osc52() {
+        let mut a = journal_app(&["one", "two"]);
+        assert_eq!(
+            a.on_key(key(KeyCode::Char('y'))),
+            Action::Copy("two".into())
+        );
+        let m = a.message.clone().unwrap();
+        assert!(
+            m.contains("sent to the terminal clipboard (not confirmed)"),
+            "{m}"
+        );
+        assert!(m.contains("press s and select with the terminal"), "{m}");
+        a.osc52 = false;
+        assert_eq!(a.on_key(key(KeyCode::Char('y'))), Action::None);
+        assert!(a.message.as_deref().unwrap().contains("tui.osc52"));
+    }
+
+    #[test]
+    fn a_too_large_copy_is_not_sent() {
+        let big = "x".repeat(crate::tui::osc52::MAX_COPY + 1);
+        let mut a = journal_app(&[&big]);
+        assert_eq!(a.on_key(key(KeyCode::Char('y'))), Action::None);
+        assert!(a.message.as_deref().unwrap().contains("too large"));
+    }
+
+    #[test]
+    fn s_toggles_select_mode() {
+        let mut a = journal_app(&["one"]);
+        assert_eq!(a.on_key(key(KeyCode::Char('s'))), Action::SelectMode(true));
+        assert_eq!(a.on_key(key(KeyCode::Char('s'))), Action::SelectMode(false));
     }
 
     #[test]
