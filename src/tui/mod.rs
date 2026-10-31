@@ -1,6 +1,7 @@
 //! `lqosync3 tui`: a terminal view of the service. The draw code reads only memory.
 
 pub mod app;
+pub mod dashboard;
 pub mod data;
 pub mod devices;
 pub mod journal;
@@ -89,6 +90,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     let read_only = unsafe { libc::geteuid() } != 0;
     let mut app = App::new(read_only, config_text, config_error);
     app.osc52 = cfg.tui.osc52;
+    app.action_timeout = cfg.tui.apply_verify_timeout;
     app.journal = journal::JournalView::new(cfg.tui.journal_lines);
     let (jtx, jrx) = mpsc::channel();
     let mut journal_child = None;
@@ -171,7 +173,17 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 out.write_all(osc52::osc52(&text).as_bytes())?;
                 out.flush()?;
             }
-            Action::None | Action::SyncNow | Action::Reload => {}
+            Action::SyncNow => app.action_sent(dashboard::send(
+                dashboard::Kind::SyncNow,
+                &app.data,
+                unix_now(),
+            )),
+            Action::Reload => app.action_sent(dashboard::send(
+                dashboard::Kind::Reload,
+                &app.data,
+                unix_now(),
+            )),
+            Action::None => {}
         }
     }
     Ok(())

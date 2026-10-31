@@ -1,5 +1,6 @@
 //! The TUI state, the keys, the mouse, and the draw code.
 
+use super::dashboard::{DashboardView, Kind, Sent, Wait, wait_result};
 use super::data::Data;
 use super::devices::DevicesView;
 use super::journal::JournalView;
@@ -84,6 +85,11 @@ pub struct App {
     pub devices: DevicesView,
     pub network: NetworkView,
     pub journal: JournalView,
+    pub dashboard: DashboardView,
+    /// The action that waits for its result in `status.json`.
+    pub pending: Option<Sent>,
+    /// `tui.apply_verify_timeout`.
+    pub action_timeout: u64,
     /// `tui.osc52`.
     pub osc52: bool,
     /// The mouse belongs to the terminal (select mode).
@@ -109,6 +115,9 @@ impl App {
             devices: DevicesView::default(),
             network: NetworkView::default(),
             journal: JournalView::new(2000),
+            dashboard: DashboardView::default(),
+            pending: None,
+            action_timeout: 120,
             osc52: true,
             select_mode: false,
             now: 0,
@@ -123,6 +132,25 @@ impl App {
         self.now = now;
         self.devices.on_data(&self.data);
         self.network.on_data(&self.data);
+        self.dashboard.on_data(&self.data);
+        if let Some(sent) = &self.pending {
+            let done =
+                match wait_result(sent, self.data.status.as_deref(), now, self.action_timeout) {
+                    Wait::Pending => None,
+                    Wait::Done(m) => Some(m),
+                    Wait::Restarted => {
+                        Some("the service restarted; the result of the action is not known".into())
+                    }
+                    Wait::TimedOut => Some(format!(
+                        "no result from the service after {} s",
+                        now.saturating_sub(sent.at)
+                    )),
+                };
+            if let Some(m) = done {
+                self.message = Some(m);
+                self.pending = None;
+            }
+        }
     }
 
     /// A text field of `status.json`, or `unknown`.
@@ -220,6 +248,24 @@ impl App {
         Action::None
     }
 
+    /// The main loop sent a signal (or could not).
+    pub fn action_sent(&mut self, r: Result<Sent, String>) {
+        match r {
+            Ok(s) => {
+                let sig = match s.kind {
+                    Kind::SyncNow => "SIGUSR1 (sync now)",
+                    Kind::Reload => "SIGHUP (reload)",
+                };
+                self.message = Some(format!(
+                    "{sig} sent to PID {}; waiting for status.json",
+                    s.pid
+                ));
+                self.pending = Some(s);
+            }
+            Err(e) => self.message = Some(format!("not sent: {e}")),
+        }
+    }
+
     /// Copy the selected journal lines with OSC 52.
     fn copy(&mut self) -> Action {
         let text = self.journal.selection_text();
@@ -281,11 +327,8 @@ impl App {
             Tab::Devices => self.devices.draw(f, main, &self.data),
             Tab::Network => self.network.draw(f, main, &self.data),
             Tab::Journal => self.journal.draw(f, main),
+            Tab::Dashboard => self.dashboard.draw(f, main, &self.data, self.now),
             Tab::Settings => self.draw_settings(f, main),
-            _ => f.render_widget(
-                Paragraph::new("loading").block(Block::default().borders(Borders::ALL)),
-                main,
-            ),
         }
         let keys = match self.tab {
             Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",
@@ -301,16 +344,15 @@ impl App {
                 "l level  / search  f follow  Shift+arrows or mouse select  y copy  s select mode  q quit"
             }
             Tab::Settings => "Up/Down scroll  q quit  1-5 tabs  S sync  R reload",
-            _ => "q quit  1-5/Tab tabs  S sync now  R reload",
+            Tab::Dashboard => "S sync now (asks first)  R reload the config  q quit  1-5/Tab tabs",
         };
-        let text = match &self.message {
-            Some(m) => format!("{m}  |  {keys}"),
-            None => keys.into(),
+        // An action message first, then a loader error, then the keys.
+        let (text, color) = match (&self.message, self.data.errors.first()) {
+            (Some(m), _) => (format!("{m}  |  {keys}"), Color::Gray),
+            (None, Some(e)) => (format!("{e}  |  {keys}"), Color::Red),
+            (None, None) => (keys.to_string(), Color::Gray),
         };
-        f.render_widget(
-            Paragraph::new(text).style(Style::new().fg(Color::Gray)),
-            footer,
-        );
+        f.render_widget(Paragraph::new(text).style(Style::new().fg(color)), footer);
         if self.modal == Some(Modal::ConfirmSync) {
             let r = center(main, 50, 5);
             f.render_widget(Clear, r);
@@ -612,6 +654,54 @@ mod tests {
         let mut a = journal_app(&["one"]);
         assert_eq!(a.on_key(key(KeyCode::Char('s'))), Action::SelectMode(true));
         assert_eq!(a.on_key(key(KeyCode::Char('s'))), Action::SelectMode(false));
+    }
+
+    #[test]
+    fn action_result_comes_from_status() {
+        use crate::tui::dashboard::{Kind, Sent};
+        let mut a = app(false);
+        a.action_sent(Ok(Sent {
+            kind: Kind::SyncNow,
+            at: 1_000,
+            pid: 7,
+            seq: 4,
+        }));
+        assert!(a.message.as_deref().unwrap().contains("waiting"));
+        let st = |seq: u64| Data {
+            status: Some(Arc::new(
+                serde_json::json!({"pid": 7, "cycle_seq": seq, "trigger": "sync_now", "updated": 1_001}),
+            )),
+            ..Data::default()
+        };
+        a.set_data(st(4), 1_001);
+        assert!(a.message.as_deref().unwrap().contains("waiting"));
+        a.set_data(st(5), 1_002);
+        assert!(
+            a.message.as_deref().unwrap().contains("sync now done"),
+            "{:?}",
+            a.message
+        );
+        assert!(a.pending.is_none());
+        a.action_sent(Err("PID 9 is \"bash\", not lqosync3".into()));
+        assert!(a.message.as_deref().unwrap().contains("bash"));
+    }
+
+    #[test]
+    fn loader_errors_show_in_the_footer() {
+        let mut a = app(false);
+        let d = Data {
+            errors: vec!["cannot read /x/ShapedDevices.csv: not found".into()],
+            ..Data::default()
+        };
+        a.set_data(d, 0);
+        let s = draw(&mut a, 120, 10);
+        assert!(
+            s.lines()
+                .last()
+                .unwrap()
+                .contains("cannot read /x/ShapedDevices.csv"),
+            "{s}"
+        );
     }
 
     #[test]
