@@ -84,9 +84,10 @@ fn fresh(evidence: &Evidence) -> Result<()> {
     );
     Ok(())
 }
+/// RouterOS form: a single host has no "/32". Verification compares these strings with actual rows.
 fn address(a: u32, b: u32) -> String {
     if a == b {
-        format!("{}/32", Ipv4Addr::from(a))
+        Ipv4Addr::from(a).to_string()
     } else {
         format!("{}-{}", Ipv4Addr::from(a), Ipv4Addr::from(b))
     }
@@ -247,7 +248,7 @@ impl Plan {
                 member: Member {
                     id: String::new(),
                     list: h.list.clone(),
-                    address: h.address.clone(),
+                    address: address(a, b),
                     comment: core_plan::marker(&self.owner, &h.subscriber, &h.wan),
                     dynamic: false,
                     disabled: false,

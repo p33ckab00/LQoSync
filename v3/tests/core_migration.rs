@@ -44,6 +44,9 @@ fn fixture() -> (Plan, Mock) {
         },
     )
 }
+fn routeros_form(address: &str) -> String {
+    address.strip_suffix("/32").unwrap_or(address).to_string()
+}
 fn prepare(evidence: Evidence, address: &str, id: &str) -> Result<Plan> {
     Plan::prepare(
         evidence,
@@ -90,8 +93,10 @@ impl Mock {
     }
     fn after_write(&self) -> Result<()> {
         assert!(
-            self.evidence.rows["core"].iter().any(|r| r.list == "wan-a"
-                && (r.address == "192.0.2.0/29" || r.address == "192.0.2.3/32")),
+            self.evidence.rows["core"]
+                .iter()
+                .any(|r| r.list == "wan-a"
+                    && (r.address == "192.0.2.0/29" || r.address == "192.0.2.3")),
             "Selected client lost membership during a write or rollback"
         );
         if let Some((at, path)) = &self.journal_fault
@@ -123,6 +128,8 @@ impl Transport for Mock {
         self.before_write()?;
         let mut entry = entry.clone();
         entry.id = format!("*{}", self.next_id);
+        // RouterOS stores a single-host address without "/32".
+        entry.address = routeros_form(&entry.address);
         self.next_id += 1;
         let id = entry.id.clone();
         self.evidence.rows.get_mut(router).unwrap().push(entry);
@@ -140,7 +147,7 @@ impl Transport for Mock {
             .find(|r| r.id == expected.id)
             .unwrap();
         assert_eq!(entry, expected);
-        entry.address = address.into();
+        entry.address = routeros_form(address);
         self.after_write()
     }
     async fn remove(&mut self, router: &str, expected: &Member) -> Result<()> {
