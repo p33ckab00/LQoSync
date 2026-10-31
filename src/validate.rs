@@ -49,13 +49,23 @@ pub fn check(rows: &[CsvRow], network: &Value, mode: NetworkMode) -> anyhow::Res
     if let Value::Object(tree) = network {
         collect_nodes(tree, &mut nodes)?;
     }
-    let mut ids = HashSet::new();
+    // A circuit can have several device rows: one Circuit ID, one name, several Device IDs.
+    let mut circuit_names: HashMap<&str, &str> = HashMap::new();
+    let mut device_ids = HashSet::new();
     for row in rows {
         let name = &row.circuit_name;
+        let first = *circuit_names
+            .entry(row.circuit_id.as_str())
+            .or_insert(name.as_str());
         ensure!(
-            ids.insert(row.circuit_id.as_str()),
-            "circuit \"{name}\": Circuit ID \"{}\" is used two times",
+            first == name.as_str(),
+            "circuit \"{name}\": Circuit ID \"{}\" is also used by circuit \"{first}\"",
             row.circuit_id
+        );
+        ensure!(
+            device_ids.insert(row.device_id.as_str()),
+            "circuit \"{name}\": Device ID \"{}\" is used two times",
+            row.device_id
         );
         if mode != NetworkMode::NoParent && !row.parent_node.is_empty() {
             let Some(id) = nodes.get(&row.parent_node) else {
@@ -186,5 +196,20 @@ mod tests {
         let mut r = row("a", "1", "P", "lq3-p");
         r.upload_min = "0.05".into();
         assert!(check(&[r], &net(), M).is_err());
+    }
+
+    #[test]
+    fn multi_device_circuit_passes_but_shared_device_id_stops() {
+        let mut b = row("a", "1", "P", "lq3-p");
+        b.device_id = "D2".into();
+        check(&[row("a", "1", "P", "lq3-p"), b], &net(), M).unwrap();
+        assert!(
+            check(
+                &[row("a", "1", "P", "lq3-p"), row("a", "1", "P", "lq3-p")],
+                &net(),
+                M
+            )
+            .is_err()
+        );
     }
 }

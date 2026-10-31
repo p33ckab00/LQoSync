@@ -612,6 +612,103 @@ impl DhcpServer {
 }
 
 impl Config {
+    /// TOML accepts `inf` and `nan`. Reject them, so that no rate becomes infinite or `null`.
+    fn check_finite(&self) -> anyhow::Result<()> {
+        let bd = &self.bandwidth_defaults;
+        let n = &self.network;
+        let c = &self.backstop_caps;
+        let mut values: Vec<(String, f64)> = vec![
+            (
+                "bandwidth_defaults.min_rate_percentage".into(),
+                bd.min_rate_percentage,
+            ),
+            ("bandwidth_defaults.safe_min_mbps".into(), bd.safe_min_mbps),
+            (
+                "bandwidth_defaults.max_floor_mbps".into(),
+                bd.max_floor_mbps,
+            ),
+            (
+                "bandwidth_defaults.pppoe_aggregate_factor".into(),
+                bd.pppoe_aggregate_factor,
+            ),
+            (
+                "bandwidth_defaults.dhcp_default_per_client_mbps".into(),
+                bd.dhcp_default_per_client_mbps,
+            ),
+            (
+                "bandwidth_defaults.dhcp_download_factor".into(),
+                bd.dhcp_download_factor,
+            ),
+            (
+                "bandwidth_defaults.dhcp_upload_factor".into(),
+                bd.dhcp_upload_factor,
+            ),
+            (
+                "bandwidth_defaults.hotspot_default_per_client_mbps".into(),
+                bd.hotspot_default_per_client_mbps,
+            ),
+            (
+                "bandwidth_defaults.hotspot_download_factor".into(),
+                bd.hotspot_download_factor,
+            ),
+            (
+                "bandwidth_defaults.hotspot_upload_factor".into(),
+                bd.hotspot_upload_factor,
+            ),
+            ("network.root_download_mbps".into(), n.root_download_mbps),
+            ("network.root_upload_mbps".into(), n.root_upload_mbps),
+            (
+                "safety.max_removed_percent".into(),
+                self.safety.max_removed_percent,
+            ),
+        ];
+        for (k, cap) in [
+            ("pppoe", &c.pppoe),
+            ("dhcp", &c.dhcp),
+            ("hotspot", &c.hotspot),
+        ] {
+            values.push((
+                format!("backstop_caps.{k}.download_mbps"),
+                cap.download_mbps,
+            ));
+            values.push((format!("backstop_caps.{k}.upload_mbps"), cap.upload_mbps));
+            values.push((format!("backstop_caps.{k}.multiplier"), cap.multiplier));
+        }
+        for r in &self.routers {
+            let h = &r.hotspot;
+            for (k, v) in [
+                ("hotspot.download_limit_mbps", h.download_limit_mbps),
+                ("hotspot.upload_limit_mbps", h.upload_limit_mbps),
+                ("hotspot.download_factor", h.download_factor),
+                ("hotspot.upload_factor", h.upload_factor),
+            ] {
+                values.extend(v.map(|v| (format!("router \"{}\": {k}", r.name), v)));
+            }
+            for s in &r.dhcp.servers {
+                for (k, v) in [
+                    ("default_plan_down_mbps", s.default_plan_down_mbps),
+                    ("default_plan_up_mbps", s.default_plan_up_mbps),
+                    ("download_factor", s.download_factor),
+                    ("upload_factor", s.upload_factor),
+                ] {
+                    values.extend(v.map(|v| {
+                        (
+                            format!("router \"{}\" server \"{}\": {k}", r.name, s.name),
+                            v,
+                        )
+                    }));
+                }
+            }
+        }
+        for (k, v) in values {
+            ensure!(
+                v.is_finite(),
+                "config: {k} must be a finite number, not {v}"
+            );
+        }
+        Ok(())
+    }
+
     /// Parse a TOML text and check all values.
     pub fn from_toml_str(s: &str) -> anyhow::Result<Config> {
         let cfg: Config = toml::from_str(s).context("config: TOML parse error")?;
@@ -629,6 +726,7 @@ impl Config {
     }
 
     fn validate(&self) -> anyhow::Result<()> {
+        self.check_finite()?;
         ensure!(
             !self.routers.is_empty(),
             "config: [[routers]] must have one router or more"
@@ -975,5 +1073,19 @@ mod tests {
             c.routers[0].dhcp.servers[0].sources(),
             vec![DhcpSource::ServerComment, DhcpSource::Settings]
         );
+    }
+
+    #[test]
+    fn non_finite_values_are_rejected() {
+        for bad in [
+            "[network]\nroot_download_mbps=inf\n",
+            "[bandwidth_defaults]\npppoe_aggregate_factor=nan\n",
+            "[backstop_caps.pppoe]\nmultiplier=inf\n",
+        ] {
+            assert!(
+                Config::from_toml_str(&format!("{bad}{MIN}")).is_err(),
+                "{bad}"
+            );
+        }
     }
 }

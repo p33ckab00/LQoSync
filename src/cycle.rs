@@ -63,7 +63,6 @@ struct Entry {
     router: Option<String>,
     source: Source,
     last_seen: u64,
-    is_static: bool,
     existed_before: bool,
     collected_now: bool,
 }
@@ -103,7 +102,8 @@ pub fn assemble(
     let speed = SpeedParser::new(&cfg.speed)?;
     let mut report = Report::default();
 
-    // Rule 1: state rows, then static rows.
+    // Rule 1: state rows. Static rows stay a list: a static circuit can have several device rows.
+    let mut statics: Vec<CsvRow> = input.static_rows.to_vec();
     let mut rows: BTreeMap<String, Entry> = BTreeMap::new();
     for (name, c) in &input.state.circuits {
         rows.insert(
@@ -113,38 +113,27 @@ pub fn assemble(
                 router: c.router.clone(),
                 source: c.source,
                 last_seen: c.last_seen,
-                is_static: false,
                 existed_before: true,
                 collected_now: false,
             },
         );
     }
-    for s in input.static_rows {
-        rows.insert(
-            s.circuit_name.clone(),
-            Entry {
-                row: s.clone(),
-                router: None,
-                source: Source::Unknown,
-                last_seen: input.now,
-                is_static: true,
-                existed_before: true,
-                collected_now: false,
-            },
-        );
+    // A static row replaces a state row with the same name.
+    for s in &statics {
+        rows.remove(&s.circuit_name);
     }
 
     // Rule 2: IP index and IDs in use.
     let mut ip_index: HashMap<String, String> = HashMap::new();
     let mut used_ids: HashSet<String> = HashSet::new();
-    for (name, e) in &rows {
-        if !e.row.ipv4.is_empty() {
+    for r in statics.iter().chain(rows.values().map(|e| &e.row)) {
+        if !r.ipv4.is_empty() {
             ip_index
-                .entry(e.row.ipv4.clone())
-                .or_insert_with(|| name.clone());
+                .entry(r.ipv4.clone())
+                .or_insert_with(|| r.circuit_name.clone());
         }
-        used_ids.insert(e.row.circuit_id.clone());
-        used_ids.insert(e.row.device_id.clone());
+        used_ids.insert(r.circuit_id.clone());
+        used_ids.insert(r.device_id.clone());
     }
     let mut fresh_id = || loop {
         let id = new_id();
@@ -165,12 +154,35 @@ pub fn assemble(
         let Some(rcfg) = cfg.routers.iter().find(|r| &r.name == rname) else {
             continue;
         };
+        let mut seen_here: HashSet<String> = HashSet::new();
         for c in collect_router(cfg, rcfg, snap, &speed, &mut report.warnings) {
-            let old = rows.get(&c.name);
+            // Two rows of one router with the same Circuit Name: keep the first one.
+            if !seen_here.insert(c.name.clone()) {
+                report.warnings.push(format!(
+                    "router {rname}: two rows give circuit {}; kept the first, skipped MAC {} IP {}",
+                    c.name, c.mac, c.ipv4
+                ));
+                continue;
+            }
+            // A collected circuit replaces a static row with the same name and keeps its IDs.
+            let replaced_static = statics.iter().find(|s| s.circuit_name == c.name).cloned();
+            if replaced_static.is_some() {
+                statics.retain(|s| s.circuit_name != c.name);
+            }
+            let old_row = rows.get(&c.name).map(|e| e.row.clone()).or(replaced_static);
+            let old = old_row.as_ref();
             let is_new = old.is_none();
+            // A new circuit on an IP that a static row or a circuit of this cycle holds is skipped.
+            // An IP of an old row that was not collected goes to the new circuit (an IP pool reuses it).
+            let holder_wins = |other: &String| {
+                statics.iter().any(|s| s.ipv4 == c.ipv4)
+                    || rows.get(other).is_some_and(|e| e.collected_now)
+            };
             if is_new
                 && !c.ipv4.is_empty()
-                && let Some(other) = ip_index.get(&c.ipv4).filter(|o| **o != c.name)
+                && let Some(other) = ip_index
+                    .get(&c.ipv4)
+                    .filter(|o| **o != c.name && holder_wins(o))
             {
                 report.warnings.push(format!(
                     "duplicate IP {}: kept {other}, skipped new {}",
@@ -182,7 +194,7 @@ pub fn assemble(
                 continue;
             }
             let (circuit_id, device_id) = match old {
-                Some(e) => (e.row.circuit_id.clone(), e.row.device_id.clone()),
+                Some(r) => (r.circuit_id.clone(), r.device_id.clone()),
                 None => (fresh_id(), fresh_id()),
             };
             let (parent_node, parent_node_id) = if mode == NetworkMode::FlatPromotion {
@@ -215,8 +227,8 @@ pub fn assemble(
             };
             match old {
                 None => report.added.push(c.name.clone()),
-                Some(e) => {
-                    let changes = changed_columns(&e.row, &row);
+                Some(r) => {
+                    let changes = changed_columns(r, &row);
                     if !changes.is_empty() {
                         report.updated.push((c.name.clone(), changes));
                     }
@@ -225,7 +237,7 @@ pub fn assemble(
             if is_new && !c.ipv4.is_empty() {
                 ip_index.insert(c.ipv4.clone(), c.name.clone());
             }
-            let existed_before = old.is_some_and(|e| e.existed_before);
+            let existed_before = old.is_some();
             members.insert(c.name.clone(), (rname.clone(), c.group.clone(), c.base));
             rows.insert(
                 c.name.clone(),
@@ -234,7 +246,6 @@ pub fn assemble(
                     router: Some(rname.clone()),
                     source: c.source,
                     last_seen: input.now,
-                    is_static: false,
                     existed_before,
                     collected_now: true,
                 },
@@ -251,7 +262,7 @@ pub fn assemble(
     let mut to_remove: Vec<String> = Vec::new();
     if cfg.runtime.remove_inactive_entries {
         for (name, e) in &rows {
-            if e.is_static || e.collected_now {
+            if e.collected_now {
                 continue;
             }
             let aged = input.now.saturating_sub(e.last_seen) >= grace;
@@ -275,7 +286,7 @@ pub fn assemble(
     // Rule 6: removal guard.
     let mut guard = None;
     if !to_remove.is_empty() {
-        let base = rows.values().filter(|e| !e.is_static).count();
+        let base = rows.len();
         let s = &cfg.safety;
         let too_many = to_remove.len() > s.max_removed_count
             || to_remove.len() as f64 * 100.0 > base as f64 * s.max_removed_percent;
@@ -311,7 +322,13 @@ pub fn assemble(
     }
     report.removed = to_remove;
 
-    // Duplicate IPs across all rows: keep collected now, then existed before, then the lower name.
+    // Duplicate IPs across all rows: a static row wins, then a row collected now, then a row
+    // that existed before, then the lower name.
+    let static_ip: HashMap<&str, &str> = statics
+        .iter()
+        .filter(|s| !s.ipv4.is_empty())
+        .map(|s| (s.ipv4.as_str(), s.circuit_name.as_str()))
+        .collect();
     let mut by_ip: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (name, e) in &rows {
         if !e.row.ipv4.is_empty() {
@@ -321,13 +338,22 @@ pub fn assemble(
                 .push(name.clone());
         }
     }
-    for (ip, mut names) in by_ip.into_iter().filter(|(_, n)| n.len() > 1) {
+    let mut dropped_names: HashSet<String> = HashSet::new();
+    for (ip, mut names) in by_ip.into_iter() {
+        let static_holder = static_ip.get(ip.as_str()).map(|s| s.to_string());
+        if names.len() < 2 && static_holder.is_none() {
+            continue;
+        }
         names.sort_by_key(|n| {
             let e = &rows[n];
             (!e.collected_now, !e.existed_before, n.clone())
         });
-        let kept = names[0].clone();
-        for dropped in &names[1..] {
+        let (kept, losers) = match static_holder {
+            Some(s) => (s, &names[..]),
+            None => (names[0].clone(), &names[1..]),
+        };
+        for dropped in losers {
+            dropped_names.insert(dropped.clone());
             rows.remove(dropped);
             members.remove(dropped);
             report
@@ -338,6 +364,9 @@ pub fn assemble(
                 .push((ip.clone(), kept.clone(), dropped.clone()));
         }
     }
+
+    report.added.retain(|n| !dropped_names.contains(n));
+    report.updated.retain(|(n, _)| !dropped_names.contains(n));
 
     // Rule 8: nodes.
     let mut online: Vec<RouterGroups> = Vec::new();
@@ -381,15 +410,11 @@ pub fn assemble(
         .filter(|(_, n)| n.router.as_deref().is_some_and(keeps_nodes))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
-    let plain_rows: Vec<CsvRow> = rows
-        .values()
-        .filter(|e| !e.is_static)
-        .map(|e| e.row.clone())
-        .collect();
-    let mut nodes = build_nodes(cfg, input.v3, &online, &carried, &plain_rows);
+    let plain_rows: Vec<CsvRow> = rows.values().map(|e| e.row.clone()).collect();
+    let mut nodes = build_nodes(cfg, input.v3, &online, &carried, &plain_rows)?;
     // A row that stays (grace, seed, or a router that keeps its rows) keeps its old
     // parent node and the ancestors of that node, if this cycle does not make them.
-    for e in rows.values().filter(|e| !e.collected_now && !e.is_static) {
+    for e in rows.values().filter(|e| !e.collected_now) {
         let mut parent = Some(e.row.parent_node.clone()).filter(|p| !p.is_empty());
         while let Some(p) = parent.take() {
             if nodes.contains_key(&p) {
@@ -409,12 +434,15 @@ pub fn assemble(
     let network = to_network_json(&nodes, preserved, &input.state.nodes);
 
     // Rule 7: validation.
-    let out_rows: Vec<CsvRow> = rows.values().map(|e| e.row.clone()).collect();
+    let out_rows: Vec<CsvRow> = rows
+        .values()
+        .map(|e| e.row.clone())
+        .chain(statics)
+        .collect();
     validate::check(&out_rows, &network, mode)?;
 
     let circuits = rows
         .into_iter()
-        .filter(|(_, e)| !e.is_static)
         .map(|(name, e)| {
             (
                 name,
@@ -793,6 +821,7 @@ mod tests {
             out.report.duplicates,
             vec![("100.64.0.1".into(), "old".into(), "dup".into())]
         );
+        assert!(out.report.added.is_empty(), "{:?}", out.report.added);
     }
 
     #[test]
@@ -1028,5 +1057,193 @@ mod tests {
             out.network["PPP-R1"]["downloadBandwidthMbps"],
             serde_json::json!(50.0)
         );
+    }
+
+    fn static_row(name: &str, cid: &str, did: &str, ip: &str) -> CsvRow {
+        CsvRow {
+            circuit_id: cid.into(),
+            circuit_name: name.into(),
+            device_id: did.into(),
+            ipv4: ip.into(),
+            download_min: "5".into(),
+            upload_min: "5".into(),
+            download_max: "10".into(),
+            upload_max: "10".into(),
+            comment: "static".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn static_row_wins_a_duplicate_ip() {
+        let srv = static_row("srv", "S1", "SD1", "100.64.0.50");
+        let first = run_full(
+            &rp(),
+            &State::default(),
+            std::slice::from_ref(&srv),
+            vec![("R1", ppp(&[("alice", "100.64.0.9")])), ("R2", ppp(&[]))],
+            false,
+        );
+        let out = run_full(
+            &rp(),
+            &first.state,
+            &[srv],
+            vec![("R1", ppp(&[("alice", "100.64.0.50")])), ("R2", ppp(&[]))],
+            false,
+        );
+        assert_eq!(names(&out), ["srv"]);
+        assert_eq!(
+            out.report.duplicates,
+            vec![("100.64.0.50".into(), "srv".into(), "alice".into())]
+        );
+    }
+
+    #[test]
+    fn recycled_ip_goes_to_the_new_subscriber() {
+        let c = cfg("root_promotion", "[runtime]\nsubscriber_grace=600");
+        let st = state(vec![stored(
+            "alice",
+            Some("R1"),
+            "100.64.0.5",
+            "K1",
+            NOW - 30,
+        )]);
+        let out = run(
+            &c,
+            &st,
+            vec![("R1", ppp(&[("bob", "100.64.0.5")])), ("R2", ppp(&[]))],
+        );
+        assert_eq!(names(&out), ["bob"]);
+        assert_eq!(out.report.added, vec!["bob".to_string()]);
+        assert_eq!(
+            out.report.duplicates,
+            vec![("100.64.0.5".into(), "bob".into(), "alice".into())]
+        );
+    }
+
+    #[test]
+    fn same_name_twice_in_one_router_keeps_first_and_warns() {
+        let c = Config::from_toml_str(
+            "[network]\nmode=\"root_promotion\"\n[safety]\nenabled=false\n\
+             [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n\
+             [routers.dhcp]\nenabled=true\n[[routers.dhcp.servers]]\nname=\"LAN\"\n",
+        )
+        .unwrap();
+        let snap: RouterSnapshot = serde_json::from_str(
+            r#"{"dhcp_lease":[
+                {"server":"LAN","host-name":"iPhone","mac-address":"02:00:00:00:09:01","address":"100.66.9.1"},
+                {"server":"LAN","host-name":"iPhone","mac-address":"02:00:00:00:09:02","address":"100.66.9.2"}]}"#,
+        )
+        .unwrap();
+        let first = run(
+            &c,
+            &State::default(),
+            vec![("R1", RouterResult::Online(snap.clone()))],
+        );
+        assert_eq!(names(&first), ["DHCP-iPhone"]);
+        assert_eq!(get(&first, "DHCP-iPhone").mac, "02:00:00:00:09:01");
+        assert!(
+            first
+                .report
+                .warnings
+                .iter()
+                .any(|w| w.contains("DHCP-iPhone")),
+            "{:?}",
+            first.report.warnings
+        );
+        let again = run(&c, &first.state, vec![("R1", RouterResult::Online(snap))]);
+        assert!(
+            again.report.updated.is_empty(),
+            "{:?}",
+            again.report.updated
+        );
+    }
+
+    #[test]
+    fn node_name_collision_stops_with_clear_message() {
+        let c = Config::from_toml_str(
+            "[network]\nmode=\"root_promotion\"\n[safety]\nenabled=false\n\
+             [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n\
+             [routers.pppoe]\nenabled=true\nper_plan_node=true\n[routers.hotspot]\nenabled=true\n",
+        )
+        .unwrap();
+        let snap: RouterSnapshot = serde_json::from_str(
+            r#"{"ppp_secret":[{"name":"alice","profile":"HS"}],"ppp_active":[{"name":"alice","address":"100.64.0.2"}],
+                "ppp_profile":[{"name":"HS","rate-limit":"10M/10M"}],
+                "hotspot_active":[{"user":"g","mac-address":"02:00:00:00:08:01","address":"100.65.0.9"}]}"#,
+        )
+        .unwrap();
+        let input = CycleInput {
+            config: &c,
+            state: &State::default(),
+            static_rows: &[],
+            routers: vec![("R1".into(), RouterResult::Online(snap))],
+            current_network: None,
+            v3: false,
+            force: false,
+            now: NOW,
+        };
+        let e = format!("{:#}", assemble(input, &mut ids()).err().unwrap());
+        assert!(
+            e.contains("HS-R1") && e.contains("hotspot") && e.contains("ppp_plan"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn static_multi_device_circuit_keeps_all_rows() {
+        let a = CsvRow {
+            circuit_name: "Biz".into(),
+            ..static_row("Biz", "C9", "D1", "100.64.9.1")
+        };
+        let b = CsvRow {
+            circuit_name: "Biz".into(),
+            ..static_row("Biz", "C9", "D2", "100.64.9.2")
+        };
+        let out = run_full(
+            &rp(),
+            &State::default(),
+            &[a, b],
+            vec![("R1", ppp(&[])), ("R2", ppp(&[]))],
+            false,
+        );
+        assert_eq!(
+            out.rows.iter().filter(|r| r.circuit_name == "Biz").count(),
+            2
+        );
+    }
+
+    #[test]
+    fn seeded_nodes_survive_preserve_mode() {
+        let c = Config::from_toml_str(
+            "[network]\nmode=\"root_promotion\"\npreserve_network_config=true\n[safety]\nenabled=false\n\
+             [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n\
+             [routers.pppoe]\nenabled=true\n",
+        )
+        .unwrap();
+        let net = serde_json::json!({
+            "Core": {"children": {"Tower": {"children": {}, "downloadBandwidthMbps": 5.0, "type": "ap", "uploadBandwidthMbps": 5.0}},
+                     "downloadBandwidthMbps": 100.0, "type": "site", "uploadBandwidthMbps": 100.0},
+            "PPP-R1": {"children": {}, "downloadBandwidthMbps": 10.0, "type": "plan", "uploadBandwidthMbps": 10.0}});
+        let (_, st0) = stored("alice", None, "100.64.0.1", "K1", 1);
+        let mut st = state(vec![("alice".into(), st0)]);
+        st.nodes = crate::state::seed_nodes(&net);
+        let input = CycleInput {
+            config: &c,
+            state: &st,
+            static_rows: &[],
+            routers: vec![("R1".into(), ppp(&[("alice", "100.64.0.1")]))],
+            current_network: Some(net),
+            v3: false,
+            force: false,
+            now: NOW,
+        };
+        let out = assemble(input, &mut ids()).unwrap();
+        assert!(
+            out.network["Core"]["children"]["Tower"].is_object(),
+            "{}",
+            out.network
+        );
+        assert!(out.network["PPP-R1"].is_object());
     }
 }

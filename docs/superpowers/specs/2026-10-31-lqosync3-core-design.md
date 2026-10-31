@@ -36,7 +36,7 @@ CycleOutput = { rows, nodes, state, report }
 - `router_results` holds one `RouterResult` for each configured router, in config order.
 - `RouterResult` is `Online(RouterSnapshot)`, `Failed`, `Unreachable`, or `Offline`. Plan 2 sets the state. Plan 1 receives it.
 - `RouterSnapshot` holds the raw RouterOS rows of six tables: `ppp_secret`, `ppp_active`, `ppp_profile`, `hotspot_active`, `dhcp_server`, `dhcp_lease`. Each row is a map from field name to string, in the RouterOS reply order.
-- `static_rows` are the rows of the current `ShapedDevices.csv` with Comment equal to `runtime.static_comment` (case is ignored). The operator can add these rows while the tool operates.
+- `static_rows` are the rows of the current `ShapedDevices.csv` with Comment equal to `runtime.static_comment` (case is ignored). The operator can add these rows while the tool operates. The core keeps them as a list, so a static circuit can have several device rows (one Circuit ID, several Device IDs).
 
 ## 3. State file
 
@@ -63,17 +63,19 @@ Path: `<runtime.state_dir>/state.json`. Plan 2 writes it with a temporary file a
 - `source` is `ppp`, `hotspot`, `dhcp`, or `unknown`.
 - `router` is `null` for a row from the seed. A node with `router = null` is a root node for all routers.
 - `nodes` holds only the nodes that the tool made. Use it to keep the nodes of a failed router and to remove only generated nodes when `preserve_network_config = true`.
+- Seed nodes: `state::seed_nodes(network.json)` reads the current tree with `seeded = true`. A row from the seed finds its parent there. In preserve mode, the tool never deletes a seeded node.
 - Seed: if `state.json` does not exist, read the rows of the current `ShapedDevices.csv`. Each row that is not static becomes a circuit with `router = null`, `last_seen = now`. `source` comes from the row: Comment `PPP` gives `ppp`, a name that starts with `HS-` gives `hotspot`, a name that starts with `DHCP-` gives `dhcp`, else `unknown`. The seed keeps the Circuit ID and the Device ID.
 
 ## 4. Cycle assembly rules
 
 The core applies these rules in this order.
 
-1. Start with the rows from `state.circuits`. Add each static row. A static row replaces a state row with the same Circuit Name.
+1. Start with the rows from `state.circuits`. A static row replaces a state row with the same Circuit Name.
 2. Make the IP index from the IPv4 field of all rows.
 3. For each router in config order with `Online`: process PPPoE, then Hotspot, then DHCP servers in config order. Process PPPoE users in Circuit Name order. Process Hotspot and DHCP rows in RouterOS reply order.
 4. For each collected circuit:
-   - A new Circuit Name with an IPv4 that is in the IP index for a different name is a duplicate. Skip it, add a report warning, and do not count it in a group total.
+   - If one router gives the same Circuit Name two times, keep the first one and add a report warning.
+   - A new Circuit Name with an IPv4 that a static row or a circuit collected in this cycle holds is a duplicate. Skip it, add a report warning, and do not count it in a group total. If an old row that was not collected holds the IPv4, the new circuit gets it (an IP pool reuses addresses), and the duplicate pass drops the old row.
    - A new Circuit Name gets a new Circuit ID and Device ID: `id_length` characters from `A-Z0-9`, from `/dev/urandom`. Make a new value if the ID is already in use.
    - Set the CSV fields from section 5. Set `router`, `source`, and `last_seen = now`. A collected circuit replaces a static row with the same name.
    - If two routers give the same Circuit Name, the later router in config order wins.
@@ -146,14 +148,16 @@ The nodes follow the six network modes of `updatecsv.py`, with the v3 changes of
 
 The validator stops the cycle with an error for these cases:
 
-- Two rows with the same Circuit ID.
+- Two rows with the same Circuit ID and different Circuit Names.
 - A row with a Parent Node that is not a node, when the mode makes nodes. `no_parent` gives an empty Parent Node.
 - A row with a Parent Node ID that is not the `id` of its Parent Node.
 - Two nodes with the same name, at any level of `network.json`.
 - A min rate above the max rate.
 - A max rate below 0.2 or a min rate below 0.1 (LibreQoS rejects these).
 
-The validator removes a row for a duplicate IPv4 and adds a report warning. It keeps one row in this order: a row collected in this cycle, then a row that existed before, then the row with the lower Circuit Name.
+The validator removes a row for a duplicate IPv4 and adds a report warning. It keeps one row in this order: a static row, then a row collected in this cycle, then a row that existed before, then the row with the lower Circuit Name. A dropped row leaves `report.added` and `report.updated`.
+
+These cases also stop the cycle: two rows with the same Circuit ID but different Circuit Names, two rows with the same Device ID, and two node rules that give the same node name (the error names both rules).
 
 ## 8. Output format
 

@@ -2,28 +2,20 @@
 
 use crate::model::{CsvRow, Source, State, StoredCircuit, StoredNode};
 use anyhow::{Context, ensure};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 /// Read `ShapedDevices.csv` text with 13, 14, or 15 columns, by header name.
-/// A row with an empty Circuit Name is skipped. A later row with the same name
-/// replaces the earlier row, at the position of the earlier row.
+/// A row with an empty Circuit Name is skipped. All other rows stay, so a circuit
+/// with several devices keeps one row for each device.
 pub fn read_csv(text: &str) -> anyhow::Result<Vec<CsvRow>> {
     let mut reader = csv::ReaderBuilder::new()
         .flexible(true)
         .from_reader(text.as_bytes());
-    let mut rows: Vec<CsvRow> = Vec::new();
-    let mut index: HashMap<String, usize> = HashMap::new();
+    let mut rows = Vec::new();
     for (n, rec) in reader.deserialize::<CsvRow>().enumerate() {
         let row = rec.with_context(|| format!("ShapedDevices.csv: bad data row {}", n + 1))?;
-        if row.circuit_name.trim().is_empty() {
-            continue;
-        }
-        match index.get(&row.circuit_name) {
-            Some(&i) => rows[i] = row,
-            None => {
-                index.insert(row.circuit_name.clone(), rows.len());
-                rows.push(row);
-            }
+        if !row.circuit_name.trim().is_empty() {
+            rows.push(row);
         }
     }
     Ok(rows)
@@ -92,6 +84,7 @@ pub fn seed_nodes(network: &serde_json::Value) -> BTreeMap<String, StoredNode> {
                         .to_string(),
                     down: num("downloadBandwidthMbps"),
                     up: num("uploadBandwidthMbps"),
+                    seeded: true,
                 },
             );
             if let Some(serde_json::Value::Object(kids)) = node.get("children") {
@@ -148,13 +141,15 @@ mod tests {
     }
 
     #[test]
-    fn read_csv_skips_blank_names_and_later_duplicate_wins() {
+    fn read_csv_skips_blank_names_and_keeps_repeated_names() {
         let rows = read_csv(&format!(
             "{HDR}A,x,,,,,,,,,,,1\nB,,,,,,,,,,,,2\nC,x,,,,,,,,,,,3\n"
         ))
         .unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].circuit_id, "C");
+        // All rows stay: a multi-device circuit has several rows with one name.
+        assert_eq!(rows.len(), 2);
+        // The seed keeps one circuit for each name: the later row wins.
+        assert_eq!(seed_state(&rows, 1).circuits["x"].row.circuit_id, "C");
     }
 
     #[test]

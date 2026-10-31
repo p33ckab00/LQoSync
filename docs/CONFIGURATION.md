@@ -311,7 +311,7 @@ A `type` in `[nodes]` applies to all targets.
 
 ## Name templates
 
-`[nodes]` and `[circuits]` use these fields: `{router}`, `{profile}`, `{server}`, `{plan}`, `{user}`, and `{key}`.
+`[nodes]` and `[circuits]` use these fields: `{router}`, `{profile}`, `{server}`, `{plan}`, `{user}`, and `{key}`. A `[circuits]` template can use `{router}`, for example `"{user}@{router}"`.
 The tool records each node that it makes in `state_dir`. It deletes only these nodes. It does not delete a node that an operator added.
 
 > [!caution]

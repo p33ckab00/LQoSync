@@ -81,7 +81,17 @@ fn parse_pair(token: &str, unitless: UnitlessUnit) -> Option<(f64, f64)> {
 /// `A/B` in download/upload order. A number with no unit is Mbps.
 pub fn parse_default_rate(s: &str) -> Option<Rate> {
     let (down, up) = parse_pair(s.split_whitespace().next()?, UnitlessUnit::Mbps)?;
-    (down > 0.0 && up > 0.0).then_some(Rate { down, up })
+    usable(Rate { down, up })
+}
+
+/// A rate is usable if both values are finite. A very long digit run parses to infinity.
+fn finite(r: Rate) -> Option<Rate> {
+    (r.down.is_finite() && r.up.is_finite()).then_some(r)
+}
+
+/// A usable rate is finite and above zero.
+fn usable(r: Rate) -> Option<Rate> {
+    finite(r).filter(|r| r.down > 0.0 && r.up > 0.0)
 }
 
 /// Speed parser with the regexes compiled one time.
@@ -115,7 +125,7 @@ impl SpeedParser {
             if let Some(c) = re.captures(s) {
                 let v =
                     |i: usize, u: usize| to_mbps(c[i].parse().unwrap_or(0.0), &c[u], self.unitless);
-                return Some(Rate {
+                return finite(Rate {
                     down: v(1, 2),
                     up: v(3, 4),
                 });
@@ -123,7 +133,7 @@ impl SpeedParser {
         }
         let c = self.single.captures(s)?;
         let v: f64 = c[1].parse().ok()?;
-        Some(Rate { down: v, up: v })
+        finite(Rate { down: v, up: v })
     }
 
     /// Speed from a RouterOS `rate-limit` value. Only the first rate pair counts.
@@ -133,7 +143,7 @@ impl SpeedParser {
             RateLimitOrder::DownloadUpload => Rate { down: a, up: b },
             RateLimitOrder::RouterosRxTx => Rate { down: b, up: a },
         };
-        (rate.down > 0.0 && rate.up > 0.0).then_some(rate)
+        usable(rate)
     }
 
     /// Speed from a profile name: the last match of `profile_name_regex`.
@@ -142,7 +152,7 @@ impl SpeedParser {
         let number: f64 = c.get(1)?.as_str().parse().ok()?;
         let unit = c.get(2).map_or("", |m| m.as_str());
         let v = to_mbps(number, unit, self.unitless);
-        (v > 0.0).then_some(Rate { down: v, up: v })
+        usable(Rate { down: v, up: v })
     }
 }
 
@@ -236,5 +246,13 @@ mod tests {
         // LibreQoS rejects a max below 0.2.
         let c = circuit_rates(Rate { down: 0.1, up: 0.1 }, 0.1, 0.128, 0.2);
         assert_eq!((c.down_min, c.down_max), (0.128, 0.2));
+    }
+
+    #[test]
+    fn overlong_number_is_no_rate() {
+        let big = format!("{}M", "9".repeat(400));
+        assert_eq!(p().comment(&big), None);
+        assert_eq!(p().rate_limit(&format!("{big}/{big}")), None);
+        assert_eq!(p().profile_name(&format!("Gold-{big}")), None);
     }
 }

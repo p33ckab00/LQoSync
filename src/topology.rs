@@ -6,8 +6,9 @@ use crate::config::{BackstopCap, Config, DhcpMode, NetworkMode, NodeTemplate};
 use crate::model::{CsvRow, StoredNode};
 use crate::sources::GroupKey;
 use crate::speed::{Rate, clamp};
+use anyhow::bail;
 use serde_json::{Map, Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// FNV-1a 64-bit hash. Stable across builds and platforms.
 pub fn fnv1a64(bytes: &[u8]) -> u64 {
@@ -168,6 +169,28 @@ fn count_rate(t: &GroupTotal) -> Rate {
     }
 }
 
+/// Insert a node that this cycle makes. Two rules that give the same node name are a config
+/// error (for example a PPP profile "HS" and the Hotspot node "HS-<router>").
+fn put(
+    nodes: &mut BTreeMap<String, StoredNode>,
+    made: &mut HashMap<String, (String, String)>,
+    name: String,
+    kind: &str,
+    node: StoredNode,
+) -> anyhow::Result<()> {
+    if let Some((other, id)) = made.get(&name)
+        && *id != node.id
+    {
+        bail!(
+            "network.json: node name \"{name}\" comes from two rules, {other} and {kind}; \
+             change a [nodes] template, or rename the PPP profile or DHCP server"
+        );
+    }
+    made.insert(name.clone(), (kind.to_string(), node.id.clone()));
+    nodes.insert(name, node);
+    Ok(())
+}
+
 /// Make all nodes of the cycle. `carried` holds the old nodes of routers that are not online.
 pub fn build_nodes(
     cfg: &Config,
@@ -175,9 +198,10 @@ pub fn build_nodes(
     online: &[RouterGroups],
     carried: &BTreeMap<String, StoredNode>,
     rows: &[CsvRow],
-) -> BTreeMap<String, StoredNode> {
+) -> anyhow::Result<BTreeMap<String, StoredNode>> {
     let net = &cfg.network;
     let mut nodes = carried.clone();
+    let mut made: HashMap<String, (String, String)> = HashMap::new();
     let root = |id: String, router: Option<String>| StoredNode {
         id,
         router,
@@ -185,18 +209,18 @@ pub fn build_nodes(
         r#type: net.root_type.clone(),
         down: net.root_download_mbps,
         up: net.root_upload_mbps,
+        seeded: false,
     };
     match net.mode {
         NetworkMode::GroupedRouterRoot | NetworkMode::FlatRouterRoot => {
             for r in &cfg.routers {
-                nodes.insert(
-                    r.name.clone(),
-                    root(node_id("root", &r.name, ""), Some(r.name.clone())),
-                );
+                let n = root(node_id("root", &r.name, ""), Some(r.name.clone()));
+                put(&mut nodes, &mut made, r.name.clone(), "root", n)?;
             }
         }
         NetworkMode::FlatGlobalRoot => {
-            nodes.insert(net.root_name.clone(), root(node_id("root", "", ""), None));
+            let n = root(node_id("root", "", ""), None);
+            put(&mut nodes, &mut made, net.root_name.clone(), "root", n)?;
         }
         NetworkMode::FlatPromotion => {
             for row in rows {
@@ -205,8 +229,11 @@ pub fn build_nodes(
                         .parse::<f64>()
                         .unwrap_or(cfg.bandwidth_defaults.max_floor_mbps)
                 };
-                nodes.insert(
+                put(
+                    &mut nodes,
+                    &mut made,
                     row.circuit_name.clone(),
+                    "client",
                     StoredNode {
                         id: client_node_id(&row.circuit_id),
                         router: None,
@@ -214,14 +241,15 @@ pub fn build_nodes(
                         r#type: cfg.nodes.client.r#type.clone(),
                         down: max(&row.download_max),
                         up: max(&row.upload_max),
+                        seeded: false,
                     },
-                );
+                )?;
             }
         }
         NetworkMode::NoParent | NetworkMode::RootPromotion => {}
     }
     if !is_grouped(net.mode) {
-        return nodes;
+        return Ok(nodes);
     }
     let parent_of =
         |router: &str| (net.mode == NetworkMode::GroupedRouterRoot).then(|| router.to_string());
@@ -242,8 +270,11 @@ pub fn build_nodes(
         for (key, t) in groups {
             let rate = group_rate(cfg, &g.router, &key, &t);
             let (tpl, v2_type) = template(cfg, &key);
-            nodes.insert(
+            put(
+                &mut nodes,
+                &mut made,
                 group_node_name(cfg, &g.router, &key),
+                kind_key(&key).0,
                 StoredNode {
                     id: group_node_id(&g.router, &key),
                     router: Some(g.router.clone()),
@@ -251,11 +282,12 @@ pub fn build_nodes(
                     r#type: tpl.type_for(v2_type, v3),
                     down: rate.down,
                     up: rate.up,
+                    seeded: false,
                 },
-            );
+            )?;
         }
     }
-    nodes
+    Ok(nodes)
 }
 
 fn node_json(n: &StoredNode, children: Map<String, Value>) -> Value {
@@ -275,6 +307,17 @@ fn remove_named(tree: &mut Map<String, Value>, names: &BTreeMap<String, StoredNo
         if let Some(Value::Object(kids)) = v.get_mut("children") {
             remove_named(kids, names);
         }
+    }
+}
+
+/// Take the children of a node out of a map, if the node is there.
+fn take_children(map: &mut Map<String, Value>, name: &str) -> Map<String, Value> {
+    match map.remove(name) {
+        Some(Value::Object(mut old)) => match old.remove("children") {
+            Some(Value::Object(k)) => k,
+            _ => Map::new(),
+        },
+        _ => Map::new(),
     }
 }
 
@@ -304,30 +347,25 @@ pub fn to_network_json(
     // A node that stays is updated in place, so the operator children under it stay.
     let stale: BTreeMap<String, StoredNode> = prev_generated
         .iter()
-        .filter(|(k, _)| !nodes.contains_key(*k))
+        .filter(|(k, v)| !v.seeded && !nodes.contains_key(*k))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
     remove_named(&mut tree, &stale);
     // Roots first, so that each child finds its parent.
     for (name, n) in nodes.iter().filter(|(_, n)| n.parent.is_none()) {
-        let kids = match tree.remove(name) {
-            Some(Value::Object(mut old)) => match old.remove("children") {
-                Some(Value::Object(k)) => k,
-                _ => Map::new(),
-            },
-            _ => Map::new(),
-        };
+        let kids = take_children(&mut tree, name);
         tree.insert(name.clone(), node_json(n, kids));
     }
     for (name, n) in nodes.iter().filter(|(_, n)| n.parent.is_some()) {
         let parent = n.parent.as_deref().unwrap_or_default();
-        let fresh = node_json(n, Map::new());
         match find_mut(&mut tree, parent).and_then(|p| p.get_mut("children")) {
             Some(Value::Object(kids)) => {
-                kids.insert(name.clone(), fresh);
+                // A node that is already there keeps its operator children.
+                let old = take_children(kids, name);
+                kids.insert(name.clone(), node_json(n, old));
             }
             _ => {
-                tree.insert(name.clone(), fresh);
+                tree.insert(name.clone(), node_json(n, Map::new()));
             }
         }
     }
@@ -412,7 +450,7 @@ upload_factor = 1.0
         BTreeMap::new()
     }
     fn net(c: &Config, v3: bool, g: &[RouterGroups]) -> serde_json::Value {
-        to_network_json(&build_nodes(c, v3, g, &none(), &[]), None, &none())
+        to_network_json(&build_nodes(c, v3, g, &none(), &[]).unwrap(), None, &none())
     }
     fn groups_json() -> serde_json::Value {
         json!({
@@ -491,7 +529,7 @@ upload_factor = 1.0
             ..Default::default()
         }];
         let v = to_network_json(
-            &build_nodes(&c, false, &groups(), &none(), &rows),
+            &build_nodes(&c, false, &groups(), &none(), &rows).unwrap(),
             None,
             &none(),
         );
@@ -546,9 +584,10 @@ upload_factor = 1.0
             r#type: "plan".into(),
             down: 9.0,
             up: 9.0,
+            seeded: false,
         };
         carried.insert("Old-R2".into(), old.clone());
-        let nodes = build_nodes(&c, false, &groups(), &carried, &[]);
+        let nodes = build_nodes(&c, false, &groups(), &carried, &[]).unwrap();
         assert_eq!(nodes["Old-R2"], old);
         assert_eq!(nodes.len(), 4);
     }
@@ -571,6 +610,7 @@ upload_factor = 1.0
                 r#type: "plan".into(),
                 down: 2.0,
                 up: 2.0,
+                seeded: false,
             },
         );
         // The router root was also made by the tool in the last cycle.
@@ -583,10 +623,11 @@ upload_factor = 1.0
                 r#type: "site".into(),
                 down: 640.0,
                 up: 640.0,
+                seeded: false,
             },
         );
         let v = to_network_json(
-            &build_nodes(&c, false, &groups(), &none(), &[]),
+            &build_nodes(&c, false, &groups(), &none(), &[]).unwrap(),
             Some(preserved),
             &prev,
         );
@@ -625,5 +666,29 @@ upload_factor = 1.0
         );
         assert_eq!(p("no_parent"), (String::new(), String::new()));
         assert_eq!(p("flat_promotion"), (String::new(), String::new()));
+    }
+
+    #[test]
+    fn a_kept_child_keeps_its_operator_children() {
+        let c = cfg("grouped_router_root", "");
+        let preserved = json!({"R1": {"children": {"Mid": {"children": {"Leaf": {"children": {}, "type": "ap"}}, "type": "site"}}, "type": "site"}});
+        let mut nodes = build_nodes(&c, false, &[], &none(), &[]).unwrap();
+        nodes.insert(
+            "Mid".into(),
+            StoredNode {
+                id: "lq3-mid".into(),
+                router: None,
+                parent: Some("R1".into()),
+                r#type: "site".into(),
+                down: 1.0,
+                up: 1.0,
+                seeded: true,
+            },
+        );
+        let v = to_network_json(&nodes, Some(preserved), &none());
+        assert!(
+            v["R1"]["children"]["Mid"]["children"]["Leaf"].is_object(),
+            "{v}"
+        );
     }
 }

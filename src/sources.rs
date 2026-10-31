@@ -133,7 +133,11 @@ fn collect_ppp(
             m => m,
         };
         out.push(Collected {
-            name: cfg.circuits.pppoe.replace("{user}", user),
+            name: cfg
+                .circuits
+                .pppoe
+                .replace("{user}", user)
+                .replace("{router}", &router.name),
             device_name: user.to_string(),
             mac: mac.to_string(),
             ipv4: f(act, "address").to_string(),
@@ -173,7 +177,11 @@ fn collect_hotspot(
             continue;
         }
         out.push(Collected {
-            name: cfg.circuits.hotspot.replace("{key}", &key),
+            name: cfg
+                .circuits
+                .hotspot
+                .replace("{key}", &key)
+                .replace("{router}", &router.name),
             device_name: if user.is_empty() {
                 key.clone()
             } else {
@@ -251,7 +259,11 @@ fn collect_dhcp(
                 client.to_string()
             };
             out.push(Collected {
-                name: cfg.circuits.dhcp.replace("{key}", &key),
+                name: cfg
+                    .circuits
+                    .dhcp
+                    .replace("{key}", &key)
+                    .replace("{router}", &router.name),
                 device_name: key.clone(),
                 mac: mac.to_string(),
                 ipv4: ip.to_string(),
@@ -507,5 +519,13 @@ mode = "per_plan"
         assert_eq!(plan_label(rate(25.0, 5.0)), "25M-5M");
         assert_eq!(plan_label(rate(10.0, 10.0)), "10M");
         assert_eq!(plan_label(rate(2.5, 2.5)), "2M");
+    }
+
+    #[test]
+    fn circuit_templates_can_use_router() {
+        let mut c = cfg(false);
+        c.circuits.pppoe = "{user}@{router}".into();
+        let s = snap(r#"{"ppp_secret":[{"name":"alice"}],"ppp_active":[{"name":"alice"}]}"#);
+        assert_eq!(run(&c, &s).0[0].name, "alice@R1");
     }
 }

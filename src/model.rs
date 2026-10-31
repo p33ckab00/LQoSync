@@ -139,6 +139,10 @@ pub struct StoredNode {
     pub r#type: String,
     pub down: f64,
     pub up: f64,
+    /// True for a node from the first network.json (an operator or legacy node).
+    /// The tool never deletes a seeded node in preserve mode.
+    #[serde(default)]
+    pub seeded: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
