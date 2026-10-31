@@ -46,8 +46,8 @@ None at this time.
 
 ### Next action
 
-1. Shadow service on the production shaper: `lqosync3.service` operates in `shadow` mode since 2026-10-31 14:51. After 2026-11-01 14:51, run `sudo lqosync3 diff`. If the result is the same as the first run (one known difference), do the cutover to `apply` mode (OPERATIONS.md, "Cutover from the Python service"). The cutover needs the operator's approval.
-2. Plan 2b (Telegram) is done in code: `src/notify.rs`. To use it on the shaper, install the new binary, write `/etc/lqosync3/secrets/telegram.token`, and set `[telegram] enabled = true` with the chat ID. Refer to OPERATIONS.md, "Turn on Telegram".
+1. Shadow service on the production shaper: `lqosync3.service` operates in `shadow` mode. The binary changed at 2026-10-31 15:24 UTC (commit `056a91e`, Telegram on). After 2026-11-01 15:24 UTC, run `sudo lqosync3 diff`. If the result is the same as the first run (one known difference), do the cutover to `apply` mode (OPERATIONS.md, "Cutover from the Python service"). The cutover needs the operator's approval.
+2. Plan 2b (Telegram) is done and operates on the shaper: `[telegram] enabled = true`, chat `810741035`, token in `/etc/lqosync3/secrets/telegram.token`. The test message arrived at 15:24 UTC.
 3. Plan 3: LibreQoS v3 detection and writers.
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.

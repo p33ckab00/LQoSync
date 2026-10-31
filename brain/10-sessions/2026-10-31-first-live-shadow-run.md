@@ -29,8 +29,15 @@ Run lqosync3 in `shadow` mode against the live router and compare the result wit
 - Cause: the server comment is `35M/35M`. lqosync3 uses the server comment before the settings. The Python service uses only the settings. The new result is correct.
 - The router has 4 DHCP servers, the same as the config. `discover = true` gives the same result.
 
+## Telegram (15:24 UTC)
+
+- Installed the Plan 2b binary (commit `056a91e`). The token came from `config.json` with a script that does not show the token.
+- `check`: `OK    telegram: the bot token is readable`.
+- Test: removed `/var/lib/lqosync3/candidate/network.json`, then sent `SIGUSR1`. The cycle wrote the candidate again, and the message `[shadow] OK: lqosync3 candidate files changed` arrived in the chat.
+- Until the cutover, the chat gets messages from two tools: the Python service and lqosync3 (`[shadow]`).
+
 ## Open items
 
-- After 24 hours (2026-11-01 14:51), run `sudo lqosync3 diff` again.
+- After 24 hours (2026-11-01 15:24 UTC, from the binary change), run `sudo lqosync3 diff` again.
 - The cutover to `apply` mode needs the operator's approval.
 - Plain API: think about `api-ssl` (port 8729) with `tls_ca_file` later.
