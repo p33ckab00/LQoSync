@@ -9,6 +9,7 @@ pub mod mikrotik;
 pub mod model;
 pub mod routeros;
 pub mod routerstate;
+pub mod runner;
 pub mod secrets;
 pub mod sources;
 pub mod speed;
