@@ -56,6 +56,7 @@ fn no_mutations_or_secret_properties_are_exposed() {
         "/routing/table/print",
         "/routing/rule/print",
         "/ip/firewall/filter/print",
+        "/ip/firewall/connection/print",
     ] {
         assert!(read_properties(path).is_ok(), "Missing core read: {path}");
     }

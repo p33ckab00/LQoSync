@@ -20,6 +20,9 @@ pub fn read_properties(path: &str) -> Result<&'static str> {
         | "/ip/firewall/filter/print"
         | "/routing/rule/print" => "*",
         "/routing/table/print" => "name,fib,disabled,dynamic,invalid",
+        "/ip/firewall/connection/print" => {
+            "src-address,dst-address,reply-src-address,reply-dst-address,protocol,connection-mark"
+        }
         "/ip/firewall/address-list/print" => ".id,list,address,comment,dynamic,disabled,timeout",
         "/ip/neighbor/print" => "identity,interface,interface-name,address,mac-address",
         "/ppp/profile/print" => "name,rate-limit,comment",
