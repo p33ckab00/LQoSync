@@ -11,6 +11,7 @@ tags:
 # 2026-10-31 First live shadow run
 
 ## Connections
+- [[ADR-0009 DHCP discovery and exclusions_1]] - `references` [EXTRACTED]
 - [[ADR-0009 DHCP discovery and exclusions]] - `references` [EXTRACTED]
 - [[DHCP-libreqos 25 to 35 Mbps difference]] - `references` [EXTRACTED]
 - [[FSEHub-Distro router (10.200.1.28728)]] - `references` [EXTRACTED]

@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "dhcp_server_gives_override_or_"
 location: "L314"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/dhcp_server_gives_override_or_
 ---
 
 # HotspotCfg
@@ -17,4 +17,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/dhcp_server_gives_override_or_

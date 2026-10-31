@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "fs"
-location: "L39"
+community: "Community 7"
+location: "L40"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/fs
+  - community/Community_7
 ---
 
 # CycleInput
@@ -16,9 +16,10 @@ tags:
 - [[CsvRow]] - `references` [EXTRACTED]
 - [[RouterResult]] - `references` [EXTRACTED]
 - [[State]] - `references` [EXTRACTED]
-- [[Value_5]] - `references` [EXTRACTED]
+- [[Value_3]] - `references` [EXTRACTED]
 - [[assemble()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
+- [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/fs
+#graphify/code #graphify/EXTRACTED #community/Community_7

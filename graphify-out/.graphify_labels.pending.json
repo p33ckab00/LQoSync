@@ -1,13 +1,11 @@
 {
-  "4": "cli.rs",
-  "6": "mock_router.rs",
-  "14": "secrets.rs",
-  "18": "mikrotik.rs",
-  "20": "scenarios.rs",
-  "22": "Command",
-  "26": "DhcpServer",
-  "33": "BackstopCap",
-  "41": "config/defaults.toml embedded defaults",
-  "48": "model.rs",
-  "49": "State"
+  "0": "mock_router.rs",
+  "7": "cycle.rs",
+  "9": "routeros.rs",
+  "15": "mikrotik.rs",
+  "16": "Configuration reference",
+  "18": "runner::Runner::cycle (one full cycle)",
+  "19": "read_router",
+  "23": "PppSource",
+  "36": "lqosync3 core design spec"
 }

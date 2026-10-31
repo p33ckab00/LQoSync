@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "Config 3"
 location: "L238"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/Config_3
 ---
 
 # BackstopCap
@@ -17,4 +17,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/Config_3

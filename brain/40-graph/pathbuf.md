@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Telegram Notifier 2"
+community: "Community 7"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Telegram_Notifier_2
+  - community/Community_7
 ---
 
 # pathbuf
@@ -15,4 +15,4 @@ tags:
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier_2
+#graphify/concept #graphify/EXTRACTED #community/Community_7

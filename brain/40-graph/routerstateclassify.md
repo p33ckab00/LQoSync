@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
 type: "concept"
-community: "Router State 3"
+community: "Community 16"
 location: "L108"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Router_State_3
+  - community/Community_16
 ---
 
 # routerstate::classify
@@ -17,4 +17,4 @@ tags:
 - [[routerosReadError]] - `references` [EXTRACTED]
 - [[runnerRunnercycle (one full cycle)]] - `calls` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Router_State_3
+#graphify/concept #graphify/EXTRACTED #community/Community_16

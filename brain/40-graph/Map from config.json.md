@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Speed Rules"
+community: "Community 16"
 location: "L379-404"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # Map from config.json
@@ -15,4 +15,4 @@ tags:
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[lqosync3 import-json (planned)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Community_16

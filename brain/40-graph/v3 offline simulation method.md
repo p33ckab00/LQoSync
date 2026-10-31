@@ -12,6 +12,7 @@ tags:
 
 ## Connections
 - [[runlqosbus 0777 safety caution]] - `semantically_similar_to` [INFERRED]
+- [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]

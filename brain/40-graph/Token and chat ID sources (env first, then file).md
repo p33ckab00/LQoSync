@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md"
 type: "rationale"
-community: "Telegram Notifier"
+community: "Community 16"
 location: "L52-56"
 tags:
   - graphify/rationale
   - graphify/INFERRED
-  - community/Telegram_Notifier
+  - community/Community_16
 ---
 
 # Token and chat ID sources (env first, then file)
@@ -16,4 +16,4 @@ tags:
 - [[Task 3 Transport (post_json, send, token, chat_id)]] - `implements` [INFERRED]
 - [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/INFERRED #community/Telegram_Notifier
+#graphify/rationale #graphify/INFERRED #community/Community_16

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Speed Rules"
+community: "Topology 3"
 location: "L262-272"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Topology_3
 ---
 
 # Subscriber presence and subscriber_grace
@@ -16,4 +16,4 @@ tags:
 - [[Cycle assembly rules]] - `implements` [INFERRED]
 - [[RouterOS listen change detection (future)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

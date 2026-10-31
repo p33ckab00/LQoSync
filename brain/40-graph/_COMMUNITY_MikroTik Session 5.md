@@ -35,12 +35,12 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 1 edge to [[_COMMUNITY_Topology 3]]
-- 1 edge to [[_COMMUNITY_Plan 2 Runtime]]
-- 1 edge to [[_COMMUNITY_Router State 3]]
+- 2 edges to [[_COMMUNITY_Community 16]]
+- 1 edge to [[_COMMUNITY_Session Notes]]
+- 1 edge to [[_COMMUNITY_Community 36]]
 - 1 edge to [[_COMMUNITY_Speed Rules 3]]
 
 ## Top bridge nodes
-- [[lqosync3 runtime design (Plan 2)]] - degree 18, connects to 2 communities
+- [[lqosync3 runtime design (Plan 2)]] - degree 19, connects to 2 communities
 - [[Files lock, state.json, status.json, candidate, applied]] - degree 7, connects to 1 community
 - [[Router reads (print only, timeouts, retries, concurrent sessions)]] - degree 3, connects to 1 community

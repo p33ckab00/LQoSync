@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Circuit Collection"
 location: "L287"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Circuit_Collection
 ---
 
 # RouterCfg
@@ -38,4 +38,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[tls_client_config()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

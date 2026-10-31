@@ -1,11 +1,11 @@
 ---
 type: community
-members: 46
+members: 44
 ---
 
 # Telegram Notifier 2
 
-**Members:** 46 nodes
+**Members:** 44 nodes
 
 ## Members
 - [[Args]] - code - src/cli.rs
@@ -21,8 +21,8 @@ members: 46
 - [[Ok]] - code - src/cli.rs
 - [[Once]] - code - src/cli.rs
 - [[Run]] - code - src/cli.rs
-- [[TempDir_1]] - code
 - [[TempDir_2]] - code
+- [[TempDir_3]] - code
 - [[USAGE]] - code - src/cli.rs
 - [[Warn_1]] - code - src/cli.rs
 - [[check()_1]] - code - src/cli.rs
@@ -42,9 +42,7 @@ members: 46
 - [[missing_file_names_the_path()]] - code - src/secrets.rs
 - [[parse()]] - code - src/cli.rs
 - [[parse_commands_and_config_path()]] - code - src/cli.rs
-- [[pathbuf]] - concept
 - [[permissionsext]] - concept
-- [[read_secret]] - concept
 - [[read_secret()]] - code - src/secrets.rs
 - [[reads_and_trims_a_good_secret()]] - code - src/secrets.rs
 - [[rejects_group_or_other_bits()]] - code - src/secrets.rs
@@ -63,22 +61,22 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 6 edges to [[_COMMUNITY_MikroTik Session]]
 - 4 edges to [[_COMMUNITY_Config 3]]
-- 3 edges to [[_COMMUNITY_Router State]]
-- 3 edges to [[_COMMUNITY_Telegram Notifier]]
+- 4 edges to [[_COMMUNITY_Telegram Notifier]]
+- 4 edges to [[_COMMUNITY_Community 15]]
+- 4 edges to [[_COMMUNITY_File Safety]]
 - 3 edges to [[_COMMUNITY_Config]]
+- 2 edges to [[_COMMUNITY_Community 0]]
 - 2 edges to [[_COMMUNITY_hashmap]]
-- 2 edges to [[_COMMUNITY_Config 2]]
-- 2 edges to [[_COMMUNITY_File Safety]]
 - 1 edge to [[_COMMUNITY_LibreQoS v3 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 2]]
+- 1 edge to [[_COMMUNITY_LogLevel]]
+- 1 edge to [[_COMMUNITY_Router State]]
+- 1 edge to [[_COMMUNITY_Community 7]]
 - 1 edge to [[_COMMUNITY_Secrets]]
-- 1 edge to [[_COMMUNITY_fs]]
 
 ## Top bridge nodes
-- [[cli.rs]] - degree 33, connects to 7 communities
-- [[context]] - degree 7, connects to 5 communities
+- [[cli.rs]] - degree 33, connects to 8 communities
+- [[context]] - degree 7, connects to 4 communities
 - [[ensure]] - degree 4, connects to 3 communities
 - [[secrets.rs]] - degree 13, connects to 2 communities
-- [[pathbuf]] - degree 3, connects to 2 communities
+- [[read_secret()]] - degree 8, connects to 2 communities

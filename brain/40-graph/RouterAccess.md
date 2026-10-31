@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Router State 2"
 location: "L70"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Router_State_2
 ---
 
 # RouterAccess
@@ -30,4 +30,4 @@ tags:
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Router_State_2

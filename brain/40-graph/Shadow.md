@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router State"
+community: "LogLevel"
 location: "L31"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/LogLevel
 ---
 
 # Shadow
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[RuntimeMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/LogLevel

@@ -2,7 +2,7 @@
 source_file: "src/notify.rs"
 type: "code"
 community: "Telegram Notifier"
-location: "L248"
+location: "L282"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -15,6 +15,7 @@ tags:
 - [[Task 3 Transport (post_json, send, token, chat_id)]] - `references` [EXTRACTED]
 - [[Telegram]] - `references` [EXTRACTED]
 - [[notify.rs]] - `contains` [EXTRACTED]
+- [[read_secret()]] - `calls` [INFERRED]
 - [[send()]] - `calls` [EXTRACTED]
 - [[token_env_wins_and_empty_env_uses_file()]] - `calls` [EXTRACTED]
 

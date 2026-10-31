@@ -1,16 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "File Safety"
+community: "Community 7"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/File_Safety
+  - community/Community_7
 ---
 
 # Value
 
 ## Connections
-- [[Live]] - `references` [EXTRACTED]
+- [[render_network_json()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/File_Safety
+#graphify/code #graphify/EXTRACTED #community/Community_7

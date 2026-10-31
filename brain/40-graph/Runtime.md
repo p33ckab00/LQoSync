@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router State"
+community: "LogLevel"
 location: "L46"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/LogLevel
 ---
 
 # Runtime
@@ -19,4 +19,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/LogLevel

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Speed Rules"
+community: "Community 16"
 location: "L215-222"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # DHCP server discovery
@@ -15,4 +15,4 @@ tags:
 - [[ADR-0009 DHCP discovery and exclusions]] - `implements` [INFERRED]
 - [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Community_16

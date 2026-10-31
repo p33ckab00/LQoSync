@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Router State 3"
+community: "Community 16"
 location: "L244-260"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Router_State_3
+  - community/Community_16
 ---
 
 # Router state (online/failed/unreachable/offline)
@@ -19,4 +19,4 @@ tags:
 - [[RouterResult (OnlineFailedUnreachableOffline)]] - `conceptually_related_to` [INFERRED]
 - [[routerstateclassify]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Router_State_3
+#graphify/concept #graphify/INFERRED #community/Community_16

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L650"
+community: "Community 7"
+location: "L674"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # id_collision_asks_for_another_id()
@@ -17,4 +17,4 @@ tags:
 - [[run()_2]] - `calls` [EXTRACTED]
 - [[state()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Telegram Notifier 3"
+community: "Community 16"
 location: "L19-37"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Telegram_Notifier_3
+  - community/Community_16
 ---
 
 # Command reference (check, once, diff, run, defaults)
@@ -16,4 +16,4 @@ tags:
 - [[Removal guard (safety)]] - `references` [INFERRED]
 - [[cliparse  cliCommand]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Telegram_Notifier_3
+#graphify/concept #graphify/INFERRED #community/Community_16

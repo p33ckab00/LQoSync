@@ -13,6 +13,8 @@ tags:
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
 - [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
+- [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[Session updatecsv.py dissection]] - `references` [EXTRACTED]
 - [[libreqos-v3-preflight]] - `references` [INFERRED]

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Telegram Notifier 3"
+community: "Community 16"
 location: "L33-34"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Telegram_Notifier_3
+  - community/Community_16
 ---
 
 # status.json cycle status
@@ -16,4 +16,4 @@ tags:
 - [[Operations guide]] - `references` [EXTRACTED]
 - [[statusStatus  RouterStatus]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Telegram_Notifier_3
+#graphify/concept #graphify/INFERRED #community/Community_16

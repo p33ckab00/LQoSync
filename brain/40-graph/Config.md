@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[dot-check_finite()]] - `method` [EXTRACTED]
-- [[dot-default()_1]] - `method` [EXTRACTED]
+- [[dot-default()]] - `method` [EXTRACTED]
 - [[dot-from_toml_str()]] - `method` [EXTRACTED]
 - [[dot-merge()]] - `method` [EXTRACTED]
 - [[dot-new()]] - `references` [EXTRACTED]

@@ -12,6 +12,5 @@ tags:
 
 ## Connections
 - [[post_json()]] - `references` [EXTRACTED]
-- [[read_snapshot()]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Telegram_Notifier

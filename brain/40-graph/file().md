@@ -12,7 +12,7 @@ tags:
 # file()
 
 ## Connections
-- [[TempDir_1]] - `references` [EXTRACTED]
+- [[TempDir_3]] - `references` [EXTRACTED]
 - [[error_never_contains_the_secret()]] - `calls` [EXTRACTED]
 - [[reads_and_trims_a_good_secret()]] - `calls` [EXTRACTED]
 - [[rejects_group_or_other_bits()]] - `calls` [EXTRACTED]

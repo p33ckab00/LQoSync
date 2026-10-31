@@ -1,11 +1,11 @@
 ---
 type: community
-members: 22
+members: 21
 ---
 
 # Topology 2
 
-**Members:** 22 nodes
+**Members:** 21 nodes
 
 ## Members
 - [[runlqosbus 0777 safety caution]] - rationale - docs/LIBREQOS-V3-INGRESS.md
@@ -16,7 +16,6 @@ members: 22
 - [[LibreQoS.py --updateonly no-op in v3]] - concept - docs/LIBREQOS-V3-INGRESS.md
 - [[Offline v3 simulation]] - concept - docs/LIBREQOS-V3-INGRESS.md
 - [[Session 2026-10-31 project setup and v3 simulation]] - document - brain/10-sessions/2026-10-31-project-setup-and-v3-simulation.md
-- [[Tool must reject duplicate IP and node name]] - concept - brain/30-knowledge/libreqos-v3-ingress-facts.md
 - [[topology source in lqos.conf]] - concept - docs/LIBREQOS-V3-INGRESS.md
 - [[topology source setting]] - concept - brain/30-knowledge/libreqos-v3-ingress-facts.md
 - [[liblqos_python.so binding]] - concept - docs/LIBREQOS-V3-INGRESS.md
@@ -39,17 +38,16 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 5 edges to [[_COMMUNITY_Topology 4]]
+- 8 edges to [[_COMMUNITY_Community 36]]
+- 4 edges to [[_COMMUNITY_Status and Diff 2]]
+- 4 edges to [[_COMMUNITY_Topology 4]]
+- 2 edges to [[_COMMUNITY_Session Notes]]
 - 2 edges to [[_COMMUNITY_Speed Rules 2]]
-- 2 edges to [[_COMMUNITY_Decisions]]
-- 1 edge to [[_COMMUNITY_Session Notes]]
-- 1 edge to [[_COMMUNITY_Topology 5]]
-- 1 edge to [[_COMMUNITY_Speed Rules]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
+- 1 edge to [[_COMMUNITY_Community 18]]
 
 ## Top bridge nodes
-- [[ADR-0002 v3 target selection]] - degree 6, connects to 3 communities
-- [[LibreQoS v3 ingress facts]] - degree 12, connects to 2 communities
-- [[Session 2026-10-31 project setup and v3 simulation]] - degree 7, connects to 2 communities
-- [[v3 offline simulation method]] - degree 6, connects to 2 communities
-- [[lqosd inotify file watcher]] - degree 5, connects to 1 community
+- [[LibreQoS v3 ingress facts]] - degree 14, connects to 4 communities
+- [[ADR-0002 v3 target selection]] - degree 8, connects to 4 communities
+- [[v3 offline simulation method]] - degree 7, connects to 3 communities
+- [[Session 2026-10-31 project setup and v3 simulation]] - degree 9, connects to 2 communities
+- [[LibreQoS v3 ingress document]] - degree 15, connects to 1 community

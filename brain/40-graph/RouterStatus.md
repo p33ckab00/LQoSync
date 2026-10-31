@@ -2,7 +2,7 @@
 source_file: "src/status.rs"
 type: "code"
 community: "Telegram Notifier"
-location: "L8"
+location: "L9"
 tags:
   - graphify/code
   - graphify/EXTRACTED

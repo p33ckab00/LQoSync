@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Telegram Notifier"
+community: "Community 16"
 location: "L191-220"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Telegram_Notifier
+  - community/Community_16
 ---
 
 # Turn on Telegram procedure
@@ -16,4 +16,4 @@ tags:
 - [[Secret file rule (0600, root, _file_env)]] - `conceptually_related_to` [INFERRED]
 - [[Telegram settings]] - `references` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Telegram_Notifier
+#graphify/concept #graphify/INFERRED #community/Community_16

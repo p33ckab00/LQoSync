@@ -20,8 +20,8 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
-- 1 edge to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_Router State 2]]
+- 1 edge to [[_COMMUNITY_Community 7]]
 - 1 edge to [[_COMMUNITY_Config]]
 
 ## Top bridge nodes

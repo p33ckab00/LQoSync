@@ -2,7 +2,7 @@
 source_file: "src/status.rs"
 type: "code"
 community: "Telegram Notifier"
-location: "L19"
+location: "L52"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -13,7 +13,9 @@ tags:
 
 ## Connections
 - [[dot-from_report()]] - `method` [EXTRACTED]
+- [[CircuitInfo]] - `references` [EXTRACTED]
 - [[Status]] - `references` [EXTRACTED]
+- [[UpdatedInfo]] - `references` [EXTRACTED]
 - [[notify.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `contains` [EXTRACTED]

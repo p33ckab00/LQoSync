@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0008-terminal-ui.md"
 type: "concept"
-community: "Status and Diff 4"
+community: "Speed Rules 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff_4
+  - community/Speed_Rules_2
 ---
 
 # SIGUSR1 sync now / SIGHUP reload
@@ -14,4 +14,4 @@ tags:
 - [[ADR-0008 Terminal UI]] - `rationale_for` [EXTRACTED]
 - [[lqosync3 tui (ratatuicrossterm)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff_4
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules_2

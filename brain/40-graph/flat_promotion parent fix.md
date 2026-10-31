@@ -11,7 +11,7 @@ tags:
 # flat_promotion parent fix
 
 ## Connections
-- [[ADR-0005 Topology follows v3]] - `rationale_for` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `rationale_for` [EXTRACTED]
 - [[v3 offline compile results]] - `references` [INFERRED]
 
 #graphify/rationale #graphify/EXTRACTED #community/Topology_4

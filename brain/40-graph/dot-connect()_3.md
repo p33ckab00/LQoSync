@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[dot-lock()]] - `calls` [EXTRACTED]
 - [[FakeConnector]] - `method` [EXTRACTED]
-- [[FakeSession_1]] - `references` [EXTRACTED]
+- [[FakeSession]] - `references` [EXTRACTED]
 - [[Output_2]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]

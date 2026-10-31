@@ -11,10 +11,13 @@ tags:
 # LQoSync3 README
 
 ## Connections
+- [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
 - [[LQoSync3 sync tool]] - `references` [EXTRACTED]
+- [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 - [[Operations guide]] - `references` [EXTRACTED]
 - [[Read-convert-validate-write pipeline]] - `references` [EXTRACTED]
 - [[Safety rules (shadow default, no router writes, 0600 secrets)]] - `references` [EXTRACTED]

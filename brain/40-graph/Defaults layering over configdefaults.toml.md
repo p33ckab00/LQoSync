@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Speed Rules"
+community: "Community 16"
 location: "L6-14"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # Defaults layering over config/defaults.toml
@@ -15,4 +15,4 @@ tags:
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[configdefaults.toml embedded defaults]] - `references` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules
+#graphify/rationale #graphify/EXTRACTED #community/Community_16

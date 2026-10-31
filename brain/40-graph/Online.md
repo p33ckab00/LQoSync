@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "fs"
+community: "Community 7"
 location: "L19"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/fs
+  - community/Community_7
 ---
 
 # Online
@@ -15,4 +15,4 @@ tags:
 - [[RouterResult]] - `case_of` [EXTRACTED]
 - [[ppp()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/fs
+#graphify/code #graphify/EXTRACTED #community/Community_7

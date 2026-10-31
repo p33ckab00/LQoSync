@@ -12,7 +12,9 @@ tags:
 
 ## Connections
 - [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
+- [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 - [[Session 2026-10-31 project setup and v3 simulation]] - `references` [EXTRACTED]

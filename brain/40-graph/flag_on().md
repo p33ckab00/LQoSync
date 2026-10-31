@@ -12,7 +12,7 @@ tags:
 # flag_on()
 
 ## Connections
-- [[RosRow_3]] - `references` [EXTRACTED]
+- [[RosRow]] - `references` [EXTRACTED]
 - [[collect_dhcp()]] - `calls` [EXTRACTED]
 - [[collect_ppp()]] - `calls` [EXTRACTED]
 - [[f()]] - `calls` [EXTRACTED]

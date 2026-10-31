@@ -12,8 +12,8 @@ tags:
 # Env
 
 ## Connections
-- [[Fake_1]] - `references` [EXTRACTED]
-- [[TempDir_2]] - `references` [EXTRACTED]
+- [[Fake]] - `references` [EXTRACTED]
+- [[TempDir_1]] - `references` [EXTRACTED]
 - [[cfg()]] - `references` [EXTRACTED]
 - [[env()]] - `references` [EXTRACTED]
 - [[runner()]] - `references` [EXTRACTED]

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "MikroTik Session"
+community: "Community 19"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_19
 ---
 
 # C
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[read_router()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_19

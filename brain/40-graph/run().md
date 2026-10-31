@@ -1,12 +1,12 @@
 ---
 source_file: "src/main.rs"
 type: "code"
-community: "MikroTik Session 2"
+community: "Router State"
 location: "L71"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_2
+  - community/Router_State
 ---
 
 # run()
@@ -19,4 +19,4 @@ tags:
 - [[now()]] - `calls` [EXTRACTED]
 - [[print_summary()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_2
+#graphify/code #graphify/EXTRACTED #community/Router_State

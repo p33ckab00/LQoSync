@@ -12,6 +12,7 @@ tags:
 # classify()
 
 ## Connections
+- [[dot-cycle_inner()]] - `calls` [INFERRED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterMemo]] - `references` [EXTRACTED]
@@ -23,6 +24,7 @@ tags:
 - [[offline_at_offline_after()]] - `calls` [EXTRACTED]
 - [[ok_is_online_and_clears_memo()]] - `calls` [EXTRACTED]
 - [[routerstate.rs]] - `contains` [EXTRACTED]
+- [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[unreachable_before_offline_after()]] - `calls` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State_2

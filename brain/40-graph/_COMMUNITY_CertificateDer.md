@@ -31,7 +31,7 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 3 edges to [[_COMMUNITY_MikroTik Session]]
+- 3 edges to [[_COMMUNITY_Community 15]]
 - 1 edge to [[_COMMUNITY_Telegram Notifier]]
 
 ## Top bridge nodes

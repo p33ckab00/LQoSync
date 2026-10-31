@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Speed Rules"
+community: "Topology 3"
 location: "L366-369"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Speed_Rules
+  - community/Topology_3
 ---
 
 # LibreQoS v3 checks (no_parent, compile_mode)
@@ -16,4 +16,4 @@ tags:
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[Troubleshooting table]] - `references` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Speed_Rules
+#graphify/concept #graphify/INFERRED #community/Topology_3

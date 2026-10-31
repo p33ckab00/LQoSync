@@ -12,7 +12,7 @@ tags:
 # snap()
 
 ## Connections
-- [[RouterSnapshot_2]] - `references` [EXTRACTED]
+- [[RouterSnapshot]] - `references` [EXTRACTED]
 - [[a_zero_speed_profile_comment_gives_one_line()]] - `calls` [EXTRACTED]
 - [[circuit_templates_can_use_router()]] - `calls` [EXTRACTED]
 - [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]

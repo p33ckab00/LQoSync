@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0003-router-failed-vs-offline.md"
 type: "rationale"
-community: "Decisions"
+community: "Speed Rules 2"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Decisions
+  - community/Speed_Rules_2
 ---
 
 # Router state model (online/failed/unreachable/offline)
@@ -17,4 +17,4 @@ tags:
 - [[updatecsv.py]] - `references` [EXTRACTED]
 - [[updatecsv.py defects to fix]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Decisions
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules_2

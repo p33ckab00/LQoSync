@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "fs"
+community: "Community 7"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/fs
+  - community/Community_7
 ---
 
 # fs
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/fs
+#graphify/concept #graphify/EXTRACTED #community/Community_7

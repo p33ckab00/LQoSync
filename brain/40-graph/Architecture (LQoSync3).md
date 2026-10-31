@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "document"
-community: "Decisions"
+community: "Community 36"
 location: "L1"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Decisions
+  - community/Community_36
 ---
 
 # Architecture (LQoSync3)
@@ -14,9 +14,11 @@ tags:
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
 - [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
+- [[Configuration reference]] - `references` [EXTRACTED]
+- [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Session updatecsv.py dissection]] - `references` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Decisions
+#graphify/document #graphify/EXTRACTED #community/Community_36

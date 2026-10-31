@@ -1,12 +1,12 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Community 0"
 location: "L197"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_0
 ---
 
 # secrets()
@@ -17,4 +17,4 @@ tags:
 - [[mock_router.rs]] - `contains` [EXTRACTED]
 - [[reads_300_rows_sent_in_one_write()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_0

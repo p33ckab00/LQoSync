@@ -12,6 +12,7 @@ tags:
 # same()
 
 ## Connections
+- [[changed_columns()]] - `calls` [INFERRED]
 - [[diff.rs]] - `contains` [EXTRACTED]
 - [[diff_pair()]] - `calls` [EXTRACTED]
 

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Speed Rules"
+community: "Community 16"
 location: "L26-33"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # Policy in TOML, formats in code
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules
+#graphify/rationale #graphify/EXTRACTED #community/Community_16

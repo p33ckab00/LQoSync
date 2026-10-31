@@ -1,17 +1,17 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/model.rs"
 type: "code"
-community: "Topology"
-location: "L11"
+community: "Community 7"
+location: "L98"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology
+  - community/Community_7
 ---
 
 # Ppp
 
 ## Connections
-- [[GroupKey]] - `case_of` [EXTRACTED]
+- [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology
+#graphify/code #graphify/EXTRACTED #community/Community_7

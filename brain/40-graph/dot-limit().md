@@ -1,18 +1,18 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "Secrets"
 location: "L247"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/Secrets
 ---
 
 # .limit()
 
 ## Connections
 - [[BackstopCap]] - `method` [EXTRACTED]
-- [[Rate_1]] - `references` [EXTRACTED]
+- [[Rate]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/Secrets

@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L1266"
+community: "Community 7"
+location: "L1290"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # grace_also_applies_to_a_router_not_in_the_config()
@@ -16,4 +16,4 @@ tags:
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[run()_2]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

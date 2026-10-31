@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Telegram Notifier"
+community: "Community 0"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Community_0
 ---
 
 # asyncwriteext
@@ -14,4 +14,4 @@ tags:
 - [[mock_router.rs]] - `imports_from` [EXTRACTED]
 - [[notify.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/concept #graphify/EXTRACTED #community/Community_0

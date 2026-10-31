@@ -1,18 +1,19 @@
 ---
-source_file: "tests/mock_router.rs"
+source_file: "src/routeros.rs"
 type: "code"
-community: "MikroTik Session"
-location: "L64"
+community: "Community 9"
+location: "L20"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_9
 ---
 
 # Trap
 
 ## Connections
-- [[Answer]] - `case_of` [EXTRACTED]
-- [[trap_is_a_trap_error()]] - `references` [EXTRACTED]
+- [[ReadError]] - `case_of` [EXTRACTED]
+- [[gives_last_error_after_all_retries()]] - `references` [EXTRACTED]
+- [[retry_reconnects_and_succeeds()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_9

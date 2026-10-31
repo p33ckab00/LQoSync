@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "fs"
+community: "Community 7"
 location: "L20"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/fs
+  - community/Community_7
 ---
 
 # fmt_rate()
@@ -16,4 +16,4 @@ tags:
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/fs
+#graphify/code #graphify/EXTRACTED #community/Community_7

@@ -1,12 +1,12 @@
 ---
 source_file: "brain/HANDOFF.md"
 type: "rationale"
-community: "Router State 3"
+community: "Community 18"
 location: "L41"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Router_State_3
+  - community/Community_18
 ---
 
 # ADR-0008 Terminal UI (lqosync3 tui, Plan 4)
@@ -15,4 +15,4 @@ tags:
 - [[Handoff]] - `references` [EXTRACTED]
 - [[lqosync3 Runtime Implementation Plan (Plan 2)]] - `cites` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Router_State_3
+#graphify/rationale #graphify/EXTRACTED #community/Community_18

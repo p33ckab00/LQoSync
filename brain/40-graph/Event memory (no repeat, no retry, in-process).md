@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md"
 type: "rationale"
-community: "Telegram Notifier"
+community: "Community 16"
 location: "L26-27"
 tags:
   - graphify/rationale
   - graphify/INFERRED
-  - community/Telegram_Notifier
+  - community/Community_16
 ---
 
 # Event memory (no repeat, no retry, in-process)
@@ -17,4 +17,4 @@ tags:
 - [[Task 2 Events and message]] - `implements` [INFERRED]
 - [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/INFERRED #community/Telegram_Notifier
+#graphify/rationale #graphify/INFERRED #community/Community_16

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md"
 type: "concept"
-community: "Telegram Notifier 3"
+community: "Community 16"
 location: "L14-24"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Telegram_Notifier_3
+  - community/Community_16
 ---
 
 # Notification events (changes, error, cleared, router state, guard)
@@ -18,4 +18,4 @@ tags:
 - [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 - [[status.json cycle status]] - `shares_data_with` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Telegram_Notifier_3
+#graphify/concept #graphify/INFERRED #community/Community_16

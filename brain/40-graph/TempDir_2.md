@@ -12,6 +12,5 @@ tags:
 
 ## Connections
 - [[Env_1]] - `references` [EXTRACTED]
-- [[Env]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2

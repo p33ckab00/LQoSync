@@ -12,6 +12,7 @@ tags:
 
 ## Connections
 - [[runlqosbus 0777 safety caution]] - `references` [EXTRACTED]
+- [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Last-good topology retention]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[LibreQoS.py --updateonly no-op in v3]] - `references` [EXTRACTED]

@@ -12,7 +12,7 @@ tags:
 # groups_json()
 
 ## Connections
-- [[Value_3]] - `references` [EXTRACTED]
+- [[Value_2]] - `references` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Topology

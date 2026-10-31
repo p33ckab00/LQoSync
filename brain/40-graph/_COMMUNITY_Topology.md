@@ -1,25 +1,23 @@
 ---
 type: community
-members: 53
+members: 51
 ---
 
 # Topology
 
-**Members:** 53 nodes
+**Members:** 51 nodes
 
 ## Members
-- [[DhcpPlan]] - code - src/sources.rs
-- [[DhcpSite]] - code - src/sources.rs
+- [[dot-type_for()]] - code - src/config.rs
 - [[GroupKey]] - code - src/sources.rs
 - [[GroupTotal]] - code - src/topology.rs
-- [[Hotspot_1]] - code - src/sources.rs
+- [[Hotspot]] - code - src/sources.rs
 - [[Map_1]] - code
-- [[Ppp_1]] - code - src/sources.rs
-- [[PppPlan]] - code - src/sources.rs
-- [[Rate]] - code - src/speed.rs
+- [[NodeTemplate]] - code - src/config.rs
+- [[Ppp]] - code - src/sources.rs
 - [[RouterGroups]] - code - src/topology.rs
 - [[StoredNode]] - code - src/model.rs
-- [[Value_3]] - code
+- [[Value_2]] - code
 - [[a_kept_child_keeps_its_operator_children()]] - code - src/topology.rs
 - [[backstop_cap_limits_group()]] - code - src/topology.rs
 - [[build_nodes()]] - code - src/topology.rs
@@ -70,25 +68,20 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 11 edges to [[_COMMUNITY_CLI and Checks]]
-- 11 edges to [[_COMMUNITY_Secrets]]
-- 10 edges to [[_COMMUNITY_Circuit Collection]]
-- 8 edges to [[_COMMUNITY_Config 3]]
-- 5 edges to [[_COMMUNITY_fs]]
+- 19 edges to [[_COMMUNITY_Community 7]]
+- 9 edges to [[_COMMUNITY_Config 3]]
+- 7 edges to [[_COMMUNITY_Secrets]]
+- 5 edges to [[_COMMUNITY_Circuit Collection]]
 - 3 edges to [[_COMMUNITY_hashmap]]
-- 2 edges to [[_COMMUNITY_deserialize]]
-- 2 edges to [[_COMMUNITY_Config 2]]
-- 2 edges to [[_COMMUNITY_LibreQoS v3]]
-- 2 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 3 edges to [[_COMMUNITY_File Safety]]
+- 2 edges to [[_COMMUNITY_Config]]
 - 2 edges to [[_COMMUNITY_Telegram Notifier]]
 - 1 edge to [[_COMMUNITY_dhcp_server_gives_override_or_]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
 - 1 edge to [[_COMMUNITY_Status and Diff]]
-- 1 edge to [[_COMMUNITY_File Safety]]
 
 ## Top bridge nodes
-- [[topology.rs]] - degree 60, connects to 11 communities
-- [[build_nodes()]] - degree 21, connects to 4 communities
-- [[Rate]] - degree 20, connects to 3 communities
-- [[StoredNode]] - degree 13, connects to 3 communities
-- [[parent_for()]] - degree 10, connects to 3 communities
+- [[topology.rs]] - degree 60, connects to 8 communities
+- [[build_nodes()]] - degree 21, connects to 2 communities
+- [[GroupKey]] - degree 16, connects to 2 communities
+- [[StoredNode]] - degree 13, connects to 2 communities
+- [[parent_for()]] - degree 10, connects to 2 communities

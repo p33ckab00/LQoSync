@@ -1,17 +1,18 @@
 ---
-source_file: "src/model.rs"
+source_file: "src/config.rs"
 type: "code"
-community: "deserialize"
-location: "L174"
+community: "Config 3"
+location: "L504"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/deserialize
+  - community/Config_3
 ---
 
 # .default()
 
 ## Connections
-- [[State]] - `method` [EXTRACTED]
+- [[Config]] - `method` [EXTRACTED]
+- [[defaults()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/deserialize
+#graphify/code #graphify/EXTRACTED #community/Config_3

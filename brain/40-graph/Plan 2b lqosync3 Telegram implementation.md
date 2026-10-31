@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-telegram.md"
 type: "document"
-community: "Telegram Notifier"
+community: "Community 16"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Community_16
 ---
 
 # Plan 2b: lqosync3 Telegram implementation
@@ -20,4 +20,4 @@ tags:
 - [[Task 4 Wire into run, once, check]] - `references` [EXTRACTED]
 - [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/document #graphify/EXTRACTED #community/Community_16

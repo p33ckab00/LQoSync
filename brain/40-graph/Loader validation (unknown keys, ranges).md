@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Speed Rules"
+community: "Community 16"
 location: "L16-24"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # Loader validation (unknown keys, ranges)
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Community_16

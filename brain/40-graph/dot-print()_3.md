@@ -13,9 +13,9 @@ tags:
 
 ## Connections
 - [[dot-lock()]] - `calls` [EXTRACTED]
-- [[FakeSession_1]] - `method` [EXTRACTED]
+- [[FakeSession]] - `method` [EXTRACTED]
 - [[Output_2]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
-- [[RosRow_2]] - `references` [EXTRACTED]
+- [[RosRow]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

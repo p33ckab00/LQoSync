@@ -1,56 +1,43 @@
 ---
 type: community
-members: 75
+members: 64
 ---
 
 # Telegram Notifier
 
-**Members:** 75 nodes
+**Members:** 64 nodes
 
 ## Members
 - [[dot-from_report()]] - code - src/status.rs
 - [[dot-message()]] - code - src/notify.rs
+- [[dot-of()]] - code - src/status.rs
 - [[dot-to_json()]] - code - src/status.rs
+- [[Change]] - code - src/cycle.rs
+- [[CircuitInfo]] - code - src/status.rs
 - [[ClientConfig]] - code
-- [[Event memory (no repeat, no retry, in-process)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
-- [[Global constraints (no token leak, failure never changes cycle)]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
-- [[HTML message format and split]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
-- [[HTTPS delivery with webpki-roots TLS]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
 - [[JoinHandle]] - code
 - [[Notifier]] - code - src/notify.rs
-- [[Out of scope (start message, retry, other channels)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
-- [[Plan 2b deferred minor items]] - concept - brain/HANDOFF.md
-- [[Plan 2b lqosync3 Telegram implementation]] - document - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
-- [[Report_1]] - code
+- [[Report]] - code - src/cycle.rs
 - [[ReportSummary]] - code - src/status.rs
-- [[Review focus (hanging send, changing error text, HTML escape, long line split, empty env)]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
 - [[RouterStatus]] - code - src/status.rs
 - [[S]] - code
-- [[Secret file rule (0600, root, _file_env)]] - rationale - docs/CONFIGURATION.md
 - [[Status]] - code - src/status.rs
-- [[Task 1 Config keys]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
 - [[Task 2 Events and message]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
 - [[Task 3 Transport (post_json, send, token, chat_id)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
-- [[Task 4 Wire into run, once, check]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-telegram.md
 - [[Telegram]] - code - src/config.rs
-- [[Telegram config changes (api_host, api_port, drop include_computation)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
-- [[Telegram notifier design (Plan 2b spec)]] - document - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
-- [[Telegram settings]] - concept - docs/CONFIGURATION.md
-- [[Token and chat ID sources (env first, then file)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md
-- [[Turn on Telegram procedure]] - concept - docs/OPERATIONS.md
+- [[UpdatedInfo]] - code - src/status.rs
 - [[a_config_error_is_an_error_event()]] - code - src/notify.rs
 - [[a_long_multi_line_error_splits_into_valid_html_parts()]] - code - src/notify.rs
 - [[a_very_long_error_is_cut()]] - code - src/notify.rs
 - [[an_empty_token_is_an_error()]] - code - src/notify.rs
 - [[an_error_is_sent_once_then_cleared()]] - code - src/notify.rs
 - [[asyncread]] - concept
-- [[asyncreadext]] - concept
 - [[asyncwrite]] - concept
-- [[asyncwriteext]] - concept
 - [[body_complete()]] - code - src/notify.rs
 - [[btreemap]] - concept
 - [[cap()]] - code - src/notify.rs
 - [[chat_id()]] - code - src/notify.rs
+- [[circuit_line()]] - code - src/notify.rs
 - [[code_block()]] - code - src/notify.rs
 - [[disabled_gives_no_message()]] - code - src/notify.rs
 - [[esc()]] - code - src/notify.rs
@@ -78,11 +65,13 @@ members: 75
 - [[st()]] - code - src/notify.rs
 - [[status.rs]] - code - src/status.rs
 - [[status_json_has_the_spec_fields()]] - code - src/status.rs
+- [[summary_takes_values_from_rows_and_the_old_state()]] - code - src/status.rs
 - [[super]] - concept
 - [[tg()]] - code - src/notify.rs
 - [[tls_config()]] - code - src/notify.rs
 - [[token()]] - code - src/notify.rs
 - [[token_env_wins_and_empty_env_uses_file()]] - code - src/notify.rs
+- [[updated_line()]] - code - src/notify.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -92,34 +81,27 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 7 edges to [[_COMMUNITY_Router State]]
-- 6 edges to [[_COMMUNITY_MikroTik Session]]
-- 5 edges to [[_COMMUNITY_MikroTik Session 2]]
-- 4 edges to [[_COMMUNITY_Speed Rules]]
-- 3 edges to [[_COMMUNITY_Telegram Notifier 2]]
-- 3 edges to [[_COMMUNITY_Session Notes]]
-- 3 edges to [[_COMMUNITY_Telegram Notifier 3]]
+- 13 edges to [[_COMMUNITY_Community 7]]
+- 11 edges to [[_COMMUNITY_Router State]]
+- 8 edges to [[_COMMUNITY_Community 16]]
+- 4 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 4 edges to [[_COMMUNITY_Status and Diff]]
+- 3 edges to [[_COMMUNITY_File Safety]]
 - 2 edges to [[_COMMUNITY_Config]]
-- 2 edges to [[_COMMUNITY_deserialize]]
-- 2 edges to [[_COMMUNITY_Status and Diff]]
-- 2 edges to [[_COMMUNITY_Config 2]]
+- 2 edges to [[_COMMUNITY_Community 0]]
+- 2 edges to [[_COMMUNITY_Community 15]]
 - 2 edges to [[_COMMUNITY_Topology]]
 - 2 edges to [[_COMMUNITY_Circuit Collection]]
-- 2 edges to [[_COMMUNITY_CLI and Checks]]
-- 2 edges to [[_COMMUNITY_Status and Diff 2]]
 - 1 edge to [[_COMMUNITY_Config 3]]
 - 1 edge to [[_COMMUNITY_CertificateDer]]
 - 1 edge to [[_COMMUNITY_hashmap]]
-- 1 edge to [[_COMMUNITY_LibreQoS v3]]
 - 1 edge to [[_COMMUNITY_Router State 2]]
 - 1 edge to [[_COMMUNITY_Secrets]]
-- 1 edge to [[_COMMUNITY_File Safety]]
-- 1 edge to [[_COMMUNITY_fs]]
-- 1 edge to [[_COMMUNITY_Router State 3]]
+- 1 edge to [[_COMMUNITY_Community 9]]
 
 ## Top bridge nodes
-- [[super]] - degree 17, connects to 14 communities
-- [[btreemap]] - degree 10, connects to 8 communities
-- [[notify.rs]] - degree 52, connects to 4 communities
-- [[Task 4 Wire into run, once, check]] - degree 4, connects to 3 communities
-- [[Telegram notifier design (Plan 2b spec)]] - degree 10, connects to 2 communities
+- [[super]] - degree 17, connects to 12 communities
+- [[btreemap]] - degree 10, connects to 6 communities
+- [[notify.rs]] - degree 56, connects to 5 communities
+- [[status.rs]] - degree 14, connects to 2 communities
+- [[Telegram]] - degree 9, connects to 2 communities

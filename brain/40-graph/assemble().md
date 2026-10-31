@@ -1,17 +1,18 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "fs"
-location: "L92"
+community: "Community 7"
+location: "L116"
 tags:
   - graphify/code
   - graphify/INFERRED
-  - community/fs
+  - community/Community_7
 ---
 
 # assemble()
 
 ## Connections
+- [[dot-cycle_inner()]] - `calls` [INFERRED]
 - [[CycleInput]] - `references` [EXTRACTED]
 - [[CycleOutput]] - `references` [EXTRACTED]
 - [[build_nodes()]] - `calls` [INFERRED]
@@ -25,9 +26,10 @@ tags:
 - [[fnv1a64()]] - `calls` [INFERRED]
 - [[parent_for()]] - `calls` [INFERRED]
 - [[run_full()]] - `calls` [EXTRACTED]
+- [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 - [[seeded_nodes_survive_preserve_mode()]] - `calls` [EXTRACTED]
 - [[to_network_json()]] - `calls` [INFERRED]
 - [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/INFERRED #community/fs
+#graphify/code #graphify/INFERRED #community/Community_7

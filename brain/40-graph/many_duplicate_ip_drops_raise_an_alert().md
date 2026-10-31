@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L1292"
+community: "Community 7"
+location: "L1316"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # many_duplicate_ip_drops_raise_an_alert()
@@ -17,4 +17,4 @@ tags:
 - [[state()]] - `calls` [EXTRACTED]
 - [[stored()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

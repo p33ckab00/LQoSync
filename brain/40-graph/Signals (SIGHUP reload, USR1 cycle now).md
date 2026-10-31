@@ -1,12 +1,12 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Plan 2 Runtime"
+community: "Community 18"
 location: "L32-34"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Plan_2_Runtime
+  - community/Community_18
 ---
 
 # Signals (SIGHUP reload, USR1 cycle now)
@@ -17,4 +17,4 @@ tags:
 - [[lqosync3.service systemd unit]] - `references` [INFERRED]
 - [[main run loop (tokioselect! on sleep and signals)]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Plan_2_Runtime
+#graphify/concept #graphify/INFERRED #community/Community_18

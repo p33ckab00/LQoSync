@@ -1,12 +1,12 @@
 ---
 source_file: "src/mikrotik.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Community 15"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_15
 ---
 
 # mikrotik.rs
@@ -32,4 +32,4 @@ tags:
 - [[read_secret()]] - `imports_from` [EXTRACTED]
 - [[tls_client_config()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_15

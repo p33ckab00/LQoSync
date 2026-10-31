@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "dhcp_server_gives_override_or_"
 location: "L324"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/dhcp_server_gives_override_or_
 ---
 
 # .per_client()
@@ -14,6 +14,6 @@ tags:
 ## Connections
 - [[BandwidthDefaults]] - `references` [EXTRACTED]
 - [[HotspotCfg]] - `method` [EXTRACTED]
-- [[Rate_1]] - `references` [EXTRACTED]
+- [[Rate]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/dhcp_server_gives_override_or_

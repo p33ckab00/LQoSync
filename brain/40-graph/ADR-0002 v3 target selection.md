@@ -13,6 +13,8 @@ tags:
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
+- [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[Session 2026-10-31 project setup and v3 simulation]] - `references` [EXTRACTED]
 - [[Target Detector]] - `rationale_for` [INFERRED]

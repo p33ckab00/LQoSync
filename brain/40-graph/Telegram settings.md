@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Telegram Notifier"
+community: "Community 16"
 location: "L331-341"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Community_16
 ---
 
 # Telegram settings
@@ -17,4 +17,4 @@ tags:
 - [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 - [[Turn on Telegram procedure]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/concept #graphify/EXTRACTED #community/Community_16

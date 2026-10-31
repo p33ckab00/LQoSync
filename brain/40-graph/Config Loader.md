@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session 3"
+community: "Community 18"
 location: "L44"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/Community_18
 ---
 
 # Config Loader
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Collector (RouterOS API reads)]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/concept #graphify/EXTRACTED #community/Community_18

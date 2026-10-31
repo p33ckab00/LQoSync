@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-core.md"
 type: "concept"
-community: "Topology 5"
+community: "Community 36"
 location: "L575"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Topology_5
+  - community/Community_36
 ---
 
 # Task 8: Scenario tests and v3 check
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Scenario tests (synthetic fixtures)]] - `implements` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Topology_5
+#graphify/concept #graphify/EXTRACTED #community/Community_36

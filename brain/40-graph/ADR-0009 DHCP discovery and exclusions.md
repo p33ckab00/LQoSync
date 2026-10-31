@@ -1,12 +1,12 @@
 ---
 source_file: "brain/Home.md"
 type: "rationale"
-community: "Speed Rules"
+community: "Community 16"
 location: "L27"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # ADR-0009 DHCP discovery and exclusions
@@ -17,4 +17,4 @@ tags:
 - [[Exclusions (exclude, routers.exclude)]] - `implements` [INFERRED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules
+#graphify/rationale #graphify/EXTRACTED #community/Community_16

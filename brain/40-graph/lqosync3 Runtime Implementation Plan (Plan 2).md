@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
 type: "document"
-community: "Router State 3"
+community: "Community 18"
 location: "L1"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Router_State_3
+  - community/Community_18
 ---
 
 # lqosync3 Runtime Implementation Plan (Plan 2)
@@ -20,4 +20,4 @@ tags:
 - [[Plan 2 review focus (5 risks)]] - `references` [EXTRACTED]
 - [[Runtime design spec (2026-10-31-lqosync3-runtime-design.md)]] - `cites` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Router_State_3
+#graphify/document #graphify/EXTRACTED #community/Community_18

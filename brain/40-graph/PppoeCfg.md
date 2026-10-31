@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config"
+community: "Circuit Collection"
 location: "L307"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config
+  - community/Circuit_Collection
 ---
 
 # PppoeCfg
@@ -15,4 +15,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

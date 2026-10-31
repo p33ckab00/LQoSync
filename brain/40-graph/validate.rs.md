@@ -35,7 +35,7 @@ tags:
 - [[parent_node_id_must_match_the_parent_node()]] - `contains` [EXTRACTED]
 - [[rate()]] - `contains` [EXTRACTED]
 - [[rates_below_libreqos_floor_stop()]] - `contains` [EXTRACTED]
-- [[row()_1]] - `contains` [EXTRACTED]
+- [[row()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 - [[valid_rows_pass()]] - `contains` [EXTRACTED]
 

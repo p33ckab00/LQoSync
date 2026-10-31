@@ -1,19 +1,21 @@
 ---
 source_file: "brain/10-sessions/2026-10-31-plan1-core-build.md"
 type: "document"
-community: "Topology 5"
+community: "Community 36"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Topology_5
+  - community/Community_36
 ---
 
 # 2026-10-31 Plan 1: lqosync3 core library session
 
 ## Connections
-- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
+- [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
 - [[Plan 1 review fixes (commit 529fa36)]] - `references` [EXTRACTED]
 - [[Scenario tests (synthetic fixtures)]] - `references` [INFERRED]
@@ -22,4 +24,4 @@ tags:
 - [[lqosync3 core crate (config, speed, model, state, sources, topology, cycle, validate, writer)]] - `references` [EXTRACTED]
 - [[toolsv3simcheck.sh (v3 compiler check)]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Topology_5
+#graphify/document #graphify/EXTRACTED #community/Community_36

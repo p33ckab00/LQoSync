@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L773"
+community: "Community 7"
+location: "L797"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # grace_keeps_a_missing_subscriber()
@@ -17,4 +17,4 @@ tags:
 - [[run()_2]] - `calls` [EXTRACTED]
 - [[state()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

@@ -1,11 +1,11 @@
 ---
 source_file: "brain/10-sessions/2026-10-31-plan1-core-build.md"
 type: "code"
-community: "Topology 5"
+community: "Community 36"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_5
+  - community/Community_36
 ---
 
 # lqosync3 core crate (config, speed, model, state, sources, topology, cycle, validate, writer)
@@ -15,4 +15,4 @@ tags:
 - [[lqosync3 Core Implementation Plan (Plan 1)]] - `implements` [EXTRACTED]
 - [[lqosync3 core design spec]] - `implements` [INFERRED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_5
+#graphify/code #graphify/EXTRACTED #community/Community_36

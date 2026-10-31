@@ -1,17 +1,18 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
+community: "Community 7"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # cycle.rs
 
 ## Connections
+- [[Change]] - `contains` [EXTRACTED]
 - [[Config]] - `imports_from` [EXTRACTED]
 - [[CsvRow]] - `imports_from` [EXTRACTED]
 - [[CycleInput]] - `contains` [EXTRACTED]
@@ -40,6 +41,7 @@ tags:
 - [[build_nodes()]] - `imports_from` [EXTRACTED]
 - [[cfg()_3]] - `contains` [EXTRACTED]
 - [[changed_columns()]] - `contains` [EXTRACTED]
+- [[changed_columns_compare_rates_as_numbers_and_keep_values()]] - `contains` [EXTRACTED]
 - [[circuit_rates()]] - `imports_from` [EXTRACTED]
 - [[client_node_id()]] - `imports_from` [EXTRACTED]
 - [[collect_router()]] - `imports_from` [EXTRACTED]
@@ -100,4 +102,4 @@ tags:
 - [[v3_with_no_parent_stops()]] - `contains` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

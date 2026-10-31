@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L664"
+community: "Community 7"
+location: "L688"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # failed_and_unreachable_router_keep_rows_and_nodes()
@@ -17,4 +17,4 @@ tags:
 - [[run()_2]] - `calls` [EXTRACTED]
 - [[state()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

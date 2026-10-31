@@ -12,8 +12,9 @@ tags:
 
 ## Connections
 - [[2026-10-31 Plan 1 lqosync3 core library session]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
+- [[Home (vault MOC)]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[compile_mode (flatap_onlyap_sitefull)]] - `references` [EXTRACTED]
 - [[lqosd runtime rules (rates, unique names, parents)]] - `references` [EXTRACTED]

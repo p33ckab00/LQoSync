@@ -1,12 +1,12 @@
 ---
 source_file: "brain/HANDOFF.md"
 type: "concept"
-community: "Speed Rules"
+community: "Community 16"
 location: "L63"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # config/defaults.toml embedded defaults
@@ -15,4 +15,4 @@ tags:
 - [[Defaults layering over configdefaults.toml]] - `references` [INFERRED]
 - [[Handoff]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Community_16

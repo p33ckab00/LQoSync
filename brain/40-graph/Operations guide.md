@@ -16,6 +16,7 @@ tags:
 - [[Cutover from the Python service]] - `references` [EXTRACTED]
 - [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[LibreQoS upgrade from 2.2 to 3.x]] - `references` [EXTRACTED]
 - [[Operational rules]] - `references` [EXTRACTED]

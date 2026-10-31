@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "deserialize"
+community: "Community 7"
 location: "L100"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/deserialize
+  - community/Community_7
 ---
 
 # Dhcp
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/deserialize
+#graphify/code #graphify/EXTRACTED #community/Community_7

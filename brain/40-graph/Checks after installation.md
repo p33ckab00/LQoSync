@@ -1,12 +1,12 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Plan 2 Runtime"
+community: "Session Notes"
 location: "L144"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Plan_2_Runtime
+  - community/Session_Notes
 ---
 
 # Checks after installation
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Installation (docs)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Plan_2_Runtime
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

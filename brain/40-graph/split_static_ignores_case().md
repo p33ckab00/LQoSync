@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "Config 2"
+community: "File Safety"
 location: "L169"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/File_Safety
 ---
 
 # split_static_ignores_case()
@@ -15,4 +15,4 @@ tags:
 - [[split_static()]] - `calls` [EXTRACTED]
 - [[state.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_2
+#graphify/code #graphify/EXTRACTED #community/File_Safety

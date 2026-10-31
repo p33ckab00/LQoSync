@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Telegram Notifier 3"
+community: "Community 16"
 location: "L236-242"
 tags:
   - graphify/rationale
   - graphify/INFERRED
-  - community/Telegram_Notifier_3
+  - community/Community_16
 ---
 
 # Removal guard ([safety])
@@ -20,4 +20,4 @@ tags:
 - [[Notification events (changes, error, cleared, router state, guard)]] - `references` [INFERRED]
 - [[Signals (SIGHUP reload, USR1 cycle now)]] - `references` [INFERRED]
 
-#graphify/rationale #graphify/INFERRED #community/Telegram_Notifier_3
+#graphify/rationale #graphify/INFERRED #community/Community_16

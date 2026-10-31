@@ -1,25 +1,27 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "deserialize"
+community: "Community 7"
 location: "L97"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/deserialize
+  - community/Community_7
 ---
 
 # Source
 
 ## Connections
+- [[Collected]] - `references` [EXTRACTED]
 - [[Dhcp]] - `case_of` [EXTRACTED]
 - [[Entry]] - `references` [EXTRACTED]
-- [[Hotspot]] - `case_of` [EXTRACTED]
-- [[Ppp]] - `case_of` [EXTRACTED]
+- [[Hotspot_1]] - `case_of` [EXTRACTED]
+- [[Ppp_1]] - `case_of` [EXTRACTED]
 - [[StoredCircuit]] - `references` [EXTRACTED]
 - [[Unknown]] - `case_of` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
+- [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[state.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/deserialize
+#graphify/code #graphify/EXTRACTED #community/Community_7

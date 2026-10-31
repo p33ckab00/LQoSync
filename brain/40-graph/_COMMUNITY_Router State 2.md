@@ -1,13 +1,14 @@
 ---
 type: community
-members: 11
+members: 12
 ---
 
 # Router State 2
 
-**Members:** 11 nodes
+**Members:** 12 nodes
 
 ## Members
+- [[RouterAccess]] - code - src/config.rs
 - [[RouterMemo]] - code - src/model.rs
 - [[acc()]] - code - src/routerstate.rs
 - [[classify()]] - code - src/routerstate.rs
@@ -28,13 +29,20 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 5 edges to [[_COMMUNITY_MikroTik Session]]
-- 5 edges to [[_COMMUNITY_fs]]
-- 2 edges to [[_COMMUNITY_deserialize]]
+- 5 edges to [[_COMMUNITY_Community 19]]
+- 5 edges to [[_COMMUNITY_Router State]]
+- 5 edges to [[_COMMUNITY_Community 7]]
+- 3 edges to [[_COMMUNITY_Community 15]]
+- 2 edges to [[_COMMUNITY_Community 9]]
+- 2 edges to [[_COMMUNITY_Circuit Collection]]
+- 1 edge to [[_COMMUNITY_Config 3]]
+- 1 edge to [[_COMMUNITY_OfflineAction]]
+- 1 edge to [[_COMMUNITY_Community 0]]
+- 1 edge to [[_COMMUNITY_Config]]
 - 1 edge to [[_COMMUNITY_Telegram Notifier]]
 
 ## Top bridge nodes
-- [[routerstate.rs]] - degree 16, connects to 3 communities
-- [[classify()]] - degree 12, connects to 2 communities
-- [[acc()]] - degree 8, connects to 1 community
-- [[RouterMemo]] - degree 5, connects to 1 community
+- [[RouterAccess]] - degree 17, connects to 8 communities
+- [[routerstate.rs]] - degree 16, connects to 4 communities
+- [[classify()]] - degree 14, connects to 4 communities
+- [[RouterMemo]] - degree 6, connects to 2 communities

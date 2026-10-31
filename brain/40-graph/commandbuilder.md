@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "MikroTik Session"
+community: "Community 15"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_15
 ---
 
 # commandbuilder
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[mikrotik.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/concept #graphify/EXTRACTED #community/Community_15

@@ -15,9 +15,13 @@ tags:
 - [[dot-cycle()]] - `calls` [EXTRACTED]
 - [[RunnerC]] - `method` [EXTRACTED]
 - [[Status]] - `references` [EXTRACTED]
+- [[assemble()]] - `calls` [INFERRED]
+- [[classify()]] - `calls` [INFERRED]
 - [[random_id()]] - `calls` [EXTRACTED]
 - [[read()]] - `calls` [EXTRACTED]
 - [[read_router()]] - `calls` [INFERRED]
+- [[render_csv()]] - `calls` [INFERRED]
+- [[render_network_json()]] - `calls` [INFERRED]
 - [[state_name()]] - `calls` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Router_State

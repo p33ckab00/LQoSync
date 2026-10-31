@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[dot-connect()_3]] - `method` [EXTRACTED]
 - [[Connector]] - `implements` [EXTRACTED]
-- [[Fake_1]] - `references` [EXTRACTED]
+- [[Fake]] - `references` [EXTRACTED]
 - [[runner()]] - `references` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]
 

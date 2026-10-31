@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "MikroTik Session 4"
+community: "Community 18"
 location: "L22"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_4
+  - community/Community_18
 ---
 
 # network.json
@@ -15,4 +15,4 @@ tags:
 - [[Writers (one per target)]] - `shares_data_with` [EXTRACTED]
 - [[filesread_live  Live]] - `shares_data_with` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_4
+#graphify/concept #graphify/EXTRACTED #community/Community_18

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
 type: "concept"
-community: "MikroTik Session 4"
+community: "Community 18"
 location: "L141"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_4
+  - community/Community_18
 ---
 
 # mikrotik::MikrotikConnector / MikrotikSession
@@ -18,4 +18,4 @@ tags:
 - [[secretsread_secret]] - `calls` [EXTRACTED]
 - [[testsmock_router.rs (mock RouterOS server)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_4
+#graphify/concept #graphify/EXTRACTED #community/Community_18

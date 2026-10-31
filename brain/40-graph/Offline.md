@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "fs"
+community: "Community 7"
 location: "L22"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/fs
+  - community/Community_7
 ---
 
 # Offline
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[RouterResult]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/fs
+#graphify/code #graphify/EXTRACTED #community/Community_7

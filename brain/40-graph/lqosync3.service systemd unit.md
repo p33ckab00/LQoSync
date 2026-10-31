@@ -1,12 +1,12 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Plan 2 Runtime"
+community: "Community 18"
 location: "L106"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Plan_2_Runtime
+  - community/Community_18
 ---
 
 # lqosync3.service systemd unit
@@ -17,4 +17,4 @@ tags:
 - [[What the installer does (10 steps)]] - `references` [EXTRACTED]
 - [[main run loop (tokioselect! on sleep and signals)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Plan_2_Runtime
+#graphify/concept #graphify/EXTRACTED #community/Community_18

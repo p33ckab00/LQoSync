@@ -12,7 +12,7 @@ tags:
 # defaults()
 
 ## Connections
-- [[dot-default()_1]] - `calls` [EXTRACTED]
+- [[dot-default()]] - `calls` [EXTRACTED]
 - [[dot-merge()]] - `calls` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]

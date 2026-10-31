@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "MikroTik Session 2"
+community: "Community 15"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_2
+  - community/Community_15
 ---
 
 # arc
@@ -18,4 +18,4 @@ tags:
 - [[routeros.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_2
+#graphify/concept #graphify/EXTRACTED #community/Community_15

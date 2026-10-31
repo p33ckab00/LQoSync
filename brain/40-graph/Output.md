@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "MikroTik Session"
+community: "Community 15"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_15
 ---
 
 # Output
@@ -14,4 +14,4 @@ tags:
 - [[dot-connect()]] - `references` [EXTRACTED]
 - [[dot-print()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_15

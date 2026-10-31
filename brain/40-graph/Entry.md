@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "deserialize"
-location: "L61"
+community: "Community 7"
+location: "L62"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/deserialize
+  - community/Community_7
 ---
 
 # Entry
@@ -16,4 +16,4 @@ tags:
 - [[Source]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/deserialize
+#graphify/code #graphify/EXTRACTED #community/Community_7

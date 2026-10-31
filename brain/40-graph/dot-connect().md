@@ -1,12 +1,12 @@
 ---
 source_file: "src/mikrotik.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Community 15"
 location: "L130"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_15
 ---
 
 # .connect()
@@ -21,4 +21,4 @@ tags:
 - [[read_secret()]] - `calls` [INFERRED]
 - [[tls_client_config()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_15

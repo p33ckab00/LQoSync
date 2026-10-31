@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "document"
-community: "Topology 3"
+community: "Community 36"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Topology_3
+  - community/Community_36
 ---
 
 # lqosync3 core design spec
@@ -13,10 +13,10 @@ tags:
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
 - [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
-- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[Circuit rate clamp formula (max_floor_mbps, safe_min_mbps)]] - `references` [EXTRACTED]
 - [[Circuit rules for each source]] - `references` [EXTRACTED]
@@ -44,4 +44,4 @@ tags:
 - [[toolsv3simcheck.sh (v3 compiler check)]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Topology_3
+#graphify/document #graphify/EXTRACTED #community/Community_36

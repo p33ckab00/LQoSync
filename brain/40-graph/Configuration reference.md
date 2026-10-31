@@ -1,16 +1,20 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "document"
-community: "Speed Rules"
+community: "Community 16"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Community_16
 ---
 
 # Configuration reference
 
 ## Connections
+- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
+- [[ADR-0006 v3 guards and node types_1]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[Comment speed format (Name25M5M)]] - `references` [EXTRACTED]
 - [[DHCP server discovery]] - `references` [EXTRACTED]
 - [[DHCP speed sources (server_comment, lease_comment, settings)]] - `references` [EXTRACTED]
@@ -18,6 +22,7 @@ tags:
 - [[Differences from updatecsv.py]] - `references` [EXTRACTED]
 - [[Exclusions (exclude, routers.exclude)]] - `references` [EXTRACTED]
 - [[Home (vault MOC)]] - `references` [EXTRACTED]
+- [[Installation (docs)]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[LibreQoS v3 checks (no_parent, compile_mode)]] - `references` [EXTRACTED]
 - [[Loader validation (unknown keys, ranges)]] - `references` [EXTRACTED]
@@ -33,8 +38,9 @@ tags:
 - [[Subscriber presence and subscriber_grace]] - `references` [EXTRACTED]
 - [[Task 1 Config keys]] - `references` [EXTRACTED]
 - [[Task 4 Wire into run, once, check]] - `references` [EXTRACTED]
+- [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 - [[Telegram settings]] - `references` [EXTRACTED]
 - [[lqosync3 import-json (planned)]] - `references` [EXTRACTED]
 - [[rate_limit_order and unitless_unit]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Speed_Rules
+#graphify/document #graphify/EXTRACTED #community/Community_16

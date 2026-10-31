@@ -12,7 +12,7 @@ tags:
 # row()
 
 ## Connections
-- [[RosRow_2]] - `references` [EXTRACTED]
+- [[RosRow]] - `references` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]
 - [[users()]] - `calls` [EXTRACTED]
 

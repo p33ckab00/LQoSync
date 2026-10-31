@@ -1,12 +1,12 @@
 ---
 source_file: "brain/HANDOFF.md"
 type: "rationale"
-community: "Router State 3"
+community: "Community 16"
 location: "L32"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Router_State_3
+  - community/Community_16
 ---
 
 # ADR-0003 Router failed vs offline
@@ -18,4 +18,4 @@ tags:
 - [[lqosync3 Runtime Implementation Plan (Plan 2)]] - `cites` [EXTRACTED]
 - [[routerstateclassify]] - `implements` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Router_State_3
+#graphify/rationale #graphify/EXTRACTED #community/Community_16

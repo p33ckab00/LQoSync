@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
 type: "concept"
-community: "MikroTik Session 4"
+community: "Community 18"
 location: "L195"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/MikroTik_Session_4
+  - community/Community_18
 ---
 
 # runner::Runner::cycle (one full cycle)
@@ -25,4 +25,4 @@ tags:
 - [[routerstateclassify]] - `calls` [EXTRACTED]
 - [[statusStatus  RouterStatus]] - `shares_data_with` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_4
+#graphify/concept #graphify/EXTRACTED #community/Community_18

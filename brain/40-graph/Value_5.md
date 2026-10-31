@@ -1,17 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "fs"
+community: "File Safety"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/fs
+  - community/File_Safety
 ---
 
 # Value
 
 ## Connections
-- [[CycleInput]] - `references` [EXTRACTED]
-- [[CycleOutput]] - `references` [EXTRACTED]
+- [[Live]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/fs
+#graphify/code #graphify/EXTRACTED #community/File_Safety

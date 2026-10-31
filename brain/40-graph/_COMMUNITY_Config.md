@@ -1,17 +1,18 @@
 ---
 type: community
-members: 27
+members: 28
 ---
 
 # Config
 
-**Members:** 27 nodes
+**Members:** 28 nodes
 
 ## Members
 - [[dot-from_toml_str()]] - code - src/config.rs
+- [[ClientTemplate]] - code - src/config.rs
 - [[DEFAULTS_TOML]] - code - src/config.rs
 - [[MIN]] - code - src/config.rs
-- [[PppoeCfg]] - code - src/config.rs
+- [[Nodes]] - code - src/config.rs
 - [[a_circuit_comment_must_not_be_the_static_comment()]] - code - src/config.rs
 - [[btreeset]] - concept
 - [[config.rs]] - code - src/config.rs
@@ -44,27 +45,27 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 10 edges to [[_COMMUNITY_Config 3]]
-- 6 edges to [[_COMMUNITY_dhcp_server_gives_override_or_]]
-- 5 edges to [[_COMMUNITY_MikroTik Session]]
-- 5 edges to [[_COMMUNITY_CLI and Checks 2]]
-- 4 edges to [[_COMMUNITY_Secrets]]
-- 3 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 14 edges to [[_COMMUNITY_Config 3]]
+- 7 edges to [[_COMMUNITY_dhcp_server_gives_override_or_]]
+- 3 edges to [[_COMMUNITY_Community 23]]
+- 3 edges to [[_COMMUNITY_Circuit Collection]]
+- 3 edges to [[_COMMUNITY_LogLevel]]
+- 3 edges to [[_COMMUNITY_Secrets]]
 - 3 edges to [[_COMMUNITY_Telegram Notifier 2]]
 - 2 edges to [[_COMMUNITY_Telegram Notifier]]
-- 2 edges to [[_COMMUNITY_hashmap]]
-- 2 edges to [[_COMMUNITY_Router State]]
+- 2 edges to [[_COMMUNITY_Topology]]
 - 2 edges to [[_COMMUNITY_LibreQoS v3 2]]
-- 1 edge to [[_COMMUNITY_Config 2]]
-- 1 edge to [[_COMMUNITY_LogLevel]]
+- 2 edges to [[_COMMUNITY_File Safety]]
+- 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Router State 2]]
 - 1 edge to [[_COMMUNITY_OfflineAction]]
-- 1 edge to [[_COMMUNITY_File Safety]]
-- 1 edge to [[_COMMUNITY_deserialize]]
+- 1 edge to [[_COMMUNITY_Community 0]]
+- 1 edge to [[_COMMUNITY_Community 7]]
+- 1 edge to [[_COMMUNITY_Community 9]]
 - 1 edge to [[_COMMUNITY_Config 4]]
-- 1 edge to [[_COMMUNITY_Circuit Collection]]
 
 ## Top bridge nodes
 - [[config.rs]] - degree 69, connects to 18 communities
 - [[dot-from_toml_str()]] - degree 19, connects to 2 communities
+- [[Nodes]] - degree 4, connects to 2 communities
 - [[per_site_rejects_lease_comment_and_defaults_follow_mode()]] - degree 3, connects to 1 community
-- [[PppoeCfg]] - degree 2, connects to 1 community

@@ -23,6 +23,7 @@ tags:
 - [[Router state classification (RouterResult, unreachable_since)]] - `references` [EXTRACTED]
 - [[Secrets (password_file read each connect, never logged)]] - `references` [EXTRACTED]
 - [[TLS (tls_verify, tls_ca_file, webpki-roots)]] - `references` [EXTRACTED]
+- [[Telegram notifier design (Plan 2b spec)]] - `references` [EXTRACTED]
 - [[Test strategy (fake session, mock RouterOS server, temp folders)]] - `references` [EXTRACTED]
 - [[Write order state.json first, then LibreQoS pair]] - `references` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]

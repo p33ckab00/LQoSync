@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "dhcp_server_gives_override_or_"
+community: "Community 23"
 location: "L407"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/dhcp_server_gives_override_or_
+  - community/Community_23
 ---
 
 # LeaseComment
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpSource]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/dhcp_server_gives_override_or_
+#graphify/code #graphify/EXTRACTED #community/Community_23

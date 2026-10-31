@@ -1,12 +1,12 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Community 0"
 location: "L232"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_0
 ---
 
 # proplist_is_sent()
@@ -18,4 +18,4 @@ tags:
 - [[read_router()]] - `calls` [INFERRED]
 - [[setup()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_0

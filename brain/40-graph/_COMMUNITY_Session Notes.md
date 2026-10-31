@@ -1,30 +1,40 @@
 ---
 type: community
-members: 24
+members: 34
 ---
 
 # Session Notes
 
-**Members:** 24 nodes
+**Members:** 34 nodes
 
 ## Members
+- [[1415 CSV columns (v2_pairv3_pair)]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
 - [[Applied backups (keep_backups, 12-digit folders)]] - concept - docs/OPERATIONS.md
+- [[Checks after installation]] - concept - docs/INSTALLATION.md
 - [[Cutover from the Python service]] - concept - docs/OPERATIONS.md
+- [[Installation (docs)]] - document - docs/INSTALLATION.md
+- [[Installer options (--mode, --version, --from-source, --import-json, --no-start)]] - concept - docs/INSTALLATION.md
 - [[Kept-session single reconnect (no TCP keepalive)]] - rationale - brain/HANDOFF.md
 - [[LQoSync3 README]] - document - README.md
 - [[LQoSync3 sync tool]] - concept - README.md
 - [[LibreQoS upgrade from 2.2 to 3.x]] - concept - docs/OPERATIONS.md
+- [[Manual installation]] - concept - docs/INSTALLATION.md
 - [[Operational rules]] - rationale - docs/OPERATIONS.md
 - [[Operations guide]] - document - docs/OPERATIONS.md
 - [[Orphan branch lqosync3]] - concept - brain/10-sessions/2026-10-31-updatecsv-dissection.md
 - [[Plan 2 global constraints]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 - [[Plan phases (Plan 122b done; Plan 3 v3, Plan 4 TUI, Plan 5 installer)]] - concept - brain/HANDOFF.md
 - [[Read-convert-validate-write pipeline]] - rationale - README.md
+- [[Removal procedure]] - concept - docs/INSTALLATION.md
+- [[Requirements (Ubuntu 24.04, LibreQoS 2.0-2.2 or 3.x, Rust 1.89)]] - concept - docs/INSTALLATION.md
 - [[Rollback to the Python service]] - concept - docs/OPERATIONS.md
 - [[RouterOS listen command (untested)]] - concept - brain/10-sessions/2026-10-31-updatecsv-dissection.md
+- [[Runtime modes (shadow, apply)]] - concept - docs/CONFIGURATION.md
 - [[Safety rules (shadow default, no router writes, 0600 secrets)]] - rationale - README.md
+- [[What the installer does (10 steps)]] - concept - docs/INSTALLATION.md
 - [[auto target selection]] - rationale - README.md
 - [[diffdiff_pair (semantic pair diff)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[install.sh one-line installer (target contract)]] - concept - docs/INSTALLATION.md
 - [[lqosync3 detect (Plan 3)]] - concept - docs/OPERATIONS.md
 - [[mikrotik-rs RouterOS API library]] - concept - README.md
 - [[no_parent guard on v3 targets]] - rationale - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
@@ -41,20 +51,18 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
+- 8 edges to [[_COMMUNITY_Community 36]]
+- 8 edges to [[_COMMUNITY_Community 16]]
 - 6 edges to [[_COMMUNITY_Status and Diff 2]]
-- 4 edges to [[_COMMUNITY_Topology 4]]
-- 4 edges to [[_COMMUNITY_Speed Rules]]
-- 3 edges to [[_COMMUNITY_Telegram Notifier]]
-- 2 edges to [[_COMMUNITY_Topology 5]]
-- 2 edges to [[_COMMUNITY_Plan 2 Runtime]]
-- 2 edges to [[_COMMUNITY_Telegram Notifier 3]]
-- 1 edge to [[_COMMUNITY_Decisions]]
-- 1 edge to [[_COMMUNITY_Topology 2]]
-- 1 edge to [[_COMMUNITY_Router State 3]]
+- 4 edges to [[_COMMUNITY_Community 18]]
+- 2 edges to [[_COMMUNITY_Topology 2]]
+- 2 edges to [[_COMMUNITY_Topology 4]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 5]]
+- 1 edge to [[_COMMUNITY_Topology 3]]
 
 ## Top bridge nodes
-- [[Operations guide]] - degree 15, connects to 5 communities
-- [[LQoSync3 README]] - degree 13, connects to 2 communities
+- [[Operations guide]] - degree 16, connects to 5 communities
+- [[LQoSync3 README]] - degree 16, connects to 4 communities
+- [[Runtime modes (shadow, apply)]] - degree 4, connects to 2 communities
 - [[Plan phases (Plan 122b done; Plan 3 v3, Plan 4 TUI, Plan 5 installer)]] - degree 3, connects to 2 communities
 - [[Plan 2 global constraints]] - degree 3, connects to 2 communities
-- [[Cutover from the Python service]] - degree 6, connects to 1 community

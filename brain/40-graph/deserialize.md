@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "deserialize"
+community: "Community 7"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/deserialize
+  - community/Community_7
 ---
 
 # deserialize
@@ -15,4 +15,4 @@ tags:
 - [[model.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/deserialize
+#graphify/concept #graphify/EXTRACTED #community/Community_7

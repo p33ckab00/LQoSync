@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Status and Diff 3"
-location: "L956"
+community: "Community 7"
+location: "L980"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff_3
+  - community/Community_7
 ---
 
 # guard_releases_on_same_fingerprint_next_cycle()
@@ -17,4 +17,4 @@ tags:
 - [[hundred()]] - `calls` [EXTRACTED]
 - [[run()_2]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff_3
+#graphify/code #graphify/EXTRACTED #community/Community_7

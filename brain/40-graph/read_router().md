@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Community 19"
 location: "L114"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Community_19
 ---
 
 # read_router()
@@ -19,7 +19,7 @@ tags:
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_1]] - `references` [EXTRACTED]
+- [[RouterSnapshot]] - `references` [EXTRACTED]
 - [[Session]] - `references` [EXTRACTED]
 - [[Timeout]] - `references` [EXTRACTED]
 - [[a_dead_kept_session_reconnects_without_a_retry()]] - `calls` [EXTRACTED]
@@ -39,4 +39,4 @@ tags:
 - [[trap_is_a_trap_error()]] - `calls` [INFERRED]
 - [[wrong_password_is_login_error()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Community_19

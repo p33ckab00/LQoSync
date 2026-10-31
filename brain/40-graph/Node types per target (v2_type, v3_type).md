@@ -1,12 +1,12 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Speed Rules"
+community: "Topology 3"
 location: "L352-364"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Topology_3
 ---
 
 # Node types per target (v2_type, v3_type)
@@ -16,4 +16,4 @@ tags:
 - [[Configuration reference]] - `references` [EXTRACTED]
 - [[Node rules]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Speed_Rules
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

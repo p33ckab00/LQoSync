@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L1093"
+community: "Community 7"
+location: "L1117"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Community_7
 ---
 
 # static_row_wins_a_duplicate_ip()
@@ -17,4 +17,4 @@ tags:
 - [[run_full()]] - `calls` [EXTRACTED]
 - [[static_row()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Community_7

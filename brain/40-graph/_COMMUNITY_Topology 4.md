@@ -1,20 +1,17 @@
 ---
 type: community
-members: 15
+members: 12
 ---
 
 # Topology 4
 
-**Members:** 15 nodes
+**Members:** 12 nodes
 
 ## Members
-- [[1415 CSV columns (v2_pairv3_pair)]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
-- [[ADR-0005 Topology follows v3]] - document - brain/20-decisions/ADR-0005-topology-follows-v3.md
 - [[ADR-0006 v3 guards and node types_1]] - document - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
 - [[Group nodes typed site on v3]] - rationale - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
 - [[How LibreQoS v3 handles nodes]] - document - brain/30-knowledge/v3-node-handling.md
-- [[Parent Node ID column]] - concept - brain/20-decisions/ADR-0005-topology-follows-v3.md
-- [[Stable node id (lq3- FNV-1a 64)]] - rationale - brain/20-decisions/ADR-0005-topology-follows-v3.md
+- [[Tool must reject duplicate IP and node name]] - concept - brain/30-knowledge/libreqos-v3-ingress-facts.md
 - [[compile_mode (flatap_onlyap_sitefull)]] - concept - brain/30-knowledge/v3-node-handling.md
 - [[compile_mode not full warning]] - concept - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
 - [[flat_promotion parent fix]] - rationale - brain/20-decisions/ADR-0005-topology-follows-v3.md
@@ -32,17 +29,16 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 6 edges to [[_COMMUNITY_Topology 3]]
-- 5 edges to [[_COMMUNITY_Topology 2]]
-- 4 edges to [[_COMMUNITY_Session Notes]]
-- 4 edges to [[_COMMUNITY_Speed Rules 2]]
-- 3 edges to [[_COMMUNITY_Topology 5]]
-- 2 edges to [[_COMMUNITY_Decisions]]
-- 1 edge to [[_COMMUNITY_Speed Rules 3]]
+- 11 edges to [[_COMMUNITY_Community 36]]
+- 4 edges to [[_COMMUNITY_Topology 2]]
+- 2 edges to [[_COMMUNITY_Session Notes]]
+- 1 edge to [[_COMMUNITY_Topology 3]]
+- 1 edge to [[_COMMUNITY_Community 16]]
+- 1 edge to [[_COMMUNITY_Status and Diff 2]]
 
 ## Top bridge nodes
-- [[ADR-0005 Topology follows v3]] - degree 17, connects to 6 communities
-- [[ADR-0006 v3 guards and node types_1]] - degree 9, connects to 4 communities
-- [[How LibreQoS v3 handles nodes]] - degree 11, connects to 3 communities
-- [[Stable node id (lq3- FNV-1a 64)]] - degree 5, connects to 1 community
-- [[1415 CSV columns (v2_pairv3_pair)]] - degree 4, connects to 1 community
+- [[ADR-0006 v3 guards and node types_1]] - degree 12, connects to 6 communities
+- [[How LibreQoS v3 handles nodes]] - degree 12, connects to 2 communities
+- [[v3 bridge boot gate]] - degree 3, connects to 1 community
+- [[v3 name-derived legacy node id]] - degree 3, connects to 1 community
+- [[max_floor_mbps (0.2)  safe_min_mbps (0.1)]] - degree 2, connects to 1 community

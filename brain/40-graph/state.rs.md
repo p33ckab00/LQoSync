@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "Config 2"
+community: "File Safety"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/File_Safety
 ---
 
 # state.rs
@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[CircuitNames]] - `imports_from` [EXTRACTED]
 - [[CsvRow]] - `imports_from` [EXTRACTED]
-- [[HDR]] - `contains` [EXTRACTED]
+- [[HDR_1]] - `contains` [EXTRACTED]
 - [[Source]] - `imports_from` [EXTRACTED]
 - [[State]] - `imports_from` [EXTRACTED]
 - [[StoredCircuit]] - `imports_from` [EXTRACTED]
@@ -35,4 +35,4 @@ tags:
 - [[state_json_round_trip_and_version_check()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_2
+#graphify/code #graphify/EXTRACTED #community/File_Safety
