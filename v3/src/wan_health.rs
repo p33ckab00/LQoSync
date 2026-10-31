@@ -357,13 +357,59 @@ pub fn from_inventory(
             "Policy routing prevents verified probe attribution"
         );
     }
-    for r in table("/ip/firewall/mangle/print")? {
+    let mangle = table("/ip/firewall/mangle/print")?;
+    // An output rule may only route replies by a mark that no router-originated probe can carry.
+    // Probe connections start in output, so a prerouting `connection-state=new` setter never marks them.
+    let reply_routing = |r: &Row| -> Result<bool> {
+        let Some(mark) = r.get("connection-mark") else {
+            return Ok(false);
+        };
+        if r.get("action").map(String::as_str) != Some("mark-routing")
+            || mark.is_empty()
+            || mark == "no-mark"
+            || mark.starts_with('!')
+            || !r.keys().all(|k| {
+                matches!(
+                    k.as_str(),
+                    ".id"
+                        | "chain"
+                        | "action"
+                        | "comment"
+                        | "disabled"
+                        | "dynamic"
+                        | "invalid"
+                        | "log"
+                        | "log-prefix"
+                        | "bytes"
+                        | "packets"
+                        | "new-routing-mark"
+                        | "passthrough"
+                        | "connection-mark"
+                )
+            })
+        {
+            return Ok(false);
+        }
+        for s in mangle {
+            if !flag(s, "disabled")?
+                && s.get("action").is_some_and(|a| a == "mark-connection")
+                && s.get("new-connection-mark") == Some(mark)
+                && !(s.get("chain").is_some_and(|c| c == "prerouting")
+                    && s.get("connection-state").is_some_and(|c| c == "new"))
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    };
+    for r in mangle {
         ensure!(
             flag(r, "disabled")?
                 || r.get("chain").is_some_and(|c| matches!(
                     c.as_str(),
                     "prerouting" | "forward" | "postrouting" | "input"
-                )),
+                ))
+                || (r.get("chain").is_some_and(|c| c == "output") && reply_routing(r)?),
             "Output or unknown mangle chain prevents verified probe attribution"
         );
     }
@@ -440,11 +486,13 @@ pub fn from_inventory(
         let gateway = route
             .get("immediate-gw")
             .context("Probe route has no resolved gateway")?;
+        // Point-to-point WANs such as PPPoE resolve to the interface itself, with no next-hop IP.
         ensure!(
             !gateway.contains(',')
-                && gateway
-                    .rsplit_once('%')
-                    .is_some_and(|(ip, name)| ip.parse::<Ipv4Addr>().is_ok() && name == interface),
+                && (gateway == interface
+                    || gateway.rsplit_once('%').is_some_and(|(ip, name)| {
+                        ip.parse::<Ipv4Addr>().is_ok() && name == interface
+                    })),
             "Probe route does not uniquely resolve through the mapped WAN"
         );
         bound_routes.push((destination, gateway.clone()));

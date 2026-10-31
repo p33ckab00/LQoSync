@@ -273,3 +273,105 @@ fn threshold_change_resets_existing_evidence() {
     let s = step(&changed, &s, 120, 3, true);
     assert_eq!(s.status, HealthStatus::Unknown);
 }
+fn reply_rules() -> Vec<lqosync_v3::routeros::Row> {
+    vec![
+        row(&[
+            (".id", "*A4"),
+            ("chain", "prerouting"),
+            ("action", "mark-connection"),
+            ("connection-state", "new"),
+            ("connection-mark", "no-mark"),
+            ("in-interface", "pppoe-out1"),
+            ("new-connection-mark", "wan1_conn"),
+            ("passthrough", "true"),
+            ("disabled", "false"),
+        ]),
+        row(&[
+            (".id", "*C1"),
+            ("chain", "output"),
+            ("action", "mark-routing"),
+            ("comment", "ROUTER reply -> wan1-rt"),
+            ("connection-mark", "wan1_conn"),
+            ("new-routing-mark", "wan1-rt"),
+            ("passthrough", "false"),
+            ("dynamic", "false"),
+            ("invalid", "false"),
+        ]),
+    ]
+}
+#[test]
+fn provider_accepts_output_reply_routing_for_new_inbound_marks_only() {
+    use lqosync_v3::wan_health::from_inventory;
+    let (m, inv) = fixture();
+    let c = Config::default();
+    let with = |rules: Vec<lqosync_v3::routeros::Row>| {
+        let mut i = inv.clone();
+        i.tables.insert("/ip/firewall/mangle/print".into(), rules);
+        from_inventory(&c, &m, &i, "ether1", "revision")
+    };
+    assert!(with(reply_rules()).is_ok());
+    let edit = |n: usize, k: &str, v: Option<&str>| {
+        let mut r = reply_rules();
+        match v {
+            Some(v) => r[n].insert(k.into(), v.into()),
+            None => r[n].remove(k),
+        };
+        r
+    };
+    for (case, rules) in [
+        ("extra match field", edit(1, "dst-address", Some("9.9.9.9"))),
+        (
+            "negated mark",
+            edit(1, "connection-mark", Some("!wan1_conn")),
+        ),
+        ("no-mark", edit(1, "connection-mark", Some("no-mark"))),
+        ("missing mark", edit(1, "connection-mark", None)),
+        ("other action", edit(1, "action", Some("mark-connection"))),
+        (
+            "setter without new state",
+            edit(0, "connection-state", None),
+        ),
+        (
+            "setter with wider state",
+            edit(0, "connection-state", Some("new,established")),
+        ),
+        ("setter in output", edit(0, "chain", Some("output"))),
+    ] {
+        assert!(with(rules).is_err(), "{case}");
+    }
+    let mut extra = reply_rules();
+    extra.push(row(&[
+        ("chain", "forward"),
+        ("action", "mark-connection"),
+        ("new-connection-mark", "wan1_conn"),
+    ]));
+    assert!(with(extra).is_err(), "second setter outside prerouting");
+    let mut disabled = reply_rules();
+    disabled.push(row(&[
+        ("chain", "output"),
+        ("action", "mark-connection"),
+        ("new-connection-mark", "wan1_conn"),
+        ("disabled", "true"),
+    ]));
+    assert!(with(disabled).is_ok(), "disabled rules are ignored");
+}
+#[test]
+fn provider_accepts_interface_only_gateway_for_point_to_point_wan() {
+    use lqosync_v3::wan_health::from_inventory;
+    let (m, inv) = fixture();
+    let c = Config::default();
+    let gw = |value: &str| {
+        let mut i = inv.clone();
+        for r in i.tables.get_mut("/ip/route/print").unwrap() {
+            r.insert("immediate-gw".into(), value.into());
+        }
+        from_inventory(&c, &m, &i, "ether1", "revision")
+    };
+    assert!(
+        gw("ether1").is_ok(),
+        "PPPoE-style gateway is the mapped interface"
+    );
+    assert!(gw("ether2").is_err(), "other interface");
+    assert!(gw("ether1,ether2").is_err(), "multiple gateways");
+    assert!(gw("192.0.2.1").is_err(), "IP without interface");
+}

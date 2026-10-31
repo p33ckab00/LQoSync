@@ -10,10 +10,16 @@ Without WAN health configuration, the CLI reports `configured: false` and makes 
 Use dynamic topology with mapped routing WANs and a core or both-role router.
 The operator must configure two distinct external IPv4 ICMP probes per WAN separately.
 Each probe needs a dedicated static main-table host route that resolves through the mapped WAN interface.
+The route can use a next-hop IP on that interface, or the interface itself for a point-to-point WAN such as PPPoE.
 Probe targets must be distinct across all configured WANs.
 The preview does not create Netwatch entries, routes, scripts, or VRFs.
 
-This first provider rejects output mangle rules, enabled routing rules, probe scripts, explicit probe source bindings, and ambiguous routes.
+This first provider rejects enabled routing rules, probe scripts, explicit probe source bindings, and ambiguous routes.
+It rejects output mangle rules, with one exception: reply routing for inbound connections.
+An accepted output rule uses `mark-routing` and matches only a `connection-mark`.
+Every enabled rule that sets that mark must be in `prerouting` with `connection-state=new`.
+Probe connections start on the router, so such a mark cannot apply to a probe.
+See the [reply routing design](../docs/superpowers/specs/2026-10-31-health-reply-routing-design.md).
 It requires a uniquely enabled/running mapped interface and active static probe routes.
 An absent or inactive probe route produces Unknown. This first provider does not yet infer physical-link failure from that condition.
 Unsupported deployments require a separately verified provider before automatic failover can use their evidence.
