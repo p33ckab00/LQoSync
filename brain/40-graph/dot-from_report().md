@@ -1,12 +1,12 @@
 ---
 source_file: "src/status.rs"
 type: "code"
-community: "MikroTik Session"
-location: "L32"
+community: "Telegram Notifier"
+location: "L33"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Telegram_Notifier
 ---
 
 # .from_report()
@@ -16,4 +16,4 @@ tags:
 - [[ReportSummary]] - `method` [EXTRACTED]
 - [[status_json_has_the_spec_fields()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier

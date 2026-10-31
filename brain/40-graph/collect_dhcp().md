@@ -13,14 +13,14 @@ tags:
 
 ## Connections
 - [[dot-ip()]] - `calls` [EXTRACTED]
-- [[dot-server()]] - `calls` [EXTRACTED]
+- [[dot-server()_1]] - `calls` [EXTRACTED]
 - [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[DhcpPlan]] - `references` [EXTRACTED]
 - [[DhcpSite]] - `references` [EXTRACTED]
 - [[Excluder]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_1]] - `references` [EXTRACTED]
+- [[RouterSnapshot_2]] - `references` [EXTRACTED]
 - [[SpeedParser]] - `references` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]
 - [[comment_rate()]] - `calls` [EXTRACTED]

@@ -1,19 +1,18 @@
 ---
 source_file: ""
 type: "code"
-community: "Router Reads"
+community: "Circuit Collection"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/Circuit_Collection
 ---
 
 # RosRow
 
 ## Connections
-- [[dot-print()_1]] - `references` [EXTRACTED]
-- [[dot-print()_2]] - `references` [EXTRACTED]
-- [[routeros.rs]] - `imports_from` [EXTRACTED]
-- [[row()_2]] - `references` [EXTRACTED]
+- [[f()]] - `references` [EXTRACTED]
+- [[flag_on()]] - `references` [EXTRACTED]
+- [[sources.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

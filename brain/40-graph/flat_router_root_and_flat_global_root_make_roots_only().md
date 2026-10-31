@@ -12,7 +12,7 @@ tags:
 # flat_router_root_and_flat_global_root_make_roots_only()
 
 ## Connections
-- [[cfg()_2]] - `calls` [EXTRACTED]
+- [[cfg()_1]] - `calls` [EXTRACTED]
 - [[groups()]] - `calls` [EXTRACTED]
 - [[net()_1]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]

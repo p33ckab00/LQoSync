@@ -1,12 +1,12 @@
 ---
 source_file: "src/routerstate.rs"
 type: "code"
-community: "Router State"
+community: "fs"
 location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/fs
 ---
 
 # name()
@@ -15,4 +15,4 @@ tags:
 - [[RouterResult]] - `references` [EXTRACTED]
 - [[routerstate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/fs

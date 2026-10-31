@@ -1,12 +1,12 @@
 ---
 source_file: "src/mikrotik.rs"
 type: "code"
-community: "MikroTik Session 3"
+community: "MikroTik Session"
 location: "L191"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/MikroTik_Session
 ---
 
 # .print()
@@ -17,4 +17,4 @@ tags:
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RosRow]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

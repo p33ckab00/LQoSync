@@ -11,12 +11,11 @@ tags:
 # updatecsv.py dissection
 
 ## Connections
-- [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
-- [[ADR-0004 TOML policy, Python defaults_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
 - [[DHCP server discovery (like PPP)]] - `conceptually_related_to` [INFERRED]
-- [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[Live production values (2026-10-31)]] - `references` [EXTRACTED]
 - [[Python output format for shadow compare]] - `references` [EXTRACTED]
 - [[Random 8-char CircuitDevice IDs]] - `references` [EXTRACTED]

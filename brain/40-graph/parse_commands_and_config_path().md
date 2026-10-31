@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L179"
+community: "Telegram Notifier 2"
+location: "L183"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Telegram_Notifier_2
 ---
 
 # parse_commands_and_config_path()
@@ -16,4 +16,4 @@ tags:
 - [[parse()]] - `calls` [EXTRACTED]
 - [[s()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2

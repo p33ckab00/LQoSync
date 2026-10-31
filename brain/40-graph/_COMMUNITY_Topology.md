@@ -1,28 +1,30 @@
 ---
 type: community
-members: 51
+members: 53
 ---
 
 # Topology
 
-**Members:** 51 nodes
+**Members:** 53 nodes
 
 ## Members
-- [[dot-type_for()]] - code - src/config.rs
+- [[DhcpPlan]] - code - src/sources.rs
+- [[DhcpSite]] - code - src/sources.rs
 - [[GroupKey]] - code - src/sources.rs
 - [[GroupTotal]] - code - src/topology.rs
-- [[Hotspot]] - code - src/sources.rs
+- [[Hotspot_1]] - code - src/sources.rs
 - [[Map_1]] - code
-- [[NodeTemplate]] - code - src/config.rs
-- [[Ppp]] - code - src/sources.rs
+- [[Ppp_1]] - code - src/sources.rs
+- [[PppPlan]] - code - src/sources.rs
+- [[Rate]] - code - src/speed.rs
 - [[RouterGroups]] - code - src/topology.rs
 - [[StoredNode]] - code - src/model.rs
-- [[Value_4]] - code
+- [[Value_3]] - code
 - [[a_kept_child_keeps_its_operator_children()]] - code - src/topology.rs
 - [[backstop_cap_limits_group()]] - code - src/topology.rs
 - [[build_nodes()]] - code - src/topology.rs
 - [[carried_nodes_of_failed_router_stay()]] - code - src/topology.rs
-- [[cfg()_2]] - code - src/topology.rs
+- [[cfg()_1]] - code - src/topology.rs
 - [[client_node_id()]] - code - src/topology.rs
 - [[count_rate()]] - code - src/topology.rs
 - [[deep_chains_nest_in_parent_first_order()]] - code - src/topology.rs
@@ -68,24 +70,25 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 10 edges to [[_COMMUNITY_CLI and Checks 3]]
-- 10 edges to [[_COMMUNITY_CLI and Checks 2]]
-- 7 edges to [[_COMMUNITY_Speed Rules]]
-- 5 edges to [[_COMMUNITY_Circuit Collection]]
+- 11 edges to [[_COMMUNITY_CLI and Checks]]
+- 11 edges to [[_COMMUNITY_Secrets]]
+- 10 edges to [[_COMMUNITY_Circuit Collection]]
+- 8 edges to [[_COMMUNITY_Config 3]]
 - 5 edges to [[_COMMUNITY_fs]]
 - 3 edges to [[_COMMUNITY_hashmap]]
-- 3 edges to [[_COMMUNITY_btreemap]]
-- 2 edges to [[_COMMUNITY_Config 3]]
+- 2 edges to [[_COMMUNITY_deserialize]]
+- 2 edges to [[_COMMUNITY_Config 2]]
 - 2 edges to [[_COMMUNITY_LibreQoS v3]]
-- 1 edge to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_BandwidthDefaults]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
-- 1 edge to [[_COMMUNITY_Status and Diff 2]]
+- 2 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
+- 1 edge to [[_COMMUNITY_dhcp_server_gives_override_or_]]
+- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
+- 1 edge to [[_COMMUNITY_Status and Diff]]
 - 1 edge to [[_COMMUNITY_File Safety]]
 
 ## Top bridge nodes
-- [[topology.rs]] - degree 60, connects to 10 communities
+- [[topology.rs]] - degree 60, connects to 11 communities
 - [[build_nodes()]] - degree 21, connects to 4 communities
+- [[Rate]] - degree 20, connects to 3 communities
 - [[StoredNode]] - degree 13, connects to 3 communities
 - [[parent_for()]] - degree 10, connects to 3 communities
-- [[GroupKey]] - degree 16, connects to 2 communities

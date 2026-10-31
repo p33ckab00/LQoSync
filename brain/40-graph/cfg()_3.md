@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "CLI and Checks"
 location: "L497"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/CLI_and_Checks
 ---
 
 # cfg()
@@ -25,4 +25,4 @@ tags:
 - [[rp()]] - `calls` [EXTRACTED]
 - [[v3_with_no_parent_stops()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

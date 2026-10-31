@@ -1,20 +1,20 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "MikroTik Session 3"
-location: "L286"
+community: "MikroTik Session"
+location: "L287"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/MikroTik_Session
 ---
 
 # RouterCfg
 
 ## Connections
+- [[dot-connect()]] - `references` [EXTRACTED]
 - [[dot-connect()_1]] - `references` [EXTRACTED]
 - [[dot-connect()_2]] - `references` [EXTRACTED]
-- [[dot-connect()]] - `references` [EXTRACTED]
 - [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[dot-new()_1]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
@@ -38,4 +38,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[tls_client_config()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

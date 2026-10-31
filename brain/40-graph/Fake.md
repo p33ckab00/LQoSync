@@ -1,8 +1,8 @@
 ---
-source_file: "src/runner.rs"
+source_file: "src/routeros.rs"
 type: "code"
 community: "MikroTik Session"
-location: "L335"
+location: "L182"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -12,11 +12,13 @@ tags:
 # Fake
 
 ## Connections
-- [[Env]] - `references` [EXTRACTED]
-- [[FakeConnector]] - `references` [EXTRACTED]
-- [[FakeSession_1]] - `references` [EXTRACTED]
+- [[dot-connect()_2]] - `method` [EXTRACTED]
+- [[AtomicUsize]] - `references` [EXTRACTED]
+- [[Connector]] - `implements` [EXTRACTED]
+- [[FakeSession]] - `references` [EXTRACTED]
 - [[Mutex]] - `references` [EXTRACTED]
-- [[RosRow_1]] - `references` [EXTRACTED]
-- [[runner.rs]] - `contains` [EXTRACTED]
+- [[ReadError]] - `references` [EXTRACTED]
+- [[Script]] - `references` [EXTRACTED]
+- [[routeros.rs]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/MikroTik_Session

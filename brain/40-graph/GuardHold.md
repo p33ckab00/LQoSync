@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "btreemap"
+community: "deserialize"
 location: "L155"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/btreemap
+  - community/deserialize
 ---
 
 # GuardHold
@@ -16,4 +16,4 @@ tags:
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/btreemap
+#graphify/code #graphify/EXTRACTED #community/deserialize

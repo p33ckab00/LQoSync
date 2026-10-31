@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "code"
-community: "Speed Rules 4"
+community: "Speed Rules 3"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules_4
+  - community/Speed_Rules_3
 ---
 
 # DhcpCfg::server(name) defaults
@@ -14,4 +14,4 @@ tags:
 - [[Circuit rules for each source]] - `references` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules_4
+#graphify/code #graphify/EXTRACTED #community/Speed_Rules_3

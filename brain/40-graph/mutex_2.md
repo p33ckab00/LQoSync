@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Mock Router Tests"
+community: "MikroTik Session"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/MikroTik_Session
 ---
 
 # mutex
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[mock_router.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

@@ -1,24 +1,22 @@
 ---
-source_file: "src/mikrotik.rs"
+source_file: "src/routeros.rs"
 type: "code"
-community: "MikroTik Session 3"
-location: "L130"
+community: "MikroTik Session"
+location: "L52"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/MikroTik_Session
 ---
 
 # .connect()
 
 ## Connections
-- [[MikrotikConnector]] - `method` [EXTRACTED]
-- [[MikrotikSession]] - `references` [EXTRACTED]
-- [[Output]] - `references` [EXTRACTED]
+- [[Connector]] - `method` [EXTRACTED]
+- [[Output_1]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[read_secret()]] - `calls` [INFERRED]
-- [[tls_client_config()]] - `calls` [EXTRACTED]
+- [[Session]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

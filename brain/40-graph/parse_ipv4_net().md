@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Circuit Collection"
-location: "L353"
+location: "L354"
 tags:
   - graphify/code
   - graphify/EXTRACTED

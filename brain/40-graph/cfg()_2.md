@@ -1,29 +1,30 @@
 ---
-source_file: "src/topology.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "Topology"
-location: "L401"
+community: "Circuit Collection"
+location: "L446"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology
+  - community/Circuit_Collection
 ---
 
 # cfg()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[a_kept_child_keeps_its_operator_children()]] - `calls` [EXTRACTED]
-- [[backstop_cap_limits_group()]] - `calls` [EXTRACTED]
-- [[carried_nodes_of_failed_router_stay()]] - `calls` [EXTRACTED]
-- [[flat_promotion_gives_one_client_node_per_row()]] - `calls` [EXTRACTED]
-- [[flat_router_root_and_flat_global_root_make_roots_only()]] - `calls` [EXTRACTED]
-- [[grouped_router_root_nests_groups_under_router()]] - `calls` [EXTRACTED]
-- [[id_does_not_change_with_the_name_template()]] - `calls` [EXTRACTED]
-- [[parent_for_each_mode()]] - `calls` [EXTRACTED]
-- [[ppp_node_exists_with_zero_users()]] - `calls` [EXTRACTED]
-- [[preserve_keeps_manual_nodes_and_drops_old_generated()]] - `calls` [EXTRACTED]
-- [[topology.rs]] - `contains` [EXTRACTED]
-- [[v3_flag_makes_group_nodes_site()]] - `calls` [EXTRACTED]
+- [[a_zero_speed_profile_comment_gives_one_line()]] - `calls` [EXTRACTED]
+- [[circuit_templates_can_use_router()]] - `calls` [EXTRACTED]
+- [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]
+- [[dhcp_per_site_filters_and_names()]] - `calls` [EXTRACTED]
+- [[dhcp_server_comment_beats_settings()]] - `calls` [EXTRACTED]
+- [[disabled_sources_give_nothing()]] - `calls` [EXTRACTED]
+- [[hotspot_key_rules()]] - `calls` [EXTRACTED]
+- [[only_true_or_yes_turns_a_flag_on()]] - `calls` [EXTRACTED]
+- [[ppp_mac_falls_back_to_secret_caller_id()]] - `calls` [EXTRACTED]
+- [[ppp_needs_active_and_enabled_secret()]] - `calls` [EXTRACTED]
+- [[ppp_speed_chain_order()]] - `calls` [EXTRACTED]
+- [[sources.rs]] - `contains` [EXTRACTED]
+- [[zero_speed_comments_give_a_report_line()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

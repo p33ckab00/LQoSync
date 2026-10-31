@@ -1,18 +1,22 @@
 ---
 source_file: ""
 type: "code"
-community: "Router Reads"
+community: "Circuit Collection"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/Circuit_Collection
 ---
 
 # RouterSnapshot
 
 ## Connections
-- [[read_router()]] - `references` [EXTRACTED]
-- [[read_snapshot()]] - `references` [EXTRACTED]
-- [[routeros.rs]] - `imports_from` [EXTRACTED]
+- [[collect_dhcp()]] - `references` [EXTRACTED]
+- [[collect_hotspot()]] - `references` [EXTRACTED]
+- [[collect_ppp()]] - `references` [EXTRACTED]
+- [[collect_router()]] - `references` [EXTRACTED]
+- [[run()_1]] - `references` [EXTRACTED]
+- [[snap()]] - `references` [EXTRACTED]
+- [[sources.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

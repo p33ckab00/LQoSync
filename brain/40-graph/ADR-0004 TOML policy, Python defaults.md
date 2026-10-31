@@ -1,18 +1,25 @@
 ---
-source_file: "brain/HANDOFF.md"
-type: "rationale"
-community: "MikroTik Session 2"
-location: "L33"
+source_file: "brain/20-decisions/ADR-0004-toml-policy-python-defaults.md"
+type: "document"
+community: "Speed Rules 2"
 tags:
-  - graphify/rationale
+  - graphify/document
   - graphify/EXTRACTED
-  - community/MikroTik_Session_2
+  - community/Speed_Rules_2
 ---
 
 # ADR-0004 TOML policy, Python defaults
 
 ## Connections
-- [[Handoff 2026-10-31 (documentation phase)]] - `references` [EXTRACTED]
-- [[Policy in TOML, formats in code]] - `rationale_for` [INFERRED]
+- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
+- [[ADR-0009 DHCP discovery and exclusions_1]] - `references` [EXTRACTED]
+- [[All policy in TOML]] - `rationale_for` [EXTRACTED]
+- [[Profile name number+unit rule]] - `rationale_for` [EXTRACTED]
+- [[Session updatecsv.py dissection]] - `references` [EXTRACTED]
+- [[Speed source order TOML lists]] - `rationale_for` [EXTRACTED]
+- [[lqosync3 core design spec]] - `references` [EXTRACTED]
+- [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session_2
+#graphify/document #graphify/EXTRACTED #community/Speed_Rules_2

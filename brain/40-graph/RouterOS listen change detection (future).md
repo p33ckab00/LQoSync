@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Router State 2"
+community: "Speed Rules"
 location: "L109"
 tags:
   - graphify/concept
   - graphify/AMBIGUOUS
-  - community/Router_State_2
+  - community/Speed_Rules
 ---
 
 # RouterOS listen change detection (future)
@@ -15,4 +15,4 @@ tags:
 - [[Collector (RouterOS API reads)]] - `conceptually_related_to` [AMBIGUOUS]
 - [[Subscriber presence and subscriber_grace]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/AMBIGUOUS #community/Router_State_2
+#graphify/concept #graphify/AMBIGUOUS #community/Speed_Rules

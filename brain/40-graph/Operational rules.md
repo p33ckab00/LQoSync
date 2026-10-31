@@ -1,19 +1,19 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "rationale"
-community: "Status and Diff"
-location: "L8"
+community: "Session Notes"
+location: "L8-17"
 tags:
   - graphify/rationale
-  - graphify/AMBIGUOUS
-  - community/Status_and_Diff
+  - graphify/INFERRED
+  - community/Session_Notes
 ---
 
 # Operational rules
 
 ## Connections
-- [[ADR-0001 One model, many writers]] - `conceptually_related_to` [AMBIGUOUS]
-- [[Operations (docs)]] - `references` [EXTRACTED]
+- [[Operations guide]] - `references` [EXTRACTED]
 - [[Plan 2 global constraints]] - `semantically_similar_to` [INFERRED]
+- [[Safety rules (shadow default, no router writes, 0600 secrets)]] - `semantically_similar_to` [INFERRED]
 
-#graphify/rationale #graphify/AMBIGUOUS #community/Status_and_Diff
+#graphify/rationale #graphify/INFERRED #community/Session_Notes

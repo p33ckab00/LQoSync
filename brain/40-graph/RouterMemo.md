@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Router State"
+community: "Router State 2"
 location: "L149"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Router_State_2
 ---
 
 # RouterMemo
@@ -18,4 +18,4 @@ tags:
 - [[model.rs]] - `contains` [EXTRACTED]
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Router_State_2

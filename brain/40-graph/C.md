@@ -11,7 +11,6 @@ tags:
 # C
 
 ## Connections
-- [[dot-new()]] - `references` [EXTRACTED]
-- [[Runner]] - `references` [EXTRACTED]
+- [[read_router()]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/MikroTik_Session

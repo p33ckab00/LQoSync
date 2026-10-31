@@ -1,23 +1,19 @@
 ---
 type: community
-members: 10
+members: 6
 ---
 
 # Status and Diff 4
 
-**Members:** 10 nodes
+**Members:** 6 nodes
 
 ## Members
-- [[first_forty()]] - code - src/cycle.rs
-- [[guard_cfg()]] - code - src/cycle.rs
-- [[guard_holds_a_mass_removal_and_keeps_other_changes()]] - code - src/cycle.rs
-- [[guard_off_removes_at_once()]] - code - src/cycle.rs
-- [[guard_releases_on_force()]] - code - src/cycle.rs
-- [[guard_releases_on_same_fingerprint_next_cycle()]] - code - src/cycle.rs
-- [[guard_restarts_on_a_different_fingerprint()]] - code - src/cycle.rs
-- [[hundred()]] - code - src/cycle.rs
-- [[rp_toml_with_guard()]] - code - src/cycle.rs
-- [[small_removal_is_not_held()]] - code - src/cycle.rs
+- [[ADR-0008 Terminal UI]] - document - brain/20-decisions/ADR-0008-terminal-ui.md
+- [[Delivery in five plans (core, runtime, v3, TUI, install)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[SIGUSR1 sync now  SIGHUP reload]] - concept - brain/20-decisions/ADR-0008-terminal-ui.md
+- [[TUI config editor (toml_edit)]] - concept - brain/20-decisions/ADR-0008-terminal-ui.md
+- [[lqosync3 tui (ratatuicrossterm)]] - rationale - brain/20-decisions/ADR-0008-terminal-ui.md
+- [[status.json state file]] - concept - brain/20-decisions/ADR-0008-terminal-ui.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -27,12 +23,12 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 18 edges to [[_COMMUNITY_CLI and Checks 2]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 3]]
+- 3 edges to [[_COMMUNITY_Speed Rules 2]]
+- 1 edge to [[_COMMUNITY_Topology 3]]
+- 1 edge to [[_COMMUNITY_Topology 5]]
 
 ## Top bridge nodes
-- [[guard_cfg()]] - degree 8, connects to 2 communities
-- [[hundred()]] - degree 9, connects to 1 community
-- [[guard_holds_a_mass_removal_and_keeps_other_changes()]] - degree 5, connects to 1 community
-- [[guard_restarts_on_a_different_fingerprint()]] - degree 5, connects to 1 community
-- [[guard_releases_on_force()]] - degree 4, connects to 1 community
+- [[Delivery in five plans (core, runtime, v3, TUI, install)]] - degree 3, connects to 2 communities
+- [[ADR-0008 Terminal UI]] - degree 6, connects to 1 community
+- [[TUI config editor (toml_edit)]] - degree 3, connects to 1 community
+- [[status.json state file]] - degree 3, connects to 1 community

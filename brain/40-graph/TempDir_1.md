@@ -1,16 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "MikroTik Session 3"
+community: "Telegram Notifier 2"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/Telegram_Notifier_2
 ---
 
 # TempDir
 
 ## Connections
-- [[Setup]] - `references` [EXTRACTED]
+- [[file()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2

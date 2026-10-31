@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Session Notes"
+community: "MikroTik Session"
 location: "L349"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes
+  - community/MikroTik_Session
 ---
 
 # a_dead_kept_session_reconnects_without_a_retry()
@@ -17,4 +17,4 @@ tags:
 - [[read_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

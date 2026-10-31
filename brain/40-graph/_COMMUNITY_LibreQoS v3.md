@@ -31,12 +31,12 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 9 edges to [[_COMMUNITY_fs]]
-- 5 edges to [[_COMMUNITY_btreemap]]
-- 4 edges to [[_COMMUNITY_Config 3]]
-- 4 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 5 edges to [[_COMMUNITY_deserialize]]
+- 4 edges to [[_COMMUNITY_Config 2]]
+- 4 edges to [[_COMMUNITY_CLI and Checks]]
 - 4 edges to [[_COMMUNITY_hashmap]]
 - 2 edges to [[_COMMUNITY_Topology]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier]]
 
 ## Top bridge nodes
 - [[CsvRow]] - degree 26, connects to 6 communities

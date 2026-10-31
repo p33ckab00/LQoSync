@@ -1,21 +1,21 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "BandwidthDefaults"
-location: "L365"
+community: "dhcp_server_gives_override_or_"
+location: "L366"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/BandwidthDefaults
+  - community/dhcp_server_gives_override_or_
 ---
 
 # DhcpCfg
 
 ## Connections
-- [[dot-server()_1]] - `method` [EXTRACTED]
+- [[dot-server()]] - `method` [EXTRACTED]
 - [[DhcpMode]] - `references` [EXTRACTED]
 - [[DhcpServer]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults
+#graphify/code #graphify/EXTRACTED #community/dhcp_server_gives_override_or_

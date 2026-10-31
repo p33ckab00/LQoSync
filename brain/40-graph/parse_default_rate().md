@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Rules"
+community: "Circuit Collection"
 location: "L82"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Circuit_Collection
 ---
 
 # parse_default_rate()
@@ -19,4 +19,4 @@ tags:
 - [[speed.rs]] - `contains` [EXTRACTED]
 - [[usable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

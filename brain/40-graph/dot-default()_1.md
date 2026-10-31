@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: ".default()"
-location: "L503"
+community: "Config 3"
+location: "L504"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/default
+  - community/Config_3
 ---
 
 # .default()
@@ -15,4 +15,4 @@ tags:
 - [[Config]] - `method` [EXTRACTED]
 - [[defaults()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/default
+#graphify/code #graphify/EXTRACTED #community/Config_3

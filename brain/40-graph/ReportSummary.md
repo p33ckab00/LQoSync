@@ -1,12 +1,12 @@
 ---
 source_file: "src/status.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Telegram Notifier"
 location: "L19"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Telegram_Notifier
 ---
 
 # ReportSummary
@@ -14,7 +14,8 @@ tags:
 ## Connections
 - [[dot-from_report()]] - `method` [EXTRACTED]
 - [[Status]] - `references` [EXTRACTED]
+- [[notify.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[status.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier

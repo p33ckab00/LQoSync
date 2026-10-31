@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "btreemap"
+community: "deserialize"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/btreemap
+  - community/deserialize
 ---
 
 # deserialize
@@ -15,4 +15,4 @@ tags:
 - [[model.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/btreemap
+#graphify/concept #graphify/EXTRACTED #community/deserialize

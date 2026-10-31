@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Rules"
+community: "Secrets"
 location: "L145"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Secrets
 ---
 
 # .zero_rate()
@@ -15,4 +15,4 @@ tags:
 - [[dot-comment_raw()]] - `calls` [EXTRACTED]
 - [[SpeedParser]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Secrets

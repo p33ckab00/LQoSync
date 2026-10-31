@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "CLI and Checks"
+community: "Telegram Notifier 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Telegram_Notifier_2
 ---
 
 # permissionsext
@@ -15,4 +15,4 @@ tags:
 - [[mock_router.rs]] - `imports_from` [EXTRACTED]
 - [[secrets.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier_2

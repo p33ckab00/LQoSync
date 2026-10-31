@@ -12,7 +12,7 @@ tags:
 # v3_flag_makes_group_nodes_site()
 
 ## Connections
-- [[cfg()_2]] - `calls` [EXTRACTED]
+- [[cfg()_1]] - `calls` [EXTRACTED]
 - [[groups()]] - `calls` [EXTRACTED]
 - [[net()_1]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]

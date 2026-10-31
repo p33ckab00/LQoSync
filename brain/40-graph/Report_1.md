@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "MikroTik Session"
+community: "Telegram Notifier"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Telegram_Notifier
 ---
 
 # Report
@@ -14,4 +14,4 @@ tags:
 - [[dot-from_report()]] - `references` [EXTRACTED]
 - [[status.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier

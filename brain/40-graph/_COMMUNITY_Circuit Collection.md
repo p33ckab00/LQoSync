@@ -1,31 +1,28 @@
 ---
 type: community
-members: 52
+members: 50
 ---
 
 # Circuit Collection
 
-**Members:** 52 nodes
+**Members:** 50 nodes
 
 ## Members
 - [[dot-ip()]] - code - src/sources.rs
 - [[dot-new()_1]] - code - src/sources.rs
 - [[dot-profile()]] - code - src/sources.rs
-- [[dot-server()]] - code - src/sources.rs
+- [[dot-server()_1]] - code - src/sources.rs
 - [[Collected]] - code - src/sources.rs
 - [[DISCOVER]] - code - src/sources.rs
-- [[DhcpPlan]] - code - src/sources.rs
-- [[DhcpSite]] - code - src/sources.rs
 - [[Excluder]] - code - src/sources.rs
 - [[Excluder'a]] - code - src/sources.rs
-- [[PppPlan]] - code - src/sources.rs
 - [[ROUTER]] - code - src/sources.rs
-- [[RosRow_2]] - code
-- [[RouterSnapshot_1]] - code
+- [[RosRow_3]] - code
+- [[RouterSnapshot_2]] - code
 - [[Source_1]] - code
 - [[a_zero_speed_profile_comment_gives_one_line()]] - code - src/sources.rs
 - [[by_name()]] - code - src/sources.rs
-- [[cfg()_1]] - code - src/sources.rs
+- [[cfg()_2]] - code - src/sources.rs
 - [[cfg_text()]] - code - src/sources.rs
 - [[circuit_templates_can_use_router()]] - code - src/sources.rs
 - [[collect_dhcp()]] - code - src/sources.rs
@@ -49,13 +46,14 @@ members: 52
 - [[mac_key()]] - code - src/sources.rs
 - [[names_of()]] - code - src/sources.rs
 - [[only_true_or_yes_turns_a_flag_on()]] - code - src/sources.rs
+- [[parse_default_rate()]] - code - src/speed.rs
 - [[parse_ipv4_net()]] - code - src/config.rs
 - [[plan_label()]] - code - src/sources.rs
 - [[plan_label_truncates()]] - code - src/sources.rs
 - [[ppp_mac_falls_back_to_secret_caller_id()]] - code - src/sources.rs
 - [[ppp_needs_active_and_enabled_secret()]] - code - src/sources.rs
 - [[ppp_speed_chain_order()]] - code - src/sources.rs
-- [[rate()]] - code - src/sources.rs
+- [[rate()_1]] - code - src/sources.rs
 - [[run()_1]] - code - src/sources.rs
 - [[snap()]] - code - src/sources.rs
 - [[sources.rs]] - code - src/sources.rs
@@ -69,21 +67,19 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 11 edges to [[_COMMUNITY_Speed Rules]]
-- 9 edges to [[_COMMUNITY_CLI and Checks 3]]
-- 6 edges to [[_COMMUNITY_MikroTik Session 3]]
-- 5 edges to [[_COMMUNITY_Topology]]
-- 2 edges to [[_COMMUNITY_Secrets]]
-- 1 edge to [[_COMMUNITY_BandwidthDefaults]]
+- 10 edges to [[_COMMUNITY_Topology]]
+- 9 edges to [[_COMMUNITY_Config 3]]
+- 9 edges to [[_COMMUNITY_Secrets]]
+- 6 edges to [[_COMMUNITY_MikroTik Session]]
+- 2 edges to [[_COMMUNITY_dhcp_server_gives_override_or_]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
 - 1 edge to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
-- 1 edge to [[_COMMUNITY_btreemap]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
+- 1 edge to [[_COMMUNITY_CLI and Checks]]
 - 1 edge to [[_COMMUNITY_fs]]
 
 ## Top bridge nodes
-- [[sources.rs]] - degree 54, connects to 8 communities
+- [[sources.rs]] - degree 54, connects to 6 communities
 - [[collect_router()]] - degree 13, connects to 5 communities
-- [[collect_dhcp()]] - degree 17, connects to 3 communities
-- [[collect_ppp()]] - degree 15, connects to 3 communities
-- [[Collected]] - degree 11, connects to 2 communities
+- [[collect_dhcp()]] - degree 17, connects to 4 communities
+- [[collect_ppp()]] - degree 15, connects to 4 communities
+- [[collect_hotspot()]] - degree 10, connects to 2 communities

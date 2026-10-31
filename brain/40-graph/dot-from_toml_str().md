@@ -2,7 +2,7 @@
 source_file: "src/config.rs"
 type: "code"
 community: "Config"
-location: "L663"
+location: "L664"
 tags:
   - graphify/code
   - graphify/EXTRACTED
@@ -26,6 +26,7 @@ tags:
 - [[router_defaults_apply_to_each_router_and_a_router_overrides_them()]] - `calls` [EXTRACTED]
 - [[router_defaults_reject_router_only_keys()]] - `calls` [EXTRACTED]
 - [[router_example_in_defaults_file_loads_two_routers()]] - `calls` [EXTRACTED]
+- [[telegram_needs_a_chat_id_when_enabled()]] - `calls` [EXTRACTED]
 - [[tls_keys_have_defaults_and_can_change()]] - `calls` [EXTRACTED]
 - [[unknown_key_is_rejected_with_its_name()]] - `calls` [EXTRACTED]
 - [[unknown_template_fields_are_rejected()]] - `calls` [EXTRACTED]

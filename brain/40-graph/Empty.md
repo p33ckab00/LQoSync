@@ -1,12 +1,12 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "Mock Router Tests"
+community: "MikroTik Session"
 location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/MikroTik_Session
 ---
 
 # Empty
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Answer]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

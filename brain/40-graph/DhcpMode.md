@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "BandwidthDefaults"
-location: "L397"
+community: "dhcp_server_gives_override_or_"
+location: "L398"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/BandwidthDefaults
+  - community/dhcp_server_gives_override_or_
 ---
 
 # DhcpMode
@@ -20,4 +20,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults
+#graphify/code #graphify/EXTRACTED #community/dhcp_server_gives_override_or_

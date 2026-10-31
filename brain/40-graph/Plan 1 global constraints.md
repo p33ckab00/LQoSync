@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-core.md"
 type: "rationale"
-community: "Topology 2"
+community: "Topology 3"
 location: "L13"
 tags:
   - graphify/rationale
   - graphify/INFERRED
-  - community/Topology_2
+  - community/Topology_3
 ---
 
 # Plan 1 global constraints
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[cycleassemble() pure core function]] - `rationale_for` [INFERRED]
 
-#graphify/rationale #graphify/INFERRED #community/Topology_2
+#graphify/rationale #graphify/INFERRED #community/Topology_3

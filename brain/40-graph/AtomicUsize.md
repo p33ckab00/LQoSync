@@ -1,17 +1,17 @@
 ---
 source_file: ""
 type: "code"
-community: "Session Notes"
+community: "MikroTik Session"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes
+  - community/MikroTik_Session
 ---
 
 # AtomicUsize
 
 ## Connections
-- [[Fake_1]] - `references` [EXTRACTED]
+- [[Fake]] - `references` [EXTRACTED]
 - [[routeros.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

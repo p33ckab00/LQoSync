@@ -1,18 +1,17 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Config 2"
+community: "Plan 2 Runtime"
 location: "L169"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/Plan_2_Runtime
 ---
 
 # Removal procedure
 
 ## Connections
 - [[Installation (docs)]] - `references` [EXTRACTED]
-- [[lqosync-updatecsv.service (live Python service)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/Plan_2_Runtime

@@ -1,11 +1,11 @@
 ---
 type: community
-members: 26
+members: 27
 ---
 
 # Config
 
-**Members:** 26 nodes
+**Members:** 27 nodes
 
 ## Members
 - [[dot-from_toml_str()]] - code - src/config.rs
@@ -30,6 +30,7 @@ members: 26
 - [[router_defaults_reject_router_only_keys()]] - code - src/config.rs
 - [[router_example_in_defaults_file_loads_two_routers()]] - code - src/config.rs
 - [[router_list_problems_are_rejected()]] - code - src/config.rs
+- [[telegram_needs_a_chat_id_when_enabled()]] - code - src/config.rs
 - [[tls_keys_have_defaults_and_can_change()]] - code - src/config.rs
 - [[unknown_key_is_rejected_with_its_name()]] - code - src/config.rs
 - [[unknown_template_fields_are_rejected()]] - code - src/config.rs
@@ -43,28 +44,27 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 11 edges to [[_COMMUNITY_CLI and Checks 3]]
-- 7 edges to [[_COMMUNITY_BandwidthDefaults]]
-- 5 edges to [[_COMMUNITY_dot-default()]]
-- 3 edges to [[_COMMUNITY_Secrets]]
-- 3 edges to [[_COMMUNITY_Speed Rules]]
-- 3 edges to [[_COMMUNITY_Plan 2 Runtime]]
-- 2 edges to [[_COMMUNITY_MikroTik Session 3]]
-- 2 edges to [[_COMMUNITY_Session Notes 2]]
+- 10 edges to [[_COMMUNITY_Config 3]]
+- 6 edges to [[_COMMUNITY_dhcp_server_gives_override_or_]]
+- 5 edges to [[_COMMUNITY_MikroTik Session]]
+- 5 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 4 edges to [[_COMMUNITY_Secrets]]
+- 3 edges to [[_COMMUNITY_CLI and Checks 3]]
+- 3 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
+- 2 edges to [[_COMMUNITY_hashmap]]
+- 2 edges to [[_COMMUNITY_Router State]]
 - 2 edges to [[_COMMUNITY_LibreQoS v3 2]]
-- 2 edges to [[_COMMUNITY_CLI and Checks]]
-- 1 edge to [[_COMMUNITY_hashmap]]
-- 1 edge to [[_COMMUNITY_Topology]]
-- 1 edge to [[_COMMUNITY_Config 3]]
-- 1 edge to [[_COMMUNITY_Circuit Collection]]
-- 1 edge to [[_COMMUNITY_Session Notes]]
-- 1 edge to [[_COMMUNITY_Config 4]]
-- 1 edge to [[_COMMUNITY_Mock Router Tests]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
+- 1 edge to [[_COMMUNITY_Config 2]]
+- 1 edge to [[_COMMUNITY_LogLevel]]
+- 1 edge to [[_COMMUNITY_OfflineAction]]
 - 1 edge to [[_COMMUNITY_File Safety]]
-- 1 edge to [[_COMMUNITY_btreemap]]
+- 1 edge to [[_COMMUNITY_deserialize]]
+- 1 edge to [[_COMMUNITY_Config 4]]
+- 1 edge to [[_COMMUNITY_Circuit Collection]]
 
 ## Top bridge nodes
-- [[config.rs]] - degree 68, connects to 20 communities
-- [[dot-from_toml_str()]] - degree 18, connects to 3 communities
+- [[config.rs]] - degree 69, connects to 18 communities
+- [[dot-from_toml_str()]] - degree 19, connects to 2 communities
+- [[per_site_rejects_lease_comment_and_defaults_follow_mode()]] - degree 3, connects to 1 community
 - [[PppoeCfg]] - degree 2, connects to 1 community

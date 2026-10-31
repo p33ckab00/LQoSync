@@ -1,34 +1,37 @@
 ---
 type: community
-members: 21
+members: 24
 ---
 
 # Session Notes
 
-**Members:** 21 nodes
+**Members:** 24 nodes
 
 ## Members
-- [[dot-connect()]] - code - src/routeros.rs
-- [[AtomicUsize]] - code
-- [[Fake_1]] - code - src/routeros.rs
-- [[FakeSession]] - code - src/routeros.rs
-- [[Mutex_1]] - code
-- [[Script]] - code - src/routeros.rs
-- [[TABLES]] - code - src/routeros.rs
-- [[Trap]] - code - src/routeros.rs
-- [[a_dead_kept_session_reconnects_without_a_retry()]] - code - src/routeros.rs
-- [[a_login_error_is_not_retried()]] - code - src/routeros.rs
-- [[fmt]] - concept
-- [[gives_last_error_after_all_retries()]] - code - src/routeros.rs
-- [[ordering]] - concept
-- [[ppp_router()]] - code - src/routeros.rs
-- [[reads_only_enabled_tables()]] - code - src/routeros.rs
-- [[retry_reconnects_and_succeeds()]] - code - src/routeros.rs
-- [[routeros.rs]] - code - src/routeros.rs
-- [[session_is_kept_between_reads()]] - code - src/routeros.rs
-- [[stalled_call_times_out()]] - code - src/routeros.rs
-- [[stalled_connect_is_a_timeout_not_unreachable()]] - code - src/routeros.rs
-- [[vecdeque]] - concept
+- [[Applied backups (keep_backups, 12-digit folders)]] - concept - docs/OPERATIONS.md
+- [[Cutover from the Python service]] - concept - docs/OPERATIONS.md
+- [[Kept-session single reconnect (no TCP keepalive)]] - rationale - brain/HANDOFF.md
+- [[LQoSync3 README]] - document - README.md
+- [[LQoSync3 sync tool]] - concept - README.md
+- [[LibreQoS upgrade from 2.2 to 3.x]] - concept - docs/OPERATIONS.md
+- [[Operational rules]] - rationale - docs/OPERATIONS.md
+- [[Operations guide]] - document - docs/OPERATIONS.md
+- [[Orphan branch lqosync3]] - concept - brain/10-sessions/2026-10-31-updatecsv-dissection.md
+- [[Plan 2 global constraints]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[Plan phases (Plan 122b done; Plan 3 v3, Plan 4 TUI, Plan 5 installer)]] - concept - brain/HANDOFF.md
+- [[Read-convert-validate-write pipeline]] - rationale - README.md
+- [[Rollback to the Python service]] - concept - docs/OPERATIONS.md
+- [[RouterOS listen command (untested)]] - concept - brain/10-sessions/2026-10-31-updatecsv-dissection.md
+- [[Safety rules (shadow default, no router writes, 0600 secrets)]] - rationale - README.md
+- [[auto target selection]] - rationale - README.md
+- [[diffdiff_pair (semantic pair diff)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[lqosync3 detect (Plan 3)]] - concept - docs/OPERATIONS.md
+- [[mikrotik-rs RouterOS API library]] - concept - README.md
+- [[no_parent guard on v3 targets]] - rationale - brain/20-decisions/ADR-0006-v3-guards-and-node-types.md
+- [[updatecsv.py (Python service)]] - concept - README.md
+- [[v2_pair output target]] - concept - README.md
+- [[v3_network output target (libreqos_network.json)]] - concept - README.md
+- [[v3_pair output target]] - concept - README.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -38,16 +41,20 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 12 edges to [[_COMMUNITY_Router Reads]]
-- 7 edges to [[_COMMUNITY_MikroTik Session 3]]
-- 5 edges to [[_COMMUNITY_Mock Router Tests]]
-- 4 edges to [[_COMMUNITY_MikroTik Session]]
-- 3 edges to [[_COMMUNITY_Session Notes 2]]
-- 1 edge to [[_COMMUNITY_Config]]
+- 6 edges to [[_COMMUNITY_Status and Diff 2]]
+- 4 edges to [[_COMMUNITY_Topology 4]]
+- 4 edges to [[_COMMUNITY_Speed Rules]]
+- 3 edges to [[_COMMUNITY_Telegram Notifier]]
+- 2 edges to [[_COMMUNITY_Topology 5]]
+- 2 edges to [[_COMMUNITY_Plan 2 Runtime]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier 3]]
+- 1 edge to [[_COMMUNITY_Decisions]]
+- 1 edge to [[_COMMUNITY_Topology 2]]
+- 1 edge to [[_COMMUNITY_Router State 3]]
 
 ## Top bridge nodes
-- [[routeros.rs]] - degree 32, connects to 6 communities
-- [[dot-connect()]] - degree 7, connects to 4 communities
-- [[ppp_router()]] - degree 11, connects to 2 communities
-- [[Fake_1]] - degree 8, connects to 2 communities
-- [[FakeSession]] - degree 5, connects to 2 communities
+- [[Operations guide]] - degree 15, connects to 5 communities
+- [[LQoSync3 README]] - degree 13, connects to 2 communities
+- [[Plan phases (Plan 122b done; Plan 3 v3, Plan 4 TUI, Plan 5 installer)]] - degree 3, connects to 2 communities
+- [[Plan 2 global constraints]] - degree 3, connects to 2 communities
+- [[Cutover from the Python service]] - degree 6, connects to 1 community

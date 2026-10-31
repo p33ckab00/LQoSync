@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Rules"
+community: "Secrets"
 location: "L99"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Secrets
 ---
 
 # SpeedParser
@@ -31,4 +31,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Secrets

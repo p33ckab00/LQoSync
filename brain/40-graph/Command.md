@@ -1,12 +1,12 @@
 ---
 source_file: "src/cli.rs"
 type: "code"
-community: "CLI and Checks"
+community: "Telegram Notifier 2"
 location: "L15"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Telegram_Notifier_2
 ---
 
 # Command
@@ -20,4 +20,4 @@ tags:
 - [[Run]] - `case_of` [EXTRACTED]
 - [[cli.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2

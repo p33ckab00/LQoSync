@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Status and Diff 2"
+community: "Status and Diff"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff_2
+  - community/Status_and_Diff
 ---
 
 # read_csv
@@ -14,4 +14,4 @@ tags:
 - [[diff.rs]] - `imports_from` [EXTRACTED]
 - [[files.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff_2
+#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff

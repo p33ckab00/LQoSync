@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "CLI and Checks"
 location: "L596"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/CLI_and_Checks
 ---
 
 # run()
@@ -44,4 +44,4 @@ tags:
 - [[small_removal_is_not_held()]] - `calls` [EXTRACTED]
 - [[state()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

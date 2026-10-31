@@ -1,18 +1,22 @@
 ---
-source_file: "brain/HANDOFF.md"
+source_file: "brain/20-decisions/ADR-0001-one-model-many-writers.md"
 type: "rationale"
-community: "Status and Diff"
-location: "L27"
+community: "Decisions"
 tags:
   - graphify/rationale
-  - graphify/AMBIGUOUS
-  - community/Status_and_Diff
+  - graphify/EXTRACTED
+  - community/Decisions
 ---
 
 # ADR-0001 One model, many writers
 
 ## Connections
-- [[Handoff 2026-10-31 (documentation phase)]] - `references` [EXTRACTED]
-- [[Operational rules]] - `conceptually_related_to` [AMBIGUOUS]
+- [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
+- [[ADR-0003 Router failed vs offline_1]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
+- [[Session 2026-10-31 project setup and v3 simulation]] - `references` [EXTRACTED]
+- [[lqosync3 core design spec]] - `references` [EXTRACTED]
+- [[mikrotik-rs RouterOS API library]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/AMBIGUOUS #community/Status_and_Diff
+#graphify/rationale #graphify/EXTRACTED #community/Decisions

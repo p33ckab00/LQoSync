@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Router Reads"
+community: "MikroTik Session"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/MikroTik_Session
 ---
 
 # Formatter
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[dot-fmt()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

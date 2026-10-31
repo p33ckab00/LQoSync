@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Secrets"
-location: "L429"
+community: "Config 3"
+location: "L430"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Secrets
+  - community/Config_3
 ---
 
 # .sources()
@@ -17,4 +17,4 @@ tags:
 - [[DhcpSource]] - `references` [EXTRACTED]
 - [[Speed]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Secrets
+#graphify/code #graphify/EXTRACTED #community/Config_3

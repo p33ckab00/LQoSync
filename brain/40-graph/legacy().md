@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Rules"
+community: "Secrets"
 location: "L178"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Secrets
 ---
 
 # legacy()
@@ -16,4 +16,4 @@ tags:
 - [[SpeedParser]] - `references` [EXTRACTED]
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Secrets

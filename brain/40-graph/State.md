@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "btreemap"
+community: "deserialize"
 location: "L164"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/btreemap
+  - community/deserialize
 ---
 
 # State
@@ -26,4 +26,4 @@ tags:
 - [[seed_state()]] - `references` [EXTRACTED]
 - [[state.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/btreemap
+#graphify/code #graphify/EXTRACTED #community/deserialize

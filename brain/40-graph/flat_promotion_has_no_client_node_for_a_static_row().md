@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "CLI and Checks"
 location: "L1012"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/CLI_and_Checks
 ---
 
 # flat_promotion_has_no_client_node_for_a_static_row()
@@ -16,4 +16,4 @@ tags:
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[run_full()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

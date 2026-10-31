@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "CLI and Checks 2"
+community: "CLI and Checks"
 location: "L561"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_2
+  - community/CLI_and_Checks
 ---
 
 # state()
@@ -33,4 +33,4 @@ tags:
 - [[seed_rows_go_only_when_all_routers_online()]] - `calls` [EXTRACTED]
 - [[seeded_nodes_survive_preserve_mode()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks

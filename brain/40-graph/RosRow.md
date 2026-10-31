@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "MikroTik Session 3"
+community: "MikroTik Session"
 location: "L105"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/MikroTik_Session
 ---
 
 # RosRow
@@ -17,4 +17,4 @@ tags:
 - [[mikrotik.rs]] - `imports_from` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

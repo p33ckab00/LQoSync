@@ -21,7 +21,7 @@ tags:
 - [[missing_parent_stops_except_in_no_parent()]] - `calls` [EXTRACTED]
 - [[multi_device_circuit_passes_but_shared_device_id_stops()]] - `calls` [EXTRACTED]
 - [[parent_node_id_must_match_the_parent_node()]] - `calls` [EXTRACTED]
-- [[rate()_1]] - `calls` [EXTRACTED]
+- [[rate()]] - `calls` [EXTRACTED]
 - [[valid_rows_pass()]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 

@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "Config 3"
+community: "Config 2"
 location: "L11"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Config_2
 ---
 
 # read_csv()
@@ -19,4 +19,4 @@ tags:
 - [[scenarios_match_expected_output()]] - `calls` [INFERRED]
 - [[state.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Config_2

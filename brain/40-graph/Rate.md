@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed Rules"
+community: "Topology"
 location: "L9"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Topology
 ---
 
 # Rate
@@ -14,16 +14,12 @@ tags:
 ## Connections
 - [[dot-comment()]] - `references` [EXTRACTED]
 - [[dot-comment_raw()]] - `references` [EXTRACTED]
-- [[dot-limit()]] - `references` [EXTRACTED]
-- [[dot-per_client()]] - `references` [EXTRACTED]
 - [[dot-profile_name()]] - `references` [EXTRACTED]
 - [[dot-rate_limit()]] - `references` [EXTRACTED]
-- [[dot-settings_rate()]] - `references` [EXTRACTED]
 - [[Collected]] - `references` [EXTRACTED]
 - [[GroupTotal]] - `references` [EXTRACTED]
 - [[circuit_rates()]] - `references` [EXTRACTED]
 - [[comment_rate()]] - `references` [EXTRACTED]
-- [[config.rs]] - `imports_from` [EXTRACTED]
 - [[count_rate()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[finite()]] - `references` [EXTRACTED]
@@ -37,4 +33,4 @@ tags:
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 - [[usable()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Topology

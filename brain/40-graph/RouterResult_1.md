@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "MikroTik Session"
+community: "Router State"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Router_State
 ---
 
 # RouterResult
@@ -14,4 +14,4 @@ tags:
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[state_name()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Router_State

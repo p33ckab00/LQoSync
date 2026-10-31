@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Topology 2"
+community: "Topology 3"
 location: "L49"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Topology_2
+  - community/Topology_3
 ---
 
 # Topology Builder
@@ -15,4 +15,4 @@ tags:
 - [[Six Network Modes]] - `implements` [EXTRACTED]
 - [[Task 5 Topology (build_nodes, to_network_json)]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Topology_2
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

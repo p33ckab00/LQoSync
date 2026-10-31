@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Session Notes"
+community: "MikroTik Session"
 location: "L242"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes
+  - community/MikroTik_Session
 ---
 
 # reads_only_enabled_tables()
@@ -16,4 +16,4 @@ tags:
 - [[read_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

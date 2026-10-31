@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Status and Diff 2"
+community: "Status and Diff"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff_2
+  - community/Status_and_Diff
 ---
 
 # CsvRow
@@ -14,4 +14,4 @@ tags:
 - [[diff.rs]] - `imports_from` [EXTRACTED]
 - [[group()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff_2
+#graphify/code #graphify/EXTRACTED #community/Status_and_Diff

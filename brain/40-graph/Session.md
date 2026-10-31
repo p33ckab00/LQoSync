@@ -11,6 +11,7 @@ tags:
 # Session
 
 ## Connections
-- [[Runner]] - `references` [EXTRACTED]
+- [[dot-connect()_1]] - `references` [EXTRACTED]
+- [[read_router()]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/MikroTik_Session

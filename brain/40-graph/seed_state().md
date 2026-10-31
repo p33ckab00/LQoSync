@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "Config 3"
+community: "Config 2"
 location: "L32"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Config_2
 ---
 
 # seed_state()
@@ -22,4 +22,4 @@ tags:
 - [[state.rs]] - `contains` [EXTRACTED]
 - [[state_json_round_trip_and_version_check()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Config_2

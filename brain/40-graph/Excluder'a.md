@@ -15,6 +15,6 @@ tags:
 - [[dot-ip()]] - `method` [EXTRACTED]
 - [[dot-new()_1]] - `method` [EXTRACTED]
 - [[dot-profile()]] - `method` [EXTRACTED]
-- [[dot-server()]] - `method` [EXTRACTED]
+- [[dot-server()_1]] - `method` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Circuit_Collection

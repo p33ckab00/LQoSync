@@ -1,12 +1,12 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Router State"
 location: "L606"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Router_State
 ---
 
 # a_panicking_router_task_fails_only_that_router()
@@ -20,4 +20,4 @@ tags:
 - [[runner.rs]] - `contains` [EXTRACTED]
 - [[users()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Router_State

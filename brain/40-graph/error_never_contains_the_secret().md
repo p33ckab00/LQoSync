@@ -1,12 +1,12 @@
 ---
 source_file: "src/secrets.rs"
 type: "code"
-community: "CLI and Checks"
+community: "Telegram Notifier 2"
 location: "L69"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/Telegram_Notifier_2
 ---
 
 # error_never_contains_the_secret()
@@ -15,4 +15,4 @@ tags:
 - [[file()]] - `calls` [EXTRACTED]
 - [[secrets.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2

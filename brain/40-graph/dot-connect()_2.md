@@ -1,22 +1,23 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Router Reads"
-location: "L52"
+community: "MikroTik Session"
+location: "L194"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/MikroTik_Session
 ---
 
 # .connect()
 
 ## Connections
-- [[Connector]] - `method` [EXTRACTED]
+- [[Fake]] - `method` [EXTRACTED]
+- [[FakeSession]] - `references` [EXTRACTED]
 - [[Output_1]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[Session_1]] - `references` [EXTRACTED]
+- [[read_router()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

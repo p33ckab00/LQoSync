@@ -1,12 +1,12 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Router State"
 location: "L41"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Router_State
 ---
 
 # .next_sleep()
@@ -16,4 +16,4 @@ tags:
 - [[CycleSummary]] - `method` [EXTRACTED]
 - [[Runtime]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Router_State

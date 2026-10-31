@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "BandwidthDefaults"
-location: "L399"
+community: "dhcp_server_gives_override_or_"
+location: "L400"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/BandwidthDefaults
+  - community/dhcp_server_gives_override_or_
 ---
 
 # PerPlan
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults
+#graphify/code #graphify/EXTRACTED #community/dhcp_server_gives_override_or_

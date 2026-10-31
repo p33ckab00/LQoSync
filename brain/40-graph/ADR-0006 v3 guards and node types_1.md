@@ -1,19 +1,24 @@
 ---
-source_file: "brain/HANDOFF.md"
-type: "rationale"
-community: "Status and Diff 3"
-location: "L37"
+source_file: "brain/20-decisions/ADR-0006-v3-guards-and-node-types.md"
+type: "document"
+community: "Topology 4"
 tags:
-  - graphify/rationale
+  - graphify/document
   - graphify/EXTRACTED
-  - community/Status_and_Diff_3
+  - community/Topology_4
 ---
 
 # ADR-0006 v3 guards and node types
 
 ## Connections
-- [[Handoff 2026-10-31 (documentation phase)]] - `references` [EXTRACTED]
-- [[LibreQoS v3 checks (no_parent, compile_mode)]] - `implements` [INFERRED]
-- [[Node types (v2_type, v3_type)]] - `cites` [EXTRACTED]
+- [[2026-10-31 Plan 1 lqosync3 core library session]] - `references` [EXTRACTED]
+- [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
+- [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
+- [[Group nodes typed site on v3]] - `rationale_for` [EXTRACTED]
+- [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
+- [[Node rules]] - `references` [EXTRACTED]
+- [[compile_mode not full warning]] - `rationale_for` [EXTRACTED]
+- [[lqosync3 core design spec]] - `references` [EXTRACTED]
+- [[no_parent guard on v3 targets]] - `rationale_for` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Status_and_Diff_3
+#graphify/document #graphify/EXTRACTED #community/Topology_4

@@ -1,19 +1,18 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Config 2"
-location: "L366"
+community: "Speed Rules"
+location: "L379-404"
 tags:
   - graphify/concept
-  - graphify/INFERRED
-  - community/Config_2
+  - graphify/EXTRACTED
+  - community/Speed_Rules
 ---
 
 # Map from config.json
 
 ## Connections
-- [[Secret files (_file keys, mode 0600, owner root)]] - `references` [INFERRED]
+- [[Configuration reference]] - `references` [EXTRACTED]
 - [[lqosync3 import-json (planned)]] - `references` [EXTRACTED]
-- [[updatecsv.py (Python predecessor)]] - `conceptually_related_to` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules

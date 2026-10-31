@@ -1,17 +1,17 @@
 ---
-source_file: "src/config.rs"
+source_file: "src/cli.rs"
 type: "code"
-community: "Plan 2 Runtime"
-location: "L39"
+community: "Telegram Notifier 2"
+location: "L62"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Plan_2_Runtime
+  - community/Telegram_Notifier_2
 ---
 
 # Warn
 
 ## Connections
-- [[LogLevel]] - `case_of` [EXTRACTED]
+- [[Level]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Plan_2_Runtime
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier_2

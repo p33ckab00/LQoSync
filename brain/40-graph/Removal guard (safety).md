@@ -1,25 +1,23 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Speed Rules 3"
-location: "L235"
+community: "Telegram Notifier 3"
+location: "L236-242"
 tags:
   - graphify/rationale
-  - graphify/EXTRACTED
-  - community/Speed_Rules_3
+  - graphify/INFERRED
+  - community/Telegram_Notifier_3
 ---
 
 # Removal guard ([safety])
 
 ## Connections
-- [[etclqosync3lqosync3.toml]] - `references` [EXTRACTED]
-- [[ADR-0008 Terminal UI (lqosync3 tui)]] - `references` [INFERRED]
+- [[Command reference (check, once, diff, run, defaults)]] - `references` [INFERRED]
+- [[Configuration reference]] - `references` [EXTRACTED]
 - [[Cycle assembly rules]] - `implements` [INFERRED]
-- [[Differences from updatecsv.py]] - `references` [EXTRACTED]
+- [[Event memory (no repeat, no retry, in-process)]] - `semantically_similar_to` [INFERRED]
 - [[Exclusions (exclude  routers.exclude dhcp_servers, ppp_profiles, ips)]] - `conceptually_related_to` [EXTRACTED]
-- [[Exclusions (exclude and routers.exclude)]] - `references` [EXTRACTED]
-- [[Removal guard decision (20% or 50 rows)]] - `rationale_for` [INFERRED]
-- [[Signals (SIGHUP reload, SIGUSR1 cycle now)]] - `references` [EXTRACTED]
-- [[lqosync3 once --force]] - `references` [EXTRACTED]
+- [[Notification events (changes, error, cleared, router state, guard)]] - `references` [INFERRED]
+- [[Signals (SIGHUP reload, USR1 cycle now)]] - `references` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules_3
+#graphify/rationale #graphify/INFERRED #community/Telegram_Notifier_3

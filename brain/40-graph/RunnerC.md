@@ -1,12 +1,12 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Router State"
 location: "L72"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Router_State
 ---
 
 # Runner<C>
@@ -19,4 +19,4 @@ tags:
 - [[dot-new()]] - `method` [EXTRACTED]
 - [[dot-set_config()]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Router_State

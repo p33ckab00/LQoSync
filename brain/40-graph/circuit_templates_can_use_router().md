@@ -12,7 +12,7 @@ tags:
 # circuit_templates_can_use_router()
 
 ## Connections
-- [[cfg()_1]] - `calls` [EXTRACTED]
+- [[cfg()_2]] - `calls` [EXTRACTED]
 - [[snap()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 

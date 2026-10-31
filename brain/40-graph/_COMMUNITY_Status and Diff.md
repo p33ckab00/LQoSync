@@ -8,26 +8,26 @@ members: 20
 **Members:** 20 nodes
 
 ## Members
-- [[ADR-0001 One model, many writers]] - rationale - brain/HANDOFF.md
-- [[ADR-0005 Topology follows v3]] - rationale - brain/HANDOFF.md
-- [[ADR-0007 Fresh design, not a port]] - rationale - brain/HANDOFF.md
-- [[ADR-0009]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[Core design spec (2026-10-31-lqosync3-core-design.md)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[Differences from updatecsv.py]] - concept - docs/CONFIGURATION.md
-- [[Handoff 2026-10-31 (documentation phase)]] - document - brain/HANDOFF.md
-- [[Operational rules]] - rationale - docs/OPERATIONS.md
-- [[Plan 2 global constraints]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[Plan 2b Telegram]] - concept - brain/HANDOFF.md
-- [[Plan 3 LibreQoS v3 detection and writers]] - concept - brain/HANDOFF.md
-- [[Runtime design spec (2026-10-31-lqosync3-runtime-design.md)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[Speed rule decision (routeros_rx_tx, unitless bps)]] - rationale - brain/HANDOFF.md
-- [[telegram notification settings]] - concept - docs/CONFIGURATION.md
-- [[libreqos-v3-ingress-facts (vault note)]] - document - brain/HANDOFF.md
-- [[lqosync3 Runtime Implementation Plan (Plan 2)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[lqosync3 detect (Plan 3)]] - concept - docs/OPERATIONS.md
-- [[rate_limit_order and unitless_unit]] - concept - docs/CONFIGURATION.md
-- [[toolsv3simcheck.sh (v3 3.0.7 compiler check)]] - concept - brain/HANDOFF.md
-- [[v3-offline-simulation-method (vault note)]] - document - brain/HANDOFF.md
+- [[CsvRow_1]] - code
+- [[NEW14]] - code - src/diff.rs
+- [[OLD13]] - code - src/diff.rs
+- [[Value_1]] - code
+- [[diff.rs]] - code - src/diff.rs
+- [[diff_config()]] - code - src/diff.rs
+- [[diff_dirs()]] - code - src/diff.rs
+- [[diff_dirs_needs_candidate_files()]] - code - src/diff.rs
+- [[diff_ignores_column_order_row_order_and_number_text()]] - code - src/diff.rs
+- [[diff_pair()]] - code - src/diff.rs
+- [[diff_reports_added_removed_changed()]] - code - src/diff.rs
+- [[diff_stops_in_apply_mode()]] - code - src/diff.rs
+- [[field]] - concept
+- [[group()]] - code - src/diff.rs
+- [[header()]] - code - src/diff.rs
+- [[json]] - concept
+- [[map_2]] - concept
+- [[nodes()]] - code - src/diff.rs
+- [[read_csv]] - concept
+- [[same()]] - code - src/diff.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -37,18 +37,14 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 8 edges to [[_COMMUNITY_Speed Rules 3]]
-- 5 edges to [[_COMMUNITY_Status and Diff 3]]
-- 4 edges to [[_COMMUNITY_Config 2]]
-- 3 edges to [[_COMMUNITY_Decisions]]
-- 2 edges to [[_COMMUNITY_Router State 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 5]]
-- 1 edge to [[_COMMUNITY_Mock Router Tests 2]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
+- 1 edge to [[_COMMUNITY_Config 3]]
+- 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Topology]]
+- 1 edge to [[_COMMUNITY_File Safety]]
 
 ## Top bridge nodes
-- [[Handoff 2026-10-31 (documentation phase)]] - degree 19, connects to 6 communities
-- [[lqosync3 Runtime Implementation Plan (Plan 2)]] - degree 14, connects to 6 communities
-- [[Differences from updatecsv.py]] - degree 6, connects to 3 communities
-- [[lqosync3 detect (Plan 3)]] - degree 3, connects to 2 communities
-- [[Plan 2 global constraints]] - degree 4, connects to 1 community
+- [[json]] - degree 3, connects to 2 communities
+- [[diff.rs]] - degree 21, connects to 1 community
+- [[diff_config()]] - degree 4, connects to 1 community
+- [[read_csv]] - degree 2, connects to 1 community

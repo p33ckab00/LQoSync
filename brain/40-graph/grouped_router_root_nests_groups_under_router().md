@@ -12,7 +12,7 @@ tags:
 # grouped_router_root_nests_groups_under_router()
 
 ## Connections
-- [[cfg()_2]] - `calls` [EXTRACTED]
+- [[cfg()_1]] - `calls` [EXTRACTED]
 - [[groups()]] - `calls` [EXTRACTED]
 - [[net()_1]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]

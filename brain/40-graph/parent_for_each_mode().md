@@ -12,7 +12,7 @@ tags:
 # parent_for_each_mode()
 
 ## Connections
-- [[cfg()_2]] - `calls` [EXTRACTED]
+- [[cfg()_1]] - `calls` [EXTRACTED]
 - [[parent_for()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 

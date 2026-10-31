@@ -1,20 +1,20 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "MikroTik Session"
+community: "Router State"
 location: "L77"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session
+  - community/Router_State
 ---
 
 # .new()
 
 ## Connections
-- [[C]] - `references` [EXTRACTED]
+- [[C_1]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[RunnerC]] - `method` [EXTRACTED]
 - [[runner()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session
+#graphify/code #graphify/EXTRACTED #community/Router_State

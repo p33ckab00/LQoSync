@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Router State"
+community: "fs"
 location: "L109"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/fs
 ---
 
 # RouterSnapshot
@@ -21,4 +21,4 @@ tags:
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/fs

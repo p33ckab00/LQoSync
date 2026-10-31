@@ -1,19 +1,18 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Decisions"
-location: "L201"
+community: "Speed Rules"
+location: "L232-243"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions
+  - community/Speed_Rules
 ---
 
 # Troubleshooting table
 
 ## Connections
-- [[Operations (docs)]] - `references` [EXTRACTED]
-- [[Secret files (_file keys, mode 0600, owner root)]] - `references` [INFERRED]
-- [[lqosd (LibreQoS v3 daemon)]] - `references` [EXTRACTED]
+- [[LibreQoS v3 checks (no_parent, compile_mode)]] - `references` [INFERRED]
+- [[Operations guide]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules

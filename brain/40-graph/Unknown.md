@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "btreemap"
+community: "deserialize"
 location: "L101"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/btreemap
+  - community/deserialize
 ---
 
 # Unknown
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/btreemap
+#graphify/code #graphify/EXTRACTED #community/deserialize

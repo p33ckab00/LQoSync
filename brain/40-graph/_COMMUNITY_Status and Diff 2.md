@@ -1,33 +1,26 @@
 ---
 type: community
-members: 20
+members: 13
 ---
 
 # Status and Diff 2
 
-**Members:** 20 nodes
+**Members:** 13 nodes
 
 ## Members
-- [[CsvRow_1]] - code
-- [[NEW14]] - code - src/diff.rs
-- [[OLD13]] - code - src/diff.rs
-- [[Value_1]] - code
-- [[diff.rs]] - code - src/diff.rs
-- [[diff_config()]] - code - src/diff.rs
-- [[diff_dirs()]] - code - src/diff.rs
-- [[diff_dirs_needs_candidate_files()]] - code - src/diff.rs
-- [[diff_ignores_column_order_row_order_and_number_text()]] - code - src/diff.rs
-- [[diff_pair()]] - code - src/diff.rs
-- [[diff_reports_added_removed_changed()]] - code - src/diff.rs
-- [[diff_stops_in_apply_mode()]] - code - src/diff.rs
-- [[field]] - concept
-- [[group()]] - code - src/diff.rs
-- [[header()]] - code - src/diff.rs
-- [[json]] - concept
-- [[map_2]] - concept
-- [[nodes()]] - code - src/diff.rs
-- [[read_csv]] - concept
-- [[same()]] - code - src/diff.rs
+- [[2026-10-31 First live shadow run]] - document - brain/10-sessions/2026-10-31-first-live-shadow-run.md
+- [[ADR-0004 TOML policy, Python defaults_1]] - rationale - brain/HANDOFF.md
+- [[ADR-0005 Topology follows v3_1]] - rationale - brain/HANDOFF.md
+- [[ADR-0007 Fresh design, not a port_1]] - rationale - brain/HANDOFF.md
+- [[DHCP speed sources (server_comment, lease_comment, settings)]] - rationale - docs/CONFIGURATION.md
+- [[DHCP-libreqos 25 to 35 Mbps difference]] - rationale - brain/10-sessions/2026-10-31-first-live-shadow-run.md
+- [[Differences from updatecsv.py]] - concept - docs/CONFIGURATION.md
+- [[FSEHub-Distro router (10.200.1.28728)]] - concept - brain/10-sessions/2026-10-31-first-live-shadow-run.md
+- [[Handoff]] - document - brain/HANDOFF.md
+- [[Plain API warning (consider api-ssl 8729 with tls_ca_file)]] - rationale - brain/10-sessions/2026-10-31-first-live-shadow-run.md
+- [[Production state (Python live, lqosync3 shadow, LibreQoS 2.2)]] - concept - brain/HANDOFF.md
+- [[Shadow run results (62 rows, 167 ms, 26 text-only updates)]] - concept - brain/10-sessions/2026-10-31-first-live-shadow-run.md
+- [[Task 1 Crate scaffold and config]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -37,15 +30,14 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 1 edge to [[_COMMUNITY_CLI and Checks 3]]
-- 1 edge to [[_COMMUNITY_hashmap]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
-- 1 edge to [[_COMMUNITY_btreemap]]
-- 1 edge to [[_COMMUNITY_Topology]]
-- 1 edge to [[_COMMUNITY_File Safety]]
+- 7 edges to [[_COMMUNITY_Speed Rules]]
+- 6 edges to [[_COMMUNITY_Session Notes]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
+- 2 edges to [[_COMMUNITY_Router State 3]]
 
 ## Top bridge nodes
-- [[diff.rs]] - degree 21, connects to 2 communities
-- [[json]] - degree 3, connects to 2 communities
-- [[diff_config()]] - degree 4, connects to 1 community
-- [[read_csv]] - degree 2, connects to 1 community
+- [[Handoff]] - degree 16, connects to 4 communities
+- [[Differences from updatecsv.py]] - degree 5, connects to 2 communities
+- [[2026-10-31 First live shadow run]] - degree 8, connects to 1 community
+- [[ADR-0007 Fresh design, not a port_1]] - degree 4, connects to 1 community
+- [[DHCP speed sources (server_comment, lease_comment, settings)]] - degree 3, connects to 1 community

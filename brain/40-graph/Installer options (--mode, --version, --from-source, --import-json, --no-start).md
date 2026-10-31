@@ -1,19 +1,18 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Config 2"
+community: "Plan 2 Runtime"
 location: "L35"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/Plan_2_Runtime
 ---
 
 # Installer options (--mode, --version, --from-source, --import-json, --no-start)
 
 ## Connections
-- [[Runtime modes (shadow  apply)]] - `references` [EXTRACTED]
+- [[Runtime modes (shadow, apply)]] - `references` [EXTRACTED]
 - [[install.sh one-line installer (target contract)]] - `references` [EXTRACTED]
-- [[lqosync3 import-json (planned)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/Plan_2_Runtime

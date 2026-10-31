@@ -1,17 +1,17 @@
 ---
-source_file: "src/cli.rs"
+source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks"
-location: "L62"
+community: "LogLevel"
+location: "L39"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks
+  - community/LogLevel
 ---
 
 # Warn
 
 ## Connections
-- [[Level]] - `case_of` [EXTRACTED]
+- [[LogLevel]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks
+#graphify/code #graphify/EXTRACTED #community/LogLevel

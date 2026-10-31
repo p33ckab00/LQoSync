@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "BandwidthDefaults"
-location: "L438"
+community: "CLI and Checks 2"
+location: "L439"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/BandwidthDefaults
+  - community/CLI_and_Checks_2
 ---
 
 # .settings_rate()
@@ -14,6 +14,6 @@ tags:
 ## Connections
 - [[BandwidthDefaults]] - `references` [EXTRACTED]
 - [[DhcpServer]] - `method` [EXTRACTED]
-- [[Rate]] - `references` [EXTRACTED]
+- [[Rate_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

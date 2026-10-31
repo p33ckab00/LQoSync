@@ -1,28 +1,26 @@
 ---
 type: community
-members: 15
+members: 13
 ---
 
 # Config 3
 
-**Members:** 15 nodes
+**Members:** 13 nodes
 
 ## Members
-- [[CircuitNames]] - code - src/config.rs
-- [[HDR]] - code - src/state.rs
-- [[Value_5]] - code
-- [[read_csv()]] - code - src/state.rs
-- [[read_csv_accepts_bom_crlf_and_missing_columns()]] - code - src/state.rs
-- [[read_csv_skips_blank_names_and_keeps_repeated_names()]] - code - src/state.rs
-- [[seed_infers_source_and_keeps_ids()]] - code - src/state.rs
-- [[seed_nodes()]] - code - src/state.rs
-- [[seed_nodes_reads_the_tree_with_parents_and_ids()]] - code - src/state.rs
-- [[seed_state()]] - code - src/state.rs
-- [[seed_uses_the_configured_names_and_comments()]] - code - src/state.rs
-- [[split_static()]] - code - src/state.rs
-- [[split_static_ignores_case()]] - code - src/state.rs
-- [[state.rs]] - code - src/state.rs
-- [[state_json_round_trip_and_version_check()]] - code - src/state.rs
+- [[dot-check_finite()]] - code - src/config.rs
+- [[dot-default()_1]] - code - src/config.rs
+- [[dot-merge()]] - code - src/config.rs
+- [[dot-sources()]] - code - src/config.rs
+- [[dot-targets_v3()]] - code - src/config.rs
+- [[dot-validate()]] - code - src/config.rs
+- [[Config]] - code - src/config.rs
+- [[Exclude]] - code - src/config.rs
+- [[Safety]] - code - src/config.rs
+- [[Table]] - code
+- [[deep_merge()]] - code - src/config.rs
+- [[defaults()]] - code - src/config.rs
+- [[defaults_table()]] - code - src/config.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -32,19 +30,29 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 6 edges to [[_COMMUNITY_fs]]
-- 5 edges to [[_COMMUNITY_btreemap]]
-- 4 edges to [[_COMMUNITY_LibreQoS v3]]
-- 2 edges to [[_COMMUNITY_Topology]]
-- 2 edges to [[_COMMUNITY_File Safety]]
-- 2 edges to [[_COMMUNITY_CLI and Checks]]
+- 10 edges to [[_COMMUNITY_Config]]
+- 9 edges to [[_COMMUNITY_Circuit Collection]]
+- 8 edges to [[_COMMUNITY_Topology]]
+- 7 edges to [[_COMMUNITY_Router State]]
+- 5 edges to [[_COMMUNITY_CLI and Checks]]
+- 4 edges to [[_COMMUNITY_fs]]
+- 4 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 3 edges to [[_COMMUNITY_MikroTik Session]]
+- 3 edges to [[_COMMUNITY_MikroTik Session 2]]
+- 2 edges to [[_COMMUNITY_Secrets]]
+- 2 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 2 edges to [[_COMMUNITY_dhcp_server_gives_override_or_]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier]]
+- 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Config 2]]
+- 1 edge to [[_COMMUNITY_LibreQoS v3 2]]
 - 1 edge to [[_COMMUNITY_CLI and Checks 3]]
-- 1 edge to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
+- 1 edge to [[_COMMUNITY_Status and Diff 3]]
+- 1 edge to [[_COMMUNITY_Status and Diff]]
 
 ## Top bridge nodes
-- [[state.rs]] - degree 22, connects to 5 communities
-- [[seed_state()]] - degree 9, connects to 3 communities
-- [[CircuitNames]] - degree 6, connects to 3 communities
-- [[read_csv()]] - degree 6, connects to 2 communities
-- [[split_static()]] - degree 5, connects to 2 communities
+- [[Config]] - degree 62, connects to 18 communities
+- [[dot-sources()]] - degree 4, connects to 2 communities
+- [[Exclude]] - degree 3, connects to 2 communities
+- [[dot-merge()]] - degree 5, connects to 1 community
+- [[dot-validate()]] - degree 5, connects to 1 community

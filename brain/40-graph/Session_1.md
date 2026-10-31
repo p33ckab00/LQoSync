@@ -1,17 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Router Reads"
+community: "Router State"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/Router_State
 ---
 
 # Session
 
 ## Connections
-- [[dot-connect()_2]] - `references` [EXTRACTED]
-- [[read_router()]] - `references` [EXTRACTED]
+- [[Runner]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/Router_State

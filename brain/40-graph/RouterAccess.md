@@ -1,20 +1,20 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Session Notes 2"
+community: "MikroTik Session"
 location: "L70"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes_2
+  - community/MikroTik_Session
 ---
 
 # RouterAccess
 
 ## Connections
+- [[dot-connect()]] - `references` [EXTRACTED]
 - [[dot-connect()_1]] - `references` [EXTRACTED]
 - [[dot-connect()_2]] - `references` [EXTRACTED]
-- [[dot-connect()]] - `references` [EXTRACTED]
 - [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[OfflineAction]] - `references` [EXTRACTED]
@@ -30,4 +30,4 @@ tags:
 - [[routerstate.rs]] - `imports_from` [EXTRACTED]
 - [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes_2
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

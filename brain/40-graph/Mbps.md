@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed Rules"
+community: "Secrets"
 location: "L193"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Secrets
 ---
 
 # Mbps
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[UnitlessUnit]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Secrets

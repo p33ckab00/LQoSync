@@ -1,33 +1,32 @@
 ---
 type: community
-members: 20
+members: 19
 ---
 
 # MikroTik Session 3
 
-**Members:** 20 nodes
+**Members:** 19 nodes
 
 ## Members
-- [[dot-connect()_1]] - code - src/mikrotik.rs
-- [[dot-print()]] - code - src/mikrotik.rs
-- [[ClientConfig]] - code
-- [[Connector]] - code - src/routeros.rs
-- [[DeviceError]] - code
-- [[MikrotikConnector]] - code - src/mikrotik.rs
-- [[MikrotikDevice]] - code
-- [[MikrotikSession]] - code - src/mikrotik.rs
-- [[Output]] - code
-- [[RosRow]] - code - src/model.rs
-- [[RouterCfg]] - code - src/config.rs
-- [[RouterSession]] - code - src/routeros.rs
-- [[Setup]] - code - tests/mock_router.rs
-- [[TempDir_1]] - code
-- [[commandbuilder]] - concept
-- [[event]] - concept
-- [[map_err()]] - code - src/mikrotik.rs
-- [[mikrotik.rs]] - code - src/mikrotik.rs
-- [[path]] - concept
-- [[tls_client_config()]] - code - src/mikrotik.rs
+- [[Applier (hash, atomic write, reload)]] - concept - docs/ARCHITECTURE.md
+- [[Circuit Model]] - concept - docs/ARCHITECTURE.md
+- [[Collector (RouterOS API reads)]] - concept - docs/ARCHITECTURE.md
+- [[Config Loader]] - concept - docs/ARCHITECTURE.md
+- [[MikroTik RouterOS API]] - concept - docs/ARCHITECTURE.md
+- [[Performance Rules]] - rationale - docs/ARCHITECTURE.md
+- [[Proposed Crate Layout]] - concept - docs/ARCHITECTURE.md
+- [[Router State Machine (onlinefailedunreachableoffline)]] - rationale - docs/ARCHITECTURE.md
+- [[ShapedDevices.csv]] - concept - docs/ARCHITECTURE.md
+- [[State Store (state.json)]] - concept - docs/ARCHITECTURE.md
+- [[Target Detector]] - concept - docs/ARCHITECTURE.md
+- [[Target v2_pair]] - concept - docs/ARCHITECTURE.md
+- [[Target v3_network]] - concept - docs/ARCHITECTURE.md
+- [[Target v3_pair]] - concept - docs/ARCHITECTURE.md
+- [[Validator]] - concept - docs/ARCHITECTURE.md
+- [[Writers (one per target)]] - concept - docs/ARCHITECTURE.md
+- [[libreqos_network.json]] - concept - docs/ARCHITECTURE.md
+- [[lqosd (LibreQoS daemon)]] - concept - docs/ARCHITECTURE.md
+- [[v2 vs v3 writer differences]] - concept - docs/ARCHITECTURE.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -37,25 +36,13 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 9 edges to [[_COMMUNITY_Router Reads]]
-- 7 edges to [[_COMMUNITY_MikroTik Session]]
-- 7 edges to [[_COMMUNITY_Session Notes]]
-- 6 edges to [[_COMMUNITY_Circuit Collection]]
-- 5 edges to [[_COMMUNITY_Mock Router Tests]]
-- 5 edges to [[_COMMUNITY_Session Notes 2]]
-- 4 edges to [[_COMMUNITY_CLI and Checks]]
-- 3 edges to [[_COMMUNITY_CertificateDer]]
-- 2 edges to [[_COMMUNITY_Config]]
-- 2 edges to [[_COMMUNITY_BandwidthDefaults]]
-- 2 edges to [[_COMMUNITY_CLI and Checks 3]]
-- 1 edge to [[_COMMUNITY_Router State]]
-- 1 edge to [[_COMMUNITY_btreemap]]
-- 1 edge to [[_COMMUNITY_fs]]
-- 1 edge to [[_COMMUNITY_File Safety]]
+- 1 edge to [[_COMMUNITY_Topology 2]]
+- 1 edge to [[_COMMUNITY_Speed Rules]]
+- 1 edge to [[_COMMUNITY_Speed Rules 3]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 4]]
 
 ## Top bridge nodes
-- [[RouterCfg]] - degree 25, connects to 9 communities
-- [[mikrotik.rs]] - degree 19, connects to 5 communities
-- [[RouterSession]] - degree 7, connects to 4 communities
-- [[path]] - degree 7, connects to 4 communities
-- [[dot-connect()_1]] - degree 8, connects to 3 communities
+- [[Writers (one per target)]] - degree 7, connects to 1 community
+- [[Collector (RouterOS API reads)]] - degree 6, connects to 1 community
+- [[Target Detector]] - degree 5, connects to 1 community
+- [[Target v2_pair]] - degree 3, connects to 1 community

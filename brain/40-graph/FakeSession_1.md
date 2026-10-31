@@ -1,12 +1,12 @@
 ---
 source_file: "src/runner.rs"
 type: "code"
-community: "Session Notes 2"
+community: "Router State"
 location: "L340"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes_2
+  - community/Router_State
 ---
 
 # FakeSession
@@ -14,8 +14,8 @@ tags:
 ## Connections
 - [[dot-connect()_3]] - `references` [EXTRACTED]
 - [[dot-print()_3]] - `method` [EXTRACTED]
-- [[Fake]] - `references` [EXTRACTED]
+- [[Fake_1]] - `references` [EXTRACTED]
 - [[RouterSession]] - `implements` [EXTRACTED]
 - [[runner.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes_2
+#graphify/code #graphify/EXTRACTED #community/Router_State

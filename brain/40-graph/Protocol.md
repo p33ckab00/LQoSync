@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Router Reads"
+community: "MikroTik Session"
 location: "L22"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/MikroTik_Session
 ---
 
 # Protocol
@@ -15,4 +15,4 @@ tags:
 - [[ReadError]] - `case_of` [EXTRACTED]
 - [[read_router()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

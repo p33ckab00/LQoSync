@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Session Notes"
+community: "MikroTik Session"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Session_Notes
+  - community/MikroTik_Session
 ---
 
 # fmt
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[routeros.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Session_Notes
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

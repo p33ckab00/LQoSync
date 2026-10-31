@@ -1,12 +1,12 @@
 ---
 source_file: "tests/mock_router.rs"
 type: "code"
-community: "MikroTik Session 3"
+community: "MikroTik Session"
 location: "L169"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/MikroTik_Session_3
+  - community/MikroTik_Session
 ---
 
 # Setup
@@ -15,8 +15,8 @@ tags:
 - [[MikrotikConnector]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[TempDir_1]] - `references` [EXTRACTED]
+- [[TempDir]] - `references` [EXTRACTED]
 - [[mock_router.rs]] - `contains` [EXTRACTED]
 - [[setup()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/MikroTik_Session_3
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

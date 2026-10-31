@@ -12,7 +12,6 @@ tags:
 
 ## Connections
 - [[Fresh design, not a port]] - `conceptually_related_to` [INFERRED]
-- [[Shadow mode]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
 #graphify/concept #graphify/EXTRACTED #community/Speed_Rules_2

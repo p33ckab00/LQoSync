@@ -11,6 +11,6 @@ tags:
 # TempDir
 
 ## Connections
-- [[Env]] - `references` [EXTRACTED]
+- [[Setup]] - `references` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/MikroTik_Session

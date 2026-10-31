@@ -1,23 +1,20 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Decisions"
-location: "L150"
+community: "Session Notes"
+location: "L150-189"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions
+  - community/Session_Notes
 ---
 
 # LibreQoS upgrade from 2.2 to 3.x
 
 ## Connections
-- [[LibreQoS v3 checks (no_parent, compile_mode)]] - `references` [INFERRED]
-- [[Operations (docs)]] - `references` [EXTRACTED]
-- [[libreqos-v3-preflight]] - `references` [EXTRACTED]
-- [[libreqos.target (auto  v2_pair  v3_pair  v3_network)]] - `references` [INFERRED]
-- [[libreqos_network.json (v3 schema)]] - `references` [EXTRACTED]
-- [[lqosd (LibreQoS v3 daemon)]] - `references` [EXTRACTED]
+- [[Operations guide]] - `references` [EXTRACTED]
 - [[lqosync3 detect (Plan 3)]] - `references` [EXTRACTED]
+- [[v3_network output target (libreqos_network.json)]] - `references` [EXTRACTED]
+- [[v3_pair output target]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

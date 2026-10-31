@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: ".default()"
-location: "L460"
+community: "Config 3"
+location: "L461"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/default
+  - community/Config_3
 ---
 
 # defaults_table()
@@ -17,4 +17,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[defaults()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/default
+#graphify/code #graphify/EXTRACTED #community/Config_3

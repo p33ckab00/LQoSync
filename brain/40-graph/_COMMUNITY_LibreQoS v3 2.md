@@ -24,9 +24,9 @@ SORT file.name ASC
 
 ## Connections to other communities
 - 2 edges to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 3]]
-- 1 edge to [[_COMMUNITY_CLI and Checks]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
+- 1 edge to [[_COMMUNITY_Config 3]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier 2]]
+- 1 edge to [[_COMMUNITY_Router State]]
 
 ## Top bridge nodes
 - [[Target]] - degree 8, connects to 3 communities

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Mock Router Tests"
+community: "MikroTik Session"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/MikroTik_Session
 ---
 
 # TcpStream
@@ -15,4 +15,4 @@ tags:
 - [[read_len()]] - `references` [EXTRACTED]
 - [[read_sentence()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

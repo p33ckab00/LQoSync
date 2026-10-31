@@ -1,26 +1,18 @@
 ---
-source_file: "brain/20-decisions/ADR-0004-toml-policy-python-defaults.md"
-type: "document"
-community: "Speed Rules 2"
+source_file: "brain/HANDOFF.md"
+type: "rationale"
+community: "Status and Diff 2"
+location: "L33"
 tags:
-  - graphify/document
+  - graphify/rationale
   - graphify/EXTRACTED
-  - community/Speed_Rules_2
+  - community/Status_and_Diff_2
 ---
 
 # ADR-0004 TOML policy, Python defaults
 
 ## Connections
-- [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
-- [[ADR-0005 Topology follows v3_1]] - `references` [EXTRACTED]
-- [[ADR-0007 Fresh design, not a port_1]] - `references` [EXTRACTED]
-- [[ADR-0009 DHCP discovery and exclusions]] - `references` [EXTRACTED]
-- [[All policy in TOML]] - `rationale_for` [EXTRACTED]
-- [[Home (vault map of content)]] - `references` [EXTRACTED]
-- [[Profile name number+unit rule]] - `rationale_for` [EXTRACTED]
-- [[Session updatecsv.py dissection]] - `references` [EXTRACTED]
-- [[Speed source order TOML lists]] - `rationale_for` [EXTRACTED]
-- [[lqosync3 core design spec]] - `references` [EXTRACTED]
-- [[updatecsv.py dissection]] - `references` [EXTRACTED]
+- [[ADR-0007 Fresh design, not a port_1]] - `conceptually_related_to` [INFERRED]
+- [[Handoff]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Speed_Rules_2
+#graphify/rationale #graphify/EXTRACTED #community/Status_and_Diff_2

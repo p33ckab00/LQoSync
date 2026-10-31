@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
-- [[RouterSnapshot_1]] - `references` [EXTRACTED]
+- [[RouterSnapshot_2]] - `references` [EXTRACTED]
 - [[a_zero_speed_profile_comment_gives_one_line()]] - `calls` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]
 - [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]

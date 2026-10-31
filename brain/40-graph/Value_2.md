@@ -1,17 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "fs"
+community: "Config 2"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/fs
+  - community/Config_2
 ---
 
 # Value
 
 ## Connections
-- [[CycleInput]] - `references` [EXTRACTED]
-- [[CycleOutput]] - `references` [EXTRACTED]
+- [[seed_nodes()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/fs
+#graphify/code #graphify/EXTRACTED #community/Config_2

@@ -1,19 +1,17 @@
 ---
-source_file: "src/validate.rs"
+source_file: "src/sources.rs"
 type: "code"
-community: "hashmap"
-location: "L32"
+community: "Circuit Collection"
+location: "L463"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/hashmap
+  - community/Circuit_Collection
 ---
 
 # rate()
 
 ## Connections
-- [[CsvRow]] - `references` [EXTRACTED]
-- [[check()]] - `calls` [EXTRACTED]
-- [[validate.rs]] - `contains` [EXTRACTED]
+- [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/hashmap
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

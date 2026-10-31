@@ -1,19 +1,18 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Status and Diff"
-location: "L35"
+community: "Session Notes"
+location: "L35,L175"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Session_Notes
 ---
 
 # lqosync3 detect (Plan 3)
 
 ## Connections
-- [[Command reference]] - `references` [EXTRACTED]
 - [[LibreQoS upgrade from 2.2 to 3.x]] - `references` [EXTRACTED]
-- [[Plan 3 LibreQoS v3 detection and writers]] - `conceptually_related_to` [INFERRED]
+- [[Operations guide]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-runtime.md"
 type: "concept"
-community: "Mock Router Tests 2"
+community: "MikroTik Session 4"
 location: "L164"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Mock_Router_Tests_2
+  - community/MikroTik_Session_4
 ---
 
 # files::write_if_changed (atomic write)
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[runnerRunnercycle (one full cycle)]] - `calls` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Mock_Router_Tests_2
+#graphify/concept #graphify/INFERRED #community/MikroTik_Session_4

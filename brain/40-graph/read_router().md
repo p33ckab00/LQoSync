@@ -1,26 +1,26 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Mock Router Tests"
+community: "MikroTik Session"
 location: "L114"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Mock_Router_Tests
+  - community/MikroTik_Session
 ---
 
 # read_router()
 
 ## Connections
-- [[dot-connect()]] - `calls` [EXTRACTED]
+- [[dot-connect()_2]] - `calls` [EXTRACTED]
 - [[dot-cycle_inner()]] - `calls` [INFERRED]
-- [[C_1]] - `references` [EXTRACTED]
+- [[C]] - `references` [EXTRACTED]
 - [[Protocol]] - `references` [EXTRACTED]
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterAccess]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_2]] - `references` [EXTRACTED]
-- [[Session_1]] - `references` [EXTRACTED]
+- [[RouterSnapshot_1]] - `references` [EXTRACTED]
+- [[Session]] - `references` [EXTRACTED]
 - [[Timeout]] - `references` [EXTRACTED]
 - [[a_dead_kept_session_reconnects_without_a_retry()]] - `calls` [EXTRACTED]
 - [[closed_port_is_unreachable()]] - `calls` [INFERRED]
@@ -39,4 +39,4 @@ tags:
 - [[trap_is_a_trap_error()]] - `calls` [INFERRED]
 - [[wrong_password_is_login_error()]] - `calls` [INFERRED]
 
-#graphify/code #graphify/EXTRACTED #community/Mock_Router_Tests
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

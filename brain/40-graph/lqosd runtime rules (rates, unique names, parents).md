@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/v3-node-handling.md"
 type: "concept"
-community: "Topology 3"
+community: "Topology 4"
 tags:
   - graphify/concept
   - graphify/INFERRED
-  - community/Topology_3
+  - community/Topology_4
 ---
 
 # lqosd runtime rules (rates, unique names, parents)
@@ -16,4 +16,4 @@ tags:
 - [[max_floor_mbps (0.2)  safe_min_mbps (0.1)]] - `references` [INFERRED]
 - [[v3 bridge boot gate]] - `conceptually_related_to` [INFERRED]
 
-#graphify/concept #graphify/INFERRED #community/Topology_3
+#graphify/concept #graphify/INFERRED #community/Topology_4

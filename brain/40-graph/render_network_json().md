@@ -12,7 +12,7 @@ tags:
 # render_network_json()
 
 ## Connections
-- [[Value_3]] - `references` [EXTRACTED]
+- [[Value_6]] - `references` [EXTRACTED]
 - [[pair.rs]] - `contains` [EXTRACTED]
 - [[report_json()]] - `calls` [INFERRED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]

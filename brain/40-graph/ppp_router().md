@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Session Notes"
+community: "MikroTik Session"
 location: "L230"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes
+  - community/MikroTik_Session
 ---
 
 # ppp_router()
@@ -24,4 +24,4 @@ tags:
 - [[stalled_call_times_out()]] - `calls` [EXTRACTED]
 - [[stalled_connect_is_a_timeout_not_unreachable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

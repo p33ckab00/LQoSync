@@ -13,7 +13,7 @@ members: 28
 - [[HDR_1]] - code - src/files.rs
 - [[Live]] - code - src/files.rs
 - [[State_2]] - code
-- [[Value_6]] - code
+- [[Value_4]] - code
 - [[backup()]] - code - src/files.rs
 - [[backup_keeps_the_last_n()]] - code - src/files.rs
 - [[backup_keeps_the_new_folder_and_other_folders()]] - code - src/files.rs
@@ -45,17 +45,19 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 3 edges to [[_COMMUNITY_MikroTik Session]]
-- 2 edges to [[_COMMUNITY_Config 3]]
-- 2 edges to [[_COMMUNITY_CLI and Checks]]
-- 1 edge to [[_COMMUNITY_hashmap]]
-- 1 edge to [[_COMMUNITY_Topology]]
-- 1 edge to [[_COMMUNITY_CLI and Checks 2]]
-- 1 edge to [[_COMMUNITY_Status and Diff 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
+- 2 edges to [[_COMMUNITY_Config 2]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier 2]]
 - 1 edge to [[_COMMUNITY_Config]]
+- 1 edge to [[_COMMUNITY_hashmap]]
+- 1 edge to [[_COMMUNITY_Router State]]
+- 1 edge to [[_COMMUNITY_Topology]]
+- 1 edge to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 2]]
+- 1 edge to [[_COMMUNITY_Status and Diff]]
+- 1 edge to [[_COMMUNITY_MikroTik Session]]
 
 ## Top bridge nodes
-- [[files.rs]] - degree 33, connects to 5 communities
+- [[files.rs]] - degree 33, connects to 7 communities
 - [[bail]] - degree 6, connects to 5 communities
 - [[load_state()]] - degree 5, connects to 1 community

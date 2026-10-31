@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Session Notes"
+community: "MikroTik Session"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes
+  - community/MikroTik_Session
 ---
 
 # routeros.rs
@@ -14,15 +14,15 @@ tags:
 ## Connections
 - [[AtomicUsize]] - `imports_from` [EXTRACTED]
 - [[Connector]] - `contains` [EXTRACTED]
-- [[Fake_1]] - `contains` [EXTRACTED]
+- [[Fake]] - `contains` [EXTRACTED]
 - [[FakeSession]] - `contains` [EXTRACTED]
-- [[Mutex_1]] - `imports_from` [EXTRACTED]
+- [[Mutex]] - `imports_from` [EXTRACTED]
 - [[ReadError]] - `contains` [EXTRACTED]
-- [[RosRow_3]] - `imports_from` [EXTRACTED]
+- [[RosRow_1]] - `imports_from` [EXTRACTED]
 - [[RouterAccess]] - `imports_from` [EXTRACTED]
 - [[RouterCfg]] - `imports_from` [EXTRACTED]
 - [[RouterSession]] - `contains` [EXTRACTED]
-- [[RouterSnapshot_2]] - `imports_from` [EXTRACTED]
+- [[RouterSnapshot_1]] - `imports_from` [EXTRACTED]
 - [[Script]] - `contains` [EXTRACTED]
 - [[TABLES]] - `contains` [EXTRACTED]
 - [[a_dead_kept_session_reconnects_without_a_retry()]] - `contains` [EXTRACTED]
@@ -38,11 +38,11 @@ tags:
 - [[read_snapshot()]] - `contains` [EXTRACTED]
 - [[reads_only_enabled_tables()]] - `contains` [EXTRACTED]
 - [[retry_reconnects_and_succeeds()]] - `contains` [EXTRACTED]
-- [[row()_2]] - `contains` [EXTRACTED]
+- [[row()]] - `contains` [EXTRACTED]
 - [[session_is_kept_between_reads()]] - `contains` [EXTRACTED]
 - [[stalled_call_times_out()]] - `contains` [EXTRACTED]
 - [[stalled_connect_is_a_timeout_not_unreachable()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 - [[vecdeque]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

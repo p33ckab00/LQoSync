@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed Rules"
+community: "Secrets"
 location: "L192"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/Secrets
 ---
 
 # UnitlessUnit
@@ -21,4 +21,4 @@ tags:
 - [[speed.rs]] - `imports_from` [EXTRACTED]
 - [[to_mbps()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/Secrets

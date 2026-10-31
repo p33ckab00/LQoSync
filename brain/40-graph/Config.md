@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "CLI and Checks 3"
+community: "Config 3"
 location: "L12"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CLI_and_Checks_3
+  - community/Config_3
 ---
 
 # Config
@@ -39,8 +39,8 @@ tags:
 - [[build_nodes()]] - `references` [EXTRACTED]
 - [[cfg()_3]] - `references` [EXTRACTED]
 - [[cfg()]] - `references` [EXTRACTED]
-- [[cfg()_1]] - `references` [EXTRACTED]
 - [[cfg()_2]] - `references` [EXTRACTED]
+- [[cfg()_1]] - `references` [EXTRACTED]
 - [[cfg_text()]] - `references` [EXTRACTED]
 - [[check()_1]] - `references` [EXTRACTED]
 - [[cli.rs]] - `imports_from` [EXTRACTED]
@@ -59,6 +59,7 @@ tags:
 - [[load_config()]] - `references` [EXTRACTED]
 - [[main.rs]] - `imports_from` [EXTRACTED]
 - [[net()_1]] - `references` [EXTRACTED]
+- [[notify()]] - `references` [EXTRACTED]
 - [[parent_for()]] - `references` [EXTRACTED]
 - [[reload()]] - `references` [EXTRACTED]
 - [[results()]] - `references` [EXTRACTED]
@@ -74,4 +75,4 @@ tags:
 - [[template()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_3
+#graphify/code #graphify/EXTRACTED #community/Config_3

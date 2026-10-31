@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "BandwidthDefaults"
-location: "L313"
+community: "CLI and Checks 2"
+location: "L314"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/BandwidthDefaults
+  - community/CLI_and_Checks_2
 ---
 
 # HotspotCfg
@@ -17,4 +17,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/BandwidthDefaults
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

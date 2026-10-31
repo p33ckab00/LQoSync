@@ -12,7 +12,7 @@ tags:
 # disabled_sources_give_nothing()
 
 ## Connections
-- [[cfg()_1]] - `calls` [EXTRACTED]
+- [[cfg()_2]] - `calls` [EXTRACTED]
 - [[snap()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 

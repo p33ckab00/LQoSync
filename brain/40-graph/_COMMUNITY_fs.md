@@ -1,27 +1,35 @@
 ---
 type: community
-members: 20
+members: 28
 ---
 
 # fs
 
-**Members:** 20 nodes
+**Members:** 28 nodes
 
 ## Members
 - [[CycleInput]] - code - src/cycle.rs
 - [[CycleOutput]] - code - src/cycle.rs
+- [[Failed]] - code - src/cycle.rs
+- [[Offline]] - code - src/cycle.rs
+- [[Online]] - code - src/cycle.rs
 - [[Report]] - code - src/cycle.rs
+- [[RouterResult]] - code - src/cycle.rs
+- [[RouterSnapshot]] - code - src/model.rs
 - [[Snapshot]] - code - tests/scenarios.rs
-- [[Value_2]] - code
-- [[Value_3]] - code
+- [[Unreachable_1]] - code - src/cycle.rs
+- [[Value_5]] - code
+- [[Value_6]] - code
 - [[assemble()]] - code - src/cycle.rs
 - [[changed_columns()]] - code - src/cycle.rs
 - [[cycle()]] - code - tests/scenarios.rs
 - [[fmt_rate()]] - code - src/speed.rs
 - [[fnv1a64()]] - code - src/topology.rs
 - [[fs]] - concept
+- [[name()]] - code - src/routerstate.rs
 - [[names()]] - code - src/cycle.rs
-- [[pathbuf]] - concept
+- [[ppp()]] - code - src/cycle.rs
+- [[ppp_owned()]] - code - src/cycle.rs
 - [[read()_1]] - code - tests/scenarios.rs
 - [[render_network_json()]] - code - src/writer/pair.rs
 - [[report_json()]] - code - tests/scenarios.rs
@@ -37,22 +45,22 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 14 edges to [[_COMMUNITY_CLI and Checks 2]]
+- 20 edges to [[_COMMUNITY_CLI and Checks]]
 - 9 edges to [[_COMMUNITY_LibreQoS v3]]
-- 6 edges to [[_COMMUNITY_btreemap]]
-- 6 edges to [[_COMMUNITY_Config 3]]
-- 5 edges to [[_COMMUNITY_Router State]]
+- 6 edges to [[_COMMUNITY_deserialize]]
+- 6 edges to [[_COMMUNITY_Config 2]]
+- 5 edges to [[_COMMUNITY_Router State 2]]
 - 5 edges to [[_COMMUNITY_Topology]]
-- 4 edges to [[_COMMUNITY_CLI and Checks 3]]
-- 2 edges to [[_COMMUNITY_Speed Rules]]
-- 1 edge to [[_COMMUNITY_MikroTik Session]]
+- 4 edges to [[_COMMUNITY_Config 3]]
+- 2 edges to [[_COMMUNITY_MikroTik Session]]
+- 2 edges to [[_COMMUNITY_Secrets]]
 - 1 edge to [[_COMMUNITY_Circuit Collection]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
-- 1 edge to [[_COMMUNITY_CLI and Checks]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier 2]]
 
 ## Top bridge nodes
-- [[scenarios.rs]] - degree 25, connects to 6 communities
-- [[CycleInput]] - degree 8, connects to 5 communities
+- [[scenarios.rs]] - degree 25, connects to 7 communities
 - [[assemble()]] - degree 17, connects to 4 communities
+- [[CycleInput]] - degree 8, connects to 4 communities
+- [[RouterSnapshot]] - degree 8, connects to 4 communities
 - [[CycleOutput]] - degree 13, connects to 3 communities
-- [[cycle()]] - degree 9, connects to 3 communities

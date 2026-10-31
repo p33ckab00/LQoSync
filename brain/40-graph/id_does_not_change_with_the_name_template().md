@@ -12,7 +12,7 @@ tags:
 # id_does_not_change_with_the_name_template()
 
 ## Connections
-- [[cfg()_2]] - `calls` [EXTRACTED]
+- [[cfg()_1]] - `calls` [EXTRACTED]
 - [[groups()]] - `calls` [EXTRACTED]
 - [[net()_1]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]

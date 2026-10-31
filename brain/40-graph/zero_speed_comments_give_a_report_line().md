@@ -12,7 +12,7 @@ tags:
 # zero_speed_comments_give_a_report_line()
 
 ## Connections
-- [[cfg()_1]] - `calls` [EXTRACTED]
+- [[cfg()_2]] - `calls` [EXTRACTED]
 - [[run()_1]] - `calls` [EXTRACTED]
 - [[snap()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]

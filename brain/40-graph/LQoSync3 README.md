@@ -1,28 +1,28 @@
 ---
 source_file: "README.md"
 type: "document"
-community: "Topology 6"
+community: "Session Notes"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Topology_6
+  - community/Session_Notes
 ---
 
 # LQoSync3 README
 
 ## Connections
-- [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
-- [[Home (vault map of content)]] - `references` [EXTRACTED]
-- [[LQoSync3 (lqosync3 tool)]] - `references` [EXTRACTED]
-- [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
-- [[Output target v2_pair]] - `references` [EXTRACTED]
-- [[Output target v3_network]] - `references` [EXTRACTED]
-- [[Output target v3_pair]] - `references` [EXTRACTED]
-- [[Router credentials in 0600 files]] - `references` [EXTRACTED]
-- [[Shadow mode]] - `references` [EXTRACTED]
-- [[Target auto-detection]] - `references` [EXTRACTED]
-- [[Write files only on content change]] - `references` [EXTRACTED]
-- [[lqosync-updatecsv.service (Python)]] - `references` [EXTRACTED]
-- [[mikrotik-rs RouterOS API crate]] - `references` [EXTRACTED]
+- [[Configuration reference]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
+- [[Home (vault MOC)]] - `references` [EXTRACTED]
+- [[LQoSync3 sync tool]] - `references` [EXTRACTED]
+- [[Operations guide]] - `references` [EXTRACTED]
+- [[Read-convert-validate-write pipeline]] - `references` [EXTRACTED]
+- [[Safety rules (shadow default, no router writes, 0600 secrets)]] - `references` [EXTRACTED]
+- [[auto target selection]] - `references` [EXTRACTED]
+- [[mikrotik-rs RouterOS API library]] - `references` [EXTRACTED]
+- [[updatecsv.py (Python service)]] - `references` [EXTRACTED]
+- [[v2_pair output target]] - `references` [EXTRACTED]
+- [[v3_network output target (libreqos_network.json)]] - `references` [EXTRACTED]
+- [[v3_pair output target]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Topology_6
+#graphify/document #graphify/EXTRACTED #community/Session_Notes

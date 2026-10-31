@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "rationale"
-community: "Topology 2"
+community: "Topology 3"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Topology_2
+  - community/Topology_3
 ---
 
 # cycle::assemble() pure core function
@@ -18,4 +18,4 @@ tags:
 - [[lqosync3 Core Implementation Plan (Plan 1)]] - `implements` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Topology_2
+#graphify/rationale #graphify/EXTRACTED #community/Topology_3

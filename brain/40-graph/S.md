@@ -1,16 +1,17 @@
 ---
 source_file: ""
 type: "code"
-community: "Router Reads"
+community: "Telegram Notifier"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/Telegram_Notifier
 ---
 
 # S
 
 ## Connections
+- [[post_json()]] - `references` [EXTRACTED]
 - [[read_snapshot()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/Telegram_Notifier

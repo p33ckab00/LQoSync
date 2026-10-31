@@ -1,19 +1,18 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Decisions"
-location: "L124"
+community: "Session Notes"
+location: "L124-148"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Decisions
+  - community/Session_Notes
 ---
 
 # Rollback to the Python service
 
 ## Connections
-- [[LibreQoS.py --updateonly (v2 reload)]] - `references` [EXTRACTED]
-- [[Operations (docs)]] - `references` [EXTRACTED]
-- [[lqosync-updatecsv.service (live Python service)]] - `references` [EXTRACTED]
+- [[Cutover from the Python service]] - `conceptually_related_to` [INFERRED]
+- [[Operations guide]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Decisions
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

@@ -1,12 +1,12 @@
 ---
 source_file: "src/routeros.rs"
 type: "code"
-community: "Router Reads"
+community: "MikroTik Session"
 location: "L73"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Reads
+  - community/MikroTik_Session
 ---
 
 # read_snapshot()
@@ -14,10 +14,10 @@ tags:
 ## Connections
 - [[ReadError]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot_2]] - `references` [EXTRACTED]
+- [[RouterSnapshot_1]] - `references` [EXTRACTED]
 - [[S]] - `references` [EXTRACTED]
 - [[Timeout]] - `references` [EXTRACTED]
 - [[read_router()]] - `calls` [EXTRACTED]
 - [[routeros.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Reads
+#graphify/code #graphify/EXTRACTED #community/MikroTik_Session

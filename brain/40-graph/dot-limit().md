@@ -1,18 +1,18 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed Rules"
+community: "CLI and Checks 2"
 location: "L247"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_Rules
+  - community/CLI_and_Checks_2
 ---
 
 # .limit()
 
 ## Connections
 - [[BackstopCap]] - `method` [EXTRACTED]
-- [[Rate]] - `references` [EXTRACTED]
+- [[Rate_1]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_Rules
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_2

@@ -1,23 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Topology"
+community: "File Safety"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology
+  - community/File_Safety
 ---
 
 # Value
 
 ## Connections
-- [[find_mut()]] - `references` [EXTRACTED]
-- [[groups_json()]] - `references` [EXTRACTED]
-- [[net()_1]] - `references` [EXTRACTED]
-- [[node_json()]] - `references` [EXTRACTED]
-- [[remove_named()]] - `references` [EXTRACTED]
-- [[take_children()]] - `references` [EXTRACTED]
-- [[to_network_json()]] - `references` [EXTRACTED]
-- [[topology.rs]] - `imports_from` [EXTRACTED]
+- [[Live]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology
+#graphify/code #graphify/EXTRACTED #community/File_Safety

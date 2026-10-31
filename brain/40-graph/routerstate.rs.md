@@ -1,12 +1,12 @@
 ---
 source_file: "src/routerstate.rs"
 type: "code"
-community: "Router State"
+community: "Router State 2"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/Router_State_2
 ---
 
 # routerstate.rs
@@ -29,4 +29,4 @@ tags:
 - [[super]] - `imports_from` [EXTRACTED]
 - [[unreachable_before_offline_after()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/Router_State_2

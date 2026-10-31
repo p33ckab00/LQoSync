@@ -14,7 +14,7 @@ tags:
 ## Connections
 - [[Map_1]] - `references` [EXTRACTED]
 - [[StoredNode]] - `references` [EXTRACTED]
-- [[Value_4]] - `references` [EXTRACTED]
+- [[Value_3]] - `references` [EXTRACTED]
 - [[to_network_json()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 

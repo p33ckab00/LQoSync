@@ -1,23 +1,22 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Config 2"
-location: "L83"
+community: "Session Notes"
+location: "L83-122"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/Session_Notes
 ---
 
 # Cutover from the Python service
 
 ## Connections
-- [[Installation (docs)]] - `references` [EXTRACTED]
-- [[Operations (docs)]] - `references` [EXTRACTED]
-- [[Runtime modes (shadow  apply)]] - `references` [EXTRACTED]
-- [[ShapedDevices.csv]] - `references` [EXTRACTED]
+- [[Operations guide]] - `references` [EXTRACTED]
+- [[Plan phases (Plan 122b done; Plan 3 v3, Plan 4 TUI, Plan 5 installer)]] - `references` [EXTRACTED]
+- [[Rollback to the Python service]] - `conceptually_related_to` [INFERRED]
+- [[Runtime modes (shadow, apply)]] - `references` [INFERRED]
 - [[diffdiff_pair (semantic pair diff)]] - `semantically_similar_to` [INFERRED]
-- [[lqosync-updatecsv.service (live Python service)]] - `references` [EXTRACTED]
-- [[network.json]] - `references` [EXTRACTED]
+- [[updatecsv.py (Python service)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/Session_Notes

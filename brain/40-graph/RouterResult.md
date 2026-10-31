@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Router State"
+community: "fs"
 location: "L18"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_State
+  - community/fs
 ---
 
 # RouterResult
@@ -17,7 +17,7 @@ tags:
 - [[Offline]] - `case_of` [EXTRACTED]
 - [[Online]] - `case_of` [EXTRACTED]
 - [[RouterSnapshot]] - `references` [EXTRACTED]
-- [[Unreachable]] - `case_of` [EXTRACTED]
+- [[Unreachable_1]] - `case_of` [EXTRACTED]
 - [[classify()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[name()]] - `references` [EXTRACTED]
@@ -29,4 +29,4 @@ tags:
 - [[run_full()]] - `references` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_State
+#graphify/code #graphify/EXTRACTED #community/fs

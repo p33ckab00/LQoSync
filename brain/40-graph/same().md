@@ -1,12 +1,12 @@
 ---
 source_file: "src/diff.rs"
 type: "code"
-community: "Status and Diff 2"
+community: "Status and Diff"
 location: "L20"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Status_and_Diff_2
+  - community/Status_and_Diff
 ---
 
 # same()
@@ -15,4 +15,4 @@ tags:
 - [[diff.rs]] - `contains` [EXTRACTED]
 - [[diff_pair()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Status_and_Diff_2
+#graphify/code #graphify/EXTRACTED #community/Status_and_Diff

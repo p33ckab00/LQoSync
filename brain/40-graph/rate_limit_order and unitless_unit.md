@@ -1,18 +1,17 @@
 ---
 source_file: "docs/CONFIGURATION.md"
-type: "concept"
-community: "Status and Diff"
-location: "L321"
+type: "rationale"
+community: "Speed Rules"
+location: "L322-329"
 tags:
-  - graphify/concept
+  - graphify/rationale
   - graphify/EXTRACTED
-  - community/Status_and_Diff
+  - community/Speed_Rules
 ---
 
 # rate_limit_order and unitless_unit
 
 ## Connections
-- [[Differences from updatecsv.py]] - `references` [EXTRACTED]
-- [[Speed rule decision (routeros_rx_tx, unitless bps)]] - `rationale_for` [INFERRED]
+- [[Configuration reference]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules

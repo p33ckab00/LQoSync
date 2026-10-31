@@ -1,26 +1,21 @@
 ---
 type: community
-members: 13
+members: 8
 ---
 
 # Topology 5
 
-**Members:** 13 nodes
+**Members:** 8 nodes
 
 ## Members
-- [[runlqosbus 0777 safety caution]] - rationale - docs/LIBREQOS-V3-INGRESS.md
-- [[Last-good topology retention]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[LibreQoS v3 ingress document]] - document - docs/LIBREQOS-V3-INGRESS.md
-- [[LibreQoS.py --updateonly no-op in v3]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[Offline v3 simulation]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[topology source in lqos.conf]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[liblqos_python.so binding]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[libreqos_3.0.7 beta package]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[libreqos_network.json schema 2]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[lqosd (v3 control plane)]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[lqosd inotify file watcher]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[topology_import.json (internal)]] - concept - docs/LIBREQOS-V3-INGRESS.md
-- [[v3 schema validation results]] - concept - docs/LIBREQOS-V3-INGRESS.md
+- [[2026-10-31 Plan 1 lqosync3 core library session]] - document - brain/10-sessions/2026-10-31-plan1-core-build.md
+- [[Plan 1 review fixes (commit 529fa36)]] - concept - brain/10-sessions/2026-10-31-plan1-core-build.md
+- [[Scenario tests (synthetic fixtures)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
+- [[Session updatecsv.py dissection]] - document - brain/10-sessions/2026-10-31-updatecsv-dissection.md
+- [[Task 8 Scenario tests and v3 check]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[lqosync3 Core Implementation Plan (Plan 1)]] - document - docs/superpowers/plans/2026-10-31-lqosync3-core.md
+- [[lqosync3 core crate (config, speed, model, state, sources, topology, cycle, validate, writer)]] - code - brain/10-sessions/2026-10-31-plan1-core-build.md
+- [[toolsv3simcheck.sh (v3 compiler check)]] - code - docs/superpowers/specs/2026-10-31-lqosync3-core-design.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -30,14 +25,17 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 7 edges to [[_COMMUNITY_Topology 4]]
-- 3 edges to [[_COMMUNITY_Topology 6]]
-- 1 edge to [[_COMMUNITY_Speed Rules 2]]
-- 1 edge to [[_COMMUNITY_Decisions]]
+- 6 edges to [[_COMMUNITY_Topology 3]]
+- 4 edges to [[_COMMUNITY_Speed Rules 2]]
+- 3 edges to [[_COMMUNITY_Topology 4]]
+- 2 edges to [[_COMMUNITY_Session Notes]]
+- 2 edges to [[_COMMUNITY_Decisions]]
+- 1 edge to [[_COMMUNITY_Topology 2]]
+- 1 edge to [[_COMMUNITY_Status and Diff 4]]
 
 ## Top bridge nodes
-- [[LibreQoS v3 ingress document]] - degree 16, connects to 3 communities
-- [[lqosd inotify file watcher]] - degree 7, connects to 3 communities
-- [[Offline v3 simulation]] - degree 5, connects to 1 community
-- [[libreqos_3.0.7 beta package]] - degree 3, connects to 1 community
-- [[runlqosbus 0777 safety caution]] - degree 3, connects to 1 community
+- [[Session updatecsv.py dissection]] - degree 10, connects to 5 communities
+- [[2026-10-31 Plan 1 lqosync3 core library session]] - degree 10, connects to 2 communities
+- [[lqosync3 Core Implementation Plan (Plan 1)]] - degree 6, connects to 2 communities
+- [[Scenario tests (synthetic fixtures)]] - degree 5, connects to 2 communities
+- [[lqosync3 core crate (config, speed, model, state, sources, topology, cycle, validate, writer)]] - degree 3, connects to 1 community

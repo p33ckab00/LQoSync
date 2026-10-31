@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Circuit Collection"
+community: "Topology"
 location: "L15"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/Topology
 ---
 
 # DhcpPlan
@@ -15,4 +15,4 @@ tags:
 - [[GroupKey]] - `case_of` [EXTRACTED]
 - [[collect_dhcp()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Topology

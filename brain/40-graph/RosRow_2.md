@@ -1,18 +1,19 @@
 ---
 source_file: ""
 type: "code"
-community: "Circuit Collection"
+community: "Router State"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Collection
+  - community/Router_State
 ---
 
 # RosRow
 
 ## Connections
-- [[f()]] - `references` [EXTRACTED]
-- [[flag_on()]] - `references` [EXTRACTED]
-- [[sources.rs]] - `imports_from` [EXTRACTED]
+- [[dot-print()_3]] - `references` [EXTRACTED]
+- [[Fake_1]] - `references` [EXTRACTED]
+- [[row()_2]] - `references` [EXTRACTED]
+- [[runner.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Router_State

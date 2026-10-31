@@ -8,21 +8,21 @@ members: 15
 **Members:** 15 nodes
 
 ## Members
-- [[Cutover from the Python service]] - concept - docs/OPERATIONS.md
-- [[Installation (docs)]] - document - docs/INSTALLATION.md
-- [[Installer options (--mode, --version, --from-source, --import-json, --no-start)]] - concept - docs/INSTALLATION.md
-- [[Map from config.json]] - concept - docs/CONFIGURATION.md
-- [[Plan 5 installer]] - concept - brain/HANDOFF.md
-- [[Removal procedure]] - concept - docs/INSTALLATION.md
-- [[Requirements (Ubuntu 24.04, LibreQoS 2.0-2.2 or 3.x, Rust 1.89)]] - concept - docs/INSTALLATION.md
-- [[Runtime modes (shadow  apply)]] - concept - docs/CONFIGURATION.md
-- [[What the installer does (10 steps)]] - concept - docs/INSTALLATION.md
-- [[diffdiff_pair (semantic pair diff)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
-- [[install.sh one-line installer (target contract)]] - concept - docs/INSTALLATION.md
-- [[lqosync-updatecsv.service (live Python service)]] - concept - brain/HANDOFF.md
-- [[lqosync3 (Rust replacement for updatecsv.py)]] - concept - brain/HANDOFF.md
-- [[lqosync3 import-json (planned)]] - concept - docs/CONFIGURATION.md
-- [[updatecsv.py (Python predecessor)]] - concept - brain/HANDOFF.md
+- [[CircuitNames]] - code - src/config.rs
+- [[HDR]] - code - src/state.rs
+- [[Value_2]] - code
+- [[read_csv()]] - code - src/state.rs
+- [[read_csv_accepts_bom_crlf_and_missing_columns()]] - code - src/state.rs
+- [[read_csv_skips_blank_names_and_keeps_repeated_names()]] - code - src/state.rs
+- [[seed_infers_source_and_keeps_ids()]] - code - src/state.rs
+- [[seed_nodes()]] - code - src/state.rs
+- [[seed_nodes_reads_the_tree_with_parents_and_ids()]] - code - src/state.rs
+- [[seed_state()]] - code - src/state.rs
+- [[seed_uses_the_configured_names_and_comments()]] - code - src/state.rs
+- [[split_static()]] - code - src/state.rs
+- [[split_static_ignores_case()]] - code - src/state.rs
+- [[state.rs]] - code - src/state.rs
+- [[state_json_round_trip_and_version_check()]] - code - src/state.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -32,18 +32,19 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 4 edges to [[_COMMUNITY_Status and Diff]]
-- 3 edges to [[_COMMUNITY_MikroTik Session 5]]
-- 3 edges to [[_COMMUNITY_Status and Diff 3]]
-- 2 edges to [[_COMMUNITY_Speed Rules 3]]
-- 2 edges to [[_COMMUNITY_Mock Router Tests 2]]
-- 2 edges to [[_COMMUNITY_Decisions]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 4]]
+- 6 edges to [[_COMMUNITY_fs]]
+- 4 edges to [[_COMMUNITY_deserialize]]
+- 4 edges to [[_COMMUNITY_LibreQoS v3]]
+- 2 edges to [[_COMMUNITY_File Safety]]
+- 2 edges to [[_COMMUNITY_Topology]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier 2]]
+- 1 edge to [[_COMMUNITY_Config 3]]
+- 1 edge to [[_COMMUNITY_Config]]
 
 ## Top bridge nodes
-- [[Cutover from the Python service]] - degree 7, connects to 3 communities
-- [[Installation (docs)]] - degree 6, connects to 2 communities
-- [[Plan 5 installer]] - degree 4, connects to 2 communities
-- [[Runtime modes (shadow  apply)]] - degree 4, connects to 2 communities
-- [[What the installer does (10 steps)]] - degree 4, connects to 2 communities
+- [[state.rs]] - degree 22, connects to 5 communities
+- [[seed_state()]] - degree 9, connects to 3 communities
+- [[CircuitNames]] - degree 6, connects to 3 communities
+- [[read_csv()]] - degree 6, connects to 2 communities
+- [[split_static()]] - degree 5, connects to 2 communities

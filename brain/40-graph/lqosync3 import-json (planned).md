@@ -1,18 +1,18 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "concept"
-community: "Config 2"
-location: "L390"
+community: "Speed Rules"
+location: "L404"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_2
+  - community/Speed_Rules
 ---
 
 # lqosync3 import-json (planned)
 
 ## Connections
-- [[Installer options (--mode, --version, --from-source, --import-json, --no-start)]] - `references` [INFERRED]
+- [[Configuration reference]] - `references` [EXTRACTED]
 - [[Map from config.json]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_2
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules

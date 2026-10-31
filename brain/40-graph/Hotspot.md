@@ -1,17 +1,17 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/model.rs"
 type: "code"
-community: "Topology"
-location: "L13"
+community: "deserialize"
+location: "L99"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology
+  - community/deserialize
 ---
 
 # Hotspot
 
 ## Connections
-- [[GroupKey]] - `case_of` [EXTRACTED]
+- [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology
+#graphify/code #graphify/EXTRACTED #community/deserialize

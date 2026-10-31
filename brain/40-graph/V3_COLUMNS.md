@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "btreemap"
+community: "deserialize"
 location: "L50"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/btreemap
+  - community/deserialize
 ---
 
 # V3_COLUMNS
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[model.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/btreemap
+#graphify/code #graphify/EXTRACTED #community/deserialize

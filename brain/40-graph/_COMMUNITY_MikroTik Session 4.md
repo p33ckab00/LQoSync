@@ -1,29 +1,32 @@
 ---
 type: community
-members: 16
+members: 19
 ---
 
 # MikroTik Session 4
 
-**Members:** 16 nodes
+**Members:** 19 nodes
 
 ## Members
-- [[Atomic write (temp file, sync_all, rename, fsync folder; only on byte change)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Files lock, state.json, status.json, candidate, applied]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[First-run seed (seed_state, seed_nodes from live files)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Instance lock statelqosync3.lock (Filetry_lock)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[LibreQoS 2.x reload (v2_command v2_args, v2_timeout)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Plan 2 scope (in  not in)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Process run loop, SIGUSR1, SIGHUP, SIGTERMSIGINT, once, check, diff, defaults]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Router paths and .proplist fields table]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Router reads (print only, timeouts, retries, concurrent sessions)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Test strategy (fake session, mock RouterOS server, temp folders)]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[Write order state.json first, then LibreQoS pair]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[lqosync3 runtime design (Plan 2)]] - document - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[mikrotik-rs =0.9.0 (mikrotik-tokio 0.3.0)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[mikrotik-tokio 0.1.0 16-reply burst cancel bug]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[rust-version 1.89 (stdfsFiletry_lock)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[status.json status file]] - concept - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
+- [[Plan 2 review focus (5 risks)]] - rationale - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[RouterCfg.tls_verify  tls_ca_file]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[RouterSession  Connector traits]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[cycleassemble (pure core)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[filesbackup (keep_backups)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[filesload_state (state.json or seed)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[fileslock (lqosync3.lock)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[filesread_live  Live]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[filesrun_reload]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[fileswrite_if_changed (atomic write)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[mikrotikMikrotikConnector  MikrotikSession]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[mikrotiktls_client_config (rustls, webpki-roots)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[network.json]] - concept - docs/ARCHITECTURE.md
+- [[routerosReadError]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[routerosread_router (connect, retries)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[routerosread_snapshot (TABLES, api_timeout)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[runnerRunnercycle (one full cycle)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[secretsread_secret]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[testsmock_router.rs (mock RouterOS server)]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
 
 ## Live Query (requires Dataview plugin)
 
@@ -33,14 +36,13 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 1 edge to [[_COMMUNITY_Speed Rules 3]]
-- 1 edge to [[_COMMUNITY_Config 2]]
-- 1 edge to [[_COMMUNITY_Topology 2]]
-- 1 edge to [[_COMMUNITY_Router State 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 5]]
-- 1 edge to [[_COMMUNITY_Speed Rules 4]]
+- 3 edges to [[_COMMUNITY_Router State 3]]
+- 2 edges to [[_COMMUNITY_Plan 2 Runtime]]
+- 1 edge to [[_COMMUNITY_MikroTik Session 3]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier 3]]
 
 ## Top bridge nodes
-- [[lqosync3 runtime design (Plan 2)]] - degree 18, connects to 4 communities
-- [[Files lock, state.json, status.json, candidate, applied]] - degree 7, connects to 1 community
-- [[Router reads (print only, timeouts, retries, concurrent sessions)]] - degree 3, connects to 1 community
+- [[runnerRunnercycle (one full cycle)]] - degree 12, connects to 3 communities
+- [[Plan 2 review focus (5 risks)]] - degree 4, connects to 1 community
+- [[routerosReadError]] - degree 3, connects to 1 community
+- [[network.json]] - degree 2, connects to 1 community

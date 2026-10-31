@@ -1,20 +1,24 @@
 ---
 type: community
-members: 7
+members: 11
 ---
 
 # Router State 2
 
-**Members:** 7 nodes
+**Members:** 11 nodes
 
 ## Members
-- [[ADR-0003 Router failed vs offline_1]] - rationale - brain/HANDOFF.md
-- [[Router state (online  failed  unreachable  offline)]] - concept - docs/CONFIGURATION.md
-- [[Router state classification (RouterResult, unreachable_since)]] - rationale - docs/superpowers/specs/2026-10-31-lqosync3-runtime-design.md
-- [[RouterOS listen change detection (future)]] - concept - docs/ARCHITECTURE.md
-- [[Subscriber presence and subscriber_grace]] - concept - docs/CONFIGURATION.md
-- [[router_access timeouts, retries, offline_after]] - concept - docs/CONFIGURATION.md
-- [[routerstateclassify]] - concept - docs/superpowers/plans/2026-10-31-lqosync3-runtime.md
+- [[RouterMemo]] - code - src/model.rs
+- [[acc()]] - code - src/routerstate.rs
+- [[classify()]] - code - src/routerstate.rs
+- [[first_unreachable_sets_since()]] - code - src/routerstate.rs
+- [[login_tls_trap_timeout_are_failed_and_keep_memo()]] - code - src/routerstate.rs
+- [[memo()]] - code - src/routerstate.rs
+- [[offline_after_zero_is_offline_at_once()]] - code - src/routerstate.rs
+- [[offline_at_offline_after()]] - code - src/routerstate.rs
+- [[ok_is_online_and_clears_memo()]] - code - src/routerstate.rs
+- [[routerstate.rs]] - code - src/routerstate.rs
+- [[unreachable_before_offline_after()]] - code - src/routerstate.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -24,18 +28,13 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 2 edges to [[_COMMUNITY_Status and Diff]]
-- 2 edges to [[_COMMUNITY_Topology 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 2]]
-- 1 edge to [[_COMMUNITY_Speed Rules 2]]
-- 1 edge to [[_COMMUNITY_Speed Rules 3]]
-- 1 edge to [[_COMMUNITY_Mock Router Tests 2]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 4]]
-- 1 edge to [[_COMMUNITY_MikroTik Session 5]]
+- 5 edges to [[_COMMUNITY_MikroTik Session]]
+- 5 edges to [[_COMMUNITY_fs]]
+- 2 edges to [[_COMMUNITY_deserialize]]
+- 1 edge to [[_COMMUNITY_Telegram Notifier]]
 
 ## Top bridge nodes
-- [[routerstateclassify]] - degree 4, connects to 2 communities
-- [[Router state classification (RouterResult, unreachable_since)]] - degree 3, connects to 2 communities
-- [[Router state (online  failed  unreachable  offline)]] - degree 6, connects to 1 community
-- [[ADR-0003 Router failed vs offline_1]] - degree 4, connects to 1 community
-- [[Subscriber presence and subscriber_grace]] - degree 3, connects to 1 community
+- [[routerstate.rs]] - degree 16, connects to 3 communities
+- [[classify()]] - degree 12, connects to 2 communities
+- [[acc()]] - degree 8, connects to 1 community
+- [[RouterMemo]] - degree 5, connects to 1 community

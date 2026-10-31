@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Session Notes 2"
+community: "OfflineAction"
 location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes_2
+  - community/OfflineAction
 ---
 
 # OfflineAction
@@ -18,4 +18,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes_2
+#graphify/code #graphify/EXTRACTED #community/OfflineAction

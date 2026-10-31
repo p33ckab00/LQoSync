@@ -1,56 +1,51 @@
 ---
 type: community
-members: 43
+members: 38
 ---
 
 # CLI and Checks
 
-**Members:** 43 nodes
+**Members:** 38 nodes
 
 ## Members
-- [[Args]] - code - src/cli.rs
-- [[Check]] - code - src/cli.rs
-- [[CheckLine]] - code - src/cli.rs
-- [[Command]] - code - src/cli.rs
-- [[DEFAULT_CONFIG]] - code - src/cli.rs
-- [[Defaults]] - code - src/cli.rs
-- [[Diff]] - code - src/cli.rs
-- [[Env_1]] - code - src/cli.rs
-- [[Error]] - code - src/cli.rs
-- [[Level]] - code - src/cli.rs
-- [[Ok]] - code - src/cli.rs
-- [[Once]] - code - src/cli.rs
-- [[Run]] - code - src/cli.rs
-- [[TempDir_2]] - code
-- [[TempDir_3]] - code
-- [[USAGE]] - code - src/cli.rs
-- [[Warn]] - code - src/cli.rs
-- [[check()_1]] - code - src/cli.rs
-- [[check_finds_plain_api_and_no_source_router()]] - code - src/cli.rs
-- [[check_rejects_v3_target_for_now()]] - code - src/cli.rs
-- [[check_reports_a_bad_secret_and_a_missing_lqos_dir()]] - code - src/cli.rs
-- [[cli.rs]] - code - src/cli.rs
-- [[context]] - concept
-- [[ensure]] - concept
-- [[env()_1]] - code - src/cli.rs
-- [[error_never_contains_the_secret()]] - code - src/secrets.rs
-- [[file()]] - code - src/secrets.rs
-- [[line()]] - code - src/cli.rs
-- [[load_config()]] - code - src/cli.rs
-- [[metadataext]] - concept
-- [[missing_file_names_the_path()]] - code - src/secrets.rs
-- [[parse()]] - code - src/cli.rs
-- [[parse_commands_and_config_path()]] - code - src/cli.rs
-- [[permissionsext]] - concept
-- [[read_secret()]] - code - src/secrets.rs
-- [[reads_and_trims_a_good_secret()]] - code - src/secrets.rs
-- [[rejects_group_or_other_bits()]] - code - src/secrets.rs
-- [[rejects_wrong_owner()]] - code - src/secrets.rs
-- [[reload()]] - code - src/cli.rs
-- [[reload_keeps_old_config_on_error()]] - code - src/cli.rs
-- [[s()]] - code - src/cli.rs
-- [[secrets.rs]] - code - src/secrets.rs
-- [[texts()]] - code - src/cli.rs
+- [[NOW]] - code - src/cycle.rs
+- [[a_row_that_stays_keeps_its_group_node()]] - code - src/cycle.rs
+- [[cfg()_3]] - code - src/cycle.rs
+- [[cycle.rs]] - code - src/cycle.rs
+- [[duplicate_ip_existing_vs_existing_keeps_collected()]] - code - src/cycle.rs
+- [[duplicate_ip_new_vs_existing_keeps_existing()]] - code - src/cycle.rs
+- [[empty_online_router_removes_its_rows()]] - code - src/cycle.rs
+- [[failed_and_unreachable_router_keep_rows_and_nodes()]] - code - src/cycle.rs
+- [[flat_promotion_has_no_client_node_for_a_static_row()]] - code - src/cycle.rs
+- [[flat_promotion_parent_is_own_client_node()]] - code - src/cycle.rs
+- [[get()]] - code - src/cycle.rs
+- [[grace_also_applies_to_a_router_not_in_the_config()]] - code - src/cycle.rs
+- [[grace_keeps_a_missing_subscriber()]] - code - src/cycle.rs
+- [[group_counts_skip_duplicate_ip_circuits()]] - code - src/cycle.rs
+- [[id_collision_asks_for_another_id()]] - code - src/cycle.rs
+- [[ids()]] - code - src/cycle.rs
+- [[many_duplicate_ip_drops_raise_an_alert()]] - code - src/cycle.rs
+- [[new_circuit_gets_new_ids_and_existing_keeps_them()]] - code - src/cycle.rs
+- [[node_name_collision_stops_with_clear_message()]] - code - src/cycle.rs
+- [[offline_remove_ignores_grace_and_keep_keeps()]] - code - src/cycle.rs
+- [[online_router_removes_rows_not_seen()]] - code - src/cycle.rs
+- [[recycled_ip_goes_to_the_new_subscriber()]] - code - src/cycle.rs
+- [[remove_inactive_entries_false_removes_nothing()]] - code - src/cycle.rs
+- [[rows_of_a_router_not_in_config_are_removed()]] - code - src/cycle.rs
+- [[rp()]] - code - src/cycle.rs
+- [[run()_2]] - code - src/cycle.rs
+- [[run_full()]] - code - src/cycle.rs
+- [[same_name_on_two_routers_later_router_wins()]] - code - src/cycle.rs
+- [[same_name_twice_in_one_router_keeps_first_and_warns()]] - code - src/cycle.rs
+- [[seed_rows_go_only_when_all_routers_online()]] - code - src/cycle.rs
+- [[seeded_nodes_survive_preserve_mode()]] - code - src/cycle.rs
+- [[state()]] - code - src/cycle.rs
+- [[static_multi_device_circuit_keeps_all_rows()]] - code - src/cycle.rs
+- [[static_row()]] - code - src/cycle.rs
+- [[static_row_passes_through_and_collected_replaces_it()]] - code - src/cycle.rs
+- [[static_row_wins_a_duplicate_ip()]] - code - src/cycle.rs
+- [[stored()]] - code - src/cycle.rs
+- [[v3_with_no_parent_stops()]] - code - src/cycle.rs
 
 ## Live Query (requires Dataview plugin)
 
@@ -60,22 +55,22 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 4 edges to [[_COMMUNITY_CLI and Checks 3]]
-- 4 edges to [[_COMMUNITY_MikroTik Session 3]]
-- 3 edges to [[_COMMUNITY_MikroTik Session]]
-- 2 edges to [[_COMMUNITY_hashmap]]
-- 2 edges to [[_COMMUNITY_Config 3]]
-- 2 edges to [[_COMMUNITY_File Safety]]
-- 2 edges to [[_COMMUNITY_Mock Router Tests]]
-- 2 edges to [[_COMMUNITY_Config]]
-- 1 edge to [[_COMMUNITY_Plan 2 Runtime]]
-- 1 edge to [[_COMMUNITY_LibreQoS v3 2]]
-- 1 edge to [[_COMMUNITY_fs]]
-- 1 edge to [[_COMMUNITY_Speed Rules]]
+- 20 edges to [[_COMMUNITY_fs]]
+- 18 edges to [[_COMMUNITY_Status and Diff 3]]
+- 11 edges to [[_COMMUNITY_Topology]]
+- 7 edges to [[_COMMUNITY_deserialize]]
+- 5 edges to [[_COMMUNITY_Config 3]]
+- 4 edges to [[_COMMUNITY_hashmap]]
+- 4 edges to [[_COMMUNITY_LibreQoS v3]]
+- 2 edges to [[_COMMUNITY_Secrets]]
+- 2 edges to [[_COMMUNITY_Telegram Notifier]]
+- 1 edge to [[_COMMUNITY_OfflineAction]]
+- 1 edge to [[_COMMUNITY_Circuit Collection]]
+- 1 edge to [[_COMMUNITY_File Safety]]
 
 ## Top bridge nodes
-- [[cli.rs]] - degree 32, connects to 7 communities
-- [[context]] - degree 7, connects to 5 communities
-- [[ensure]] - degree 4, connects to 3 communities
-- [[secrets.rs]] - degree 13, connects to 2 communities
-- [[check()_1]] - degree 7, connects to 1 community
+- [[cycle.rs]] - degree 87, connects to 12 communities
+- [[run_full()]] - degree 15, connects to 4 communities
+- [[run()_2]] - degree 31, connects to 3 communities
+- [[stored()]] - degree 6, connects to 3 communities
+- [[state()]] - degree 20, connects to 2 communities

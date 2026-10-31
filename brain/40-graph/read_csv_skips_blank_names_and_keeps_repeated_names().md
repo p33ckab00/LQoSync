@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "Config 3"
+community: "Config 2"
 location: "L152"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_3
+  - community/Config_2
 ---
 
 # read_csv_skips_blank_names_and_keeps_repeated_names()
@@ -15,4 +15,4 @@ tags:
 - [[read_csv()]] - `calls` [EXTRACTED]
 - [[state.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_3
+#graphify/code #graphify/EXTRACTED #community/Config_2

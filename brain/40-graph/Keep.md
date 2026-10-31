@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Session Notes 2"
+community: "OfflineAction"
 location: "L65"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Session_Notes_2
+  - community/OfflineAction
 ---
 
 # Keep
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[OfflineAction]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Session_Notes_2
+#graphify/code #graphify/EXTRACTED #community/OfflineAction
