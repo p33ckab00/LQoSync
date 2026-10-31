@@ -8,7 +8,7 @@ use lqosync_v3::{
 };
 use std::{path::PathBuf, time::Duration};
 
-const USAGE: &str = "Usage: core-worker-run ROOT --expect KIND:SUBSCRIBER:LIST [--rollback-after SECONDS] [--execute]";
+const USAGE: &str = "Usage: core-worker-run ROOT --expect KIND:SUBSCRIBER:LIST [--rollback-after SECONDS] [--no-finish] [--execute]";
 /// The whole run, including a rollback hold, must finish inside this approval window.
 const APPROVAL_SECONDS: u64 = 180;
 const MAX_ROUNDS: u32 = 12;
@@ -100,11 +100,14 @@ fn check_plan(decisions: &[Decision], e: &Expect) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let (mut root, mut expect, mut rollback_after, mut execute) = (None, None, None, false);
+    let (mut root, mut expect, mut rollback_after, mut execute, mut no_finish) =
+        (None, None, None, false, false);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--execute" => execute = true,
+            // Acceptance of reviewed recovery: leave the verified journal and its marker in place.
+            "--no-finish" => no_finish = true,
             "--expect" => expect = Some(parse_expect(it.next().context(USAGE)?)?),
             "--rollback-after" => {
                 let secs: u64 = it.next().context(USAGE)?.parse().context(USAGE)?;
@@ -178,6 +181,10 @@ async fn main() -> Result<()> {
             .await
             .with_context(|| format!("Rollback failed. {marker}"))?;
         println!("Rollback complete and verified");
+    }
+    if no_finish {
+        println!("Stopped before finish. The recovery marker remains for batch {revision}.");
+        return Ok(());
     }
     worker
         .finish()
