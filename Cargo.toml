@@ -1,0 +1,15 @@
+[package]
+name = "lqosync3"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "MikroTik subscriber sync for LibreQoS"
+publish = false
+
+[dependencies]
+anyhow = "1"
+csv = "1"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
