@@ -1,6 +1,7 @@
 //! The TUI state, the keys, the mouse, and the draw code.
 
 use super::data::Data;
+use super::devices::DevicesView;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -77,6 +78,9 @@ pub struct App {
     /// The tab title rectangles of the last draw, for the mouse.
     pub tab_rects: Vec<Rect>,
     pub data: Data,
+    pub devices: DevicesView,
+    /// A node for the Network tab to expand and select.
+    pub reveal: Option<String>,
     /// Unix seconds of the last data.
     pub now: u64,
     config_error: Option<String>,
@@ -95,6 +99,8 @@ impl App {
                 config_text: Arc::new(config_text),
                 ..Data::default()
             },
+            devices: DevicesView::default(),
+            reveal: None,
             now: 0,
             config_error,
             settings_offset: 0,
@@ -105,6 +111,7 @@ impl App {
     pub fn set_data(&mut self, data: Data, now: u64) {
         self.data = data;
         self.now = now;
+        self.devices.on_data(&self.data);
     }
 
     /// A text field of `status.json`, or `unknown`.
@@ -135,6 +142,10 @@ impl App {
         if k.modifiers.contains(KeyModifiers::CONTROL) && k.code == KeyCode::Char('c') {
             return Action::Quit;
         }
+        // A search box has all keys.
+        if self.tab == Tab::Devices && self.devices.editing {
+            return self.tab_key(k);
+        }
         match k.code {
             KeyCode::Char('q') => return Action::Quit,
             KeyCode::Char(c @ '1'..='5') => self.tab = Tab::ALL[c as usize - '1' as usize],
@@ -158,6 +169,12 @@ impl App {
 
     /// A key for the current tab.
     fn tab_key(&mut self, k: KeyEvent) -> Action {
+        if self.tab == Tab::Devices
+            && let Some(node) = self.devices.on_key(k, &self.data)
+        {
+            self.reveal = Some(node);
+            self.tab = Tab::Network;
+        }
         if self.tab == Tab::Settings {
             match k.code {
                 KeyCode::Down => self.settings_offset = self.settings_offset.saturating_add(1),
@@ -203,13 +220,21 @@ impl App {
         self.draw_header(f, header);
         self.draw_tabs(f, tabs);
         match self.tab {
+            Tab::Devices => self.devices.draw(f, main, &self.data),
             Tab::Settings => self.draw_settings(f, main),
             _ => f.render_widget(
                 Paragraph::new("loading").block(Block::default().borders(Borders::ALL)),
                 main,
             ),
         }
-        let keys = "q quit  1-5/Tab tabs  S sync now  R reload";
+        let keys = match self.tab {
+            Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",
+            Tab::Devices => {
+                "/ search  o sort  i reverse  Enter parent node  q quit  1-5 tabs  S sync  R reload"
+            }
+            Tab::Settings => "Up/Down scroll  q quit  1-5 tabs  S sync  R reload",
+            _ => "q quit  1-5/Tab tabs  S sync now  R reload",
+        };
         let text = match &self.message {
             Some(m) => format!("{m}  |  {keys}"),
             None => keys.into(),
@@ -440,6 +465,35 @@ mod tests {
         ] {
             assert!(h.contains(want), "{want}: {h}");
         }
+    }
+
+    #[test]
+    fn enter_opens_the_parent_node_in_the_network_tab() {
+        let mut a = app(false);
+        let row = crate::model::CsvRow {
+            circuit_id: "c1".into(),
+            circuit_name: "alice".into(),
+            parent_node: "AP".into(),
+            ..Default::default()
+        };
+        let d = Data {
+            rows: Arc::new(vec![row]),
+            row_search: Arc::new(vec!["alice".into()]),
+            flags: Arc::new(vec![0]),
+            ..Data::default()
+        };
+        a.set_data(d, 0);
+        a.on_key(key(KeyCode::Enter));
+        assert_eq!((a.tab, a.reveal.as_deref()), (Tab::Network, Some("AP")));
+    }
+
+    #[test]
+    fn search_text_takes_the_global_keys() {
+        let mut a = app(false);
+        a.on_key(key(KeyCode::Char('/')));
+        assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::None);
+        a.on_key(key(KeyCode::Char('2')));
+        assert_eq!((a.tab, a.devices.query.as_str()), (Tab::Devices, "q2"));
     }
 
     #[test]

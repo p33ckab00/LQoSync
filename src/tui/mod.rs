@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod data;
+pub mod devices;
 pub mod proc;
 
 use app::{Action, App};
