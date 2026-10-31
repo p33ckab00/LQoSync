@@ -17,8 +17,8 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 | Directory | `/home/pi/LQoSync3.0` (repository root) |
 | Repository | `https://github.com/p33ckab00/LQoSync.git`, branch `lqosync3` (no shared history). The crate, `docs/`, and `brain/` are at the root. |
 | Backup | `/home/pi/LQoSync3.0-backup-2026-10-31.tar.gz` (the files before the first move) |
-| Phase | Documentation and design only. No code. `updatecsv.py` dissection done. |
-| Checks | Document paths and links checked. No code checks, because no code exists. |
+| Phase | Plan 1 (core library) done: 88 unit tests, 9 scenarios, clippy clean. Plans 2 to 5 are not written. |
+| Checks | `cargo test` (88 + 1 + 1), `cargo clippy --all-targets -D warnings`, `cargo fmt --check`. `tools/v3sim/check.sh`: the v3 3.0.7 compiler accepts all nine scenario outputs. |
 
 ### Files
 
@@ -46,9 +46,17 @@ None at this time.
 
 ### Next action
 
-Do Plan 1 (core library) from `docs/superpowers/plans/2026-10-31-lqosync3-core.md`. The design is `docs/superpowers/specs/2026-10-31-lqosync3-core-design.md`.
-The work has five plans: 1 core, 2 runtime, 3 LibreQoS v3, 4 TUI, 5 install. Only Plan 1 is written.
-The facts from the Python script are in [[updatecsv-py-dissection]].
+Write Plan 2 (runtime): collector with `mikrotik-rs` (TLS, `.proplist`, timeouts, parallel routers, router states), apply (lock, hash, atomic write with `fsync`, backups, `shadow`), `status.json`, signals, Telegram, CLI `check`, `once`, `run`, `diff`, and the systemd unit.
+Plan 2 must call `seed_state` and `seed_nodes` on the first run. The core is in `src/`; the entry point is `cycle::assemble()`.
+
+Deferred minor items from the Plan 1 review (fix in Plan 2 or later):
+- A comment speed `0M/0M` gives 0.2, not the next source.
+- An unknown `{placeholder}` in a template is not rejected at load.
+- A router that is missing from the cycle input ignores `subscriber_grace`.
+- `flag_on` reads any value other than `false` as on.
+- `to_network_json` inserts children in name order, not depth order.
+- A router with no source enabled collects nothing; `check` must warn.
+- Duplicate-IP drops are not counted by the removal guard.
 
 ### Production state
 
