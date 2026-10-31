@@ -17,7 +17,7 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 | Directory | `/home/pi/LQoSync3.0` (repository root) |
 | Repository | `https://github.com/p33ckab00/LQoSync.git`, branch `lqosync3` (no shared history). The crate, `docs/`, and `brain/` are at the root. |
 | Backup | `/home/pi/LQoSync3.0-backup-2026-10-31.tar.gz` (the files before the first move) |
-| Phase | Plan 1 (core library) done: 88 unit tests, 9 scenarios, clippy clean. Plans 2 to 5 are not written. |
+| Phase | Plan 1 (core) and Plan 2 (runtime) done. The binary has `check`, `once`, `run`, `diff`, `defaults`. Plans 2b, 3, 4, 5 are not written. |
 | Checks | `cargo test` (88 + 1 + 1), `cargo clippy --all-targets -D warnings`, `cargo fmt --check`. `tools/v3sim/check.sh`: the v3 3.0.7 compiler accepts all nine scenario outputs. |
 
 ### Files
@@ -46,8 +46,13 @@ None at this time.
 
 ### Next action
 
-Write Plan 2 (runtime): collector with `mikrotik-rs` (TLS, `.proplist`, timeouts, parallel routers, router states), apply (lock, hash, atomic write with `fsync`, backups, `shadow`), `status.json`, signals, Telegram, CLI `check`, `once`, `run`, `diff`, and the systemd unit.
-Plan 2 must call `seed_state` and `seed_nodes` on the first run. The core is in `src/`; the entry point is `cycle::assemble()`.
+1. Manual shadow run on the production shaper (Plan 2 Task 9 step 5). It needs the operator's approval and a read-only RouterOS user. Steps: build `cargo build --release`, write `/etc/lqosync3/lqosync3.toml` with `mode = "shadow"`, put the password in a `0600` root file, run `lqosync3 check`, `lqosync3 once`, `lqosync3 diff`.
+2. Plan 2b: Telegram.
+3. Plan 3: LibreQoS v3 detection and writers.
+
+Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
+
+Deferred minor items from the Plan 2 review: SIGHUP error not in status.json; backup pruning by name sort; write network.json first; `diff` with no candidate; no retry skip for a secret-file error; file mode and owner after the atomic rename; no TCP keepalive.
 
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 
