@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "Sync Pipeline Internals"
+community: "Decisions and Session Notes"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Sync_Pipeline_Internals
+  - community/Decisions_and_Session_Notes
 ---
 
 # libreqos_network.json schema 2
@@ -13,6 +13,5 @@ tags:
 ## Connections
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 - [[v3 schema validation results]] - `references` [EXTRACTED]
-- [[v3_network target]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Sync_Pipeline_Internals
+#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes

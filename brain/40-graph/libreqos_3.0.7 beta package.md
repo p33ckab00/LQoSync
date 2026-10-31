@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "LibreQoS v3 Runtime Evidence"
+community: "Decisions and Session Notes"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_Runtime_Evidence
+  - community/Decisions_and_Session_Notes
 ---
 
 # libreqos_3.0.7 beta package
@@ -15,4 +15,4 @@ tags:
 - [[Offline v3 simulation]] - `references` [EXTRACTED]
 - [[Session 2026-10-31 project setup and v3 simulation]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/LibreQoS_v3_Runtime_Evidence
+#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes

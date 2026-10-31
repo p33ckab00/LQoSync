@@ -1,0 +1,9 @@
+# Generated graph notes: graphify writes them, so they must not feed back in.
+brain/40-graph/
+brain/_templates/
+# Test data and build output.
+tests/scenarios/
+target/
+.superpowers/
+# Export of the updatecsv.py anatomy page; brain/30-knowledge/updatecsv-py-dissection.md holds the facts.
+docs/Artifact.md

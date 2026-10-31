@@ -1,18 +1,19 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "Operations and Cutover"
+community: "Decisions and Session Notes"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Operations_and_Cutover
+  - community/Decisions_and_Session_Notes
 ---
 
 # mikrotik-rs RouterOS API crate
 
 ## Connections
 - [[ADR-0001 One model, many writers]] - `references` [EXTRACTED]
-- [[Collector]] - `references` [INFERRED]
-- [[LQoSync UpdateCSV (Rust tool)]] - `references` [EXTRACTED]
+- [[LQoSync3 (lqosync3 tool)]] - `references` [EXTRACTED]
+- [[LQoSync3 README]] - `references` [EXTRACTED]
+- [[RouterOS listen command (untested)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Operations_and_Cutover
+#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes

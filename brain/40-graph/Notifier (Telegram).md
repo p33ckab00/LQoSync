@@ -1,16 +1,14 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Sync Pipeline Internals"
+community: "Telegram Notifier"
+location: "L54"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Sync_Pipeline_Internals
+  - community/Telegram_Notifier
 ---
 
 # Notifier (Telegram)
 
-## Connections
-- [[Architecture document]] - `references` [EXTRACTED]
-
-#graphify/concept #graphify/EXTRACTED #community/Sync_Pipeline_Internals
+#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier

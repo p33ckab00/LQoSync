@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "LibreQoS v3 Runtime Evidence"
+community: "Decisions and Session Notes"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_Runtime_Evidence
+  - community/Decisions_and_Session_Notes
 ---
 
 # lqosd (v3 control plane)
@@ -14,4 +14,4 @@ tags:
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 - [[lqosd inotify file watcher]] - `implements` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/LibreQoS_v3_Runtime_Evidence
+#graphify/concept #graphify/EXTRACTED #community/Decisions_and_Session_Notes

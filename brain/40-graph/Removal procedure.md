@@ -1,16 +1,17 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Installation"
+community: "Targets and Applier"
+location: "L160"
 tags:
   - graphify/concept
-  - graphify/EXTRACTED
-  - community/Installation
+  - graphify/INFERRED
+  - community/Targets_and_Applier
 ---
 
 # Removal procedure
 
 ## Connections
-- [[Installation document]] - `references` [EXTRACTED]
+- [[lqosync-updatecsv.service (Python service)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Installation
+#graphify/concept #graphify/INFERRED #community/Targets_and_Applier

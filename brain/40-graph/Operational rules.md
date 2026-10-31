@@ -1,16 +1,18 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "rationale"
-community: "Operations and Cutover"
+community: "Targets and Applier"
+location: "L8"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Operations_and_Cutover
+  - community/Targets_and_Applier
 ---
 
 # Operational rules
 
 ## Connections
-- [[Operations document]] - `references` [EXTRACTED]
+- [[Runtime modes (shadow  apply)]] - `references` [EXTRACTED]
+- [[Secret files (_file, mode 0600 root)]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Operations_and_Cutover
+#graphify/rationale #graphify/EXTRACTED #community/Targets_and_Applier

@@ -1,21 +1,21 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Output Target Selection"
+community: "Targets and Applier"
+location: "L141"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Output_Target_Selection
+  - community/Targets_and_Applier
 ---
 
 # LibreQoS upgrade 2.2 to 3.x
 
 ## Connections
-- [[Operations document]] - `references` [EXTRACTED]
-- [[topology source in lqos.conf]] - `references` [EXTRACTED]
-- [[libreqos-v3-preflight]] - `references` [EXTRACTED]
-- [[topology.compile_mode = full]] - `references` [EXTRACTED]
-- [[v3_network target]] - `references` [EXTRACTED]
-- [[v3_pair target]] - `references` [EXTRACTED]
+- [[Cutover from the Python service]] - `semantically_similar_to` [INFERRED]
+- [[LibreQoS v3 topology.compile_mode]] - `references` [EXTRACTED]
+- [[Target v3_network]] - `references` [EXTRACTED]
+- [[Target v3_pair]] - `references` [EXTRACTED]
+- [[lqosd (LibreQoS daemon)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Output_Target_Selection
+#graphify/concept #graphify/EXTRACTED #community/Targets_and_Applier

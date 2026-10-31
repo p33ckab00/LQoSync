@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "document"
-community: "LibreQoS v3 Runtime Evidence"
+community: "Decisions and Session Notes"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/LibreQoS_v3_Runtime_Evidence
+  - community/Decisions_and_Session_Notes
 ---
 
 # LibreQoS v3 ingress document
@@ -13,6 +13,8 @@ tags:
 ## Connections
 - [[runlqosbus 0777 safety caution]] - `references` [EXTRACTED]
 - [[Brain Home (MOC)]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
+- [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[Last-good topology retention]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[LibreQoS.py --updateonly no-op in v3]] - `references` [EXTRACTED]
@@ -27,4 +29,4 @@ tags:
 - [[topology_import.json (internal)]] - `references` [EXTRACTED]
 - [[v3 schema validation results]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/LibreQoS_v3_Runtime_Evidence
+#graphify/document #graphify/EXTRACTED #community/Decisions_and_Session_Notes

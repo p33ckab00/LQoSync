@@ -1,22 +1,23 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Output Target Selection"
+community: "Output Files and State Store"
+location: "L52"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Output_Target_Selection
+  - community/Output_Files_and_State_Store
 ---
 
 # Writers (one per target)
 
 ## Connections
-- [[ADR-0001 One model, many writers]] - `rationale_for` [EXTRACTED]
-- [[Architecture document]] - `references` [EXTRACTED]
-- [[Circuit model]] - `shares_data_with` [EXTRACTED]
-- [[Target detector]] - `references` [EXTRACTED]
-- [[v2_pair target]] - `implements` [EXTRACTED]
-- [[v3_network target]] - `implements` [EXTRACTED]
-- [[v3_pair target]] - `implements` [EXTRACTED]
+- [[Proposed Crate Layout]] - `references` [EXTRACTED]
+- [[ShapedDevices.csv]] - `shares_data_with` [EXTRACTED]
+- [[Target Detector]] - `conceptually_related_to` [EXTRACTED]
+- [[Validator]] - `shares_data_with` [EXTRACTED]
+- [[libreqos_network.json]] - `shares_data_with` [EXTRACTED]
+- [[network.json]] - `shares_data_with` [EXTRACTED]
+- [[v2 vs v3 writer differences]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Output_Target_Selection
+#graphify/concept #graphify/EXTRACTED #community/Output_Files_and_State_Store

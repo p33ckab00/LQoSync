@@ -1,18 +1,21 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Sync Pipeline Internals"
+community: "Output Files and State Store"
+location: "L50"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Sync_Pipeline_Internals
+  - community/Output_Files_and_State_Store
 ---
 
 # Validator
 
 ## Connections
-- [[Architecture document]] - `references` [EXTRACTED]
-- [[Circuit model]] - `references` [EXTRACTED]
-- [[v3 schema validation results]] - `rationale_for` [INFERRED]
+- [[Circuit Model]] - `references` [EXTRACTED]
+- [[Troubleshooting table]] - `references` [EXTRACTED]
+- [[Validation stop rules]] - `implements` [INFERRED]
+- [[Writers (one per target)]] - `shares_data_with` [EXTRACTED]
+- [[v2 vs v3 writer differences]] - `rationale_for` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Sync_Pipeline_Internals
+#graphify/concept #graphify/EXTRACTED #community/Output_Files_and_State_Store

@@ -1,0 +1,34 @@
+---
+source_file: "src/topology.rs"
+type: "code"
+community: "Topology and Node IDs"
+location: "L172"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Topology_and_Node_IDs
+---
+
+# build_nodes()
+
+## Connections
+- [[Config]] - `references` [EXTRACTED]
+- [[CsvRow]] - `references` [EXTRACTED]
+- [[RouterGroups]] - `references` [EXTRACTED]
+- [[StoredNode]] - `references` [EXTRACTED]
+- [[assemble()]] - `calls` [INFERRED]
+- [[carried_nodes_of_failed_router_stay()]] - `calls` [EXTRACTED]
+- [[client_node_id()]] - `calls` [EXTRACTED]
+- [[cycle.rs]] - `imports_from` [EXTRACTED]
+- [[flat_promotion_gives_one_client_node_per_row()]] - `calls` [EXTRACTED]
+- [[group_node_id()]] - `calls` [EXTRACTED]
+- [[group_node_name()]] - `calls` [EXTRACTED]
+- [[group_rate()]] - `calls` [EXTRACTED]
+- [[is_grouped()]] - `calls` [EXTRACTED]
+- [[net()]] - `calls` [EXTRACTED]
+- [[node_id()]] - `calls` [EXTRACTED]
+- [[preserve_keeps_manual_nodes_and_drops_old_generated()]] - `calls` [EXTRACTED]
+- [[template()]] - `calls` [EXTRACTED]
+- [[topology.rs]] - `contains` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_IDs

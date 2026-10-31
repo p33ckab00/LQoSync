@@ -1,18 +1,20 @@
 ---
 source_file: "docs/CONFIGURATION.md"
-type: "rationale"
-community: "Configuration and Secrets"
+type: "concept"
+community: "Config Rules and Modes"
+location: "L9"
 tags:
-  - graphify/rationale
-  - graphify/INFERRED
-  - community/Configuration_and_Secrets
+  - graphify/concept
+  - graphify/EXTRACTED
+  - community/Config_Rules_and_Modes
 ---
 
 # Secret files (*_file, mode 0600 root)
 
 ## Connections
-- [[Config loader]] - `implements` [INFERRED]
-- [[Configuration document]] - `references` [EXTRACTED]
-- [[Read-only router access rule]] - `semantically_similar_to` [INFERRED]
+- [[Manual installation procedure]] - `references` [EXTRACTED]
+- [[Operational rules]] - `references` [EXTRACTED]
+- [[Troubleshooting table]] - `references` [EXTRACTED]
+- [[lqosync3.toml config file]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/INFERRED #community/Configuration_and_Secrets
+#graphify/concept #graphify/EXTRACTED #community/Config_Rules_and_Modes
