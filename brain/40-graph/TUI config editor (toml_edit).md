@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0008-terminal-ui.md"
 type: "concept"
-community: "Terminal UI"
+community: "Status and Diff 4"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Terminal_UI
+  - community/Status_and_Diff_4
 ---
 
 # TUI config editor (toml_edit)
@@ -16,4 +16,4 @@ tags:
 - [[Router credentials in 0600 files]] - `references` [EXTRACTED]
 - [[lqosync3 tui (ratatuicrossterm)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Terminal_UI
+#graphify/concept #graphify/EXTRACTED #community/Status_and_Diff_4

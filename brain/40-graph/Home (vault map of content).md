@@ -1,11 +1,11 @@
 ---
 source_file: "brain/Home.md"
 type: "document"
-community: "Early Sessions and ADRs"
+community: "Topology 3"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/Topology_3
 ---
 
 # Home (vault map of content)
@@ -22,16 +22,17 @@ tags:
 - [[ADR-0008 Terminal UI]] - `references` [EXTRACTED]
 - [[ADR-0009 DHCP discovery and exclusions]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
-- [[Configuration reference]] - `references` [EXTRACTED]
-- [[Handoff (current project state)]] - `references` [EXTRACTED]
+- [[Configuration]] - `references` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
-- [[Installation (LQoSync3)]] - `references` [EXTRACTED]
+- [[Installation]] - `references` [EXTRACTED]
 - [[LQoSync3 README]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
-- [[Operations (LQoSync3)]] - `references` [EXTRACTED]
+- [[Operations]] - `references` [EXTRACTED]
 - [[Session 2026-10-31 project setup and v3 simulation]] - `references` [EXTRACTED]
 - [[Session updatecsv.py dissection]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
+- [[v3 offline simulation method]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/document #graphify/EXTRACTED #community/Topology_3

@@ -1,17 +1,18 @@
 ---
-source_file: "src/state.rs"
+source_file: "src/status.rs"
 type: "code"
-community: "State JSON"
-location: "L113"
+community: "Runner Cycle"
+location: "L74"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/State_JSON
+  - community/Runner_Cycle
 ---
 
 # .to_json()
 
 ## Connections
-- [[State_1]] - `method` [EXTRACTED]
+- [[Status]] - `method` [EXTRACTED]
+- [[status_json_has_the_spec_fields()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/State_JSON
+#graphify/code #graphify/EXTRACTED #community/Runner_Cycle

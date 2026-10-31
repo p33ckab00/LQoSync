@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Topology and Node Templates"
-location: "L132"
+community: "CLI and Checks 4"
+location: "L134"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/CLI_and_Checks_4
 ---
 
 # NodeTemplate
@@ -18,4 +18,4 @@ tags:
 - [[template()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_4

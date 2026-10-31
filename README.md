@@ -4,10 +4,9 @@ LQoSync3 reads subscriber data from MikroTik routers and writes shaping input fo
 It replaces `/opt/libreqos/src/updatecsv.py`. It reads its settings from one TOML file.
 It supports LibreQoS 2.0 to 2.2 and LibreQoS 3.x.
 
-> [!warning] Status: design and documentation only
-> The crate, the binary, and `install.sh` do not exist yet.
-> The commands in these documents are the target contract for the implementation.
-> Do not use these documents on a production shaper until the implementation passes its checks.
+> [!warning] Status: LibreQoS 2.x in shadow testing
+> The binary works for LibreQoS 2.x (`check`, `once`, `run`, `diff`, `defaults`). LibreQoS v3, Telegram, the TUI, and `install.sh` are not done yet.
+> Run in `shadow` mode and compare with `lqosync3 diff` before you use `apply` on a production shaper.
 
 ## What the tool does
 

@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Topology and Node Templates"
+community: "Topology"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/Topology
 ---
 
 # Map
@@ -17,4 +17,4 @@ tags:
 - [[take_children()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Topology

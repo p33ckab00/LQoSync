@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Runtime Settings"
+community: "LogLevel"
 location: "L37"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Runtime_Settings
+  - community/LogLevel
 ---
 
 # LogLevel
@@ -19,4 +19,4 @@ tags:
 - [[Warn]] - `case_of` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Runtime_Settings
+#graphify/code #graphify/EXTRACTED #community/LogLevel

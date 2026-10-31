@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0007-fresh-design-not-a-port.md"
 type: "rationale"
-community: "Router State Decisions"
+community: "Speed Rules 2"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Router_State_Decisions
+  - community/Speed_Rules_2
 ---
 
 # Fresh design, not a port
@@ -16,4 +16,4 @@ tags:
 - [[Python output format for shadow compare]] - `conceptually_related_to` [INFERRED]
 - [[updatecsv.py]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Router_State_Decisions
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules_2

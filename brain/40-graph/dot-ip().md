@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
+community: "Circuit Collection"
 location: "L108"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # .ip()
@@ -17,4 +17,4 @@ tags:
 - [[collect_hotspot()]] - `calls` [EXTRACTED]
 - [[collect_ppp()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

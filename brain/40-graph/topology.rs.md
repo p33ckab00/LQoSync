@@ -1,12 +1,12 @@
 ---
 source_file: "src/topology.rs"
 type: "code"
-community: "Topology and Node Templates"
+community: "Topology"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/Topology
 ---
 
 # topology.rs
@@ -24,14 +24,14 @@ tags:
 - [[Rate]] - `imports_from` [EXTRACTED]
 - [[RouterGroups]] - `contains` [EXTRACTED]
 - [[StoredNode]] - `imports_from` [EXTRACTED]
-- [[Value_1]] - `imports_from` [EXTRACTED]
+- [[Value_3]] - `imports_from` [EXTRACTED]
 - [[a_kept_child_keeps_its_operator_children()]] - `contains` [EXTRACTED]
 - [[backstop_cap_limits_group()]] - `contains` [EXTRACTED]
 - [[bail]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[build_nodes()]] - `contains` [EXTRACTED]
 - [[carried_nodes_of_failed_router_stay()]] - `contains` [EXTRACTED]
-- [[cfg()_1]] - `contains` [EXTRACTED]
+- [[cfg()_2]] - `contains` [EXTRACTED]
 - [[clamp()]] - `imports_from` [EXTRACTED]
 - [[client_node_id()]] - `contains` [EXTRACTED]
 - [[count_rate()]] - `contains` [EXTRACTED]
@@ -73,4 +73,4 @@ tags:
 - [[to_network_json()]] - `contains` [EXTRACTED]
 - [[v3_flag_makes_group_nodes_site()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Topology

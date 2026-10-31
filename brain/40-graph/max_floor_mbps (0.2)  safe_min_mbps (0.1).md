@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0005-topology-follows-v3.md"
 type: "concept"
-community: "Scenario Test Harness"
+community: "Topology 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_2
 ---
 
 # max_floor_mbps (0.2) / safe_min_mbps (0.1)
@@ -14,4 +14,4 @@ tags:
 - [[ADR-0005 Topology follows v3]] - `rationale_for` [EXTRACTED]
 - [[lqosd runtime rules (rates, unique names, parents)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

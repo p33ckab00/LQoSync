@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "v3 Ingress Evidence"
+community: "Topology 3"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/v3_Ingress_Evidence
+  - community/Topology_3
 ---
 
 # Offline v3 simulation
@@ -17,4 +17,4 @@ tags:
 - [[libreqos_3.0.7 beta package]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `semantically_similar_to` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/v3_Ingress_Evidence
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

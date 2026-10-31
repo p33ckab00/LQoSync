@@ -1,17 +1,17 @@
 ---
 source_file: "docs/CONFIGURATION.md"
 type: "rationale"
-community: "Router State Decisions"
+community: "CLI and Checks 2"
+location: "L24-31"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Router_State_Decisions
+  - community/CLI_and_Checks_2
 ---
 
 # Policy in TOML, formats in code
 
 ## Connections
-- [[ADR-0004 TOML policy, Python defaults]] - `conceptually_related_to` [INFERRED]
-- [[Configuration reference]] - `references` [EXTRACTED]
+- [[Configuration]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Router_State_Decisions
+#graphify/rationale #graphify/EXTRACTED #community/CLI_and_Checks_2

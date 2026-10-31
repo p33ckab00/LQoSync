@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Offline Action"
-location: "L62"
+community: "OfflineAction"
+location: "L64"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Offline_Action
+  - community/OfflineAction
 ---
 
 # Remove
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[OfflineAction]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Offline_Action
+#graphify/code #graphify/EXTRACTED #community/OfflineAction

@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed and DHCP Sources"
-location: "L401"
+community: "LibreQoS v3"
+location: "L407"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/LibreQoS_v3
 ---
 
 # Settings
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpSource]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

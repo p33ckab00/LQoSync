@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed and DHCP Sources"
+community: "Secrets"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # speed.rs
@@ -42,4 +42,4 @@ tags:
 - [[usable()]] - `contains` [EXTRACTED]
 - [[zero_comment_speed_is_no_rate()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

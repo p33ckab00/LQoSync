@@ -1,18 +1,18 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L413"
+community: "Circuit Collection"
+location: "L411"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # snap()
 
 ## Connections
-- [[RouterSnapshot]] - `references` [EXTRACTED]
+- [[RouterSnapshot_4]] - `references` [EXTRACTED]
 - [[circuit_templates_can_use_router()]] - `calls` [EXTRACTED]
 - [[dhcp_per_plan_uses_lease_comment()]] - `calls` [EXTRACTED]
 - [[dhcp_per_site_filters_and_names()]] - `calls` [EXTRACTED]
@@ -28,4 +28,4 @@ tags:
 - [[ppp_speed_chain_order()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

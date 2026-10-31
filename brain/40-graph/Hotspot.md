@@ -1,17 +1,17 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/model.rs"
 type: "code"
-community: "Topology and Node Templates"
-location: "L13"
+community: "Cycle Assembly"
+location: "L99"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/Cycle_Assembly
 ---
 
 # Hotspot
 
 ## Connections
-- [[GroupKey]] - `case_of` [EXTRACTED]
+- [[Source]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

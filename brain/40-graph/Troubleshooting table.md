@@ -1,19 +1,19 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Architecture Parts"
-location: "L185"
+community: "MikroTik Session 5"
+location: "L192-203"
 tags:
   - graphify/concept
-  - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - graphify/INFERRED
+  - community/MikroTik_Session_5
 ---
 
 # Troubleshooting table
 
 ## Connections
-- [[LibreQoS v3 topology.compile_mode]] - `references` [EXTRACTED]
-- [[Secret files (_file  _env, mode 0600 root)]] - `references` [EXTRACTED]
-- [[Validator]] - `references` [EXTRACTED]
+- [[LibreQoS v3 checks (no_parent fails, compile_mode warning)]] - `conceptually_related_to` [INFERRED]
+- [[Operations]] - `references` [EXTRACTED]
+- [[Secret files (_file  _env, mode 0600, owner root)]] - `references` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/INFERRED #community/MikroTik_Session_5

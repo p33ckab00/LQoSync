@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Root and Checks"
-location: "L161"
+community: "CLI and Checks 4"
+location: "L163"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Root_and_Checks
+  - community/CLI_and_Checks_4
 ---
 
 # Nodes
@@ -17,4 +17,4 @@ tags:
 - [[NodeTemplate]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_4

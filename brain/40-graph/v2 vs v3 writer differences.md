@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Architecture Parts"
+community: "MikroTik Session"
 location: "L127"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/MikroTik_Session
 ---
 
 # v2 vs v3 writer differences
@@ -15,4 +15,4 @@ tags:
 - [[Validator]] - `rationale_for` [INFERRED]
 - [[Writers (one per target)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

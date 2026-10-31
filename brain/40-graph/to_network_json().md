@@ -1,19 +1,19 @@
 ---
 source_file: "src/topology.rs"
 type: "code"
-community: "Topology and Node Templates"
+community: "Topology"
 location: "L349"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/Topology
 ---
 
 # to_network_json()
 
 ## Connections
 - [[StoredNode]] - `references` [EXTRACTED]
-- [[Value_1]] - `references` [EXTRACTED]
+- [[Value_3]] - `references` [EXTRACTED]
 - [[a_kept_child_keeps_its_operator_children()]] - `calls` [EXTRACTED]
 - [[assemble()]] - `calls` [INFERRED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
@@ -28,4 +28,4 @@ tags:
 - [[take_children()]] - `calls` [EXTRACTED]
 - [[topology.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Topology

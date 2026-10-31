@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Model Types"
+community: "Cycle Assembly"
 location: "L50"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Model_Types
+  - community/Cycle_Assembly
 ---
 
 # V3_COLUMNS
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[model.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Model_Types
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

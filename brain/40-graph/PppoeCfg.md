@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Loading"
-location: "L300"
+community: "Config"
+location: "L306"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config
 ---
 
 # PppoeCfg
@@ -15,4 +15,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Loading
+#graphify/code #graphify/EXTRACTED #community/Config

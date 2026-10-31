@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Offline Action"
-location: "L61"
+community: "OfflineAction"
+location: "L63"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Offline_Action
+  - community/OfflineAction
 ---
 
 # OfflineAction
@@ -18,4 +18,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Offline_Action
+#graphify/code #graphify/EXTRACTED #community/OfflineAction

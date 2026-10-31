@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed and DHCP Sources"
+community: "Secrets"
 location: "L150"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # .profile_name()
@@ -17,4 +17,4 @@ tags:
 - [[to_mbps()]] - `calls` [EXTRACTED]
 - [[usable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

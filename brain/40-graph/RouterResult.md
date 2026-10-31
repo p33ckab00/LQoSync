@@ -21,9 +21,7 @@ tags:
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[ppp()]] - `references` [EXTRACTED]
 - [[ppp_owned()]] - `references` [EXTRACTED]
-- [[results()]] - `references` [EXTRACTED]
 - [[run()]] - `references` [EXTRACTED]
 - [[run_full()]] - `references` [EXTRACTED]
-- [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

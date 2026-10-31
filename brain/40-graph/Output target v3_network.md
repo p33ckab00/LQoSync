@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "concept"
-community: "Early Sessions and ADRs"
+community: "MikroTik Session 3"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/MikroTik_Session_3
 ---
 
 # Output target v3_network
@@ -17,4 +17,4 @@ tags:
 - [[lqosd inotify file watcher]] - `references` [EXTRACTED]
 - [[no_parent guard on v3 targets]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_3

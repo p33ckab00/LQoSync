@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L623"
+community: "Circuit Collection"
+location: "L621"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # cfg_text()
@@ -20,4 +20,4 @@ tags:
 - [[excluded_ppp_profiles_are_skipped()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

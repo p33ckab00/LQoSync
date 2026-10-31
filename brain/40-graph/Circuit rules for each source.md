@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "concept"
-community: "DHCP Discovery and Exclusions"
+community: "Speed Rules"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/DHCP_Discovery_and_Exclusions
+  - community/Speed_Rules
 ---
 
 # Circuit rules for each source
@@ -16,10 +16,9 @@ tags:
 - [[Cycle assembly rules]] - `references` [EXTRACTED]
 - [[DHCP server discovery (like PPP)]] - `implements` [INFERRED]
 - [[DhcpCfgserver(name) defaults]] - `references` [EXTRACTED]
-- [[Differences from updatecsv.py]] - `references` [EXTRACTED]
 - [[Exclusions (exclude  routers.exclude dhcp_servers, ppp_profiles, ips)]] - `implements` [INFERRED]
 - [[Name templates (nodes, circuits)]] - `references` [INFERRED]
 - [[Task 4 Circuit collection (collect_router)]] - `implements` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/DHCP_Discovery_and_Exclusions
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules

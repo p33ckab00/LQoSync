@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Model Types"
+community: "Cycle Assembly"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Model_Types
+  - community/Cycle_Assembly
 ---
 
 # model.rs
@@ -28,4 +28,4 @@ tags:
 - [[deserialize]] - `imports_from` [EXTRACTED]
 - [[serialize]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Model_Types
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

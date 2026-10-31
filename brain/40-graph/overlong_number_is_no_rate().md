@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed and DHCP Sources"
+community: "Secrets"
 location: "L252"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # overlong_number_is_no_rate()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[speed.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

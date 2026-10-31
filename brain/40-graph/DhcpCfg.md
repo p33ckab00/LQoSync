@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Settings"
-location: "L359"
+community: "LibreQoS v3"
+location: "L365"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Settings
+  - community/LibreQoS_v3
 ---
 
 # DhcpCfg
@@ -18,4 +18,4 @@ tags:
 - [[RouterCfg]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Settings
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

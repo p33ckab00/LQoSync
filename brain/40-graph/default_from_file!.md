@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Loading"
-location: "L479"
+community: "Config"
+location: "L485"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config
 ---
 
 # default_from_file!
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Loading
+#graphify/code #graphify/EXTRACTED #community/Config

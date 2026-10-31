@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/updatecsv-py-dissection.md"
 type: "document"
-community: "Router State Decisions"
+community: "Speed Rules 2"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Router_State_Decisions
+  - community/Speed_Rules_2
 ---
 
 # updatecsv.py dissection
@@ -13,9 +13,10 @@ tags:
 ## Connections
 - [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
 - [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
+- [[ADR-0004 TOML policy, Python defaults_1]] - `conceptually_related_to` [INFERRED]
 - [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
-- [[Configuration reference]] - `references` [EXTRACTED]
+- [[Configuration]] - `references` [EXTRACTED]
 - [[DHCP server discovery (like PPP)]] - `conceptually_related_to` [INFERRED]
 - [[Differences from updatecsv.py]] - `conceptually_related_to` [INFERRED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
@@ -29,4 +30,4 @@ tags:
 - [[updatecsv.py]] - `references` [EXTRACTED]
 - [[updatecsv.py defects to fix]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Router_State_Decisions
+#graphify/document #graphify/EXTRACTED #community/Speed_Rules_2

@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/libreqos-v3-ingress-facts.md"
 type: "document"
-community: "Early Sessions and ADRs"
+community: "Topology 3"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/Topology_3
 ---
 
 # LibreQoS v3 ingress facts
@@ -13,7 +13,6 @@ tags:
 ## Connections
 - [[ADR-0002 v3 target selection]] - `references` [EXTRACTED]
 - [[ADR-0005 Topology follows v3]] - `references` [EXTRACTED]
-- [[Handoff (current project state)]] - `references` [EXTRACTED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
@@ -26,4 +25,4 @@ tags:
 - [[topology_import.json (internal, do not write)]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/document #graphify/EXTRACTED #community/Topology_3

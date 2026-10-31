@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L422"
+community: "Circuit Collection"
+location: "L420"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # by_name()
@@ -21,4 +21,4 @@ tags:
 - [[ppp_needs_active_and_enabled_secret()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

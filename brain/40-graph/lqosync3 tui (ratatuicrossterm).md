@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0008-terminal-ui.md"
 type: "rationale"
-community: "Terminal UI"
+community: "Status and Diff 4"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Terminal_UI
+  - community/Status_and_Diff_4
 ---
 
 # lqosync3 tui (ratatui/crossterm)
@@ -16,4 +16,4 @@ tags:
 - [[TUI config editor (toml_edit)]] - `references` [EXTRACTED]
 - [[status.json state file]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Terminal_UI
+#graphify/rationale #graphify/EXTRACTED #community/Status_and_Diff_4

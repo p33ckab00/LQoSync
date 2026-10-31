@@ -52,7 +52,7 @@ None at this time.
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
 
-Deferred minor items from the Plan 2 review: SIGHUP error not in status.json; backup pruning by name sort; write network.json first; `diff` with no candidate; no retry skip for a secret-file error; file mode and owner after the atomic rename; no TCP keepalive.
+Deferred minor items from the Plan 2 review: SIGHUP error not in status.json; backup pruning by name sort; write `network.json` before `ShapedDevices.csv` (both after `state.json`); `diff` with no candidate; no retry skip for a secret-file error; file mode and owner after the atomic rename; no TCP keepalive.
 
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 

@@ -1,17 +1,18 @@
 ---
 source_file: ""
 type: "concept"
-community: "Validation"
+community: "hashmap"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Validation
+  - community/hashmap
 ---
 
 # hashset
 
 ## Connections
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
+- [[runner.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Validation
+#graphify/concept #graphify/EXTRACTED #community/hashmap

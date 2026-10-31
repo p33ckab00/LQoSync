@@ -1,11 +1,11 @@
 ---
 source_file: "brain/10-sessions/2026-10-31-updatecsv-dissection.md"
 type: "document"
-community: "Early Sessions and ADRs"
+community: "CLI and Checks 2"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/CLI_and_Checks_2
 ---
 
 # Session: updatecsv.py dissection
@@ -15,7 +15,7 @@ tags:
 - [[ADR-0003 Router failed vs offline]] - `references` [EXTRACTED]
 - [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
 - [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
-- [[Configuration reference]] - `references` [EXTRACTED]
+- [[Configuration]] - `references` [EXTRACTED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[Orphan branch lqosync3]] - `references` [EXTRACTED]
 - [[RouterOS listen command (untested)]] - `references` [EXTRACTED]
@@ -24,4 +24,4 @@ tags:
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/document #graphify/EXTRACTED #community/CLI_and_Checks_2

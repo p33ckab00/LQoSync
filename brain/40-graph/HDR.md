@@ -1,17 +1,17 @@
 ---
-source_file: "src/state.rs"
+source_file: "src/files.rs"
 type: "code"
-community: "State File and CSV Read"
-location: "L125"
+community: "File Safety"
+location: "L194"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/State_File_and_CSV_Read
+  - community/File_Safety
 ---
 
 # HDR
 
 ## Connections
-- [[state.rs]] - `contains` [EXTRACTED]
+- [[files.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/State_File_and_CSV_Read
+#graphify/code #graphify/EXTRACTED #community/File_Safety

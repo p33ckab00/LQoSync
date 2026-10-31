@@ -1,21 +1,20 @@
 ---
-source_file: "src/sources.rs"
+source_file: "src/runner.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L85"
+community: "Runner Cycle"
+location: "L75"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Runner_Cycle
 ---
 
 # .new()
 
 ## Connections
+- [[C]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
-- [[Excluder'a]] - `method` [EXTRACTED]
-- [[RouterCfg]] - `references` [EXTRACTED]
-- [[collect_router()]] - `calls` [EXTRACTED]
-- [[parse_ipv4_net()]] - `calls` [INFERRED]
+- [[RunnerC]] - `method` [EXTRACTED]
+- [[runner()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Runner_Cycle

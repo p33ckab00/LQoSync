@@ -1,19 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Validation"
+community: "CircuitNames"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation
+  - community/CircuitNames
 ---
 
 # Value
 
 ## Connections
-- [[check()]] - `references` [EXTRACTED]
-- [[collect_nodes()]] - `references` [EXTRACTED]
-- [[net()_1]] - `references` [EXTRACTED]
-- [[validate.rs]] - `imports_from` [EXTRACTED]
+- [[seed_nodes()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation
+#graphify/code #graphify/EXTRACTED #community/CircuitNames

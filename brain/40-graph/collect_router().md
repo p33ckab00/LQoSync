@@ -1,29 +1,29 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
+community: "Circuit Collection"
 location: "L118"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # collect_router()
 
 ## Connections
-- [[dot-new()]] - `calls` [EXTRACTED]
+- [[dot-new()_1]] - `calls` [EXTRACTED]
 - [[Collected]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot]] - `references` [EXTRACTED]
-- [[SpeedParser]] - `references` [EXTRACTED]
+- [[RouterSnapshot_4]] - `references` [EXTRACTED]
+- [[SpeedParser_1]] - `references` [EXTRACTED]
 - [[assemble()]] - `calls` [INFERRED]
 - [[collect_dhcp()]] - `calls` [EXTRACTED]
 - [[collect_hotspot()]] - `calls` [EXTRACTED]
 - [[collect_ppp()]] - `calls` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
-- [[run()_1]] - `calls` [EXTRACTED]
+- [[run()_2]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

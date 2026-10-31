@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Settings"
-location: "L391"
+community: "LibreQoS v3"
+location: "L397"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Settings
+  - community/LibreQoS_v3
 ---
 
 # DhcpMode
@@ -20,4 +20,4 @@ tags:
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Settings
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

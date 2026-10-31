@@ -1,18 +1,17 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Architecture Parts"
+community: "MikroTik Session"
 location: "L68"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/MikroTik_Session
 ---
 
 # Target v3_pair
 
 ## Connections
-- [[LibreQoS upgrade 2.2 to 3.x]] - `references` [EXTRACTED]
 - [[Target Detector]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

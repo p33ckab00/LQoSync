@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Config Loading"
+community: "Config"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config
 ---
 
 # btreeset
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[config.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Config_Loading
+#graphify/concept #graphify/EXTRACTED #community/Config

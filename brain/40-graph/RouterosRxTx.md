@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed and DHCP Sources"
-location: "L185"
+community: "Secrets"
+location: "L187"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # RouterosRxTx
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[RateLimitOrder]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

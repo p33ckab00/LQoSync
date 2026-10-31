@@ -1,23 +1,16 @@
 ---
 source_file: ""
 type: "code"
-community: "Topology and Node Templates"
+community: "Runner Cycle"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/Runner_Cycle
 ---
 
 # Value
 
 ## Connections
-- [[find_mut()]] - `references` [EXTRACTED]
-- [[groups_json()]] - `references` [EXTRACTED]
-- [[net()]] - `references` [EXTRACTED]
-- [[node_json()]] - `references` [EXTRACTED]
-- [[remove_named()]] - `references` [EXTRACTED]
-- [[take_children()]] - `references` [EXTRACTED]
-- [[to_network_json()]] - `references` [EXTRACTED]
-- [[topology.rs]] - `imports_from` [EXTRACTED]
+- [[render_network_json()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Runner_Cycle

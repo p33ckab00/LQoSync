@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L228"
+community: "Circuit Collection"
+location: "L226"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # collect_hotspot()
@@ -17,10 +17,10 @@ tags:
 - [[Config]] - `references` [EXTRACTED]
 - [[Excluder]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot]] - `references` [EXTRACTED]
+- [[RouterSnapshot_4]] - `references` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]
 - [[f()]] - `calls` [EXTRACTED]
 - [[mac_key()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

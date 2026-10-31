@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Embedded Defaults Merge"
+community: ".default()"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Embedded_Defaults_Merge
+  - community/default
 ---
 
 # Table
@@ -15,4 +15,4 @@ tags:
 - [[deep_merge()]] - `references` [EXTRACTED]
 - [[defaults_table()]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Embedded_Defaults_Merge
+#graphify/code #graphify/EXTRACTED #community/default

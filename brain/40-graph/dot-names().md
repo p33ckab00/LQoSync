@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "CSV Writer and Columns"
+community: "Cycle Assembly"
 location: "L86"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CSV_Writer_and_Columns
+  - community/Cycle_Assembly
 ---
 
 # .names()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[Columns]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CSV_Writer_and_Columns
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0003-router-failed-vs-offline.md"
 type: "rationale"
-community: "Router State Decisions"
+community: "CLI and Checks 2"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Router_State_Decisions
+  - community/CLI_and_Checks_2
 ---
 
 # Router state model (online/failed/unreachable/offline)
@@ -17,4 +17,4 @@ tags:
 - [[updatecsv.py]] - `references` [EXTRACTED]
 - [[updatecsv.py defects to fix]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Router_State_Decisions
+#graphify/rationale #graphify/EXTRACTED #community/CLI_and_Checks_2

@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0004-toml-policy-python-defaults.md"
 type: "rationale"
-community: "Router State Decisions"
+community: "Speed Rules 2"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Router_State_Decisions
+  - community/Speed_Rules_2
 ---
 
 # Profile name number+unit rule
@@ -14,4 +14,4 @@ tags:
 - [[ADR-0004 TOML policy, Python defaults]] - `rationale_for` [EXTRACTED]
 - [[updatecsv.py defects to fix]] - `conceptually_related_to` [INFERRED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Router_State_Decisions
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules_2

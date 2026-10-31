@@ -1,19 +1,19 @@
 ---
 source_file: "src/validate.rs"
 type: "code"
-community: "Validation"
+community: "hashmap"
 location: "L32"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation
+  - community/hashmap
 ---
 
 # rate()
 
 ## Connections
 - [[CsvRow]] - `references` [EXTRACTED]
-- [[check()]] - `calls` [EXTRACTED]
+- [[check()_1]] - `calls` [EXTRACTED]
 - [[validate.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation
+#graphify/code #graphify/EXTRACTED #community/hashmap

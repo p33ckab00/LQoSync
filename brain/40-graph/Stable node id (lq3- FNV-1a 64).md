@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0005-topology-follows-v3.md"
 type: "rationale"
-community: "Scenario Test Harness"
+community: "Topology 2"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_2
 ---
 
 # Stable node id (lq3- FNV-1a 64)
@@ -17,4 +17,4 @@ tags:
 - [[Scenario tests (replace golden parity tests)]] - `conceptually_related_to` [AMBIGUOUS]
 - [[v3 name-derived legacy node id]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/rationale #graphify/EXTRACTED #community/Topology_2

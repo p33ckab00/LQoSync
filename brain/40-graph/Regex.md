@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Speed and DHCP Sources"
+community: "Secrets"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # Regex
@@ -14,4 +14,4 @@ tags:
 - [[SpeedParser]] - `references` [EXTRACTED]
 - [[speed.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

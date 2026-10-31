@@ -1,14 +1,14 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Telegram Notifier"
+community: "Notifier (Telegram)"
 location: "L54"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Telegram_Notifier
+  - community/Notifier_Telegram
 ---
 
 # Notifier (Telegram)
 
-#graphify/concept #graphify/EXTRACTED #community/Telegram_Notifier
+#graphify/concept #graphify/EXTRACTED #community/Notifier_Telegram

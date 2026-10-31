@@ -1,11 +1,11 @@
 ---
 source_file: "brain/20-decisions/ADR-0005-topology-follows-v3.md"
 type: "document"
-community: "Scenario Test Harness"
+community: "Topology 2"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_2
 ---
 
 # ADR-0005 Topology follows v3
@@ -17,8 +17,10 @@ tags:
 - [[ADR-0004 TOML policy, Python defaults]] - `references` [EXTRACTED]
 - [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
 - [[ADR-0007 Fresh design, not a port]] - `references` [EXTRACTED]
-- [[Differences from updatecsv.py]] - `references` [EXTRACTED]
-- [[Handoff (current project state)]] - `references` [EXTRACTED]
+- [[Architecture (LQoSync3)]] - `references` [EXTRACTED]
+- [[Configuration]] - `references` [EXTRACTED]
+- [[Differences from updatecsv.py]] - `cites` [EXTRACTED]
+- [[Handoff]] - `references` [EXTRACTED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[How LibreQoS v3 handles nodes]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
@@ -31,4 +33,4 @@ tags:
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 - [[max_floor_mbps (0.2)  safe_min_mbps (0.1)]] - `rationale_for` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/document #graphify/EXTRACTED #community/Topology_2

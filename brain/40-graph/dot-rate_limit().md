@@ -1,12 +1,12 @@
 ---
 source_file: "src/speed.rs"
 type: "code"
-community: "Speed and DHCP Sources"
+community: "Secrets"
 location: "L140"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # .rate_limit()
@@ -17,4 +17,4 @@ tags:
 - [[parse_pair()]] - `calls` [EXTRACTED]
 - [[usable()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

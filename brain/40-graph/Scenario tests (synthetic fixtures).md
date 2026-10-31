@@ -1,11 +1,11 @@
 ---
 source_file: "docs/superpowers/specs/2026-10-31-lqosync3-core-design.md"
 type: "concept"
-community: "Plan 1 Session and Review"
+community: "Topology 4"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Plan_1_Session_and_Review
+  - community/Topology_4
 ---
 
 # Scenario tests (synthetic fixtures)
@@ -17,4 +17,4 @@ tags:
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
 - [[toolsv3simcheck.sh (v3 compiler check)]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Plan_1_Session_and_Review
+#graphify/concept #graphify/EXTRACTED #community/Topology_4

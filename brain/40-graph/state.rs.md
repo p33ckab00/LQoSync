@@ -1,23 +1,23 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "State File and CSV Read"
+community: "CircuitNames"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/State_File_and_CSV_Read
+  - community/CircuitNames
 ---
 
 # state.rs
 
 ## Connections
-- [[CsvRow]] - `imports_from` [EXTRACTED]
-- [[HDR]] - `contains` [EXTRACTED]
-- [[Source]] - `imports_from` [EXTRACTED]
-- [[State]] - `imports_from` [EXTRACTED]
-- [[StoredCircuit]] - `imports_from` [EXTRACTED]
-- [[StoredNode]] - `imports_from` [EXTRACTED]
+- [[CircuitNames]] - `imports_from` [EXTRACTED]
+- [[CsvRow_3]] - `imports_from` [EXTRACTED]
+- [[HDR_1]] - `contains` [EXTRACTED]
+- [[Source_1]] - `imports_from` [EXTRACTED]
+- [[State_1]] - `imports_from` [EXTRACTED]
+- [[StoredNode_1]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[context]] - `imports_from` [EXTRACTED]
 - [[ensure]] - `imports_from` [EXTRACTED]
@@ -28,9 +28,11 @@ tags:
 - [[seed_nodes()]] - `contains` [EXTRACTED]
 - [[seed_nodes_reads_the_tree_with_parents_and_ids()]] - `contains` [EXTRACTED]
 - [[seed_state()]] - `contains` [EXTRACTED]
+- [[seed_uses_the_configured_names_and_comments()]] - `contains` [EXTRACTED]
 - [[split_static()]] - `contains` [EXTRACTED]
 - [[split_static_ignores_case()]] - `contains` [EXTRACTED]
 - [[state_json_round_trip_and_version_check()]] - `contains` [EXTRACTED]
+- [[storedcircuit_1]] - `imports_from` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/State_File_and_CSV_Read
+#graphify/code #graphify/EXTRACTED #community/CircuitNames

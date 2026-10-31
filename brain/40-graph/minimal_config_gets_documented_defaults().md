@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Loading"
-location: "L972"
+community: "Config"
+location: "L1007"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config
 ---
 
 # minimal_config_gets_documented_defaults()
@@ -15,4 +15,4 @@ tags:
 - [[dot-from_toml_str()]] - `calls` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Loading
+#graphify/code #graphify/EXTRACTED #community/Config

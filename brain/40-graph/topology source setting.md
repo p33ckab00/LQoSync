@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/libreqos-v3-ingress-facts.md"
 type: "concept"
-community: "Early Sessions and ADRs"
+community: "MikroTik Session 3"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/MikroTik_Session_3
 ---
 
 # [topology] source setting
@@ -14,4 +14,4 @@ tags:
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 - [[Target auto-detection]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session_3

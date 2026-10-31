@@ -1,21 +1,21 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "v3 Node Rules"
+community: "Scenario Tests"
 location: "L23"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/v3_Node_Rules
+  - community/Scenario_Tests
 ---
 
 # results()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[RouterResult]] - `references` [EXTRACTED]
+- [[RouterResult_2]] - `references` [EXTRACTED]
 - [[Snapshot]] - `references` [EXTRACTED]
 - [[cycle()]] - `calls` [EXTRACTED]
 - [[scenarios.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/v3_Node_Rules
+#graphify/code #graphify/EXTRACTED #community/Scenario_Tests

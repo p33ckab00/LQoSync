@@ -1,17 +1,17 @@
 ---
 source_file: "docs/INSTALLATION.md"
 type: "concept"
-community: "Architecture Parts"
-location: "L160"
+community: "Config 2"
+location: "L169-191"
 tags:
   - graphify/concept
-  - graphify/INFERRED
-  - community/Architecture_Parts
+  - graphify/EXTRACTED
+  - community/Config_2
 ---
 
 # Removal procedure
 
 ## Connections
-- [[lqosync-updatecsv.service (Python service)]] - `references` [INFERRED]
+- [[Installation]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/INFERRED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/Config_2

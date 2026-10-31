@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Embedded Defaults Merge"
-location: "L468"
+community: ".default()"
+location: "L474"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Embedded_Defaults_Merge
+  - community/default
 ---
 
 # deep_merge()
@@ -16,4 +16,4 @@ tags:
 - [[Table]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Embedded_Defaults_Merge
+#graphify/code #graphify/EXTRACTED #community/default

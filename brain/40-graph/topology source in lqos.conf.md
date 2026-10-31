@@ -1,11 +1,11 @@
 ---
 source_file: "docs/LIBREQOS-V3-INGRESS.md"
 type: "concept"
-community: "v3 Ingress Evidence"
+community: "Topology 3"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/v3_Ingress_Evidence
+  - community/Topology_3
 ---
 
 # [topology] source in lqos.conf
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[LibreQoS v3 ingress document]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/v3_Ingress_Evidence
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

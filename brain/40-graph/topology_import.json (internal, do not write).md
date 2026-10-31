@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/libreqos-v3-ingress-facts.md"
 type: "concept"
-community: "Early Sessions and ADRs"
+community: "Topology 3"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/Topology_3
 ---
 
 # topology_import.json (internal, do not write)
@@ -13,4 +13,4 @@ tags:
 ## Connections
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/concept #graphify/EXTRACTED #community/Topology_3

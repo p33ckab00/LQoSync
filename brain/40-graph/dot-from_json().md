@@ -1,12 +1,12 @@
 ---
 source_file: "src/state.rs"
 type: "code"
-community: "State JSON"
-location: "L103"
+community: "Scenario Tests"
+location: "L111"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/State_JSON
+  - community/Scenario_Tests
 ---
 
 # .from_json()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[State_1]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/State_JSON
+#graphify/code #graphify/EXTRACTED #community/Scenario_Tests

@@ -2,8 +2,8 @@
 
 This document gives the operational rules and procedures for LQoSync3.
 
-> [!warning] Status: target contract
-> The binary does not exist yet. These procedures are the contract for the implementation.
+> [!warning] Status: LibreQoS 2.x only
+> The binary exists for LibreQoS 2.x (`v2_pair`). LibreQoS v3 and the installer are not done yet. Test in `shadow` mode before the cutover.
 
 ## Operational rules
 
@@ -69,7 +69,8 @@ Each cycle writes one summary line. The line has the counts of added, updated, a
 3. Show the changes that the new configuration makes:
 
    ```bash
-   sudo lqosync3 once --dry-run
+   sudo lqosync3 once     # in shadow mode: writes only <state_dir>/candidate/
+   sudo lqosync3 diff
    ```
 
 4. Restart the service:
@@ -173,10 +174,11 @@ The tool supports both versions. The upgrade changes the output target. Do this 
    sudo lqosync3 detect
    ```
 
-8. Run one dry-run cycle and read the result:
+8. Run one cycle in `shadow` mode and read the result:
 
    ```bash
-   sudo lqosync3 once --dry-run
+   sudo lqosync3 once     # in shadow mode: writes only <state_dir>/candidate/
+   sudo lqosync3 diff
    ```
 
 9. Set the tool to `apply` mode. Restart the tool.
@@ -200,4 +202,4 @@ In `apply` mode, the tool keeps the last 10 applied versions of each file in `/v
 | Apply result is `rejected` | The validator found a duplicate IP, a missing parent, or a bad rate | Read the log line. Correct the router data. |
 | v3 keeps the old topology | `lqosd` rejected `libreqos_network.json` | Read `journalctl -u libreqos-lqosd.service`. Look for `libreqos_network.json rejected`. |
 | Circuits do not use the node tree on v3 | `compile_mode` is not `full` | Set `compile_mode = "full"` in `/etc/libreqos/lqos.conf`. |
-| No change after a router change | The output hash did not change | Run `once --dry-run`. Make sure that the router data changed. |
+| No change after a router change | The output hash did not change | Run `once` in `shadow` mode and `diff`. Make sure that the router data changed. |

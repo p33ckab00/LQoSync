@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Settings"
-location: "L392"
+community: "LibreQoS v3"
+location: "L398"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Settings
+  - community/LibreQoS_v3
 ---
 
 # PerSite
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[DhcpMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Settings
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

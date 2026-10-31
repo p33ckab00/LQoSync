@@ -1,18 +1,18 @@
 ---
 source_file: "docs/OPERATIONS.md"
 type: "concept"
-community: "Architecture Parts"
-location: "L115"
+community: "Config 2"
+location: "L122-146"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/Config_2
 ---
 
 # Rollback to the Python service
 
 ## Connections
-- [[Cutover from the Python service]] - `conceptually_related_to` [INFERRED]
-- [[lqosync-updatecsv.service (Python service)]] - `references` [EXTRACTED]
+- [[Cutover from the Python service]] - `conceptually_related_to` [EXTRACTED]
+- [[Operations]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/Config_2

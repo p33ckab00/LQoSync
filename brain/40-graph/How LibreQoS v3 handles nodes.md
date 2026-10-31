@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/v3-node-handling.md"
 type: "document"
-community: "Scenario Test Harness"
+community: "Topology 2"
 tags:
   - graphify/document
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_2
 ---
 
 # How LibreQoS v3 handles nodes
@@ -16,6 +16,7 @@ tags:
 - [[ADR-0006 v3 guards and node types]] - `references` [EXTRACTED]
 - [[Home (vault map of content)]] - `references` [EXTRACTED]
 - [[LibreQoS v3 ingress facts]] - `references` [EXTRACTED]
+- [[Node types (v2_type, v3_type)]] - `conceptually_related_to` [INFERRED]
 - [[compile_mode (flatap_onlyap_sitefull)]] - `references` [EXTRACTED]
 - [[lqosd runtime rules (rates, unique names, parents)]] - `references` [EXTRACTED]
 - [[lqosync3 core design spec]] - `references` [EXTRACTED]
@@ -24,4 +25,4 @@ tags:
 - [[v3 offline compile results]] - `references` [EXTRACTED]
 - [[v3 offline simulation method]] - `references` [EXTRACTED]
 
-#graphify/document #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/document #graphify/EXTRACTED #community/Topology_2

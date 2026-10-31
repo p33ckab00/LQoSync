@@ -1,25 +1,24 @@
 ---
 source_file: "tests/scenarios.rs"
 type: "code"
-community: "v3 Node Rules"
+community: "Scenario Tests"
 location: "L39"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/v3_Node_Rules
+  - community/Scenario_Tests
 ---
 
 # cycle()
 
 ## Connections
 - [[Config]] - `references` [EXTRACTED]
-- [[CsvRow]] - `references` [EXTRACTED]
-- [[CycleOutput]] - `references` [EXTRACTED]
+- [[CsvRow_2]] - `references` [EXTRACTED]
+- [[CycleOutput_1]] - `references` [EXTRACTED]
 - [[Snapshot]] - `references` [EXTRACTED]
-- [[State]] - `references` [EXTRACTED]
-- [[assemble()]] - `calls` [INFERRED]
+- [[State_1]] - `references` [EXTRACTED]
 - [[results()]] - `calls` [EXTRACTED]
 - [[scenarios.rs]] - `contains` [EXTRACTED]
 - [[scenarios_match_expected_output()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/v3_Node_Rules
+#graphify/code #graphify/EXTRACTED #community/Scenario_Tests

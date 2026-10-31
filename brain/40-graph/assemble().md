@@ -19,7 +19,6 @@ tags:
 - [[circuit_rates()]] - `calls` [INFERRED]
 - [[client_node_id()]] - `calls` [INFERRED]
 - [[collect_router()]] - `calls` [INFERRED]
-- [[cycle()]] - `calls` [INFERRED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 - [[fmt_rate()]] - `calls` [INFERRED]
 - [[fnv1a64()]] - `calls` [INFERRED]

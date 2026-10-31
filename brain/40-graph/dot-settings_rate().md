@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Settings"
-location: "L432"
+community: "CLI and Checks 3"
+location: "L438"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Settings
+  - community/CLI_and_Checks_3
 ---
 
 # .settings_rate()
@@ -14,6 +14,6 @@ tags:
 ## Connections
 - [[BandwidthDefaults]] - `references` [EXTRACTED]
 - [[DhcpServer]] - `method` [EXTRACTED]
-- [[Rate]] - `references` [EXTRACTED]
+- [[Rate_2]] - `references` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Settings
+#graphify/code #graphify/EXTRACTED #community/CLI_and_Checks_3

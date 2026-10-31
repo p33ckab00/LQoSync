@@ -1,19 +1,21 @@
 ---
 source_file: "src/writer/pair.rs"
 type: "code"
-community: "CSV Writer and Columns"
-location: "L6"
+community: "LibreQoS v3 2"
+location: "L7"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CSV_Writer_and_Columns
+  - community/LibreQoS_v3_2
 ---
 
 # field()
 
 ## Connections
-- [[CsvRow]] - `references` [EXTRACTED]
+- [[CsvRow_5]] - `references` [EXTRACTED]
+- [[diff.rs]] - `imports_from` [EXTRACTED]
+- [[diff_pair()]] - `calls` [INFERRED]
 - [[pair.rs]] - `contains` [EXTRACTED]
 - [[render_csv()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CSV_Writer_and_Columns
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2

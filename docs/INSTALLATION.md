@@ -3,7 +3,7 @@
 This document gives the one-line installation, the manual installation, the checks after installation, and the removal procedure.
 
 > [!warning] Status: target contract
-> `install.sh` and the release binary do not exist yet. The commands below are the contract for the implementation.
+> `install.sh` and a release binary do not exist yet. Build from source with the manual installation.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ This document gives the one-line installation, the manual installation, the chec
 - Root access.
 - RouterOS API access from the shaper to each router. Use port `8729` (TLS) if possible.
 - A read-only RouterOS user for each router.
-- For an installation from source: Rust 1.88 or later and `cargo`.
+- For an installation from source: Rust 1.89 or later and `cargo`.
 
 ## One-line installation
 

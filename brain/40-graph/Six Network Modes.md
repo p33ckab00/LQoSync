@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Architecture Parts"
+community: "Topology 2"
 location: "L112"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/Topology_2
 ---
 
 # Six Network Modes
@@ -15,4 +15,4 @@ tags:
 - [[LibreQoS v3 topology.compile_mode]] - `conceptually_related_to` [EXTRACTED]
 - [[Topology Builder]] - `implements` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

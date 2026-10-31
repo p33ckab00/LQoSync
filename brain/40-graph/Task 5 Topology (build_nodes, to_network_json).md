@@ -1,12 +1,12 @@
 ---
 source_file: "docs/superpowers/plans/2026-10-31-lqosync3-core.md"
 type: "concept"
-community: "Scenario Test Harness"
+community: "Topology 2"
 location: "L403"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_2
 ---
 
 # Task 5: Topology (build_nodes, to_network_json)
@@ -18,4 +18,4 @@ tags:
 - [[Task 6 Cycle assembly and validation]] - `references` [EXTRACTED]
 - [[Topology Builder]] - `implements` [INFERRED]
 
-#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

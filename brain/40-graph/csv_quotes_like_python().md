@@ -1,12 +1,12 @@
 ---
 source_file: "src/writer/pair.rs"
 type: "code"
-community: "CSV Writer and Columns"
-location: "L106"
+community: "LibreQoS v3 2"
+location: "L107"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CSV_Writer_and_Columns
+  - community/LibreQoS_v3_2
 ---
 
 # csv_quotes_like_python()
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[pair.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CSV_Writer_and_Columns
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3_2

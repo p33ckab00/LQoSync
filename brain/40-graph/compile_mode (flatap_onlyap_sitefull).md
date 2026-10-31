@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/v3-node-handling.md"
 type: "concept"
-community: "Scenario Test Harness"
+community: "Topology 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Scenario_Test_Harness
+  - community/Topology_2
 ---
 
 # compile_mode (flat/ap_only/ap_site/full)
@@ -16,4 +16,4 @@ tags:
 - [[compile_mode not full warning]] - `references` [EXTRACTED]
 - [[v3 offline compile results]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Scenario_Test_Harness
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

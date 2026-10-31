@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "Model Types"
+community: "Cycle Assembly"
 location: "L164"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Model_Types
+  - community/Cycle_Assembly
 ---
 
 # State
@@ -19,11 +19,7 @@ tags:
 - [[RouterMemo]] - `references` [EXTRACTED]
 - [[StoredCircuit]] - `references` [EXTRACTED]
 - [[StoredNode]] - `references` [EXTRACTED]
-- [[cycle()]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
-- [[scenarios.rs]] - `imports_from` [EXTRACTED]
-- [[seed_state()]] - `references` [EXTRACTED]
-- [[state.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Model_Types
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

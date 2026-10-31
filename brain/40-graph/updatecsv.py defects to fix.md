@@ -1,11 +1,11 @@
 ---
 source_file: "brain/30-knowledge/updatecsv-py-dissection.md"
 type: "concept"
-community: "Router State Decisions"
+community: "Speed Rules 2"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Router_State_Decisions
+  - community/Speed_Rules_2
 ---
 
 # updatecsv.py defects to fix
@@ -17,4 +17,4 @@ tags:
 - [[updatecsv.py]] - `references` [EXTRACTED]
 - [[updatecsv.py dissection]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Router_State_Decisions
+#graphify/concept #graphify/EXTRACTED #community/Speed_Rules_2

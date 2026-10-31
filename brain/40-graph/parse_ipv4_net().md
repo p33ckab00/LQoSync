@@ -1,19 +1,19 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L347"
+community: "Config"
+location: "L353"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Config
 ---
 
 # parse_ipv4_net()
 
 ## Connections
-- [[dot-new()]] - `calls` [INFERRED]
+- [[dot-new()_1]] - `calls` [INFERRED]
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[sources.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Config

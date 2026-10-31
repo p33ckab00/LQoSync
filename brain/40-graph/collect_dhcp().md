@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L267"
+community: "Circuit Collection"
+location: "L265"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # collect_dhcp()
@@ -20,8 +20,8 @@ tags:
 - [[DhcpSite]] - `references` [EXTRACTED]
 - [[Excluder]] - `references` [EXTRACTED]
 - [[RouterCfg]] - `references` [EXTRACTED]
-- [[RouterSnapshot]] - `references` [EXTRACTED]
-- [[SpeedParser]] - `references` [EXTRACTED]
+- [[RouterSnapshot_4]] - `references` [EXTRACTED]
+- [[SpeedParser_1]] - `references` [EXTRACTED]
 - [[collect_router()]] - `calls` [EXTRACTED]
 - [[f()]] - `calls` [EXTRACTED]
 - [[flag_on()]] - `calls` [EXTRACTED]
@@ -29,4 +29,4 @@ tags:
 - [[plan_label()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

@@ -1,14 +1,14 @@
 ---
 source_file: "src/lib.rs"
 type: "code"
-community: "Library Root"
+community: "lib.rs"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Library_Root
+  - community/librs
 ---
 
 # lib.rs
 
-#graphify/code #graphify/EXTRACTED #community/Library_Root
+#graphify/code #graphify/EXTRACTED #community/librs

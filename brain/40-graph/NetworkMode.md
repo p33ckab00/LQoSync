@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Network Modes"
-location: "L109"
+community: "hashmap"
+location: "L111"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Network_Modes
+  - community/hashmap
 ---
 
 # NetworkMode
@@ -20,11 +20,11 @@ tags:
 - [[Network]] - `references` [EXTRACTED]
 - [[NoParent]] - `case_of` [EXTRACTED]
 - [[RootPromotion]] - `case_of` [EXTRACTED]
-- [[check()]] - `references` [EXTRACTED]
+- [[check()_1]] - `references` [EXTRACTED]
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
 - [[is_grouped()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Network_Modes
+#graphify/code #graphify/EXTRACTED #community/hashmap

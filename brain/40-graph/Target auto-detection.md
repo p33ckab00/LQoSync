@@ -1,11 +1,11 @@
 ---
 source_file: "README.md"
 type: "rationale"
-community: "Early Sessions and ADRs"
+community: "MikroTik Session 3"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Early_Sessions_and_ADRs
+  - community/MikroTik_Session_3
 ---
 
 # Target auto-detection
@@ -18,4 +18,4 @@ tags:
 - [[topology source setting]] - `references` [EXTRACTED]
 - [[no_parent guard on v3 targets]] - `references` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Early_Sessions_and_ADRs
+#graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session_3

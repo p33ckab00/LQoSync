@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Architecture Parts"
+community: "MikroTik Session"
 location: "L64"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/MikroTik_Session
 ---
 
 # Target v2_pair
@@ -15,6 +15,5 @@ tags:
 - [[ShapedDevices.csv]] - `references` [EXTRACTED]
 - [[Target Detector]] - `references` [EXTRACTED]
 - [[Task 7 Pair writer (render_csv, render_network_json)]] - `implements` [INFERRED]
-- [[lqosync3.service systemd unit]] - `conceptually_related_to` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Network Modes"
-location: "L111"
+community: "hashmap"
+location: "L113"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Network_Modes
+  - community/hashmap
 ---
 
 # FlatRouterRoot
@@ -14,4 +14,4 @@ tags:
 ## Connections
 - [[NetworkMode]] - `case_of` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Network_Modes
+#graphify/code #graphify/EXTRACTED #community/hashmap

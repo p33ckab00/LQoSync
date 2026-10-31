@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "DHCP Settings"
-location: "L372"
+community: "LibreQoS v3"
+location: "L378"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/DHCP_Settings
+  - community/LibreQoS_v3
 ---
 
 # .server()
@@ -16,4 +16,4 @@ tags:
 - [[DhcpServer]] - `references` [EXTRACTED]
 - [[dhcp_server_gives_override_or_default()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/DHCP_Settings
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

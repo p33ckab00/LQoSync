@@ -1,19 +1,19 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
-location: "L595"
+community: "Circuit Collection"
+location: "L593"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # disabled_sources_give_nothing()
 
 ## Connections
-- [[cfg()_2]] - `calls` [EXTRACTED]
+- [[cfg()_3]] - `calls` [EXTRACTED]
 - [[snap()]] - `calls` [EXTRACTED]
 - [[sources.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

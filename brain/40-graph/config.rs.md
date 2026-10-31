@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Loading"
+community: "Config"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Loading
+  - community/Config
 ---
 
 # config.rs
@@ -35,7 +35,7 @@ tags:
 - [[OfflineAction]] - `contains` [EXTRACTED]
 - [[PppSource]] - `contains` [EXTRACTED]
 - [[PppoeCfg]] - `contains` [EXTRACTED]
-- [[Rate]] - `imports_from` [EXTRACTED]
+- [[Rate_2]] - `imports_from` [EXTRACTED]
 - [[RateLimitOrder]] - `contains` [EXTRACTED]
 - [[RouterAccess]] - `contains` [EXTRACTED]
 - [[RouterCfg]] - `contains` [EXTRACTED]
@@ -46,9 +46,11 @@ tags:
 - [[Target]] - `contains` [EXTRACTED]
 - [[Telegram]] - `contains` [EXTRACTED]
 - [[UnitlessUnit]] - `contains` [EXTRACTED]
+- [[a_circuit_comment_must_not_be_the_static_comment()]] - `contains` [EXTRACTED]
 - [[bail]] - `imports_from` [EXTRACTED]
 - [[btreeset]] - `imports_from` [EXTRACTED]
 - [[config_doc.rs]] - `imports_from` [EXTRACTED]
+- [[config_errors_name_the_key_path()]] - `contains` [EXTRACTED]
 - [[context]] - `imports_from` [EXTRACTED]
 - [[deep_merge()]] - `contains` [EXTRACTED]
 - [[default_from_file!]] - `contains` [EXTRACTED]
@@ -59,6 +61,7 @@ tags:
 - [[ensure]] - `imports_from` [EXTRACTED]
 - [[every_default_comes_from_the_defaults_file()]] - `contains` [EXTRACTED]
 - [[exclusions_parse_and_bad_ip_is_rejected()]] - `contains` [EXTRACTED]
+- [[global_dhcp_source_lists_are_checked()]] - `contains` [EXTRACTED]
 - [[minimal_config_gets_documented_defaults()]] - `contains` [EXTRACTED]
 - [[node_type_defaults_follow_target()]] - `contains` [EXTRACTED]
 - [[non_finite_values_are_rejected()]] - `contains` [EXTRACTED]
@@ -66,10 +69,12 @@ tags:
 - [[parse_ipv4_net()]] - `contains` [EXTRACTED]
 - [[per_site_rejects_lease_comment_and_defaults_follow_mode()]] - `contains` [EXTRACTED]
 - [[router_defaults_apply_to_each_router_and_a_router_overrides_them()]] - `contains` [EXTRACTED]
+- [[router_example_in_defaults_file_loads_two_routers()]] - `contains` [EXTRACTED]
 - [[router_list_problems_are_rejected()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
+- [[tls_keys_have_defaults_and_can_change()]] - `contains` [EXTRACTED]
 - [[unknown_key_is_rejected_with_its_name()]] - `contains` [EXTRACTED]
 - [[unknown_template_fields_are_rejected()]] - `contains` [EXTRACTED]
 - [[v3_target_rejects_no_parent()]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Loading
+#graphify/code #graphify/EXTRACTED #community/Config

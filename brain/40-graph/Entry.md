@@ -1,12 +1,12 @@
 ---
 source_file: "src/cycle.rs"
 type: "code"
-community: "Circuit Sources"
+community: "Cycle Assembly"
 location: "L61"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Circuit_Sources
+  - community/Cycle_Assembly
 ---
 
 # Entry
@@ -16,4 +16,4 @@ tags:
 - [[Source]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `contains` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Circuit_Sources
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

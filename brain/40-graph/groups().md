@@ -1,12 +1,12 @@
 ---
 source_file: "src/topology.rs"
 type: "code"
-community: "Topology and Node Templates"
+community: "Topology"
 location: "L429"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Topology_and_Node_Templates
+  - community/Topology
 ---
 
 # groups()
@@ -23,4 +23,4 @@ tags:
 - [[topology.rs]] - `contains` [EXTRACTED]
 - [[v3_flag_makes_group_nodes_site()]] - `calls` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Topology_and_Node_Templates
+#graphify/code #graphify/EXTRACTED #community/Topology

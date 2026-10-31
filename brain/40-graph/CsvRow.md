@@ -1,12 +1,12 @@
 ---
 source_file: "src/model.rs"
 type: "code"
-community: "CSV Writer and Columns"
+community: "Cycle Assembly"
 location: "L8"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/CSV_Writer_and_Columns
+  - community/Cycle_Assembly
 ---
 
 # CsvRow
@@ -18,25 +18,15 @@ tags:
 - [[StoredCircuit]] - `references` [EXTRACTED]
 - [[build_nodes()]] - `references` [EXTRACTED]
 - [[changed_columns()]] - `references` [EXTRACTED]
-- [[check()]] - `references` [EXTRACTED]
-- [[cycle()]] - `references` [EXTRACTED]
+- [[check()_1]] - `references` [EXTRACTED]
 - [[cycle.rs]] - `imports_from` [EXTRACTED]
-- [[field()]] - `references` [EXTRACTED]
 - [[get()]] - `references` [EXTRACTED]
 - [[model.rs]] - `contains` [EXTRACTED]
-- [[pair.rs]] - `imports_from` [EXTRACTED]
 - [[rate()_1]] - `references` [EXTRACTED]
-- [[read_csv()]] - `references` [EXTRACTED]
-- [[render_csv()]] - `references` [EXTRACTED]
-- [[row()_1]] - `references` [EXTRACTED]
-- [[row()]] - `references` [EXTRACTED]
+- [[row()_3]] - `references` [EXTRACTED]
 - [[run_full()]] - `references` [EXTRACTED]
-- [[scenarios.rs]] - `imports_from` [EXTRACTED]
-- [[seed_state()]] - `references` [EXTRACTED]
-- [[split_static()]] - `references` [EXTRACTED]
-- [[state.rs]] - `imports_from` [EXTRACTED]
 - [[static_row()]] - `references` [EXTRACTED]
 - [[topology.rs]] - `imports_from` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/CSV_Writer_and_Columns
+#graphify/code #graphify/EXTRACTED #community/Cycle_Assembly

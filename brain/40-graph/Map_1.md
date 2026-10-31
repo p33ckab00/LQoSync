@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "code"
-community: "Validation"
+community: "hashmap"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Validation
+  - community/hashmap
 ---
 
 # Map
@@ -14,4 +14,4 @@ tags:
 - [[collect_nodes()]] - `references` [EXTRACTED]
 - [[validate.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Validation
+#graphify/code #graphify/EXTRACTED #community/hashmap

@@ -1,18 +1,18 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Speed and DHCP Sources"
-location: "L208"
+community: "Secrets"
+location: "L210"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Speed_and_DHCP_Sources
+  - community/Secrets
 ---
 
 # Speed
 
 ## Connections
-- [[dot-new()_1]] - `references` [EXTRACTED]
+- [[dot-new()_2]] - `references` [EXTRACTED]
 - [[dot-sources()]] - `references` [EXTRACTED]
 - [[Config]] - `references` [EXTRACTED]
 - [[DhcpSource]] - `references` [EXTRACTED]
@@ -22,4 +22,4 @@ tags:
 - [[config.rs]] - `contains` [EXTRACTED]
 - [[speed.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Speed_and_DHCP_Sources
+#graphify/code #graphify/EXTRACTED #community/Secrets

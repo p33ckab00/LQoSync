@@ -1,19 +1,17 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Architecture Parts"
+community: "Topology 2"
 location: "L125"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/Topology_2
 ---
 
 # LibreQoS v3 topology.compile_mode
 
 ## Connections
-- [[LibreQoS upgrade 2.2 to 3.x]] - `references` [EXTRACTED]
 - [[Six Network Modes]] - `conceptually_related_to` [EXTRACTED]
-- [[Troubleshooting table]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/Topology_2

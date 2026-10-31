@@ -1,31 +1,50 @@
 ---
 type: community
-cohesion: 0.09
-members: 65
+members: 88
 ---
 
 # Cycle Assembly
 
-**Cohesion:** 0.09 - loosely connected
-**Members:** 65 nodes
+**Members:** 88 nodes
 
 ## Members
+- [[dot-default()]] - code - src/model.rs
+- [[dot-names()]] - code - src/model.rs
+- [[Columns]] - code - src/model.rs
+- [[CsvRow]] - code - src/model.rs
 - [[CycleInput]] - code - src/cycle.rs
 - [[CycleOutput]] - code - src/cycle.rs
+- [[Dhcp]] - code - src/model.rs
+- [[Entry]] - code - src/cycle.rs
 - [[Failed]] - code - src/cycle.rs
+- [[GuardHold]] - code - src/model.rs
+- [[Hotspot]] - code - src/model.rs
 - [[NOW]] - code - src/cycle.rs
 - [[Offline]] - code - src/cycle.rs
 - [[Online]] - code - src/cycle.rs
+- [[Ppp]] - code - src/model.rs
 - [[Report]] - code - src/cycle.rs
+- [[RosRow]] - code - src/model.rs
+- [[RouterMemo]] - code - src/model.rs
 - [[RouterResult]] - code - src/cycle.rs
+- [[RouterSnapshot]] - code - src/model.rs
+- [[Source]] - code - src/model.rs
+- [[State]] - code - src/model.rs
 - [[StoredCircuit]] - code - src/model.rs
+- [[Unknown]] - code - src/model.rs
 - [[Unreachable]] - code - src/cycle.rs
+- [[V2]] - code - src/model.rs
+- [[V2_COLUMNS]] - code - src/model.rs
+- [[V3]] - code - src/model.rs
+- [[V3_COLUMNS]] - code - src/model.rs
 - [[Value]] - code
 - [[a_row_that_stays_keeps_its_group_node()]] - code - src/cycle.rs
 - [[assemble()]] - code - src/cycle.rs
+- [[btreemap]] - concept
 - [[cfg()]] - code - src/cycle.rs
 - [[changed_columns()]] - code - src/cycle.rs
 - [[cycle.rs]] - code - src/cycle.rs
+- [[deserialize]] - concept
 - [[duplicate_ip_existing_vs_existing_keeps_collected()]] - code - src/cycle.rs
 - [[duplicate_ip_new_vs_existing_keeps_existing()]] - code - src/cycle.rs
 - [[empty_online_router_removes_its_rows()]] - code - src/cycle.rs
@@ -49,6 +68,7 @@ members: 65
 - [[id_collision_asks_for_another_id()]] - code - src/cycle.rs
 - [[ids()]] - code - src/cycle.rs
 - [[many_duplicate_ip_drops_raise_an_alert()]] - code - src/cycle.rs
+- [[model.rs]] - code - src/model.rs
 - [[names()]] - code - src/cycle.rs
 - [[new_circuit_gets_new_ids_and_existing_keeps_them()]] - code - src/cycle.rs
 - [[node_name_collision_stops_with_clear_message()]] - code - src/cycle.rs
@@ -67,6 +87,7 @@ members: 65
 - [[same_name_twice_in_one_router_keeps_first_and_warns()]] - code - src/cycle.rs
 - [[seed_rows_go_only_when_all_routers_online()]] - code - src/cycle.rs
 - [[seeded_nodes_survive_preserve_mode()]] - code - src/cycle.rs
+- [[serialize]] - concept
 - [[small_removal_is_not_held()]] - code - src/cycle.rs
 - [[state()]] - code - src/cycle.rs
 - [[static_multi_device_circuit_keeps_all_rows()]] - code - src/cycle.rs
@@ -84,22 +105,22 @@ SORT file.name ASC
 ```
 
 ## Connections to other communities
-- 15 edges to [[_COMMUNITY_Topology and Node Templates]]
-- 9 edges to [[_COMMUNITY_CSV Writer and Columns]]
-- 7 edges to [[_COMMUNITY_Config Root and Checks]]
-- 7 edges to [[_COMMUNITY_Model Types]]
-- 6 edges to [[_COMMUNITY_v3 Node Rules]]
-- 5 edges to [[_COMMUNITY_Speed and DHCP Sources]]
-- 4 edges to [[_COMMUNITY_Router Circuit Collection]]
-- 4 edges to [[_COMMUNITY_Validation]]
-- 3 edges to [[_COMMUNITY_Circuit Sources]]
-- 1 edge to [[_COMMUNITY_State File and CSV Read]]
-- 1 edge to [[_COMMUNITY_Network Modes]]
-- 1 edge to [[_COMMUNITY_Offline Action]]
+- 20 edges to [[_COMMUNITY_Topology]]
+- 10 edges to [[_COMMUNITY_Circuit Collection]]
+- 8 edges to [[_COMMUNITY_hashmap]]
+- 5 edges to [[_COMMUNITY_Secrets]]
+- 4 edges to [[_COMMUNITY_Runner Cycle]]
+- 2 edges to [[_COMMUNITY_Scenario Tests]]
+- 1 edge to [[_COMMUNITY_OfflineAction]]
+- 1 edge to [[_COMMUNITY_File Safety]]
+- 1 edge to [[_COMMUNITY_CircuitNames]]
+- 1 edge to [[_COMMUNITY_Status and Diff 2]]
+- 1 edge to [[_COMMUNITY_LibreQoS v3 2]]
+- 1 edge to [[_COMMUNITY_Config]]
 
 ## Top bridge nodes
-- [[cycle.rs]] - degree 87, connects to 10 communities
-- [[assemble()]] - degree 16, connects to 4 communities
-- [[StoredCircuit]] - degree 8, connects to 4 communities
-- [[CycleOutput]] - degree 13, connects to 3 communities
-- [[CycleInput]] - degree 7, connects to 3 communities
+- [[cycle.rs]] - degree 87, connects to 7 communities
+- [[btreemap]] - degree 9, connects to 6 communities
+- [[assemble()]] - degree 15, connects to 3 communities
+- [[CsvRow]] - degree 16, connects to 2 communities
+- [[deserialize]] - degree 3, connects to 2 communities

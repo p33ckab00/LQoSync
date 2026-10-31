@@ -1,12 +1,12 @@
 ---
 source_file: "src/sources.rs"
 type: "code"
-community: "Router Circuit Collection"
+community: "Circuit Collection"
 location: "L1"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Router_Circuit_Collection
+  - community/Circuit_Collection
 ---
 
 # sources.rs
@@ -21,15 +21,15 @@ tags:
 - [[GroupKey]] - `contains` [EXTRACTED]
 - [[PppSource]] - `imports_from` [EXTRACTED]
 - [[ROUTER]] - `contains` [EXTRACTED]
-- [[Rate]] - `imports_from` [EXTRACTED]
-- [[RosRow]] - `imports_from` [EXTRACTED]
+- [[Rate_1]] - `imports_from` [EXTRACTED]
+- [[RosRow_4]] - `imports_from` [EXTRACTED]
 - [[RouterCfg]] - `imports_from` [EXTRACTED]
-- [[RouterSnapshot]] - `imports_from` [EXTRACTED]
-- [[Source]] - `imports_from` [EXTRACTED]
-- [[SpeedParser]] - `imports_from` [EXTRACTED]
+- [[RouterSnapshot_4]] - `imports_from` [EXTRACTED]
+- [[Source_1]] - `imports_from` [EXTRACTED]
+- [[SpeedParser_1]] - `imports_from` [EXTRACTED]
 - [[btreemap]] - `imports_from` [EXTRACTED]
 - [[by_name()]] - `contains` [EXTRACTED]
-- [[cfg()_2]] - `contains` [EXTRACTED]
+- [[cfg()_3]] - `contains` [EXTRACTED]
 - [[cfg_text()]] - `contains` [EXTRACTED]
 - [[circuit_templates_can_use_router()]] - `contains` [EXTRACTED]
 - [[collect_dhcp()]] - `contains` [EXTRACTED]
@@ -52,7 +52,7 @@ tags:
 - [[mac_key()]] - `contains` [EXTRACTED]
 - [[names_of()]] - `contains` [EXTRACTED]
 - [[only_true_or_yes_turns_a_flag_on()]] - `contains` [EXTRACTED]
-- [[parse_default_rate()]] - `imports_from` [EXTRACTED]
+- [[parse_default_rate]] - `imports_from` [EXTRACTED]
 - [[parse_ipv4_net()]] - `imports_from` [EXTRACTED]
 - [[plan_label()]] - `contains` [EXTRACTED]
 - [[plan_label_truncates()]] - `contains` [EXTRACTED]
@@ -60,8 +60,8 @@ tags:
 - [[ppp_needs_active_and_enabled_secret()]] - `contains` [EXTRACTED]
 - [[ppp_speed_chain_order()]] - `contains` [EXTRACTED]
 - [[rate()]] - `contains` [EXTRACTED]
-- [[run()_1]] - `contains` [EXTRACTED]
+- [[run()_2]] - `contains` [EXTRACTED]
 - [[snap()]] - `contains` [EXTRACTED]
 - [[super]] - `imports_from` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Router_Circuit_Collection
+#graphify/code #graphify/EXTRACTED #community/Circuit_Collection

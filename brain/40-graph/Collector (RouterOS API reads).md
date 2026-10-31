@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "concept"
-community: "Architecture Parts"
+community: "MikroTik Session"
 location: "L45"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/MikroTik_Session
 ---
 
 # Collector (RouterOS API reads)
@@ -19,4 +19,4 @@ tags:
 - [[Router State Machine (onlinefailedunreachableoffline)]] - `implements` [EXTRACTED]
 - [[RouterOS listen change detection (future)]] - `conceptually_related_to` [AMBIGUOUS]
 
-#graphify/concept #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/concept #graphify/EXTRACTED #community/MikroTik_Session

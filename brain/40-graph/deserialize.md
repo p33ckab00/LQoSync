@@ -1,11 +1,11 @@
 ---
 source_file: ""
 type: "concept"
-community: "Model Types"
+community: "Cycle Assembly"
 tags:
   - graphify/concept
   - graphify/EXTRACTED
-  - community/Model_Types
+  - community/Cycle_Assembly
 ---
 
 # deserialize
@@ -15,4 +15,4 @@ tags:
 - [[model.rs]] - `imports_from` [EXTRACTED]
 - [[scenarios.rs]] - `imports_from` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/Model_Types
+#graphify/concept #graphify/EXTRACTED #community/Cycle_Assembly

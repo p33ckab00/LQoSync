@@ -1,12 +1,12 @@
 ---
 source_file: "src/config.rs"
 type: "code"
-community: "Config Root and Checks"
-location: "L664"
+community: "LibreQoS v3"
+location: "L670"
 tags:
   - graphify/code
   - graphify/EXTRACTED
-  - community/Config_Root_and_Checks
+  - community/LibreQoS_v3
 ---
 
 # .validate()
@@ -18,4 +18,4 @@ tags:
 - [[dot-targets_v3()]] - `calls` [EXTRACTED]
 - [[Config]] - `method` [EXTRACTED]
 
-#graphify/code #graphify/EXTRACTED #community/Config_Root_and_Checks
+#graphify/code #graphify/EXTRACTED #community/LibreQoS_v3

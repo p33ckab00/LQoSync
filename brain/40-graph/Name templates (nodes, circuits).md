@@ -1,17 +1,18 @@
 ---
 source_file: "docs/CONFIGURATION.md"
-type: "concept"
-community: "DHCP Discovery and Exclusions"
+type: "rationale"
+community: "Speed Rules"
+location: "L353-359"
 tags:
-  - graphify/concept
+  - graphify/rationale
   - graphify/EXTRACTED
-  - community/DHCP_Discovery_and_Exclusions
+  - community/Speed_Rules
 ---
 
 # Name templates ([nodes], [circuits])
 
 ## Connections
 - [[Circuit rules for each source]] - `references` [INFERRED]
-- [[Configuration reference]] - `references` [EXTRACTED]
+- [[Configuration]] - `references` [EXTRACTED]
 
-#graphify/concept #graphify/EXTRACTED #community/DHCP_Discovery_and_Exclusions
+#graphify/rationale #graphify/EXTRACTED #community/Speed_Rules

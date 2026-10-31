@@ -1,12 +1,12 @@
 ---
 source_file: "docs/ARCHITECTURE.md"
 type: "rationale"
-community: "Architecture Parts"
+community: "MikroTik Session"
 location: "L141"
 tags:
   - graphify/rationale
   - graphify/EXTRACTED
-  - community/Architecture_Parts
+  - community/MikroTik_Session
 ---
 
 # Performance Rules
@@ -15,4 +15,4 @@ tags:
 - [[Applier (hash, atomic write, reload)]] - `rationale_for` [EXTRACTED]
 - [[Collector (RouterOS API reads)]] - `rationale_for` [EXTRACTED]
 
-#graphify/rationale #graphify/EXTRACTED #community/Architecture_Parts
+#graphify/rationale #graphify/EXTRACTED #community/MikroTik_Session
