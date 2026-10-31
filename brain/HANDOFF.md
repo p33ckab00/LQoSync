@@ -14,6 +14,21 @@ Checkout: `/opt/LQoSync3.0`.
 Code: `9a35d24`. Earlier base references below are historical.
 Sections are in newest-first order. Read the first section for the current state.
 
+## Migration address fix; reviewed recovery limit found
+
+Updated: 2026-10-31T12:10:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
+`aed308a`: the migration engine (`core-migrate`) now plans single hosts without "/32". Seven tests failed with a RouterOS-like mock before the fix.
+A live test of a new recovery command left a verified journal with `--no-finish`, then ran reviewed recovery.
+The review stopped with "Source continuity window expired". A new process needs about 50 seconds of probe rounds, and the window is at most 30 seconds.
+Reviewed recovery therefore cannot run from a new process. The command was removed (`279e1e8`).
+`core-worker-run` now tries an immediate rollback in the same process when the forward fails. The library refuses it after an unknown outcome or a revoked grant.
+After a crash or a refused rollback, remove the owned row on the router by its `.id`. Keep the acceptance state as evidence.
+The failed recovery test state is archived in `v3/data/state/acceptance/b-root-run3-state`.
+Owned row `*22` (`10.0.100.220`, `WAN1-CUSTOMERS`) remains on the router for the next test. It does not change traffic.
+`tests/web.rs` lock tests fail under full-suite load ("Another process is saving control settings"). The lock is per test root and non-blocking. They pass alone.
+Final checks: format and strict Clippy passed; 352 passed and 2 known web lock flakes in the full run; web tests passed three separate runs.
+Next: the protected-range migration plan, or a design review of a recovery path for gaps longer than 30 seconds.
+
 ## Guarded executor passed on the production core (Approach B)
 
 Updated: 2026-10-31T11:20:00+08:00 (Asia/Shanghai). Last agent: Claude Code.
