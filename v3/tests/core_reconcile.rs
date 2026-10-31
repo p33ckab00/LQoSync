@@ -186,6 +186,13 @@ fn arrivals_balance_healthy_wans_and_keep_input_unchanged() {
             .count(),
         3
     );
+    // RouterOS stores a single host without "/32". The added row must equal the row RouterOS returns.
+    for d in &p.decisions {
+        if let Decision::Add { member, .. } = d {
+            assert!(!member.address.contains('/'), "{}", member.address);
+            assert!(member.address.parse::<std::net::Ipv4Addr>().is_ok());
+        }
+    }
     let counts = p
         .assignments
         .routes

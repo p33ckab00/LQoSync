@@ -479,7 +479,8 @@ pub fn plan(input: Input<'_>) -> Result<ReconcilePlan> {
         let mut after = Member {
             id: String::new(),
             list: binding.list.clone(),
-            address: format!("{}/32", row.ipv4),
+            // RouterOS stores a single host without "/32"; the expected row must match the returned row.
+            address: row.ipv4.to_string(),
             comment: core_plan::marker(&s.core_lists.owner, &row.id, &route.wan),
             dynamic: false,
             disabled: false,
