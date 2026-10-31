@@ -28,11 +28,11 @@ All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml
 | `lqosync3 diff` | Compares `<state_dir>/candidate/` with the live LibreQoS files: circuits and nodes added, removed, and changed. It operates only in `shadow` mode. If there are no candidate files, it stops with an error. Run `once` in `shadow` mode first. |
 | `lqosync3 run` | Operates as a service. The systemd unit uses this command. |
 | `lqosync3 defaults` | Prints all settings with their default values. |
+| `lqosync3 detect` | Prints the target that `libreqos.target = "auto"` selects, and the reason. |
 
 Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again. A bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
 After each cycle, `<state_dir>/status.json` shows the router states, the changes, and any error.
 If a reload with a bad config fails, `config_error` in `status.json` shows the error until a good reload. A cycle starts immediately after each reload signal, so `status.json` shows the result at once.
-`lqosync3 detect` comes with LibreQoS v3 support (Plan 3).
 
 Each command returns `0` if it succeeds. It returns a different value if it fails.
 

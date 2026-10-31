@@ -39,3 +39,5 @@ The tool does not write `topology_import.json`. That file is internal to LibreQo
 
 ## Status
 proposed. Accept it after a test on a v3 test shaper.
+
+2026-10-31: implemented in Plan 3 (`src/detect.rs`). On the production 2.2 shaper, `auto` selects `v2_pair`. The `v3_network` file passed the offline 3.0.7 parser with the production data. A test on an operating v3 shaper is still necessary.

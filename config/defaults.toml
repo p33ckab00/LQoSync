@@ -36,10 +36,12 @@ target = "auto"                 # auto | v2_pair | v3_pair | v3_network
 directory = "/opt/libreqos/src" # LibreQoS lqos_directory
 state_directory = "/opt/libreqos/state"
 v3_config = "/etc/libreqos/lqos.conf"
+dpkg_status = "/var/lib/dpkg/status"   # the target "auto" reads the libreqos version here
+v3_network_file = "libreqos_network.json"   # v3_network: the file in directory
 v2_command = "/opt/libreqos/src/LibreQoS.py"
 v2_args = ["--updateonly"]
 v2_timeout = 300                # seconds
-v3_status_timeout = 60          # seconds to wait for lqosd to accept the new files
+v3_status_timeout = 60          # reserved: no effect yet (needs a v3 shaper test)
 
 [network]
 mode = "grouped_router_root"    # grouped_router_root | flat_router_root | flat_global_root | no_parent | root_promotion | flat_promotion

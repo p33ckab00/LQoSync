@@ -79,7 +79,7 @@ The reader accepts only `schema_version = 2`. It rejects unknown fields.
 | File | `schema_version`, `match`, `topology`, `circuits` | `schema_version` |
 | `match` (file) | `mode`: `ip`, `vxlan`, `vxlan+vlan`, `vlan`, `mpls`. `steering_vlans`: list | — |
 | Node (`topology[]`) | `id`, `type` (`site`, `node`, `ap`), `parent`, `name`, `latitude`, `longitude`, `rate` | `id`, `type`, `parent`, `name` |
-| Rate, plan | `commit_down_mbps`, `commit_up_mbps`, `ceil_down_mbps`, `ceil_up_mbps` | — |
+| Rate, plan | `commit_down_mbps`, `commit_up_mbps`, `ceil_down_mbps`, `ceil_up_mbps` | All four, if the object is present (`missing field commit_down_mbps`) |
 | Circuit | `id`, `parent`, `display_name`, `plan`, `devices`, `match` | `id`, `parent`, `plan` |
 | Device | `id`, `name`, `mac`, `ipv4` (list), `ipv6` (list), `comment` | `id` |
 | `match` (circuit) | `prefixes`, `vni`, `vlan`, `label` | `prefixes` in `ip` mode |
@@ -91,6 +91,7 @@ The reader accepts only `schema_version = 2`. It rejects unknown fields.
 | `schema_version = 1` | Rejected: `schema_version 1 is not supported (this reader accepts 2)` |
 | Unknown field | Rejected |
 | Commit rate above the ceiling rate | Rejected: `commit must not exceed ceil` |
+| Node `rate` with only the ceiling values | Rejected: `missing field commit_down_mbps` |
 | Circuit parent that is not a node | Rejected: `parent 'nope' does not name a topology node` |
 | Two circuits with the same ID | Rejected: `duplicate circuit id 'c1'` |
 | Two nodes with the same ID | Rejected: `duplicate node id 'a'` |

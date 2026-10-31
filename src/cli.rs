@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
 const USAGE: &str =
-    "usage: lqosync3 <check | once [--force] | run | diff | defaults> [--config <path>]";
+    "usage: lqosync3 <check | detect | once [--force] | run | diff | defaults> [--config <path>]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
@@ -18,6 +18,7 @@ pub enum Command {
     Run,
     Diff,
     Defaults,
+    Detect,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,7 +35,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let mut it = args.iter().skip(1);
     while let Some(a) = it.next() {
         match a.as_str() {
-            "check" | "once" | "run" | "diff" | "defaults" if command.is_none() => {
+            "check" | "detect" | "once" | "run" | "diff" | "defaults" if command.is_none() => {
                 command = Some(a.clone())
             }
             "--force" => force = true,
@@ -51,6 +52,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
         Some("run") => Command::Run,
         Some("diff") => Command::Diff,
         Some("defaults") => Command::Defaults,
+        Some("detect") => Command::Detect,
         _ => bail!("no command\n{USAGE}"),
     };
     Ok(Args { command, config })
@@ -76,6 +78,16 @@ fn line(level: Level, text: impl Into<String>) -> CheckLine {
     }
 }
 
+/// The TOML name of a target.
+pub fn target_name(t: Target) -> &'static str {
+    match t {
+        Target::Auto => "auto",
+        Target::V2Pair => "v2_pair",
+        Target::V3Pair => "v3_pair",
+        Target::V3Network => "v3_network",
+    }
+}
+
 /// Read and check the config file.
 pub fn load_config(path: &Path) -> anyhow::Result<Config> {
     let text =
@@ -92,11 +104,12 @@ pub fn reload(cfg: &mut Config, path: &Path) -> anyhow::Result<()> {
 /// The checks of `lqosync3 check` (runtime design section 8). `owner_uid` is the required secret owner.
 pub fn check(cfg: &Config, owner_uid: u32) -> Vec<CheckLine> {
     let mut out = Vec::new();
-    if matches!(cfg.libreqos.target, Target::V3Pair | Target::V3Network) {
-        out.push(line(
-            Level::Error,
-            "libreqos.target: LibreQoS v3 targets come in Plan 3; use \"v2_pair\" or \"auto\"",
-        ));
+    match crate::detect::resolve(&cfg.libreqos) {
+        Ok(d) => out.push(line(
+            Level::Ok,
+            format!("target {} ({})", target_name(d.target), d.reason),
+        )),
+        Err(e) => out.push(line(Level::Error, format!("libreqos.target: {e:#}"))),
     }
     for r in &cfg.routers {
         let at = format!("router {}", r.name);
@@ -277,14 +290,32 @@ mod tests {
     }
 
     #[test]
-    fn check_rejects_v3_target_for_now() {
+    fn check_shows_the_target_or_the_detection_error() {
         let e = env("[routers.pppoe]\nenabled=true\n", "");
         let mut c = Config::from_toml_str(&e.toml).unwrap();
         c.libreqos.target = crate::config::Target::V3Pair;
+        let lines = check(&c, e.uid);
+        assert!(
+            texts(&lines, Level::Ok)
+                .join("\n")
+                .contains("target v3_pair"),
+            "{lines:?}"
+        );
+        assert!(!format!("{lines:?}").contains("Plan 3"), "{lines:?}");
+        c.libreqos.target = crate::config::Target::Auto;
+        c.libreqos.dpkg_status = "/nonexistent/status".into();
         assert!(
             texts(&check(&c, e.uid), Level::Error)
                 .join("\n")
-                .contains("Plan 3")
+                .contains("/nonexistent/status")
+        );
+    }
+
+    #[test]
+    fn parse_detect() {
+        assert_eq!(
+            parse(&s(&["lqosync3", "detect"])).unwrap().command,
+            Command::Detect
         );
     }
 

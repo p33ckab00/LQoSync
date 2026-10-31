@@ -174,6 +174,11 @@ pub fn diff_dirs(live: &std::path::Path, cand: &std::path::Path) -> anyhow::Resu
 /// `lqosync3 diff`: the shadow candidate against the live files of the config.
 /// In apply mode the tool writes the live files directly, so a candidate is old and is not compared.
 pub fn diff_config(cfg: &crate::config::Config) -> anyhow::Result<String> {
+    let target = crate::detect::resolve(&cfg.libreqos).map_or(cfg.libreqos.target, |d| d.target);
+    anyhow::ensure!(
+        target != crate::config::Target::V3Network,
+        "diff compares the pair files; target v3_network writes libreqos_network.json. Compare it with jq"
+    );
     anyhow::ensure!(
         cfg.runtime.mode == crate::config::RuntimeMode::Shadow,
         "diff compares the shadow candidate; runtime.mode is apply, so no candidate is written. Use a copy of the config with mode = \"shadow\" and a different state_dir"
@@ -261,5 +266,15 @@ mod tests {
         .unwrap();
         let e = diff_config(&c).unwrap_err();
         assert!(format!("{e:#}").contains("shadow"), "{e:#}");
+    }
+
+    #[test]
+    fn diff_stops_for_v3_network() {
+        let c = crate::config::Config::from_toml_str(
+            "[libreqos]\ntarget=\"v3_network\"\n[[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        )
+        .unwrap();
+        let e = diff_config(&c).unwrap_err();
+        assert!(format!("{e:#}").contains("v3_network"), "{e:#}");
     }
 }

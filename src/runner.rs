@@ -1,5 +1,6 @@
 //! One full cycle: lock, live files, state, parallel router reads, the core, safe writes, reload, status.
 
+use crate::cli::target_name;
 use crate::config::{Config, Runtime, RuntimeMode, Target};
 use crate::cycle::{CycleInput, RouterResult, assemble};
 use crate::files;
@@ -8,6 +9,7 @@ use crate::routeros::{Connector, TABLES, read_router};
 use crate::routerstate::classify;
 use crate::status::{ReportSummary, RouterStatus, Status};
 use crate::writer::pair::{render_csv, render_network_json};
+use crate::writer::v3network::render_libreqos_network;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::path::Path;
@@ -115,7 +117,7 @@ where
                 RuntimeMode::Shadow => "shadow".into(),
                 RuntimeMode::Apply => "apply".into(),
             },
-            target: "v2_pair".into(),
+            target: target_name(self.cfg.libreqos.target).into(),
             cycle_ms: 0,
             next_scan_seconds: 0,
             routers: Vec::new(),
@@ -168,11 +170,10 @@ where
         state_dir: &Path,
         status: &mut Status,
     ) -> anyhow::Result<(bool, Option<String>)> {
-        if matches!(self.cfg.libreqos.target, Target::V3Pair | Target::V3Network) {
-            anyhow::bail!(
-                "LibreQoS v3 targets come in Plan 3; use target = \"v2_pair\" or \"auto\""
-            );
-        }
+        // The target can change between cycles (an upgrade), so select it each cycle.
+        let target = crate::detect::resolve(&self.cfg.libreqos)?.target;
+        status.target = target_name(target).into();
+        let v3 = target != Target::V2Pair;
         let lqos_dir = Path::new(&self.cfg.libreqos.directory).to_path_buf();
         let first_run = !state_dir.join("state.json").exists();
         let live = files::read_live(
@@ -258,47 +259,72 @@ where
             static_rows: &live.static_rows,
             routers,
             current_network: live.network.clone(),
-            v3: false,
+            v3,
             force,
             now,
         };
         let mut out = assemble(input, &mut || random_id(id_len))?;
-        status.report = ReportSummary::from_report(&out.report, &out.rows, &state);
         out.state.routers = memos;
+        let target_dir = match self.cfg.runtime.mode {
+            RuntimeMode::Shadow => state_dir.join("candidate"),
+            RuntimeMode::Apply => lqos_dir.clone(),
+        };
+        // The files of the target, and their text.
+        let files: Vec<(std::path::PathBuf, String)> = match target {
+            Target::V3Network => {
+                let (text, alerts) = render_libreqos_network(&out.rows, &out.network)?;
+                out.report.alerts.extend(alerts);
+                vec![(target_dir.join(&self.cfg.libreqos.v3_network_file), text)]
+            }
+            _ => {
+                let cols = if v3 { Columns::V3 } else { Columns::V2 };
+                // The nodes first: each Parent Node of the new CSV is then already in network.json.
+                vec![
+                    (
+                        target_dir.join("network.json"),
+                        render_network_json(&out.network),
+                    ),
+                    (
+                        target_dir.join("ShapedDevices.csv"),
+                        render_csv(&out.rows, cols),
+                    ),
+                ]
+            }
+        };
+        status.report = ReportSummary::from_report(&out.report, &out.rows, &state);
 
         // The state first: if the process stops here, the next cycle gives the same files.
         files::write_if_changed(
             &state_dir.join("state.json"),
             out.state.to_json().as_bytes(),
         )?;
-        let csv = render_csv(&out.rows, Columns::V2);
-        let net = render_network_json(&out.network);
-        let target_dir = match self.cfg.runtime.mode {
-            RuntimeMode::Shadow => state_dir.join("candidate"),
-            RuntimeMode::Apply => lqos_dir.clone(),
-        };
-        let (csv_path, net_path) = (
-            target_dir.join("ShapedDevices.csv"),
-            target_dir.join("network.json"),
-        );
         let differs = |p: &Path, b: &str| std::fs::read(p).map_or(true, |old| old != b.as_bytes());
-        let changed = differs(&csv_path, &csv) || differs(&net_path, &net);
+        let changed = files.iter().any(|(p, t)| differs(p, t));
         if changed && self.cfg.runtime.mode == RuntimeMode::Apply {
             // shortcut: the backup folder name is Unix seconds (12 digits, so it sorts); a UTC date name needs a date crate.
+            let paths: Vec<&Path> = files.iter().map(|(p, _)| p.as_path()).collect();
             files::backup(
                 &state_dir.join("applied"),
-                &[csv_path.as_path(), net_path.as_path()],
+                &paths,
                 &format!("{now:012}"),
                 self.cfg.runtime.keep_backups,
             )?;
         }
-        // The nodes first: each Parent Node of the new CSV is then already in network.json.
-        files::write_if_changed(&net_path, net.as_bytes())?;
-        files::write_if_changed(&csv_path, csv.as_bytes())?;
+        for (p, t) in &files {
+            files::write_if_changed(p, t.as_bytes())?;
+        }
         // A failed reload stays pending until it works, also when the files do not change again.
         let pending = state_dir.join("reload-pending");
         let mut reload_error = None;
-        if self.cfg.runtime.mode == RuntimeMode::Apply && (changed || pending.exists()) {
+        if v3 {
+            // LibreQoS v3: lqosd watches the files. LibreQoS.py --updateonly does nothing.
+            if self.cfg.runtime.mode == RuntimeMode::Apply {
+                status.reload = "lqosd watches the files".into();
+            }
+            if pending.exists() {
+                std::fs::remove_file(&pending)?;
+            }
+        } else if self.cfg.runtime.mode == RuntimeMode::Apply && (changed || pending.exists()) {
             let l = &self.cfg.libreqos;
             match files::run_reload(&l.v2_command, &l.v2_args, Duration::from_secs(l.v2_timeout))
                 .await
@@ -439,7 +465,7 @@ mod tests {
 
     fn cfg(e: &Env, mode: &str, extra: &str) -> Config {
         Config::from_toml_str(&format!(
-            "[runtime]\nmode=\"{mode}\"\nstate_dir=\"{}\"\n[libreqos]\ndirectory=\"{}\"\nv2_command=\"/bin/sh\"\nv2_args=[\"-c\",\"touch {}/reloaded\"]\n\
+            "[runtime]\nmode=\"{mode}\"\nstate_dir=\"{}\"\n[libreqos]\ntarget=\"v2_pair\"\ndirectory=\"{}\"\nv2_command=\"/bin/sh\"\nv2_args=[\"-c\",\"touch {}/reloaded\"]\n\
              [network]\nmode=\"root_promotion\"\n[safety]\nenabled=false\n{extra}\n\
              [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
             e.state.display(),
@@ -692,5 +718,82 @@ mod tests {
         let s = runner(&e, cfg(&e, "shadow", "")).cycle(1_000, false).await;
         assert!(s.error.is_some());
         assert!(!e.state.join("candidate/ShapedDevices.csv").exists());
+    }
+
+    #[tokio::test]
+    async fn v3_pair_writes_15_columns_and_runs_no_reload() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(&e, "apply", "");
+        c.libreqos.target = crate::config::Target::V3Pair;
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let csv = read(&e.lqos.join("ShapedDevices.csv"));
+        assert!(
+            csv.lines()
+                .next()
+                .unwrap()
+                .contains("Parent Node ID,Anchor Node ID"),
+            "{csv}"
+        );
+        assert!(!e.lqos.join("reloaded").exists());
+        assert_eq!(
+            (s.status.target.as_str(), s.status.reload.as_str()),
+            ("v3_pair", "lqosd watches the files")
+        );
+    }
+
+    #[tokio::test]
+    async fn v3_network_writes_only_the_json_and_reports_skipped_circuits() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        std::fs::write(
+            e.lqos.join("ShapedDevices.csv"),
+            "Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment\n\
+             S1,office,SD1,office,,,10.9.9.9,,5,5,10,10,static\n",
+        )
+        .unwrap();
+        let mut c = cfg(&e, "apply", "");
+        c.libreqos.target = crate::config::Target::V3Network;
+        let before_csv = read(&e.lqos.join("ShapedDevices.csv"));
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let v: serde_json::Value =
+            serde_json::from_str(&read(&e.lqos.join("libreqos_network.json"))).unwrap();
+        assert_eq!(v["schema_version"], 2);
+        assert_eq!(v["circuits"].as_array().unwrap().len(), 1, "{v}");
+        assert_eq!(v["circuits"][0]["display_name"], "alice");
+        assert_eq!(
+            read(&e.lqos.join("ShapedDevices.csv")),
+            before_csv,
+            "the pair is not written"
+        );
+        assert!(!e.lqos.join("network.json").exists());
+        assert!(!e.lqos.join("reloaded").exists());
+        assert!(
+            s.status.report.alerts.iter().any(|a| a.contains("office")),
+            "{:?}",
+            s.status.report.alerts
+        );
+        assert_eq!(s.status.target, "v3_network");
+    }
+
+    #[tokio::test]
+    async fn auto_on_v2_gives_the_v2_pair() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let dpkg = e.lqos.join("dpkg-status");
+        std::fs::write(
+            &dpkg,
+            "Package: libreqos\nStatus: install ok installed\nVersion: 2.2.1\n",
+        )
+        .unwrap();
+        let mut c = cfg(&e, "apply", "");
+        c.libreqos.target = crate::config::Target::Auto;
+        c.libreqos.dpkg_status = dpkg.display().to_string();
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!((s.error, s.status.target.as_str()), (None, "v2_pair"));
+        assert!(!read(&e.lqos.join("ShapedDevices.csv")).contains("Anchor Node ID"));
+        assert!(e.lqos.join("reloaded").exists());
     }
 }

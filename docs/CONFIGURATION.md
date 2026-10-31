@@ -81,10 +81,12 @@ target = "auto"                 # auto | v2_pair | v3_pair | v3_network
 directory = "/opt/libreqos/src" # LibreQoS lqos_directory
 state_directory = "/opt/libreqos/state"
 v3_config = "/etc/libreqos/lqos.conf"
+dpkg_status = "/var/lib/dpkg/status"   # the target "auto" reads the libreqos version here
+v3_network_file = "libreqos_network.json"   # v3_network: the file in directory
 v2_command = "/opt/libreqos/src/LibreQoS.py"
 v2_args = ["--updateonly"]
 v2_timeout = 300                # seconds
-v3_status_timeout = 60          # seconds to wait for lqosd to accept the new files
+v3_status_timeout = 60          # reserved: no effect yet (needs a v3 shaper test)
 
 [network]
 mode = "grouped_router_root"    # refer to ARCHITECTURE.md, "Network modes"
@@ -327,6 +329,22 @@ A speed with a zero value, for example `10M/0M`, is not used. The tool writes a 
 | | `download_upload` | The first rate in `A/B` is the download rate (`updatecsv.py` behavior). |
 | `unitless_unit` | `bps` (default) | `10` is 10 bit/s (RouterOS behavior). |
 | | `mbps` | `10` is 10 Mbps (`updatecsv.py` behavior). |
+
+## LibreQoS target
+
+`libreqos.target = "auto"` selects the target at the start of each cycle (ADR-0002). Run `lqosync3 detect` to see the result.
+
+| Installed LibreQoS | `[topology] source` in `libreqos.v3_config` | Target | Files |
+|--------------------|------------------|--------|-------|
+| 2.x | — | `v2_pair` | `ShapedDevices.csv` (14 columns), `network.json`, then `LibreQoS.py --updateonly` |
+| 3.x | `shaped_devices` | `v3_pair` | `ShapedDevices.csv` (15 columns), `network.json`. No reload command. |
+| 3.x | `libreqos_network` | `v3_network` | `libreqos.v3_network_file` only. No reload command. Use `compile_mode = "full"`. |
+| 3.x | other or none | error | A built-in integration owns the topology. |
+
+- The tool reads the version from `libreqos.dpkg_status`.
+- A fixed target (`v2_pair`, `v3_pair`, `v3_network`) is not changed by the detector.
+- `v3_network`: a circuit without a parent node, without an IP address, or with an ID that v3 does not accept is not written. The cycle report has an alert for each one.
+- `v3_network`: a node type must be `site`, `node`, or `ap`. `flat_promotion` makes `client` nodes, so it needs `nodes.client.type = "node"`.
 
 ## Telegram
 

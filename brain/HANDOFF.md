@@ -48,7 +48,8 @@ None at this time.
 
 1. Cutover done on 2026-10-31 15:36 UTC: `lqosync3.service` operates in `apply` mode and writes the live LibreQoS files. `lqosync-updatecsv.service` (Python) is stopped and disabled. Backup of the last Python files: `/var/backups/lqosync/20261031T153517Z`. Rollback: OPERATIONS.md, "Rollback to the Python service".
 2. Plan 2b (Telegram) is done and operates on the shaper: `[telegram] enabled = true`, chat `810741035`, token in `/etc/lqosync3/secrets/telegram.token`. The test message arrived at 15:24 UTC.
-3. Plan 3: LibreQoS v3 detection and writers.
+3. Plan 3 (LibreQoS v3) is done in code: `src/detect.rs`, `src/writer/v3network.rs`, `lqosync3 detect`. The production shaper (2.2, fixed `target = "v2_pair"`) does not use it yet. The `v3_network` output passed the offline 3.0.7 parser (spec "Offline check result"). Open: a test on an operating v3 shaper, the `lqosd` accept check (`v3_status_timeout`), `libreqos-v3-preflight`.
+4. Next: Plan 4 (TUI) or Plan 5 (installer).
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
 
@@ -58,6 +59,13 @@ Deferred minor items from the Plan 2b review (2026-10-31):
 - The error memory uses the full error text. If LibreQoS stderr changes in each run (time, PID), each reload retry sends a new alert. A duplicate-IP alert with a count that changes does the same. Fix: compare only the first line, or a key without numbers.
 - `include_computation` was removed. An old config with this key does not load (`deny_unknown_fields`). The live config does not have it.
 - `post_json` cannot read a chunked answer. If Telegram sends one, the send waits until `timeout` and logs a false failure.
+
+Deferred minor items from the Plan 3 review (2026-10-31):
+- Rows of one Circuit ID with different parents or rates: `v3_network` uses the first row and gives no alert.
+- A dpkg version with an epoch (`1:3.0.7`) is "not supported" (fails safe).
+- A `v3_network` skip alert uses the Telegram title "removal guard held a write".
+- `diff` when the detection fails: it compares the pair files.
+- `v3_network` with `preserve_network_config = true` reads the old `network.json` each cycle, but does not write it.
 
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 

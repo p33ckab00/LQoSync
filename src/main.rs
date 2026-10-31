@@ -156,6 +156,10 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        Command::Detect => match lqosync3::detect::resolve(&cfg.libreqos) {
+            Ok(d) => println!("target={} ({})", cli::target_name(d.target), d.reason),
+            Err(e) => exit_with(e),
+        },
         Command::Diff => print!("{}", diff_config(&cfg).unwrap_or_else(|e| exit_with(e))),
         Command::Run => run(&parsed.config, cfg)
             .await
