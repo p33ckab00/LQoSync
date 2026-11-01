@@ -36,16 +36,16 @@
     "semantic_hash": "015ec06083c516f1adfc7929508c145b"
   },
   "brain/HANDOFF.md": {
-    "mtime": 1793503107.3123167,
-    "seen": 1793503110.0555146,
-    "ast_hash": "1a04527365355cd9bd73c238c2305182",
+    "mtime": 1793508328.1120806,
+    "seen": 1793512186.652358,
+    "ast_hash": "402bd748b8b9ad53a17a63881b6aac07",
     "semantic_hash": ""
   },
   "brain/Home.md": {
-    "mtime": 1793458419.2105749,
-    "seen": 1793459673.541988,
-    "ast_hash": "6e644c22389445b3b1d154682f604d00",
-    "semantic_hash": "6e644c22389445b3b1d154682f604d00"
+    "mtime": 1793508328.1120806,
+    "seen": 1793512186.6523595,
+    "ast_hash": "a0340cbf9095553c49bc1193551ca46f",
+    "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
     "mtime": 1793435794.1419277,
@@ -54,9 +54,9 @@
     "semantic_hash": "4e2ce212a5256cde023589410a10c807"
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793502303.5243537,
-    "seen": 1793503110.0555186,
-    "ast_hash": "31f419c7a4e10029a42d8f25ee7931ff",
+    "mtime": 1793506990.0645251,
+    "seen": 1793512186.6523626,
+    "ast_hash": "5d9f0f89ca86a2fd2c273fbbcf0abc84",
     "semantic_hash": ""
   },
   "docs/INSTALLATION.md": {
@@ -72,9 +72,9 @@
     "semantic_hash": ""
   },
   "docs/OPERATIONS.md": {
-    "mtime": 1793502303.5273538,
-    "seen": 1793503110.0555224,
-    "ast_hash": "15c84d6b746508759f1b3520ecd06c25",
+    "mtime": 1793503932.5265028,
+    "seen": 1793504279.0413415,
+    "ast_hash": "0a67da0be8e69324429684a640d9f00c",
     "semantic_hash": ""
   },
   "Cargo.toml": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "src/config.rs": {
-    "mtime": 1793501526.3126469,
-    "seen": 1793503110.0554225,
-    "ast_hash": "c31b08731774adab22082dffa3a5e50d",
+    "mtime": 1793507044.8201344,
+    "seen": 1793512186.652255,
+    "ast_hash": "c6b0a6d12c530a1f6ddc552abc169106",
     "semantic_hash": ""
   },
   "src/cycle.rs": {
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "src/files.rs": {
-    "mtime": 1793492673.5610633,
-    "seen": 1793495229.5193832,
-    "ast_hash": "0222989286bc62a7f6fe14a9aee23020",
+    "mtime": 1793503638.5752313,
+    "seen": 1793504279.0412476,
+    "ast_hash": "ad6741f7cda4a0961b6389462327fe6a",
     "semantic_hash": ""
   },
   "src/main.rs": {
@@ -324,9 +324,9 @@
     "semantic_hash": "20d64ed60ebebcc6f7a3f3f16a0d3bf0"
   },
   "src/notify.rs": {
-    "mtime": 1793469032.9934149,
-    "seen": 1793476119.3107982,
-    "ast_hash": "694d474d4f3f850e30419b464ff6da73",
+    "mtime": 1793504241.1569374,
+    "seen": 1793504279.041256,
+    "ast_hash": "3f39e77a89b028f6ef270fba4d3fd48a",
     "semantic_hash": ""
   },
   "brain/10-sessions/2026-10-31-first-live-shadow-run.md": {
@@ -342,9 +342,9 @@
     "semantic_hash": "143bfe18ec34dc7e7599714012da4f1b"
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md": {
-    "mtime": 1793461364.94765,
-    "seen": 1793461566.3744633,
-    "ast_hash": "65b1f95322febfa1944eeb1020337748",
+    "mtime": 1793503817.972228,
+    "seen": 1793504279.041355,
+    "ast_hash": "08163d7ec964848c19ebfb628ec4394d",
     "semantic_hash": ""
   },
   "src/detect.rs": {
@@ -378,15 +378,15 @@
     "semantic_hash": ""
   },
   "src/tui/app.rs": {
-    "mtime": 1793502123.3233383,
-    "seen": 1793503110.0554516,
-    "ast_hash": "58e54fcf1bc16c31b27fa923bf2dde0f",
+    "mtime": 1793512106.4057631,
+    "seen": 1793512186.6522865,
+    "ast_hash": "e350311569b7cf6117255b3ad6bea0bc",
     "semantic_hash": ""
   },
   "src/tui/dashboard.rs": {
-    "mtime": 1793476024.1354108,
-    "seen": 1793476119.3108132,
-    "ast_hash": "52af0e6eea9ae8f7a316036ea6485377",
+    "mtime": 1793512106.4227633,
+    "seen": 1793512186.6522875,
+    "ast_hash": "8da2c27397971d8a9e13e32878adaf22",
     "semantic_hash": ""
   },
   "src/tui/data.rs": {
@@ -396,27 +396,27 @@
     "semantic_hash": ""
   },
   "src/tui/devices.rs": {
-    "mtime": 1793470336.043487,
-    "seen": 1793476119.3108156,
-    "ast_hash": "b50e4c381a809f4e42521492aa53e9c9",
+    "mtime": 1793512044.6099598,
+    "seen": 1793512186.6522903,
+    "ast_hash": "7a1b9c1ae859957b6417f90aba3dc87e",
     "semantic_hash": ""
   },
   "src/tui/journal.rs": {
-    "mtime": 1793470650.4649603,
-    "seen": 1793476119.310817,
-    "ast_hash": "4ae6a45b0f3bbdccf01df7873534d262",
+    "mtime": 1793511723.8061564,
+    "seen": 1793512186.6522915,
+    "ast_hash": "78c2ab6417718960b3ba0b75ad0aeeb4",
     "semantic_hash": ""
   },
   "src/tui/mod.rs": {
-    "mtime": 1793495009.2010012,
-    "seen": 1793495229.519412,
-    "ast_hash": "8e58a64af35a9107350501a871fe12ff",
+    "mtime": 1793506990.0645251,
+    "seen": 1793512186.652293,
+    "ast_hash": "1cada7a34200e7b58a1f68f7f742035f",
     "semantic_hash": ""
   },
   "src/tui/network.rs": {
-    "mtime": 1793470497.0222714,
-    "seen": 1793476119.3108194,
-    "ast_hash": "b8b501e9781693b6a9a0f297f84415f6",
+    "mtime": 1793512106.4527636,
+    "seen": 1793512186.6522942,
+    "ast_hash": "f6b727fb1af0ddd5be848c934ad8379f",
     "semantic_hash": ""
   },
   "src/tui/osc52.rs": {
@@ -444,21 +444,21 @@
     "semantic_hash": ""
   },
   "src/tui/settings/apply.rs": {
-    "mtime": 1793494817.317888,
-    "seen": 1793495229.5194178,
-    "ast_hash": "a791e2c3b6998f10f3adf9322d0a7798",
+    "mtime": 1793503924.1554096,
+    "seen": 1793504279.0412834,
+    "ast_hash": "4cda154d9eeade168949628887b4f303",
     "semantic_hash": ""
   },
   "src/tui/settings/draft.rs": {
-    "mtime": 1793502123.3723388,
-    "seen": 1793503110.0554662,
-    "ast_hash": "63beb53491929d23b64c889bcce601b8",
+    "mtime": 1793503998.5802379,
+    "seen": 1793504279.0412846,
+    "ast_hash": "57f45bd6f3fcf7cbc790d853e2e76da8",
     "semantic_hash": ""
   },
   "src/tui/settings/meta.rs": {
-    "mtime": 1793501526.4336483,
-    "seen": 1793503110.0554676,
-    "ast_hash": "dcb361dd258a9ac9f6e0c1b2156def7a",
+    "mtime": 1793507044.941136,
+    "seen": 1793512186.6523013,
+    "ast_hash": "26fcb04b2760633bf65db3cc4ec3e788",
     "semantic_hash": ""
   },
   "src/tui/settings/mod.rs": {
@@ -468,15 +468,15 @@
     "semantic_hash": ""
   },
   "src/tui/settings/preview.rs": {
-    "mtime": 1793493089.422483,
-    "seen": 1793495229.5194266,
-    "ast_hash": "c1a8cbaa8ca071cf0f86cf01b0cd8531",
+    "mtime": 1793503668.5885653,
+    "seen": 1793504279.0412886,
+    "ast_hash": "12aefa41b92d7ee5aa4b2c46b3c03e31",
     "semantic_hash": ""
   },
   "src/tui/settings/secrets.rs": {
-    "mtime": 1793494817.3328881,
-    "seen": 1793495229.5194275,
-    "ast_hash": "fd6c24e4458e8628dbfef2345fa5b402",
+    "mtime": 1793503598.9057899,
+    "seen": 1793504279.04129,
+    "ast_hash": "5ceb3523d9794ec755b215dc729ac5bc",
     "semantic_hash": ""
   },
   "src/tui/settings/validate.rs": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "src/tui/settings/view.rs": {
-    "mtime": 1793502123.4273393,
-    "seen": 1793503110.0554745,
-    "ast_hash": "d1dace3853a352a85d237fe77c26135b",
+    "mtime": 1793511787.6988432,
+    "seen": 1793512186.6523087,
+    "ast_hash": "7f583818238f120359ac172b81ced81d",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-01-lqosync3-tui-4b.md": {
@@ -507,6 +507,42 @@
     "mtime": 1793500611.3215244,
     "seen": 1793503110.0555415,
     "ast_hash": "18a40e86e43b91123570e5b195091c1e",
+    "semantic_hash": ""
+  },
+  "src/tui/theme.rs": {
+    "mtime": 1793511787.7058434,
+    "seen": 1793512186.6523106,
+    "ast_hash": "c8998b315e57763ec66a3ea03bac0769",
+    "semantic_hash": ""
+  },
+  "brain/10-sessions/2026-11-01-tui-cosmetics-design-handoff.md": {
+    "mtime": 1793505837.0236952,
+    "seen": 1793512186.6523361,
+    "ast_hash": "99a5e9a7282c51d35c08c951d52fc24e",
+    "semantic_hash": ""
+  },
+  "brain/10-sessions/2026-11-01-tui-cosmetics-implementation.md": {
+    "mtime": 1793508369.8344758,
+    "seen": 1793512186.6523376,
+    "ast_hash": "50cb290400f29ec469a878511001a9a9",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-01-lqosync3-tui-cosmetics.md": {
+    "mtime": 1793508328.1130805,
+    "seen": 1793512186.652379,
+    "ast_hash": "4ba975202cd1b3a74feeb36ee942292d",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-01-lqosync3-btop-refinement.md": {
+    "mtime": 1793512148.8773077,
+    "seen": 1793512186.6523879,
+    "ast_hash": "0d342ea9d0da75b5b55d9243bb39201c",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-01-lqosync3-tui-cosmetics-design.md": {
+    "mtime": 1793508328.1120806,
+    "seen": 1793512186.6523905,
+    "ast_hash": "7f5327481fa1011ce8eabc85586c2f8d",
     "semantic_hash": ""
   }
 }
