@@ -30,7 +30,8 @@ The default target is `auto`. The tool reads the installed LibreQoS version and 
 
 - [Architecture](docs/ARCHITECTURE.md): parts, data flow, and performance rules.
 - [Configuration](docs/CONFIGURATION.md): the TOML reference and the map from `config.json`.
-- [Installation](docs/INSTALLATION.md): the one-line installer and the manual procedure.
+- [Installation](docs/INSTALLATION.md): the installation from a release, and the manual procedure from source.
+- [Releases](docs/RELEASE.md): the version number `3.0.<commits>+g<hash>`, CI, the release procedure, upgrade, and rollback.
 - [Operations](docs/OPERATIONS.md): daily tasks, cutover, LibreQoS upgrade, rollback, and troubleshooting.
 - [LibreQoS v3 ingress](docs/LIBREQOS-V3-INGRESS.md): the `libreqos_network.json` schema and the offline simulation results.
 

@@ -1,9 +1,6 @@
 # Installation
 
-This document gives the one-line installation, the manual installation, the checks after installation, and the removal procedure.
-
-> [!warning] Status: target contract
-> `install.sh` and a release binary do not exist yet. Build from source with the manual installation.
+This document gives the installation from a release, the manual installation from source, the checks after installation, and the removal procedure.
 
 ## Requirements
 
@@ -85,56 +82,60 @@ The tool reads only these menus, and only these fields:
 
 The tool reads a menu only if its source (`pppoe`, `hotspot`, or `dhcp`) is on for that router.
 
-## One-line installation
+## Installation from a release
 
-Use this command on the shaper:
+Use this procedure on the shaper. It installs the release binary. It needs no clone and no Rust. The installer also upgrades an installed tool. Refer to [RELEASE.md](RELEASE.md) for the releases, the versions, and the rollback.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/install.sh | sudo bash
-```
+1. Prepare each router first (refer to "Prepare each router").
+2. Download the installer, read it, then run it:
+
+   ```bash
+   curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/install.sh
+   less /tmp/install.sh
+   sudo bash /tmp/install.sh
+   ```
+
+3. The installer writes `/etc/lqosync3/lqosync3.toml` with `mode = "shadow"` and no router. Thus `lqosync3 check` fails, and the service does not start yet.
+4. Add the routers in the TUI: `sudo lqosync3 tui`, tab 3, key `+`. Then push `v`, `A`, and `y`.
+5. Start the service:
+
+   ```bash
+   sudo systemctl enable --now lqosync3.service
+   ```
+
+6. Do the "Checks after installation".
 
 > [!note]
 > The tool is at the root of the branch `lqosync3` of `p33ckab00/LQoSync`. The branch has no shared history with the other branches.
-> The file `install.sh` at the root of the other branches is a different installer. Do not use it for this tool.
-
-To install from a local clone, use this command:
-
-```bash
-sudo bash /home/pi/LQoSync3.0/install.sh
-```
+> The file `install.sh` of the other branches is a different installer. Do not use it for this tool.
 
 ### Installer options
 
 | Option | Default | Effect |
 |--------|---------|--------|
+| `--version v3.0.N` | the newest `v3` release | Installs this release. |
 | `--mode shadow\|apply` | `shadow` | Sets `runtime.mode` in a new config file. The installer does not change an existing config file. |
-| `--version <tag>` | latest release | Installs a specific release. |
-| `--from-source` | off | Builds the binary with `cargo build --release --locked`. |
-| `--import-json <path>` | off | Converts an old `config.json` to TOML and secret files. |
-| `--no-start` | off | Installs the files, but does not start the service. |
+| `--no-start` | off | Installs the files, but does not start or restart the service. |
 
-Example with an import of the current Python configuration:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/p33ckab00/LQoSync/lqosync3/install.sh | sudo bash -s -- --import-json /opt/libreqos/src/config.json
-```
+The installer has no import of the Python `config.json`. Write the TOML file by hand, or use the TUI.
 
 ### What the installer does
 
 1. It stops if the user is not `root`.
-2. It stops if the operating system or the CPU architecture is not supported.
+2. It stops if the operating system is not Ubuntu 24.04, or the CPU is not x86_64.
 3. It reads the LibreQoS version with `dpkg-query -W libreqos`. It stops if the version is not 2.0 to 2.2 or 3.x.
-4. It downloads the release binary and its SHA-256 file. It stops if the checksum is not correct.
-5. It installs the binary to `/usr/local/bin/lqosync3`.
+4. It downloads the release binary, its SHA-256 file, and `lqosync3.service`. It stops if the checksum is not correct.
+5. It installs the binary to `/usr/local/bin/lqosync3` and the unit to `/etc/systemd/system/lqosync3.service`. Then it runs `systemctl daemon-reload`.
 6. It makes `/etc/lqosync3/`, `/etc/lqosync3/secrets/` (mode `0700`), and `/var/lib/lqosync3/`.
 7. It writes `/etc/lqosync3/lqosync3.toml` only if the file does not exist.
-8. It installs `lqosync3.service` and runs `systemctl daemon-reload`.
+8. It gives a warning if `lqosync-updatecsv.service` (the Python service) is active.
 9. It runs `lqosync3 check`. If the check fails, it does not start the service.
-10. It starts the service in `shadow` mode.
+10. It enables and restarts the service, unless you use `--no-start`.
 
 The installer does not do these actions:
 
-- It does not stop or change `lqosync-updatecsv.service` (the Python service).
+- It does not stop or change `lqosync-updatecsv.service`.
+- It does not change an existing config file or the secret files.
 - It does not change LibreQoS files, LibreQoS configuration, or LibreQoS services.
 - It does not install, remove, or upgrade packages.
 - It does not write to the routers.

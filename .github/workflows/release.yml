@@ -1,0 +1,36 @@
+# Builds a release for a tag v3.0.<commit count>. Refer to docs/RELEASE.md.
+name: release
+on:
+  push:
+    tags: ['v3.*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the version needs the full commit count
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+      - name: The tag must be the version of the build
+        run: |
+          v="$(./target/release/lqosync3 version | cut -d' ' -f2)"
+          echo "version $v"
+          case "$v" in *.dirty|*unknown) echo "the build is not clean: $v"; exit 1 ;; esac
+          [ "v${v%%+*}" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME is not v${v%%+*}"; exit 1; }
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - name: Package
+        run: |
+          mkdir dist
+          cp target/release/lqosync3 dist/lqosync3-x86_64-linux
+          cp systemd/lqosync3.service install.sh dist/
+          (cd dist && sha256sum lqosync3-x86_64-linux > lqosync3-x86_64-linux.sha256)
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* --title "lqosync3 $GITHUB_REF_NAME" \
+            --notes "lqosync3 $VERSION (commit $GITHUB_SHA). Install or upgrade: docs/RELEASE.md."

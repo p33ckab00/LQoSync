@@ -1,0 +1,27 @@
+# Checks each push and pull request of the lqosync3 branch. Refer to docs/RELEASE.md.
+name: ci
+on:
+  push:
+    branches: [lqosync3]
+  pull_request:
+    branches: [lqosync3]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the version needs the full commit count
+      - run: rustup toolchain install stable --profile minimal -c clippy,rustfmt && rustup default stable
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - run: bash -n install.sh
+  msrv:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.89 --profile minimal
+      - run: cargo +1.89 build --locked
