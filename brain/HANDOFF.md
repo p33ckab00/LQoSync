@@ -93,6 +93,12 @@ Deferred minor items from the Plan 4b review (2026-11-01):
 - `add_server` and `remove_server` change the draft before their index checks.
 - `Secret` push and pop, and `SecretUndo`, can leave secret bytes in freed memory.
 
+Deferred minor items from the Plan 4c review (2026-11-01):
+- The clients group shows "active lease" also for a lease that is skipped (excluded IP, not bound).
+- A router that is online with DHCP off, or a draft that does not parse, gives misleading texts in the clients group and the DHCP note.
+- A real DHCP server named `unassigned` shares the node of the `unassigned` group.
+- The warning "N DHCP leases have no server" is not in OPERATIONS.md.
+
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 
 ### Production state

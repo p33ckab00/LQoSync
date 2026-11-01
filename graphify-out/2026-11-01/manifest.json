@@ -72,9 +72,9 @@
     "semantic_hash": ""
   },
   "docs/OPERATIONS.md": {
-    "mtime": 1793493853.7371,
-    "seen": 1793495229.5194778,
-    "ast_hash": "5b65dfe251439e634003928ab06bd606",
+    "mtime": 1793497097.738389,
+    "seen": 1793497100.174459,
+    "ast_hash": "5cc6df8429e98fd2756a531e5e852c80",
     "semantic_hash": ""
   },
   "Cargo.toml": {
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "src/tui/app.rs": {
-    "mtime": 1793493674.6000185,
-    "seen": 1793495229.5194051,
-    "ast_hash": "02b629debf02741d2159c8199cd3f5f2",
+    "mtime": 1793496548.0177171,
+    "seen": 1793497100.1743896,
+    "ast_hash": "160d116b08b4682d5c2ef883890ff692",
     "semantic_hash": ""
   },
   "src/tui/dashboard.rs": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "src/tui/settings/view.rs": {
-    "mtime": 1793495042.4213665,
-    "seen": 1793495229.51943,
-    "ast_hash": "0e62dcca4f8f7f7c0f811dd9e1c198f9",
+    "mtime": 1793497076.6011357,
+    "seen": 1793497100.1744123,
+    "ast_hash": "c6bbcfe1d41b92e35337c57b836bccb5",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-01-lqosync3-tui-4b.md": {
