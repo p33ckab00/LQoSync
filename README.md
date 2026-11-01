@@ -34,6 +34,7 @@ The default target is `auto`. The tool reads the installed LibreQoS version and 
 - [Releases](docs/RELEASE.md): the version number `3.0.<commits>+g<hash>`, CI, the release procedure, upgrade, and rollback.
 - [Operations](docs/OPERATIONS.md): daily tasks, cutover, LibreQoS upgrade, rollback, and troubleshooting.
 - [LibreQoS v3 ingress](docs/LIBREQOS-V3-INGRESS.md): the `libreqos_network.json` schema and the offline simulation results.
+- [LibreQoS upstream review, 2026-11-01](docs/reports/2026-11-01-libreqos-upstream-review.md): the upstream changes since v2.2 and their effect on lqosync3.
 
 ## Project memory
 
