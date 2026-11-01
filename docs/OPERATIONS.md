@@ -63,6 +63,17 @@ sudo lqosync3 tui
 - `y` copies with OSC 52. The terminal does not show if the copy arrived. If the text does not arrive, push `s` (select mode): the mouse goes to the terminal, and the normal terminal selection operates. Push `s` again to end. `tui.osc52 = false` turns OSC 52 off.
 - The Journal tab can read the journal only as root, or as a member of the group `adm` or `systemd-journal`. If not, the tab shows the `journalctl` hint in red.
 - An unknown value shows `unknown`, never `0`. A file error shows in red in the footer.
+- The Process panel of the Dashboard has one chart with four lines: CPU, RSS, disk I/O, and network of the service. CPU is in percent of one core. The other lines are in percent of their peak in the chart window. The line above the chart gives the current values. In the `mono` theme, each line has its own marker.
+- Disk I/O and network come from the systemd accounting of `tui.service_unit`. The unit file of the tool turns it on. If the values show `unknown`, add the accounting to an installed unit:
+
+  ```bash
+  sudo mkdir -p /etc/systemd/system/lqosync3.service.d
+  printf '[Service]\nIOAccounting=yes\nIPAccounting=yes\n' | sudo tee /etc/systemd/system/lqosync3.service.d/accounting.conf
+  sudo systemctl daemon-reload
+  sudo systemctl restart lqosync3.service
+  ```
+
+  The counters include the child processes of the service, for example `LibreQoS.py`. The network counter includes the router API and Telegram traffic.
 - Each dialog shows its keys on its bottom border, and the footer shows them too. Only `y` confirms. Only `n` or `Esc` cancels. Other keys do nothing.
 - `q` or `Ctrl+C` stops the view. With settings changes that are not applied, the view asks first.
 

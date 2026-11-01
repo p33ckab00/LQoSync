@@ -96,3 +96,14 @@ The network rate bars use the `free_*` scale.
 The process panel gets all rows that the cards do not need (about 18 rows).
 
 The frame export test `export_dashboard_frames` writes each tab in each theme.
+
+## Third change: one process chart
+
+The operator asked for one line chart of the service. It replaces the two area graphs and the meters of the Process panel.
+
+- Four lines: CPU (percent of one core), RSS, disk I/O, and network (percent of their peak in the window).
+- The line above the chart gives the current values. An unknown value shows `unknown`.
+- Disk I/O and network come from `systemctl show` (`IOReadBytes`, `IOWriteBytes`, `IPIngressBytes`, `IPEgressBytes`). The unit file turns on `IOAccounting` and `IPAccounting`.
+- The time axis goes from `-<graph_samples × refresh_ms>s` to `now`.
+- Mono gives each line its own marker.
+- The values are of the service only. The chart shows no host-wide value.

@@ -211,6 +211,9 @@ Run all commands of this procedure on the shaper. The commands with `sudo` need 
    NoNewPrivileges=yes
    ProtectSystem=full
    ReadWritePaths=/var/lib/lqosync3 /opt/libreqos/src
+   # The TUI Dashboard shows the disk I/O and network bytes of the service from these counters.
+   IOAccounting=yes
+   IPAccounting=yes
 
    [Install]
    WantedBy=multi-user.target

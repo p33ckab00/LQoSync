@@ -4,8 +4,10 @@ use super::data::Data;
 use crate::tui::theme::{BoxKind, Grad, Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::style::Style;
+use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Cell, Paragraph, Row, Table};
+use ratatui::widgets::{Axis, Cell, Chart, Dataset, GraphType, Paragraph, Row, Table, Wrap};
 use serde_json::Value;
 use std::collections::VecDeque;
 
@@ -309,23 +311,68 @@ pub struct DashboardView {
     /// CPU percent in tenths, and RSS in kB.
     pub cpu: VecDeque<u64>,
     pub rss: VecDeque<u64>,
+    /// Bytes per second of the service: disk I/O and network (systemd accounting).
+    pub io: VecDeque<u64>,
+    pub net: VecDeque<u64>,
     /// `tui.graph_samples`.
     pub samples: usize,
+    /// `tui.refresh_ms`, for the time axis.
+    pub refresh_ms: u64,
+    /// The last I/O and network counters, and when they were read.
+    last: (Option<u64>, Option<u64>, Option<std::time::Instant>),
 }
 
 impl Default for DashboardView {
     fn default() -> Self {
+        let tui = &crate::config::defaults().tui;
         Self {
             cpu: VecDeque::new(),
             rss: VecDeque::new(),
-            samples: crate::config::defaults().tui.graph_samples,
+            io: VecDeque::new(),
+            net: VecDeque::new(),
+            samples: tui.graph_samples,
+            refresh_ms: tui.refresh_ms,
+            last: (None, None, None),
         }
     }
 }
 
 impl DashboardView {
+    /// Add a rate sample for each counter that has a previous value. `secs` is the time since then.
+    pub fn push_counters(&mut self, io: Option<u64>, net: Option<u64>, secs: f64) {
+        let max = self.samples.max(1);
+        for (q, prev, cur) in [
+            (&mut self.io, self.last.0, io),
+            (&mut self.net, self.last.1, net),
+        ] {
+            let (Some(p), Some(c)) = (prev, cur) else {
+                continue;
+            };
+            if c < p || secs <= 0.0 {
+                continue;
+            }
+            while q.len() >= max {
+                q.pop_front();
+            }
+            q.push_back(((c - p) as f64 / secs) as u64);
+        }
+        (self.last.0, self.last.1) = (io, net);
+    }
+
     /// Add one graph sample for each new data.
     pub fn on_data(&mut self, d: &Data) {
+        let unit = d.service.as_ref();
+        let now = std::time::Instant::now();
+        let secs = self
+            .last
+            .2
+            .map_or(0.0, |t| now.duration_since(t).as_secs_f64());
+        self.push_counters(
+            unit.and_then(|u| u.io_bytes),
+            unit.and_then(|u| u.ip_bytes),
+            secs,
+        );
+        self.last.2 = Some(now);
         if let Some(p) = &d.proc {
             // An unknown CPU value (the first sample) is not drawn as 0.
             let cpu = p.cpu_pct.map(|c| (c * (CPU_SCALE as f64 / 100.0)) as u64);
@@ -585,111 +632,148 @@ impl DashboardView {
         }
     }
 
+    /// One chart of the service: CPU, RSS, disk I/O, and network, with the current values above it.
     fn draw_process(&self, f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
         if area.is_empty() {
             return;
         }
-        let [cpu_area, divider, rss_area] = Layout::horizontal([
-            Constraint::Percentage(60),
-            Constraint::Length(1),
-            Constraint::Min(0),
-        ])
-        .areas(area);
-        f.render_widget(
-            Paragraph::new(
-                (0..divider.height)
-                    .map(|_| Line::from("│"))
-                    .collect::<Vec<_>>(),
-            )
-            .style(palette.role(Role::Secondary)),
-            divider,
-        );
+        let unit = d.service.as_ref();
         let cpu = d.proc.as_ref().and_then(|p| p.cpu_pct);
-        let peak = self.rss.iter().copied().max().unwrap_or(0);
-        for (i, box_area) in [cpu_area, rss_area].into_iter().enumerate() {
-            let [heading, meter, trace, legend] = Layout::vertical([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Min(0),
-                Constraint::Length(1),
-            ])
-            .areas(box_area);
-            let (label, role, ratio, scale, data, range) = if i == 0 {
-                let label = cpu.map_or("CPU % unknown".into(), |v| {
-                    format!(
-                        "CPU % {v:.1}{}",
-                        if v > 100.0 { " >100% of one core" } else { "" }
-                    )
-                });
-                (
-                    label,
-                    Role::Accent,
-                    cpu.map_or(0.0, |v| fill_ratio(v, 100.0)),
-                    CPU_SCALE,
-                    &self.cpu,
-                    "0 ─ 100% of one core".to_string(),
-                )
-            } else {
-                let label = d.proc.as_ref().map_or("RSS unknown".into(), |p| {
-                    format!(
-                        "RSS {:.1}/{:.1} MiB",
-                        p.rss_kb as f64 / 1024.0,
-                        peak as f64 / 1024.0
-                    )
-                });
-                (
-                    label,
-                    Role::Ok,
-                    d.proc
-                        .as_ref()
-                        .map_or(0.0, |p| fill_ratio(p.rss_kb as f64, peak as f64)),
-                    peak.max(1),
-                    &self.rss,
-                    "current / window peak".to_string(),
-                )
-            };
-            f.render_widget(
-                Paragraph::new(clip(&label, heading.width as usize)).style(palette.role(role)),
-                heading,
-            );
-            let grad = if i == 0 { Grad::Cpu } else { Grad::Mem };
-            f.render_widget(
-                Paragraph::new(palette.meter(ratio, meter.width, grad)),
-                meter,
-            );
-            draw_history(f, trace, data, scale, palette, grad);
-            f.render_widget(
-                Paragraph::new(clip(&range, legend.width as usize))
-                    .style(palette.role(Role::Secondary)),
-                legend,
-            );
+        let rss_peak = self.rss.iter().copied().max().unwrap_or(0);
+        let rate = |q: &VecDeque<u64>, on: Option<u64>, name: &str| match (on, q.back()) {
+            (Some(_), Some(&v)) => format!("{name} {}", fmt_rate(v)),
+            _ => format!("{name} unknown"),
+        };
+        let cpu_text = cpu.map_or("CPU % unknown".into(), |v| {
+            format!(
+                "CPU % {v:.1}{}",
+                if v > 100.0 { " >100% of one core" } else { "" }
+            )
+        });
+        let rss_text = d.proc.as_ref().map_or("RSS unknown".into(), |p| {
+            format!(
+                "RSS {:.1}/{:.1} MiB",
+                p.rss_kb as f64 / 1024.0,
+                rss_peak as f64 / 1024.0
+            )
+        });
+        let mono = palette.theme == crate::config::Theme::Mono;
+        // Mono has no colours: each line has its own marker.
+        let series = [
+            (
+                cpu_text,
+                &self.cpu,
+                CPU_SCALE,
+                palette.role(Role::Ok).fg,
+                Marker::Braille,
+                "⣿",
+            ),
+            (
+                rss_text,
+                &self.rss,
+                rss_peak,
+                Some(palette.gradient(Grad::Mem, 0.5)),
+                Marker::Dot,
+                "•",
+            ),
+            (
+                rate(&self.io, unit.and_then(|u| u.io_bytes), "I/O"),
+                &self.io,
+                self.io.iter().copied().max().unwrap_or(0),
+                palette.role(Role::Warning).fg,
+                Marker::HalfBlock,
+                "▀",
+            ),
+            (
+                rate(&self.net, unit.and_then(|u| u.ip_bytes), "Net"),
+                &self.net,
+                self.net.iter().copied().max().unwrap_or(0),
+                Some(palette.gradient(Grad::Used, 0.5)),
+                Marker::Bar,
+                "▄",
+            ),
+        ];
+        let mut legend = Vec::new();
+        for (i, (text, _, _, color, _, glyph)) in series.iter().enumerate() {
+            let style = Style::new().fg(color.unwrap_or_default());
+            if i > 0 {
+                legend.push(Span::raw("   "));
+            }
+            legend.push(Span::styled(if mono { *glyph } else { "■" }, style));
+            legend.push(Span::styled(format!(" {text}"), palette.role(Role::Base)));
         }
-    }
-}
-
-fn draw_history(
-    f: &mut Frame,
-    area: Rect,
-    data: &VecDeque<u64>,
-    scale: u64,
-    palette: &Palette,
-    grad: Grad,
-) {
-    if area.is_empty() {
-        return;
-    }
-    if data.is_empty() {
+        // Without systemd accounting, say how to turn it on, if the line has room.
+        if unit.is_some_and(|u| u.io_bytes.is_none() || u.ip_bytes.is_none()) {
+            let hint = "   (turn on IOAccounting, IPAccounting)";
+            if Line::from(legend.clone()).width() + hint.len() <= area.width as usize {
+                legend.push(Span::styled(hint, palette.role(Role::Secondary)));
+            }
+        }
+        let legend = Line::from(legend);
+        let legend_height = if legend.width() <= area.width as usize {
+            1
+        } else {
+            2
+        };
+        let [top, chart_area] =
+            Layout::vertical([Constraint::Length(legend_height), Constraint::Min(0)]).areas(area);
+        f.render_widget(Paragraph::new(legend).wrap(Wrap { trim: true }), top);
+        if series.iter().all(|s| s.1.is_empty()) {
+            f.render_widget(
+                Paragraph::new("no samples yet").style(palette.role(Role::Secondary)),
+                chart_area,
+            );
+            return;
+        }
+        // CPU is in percent of one core; the other lines are in percent of their window peak.
+        let n = self.samples.max(2);
+        let points: Vec<Vec<(f64, f64)>> = series
+            .iter()
+            .map(|(_, q, scale, ..)| {
+                let off = n.saturating_sub(q.len());
+                q.iter()
+                    .enumerate()
+                    .map(|(i, &v)| {
+                        let y = v as f64 / (*scale).max(1) as f64 * 100.0;
+                        ((off + i) as f64, y.min(100.0))
+                    })
+                    .collect()
+            })
+            .collect();
+        let datasets = series
+            .iter()
+            .zip(&points)
+            .map(|((_, _, _, color, marker, _), pts)| {
+                Dataset::default()
+                    .marker(if mono { *marker } else { Marker::Braille })
+                    .graph_type(GraphType::Line)
+                    .style(Style::new().fg(color.unwrap_or_default()))
+                    .data(pts)
+            })
+            .collect::<Vec<_>>();
+        let window = n as u64 * self.refresh_ms / 1000;
+        let dim = palette.role(Role::Secondary);
         f.render_widget(
-            Paragraph::new("no samples yet").style(palette.role(Role::Secondary)),
-            area,
+            Chart::new(datasets)
+                .style(palette.canvas())
+                .x_axis(
+                    Axis::default()
+                        .bounds([0.0, (n - 1) as f64])
+                        .labels([
+                            Span::styled(format!("-{window}s"), dim),
+                            Span::styled("now", dim),
+                        ])
+                        .style(dim),
+                )
+                .y_axis(
+                    Axis::default()
+                        .bounds([0.0, 100.0])
+                        .labels([Span::styled("0", dim), Span::styled("100%", dim)])
+                        .style(dim),
+                ),
+            chart_area,
         );
-        return;
     }
-    let samples: Vec<u64> = data.iter().copied().collect();
-    f.render_widget(
-        Paragraph::new(palette.area_graph(&samples, scale, area.width, area.height, grad)),
-        area,
-    );
 }
 
 fn draw_routers(f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
@@ -809,11 +893,13 @@ fn card_areas(area: Rect) -> [Rect; 6] {
     [service, cycle, routers, counts, versions, process]
 }
 
-fn fill_ratio(value: f64, scale: f64) -> f64 {
-    if !value.is_finite() || !scale.is_finite() || scale <= 0.0 {
-        return 0.0;
+/// Bytes per second in B/s, KiB/s, or MiB/s.
+fn fmt_rate(v: u64) -> String {
+    match v {
+        0..1024 => format!("{v} B/s"),
+        1024..1_048_576 => format!("{:.1} KiB/s", v as f64 / 1024.0),
+        _ => format!("{:.1} MiB/s", v as f64 / 1_048_576.0),
     }
-    (value / scale).clamp(0.0, 1.0)
 }
 
 #[cfg(test)]
@@ -894,6 +980,7 @@ mod tests {
             load: "loaded".into(),
             active: "active".into(),
             main_pid: 42,
+            ..Default::default()
         });
         d.proc = Some(ProcInfo {
             pid: 42,
@@ -997,6 +1084,7 @@ mod tests {
             load: "loaded".into(),
             active: "active".into(),
             main_pid: std::process::id(),
+            ..Default::default()
         });
         let e = send(Kind::Reload, &d, 1_000, Some(0)).unwrap_err();
         assert!(e.contains("no MainPID"), "{e}");
@@ -1105,13 +1193,103 @@ mod tests {
         );
     }
 
+    fn process_text(
+        v: &DashboardView,
+        d: &Data,
+        p: &Palette,
+    ) -> (String, Vec<ratatui::style::Color>) {
+        let mut t = Terminal::new(TestBackend::new(120, 40)).unwrap();
+        t.draw(|f| v.draw(f, f.area(), d, 30, p)).unwrap();
+        let b = t.backend().buffer();
+        let r = card_areas(Rect::new(0, 0, 120, 40))[5];
+        let mut colors = Vec::new();
+        let mut text = String::new();
+        for y in r.y..r.bottom() {
+            for x in r.x..r.right() {
+                let c = &b[(x, y)];
+                if c.symbol()
+                    .chars()
+                    .any(|ch| ('\u{2801}'..='\u{28ff}').contains(&ch))
+                    && !colors.contains(&c.fg)
+                {
+                    colors.push(c.fg);
+                }
+                text.push_str(c.symbol());
+            }
+            text.push('\n');
+        }
+        (text, colors)
+    }
+
+    #[test]
+    fn the_process_chart_has_four_lines_a_legend_and_a_time_axis() {
+        let mut d = Data {
+            proc: Some(ProcInfo {
+                pid: 42,
+                start_unix: 1,
+                elapsed_s: 20,
+                rss_kb: 49152,
+                cpu_pct: Some(32.7),
+            }),
+            service: Some(Unit {
+                io_bytes: Some(1),
+                ip_bytes: Some(1),
+                ..Default::default()
+            }),
+            ..Data::default()
+        };
+        let mut v = DashboardView::default();
+        for i in 0..60u64 {
+            v.cpu.push_back(100 + i * 5);
+            v.rss.push_back(40_000 + i * 100);
+            v.io.push_back((i % 7) * 1024);
+            v.net.push_back((i % 5) * 2048 + 10);
+        }
+        *v.io.back_mut().unwrap() = 12 * 1024;
+        *v.net.back_mut().unwrap() = 2048;
+        let p = Palette::new(crate::config::Theme::Dark);
+        let (text, colors) = process_text(&v, &d, &p);
+        for want in [
+            "CPU % 32.7",
+            "RSS 48.0/",
+            "I/O 12.0 KiB/s",
+            "Net 2.0 KiB/s",
+            "-120s",
+            "now",
+        ] {
+            assert!(text.contains(want), "{want}\n{text}");
+        }
+        assert!(colors.len() >= 4, "{colors:?}\n{text}");
+        // Accounting off: the lines are not drawn as zero.
+        d.service = Some(Unit::default());
+        v.io.clear();
+        v.net.clear();
+        let (text, _) = process_text(&v, &d, &p);
+        assert!(text.contains("I/O unknown"), "{text}");
+        assert!(text.contains("Net unknown"), "{text}");
+        assert!(text.contains("Accounting"), "{text}");
+    }
+
+    #[test]
+    fn io_and_net_rates_come_from_counter_differences() {
+        let mut v = DashboardView::default();
+        v.push_counters(Some(1000), None, 0.0);
+        assert!(v.io.is_empty() && v.net.is_empty());
+        v.push_counters(Some(3000), Some(50), 2.0);
+        assert_eq!(v.io, [1000]);
+        assert!(v.net.is_empty(), "the first network counter gives no rate");
+        v.push_counters(Some(3000), Some(250), 2.0);
+        assert_eq!((v.io.back(), v.net.back()), (Some(&0), Some(&100)));
+        // A counter that goes down (a service restart) gives no rate.
+        v.push_counters(Some(10), Some(250), 1.0);
+        assert_eq!(v.io.len(), 2);
+        // Zero seconds gives no rate.
+        v.push_counters(Some(20), Some(260), 0.0);
+        assert_eq!((v.io.len(), v.net.len()), (2, 2));
+    }
+
     #[test]
     fn process_gauge_scales_and_unknowns() {
-        assert_eq!(fill_ratio(25.0, 100.0), 0.25);
-        assert_eq!(fill_ratio(150.0, 100.0), 1.0);
-        for scale in [0.0, -1.0, f64::NAN, f64::INFINITY] {
-            assert_eq!(fill_ratio(1.0, scale), 0.0);
-        }
         let mut v = DashboardView::default();
         let d = Data::default();
         v.on_data(&d);
@@ -1149,28 +1327,7 @@ mod tests {
         assert!(text.contains(">100%"));
         assert!(text.contains("1.0/2.0 MiB"));
         assert!(text.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)));
-        let inner = Rect::new(
-            process.x + 1,
-            process.y + 1,
-            process.width.saturating_sub(2),
-            process.height.saturating_sub(2),
-        );
-        let [cpu, _, rss] = Layout::horizontal([
-            Constraint::Percentage(60),
-            Constraint::Length(1),
-            Constraint::Min(0),
-        ])
-        .areas(inner);
-        for chart in [cpu, rss] {
-            assert!((chart.y + 2..chart.bottom().saturating_sub(1)).any(|y| {
-                (chart.x..chart.right()).any(|x| {
-                    b[(x, y)]
-                        .symbol()
-                        .chars()
-                        .any(|c| ('\u{2801}'..='\u{28ff}').contains(&c))
-                })
-            }));
-        }
+
         assert_eq!(v.cpu.front(), Some(&1500));
         d.proc = None;
         t.draw(|f| v.draw(f, f.area(), &d, 30, &p)).unwrap();
@@ -1208,6 +1365,7 @@ mod tests {
                     load: "loaded".into(),
                     active: "active".into(),
                     main_pid: 4242,
+                    ..Default::default()
                 });
                 d.proc = Some(ProcInfo {
                     pid: 4242,

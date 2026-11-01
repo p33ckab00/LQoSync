@@ -314,57 +314,6 @@ impl Palette {
             .collect::<Vec<_>>();
         Line::from(spans)
     }
-
-    /// A filled braille area graph of the last samples (two samples for each cell), right-aligned.
-    /// Each row takes the colour of its height on the scale.
-    pub fn area_graph(
-        &self,
-        samples: &[u64],
-        scale: u64,
-        width: u16,
-        height: u16,
-        g: Grad,
-    ) -> Vec<Line<'static>> {
-        const LEFT: [u32; 4] = [0x01, 0x02, 0x04, 0x40];
-        const RIGHT: [u32; 4] = [0x08, 0x10, 0x20, 0x80];
-        let (w, h) = (width as usize, height as usize);
-        let dots = h * 4;
-        let take = samples.len().min(w * 2);
-        let mut heights = vec![0usize; w * 2];
-        for (k, v) in samples[samples.len() - take..].iter().enumerate() {
-            heights[w * 2 - take + k] = if scale == 0 {
-                0
-            } else {
-                ((((*v).min(scale)) as f64 / scale as f64) * dots as f64).round() as usize
-            };
-        }
-        (0..h)
-            .map(|r| {
-                let rb = h - 1 - r;
-                let text: String = (0..w)
-                    .map(|c| {
-                        let mut bits = 0;
-                        for j in 0..4 {
-                            let dot = rb * 4 + (3 - j);
-                            if heights[2 * c] > dot {
-                                bits |= LEFT[j];
-                            }
-                            if heights[2 * c + 1] > dot {
-                                bits |= RIGHT[j];
-                            }
-                        }
-                        if bits == 0 {
-                            ' '
-                        } else {
-                            char::from_u32(0x2800 + bits).unwrap_or(' ')
-                        }
-                    })
-                    .collect();
-                let t = (rb as f64 + 0.5) / h.max(1) as f64;
-                Line::styled(text, Style::new().fg(self.gradient(g, t)))
-            })
-            .collect()
-    }
 }
 
 /// Limit text by terminal cells, with an ellipsis for omitted text.
@@ -392,10 +341,6 @@ pub fn clip(text: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn texts(lines: &[Line]) -> Vec<String> {
-        lines.iter().map(|l| l.to_string()).collect()
-    }
 
     #[test]
     fn btop_gradient_ends() {
@@ -449,25 +394,6 @@ mod tests {
                 .meter(0.5, 4, Grad::Cpu)
                 .to_string(),
             "■■··"
-        );
-    }
-
-    #[test]
-    fn area_graph_fills_from_the_bottom() {
-        let p = Palette::new(Theme::Dark);
-        assert_eq!(
-            texts(&p.area_graph(&[10, 10, 10, 10], 10, 2, 2, Grad::Cpu)),
-            ["⣿⣿", "⣿⣿"]
-        );
-        assert_eq!(
-            texts(&p.area_graph(&[5, 5, 5, 5], 10, 2, 2, Grad::Cpu)),
-            ["  ", "⣿⣿"]
-        );
-        assert_eq!(texts(&p.area_graph(&[0, 10], 10, 1, 1, Grad::Cpu)), ["⢸"]);
-        // Fewer samples than columns: the graph is right-aligned.
-        assert_eq!(
-            texts(&p.area_graph(&[10, 10], 10, 3, 1, Grad::Cpu)),
-            ["  ⣿"]
         );
     }
 

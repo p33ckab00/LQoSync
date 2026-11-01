@@ -146,7 +146,18 @@ impl Loader {
             self.status_text = text;
         }
         let tui = self.cfg.tui.clone();
-        self.data.service = self.show(&tui.service_unit, &["LoadState", "ActiveState", "MainPID"]);
+        self.data.service = self.show(
+            &tui.service_unit,
+            &[
+                "LoadState",
+                "ActiveState",
+                "MainPID",
+                "IOReadBytes",
+                "IOWriteBytes",
+                "IPIngressBytes",
+                "IPEgressBytes",
+            ],
+        );
         self.data.proc = match &self.data.service {
             Some(u) if u.main_pid != 0 => self.sampler.sample(u.main_pid, "lqosync3", 0),
             _ => None,

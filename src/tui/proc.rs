@@ -69,18 +69,31 @@ pub struct Unit {
     pub active: String,
     /// 0 if the unit has no process.
     pub main_pid: u32,
+    /// Bytes read and written by the unit (`IOAccounting=yes`), else `None`.
+    pub io_bytes: Option<u64>,
+    /// Bytes received and sent by the unit (`IPAccounting=yes`), else `None`.
+    pub ip_bytes: Option<u64>,
 }
 
 pub fn parse_unit(show: &str) -> Unit {
     let mut u = Unit::default();
+    let (mut io, mut ip) = ([None; 2], [None; 2]);
+    // With accounting off, systemd prints "[not set]", "[no data]", or u64::MAX.
+    let count = |v: &str| v.parse::<u64>().ok().filter(|&n| n != u64::MAX);
     for l in show.lines() {
         match l.split_once('=') {
             Some(("LoadState", v)) => u.load = v.to_string(),
             Some(("ActiveState", v)) => u.active = v.to_string(),
             Some(("MainPID", v)) => u.main_pid = v.parse().unwrap_or(0),
+            Some(("IOReadBytes", v)) => io[0] = count(v),
+            Some(("IOWriteBytes", v)) => io[1] = count(v),
+            Some(("IPIngressBytes", v)) => ip[0] = count(v),
+            Some(("IPEgressBytes", v)) => ip[1] = count(v),
             _ => {}
         }
     }
+    u.io_bytes = io[0].zip(io[1]).map(|(a, b)| a.saturating_add(b));
+    u.ip_bytes = ip[0].zip(ip[1]).map(|(a, b)| a.saturating_add(b));
     u
 }
 
@@ -178,6 +191,19 @@ mod tests {
         assert_eq!(cpu_percent(100, 150, 2.0, 100), 25.0);
         assert_eq!(cpu_percent(100, 150, 0.0, 100), 0.0);
         assert!(clk_tck() > 0);
+    }
+
+    #[test]
+    fn unit_io_and_ip_bytes_are_sums_or_unknown() {
+        let u =
+            parse_unit("IOReadBytes=1000\nIOWriteBytes=24\nIPIngressBytes=300\nIPEgressBytes=12\n");
+        assert_eq!((u.io_bytes, u.ip_bytes), (Some(1024), Some(312)));
+        // Accounting off: systemd prints "[not set]", "[no data]", or the maximum u64.
+        let u = parse_unit(
+            "IOReadBytes=[not set]\nIOWriteBytes=[not set]\nIPIngressBytes=[no data]\nIPEgressBytes=18446744073709551615\n",
+        );
+        assert_eq!((u.io_bytes, u.ip_bytes), (None, None));
+        assert_eq!(parse_unit("MainPID=1\n").io_bytes, None);
     }
 
     #[test]

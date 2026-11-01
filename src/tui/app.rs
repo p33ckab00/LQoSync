@@ -811,6 +811,7 @@ mod tests {
                 load: "loaded".into(),
                 active: "active".into(),
                 main_pid: 7,
+                ..Default::default()
             }),
             ..Data::default()
         };
