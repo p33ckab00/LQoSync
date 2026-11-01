@@ -1,14 +1,15 @@
 //! The Journal tab: `journalctl -f` of the service, with a level filter, search, and line selection.
 
-use crate::tui::theme::Palette;
+use crate::tui::theme::{Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Paragraph};
+#[cfg(test)]
+use ratatui::style::Modifier;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::Paragraph;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
@@ -290,7 +291,7 @@ impl JournalView {
         }
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect, _palette: &Palette) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, palette: &Palette) {
         let [banner, body] = Layout::vertical([
             Constraint::Length(u16::from(self.error.is_some())),
             Constraint::Min(0),
@@ -298,7 +299,7 @@ impl JournalView {
         .areas(area);
         if let Some(e) = &self.error {
             f.render_widget(
-                Paragraph::new(e.as_str()).style(Style::new().fg(Color::Red)),
+                Paragraph::new(e.as_str()).style(palette.role(Role::Error)),
                 banner,
             );
         }
@@ -325,15 +326,7 @@ impl JournalView {
         let lines: Vec<Line> = (self.offset..end)
             .map(|p| {
                 let (lv, text) = &self.lines[self.view[p]];
-                let mut st = match lv {
-                    2 => Style::new().fg(Color::Red),
-                    1 => Style::new().fg(Color::Yellow),
-                    _ => Style::new(),
-                };
-                if (sa..=sb).contains(&p) {
-                    st = st.bg(Color::DarkGray).add_modifier(Modifier::BOLD);
-                }
-                Line::styled(text.as_str(), st)
+                styled_line(text, *lv, (sa..=sb).contains(&p), palette)
             })
             .collect();
         let title = format!(
@@ -345,9 +338,43 @@ impl JournalView {
             if self.editing { "_" } else { "" }
         );
         f.render_widget(
-            Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(title)),
+            Paragraph::new(lines).block(palette.panel(Line::from(title), true)),
             body,
         );
+    }
+}
+
+fn styled_line<'a>(text: &'a str, level: u8, selected: bool, palette: &Palette) -> Line<'a> {
+    use std::sync::OnceLock;
+    static PREFIX: OnceLock<regex::Regex> = OnceLock::new();
+    let prefix = PREFIX.get_or_init(|| {
+        regex::Regex::new(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})[ \t]+\S+[ \t]+",
+        )
+        .unwrap()
+    });
+    let role = match level {
+        2 => Role::Error,
+        1 => Role::Warning,
+        _ => Role::Base,
+    };
+    let normal = if selected {
+        palette.selection()
+    } else {
+        palette.role(role)
+    };
+    if let Some(m) = prefix.find(text).filter(|m| m.end() < text.len()) {
+        let secondary = if selected {
+            palette.selection()
+        } else {
+            palette.role(Role::Secondary)
+        };
+        Line::from(vec![
+            Span::styled(&text[..m.end()], secondary),
+            Span::styled(&text[m.end()..], normal),
+        ])
+    } else {
+        Line::styled(text, normal)
     }
 }
 
@@ -511,5 +538,31 @@ mod tests {
         for want in ["added 1", "Hint: not in adm", "level all", "follow"] {
             assert!(s.contains(want), "{want}\n{s}");
         }
+    }
+    #[test]
+    fn short_iso_metadata_is_secondary_and_copy_is_raw() {
+        let p = Palette::new(crate::config::Theme::Dark);
+        let raw = "2026-11-01T03:00:00+0000 hóst lqosync3[12]: méssage";
+        let line = styled_line(raw, 0, false, &p);
+        assert_eq!(line.to_string(), raw);
+        assert!(line.spans[0].style.add_modifier.contains(Modifier::DIM));
+        assert!(
+            !line
+                .spans
+                .last()
+                .unwrap()
+                .style
+                .add_modifier
+                .contains(Modifier::DIM)
+        );
+        for raw in ["-- Journal begins --", "bad timestamp host message"] {
+            assert_eq!(styled_line(raw, 2, false, &p).to_string(), raw);
+        }
+        let line = styled_line(raw, 2, true, &p);
+        assert!(line.spans.iter().all(|s| s.style == p.selection()));
+        let mut v = view(10, &[raw]);
+        v.cursor = 0;
+        v.anchor = Some(0);
+        assert_eq!(v.selection_text(), raw);
     }
 }
