@@ -1,6 +1,8 @@
 //! Circuit collection: RouterOS rows of one router to circuits.
 
-use crate::config::{Config, DhcpMode, DhcpSource, PppSource, RouterCfg, parse_ipv4_net};
+use crate::config::{
+    Config, DhcpMode, DhcpSource, PppSource, RouterCfg, normalize_mac, parse_ipv4_net,
+};
 use crate::model::{RosRow, RouterSnapshot, Source};
 use crate::speed::{Rate, SpeedParser, parse_default_rate};
 use std::collections::BTreeMap;
@@ -26,6 +28,8 @@ pub struct Collected {
     pub source: Source,
     pub base: Rate,
     pub group: GroupKey,
+    /// The group rate of one circuit: the server rate for a DHCP site, else `base`.
+    pub unit: Rate,
 }
 
 /// A field value, trimmed. A missing field is an empty string.
@@ -235,6 +239,7 @@ fn collect_ppp(
             ipv4: f(act, "address").to_string(),
             comment: cfg.circuits.comment_pppoe.clone(),
             source: Source::Ppp,
+            unit: base,
             base,
             group: if router.pppoe.per_plan_node {
                 GroupKey::PppPlan(profile.to_string())
@@ -284,21 +289,74 @@ fn collect_hotspot(
             ipv4: f(row, "address").to_string(),
             comment: cfg.circuits.comment_hotspot.clone(),
             source: Source::Hotspot,
+            unit: base,
             base,
             group: GroupKey::Hotspot,
         });
     }
 }
 
-fn collect_dhcp(
+/// Where the rate of a DHCP lease comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RateSource {
+    Override,
+    ServerComment,
+    LeaseComment,
+    Settings,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LeaseResult {
+    Shaped {
+        rate: Rate,
+        source: RateSource,
+        group: GroupKey,
+        /// The group rate of one circuit (the server rate for a site).
+        unit: Rate,
+    },
+    /// The reason, for the TUI.
+    Skipped(String),
+}
+
+/// One DHCP lease and what the tool does with it. The cycle and the TUI use the same list.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LeaseView {
+    pub server: String,
+    /// The MAC as the router gives it.
+    pub mac: String,
+    pub ip: String,
+    pub host: String,
+    pub comment: String,
+    /// The key of the circuit name: the client name of a plan comment, else the host name.
+    pub client: String,
+    pub has_override: bool,
+    pub result: LeaseResult,
+}
+
+/// The leases of one router, for the TUI. No report lines.
+pub fn router_leases(
+    cfg: &Config,
+    router: &RouterCfg,
+    snap: &RouterSnapshot,
+) -> anyhow::Result<Vec<LeaseView>> {
+    if !router.dhcp.enabled {
+        return Ok(Vec::new());
+    }
+    let speed = SpeedParser::new(&cfg.speed)?;
+    let ex = Excluder::new(cfg, router);
+    Ok(dhcp_leases(cfg, router, snap, &speed, &ex, &mut Vec::new()))
+}
+
+/// Each lease with a MAC and an IP, and its result. The leases of the shaped servers come first,
+/// in the server order and then the reply order (the order of the circuits), then the other leases.
+fn dhcp_leases(
     cfg: &Config,
     router: &RouterCfg,
     snap: &RouterSnapshot,
     speed: &SpeedParser,
     ex: &Excluder,
     report: &mut Vec<String>,
-    out: &mut Vec<Collected>,
-) {
+) -> Vec<LeaseView> {
     let bd = &cfg.bandwidth_defaults;
     // Servers, as for PPP: all servers on the router (in reply order) and the listed ones.
     let disabled: Vec<&str> = snap
@@ -307,9 +365,9 @@ fn collect_dhcp(
         .filter(|r| flag_on(r, "disabled"))
         .map(|r| f(r, "name"))
         .collect();
-    let mut names: Vec<String> = Vec::new();
+    let mut all_names: Vec<String> = Vec::new();
     if router.dhcp.discover {
-        names.extend(
+        all_names.extend(
             snap.dhcp_server
                 .iter()
                 .map(|r| f(r, "name").to_string())
@@ -317,11 +375,44 @@ fn collect_dhcp(
         );
     }
     for s in &router.dhcp.servers {
-        if !names.contains(&s.name) {
-            names.push(s.name.clone());
+        if !all_names.contains(&s.name) {
+            all_names.push(s.name.clone());
         }
     }
-    names.retain(|n| !disabled.contains(&n.as_str()) && !ex.server(n));
+    let names: Vec<&String> = all_names
+        .iter()
+        .filter(|n| !disabled.contains(&n.as_str()) && !ex.server(n))
+        .collect();
+    let mac_of = |lease: &RosRow| f(lease, "mac-address").to_string();
+    let ip_of = |lease: &RosRow| match f(lease, "active-address") {
+        "" => f(lease, "address").to_string(),
+        a => a.to_string(),
+    };
+    let override_of = |mac: &str| {
+        let m = normalize_mac(mac)?;
+        router
+            .dhcp
+            .clients
+            .iter()
+            .find(|c| normalize_mac(&c.mac).as_deref() == Some(m.as_str()))
+            .map(|c| Rate {
+                down: c.download_mbps,
+                up: c.upload_mbps,
+            })
+    };
+    let view = |lease: &RosRow, client: &str, result: LeaseResult| LeaseView {
+        server: f(lease, "server").to_string(),
+        mac: mac_of(lease),
+        ip: ip_of(lease),
+        host: f(lease, "host-name").to_string(),
+        comment: f(lease, "comment").to_string(),
+        client: client.to_string(),
+        has_override: override_of(&mac_of(lease)).is_some(),
+        result,
+    };
+    let skip = |r: &str| LeaseResult::Skipped(r.to_string());
+    let mut out = Vec::new();
+    let mut seen = vec![false; snap.dhcp_lease.len()];
     for name in &names {
         let server = router.dhcp.server(name);
         let sources = server.sources(&cfg.speed);
@@ -341,69 +432,192 @@ fn collect_dhcp(
             DhcpSource::Settings => Some(server.settings_rate(bd)),
             DhcpSource::LeaseComment => None,
         };
-        for lease in &snap.dhcp_lease {
-            let mac = f(lease, "mac-address");
-            let ip = match f(lease, "active-address") {
-                "" => f(lease, "address"),
-                a => a,
-            };
+        // The site rate of one circuit: it does not change with a client override.
+        let unit = sources
+            .iter()
+            .find_map(server_rate)
+            .unwrap_or_else(|| server.settings_rate(bd));
+        for (i, lease) in snap.dhcp_lease.iter().enumerate() {
+            let (mac, ip) = (mac_of(lease), ip_of(lease));
             if f(lease, "server") != server.name || mac.is_empty() || ip.is_empty() {
                 continue;
             }
-            if ex.ip(ip) || (router.dhcp.require_bound && f(lease, "status") != "bound") {
+            seen[i] = true;
+            let host = f(lease, "host-name");
+            if ex.ip(&ip) {
+                out.push(view(lease, host, skip("excluded IP")));
+                continue;
+            }
+            if router.dhcp.require_bound && f(lease, "status") != "bound" {
+                out.push(view(lease, host, skip("not bound")));
                 continue;
             }
             let lease_comment = f(lease, "comment");
-            let Some(base) = sources.iter().find_map(|src| match src {
-                DhcpSource::LeaseComment => comment_rate(
-                    speed,
-                    lease_comment,
-                    &format!("router {}: DHCP lease {ip}", router.name),
-                    report,
-                ),
-                other => server_rate(other),
-            }) else {
+            let found = match override_of(&mac) {
+                Some(r) => Some((r, RateSource::Override)),
+                None => sources.iter().find_map(|src| match src {
+                    DhcpSource::LeaseComment => comment_rate(
+                        speed,
+                        lease_comment,
+                        &format!("router {}: DHCP lease {ip}", router.name),
+                        report,
+                    )
+                    .map(|r| (r, RateSource::LeaseComment)),
+                    DhcpSource::ServerComment => {
+                        server_rate(src).map(|r| (r, RateSource::ServerComment))
+                    }
+                    DhcpSource::Settings => server_rate(src).map(|r| (r, RateSource::Settings)),
+                }),
+            };
+            let Some((base, source)) = found else {
                 report.push(format!(
                     "router {}: DHCP lease {ip} on server {} has no rate and is skipped",
                     router.name, server.name
                 ));
+                out.push(view(lease, host, skip("no rate")));
                 continue;
             };
-            let host = f(lease, "host-name");
-            let (client, group) = match server.mode {
-                DhcpMode::PerSite => (host, GroupKey::DhcpSite(server.name.clone())),
+            let (client, group, unit) = match server.mode {
+                DhcpMode::PerSite => (host, GroupKey::DhcpSite(server.name.clone()), unit),
                 DhcpMode::PerPlan => {
                     let named = lease_comment
                         .split_once('|')
                         .map(|(n, _)| n.trim())
                         .filter(|n| !n.is_empty());
-                    (named.unwrap_or(host), GroupKey::DhcpPlan(plan_label(base)))
+                    (
+                        named.unwrap_or(host),
+                        GroupKey::DhcpPlan(plan_label(base)),
+                        base,
+                    )
                 }
             };
-            let key = if client.is_empty() {
-                mac_key(mac)
-            } else {
-                client.to_string()
-            };
-            out.push(Collected {
-                name: cfg
-                    .circuits
-                    .dhcp
-                    .replace("{key}", &key)
-                    .replace("{router}", &router.name),
-                device_name: key.clone(),
-                mac: mac.to_string(),
-                ipv4: ip.to_string(),
-                comment: if client.is_empty() {
-                    cfg.circuits.comment_dhcp.clone()
-                } else {
-                    client.to_string()
+            out.push(view(
+                lease,
+                client,
+                LeaseResult::Shaped {
+                    rate: base,
+                    source,
+                    group,
+                    unit,
                 },
-                source: Source::Dhcp,
-                base,
-                group,
-            });
+            ));
         }
+    }
+    // The other leases: no server, or a server that the tool does not shape.
+    let mut no_server = 0;
+    let default_rate = Rate {
+        down: bd.dhcp_default_per_client_mbps,
+        up: bd.dhcp_default_per_client_mbps,
+    };
+    for (i, lease) in snap.dhcp_lease.iter().enumerate() {
+        let (mac, ip) = (mac_of(lease), ip_of(lease));
+        if seen[i] || mac.is_empty() || ip.is_empty() {
+            continue;
+        }
+        let srv = f(lease, "server");
+        let host = f(lease, "host-name");
+        if (srv.is_empty() || srv == "all") && !all_names.iter().any(|n| n == srv) {
+            if !router.dhcp.shape_unassigned {
+                no_server += 1;
+                out.push(view(
+                    lease,
+                    host,
+                    skip("no server (dhcp.shape_unassigned = false)"),
+                ));
+                continue;
+            }
+            if ex.ip(&ip) {
+                out.push(view(lease, host, skip("excluded IP")));
+                continue;
+            }
+            if router.dhcp.require_bound && f(lease, "status") != "bound" {
+                out.push(view(lease, host, skip("not bound")));
+                continue;
+            }
+            let (rate, source) = match override_of(&mac) {
+                Some(r) => (r, RateSource::Override),
+                None => match comment_rate(
+                    speed,
+                    f(lease, "comment"),
+                    &format!("router {}: DHCP lease {ip}", router.name),
+                    report,
+                ) {
+                    Some(r) => (r, RateSource::LeaseComment),
+                    None => (default_rate, RateSource::Settings),
+                },
+            };
+            out.push(view(
+                lease,
+                host,
+                LeaseResult::Shaped {
+                    rate,
+                    source,
+                    group: GroupKey::DhcpSite("unassigned".into()),
+                    unit: default_rate,
+                },
+            ));
+            continue;
+        }
+        let reason = if disabled.contains(&srv) {
+            "disabled server"
+        } else if ex.server(srv) {
+            "excluded server"
+        } else if router.dhcp.discover {
+            "unknown server"
+        } else {
+            "server not listed (dhcp.discover = false)"
+        };
+        out.push(view(lease, host, skip(reason)));
+    }
+    if no_server > 0 {
+        report.push(format!(
+            "router {}: {no_server} DHCP leases have no server and are not shaped (routers.dhcp.shape_unassigned = false)",
+            router.name
+        ));
+    }
+    out
+}
+
+fn collect_dhcp(
+    cfg: &Config,
+    router: &RouterCfg,
+    snap: &RouterSnapshot,
+    speed: &SpeedParser,
+    ex: &Excluder,
+    report: &mut Vec<String>,
+    out: &mut Vec<Collected>,
+) {
+    for l in dhcp_leases(cfg, router, snap, speed, ex, report) {
+        let LeaseResult::Shaped {
+            rate, group, unit, ..
+        } = l.result
+        else {
+            continue;
+        };
+        let key = if l.client.is_empty() {
+            mac_key(&l.mac)
+        } else {
+            l.client.clone()
+        };
+        out.push(Collected {
+            name: cfg
+                .circuits
+                .dhcp
+                .replace("{key}", &key)
+                .replace("{router}", &router.name),
+            device_name: key.clone(),
+            mac: l.mac,
+            ipv4: l.ip,
+            comment: if l.client.is_empty() {
+                cfg.circuits.comment_dhcp.clone()
+            } else {
+                l.client
+            },
+            source: Source::Dhcp,
+            base: rate,
+            group,
+            unit,
+        });
     }
 }
 
@@ -707,6 +921,140 @@ mode = "per_plan"
           {"server":"GUEST","host-name":"b","mac-address":"02:00:00:00:07:02","address":"100.66.7.2"},
           {"server":"OFF","host-name":"c","mac-address":"02:00:00:00:07:03","address":"100.66.7.3"},
           {"server":"MgtNet","host-name":"d","mac-address":"02:00:00:00:07:04","address":"100.66.7.4"}]}"#;
+
+    const SITE: &str = r#"{"dhcp_server":[{"name":"LAN","comment":"Site|80M/40M"}],
+        "dhcp_lease":[
+          {"server":"LAN","host-name":"a","mac-address":"0A:00:00:00:03:01","address":"100.66.1.2"},
+          {"server":"LAN","host-name":"b","mac-address":"0A:00:00:00:03:02","address":"100.66.1.3"}]}"#;
+    const OVERRIDE_B: &str =
+        "[[routers.dhcp.clients]]\nmac=\"0a-00-00-00-03-02\"\ndownload_mbps=50\nupload_mbps=20\n";
+
+    #[test]
+    fn an_override_changes_only_that_client() {
+        let (out, _) = run(&cfg_text("", OVERRIDE_B), &snap(SITE));
+        let (a, b) = (by_name(&out, "DHCP-a"), by_name(&out, "DHCP-b"));
+        assert_eq!((a.base, b.base), (rate(80.0, 40.0), rate(50.0, 20.0)));
+        assert_eq!(a.group, GroupKey::DhcpSite("LAN".into()));
+        assert_eq!(b.group, GroupKey::DhcpSite("LAN".into()));
+        assert_eq!((a.unit, b.unit), (rate(80.0, 40.0), rate(80.0, 40.0)));
+        assert_eq!(b.mac, "0A:00:00:00:03:02");
+    }
+
+    #[test]
+    fn an_override_in_per_plan_moves_to_its_plan_node() {
+        let c = cfg_text(
+            "",
+            "[[routers.dhcp.servers]]\nname=\"PLANS\"\nmode=\"per_plan\"\n[[routers.dhcp.clients]]\nmac=\"02:00:00:00:04:01\"\ndownload_mbps=50\nupload_mbps=20\n",
+        );
+        let s = snap(
+            r#"{"dhcp_lease":[{"server":"PLANS","host-name":"h1","mac-address":"02:00:00:00:04:01","address":"100.66.2.2","comment":"Juan|25M/5M"}]}"#,
+        );
+        let (out, _) = run(&c, &s);
+        let j = by_name(&out, "DHCP-Juan");
+        assert_eq!(
+            (j.base, j.group.clone()),
+            (rate(50.0, 20.0), GroupKey::DhcpPlan("50M-20M".into()))
+        );
+    }
+
+    #[test]
+    fn an_override_for_a_missing_mac_has_no_effect() {
+        let c = cfg_text("", &OVERRIDE_B.replace("03-02", "09-09"));
+        let (out, rep) = run(&c, &snap(SITE));
+        assert_eq!(by_name(&out, "DHCP-b").base, rate(80.0, 40.0));
+        assert!(rep.is_empty(), "{rep:?}");
+    }
+
+    #[test]
+    fn an_override_on_a_skipped_lease_gives_no_circuit() {
+        let c = cfg_text("[exclude]\nips=[\"100.66.1.3\"]", OVERRIDE_B);
+        let (out, _) = run(&c, &snap(SITE));
+        assert_eq!(names_of(&out), ["DHCP-a"]);
+        let c = cfg_text("", &format!("require_bound=true\n{OVERRIDE_B}"));
+        let s = snap(
+            &SITE
+                .replace(
+                    "\"address\":\"100.66.1.3\"",
+                    "\"address\":\"100.66.1.3\",\"status\":\"offered\"",
+                )
+                .replace(
+                    "\"address\":\"100.66.1.2\"",
+                    "\"address\":\"100.66.1.2\",\"status\":\"bound\"",
+                ),
+        );
+        let (out, _) = run(&c, &s);
+        assert_eq!(names_of(&out), ["DHCP-a"]);
+    }
+
+    const NO_SERVER: &str = r#"{"dhcp_lease":[
+          {"server":"all","host-name":"s1","mac-address":"02:00:00:00:05:01","address":"100.66.5.1","comment":"30M/10M"},
+          {"host-name":"s2","mac-address":"02:00:00:00:05:02","address":"100.66.5.2"}]}"#;
+
+    #[test]
+    fn no_server_leases_are_skipped_with_one_warning() {
+        let (out, rep) = run(&cfg_text("", ""), &snap(NO_SERVER));
+        assert!(out.is_empty());
+        let w: Vec<&String> = rep
+            .iter()
+            .filter(|l| l.contains("have no server"))
+            .collect();
+        assert_eq!(w.len(), 1, "{rep:?}");
+        assert!(
+            w[0].contains("2 DHCP leases") && w[0].contains("shape_unassigned"),
+            "{w:?}"
+        );
+    }
+
+    #[test]
+    fn shape_unassigned_puts_them_in_the_unassigned_node() {
+        let (out, rep) = run(&cfg_text("", "shape_unassigned=true\n"), &snap(NO_SERVER));
+        let (a, b) = (by_name(&out, "DHCP-s1"), by_name(&out, "DHCP-s2"));
+        assert_eq!((a.base, b.base), (rate(30.0, 10.0), rate(15.0, 15.0)));
+        assert_eq!(a.group, GroupKey::DhcpSite("unassigned".into()));
+        assert_eq!((a.unit, b.unit), (rate(15.0, 15.0), rate(15.0, 15.0)));
+        assert!(!rep.iter().any(|l| l.contains("have no server")), "{rep:?}");
+    }
+
+    #[test]
+    fn dhcp_leases_gives_each_skip_reason() {
+        let c = cfg_text(
+            "[exclude]\ndhcp_servers=[\"Mgt*\"]\nips=[\"100.66.8.5\"]\n[speed]\ndhcp_per_site_sources=[\"server_comment\"]",
+            "require_bound=true\n",
+        );
+        let s = snap(
+            r#"{"dhcp_server":[{"name":"LAN"},{"name":"OFF","disabled":"true"},{"name":"MgtNet"}],
+            "dhcp_lease":[
+              {"server":"all","mac-address":"02:00:00:00:08:01","address":"100.66.8.1","status":"bound"},
+              {"server":"OFF","mac-address":"02:00:00:00:08:02","address":"100.66.8.2","status":"bound"},
+              {"server":"MgtNet","mac-address":"02:00:00:00:08:03","address":"100.66.8.3","status":"bound"},
+              {"server":"OTHER","mac-address":"02:00:00:00:08:04","address":"100.66.8.4","status":"bound"},
+              {"server":"LAN","mac-address":"02:00:00:00:08:05","address":"100.66.8.5","status":"bound"},
+              {"server":"LAN","mac-address":"02:00:00:00:08:06","address":"100.66.8.6","status":"offered"},
+              {"server":"LAN","mac-address":"02:00:00:00:08:07","address":"100.66.8.7","status":"bound"}]}"#,
+        );
+        let sp = SpeedParser::new(&c.speed).unwrap();
+        let ex = Excluder::new(&c, &c.routers[0]);
+        let mut rep = Vec::new();
+        let v = dhcp_leases(&c, &c.routers[0], &s, &sp, &ex, &mut rep);
+        let reason = |mac: &str| match &v.iter().find(|l| l.mac == mac).unwrap().result {
+            LeaseResult::Skipped(r) => r.clone(),
+            LeaseResult::Shaped { .. } => "shaped".into(),
+        };
+        assert!(reason("02:00:00:00:08:01").starts_with("no server"));
+        assert_eq!(reason("02:00:00:00:08:02"), "disabled server");
+        assert_eq!(reason("02:00:00:00:08:03"), "excluded server");
+        assert_eq!(reason("02:00:00:00:08:04"), "unknown server");
+        assert_eq!(reason("02:00:00:00:08:05"), "excluded IP");
+        assert_eq!(reason("02:00:00:00:08:06"), "not bound");
+        assert_eq!(reason("02:00:00:00:08:07"), "no rate");
+        assert_eq!(v.len(), 7);
+        let c = cfg_text("", "discover=false\n");
+        let ex = Excluder::new(&c, &c.routers[0]);
+        let v = dhcp_leases(&c, &c.routers[0], &snap(SITE), &sp, &ex, &mut rep);
+        assert!(
+            matches!(&v[0].result, LeaseResult::Skipped(r) if r.starts_with("server not listed"))
+        );
+    }
 
     #[test]
     fn dhcp_servers_are_discovered_like_ppp() {

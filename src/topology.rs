@@ -97,7 +97,7 @@ pub fn parent_for(cfg: &Config, router: &str, group: &GroupKey) -> (String, Stri
 pub struct GroupTotal {
     pub count: usize,
     pub sum: Rate,
-    /// The base rate of the first circuit in the group.
+    /// The group rate of one circuit (of the first circuit): the server rate for a DHCP site.
     pub unit: Rate,
 }
 

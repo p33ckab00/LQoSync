@@ -170,7 +170,7 @@ pub fn assemble(
     let state_of: HashMap<&str, &RouterResult> =
         input.routers.iter().map(|(n, r)| (n.as_str(), r)).collect();
     // Circuit name -> (router, group, base). A later router replaces an earlier one.
-    let mut members: BTreeMap<String, (String, GroupKey, Rate)> = BTreeMap::new();
+    let mut members: BTreeMap<String, (String, GroupKey, Rate, Rate)> = BTreeMap::new();
     for (rname, result) in &input.routers {
         let RouterResult::Online(snap) = result else {
             continue;
@@ -262,7 +262,10 @@ pub fn assemble(
                 ip_index.insert(c.ipv4.clone(), c.name.clone());
             }
             let existed_before = old.is_some();
-            members.insert(c.name.clone(), (rname.clone(), c.group.clone(), c.base));
+            members.insert(
+                c.name.clone(),
+                (rname.clone(), c.group.clone(), c.base, c.unit),
+            );
             rows.insert(
                 c.name.clone(),
                 Entry {
@@ -417,14 +420,14 @@ pub fn assemble(
             continue;
         };
         let mut totals: BTreeMap<GroupKey, GroupTotal> = BTreeMap::new();
-        for (name, (owner, group, base)) in &members {
+        for (name, (owner, group, base, unit)) in &members {
             if owner != rname || !rows.contains_key(name) {
                 continue;
             }
             let t = totals.entry(group.clone()).or_insert(GroupTotal {
                 count: 0,
                 sum: Rate { down: 0.0, up: 0.0 },
-                unit: *base,
+                unit: *unit,
             });
             t.count += 1;
             t.sum.down += base.down;
@@ -1158,6 +1161,108 @@ mod tests {
             out.report.duplicates,
             vec![("100.64.0.5".into(), "bob".into(), "alice".into())]
         );
+    }
+
+    fn dhcp_cfg(extra: &str) -> Config {
+        Config::from_toml_str(&format!(
+            "[network]\nmode=\"root_promotion\"\n[safety]\nenabled=false\n\
+             [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n\
+             [routers.dhcp]\nenabled=true\n{extra}"
+        ))
+        .unwrap()
+    }
+
+    fn dhcp_snap() -> RouterResult {
+        RouterResult::Online(
+            serde_json::from_str(
+                r#"{"dhcp_server":[{"name":"LAN","comment":"Site|10M/10M"}],"dhcp_lease":[
+                {"server":"LAN","host-name":"aaa","mac-address":"02:00:00:00:0a:01","address":"100.66.10.1"},
+                {"server":"LAN","host-name":"bbb","mac-address":"02:00:00:00:0a:02","address":"100.66.10.2"},
+                {"server":"LAN","host-name":"ccc","mac-address":"02:00:00:00:0a:03","address":"100.66.10.3"}]}"#,
+            )
+            .unwrap(),
+        )
+    }
+
+    fn node_rate(tree: &serde_json::Value, name: &str) -> Option<(f64, f64)> {
+        for (k, n) in tree.as_object()? {
+            if k == name {
+                return Some((
+                    n["downloadBandwidthMbps"].as_f64()?,
+                    n["uploadBandwidthMbps"].as_f64()?,
+                ));
+            }
+            if let Some(r) = node_rate(&n["children"], name) {
+                return Some(r);
+            }
+        }
+        None
+    }
+
+    const AAA: &str =
+        "[[routers.dhcp.clients]]\nmac=\"02:00:00:00:0A:01\"\ndownload_mbps=50\nupload_mbps=20\n";
+
+    #[test]
+    fn the_per_site_node_rate_ignores_the_override() {
+        let plain = run(&dhcp_cfg(""), &State::default(), vec![("R1", dhcp_snap())]);
+        let with = run(&dhcp_cfg(AAA), &State::default(), vec![("R1", dhcp_snap())]);
+        let node = "DHCP-LAN-R1";
+        assert!(
+            node_rate(&plain.network, node).is_some(),
+            "{}",
+            plain.network
+        );
+        assert_eq!(
+            node_rate(&with.network, node),
+            node_rate(&plain.network, node)
+        );
+        assert_eq!(get(&with, "DHCP-aaa").download_max, "50");
+        assert_eq!(get(&with, "DHCP-bbb").download_max, "10");
+    }
+
+    #[test]
+    fn an_override_gives_the_same_rate_in_v2_pair_v3_pair_and_v3_network() {
+        let c = dhcp_cfg(AAA);
+        for v3 in [false, true] {
+            let input = CycleInput {
+                config: &c,
+                state: &State::default(),
+                static_rows: &[],
+                routers: vec![("R1".to_string(), dhcp_snap())],
+                current_network: None,
+                v3,
+                force: false,
+                now: NOW,
+            };
+            let out = assemble(input, &mut ids()).unwrap();
+            let cols = if v3 {
+                crate::model::Columns::V3
+            } else {
+                crate::model::Columns::V2
+            };
+            let csv = crate::writer::pair::render_csv(&out.rows, cols);
+            let line = csv.lines().find(|l| l.contains("DHCP-aaa")).unwrap();
+            assert!(line.contains(",50,20,"), "{line}");
+            if v3 {
+                let (net, _) =
+                    crate::writer::v3network::render_libreqos_network(&out.rows, &out.network)
+                        .unwrap();
+                let v: serde_json::Value = serde_json::from_str(&net).unwrap();
+                let c = v["circuits"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|c| c["display_name"] == "DHCP-aaa")
+                    .unwrap();
+                assert_eq!(
+                    (
+                        c["plan"]["ceil_down_mbps"].as_f64(),
+                        c["plan"]["ceil_up_mbps"].as_f64()
+                    ),
+                    (Some(50.0), Some(20.0))
+                );
+            }
+        }
     }
 
     #[test]
