@@ -126,9 +126,21 @@ fn list(out: &mut Vec<String>, title: &str, items: &[String], max: usize) {
 impl Notifier {
     /// The message for this cycle, or `None` if the cycle has no event (spec "Events").
     pub fn message(&mut self, tg: &Telegram, st: &Status) -> Option<String> {
+        // The memory key: the first line without digits. A time or a PID in the text of the
+        // same error does not make a new event.
+        let key = |t: &Option<String>| {
+            t.as_deref().map(|t| {
+                t.lines()
+                    .next()
+                    .unwrap_or_default()
+                    .chars()
+                    .filter(|c| !c.is_ascii_digit())
+                    .collect::<String>()
+            })
+        };
         let error = match (&st.error, &st.config_error) {
             (None, None) => None,
-            (e, c) => Some(format!("{e:?}|{c:?}")),
+            (e, c) => Some(format!("{:?}|{:?}", key(e), key(c))),
         };
         let alerts = st.report.alerts.clone();
         let mut router_changes = Vec::new();
@@ -569,6 +581,21 @@ mod tests {
         let m = n.message(&tg(), &s).unwrap();
         assert!(m.starts_with("OK: <b>lqosync3 error cleared</b>"), "{m}");
         assert_eq!(n.message(&tg(), &s), None);
+    }
+
+    #[test]
+    fn an_error_with_other_numbers_is_not_a_new_event() {
+        let mut n = Notifier::default();
+        let mut s = st("apply", "online");
+        s.error = Some("LibreQoS reload failed: pid 1234 at 10:00:01\nTraceback line 5".into());
+        assert!(n.message(&tg(), &s).is_some());
+        s.error = Some("LibreQoS reload failed: pid 5678 at 10:00:31\nTraceback line 9".into());
+        assert_eq!(n.message(&tg(), &s), None, "only numbers changed");
+        s.error = Some("cannot read network.json".into());
+        assert!(
+            n.message(&tg(), &s).is_some(),
+            "another error is a new event"
+        );
     }
 
     #[test]

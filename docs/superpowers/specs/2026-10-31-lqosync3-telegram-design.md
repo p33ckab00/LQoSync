@@ -18,7 +18,7 @@ The notifier reads the `status.json` data of each cycle (`Status`). It sends one
 | Event | Setting | Rule |
 |-------|---------|------|
 | Files changed | `notify_on_changes` | `files_changed` is true. In `shadow` mode, the candidate files changed. |
-| Cycle error | `notify_on_error` | `error` or `config_error` is set, and the text is different from the error of the last cycle. |
+| Cycle error | `notify_on_error` | `error` or `config_error` is set, and the text is different from the error of the last cycle. The compare uses the first line without digits, so a new time or PID in the same error is not a new event. |
 | Error cleared | `notify_on_error` | An error was sent before, and the cycle has no error now. |
 | Router state change | `notify_on_error` | A router state is different from the last cycle. At the first cycle, only a router that is not `online` is an event. |
 | Removal guard | `notify_on_error` | `report.alerts` is not empty and is different from the last sent alerts. |
