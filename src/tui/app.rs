@@ -139,6 +139,7 @@ impl App {
         self.data = data;
         self.now = now;
         self.devices.on_data(&self.data);
+        self.settings.set_snapshot(self.data.snapshot.clone());
         self.settings
             .on_status(self.data.status.as_deref(), now, self.action_timeout);
         self.network.on_data(&self.data);

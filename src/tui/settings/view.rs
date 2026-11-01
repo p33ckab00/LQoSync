@@ -8,6 +8,8 @@ use super::meta::{self, KeyMeta, Kind};
 use super::preview::{self, Preview};
 use super::secrets::{Pending, Secret};
 use super::validate;
+use crate::model::RouterSnapshot;
+use crate::sources::{LeaseResult, LeaseView, RateSource};
 use crate::tui::dashboard::Sent;
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyModifiers;
@@ -17,8 +19,9 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use serde_json::Value as Json;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use toml_edit::Value;
 
 /// What the main loop must do for the Settings tab.
@@ -138,6 +141,13 @@ enum Input {
         router: usize,
         buf: String,
     },
+    /// The speed override of one client: download, upload, name.
+    Client {
+        router: usize,
+        mac: String,
+        step: usize,
+        fields: [String; 3],
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -166,11 +176,29 @@ enum Stage {
     Result(String),
 }
 
+/// A row of the keys panel that is not a key.
+#[derive(Debug, Clone)]
+enum Extra {
+    Note(String),
+    Lease(LeaseView),
+    /// A client override entry: its MAC and its line.
+    Client {
+        mac: String,
+        text: String,
+    },
+}
+
 struct Group {
     title: String,
     keys: Vec<(KeyPath, &'static KeyMeta)>,
     router: Option<usize>,
+    /// The router and the index of a `[[routers.dhcp.servers]]` entry.
     server: Option<(usize, usize)>,
+    /// The server of a server group, also when it has no entry in the file.
+    server_name: Option<String>,
+    /// `-` removes the router only in its own groups.
+    router_group: bool,
+    extra: Vec<Extra>,
 }
 
 pub struct SettingsView {
@@ -204,10 +232,63 @@ pub struct SettingsView {
     conflict: Option<(String, Vec<(char, String)>)>,
     /// The backup of the last apply.
     last_backup: Option<PathBuf>,
+    snapshot_text: Option<Arc<String>>,
+    /// The routers that are online in `snapshot.json`.
+    snapshot: HashMap<String, RouterSnapshot>,
+    has_snapshot: bool,
+    /// The leases of each online router, with the draft config.
+    leases: HashMap<String, Vec<LeaseView>>,
 }
 
 fn show(v: &Value) -> String {
     v.clone().decorated("", "").to_string()
+}
+
+fn source_word(s: RateSource) -> &'static str {
+    match s {
+        RateSource::Override => "override",
+        RateSource::ServerComment => "server comment",
+        RateSource::LeaseComment => "lease comment",
+        RateSource::Settings => "settings",
+    }
+}
+
+/// The line of a row that is not a key.
+fn extra_item(e: &Extra) -> ListItem<'static> {
+    let grey = Style::new().fg(Color::DarkGray);
+    match e {
+        Extra::Note(t) => ListItem::new(t.clone()).style(grey),
+        Extra::Client { text, .. } => ListItem::new(format!("override  {text}")),
+        Extra::Lease(l) => {
+            let who = if l.host.is_empty() {
+                l.mac.as_str()
+            } else {
+                l.host.as_str()
+            };
+            match &l.result {
+                LeaseResult::Shaped { rate, source, .. } => ListItem::new(format!(
+                    "lease {who}  {}  {}  {}/{} Mbps  {}",
+                    l.ip,
+                    l.mac,
+                    rate.down,
+                    rate.up,
+                    source_word(*source)
+                )),
+                LeaseResult::Skipped(why) => {
+                    let ov = if l.has_override {
+                        "  (override has no effect)"
+                    } else {
+                        ""
+                    };
+                    ListItem::new(format!(
+                        "lease {who}  {}  {}  not shaped: {why}{ov}",
+                        l.ip, l.mac
+                    ))
+                    .style(grey)
+                }
+            }
+        }
+    }
 }
 
 /// The meta path with each `*` replaced by the next index.
@@ -262,6 +343,10 @@ impl SettingsView {
             scroll: 0,
             conflict: None,
             last_backup: None,
+            snapshot_text: None,
+            snapshot: HashMap::new(),
+            has_snapshot: false,
+            leases: HashMap::new(),
         };
         v.after_change();
         v
@@ -279,6 +364,7 @@ impl SettingsView {
 
     fn after_change(&mut self) {
         self.changed = self.draft.as_ref().map(Draft::changed).unwrap_or_default();
+        self.refresh_leases();
         self.rebuild_groups();
         if let Stage::Result(_) = self.stage {
             self.stage = Stage::Edit;
@@ -323,6 +409,9 @@ impl SettingsView {
                     keys: vec![(p, m)],
                     router: None,
                     server: None,
+                    server_name: None,
+                    router_group: false,
+                    extra: Vec::new(),
                 }),
             }
         }
@@ -353,38 +442,164 @@ impl SettingsView {
                     keys: top,
                     router: Some(i),
                     server: None,
+                    server_name: None,
+                    router_group: true,
+                    extra: Vec::new(),
                 });
+                let leases = self.leases.get(&name);
+                let dhcp_on = d
+                    .effective(&concrete("routers.*.dhcp.enabled", &[i]))
+                    .and_then(|(v, _)| v.as_bool())
+                    .unwrap_or(false);
                 for t in ["pppoe", "hotspot", "dhcp", "exclude"] {
+                    let mut extra = Vec::new();
+                    if t == "dhcp" {
+                        if !dhcp_on {
+                            extra.push(Extra::Note("DHCP is off for this router".into()));
+                        } else if !self.has_snapshot {
+                            extra.push(Extra::Note("leases not known: snapshot.json cannot be read (start the TUI with sudo)".into()));
+                        } else if leases.is_none() {
+                            extra.push(Extra::Note(
+                                "leases not known: the router is not online in snapshot.json"
+                                    .into(),
+                            ));
+                        }
+                    }
                     groups.push(Group {
                         title: format!("router {name} {t}"),
                         keys: pick(&format!("routers.*.{t}.")),
                         router: Some(i),
                         server: None,
+                        server_name: None,
+                        router_group: true,
+                        extra,
                     });
                 }
                 let servers = concrete("routers.*.dhcp.servers", &[i]);
-                for j in 0..d.count(&servers) {
-                    let sname = d
-                        .get(&concrete("routers.*.dhcp.servers.*.name", &[i, j]))
-                        .and_then(|v| v.as_str().map(str::to_string))
-                        .unwrap_or_else(|| format!("#{j}"));
+                let in_file: Vec<String> = (0..d.count(&servers))
+                    .map(|j| {
+                        d.get(&concrete("routers.*.dhcp.servers.*.name", &[i, j]))
+                            .and_then(|v| v.as_str().map(str::to_string))
+                            .unwrap_or_else(|| format!("#{j}"))
+                    })
+                    .collect();
+                // The servers of the file, then the servers of the leases.
+                let mut snames = in_file.clone();
+                for l in leases.into_iter().flatten() {
+                    if !l.server.is_empty() && l.server != "all" && !snames.contains(&l.server) {
+                        snames.push(l.server.clone());
+                    }
+                }
+                for sname in &snames {
+                    let entry = in_file.iter().position(|n| n == sname);
+                    // A server with no entry gets the next index: the first edit makes the entry.
+                    let j = entry.unwrap_or(in_file.len());
                     let keys = meta::all()
                         .iter()
                         .filter(|m| m.path.starts_with("routers.*.dhcp.servers.*."))
                         .map(|m| (concrete(&m.path, &[i, j]), m))
                         .collect();
+                    let rows: Vec<Extra> = leases
+                        .into_iter()
+                        .flatten()
+                        .filter(|l| &l.server == sname)
+                        .cloned()
+                        .map(Extra::Lease)
+                        .collect();
+                    let title = match leases {
+                        Some(_) => {
+                            format!("router {name} dhcp server {sname} ({} leases)", rows.len())
+                        }
+                        None => format!("router {name} dhcp server {sname}"),
+                    };
                     groups.push(Group {
-                        title: format!("router {name} dhcp server {sname}"),
+                        title,
                         keys,
                         router: Some(i),
-                        server: Some((i, j)),
+                        server: entry.map(|e| (i, e)),
+                        server_name: Some(sname.clone()),
+                        router_group: false,
+                        extra: rows,
+                    });
+                }
+                let none: Vec<Extra> = leases
+                    .into_iter()
+                    .flatten()
+                    .filter(|l| {
+                        (l.server.is_empty() || l.server == "all") && !snames.contains(&l.server)
+                    })
+                    .cloned()
+                    .map(Extra::Lease)
+                    .collect();
+                if !none.is_empty() {
+                    groups.push(Group {
+                        title: format!("router {name} dhcp no server ({} leases)", none.len()),
+                        keys: Vec::new(),
+                        router: Some(i),
+                        server: None,
+                        server_name: None,
+                        router_group: false,
+                        extra: none,
+                    });
+                }
+                let cpath = concrete("routers.*.dhcp.clients", &[i]);
+                let clients: Vec<Extra> = d
+                    .get(&cpath)
+                    .and_then(|it| it.as_array_of_tables().cloned())
+                    .into_iter()
+                    .flat_map(|a| a.into_iter())
+                    .map(|t| {
+                        let txt = |k: &str| {
+                            t.get(k)
+                                .and_then(|v| v.as_value())
+                                .map(show)
+                                .unwrap_or_default()
+                        };
+                        let mac = t
+                            .get("mac")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default()
+                            .to_string();
+                        let norm = crate::config::normalize_mac(&mac);
+                        let state = match leases {
+                            None => "lease not known",
+                            Some(ls)
+                                if ls
+                                    .iter()
+                                    .any(|l| crate::config::normalize_mac(&l.mac) == norm) =>
+                            {
+                                "active lease"
+                            }
+                            Some(_) => "no active lease",
+                        };
+                        let text = format!(
+                            "{mac}  {}/{} Mbps  {}  {state}",
+                            txt("download_mbps"),
+                            txt("upload_mbps"),
+                            t.get("name").and_then(|v| v.as_str()).unwrap_or("")
+                        );
+                        Extra::Client { mac, text }
+                    })
+                    .collect();
+                if !clients.is_empty() {
+                    groups.push(Group {
+                        title: format!("router {name} dhcp clients"),
+                        keys: Vec::new(),
+                        router: Some(i),
+                        server: None,
+                        server_name: None,
+                        router_group: false,
+                        extra: clients,
                     });
                 }
             }
         }
         self.groups = groups;
         self.group = self.group.min(self.groups.len().saturating_sub(1));
-        let n = self.groups.get(self.group).map_or(0, |g| g.keys.len());
+        let n = self
+            .groups
+            .get(self.group)
+            .map_or(0, |g| g.keys.len() + g.extra.len());
         self.key = self.key.min(n.saturating_sub(1));
     }
 
@@ -402,6 +617,174 @@ impl SettingsView {
 
     fn current(&self) -> Option<&(KeyPath, &'static KeyMeta)> {
         self.groups.get(self.group)?.keys.get(self.key)
+    }
+
+    /// The row under the cursor that is not a key.
+    fn current_extra(&self) -> Option<&Extra> {
+        let g = self.groups.get(self.group)?;
+        g.extra.get(self.key.checked_sub(g.keys.len())?)
+    }
+
+    /// Select a group by its title.
+    pub fn select_group(&mut self, title: &str) -> bool {
+        match self.groups.iter().position(|g| g.title == title) {
+            Some(i) => {
+                (self.group, self.key, self.focus) = (i, 0, 0);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Select the row of a lease by its MAC (as the router gives it).
+    pub fn select_lease(&mut self, mac: &str) -> bool {
+        for (gi, g) in self.groups.iter().enumerate() {
+            if let Some(x) = g
+                .extra
+                .iter()
+                .position(|e| matches!(e, Extra::Lease(l) if l.mac == mac))
+            {
+                (self.group, self.key, self.focus) = (gi, g.keys.len() + x, 1);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// New `snapshot.json` text. The lease lists follow it.
+    pub fn set_snapshot(&mut self, text: Option<Arc<String>>) {
+        if text.as_ref().map(Arc::as_ptr) == self.snapshot_text.as_ref().map(Arc::as_ptr) {
+            return;
+        }
+        self.snapshot.clear();
+        self.has_snapshot = false;
+        if let Some((_, routers)) = text
+            .as_deref()
+            .and_then(|t| super::preview::snapshot_routers(t).ok())
+        {
+            self.has_snapshot = true;
+            for (name, r) in routers {
+                if let crate::cycle::RouterResult::Online(s) = r {
+                    self.snapshot.insert(name, s);
+                }
+            }
+        }
+        self.snapshot_text = text;
+        self.after_change();
+    }
+
+    /// The lease lists of the online routers, with the draft config (the last good one on an error).
+    fn refresh_leases(&mut self) {
+        let Some(cfg) = self
+            .draft
+            .as_ref()
+            .and_then(|d| validate::parse(&d.text()).ok())
+        else {
+            return;
+        };
+        self.leases.clear();
+        for r in &cfg.routers {
+            if let Some(snap) = self.snapshot.get(&r.name) {
+                self.leases.insert(
+                    r.name.clone(),
+                    crate::sources::router_leases(&cfg, r, snap).unwrap_or_default(),
+                );
+            }
+        }
+    }
+
+    /// A server group with no entry in the file: make the entry before the first change of a key.
+    fn ensure_entry(&mut self) {
+        let Some(g) = self.groups.get(self.group) else {
+            return;
+        };
+        if let (None, Some(name), Some(r)) = (g.server, g.server_name.clone(), g.router)
+            && let Some(d) = self.draft.as_mut()
+        {
+            let _ = d.add_server(r, &name);
+        }
+    }
+
+    /// Enter on a row that is not a key.
+    fn extra_enter(&mut self) {
+        let Some(e) = self.current_extra().cloned() else {
+            return;
+        };
+        if self.blocked() {
+            return;
+        }
+        let router = self.groups.get(self.group).and_then(|g| g.router);
+        match e {
+            Extra::Lease(l) => match (&l.result, router) {
+                (LeaseResult::Skipped(why), _) => {
+                    self.message = Some(format!("not shaped: {why}; an override has no effect"));
+                }
+                (LeaseResult::Shaped { rate, .. }, Some(r)) => {
+                    let fields = [
+                        rate.down.to_string(),
+                        rate.up.to_string(),
+                        self.client_name(r, &l.mac),
+                    ];
+                    self.input = Input::Client {
+                        router: r,
+                        mac: l.mac.clone(),
+                        step: 0,
+                        fields,
+                    };
+                }
+                _ => {}
+            },
+            Extra::Client { .. } => {
+                self.message = Some("r removes this override; Enter on its lease changes it".into())
+            }
+            Extra::Note(_) => {}
+        }
+    }
+
+    /// The name of the override of a client, or "".
+    fn client_name(&self, router: usize, mac: &str) -> String {
+        let norm = crate::config::normalize_mac(mac);
+        self.draft
+            .as_ref()
+            .and_then(|d| d.get(&concrete("routers.*.dhcp.clients", &[router])))
+            .and_then(|i| {
+                i.as_array_of_tables()?
+                    .iter()
+                    .find(|t| {
+                        t.get("mac")
+                            .and_then(|v| v.as_str())
+                            .and_then(crate::config::normalize_mac)
+                            == norm
+                    })
+                    .and_then(|t| t.get("name").and_then(|v| v.as_str()).map(str::to_string))
+            })
+            .unwrap_or_default()
+    }
+
+    /// `r` on a row that is not a key: remove the override of the client.
+    fn extra_remove(&mut self) {
+        let Some(e) = self.current_extra().cloned() else {
+            return;
+        };
+        if self.blocked() {
+            return;
+        }
+        let Some(r) = self.groups.get(self.group).and_then(|g| g.router) else {
+            return;
+        };
+        let mac = match e {
+            Extra::Lease(l) if l.has_override => l.mac,
+            Extra::Client { mac, .. } => mac,
+            _ => {
+                self.message = Some("this client has no override".into());
+                return;
+            }
+        };
+        let res = self.draft.as_mut().map(|d| d.remove_client(r, &mac));
+        if let Some(res) = res {
+            self.result(res);
+        }
+        self.changed_now();
     }
 
     /// The value in the file, else the default.
@@ -459,8 +842,14 @@ impl SettingsView {
             | KeyCode::PageDown
             | KeyCode::Home
             | KeyCode::End => self.move_sel(k.code),
+            KeyCode::Enter | KeyCode::Char(' ')
+                if self.focus == 1 && self.current_extra().is_some() =>
+            {
+                self.extra_enter()
+            }
             KeyCode::Enter | KeyCode::Char(' ') if self.focus == 1 => self.edit(),
             KeyCode::Enter => self.focus = 1,
+            KeyCode::Char('r') if self.current_extra().is_some() => self.extra_remove(),
             KeyCode::Char('r') => self.reset(),
             KeyCode::Char('u') => {
                 if !self.blocked() {
@@ -506,7 +895,10 @@ impl SettingsView {
         let (sel, len) = if self.focus == 0 {
             (&mut self.group, self.groups.len())
         } else {
-            let n = self.groups.get(self.group).map_or(0, |g| g.keys.len());
+            let n = self
+                .groups
+                .get(self.group)
+                .map_or(0, |g| g.keys.len() + g.extra.len());
             (&mut self.key, n)
         };
         let last = len.saturating_sub(1);
@@ -538,6 +930,7 @@ impl SettingsView {
         match &m.kind {
             Kind::Bool => {
                 let on = cur.and_then(|v| v.as_bool()).unwrap_or(false);
+                self.ensure_entry();
                 let r = self.draft.as_mut().map(|d| d.set(&p, Value::from(!on)));
                 if let Some(r) = r {
                     self.result(r);
@@ -648,7 +1041,9 @@ impl SettingsView {
             return;
         }
         let g = self.groups.get(self.group);
-        let dhcp = g.is_some_and(|g| g.server.is_some() || g.title.ends_with(" dhcp"));
+        let dhcp = g.is_some_and(|g| {
+            g.server_name.is_some() || g.title.ends_with(" dhcp") || g.title.contains(" dhcp ")
+        });
         match g.and_then(|g| g.router) {
             Some(r) if dhcp => {
                 self.input = Input::AddServer {
@@ -676,7 +1071,12 @@ impl SettingsView {
         };
         self.modal = match (g.server, g.router) {
             (Some((r, s)), _) => Some(VModal::RemoveServer(r, s)),
-            (None, Some(r)) => Some(VModal::RemoveRouter(r)),
+            (None, Some(_)) if g.server_name.is_some() => {
+                self.message =
+                    Some("this server has no entry in the file: nothing to remove".into());
+                None
+            }
+            (None, Some(r)) if g.router_group => Some(VModal::RemoveRouter(r)),
             _ => {
                 self.message = Some("- removes a router or a DHCP server: select its group".into());
                 None
@@ -813,6 +1213,7 @@ impl SettingsView {
                     }
                 }
                 KeyCode::Enter => {
+                    self.ensure_entry();
                     let v = Value::from(choices[sel]);
                     let r = self.draft.as_mut().map(|d| {
                         if list_add {
@@ -878,6 +1279,7 @@ impl SettingsView {
                         },
                     },
                     KeyCode::Char('d') | KeyCode::Char('K') | KeyCode::Char('J') if len > 0 => {
+                        self.ensure_entry();
                         let r = self.draft.as_mut().map(|d| match k.code {
                             KeyCode::Char('d') => d.list_remove(&path, sel),
                             KeyCode::Char('K') => d.list_move(&path, sel, sel.saturating_sub(1)),
@@ -920,6 +1322,71 @@ impl SettingsView {
                     Input::Secret { path, value }
                 }
                 _ => Input::Secret { path, value },
+            },
+            Input::Client {
+                router,
+                mac,
+                step,
+                mut fields,
+            } => match k.code {
+                KeyCode::Esc => Input::None,
+                KeyCode::Backspace => {
+                    fields[step].pop();
+                    Input::Client {
+                        router,
+                        mac,
+                        step,
+                        fields,
+                    }
+                }
+                KeyCode::Char(c) => {
+                    fields[step].push(c);
+                    Input::Client {
+                        router,
+                        mac,
+                        step,
+                        fields,
+                    }
+                }
+                KeyCode::Enter if step < 2 => match fields[step].trim().parse::<f64>() {
+                    Ok(v) if v.is_finite() => Input::Client {
+                        router,
+                        mac,
+                        step: step + 1,
+                        fields,
+                    },
+                    _ => {
+                        self.message =
+                            Some(format!("\"{}\" is not a number of Mbps", fields[step]));
+                        Input::Client {
+                            router,
+                            mac,
+                            step,
+                            fields,
+                        }
+                    }
+                },
+                KeyCode::Enter => {
+                    let (down, up) = (
+                        fields[0].trim().parse::<f64>().unwrap_or(0.0),
+                        fields[1].trim().parse::<f64>().unwrap_or(0.0),
+                    );
+                    let r = self
+                        .draft
+                        .as_mut()
+                        .map(|d| d.set_client(router, &mac, down, up, Some(&fields[2])));
+                    if let Some(r) = r {
+                        self.result(r);
+                    }
+                    self.changed_now();
+                    Input::None
+                }
+                _ => Input::Client {
+                    router,
+                    mac,
+                    step,
+                    fields,
+                },
             },
             Input::AddServer { router, mut buf } => match k.code {
                 KeyCode::Esc => Input::None,
@@ -1057,6 +1524,7 @@ impl SettingsView {
             },
             _ => Value::from(buf),
         };
+        self.ensure_entry();
         let r = self.draft.as_mut().map(|d| {
             if list_add {
                 d.list_push(path, v)
@@ -1280,7 +1748,7 @@ impl SettingsView {
             (None, Input::Secret { .. }) => {
                 "type the secret (hidden)   [Enter] keep   [Esc] cancel"
             }
-            (None, Input::AddRouter { .. }) => "[Enter] next   [Esc] cancel",
+            (None, Input::AddRouter { .. } | Input::Client { .. }) => "[Enter] next   [Esc] cancel",
             (None, Input::None) => "",
         }
         .to_string()
@@ -1414,6 +1882,7 @@ impl SettingsView {
                         let ro = if m.read_only { "  (read-only)" } else { "" };
                         ListItem::new(format!("{name} = {text}{mark}{ro}"))
                     })
+                    .chain(grp.extra.iter().map(extra_item))
                     .collect()
             })
             .unwrap_or_default();
@@ -1535,7 +2004,37 @@ impl SettingsView {
             return out;
         }
         let Some((p, m)) = self.current() else {
-            return vec![Line::from("no key")];
+            return match self.current_extra() {
+                Some(Extra::Lease(l)) => vec![
+                    Line::from(format!(
+                        "lease of {}",
+                        if l.host.is_empty() { &l.mac } else { &l.host }
+                    )),
+                    Line::from(format!(
+                        "MAC: {}  IP: {}  server: {}",
+                        l.mac,
+                        l.ip,
+                        if l.server.is_empty() {
+                            "none"
+                        } else {
+                            &l.server
+                        }
+                    )),
+                    Line::from(format!("comment: {}", l.comment)),
+                    Line::from(""),
+                    Line::from(
+                        "Enter: set the speed of this client (an override in [[routers.dhcp.clients]])",
+                    ),
+                    Line::from("r: remove its override"),
+                ],
+                Some(Extra::Client { text, .. }) => vec![
+                    Line::from(text.clone()),
+                    Line::from(""),
+                    Line::from("r: remove this override"),
+                ],
+                Some(Extra::Note(t)) => vec![Line::from(t.clone())],
+                None => vec![Line::from("no key")],
+            };
         };
         let mut out: Vec<Line> = m.help.lines().map(|l| Line::from(l.to_string())).collect();
         out.push(Line::from(""));
@@ -1666,6 +2165,23 @@ impl SettingsView {
                 ],
                 5,
             ),
+            Input::Client {
+                mac, step, fields, ..
+            } => {
+                let labels = [
+                    "download max (Mbps)",
+                    "upload max (Mbps)",
+                    "name (optional)",
+                ];
+                let mut lines = vec![Line::from(format!(
+                    "client {mac}: the override replaces the rate of its lease"
+                ))];
+                for (i, l) in labels.iter().enumerate() {
+                    let cur = if i == *step { "_" } else { "" };
+                    lines.push(Line::from(format!("{l}: {}{cur}", fields[i])));
+                }
+                popup(f, "client speed", lines, 6);
+            }
             Input::AddServer { buf, .. } => popup(
                 f,
                 "add DHCP server",
@@ -2311,6 +2827,203 @@ mod tests {
             screen(&mut v, 160, 40)
                 .contains("apply blocked: fix the cause, then [v] preview again")
         );
+    }
+
+    const DFILE: &str = "[[routers]]\nname = \"R1\"\naddress = \"192.0.2.1\"\nusername = \"u\"\npassword_file = \"/etc/lqosync3/secrets/R1.password\"\n[routers.dhcp]\nenabled = true\n[[routers.dhcp.servers]]\nname = \"LAN\"\n";
+
+    fn dsnap() -> std::sync::Arc<String> {
+        std::sync::Arc::new(
+            serde_json::json!({"version": 1, "taken": 1000, "routers": [{"name": "R1", "state": "online", "read_at": 1000, "read_ms": 5,
+                "snapshot": {"dhcp_server": [{"name": "LAN", "comment": "Site|10M/10M"}, {"name": "GUEST"}, {"name": "OFF", "disabled": "true"}],
+                "dhcp_lease": [
+                    {"server": "LAN", "host-name": "a", "mac-address": "02:00:00:00:0b:01", "address": "100.66.11.1"},
+                    {"server": "GUEST", "host-name": "b", "mac-address": "02:00:00:00:0b:02", "address": "100.66.11.2"},
+                    {"server": "OFF", "host-name": "c", "mac-address": "02:00:00:00:0b:03", "address": "100.66.11.3"}]}}]})
+            .to_string(),
+        )
+    }
+
+    fn dview(extra: &str) -> SettingsView {
+        let mut v = SettingsView::new(
+            PathBuf::from("/tmp/x.toml"),
+            &format!("{DFILE}{extra}"),
+            false,
+        );
+        v.set_snapshot(Some(dsnap()));
+        v
+    }
+
+    fn clear(v: &mut SettingsView) {
+        for _ in 0..12 {
+            v.on_key(key(KeyCode::Backspace));
+        }
+    }
+
+    #[test]
+    fn discovered_servers_and_leases_are_listed() {
+        let mut v = dview("");
+        assert!(v.select_group("router R1 dhcp server GUEST (1 leases)"));
+        let s = screen(&mut v, 180, 50);
+        assert!(
+            s.contains("100.66.11.2") && s.contains("02:00:00:00:0b:02"),
+            "{s}"
+        );
+        assert!(v.select_group("router R1 dhcp server LAN (1 leases)"));
+        assert!(
+            screen(&mut v, 180, 50).contains("10/10 Mbps"),
+            "{}",
+            screen(&mut v, 180, 50)
+        );
+        assert!(v.select_group("router R1 dhcp server OFF (1 leases)"));
+        assert!(screen(&mut v, 180, 50).contains("not shaped: disabled server"));
+    }
+
+    #[test]
+    fn enter_on_a_lease_makes_an_override() {
+        let mut v = dview("");
+        assert!(v.select_lease("02:00:00:00:0b:02"));
+        v.on_key(key(KeyCode::Enter));
+        assert!(v.capturing());
+        clear(&mut v);
+        typing(&mut v, "50");
+        v.on_key(key(KeyCode::Enter));
+        clear(&mut v);
+        typing(&mut v, "20");
+        v.on_key(key(KeyCode::Enter));
+        typing(&mut v, "Juan");
+        v.on_key(key(KeyCode::Enter));
+        let t = v.draft.as_ref().unwrap().text();
+        assert!(t.contains("mac = \"02:00:00:00:0B:02\""), "{t}");
+        let c = crate::config::Config::from_toml_str(&t).unwrap();
+        assert_eq!(
+            (
+                c.routers[0].dhcp.clients[0].download_mbps,
+                c.routers[0].dhcp.clients[0].upload_mbps
+            ),
+            (50.0, 20.0)
+        );
+    }
+
+    #[test]
+    fn a_skipped_lease_cannot_get_an_override() {
+        let mut v = dview("");
+        assert!(v.select_lease("02:00:00:00:0b:03"));
+        v.on_key(key(KeyCode::Enter));
+        assert!(!v.capturing());
+        assert!(
+            v.message
+                .as_deref()
+                .unwrap()
+                .contains("not shaped: disabled server"),
+            "{:?}",
+            v.message
+        );
+    }
+
+    #[test]
+    fn an_edit_of_a_discovered_server_makes_its_entry() {
+        let mut v = dview("");
+        assert!(v.select_group("router R1 dhcp server GUEST (1 leases)"));
+        v.focus = 1;
+        let i = v.groups[v.group]
+            .keys
+            .iter()
+            .position(|(p, _)| path_text(p).ends_with(".mode"))
+            .unwrap();
+        v.key = i;
+        v.on_key(key(KeyCode::Enter));
+        v.on_key(key(KeyCode::Down));
+        v.on_key(key(KeyCode::Enter));
+        let c = crate::config::Config::from_toml_str(&v.draft.as_ref().unwrap().text()).unwrap();
+        let g = c.routers[0]
+            .dhcp
+            .servers
+            .iter()
+            .find(|s| s.name == "GUEST")
+            .unwrap();
+        assert_eq!(g.mode, crate::config::DhcpMode::PerPlan);
+    }
+
+    #[test]
+    fn an_override_without_a_lease_shows_no_active_lease() {
+        let mut v = dview(
+            "[[routers.dhcp.clients]]\nmac = \"02:00:00:00:0B:99\"\ndownload_mbps = 5\nupload_mbps = 5\n",
+        );
+        assert!(v.select_group("router R1 dhcp clients"));
+        assert!(screen(&mut v, 180, 50).contains("no active lease"));
+    }
+
+    #[test]
+    fn no_snapshot_shows_only_the_toml_servers() {
+        let mut v = SettingsView::new(PathBuf::from("/tmp/x.toml"), DFILE, false);
+        assert!(v.select_group("router R1 dhcp server LAN"));
+        assert!(!v.select_group("router R1 dhcp server GUEST (1 leases)"));
+        assert!(v.select_group("router R1 dhcp"));
+        assert!(screen(&mut v, 180, 50).contains("leases not known"));
+    }
+
+    #[test]
+    fn minus_on_a_server_group_never_removes_the_router() {
+        let mut v = dview("");
+        assert!(v.select_group("router R1 dhcp server GUEST (1 leases)"));
+        v.on_key(key(KeyCode::Char('-')));
+        assert!(v.modal.is_none(), "{:?}", v.modal);
+        assert!(v.select_group("router R1 dhcp server LAN (1 leases)"));
+        v.on_key(key(KeyCode::Char('-')));
+        assert!(
+            matches!(v.modal, Some(VModal::RemoveServer(0, 0))),
+            "{:?}",
+            v.modal
+        );
+    }
+
+    #[test]
+    fn r_on_a_lease_removes_its_override() {
+        let mut v = dview(
+            "[[routers.dhcp.clients]]\nmac = \"02:00:00:00:0B:02\"\ndownload_mbps = 5\nupload_mbps = 5\n",
+        );
+        assert!(v.select_lease("02:00:00:00:0b:02"));
+        assert!(screen(&mut v, 180, 50).contains("override"));
+        v.on_key(key(KeyCode::Char('r')));
+        let c = crate::config::Config::from_toml_str(&v.draft.as_ref().unwrap().text()).unwrap();
+        assert!(c.routers[0].dhcp.clients.is_empty());
+    }
+
+    #[test]
+    fn run_preview_shows_one_circuit_line_for_an_override() {
+        let dir = tempfile::tempdir().unwrap();
+        let (lqos, state) = (dir.path().join("lqos"), dir.path().join("state"));
+        std::fs::create_dir_all(&lqos).unwrap();
+        std::fs::create_dir_all(&state).unwrap();
+        std::fs::write(state.join("snapshot.json"), dsnap().as_str()).unwrap();
+        let pw = dir.path().join("R1.password");
+        let old = format!(
+            "[runtime]\nstate_dir = \"{}\"\n[libreqos]\ntarget = \"v2_pair\"\ndirectory = \"{}\"\n[network]\nmode = \"root_promotion\"\n[safety]\nenabled = false\n{}",
+            state.display(),
+            lqos.display(),
+            DFILE.replace(
+                "/etc/lqosync3/secrets/R1.password",
+                &pw.display().to_string()
+            )
+        );
+        let new = format!(
+            "{old}[[routers.dhcp.clients]]\nmac = \"02:00:00:00:0B:02\"\ndownload_mbps = 50\nupload_mbps = 20\n"
+        );
+        let job = PreviewJob {
+            id: 1,
+            old_text: old,
+            new_text: new,
+            typed: HashSet::from([pw]),
+            changed: vec!["routers.0.dhcp.clients.0.mac".into()],
+            loaded_digest: None,
+        };
+        match run_preview(job).result {
+            Preview::Ran(r) => {
+                assert_eq!(r.counts[2], 1, "{}", r.text);
+                assert!(r.text.contains("~ circuit DHCP-b"), "{}", r.text);
+            }
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]

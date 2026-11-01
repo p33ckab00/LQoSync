@@ -379,6 +379,92 @@ impl Draft {
         Ok(())
     }
 
+    /// The `[[routers.dhcp.clients]]` list of a router (made if it does not exist).
+    fn clients(&mut self, router: usize) -> anyhow::Result<&mut ArrayOfTables> {
+        let path = vec![
+            Seg::Key("routers".into()),
+            Seg::Index(router),
+            Seg::Key("dhcp".into()),
+        ];
+        let dhcp = self.table_mut(&path, true)?;
+        if dhcp.get("clients").is_none() {
+            dhcp.insert("clients", Item::ArrayOfTables(ArrayOfTables::new()));
+        }
+        dhcp.get_mut("clients")
+            .and_then(Item::as_array_of_tables_mut)
+            .ok_or_else(|| anyhow!("routers.{router}.dhcp.clients is not a list of tables"))
+    }
+
+    /// Set the speed override of the client with this MAC (any form). The MAC is written as
+    /// `AA:BB:CC:DD:EE:FF`. An entry with the same MAC is updated, else one is added.
+    pub fn set_client(
+        &mut self,
+        router: usize,
+        mac: &str,
+        down: f64,
+        up: f64,
+        name: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let m = crate::config::normalize_mac(mac)
+            .ok_or_else(|| anyhow!("\"{mac}\" is not a MAC address (AA:BB:CC:DD:EE:FF)"))?;
+        self.save();
+        let list = self.clients(router)?;
+        let found = list.iter_mut().find(|t| {
+            t.get("mac")
+                .and_then(|v| v.as_str())
+                .and_then(crate::config::normalize_mac)
+                .as_deref()
+                == Some(m.as_str())
+        });
+        let t = match found {
+            Some(t) => t,
+            None => {
+                let mut t = Table::new();
+                t.insert("mac", toml_edit::value(m.as_str()));
+                list.push(t);
+                list.iter_mut().last().expect("pushed")
+            }
+        };
+        t.insert("download_mbps", toml_edit::value(down));
+        t.insert("upload_mbps", toml_edit::value(up));
+        match name.map(str::trim).filter(|n| !n.is_empty()) {
+            Some(n) => {
+                t.insert("name", toml_edit::value(n));
+            }
+            None => {
+                t.remove("name");
+            }
+        }
+        Ok(())
+    }
+
+    /// Remove the override of the client with this MAC. `false` if there is none.
+    pub fn remove_client(&mut self, router: usize, mac: &str) -> anyhow::Result<bool> {
+        let Some(m) = crate::config::normalize_mac(mac) else {
+            return Ok(false);
+        };
+        let path = vec![
+            Seg::Key("routers".into()),
+            Seg::Index(router),
+            Seg::Key("dhcp".into()),
+            Seg::Key("clients".into()),
+        ];
+        let Some(i) = self.get(&path).and_then(|i| {
+            i.as_array_of_tables()?.iter().position(|t| {
+                t.get("mac")
+                    .and_then(|v| v.as_str())
+                    .and_then(crate::config::normalize_mac)
+                    .as_deref()
+                    == Some(m.as_str())
+            })
+        }) else {
+            return Ok(false);
+        };
+        self.save();
+        self.clients(router)?.remove(i);
+        Ok(true)
+    }
+
     /// The array at `p`. A list that is not in the file starts from its effective value
     /// (the `[router_defaults]` of the file, or the default).
     fn array(&self, p: &[Seg]) -> anyhow::Result<Array> {
@@ -676,6 +762,38 @@ mod tests {
         assert!(diff.contains(&('+', "mode = \"apply\" # shadow | apply".to_string())));
         assert!(diff.contains(&(' ', "[runtime]".to_string())));
         assert_eq!(diff.iter().filter(|(c, _)| *c != ' ').count(), 2);
+    }
+
+    #[test]
+    fn set_client_adds_and_updates_by_mac() {
+        let mut d = Draft::new(MIN).unwrap();
+        d.set_client(0, "aa-bb-cc-dd-ee-ff", 50.0, 20.0, Some("Juan"))
+            .unwrap();
+        d.set_client(0, "AA:BB:CC:DD:EE:FF", 60.0, 25.0, None)
+            .unwrap();
+        let c = Config::from_toml_str(&d.text()).unwrap();
+        let cl = &c.routers[0].dhcp.clients;
+        assert_eq!(cl.len(), 1);
+        assert_eq!(
+            (cl[0].mac.as_str(), cl[0].download_mbps, cl[0].upload_mbps),
+            ("AA:BB:CC:DD:EE:FF", 60.0, 25.0)
+        );
+        assert!(d.set_client(0, "nope", 5.0, 5.0, None).is_err());
+    }
+
+    #[test]
+    fn remove_client_by_mac() {
+        let mut d = Draft::new(MIN).unwrap();
+        d.set_client(0, "AA:BB:CC:DD:EE:FF", 50.0, 20.0, None)
+            .unwrap();
+        assert!(d.remove_client(0, "aa-bb-cc-dd-ee-ff").unwrap());
+        assert!(!d.remove_client(0, "AA:BB:CC:DD:EE:FF").unwrap());
+        assert!(
+            Config::from_toml_str(&d.text()).unwrap().routers[0]
+                .dhcp
+                .clients
+                .is_empty()
+        );
     }
 
     #[test]

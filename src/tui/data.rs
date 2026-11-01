@@ -43,6 +43,8 @@ pub struct Data {
     pub versions: Versions,
     pub proc: Option<ProcInfo>,
     pub errors: Vec<String>,
+    /// The text of `snapshot.json` (mode 0600: `None` if this process cannot read it).
+    pub snapshot: Option<Arc<String>>,
 }
 
 type Stamp = Option<(SystemTime, u64)>;
@@ -80,6 +82,7 @@ pub struct Loader {
     status_text: String,
     input_stamps: Vec<Stamp>,
     config_stamp: Stamp,
+    snapshot_stamp: Stamp,
     versions_at: Option<Instant>,
     sampler: Sampler,
 }
@@ -96,6 +99,7 @@ impl Loader {
             status_text: String::new(),
             input_stamps: Vec::new(),
             config_stamp: None,
+            snapshot_stamp: None,
             versions_at: None,
             sampler: Sampler::default(),
         }
@@ -162,6 +166,12 @@ impl Loader {
             self.data.versions = Versions { libreqos, lqosd };
         }
 
+        let snap_path = state_dir.join("snapshot.json");
+        let ss = stamp(&snap_path);
+        if ss != self.snapshot_stamp {
+            self.snapshot_stamp = ss;
+            self.data.snapshot = std::fs::read_to_string(&snap_path).ok().map(Arc::new);
+        }
         let cs = stamp(&self.config_path);
         if cs != self.config_stamp {
             self.config_stamp = cs;
@@ -497,6 +507,23 @@ mod tests {
             "{:?}",
             d.errors
         );
+    }
+
+    #[test]
+    fn loader_reads_the_snapshot_text() {
+        let (e, mut l) = env();
+        assert!(l.load().snapshot.is_none());
+        std::fs::write(
+            e.state.join("snapshot.json"),
+            r#"{"version":1,"taken":5,"routers":[]}"#,
+        )
+        .unwrap();
+        let (a, b) = (l.load(), l.load());
+        assert!(a.snapshot.as_deref().unwrap().contains("taken"));
+        assert!(Arc::ptr_eq(
+            a.snapshot.as_ref().unwrap(),
+            b.snapshot.as_ref().unwrap()
+        ));
     }
 
     #[test]
