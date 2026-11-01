@@ -405,15 +405,11 @@ where
             }
         };
         status.report = ReportSummary::from_report(&out.report, &out.rows, &state);
-        // A new LibreQoS has no ShapedDevices.csv. LibreQoS.py --updateonly then fails, because it
-        // has no last loaded files: the first reload is a full run, until it works.
-        let first = state_dir.join("first-reload-pending");
-        if !v3
-            && self.cfg.runtime.mode == RuntimeMode::Apply
-            && !lqos_dir.join("ShapedDevices.csv").exists()
-        {
-            files::write_if_changed(&first, b"LibreQoS had no ShapedDevices.csv")?;
-        }
+        // LibreQoS.py --updateonly needs the last loaded file of a full run. A new LibreQoS has
+        // none, so the reload is a full run until LibreQoS writes that file.
+        let full = !Path::new(&self.cfg.libreqos.state_directory)
+            .join("shaping/ShapedDevices.lastLoaded.csv")
+            .exists();
 
         // The state first: if the process stops here, the next cycle gives the same files.
         files::write_if_changed(
@@ -446,23 +442,14 @@ where
             if pending.exists() {
                 std::fs::remove_file(&pending)?;
             }
-        } else if self.cfg.runtime.mode == RuntimeMode::Apply
-            && (changed || pending.exists() || first.exists())
-        {
+        } else if self.cfg.runtime.mode == RuntimeMode::Apply && (changed || pending.exists()) {
             let l = &self.cfg.libreqos;
-            let (args, full) = if first.exists() {
-                (&l.v2_first_args, true)
-            } else {
-                (&l.v2_args, false)
-            };
+            let args = if full { &l.v2_first_args } else { &l.v2_args };
             match files::run_reload(&l.v2_command, args, Duration::from_secs(l.v2_timeout)).await {
                 Ok(()) => {
                     status.reload = if full { "ok (first full run)" } else { "ok" }.into();
                     if pending.exists() {
                         std::fs::remove_file(&pending)?;
-                    }
-                    if first.exists() {
-                        std::fs::remove_file(&first)?;
                     }
                 }
                 Err(e) => {
@@ -596,24 +583,25 @@ mod tests {
 
     fn cfg(e: &Env, mode: &str, extra: &str) -> Config {
         Config::from_toml_str(&format!(
-            "[runtime]\nmode=\"{mode}\"\nstate_dir=\"{}\"\n[libreqos]\ntarget=\"v2_pair\"\ndirectory=\"{}\"\nv2_command=\"/bin/sh\"\nv2_args=[\"-c\",\"touch {}/reloaded\"]\nv2_first_args=[\"-c\",\"touch {}/full\"]\n\
+            "[runtime]\nmode=\"{mode}\"\nstate_dir=\"{1}\"\n[libreqos]\ntarget=\"v2_pair\"\ndirectory=\"{0}\"\nstate_directory=\"{0}/lqstate\"\nv2_command=\"/bin/sh\"\nv2_args=[\"-c\",\"touch {0}/reloaded\"]\nv2_first_args=[\"-c\",\"touch {0}/full && mkdir -p {0}/lqstate/shaping && touch {0}/lqstate/shaping/ShapedDevices.lastLoaded.csv\"]\n\
              [network]\nmode=\"root_promotion\"\n[safety]\nenabled=false\n{extra}\n\
              [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
+            e.lqos.display(),
             e.state.display(),
-            e.lqos.display(),
-            e.lqos.display(),
-            e.lqos.display()
         ))
         .unwrap()
     }
 
-    /// A LibreQoS that ran before: it has a ShapedDevices.csv, so a reload uses --updateonly.
+    /// A LibreQoS that did a full run before: it has its last loaded file, so a reload uses --updateonly.
     fn live_csv(e: &Env) {
         std::fs::write(
             e.lqos.join("ShapedDevices.csv"),
             "Circuit ID,Circuit Name\n",
         )
         .unwrap();
+        let shaping = e.lqos.join("lqstate/shaping");
+        std::fs::create_dir_all(&shaping).unwrap();
+        std::fs::write(shaping.join("ShapedDevices.lastLoaded.csv"), "").unwrap();
     }
 
     fn runner(e: &Env, c: Config) -> Runner<FakeConnector> {
@@ -652,11 +640,7 @@ mod tests {
     #[tokio::test]
     async fn apply_backs_up_writes_and_reloads() {
         let e = env();
-        std::fs::write(
-            e.lqos.join("ShapedDevices.csv"),
-            "Circuit ID,Circuit Name\n",
-        )
-        .unwrap();
+        live_csv(&e);
         users(&e, &[("alice", "100.64.0.2")]);
         let s = runner(&e, cfg(&e, "apply", "")).cycle(1_000, false).await;
         assert_eq!((s.error, s.status.reload.as_str()), (None, "ok"));
@@ -690,22 +674,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_shipped_csv_without_a_full_run_still_gets_a_full_run() {
+        let e = env();
+        std::fs::write(
+            e.lqos.join("ShapedDevices.csv"),
+            "Circuit ID,Circuit Name\n",
+        )
+        .unwrap();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let s = runner(&e, cfg(&e, "apply", "")).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        assert!(e.lqos.join("full").exists());
+    }
+
+    #[tokio::test]
+    async fn a_live_shaper_without_its_csv_gets_no_full_run() {
+        // The CSV was removed by hand, but LibreQoS did a full run before.
+        let e = env();
+        live_csv(&e);
+        std::fs::remove_file(e.lqos.join("ShapedDevices.csv")).unwrap();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let s = runner(&e, cfg(&e, "apply", "")).cycle(1_000, false).await;
+        assert_eq!((s.error, s.status.reload.as_str()), (None, "ok"));
+        assert!(e.lqos.join("reloaded").exists());
+        assert!(!e.lqos.join("full").exists());
+    }
+
+    #[tokio::test]
     async fn the_full_run_is_retried_until_it_works_then_updateonly_is_used() {
         let e = env();
         users(&e, &[("alice", "100.64.0.2")]);
         let mut c = cfg(&e, "apply", "");
+        let first_args = c.libreqos.v2_first_args.clone();
         c.libreqos.v2_first_args = vec!["-c".into(), "exit 1".into()];
         let mut r = runner(&e, c.clone());
         let s = r.cycle(1_000, false).await;
         assert!(s.error.is_some());
-        assert!(e.state.join("first-reload-pending").exists());
         // The CSV exists now, but the full run did not work: the next cycle tries it again.
-        c.libreqos.v2_first_args = vec!["-c".into(), format!("touch {}/full", e.lqos.display())];
+        c.libreqos.v2_first_args = first_args;
         r.set_config(c);
         let s = r.cycle(1_010, false).await;
         assert_eq!(s.error, None);
+        assert_eq!(s.status.reload, "ok (first full run)");
         assert!(e.lqos.join("full").exists());
-        assert!(!e.state.join("first-reload-pending").exists());
+        assert!(!e.lqos.join("reloaded").exists());
         users(&e, &[("alice", "100.64.0.2"), ("bob", "100.64.0.3")]);
         let s = r.cycle(1_020, false).await;
         assert_eq!(s.error, None);

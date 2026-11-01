@@ -393,5 +393,5 @@ The tool writes `network.json` before `ShapedDevices.csv`. Each new file gets th
 | Apply result is `rejected` | The validator found a duplicate IP, a missing parent, or a bad rate | Read the log line. Correct the router data. |
 | v3 keeps the old topology | `lqosd` rejected `libreqos_network.json` | Read `journalctl -u libreqos-lqosd.service`. Look for `libreqos_network.json rejected`. |
 | Circuits do not use the node tree on v3 | `compile_mode` is not `full` | Set `compile_mode = "full"` in `/etc/libreqos/lqos.conf`. |
-| Reload fails on a new LibreQoS with an error about `ShapedDevices.lastLoaded.csv` | `--updateonly` ran before the first full run of LibreQoS | The tool does a full run first when `ShapedDevices.csv` did not exist. If you made the file by hand, run `sudo /opt/libreqos/src/LibreQoS.py` one time. |
+| Reload fails on a new LibreQoS with an error about `ShapedDevices.lastLoaded.csv` | `--updateonly` ran before the first full run of LibreQoS | The tool does a full run when that file does not exist in `libreqos.state_directory`. Make sure that `libreqos.state_directory` is the LibreQoS state directory. |
 | No change after a router change | The output hash did not change | Run `once` in `shadow` mode and `diff`. Make sure that the router data changed. |
