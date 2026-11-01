@@ -317,12 +317,21 @@ mod tests {
         std::fs::set_permissions(&pw, std::fs::Permissions::from_mode(0o600)).unwrap();
         let uid = std::fs::metadata(&pw).unwrap().uid();
         let lqos = dir.path().join("lqos");
-        std::fs::create_dir_all(&lqos).unwrap();
+        std::fs::create_dir_all(lqos.join("state")).unwrap();
+        // The checks must not depend on the host: a LibreQoS 2.2 package of its own.
+        let dpkg = dir.path().join("dpkg-status");
+        std::fs::write(
+            &dpkg,
+            "Package: libreqos\nStatus: install ok installed\nVersion: 2.2.1\n",
+        )
+        .unwrap();
         let toml = format!(
-            "[runtime]\nstate_dir=\"{}\"\n[libreqos]\ndirectory=\"{}\"\n{extra}\n\
+            "[runtime]\nstate_dir=\"{}\"\n[libreqos]\ndirectory=\"{}\"\nstate_directory=\"{}\"\ndpkg_status=\"{}\"\n{extra}\n\
              [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"{}\"\n{extra_router}\n",
             dir.path().join("state").display(),
             lqos.display(),
+            lqos.join("state").display(),
+            dpkg.display(),
             pw.display()
         );
         let path = dir.path().join("lqosync3.toml");
