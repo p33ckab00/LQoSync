@@ -359,13 +359,16 @@ pub async fn post_json<S: AsyncRead + AsyncWrite + Unpin>(
     if (200..300).contains(&code) {
         return Ok(());
     }
-    let description = text
-        .split_once("\r\n\r\n")
-        .map(|(head, b)| {
-            if is_chunked(head) {
-                dechunk(b)
+    // The body from the raw bytes: chunk sizes count bytes, not characters.
+    let description = resp
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|end| {
+            let body = &resp[end + 4..];
+            if is_chunked(&String::from_utf8_lossy(&resp[..end])) {
+                dechunk(body)
             } else {
-                b.to_string()
+                String::from_utf8_lossy(body).into_owned()
             }
         })
         .and_then(|b| serde_json::from_str::<serde_json::Value>(b.trim()).ok())
@@ -383,18 +386,23 @@ fn is_chunked(head: &str) -> bool {
     })
 }
 
-/// The data of a chunked body (`<hex size>\r\n<data>\r\n` ... `0\r\n\r\n`).
-fn dechunk(mut body: &str) -> String {
-    let mut out = String::new();
-    while let Some((size, rest)) = body.split_once("\r\n") {
-        let n = usize::from_str_radix(size.split(';').next().unwrap_or("").trim(), 16).unwrap_or(0);
+/// The data of a chunked body (`<hex size>\r\n<data>\r\n` ... `0\r\n\r\n`), from the raw bytes.
+/// A bad size or a short chunk ends the parse; it never panics.
+fn dechunk(mut body: &[u8]) -> String {
+    let mut out = Vec::new();
+    while let Some(eol) = body.windows(2).position(|w| w == b"\r\n") {
+        let line = String::from_utf8_lossy(&body[..eol]);
+        let Ok(n) = usize::from_str_radix(line.split(';').next().unwrap_or("").trim(), 16) else {
+            break;
+        };
+        let rest = &body[eol + 2..];
         if n == 0 || rest.len() < n {
             break;
         }
-        out.push_str(&rest[..n]);
-        body = rest[n..].strip_prefix("\r\n").unwrap_or(&rest[n..]);
+        out.extend_from_slice(&rest[..n]);
+        body = rest[n..].strip_prefix(b"\r\n").unwrap_or(&rest[n..]);
     }
-    out
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// The answer has its full head and a body of `Content-Length` bytes, or the last chunk.
@@ -882,6 +890,18 @@ mod tests {
             r.expect("no wait for the close"),
             Err("HTTP 400: bad chat".to_string())
         );
+    }
+
+    #[test]
+    fn dechunk_never_panics_on_bad_bytes() {
+        // Chunk sizes count bytes; an invalid byte must not break the parse.
+        assert_eq!(
+            dechunk(b"2\r\n\xffa\r\n3\r\nbcd\r\n0\r\n\r\n"),
+            "\u{fffd}abcd"
+        );
+        assert_eq!(dechunk(b"9\r\nshort"), "");
+        assert_eq!(dechunk(b"zz\r\nx"), "");
+        assert_eq!(dechunk(b"5;ext=1\r\nhello\r\n0\r\n\r\n"), "hello");
     }
 
     #[tokio::test]

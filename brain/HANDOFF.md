@@ -88,6 +88,11 @@ Deferred minor items from the Plan 4c review (2026-11-01):
 - A real DHCP server named `unassigned` shares the node of the `unassigned` group.
 - The warning "N DHCP leases have no server" is not in OPERATIONS.md.
 
+Deferred minor items from the review of the minor fixes (2026-11-01):
+- A chunked Telegram answer whose last chunk has an extension or trailers (`0;x=y`) is read only at the close (as before the fix).
+- The Telegram error memory merges errors that differ only in digits or after the first line ("router 1 down" and "router 2 down").
+- A TUI that is killed between the temporary secret file and the rename leaves a `.<name>.tmp-<pid>-<n>` file (mode 0600).
+
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 
 ### Production state
