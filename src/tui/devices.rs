@@ -3,13 +3,14 @@
 use super::app::split_main;
 use super::data::{Data, FLAG_DUP_IP, FLAG_NO_PARENT, FLAG_RATE};
 use crate::model::CsvRow;
-use crate::tui::theme::Palette;
+use crate::tui::theme::{Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
+
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Cell, Paragraph, Row, Table, TableState, Wrap};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 /// The sort columns, in the order of the `o` key.
@@ -76,6 +77,8 @@ fn source_of<'a>(d: &'a Data, name: &str) -> (&'static str, &'a str) {
 
 #[derive(Debug, Default)]
 pub struct DevicesView {
+    pub total_circuits: usize,
+    pub filtered_circuits: usize,
     pub query: String,
     /// The search box has the keys.
     pub editing: bool,
@@ -96,6 +99,12 @@ impl DevicesView {
     /// New data: rebuild only if the rows changed.
     pub fn on_data(&mut self, d: &Data) {
         if self.rows.as_ref().is_none_or(|r| !Arc::ptr_eq(r, &d.rows)) {
+            self.total_circuits = d
+                .rows
+                .iter()
+                .map(|r| &r.circuit_id)
+                .collect::<HashSet<_>>()
+                .len();
             self.rows = Some(d.rows.clone());
             self.rebuild(d);
         }
@@ -109,6 +118,12 @@ impl DevicesView {
                 q.is_empty() || d.row_search.get(i as usize).is_some_and(|s| s.contains(&q))
             })
             .collect();
+        self.filtered_circuits = self
+            .index
+            .iter()
+            .map(|&i| &d.rows[i as usize].circuit_id)
+            .collect::<HashSet<_>>()
+            .len();
         let rows = &d.rows;
         let (col, rev) = self.sort;
         let num = |s: &str| s.trim().parse::<f64>().unwrap_or(f64::NEG_INFINITY);
@@ -224,7 +239,7 @@ impl DevicesView {
         None
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, _palette: &Palette) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
         let (main, side) = split_main(area);
         // Borders and the header row.
         let height = main.height.saturating_sub(3) as usize;
@@ -236,32 +251,58 @@ impl DevicesView {
         let end = (self.offset + height).min(self.index.len());
         self.rows_built = 0;
         let mut rows = Vec::with_capacity(end.saturating_sub(self.offset));
-        for &i in &self.index[self.offset.min(end)..end] {
+        let compact = main.width < 145;
+        let columns: &[usize] = if compact {
+            &[0, 1, 3, 4, 8]
+        } else {
+            &[0, 1, 2, 3, 4, 5, 6, 7, 8]
+        };
+        for (n, &i) in self.index[self.offset.min(end)..end].iter().enumerate() {
+            let pos = self.offset + n;
+            let selected = pos == self.cursor;
             let r = &d.rows[i as usize];
             let fl = d.flags.get(i as usize).copied().unwrap_or(0);
             let (src, router) = source_of(d, &r.circuit_name);
-            let style = if fl != 0 {
-                Style::new().fg(Color::Yellow)
-            } else {
-                Style::new()
-            };
+            let mut badges = Vec::new();
+            for (bit, label, role) in [
+                (FLAG_DUP_IP, "dup IP", Role::Error),
+                (FLAG_NO_PARENT, "no parent", Role::Warning),
+                (FLAG_RATE, "bad rate", Role::Error),
+            ] {
+                if fl & bit != 0 {
+                    if !badges.is_empty() {
+                        badges.push(Span::raw(" "));
+                    }
+                    badges.push(palette.badge(label, role, selected));
+                }
+            }
+            let cells = [
+                Cell::from(r.circuit_name.as_str()),
+                Cell::from(r.ipv4.as_str()),
+                Cell::from(r.mac.as_str()),
+                Cell::from(
+                    Line::from(format!("{}/{}", r.download_min, r.download_max)).right_aligned(),
+                ),
+                Cell::from(
+                    Line::from(format!("{}/{}", r.upload_min, r.upload_max)).right_aligned(),
+                ),
+                Cell::from(r.parent_node.as_str()),
+                Cell::from(src),
+                Cell::from(router),
+                Cell::from(Line::from(badges)),
+            ];
             rows.push(
-                Row::new(vec![
-                    Cell::from(r.circuit_name.as_str()),
-                    Cell::from(r.ipv4.as_str()),
-                    Cell::from(r.mac.as_str()),
-                    Cell::from(format!("{}/{}", r.download_min, r.download_max)),
-                    Cell::from(format!("{}/{}", r.upload_min, r.upload_max)),
-                    Cell::from(r.parent_node.as_str()),
-                    Cell::from(src),
-                    Cell::from(router),
-                    Cell::from(flag_words(fl).join(",")),
-                ])
-                .style(style),
+                Row::new(
+                    columns
+                        .iter()
+                        .map(|&j| cells[j].clone())
+                        .collect::<Vec<_>>(),
+                )
+                .style(palette.row(pos, selected)),
             );
             self.rows_built += 1;
         }
-        let header = Row::new([
+        let labels = [
             "Circuit Name",
             "IPv4",
             "MAC",
@@ -271,9 +312,9 @@ impl DevicesView {
             "Source",
             "Router",
             "Flags",
-        ])
-        .style(Style::new().add_modifier(Modifier::BOLD));
-        let widths = [
+        ];
+        let header = Row::new(columns.iter().map(|&j| labels[j])).style(palette.role(Role::Accent));
+        let all_widths = [
             Constraint::Fill(3),
             Constraint::Length(15),
             Constraint::Length(17),
@@ -282,14 +323,25 @@ impl DevicesView {
             Constraint::Fill(2),
             Constraint::Length(7),
             Constraint::Length(10),
-            Constraint::Length(18),
+            Constraint::Length(26),
         ];
-        let title = format!(
-            " ShapedDevices {}/{} | sort {}{} | /{}{} ",
+        let widths = columns.iter().map(|&j| all_widths[j]).collect::<Vec<_>>();
+        let counts = format!(
+            "rows {}/{} | circuits {}/{}",
             self.index.len(),
             d.rows.len(),
+            self.filtered_circuits,
+            self.total_circuits
+        );
+        let title = if main.width < 100 {
+            format!(" ShapedDevices circuits {} ", self.total_circuits)
+        } else {
+            format!(" ShapedDevices {counts} ")
+        };
+        let summary = format!(
+            " sort {}{} | /{}{} ",
             self.sort.0.title(),
-            if self.sort.1 { " (reverse)" } else { "" },
+            if self.sort.1 { " reverse" } else { "" },
             self.query,
             if self.editing { "_" } else { "" }
         );
@@ -298,19 +350,19 @@ impl DevicesView {
         f.render_stateful_widget(
             Table::new(rows, widths)
                 .header(header)
-                .block(Block::default().borders(Borders::ALL).title(title))
-                .row_highlight_style(
-                    Style::new()
-                        .bg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .block(palette.panel(Line::from(title), true).title_bottom(summary))
+                .row_highlight_style(palette.selection()),
             main,
             &mut state,
         );
         f.render_widget(
-            Paragraph::new(self.detail(d))
-                .wrap(Wrap { trim: false })
-                .block(Block::default().borders(Borders::ALL).title(" circuit ")),
+            Paragraph::new(
+                std::iter::once(Line::from(counts))
+                    .chain(self.detail(d))
+                    .collect::<Vec<_>>(),
+            )
+            .wrap(Wrap { trim: false })
+            .block(palette.panel(Line::from(" circuit "), false)),
             side,
         );
     }
@@ -510,12 +562,12 @@ mod tests {
         )]));
         let mut v = DevicesView::default();
         v.on_data(&d);
-        let mut t = Terminal::new(TestBackend::new(160, 20)).unwrap();
+        let mut t = Terminal::new(TestBackend::new(260, 20)).unwrap();
         t.draw(|f| v.draw(f, f.area(), &d, &Palette::new(crate::config::Theme::Dark)))
             .unwrap();
         let buf = t.backend().buffer();
         let screen: String = (0..20)
-            .map(|y| (0..160).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
+            .map(|y| (0..260).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
             .collect();
         for want in ["dup IP", "bad rate", "PPPoE", "R1", "static"] {
             assert!(screen.contains(want), "{want}\n{screen}");
@@ -555,5 +607,19 @@ mod tests {
         }
         eprintln!("worst key press with 20 000 rows: {worst:?}");
         assert!(worst.as_millis() < 16, "{worst:?}");
+    }
+    #[test]
+    fn circuits_count_distinct_ids() {
+        let d = data(vec![
+            row("c1", "Alice", "1", "m", "10", "AP"),
+            row("c1", "Alice phone", "2", "m2", "10", "AP"),
+            row("c2", "Bob", "3", "m3", "10", "AP"),
+        ]);
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        assert_eq!(v.total_circuits, 2);
+        v.query = "alice".into();
+        v.rebuild(&d);
+        assert_eq!(v.filtered_circuits, 1);
     }
 }
