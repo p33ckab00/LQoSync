@@ -1,7 +1,7 @@
 # LQoSync3 TUI cosmetics design
 
 Date: 2026-11-01 (Asia/Shanghai).
-Status: Design for review. Implementation has not started.
+Status: Implemented. Automated checks and PTY smoke passed. Human palette review remains open.
 Scope: All items A1–A5 and B6–B10 from the operator request.
 
 Reference baseline: `cf2c959`, branch `lqosync3`.

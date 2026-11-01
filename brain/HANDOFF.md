@@ -8,6 +8,27 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+
+## 2026-11-01T12:45:09+08:00 (Asia/Shanghai) — TUI cosmetics implementation
+
+| Item | Value |
+|------|-------|
+| Goal | Implement the approved cosmetics plan for all A1–A5 and B6–B10 items |
+| Last agent | Codex, with one fresh read-only reviewer |
+| Branch and source revision | `lqosync3`, `7ca02c9` |
+| Worktree | `/home/pi/LQoSync3.0` |
+| Changed files | Theme config/defaults/docs, shared palette, shell, all five view modules, metadata, tests, and these notes |
+| Checks | 430 tests passed, 2 intentionally ignored. Clippy, fmt, release timing, debug build, and PTY smoke passed. |
+| Review | Three compact-layout findings and one popup canvas finding fixed with regression tests. No deferred code findings. |
+| Unfinished work | Human inspection of palette contrast and glyphs on the operator terminal |
+| Next action | Review the TUI in the operator terminal. Deploy only when the operator requests it. |
+
+Spec: `docs/superpowers/specs/2026-11-01-lqosync3-tui-cosmetics-design.md`.
+Plan: `docs/superpowers/plans/2026-11-01-lqosync3-tui-cosmetics.md`.
+Session: [[2026-11-01-tui-cosmetics-implementation]].
+No production file, service state, dependency, or status schema changed.
+The project graph remains at the earlier baseline.
+
 ## 2026-11-01T12:03:25+08:00 (Asia/Shanghai) — TUI cosmetics plan
 
 | Item | Value |

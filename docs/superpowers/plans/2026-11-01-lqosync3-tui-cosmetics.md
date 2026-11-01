@@ -12,7 +12,7 @@ Compute counts and capacity scales when their source data changes.
 
 **Spec:** [TUI cosmetics design](../specs/2026-11-01-lqosync3-tui-cosmetics-design.md).
 Baseline: `cf2c959`, branch `lqosync3`, worktree `/home/pi/LQoSync3.0`.
-Status: Plan complete. Source implementation has not started.
+Status: Implemented. Automated checks and PTY smoke passed. Human palette review remains open.
 
 ## Global Constraints
 
@@ -393,3 +393,20 @@ It also specified that removed router paths remain in the global changed count w
 
 This change prepares and publishes documentation only.
 Run the implementation tasks after the operator authorizes source implementation.
+
+
+## Implementation Record
+
+Completed on 2026-11-01 (Asia/Shanghai).
+The eight implementation tasks are complete. Related test cases share regression fixtures.
+The original checkbox steps above describe the planned test strategy.
+The session note records the executed checks and review fixes.
+
+- [x] Tasks 1–7: themes, shell, and all five tabs.
+- [x] Task 8: automated gates, fresh review, regression fixes, and PTY smoke.
+- [ ] Human review of actual terminal palette contrast and glyphs.
+
+Results: 430 tests passed, 2 intentionally ignored. Clippy, fmt, release timing, and debug build passed.
+PTY smoke passed for all five tabs in three themes at 80×24, 100×30, and 120×40.
+No production deployment occurred.
+See `brain/10-sessions/2026-11-01-tui-cosmetics-implementation.md` for the final handoff.

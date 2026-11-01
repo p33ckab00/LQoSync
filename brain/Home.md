@@ -11,6 +11,7 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-01-tui-cosmetics-implementation]]
 - [[2026-11-01-tui-cosmetics-design-handoff]]
 - [[2026-10-31-project-setup-and-v3-simulation]]
 - [[2026-10-31-updatecsv-dissection]]
