@@ -125,6 +125,15 @@ pub fn digest_line(state_dir: &Path, digest: &str) -> Option<CheckLine> {
 
 /// The checks of `lqosync3 check` (runtime design section 8). `owner_uid` is the required secret owner.
 pub fn check(cfg: &Config, owner_uid: u32) -> Vec<CheckLine> {
+    check_with(cfg, owner_uid, &std::collections::HashSet::new())
+}
+
+/// `check`, but a password or token file in `typed` counts as readable: the TUI writes it at apply.
+pub fn check_with(
+    cfg: &Config,
+    owner_uid: u32,
+    typed: &std::collections::HashSet<PathBuf>,
+) -> Vec<CheckLine> {
     let mut out = Vec::new();
     match crate::detect::resolve(&cfg.libreqos) {
         Ok(d) => out.push(line(
@@ -135,9 +144,16 @@ pub fn check(cfg: &Config, owner_uid: u32) -> Vec<CheckLine> {
     }
     for r in &cfg.routers {
         let at = format!("router {}", r.name);
-        match read_secret(Path::new(&r.password_file), owner_uid) {
-            Ok(_) => out.push(line(Level::Ok, format!("{at}: password file is readable"))),
-            Err(e) => out.push(line(Level::Error, format!("{at}: {e:#}"))),
+        if typed.contains(Path::new(&r.password_file)) {
+            out.push(line(
+                Level::Ok,
+                format!("{at}: a new password will be written"),
+            ));
+        } else {
+            match read_secret(Path::new(&r.password_file), owner_uid) {
+                Ok(_) => out.push(line(Level::Ok, format!("{at}: password file is readable"))),
+                Err(e) => out.push(line(Level::Error, format!("{at}: {e:#}"))),
+            }
         }
         if !(r.pppoe.enabled || r.hotspot.enabled || r.dhcp.enabled) {
             out.push(line(Level::Warn, format!("{at}: no source is enabled (pppoe, hotspot, dhcp); its subscribers will be removed")));
@@ -193,14 +209,16 @@ pub fn check(cfg: &Config, owner_uid: u32) -> Vec<CheckLine> {
         ));
     }
     let tg = &cfg.telegram;
-    if tg.enabled {
+    if tg.enabled && typed.contains(Path::new(&tg.bot_token_file)) {
+        out.push(line(Level::Ok, "telegram: a new bot token will be written"));
+    } else if tg.enabled {
         match crate::notify::token(tg, owner_uid) {
             Ok(_) => out.push(line(Level::Ok, "telegram: the bot token is readable")),
             Err(e) => out.push(line(Level::Error, format!("telegram: {e}"))),
         }
-        if crate::notify::chat_id(tg).is_empty() {
-            out.push(line(Level::Error, "telegram: the chat ID is empty"));
-        }
+    }
+    if tg.enabled && crate::notify::chat_id(tg).is_empty() {
+        out.push(line(Level::Error, "telegram: the chat ID is empty"));
     }
     out
 }

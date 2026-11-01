@@ -82,6 +82,42 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
         .with_context(|| format!("cannot rename {} to {}", tmp.display(), path.display()))
 }
 
+/// Write a secret file: mode 0600 from the start, a sync of the file and of the folder, owner root
+/// (only when this process is root). The folder must exist. A newline goes after the secret.
+pub fn write_secret(path: &Path, secret: &[u8]) -> anyhow::Result<()> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let dir = path
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("secret");
+    let tmp = dir.join(format!(".{name}.tmp-secret"));
+    let mut f = File::options()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp)
+        .with_context(|| format!("cannot write {}", tmp.display()))?;
+    f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    // SAFETY: geteuid has no preconditions.
+    if unsafe { libc::geteuid() } == 0 {
+        std::os::unix::fs::fchown(&f, Some(0), Some(0))
+            .with_context(|| format!("cannot give {} to root", tmp.display()))?;
+    }
+    f.write_all(secret)?;
+    f.write_all(b"\n")?;
+    f.sync_all()?;
+    drop(f);
+    std::fs::rename(&tmp, path)
+        .with_context(|| format!("cannot rename {} to {}", tmp.display(), path.display()))?;
+    File::open(dir)?.sync_all()?;
+    Ok(())
+}
+
 /// The live LibreQoS files of this cycle.
 #[derive(Debug, Clone, Default)]
 pub struct Live {
