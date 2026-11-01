@@ -1,6 +1,5 @@
 //! Apply: write the secrets and the config file, then verify the reload in `status.json`.
 
-use super::draft::line_diff;
 use super::secrets::{Pending, write_secrets};
 use crate::cli::config_digest;
 use crate::tui::dashboard::Sent;
@@ -9,9 +8,9 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum ApplyError {
-    /// The file on disk is not the file at the start of the edit. The diff of the disk text and the new text.
+    /// The file on disk is not the file at the start of the edit. The text on disk.
     Changed {
-        diff: Vec<(char, String)>,
+        disk: String,
     },
     Io(String),
 }
@@ -54,7 +53,7 @@ pub fn apply(
         std::fs::read(path).map_err(|e| io(&format!("cannot read {}", path.display()), &e))?;
     if config_digest(&disk) != start_digest {
         return Err(ApplyError::Changed {
-            diff: line_diff(&String::from_utf8_lossy(&disk), new_text),
+            disk: String::from_utf8_lossy(&disk).into_owned(),
         });
     }
     let dir = state_dir.join("config-backups");
@@ -67,12 +66,17 @@ pub fn apply(
     let undo =
         write_secrets(secrets).map_err(|e| io("cannot write a secret file", &format!("{e:#}")))?;
     if let Err(e) = crate::files::write_if_changed(path, new_text.as_bytes()) {
-        undo.rollback();
-        return Err(io(
-            &format!("cannot write {}", path.display()),
-            &format!("{e:#}"),
-        ));
+        let errors = undo.rollback();
+        let mut m = format!("cannot write {}: {e:#}", path.display());
+        if !errors.is_empty() {
+            m.push_str(&format!(
+                "; the secret files are NOT all back: {}",
+                errors.join("; ")
+            ));
+        }
+        return Err(ApplyError::Io(m));
     }
+    undo.commit();
     Ok(config_digest(new_text.as_bytes()))
 }
 
@@ -228,8 +232,8 @@ mod tests {
             5,
             1_000,
         ) {
-            Err(ApplyError::Changed { diff }) => {
-                assert!(diff.iter().any(|(c, l)| *c == '+' && l.contains("apply")))
+            Err(ApplyError::Changed { disk }) => {
+                assert!(disk.contains("shadow"))
             }
             other => panic!("{other:?}"),
         }

@@ -212,11 +212,14 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
             }
             Action::ApplySettings => {
                 let now = unix_now();
-                if let Ok(digest) = app.settings.do_apply(
-                    Path::new(&cfg.runtime.state_dir),
-                    cfg.runtime.keep_backups,
-                    now,
-                ) {
+                // state_dir and keep_backups of the new file (the TUI config can be the defaults).
+                let (state_dir, keep) = app.settings.apply_target().unwrap_or_else(|| {
+                    (
+                        cfg.runtime.state_dir.clone().into(),
+                        cfg.runtime.keep_backups,
+                    )
+                });
+                if let Ok(digest) = app.settings.do_apply(&state_dir, keep, now) {
                     let sent =
                         dashboard::send(dashboard::Kind::Reload, &app.data, now, fresh_pid(&cfg));
                     app.settings.reload_sent(sent, digest);

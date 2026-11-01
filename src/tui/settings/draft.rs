@@ -45,6 +45,22 @@ pub fn valid_router_name(n: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
 }
 
+/// Where an effective value comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Origin {
+    File,
+    /// The `[router_defaults]` of the user file.
+    RouterDefaults,
+    /// `config/defaults.toml`.
+    Default,
+}
+
+/// A TOML value from its text (`"shadow"`, `8`, `["a"]`).
+pub fn parse_value(text: &str) -> Option<Value> {
+    let doc: DocumentMut = format!("x = {text}\n").parse().ok()?;
+    doc["x"].as_value().cloned()
+}
+
 pub struct Draft {
     original: String,
     orig_doc: DocumentMut,
@@ -171,6 +187,38 @@ impl Draft {
     /// The value in the file at the start of the edit.
     pub fn get_original(&self, p: &[Seg]) -> Option<Item> {
         get_in(&self.orig_doc, p)
+    }
+
+    /// The value that the service uses: the file, else (for a router key) the `[router_defaults]`
+    /// of the file, else the default. The mode of a DHCP server comes from `dhcp.server_mode`.
+    pub fn effective(&self, p: &[Seg]) -> Option<(Value, Origin)> {
+        if let Some(v) = self.get(p).and_then(|i| i.into_value().ok()) {
+            return Some((v, Origin::File));
+        }
+        if let [Seg::Key(r), Seg::Index(i), rest @ ..] = p
+            && r == "routers"
+        {
+            if meta_path(p) == "routers.*.dhcp.servers.*.mode" {
+                let mode = [
+                    Seg::Key("routers".into()),
+                    Seg::Index(*i),
+                    Seg::Key("dhcp".into()),
+                    Seg::Key("server_mode".into()),
+                ];
+                return self.effective(&mode);
+            }
+            let mut rd = vec![Seg::Key("router_defaults".into())];
+            rd.extend(rest.iter().cloned());
+            if rest.iter().all(|s| matches!(s, Seg::Key(_)))
+                && let Some(v) = self.get(&rd).and_then(|i| i.into_value().ok())
+            {
+                return Some((v, Origin::RouterDefaults));
+            }
+        }
+        meta::find(&meta_path(p))
+            .and_then(|m| m.default.as_deref())
+            .and_then(parse_value)
+            .map(|v| (v, Origin::Default))
     }
 
     /// The number of `[[routers]]` entries, and of the DHCP servers of a router.
@@ -331,21 +379,13 @@ impl Draft {
         Ok(())
     }
 
-    /// The array at `p`. A list that is not in the file starts from its default.
+    /// The array at `p`. A list that is not in the file starts from its effective value
+    /// (the `[router_defaults]` of the file, or the default).
     fn array(&self, p: &[Seg]) -> anyhow::Result<Array> {
-        match self.get(p) {
-            Some(Item::Value(Value::Array(a))) => Ok(a),
+        match self.effective(p) {
+            Some((Value::Array(a), _)) => Ok(a),
             Some(_) => bail!("{} is not a list", path_text(p)),
-            None => {
-                let d = meta::find(&meta_path(p))
-                    .and_then(|m| m.default.clone())
-                    .unwrap_or_else(|| "[]".into());
-                let doc: DocumentMut = format!("x = {d}\n").parse()?;
-                doc["x"]
-                    .as_array()
-                    .cloned()
-                    .ok_or_else(|| anyhow!("{}: the default is not a list", path_text(p)))
-            }
+            None => Ok(Array::new()),
         }
     }
 

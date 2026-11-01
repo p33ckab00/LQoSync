@@ -1,6 +1,5 @@
 //! Typed secrets: they stay in memory until apply, then go only into their file (mode 0600, owner root).
 
-use anyhow::Context;
 use std::path::PathBuf;
 
 /// A typed password or token. `Debug` hides it, and there is no `Display`.
@@ -56,23 +55,43 @@ pub struct Pending {
 /// The old state of each written file, for a rollback.
 #[derive(Debug, Default)]
 pub struct SecretUndo {
-    /// The path and its old bytes; `None` if the file did not exist.
-    done: Vec<(PathBuf, Option<Vec<u8>>)>,
+    /// The path, and a hard link to its old file (`None` if the file did not exist).
+    /// A rollback is then a rename: it needs no new disk space.
+    done: Vec<(PathBuf, Option<PathBuf>)>,
+}
+
+fn old_link(path: &std::path::Path) -> PathBuf {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("secret");
+    path.with_file_name(format!(".{name}.old-secret"))
 }
 
 impl SecretUndo {
-    /// Put each file back, in reverse order: remove a new file, write back a replaced one.
-    pub fn rollback(self) {
-        for (path, old) in self.done.into_iter().rev() {
-            let r = match old {
-                Some(bytes) => {
-                    crate::files::write_secret(&path, bytes.strip_suffix(b"\n").unwrap_or(&bytes))
-                }
-                None => std::fs::remove_file(&path).map_err(Into::into),
+    /// Put each file back, in reverse order: remove a new file, rename the old file back.
+    /// Returns the errors; an empty list means all files are back.
+    pub fn rollback(self) -> Vec<String> {
+        let mut errors = Vec::new();
+        for (path, link) in self.done.into_iter().rev() {
+            let r = match &link {
+                Some(l) => std::fs::rename(l, &path),
+                None => match std::fs::remove_file(&path) {
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                    r => r,
+                },
             };
             if let Err(e) = r {
-                eprintln!("error: cannot roll back {}: {e:#}", path.display());
+                errors.push(format!("cannot put back {}: {e}", path.display()));
             }
+        }
+        errors
+    }
+
+    /// The apply is done: remove the links to the old files.
+    pub fn commit(self) {
+        for l in self.done.into_iter().filter_map(|(_, l)| l) {
+            let _ = std::fs::remove_file(l);
         }
     }
 }
@@ -80,20 +99,32 @@ impl SecretUndo {
 /// Write each secret file. On an error, the files written before are rolled back.
 pub fn write_secrets(list: &[Pending]) -> anyhow::Result<SecretUndo> {
     let mut undo = SecretUndo::default();
-    for p in list {
-        let old = match std::fs::read(&p.path) {
-            Ok(b) => Some(b),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => {
-                undo.rollback();
-                return Err(e).with_context(|| format!("cannot read {}", p.path.display()));
-            }
-        };
-        if let Err(e) = crate::files::write_secret(&p.path, p.value.expose()) {
-            undo.rollback();
-            return Err(e);
+    let fail = |undo: SecretUndo, e: anyhow::Error| {
+        let errors = undo.rollback();
+        if errors.is_empty() {
+            e
+        } else {
+            e.context(format!("rollback: {}", errors.join("; ")))
         }
-        undo.done.push((p.path.clone(), old));
+    };
+    for p in list {
+        let link = if p.path.exists() {
+            let l = old_link(&p.path);
+            let _ = std::fs::remove_file(&l);
+            if let Err(e) = std::fs::hard_link(&p.path, &l) {
+                let e = anyhow::Error::from(e)
+                    .context(format!("cannot keep the old {}", p.path.display()));
+                return Err(fail(undo, e));
+            }
+            Some(l)
+        } else {
+            None
+        };
+        // Record it first: a write that fails after its rename is also rolled back.
+        undo.done.push((p.path.clone(), link));
+        if let Err(e) = crate::files::write_secret(&p.path, p.value.expose()) {
+            return Err(fail(undo, e));
+        }
     }
     Ok(undo)
 }
@@ -138,6 +169,42 @@ mod tests {
         undo.rollback();
         assert!(!new.exists());
         assert_eq!(std::fs::read_to_string(&old).unwrap(), "old\n");
+    }
+
+    #[test]
+    fn rollback_renames_the_old_file_back_and_commit_removes_the_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.password");
+        std::fs::write(&old, "old\n").unwrap();
+        let undo = write_secrets(&[pending(&old, "new")]).unwrap();
+        assert!(undo.rollback().is_empty());
+        assert_eq!(std::fs::read_to_string(&old).unwrap(), "old\n");
+        let undo = write_secrets(&[pending(&old, "new")]).unwrap();
+        undo.commit();
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "no copy stays"
+        );
+    }
+
+    #[test]
+    fn a_failed_rollback_is_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("old.password");
+        std::fs::write(&old, "old\n").unwrap();
+        let undo = write_secrets(&[pending(&old, "new")]).unwrap();
+        for e in std::fs::read_dir(dir.path()).unwrap() {
+            let p = e.unwrap().path();
+            if p != old {
+                std::fs::remove_file(p).unwrap();
+            }
+        }
+        let errors = undo.rollback();
+        assert!(
+            errors.iter().any(|e| e.contains("old.password")),
+            "{errors:?}"
+        );
     }
 
     #[test]

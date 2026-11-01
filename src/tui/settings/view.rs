@@ -1,13 +1,16 @@
 //! The Settings screen: groups, keys, help; the inputs; preview, confirm, apply, verify.
 
 use super::apply::{ApplyError, Verify, apply, verify};
-use super::draft::{Draft, KeyPath, Seg, path_text, valid_router_name};
+use super::draft::{
+    Draft, KeyPath, Origin, Seg, line_diff, parse_value, path_text, valid_router_name,
+};
 use super::meta::{self, KeyMeta, Kind};
 use super::preview::{self, Preview};
 use super::secrets::{Pending, Secret};
 use super::validate;
 use crate::tui::dashboard::Sent;
 use ratatui::Frame;
+use ratatui::crossterm::event::KeyModifiers;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -16,7 +19,7 @@ use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragra
 use serde_json::Value as Json;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use toml_edit::{DocumentMut, Value};
+use toml_edit::Value;
 
 /// What the main loop must do for the Settings tab.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,7 +65,14 @@ pub fn run_preview(job: PreviewJob) -> PreviewDone {
     };
     let old = match validate::parse(&job.old_text) {
         Ok(c) => c,
-        Err(e) => return done(Preview::Failed(format!("the current file: {e}")), warnings),
+        Err(e) => {
+            // The operator can fix a file that fails the config rules: no output preview then.
+            warnings.push(format!("the current file fails the config rules: {e}"));
+            return done(
+                Preview::Skipped("the current file is not valid, so no output preview".into()),
+                warnings,
+            );
+        }
     };
     if job
         .loaded_digest
@@ -188,12 +198,12 @@ pub struct SettingsView {
     pub loaded_digest: Option<String>,
     /// The panels of the last draw: groups, keys, help.
     pub areas: [Rect; 3],
-}
-
-/// A TOML value from its text (`"shadow"`, `8`, `["a"]`).
-fn parse_value(text: &str) -> Option<Value> {
-    let doc: DocumentMut = format!("x = {text}\n").parse().ok()?;
-    doc["x"].as_value().cloned()
+    /// The scroll of the right panel (`[` and `]`).
+    pub scroll: u16,
+    /// The file on disk changed: its text and the diff of the start text and the disk text.
+    conflict: Option<(String, Vec<(char, String)>)>,
+    /// The backup of the last apply.
+    last_backup: Option<PathBuf>,
 }
 
 fn show(v: &Value) -> String {
@@ -249,6 +259,9 @@ impl SettingsView {
             stage: Stage::Edit,
             loaded_digest: None,
             areas: [Rect::default(); 3],
+            scroll: 0,
+            conflict: None,
+            last_backup: None,
         };
         v.after_change();
         v
@@ -267,6 +280,35 @@ impl SettingsView {
     fn after_change(&mut self) {
         self.changed = self.draft.as_ref().map(Draft::changed).unwrap_or_default();
         self.rebuild_groups();
+        if let Stage::Result(_) = self.stage {
+            self.stage = Stage::Edit;
+        }
+        // A typed secret is only for a file that a key of the draft names.
+        if let Some(d) = &self.draft {
+            let mut used: HashSet<PathBuf> = (0..d.count(&[Seg::Key("routers".into())]))
+                .filter_map(|i| d.effective(&concrete("routers.*.password_file", &[i])))
+                .filter_map(|(v, _)| v.as_str().map(PathBuf::from))
+                .collect();
+            if let Some((v, _)) = d.effective(&key_path("telegram.bot_token_file"))
+                && let Some(t) = v.as_str()
+            {
+                used.insert(PathBuf::from(t));
+            }
+            let dropped: Vec<String> = self
+                .secrets
+                .iter()
+                .filter(|p| !used.contains(&p.path))
+                .map(|p| p.path.display().to_string())
+                .collect();
+            if !dropped.is_empty() {
+                self.secrets.retain(|p| used.contains(&p.path));
+                self.secrets_rev += 1;
+                self.message = Some(format!(
+                    "a typed secret was dropped: no key names {} now",
+                    dropped.join(", ")
+                ));
+            }
+        }
     }
 
     fn rebuild_groups(&mut self) {
@@ -364,11 +406,10 @@ impl SettingsView {
 
     /// The value in the file, else the default.
     fn effective(&self, p: &[Seg], m: &KeyMeta) -> Option<Value> {
-        self.draft
-            .as_ref()
-            .and_then(|d| d.get(p))
-            .and_then(|i| i.into_value().ok())
-            .or_else(|| m.default.as_deref().and_then(parse_value))
+        match &self.draft {
+            Some(d) => d.effective(p).map(|(v, _)| v),
+            None => m.default.as_deref().and_then(parse_value),
+        }
     }
 
     fn blocked(&mut self) -> bool {
@@ -435,9 +476,30 @@ impl SettingsView {
             KeyCode::Char('-') => self.remove(),
             KeyCode::Char('v') => return self.preview(),
             KeyCode::Char('A') => self.ask_apply(),
+            KeyCode::Char(']') => self.scroll = self.scroll.saturating_add(10),
+            KeyCode::Char('[') => self.scroll = self.scroll.saturating_sub(10),
+            KeyCode::Char('D') => self.restart_from_disk(),
             _ => {}
         }
         SAction::None
+    }
+
+    /// After a "file changed on disk": drop the edits and start from the disk text.
+    fn restart_from_disk(&mut self) {
+        let Some((disk, _)) = self.conflict.take() else {
+            self.message = Some("D starts from the file on disk after a changed-file error".into());
+            return;
+        };
+        match Draft::new(&disk) {
+            Ok(d) => {
+                self.draft = Some(d);
+                self.raw = disk;
+                self.shown = None;
+                self.after_change();
+                self.message = Some("the draft starts again from the file on disk".into());
+            }
+            Err(e) => self.message = Some(format!("the file on disk: {e:#}")),
+        }
     }
 
     fn move_sel(&mut self, code: KeyCode) {
@@ -661,6 +723,17 @@ impl SettingsView {
     }
 
     fn input_key(&mut self, k: KeyEvent) {
+        // Ctrl+C cancels an input; another Ctrl or Alt key types nothing.
+        if k.modifiers
+            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+            && let KeyCode::Char(c) = k.code
+        {
+            if c == 'c' && k.modifiers.contains(KeyModifiers::CONTROL) {
+                self.input = Input::None;
+                self.message = Some("cancelled".into());
+            }
+            return;
+        }
         let input = std::mem::replace(&mut self.input, Input::None);
         self.input = match input {
             Input::None => Input::None,
@@ -763,14 +836,8 @@ impl SettingsView {
                 let len = self
                     .draft
                     .as_ref()
-                    .and_then(|d| d.get(&path))
-                    .and_then(|i| i.as_array().map(|a| a.len()))
-                    .or_else(|| {
-                        meta::find(&path_text(&path))
-                            .and_then(|m| m.default.as_deref())
-                            .and_then(parse_value)
-                            .and_then(|v| v.as_array().map(|a| a.len()))
-                    })
+                    .and_then(|d| d.effective(&path))
+                    .and_then(|(v, _)| v.as_array().map(|a| a.len()))
                     .unwrap_or(0);
                 let last = len.saturating_sub(1);
                 let list = |sel| Input::List {
@@ -1023,6 +1090,7 @@ impl SettingsView {
         match self.running.take() {
             Some((id, text, rev)) if id == d.id => {
                 self.message = None;
+                self.scroll = 0;
                 self.shown = Some(Shown {
                     text,
                     rev,
@@ -1074,6 +1142,12 @@ impl SettingsView {
             now,
         ) {
             Ok(digest) => {
+                self.last_backup = Some(
+                    state_dir
+                        .join("config-backups")
+                        .join(format!("{now:012}.toml")),
+                );
+                self.conflict = None;
                 self.draft = Draft::new(&text).ok();
                 self.raw = text;
                 self.secrets.clear();
@@ -1082,17 +1156,11 @@ impl SettingsView {
                 self.after_change();
                 Ok(digest)
             }
-            Err(ApplyError::Changed { diff }) => {
-                let lines: Vec<String> = diff
-                    .iter()
-                    .filter(|(c, _)| *c != ' ')
-                    .take(10)
-                    .map(|(c, l)| format!("{c} {l}"))
-                    .collect();
-                let m = format!(
-                    "not applied: another person changed the file on disk; nothing was written. Changes on disk: {}",
-                    lines.join(" | ")
-                );
+            Err(ApplyError::Changed { disk }) => {
+                let diff = line_diff(d.original(), &disk);
+                self.conflict = Some((disk, diff));
+                self.scroll = 0;
+                let m = "not applied: another person changed the file on disk; nothing was written. The right panel shows the change on disk: D starts again from it".to_string();
                 self.message = Some(m.clone());
                 Err(m)
             }
@@ -1126,6 +1194,7 @@ impl SettingsView {
     /// New `status.json` data.
     pub fn on_status(&mut self, status: Option<&Json>, now: u64, timeout: u64) {
         self.loaded_digest = status.and_then(|s| s["config_digest"].as_str().map(str::to_string));
+        let backup = self.backup_text();
         let Stage::Verifying {
             sent,
             want,
@@ -1146,15 +1215,29 @@ impl SettingsView {
             }
             Verify::Done(m) => Some(m),
             Verify::Rejected(e) => Some(format!(
-                "not applied: the service rejected the file, the old config stays: {e}"
+                "not applied: the service rejected the file and keeps the old config in memory: {e}. The new file is on disk and loads at the next restart: fix it and apply again, or restore the backup {}",
+                backup
             )),
             Verify::NotVerified { want, have, why } => Some(format!(
-                "not verified: {why} (want {want}, status.json has {have})"
+                "not verified: {why} (want {want}, status.json has {have}). The new file is on disk; backup {}",
+                backup
             )),
         };
         if let Some(m) = next {
             self.stage = Stage::Result(m);
         }
+    }
+
+    fn backup_text(&self) -> String {
+        self.last_backup
+            .as_ref()
+            .map_or("unknown".into(), |p| p.display().to_string())
+    }
+
+    /// The config of the draft text: the apply takes `state_dir` and `keep_backups` from it.
+    pub fn apply_target(&self) -> Option<(PathBuf, usize)> {
+        let c = validate::parse(&self.draft.as_ref()?.text()).ok()?;
+        Some((PathBuf::from(c.runtime.state_dir), c.runtime.keep_backups))
     }
 
     pub fn draw(&mut self, f: &mut Frame, area: Rect) {
@@ -1247,13 +1330,13 @@ impl SettingsView {
                     .map(|(p, m)| {
                         let name = m.path.rsplit('.').next().unwrap_or_default();
                         let d = self.draft.as_ref();
-                        let in_file = d.and_then(|d| d.get(p)).and_then(|i| i.into_value().ok());
-                        let text = match &in_file {
-                            Some(v) => show(v),
-                            None => match &m.default {
-                                Some(def) => format!("{def} (default)"),
-                                None => "(not set)".into(),
-                            },
+                        let text = match d.and_then(|d| d.effective(p)) {
+                            Some((v, Origin::File)) => show(&v),
+                            Some((v, Origin::RouterDefaults)) => {
+                                format!("{} (router_defaults)", show(&v))
+                            }
+                            Some((v, Origin::Default)) => format!("{} (default)", show(&v)),
+                            None => "(not set)".into(),
                         };
                         let mark = if changed.contains(path_text(p).as_str()) {
                             let was = d
@@ -1286,32 +1369,70 @@ impl SettingsView {
         f.render_widget(
             Paragraph::new(self.right_panel())
                 .wrap(Wrap { trim: false })
-                .block(Block::default().borders(Borders::ALL).title(
-                    if self.current_preview().is_some() {
-                        " preview "
-                    } else {
-                        " help "
-                    },
-                )),
+                .scroll((self.scroll, 0))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(if self.conflict.is_some() {
+                            " the file on disk changed "
+                        } else if self.current_preview().is_some() {
+                            " preview ([ ] scroll) "
+                        } else {
+                            " help "
+                        }),
+                ),
             h,
         );
         self.draw_popup(f, k);
     }
 
     fn right_panel(&self) -> Vec<Line<'static>> {
+        let mut top: Vec<Line<'static>> = Vec::new();
+        if let Stage::Result(m) = &self.stage {
+            top.push(Line::styled(
+                m.clone(),
+                Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ));
+            top.push(Line::from(""));
+        }
+        if let Some((_, diff)) = &self.conflict {
+            top.push(Line::from(
+                "the changes on disk since the start of the edit:",
+            ));
+            for (c, l) in diff.iter().filter(|(c, _)| *c != ' ') {
+                let color = if *c == '+' { Color::Green } else { Color::Red };
+                top.push(Line::styled(format!("{c} {l}"), Style::new().fg(color)));
+            }
+            top.push(Line::from(""));
+            top.push(Line::from(
+                "D: drop your edits and start from the file on disk",
+            ));
+            return top;
+        }
+        top.extend(self.panel_body());
+        top
+    }
+
+    fn panel_body(&self) -> Vec<Line<'static>> {
         if let Some(s) = self.current_preview() {
+            // The warnings first: a long list of circuit lines must not hide them.
             let mut out: Vec<Line> = self
-                .draft
-                .as_ref()
-                .map(|d| d.diff_lines())
-                .unwrap_or_default()
+                .all_warnings(s)
                 .into_iter()
-                .filter(|(c, _)| *c != ' ')
-                .map(|(c, l)| {
-                    let color = if c == '+' { Color::Green } else { Color::Red };
-                    Line::styled(format!("{c} {l}"), Style::new().fg(color))
-                })
+                .map(|w| Line::styled(format!("warning: {w}"), Style::new().fg(Color::Yellow)))
                 .collect();
+            out.extend(
+                self.draft
+                    .as_ref()
+                    .map(|d| d.diff_lines())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|(c, _)| *c != ' ')
+                    .map(|(c, l)| {
+                        let color = if c == '+' { Color::Green } else { Color::Red };
+                        Line::styled(format!("{c} {l}"), Style::new().fg(color))
+                    }),
+            );
             if !self.secrets.is_empty() {
                 out.push(Line::from(format!(
                     "secret files to write: {}",
@@ -1324,26 +1445,12 @@ impl SettingsView {
             }
             out.push(Line::from(""));
             match &s.result {
-                Preview::Ran(r) => {
-                    out.extend(r.text.lines().map(|l| Line::from(l.to_string())));
-                    for w in &r.warnings {
-                        out.push(Line::styled(
-                            format!("warning: {w}"),
-                            Style::new().fg(Color::Yellow),
-                        ));
-                    }
-                }
+                Preview::Ran(r) => out.extend(r.text.lines().map(|l| Line::from(l.to_string()))),
                 Preview::Skipped(why) => out.push(Line::from(format!("no output preview: {why}"))),
                 Preview::Failed(why) => out.push(Line::styled(
                     format!("preview failed: {why}"),
                     Style::new().fg(Color::Red),
                 )),
-            }
-            for w in &s.warnings {
-                out.push(Line::styled(
-                    format!("warning: {w}"),
-                    Style::new().fg(Color::Yellow),
-                ));
             }
             out.push(Line::from(""));
             out.push(Line::from("A apply (asks first)"));
@@ -1381,6 +1488,23 @@ impl SettingsView {
             out.push(Line::from("P: set a new secret (hidden)"));
         }
         out
+    }
+
+    /// The warnings of validate and of the preview.
+    fn all_warnings(&self, s: &Shown) -> Vec<String> {
+        let mut w = s.warnings.clone();
+        if let Preview::Ran(r) = &s.result {
+            w.extend(r.warnings.iter().cloned());
+        }
+        w
+    }
+
+    fn router_name(&self, r: usize) -> String {
+        self.draft
+            .as_ref()
+            .and_then(|d| d.get(&concrete("routers.*.name", &[r])))
+            .and_then(|v| v.as_str().map(str::to_string))
+            .unwrap_or_else(|| format!("#{r}"))
     }
 
     fn draw_popup(&self, f: &mut Frame, area: Rect) {
@@ -1431,14 +1555,8 @@ impl SettingsView {
                 let items: Vec<String> = self
                     .draft
                     .as_ref()
-                    .and_then(|d| d.get(path))
-                    .and_then(|i| i.into_value().ok())
-                    .or_else(|| {
-                        meta::find(&path_text(path))
-                            .and_then(|m| m.default.as_deref())
-                            .and_then(parse_value)
-                    })
-                    .and_then(|v| v.as_array().map(|a| a.iter().map(show).collect()))
+                    .and_then(|d| d.effective(path))
+                    .and_then(|(v, _)| v.as_array().map(|a| a.iter().map(show).collect()))
                     .unwrap_or_default();
                 let mut lines: Vec<Line> = items
                     .iter()
@@ -1529,18 +1647,17 @@ impl SettingsView {
                                     r.held.len()
                                 )));
                             }
-                            let w = r.warnings.len() + s.warnings.len();
-                            if w > 0 {
-                                lines.push(Line::styled(
-                                    format!("{w} warning(s): read the preview"),
-                                    Style::new().fg(Color::Yellow),
-                                ));
-                            }
                         }
                         Preview::Skipped(why) => {
                             lines.push(Line::from(format!("no output change: {why}")))
                         }
                         Preview::Failed(_) => {}
+                    }
+                    for w in self.all_warnings(s) {
+                        lines.push(Line::styled(
+                            format!("warning: {w}"),
+                            Style::new().fg(Color::Yellow),
+                        ));
                     }
                 }
                 for p in &self.secrets {
@@ -1554,22 +1671,40 @@ impl SettingsView {
             }
             Some(VModal::RemoveRouter(r)) => popup(
                 f,
-                "remove router",
+                &format!("remove router {}", self.router_name(*r)),
                 vec![
+                    Line::from(format!(
+                        "remove router {} and all its settings",
+                        self.router_name(*r)
+                    )),
                     Line::from(format!(
                         "the password file {} stays: delete it by hand",
                         self.router_password_file(*r)
                     )),
                     Line::from("y remove, another key cancels"),
                 ],
-                4,
+                5,
             ),
-            Some(VModal::RemoveServer(..)) => popup(
-                f,
-                "remove DHCP server",
-                vec![Line::from("y remove, another key cancels")],
-                3,
-            ),
+            Some(VModal::RemoveServer(r, j)) => {
+                let sname = self
+                    .draft
+                    .as_ref()
+                    .and_then(|d| d.get(&concrete("routers.*.dhcp.servers.*.name", &[*r, *j])))
+                    .and_then(|v| v.as_str().map(str::to_string))
+                    .unwrap_or_else(|| format!("#{j}"));
+                popup(
+                    f,
+                    "remove DHCP server",
+                    vec![
+                        Line::from(format!(
+                            "remove DHCP server {sname} of router {}",
+                            self.router_name(*r)
+                        )),
+                        Line::from("y remove, another key cancels"),
+                    ],
+                    4,
+                )
+            }
         }
     }
 }
@@ -1828,6 +1963,185 @@ mod tests {
             v.secrets[0].path,
             PathBuf::from("/etc/lqosync3/secrets/R2.password")
         );
+    }
+
+    fn ran_with(lines: usize, warnings: &[&str]) -> Preview {
+        let mut text: String = (0..lines)
+            .map(|i| format!("~ circuit c{i}: Download Min Mbps 1 -> 2\n"))
+            .collect();
+        text.push_str(&format!("circuits: +0 -0 ~{lines}; nodes: +0 -0 ~0\n"));
+        Preview::Ran(super::super::preview::Ran {
+            text,
+            counts: [0, 0, lines, 0, 0, 0],
+            warnings: warnings.iter().map(|w| w.to_string()).collect(),
+            held: vec![],
+        })
+    }
+
+    #[test]
+    fn warnings_come_first_and_the_confirm_lists_them() {
+        let mut v = view(false);
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        done(&mut v, ran_with(500, &["W-apply-mode", "W-router-X"]));
+        let s = screen(&mut v, 140, 40);
+        assert!(
+            s.contains("W-apply-mode") && s.contains("W-router-X"),
+            "{s}"
+        );
+        v.on_key(key(KeyCode::Char('A')));
+        let s = screen(&mut v, 140, 40);
+        assert!(s.lines().filter(|l| l.contains("W-")).count() >= 4, "{s}");
+        v.on_key(key(KeyCode::Esc));
+        v.on_key(key(KeyCode::Char(']')));
+        assert!(v.scroll > 0);
+    }
+
+    const RD: &str = "[router_defaults.pppoe]\nenabled = true\n[router_defaults.exclude]\nips = [\"10.0.0.0/8\"]\n\n";
+
+    #[test]
+    fn router_keys_use_the_router_defaults_of_the_file() {
+        let mut v = SettingsView::new(PathBuf::from("/tmp/x.toml"), &format!("{RD}{FILE}"), false);
+        assert!(v.select("routers.0.pppoe.enabled"));
+        let s = screen(&mut v, 160, 40);
+        assert!(s.contains("enabled = true (router_defaults)"), "{s}");
+        assert!(v.select("routers.0.exclude.ips"));
+        v.on_key(key(KeyCode::Enter));
+        v.on_key(key(KeyCode::Char('a')));
+        typing(&mut v, "10.1.0.0/16");
+        v.on_key(key(KeyCode::Enter));
+        let c = crate::config::Config::from_toml_str(&v.draft.as_ref().unwrap().text()).unwrap();
+        assert_eq!(c.routers[0].exclude.ips, ["10.0.0.0/8", "10.1.0.0/16"]);
+    }
+
+    #[test]
+    fn ctrl_c_in_a_secret_field_cancels_and_ctrl_keys_type_nothing() {
+        let mut v = view(false);
+        v.select("routers.0.password_file");
+        v.on_key(key(KeyCode::Char('P')));
+        typing(&mut v, "ab");
+        v.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL));
+        v.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT));
+        v.on_key(key(KeyCode::Enter));
+        assert_eq!(v.secrets[0].value.len(), 2);
+        v.on_key(key(KeyCode::Char('P')));
+        v.on_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
+        assert!(!v.capturing());
+    }
+
+    #[test]
+    fn run_preview_allows_a_fix_of_an_invalid_current_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let lqos = dir.path().join("lqos");
+        std::fs::create_dir_all(&lqos).unwrap();
+        let pw = dir.path().join("R1.password");
+        let good = format!(
+            "[runtime]\nstate_dir = \"{}\"\n[libreqos]\ntarget = \"v2_pair\"\ndirectory = \"{}\"\n[[routers]]\nname = \"R1\"\naddress = \"a\"\nusername = \"u\"\npassword_file = \"{}\"\n[routers.pppoe]\nenabled = true\n",
+            dir.path().join("state").display(),
+            lqos.display(),
+            pw.display()
+        );
+        let bad = good.replace("[runtime]", "[runtime]\nmode = \"x\"");
+        let job = PreviewJob {
+            id: 1,
+            old_text: bad,
+            new_text: good,
+            typed: HashSet::from([pw]),
+            changed: vec!["runtime.mode".into()],
+            loaded_digest: None,
+        };
+        let d = run_preview(job);
+        assert!(matches!(d.result, Preview::Skipped(_)), "{:?}", d.result);
+        assert!(
+            d.warnings.iter().any(|w| w.contains("current file")),
+            "{:?}",
+            d.warnings
+        );
+    }
+
+    struct Disk {
+        _dir: tempfile::TempDir,
+        path: PathBuf,
+        state: PathBuf,
+    }
+
+    fn disk() -> (Disk, SettingsView) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("lqosync3.toml");
+        std::fs::write(&path, FILE).unwrap();
+        let state = dir.path().join("state");
+        std::fs::create_dir_all(&state).unwrap();
+        let v = SettingsView::new(path.clone(), FILE, false);
+        (
+            Disk {
+                _dir: dir,
+                path,
+                state,
+            },
+            v,
+        )
+    }
+
+    #[test]
+    fn a_changed_file_shows_the_disk_diff_and_can_restart() {
+        let (d, mut v) = disk();
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        let other = FILE.replace("mode = \"shadow\"", "mode = \"apply\"");
+        std::fs::write(&d.path, &other).unwrap();
+        assert!(v.do_apply(&d.state, 5, 1_000).is_err());
+        let s = screen(&mut v, 160, 40);
+        assert!(
+            s.contains("+ mode = \"apply\"") && s.contains("- mode = \"shadow\""),
+            "{s}"
+        );
+        v.on_key(key(KeyCode::Char('D')));
+        assert_eq!(v.draft.as_ref().unwrap().text(), other);
+        assert!(!v.dirty());
+    }
+
+    #[test]
+    fn a_rejected_apply_says_the_new_file_is_on_disk() {
+        let (d, mut v) = disk();
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        let digest = v.do_apply(&d.state, 5, 1_000).unwrap();
+        let sent = crate::tui::dashboard::Sent {
+            kind: crate::tui::dashboard::Kind::Reload,
+            at: 1_000,
+            pid: 7,
+            seq: 2,
+        };
+        v.reload_sent(Ok(sent), digest);
+        let st = serde_json::json!({"pid": 7, "trigger": "reload", "updated": 1_001, "config_digest": "old", "config_error": "bad key", "cycle_seq": 2});
+        v.on_status(Some(&st), 1_001, 120);
+        let s = screen(&mut v, 200, 40);
+        assert!(
+            s.contains("new file is on disk") && s.contains("000000001000.toml"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn a_secret_for_a_removed_router_is_dropped() {
+        let mut v = view(false);
+        v.select("routers.0.name");
+        v.on_key(key(KeyCode::Char('+')));
+        for part in ["R2", "192.0.2.2", "admin", "pw2"] {
+            typing(&mut v, part);
+            v.on_key(key(KeyCode::Enter));
+        }
+        assert_eq!(v.secrets.len(), 1);
+        v.on_key(key(KeyCode::Char('u')));
+        assert!(v.secrets.is_empty());
+    }
+
+    #[test]
+    fn the_remove_dialog_names_the_router() {
+        let mut v = view(false);
+        v.select("routers.0.pppoe.enabled");
+        v.on_key(key(KeyCode::Char('-')));
+        assert!(screen(&mut v, 160, 40).contains("remove router R1"));
     }
 
     #[test]
