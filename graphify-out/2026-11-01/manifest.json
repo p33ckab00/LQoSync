@@ -36,9 +36,9 @@
     "semantic_hash": "015ec06083c516f1adfc7929508c145b"
   },
   "brain/HANDOFF.md": {
-    "mtime": 1793495226.6343906,
-    "seen": 1793495229.5194697,
-    "ast_hash": "5de603a2a86ecad91993979995683a77",
+    "mtime": 1793503107.3123167,
+    "seen": 1793503110.0555146,
+    "ast_hash": "1a04527365355cd9bd73c238c2305182",
     "semantic_hash": ""
   },
   "brain/Home.md": {
@@ -54,9 +54,9 @@
     "semantic_hash": "4e2ce212a5256cde023589410a10c807"
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793492368.5028698,
-    "seen": 1793495229.519474,
-    "ast_hash": "7fdd8e5a20c0f1a7703c07c8d29a7c04",
+    "mtime": 1793502303.5243537,
+    "seen": 1793503110.0555186,
+    "ast_hash": "31f419c7a4e10029a42d8f25ee7931ff",
     "semantic_hash": ""
   },
   "docs/INSTALLATION.md": {
@@ -72,9 +72,9 @@
     "semantic_hash": ""
   },
   "docs/OPERATIONS.md": {
-    "mtime": 1793497097.738389,
-    "seen": 1793497100.174459,
-    "ast_hash": "5cc6df8429e98fd2756a531e5e852c80",
+    "mtime": 1793502303.5273538,
+    "seen": 1793503110.0555224,
+    "ast_hash": "15c84d6b746508759f1b3520ecd06c25",
     "semantic_hash": ""
   },
   "Cargo.toml": {
@@ -84,15 +84,15 @@
     "semantic_hash": ""
   },
   "src/config.rs": {
-    "mtime": 1793492368.4958696,
-    "seen": 1793495229.519375,
-    "ast_hash": "ee7b01ae661a26dfa09152899b15eca3",
+    "mtime": 1793501526.3126469,
+    "seen": 1793503110.0554225,
+    "ast_hash": "c31b08731774adab22082dffa3a5e50d",
     "semantic_hash": ""
   },
   "src/cycle.rs": {
-    "mtime": 1793461251.9017096,
-    "seen": 1793461566.3743875,
-    "ast_hash": "8c41be2f63b19b54b84f80475f72d3ed",
+    "mtime": 1793501764.580311,
+    "seen": 1793503110.0554247,
+    "ast_hash": "3bf36a297d0c552c85a970b66845921a",
     "semantic_hash": ""
   },
   "src/lib.rs": {
@@ -108,10 +108,10 @@
     "semantic_hash": ""
   },
   "src/sources.rs": {
-    "mtime": 1793457147.9561148,
-    "seen": 1793457910.871995,
-    "ast_hash": "deb3c3cd7509c52fb334976b454be500",
-    "semantic_hash": "deb3c3cd7509c52fb334976b454be500"
+    "mtime": 1793501764.6233115,
+    "seen": 1793503110.0554447,
+    "ast_hash": "41b0c2b35c539344ac8cdadf96049222",
+    "semantic_hash": ""
   },
   "src/speed.rs": {
     "mtime": 1793447287.6594326,
@@ -126,10 +126,10 @@
     "semantic_hash": "b1c7e5a07ef9d87e618abccfe6385a8b"
   },
   "src/topology.rs": {
-    "mtime": 1793441662.4204707,
-    "seen": 1793441919.0775974,
-    "ast_hash": "3c4dc73b04a81d1cbc104c0f79e30b95",
-    "semantic_hash": "3c4dc73b04a81d1cbc104c0f79e30b95"
+    "mtime": 1793501764.47731,
+    "seen": 1793503110.0554504,
+    "ast_hash": "4b8c1666fffa81266d27cdff78f07276",
+    "semantic_hash": ""
   },
   "src/validate.rs": {
     "mtime": 1793469820.6716263,
@@ -378,9 +378,9 @@
     "semantic_hash": ""
   },
   "src/tui/app.rs": {
-    "mtime": 1793496548.0177171,
-    "seen": 1793497100.1743896,
-    "ast_hash": "160d116b08b4682d5c2ef883890ff692",
+    "mtime": 1793502123.3233383,
+    "seen": 1793503110.0554516,
+    "ast_hash": "58e54fcf1bc16c31b27fa923bf2dde0f",
     "semantic_hash": ""
   },
   "src/tui/dashboard.rs": {
@@ -390,9 +390,9 @@
     "semantic_hash": ""
   },
   "src/tui/data.rs": {
-    "mtime": 1793476023.9904096,
-    "seen": 1793476119.3108144,
-    "ast_hash": "9bd982be29fc1e78f19077c4c938bded",
+    "mtime": 1793502123.3403385,
+    "seen": 1793503110.0554545,
+    "ast_hash": "6df2e94170653fc3eb77976f7ba6e771",
     "semantic_hash": ""
   },
   "src/tui/devices.rs": {
@@ -450,15 +450,15 @@
     "semantic_hash": ""
   },
   "src/tui/settings/draft.rs": {
-    "mtime": 1793494817.3228881,
-    "seen": 1793495229.5194192,
-    "ast_hash": "457c58cadf0f2932403fb9f3bd063a0d",
+    "mtime": 1793502123.3723388,
+    "seen": 1793503110.0554662,
+    "ast_hash": "63beb53491929d23b64c889bcce601b8",
     "semantic_hash": ""
   },
   "src/tui/settings/meta.rs": {
-    "mtime": 1793492374.7189343,
-    "seen": 1793495229.519424,
-    "ast_hash": "000fd8731462f5c66a5e7cac927f3536",
+    "mtime": 1793501526.4336483,
+    "seen": 1793503110.0554676,
+    "ast_hash": "dcb361dd258a9ac9f6e0c1b2156def7a",
     "semantic_hash": ""
   },
   "src/tui/settings/mod.rs": {
@@ -486,15 +486,27 @@
     "semantic_hash": ""
   },
   "src/tui/settings/view.rs": {
-    "mtime": 1793497076.6011357,
-    "seen": 1793497100.1744123,
-    "ast_hash": "c6bbcfe1d41b92e35337c57b836bccb5",
+    "mtime": 1793502123.4273393,
+    "seen": 1793503110.0554745,
+    "ast_hash": "d1dace3853a352a85d237fe77c26135b",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-01-lqosync3-tui-4b.md": {
     "mtime": 1793492005.5191784,
     "seen": 1793495229.5194864,
     "ast_hash": "fcbe8d8911b8e4a6e3450a50200ecf87",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-01-lqosync3-dhcp-clients-4c.md": {
+    "mtime": 1793501401.3712616,
+    "seen": 1793503110.0555315,
+    "ast_hash": "6fb5f685a8849f169bffd7caf6555009",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-01-lqosync3-dhcp-clients-design.md": {
+    "mtime": 1793500611.3215244,
+    "seen": 1793503110.0555415,
+    "ast_hash": "18a40e86e43b91123570e5b195091c1e",
     "semantic_hash": ""
   }
 }
