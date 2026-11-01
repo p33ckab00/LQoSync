@@ -361,18 +361,52 @@ pub async fn post_json<S: AsyncRead + AsyncWrite + Unpin>(
     }
     let description = text
         .split_once("\r\n\r\n")
-        .and_then(|(_, b)| serde_json::from_str::<serde_json::Value>(b.trim()).ok())
+        .map(|(head, b)| {
+            if is_chunked(head) {
+                dechunk(b)
+            } else {
+                b.to_string()
+            }
+        })
+        .and_then(|b| serde_json::from_str::<serde_json::Value>(b.trim()).ok())
         .and_then(|v| v["description"].as_str().map(str::to_string))
         .unwrap_or_default();
     Err(format!("HTTP {code}: {description}"))
 }
 
-/// The answer has its full head and a body of `Content-Length` bytes.
+fn is_chunked(head: &str) -> bool {
+    head.lines().any(|l| {
+        l.split_once(':').is_some_and(|(k, v)| {
+            k.trim().eq_ignore_ascii_case("transfer-encoding")
+                && v.trim().eq_ignore_ascii_case("chunked")
+        })
+    })
+}
+
+/// The data of a chunked body (`<hex size>\r\n<data>\r\n` ... `0\r\n\r\n`).
+fn dechunk(mut body: &str) -> String {
+    let mut out = String::new();
+    while let Some((size, rest)) = body.split_once("\r\n") {
+        let n = usize::from_str_radix(size.split(';').next().unwrap_or("").trim(), 16).unwrap_or(0);
+        if n == 0 || rest.len() < n {
+            break;
+        }
+        out.push_str(&rest[..n]);
+        body = rest[n..].strip_prefix("\r\n").unwrap_or(&rest[n..]);
+    }
+    out
+}
+
+/// The answer has its full head and a body of `Content-Length` bytes, or the last chunk.
 fn body_complete(resp: &[u8]) -> bool {
     let Some(end) = resp.windows(4).position(|w| w == b"\r\n\r\n") else {
         return false;
     };
     let head = String::from_utf8_lossy(&resp[..end]);
+    if is_chunked(&head) {
+        let body = &resp[end + 4..];
+        return body.starts_with(b"0\r\n\r\n") || body.windows(7).any(|w| w == b"\r\n0\r\n\r\n");
+    }
     head.lines()
         .find_map(|l| {
             let (k, v) = l.split_once(':')?;
@@ -804,6 +838,50 @@ mod tests {
         let e = send(&t, "hi", 0).await.unwrap_err();
         assert!(e.contains("time"), "{e}");
         assert!(start.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    /// A server that sends `answer` and keeps the connection open.
+    async fn open_server(answer: &'static [u8]) -> u16 {
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut c, _) = l.accept().await.unwrap();
+            let mut b = [0u8; 4096];
+            let _ = c.read(&mut b).await.unwrap();
+            c.write_all(answer).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        });
+        port
+    }
+
+    #[tokio::test]
+    async fn post_json_reads_a_chunked_answer_without_a_close() {
+        let port = open_server(
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nb\r\n{\"ok\":true}\r\n0\r\n\r\n",
+        )
+        .await;
+        let s = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .unwrap();
+        let r = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            post_json(s, "h", "/botT/x", "{}"),
+        )
+        .await;
+        assert_eq!(r.expect("no wait for the close"), Ok(()));
+        let port = open_server(b"HTTP/1.1 400 Bad Request\r\ntransfer-encoding: chunked\r\n\r\n1a\r\n{\"description\":\"bad chat\"}\r\n0\r\n\r\n").await;
+        let s = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .unwrap();
+        let r = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            post_json(s, "h", "/botT/x", "{}"),
+        )
+        .await;
+        assert_eq!(
+            r.expect("no wait for the close"),
+            Err("HTTP 400: bad chat".to_string())
+        );
     }
 
     #[tokio::test]
