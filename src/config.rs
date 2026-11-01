@@ -368,6 +368,29 @@ pub struct Exclude {
 }
 
 /// Parse "a.b.c.d" or "a.b.c.d/n" to `(network, mask)`.
+/// A speed override for one DHCP client. It replaces only the rate of the lease.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DhcpClient {
+    /// Any case, with `:` or `-`. Compare with `normalize_mac`.
+    pub mac: String,
+    pub download_mbps: f64,
+    pub upload_mbps: f64,
+    /// A note for the operator.
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// `AA:BB:CC:DD:EE:FF` from 6 groups of 2 hex digits with `:` or `-`, any case.
+pub fn normalize_mac(s: &str) -> Option<String> {
+    let parts: Vec<&str> = s.trim().split([':', '-']).collect();
+    (parts.len() == 6
+        && parts
+            .iter()
+            .all(|p| p.len() == 2 && p.chars().all(|c| c.is_ascii_hexdigit())))
+    .then(|| parts.join(":").to_ascii_uppercase())
+}
+
 pub fn parse_ipv4_net(s: &str) -> Option<(u32, u32)> {
     let (addr, len) = match s.trim().split_once('/') {
         Some((a, l)) => (a, l.parse::<u32>().ok().filter(|l| *l <= 32)?),
@@ -389,6 +412,10 @@ pub struct DhcpCfg {
     pub server_mode: DhcpMode,
     /// Settings for some servers. A discovered server that is not here uses the defaults.
     pub servers: Vec<DhcpServer>,
+    /// Shape a lease with no server (`server = all`), in the group `unassigned`.
+    pub shape_unassigned: bool,
+    /// Speed overrides for single clients, found by MAC address.
+    pub clients: Vec<DhcpClient>,
 }
 
 impl DhcpCfg {
@@ -539,6 +566,18 @@ impl Config {
                         "config: router_defaults.{k} is not allowed; set {k} in each [[routers]] entry"
                     );
                 }
+                // A client override is for one router: a shared list would apply to each router.
+                let dhcp_clients = t
+                    .get("dhcp")
+                    .and_then(toml::Value::as_table)
+                    .is_some_and(|d| {
+                        d.get("clients")
+                            .is_some_and(|c| c.as_array().is_none_or(|a| !a.is_empty()))
+                    });
+                ensure!(
+                    !dhcp_clients,
+                    "config: router_defaults.dhcp.clients is not allowed; set the clients in each [[routers]] entry"
+                );
                 deep_merge(&mut router_defaults, t)
             }
             Some(_) => bail!("config: [router_defaults] must be a table"),
@@ -733,6 +772,32 @@ impl Config {
                 "config: routers[].name \"{}\" is used two times",
                 r.name
             );
+            let mut macs = BTreeSet::new();
+            for c in &r.dhcp.clients {
+                let Some(mac) = normalize_mac(&c.mac) else {
+                    bail!(
+                        "config: router \"{}\": dhcp.clients mac \"{}\" is not a MAC address (AA:BB:CC:DD:EE:FF)",
+                        r.name,
+                        c.mac
+                    );
+                };
+                ensure!(
+                    macs.insert(mac.clone()),
+                    "config: router \"{}\": dhcp.clients mac {mac} is used two times",
+                    r.name
+                );
+                let floor = self.bandwidth_defaults.max_floor_mbps;
+                for (k, v) in [
+                    ("download_mbps", c.download_mbps),
+                    ("upload_mbps", c.upload_mbps),
+                ] {
+                    ensure!(
+                        v.is_finite() && v >= floor,
+                        "config: router \"{}\": dhcp.clients {mac} {k} must be a number of at least bandwidth_defaults.max_floor_mbps ({floor})",
+                        r.name
+                    );
+                }
+            }
             let mut servers = BTreeSet::new();
             for s in &r.dhcp.servers {
                 ensure!(
@@ -1373,6 +1438,70 @@ mod tests {
         );
         let c = Config::from_toml_str(MIN).unwrap();
         assert!(c.routers[0].tls_verify && c.routers[0].tls_ca_file.is_empty());
+    }
+
+    fn with_clients(clients: &str) -> anyhow::Result<Config> {
+        Config::from_toml_str(&format!("{MIN}[routers.dhcp]\nenabled = true\n{clients}"))
+    }
+
+    #[test]
+    fn dhcp_client_mac_forms_load() {
+        let c = with_clients(
+            "[[routers.dhcp.clients]]\nmac = \"aa-bb-cc-dd-ee-0f\"\ndownload_mbps = 50\nupload_mbps = 20\nname = \"Juan\"\n\
+             [[routers.dhcp.clients]]\nmac = \"AA:BB:CC:DD:EE:10\"\ndownload_mbps = 5.5\nupload_mbps = 2\n",
+        )
+        .unwrap();
+        let cl = &c.routers[0].dhcp.clients;
+        assert_eq!(cl.len(), 2);
+        assert_eq!(
+            normalize_mac(&cl[0].mac).as_deref(),
+            Some("AA:BB:CC:DD:EE:0F")
+        );
+        assert_eq!(
+            (cl[0].download_mbps, cl[0].name.as_deref()),
+            (50.0, Some("Juan"))
+        );
+        assert_eq!(normalize_mac("aa:bb"), None);
+        assert_eq!(normalize_mac("aa:bb:cc:dd:ee:gg"), None);
+    }
+
+    #[test]
+    fn a_bad_or_duplicate_mac_is_an_error() {
+        let e = with_clients(
+            "[[routers.dhcp.clients]]\nmac = \"aa:bb\"\ndownload_mbps = 5\nupload_mbps = 5\n",
+        )
+        .unwrap_err();
+        assert!(format!("{e:#}").contains("dhcp.clients"), "{e:#}");
+        let e = with_clients(
+            "[[routers.dhcp.clients]]\nmac = \"aa:bb:cc:dd:ee:ff\"\ndownload_mbps = 5\nupload_mbps = 5\n\
+             [[routers.dhcp.clients]]\nmac = \"AA-BB-CC-DD-EE-FF\"\ndownload_mbps = 6\nupload_mbps = 6\n",
+        )
+        .unwrap_err();
+        assert!(format!("{e:#}").contains("two times"), "{e:#}");
+    }
+
+    #[test]
+    fn a_client_rate_below_the_floor_is_an_error() {
+        let e = with_clients("[[routers.dhcp.clients]]\nmac = \"aa:bb:cc:dd:ee:ff\"\ndownload_mbps = 0.1\nupload_mbps = 5\n").unwrap_err();
+        assert!(format!("{e:#}").contains("max_floor_mbps"), "{e:#}");
+    }
+
+    #[test]
+    fn shape_unassigned_defaults_to_false() {
+        let c = Config::from_toml_str(MIN).unwrap();
+        assert!(!c.routers[0].dhcp.shape_unassigned && c.routers[0].dhcp.clients.is_empty());
+    }
+
+    #[test]
+    fn router_defaults_clients_is_an_error() {
+        let e = Config::from_toml_str(&format!(
+            "[[router_defaults.dhcp.clients]]\nmac = \"aa:bb:cc:dd:ee:ff\"\ndownload_mbps = 5\nupload_mbps = 5\n{MIN}"
+        ))
+        .unwrap_err();
+        assert!(
+            format!("{e:#}").contains("router_defaults.dhcp.clients"),
+            "{e:#}"
+        );
     }
 
     #[test]

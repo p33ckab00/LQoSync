@@ -188,6 +188,8 @@ require_bound = false           # true = use only leases with status "bound"
 discover = true                 # read all DHCP servers from the router, as for PPP
 server_mode = "per_site"        # mode of a server without its own entry: per_site | per_plan
 servers = []                    # optional [[routers.dhcp.servers]] entries: settings for one server
+shape_unassigned = false        # true = shape a lease with no server (server = all) in the group "unassigned"
+clients = []                    # [[routers.dhcp.clients]] in a router: mac, download_mbps, upload_mbps, name (optional)
 
 [router_defaults.exclude]       # more exclusions for each router (joined with [exclude])
 dhcp_servers = []

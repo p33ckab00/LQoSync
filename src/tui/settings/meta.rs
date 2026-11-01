@@ -96,6 +96,8 @@ pub const FLOATS: &[&str] = &[
     "backstop_caps.hotspot.download_mbps",
     "backstop_caps.hotspot.upload_mbps",
     "backstop_caps.hotspot.multiplier",
+    "routers.*.dhcp.clients.*.download_mbps",
+    "routers.*.dhcp.clients.*.upload_mbps",
 ];
 
 /// Keys that are not in the defaults file as a key: (path, kind, help, optional).
@@ -215,6 +217,30 @@ const EXTRA: &[(&str, Base, &str, bool)] = &[
         true,
     ),
     (
+        "routers.*.dhcp.clients.*.mac",
+        Base::Text,
+        "the MAC address of the client (AA:BB:CC:DD:EE:FF); the override is found by it",
+        false,
+    ),
+    (
+        "routers.*.dhcp.clients.*.download_mbps",
+        Base::Float,
+        "the max download rate of this client; it replaces the rate of its lease",
+        false,
+    ),
+    (
+        "routers.*.dhcp.clients.*.upload_mbps",
+        Base::Float,
+        "the max upload rate of this client; it replaces the rate of its lease",
+        false,
+    ),
+    (
+        "routers.*.dhcp.clients.*.name",
+        Base::Text,
+        "a note for the operator, shown in the TUI",
+        true,
+    ),
+    (
         "routers.*.dhcp.servers.*.upload_factor",
         Base::Float,
         "not set: bandwidth_defaults.dhcp_upload_factor",
@@ -258,8 +284,10 @@ fn walk(t: &Table, prefix: &str, out: &mut Vec<KeyMeta>) {
         };
         match item {
             Item::Table(sub) => walk(sub, &path, out),
-            // The DHCP servers are a group of the router, not a key.
-            Item::Value(_) if path == "router_defaults.dhcp.servers" => {}
+            // The DHCP servers and the client overrides are groups of the router, not keys.
+            Item::Value(_)
+                if path == "router_defaults.dhcp.servers"
+                    || path == "router_defaults.dhcp.clients" => {}
             Item::Value(v) => {
                 let base = match v {
                     Value::Boolean(_) => Kind::Bool,
@@ -388,6 +416,19 @@ mod tests {
                 };
                 format!("{ROUTER}[[routers.dhcp.servers]]\n{line}{mode}")
             }
+            ["routers", "*", "dhcp", "clients", "*", k] => {
+                let mut fields = vec![
+                    ("mac", "\"aa:bb:cc:dd:ee:ff\"".to_string()),
+                    ("download_mbps", "5".into()),
+                    ("upload_mbps", "5".into()),
+                ];
+                match fields.iter_mut().find(|(n, _)| n == k) {
+                    Some(f) => f.1 = v.to_string(),
+                    None => fields.push((k, v.to_string())),
+                }
+                let body: String = fields.iter().map(|(n, x)| format!("{n} = {x}\n")).collect();
+                format!("{ROUTER}[[routers.dhcp.clients]]\n{body}")
+            }
             ["routers", "*", k] => {
                 let mut lines: Vec<String> = ROUTER.lines().map(str::to_string).collect();
                 match lines.iter().position(|l| l.starts_with(&format!("{k} = "))) {
@@ -423,10 +464,12 @@ mod tests {
         let t: toml::Table = toml::from_str(DEFAULTS_TOML).unwrap();
         let mut keys = Vec::new();
         leaves(&t, "", &mut keys);
-        for k in keys
-            .iter()
-            .filter(|k| k.as_str() != "router_defaults.dhcp.servers")
-        {
+        for k in keys.iter().filter(|k| {
+            !matches!(
+                k.as_str(),
+                "router_defaults.dhcp.servers" | "router_defaults.dhcp.clients"
+            )
+        }) {
             assert!(find(k).is_some(), "{k}");
         }
         for k in [
@@ -440,6 +483,17 @@ mod tests {
         }
         assert!(find("nodes.client.type").is_some_and(|m| !m.optional));
         assert!(find("routers.*.dhcp.servers").is_none());
+        assert!(
+            find("routers.*.dhcp.clients").is_none()
+                && find("router_defaults.dhcp.clients").is_none()
+        );
+        for k in [
+            "routers.0.dhcp.clients.1.mac",
+            "routers.0.dhcp.clients.0.download_mbps",
+            "routers.0.dhcp.clients.0.name",
+        ] {
+            assert!(find(k).is_some(), "{k}");
+        }
     }
 
     #[test]
