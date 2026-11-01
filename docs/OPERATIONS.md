@@ -79,19 +79,20 @@ The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key o
    - A list opens a list editor: `a` add, `d` delete, `K` up, `J` down.
 4. Routers: push `+` to add a router (name, address, user, password). The password goes to `/etc/lqosync3/secrets/<name>.password` at apply. Push `-` in a router group to remove a router. Its password file stays: delete it by hand.
 5. DHCP servers: push `+` in the `dhcp` group of a router to add a server. Push `-` in a server group to remove it.
-6. Push `P` in a router group to set a new router password. Push `P` in `telegram` to set a new bot token. The screen shows only `*`.
-7. Push `v`. The yellow "next" bar (header and right panel border) always shows the next step: `[v] preview`, `preview running`, `[A] apply`, or `apply blocked`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
-8. Read the warnings. Examples:
+6. DHCP clients: the server groups of a router show the leases of the last cycle (from `snapshot.json`). Push `Enter` on a lease to set its download and upload max rates: this makes a `[[routers.dhcp.clients]]` entry. Push `r` on the lease to remove the override. A grey lease is not shaped, and its line gives the reason. The group `router <name> dhcp clients` shows each override, and "no active lease" if the client is not on the router now.
+7. Push `P` in a router group to set a new router password. Push `P` in `telegram` to set a new bot token. The screen shows only `*`.
+8. Push `v`. The yellow "next" bar (header and right panel border) always shows the next step: `[v] preview`, `preview running`, `[A] apply`, or `apply blocked`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
+9. Read the warnings. Examples:
    - an old `snapshot.json`,
    - a router with no snapshot,
    - a source that the last cycle did not read,
    - circuits that the removal guard holds. The next cycle removes them.
-9. Push `A` and read the confirmation. Push `y` to apply, or `n` or `Esc` to cancel. Other keys do nothing. The TUI:
+10. Push `A` and read the confirmation. Push `y` to apply, or `n` or `Esc` to cancel. Other keys do nothing. The TUI:
    - stops if another person changed the file after the start of the edit,
    - copies the old file to `<state_dir>/config-backups/<unix seconds>.toml` (it keeps `runtime.keep_backups` files),
    - writes the secret files (mode `0600`, owner root), then the config file,
    - sends `SIGHUP` to the service.
-10. Wait for the result in the header. "applied" shows only when `status.json` has the digest of the new file. "not applied" shows the `config_error` of the service: the old config stays. "not verified" shows the two digests.
+11. Wait for the result in the header. "applied" shows only when `status.json` has the digest of the new file. "not applied" shows the `config_error` of the service: the old config stays. "not verified" shows the two digests.
 
 NOTE: `runtime.state_dir` is read-only in the TUI. To change it, stop the service, copy the folder, and edit the file by hand.
 

@@ -233,6 +233,27 @@ The tool reads all DHCP servers from `/ip/dhcp-server` on each router, as it rea
 - Add a `[[routers.dhcp.servers]]` entry only to change one server, for example its rate or `mode = "per_plan"`.
 - Set `discover = false` to use only the listed servers.
 
+### Speed of one DHCP client
+
+Most clients of a server get the speed of the server comment. To give one client its own speed, add an override to its router. The tool finds the client by its MAC address. The router does not change.
+
+```text
+[[routers.dhcp.clients]]
+mac = "AA:BB:CC:DD:EE:FF"       # any case, with : or -
+download_mbps = 50              # the max rate; the min rate comes from min_rate_percentage
+upload_mbps = 20
+name = "Juan"                   # optional: a note for the operator
+```
+
+- The override replaces only the rate. A lease that the tool skips (an excluded IP, a lease that is not bound, a disabled or excluded server) stays skipped.
+- In `per_site`, the client stays in the node of its server, and the node rate does not change. In `per_plan`, the client goes to the plan node of its new rate.
+- The override is for the router, not for one server. Two overrides with the same MAC on one router are an error. `router_defaults.dhcp.clients` is not allowed.
+- In the TUI, push `Enter` on a lease to set its speed (Settings tab, the server group of the router).
+
+### Leases with no server
+
+A static lease can have `server = all` or no server. The tool does not shape such a lease, and the report has one warning line for each router. Set `routers.dhcp.shape_unassigned = true` to shape them in a group named `unassigned`: the rate is the lease comment, else `dhcp_default_per_client_mbps`.
+
 ## Exclusions
 
 `[exclude]` applies to all routers. `[routers.exclude]` adds more rules for one router. The tool uses both lists.

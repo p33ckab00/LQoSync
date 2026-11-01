@@ -51,7 +51,8 @@ None at this time.
 3. Plan 3 (LibreQoS v3) is done in code: `src/detect.rs`, `src/writer/v3network.rs`, `lqosync3 detect`. The production shaper (2.2, fixed `target = "v2_pair"`) does not use it yet. The `v3_network` output passed the offline 3.0.7 parser (spec "Offline check result"). Open: a test on an operating v3 shaper, the `lqosd` accept check (`v3_status_timeout`), `libreqos-v3-preflight`.
 4. Plan 4a (TUI, read-only screens and actions) is done in code: `lqosync3 tui`, `src/tui/`. The service writes `status.json` version 3 and `snapshot.json`. The installed binary on the shaper is still the Plan 3 build: deploy the new build to get the new status fields. Plan: `docs/superpowers/plans/2026-10-31-lqosync3-tui-4a.md`.
 5. Plan 4b (Settings editor) is done in code: `src/tui/settings/` (meta, draft, validate, secrets, preview, apply, view). The first real apply is on the shaper by the operator. Plan: `docs/superpowers/plans/2026-11-01-lqosync3-tui-4b.md`.
-6. Next: TUI cosmetics (the owner asked for it after 4b), then Plan 5 (installer).
+6. Plan 4c (DHCP client overrides) is done in code: `[[routers.dhcp.clients]]` by MAC, `routers.dhcp.shape_unassigned`, the shared lease list `sources::dhcp_leases`, and the DHCP view of the Settings tab. Spec: `docs/superpowers/specs/2026-11-01-lqosync3-dhcp-clients-design.md`.
+7. Next: the minors A and B of the owner list, then TUI cosmetics, then Plan 5 (installer).
 
 Router library: `mikrotik-rs =0.9.0` (`mikrotik-tokio` 0.3.0) in this project only. The other project in `/opt/LQoSync3.0/v3` is not changed.
 
