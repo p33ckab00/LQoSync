@@ -29,7 +29,7 @@ All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml
 | `lqosync3 run` | Operates as a service. The systemd unit uses this command. |
 | `lqosync3 defaults` | Prints all settings with their default values. |
 | `lqosync3 detect` | Prints the target that `libreqos.target = "auto"` selects, and the reason. |
-| `lqosync3 tui` | Opens the terminal view: ShapedDevices, Network, Settings (read-only), Journal, Dashboard. Refer to "Terminal view". |
+| `lqosync3 tui` | Opens the terminal view: ShapedDevices, Network, Settings, Journal, Dashboard. Refer to "Terminal view". |
 
 Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again. A bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
 After each cycle, `<state_dir>/status.json` (version 3) shows the router states, the changes, and any error. It also shows `config_path`, `config_digest`, `cycle_seq`, `pid`, `trigger` (`start`, `timer`, `sync_now`, `reload`, `once`), `program_version`, and `telegram` (the last send: `disabled`, `none`, `ok`, or the error).
@@ -55,7 +55,7 @@ sudo lqosync3 tui
 |-----|------|
 | 1 ShapedDevices | `/` search (name, ID, MAC, IP), `o` next sort column, `i` reverse order, `Enter` open the parent node |
 | 2 Network | `Space` open or close a node, `e` expand all, `c` collapse all, `/` search |
-| 3 Settings | `Up`/`Down` scroll. The editor comes with Plan 4b. |
+| 3 Settings | Arrows select (`Left`/`Right` change the panel), `Enter` or `Space` edit, `r` reset to the default, `u` undo, `P` new secret, `+` add, `-` remove, `v` preview, `A` apply. Refer to "Change the configuration in the TUI". |
 | 4 Journal | `l` level filter, `/` search, `f` follow, `Shift`+arrows or the mouse select lines, `y` copy, `s` select mode |
 | 5 Dashboard | `S` sync now (asks first, releases a guard hold), `R` reload the config |
 
@@ -64,6 +64,37 @@ sudo lqosync3 tui
 - The Journal tab can read the journal only as root, or as a member of the group `adm` or `systemd-journal`. If not, the tab shows the `journalctl` hint in red.
 - An unknown value shows `unknown`, never `0`. A file error shows in red in the footer.
 - `q` or `Ctrl+C` stops the view.
+
+## Change the configuration in the TUI
+
+The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key order of the file stay. A reset removes the key from the file, so the default of `config/defaults.toml` applies. Root is necessary.
+
+1. Start the view: `sudo lqosync3 tui`. Push `3`.
+2. Select a group on the left, then a key in the center (`Right`). The help is on the right.
+3. Push `Enter` or `Space`:
+   - A boolean changes at once.
+   - A key with fixed values opens a list. Select the value and push `Enter`.
+   - A number or a text opens a field. Push `Enter` to keep the value, `Esc` to cancel. An error names the key.
+   - A list opens a list editor: `a` add, `d` delete, `K` up, `J` down.
+4. Routers: push `+` to add a router (name, address, user, password). The password goes to `/etc/lqosync3/secrets/<name>.password` at apply. Push `-` in a router group to remove a router. Its password file stays: delete it by hand.
+5. DHCP servers: push `+` in the `dhcp` group of a router to add a server. Push `-` in a server group to remove it.
+6. Push `P` in a router group to set a new router password. Push `P` in `telegram` to set a new bot token. The screen shows only `*`.
+7. Push `v`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
+8. Read the warnings. Examples:
+   - an old `snapshot.json`,
+   - a router with no snapshot,
+   - a source that the last cycle did not read,
+   - circuits that the removal guard holds. The next cycle removes them.
+9. Push `A`, read the confirmation, and push `y`. The TUI:
+   - stops if another person changed the file after the start of the edit,
+   - copies the old file to `<state_dir>/config-backups/<unix seconds>.toml` (it keeps `runtime.keep_backups` files),
+   - writes the secret files (mode `0600`, owner root), then the config file,
+   - sends `SIGHUP` to the service.
+10. Wait for the result in the header. "applied" shows only when `status.json` has the digest of the new file. "not applied" shows the `config_error` of the service: the old config stays. "not verified" shows the two digests.
+
+NOTE: `runtime.state_dir` is read-only in the TUI. To change it, stop the service, copy the folder, and edit the file by hand.
+
+NOTE: The TUI never restarts the service. A config file with a TOML error opens read-only: fix it by hand.
 
 ## Daily tasks
 
