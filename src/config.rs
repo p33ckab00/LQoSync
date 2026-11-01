@@ -294,6 +294,7 @@ pub struct Tui {
     pub max_file_mb: u64,
     pub osc52: bool,
     pub apply_verify_timeout: u64,
+    pub preview_max_age: u64,
     pub service_unit: String,
     pub lqosd_units: Vec<String>,
 }
@@ -933,6 +934,10 @@ impl Config {
             "config: tui.apply_verify_timeout must be 5 to 3600"
         );
         ensure!(
+            (10..=86_400).contains(&tui.preview_max_age),
+            "config: tui.preview_max_age must be 10 to 86400"
+        );
+        ensure!(
             !tui.service_unit.trim().is_empty(),
             "config: tui.service_unit must not be empty"
         );
@@ -1411,6 +1416,7 @@ mod tests {
         );
         assert_eq!(c.tui.service_unit, "lqosync3.service");
         assert_eq!(c.tui.apply_verify_timeout, 120);
+        assert_eq!(c.tui.preview_max_age, 300);
         assert_eq!(
             c.tui.lqosd_units,
             ["lqosd.service", "libreqos-lqosd.service"]
@@ -1420,6 +1426,7 @@ mod tests {
             ("journal_lines=0", "tui.journal_lines"),
             ("max_file_mb=0", "tui.max_file_mb"),
             ("apply_verify_timeout=1", "tui.apply_verify_timeout"),
+            ("preview_max_age=5", "tui.preview_max_age"),
             ("service_unit=\" \"", "tui.service_unit"),
         ] {
             let e = Config::from_toml_str(&format!("[tui]\n{bad}\n{MIN}")).unwrap_err();

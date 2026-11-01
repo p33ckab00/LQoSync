@@ -8,6 +8,7 @@ pub mod journal;
 pub mod network;
 pub mod osc52;
 pub mod proc;
+pub mod settings;
 
 use app::{Action, App};
 use ratatui::Terminal;

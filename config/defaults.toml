@@ -16,7 +16,7 @@ static_comment = "static"       # a row with this Comment is never removed (case
 subscriber_grace = 0            # seconds that a missing subscriber stays before removal
 log_level = "info"              # error | warn | info | debug
 state_dir = "/var/lib/lqosync3"
-keep_backups = 10               # backup folders of the old LibreQoS files to keep (apply mode)
+keep_backups = 10               # backup folders of the old LibreQoS files (apply mode), and config backups of the TUI, to keep
 
 [router_access]
 connect_timeout = 5             # seconds, for the TCP connection and the login
@@ -155,6 +155,7 @@ journal_lines = 2000            # lines that the Journal tab keeps
 max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded
 osc52 = true                    # y copies with OSC 52; false: select with the terminal (s)
 apply_verify_timeout = 120      # seconds to wait for the result of sync now and reload in status.json
+preview_max_age = 300           # seconds; an older snapshot.json gives a warning in the settings preview
 service_unit = "lqosync3.service"
 lqosd_units = ["lqosd.service", "libreqos-lqosd.service"]   # the first unit that exists gives the lqosd state
 

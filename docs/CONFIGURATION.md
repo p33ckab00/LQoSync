@@ -175,6 +175,7 @@ journal_lines = 2000            # lines that the Journal tab keeps
 max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded
 osc52 = true                    # y copies with OSC 52; false: select with the terminal (s)
 apply_verify_timeout = 120      # seconds to wait for the result of sync now and reload in status.json
+preview_max_age = 300           # seconds; an older snapshot.json gives a warning in the settings preview
 service_unit = "lqosync3.service"
 lqosd_units = ["lqosd.service", "libreqos-lqosd.service"]   # the first unit that exists gives the lqosd state
 
@@ -375,7 +376,8 @@ The `[tui]` keys are for `lqosync3 tui` only. The service does not use them, but
 - `journal_lines` (1 to 100000): the lines that the Journal tab keeps.
 - `max_file_mb` (1 to 4096): a larger `ShapedDevices.csv`, `network.json`, or `libreqos_network.json` is not loaded. The screen keeps the last data and shows an error.
 - `osc52`: `y` copies with OSC 52. With `false`, select with the terminal (`s`).
-- `apply_verify_timeout` (5 to 3600 seconds): the time to wait for the result of sync now and reload in `status.json`.
+- `apply_verify_timeout` (5 to 3600 seconds): the time to wait for the result of sync now, reload, and a settings apply in `status.json`.
+- `preview_max_age` (10 to 86400 seconds): a `snapshot.json` that is older gives a warning in the settings preview.
 - `service_unit`: the systemd unit of the service. The TUI reads its state and MainPID, and sends the signals to that PID.
 - `lqosd_units`: the TUI shows the state of the first unit in this list that exists.
 
