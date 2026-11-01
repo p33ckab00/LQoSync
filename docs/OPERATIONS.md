@@ -250,6 +250,97 @@ The tool supports both versions. The upgrade changes the output target. Do this 
 > [!note]
 > In v3, `LibreQoS.py --updateonly` does nothing. The tool does not start it on v3. `lqosd` reads the changed files by itself.
 
+## Router TLS with your own CA
+
+Use this procedure to connect to a router on `api-ssl` (port 8729) with a certificate check. A MikroTik router has no certificate from a public CA. Thus you make a CA on the router and sign the API certificate with it. Then you give the CA file to the tool.
+
+Do this procedure one time for each router.
+
+### The values
+
+Find these values before you start. Write them down. Do not mix them up.
+
+| Name in the commands | What it is | How to find it |
+|---|---|---|
+| `R1` | The `name` of the router in the tool config. | The group `router <name>` in the TUI Settings tab, or `name =` in `[[routers]]`. |
+| `ROUTER_IP` | The address that the shaper uses to connect to the router. It is the `address` of the router in the tool config. | The key `address` of the router in the TUI. It must be the same text, character for character. |
+| `SHAPER_IP` | The source address of the shaper, as the router sees it. | On the shaper, run `ip route get ROUTER_IP`. The value after `src` is `SHAPER_IP`. If NAT is between the shaper and the router, use the NAT address. |
+
+Example: the router has `address = "10.10.0.1"`. On the shaper, `ip route get 10.10.0.1` shows `10.10.0.1 dev eth1 src 10.10.0.5`. Then `ROUTER_IP` is `10.10.0.1` and `SHAPER_IP` is `10.10.0.5`.
+
+NOTE: The tool checks the certificate against `address`. If `address` is an IP address, the certificate must have `IP:ROUTER_IP`. If `address` is a DNS name, use `DNS:<the name>` in step 3.
+
+### Procedure
+
+On the router (RouterOS 7 terminal, with an administrator account):
+
+1. Make the CA:
+
+   ```
+   /certificate add name=lqos-ca common-name=lqos-ca key-usage=key-cert-sign,crl-sign days-valid=3650
+   /certificate sign lqos-ca
+   ```
+
+2. Make sure that the CA has the flags `K`, `L`, and `T`: `/certificate print`.
+3. Make the API certificate. Put `ROUTER_IP` in both places:
+
+   ```
+   /certificate add name=api-ssl common-name=ROUTER_IP subject-alt-name=IP:ROUTER_IP days-valid=3650
+   /certificate sign api-ssl ca=lqos-ca
+   ```
+
+4. Set the certificate on the API service. Put `SHAPER_IP` in `address`. Only the shaper can then use the API:
+
+   ```
+   /ip service set api-ssl certificate=api-ssl address=SHAPER_IP/32 disabled=no
+   ```
+
+   CAUTION: MAKE SURE THAT `SHAPER_IP` IS CORRECT. A WRONG ADDRESS STOPS ALL ROUTER READS OF THE TOOL. WinBox and SSH do not change.
+
+5. Export the CA certificate (not its key):
+
+   ```
+   /certificate export-certificate lqos-ca
+   ```
+
+   The router writes the file `cert_export_lqos-ca.crt` in Files.
+
+On the shaper:
+
+6. Copy the CA file from the router to the shaper:
+
+   ```bash
+   scp admin@ROUTER_IP:cert_export_lqos-ca.crt /tmp/R1-ca.crt
+   sudo install -d -m 0755 /etc/lqosync3/ca
+   sudo install -m 0644 /tmp/R1-ca.crt /etc/lqosync3/ca/R1.crt
+   rm /tmp/R1-ca.crt
+   ```
+
+7. Test the TLS connection before you change the config:
+
+   ```bash
+   openssl s_client -connect ROUTER_IP:8729 -CAfile /etc/lqosync3/ca/R1.crt -verify_ip ROUTER_IP -brief </dev/null
+   ```
+
+   Expected result: `Verification: OK`.
+
+8. In the Settings tab of the TUI, select the group `router R1`. Set these keys:
+   - `tls = true`
+   - `port = 8729`
+   - `tls_verify = true`
+   - `tls_ca_file = "/etc/lqosync3/ca/R1.crt"`
+9. Push `v`, read the preview, then push `A` and `y`.
+10. Wait for "applied" in the header. The next cycle reads the router with TLS. Make sure that the Dashboard shows the router as `online`.
+
+### Problems
+
+| Error in the log or in openssl | Cause | Action |
+|---|---|---|
+| `NotValidForName`, or openssl `IP address mismatch` | The certificate does not have `IP:ROUTER_IP`, or `address` is a different text. | Do step 3 again with the `address` of the config. Then do step 4. |
+| `UnknownIssuer`, or openssl `unable to get local issuer certificate` | `tls_ca_file` is not the CA that signed `api-ssl`. | Do steps 5 and 6 again. |
+| Timeout or `Connection refused` on 8729 | `api-ssl` is off, or `address` of the service is not `SHAPER_IP`. | Run `/ip service print` on the router. Do step 4 again. |
+| `check`: `tls_ca_file ... cannot be read` | Wrong path, or the file is missing. | Do step 6 again. |
+
 ## Turn on Telegram
 
 1. Write the bot token to the secret file:
