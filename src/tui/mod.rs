@@ -98,6 +98,9 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     app.osc52 = cfg.tui.osc52;
     app.action_timeout = cfg.tui.apply_verify_timeout;
     app.journal = journal::JournalView::new(cfg.tui.journal_lines);
+    app.settings =
+        settings::view::SettingsView::new(config.to_path_buf(), &app.data.config_text, read_only);
+    let (ptx, prx) = mpsc::channel();
     let (jtx, jrx) = mpsc::channel();
     let mut journal_child = None;
 
@@ -139,6 +142,10 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 cfg.tui.journal_lines,
                 jtx.clone(),
             ));
+        }
+        for done in prx.try_iter() {
+            app.settings.preview_done(done);
+            dirty = true;
         }
         let batch: Vec<_> = jrx.try_iter().collect();
         if !batch.is_empty() {
@@ -191,6 +198,30 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 unix_now(),
                 fresh_pid(&cfg),
             )),
+            Action::Preview(job) => {
+                let tx = ptx.clone();
+                // The preview reads files and runs the cycle core: never in the draw loop.
+                let spawned = std::thread::Builder::new()
+                    .name("tui-preview".into())
+                    .spawn(move || {
+                        let _ = tx.send(settings::view::run_preview(*job));
+                    });
+                if let Err(e) = spawned {
+                    app.message = Some(format!("cannot start the preview: {e}"));
+                }
+            }
+            Action::ApplySettings => {
+                let now = unix_now();
+                if let Ok(digest) = app.settings.do_apply(
+                    Path::new(&cfg.runtime.state_dir),
+                    cfg.runtime.keep_backups,
+                    now,
+                ) {
+                    let sent =
+                        dashboard::send(dashboard::Kind::Reload, &app.data, now, fresh_pid(&cfg));
+                    app.settings.reload_sent(sent, digest);
+                }
+            }
             Action::None => {}
         }
     }

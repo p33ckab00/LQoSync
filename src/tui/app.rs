@@ -6,6 +6,7 @@ use super::devices::DevicesView;
 use super::journal::JournalView;
 use super::network::NetworkView;
 use super::osc52::MAX_COPY;
+use super::settings::view::{PreviewJob, SAction, SettingsView};
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -57,11 +58,17 @@ pub enum Action {
     Copy(String),
     /// `true`: release the mouse to the terminal.
     SelectMode(bool),
+    /// Run a settings preview in a worker thread.
+    Preview(Box<PreviewJob>),
+    /// Apply the settings draft, then send SIGHUP.
+    ApplySettings,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Modal {
     ConfirmSync,
+    /// Quit with settings changes that are not applied.
+    Discard,
 }
 
 /// The side panel goes to the right on a wide terminal, else under the main panel.
@@ -97,11 +104,12 @@ pub struct App {
     /// Unix seconds of the last data.
     pub now: u64,
     config_error: Option<String>,
-    settings_offset: u16,
+    pub settings: SettingsView,
 }
 
 impl App {
     pub fn new(read_only: bool, config_text: String, config_error: Option<String>) -> Self {
+        let settings = SettingsView::new(std::path::PathBuf::new(), &config_text, read_only);
         App {
             tab: Tab::Devices,
             read_only,
@@ -122,7 +130,7 @@ impl App {
             select_mode: false,
             now: 0,
             config_error,
-            settings_offset: 0,
+            settings,
         }
     }
 
@@ -131,6 +139,8 @@ impl App {
         self.data = data;
         self.now = now;
         self.devices.on_data(&self.data);
+        self.settings
+            .on_status(self.data.status.as_deref(), now, self.action_timeout);
         self.network.on_data(&self.data);
         self.dashboard.on_data(&self.data);
         if let Some(sent) = &self.pending {
@@ -162,6 +172,14 @@ impl App {
             .unwrap_or_else(|| "unknown".into())
     }
 
+    fn settings_changes(&self) -> usize {
+        self.settings
+            .draft
+            .as_ref()
+            .map_or(0, |d| d.changed().len())
+            + self.settings.secrets.len()
+    }
+
     /// A number field of `status.json`.
     pub fn status_u64(&self, key: &str) -> Option<u64> {
         self.data.status.as_ref().and_then(|s| s[key].as_u64())
@@ -174,24 +192,30 @@ impl App {
             self.modal = None;
             return match (m, k.code) {
                 (Modal::ConfirmSync, KeyCode::Char('y')) => Action::SyncNow,
+                (Modal::Discard, KeyCode::Char('y')) => Action::Quit,
                 _ => {
                     self.message = Some("cancelled".into());
                     Action::None
                 }
             };
         }
-        if k.modifiers.contains(KeyModifiers::CONTROL) && k.code == KeyCode::Char('c') {
+        // An open settings input or modal has all keys.
+        if self.tab == Tab::Settings && self.settings.capturing() {
+            return self.settings_key(k);
+        }
+        let ctrl_c = k.modifiers.contains(KeyModifiers::CONTROL) && k.code == KeyCode::Char('c');
+        if ctrl_c || (k.code == KeyCode::Char('q') && !self.capturing_search()) {
+            if self.settings.dirty() {
+                self.modal = Some(Modal::Discard);
+                return Action::None;
+            }
             return Action::Quit;
         }
         // A search box has all keys.
-        if (self.tab == Tab::Devices && self.devices.editing)
-            || (self.tab == Tab::Network && self.network.editing)
-            || (self.tab == Tab::Journal && self.journal.editing)
-        {
+        if self.capturing_search() {
             return self.tab_key(k);
         }
         match k.code {
-            KeyCode::Char('q') => return Action::Quit,
             KeyCode::Char(c @ '1'..='5') => self.tab = Tab::ALL[c as usize - '1' as usize],
             KeyCode::Tab => self.tab = Tab::ALL[(self.tab as usize + 1) % 5],
             KeyCode::BackTab => self.tab = Tab::ALL[(self.tab as usize + 4) % 5],
@@ -209,6 +233,20 @@ impl App {
             _ => return self.tab_key(k),
         }
         Action::None
+    }
+
+    fn capturing_search(&self) -> bool {
+        (self.tab == Tab::Devices && self.devices.editing)
+            || (self.tab == Tab::Network && self.network.editing)
+            || (self.tab == Tab::Journal && self.journal.editing)
+    }
+
+    fn settings_key(&mut self, k: KeyEvent) -> Action {
+        match self.settings.on_key(k) {
+            SAction::None => Action::None,
+            SAction::Preview(job) => Action::Preview(Box::new(job)),
+            SAction::Apply => Action::ApplySettings,
+        }
     }
 
     /// A key for the current tab.
@@ -239,13 +277,7 @@ impl App {
             }
         }
         if self.tab == Tab::Settings {
-            match k.code {
-                KeyCode::Down => self.settings_offset = self.settings_offset.saturating_add(1),
-                KeyCode::Up => self.settings_offset = self.settings_offset.saturating_sub(1),
-                KeyCode::PageDown => self.settings_offset = self.settings_offset.saturating_add(20),
-                KeyCode::PageUp => self.settings_offset = self.settings_offset.saturating_sub(20),
-                _ => {}
-            }
+            return self.settings_key(k);
         }
         Action::None
     }
@@ -330,7 +362,7 @@ impl App {
             Tab::Network => self.network.draw(f, main, &self.data),
             Tab::Journal => self.journal.draw(f, main),
             Tab::Dashboard => self.dashboard.draw(f, main, &self.data, self.now),
-            Tab::Settings => self.draw_settings(f, main),
+            Tab::Settings => self.settings.draw(f, main),
         }
         let keys = match self.tab {
             Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",
@@ -345,16 +377,36 @@ impl App {
             Tab::Journal => {
                 "l level  / search  f follow  Shift+arrows or mouse select  y copy  s select mode  q quit"
             }
-            Tab::Settings => "Up/Down scroll  q quit  1-5 tabs  S sync  R reload",
+            Tab::Settings => {
+                "arrows move  Enter/Space edit  r reset  u undo  P secret  + add  - remove  v preview  A apply  q quit"
+            }
             Tab::Dashboard => "S sync now (asks first)  R reload the config  q quit  1-5/Tab tabs",
         };
         // An action message first, then a loader error, then the keys.
-        let (text, color) = match (&self.message, self.data.errors.first()) {
+        let settings_msg = (self.tab == Tab::Settings)
+            .then_some(self.settings.message.as_ref())
+            .flatten();
+        let (text, color) = match (
+            self.message.as_ref().or(settings_msg),
+            self.data.errors.first(),
+        ) {
             (Some(m), _) => (format!("{m}  |  {keys}"), Color::Gray),
             (None, Some(e)) => (format!("{e}  |  {keys}"), Color::Red),
             (None, None) => (keys.to_string(), Color::Gray),
         };
         f.render_widget(Paragraph::new(text).style(Style::new().fg(color)), footer);
+        if self.modal == Some(Modal::Discard) {
+            let r = center(main, 56, 5);
+            f.render_widget(Clear, r);
+            f.render_widget(
+                Paragraph::new(format!(
+                    "{} settings change(s) are not applied.\nPress y to quit and discard them, another key to stay.",
+                    self.settings_changes()
+                ))
+                .block(Block::default().borders(Borders::ALL).title(" quit ")),
+                r,
+            );
+        }
         if self.modal == Some(Modal::ConfirmSync) {
             let r = center(main, 50, 5);
             f.render_widget(Clear, r);
@@ -430,19 +482,6 @@ impl App {
             spans.push(Span::raw(" "));
         }
         f.render_widget(Paragraph::new(Line::from(spans)), area);
-    }
-
-    fn draw_settings(&self, f: &mut Frame, area: Rect) {
-        f.render_widget(
-            Paragraph::new(self.data.config_text.as_str())
-                .scroll((self.settings_offset, 0))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title(" config file (read-only; editor: Plan 4b) "),
-                ),
-            area,
-        );
     }
 }
 
@@ -730,11 +769,62 @@ mod tests {
     }
 
     #[test]
-    fn settings_tab_shows_the_config_text_read_only() {
+    fn settings_tab_shows_the_editor() {
         let mut a = app(false);
         a.on_key(key(KeyCode::Char('3')));
-        let screen = draw(&mut a, 100, 20);
+        let screen = draw(&mut a, 140, 30);
+        assert!(screen.contains("Settings: 0 changed keys"), "{screen}");
         assert!(screen.contains("mode = \"apply\""), "{screen}");
-        assert!(screen.contains("editor: Plan 4b"), "{screen}");
+    }
+
+    #[test]
+    fn settings_messages_show_in_the_footer() {
+        let mut a = app(true);
+        a.on_key(key(KeyCode::Char('3')));
+        a.settings.select("safety.enabled");
+        a.on_key(key(KeyCode::Char(' ')));
+        let s = draw(&mut a, 140, 30);
+        assert!(s.lines().last().unwrap().contains("read-only"), "{s}");
+    }
+
+    #[test]
+    fn quit_with_changes_asks_first() {
+        let mut a = app(false);
+        a.on_key(key(KeyCode::Char('3')));
+        assert!(a.settings.select("safety.enabled"));
+        a.on_key(key(KeyCode::Char(' ')));
+        assert!(a.settings.dirty());
+        assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::None);
+        assert_eq!(a.modal, Some(Modal::Discard));
+        assert_eq!(a.on_key(key(KeyCode::Char('n'))), Action::None);
+        let ctrl_c = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+        assert_eq!(a.on_key(ctrl_c), Action::None);
+        assert_eq!(a.on_key(key(KeyCode::Char('y'))), Action::Quit);
+    }
+
+    #[test]
+    fn an_open_field_takes_q_and_digits() {
+        let mut a = app(false);
+        a.on_key(key(KeyCode::Char('3')));
+        assert!(a.settings.select("runtime.id_length"));
+        a.on_key(key(KeyCode::Enter));
+        assert!(a.settings.capturing());
+        assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::None);
+        a.on_key(key(KeyCode::Char('2')));
+        a.on_key(key(KeyCode::Tab));
+        assert_eq!(a.tab, Tab::Settings);
+        assert!(a.settings.capturing());
+    }
+
+    #[test]
+    fn settings_preview_and_apply_become_actions() {
+        let mut a = app(false);
+        a.on_key(key(KeyCode::Char('3')));
+        a.settings.select("safety.enabled");
+        a.on_key(key(KeyCode::Char(' ')));
+        assert!(matches!(
+            a.on_key(key(KeyCode::Char('v'))),
+            Action::Preview(_)
+        ));
     }
 }

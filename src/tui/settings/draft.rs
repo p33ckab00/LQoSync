@@ -47,6 +47,7 @@ pub fn valid_router_name(n: &str) -> bool {
 
 pub struct Draft {
     original: String,
+    orig_doc: DocumentMut,
     /// `cli::config_digest` of the file text at the start of the edit.
     pub start_digest: String,
     doc: DocumentMut,
@@ -85,6 +86,7 @@ impl Draft {
         let doc: DocumentMut = text.parse().context("the config file is not valid TOML")?;
         Ok(Draft {
             original: text.to_string(),
+            orig_doc: doc.clone(),
             start_digest: crate::cli::config_digest(text.as_bytes()),
             doc,
             made: HashSet::new(),
@@ -163,7 +165,25 @@ impl Draft {
 
     /// The value in the file. `None`: the key is not in the file (the default applies).
     pub fn get(&self, p: &[Seg]) -> Option<Item> {
-        let mut cur: &dyn TableLike = self.doc.as_table();
+        get_in(&self.doc, p)
+    }
+
+    /// The value in the file at the start of the edit.
+    pub fn get_original(&self, p: &[Seg]) -> Option<Item> {
+        get_in(&self.orig_doc, p)
+    }
+
+    /// The number of `[[routers]]` entries, and of the DHCP servers of a router.
+    pub fn count(&self, p: &[Seg]) -> usize {
+        self.get(p)
+            .and_then(|i| i.as_array_of_tables().map(|a| a.len()))
+            .unwrap_or(0)
+    }
+}
+
+fn get_in(doc: &DocumentMut, p: &[Seg]) -> Option<Item> {
+    {
+        let mut cur: &dyn TableLike = doc.as_table();
         let mut it = p.iter().peekable();
         while let Some(s) = it.next() {
             let Seg::Key(k) = s else { return None };
@@ -181,7 +201,9 @@ impl Draft {
         }
         None
     }
+}
 
+impl Draft {
     /// Set a key. An existing value keeps its decor (the trailing comment).
     pub fn set(&mut self, p: &[Seg], mut v: Value) -> anyhow::Result<()> {
         let (parent, key) = Self::split(p)?;
@@ -357,8 +379,7 @@ impl Draft {
     /// The `path_text` of each leaf that is different from the original file.
     pub fn changed(&self) -> Vec<String> {
         let (mut a, mut b) = (BTreeMap::new(), BTreeMap::new());
-        let orig: DocumentMut = self.original.parse().expect("the original was valid TOML");
-        leaves(orig.as_table(), "", &mut a);
+        leaves(self.orig_doc.as_table(), "", &mut a);
         leaves(self.doc.as_table(), "", &mut b);
         let keys: std::collections::BTreeSet<&String> = a.keys().chain(b.keys()).collect();
         keys.into_iter()
