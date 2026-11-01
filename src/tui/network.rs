@@ -2,13 +2,12 @@
 
 use super::app::split_main;
 use super::data::Data;
-use crate::tui::theme::Palette;
+use crate::tui::theme::{Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{List, ListItem, ListState, Paragraph};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -16,6 +15,7 @@ use std::sync::Arc;
 /// One shown line of the tree, with the values of the detail panel.
 #[derive(Debug, Clone)]
 pub struct Node {
+    pub prefix: String,
     pub depth: u16,
     pub name: String,
     pub kids: usize,
@@ -26,6 +26,7 @@ pub struct Node {
 
 #[derive(Debug, Default)]
 pub struct NetworkView {
+    pub download_scale: Option<f64>,
     /// Node names are unique in LibreQoS, so a name is the key.
     pub expanded: HashSet<String>,
     pub visible: Vec<Node>,
@@ -58,6 +59,7 @@ fn path_to<'a>(tree: &'a Value, name: &str, out: &mut Vec<&'a str>) -> bool {
 impl NetworkView {
     pub fn on_data(&mut self, d: &Data) {
         if self.tree.as_ref().is_none_or(|t| !Arc::ptr_eq(t, &d.tree)) {
+            self.download_scale = tree_scale(&d.tree);
             self.tree = Some(d.tree.clone());
             self.rebuild(&d.tree);
         }
@@ -74,13 +76,16 @@ impl NetworkView {
         fn walk(
             m: &serde_json::Map<String, Value>,
             depth: u16,
+            guides: &str,
             open: &HashSet<String>,
             out: &mut Vec<Node>,
         ) {
-            for (name, n) in m {
+            for (index, (name, n)) in m.iter().enumerate() {
+                let last = index + 1 == m.len();
                 let kids = children(n);
                 let num = |k: &str| n.get(k).and_then(Value::as_f64);
                 out.push(Node {
+                    prefix: format!("{guides}{}", if last { "└─" } else { "├─" }),
                     depth,
                     name: name.clone(),
                     kids: kids.map_or(0, |k| k.len()),
@@ -99,12 +104,13 @@ impl NetworkView {
                 if let Some(k) = kids
                     && open.contains(name)
                 {
-                    walk(k, depth + 1, open, out);
+                    let next = format!("{guides}{}", if last { "  " } else { "│ " });
+                    walk(k, depth + 1, &next, open, out);
                 }
             }
         }
         if let Some(m) = tree.as_object() {
-            walk(m, 0, &self.expanded, &mut self.visible);
+            walk(m, 0, "", &self.expanded, &mut self.visible);
         }
         self.selected = keep
             .and_then(|k| self.visible.iter().position(|n| n.name == k))
@@ -206,7 +212,7 @@ impl NetworkView {
         }
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, _palette: &Palette) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
         let (main, side) = split_main(area);
         let title = format!(
             " network.json {} shown | /{}{} ",
@@ -214,7 +220,12 @@ impl NetworkView {
             self.query,
             if self.editing { "_" } else { "" }
         );
-        let block = Block::default().borders(Borders::ALL).title(title);
+        let scale = self
+            .download_scale
+            .map_or("unknown".into(), |v| v.to_string());
+        let block = palette
+            .panel(Line::from(title), true)
+            .title_bottom(format!(" bar: download / max {scale} Mbps "));
         if self.visible.is_empty() {
             f.render_widget(
                 Paragraph::new("no network.json, or no nodes").block(block),
@@ -231,28 +242,67 @@ impl NetworkView {
         let end = (self.offset + height).min(self.visible.len());
         let items: Vec<ListItem> = self.visible[self.offset..end]
             .iter()
-            .map(|n| {
-                let mark = match (n.kids, self.expanded.contains(&n.name)) {
-                    (0, _) => "  ",
-                    (_, true) => "- ",
-                    (_, false) => "+ ",
+            .enumerate()
+            .map(|(i, n)| {
+                let selected = self.offset + i == self.selected;
+                let style = |role| {
+                    if selected {
+                        palette.selection()
+                    } else {
+                        palette.role(role)
+                    }
                 };
-                ListItem::new(format!("{}{mark}{}", "  ".repeat(n.depth as usize), n.name))
+                let mark = match (n.kids, self.expanded.contains(&n.name)) {
+                    (0, _) => "",
+                    (_, true) => "▾ ",
+                    (_, false) => "▸ ",
+                };
+                let role = match n.kind.as_str() {
+                    "site" => Role::Accent,
+                    "ap" => Role::Ok,
+                    "plan" => Role::Warning,
+                    _ => Role::Secondary,
+                };
+                let name_width = main.width.saturating_sub(
+                    Line::from(format!("{}{} [{}]", n.prefix, mark, n.kind)).width() as u16 + 3,
+                ) as usize;
+                let mut spans = vec![
+                    Span::styled(n.prefix.clone(), style(Role::Secondary)),
+                    Span::raw(mark),
+                    Span::styled(clip(&n.name, name_width), style(Role::Base)),
+                    Span::styled(format!(" [{}]", n.kind), style(role)),
+                ];
+                let numeric = n
+                    .rate
+                    .filter(|(d, u)| d.is_finite() && u.is_finite() && *d >= 0.0 && *u >= 0.0);
+                let rate = numeric.map_or(" unknown".into(), |(d, u)| {
+                    let fill = (rate_fill(Some(d), self.download_scale).unwrap_or(0.0) * 8.0)
+                        .round() as usize;
+                    format!(
+                        " {}{} D/U Mbps {d}/{u}",
+                        "█".repeat(fill),
+                        "░".repeat(8 - fill)
+                    )
+                });
+                if Line::from(spans.clone()).width() + Line::from(rate.as_str()).width() + 2
+                    <= main.width as usize
+                {
+                    spans.push(Span::styled(rate, style(Role::Accent)));
+                }
+                ListItem::new(Line::from(spans))
             })
             .collect();
         let mut state = ListState::default().with_selected(Some(self.selected - self.offset));
         f.render_stateful_widget(
-            List::new(items).block(block).highlight_style(
-                Style::new()
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            ),
+            List::new(items)
+                .block(block)
+                .highlight_style(palette.selection()),
             main,
             &mut state,
         );
         f.render_widget(
             Paragraph::new(self.detail(d, side.height.saturating_sub(10) as usize))
-                .block(Block::default().borders(Borders::ALL).title(" node ")),
+                .block(palette.panel(Line::from(" node "), false)),
             side,
         );
     }
@@ -292,6 +342,29 @@ impl NetworkView {
         }
         out
     }
+}
+
+fn rate_fill(value: Option<f64>, scale: Option<f64>) -> Option<f64> {
+    let value = value.filter(|v| v.is_finite() && *v >= 0.0)?;
+    if value == 0.0 {
+        return Some(0.0);
+    }
+    let scale = scale.filter(|s| s.is_finite() && *s > 0.0)?;
+    Some((value / scale).clamp(0.0, 1.0))
+}
+
+fn tree_scale(tree: &Value) -> Option<f64> {
+    tree.as_object()?
+        .values()
+        .flat_map(|n| {
+            [
+                n.get("downloadBandwidthMbps").and_then(Value::as_f64),
+                n.get("children").and_then(tree_scale),
+            ]
+        })
+        .flatten()
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .max_by(f64::total_cmp)
 }
 
 #[cfg(test)]
@@ -419,8 +492,26 @@ mod tests {
     fn network_tab_renders() {
         let (mut v, d) = view();
         let s = screen(&mut v, &d);
-        assert!(s.contains("+ Site") && s.contains("  Other"), "{s}");
+        assert!(s.contains("▸ Site") && s.contains("Other"), "{s}");
         let mut empty = NetworkView::default();
         assert!(screen(&mut empty, &Data::default()).contains("no network.json"));
+    }
+    #[test]
+    fn tree_guides_and_scale_survive_search() {
+        let (mut v, d) = view();
+        assert_eq!(v.download_scale, Some(100.0));
+        v.reveal(&d, "AP2");
+        assert!(v.visible.iter().all(|n| n.prefix.contains("─")));
+        assert!(v.visible.iter().any(|n| n.prefix.contains("│")));
+        assert_eq!(v.selected_name(), Some("AP2"));
+        assert_eq!(v.download_scale, Some(100.0));
+    }
+    #[test]
+    fn configured_rate_scale_handles_missing_and_zero() {
+        assert_eq!(rate_fill(Some(25.0), Some(100.0)), Some(0.25));
+        assert_eq!(rate_fill(Some(0.0), None), Some(0.0));
+        for v in [None, Some(-1.0), Some(f64::NAN), Some(f64::INFINITY)] {
+            assert_eq!(rate_fill(v, Some(100.0)), None);
+        }
     }
 }
