@@ -2,7 +2,7 @@
 
 use super::app::split_main;
 use super::data::Data;
-use crate::tui::theme::{BoxKind, Palette, Role, clip};
+use crate::tui::theme::{BoxKind, Grad, Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -275,19 +275,23 @@ impl NetworkView {
                 let numeric = n
                     .rate
                     .filter(|(d, u)| d.is_finite() && u.is_finite() && *d >= 0.0 && *u >= 0.0);
-                let rate = numeric.map_or(" unknown".into(), |(d, u)| {
-                    let fill = (rate_fill(Some(d), self.download_scale).unwrap_or(0.0) * 8.0)
-                        .round() as usize;
-                    format!(
-                        " {}{} D/U Mbps {d}/{u}",
-                        "█".repeat(fill),
-                        "░".repeat(8 - fill)
-                    )
-                });
-                if Line::from(spans.clone()).width() + Line::from(rate.as_str()).width() + 2
+                let rate = numeric.map_or(
+                    vec![Span::styled(" unknown", style(Role::Accent))],
+                    |(d, u)| {
+                        let ratio = rate_fill(Some(d), self.download_scale).unwrap_or(0.0);
+                        let mut v = vec![Span::raw(" ")];
+                        v.extend(palette.meter(ratio, 8, Grad::Free).spans);
+                        v.push(Span::styled(
+                            format!(" D/U Mbps {d}/{u}"),
+                            style(Role::Accent),
+                        ));
+                        v
+                    },
+                );
+                if Line::from(spans.clone()).width() + Line::from(rate.clone()).width() + 2
                     <= main.width as usize
                 {
-                    spans.push(Span::styled(rate, style(Role::Accent)));
+                    spans.extend(rate);
                 }
                 ListItem::new(Line::from(spans))
             })

@@ -321,7 +321,7 @@ impl DevicesView {
         ];
         let header = Row::new(columns.iter().map(|&j| labels[j])).style(palette.role(Role::Accent));
         let all_widths = [
-            Constraint::Fill(3),
+            Constraint::Min(16),
             Constraint::Length(15),
             Constraint::Length(17),
             Constraint::Length(12),

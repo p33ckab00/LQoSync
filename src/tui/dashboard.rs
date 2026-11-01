@@ -1,13 +1,11 @@
 //! The Dashboard tab: the service, the last cycle, versions, the process, and the actions.
 
 use super::data::Data;
-use crate::tui::theme::{BoxKind, Palette, Role, clip};
+use crate::tui::theme::{BoxKind, Grad, Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::canvas::{Canvas, Line as PlotLine};
-use ratatui::widgets::{Cell, Gauge, Paragraph, Row, Table};
+use ratatui::widgets::{Cell, Paragraph, Row, Table};
 use serde_json::Value;
 use std::collections::VecDeque;
 
@@ -641,14 +639,12 @@ impl DashboardView {
                 Paragraph::new(clip(&label, heading.width as usize)).style(palette.role(role)),
                 heading,
             );
+            let grad = if i == 0 { Grad::Cpu } else { Grad::Mem };
             f.render_widget(
-                Gauge::default()
-                    .ratio(ratio)
-                    .label("")
-                    .gauge_style(palette.role(role).bg(palette.canvas().bg.unwrap())),
+                Paragraph::new(palette.meter(ratio, meter.width, grad)),
                 meter,
             );
-            draw_history(f, trace, data, scale, palette, role);
+            draw_history(f, trace, data, scale, palette, grad);
             f.render_widget(
                 Paragraph::new(clip(&range, legend.width as usize))
                     .style(palette.role(Role::Secondary)),
@@ -664,7 +660,7 @@ fn draw_history(
     data: &VecDeque<u64>,
     scale: u64,
     palette: &Palette,
-    role: Role,
+    grad: Grad,
 ) {
     if area.is_empty() {
         return;
@@ -676,38 +672,9 @@ fn draw_history(
         );
         return;
     }
-    let points = data
-        .iter()
-        .enumerate()
-        .map(|(i, v)| ((SAMPLES - data.len() + i) as f64, (*v).min(scale) as f64))
-        .collect::<Vec<_>>();
-    let color = palette.role(role).fg.unwrap();
+    let samples: Vec<u64> = data.iter().copied().collect();
     f.render_widget(
-        Canvas::default()
-            .marker(Marker::Braille)
-            .background_color(palette.canvas().bg.unwrap())
-            .x_bounds([0.0, (SAMPLES - 1) as f64])
-            .y_bounds([0.0, scale as f64])
-            .paint(move |ctx| {
-                for pair in points.windows(2) {
-                    ctx.draw(&PlotLine {
-                        x1: pair[0].0,
-                        y1: pair[0].1,
-                        x2: pair[1].0,
-                        y2: pair[1].1,
-                        color,
-                    });
-                }
-                if let Some(&(x, y)) = points.last() {
-                    ctx.draw(&PlotLine {
-                        x1: x,
-                        y1: y,
-                        x2: x,
-                        y2: y,
-                        color,
-                    });
-                }
-            }),
+        Paragraph::new(palette.area_graph(&samples, scale, area.width, area.height, grad)),
         area,
     );
 }
@@ -803,7 +770,8 @@ fn draw_routers(f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
 fn card_areas(area: Rect) -> [Rect; 6] {
     let graph_height = (area.height * 2 / 5)
         .max(8)
-        .max(area.height.saturating_sub(24))
+        // The cards need about 18 rows; the graphs take the rest.
+        .max(area.height.saturating_sub(18))
         .min(area.height);
     let [process, lower] =
         Layout::vertical([Constraint::Length(graph_height), Constraint::Min(0)]).areas(area);
@@ -816,8 +784,15 @@ fn card_areas(area: Rect) -> [Rect; 6] {
         Constraint::Min(0),
     ])
     .areas(left);
-    let [cycle, routers] =
-        Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(right);
+    let [cycle, routers] = Layout::vertical([
+        if lower.height >= 18 {
+            Constraint::Length(11)
+        } else {
+            Constraint::Percentage(50)
+        },
+        Constraint::Min(0),
+    ])
+    .areas(right);
     [service, cycle, routers, counts, versions, process]
 }
 
@@ -1180,7 +1155,6 @@ mod tests {
             for (w, h) in [(80, 24), (120, 40), (160, 48)] {
                 let mut app = App::new(false, config.into(), None);
                 app.palette = Palette::new(theme);
-                app.tab = Tab::Dashboard;
                 let mut d = data(
                     json!({"mode":"apply","target":"v2_pair","updated":1793505600,"next_scan_seconds":120,"cycle_ms":184,"cycle_seq":918,"trigger":"timer","files_changed":false,"reload":"skipped","telegram":"ok","program_version":env!("CARGO_PKG_VERSION"),"config_digest":crate::cli::config_digest(config.as_bytes()),
                     "report":{"counts":{"added":7,"updated":2,"removed":0,"held":1,"duplicates":0},"alerts":[]},
@@ -1200,7 +1174,44 @@ mod tests {
                 });
                 d.config_text = Arc::new(config.into());
                 d.versions.libreqos = Some("2.2".into());
+                let rows: Vec<crate::model::CsvRow> = (0..40)
+                    .map(|i| crate::model::CsvRow {
+                        circuit_id: format!("c{i:03}"),
+                        circuit_name: format!("client-{i:02}"),
+                        device_id: format!("d{i:03}"),
+                        device_name: format!("client-{i:02}"),
+                        parent_node: ["Core-PPP", "North-DHCP", "Plan-50M"][i % 3].into(),
+                        mac: format!("AA:BB:CC:00:00:{i:02X}"),
+                        ipv4: format!("10.0.{}.{}", i / 20, i % 200 + 2),
+                        download_min: "5".into(),
+                        upload_min: "2".into(),
+                        download_max: ["50", "100", "25"][i % 3].into(),
+                        upload_max: ["20", "50", "10"][i % 3].into(),
+                        ..Default::default()
+                    })
+                    .collect();
+                d.row_search = Arc::new(rows.iter().map(|r| r.circuit_name.clone()).collect());
+                d.flags = Arc::new((0..rows.len()).map(|i| (i % 7 == 0) as u8).collect());
+                d.rows = Arc::new(rows);
+                d.tree = Arc::new(json!({
+                    "Core": {"downloadBandwidthMbps": 1000, "uploadBandwidthMbps": 1000, "children": {
+                        "Core-PPP": {"downloadBandwidthMbps": 600, "uploadBandwidthMbps": 600},
+                        "North-DHCP": {"downloadBandwidthMbps": 300, "uploadBandwidthMbps": 300}
+                    }},
+                    "Plan-50M": {"downloadBandwidthMbps": 200, "uploadBandwidthMbps": 200}
+                }));
                 app.set_data(d, 1793505614);
+                app.journal.push_batch(
+                    [
+                        "Nov 01 10:00:00 host lqosync3[4242]: cycle 918 start trigger=timer",
+                        "Nov 01 10:00:00 host lqosync3[4242]: router Core online rows=63",
+                        "Nov 01 10:00:01 host lqosync3[4242]: warning: router Backup timeout; cached subscribers retained",
+                        "Nov 01 10:00:01 host lqosync3[4242]: error: telegram send failed",
+                        "Nov 01 10:00:01 host lqosync3[4242]: cycle 918 done 184 ms files unchanged",
+                    ]
+                    .map(|l| crate::tui::journal::JournalMsg::Line(l.into()))
+                    .to_vec(),
+                );
                 app.dashboard.cpu = (0..120)
                     .map(|i| {
                         let wave = (i as f64 / 7.0).sin() * 180.0 + (i as f64 / 3.0).sin() * 70.0;
@@ -1212,15 +1223,18 @@ mod tests {
                     .collect();
                 *app.dashboard.cpu.back_mut().unwrap() = 327;
                 *app.dashboard.rss.back_mut().unwrap() = 49152;
-                let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
-                terminal.draw(|f| app.draw(f)).unwrap();
-                let cells=terminal.backend().buffer().content.iter().map(|c|json!({"text":c.symbol(),"fg":format!("{:?}",c.fg),"bg":format!("{:?}",c.bg),"bold":c.modifier.contains(ratatui::style::Modifier::BOLD)})).collect::<Vec<_>>();
-                let path = dir.join(format!("dashboard-{:?}-{w}x{h}.json", theme));
-                std::fs::write(
-                    path,
-                    serde_json::to_vec(&json!({"width":w,"height":h,"cells":cells})).unwrap(),
-                )
-                .unwrap();
+                for tab in Tab::ALL {
+                    app.tab = tab;
+                    let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+                    terminal.draw(|f| app.draw(f)).unwrap();
+                    let cells=terminal.backend().buffer().content.iter().map(|c|json!({"text":c.symbol(),"fg":format!("{:?}",c.fg),"bg":format!("{:?}",c.bg),"bold":c.modifier.contains(ratatui::style::Modifier::BOLD)})).collect::<Vec<_>>();
+                    let path = dir.join(format!("{}-{:?}-{w}x{h}.json", tab.title(), theme));
+                    std::fs::write(
+                        path,
+                        serde_json::to_vec(&json!({"width":w,"height":h,"cells":cells})).unwrap(),
+                    )
+                    .unwrap();
+                }
             }
         }
     }

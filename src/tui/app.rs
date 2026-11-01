@@ -38,11 +38,11 @@ impl Tab {
 
     pub fn title(self) -> &'static str {
         match self {
-            Tab::Devices => "1 ShapedDevices",
-            Tab::Network => "2 Network",
-            Tab::Settings => "3 Settings",
-            Tab::Journal => "4 Journal",
-            Tab::Dashboard => "5 Dashboard",
+            Tab::Devices => "ShapedDevices",
+            Tab::Network => "Network",
+            Tab::Settings => "Settings",
+            Tab::Journal => "Journal",
+            Tab::Dashboard => "Dashboard",
         }
     }
 }
@@ -398,8 +398,9 @@ impl App {
         } else {
             Role::Error
         };
+        let head = self.header_lines(area.width);
         let [header, tabs, main, msg_area, footer] = Layout::vertical([
-            Constraint::Length(2),
+            Constraint::Length(head.len() as u16),
             Constraint::Length(1),
             Constraint::Min(0),
             Constraint::Length(u16::from(message.is_some())),
@@ -412,7 +413,7 @@ impl App {
                 msg_area,
             );
         }
-        self.draw_header(f, header);
+        f.render_widget(Paragraph::new(head), header);
         self.draw_tabs(f, tabs);
         match self.tab {
             Tab::Devices => self.devices.draw(f, main, &self.data, &self.palette),
@@ -476,7 +477,10 @@ impl App {
         }.into()
     }
 
-    fn draw_header(&self, f: &mut Frame, area: Rect) {
+    /// The header: the name and the state pills, then the target and the cycle times.
+    /// One line when both parts fit in `width`, else two lines.
+    fn header_lines(&self, width: u16) -> Vec<Line<'static>> {
+        let p = &self.palette;
         let service = self
             .data
             .service
@@ -494,20 +498,25 @@ impl App {
             "shadow" => Role::Warning,
             _ => Role::Secondary,
         };
-        let svc = format!(" service {} ", super::theme::clip(service, 18));
-        let mode_text = format!(" mode {} ", super::theme::clip(&mode, 12));
-        let mut spans = vec![
-            Span::styled(" lqosync3 ", self.palette.role(Role::Accent)),
-            self.palette.badge(&svc, service_role, false),
+        let pill = |text: String, role: Role| {
+            let s = p.badge(&text, role, false);
+            Span::styled(text.clone(), s.style)
+        };
+        let mut left = vec![
+            Span::styled(" lqosync3 ", p.title_style()),
+            pill(
+                format!(" service {} ", super::theme::clip(service, 18)),
+                service_role,
+            ),
             Span::raw(" "),
-            self.palette.badge(&mode_text, mode_role, false),
+            pill(
+                format!(" mode {} ", super::theme::clip(&mode, 12)),
+                mode_role,
+            ),
         ];
         if self.read_only {
-            spans.push(Span::raw(" "));
-            spans.push(
-                self.palette
-                    .badge(" READ-ONLY (not root) ", Role::Warning, false),
-            );
+            left.push(Span::raw(" "));
+            left.push(pill(" READ-ONLY (not root) ".into(), Role::Warning));
         }
         let updated = self.status_u64("updated");
         let age = updated.map_or("unknown".into(), |u| {
@@ -518,35 +527,63 @@ impl App {
             _ => "unknown".into(),
         };
         let target = super::theme::clip(&self.status_str("target"), 20);
-        f.render_widget(
-            Paragraph::new(vec![
-                Line::from(spans),
-                Line::from(format!(
-                    " target {target} | last cycle {age} | next scan {next}"
-                )),
-            ]),
-            area,
+        let dim = p.role(Role::Secondary);
+        let mut right = vec![Span::raw(" ")];
+        for (i, (label, value)) in [
+            ("target ", target),
+            ("last cycle ", age),
+            ("next scan ", next),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if i > 0 {
+                right.push(Span::styled(" │ ", dim));
+            }
+            right.push(Span::styled(label, dim));
+            right.push(Span::styled(value, p.role(Role::Base)));
+        }
+        right.push(Span::raw(" "));
+        let (lw, rw) = (
+            Line::from(left.clone()).width(),
+            Line::from(right.clone()).width(),
         );
+        if lw + rw <= width as usize {
+            left.push(Span::raw(" ".repeat(width as usize - lw - rw)));
+            left.extend(right);
+            vec![Line::from(left)]
+        } else {
+            vec![Line::from(left), Line::from(right)]
+        }
     }
 
+    /// The tabs as btop++ box titles on one line: `─┐¹ShapedDevices┌─┐²Network┌─`.
     /// The titles are drawn as spans, so the stored rectangles match the screen.
     fn draw_tabs(&mut self, f: &mut Frame, area: Rect) {
         self.tab_rects.clear();
-        let mut spans = Vec::new();
-        let mut x = area.x;
-        for t in Tab::ALL {
-            let text = format!(" {} ", t.title());
-            let w = (Line::from(text.as_str()).width() as u16).min(area.right().saturating_sub(x));
-            self.tab_rects.push(Rect::new(x, area.y, w, 1));
-            x = x.saturating_add(w + 1);
-            let style = if t == self.tab {
-                self.palette.role(Role::Accent)
+        let rule = self.palette.role(Role::Secondary);
+        let mut spans = vec![Span::styled("─", rule)];
+        let mut x = area.x.saturating_add(1);
+        for (i, t) in Tab::ALL.into_iter().enumerate() {
+            let mut title = self.palette.title(t.title(), Some(i as u8 + 1));
+            title.spans[0].style = rule;
+            title.spans[3].style = rule;
+            title.spans[2].style = if t == self.tab {
+                self.palette.selection()
             } else {
                 self.palette.role(Role::Secondary)
             };
-            spans.push(Span::styled(text, style));
-            spans.push(Span::raw(" "));
+            let w = (title.width() as u16).min(area.right().saturating_sub(x));
+            self.tab_rects.push(Rect::new(x, area.y, w, 1));
+            x = x.saturating_add(w + 1);
+            spans.extend(title.spans);
+            spans.push(Span::styled("─", rule));
         }
+        let used = Line::from(spans.clone()).width() as u16;
+        spans.push(Span::styled(
+            "─".repeat(area.width.saturating_sub(used) as usize),
+            rule,
+        ));
         f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 }
@@ -637,6 +674,47 @@ mod tests {
         };
         a.on_mouse(click);
         assert_eq!(a.tab, Tab::Journal);
+    }
+
+    #[test]
+    fn the_tab_strip_has_btop_titles_with_hotkeys() {
+        let mut a = app(false);
+        a.tab = Tab::Network;
+        let mut t = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        t.draw(|f| a.draw(f)).unwrap();
+        let buf = t.backend().buffer().clone();
+        let r = a.tab_rects[1];
+        let row: String = (0..120)
+            .map(|x| buf[(x, r.y)].symbol().to_string())
+            .collect();
+        for want in ["┐¹ShapedDevices┌", "┐²Network┌", "┐⁵Dashboard┌"] {
+            assert!(row.contains(want), "{want}: {row}");
+        }
+        assert_eq!(buf[(r.x, r.y)].symbol(), "┐");
+        assert_eq!(buf[(r.x + r.width - 1, r.y)].symbol(), "┌");
+        // The active tab name takes the selection colours; the other names do not.
+        assert_eq!(buf[(r.x + 2, r.y)].bg, a.palette.selection().bg.unwrap());
+        let r0 = a.tab_rects[0];
+        assert_ne!(buf[(r0.x + 2, r0.y)].bg, a.palette.selection().bg.unwrap());
+    }
+
+    #[test]
+    fn a_wide_header_is_one_line() {
+        let mut a = app(true);
+        let s = draw(&mut a, 160, 30);
+        let first = s.lines().next().unwrap();
+        for want in [
+            "lqosync3",
+            "READ-ONLY (not root)",
+            "target unknown",
+            "next scan unknown",
+        ] {
+            assert!(first.contains(want), "{want}: {first}");
+        }
+        assert!(s.lines().nth(1).unwrap().contains("┐¹ShapedDevices┌"));
+        // At 80 columns the header takes two lines and keeps each word.
+        let s = draw(&mut a, 80, 24);
+        assert!(s.lines().nth(2).unwrap().contains("┐¹ShapedDevices┌"));
     }
 
     #[test]
