@@ -54,9 +54,9 @@
     "semantic_hash": "4e2ce212a5256cde023589410a10c807"
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793506990.0645251,
-    "seen": 1793512186.6523626,
-    "ast_hash": "5d9f0f89ca86a2fd2c273fbbcf0abc84",
+    "mtime": 1793513819.5898268,
+    "seen": 1793513900.3877695,
+    "ast_hash": "944d296cbe3144cae23bf85965c05a26",
     "semantic_hash": ""
   },
   "docs/INSTALLATION.md": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "src/config.rs": {
-    "mtime": 1793507044.8201344,
-    "seen": 1793512186.652255,
-    "ast_hash": "c6b0a6d12c530a1f6ddc552abc169106",
+    "mtime": 1793513532.6862059,
+    "seen": 1793513900.387673,
+    "ast_hash": "d31ca9cfde40c81bc1b76a8b12300009",
     "semantic_hash": ""
   },
   "src/cycle.rs": {
@@ -378,15 +378,15 @@
     "semantic_hash": ""
   },
   "src/tui/app.rs": {
-    "mtime": 1793512106.4057631,
-    "seen": 1793512186.6522865,
-    "ast_hash": "e350311569b7cf6117255b3ad6bea0bc",
+    "mtime": 1793513627.666417,
+    "seen": 1793513900.3877015,
+    "ast_hash": "671595e8e4ead619afeb0ee4fbba9e07",
     "semantic_hash": ""
   },
   "src/tui/dashboard.rs": {
-    "mtime": 1793512106.4227633,
-    "seen": 1793512186.6522875,
-    "ast_hash": "8da2c27397971d8a9e13e32878adaf22",
+    "mtime": 1793513669.726533,
+    "seen": 1793513900.3877027,
+    "ast_hash": "476f0ddf1c9a7fbe2e63f3903fe91183",
     "semantic_hash": ""
   },
   "src/tui/data.rs": {
@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "src/tui/mod.rs": {
-    "mtime": 1793506990.0645251,
-    "seen": 1793512186.652293,
-    "ast_hash": "1cada7a34200e7b58a1f68f7f742035f",
+    "mtime": 1793513536.5316079,
+    "seen": 1793513900.387708,
+    "ast_hash": "21db668ccd1bbaacee147dddfba92681",
     "semantic_hash": ""
   },
   "src/tui/network.rs": {
-    "mtime": 1793512106.4527636,
-    "seen": 1793512186.6522942,
-    "ast_hash": "f6b727fb1af0ddd5be848c934ad8379f",
+    "mtime": 1793513627.715413,
+    "seen": 1793513900.3877091,
+    "ast_hash": "8a2d75c7cc481ab0bfe2c74f8f43f79f",
     "semantic_hash": ""
   },
   "src/tui/osc52.rs": {
