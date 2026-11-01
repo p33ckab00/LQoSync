@@ -85,7 +85,7 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
 /// Write a secret file: mode 0600 from the start, a sync of the file and of the folder, owner root
 /// (only when this process is root). The folder must exist. A newline goes after the secret.
 pub fn write_secret(path: &Path, secret: &[u8]) -> anyhow::Result<()> {
-    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    use std::os::unix::fs::OpenOptionsExt;
     let dir = path
         .parent()
         .filter(|d| !d.as_os_str().is_empty())
