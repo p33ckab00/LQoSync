@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
@@ -19,6 +19,7 @@ pub enum Command {
     Defaults,
     Detect,
     Tui,
+    Version,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,11 +36,12 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let mut it = args.iter().skip(1);
     while let Some(a) = it.next() {
         match a.as_str() {
-            "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults"
+            "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults" | "version"
                 if command.is_none() =>
             {
                 command = Some(a.clone())
             }
+            "--version" if command.is_none() => command = Some("version".into()),
             "--force" => force = true,
             "--config" => match it.next() {
                 Some(p) => config = PathBuf::from(p),
@@ -56,6 +58,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
         Some("defaults") => Command::Defaults,
         Some("detect") => Command::Detect,
         Some("tui") => Command::Tui,
+        Some("version") => Command::Version,
         _ => bail!("no command\n{USAGE}"),
     };
     Ok(Args { command, config })
@@ -240,6 +243,34 @@ mod tests {
 
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn version_is_3_0_commit_count_and_hash() {
+        // 3.0.<commits of the branch>+g<short hash>, ".dirty" with changes that are not committed.
+        let v = crate::VERSION;
+        let (core, build) = v.split_once('+').expect(v);
+        let parts: Vec<&str> = core.split('.').collect();
+        assert_eq!(&parts[..2], ["3", "0"], "{v}");
+        assert!(parts[2].parse::<u64>().is_ok(), "{v}");
+        let hash = build.strip_suffix(".dirty").unwrap_or(build);
+        assert!(
+            build == "unknown"
+                || (hash.len() >= 8
+                    && hash.starts_with('g')
+                    && hash[1..].chars().all(|c| c.is_ascii_hexdigit())),
+            "{v}"
+        );
+    }
+
+    #[test]
+    fn parse_version() {
+        for a in ["version", "--version"] {
+            assert_eq!(
+                parse(&s(&["lqosync3", a])).unwrap().command,
+                Command::Version
+            );
+        }
     }
 
     #[test]

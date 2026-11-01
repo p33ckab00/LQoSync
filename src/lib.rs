@@ -1,5 +1,9 @@
 //! lqosync3: sync MikroTik subscribers to the LibreQoS shaping files.
 
+/// `3.0.<commits>+g<hash>`: set by `build.rs`. The commit count orders the versions, the hash
+/// names the source.
+pub const VERSION: &str = env!("LQOSYNC_VERSION");
+
 pub mod cli;
 pub mod config;
 pub mod cycle;

@@ -146,7 +146,7 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
             .as_ref()
             .map_or("unknown".into(), |(u, a)| format!("{u} {a}"))
     ));
-    let tui = env!("CARGO_PKG_VERSION");
+    let tui = crate::VERSION;
     let svc = st["program_version"].as_str();
     out.push(format!(
         "lqosync3 service: {} | TUI: {tui}",
@@ -517,7 +517,7 @@ impl DashboardView {
                     .as_ref()
                     .and_then(|s| s["program_version"].as_str())
                     .unwrap_or("unknown");
-                let tui = env!("CARGO_PKG_VERSION");
+                let tui = crate::VERSION;
                 let version = if svc != "unknown" && svc != tui {
                     format!("version mismatch: {svc} / {tui}")
                 } else {
@@ -974,7 +974,7 @@ mod tests {
                 .iter()
                 .any(|l| l.contains("service needs a restart"))
         );
-        let d = data(json!({"program_version": env!("CARGO_PKG_VERSION")}));
+        let d = data(json!({"program_version": crate::VERSION}));
         assert!(!text(&d).iter().any(|l| l.contains("restart")));
     }
 
@@ -1366,7 +1366,7 @@ mod tests {
                 let mut app = App::new(false, config.into(), None);
                 app.palette = Palette::new(theme);
                 let mut d = data(
-                    json!({"mode":"apply","target":"v2_pair","updated":1793505600,"next_scan_seconds":120,"cycle_ms":184,"cycle_seq":918,"trigger":"timer","files_changed":false,"reload":"skipped","telegram":"ok","program_version":env!("CARGO_PKG_VERSION"),"config_digest":crate::cli::config_digest(config.as_bytes()),
+                    json!({"mode":"apply","target":"v2_pair","updated":1793505600,"next_scan_seconds":120,"cycle_ms":184,"cycle_seq":918,"trigger":"timer","files_changed":false,"reload":"skipped","telegram":"ok","program_version":crate::VERSION,"config_digest":crate::cli::config_digest(config.as_bytes()),
                     "report":{"counts":{"added":7,"updated":2,"removed":0,"held":1,"duplicates":0},"alerts":[]},
                     "routers":[{"name":"Core","state":"online","rows":{"ppp":63},"read_ms":22},{"name":"North","state":"online","rows":{"dhcp":41},"read_ms":18},{"name":"Backup","state":"failed","read_ms":500,"error":"timeout; cached subscribers retained"}]}),
                 );

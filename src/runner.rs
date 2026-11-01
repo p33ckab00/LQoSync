@@ -203,7 +203,7 @@ where
             cycle_seq: self.cycle_seq,
             pid: std::process::id(),
             trigger: self.trigger,
-            program_version: env!("CARGO_PKG_VERSION").into(),
+            program_version: crate::VERSION.into(),
             telegram: self.telegram.clone(),
             ..Status::default()
         }
@@ -1018,7 +1018,7 @@ mod tests {
         assert_eq!(st["pid"], std::process::id());
         assert_eq!(st["config_digest"], "abc");
         assert_eq!(st["config_path"], "/etc/x.toml");
-        assert_eq!(st["program_version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(st["program_version"], crate::VERSION);
         assert_eq!(st["telegram"], "none");
     }
 
