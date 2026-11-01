@@ -1,12 +1,11 @@
 //! The Dashboard tab: the service, the last cycle, versions, the process, and the actions.
 
-use super::app::split_main;
 use super::data::Data;
-use crate::tui::theme::Palette;
+use crate::tui::theme::{Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Paragraph, Sparkline};
+use ratatui::widgets::{Gauge, Paragraph, Sparkline};
 use serde_json::Value;
 use std::collections::VecDeque;
 
@@ -327,56 +326,217 @@ impl DashboardView {
         }
     }
 
-    pub fn draw(&self, f: &mut Frame, area: Rect, d: &Data, now: u64, _palette: &Palette) {
-        let (main, side) = split_main(area);
-        let text = lines(d, now);
-        // Two columns of cards when the panel is wide.
-        if main.width >= 80 {
-            let [a, b] =
-                Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
-                    .areas(main);
-            let cut = text
-                .iter()
-                .position(|l| l.to_string() == "[counts]")
-                .unwrap_or(text.len());
-            let (l, r) = text.split_at(cut);
+    pub fn draw(&self, f: &mut Frame, area: Rect, d: &Data, now: u64, palette: &Palette) {
+        let areas = card_areas(area);
+        let titles = [
+            "Service",
+            "Last cycle",
+            "Routers",
+            "Counts",
+            "Versions",
+            "Process",
+        ];
+        let mut sections: [Vec<String>; 6] = std::array::from_fn(|_| Vec::new());
+        let mut index = 0;
+        for line in lines(d, now) {
+            let text = line.to_string();
+            match text.as_str() {
+                "[service]" => index = 0,
+                "[last cycle]" => index = 1,
+                "[routers]" => index = 2,
+                "[counts]" => index = 3,
+                "[versions]" => index = 4,
+                "[process]" => index = 5,
+                _ => sections[index].push(text),
+            }
+        }
+        // Present failures first without changing status router order.
+        sections[2].sort_by_key(|s| !(s.contains(": failed") || s.contains(": offline")));
+        let st = d.status.as_deref();
+        let bad = |s: &String| {
+            (s.starts_with("error:") || s.starts_with("config error:"))
+                && !s.ends_with(": none")
+                && !s.ends_with(": unknown")
+        };
+        sections[1].sort_by_key(|s| !bad(s));
+        sections[4].sort_by_key(|s| !(s.contains("different") || s.contains("not loaded")));
+        let n = |key: &str| {
+            st.and_then(|s| s["report"]["counts"][key].as_u64())
+                .map_or("unknown".into(), |v| v.to_string())
+        };
+        sections[3] = vec![
+            format!("added {} | updated {}", n("added"), n("updated")),
+            format!("removed {} | held {}", n("removed"), n("held")),
+            format!("duplicates {}", n("duplicates")),
+            sections[3]
+                .last()
+                .cloned()
+                .unwrap_or_else(|| "guard alerts: unknown".into()),
+        ];
+        for i in 0..6 {
+            let mut block = palette.panel(Line::from(format!(" {} ", titles[i])), false);
+            if i == 5 {
+                block = block.title_bottom(" RSS current / window peak ");
+            }
+            let inner = block.inner(areas[i]);
+            f.render_widget(block, areas[i]);
+            if i == 5 {
+                self.draw_process(f, inner, d, palette);
+                continue;
+            }
+            let mut content = sections[i].clone();
+            if i == 2 && content.len() > inner.height as usize && inner.height > 0 {
+                let keep = inner.height.saturating_sub(1) as usize;
+                let more = content.len() - keep;
+                content.truncate(keep);
+                content.push(format!("+{more} more"));
+            }
+            let rows = content
+                .into_iter()
+                .map(|text| {
+                    let role = if text.contains(": offline") || bad(&text) {
+                        Role::Error
+                    } else if text.contains(": failed")
+                        || text.contains("different")
+                        || text.contains("not loaded")
+                    {
+                        Role::Warning
+                    } else if text.contains(": online") || text == "service: active" {
+                        Role::Ok
+                    } else {
+                        Role::Base
+                    };
+                    Line::styled(clip(&text, inner.width as usize), palette.role(role))
+                })
+                .collect::<Vec<_>>();
+            f.render_widget(Paragraph::new(rows), inner);
+        }
+    }
+
+    fn draw_process(&self, f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
+        if area.is_empty() {
+            return;
+        }
+        let p = d.proc.as_ref();
+        let info = p.map_or(
+            if self.cpu.is_empty() && self.rss.is_empty() {
+                "PID: unknown"
+            } else {
+                "PID: unknown | history only"
+            }
+            .into(),
+            |p| format!("PID: {} | elapsed: {}", p.pid, fmt_elapsed(p.elapsed_s)),
+        );
+        f.render_widget(
+            Paragraph::new(clip(&info, area.width as usize)),
+            Rect::new(area.x, area.y, area.width, 1),
+        );
+        let cpu = p.and_then(|p| p.cpu_pct);
+        let cpu_label = cpu.map_or("CPU % unknown".into(), |v| {
+            format!(
+                "CPU % {v:.1}{}",
+                if v > 100.0 {
+                    " >100% of one core"
+                } else {
+                    " / 100 (one core)"
+                }
+            )
+        });
+        let peak = self.rss.iter().copied().max().unwrap_or(0);
+        let rss_label = p.map_or("RSS unknown".into(), |p| {
+            format!(
+                "RSS {:.1}/{:.1} MiB",
+                p.rss_kb as f64 / 1024.0,
+                peak as f64 / 1024.0
+            )
+        });
+        let cpu_data: Vec<u64> = self.cpu.iter().map(|v| (*v).min(1000)).collect();
+        let rss_data: Vec<u64> = self.rss.iter().copied().collect();
+        let available = area.height;
+        let row = |offset| Rect::new(area.x, area.y + offset, area.width, 1);
+        if available > 1 {
             f.render_widget(
-                Paragraph::new(l.to_vec())
-                    .block(Block::default().borders(Borders::ALL).title(" dashboard ")),
-                a,
-            );
-            f.render_widget(
-                Paragraph::new(r.to_vec()).block(Block::default().borders(Borders::ALL)),
-                b,
-            );
-        } else {
-            f.render_widget(
-                Paragraph::new(text)
-                    .block(Block::default().borders(Borders::ALL).title(" dashboard ")),
-                main,
+                Gauge::default()
+                    .ratio(cpu.map_or(0.0, |v| fill_ratio(v, 100.0)))
+                    .label(clip(&cpu_label, area.width as usize))
+                    .gauge_style(palette.role(Role::Accent)),
+                row(1),
             );
         }
-        let [c, m] =
-            Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).areas(side);
-        let cpu: Vec<u64> = self.cpu.iter().copied().collect();
-        let rss: Vec<u64> = self.rss.iter().copied().collect();
-        f.render_widget(
-            Sparkline::default().data(&cpu).block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" CPU % (this session) "),
-            ),
-            c,
-        );
-        f.render_widget(
-            Sparkline::default().data(&rss).block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" RSS (this session) "),
-            ),
-            m,
-        );
+        if available > 2 {
+            f.render_widget(
+                Sparkline::default()
+                    .data(&cpu_data)
+                    .max(1000)
+                    .style(palette.role(Role::Accent)),
+                row(2),
+            );
+        }
+        if available > 3 {
+            f.render_widget(
+                Gauge::default()
+                    .ratio(p.map_or(0.0, |p| fill_ratio(p.rss_kb as f64, peak as f64)))
+                    .label(clip(&rss_label, area.width as usize))
+                    .gauge_style(palette.role(Role::Ok)),
+                row(3),
+            );
+        }
+        if available > 4 {
+            f.render_widget(
+                Sparkline::default()
+                    .data(&rss_data)
+                    .max(peak.max(1))
+                    .style(palette.role(Role::Ok)),
+                row(4),
+            );
+        }
+        if available > 5 {
+            f.render_widget(
+                Paragraph::new("RSS current / window peak; CPU scale 100%"),
+                row(5),
+            );
+        }
+        if available > 6 {
+            let start = p.map_or("start: unknown".into(), |p| {
+                format!("start: {} UTC", fmt_utc(p.start_unix))
+            });
+            f.render_widget(Paragraph::new(start), row(6));
+        }
     }
+}
+
+fn card_areas(area: Rect) -> [Rect; 6] {
+    let columns = if area.width >= 120 { 3 } else { 2 };
+    let rows = 6 / columns;
+    let heights = if rows == 3 {
+        let first = area.height / 3;
+        let second = (area.height - first) / 2;
+        vec![
+            Constraint::Length(first),
+            Constraint::Length(second),
+            Constraint::Min(0),
+        ]
+    } else {
+        vec![Constraint::Percentage(50), Constraint::Min(0)]
+    };
+    let bands = Layout::vertical(heights).split(area);
+    let mut out = [Rect::default(); 6];
+    for (r, band) in bands.iter().enumerate() {
+        let cells = Layout::horizontal(vec![Constraint::Fill(1); columns])
+            .spacing(1)
+            .split(*band);
+        for c in 0..columns {
+            out[r * columns + c] = cells[c];
+        }
+    }
+    out
+}
+
+fn fill_ratio(value: f64, scale: f64) -> f64 {
+    if !value.is_finite() || !scale.is_finite() || scale <= 0.0 {
+        return 0.0;
+    }
+    (value / scale).clamp(0.0, 1.0)
 }
 
 #[cfg(test)]
@@ -617,5 +777,37 @@ mod tests {
         for want in ["R1: online, 3 rows, 12 ms", "CPU %", "RSS"] {
             assert!(s.contains(want), "{want}\n{s}");
         }
+    }
+    #[test]
+    fn dashboard_card_geometry() {
+        let cards = card_areas(Rect::new(0, 0, 80, 20));
+        assert_eq!(
+            [cards[0].height, cards[2].height, cards[4].height],
+            [6, 7, 7]
+        );
+        assert_eq!(cards[5].height, 7);
+        for w in [80, 100, 119, 120] {
+            let area = Rect::new(0, 0, w, 20);
+            let cards = card_areas(area);
+            for (i, a) in cards.iter().enumerate() {
+                assert_eq!(a.intersection(area), *a);
+                for b in cards.iter().skip(i + 1) {
+                    assert!(a.intersection(*b).is_empty());
+                }
+            }
+            assert_eq!(cards[2].y == 0, w >= 120);
+        }
+    }
+    #[test]
+    fn process_gauge_scales_and_unknowns() {
+        assert_eq!(fill_ratio(25.0, 100.0), 0.25);
+        assert_eq!(fill_ratio(150.0, 100.0), 1.0);
+        for scale in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(fill_ratio(1.0, scale), 0.0);
+        }
+        let mut v = DashboardView::default();
+        let d = Data::default();
+        v.on_data(&d);
+        assert!(v.cpu.is_empty());
     }
 }
