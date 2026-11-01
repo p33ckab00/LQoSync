@@ -1,9 +1,9 @@
 {
   "README.md": {
-    "mtime": 1793459069.4426346,
-    "seen": 1793459673.5419843,
-    "ast_hash": "0ca03b3cdbf99e7db4fa14f57c350121",
-    "semantic_hash": "0ca03b3cdbf99e7db4fa14f57c350121"
+    "mtime": 1793520509.1603024,
+    "seen": 1793520683.9047232,
+    "ast_hash": "8ea06cbabdb12f3c2c2c5ec9350b990f",
+    "semantic_hash": ""
   },
   "brain/10-sessions/2026-10-31-project-setup-and-v3-simulation.md": {
     "mtime": 1793426645.0797083,
@@ -48,22 +48,22 @@
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1793435794.1419277,
-    "seen": 1793439151.7179146,
-    "ast_hash": "4e2ce212a5256cde023589410a10c807",
-    "semantic_hash": "4e2ce212a5256cde023589410a10c807"
+    "mtime": 1793520509.1603024,
+    "seen": 1793520683.9047542,
+    "ast_hash": "e9845f0d53cf304ff905ae08f73048ed",
+    "semantic_hash": ""
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793513819.5898268,
-    "seen": 1793513900.3877695,
-    "ast_hash": "944d296cbe3144cae23bf85965c05a26",
+    "mtime": 1793520681.2254555,
+    "seen": 1793520683.9047554,
+    "ast_hash": "2891b74a20739a2534627e214ecdc40a",
     "semantic_hash": ""
   },
   "docs/INSTALLATION.md": {
-    "mtime": 1793445632.63207,
-    "seen": 1793457910.8720136,
-    "ast_hash": "44d031b09d6fa4e9a63f0bea4693c051",
-    "semantic_hash": "44d031b09d6fa4e9a63f0bea4693c051"
+    "mtime": 1793520509.198303,
+    "seen": 1793520683.9047565,
+    "ast_hash": "a145c986e601a9a670ff0e8c7451ab0b",
+    "semantic_hash": ""
   },
   "docs/LIBREQOS-V3-INGRESS.md": {
     "mtime": 1793462360.6289306,
@@ -72,9 +72,9 @@
     "semantic_hash": ""
   },
   "docs/OPERATIONS.md": {
-    "mtime": 1793503932.5265028,
-    "seen": 1793504279.0413415,
-    "ast_hash": "0a67da0be8e69324429684a640d9f00c",
+    "mtime": 1793520510.007313,
+    "seen": 1793520683.904759,
+    "ast_hash": "fbbc6e952063c52330149ec11221d96d",
     "semantic_hash": ""
   },
   "Cargo.toml": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "src/config.rs": {
-    "mtime": 1793513532.6862059,
-    "seen": 1793513900.387673,
-    "ast_hash": "d31ca9cfde40c81bc1b76a8b12300009",
+    "mtime": 1793520124.7207925,
+    "seen": 1793520683.9046562,
+    "ast_hash": "f4d4bcccf9eb88d565b50a33702a317d",
     "semantic_hash": ""
   },
   "src/cycle.rs": {
@@ -246,9 +246,9 @@
     "semantic_hash": "d549df5352fb792e23caa28c1bb13d5c"
   },
   "src/cli.rs": {
-    "mtime": 1793492673.5250628,
-    "seen": 1793495229.5193722,
-    "ast_hash": "19572e1e19210a04d5404276724c5765",
+    "mtime": 1793520656.4191415,
+    "seen": 1793520683.9046533,
+    "ast_hash": "eea35ea3927e7309dcb95e2ef6f3906e",
     "semantic_hash": ""
   },
   "src/diff.rs": {
@@ -288,9 +288,9 @@
     "semantic_hash": "2994c3ddd10e9af40a798bd7d817768e"
   },
   "src/runner.rs": {
-    "mtime": 1793492842.3438506,
-    "seen": 1793495229.5193956,
-    "ast_hash": "5e9c0742b09ed657bac82e6799f03769",
+    "mtime": 1793520470.859832,
+    "seen": 1793520683.9046755,
+    "ast_hash": "a9452c10a61766343f27f25ca2d03b08",
     "semantic_hash": ""
   },
   "src/secrets.rs": {

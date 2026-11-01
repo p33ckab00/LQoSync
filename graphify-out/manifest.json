@@ -36,15 +36,15 @@
     "semantic_hash": "015ec06083c516f1adfc7929508c145b"
   },
   "brain/HANDOFF.md": {
-    "mtime": 1793508328.1120806,
-    "seen": 1793512186.652358,
-    "ast_hash": "402bd748b8b9ad53a17a63881b6aac07",
+    "mtime": 1793521601.522463,
+    "seen": 1793522397.2875528,
+    "ast_hash": "669940282ca90b0037796e30cb278db4",
     "semantic_hash": ""
   },
   "brain/Home.md": {
-    "mtime": 1793508328.1120806,
-    "seen": 1793512186.6523595,
-    "ast_hash": "a0340cbf9095553c49bc1193551ca46f",
+    "mtime": 1793521601.522463,
+    "seen": 1793522397.2875538,
+    "ast_hash": "9b594e02f7fb37a105d2c73dcc9739b1",
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
@@ -54,15 +54,15 @@
     "semantic_hash": ""
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793520681.2254555,
-    "seen": 1793520683.9047554,
-    "ast_hash": "2891b74a20739a2534627e214ecdc40a",
+    "mtime": 1793522100.516847,
+    "seen": 1793522397.2875564,
+    "ast_hash": "1108767880901bd82a24ac56df70d76e",
     "semantic_hash": ""
   },
   "docs/INSTALLATION.md": {
-    "mtime": 1793520509.198303,
-    "seen": 1793520683.9047565,
-    "ast_hash": "a145c986e601a9a670ff0e8c7451ab0b",
+    "mtime": 1793522096.1948035,
+    "seen": 1793522397.2875574,
+    "ast_hash": "23879946f157c0ddd74e2ec384bdafe5",
     "semantic_hash": ""
   },
   "docs/LIBREQOS-V3-INGRESS.md": {
@@ -72,9 +72,9 @@
     "semantic_hash": ""
   },
   "docs/OPERATIONS.md": {
-    "mtime": 1793520510.007313,
-    "seen": 1793520683.904759,
-    "ast_hash": "fbbc6e952063c52330149ec11221d96d",
+    "mtime": 1793522100.516847,
+    "seen": 1793522397.28756,
+    "ast_hash": "33d76297146aac78bec58bd135ec8fa9",
     "semantic_hash": ""
   },
   "Cargo.toml": {
@@ -342,9 +342,9 @@
     "semantic_hash": "143bfe18ec34dc7e7599714012da4f1b"
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md": {
-    "mtime": 1793503817.972228,
-    "seen": 1793504279.041355,
-    "ast_hash": "08163d7ec964848c19ebfb628ec4394d",
+    "mtime": 1793521533.6510086,
+    "seen": 1793522397.2875745,
+    "ast_hash": "321e496110efab680937230cd1e25989",
     "semantic_hash": ""
   },
   "src/detect.rs": {
@@ -372,27 +372,27 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-v3-design.md": {
-    "mtime": 1793462360.6249304,
-    "seen": 1793462813.812755,
-    "ast_hash": "0be3bb3d0769571bff4adf56aea1820f",
+    "mtime": 1793521533.6510086,
+    "seen": 1793522397.287577,
+    "ast_hash": "65a51beecb7cf9740684b158fb388e23",
     "semantic_hash": ""
   },
   "src/tui/app.rs": {
-    "mtime": 1793513627.666417,
-    "seen": 1793513900.3877015,
-    "ast_hash": "671595e8e4ead619afeb0ee4fbba9e07",
+    "mtime": 1793521674.6520019,
+    "seen": 1793522397.2874846,
+    "ast_hash": "160ef00398d1d4a11c4a1ff76b8adb1d",
     "semantic_hash": ""
   },
   "src/tui/dashboard.rs": {
-    "mtime": 1793513669.726533,
-    "seen": 1793513900.3877027,
-    "ast_hash": "476f0ddf1c9a7fbe2e63f3903fe91183",
+    "mtime": 1793522319.4661224,
+    "seen": 1793522397.2874863,
+    "ast_hash": "08a6121485f56160f5a03dcf28dd0669",
     "semantic_hash": ""
   },
   "src/tui/data.rs": {
-    "mtime": 1793502123.3403385,
-    "seen": 1793503110.0554545,
-    "ast_hash": "6df2e94170653fc3eb77976f7ba6e771",
+    "mtime": 1793521667.489947,
+    "seen": 1793522397.2874875,
+    "ast_hash": "c3267129b752b49ba18e553f6d87de71",
     "semantic_hash": ""
   },
   "src/tui/devices.rs": {
@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "src/tui/mod.rs": {
-    "mtime": 1793513536.5316079,
-    "seen": 1793513900.387708,
-    "ast_hash": "21db668ccd1bbaacee147dddfba92681",
+    "mtime": 1793521713.7573082,
+    "seen": 1793522397.2874913,
+    "ast_hash": "b3d2b07180e92cdb7feb2b37123ef9bb",
     "semantic_hash": ""
   },
   "src/tui/network.rs": {
@@ -426,9 +426,9 @@
     "semantic_hash": ""
   },
   "src/tui/proc.rs": {
-    "mtime": 1793469902.2895763,
-    "seen": 1793476119.3108215,
-    "ast_hash": "718c15a002797ed0e01d992780309da9",
+    "mtime": 1793521843.983408,
+    "seen": 1793522397.2874954,
+    "ast_hash": "069c94b0e5e189f59de9d7f045354623",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-31-lqosync3-tui-4a.md": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "src/tui/theme.rs": {
-    "mtime": 1793513265.2925248,
-    "seen": 1793513288.2356935,
-    "ast_hash": "beb8ee681ca32dc3d2f982ea7f401c53",
+    "mtime": 1793521996.612823,
+    "seen": 1793522397.287507,
+    "ast_hash": "3d65615dc1b517821ffb022eec6b0a7c",
     "semantic_hash": ""
   },
   "brain/10-sessions/2026-11-01-tui-cosmetics-design-handoff.md": {
@@ -534,15 +534,27 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-11-01-lqosync3-btop-refinement.md": {
-    "mtime": 1793512148.8773077,
-    "seen": 1793512186.6523879,
-    "ast_hash": "0d342ea9d0da75b5b55d9243bb39201c",
+    "mtime": 1793522135.4652004,
+    "seen": 1793522397.2875779,
+    "ast_hash": "d42244b70ca1bc2bdf540e57efbd7e31",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-11-01-lqosync3-tui-cosmetics-design.md": {
     "mtime": 1793508328.1120806,
     "seen": 1793512186.6523905,
     "ast_hash": "7f5327481fa1011ce8eabc85586c2f8d",
+    "semantic_hash": ""
+  },
+  "brain/10-sessions/2026-11-01-btop-tui-and-fresh-install.md": {
+    "mtime": 1793521601.5084631,
+    "seen": 1793522397.287529,
+    "ast_hash": "42ef10ee4037917b5c1a69c91eed1ba0",
+    "semantic_hash": ""
+  },
+  "brain/20-decisions/ADR-0010-first-full-libreqos-run.md": {
+    "mtime": 1793521601.507463,
+    "seen": 1793522397.287546,
+    "ast_hash": "453443d1355d0557a3996292a5898de7",
     "semantic_hash": ""
   }
 }
