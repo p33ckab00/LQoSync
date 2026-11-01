@@ -9,6 +9,7 @@ pub mod network;
 pub mod osc52;
 pub mod proc;
 pub mod settings;
+pub mod theme;
 
 use app::{Action, App};
 use ratatui::Terminal;
@@ -101,6 +102,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     // SAFETY: geteuid has no preconditions and cannot fail.
     let read_only = unsafe { libc::geteuid() } != 0;
     let mut app = App::new(read_only, config_text, config_error);
+    app.palette = theme::Palette::new(cfg.tui.theme);
     app.osc52 = cfg.tui.osc52;
     app.action_timeout = action_timeout(&cfg);
     app.journal = journal::JournalView::new(cfg.tui.journal_lines);

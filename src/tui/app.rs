@@ -7,6 +7,7 @@ use super::journal::JournalView;
 use super::network::NetworkView;
 use super::osc52::MAX_COPY;
 use super::settings::view::{PreviewJob, SAction, SettingsView};
+use super::theme::Palette;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -82,6 +83,7 @@ pub fn split_main(area: Rect) -> (Rect, Rect) {
 }
 
 pub struct App {
+    pub palette: Palette,
     pub tab: Tab,
     pub read_only: bool,
     pub message: Option<String>,
@@ -111,6 +113,7 @@ impl App {
     pub fn new(read_only: bool, config_text: String, config_error: Option<String>) -> Self {
         let settings = SettingsView::new(std::path::PathBuf::new(), &config_text, read_only);
         App {
+            palette: Palette::new(crate::config::Theme::Dark),
             tab: Tab::Devices,
             read_only,
             message: None,
@@ -365,11 +368,13 @@ impl App {
         self.draw_header(f, header);
         self.draw_tabs(f, tabs);
         match self.tab {
-            Tab::Devices => self.devices.draw(f, main, &self.data),
-            Tab::Network => self.network.draw(f, main, &self.data),
-            Tab::Journal => self.journal.draw(f, main),
-            Tab::Dashboard => self.dashboard.draw(f, main, &self.data, self.now),
-            Tab::Settings => self.settings.draw(f, main),
+            Tab::Devices => self.devices.draw(f, main, &self.data, &self.palette),
+            Tab::Network => self.network.draw(f, main, &self.data, &self.palette),
+            Tab::Journal => self.journal.draw(f, main, &self.palette),
+            Tab::Dashboard => self
+                .dashboard
+                .draw(f, main, &self.data, self.now, &self.palette),
+            Tab::Settings => self.settings.draw(f, main, &self.palette),
         }
         let tab_keys = match self.tab {
             Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",

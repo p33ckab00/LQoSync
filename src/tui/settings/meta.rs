@@ -29,6 +29,7 @@ pub struct KeyMeta {
     pub read_only: bool,
 }
 
+const TUI_THEME: &[&str] = &["dark", "light", "mono"];
 const RUNTIME_MODE: &[&str] = &["shadow", "apply"];
 const LOG_LEVEL: &[&str] = &["error", "warn", "info", "debug"];
 const OFFLINE_ACTION: &[&str] = &["remove", "keep"];
@@ -54,8 +55,9 @@ const PPP_SOURCE: &[&str] = &[
 const DHCP_MODE: &[&str] = &["per_site", "per_plan"];
 const DHCP_SOURCE: &[&str] = &["server_comment", "lease_comment", "settings"];
 
-/// The keys of the 10 enums of `config.rs` and their TOML values.
+/// The keys of the 11 enums of `config.rs` and their TOML values.
 pub const CHOICES: &[(&str, &[&str])] = &[
+    ("tui.theme", TUI_THEME),
     ("runtime.mode", RUNTIME_MODE),
     ("runtime.log_level", LOG_LEVEL),
     ("router_access.offline_action", OFFLINE_ACTION),
@@ -354,6 +356,10 @@ fn build() -> Vec<KeyMeta> {
     for m in out.iter_mut().filter(|m| m.path == "runtime.state_dir") {
         m.help.push_str("\nread-only here: change it by hand; copy the folder first, or the service loses its state");
     }
+    for m in out.iter_mut().filter(|m| m.path == "tui.theme") {
+        m.help
+            .push_str("\nApply the change, then restart the TUI to use the theme.");
+    }
     out
 }
 
@@ -521,7 +527,7 @@ mod tests {
             let last = path.rsplit('.').next().unwrap();
             assert!(e.contains(last), "{path}: {e}");
         }
-        assert_eq!(types.len(), 10);
+        assert_eq!(types.len(), 11);
     }
 
     #[test]

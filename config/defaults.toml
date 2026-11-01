@@ -150,6 +150,7 @@ include_telemetry = true
 max_list_items = 15
 
 [tui]                           # used by lqosync3 tui only; the service checks them at start and at reload
+theme = "dark"                 # dark, light, or mono; restart the TUI after apply
 refresh_ms = 1000               # milliseconds between two reads of the status, the files, and the process
 journal_lines = 2000            # lines that the Journal tab keeps
 max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded

@@ -1,5 +1,6 @@
 //! The Journal tab: `journalctl -f` of the service, with a level filter, search, and line selection.
 
+use crate::tui::theme::Palette;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -285,7 +286,7 @@ impl JournalView {
         }
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, _palette: &Palette) {
         let [banner, body] = Layout::vertical([
             Constraint::Length(u16::from(self.error.is_some())),
             Constraint::Min(0),
@@ -440,7 +441,8 @@ mod tests {
     fn mouse_drag_selects_lines() {
         let mut v = view(10, &["a", "b", "c", "d", "e"]);
         let mut t = Terminal::new(TestBackend::new(60, 12)).unwrap();
-        t.draw(|f| v.draw(f, f.area())).unwrap();
+        t.draw(|f| v.draw(f, f.area(), &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
         let at = |kind, row| MouseEvent {
             kind,
             column: 3,
@@ -496,7 +498,8 @@ mod tests {
         let mut v = view(10, &["2026-10-31T10:00:00+0000 host lqosync3[1]: added 1"]);
         v.push_batch(vec![JournalMsg::Error("Hint: not in adm".into())]);
         let mut t = Terminal::new(TestBackend::new(100, 10)).unwrap();
-        t.draw(|f| v.draw(f, f.area())).unwrap();
+        t.draw(|f| v.draw(f, f.area(), &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
         let buf = t.backend().buffer();
         let s: String = (0..10)
             .map(|y| (0..100).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")

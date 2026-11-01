@@ -3,6 +3,7 @@
 use super::app::split_main;
 use super::data::{Data, FLAG_DUP_IP, FLAG_NO_PARENT, FLAG_RATE};
 use crate::model::CsvRow;
+use crate::tui::theme::Palette;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Rect};
@@ -223,7 +224,7 @@ impl DevicesView {
         None
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, _palette: &Palette) {
         let (main, side) = split_main(area);
         // Borders and the header row.
         let height = main.height.saturating_sub(3) as usize;
@@ -486,7 +487,8 @@ mod tests {
         let mut v = DevicesView::default();
         v.on_data(&d);
         let mut t = Terminal::new(TestBackend::new(120, 33)).unwrap();
-        t.draw(|f| v.draw(f, f.area(), &d)).unwrap();
+        t.draw(|f| v.draw(f, f.area(), &d, &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
         assert!(v.rows_built > 0 && v.rows_built <= 30, "{}", v.rows_built);
     }
 
@@ -509,7 +511,8 @@ mod tests {
         let mut v = DevicesView::default();
         v.on_data(&d);
         let mut t = Terminal::new(TestBackend::new(160, 20)).unwrap();
-        t.draw(|f| v.draw(f, f.area(), &d)).unwrap();
+        t.draw(|f| v.draw(f, f.area(), &d, &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
         let buf = t.backend().buffer();
         let screen: String = (0..20)
             .map(|y| (0..160).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
@@ -546,7 +549,8 @@ mod tests {
         for c in "n1".chars() {
             let start = std::time::Instant::now();
             v.on_key(key(KeyCode::Char(c)), &d);
-            t.draw(|f| v.draw(f, f.area(), &d)).unwrap();
+            t.draw(|f| v.draw(f, f.area(), &d, &Palette::new(crate::config::Theme::Dark)))
+                .unwrap();
             worst = worst.max(start.elapsed());
         }
         eprintln!("worst key press with 20 000 rows: {worst:?}");

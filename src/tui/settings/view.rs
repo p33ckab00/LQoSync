@@ -11,6 +11,7 @@ use super::validate;
 use crate::model::RouterSnapshot;
 use crate::sources::{LeaseResult, LeaseView, RateSource};
 use crate::tui::dashboard::Sent;
+use crate::tui::theme::Palette;
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyModifiers;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
@@ -1790,7 +1791,7 @@ impl SettingsView {
         Some((PathBuf::from(c.runtime.state_dir), c.runtime.keep_backups))
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, _palette: &Palette) {
         let [head, body] =
             Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
         let n = self.changed.len();
@@ -2346,7 +2347,8 @@ mod tests {
 
     fn screen(v: &mut SettingsView, w: u16, h: u16) -> String {
         let mut t = Terminal::new(TestBackend::new(w, h)).unwrap();
-        t.draw(|f| v.draw(f, f.area())).unwrap();
+        t.draw(|f| v.draw(f, f.area(), &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
         let buf = t.backend().buffer();
         (0..h)
             .map(|y| (0..w).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")

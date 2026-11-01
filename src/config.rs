@@ -285,10 +285,20 @@ pub struct Telegram {
     pub max_list_items: usize,
 }
 
+/// The palette of the terminal UI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    Dark,
+    Light,
+    Mono,
+}
+
 /// `lqosync3 tui`. The service does not use these keys, but it checks them.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Tui {
+    pub theme: Theme,
     pub refresh_ms: u64,
     pub journal_lines: usize,
     pub max_file_mb: u64,
@@ -1576,5 +1586,23 @@ mod tests {
         let e = Config::from_toml_str(&ok.replace("chat_id=", "max_message_chars=50\nchat_id="))
             .unwrap_err();
         assert!(format!("{e:#}").contains("max_message_chars"), "{e:#}");
+    }
+}
+
+#[cfg(test)]
+mod theme_tests {
+    use super::*;
+    #[test]
+    fn tui_theme_values_and_default() {
+        assert_eq!(defaults().tui.theme, Theme::Dark);
+        for (name, value) in [
+            ("dark", Theme::Dark),
+            ("light", Theme::Light),
+            ("mono", Theme::Mono),
+        ] {
+            let c = Config::from_toml_str(&format!("[[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n[tui]\ntheme = \"{name}\"" )).unwrap();
+            assert_eq!(c.tui.theme, value);
+        }
+        assert!(Config::from_toml_str("[tui]\ntheme = \"wrong\"").is_err());
     }
 }

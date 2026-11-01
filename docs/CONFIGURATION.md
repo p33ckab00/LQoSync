@@ -464,3 +464,9 @@ The section names stay the same. These keys change.
 | (none) | `runtime.static_comment`, `runtime.subscriber_grace`, `routers[].dhcp.require_bound` | New |
 
 The planned command `lqosync3 import-json <config.json>` will write a TOML file and secret files from an old `config.json`.
+
+### TUI theme
+
+`tui.theme` accepts `dark` (default), `light`, or `mono`.
+Apply a change through the normal Settings flow, then restart the TUI.
+The theme does not change sync output.

@@ -2,6 +2,7 @@
 
 use super::app::split_main;
 use super::data::Data;
+use crate::tui::theme::Palette;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::Line;
@@ -326,7 +327,7 @@ impl DashboardView {
         }
     }
 
-    pub fn draw(&self, f: &mut Frame, area: Rect, d: &Data, now: u64) {
+    pub fn draw(&self, f: &mut Frame, area: Rect, d: &Data, now: u64, _palette: &Palette) {
         let (main, side) = split_main(area);
         let text = lines(d, now);
         // Two columns of cards when the panel is wide.
@@ -599,7 +600,16 @@ mod tests {
         v.on_data(&d);
         assert_eq!(v.cpu.len(), 2);
         let mut t = Terminal::new(TestBackend::new(120, 40)).unwrap();
-        t.draw(|f| v.draw(f, f.area(), &d, 2_000)).unwrap();
+        t.draw(|f| {
+            v.draw(
+                f,
+                f.area(),
+                &d,
+                2_000,
+                &Palette::new(crate::config::Theme::Dark),
+            )
+        })
+        .unwrap();
         let buf = t.backend().buffer();
         let s: String = (0..40)
             .map(|y| (0..120).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")

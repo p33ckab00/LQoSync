@@ -2,6 +2,7 @@
 
 use super::app::split_main;
 use super::data::Data;
+use crate::tui::theme::Palette;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -205,7 +206,7 @@ impl NetworkView {
         }
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, _palette: &Palette) {
         let (main, side) = split_main(area);
         let title = format!(
             " network.json {} shown | /{}{} ",
@@ -334,7 +335,8 @@ mod tests {
 
     fn screen(v: &mut NetworkView, d: &Data) -> String {
         let mut t = Terminal::new(TestBackend::new(120, 20)).unwrap();
-        t.draw(|f| v.draw(f, f.area(), d)).unwrap();
+        t.draw(|f| v.draw(f, f.area(), d, &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
         let buf = t.backend().buffer();
         (0..20)
             .map(|y| (0..120).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
