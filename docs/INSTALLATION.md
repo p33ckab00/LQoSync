@@ -7,12 +7,83 @@ This document gives the one-line installation, the manual installation, the chec
 
 ## Requirements
 
+On the shaper (the LibreQoS server):
+
 - Ubuntu 24.04 (Noble) on x86_64.
 - LibreQoS 2.0 to 2.2, or LibreQoS 3.x.
-- Root access.
-- RouterOS API access from the shaper to each router. Use port `8729` (TLS) if possible.
-- A read-only RouterOS user for each router.
+- Root access (`sudo`). The service writes the LibreQoS files and reads the secret files.
 - For an installation from source: Rust 1.89 or later and `cargo`.
+
+On each MikroTik router:
+
+- RouterOS 7.
+- The API service on, and open to the shaper only. Use `api-ssl` (port `8729`, TLS) if possible.
+- A RouterOS user for the tool, with the policies `read` and `api` only. The tool never writes to a router.
+
+Refer to "Prepare each router" for the RouterOS commands.
+
+## The values in the commands
+
+The commands use these names. Replace each name with your value. Do not mix them up.
+
+| Name | What it is | How to find it |
+|---|---|---|
+| `R1` | The name of the router in the tool config (`name` in `[[routers]]`). Use letters, digits, `-`, and `_`. | You select it. The secret file name uses it. |
+| `ROUTER_IP` | The address that the shaper uses to connect to the router. | You put it in `address` of the router in the config. |
+| `SHAPER_IP` | The source address of the shaper, as the router sees it. | On the shaper, run `ip route get ROUTER_IP`. The value after `src` is `SHAPER_IP`. If NAT is between them, use the NAT address. |
+| `lqosync` | The RouterOS user and group of the tool. | You select it. Use the same name in `username` of the config. |
+
+Example: `ip route get 10.10.0.1` shows `10.10.0.1 dev eth1 src 10.10.0.5`. Then `ROUTER_IP` is `10.10.0.1` and `SHAPER_IP` is `10.10.0.5`.
+
+## Prepare each router
+
+Run these commands in the RouterOS terminal (WinBox terminal or SSH) with an administrator account. Do this one time for each router.
+
+1. Make a group that can only read, through the API:
+
+   ```
+   /user group add name=lqosync policy=read,api comment="lqosync3: read-only API"
+   ```
+
+   The group has no `write`, `ssh`, `winbox`, or `sensitive` policy. The tool cannot change the router and cannot read the PPP passwords.
+
+2. Make the user. It can log in only from the shaper:
+
+   ```
+   /user add name=lqosync group=lqosync address=SHAPER_IP/32 password="<a long random password>"
+   ```
+
+   Keep the password for step 5 of the manual installation.
+
+3. Open the API service to the shaper only. Use one of these:
+   - TLS (recommended). It needs a certificate. Refer to "Router TLS with your own CA" in [OPERATIONS.md](OPERATIONS.md):
+
+     ```
+     /ip service set api-ssl address=SHAPER_IP/32 disabled=no
+     ```
+
+   - Plain API (port `8728`). The password goes over the network in clear text. `lqosync3 check` gives a warning:
+
+     ```
+     /ip service set api address=SHAPER_IP/32 disabled=no
+     ```
+
+   CAUTION: MAKE SURE THAT `SHAPER_IP` IS CORRECT. A WRONG ADDRESS STOPS ALL READS OF THE TOOL. WinBox and SSH do not change.
+
+4. On the shaper, make sure that the port is open: `nc -vz ROUTER_IP 8729` (or `8728` for the plain API). Expected result: `succeeded`.
+
+The tool reads only these menus, and only these fields:
+
+| Menu | Fields | Used for |
+|---|---|---|
+| `/ppp/secret` | `name`, `profile`, `comment`, `disabled`, `caller-id` | PPPoE subscribers and their plans |
+| `/ppp/active` | `name`, `address`, `caller-id`, `comment` | The IP of each online PPPoE subscriber |
+| `/ppp/profile` | `name`, `comment`, `rate-limit` | The speed of each PPPoE plan |
+| `/ip/hotspot/active` | `user`, `address`, `mac-address` | Hotspot subscribers |
+| `/ip/dhcp-server` | `name`, `comment`, `disabled` | DHCP servers and their speed comments |
+| `/ip/dhcp-server/lease` | `server`, `address`, `active-address`, `mac-address`, `host-name`, `comment`, `status` | DHCP subscribers |
+
+The tool reads a menu only if its source (`pppoe`, `hotspot`, or `dhcp`) is on for that router.
 
 ## One-line installation
 
@@ -70,38 +141,52 @@ The installer does not do these actions:
 
 ## Manual installation
 
-1. Build the binary:
+Run all commands of this procedure on the shaper. The commands with `sudo` need root.
+
+1. Build the binary. Run this command as your normal user, in the clone of the repository. It does not need root:
 
    ```bash
    cargo build --release --locked
    ```
 
-2. Install the binary:
+2. Install the binary. This copies it to `/usr/local/bin`, with mode `0755`:
 
    ```bash
    sudo install -m 0755 target/release/lqosync3 /usr/local/bin/lqosync3
    ```
 
 3. Make the directories:
+   - `/etc/lqosync3` holds the config.
+   - `/etc/lqosync3/secrets` holds the passwords. Only root can open it.
+   - `/var/lib/lqosync3` holds the state of the service.
 
    ```bash
    sudo install -d -m 0755 /etc/lqosync3 /var/lib/lqosync3
    sudo install -d -m 0700 /etc/lqosync3/secrets
    ```
 
-4. Copy the example configuration from [CONFIGURATION.md](CONFIGURATION.md) to `/etc/lqosync3/lqosync3.toml`.
-5. Write each router password to its secret file:
+4. Copy the example configuration from [CONFIGURATION.md](CONFIGURATION.md) to `/etc/lqosync3/lqosync3.toml`. For each router, set:
+   - `name = "R1"`
+   - `address = "ROUTER_IP"`
+   - `username = "lqosync"` (the user of "Prepare each router")
+   - `password_file = "/etc/lqosync3/secrets/R1.password"`
+   - `tls = true` and `port = 8729` for `api-ssl`, or `tls = false` and `port = 8728` for the plain API.
+5. Write the password of the `lqosync` user of each router to its secret file. The first command makes an empty file with mode `0600` and owner `root`. The second command opens it in an editor:
 
    ```bash
-   sudo install -m 0600 /dev/null /etc/lqosync3/secrets/Router-1.password
-   sudo nano /etc/lqosync3/secrets/Router-1.password
+   sudo install -m 0600 /dev/null /etc/lqosync3/secrets/R1.password
+   sudo nano /etc/lqosync3/secrets/R1.password
    ```
 
-6. Check the configuration:
+   Type only the password on one line. Save and close. The tool ignores one newline at the end of the file. It does not accept a file with a different mode or owner.
+
+6. Check the configuration. The command reads `/etc/lqosync3/lqosync3.toml` (use `--config <path>` for another file). It does not connect to the routers. It checks the keys, the secret files, the TLS files, the paths, and the LibreQoS target:
 
    ```bash
    sudo lqosync3 check
    ```
+
+   Expected result: no `ERROR` line. A `WARN` line tells you about a risk, for example the plain API.
 
 7. Install the service unit as `/etc/systemd/system/lqosync3.service`:
 
@@ -131,7 +216,7 @@ The installer does not do these actions:
    WantedBy=multi-user.target
    ```
 
-8. Start the service:
+8. Start the service. The first command reads the new unit file. The second starts the service now and at each boot. The service starts in the `runtime.mode` of the config (`shadow` writes only candidate files):
 
    ```bash
    sudo systemctl daemon-reload
@@ -149,22 +234,29 @@ The installer does not do these actions:
    systemctl status lqosync3.service
    ```
 
-2. Make sure that the tool selected the correct target:
+2. Make sure that the tool selected the correct target. `detect` reads the LibreQoS version and configuration only:
 
    ```bash
-   sudo lqosync3 once
-   sudo lqosync3 diff
+   sudo lqosync3 detect
    ```
 
    Expected result on LibreQoS 2.2: `target=v2_pair`.
 
-3. Read the log of the first cycles:
+3. After the first cycle, compare the candidate files with the live LibreQoS files. `diff` reads files only:
+
+   ```bash
+   sudo lqosync3 diff
+   ```
+
+   NOTE: Do not run `lqosync3 once` while the service operates. The service holds the lock in `/var/lib/lqosync3`, so `once` stops with an error. In `apply` mode, `once` also writes the LibreQoS files.
+
+4. Read the log of the first cycles. Look for `router R1: online` and for errors:
 
    ```bash
    journalctl -u lqosync3.service -n 50
    ```
 
-4. Make sure that the candidate files exist in `/var/lib/lqosync3/candidate/`.
+5. Make sure that the candidate files exist in `/var/lib/lqosync3/candidate/`.
 
 ## Removal
 
