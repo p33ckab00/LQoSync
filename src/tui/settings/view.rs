@@ -11,14 +11,16 @@ use super::validate;
 use crate::model::RouterSnapshot;
 use crate::sources::{LeaseResult, LeaseView, RateSource};
 use crate::tui::dashboard::Sent;
-use crate::tui::theme::Palette;
+use crate::tui::theme::{Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyModifiers;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap,
+};
 use serde_json::Value as Json;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -190,6 +192,8 @@ enum Extra {
 }
 
 struct Group {
+    scope: KeyPath,
+    changed_count: usize,
     title: String,
     keys: Vec<(KeyPath, &'static KeyMeta)>,
     router: Option<usize>,
@@ -255,8 +259,8 @@ fn source_word(s: RateSource) -> &'static str {
 }
 
 /// The line of a row that is not a key.
-fn extra_item(e: &Extra) -> ListItem<'static> {
-    let grey = Style::new().fg(Color::DarkGray);
+fn extra_item(e: &Extra, palette: &Palette) -> ListItem<'static> {
+    let grey = palette.role(Role::Secondary);
     match e {
         Extra::Note(t) => ListItem::new(t.clone()).style(grey),
         Extra::Client { text, .. } => ListItem::new(format!("override  {text}")),
@@ -406,6 +410,8 @@ impl SettingsView {
             match groups.iter_mut().find(|g| g.title == title) {
                 Some(g) => g.keys.push((p, m)),
                 None => groups.push(Group {
+                    scope: Vec::new(),
+                    changed_count: 0,
                     title,
                     keys: vec![(p, m)],
                     router: None,
@@ -439,6 +445,8 @@ impl SettingsView {
                     first.iter().position(|f| *f == k).unwrap_or(first.len())
                 });
                 groups.push(Group {
+                    scope: Vec::new(),
+                    changed_count: 0,
                     title: format!("router {name}"),
                     keys: top,
                     router: Some(i),
@@ -467,6 +475,8 @@ impl SettingsView {
                         }
                     }
                     groups.push(Group {
+                        scope: Vec::new(),
+                        changed_count: 0,
                         title: format!("router {name} {t}"),
                         keys: pick(&format!("routers.*.{t}.")),
                         router: Some(i),
@@ -514,6 +524,8 @@ impl SettingsView {
                         None => format!("router {name} dhcp server {sname}"),
                     };
                     groups.push(Group {
+                        scope: Vec::new(),
+                        changed_count: 0,
                         title,
                         keys,
                         router: Some(i),
@@ -534,6 +546,8 @@ impl SettingsView {
                     .collect();
                 if !none.is_empty() {
                     groups.push(Group {
+                        scope: Vec::new(),
+                        changed_count: 0,
                         title: format!("router {name} dhcp no server ({} leases)", none.len()),
                         keys: Vec::new(),
                         router: Some(i),
@@ -584,6 +598,8 @@ impl SettingsView {
                     .collect();
                 if !clients.is_empty() {
                     groups.push(Group {
+                        scope: Vec::new(),
+                        changed_count: 0,
                         title: format!("router {name} dhcp clients"),
                         keys: Vec::new(),
                         router: Some(i),
@@ -594,6 +610,21 @@ impl SettingsView {
                     });
                 }
             }
+        }
+        for g in &mut groups {
+            g.scope = if g.server_name.is_some() && g.server.is_none() {
+                Vec::new()
+            } else if let Some((p, _)) = g.keys.first() {
+                p[..p.len() - 1].to_vec()
+            } else if g.extra.iter().any(|e| matches!(e, Extra::Client { .. })) {
+                concrete("routers.*.dhcp.clients", &[g.router.unwrap()])
+            } else {
+                Vec::new()
+            };
+        }
+        let counts = group_change_counts(&groups, &self.changed);
+        for (g, count) in groups.iter_mut().zip(counts) {
+            g.changed_count = count;
         }
         self.groups = groups;
         self.group = self.group.min(self.groups.len().saturating_sub(1));
@@ -1791,7 +1822,7 @@ impl SettingsView {
         Some((PathBuf::from(c.runtime.state_dir), c.runtime.keep_backups))
     }
 
-    pub fn draw(&mut self, f: &mut Frame, area: Rect, _palette: &Palette) {
+    pub fn draw(&mut self, f: &mut Frame, area: Rect, palette: &Palette) {
         let [head, body] =
             Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
         let n = self.changed.len();
@@ -1830,6 +1861,9 @@ impl SettingsView {
                 Paragraph::new(text).wrap(Wrap { trim: false }).block(
                     Block::default()
                         .borders(Borders::ALL)
+                        .style(palette.canvas())
+                        .border_type(BorderType::Rounded)
+                        .title_style(palette.role(Role::Accent))
                         .title(" config file "),
                 ),
                 body,
@@ -1853,12 +1887,10 @@ impl SettingsView {
             [g, k, help]
         };
         self.areas = [g, k, h];
-        let hl = Style::new()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD);
+        let hl = palette.selection();
         let focus = |on: bool| {
             if on {
-                Style::new().fg(Color::Cyan)
+                Style::new().fg(palette.color(Color::Cyan))
             } else {
                 Style::new()
             }
@@ -1866,7 +1898,13 @@ impl SettingsView {
         let items: Vec<ListItem> = self
             .groups
             .iter()
-            .map(|g| ListItem::new(g.title.clone()))
+            .map(|g| {
+                ListItem::new(if g.changed_count > 0 {
+                    format!("{} ({})", g.title, g.changed_count)
+                } else {
+                    g.title.clone()
+                })
+            })
             .collect();
         let mut st = ListState::default().with_selected(Some(self.group));
         f.render_stateful_widget(
@@ -1874,6 +1912,9 @@ impl SettingsView {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                        .style(palette.canvas())
+                        .border_type(BorderType::Rounded)
+                        .title_style(palette.role(Role::Accent))
                         .border_style(focus(self.focus == 0))
                         .title(" groups "),
                 )
@@ -1888,7 +1929,8 @@ impl SettingsView {
             .map(|grp| {
                 grp.keys
                     .iter()
-                    .map(|(p, m)| {
+                    .enumerate()
+                    .map(|(index, (p, m))| {
                         let name = m.path.rsplit('.').next().unwrap_or_default();
                         let d = self.draft.as_ref();
                         let text = match d.and_then(|d| d.effective(p)) {
@@ -1909,9 +1951,50 @@ impl SettingsView {
                             String::new()
                         };
                         let ro = if m.read_only { "  (read-only)" } else { "" };
-                        ListItem::new(format!("{name} = {text}{mark}{ro}"))
+                        let selected = self.focus == 1 && index == self.key;
+                        let is_changed = changed.contains(path_text(p).as_str());
+                        let readonly = m.read_only || self.read_only;
+                        let style = |role| {
+                            if selected {
+                                palette.selection()
+                            } else {
+                                palette.role(role)
+                            }
+                        };
+                        let key_style = if selected {
+                            palette.selection()
+                        } else if readonly {
+                            palette.role(Role::Secondary)
+                        } else if is_changed {
+                            palette.badge("", Role::Warning, false).style
+                        } else {
+                            palette.role(Role::Base)
+                        };
+                        let inherited =
+                            !matches!(d.and_then(|d| d.effective(p)), Some((_, Origin::File)));
+                        ListItem::new(Line::from(vec![
+                            Span::styled(name.to_string(), key_style),
+                            Span::raw(" = "),
+                            Span::styled(
+                                text,
+                                style(if readonly || inherited {
+                                    Role::Secondary
+                                } else {
+                                    Role::Base
+                                }),
+                            ),
+                            Span::styled(mark, style(Role::Warning)),
+                            Span::styled(ro, style(Role::Secondary)),
+                        ]))
                     })
-                    .chain(grp.extra.iter().map(extra_item))
+                    .chain(grp.extra.iter().enumerate().map(|(i, e)| {
+                        let item = extra_item(e, palette);
+                        if self.focus == 1 && grp.keys.len() + i == self.key {
+                            item.style(palette.selection())
+                        } else {
+                            item
+                        }
+                    }))
                     .collect()
             })
             .unwrap_or_default();
@@ -1921,6 +2004,9 @@ impl SettingsView {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                        .style(palette.canvas())
+                        .border_type(BorderType::Rounded)
+                        .title_style(palette.role(Role::Accent))
                         .border_style(focus(self.focus == 1))
                         .title(" keys "),
                 )
@@ -1929,45 +2015,49 @@ impl SettingsView {
             &mut st,
         );
         f.render_widget(
-            Paragraph::new(self.right_panel())
+            Paragraph::new(self.right_panel(palette))
                 .wrap(Wrap { trim: false })
                 .scroll((self.scroll, 0))
                 .block({
-                    let b =
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .title(if self.conflict.is_some() {
-                                " the file on disk changed "
-                            } else if self.current_preview().is_some() {
-                                " preview ([ ] scroll) "
-                            } else {
-                                " help "
-                            });
+                    let b = Block::default()
+                        .borders(Borders::ALL)
+                        .style(palette.canvas())
+                        .border_type(BorderType::Rounded)
+                        .title_style(palette.role(Role::Accent))
+                        .title(if self.conflict.is_some() {
+                            " the file on disk changed "
+                        } else if self.current_preview().is_some() {
+                            " preview ([ ] scroll) "
+                        } else {
+                            " help "
+                        });
                     // The next step of edit, preview, apply stays on the border until it changes.
                     if step.is_empty() {
                         b
                     } else {
-                        b.border_style(Style::new().fg(Color::Yellow))
+                        b.border_style(Style::new().fg(palette.color(Color::Yellow)))
                             .title_bottom(Line::styled(
                                 format!(" next: {step} "),
                                 Style::new()
-                                    .fg(Color::Black)
-                                    .bg(Color::Yellow)
+                                    .fg(palette.color(Color::Black))
+                                    .bg(palette.color(Color::Yellow))
                                     .add_modifier(Modifier::BOLD),
                             ))
                     }
                 }),
             h,
         );
-        self.draw_popup(f, k);
+        self.draw_popup(f, k, palette);
     }
 
-    fn right_panel(&self) -> Vec<Line<'static>> {
+    fn right_panel(&self, palette: &Palette) -> Vec<Line<'static>> {
         let mut top: Vec<Line<'static>> = Vec::new();
         if let Stage::Result(m) = &self.stage {
             top.push(Line::styled(
                 m.clone(),
-                Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::new()
+                    .fg(palette.color(Color::Yellow))
+                    .add_modifier(Modifier::BOLD),
             ));
             top.push(Line::from(""));
         }
@@ -1976,7 +2066,11 @@ impl SettingsView {
                 "the changes on disk since the start of the edit:",
             ));
             for (c, l) in diff.iter().filter(|(c, _)| *c != ' ') {
-                let color = if *c == '+' { Color::Green } else { Color::Red };
+                let color = if *c == '+' {
+                    palette.color(Color::Green)
+                } else {
+                    palette.color(Color::Red)
+                };
                 top.push(Line::styled(format!("{c} {l}"), Style::new().fg(color)));
             }
             top.push(Line::from(""));
@@ -1985,17 +2079,22 @@ impl SettingsView {
             ));
             return top;
         }
-        top.extend(self.panel_body());
+        top.extend(self.panel_body(palette));
         top
     }
 
-    fn panel_body(&self) -> Vec<Line<'static>> {
+    fn panel_body(&self, palette: &Palette) -> Vec<Line<'static>> {
         if let Some(s) = self.current_preview() {
             // The warnings first: a long list of circuit lines must not hide them.
             let mut out: Vec<Line> = self
                 .all_warnings(s)
                 .into_iter()
-                .map(|w| Line::styled(format!("warning: {w}"), Style::new().fg(Color::Yellow)))
+                .map(|w| {
+                    Line::styled(
+                        format!("warning: {w}"),
+                        Style::new().fg(palette.color(Color::Yellow)),
+                    )
+                })
                 .collect();
             out.extend(
                 self.draft
@@ -2005,7 +2104,11 @@ impl SettingsView {
                     .into_iter()
                     .filter(|(c, _)| *c != ' ')
                     .map(|(c, l)| {
-                        let color = if c == '+' { Color::Green } else { Color::Red };
+                        let color = if c == '+' {
+                            palette.color(Color::Green)
+                        } else {
+                            palette.color(Color::Red)
+                        };
                         Line::styled(format!("{c} {l}"), Style::new().fg(color))
                     }),
             );
@@ -2025,7 +2128,7 @@ impl SettingsView {
                 Preview::Skipped(why) => out.push(Line::from(format!("no output preview: {why}"))),
                 Preview::Failed(why) => out.push(Line::styled(
                     format!("preview failed: {why}"),
-                    Style::new().fg(Color::Red),
+                    Style::new().fg(palette.color(Color::Red)),
                 )),
             }
             out.push(Line::from(""));
@@ -2087,7 +2190,7 @@ impl SettingsView {
         if m.read_only {
             out.push(Line::styled(
                 "read-only here",
-                Style::new().fg(Color::Yellow),
+                Style::new().fg(palette.color(Color::Yellow)),
             ));
         }
         if m.path.ends_with("password_file") || m.path.ends_with("bot_token_file") {
@@ -2113,7 +2216,7 @@ impl SettingsView {
             .unwrap_or_else(|| format!("#{r}"))
     }
 
-    fn draw_popup(&self, f: &mut Frame, area: Rect) {
+    fn draw_popup(&self, f: &mut Frame, area: Rect, palette: &Palette) {
         // The keys are on the bottom border: a long text never hides them.
         let bar = self.bar();
         let popup = |f: &mut Frame, title: &str, lines: Vec<Line>, h: u16| {
@@ -2124,15 +2227,12 @@ impl SettingsView {
                 Paragraph::new(lines).wrap(Wrap { trim: false }).block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .border_style(Style::new().fg(Color::Yellow))
+                        .style(palette.canvas())
+                        .border_type(BorderType::Rounded)
+                        .title_style(palette.role(Role::Accent))
+                        .border_style(Style::new().fg(palette.color(Color::Yellow)))
                         .title(format!(" {title} "))
-                        .title_bottom(Line::styled(
-                            format!(" {bar} "),
-                            Style::new()
-                                .fg(Color::Black)
-                                .bg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD),
-                        )),
+                        .title_bottom(palette.keys(&format!(" {bar} "))),
                 ),
                 r,
             );
@@ -2279,7 +2379,7 @@ impl SettingsView {
                     for w in self.all_warnings(s) {
                         lines.push(Line::styled(
                             format!("warning: {w}"),
-                            Style::new().fg(Color::Yellow),
+                            Style::new().fg(palette.color(Color::Yellow)),
                         ));
                     }
                 }
@@ -2326,6 +2426,20 @@ impl SettingsView {
             }
         }
     }
+}
+
+fn group_change_counts(groups: &[Group], changed: &[String]) -> Vec<usize> {
+    let paths: HashSet<KeyPath> = changed.iter().map(|p| key_path(p)).collect();
+    groups
+        .iter()
+        .map(|g| {
+            if g.scope.is_empty() {
+                0
+            } else {
+                paths.iter().filter(|p| p.starts_with(&g.scope)).count()
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -3159,5 +3273,37 @@ mod tests {
             "{:?}",
             d.result
         );
+    }
+    #[test]
+    fn counts_refresh_after_draft_actions() {
+        let mut v = view(false);
+        v.draft
+            .as_mut()
+            .unwrap()
+            .set(&key_path("runtime.mode"), toml_edit::Value::from("apply"))
+            .unwrap();
+        v.after_change();
+        let g = v.groups.iter().find(|g| g.title == "runtime").unwrap();
+        assert_eq!(g.changed_count, 1);
+        assert!(screen(&mut v, 140, 40).contains("runtime (1)"));
+        v.draft.as_mut().unwrap().undo();
+        v.after_change();
+        assert!(v.groups.iter().all(|g| g.changed_count == 0));
+    }
+    #[test]
+    fn group_counts_match_segments_and_removed_children() {
+        let mut v = view(false);
+        let mut groups = std::mem::take(&mut v.groups);
+        groups[0].scope = key_path("routers.1");
+        groups[1].scope = key_path("routers.10");
+        let counts = group_change_counts(
+            &groups,
+            &[
+                "routers.1.dhcp.servers.0.name".into(),
+                "routers.1.dhcp.servers.0.name".into(),
+                "routers.10.name".into(),
+            ],
+        );
+        assert_eq!(&counts[..2], &[1, 1]);
     }
 }
