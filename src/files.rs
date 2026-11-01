@@ -94,14 +94,28 @@ pub fn write_secret(path: &Path, secret: &[u8]) -> anyhow::Result<()> {
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("secret");
-    let tmp = dir.join(format!(".{name}.tmp-secret"));
-    let mut f = File::options()
-        .create(true)
+    // A new name for each write, made new (O_EXCL) and not through a link (O_NOFOLLOW).
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp = dir.join(format!(".{name}.tmp-{}-{n}", std::process::id()));
+    let f = File::options()
         .write(true)
-        .truncate(true)
+        .create_new(true)
         .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
         .open(&tmp)
         .with_context(|| format!("cannot write {}", tmp.display()))?;
+    let r = finish_secret(f, &tmp, path, secret);
+    if r.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    r?;
+    File::open(dir)?.sync_all()?;
+    Ok(())
+}
+
+fn finish_secret(mut f: File, tmp: &Path, path: &Path, secret: &[u8]) -> anyhow::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
     f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
     // SAFETY: geteuid has no preconditions.
     if unsafe { libc::geteuid() } == 0 {
@@ -112,10 +126,8 @@ pub fn write_secret(path: &Path, secret: &[u8]) -> anyhow::Result<()> {
     f.write_all(b"\n")?;
     f.sync_all()?;
     drop(f);
-    std::fs::rename(&tmp, path)
-        .with_context(|| format!("cannot rename {} to {}", tmp.display(), path.display()))?;
-    File::open(dir)?.sync_all()?;
-    Ok(())
+    std::fs::rename(tmp, path)
+        .with_context(|| format!("cannot rename {} to {}", tmp.display(), path.display()))
 }
 
 /// The live LibreQoS files of this cycle.

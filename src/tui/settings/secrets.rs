@@ -96,6 +96,27 @@ impl SecretUndo {
     }
 }
 
+/// A secret goes only into a new file or an existing regular secret file (no group or other
+/// permission, no symbolic link). So a wrong path cannot replace another file as root.
+fn check_target(path: &std::path::Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let Ok(m) = std::fs::symlink_metadata(path) else {
+        return Ok(());
+    };
+    anyhow::ensure!(
+        !m.file_type().is_symlink(),
+        "{} is a symbolic link: a secret file must be a regular file",
+        path.display()
+    );
+    anyhow::ensure!(m.is_file(), "{} is not a regular file", path.display());
+    anyhow::ensure!(
+        m.permissions().mode() & 0o077 == 0,
+        "{} has group or other permissions: it is not a secret file (use mode 0600, or another path)",
+        path.display()
+    );
+    Ok(())
+}
+
 /// Write each secret file. On an error, the files written before are rolled back.
 pub fn write_secrets(list: &[Pending]) -> anyhow::Result<SecretUndo> {
     let mut undo = SecretUndo::default();
@@ -108,6 +129,9 @@ pub fn write_secrets(list: &[Pending]) -> anyhow::Result<SecretUndo> {
         }
     };
     for p in list {
+        if let Err(e) = check_target(&p.path) {
+            return Err(fail(undo, e));
+        }
         let link = if p.path.exists() {
             let l = old_link(&p.path);
             let _ = std::fs::remove_file(&l);
@@ -157,6 +181,7 @@ mod tests {
             dir.path().join("old.password"),
         );
         std::fs::write(&old, "old\n").unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o600)).unwrap();
         let undo = write_secrets(&[pending(&new, "n1"), pending(&old, "o2")]).unwrap();
         assert_eq!(std::fs::read_to_string(&new).unwrap(), "n1\n");
         assert_eq!(std::fs::read_to_string(&old).unwrap(), "o2\n");
@@ -176,6 +201,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let old = dir.path().join("old.password");
         std::fs::write(&old, "old\n").unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o600)).unwrap();
         let undo = write_secrets(&[pending(&old, "new")]).unwrap();
         assert!(undo.rollback().is_empty());
         assert_eq!(std::fs::read_to_string(&old).unwrap(), "old\n");
@@ -189,10 +215,44 @@ mod tests {
     }
 
     #[test]
+    fn a_symlink_or_a_shared_file_is_not_a_secret_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let shared = dir.path().join("shared.txt");
+        std::fs::write(&shared, "x\n").unwrap();
+        std::fs::set_permissions(&shared, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let e = write_secrets(&[pending(&shared, "pw")]).unwrap_err();
+        assert!(format!("{e:#}").contains("group or other"), "{e:#}");
+        assert_eq!(std::fs::read_to_string(&shared).unwrap(), "x\n");
+        let link = dir.path().join("link.password");
+        std::os::unix::fs::symlink(&shared, &link).unwrap();
+        let e = write_secrets(&[pending(&link, "pw")]).unwrap_err();
+        assert!(format!("{e:#}").contains("symbolic link"), "{e:#}");
+        let ok = dir.path().join("ok.password");
+        std::fs::write(&ok, "old\n").unwrap();
+        std::fs::set_permissions(&ok, std::fs::Permissions::from_mode(0o600)).unwrap();
+        write_secrets(&[pending(&ok, "new")]).unwrap().commit();
+        assert_eq!(std::fs::read_to_string(&ok).unwrap(), "new\n");
+    }
+
+    #[test]
+    fn a_failed_write_leaves_no_temporary_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("x.password");
+        std::fs::create_dir(&target).unwrap();
+        assert!(crate::files::write_secret(&target, b"pw").is_err());
+        let names: Vec<String> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        assert_eq!(names, ["x.password"], "{names:?}");
+    }
+
+    #[test]
     fn a_failed_rollback_is_reported() {
         let dir = tempfile::tempdir().unwrap();
         let old = dir.path().join("old.password");
         std::fs::write(&old, "old\n").unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o600)).unwrap();
         let undo = write_secrets(&[pending(&old, "new")]).unwrap();
         for e in std::fs::read_dir(dir.path()).unwrap() {
             let p = e.unwrap().path();
@@ -215,6 +275,7 @@ mod tests {
             dir.path().join("old.password"),
         );
         std::fs::write(&old, "old\n").unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o600)).unwrap();
         let bad = dir.path().join("no-folder/b.password");
         let e =
             write_secrets(&[pending(&a, "x"), pending(&old, "y"), pending(&bad, "z")]).unwrap_err();
