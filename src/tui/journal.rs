@@ -545,7 +545,7 @@ mod tests {
         let raw = "2026-11-01T03:00:00+0000 hóst lqosync3[12]: méssage";
         let line = styled_line(raw, 0, false, &p);
         assert_eq!(line.to_string(), raw);
-        assert!(line.spans[0].style.add_modifier.contains(Modifier::DIM));
+        assert_eq!(line.spans[0].style, p.role(Role::Secondary));
         assert!(
             !line
                 .spans

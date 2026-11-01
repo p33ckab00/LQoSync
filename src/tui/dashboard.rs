@@ -4,8 +4,10 @@ use super::data::Data;
 use crate::tui::theme::{Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::text::Line;
-use ratatui::widgets::{Gauge, Paragraph, Sparkline};
+use ratatui::symbols::Marker;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::canvas::{Canvas, Line as PlotLine};
+use ratatui::widgets::{Cell, Gauge, Paragraph, Row, Table};
 use serde_json::Value;
 use std::collections::VecDeque;
 
@@ -376,7 +378,24 @@ impl DashboardView {
         for i in 0..6 {
             let mut block = palette.panel(Line::from(format!(" {} ", titles[i])), false);
             if i == 5 {
-                block = block.title_bottom(" RSS current / window peak ");
+                let context = d.proc.as_ref().map_or(" PID unknown ".into(), |p| {
+                    format!(
+                        " PID {}   elapsed {}   start {} UTC ",
+                        p.pid,
+                        fmt_elapsed(p.elapsed_s),
+                        fmt_utc(p.start_unix)
+                    )
+                });
+                let context = if d.proc.is_none() && (!self.cpu.is_empty() || !self.rss.is_empty())
+                {
+                    " PID unknown   history only ".into()
+                } else {
+                    context
+                };
+                block = block.title_bottom(Line::styled(
+                    clip(&context, areas[i].width.saturating_sub(2) as usize),
+                    palette.role(Role::Secondary),
+                ));
             }
             let inner = block.inner(areas[i]);
             f.render_widget(block, areas[i]);
@@ -384,7 +403,57 @@ impl DashboardView {
                 self.draw_process(f, inner, d, palette);
                 continue;
             }
+            if i == 2 && inner.width >= 55 {
+                draw_routers(f, inner, d, palette);
+                continue;
+            }
             let mut content = sections[i].clone();
+            if i == 0 && inner.height < 3 {
+                content = vec![format!(
+                    "service: {} | {}",
+                    d.service.as_ref().map_or("unknown", |u| u.active.as_str()),
+                    d.status
+                        .as_ref()
+                        .and_then(|s| s["mode"].as_str())
+                        .unwrap_or("unknown")
+                )];
+            }
+            if i == 3 && inner.height < 4 {
+                let alerts = st
+                    .and_then(|s| s["report"]["alerts"].as_array())
+                    .map_or("unknown".into(), |a| a.len().to_string());
+                content = vec![
+                    format!("added {} | updated {}", n("added"), n("updated")),
+                    format!("removed {} | held {}", n("removed"), n("held")),
+                    format!("dup {} | guard alerts {alerts}", n("duplicates")),
+                ];
+            }
+            if i == 4 && inner.height < content.len() as u16 {
+                let loaded = d
+                    .status
+                    .as_ref()
+                    .and_then(|s| s["config_digest"].as_str())
+                    .filter(|s| !s.is_empty())
+                    .map_or("unknown", |v| {
+                        if v == crate::cli::config_digest(d.config_text.as_bytes()) {
+                            "loaded"
+                        } else {
+                            "not loaded"
+                        }
+                    });
+                let svc = d
+                    .status
+                    .as_ref()
+                    .and_then(|s| s["program_version"].as_str())
+                    .unwrap_or("unknown");
+                let tui = env!("CARGO_PKG_VERSION");
+                let version = if svc != "unknown" && svc != tui {
+                    format!("version mismatch: {svc} / {tui}")
+                } else {
+                    format!("TUI {tui} | service {svc}")
+                };
+                content = vec![version, format!("config: {loaded}")];
+            }
             if i == 1 && content.len() > inner.height as usize {
                 let null = Value::Null;
                 let st = d.status.as_deref().unwrap_or(&null);
@@ -458,15 +527,39 @@ impl DashboardView {
                         Role::Error
                     } else if text.contains(": failed")
                         || text.contains("different")
+                        || text.contains("mismatch")
                         || text.contains("not loaded")
                     {
                         Role::Warning
-                    } else if text.contains(": online") || text == "service: active" {
+                    } else if text.contains(": online") || text.contains("service: active") {
                         Role::Ok
                     } else {
                         Role::Base
                     };
-                    Line::styled(clip(&text, inner.width as usize), palette.role(role))
+                    let text = clip(&text, inner.width as usize);
+                    if let Some((label, value)) = text.split_once(": ") {
+                        Line::from(vec![
+                            Span::styled(format!("{label}: "), palette.role(Role::Secondary)),
+                            Span::styled(value.to_string(), palette.role(role)),
+                        ])
+                    } else if i == 3 {
+                        Line::from(
+                            text.split_inclusive(' ')
+                                .map(|part| {
+                                    Span::styled(
+                                        part.to_string(),
+                                        palette.role(if part.trim().parse::<u64>().is_ok() {
+                                            Role::Accent
+                                        } else {
+                                            Role::Secondary
+                                        }),
+                                    )
+                                })
+                                .collect::<Vec<_>>(),
+                        )
+                    } else {
+                        Line::styled(text, palette.role(role))
+                    }
                 })
                 .collect::<Vec<_>>();
             f.render_widget(Paragraph::new(rows), inner);
@@ -477,119 +570,247 @@ impl DashboardView {
         if area.is_empty() {
             return;
         }
-        let p = d.proc.as_ref();
-        let info = p.map_or(
-            if self.cpu.is_empty() && self.rss.is_empty() {
-                "PID: unknown"
-            } else {
-                "PID: unknown | history only"
-            }
-            .into(),
-            |p| format!("PID: {} | elapsed: {}", p.pid, fmt_elapsed(p.elapsed_s)),
-        );
+        let [cpu_area, divider, rss_area] = Layout::horizontal([
+            Constraint::Percentage(60),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .areas(area);
         f.render_widget(
-            Paragraph::new(clip(&info, area.width as usize)),
-            Rect::new(area.x, area.y, area.width, 1),
+            Paragraph::new(
+                (0..divider.height)
+                    .map(|_| Line::from("│"))
+                    .collect::<Vec<_>>(),
+            )
+            .style(palette.role(Role::Secondary)),
+            divider,
         );
-        let cpu = p.and_then(|p| p.cpu_pct);
-        let cpu_label = cpu.map_or("CPU % unknown".into(), |v| {
-            format!(
-                "CPU % {v:.1}{}",
-                if v > 100.0 {
-                    " >100% of one core"
-                } else {
-                    " / 100 (one core)"
-                }
-            )
-        });
+        let cpu = d.proc.as_ref().and_then(|p| p.cpu_pct);
         let peak = self.rss.iter().copied().max().unwrap_or(0);
-        let rss_label = p.map_or("RSS unknown".into(), |p| {
-            format!(
-                "RSS {:.1}/{:.1} MiB",
-                p.rss_kb as f64 / 1024.0,
-                peak as f64 / 1024.0
-            )
-        });
-        let cpu_data: Vec<u64> = self.cpu.iter().map(|v| (*v).min(1000)).collect();
-        let rss_data: Vec<u64> = self.rss.iter().copied().collect();
-        let available = area.height;
-        let row = |offset| Rect::new(area.x, area.y + offset, area.width, 1);
-        if available > 1 {
+        for (i, box_area) in [cpu_area, rss_area].into_iter().enumerate() {
+            let [heading, meter, trace, legend] = Layout::vertical([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+            ])
+            .areas(box_area);
+            let (label, role, ratio, scale, data, range) = if i == 0 {
+                let label = cpu.map_or("CPU % unknown".into(), |v| {
+                    format!(
+                        "CPU % {v:.1}{}",
+                        if v > 100.0 { " >100% of one core" } else { "" }
+                    )
+                });
+                (
+                    label,
+                    Role::Accent,
+                    cpu.map_or(0.0, |v| fill_ratio(v, 100.0)),
+                    1000,
+                    &self.cpu,
+                    "0 ─ 100% of one core".to_string(),
+                )
+            } else {
+                let label = d.proc.as_ref().map_or("RSS unknown".into(), |p| {
+                    format!(
+                        "RSS {:.1}/{:.1} MiB",
+                        p.rss_kb as f64 / 1024.0,
+                        peak as f64 / 1024.0
+                    )
+                });
+                (
+                    label,
+                    Role::Ok,
+                    d.proc
+                        .as_ref()
+                        .map_or(0.0, |p| fill_ratio(p.rss_kb as f64, peak as f64)),
+                    peak.max(1),
+                    &self.rss,
+                    "current / window peak".to_string(),
+                )
+            };
+            f.render_widget(
+                Paragraph::new(clip(&label, heading.width as usize)).style(palette.role(role)),
+                heading,
+            );
             f.render_widget(
                 Gauge::default()
-                    .ratio(cpu.map_or(0.0, |v| fill_ratio(v, 100.0)))
-                    .label(clip(&cpu_label, area.width as usize))
-                    .gauge_style(palette.role(Role::Accent)),
-                row(1),
+                    .ratio(ratio)
+                    .label("")
+                    .gauge_style(palette.role(role).bg(palette.canvas().bg.unwrap())),
+                meter,
             );
-        }
-        if available > 2 {
+            draw_history(f, trace, data, scale, palette, role);
             f.render_widget(
-                Sparkline::default()
-                    .data(&cpu_data)
-                    .max(1000)
-                    .style(palette.role(Role::Accent)),
-                row(2),
+                Paragraph::new(clip(&range, legend.width as usize))
+                    .style(palette.role(Role::Secondary)),
+                legend,
             );
-        }
-        if available > 3 {
-            f.render_widget(
-                Gauge::default()
-                    .ratio(p.map_or(0.0, |p| fill_ratio(p.rss_kb as f64, peak as f64)))
-                    .label(clip(&rss_label, area.width as usize))
-                    .gauge_style(palette.role(Role::Ok)),
-                row(3),
-            );
-        }
-        if available > 4 {
-            f.render_widget(
-                Sparkline::default()
-                    .data(&rss_data)
-                    .max(peak.max(1))
-                    .style(palette.role(Role::Ok)),
-                row(4),
-            );
-        }
-        if available > 5 {
-            f.render_widget(
-                Paragraph::new("RSS current / window peak; CPU scale 100%"),
-                row(5),
-            );
-        }
-        if available > 6 {
-            let start = p.map_or("start: unknown".into(), |p| {
-                format!("start: {} UTC", fmt_utc(p.start_unix))
-            });
-            f.render_widget(Paragraph::new(start), row(6));
         }
     }
 }
 
-fn card_areas(area: Rect) -> [Rect; 6] {
-    let columns = if area.width >= 120 { 3 } else { 2 };
-    let rows = 6 / columns;
-    let heights = if rows == 3 {
-        let first = area.height / 3;
-        let second = (area.height - first) / 2;
-        vec![
-            Constraint::Length(first),
-            Constraint::Length(second),
-            Constraint::Min(0),
-        ]
-    } else {
-        vec![Constraint::Percentage(50), Constraint::Min(0)]
-    };
-    let bands = Layout::vertical(heights).split(area);
-    let mut out = [Rect::default(); 6];
-    for (r, band) in bands.iter().enumerate() {
-        let cells = Layout::horizontal(vec![Constraint::Fill(1); columns])
-            .spacing(1)
-            .split(*band);
-        for c in 0..columns {
-            out[r * columns + c] = cells[c];
-        }
+fn draw_history(
+    f: &mut Frame,
+    area: Rect,
+    data: &VecDeque<u64>,
+    scale: u64,
+    palette: &Palette,
+    role: Role,
+) {
+    if area.is_empty() {
+        return;
     }
-    out
+    if data.is_empty() {
+        f.render_widget(
+            Paragraph::new("no samples yet").style(palette.role(Role::Secondary)),
+            area,
+        );
+        return;
+    }
+    let points = data
+        .iter()
+        .enumerate()
+        .map(|(i, v)| ((SAMPLES - data.len() + i) as f64, (*v).min(scale) as f64))
+        .collect::<Vec<_>>();
+    let color = palette.role(role).fg.unwrap();
+    f.render_widget(
+        Canvas::default()
+            .marker(Marker::Braille)
+            .background_color(palette.canvas().bg.unwrap())
+            .x_bounds([0.0, (SAMPLES - 1) as f64])
+            .y_bounds([0.0, scale as f64])
+            .paint(move |ctx| {
+                for pair in points.windows(2) {
+                    ctx.draw(&PlotLine {
+                        x1: pair[0].0,
+                        y1: pair[0].1,
+                        x2: pair[1].0,
+                        y2: pair[1].1,
+                        color,
+                    });
+                }
+                if let Some(&(x, y)) = points.last() {
+                    ctx.draw(&PlotLine {
+                        x1: x,
+                        y1: y,
+                        x2: x,
+                        y2: y,
+                        color,
+                    });
+                }
+            }),
+        area,
+    );
+}
+
+fn draw_routers(f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
+    let Some(routers) = d
+        .status
+        .as_ref()
+        .and_then(|s| s["routers"].as_array())
+        .filter(|rs| !rs.is_empty())
+    else {
+        f.render_widget(Paragraph::new("routers: unknown"), area);
+        return;
+    };
+    let mut routers = routers.iter().collect::<Vec<_>>();
+    routers.sort_by_key(|r| !matches!(r["state"].as_str(), Some("failed" | "offline")));
+    let error = routers.iter().find_map(|r| {
+        r["error"]
+            .as_str()
+            .map(|e| format!("{}: {e}", r["name"].as_str().unwrap_or("?")))
+    });
+    let [body, note] = Layout::vertical([
+        Constraint::Min(0),
+        Constraint::Length(u16::from(error.is_some())),
+    ])
+    .areas(area);
+    let capacity = body.height.saturating_sub(1) as usize;
+    let more = routers.len().saturating_sub(capacity);
+    let keep = capacity.saturating_sub(usize::from(more > 0));
+    let mut rows = routers
+        .iter()
+        .take(keep)
+        .map(|r| {
+            let state = r["state"].as_str().unwrap_or("unknown");
+            let role = match state {
+                "online" => Role::Ok,
+                "offline" => Role::Error,
+                "failed" => Role::Warning,
+                _ => Role::Secondary,
+            };
+            let count = if state == "online" {
+                r["rows"]
+                    .as_object()
+                    .map(|m| {
+                        m.values()
+                            .filter_map(Value::as_u64)
+                            .sum::<u64>()
+                            .to_string()
+                    })
+                    .unwrap_or("unknown".into())
+            } else {
+                "unknown".into()
+            };
+            let ms = r["read_ms"]
+                .as_u64()
+                .map_or("unknown".into(), |v| v.to_string());
+            Row::new(vec![
+                Cell::from(r["name"].as_str().unwrap_or("?")),
+                Cell::from(state).style(palette.role(role)),
+                Cell::from(Line::from(count).right_aligned()),
+                Cell::from(Line::from(ms).right_aligned()),
+            ])
+        })
+        .collect::<Vec<_>>();
+    if more > 0 && capacity > 0 {
+        rows.push(Row::new(vec![Cell::from(format!(
+            "+{} more",
+            routers.len() - keep
+        ))]));
+    }
+    f.render_widget(
+        Table::new(
+            rows,
+            [
+                Constraint::Fill(1),
+                Constraint::Length(11),
+                Constraint::Length(7),
+                Constraint::Length(9),
+            ],
+        )
+        .header(Row::new(["Router", "State", "Rows", "Read ms"]).style(palette.role(Role::Accent)))
+        .column_spacing(2),
+        body,
+    );
+    if let Some(error) = error {
+        f.render_widget(
+            Paragraph::new(clip(&error, note.width as usize)).style(palette.role(Role::Warning)),
+            note,
+        );
+    }
+}
+
+fn card_areas(area: Rect) -> [Rect; 6] {
+    let graph_height = (area.height * 2 / 5)
+        .max(8)
+        .max(area.height.saturating_sub(24))
+        .min(area.height);
+    let [process, lower] =
+        Layout::vertical([Constraint::Length(graph_height), Constraint::Min(0)]).areas(area);
+    let [left, right] = Layout::horizontal([Constraint::Percentage(42), Constraint::Min(0)])
+        .spacing(1)
+        .areas(lower);
+    let [service, counts, versions] = Layout::vertical([
+        Constraint::Length(if lower.height >= 18 { 5 } else { 3 }),
+        Constraint::Length(if lower.height >= 18 { 6 } else { 5 }),
+        Constraint::Min(0),
+    ])
+    .areas(left);
+    let [cycle, routers] =
+        Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(right);
+    [service, cycle, routers, counts, versions, process]
 }
 
 fn fill_ratio(value: f64, scale: f64) -> f64 {
@@ -834,18 +1055,17 @@ mod tests {
         let s: String = (0..40)
             .map(|y| (0..120).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
             .collect();
-        for want in ["R1: online, 3 rows, 12 ms", "CPU %", "RSS"] {
+        for want in ["R1", "online", "Read ms", "CPU %", "RSS"] {
             assert!(s.contains(want), "{want}\n{s}");
         }
     }
     #[test]
     fn dashboard_card_geometry() {
         let cards = card_areas(Rect::new(0, 0, 80, 20));
-        assert_eq!(
-            [cards[0].height, cards[2].height, cards[4].height],
-            [6, 7, 7]
-        );
-        assert_eq!(cards[5].height, 7);
+        assert_eq!(cards[5], Rect::new(0, 0, 80, 8));
+        assert_eq!(cards[0].y, 8);
+        assert_eq!(cards[0].x, cards[3].x);
+        assert!(cards[1].x > cards[0].x);
         for w in [80, 100, 119, 120] {
             let area = Rect::new(0, 0, w, 20);
             let cards = card_areas(area);
@@ -855,7 +1075,7 @@ mod tests {
                     assert!(a.intersection(*b).is_empty());
                 }
             }
-            assert_eq!(cards[2].y == 0, w >= 120);
+            assert!(cards[2].y > cards[5].y);
         }
     }
     #[test]
@@ -889,12 +1109,41 @@ mod tests {
         let p = Palette::new(crate::config::Theme::Dark);
         t.draw(|f| v.draw(f, f.area(), &d, 30, &p)).unwrap();
         let b = t.backend().buffer();
-        let line = |y| (41..79).map(|x| b[(x, y)].symbol()).collect::<String>();
-        assert!(line(15).contains("150.0"));
-        assert!(line(15).contains(">100% of one core"));
-        assert!(line(17).contains("1.0/2.0 MiB"));
-        assert!(line(16).chars().any(|c| "▁▂▃▄▅▆▇█".contains(c)));
-        assert!(line(18).chars().any(|c| "▁▂▃▄▅▆▇█".contains(c)));
+        let process = card_areas(Rect::new(0, 0, 80, 20))[5];
+        let text = (process.y..process.bottom())
+            .map(|y| {
+                (process.x..process.right())
+                    .map(|x| b[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(text.contains("150.0"));
+        assert!(text.contains(">100%"));
+        assert!(text.contains("1.0/2.0 MiB"));
+        assert!(text.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)));
+        let inner = Rect::new(
+            process.x + 1,
+            process.y + 1,
+            process.width.saturating_sub(2),
+            process.height.saturating_sub(2),
+        );
+        let [cpu, _, rss] = Layout::horizontal([
+            Constraint::Percentage(60),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .areas(inner);
+        for chart in [cpu, rss] {
+            assert!((chart.y + 2..chart.bottom().saturating_sub(1)).any(|y| {
+                (chart.x..chart.right()).any(|x| {
+                    b[(x, y)]
+                        .symbol()
+                        .chars()
+                        .any(|c| ('\u{2801}'..='\u{28ff}').contains(&c))
+                })
+            }));
+        }
         assert_eq!(v.cpu.front(), Some(&1500));
         d.proc = None;
         t.draw(|f| v.draw(f, f.area(), &d, 30, &p)).unwrap();
@@ -905,5 +1154,66 @@ mod tests {
             .join("\n");
         assert!(text.contains("history only"));
         assert!(text.contains("CPU % unknown"));
+    }
+    #[test]
+    #[ignore = "exports actual UI frames; set LQOSYNC_RENDER_DIR"]
+    fn export_dashboard_frames() {
+        use crate::tui::app::{App, Tab};
+        let dir = std::path::PathBuf::from(
+            std::env::var("LQOSYNC_RENDER_DIR").expect("set render output directory"),
+        );
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = "[[routers]]\nname=\"Fixture\"\naddress=\"192.0.2.1\"\nusername=\"fixture\"\npassword_file=\"/fixture/password\"\n";
+        for theme in [
+            crate::config::Theme::Dark,
+            crate::config::Theme::Light,
+            crate::config::Theme::Mono,
+        ] {
+            for (w, h) in [(80, 24), (120, 40), (160, 48)] {
+                let mut app = App::new(false, config.into(), None);
+                app.palette = Palette::new(theme);
+                app.tab = Tab::Dashboard;
+                let mut d = data(
+                    json!({"mode":"apply","target":"v2_pair","updated":1793505600,"next_scan_seconds":120,"cycle_ms":184,"cycle_seq":918,"trigger":"timer","files_changed":false,"reload":"skipped","telegram":"ok","program_version":env!("CARGO_PKG_VERSION"),"config_digest":crate::cli::config_digest(config.as_bytes()),
+                    "report":{"counts":{"added":7,"updated":2,"removed":0,"held":1,"duplicates":0},"alerts":[]},
+                    "routers":[{"name":"Core","state":"online","rows":{"ppp":63},"read_ms":22},{"name":"North","state":"online","rows":{"dhcp":41},"read_ms":18},{"name":"Backup","state":"failed","read_ms":500,"error":"timeout; cached subscribers retained"}]}),
+                );
+                d.service = Some(Unit {
+                    load: "loaded".into(),
+                    active: "active".into(),
+                    main_pid: 4242,
+                });
+                d.proc = Some(ProcInfo {
+                    pid: 4242,
+                    start_unix: 1793504600,
+                    elapsed_s: 1014,
+                    rss_kb: 49152,
+                    cpu_pct: Some(32.7),
+                });
+                d.config_text = Arc::new(config.into());
+                d.versions.libreqos = Some("2.2".into());
+                app.set_data(d, 1793505614);
+                app.dashboard.cpu = (0..120)
+                    .map(|i| {
+                        let wave = (i as f64 / 7.0).sin() * 180.0 + (i as f64 / 3.0).sin() * 70.0;
+                        (320.0 + wave).max(0.0) as u64
+                    })
+                    .collect();
+                app.dashboard.rss = (0..120)
+                    .map(|i| (42000.0 + (i as f64 / 18.0).sin() * 6000.0) as u64)
+                    .collect();
+                *app.dashboard.cpu.back_mut().unwrap() = 327;
+                *app.dashboard.rss.back_mut().unwrap() = 49152;
+                let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+                terminal.draw(|f| app.draw(f)).unwrap();
+                let cells=terminal.backend().buffer().content.iter().map(|c|json!({"text":c.symbol(),"fg":format!("{:?}",c.fg),"bg":format!("{:?}",c.bg),"bold":c.modifier.contains(ratatui::style::Modifier::BOLD)})).collect::<Vec<_>>();
+                let path = dir.join(format!("dashboard-{:?}-{w}x{h}.json", theme));
+                std::fs::write(
+                    path,
+                    serde_json::to_vec(&json!({"width":w,"height":h,"cells":cells})).unwrap(),
+                )
+                .unwrap();
+            }
+        }
     }
 }

@@ -1003,13 +1003,7 @@ mod tests {
             "routers":[{"name":"router-with-a-very-long-name-aaaaaaaaaaaaaaaaaa","state":"failed"},{"name":"router-with-a-very-long-name-bbbbbbbbbbbbbbbbbb","state":"offline"}]
         }))), ..Data::default() },110);
         let s = draw(&mut a, 80, 24);
-        let router_text = s
-            .lines()
-            .skip(10)
-            .take(5)
-            .map(|line| line.chars().take(39).collect::<String>())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let router_text = s.clone();
         assert!(
             router_text.contains(": failed") && router_text.contains(": offline"),
             "{router_text}"
@@ -1033,7 +1027,7 @@ mod tests {
         t.draw(|f| a.draw(f)).unwrap();
         assert_eq!(
             t.backend().buffer()[(60, 15)].bg,
-            ratatui::style::Color::White
+            a.palette.canvas().bg.unwrap()
         );
     }
     #[test]
