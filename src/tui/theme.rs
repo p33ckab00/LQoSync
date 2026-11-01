@@ -193,11 +193,16 @@ impl Palette {
         if self.theme == Theme::Mono {
             return Color::Reset;
         }
-        let (start, mid, end) = match g {
-            Grad::Cpu => (0x77ca9b, 0xcbc06c, 0xdc4c4c),
-            Grad::Mem => (0x163350, 0x74e6fc, 0x26c5ff),
-            Grad::Free => (0x384f21, 0xb5e685, 0xdcff85),
-            Grad::Used => (0x592b26, 0xd9626d, 0xff4769),
+        // Light uses darker stops, so each colour stays readable on the light canvas.
+        let (start, mid, end) = match (self.theme, g) {
+            (Theme::Light, Grad::Cpu) => (0x2b7453, 0x815700, 0xb2393f),
+            (Theme::Light, Grad::Mem) => (0x163350, 0x1f6f8f, 0x006a80),
+            (Theme::Light, Grad::Free) => (0x2f5a17, 0x4a6e1c, 0x5b6f12),
+            (Theme::Light, Grad::Used) => (0x7a2b26, 0xa8343e, 0xb8213a),
+            (_, Grad::Cpu) => (0x77ca9b, 0xcbc06c, 0xdc4c4c),
+            (_, Grad::Mem) => (0x163350, 0x74e6fc, 0x26c5ff),
+            (_, Grad::Free) => (0x384f21, 0xb5e685, 0xdcff85),
+            (_, Grad::Used) => (0x592b26, 0xd9626d, 0xff4769),
         };
         let t = if t.is_finite() {
             t.clamp(0.0, 1.0)
@@ -402,6 +407,33 @@ mod tests {
             Palette::new(Theme::Mono).gradient(Grad::Cpu, 1.0),
             Color::Reset
         );
+    }
+
+    #[test]
+    fn light_gradients_are_readable_on_the_light_canvas() {
+        fn lum(c: Color) -> f64 {
+            let Color::Rgb(r, g, b) = c else {
+                panic!("{c:?}")
+            };
+            let f = |v: u8| {
+                let v = v as f64 / 255.0;
+                if v <= 0.03928 {
+                    v / 12.92
+                } else {
+                    ((v + 0.055) / 1.055).powf(2.4)
+                }
+            };
+            0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+        }
+        let p = Palette::new(Theme::Light);
+        let bg = lum(Color::Rgb(244, 246, 248));
+        for g in [Grad::Cpu, Grad::Mem, Grad::Free, Grad::Used] {
+            for i in 0..=10 {
+                let c = p.gradient(g, i as f64 / 10.0);
+                let ratio = (bg + 0.05) / (lum(c) + 0.05);
+                assert!(ratio >= 3.0, "{g:?} {i}: {c:?} {ratio:.2}");
+            }
+        }
     }
 
     #[test]

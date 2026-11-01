@@ -400,24 +400,28 @@ impl DevicesView {
                 super::theme::clip(&r.device_name, part),
                 super::theme::clip(&r.device_id, part)
             ),
-            format!("MAC: {} | IPv4: {}", r.mac, r.ipv4),
             format!(
-                "Parent Node: {} | ID: {}",
-                super::theme::clip(&r.parent_node, part),
-                super::theme::clip(&r.parent_node_id, part)
-            ),
-            format!("Source: {source} | Router: {router}"),
-            format!(
-                "Flags: {}",
+                "MAC: {} | Flags: {}",
+                r.mac,
                 if flags.is_empty() {
                     "none".into()
                 } else {
                     flags.join(", ")
                 }
             ),
+            format!("IPv4: {} | IPv6: {}", r.ipv4, r.ipv6),
             format!(
-                "Down: {}/{} | Up: {}/{} Mbps",
-                r.download_min, r.download_max, r.upload_min, r.upload_max
+                "Parent Node: {} | ID: {}",
+                super::theme::clip(&r.parent_node, part),
+                super::theme::clip(&r.parent_node_id, part)
+            ),
+            format!(
+                "Down: {}/{} | Up: {}/{} Mbps | Source: {source} | Router: {}",
+                r.download_min,
+                r.download_max,
+                r.upload_min,
+                r.upload_max,
+                super::theme::clip(router, part)
             ),
             format!("Comment: {}", r.comment),
         ]
@@ -713,6 +717,33 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn compact_detail_has_ipv6_and_comment_in_seven_lines() {
+        let mut d = sample();
+        let mut rows = (*d.rows).clone();
+        rows[0].ipv6 = "2001:db8::/64".into();
+        rows[0].comment = "tower 3".into();
+        d.rows = Arc::new(rows);
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        let lines = v.compact_detail(&d, 76);
+        assert!(lines.len() <= 7, "{lines:?}");
+        let s = lines
+            .iter()
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for want in [
+            "IPv6: 2001:db8::/64",
+            "Comment: tower 3",
+            "Down",
+            "MAC",
+            "Flags",
+        ] {
+            assert!(s.contains(want), "{want}: {s}");
+        }
+    }
+
     #[test]
     fn compact_detail_fields_are_actually_visible() {
         let mut d = sample();
