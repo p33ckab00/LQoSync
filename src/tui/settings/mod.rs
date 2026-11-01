@@ -2,5 +2,6 @@
 
 pub mod draft;
 pub mod meta;
+pub mod preview;
 pub mod secrets;
 pub mod validate;

@@ -4,7 +4,7 @@ use crate::cli::target_name;
 use crate::config::{Config, Runtime, RuntimeMode, Target};
 use crate::cycle::{CycleInput, RouterResult, assemble};
 use crate::files;
-use crate::model::{Columns, RouterMemo};
+use crate::model::{Columns, RouterMemo, State};
 use crate::routeros::{Connector, TABLES, read_router};
 use crate::routerstate::classify;
 use crate::status::{ReportSummary, RouterStatus, Status, Trigger};
@@ -77,6 +77,32 @@ fn state_name(r: &RouterResult) -> &'static str {
         RouterResult::Unreachable => "unreachable",
         RouterResult::Offline => "offline",
     }
+}
+
+/// The files that a cycle reads before the router reads.
+pub struct Inputs {
+    pub live: files::Live,
+    pub state: State,
+    pub lqos_dir: std::path::PathBuf,
+}
+
+/// Read the live LibreQoS files and the state (or the first state from the live files). No write.
+/// The cycle and the settings preview use it.
+pub fn cycle_inputs(cfg: &Config, now: u64) -> anyhow::Result<Inputs> {
+    let state_dir = Path::new(&cfg.runtime.state_dir);
+    let lqos_dir = Path::new(&cfg.libreqos.directory).to_path_buf();
+    let first_run = !state_dir.join("state.json").exists();
+    let live = files::read_live(
+        &lqos_dir,
+        &cfg.runtime.static_comment,
+        first_run || cfg.network.preserve_network_config,
+    )?;
+    let state = files::load_state(state_dir, &live, &cfg.circuits, now)?;
+    Ok(Inputs {
+        live,
+        state,
+        lqos_dir,
+    })
 }
 
 /// `<state_dir>/snapshot.json`: the router reads of this cycle. It holds subscriber data, so mode 0600.
@@ -260,14 +286,11 @@ where
         let target = crate::detect::resolve(&self.cfg.libreqos)?.target;
         status.target = target_name(target).into();
         let v3 = target != Target::V2Pair;
-        let lqos_dir = Path::new(&self.cfg.libreqos.directory).to_path_buf();
-        let first_run = !state_dir.join("state.json").exists();
-        let live = files::read_live(
-            &lqos_dir,
-            &self.cfg.runtime.static_comment,
-            first_run || self.cfg.network.preserve_network_config,
-        )?;
-        let state = files::load_state(state_dir, &live, &self.cfg.circuits, now)?;
+        let Inputs {
+            live,
+            state,
+            lqos_dir,
+        } = cycle_inputs(&self.cfg, now)?;
 
         // Read all routers at the same time. Each task owns its session and gives it back.
         let mut tasks = Vec::new();
