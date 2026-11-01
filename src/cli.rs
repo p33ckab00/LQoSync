@@ -199,6 +199,16 @@ pub fn check_with(
             format!("libreqos.directory {} does not exist", lqos.display()),
         ));
     }
+    let lqos_state = Path::new(&cfg.libreqos.state_directory);
+    if !lqos_state.is_dir() {
+        out.push(line(
+            Level::Warn,
+            format!(
+                "libreqos.state_directory {} does not exist; on LibreQoS 2.x each reload is then a full run",
+                lqos_state.display()
+            ),
+        ));
+    }
     if cfg.runtime.mode == RuntimeMode::Apply && !Path::new(&cfg.libreqos.v2_command).exists() {
         out.push(line(
             Level::Error,
@@ -327,6 +337,19 @@ mod tests {
                 .join("\n")
                 .contains("/nonexistent/lqos")
         );
+    }
+
+    #[test]
+    fn check_warns_when_the_libreqos_state_directory_is_missing() {
+        let e = env("[routers.pppoe]\nenabled=true\n", "");
+        let mut c = Config::from_toml_str(&e.toml).unwrap();
+        c.libreqos.state_directory = "/nonexistent/lqos-state".into();
+        let warn = texts(&check(&c, e.uid), Level::Warn).join("\n");
+        assert!(warn.contains("/nonexistent/lqos-state"), "{warn}");
+        assert!(warn.contains("full run"), "{warn}");
+        c.libreqos.state_directory = std::env::temp_dir().display().to_string();
+        let warn = texts(&check(&c, e.uid), Level::Warn).join("\n");
+        assert!(!warn.contains("state_directory"), "{warn}");
     }
 
     #[test]

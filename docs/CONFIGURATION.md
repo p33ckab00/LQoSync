@@ -378,7 +378,7 @@ A speed with a zero value, for example `10M/0M`, is not used. The tool writes a 
 - A fixed target (`v2_pair`, `v3_pair`, `v3_network`) is not changed by the detector.
 - A new LibreQoS can have no `ShapedDevices.csv` and no `network.json`. In `apply` mode, the tool writes both files.
 - `LibreQoS.py --updateonly` needs the file `<libreqos.state_directory>/shaping/ShapedDevices.lastLoaded.csv`. A full run of LibreQoS writes it. If the file does not exist, the reload uses `libreqos.v2_first_args` (default `[]`: a full run). The tool tries a failed reload again at each cycle. When the file exists, the reload uses `v2_args`.
-- A full run makes all queues again, so the traffic can stop for a short time. Make sure that `libreqos.state_directory` is correct. With a wrong path, each reload is a full run.
+- A full run makes all queues again, so the traffic can stop for a short time. Make sure that `libreqos.state_directory` is correct. With a wrong path, each reload is a full run. `lqosync3 check` gives a warning if the directory does not exist.
 - `v3_network`: a circuit without a parent node, without an IP address, or with an ID that v3 does not accept is not written. The cycle report has an alert for each one.
 - `v3_network`: a node type must be `site`, `node`, or `ap`. `flat_promotion` makes `client` nodes, so it needs `nodes.client.type = "node"`.
 
