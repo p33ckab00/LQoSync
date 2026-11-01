@@ -191,6 +191,18 @@ fn run(
                 ));
                 continue;
             }
+            let state = match snap.get(&r.name) {
+                Some(RouterResult::Failed) => Some("failed"),
+                Some(RouterResult::Unreachable) => Some("unreachable"),
+                Some(RouterResult::Offline) => Some("offline"),
+                _ => None,
+            };
+            if let Some(state) = state {
+                warnings.push(format!(
+                    "router {} was {state} at the last cycle: the effect of the change on its subscribers is not shown",
+                    r.name
+                ));
+            }
             let o = old.routers.iter().find(|x| x.name == r.name);
             for (src, on_new, on_old) in [
                 ("pppoe", r.pppoe.enabled, o.is_some_and(|o| o.pppoe.enabled)),
@@ -386,6 +398,21 @@ mod tests {
             r.warnings
                 .iter()
                 .any(|w| w.contains("effect of router R2 is not known")),
+            "{:?}",
+            r.warnings
+        );
+    }
+
+    #[test]
+    fn a_router_that_was_not_online_gives_a_warning() {
+        let e = env();
+        let c = cfg(&e, "", ROUTER);
+        let text = snap(1_000, ALICE).replace("\"state\":\"online\"", "\"state\":\"unreachable\"");
+        let r = ran(preview(&c, &c, Some(&text), 1_000, 300));
+        assert!(
+            r.warnings
+                .iter()
+                .any(|w| w.contains("router R1 was unreachable")),
             "{:?}",
             r.warnings
         );
