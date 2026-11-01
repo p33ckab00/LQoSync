@@ -643,6 +643,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_fresh_libreqos_directory_gets_both_files() {
+        // A new LibreQoS has no ShapedDevices.csv and no network.json.
+        let e = env();
+        assert!(!e.lqos.join("ShapedDevices.csv").exists());
+        assert!(!e.lqos.join("network.json").exists());
+        users(&e, &[("alice", "100.64.0.2")]);
+        let s = runner(&e, cfg(&e, "apply", "")).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let csv = read(&e.lqos.join("ShapedDevices.csv"));
+        assert!(csv.starts_with("Circuit ID,"), "{csv}");
+        assert!(csv.contains("alice"), "{csv}");
+        let net: serde_json::Value =
+            serde_json::from_str(&read(&e.lqos.join("network.json"))).unwrap();
+        assert!(net.get("HS-R1").is_some(), "{net}");
+        assert!(e.lqos.join("reloaded").exists());
+    }
+
+    #[tokio::test]
     async fn second_cycle_without_change_writes_nothing() {
         let e = env();
         users(&e, &[("alice", "100.64.0.2")]);
