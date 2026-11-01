@@ -1892,7 +1892,7 @@ impl SettingsView {
             if on {
                 Style::new().fg(palette.color(Color::Cyan))
             } else {
-                Style::new()
+                Style::new().fg(palette.color(Color::DarkGray))
             }
         };
         let items: Vec<ListItem> = self
@@ -3305,5 +3305,62 @@ mod tests {
             ],
         );
         assert_eq!(&counts[..2], &[1, 1]);
+    }
+    #[test]
+    fn removed_children_count_in_surviving_owner() {
+        let file = format!("{FILE}\n[[routers.dhcp.servers]]\nname=\"LAN\"\nmode=\"per_site\"\n");
+        let mut v = SettingsView::new(PathBuf::new(), &file, false);
+        v.draft.as_mut().unwrap().remove_server(0, 0).unwrap();
+        v.after_change();
+        let g = v
+            .groups
+            .iter()
+            .find(|g| g.title == "router R1 dhcp")
+            .unwrap();
+        assert_eq!(g.changed_count, 2);
+        assert_eq!(v.changed.len(), 2);
+        v.draft.as_mut().unwrap().undo();
+        v.after_change();
+        assert!(v.groups.iter().all(|g| g.changed_count == 0));
+    }
+    #[test]
+    fn settings_styles_and_dialogs_follow_palette() {
+        for theme in [
+            crate::config::Theme::Dark,
+            crate::config::Theme::Light,
+            crate::config::Theme::Mono,
+        ] {
+            let p = Palette::new(theme);
+            let mut v = view(false);
+            v.draft
+                .as_mut()
+                .unwrap()
+                .set(&key_path("runtime.mode"), toml_edit::Value::from("apply"))
+                .unwrap();
+            v.after_change();
+            v.select("runtime.mode");
+            v.focus = 0;
+            let mut t = Terminal::new(TestBackend::new(120, 40)).unwrap();
+            t.draw(|f| v.draw(f, f.area(), &p)).unwrap();
+            let b = t.backend().buffer();
+            assert!(
+                b.content
+                    .iter()
+                    .any(|c| c.fg == p.badge("", Role::Warning, false).style.fg.unwrap())
+            );
+            v.focus = 1;
+            v.on_key(key(KeyCode::Enter));
+            assert!(v.capturing());
+            t.draw(|f| v.draw(f, f.area(), &p)).unwrap();
+            if theme == crate::config::Theme::Mono {
+                assert!(
+                    t.backend()
+                        .buffer()
+                        .content
+                        .iter()
+                        .all(|c| c.fg == Color::Reset && c.bg == Color::Reset)
+                );
+            }
+        }
     }
 }

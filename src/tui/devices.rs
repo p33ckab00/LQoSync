@@ -6,7 +6,7 @@ use crate::model::CsvRow;
 use crate::tui::theme::{Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::{Constraint, Rect};
+use ratatui::layout::{Constraint, Layout, Rect};
 
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Cell, Paragraph, Row, Table, TableState, Wrap};
@@ -240,7 +240,13 @@ impl DevicesView {
     }
 
     pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
-        let (main, side) = split_main(area);
+        let (main, side) = if area.width < 100 {
+            let [main, side] =
+                Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(area);
+            (main, side)
+        } else {
+            split_main(area)
+        };
         // Borders and the header row.
         let height = main.height.saturating_sub(3) as usize;
         if self.cursor < self.offset {
@@ -356,15 +362,64 @@ impl DevicesView {
             &mut state,
         );
         f.render_widget(
-            Paragraph::new(
-                std::iter::once(Line::from(counts))
-                    .chain(self.detail(d))
-                    .collect::<Vec<_>>(),
-            )
+            Paragraph::new(if side.height < 20 {
+                self.compact_detail(d, side.width.saturating_sub(2) as usize)
+            } else {
+                self.detail(d)
+            })
             .wrap(Wrap { trim: false })
-            .block(palette.panel(Line::from(" circuit "), false)),
+            .block(
+                palette
+                    .panel(Line::from(" circuit "), false)
+                    .title_bottom(counts),
+            ),
             side,
         );
+    }
+
+    fn compact_detail(&self, d: &Data, width: usize) -> Vec<Line<'static>> {
+        let Some(&i) = self.index.get(self.cursor) else {
+            return vec![Line::from("no row")];
+        };
+        let r = &d.rows[i as usize];
+        let (source, router) = source_of(d, &r.circuit_name);
+        let flags = flag_words(d.flags.get(i as usize).copied().unwrap_or(0));
+        let part = width.saturating_sub(20) / 2;
+        [
+            format!(
+                "Circuit: {} | ID: {}",
+                super::theme::clip(&r.circuit_name, part),
+                super::theme::clip(&r.circuit_id, part)
+            ),
+            format!(
+                "Device: {} | ID: {}",
+                super::theme::clip(&r.device_name, part),
+                super::theme::clip(&r.device_id, part)
+            ),
+            format!("MAC: {} | IPv4: {}", r.mac, r.ipv4),
+            format!(
+                "Parent Node: {} | ID: {}",
+                super::theme::clip(&r.parent_node, part),
+                super::theme::clip(&r.parent_node_id, part)
+            ),
+            format!("Source: {source} | Router: {router}"),
+            format!(
+                "Flags: {}",
+                if flags.is_empty() {
+                    "none".into()
+                } else {
+                    flags.join(", ")
+                }
+            ),
+            format!(
+                "Down: {}/{} | Up: {}/{} Mbps",
+                r.download_min, r.download_max, r.upload_min, r.upload_max
+            ),
+            format!("Comment: {}", r.comment),
+        ]
+        .into_iter()
+        .map(|line| Line::from(super::theme::clip(&line, width)))
+        .collect()
     }
 
     fn detail(&self, d: &Data) -> Vec<Line<'static>> {
@@ -621,5 +676,66 @@ mod tests {
         v.query = "alice".into();
         v.rebuild(&d);
         assert_eq!(v.filtered_circuits, 1);
+    }
+    #[test]
+    fn table_styles_alignment_and_compact_detail() {
+        let mut d = sample();
+        d.flags = Arc::new(vec![7, 0, 0]);
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        for theme in [
+            crate::config::Theme::Dark,
+            crate::config::Theme::Light,
+            crate::config::Theme::Mono,
+        ] {
+            let p = Palette::new(theme);
+            let mut t = Terminal::new(TestBackend::new(80, 24)).unwrap();
+            t.draw(|f| v.draw(f, f.area(), &d, &p)).unwrap();
+            let b = t.backend().buffer();
+            assert_eq!(b[(2, 2)].bg, p.selection().bg.unwrap());
+            assert_eq!(b[(2, 3)].bg, p.row(1, false).bg.unwrap());
+            let line = |y| (0..80).map(|x| b[(x, y)].symbol()).collect::<String>();
+            let h = line(1);
+            let r = line(2);
+            let down = h.find("Down").unwrap();
+            let up = h.find("Up min").unwrap();
+            let flags = h.find("Flags").unwrap();
+            assert!(r[down..up].ends_with("1/10 "), "{r}");
+            assert!(r[up..flags].ends_with("1/10 "), "{r}");
+            assert!(
+                v.detail(&d)
+                    .iter()
+                    .any(|l| l.to_string().contains("dup IP, no parent, bad rate"))
+            );
+        }
+    }
+    #[test]
+    fn compact_detail_fields_are_actually_visible() {
+        let mut d = sample();
+        d.flags = Arc::new(vec![7, 0, 0]);
+        d.sources = Arc::new(HashMap::from([(
+            "Alice".into(),
+            ("ppp".into(), "FixtureRouter".into()),
+        )]));
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        let p = Palette::new(crate::config::Theme::Dark);
+        let mut t = Terminal::new(TestBackend::new(80, 19)).unwrap();
+        t.draw(|f| v.draw(f, f.area(), &d, &p)).unwrap();
+        let b = t.backend().buffer();
+        let s = (0..19)
+            .map(|y| (0..80).map(|x| b[(x, y)].symbol()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for text in [
+            "Parent",
+            "AP",
+            "PPPoE",
+            "FixtureRouter",
+            "dup IP, no parent, bad rate",
+            "MAC",
+        ] {
+            assert!(s.contains(text), "{text}: {s}");
+        }
     }
 }

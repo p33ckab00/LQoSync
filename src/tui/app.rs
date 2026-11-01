@@ -14,7 +14,7 @@ use ratatui::crossterm::event::{
 };
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Clear, Paragraph};
 use std::sync::Arc;
 
 /// The tabs, in the order of the spec.
@@ -393,6 +393,11 @@ impl App {
             .or(settings_msg)
             .or(self.config_error.as_ref())
             .or(self.data.errors.first());
+        let message_role = if self.message.is_some() || settings_msg.is_some() {
+            Role::Base
+        } else {
+            Role::Error
+        };
         let [header, tabs, main, msg_area, footer] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Length(1),
@@ -403,7 +408,7 @@ impl App {
         .areas(area);
         if let Some(m) = message {
             f.render_widget(
-                Paragraph::new(m.as_str()).style(self.palette.role(Role::Error)),
+                Paragraph::new(m.as_str()).style(self.palette.role(message_role)),
                 msg_area,
             );
         }
@@ -930,6 +935,17 @@ mod tests {
     fn minimum_size_preserves_state_and_clears_mouse_targets() {
         let mut a = app(false);
         a.devices.query = "kept".into();
+        a.tab = Tab::Settings;
+        a.settings.select("runtime.id_length");
+        a.on_key(key(KeyCode::Enter));
+        let draft = a.settings.draft.as_ref().unwrap().text();
+        let pending = Sent {
+            kind: Kind::SyncNow,
+            at: 1,
+            pid: 7,
+            seq: 1,
+        };
+        a.pending = Some(pending.clone());
         draw(&mut a, 120, 30);
         for (w, h) in [(79, 24), (80, 23), (1, 1), (0, 0)] {
             let text = draw(&mut a, w, h);
@@ -939,6 +955,9 @@ mod tests {
             assert!(a.tab_rects.is_empty());
             assert_eq!(a.settings.areas, [Rect::default(); 3]);
             assert_eq!(a.devices.query, "kept");
+            assert!(a.settings.capturing());
+            assert_eq!(a.settings.draft.as_ref().unwrap().text(), draft);
+            assert_eq!(a.pending, Some(pending.clone()));
         }
         draw(&mut a, 80, 24);
         assert!(!a.tab_rects.is_empty());
@@ -957,5 +976,81 @@ mod tests {
         ] {
             assert!(s.contains(text), "{text}: {s}");
         }
+    }
+    #[test]
+    fn all_tabs_themes_and_size_matrix() {
+        use crate::config::Theme;
+        for theme in [Theme::Dark, Theme::Light, Theme::Mono] {
+            let mut a = app(false);
+            a.palette = Palette::new(theme);
+            for (w, h) in [(80, 24), (100, 30), (120, 40)] {
+                for tab in Tab::ALL {
+                    a.tab = tab;
+                    let text = draw(&mut a, w, h);
+                    assert!(text.contains("╭"), "{theme:?} {tab:?}: {text}");
+                    assert_eq!(a.tab_rects.len(), 5);
+                    assert!(text.contains("[q]"));
+                }
+            }
+        }
+    }
+    #[test]
+    fn minimum_dashboard_keeps_outcomes_and_long_router_states() {
+        let mut a = app(false);
+        a.tab = Tab::Dashboard;
+        a.set_data(Data { status:Some(Arc::new(serde_json::json!({
+            "updated":100,"cycle_ms":5,"cycle_seq":3,"trigger":"timer","files_changed":true,"reload":"failed","telegram":"failed",
+            "routers":[{"name":"router-with-a-very-long-name-aaaaaaaaaaaaaaaaaa","state":"failed"},{"name":"router-with-a-very-long-name-bbbbbbbbbbbbbbbbbb","state":"offline"}]
+        }))), ..Data::default() },110);
+        let s = draw(&mut a, 80, 24);
+        let router_text = s
+            .lines()
+            .skip(10)
+            .take(5)
+            .map(|line| line.chars().take(39).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            router_text.contains(": failed") && router_text.contains(": offline"),
+            "{router_text}"
+        );
+        for text in [
+            "write",
+            "reload: failed",
+            "telegram: failed",
+            "failed",
+            "offline",
+        ] {
+            assert!(s.contains(text), "{text}: {s}");
+        }
+    }
+    #[test]
+    fn light_popup_restores_canvas_after_clear() {
+        let mut a = app(false);
+        a.palette = Palette::new(crate::config::Theme::Light);
+        a.on_key(key(KeyCode::Char('S')));
+        let mut t = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        t.draw(|f| a.draw(f)).unwrap();
+        assert_eq!(
+            t.backend().buffer()[(60, 15)].bg,
+            ratatui::style::Color::White
+        );
+    }
+    #[test]
+    fn action_messages_keep_normal_style() {
+        let mut a = app(false);
+        a.message = Some("fixture completed".into());
+        let mut t = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        t.draw(|f| a.draw(f)).unwrap();
+        let b = t.backend().buffer();
+        let y = (0..30)
+            .find(|&y| {
+                (0..120)
+                    .map(|x| b[(x, y)].symbol())
+                    .collect::<String>()
+                    .contains("fixture completed")
+            })
+            .unwrap();
+        assert_eq!(b[(0, y)].fg, a.palette.role(Role::Base).fg.unwrap());
     }
 }

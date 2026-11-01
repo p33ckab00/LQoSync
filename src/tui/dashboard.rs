@@ -385,6 +385,66 @@ impl DashboardView {
                 continue;
             }
             let mut content = sections[i].clone();
+            if i == 1 && content.len() > inner.height as usize {
+                let null = Value::Null;
+                let st = d.status.as_deref().unwrap_or(&null);
+                let text = |key: &str| st[key].as_str().unwrap_or("unknown");
+                let mut compact = Vec::new();
+                for key in ["error", "config_error"] {
+                    if let Some(error) = st[key].as_str().filter(|s| !s.is_empty()) {
+                        compact.push(format!(
+                            "{}: {error}",
+                            if key == "config_error" {
+                                "config error"
+                            } else {
+                                key
+                            }
+                        ));
+                    }
+                }
+                let write = st["files_changed"]
+                    .as_bool()
+                    .map_or("unknown", |b| if b { "changed" } else { "unchanged" });
+                compact.push(format!("write: {write} | reload: {}", text("reload")));
+                compact.push(format!(
+                    "telegram: {} | trigger: {}",
+                    text("telegram"),
+                    text("trigger")
+                ));
+                let seq = st["cycle_seq"]
+                    .as_u64()
+                    .map_or("unknown".into(), |v| v.to_string());
+                let ms = st["cycle_ms"]
+                    .as_u64()
+                    .map_or("unknown".into(), |v| v.to_string());
+                compact.push(format!("cycle: {seq} | {ms} ms"));
+                if compact.len() < inner.height as usize
+                    && st["error"].as_str().is_none()
+                    && st["config_error"].as_str().is_none()
+                {
+                    compact.push(format!(
+                        "error: {}",
+                        if d.status.is_none() {
+                            "unknown"
+                        } else {
+                            "none"
+                        }
+                    ));
+                }
+                content = compact;
+            }
+            if i == 2 {
+                for line in &mut content {
+                    if Line::from(line.as_str()).width() > inner.width as usize
+                        && let Some((name, rest)) = line.split_once(": ")
+                    {
+                        let state = rest.split(',').next().unwrap_or(rest);
+                        let budget =
+                            (inner.width as usize).saturating_sub(Line::from(state).width() + 3);
+                        *line = format!("{}: {rest}", clip(name, budget));
+                    }
+                }
+            }
             if i == 2 && content.len() > inner.height as usize && inner.height > 0 {
                 let keep = inner.height.saturating_sub(1) as usize;
                 let more = content.len() - keep;
@@ -809,5 +869,41 @@ mod tests {
         let d = Data::default();
         v.on_data(&d);
         assert!(v.cpu.is_empty());
+    }
+    #[test]
+    fn process_gauges_keep_values_and_both_traces() {
+        let mut d = Data {
+            proc: Some(ProcInfo {
+                pid: 42,
+                start_unix: 1,
+                elapsed_s: 20,
+                rss_kb: 1024,
+                cpu_pct: Some(150.0),
+            }),
+            ..Data::default()
+        };
+        let mut v = DashboardView::default();
+        v.on_data(&d);
+        v.rss.push_back(2048);
+        let mut t = Terminal::new(TestBackend::new(80, 20)).unwrap();
+        let p = Palette::new(crate::config::Theme::Dark);
+        t.draw(|f| v.draw(f, f.area(), &d, 30, &p)).unwrap();
+        let b = t.backend().buffer();
+        let line = |y| (41..79).map(|x| b[(x, y)].symbol()).collect::<String>();
+        assert!(line(15).contains("150.0"));
+        assert!(line(15).contains(">100% of one core"));
+        assert!(line(17).contains("1.0/2.0 MiB"));
+        assert!(line(16).chars().any(|c| "▁▂▃▄▅▆▇█".contains(c)));
+        assert!(line(18).chars().any(|c| "▁▂▃▄▅▆▇█".contains(c)));
+        assert_eq!(v.cpu.front(), Some(&1500));
+        d.proc = None;
+        t.draw(|f| v.draw(f, f.area(), &d, 30, &p)).unwrap();
+        let b = t.backend().buffer();
+        let text = (0..20)
+            .map(|y| (0..80).map(|x| b[(x, y)].symbol()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(text.contains("history only"));
+        assert!(text.contains("CPU % unknown"));
     }
 }
