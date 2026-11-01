@@ -9,6 +9,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 # Handoff
 
 
+## 2026-11-01T09:40:00+00:00 — first release v3.0.122
+
+| Item | Value |
+|------|-------|
+| Goal | Version number, CI, release workflow, installer, release guide |
+| Last agent | Claude Code (Opus 5.5), with Sonnet reviewers |
+| Version | `3.0.<commits>+g<hash>` from `build.rs`. Refer to `docs/RELEASE.md`. |
+| Release | `v3.0.122` on GitHub, published by `.github/workflows/release.yml`. The tag `v3.0.121` has no release (a host-dependent test failed in CI). |
+| Shaper | The operator installed `v3.0.122` with `install.sh`. `status.json` shows `3.0.122+gd889101`, `apply`, `v2_pair`, router online. Systemd I/O and IP accounting are on. |
+| Checks | CI green (test and msrv jobs). Reviews PASS. |
+| Rules | Do not force-push or rebase `lqosync3`. Make a release only from a commit with a green CI. |
+| Next action | Optional: router TLS with a CA (`docs/OPERATIONS.md`), delete the tag `v3.0.121`. |
+
 ## 2026-11-01T08:26:04+00:00 — btop TUI, review fixes, new LibreQoS installation
 
 | Item | Value |
