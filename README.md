@@ -20,7 +20,7 @@ It supports LibreQoS 2.0 to 2.2 and LibreQoS 3.x.
 
 | Target | LibreQoS | Files | Reload |
 |--------|----------|-------|--------|
-| `v2_pair` | 2.0 to 2.2 | `ShapedDevices.csv` + `network.json` | `LibreQoS.py --updateonly` |
+| `v2_pair` | 2.0 to 2.2 | `ShapedDevices.csv` + `network.json` | `LibreQoS.py --updateonly` (a full run the first time on a new LibreQoS) |
 | `v3_network` | 3.x, `[topology] source = "libreqos_network"` | `libreqos_network.json` (schema 2) | `lqosd` file watcher |
 | `v3_pair` | 3.x, `[topology] source = "shaped_devices"` | `ShapedDevices.csv` + `network.json` | `lqosd` file watcher |
 

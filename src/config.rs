@@ -105,6 +105,8 @@ pub struct Libreqos {
     pub v3_network_file: String,
     pub v2_command: String,
     pub v2_args: Vec<String>,
+    /// The arguments of the first reload, when LibreQoS has no ShapedDevices.csv yet (a full run).
+    pub v2_first_args: Vec<String>,
     pub v2_timeout: u64,
     pub v3_status_timeout: u64,
 }

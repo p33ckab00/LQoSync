@@ -258,6 +258,21 @@ Run all commands of this procedure on the shaper. The commands with `sudo` need 
 
 5. Make sure that the candidate files exist in `/var/lib/lqosync3/candidate/`.
 
+## New LibreQoS installation
+
+A new LibreQoS has no `ShapedDevices.csv` and no `network.json` in `/opt/libreqos/src`. LibreQoS shapes no subscriber until the files exist. The tool makes the files:
+
+1. Install and start the tool in `shadow` mode. The tool writes the files in `/var/lib/lqosync3/candidate/` only.
+2. Examine the candidate files: `sudo lqosync3 diff`, or the ShapedDevices and Network tabs of the TUI.
+3. Set `runtime.mode = "apply"` (TUI Settings tab, group `runtime`, then `v`, `A`, `y`).
+4. At the next cycle, the tool writes `network.json` and `ShapedDevices.csv` in `/opt/libreqos/src`.
+5. Then the tool runs `LibreQoS.py` without `--updateonly` (a full run, `libreqos.v2_first_args`). `--updateonly` cannot operate before the first full run, because LibreQoS has no last loaded files.
+6. Make sure that the Dashboard shows `reload: ok (first full run)`. If the full run fails, the tool tries it again at each cycle. Read the error in `journalctl -u lqosync3.service`.
+
+After the first full run, each reload uses `--updateonly` (`libreqos.v2_args`).
+
+NOTE: On LibreQoS 3.x (`v3_pair` and `v3_network`), `lqosd` reads the new files by itself. The tool runs no reload command.
+
 ## Removal
 
 1. Stop and disable the service:

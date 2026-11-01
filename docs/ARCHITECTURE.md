@@ -136,7 +136,7 @@ LibreQoS v3 uses `topology.compile_mode`. Only `full` shapes circuits under the 
 | Duplicate IP in two circuits | Rejected by LibreQoS validation | Not rejected by the v3 compiler. The tool must reject it. |
 | Duplicate node name | Rejected | Accepted. The tool rejects it, so that both targets stay the same. |
 | Circuit without a parent | Accepted (`no_parent` mode) | Not accepted. `check` fails for `no_parent` with `v3_network`. Use `v3_pair`. |
-| Reload | `LibreQoS.py --updateonly` | No command. `lqosd` watches the file. |
+| Reload | `LibreQoS.py --updateonly`. On a new LibreQoS (no `ShapedDevices.csv`), the first reload is a full run with `v2_first_args`. | No command. `lqosd` watches the file. |
 
 ## Performance rules
 

@@ -40,6 +40,7 @@ dpkg_status = "/var/lib/dpkg/status"   # the target "auto" reads the libreqos ve
 v3_network_file = "libreqos_network.json"   # v3_network: the file in directory
 v2_command = "/opt/libreqos/src/LibreQoS.py"
 v2_args = ["--updateonly"]
+v2_first_args = []              # the first reload on a new LibreQoS (no ShapedDevices.csv yet): a full run of LibreQoS.py
 v2_timeout = 300                # seconds
 v3_status_timeout = 60          # reserved: no effect yet (needs a v3 shaper test)
 
