@@ -849,6 +849,9 @@ impl SettingsView {
             }
             KeyCode::Enter | KeyCode::Char(' ') if self.focus == 1 => self.edit(),
             KeyCode::Enter => self.focus = 1,
+            KeyCode::Char('r') | KeyCode::Char('P') if self.focus == 0 => {
+                self.message = Some("select a key first: push Right, then select the key".into());
+            }
             KeyCode::Char('r') if self.current_extra().is_some() => self.extra_remove(),
             KeyCode::Char('r') => self.reset(),
             KeyCode::Char('u') => {
@@ -1158,10 +1161,20 @@ impl SettingsView {
                 list_add,
             } => match k.code {
                 KeyCode::Esc => Input::None,
-                KeyCode::Enter => {
-                    self.commit_field(&path, &kind, &buf, list_add);
-                    Input::None
+                // A value that is not a number keeps the field open with the text.
+                KeyCode::Enter if !self.commit_field(&path, &kind, &buf, list_add) => {
+                    Input::Field {
+                        path,
+                        kind,
+                        buf,
+                        list_add,
+                    }
                 }
+                KeyCode::Enter => match &self.input {
+                    // commit_field opened the list editor again after a list item.
+                    Input::List { .. } => std::mem::replace(&mut self.input, Input::None),
+                    _ => Input::None,
+                },
                 KeyCode::Backspace => {
                     buf.pop();
                     Input::Field {
@@ -1505,21 +1518,22 @@ impl SettingsView {
         };
     }
 
-    fn commit_field(&mut self, path: &[Seg], kind: &Kind, buf: &str, list_add: bool) {
+    /// `false` if the text is not a number of the kind; nothing changes then.
+    fn commit_field(&mut self, path: &[Seg], kind: &Kind, buf: &str, list_add: bool) -> bool {
         let at = path_text(path);
         let v = match kind {
             Kind::Int => match buf.trim().parse::<i64>() {
                 Ok(n) => Value::from(n),
                 Err(_) => {
                     self.message = Some(format!("{at}: \"{buf}\" is not a whole number"));
-                    return;
+                    return false;
                 }
             },
             Kind::Float => match buf.trim().parse::<f64>() {
                 Ok(n) if n.is_finite() => Value::from(n),
                 _ => {
                     self.message = Some(format!("{at}: \"{buf}\" is not a number"));
-                    return;
+                    return false;
                 }
             },
             _ => Value::from(buf),
@@ -1543,10 +1557,15 @@ impl SettingsView {
                 sel: 0,
             };
         }
+        true
     }
 
     fn preview(&mut self) -> SAction {
         if self.blocked() {
+            return SAction::None;
+        }
+        if self.running.is_some() {
+            self.message = Some("a preview runs already: wait for its result".into());
             return SAction::None;
         }
         if !self.dirty() {
@@ -1715,8 +1734,13 @@ impl SettingsView {
         if self.draft.is_none() {
             return String::new();
         }
-        if let Stage::Verifying { .. } = self.stage {
-            return "apply: waiting for the service".into();
+        match self.stage {
+            Stage::Verifying {
+                loaded_seq: Some(_),
+                ..
+            } => return "apply: loaded, the first cycle runs".into(),
+            Stage::Verifying { .. } => return "apply: waiting for the service".into(),
+            _ => {}
         }
         if self.running.is_some() {
             return "preview running, wait".into();
@@ -1772,6 +1796,10 @@ impl SettingsView {
         let n = self.changed.len();
         let stage = match &self.stage {
             Stage::Edit => String::new(),
+            Stage::Verifying {
+                loaded_seq: Some(_),
+                ..
+            } => " | apply: loaded, the first cycle runs".into(),
             Stage::Verifying { .. } => " | apply: waiting for the service".into(),
             Stage::Result(m) => format!(" | {m}"),
         };
@@ -2429,16 +2457,21 @@ mod tests {
             "{:?}",
             v.message
         );
-        v.on_key(key(KeyCode::Enter));
+        // The field stays open with the typed text, so the operator can fix it.
+        assert!(v.capturing());
+        assert!(screen(&mut v, 140, 40).contains("abc_"));
+        for _ in 0..3 {
+            v.on_key(key(KeyCode::Backspace));
+        }
         typing(&mut v, "99");
         v.on_key(key(KeyCode::Enter));
-        // 899 or 99: out of range; the value stays in the draft and the error names the key.
+        // 99 is out of range: the value stays in the draft and the error names the key.
         assert!(
             v.message.as_deref().unwrap().contains("id_length"),
             "{:?}",
             v.message
         );
-        assert!(v.draft.as_ref().unwrap().text().contains("id_length"));
+        assert!(v.draft.as_ref().unwrap().text().contains("id_length = 99"));
     }
 
     #[test]
@@ -3024,6 +3057,67 @@ mod tests {
             }
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn r_and_p_need_a_selected_key() {
+        let mut v = view(false);
+        assert!(v.select_group("runtime"));
+        v.on_key(key(KeyCode::Char('r')));
+        assert!(
+            v.draft
+                .as_ref()
+                .unwrap()
+                .text()
+                .contains("mode = \"shadow\"")
+        );
+        assert!(
+            v.message.as_deref().unwrap().contains("select a key"),
+            "{:?}",
+            v.message
+        );
+        v.on_key(key(KeyCode::Char('P')));
+        assert!(!v.capturing());
+    }
+
+    #[test]
+    fn v_while_a_preview_runs_starts_no_second_one() {
+        let mut v = view(false);
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        assert!(matches!(
+            v.on_key(key(KeyCode::Char('v'))),
+            SAction::Preview(_)
+        ));
+        assert_eq!(v.on_key(key(KeyCode::Char('v'))), SAction::None);
+        assert!(
+            v.message.as_deref().unwrap().contains("runs already"),
+            "{:?}",
+            v.message
+        );
+    }
+
+    #[test]
+    fn the_header_says_loaded_while_the_first_cycle_runs() {
+        let (d, mut v) = disk();
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        let digest = v.do_apply(&d.state, 5, 1_000).unwrap();
+        let sent = crate::tui::dashboard::Sent {
+            kind: crate::tui::dashboard::Kind::Reload,
+            at: 1_000,
+            pid: 7,
+            seq: 2,
+        };
+        v.reload_sent(Ok(sent), digest.clone());
+        let st = serde_json::json!({"pid": 7, "trigger": "reload", "updated": 1_001, "config_digest": digest, "cycle_seq": 2});
+        v.on_status(Some(&st), 1_001, 120);
+        let s = screen(&mut v, 200, 40);
+        let head = s.lines().next().unwrap();
+        assert!(
+            head.contains("apply: loaded, the first cycle runs") && !head.contains("waiting"),
+            "{head}"
+        );
     }
 
     #[test]

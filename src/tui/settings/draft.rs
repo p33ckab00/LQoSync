@@ -490,6 +490,9 @@ impl Draft {
     }
 
     pub fn list_move(&mut self, p: &[Seg], from: usize, to: usize) -> anyhow::Result<()> {
+        if from == to {
+            return Ok(());
+        }
         let mut a = self.array(p)?;
         ensure!(
             from < a.len() && to < a.len(),
@@ -508,8 +511,15 @@ impl Draft {
         leaves(self.orig_doc.as_table(), "", &mut a);
         leaves(self.doc.as_table(), "", &mut b);
         let keys: std::collections::BTreeSet<&String> = a.keys().chain(b.keys()).collect();
+        // `20` and `20.0` are the same number: not a change.
+        let same = |x: Option<&String>, y: Option<&String>| match (x, y) {
+            (Some(x), Some(y)) => {
+                x == y || matches!((x.parse::<f64>(), y.parse::<f64>()), (Ok(a), Ok(b)) if a == b)
+            }
+            (x, y) => x == y,
+        };
         keys.into_iter()
-            .filter(|k| a.get(*k) != b.get(*k))
+            .filter(|k| !same(a.get(*k), b.get(*k)))
             .cloned()
             .collect()
     }
@@ -751,6 +761,16 @@ mod tests {
             d.changed(),
             ["runtime.mode", "runtime.state_dir", "safety.enabled"]
         );
+    }
+
+    #[test]
+    fn no_op_changes_are_not_changes() {
+        let mut d = Draft::new("[safety]\nmax_removed_percent = 20\n[speed]\npppoe_sources = [\"default\", \"profile_name\"]\n").unwrap();
+        d.set(&p("safety.max_removed_percent"), Value::from(20.0))
+            .unwrap();
+        d.list_move(&p("speed.pppoe_sources"), 0, 0).unwrap();
+        d.list_move(&p("speed.pppoe_sources"), 1, 1).unwrap();
+        assert!(d.changed().is_empty(), "{:?}", d.changed());
     }
 
     #[test]
