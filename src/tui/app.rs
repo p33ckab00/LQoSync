@@ -7,13 +7,12 @@ use super::journal::JournalView;
 use super::network::NetworkView;
 use super::osc52::MAX_COPY;
 use super::settings::view::{PreviewJob, SAction, SettingsView};
-use super::theme::Palette;
+use super::theme::{Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use std::sync::Arc;
@@ -358,13 +357,56 @@ impl App {
     }
 
     pub fn draw(&mut self, f: &mut Frame) {
-        let [header, tabs, main, footer] = Layout::vertical([
-            Constraint::Length(1),
+        let area = f.area();
+        f.render_widget(Block::default().style(self.palette.canvas()), area);
+        if area.width < 80 || area.height < 24 {
+            self.tab_rects.clear();
+            self.settings.areas = [Rect::default(); 3];
+            self.journal.clear_area();
+            f.render_widget(Paragraph::new("terminal too small: min 80x24"), area);
+            return;
+        }
+        let keys = self.key_hint();
+        let mut hint_lines = vec![String::new()];
+        for part in keys.split("  ").filter(|p| !p.is_empty()) {
+            let last = hint_lines.last_mut().unwrap();
+            if !last.is_empty()
+                && Line::from(format!("{last}  {part}")).width() > area.width as usize
+            {
+                if hint_lines.len() == 2 {
+                    break;
+                }
+                hint_lines.push(part.to_string());
+            } else {
+                if !last.is_empty() {
+                    last.push_str("  ");
+                }
+                last.push_str(part);
+            }
+        }
+        let settings_msg = (self.tab == Tab::Settings)
+            .then_some(self.settings.message.as_ref())
+            .flatten();
+        let message = self
+            .message
+            .as_ref()
+            .or(settings_msg)
+            .or(self.config_error.as_ref())
+            .or(self.data.errors.first());
+        let [header, tabs, main, msg_area, footer] = Layout::vertical([
+            Constraint::Length(2),
             Constraint::Length(1),
             Constraint::Min(0),
-            Constraint::Length(1),
+            Constraint::Length(u16::from(message.is_some())),
+            Constraint::Length(hint_lines.len() as u16),
         ])
-        .areas(f.area());
+        .areas(area);
+        if let Some(m) = message {
+            f.render_widget(
+                Paragraph::new(m.as_str()).style(self.palette.role(Role::Error)),
+                msg_area,
+            );
+        }
         self.draw_header(f, header);
         self.draw_tabs(f, tabs);
         match self.tab {
@@ -376,43 +418,15 @@ impl App {
                 .draw(f, main, &self.data, self.now, &self.palette),
             Tab::Settings => self.settings.draw(f, main, &self.palette),
         }
-        let tab_keys = match self.tab {
-            Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",
-            Tab::Devices => {
-                "/ search  o sort  i reverse  Enter parent node  q quit  1-5 tabs  S sync  R reload"
-            }
-            Tab::Network if self.network.editing => "type to search  Enter done  Esc clear",
-            Tab::Network => {
-                "Space open/close  e expand all  c collapse all  / search  q quit  1-5 tabs"
-            }
-            Tab::Journal if self.journal.editing => "type to search  Enter done  Esc clear",
-            Tab::Journal => {
-                "l level  / search  f follow  Shift+arrows or mouse select  y copy  s select mode  q quit"
-            }
-            Tab::Settings => {
-                "arrows move  Enter/Space edit  r reset  u undo  P secret  + add  - remove  v preview  A apply  q quit"
-            }
-            Tab::Dashboard => "S sync now (asks first)  R reload the config  q quit  1-5/Tab tabs",
-        };
-        // An open dialog or input shows its own keys, so confirm and cancel are always visible.
-        let keys = match self.modal {
-            Some(m) => modal_keys(m).to_string(),
-            None if self.tab == Tab::Settings && self.settings.capturing() => self.settings.hint(),
-            None => tab_keys.to_string(),
-        };
-        // An action message first, then a loader error, then the keys.
-        let settings_msg = (self.tab == Tab::Settings)
-            .then_some(self.settings.message.as_ref())
-            .flatten();
-        let (text, color) = match (
-            self.message.as_ref().or(settings_msg),
-            self.data.errors.first(),
-        ) {
-            (Some(m), _) => (format!("{m}  |  {keys}"), Color::Gray),
-            (None, Some(e)) => (format!("{e}  |  {keys}"), Color::Red),
-            (None, None) => (keys.to_string(), Color::Gray),
-        };
-        f.render_widget(Paragraph::new(text).style(Style::new().fg(color)), footer);
+        f.render_widget(
+            Paragraph::new(
+                hint_lines
+                    .iter()
+                    .map(|l| self.palette.keys(l))
+                    .collect::<Vec<_>>(),
+            ),
+            footer,
+        );
         if self.modal == Some(Modal::Discard) {
             let r = center(main, 56, 5);
             f.render_widget(Clear, r);
@@ -421,7 +435,7 @@ impl App {
                     "{} settings change(s) are not applied.\ny quits and discards them.",
                     self.settings_changes()
                 ))
-                .block(dialog(" quit ", Modal::Discard)),
+                .block(dialog(" quit ", Modal::Discard, &self.palette)),
                 r,
             );
         }
@@ -432,10 +446,29 @@ impl App {
                 Paragraph::new(
                                         "Sync now starts a cycle and releases a guard hold.\ny sends SIGUSR1 to the service.",
                 )
-                .block(dialog(" sync now ", Modal::ConfirmSync)),
+                .block(dialog(" sync now ", Modal::ConfirmSync, &self.palette)),
                 r,
             );
         }
+    }
+
+    fn key_hint(&self) -> String {
+        if let Some(m) = self.modal {
+            return modal_keys(m).into();
+        }
+        if self.tab == Tab::Settings && self.settings.capturing() {
+            return self.settings.hint();
+        }
+        match self.tab {
+            Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
+            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] parent node  [1-5] tabs  [S] sync  [R] reload",
+            Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
+            Tab::Network => "[q] quit  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-5] tabs",
+            Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
+            Tab::Journal => "[q] quit  [l] level  [/] search  [f] follow  [y] copy  [s] select mode  [Shift+arrows] select",
+            Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
+            Tab::Dashboard => "[q] quit  [S] sync  [R] reload  [1-5/Tab] tabs",
+        }.into()
     }
 
     fn draw_header(&self, f: &mut Frame, area: Rect) {
@@ -444,38 +477,51 @@ impl App {
             .service
             .as_ref()
             .map_or("unknown", |u| u.active.as_str());
+        let mode = self.status_str("mode");
+        let service_role = match service {
+            "active" => Role::Ok,
+            "failed" => Role::Error,
+            "unknown" => Role::Secondary,
+            _ => Role::Warning,
+        };
+        let mode_role = match mode.as_str() {
+            "apply" => Role::Ok,
+            "shadow" => Role::Warning,
+            _ => Role::Secondary,
+        };
+        let svc = format!(" service {} ", super::theme::clip(service, 18));
+        let mode_text = format!(" mode {} ", super::theme::clip(&mode, 12));
+        let mut spans = vec![
+            Span::styled(" lqosync3 ", self.palette.role(Role::Accent)),
+            self.palette.badge(&svc, service_role, false),
+            Span::raw(" "),
+            self.palette.badge(&mode_text, mode_role, false),
+        ];
+        if self.read_only {
+            spans.push(Span::raw(" "));
+            spans.push(
+                self.palette
+                    .badge(" READ-ONLY (not root) ", Role::Warning, false),
+            );
+        }
         let updated = self.status_u64("updated");
         let age = updated.map_or("unknown".into(), |u| {
             format!("{}s ago", self.now.saturating_sub(u))
         });
         let next = match (updated, self.status_u64("next_scan_seconds")) {
-            (Some(u), Some(n)) => format!("{}s", (u + n).saturating_sub(self.now)),
+            (Some(u), Some(n)) => format!("{}s", u.saturating_add(n).saturating_sub(self.now)),
             _ => "unknown".into(),
         };
-        let text = format!(
-            " | service {service} | mode {} | target {} | last cycle {age} | next scan {next} ",
-            self.status_str("mode"),
-            self.status_str("target")
+        let target = super::theme::clip(&self.status_str("target"), 20);
+        f.render_widget(
+            Paragraph::new(vec![
+                Line::from(spans),
+                Line::from(format!(
+                    " target {target} | last cycle {age} | next scan {next}"
+                )),
+            ]),
+            area,
         );
-        // The most important parts first: a narrow terminal cuts the end.
-        let mut spans = vec![Span::styled(
-            " lqosync3 ",
-            Style::new().add_modifier(Modifier::BOLD),
-        )];
-        if self.read_only {
-            spans.push(Span::styled(
-                " READ-ONLY (not root) ",
-                Style::new().fg(Color::Black).bg(Color::Yellow),
-            ));
-        }
-        if let Some(e) = &self.config_error {
-            spans.push(Span::styled(
-                format!(" config error: {e} "),
-                Style::new().fg(Color::Red),
-            ));
-        }
-        spans.push(Span::raw(text));
-        f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 
     /// The titles are drawn as spans, so the stored rectangles match the screen.
@@ -485,16 +531,13 @@ impl App {
         let mut x = area.x;
         for t in Tab::ALL {
             let text = format!(" {} ", t.title());
-            let w = (text.len() as u16).min(area.right().saturating_sub(x));
+            let w = (Line::from(text.as_str()).width() as u16).min(area.right().saturating_sub(x));
             self.tab_rects.push(Rect::new(x, area.y, w, 1));
             x = x.saturating_add(w + 1);
             let style = if t == self.tab {
-                Style::new()
-                    .fg(Color::Black)
-                    .bg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD)
+                self.palette.role(Role::Accent)
             } else {
-                Style::new().fg(Color::Cyan)
+                self.palette.role(Role::Secondary)
             };
             spans.push(Span::styled(text, style));
             spans.push(Span::raw(" "));
@@ -506,28 +549,20 @@ impl App {
 /// The keys of a dialog, for the footer.
 fn modal_keys(m: Modal) -> &'static str {
     match m {
-        Modal::ConfirmSync => "y sync now   n / Esc cancel",
-        Modal::Discard => "y quit and discard   n / Esc stay",
+        Modal::ConfirmSync => "[y] sync now   [n / Esc] cancel",
+        Modal::Discard => "[y] quit and discard   [n / Esc] stay",
     }
 }
 
 /// A dialog block with its keys on the bottom border, so they are always visible.
-fn dialog(title: &str, m: Modal) -> Block<'_> {
+fn dialog<'a>(title: &'a str, m: Modal, palette: &Palette) -> Block<'a> {
     let bar = match m {
         Modal::ConfirmSync => " [y] sync now   [n / Esc] cancel ",
         Modal::Discard => " [y] quit and discard   [n / Esc] stay ",
     };
-    Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::new().fg(Color::Yellow))
-        .title(title)
-        .title_bottom(Line::styled(
-            bar,
-            Style::new()
-                .fg(Color::Black)
-                .bg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        ))
+    palette
+        .panel(Line::from(title), true)
+        .title_bottom(palette.keys(bar))
 }
 
 /// A `w` x `h` rectangle in the middle of `area`, cut to `area`.
@@ -634,7 +669,13 @@ mod tests {
     #[test]
     fn header_shows_unknown_without_status_and_the_values_with_it() {
         let mut a = app(false);
-        let top = |a: &mut App| draw(a, 140, 10).lines().next().unwrap().to_string();
+        let top = |a: &mut App| {
+            draw(a, 140, 24)
+                .lines()
+                .take(2)
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
         let h = top(&mut a);
         assert!(
             h.contains("service unknown") && h.contains("mode unknown"),
@@ -786,13 +827,7 @@ mod tests {
         );
         a.on_key(key(KeyCode::Down));
         assert!(a.message.is_none());
-        assert!(
-            draw(&mut a, 120, 10)
-                .lines()
-                .last()
-                .unwrap()
-                .contains("cannot read")
-        );
+        assert!(draw(&mut a, 120, 24).contains("cannot read"));
     }
 
     #[test]
@@ -803,14 +838,8 @@ mod tests {
             ..Data::default()
         };
         a.set_data(d, 0);
-        let s = draw(&mut a, 120, 10);
-        assert!(
-            s.lines()
-                .last()
-                .unwrap()
-                .contains("cannot read /x/ShapedDevices.csv"),
-            "{s}"
-        );
+        let s = draw(&mut a, 120, 24);
+        assert!(s.contains("cannot read /x/ShapedDevices.csv"), "{s}");
     }
 
     #[test]
@@ -829,7 +858,7 @@ mod tests {
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         let s = draw(&mut a, 140, 30);
-        assert!(s.lines().last().unwrap().contains("read-only"), "{s}");
+        assert!(s.contains("read-only"), "{s}");
     }
 
     #[test]
@@ -841,7 +870,7 @@ mod tests {
             s.contains("[y] sync now") && s.contains("[n / Esc] cancel"),
             "{s}"
         );
-        assert!(s.lines().last().unwrap().contains("y sync now"), "{s}");
+        assert!(s.lines().last().unwrap().contains("[y] sync now"), "{s}");
         assert_eq!(a.on_key(key(KeyCode::Char('x'))), Action::None);
         assert_eq!(a.modal, Some(Modal::ConfirmSync));
         assert_eq!(a.on_key(key(KeyCode::Esc)), Action::None);
@@ -896,5 +925,37 @@ mod tests {
             a.on_key(key(KeyCode::Char('v'))),
             Action::Preview(_)
         ));
+    }
+    #[test]
+    fn minimum_size_preserves_state_and_clears_mouse_targets() {
+        let mut a = app(false);
+        a.devices.query = "kept".into();
+        draw(&mut a, 120, 30);
+        for (w, h) in [(79, 24), (80, 23), (1, 1), (0, 0)] {
+            let text = draw(&mut a, w, h);
+            if w > 40 {
+                assert!(text.contains("terminal too small: min 80x24"));
+            }
+            assert!(a.tab_rects.is_empty());
+            assert_eq!(a.settings.areas, [Rect::default(); 3]);
+            assert_eq!(a.devices.query, "kept");
+        }
+        draw(&mut a, 80, 24);
+        assert!(!a.tab_rects.is_empty());
+    }
+    #[test]
+    fn shell_pills_at_minimum_size() {
+        let mut a = app(true);
+        let s = draw(&mut a, 80, 24);
+        for text in [
+            "READ-ONLY",
+            "service unknown",
+            "target unknown",
+            "cycle unknown",
+            "next scan unknown",
+            "[q]",
+        ] {
+            assert!(s.contains(text), "{text}: {s}");
+        }
     }
 }

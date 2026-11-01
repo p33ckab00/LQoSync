@@ -1759,7 +1759,7 @@ impl SettingsView {
 
     /// The keys of the open dialog or input, for the footer.
     pub fn hint(&self) -> String {
-        self.bar().replace(['[', ']'], "")
+        self.bar()
     }
 
     /// The keys of the open dialog or input, as `[key] action` parts.
@@ -2786,7 +2786,7 @@ mod tests {
             s.contains("[y] apply") && s.contains("[n / Esc] cancel"),
             "{s}"
         );
-        assert_eq!(v.hint(), "y apply   n / Esc cancel");
+        assert_eq!(v.hint(), "[y] apply   [n / Esc] cancel");
         // Another key does not cancel: the dialog stays and says which keys act.
         assert_eq!(v.on_key(key(KeyCode::Char('x'))), SAction::None);
         assert_eq!(v.modal, Some(VModal::ConfirmApply));

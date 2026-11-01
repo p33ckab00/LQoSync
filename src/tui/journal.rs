@@ -262,6 +262,10 @@ impl JournalView {
         }
     }
 
+    pub fn clear_area(&mut self) {
+        self.area = Rect::default();
+    }
+
     pub fn on_mouse(&mut self, m: MouseEvent) {
         let a = self.area;
         if m.row < a.y || m.row >= a.bottom() {

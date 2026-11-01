@@ -192,3 +192,25 @@ mod tests {
         );
     }
 }
+
+/// Limit text by terminal cells, with an ellipsis for omitted text.
+pub fn clip(text: &str, width: usize) -> String {
+    if Line::from(text).width() <= width {
+        return text.into();
+    }
+    if width == 0 {
+        return String::new();
+    }
+    let mut out = String::new();
+    let mut used = 0;
+    for c in text.chars() {
+        let n = Line::from(c.to_string()).width();
+        if used + n >= width {
+            break;
+        }
+        out.push(c);
+        used += n;
+    }
+    out.push('…');
+    out
+}
