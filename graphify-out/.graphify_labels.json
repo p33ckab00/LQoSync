@@ -1,5 +1,4 @@
 {
-  "1": "Telegram Notifier",
   "3": "Topology",
   "10": "Config",
   "20": "MikroTik Session 5",
@@ -9,6 +8,5 @@
   "47": "Telegram Notifier 4",
   "48": "CLI and Checks 4",
   "49": "lqosync3",
-  "50": "lib.rs",
   "51": "mod.rs"
 }

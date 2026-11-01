@@ -1,8 +1,8 @@
 {
   "README.md": {
-    "mtime": 1793520509.1603024,
-    "seen": 1793520683.9047232,
-    "ast_hash": "8ea06cbabdb12f3c2c2c5ec9350b990f",
+    "mtime": 1793525192.8792176,
+    "seen": 1793525302.3699086,
+    "ast_hash": "9e80fa56572883e7d57f69070efbd368",
     "semantic_hash": ""
   },
   "brain/10-sessions/2026-10-31-project-setup-and-v3-simulation.md": {
@@ -42,9 +42,9 @@
     "semantic_hash": ""
   },
   "brain/Home.md": {
-    "mtime": 1793521601.522463,
-    "seen": 1793522397.2875538,
-    "ast_hash": "9b594e02f7fb37a105d2c73dcc9739b1",
+    "mtime": 1793524254.1985774,
+    "seen": 1793525302.3699446,
+    "ast_hash": "e623506ae837e2ac5ad3ad649aa11e60",
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
@@ -54,15 +54,15 @@
     "semantic_hash": ""
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793522100.516847,
-    "seen": 1793522397.2875564,
-    "ast_hash": "1108767880901bd82a24ac56df70d76e",
+    "mtime": 1793525192.8802178,
+    "seen": 1793525302.3699474,
+    "ast_hash": "7763dafcbd9f078b9cba70572152de07",
     "semantic_hash": ""
   },
   "docs/INSTALLATION.md": {
-    "mtime": 1793522096.1948035,
-    "seen": 1793522397.2875574,
-    "ast_hash": "23879946f157c0ddd74e2ec384bdafe5",
+    "mtime": 1793524878.308586,
+    "seen": 1793525302.3699489,
+    "ast_hash": "02aac0326692b9b3229759b3caad3770",
     "semantic_hash": ""
   },
   "docs/LIBREQOS-V3-INGRESS.md": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "Cargo.toml": {
-    "mtime": 1793492330.8924806,
-    "seen": 1793495229.5193667,
-    "ast_hash": "8988f67921d01fbd902bc05ddca50b88",
+    "mtime": 1793524591.480345,
+    "seen": 1793525302.3698342,
+    "ast_hash": "4846178b69c9f1cdd7fa7042e0761868",
     "semantic_hash": ""
   },
   "src/config.rs": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/lib.rs": {
-    "mtime": 1793469443.3300436,
-    "seen": 1793476119.3107924,
-    "ast_hash": "c71ca4386f864660c6dc2d79d1862a73",
+    "mtime": 1793524591.480345,
+    "seen": 1793525302.3698509,
+    "ast_hash": "59d25d3ebb687777e46f43bbfd381d48",
     "semantic_hash": ""
   },
   "src/model.rs": {
@@ -246,9 +246,9 @@
     "semantic_hash": "d549df5352fb792e23caa28c1bb13d5c"
   },
   "src/cli.rs": {
-    "mtime": 1793520656.4191415,
-    "seen": 1793520683.9046533,
-    "ast_hash": "eea35ea3927e7309dcb95e2ef6f3906e",
+    "mtime": 1793524598.4384234,
+    "seen": 1793525302.3698397,
+    "ast_hash": "0809cde19d097917ebcb5689af4b1e11",
     "semantic_hash": ""
   },
   "src/diff.rs": {
@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "src/main.rs": {
-    "mtime": 1793469537.17122,
-    "seen": 1793476119.3107936,
-    "ast_hash": "80b72cd1074110ed19dfd5a08b1f1360",
+    "mtime": 1793524598.3444223,
+    "seen": 1793525302.369852,
+    "ast_hash": "a753a3ac8436ce8551653f8a41ee29ef",
     "semantic_hash": ""
   },
   "src/mikrotik.rs": {
@@ -288,9 +288,9 @@
     "semantic_hash": "2994c3ddd10e9af40a798bd7d817768e"
   },
   "src/runner.rs": {
-    "mtime": 1793520470.859832,
-    "seen": 1793520683.9046755,
-    "ast_hash": "a9452c10a61766343f27f25ca2d03b08",
+    "mtime": 1793524598.3484223,
+    "seen": 1793525302.3698611,
+    "ast_hash": "09db492112bc8d6447633f59911aaa8e",
     "semantic_hash": ""
   },
   "src/secrets.rs": {
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "src/tui/dashboard.rs": {
-    "mtime": 1793522319.4661224,
-    "seen": 1793522397.2874863,
-    "ast_hash": "08a6121485f56160f5a03dcf28dd0669",
+    "mtime": 1793524598.3484223,
+    "seen": 1793525302.3698726,
+    "ast_hash": "ea4a993439a3506d7e27b2ddb21e1dc2",
     "semantic_hash": ""
   },
   "src/tui/data.rs": {
@@ -555,6 +555,54 @@
     "mtime": 1793521601.507463,
     "seen": 1793522397.287546,
     "ast_hash": "453443d1355d0557a3996292a5898de7",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1793525192.8752177,
+    "seen": 1793525302.3698258,
+    "ast_hash": "18812fa55b7e0322cea53407866f1c5a",
+    "semantic_hash": ""
+  },
+  ".github/workflows/release.yml": {
+    "mtime": 1793525192.8752177,
+    "seen": 1793525302.3698308,
+    "ast_hash": "6427d8f7d95753e3860c552c0c2a23c8",
+    "semantic_hash": ""
+  },
+  "build.rs": {
+    "mtime": 1793525192.8752177,
+    "seen": 1793525302.3698363,
+    "ast_hash": "7ac24aed2fdda76dee69bcc654006efa",
+    "semantic_hash": ""
+  },
+  "install.sh": {
+    "mtime": 1793525299.28882,
+    "seen": 1793525302.3698378,
+    "ast_hash": "eea021c08cf74509b1d9338e1359d062",
+    "semantic_hash": ""
+  },
+  "brain/10-sessions/2026-11-01-host-storage-cleanup.md": {
+    "mtime": 1793522801.0414717,
+    "seen": 1793525302.3699172,
+    "ast_hash": "2b1f2e5c6627fd57583c3027d3ea83a6",
+    "semantic_hash": ""
+  },
+  "brain/10-sessions/2026-11-01-libreqos-v3-upgrade-investigation.md": {
+    "mtime": 1793524915.607009,
+    "seen": 1793525302.3699183,
+    "ast_hash": "943746d9c5349b5492c3eed40dd2cb4a",
+    "semantic_hash": ""
+  },
+  "brain/10-sessions/2026-11-01-preflight-update-prepared.md": {
+    "mtime": 1793523983.9016187,
+    "seen": 1793525302.3699195,
+    "ast_hash": "803fbfdf1b8892ff2b55e501519e2935",
+    "semantic_hash": ""
+  },
+  "docs/RELEASE.md": {
+    "mtime": 1793524861.03939,
+    "seen": 1793525302.369953,
+    "ast_hash": "c23a4ba54a36a2dd5691918fc5225ce7",
     "semantic_hash": ""
   }
 }
