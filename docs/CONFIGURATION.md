@@ -463,13 +463,13 @@ The section names stay the same. These keys change.
 | `telegram.parse_mode` | (removed) | Always `HTML`. |
 | `telegram.notify_on_start`, `telegram.notify_on_no_changes` | (removed) | `updatecsv.py` does not use them. |
 | `routers[].password` | `routers[].password_file` | Put the password in a file. |
-| `routers[].dhcp.servers[].download_limit_mbps` | `default_plan_down_mbps` | Same meaning. `import-json` uses the value with priority. |
-| `routers[].dhcp.dhcp_server` (old list) | `[[routers.dhcp.servers]]` | `import-json` converts it. |
-| Root `preserve_network_config`, `flat_network`, `no_parent` | `[network]` | `import-json` converts them. |
+| `routers[].dhcp.servers[].download_limit_mbps` | `default_plan_down_mbps` | Same meaning. Copy the value by hand. |
+| `routers[].dhcp.dhcp_server` (old list) | `[[routers.dhcp.servers]]` | Write one entry for each server by hand. |
+| Root `preserve_network_config`, `flat_network`, `no_parent` | `[network]` | Set `network.mode` by hand. |
 | (none) | `libreqos.target`, `routers[].tls`, `[router_access]`, `[speed]`, `[nodes]`, `[circuits]` | New |
 | (none) | `runtime.static_comment`, `runtime.subscriber_grace`, `routers[].dhcp.require_bound` | New |
 
-The planned command `lqosync3 import-json <config.json>` will write a TOML file and secret files from an old `config.json`.
+The tool has no import of `config.json`. Use this table, the TUI, or `lqosync3 defaults` to write the TOML file.
 
 ### TUI theme
 

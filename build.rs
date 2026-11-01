@@ -11,15 +11,15 @@ fn git(args: &[&str]) -> Option<String> {
 }
 
 fn main() {
-    // A commit changes HEAD or the index. A source change can make the build dirty.
-    for p in [
-        ".git/HEAD",
-        ".git/index",
-        "src",
-        "config",
-        "Cargo.toml",
-        "build.rs",
-    ] {
+    // Each commit adds a line to logs/HEAD; a checkout changes HEAD; staging changes the index.
+    // git-path also finds them in a worktree, where .git is a file.
+    for p in ["HEAD", "logs/HEAD", "index"] {
+        if let Some(path) = git(&["rev-parse", "--git-path", p]) {
+            println!("cargo:rerun-if-changed={path}");
+        }
+    }
+    // A source change can make the build dirty.
+    for p in ["src", "config", "Cargo.toml", "Cargo.lock", "build.rs"] {
         println!("cargo:rerun-if-changed={p}");
     }
     let major = std::env::var("CARGO_PKG_VERSION_MAJOR").unwrap();

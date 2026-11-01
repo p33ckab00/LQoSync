@@ -20,6 +20,7 @@ jobs:
           v="$(./target/release/lqosync3 version | cut -d' ' -f2)"
           echo "version $v"
           case "$v" in *.dirty|*unknown) echo "the build is not clean: $v"; exit 1 ;; esac
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/lqosync3 || { echo "the tag is not on the branch lqosync3"; exit 1; }
           [ "v${v%%+*}" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME is not v${v%%+*}"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
       - name: Package
