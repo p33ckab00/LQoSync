@@ -1,17 +1,17 @@
 # Graph Report - LQoSync3.0  (2026-11-01)
 
 ## Corpus Check
-- 91 files · ~124,600 words
+- 91 files · ~126,984 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 4 file(s) not represented in the graph (top: (none) 2, .toml 1, .service 1)
 
 ## Summary
-- 2026 nodes · 5189 edges · 90 communities (79 shown, 11 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 182 edges (avg confidence: 0.87)
+- 2032 nodes · 5226 edges · 79 communities (69 shown, 10 thin omitted)
+- Extraction: 96% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 182 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5d8b16aa`
+- Built from commit: `e1ea30a0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -38,16 +38,15 @@
 - preview.rs
 - MikroTik Session 5
 - lqosync3 core design spec
-- diff.rs
+- .connect
 - RouterCfg
 - Review Focus
 - theme.rs
 - Configuration reference
-- speed.rs
+- Theme
 - Config
 - runner::Runner::cycle (one full cycle)
 - dhcp_server_gives_override_or_
-- routeros.rs
 - lqosync3 LibreQoS v3 targets (Plan 3)
 - Review Focus
 - main.rs
@@ -59,7 +58,6 @@
 - dashboard.rs
 - app.rs
 - State
-- v3network.rs
 - check.sh
 - Telegram Notifier 4
 - CLI and Checks 4
@@ -71,7 +69,6 @@
 - Review Focus
 - Status
 - ReadError
-- NetworkMode
 - ADR-0009 DHCP discovery and exclusions
 - TUI cosmetics design handoff
 - cli.rs
@@ -80,26 +77,18 @@
 - TUI cosmetics implementation
 - detect.rs
 - ADR-0008 Terminal UI
-- super
 - PppSource
 - Role
-- status.rs
+- State
 - TUI btop++ refinement
 - .draw
 - Input
 - Review Focus
-- state.rs
 - LeaseResult
 - BoxKind
 - Stage
 - ADR-0009 DHCP discovery and exclusions
-- src/secrets.rs
-- settings/validate.rs
-- Grad
 - RouterResult
-- Level
-- Command
-- Source
 - LogLevel
 - SAction
 
@@ -113,7 +102,7 @@
 7. `run()` - 32 edges
 8. `Draft` - 32 edges
 9. `lqosync3 core design spec` - 32 edges
-10. `Configuration reference` - 31 edges
+10. `runner()` - 31 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `v3 offline simulation method` --semantically_similar_to--> `/run/lqos/bus 0777 safety caution`  [INFERRED] [semantically similar]
@@ -146,23 +135,23 @@
 - **LibreQoS v3 node rule compliance** — brain_20_decisions_adr_0005_topology_follows_v3_stable_node_id, brain_20_decisions_adr_0005_topology_follows_v3_parent_node_id, brain_20_decisions_adr_0005_topology_follows_v3_csv_column_count, brain_20_decisions_adr_0005_topology_follows_v3_max_floor_mbps, brain_20_decisions_adr_0005_topology_follows_v3_flat_promotion_parent_fix, brain_20_decisions_adr_0006_v3_guards_and_node_types_no_parent_guard, brain_20_decisions_adr_0006_v3_guards_and_node_types_site_group_nodes, brain_20_decisions_adr_0006_v3_guards_and_node_types_compile_mode_warning [INFERRED 0.85]
 - **DHCP discovery and subscriber exclusion** — brain_20_decisions_adr_0009_dhcp_discovery_and_exclusions_dhcp_server_discovery, brain_20_decisions_adr_0009_dhcp_discovery_and_exclusions_exclusions, docs_configuration_exclusions, docs_superpowers_specs_2026_10_31_lqosync3_core_design_circuit_rules [INFERRED 0.95]
 
-## Communities (90 total, 11 thin omitted)
+## Communities (79 total, 10 thin omitted)
 
 ### Community 0 - "mock_router.rs"
-Cohesion: 0.13
-Nodes (26): read_router(), Answer, Empty, Raw, Rows, Silent, Trap, closed_port_is_unreachable() (+18 more)
+Cohesion: 0.17
+Nodes (25): read_router(), Answer, Empty, Raw, Rows, Silent, Trap, closed_port_is_unreachable() (+17 more)
 
 ### Community 1 - "Telegram Notifier"
-Cohesion: 0.07
+Cohesion: 0.06
 Nodes (40): Task 3: Transport (post_json, send, token, chat_id), Telegram, AnyCertificate, a_config_error_is_an_error_event(), a_long_multi_line_error_splits_into_valid_html_parts(), a_very_long_error_is_cut(), an_empty_token_is_an_error(), an_error_is_sent_once_then_cleared() (+32 more)
 
 ### Community 2 - "runner.rs"
-Cohesion: 0.24
-Nodes (28): a_config_reload_error_shows_in_status_until_a_good_reload(), a_held_lock_stops_the_cycle_without_touching_status(), a_panicking_router_task_fails_only_that_router(), apply_backs_up_writes_and_reloads(), assemble_error_writes_nothing(), auto_on_v2_gives_the_v2_pair(), cfg(), Env (+20 more)
+Cohesion: 0.25
+Nodes (32): a_config_reload_error_shows_in_status_until_a_good_reload(), a_fresh_libreqos_directory_gets_both_files(), a_held_lock_stops_the_cycle_without_touching_status(), a_live_shaper_without_its_csv_gets_no_full_run(), a_panicking_router_task_fails_only_that_router(), a_shipped_csv_without_a_full_run_still_gets_a_full_run(), apply_backs_up_writes_and_reloads(), assemble_error_writes_nothing() (+24 more)
 
 ### Community 3 - "Topology"
-Cohesion: 0.12
-Nodes (45): NodeTemplate, StoredNode, GroupKey, Hotspot, Ppp, a_kept_child_keeps_its_operator_children(), backstop_cap_limits_group(), build_nodes() (+37 more)
+Cohesion: 0.06
+Nodes (61): NodeTemplate, UnitlessUnit, Bps, Mbps, StoredNode, GroupKey, Hotspot, Ppp (+53 more)
 
 ### Community 4 - "sources.rs"
 Cohesion: 0.16
@@ -177,12 +166,12 @@ Cohesion: 0.06
 Nodes (52): narrow_terminal_puts_the_side_panel_under_the_main_panel(), split_main(), Data, circuits_count_distinct_ids(), Column, .ALL, Down, Ipv4 (+44 more)
 
 ### Community 7 - "cycle.rs"
-Cohesion: 0.10
-Nodes (54): a_row_that_stays_keeps_its_group_node(), AAA, an_override_gives_the_same_rate_in_v2_pair_v3_pair_and_v3_network(), assemble(), cfg(), changed_columns(), dhcp_cfg(), duplicate_ip_existing_vs_existing_keeps_collected() (+46 more)
+Cohesion: 0.11
+Nodes (50): a_row_that_stays_keeps_its_group_node(), AAA, an_override_gives_the_same_rate_in_v2_pair_v3_pair_and_v3_network(), cfg(), dhcp_cfg(), duplicate_ip_existing_vs_existing_keeps_collected(), duplicate_ip_new_vs_existing_keeps_existing(), empty_online_router_removes_its_rows() (+42 more)
 
 ### Community 8 - "files.rs"
-Cohesion: 0.12
-Nodes (15): backup(), backup_keeps_the_last_n(), backup_keeps_the_new_folder_and_other_folders(), finish_secret(), HDR, Live, load_state_seeds_on_first_run_and_reads_after(), lock() (+7 more)
+Cohesion: 0.09
+Nodes (27): CircuitNames, backup(), backup_keeps_the_last_n(), backup_keeps_the_new_folder_and_other_folders(), finish_secret(), HDR, Live, load_state() (+19 more)
 
 ### Community 9 - "SettingsView"
 Cohesion: 0.09
@@ -213,16 +202,16 @@ Cohesion: 0.09
 Nodes (25): Plan 2b deferred minor items, Plan phases (Plan 1/2/2b done; Plan 3 v3, Plan 4 TUI, Plan 5 installer), Telegram settings, Operations guide, Applied backups (keep_backups, 12-digit folders), Command reference (check, once, diff, run, defaults), Cutover from the Python service, lqosync3 detect (Plan 3) (+17 more)
 
 ### Community 17 - "apply.rs"
-Cohesion: 0.08
-Nodes (38): config_digest(), a_changed_file_on_disk_stops_the_apply(), a_toml_write_error_rolls_back_the_secrets(), apply(), apply_writes_a_backup_and_keeps_n(), ApplyError, Changed, Io (+30 more)
+Cohesion: 0.07
+Nodes (39): config_digest(), config_digest_is_stable_and_16_hex(), a_changed_file_on_disk_stops_the_apply(), a_toml_write_error_rolls_back_the_secrets(), apply(), apply_writes_a_backup_and_keeps_n(), ApplyError, Changed (+31 more)
 
 ### Community 18 - "runner::Runner::cycle (one full cycle)"
 Cohesion: 0.13
 Nodes (18): Applier (hash, atomic write, reload), Circuit Model, Collector (RouterOS API reads), Config Loader, Proposed Crate Layout, libreqos_network.json, lqosd (LibreQoS daemon), MikroTik RouterOS API (+10 more)
 
 ### Community 19 - "preview.rs"
-Cohesion: 0.19
-Nodes (27): cycle_inputs(), Inputs, a_failed_preview_is_failed_not_zero(), a_new_router_effect_is_not_known(), a_rate_change_gives_the_expected_circuit_changes(), a_router_that_was_not_online_gives_a_warning(), a_source_turned_on_is_not_known(), ALICE (+19 more)
+Cohesion: 0.17
+Nodes (29): cycle_inputs(), Inputs, a_failed_preview_is_failed_not_zero(), a_new_router_effect_is_not_known(), a_rate_change_gives_the_expected_circuit_changes(), a_router_that_was_not_online_gives_a_warning(), a_source_turned_on_is_not_known(), ALICE (+21 more)
 
 ### Community 20 - "MikroTik Session 5"
 Cohesion: 0.16
@@ -232,33 +221,33 @@ Nodes (14): lqosync3 runtime design (Plan 2), Atomic write (temp file, sync_all,
 Cohesion: 0.19
 Nodes (19): Session 2026-10-31 project setup and v3 simulation, ADR-0005 Topology follows v3, max_floor_mbps (0.2) / safe_min_mbps (0.1), Parent Node ID column, ADR-0006 v3 guards and node types, compile_mode not full warning, LibreQoS v3 ingress facts, Tool must reject duplicate IP and node name (+11 more)
 
-### Community 22 - "diff.rs"
-Cohesion: 0.20
-Nodes (15): diff_config(), diff_dirs(), diff_dirs_needs_candidate_files(), diff_ignores_column_order_row_order_and_number_text(), diff_pair(), diff_reports_added_removed_changed(), diff_stops_for_v3_network(), diff_stops_in_apply_mode() (+7 more)
+### Community 22 - ".connect"
+Cohesion: 0.38
+Nodes (3): Fake, FakeConnector, FakeSession
 
 ### Community 23 - "RouterCfg"
-Cohesion: 0.16
-Nodes (23): normalize_mac(), parse_ipv4_net(), PppoeCfg, RouterCfg, RouterSnapshot, collect_dhcp(), collect_hotspot(), collect_ppp() (+15 more)
+Cohesion: 0.13
+Nodes (27): normalize_mac(), parse_ipv4_net(), PppoeCfg, RouterCfg, RouterSnapshot, read_snapshot(), collect_dhcp(), collect_hotspot() (+19 more)
 
 ### Community 24 - "Review Focus"
 Cohesion: 0.17
 Nodes (11): Global Constraints, lqosync3 TUI Implementation Plan (Plan 4b: the Settings editor), Review Focus, Review rulings (fact-check of 2026-11-01), Task 1: Key metadata, Task 2: The draft (edit model), Task 3: Validate and secrets, Task 4: Preview (+3 more)
 
 ### Community 25 - "theme.rs"
-Cohesion: 0.13
-Nodes (14): Theme, Dark, Light, Mono, Tui, a_box_title_has_the_btop_brackets_and_hotkey(), a_panel_has_the_box_colour_and_marks_focus_in_the_title(), area_graph_fills_from_the_bottom() (+6 more)
+Cohesion: 0.12
+Nodes (16): a_box_title_has_the_btop_brackets_and_hotkey(), a_panel_has_the_box_colour_and_marks_focus_in_the_title(), area_graph_fills_from_the_bottom(), btop_gradient_ends(), Grad, Cpu, Free, Mem (+8 more)
 
 ### Community 26 - "Configuration reference"
 Cohesion: 0.06
 Nodes (28): 2026-10-31 First live shadow run, FSEHub-Distro router (10.200.1.2:8728), Shadow run results (62 rows, 167 ms, 26 text-only updates), config/defaults.toml embedded defaults, Production state (Python live, lqosync3 shadow, LibreQoS 2.2), RouterOS listen change detection (future), Configuration reference, Comment speed format (Name|25M/5M) (+20 more)
 
-### Community 28 - "speed.rs"
-Cohesion: 0.09
-Nodes (24): RateLimitOrder, DownloadUpload, RouterosRxTx, UnitlessUnit, Bps, Mbps, comment_rate(), plan_label() (+16 more)
+### Community 28 - "Theme"
+Cohesion: 0.40
+Nodes (5): Theme, Dark, Light, Mono, Tui
 
 ### Community 29 - "Config"
-Cohesion: 0.14
-Nodes (10): Config, deep_merge(), defaults(), DhcpSource, LeaseComment, ServerComment, Settings, Exclude (+2 more)
+Cohesion: 0.20
+Nodes (5): Config, deep_merge(), defaults(), Exclude, Safety
 
 ### Community 30 - "runner::Runner::cycle (one full cycle)"
 Cohesion: 0.08
@@ -267,10 +256,6 @@ Nodes (27): network.json, Router state (online/failed/unreachable/offline), lqos
 ### Community 31 - "dhcp_server_gives_override_or_"
 Cohesion: 0.21
 Nodes (8): BandwidthDefaults, DhcpCfg, DhcpClient, DhcpMode, PerPlan, PerSite, DhcpServer, HotspotCfg
-
-### Community 32 - "routeros.rs"
-Cohesion: 0.15
-Nodes (16): a_dead_kept_session_reconnects_without_a_retry(), a_login_error_is_not_retried(), Fake, gives_last_error_after_all_retries(), ppp_router(), read_snapshot(), Login, Timeout (+8 more)
 
 ### Community 33 - "lqosync3 LibreQoS v3 targets (Plan 3)"
 Cohesion: 0.22
@@ -281,7 +266,7 @@ Cohesion: 0.25
 Nodes (7): Global Constraints, lqosync3 LibreQoS v3 Implementation Plan (Plan 3), Review Focus, Task 1: Detector (`src/detect.rs`), Task 2: `v3_network` writer (`src/writer/v3network.rs`), Task 3: Runner, CLI, and check, Task 4: Offline check with the v3 parser
 
 ### Community 35 - "main.rs"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (12): Runtime, RuntimeMode, Apply, Shadow, exit_with(), main(), notify(), now() (+4 more)
 
 ### Community 36 - "lqosync3 core design spec"
@@ -289,11 +274,11 @@ Cohesion: 0.12
 Nodes (28): 2026-10-31 Plan 1: lqosync3 core library session, lqosync3 core crate (config, speed, model, state, sources, topology, cycle, validate, writer), Plan 1 review fixes (commit 529fa36), Session: updatecsv.py dissection, Architecture (LQoSync3), Six Network Modes, Topology Builder, LibreQoS v3 topology.compile_mode (+20 more)
 
 ### Community 38 - "data.rs"
-Cohesion: 0.08
-Nodes (38): a_bad_network_json_keeps_the_last_data_and_shows_an_error(), a_missing_csv_is_an_error(), collect_names(), Env, env(), FLAG_DUP_IP, FLAG_NO_PARENT, FLAG_RATE (+30 more)
+Cohesion: 0.06
+Nodes (53): a_bad_network_json_keeps_the_last_data_and_shows_an_error(), a_missing_csv_is_an_error(), collect_names(), Env, env(), FLAG_DUP_IP, FLAG_NO_PARENT, FLAG_RATE (+45 more)
 
 ### Community 39 - "journal.rs"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (21): buffer_keeps_the_last_n_lines(), journal_start_error_is_shown(), journal_stderr_is_shown(), journal_tab_renders(), JournalHandle, JournalMsg, Error, Line (+13 more)
 
 ### Community 40 - "a_rejected_apply_says_the_new_file_is_on_disk"
@@ -301,20 +286,16 @@ Cohesion: 0.27
 Nodes (4): a_rejected_apply_says_the_new_file_is_on_disk(), Disk, disk(), the_header_says_loaded_while_the_first_cycle_runs()
 
 ### Community 41 - "src/validate.rs"
-Cohesion: 0.31
-Nodes (14): CsvRow, check(), collect_nodes(), duplicate_circuit_id_stops(), min_above_max_or_bad_number_stops(), missing_parent_stops_except_in_no_parent(), multi_device_circuit_passes_but_shared_device_id_stops(), net() (+6 more)
+Cohesion: 0.16
+Nodes (22): Network, NetworkMode, FlatGlobalRoot, FlatPromotion, FlatRouterRoot, GroupedRouterRoot, NoParent, RootPromotion (+14 more)
 
 ### Community 42 - "dashboard.rs"
-Cohesion: 0.08
+Cohesion: 0.09
 Nodes (23): CPU_SCALE, data(), digest_check_shows_not_loaded(), export_dashboard_frames(), Kind, Reload, SyncNow, lines() (+15 more)
 
 ### Community 43 - "app.rs"
 Cohesion: 0.06
 Nodes (57): a_click_on_a_tab_title_selects_it(), a_key_press_clears_the_message_so_errors_show(), a_long_hint_wraps_without_a_lost_key(), a_too_large_copy_is_not_sent(), a_wide_header_is_one_line(), Action, ApplySettings, Copy (+49 more)
-
-### Community 45 - "v3network.rs"
-Cohesion: 0.27
-Nodes (15): a_bad_ip_value_skips_the_circuit(), a_duplicate_node_id_is_an_error(), a_node_type_that_v3_does_not_know_is_an_error(), a_node_without_id_or_type_gets_a_stable_id_and_site(), a_v2_plan_node_from_the_state_is_written_as_site(), bad_circuits_are_skipped_with_an_alert(), prefix(), render() (+7 more)
 
 ### Community 52 - "tui/mod.rs"
 Cohesion: 0.09
@@ -337,16 +318,12 @@ Cohesion: 0.15
 Nodes (12): Global Constraints, lqosync3 TUI Implementation Plan (Plan 4a: service changes and read-only screens), Review Focus, Review rulings (fact-check of 2026-10-31), Task 1: Service data for the TUI, Task 2: TUI frame, Task 3: Loader worker, Task 4: ShapedDevices tab (+4 more)
 
 ### Community 57 - "Status"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (15): target_name(), random_id(), random_ids_have_the_length_and_charset(), Runner, Runner<C>, state_name(), write_snapshot(), RouterStatus (+7 more)
 
 ### Community 58 - "ReadError"
-Cohesion: 0.10
-Nodes (16): map_err(), MikrotikConnector, MikrotikSession, tls_client_config(), RosRow, Connector, FakeSession, ReadError (+8 more)
-
-### Community 59 - "NetworkMode"
-Cohesion: 0.22
-Nodes (9): Network, NetworkMode, FlatGlobalRoot, FlatPromotion, FlatRouterRoot, GroupedRouterRoot, NoParent, RootPromotion (+1 more)
+Cohesion: 0.07
+Nodes (30): map_err(), MikrotikConnector, MikrotikSession, tls_client_config(), RosRow, a_dead_kept_session_reconnects_without_a_retry(), a_login_error_is_not_retried(), Connector (+22 more)
 
 ### Community 60 - "ADR-0009 DHCP discovery and exclusions"
 Cohesion: 0.20
@@ -357,40 +334,40 @@ Cohesion: 0.29
 Nodes (7): Checks, Evidence before takeover, Goal, Implementation plan and review, Next action, Result, TUI cosmetics design handoff
 
 ### Community 62 - "cli.rs"
-Cohesion: 0.17
-Nodes (19): Args, check(), check_finds_plain_api_and_no_source_router(), check_reads_the_telegram_token_when_enabled(), check_reports_a_bad_secret_and_a_missing_lqos_dir(), check_shows_the_target_or_the_detection_error(), config_digest_is_stable_and_16_hex(), DEFAULT_CONFIG (+11 more)
+Cohesion: 0.05
+Nodes (51): Args, check(), check_finds_plain_api_and_no_source_router(), check_reads_the_telegram_token_when_enabled(), check_reports_a_bad_secret_and_a_missing_lqos_dir(), check_shows_the_target_or_the_detection_error(), check_warns_when_the_file_is_not_loaded(), check_warns_when_the_libreqos_state_directory_is_missing() (+43 more)
 
 ### Community 63 - "scenarios.rs"
-Cohesion: 0.10
-Nodes (21): CycleInput, CycleOutput, names(), node_rate(), Columns, V2, V3, GuardHold (+13 more)
+Cohesion: 0.12
+Nodes (23): assemble(), CycleInput, CycleOutput, names(), node_rate(), Columns, V2, V3 (+15 more)
 
 ### Community 64 - "RouterAccess"
-Cohesion: 0.44
-Nodes (12): RouterAccess, RouterMemo, acc(), classify(), first_unreachable_sets_since(), login_tls_trap_timeout_are_failed_and_keep_memo(), memo(), name() (+4 more)
+Cohesion: 0.50
+Nodes (11): RouterAccess, RouterMemo, acc(), classify(), first_unreachable_sets_since(), login_tls_trap_timeout_are_failed_and_keep_memo(), memo(), offline_after_zero_is_offline_at_once() (+3 more)
 
 ### Community 65 - "TUI cosmetics implementation"
 Cohesion: 0.29
 Nodes (7): Changes, Checks, Goal, Limits and next action, Review and fixes, Revision, TUI cosmetics implementation
 
 ### Community 66 - "detect.rs"
-Cohesion: 0.18
-Nodes (18): Libreqos, Target, Auto, V2Pair, V3Network, V3Pair, Detected, Env (+10 more)
+Cohesion: 0.09
+Nodes (33): Libreqos, Target, Auto, V2Pair, V3Network, V3Pair, Detected, Env (+25 more)
 
 ### Community 67 - "ADR-0008 Terminal UI"
 Cohesion: 0.13
 Nodes (20): ADR-0003 Router failed vs offline, offline_action (default remove), offline_after (default 300 s), ADR-0004 TOML policy, Python defaults, Speed source order TOML lists, ADR-0007 Fresh design, not a port, Scenario tests (replace golden parity tests), Semantic compare with live files before cutover (+12 more)
 
 ### Community 69 - "PppSource"
-Cohesion: 0.29
-Nodes (7): PppSource, ActiveComment, Default, ProfileComment, ProfileName, ProfileRateLimit, SecretComment
+Cohesion: 0.13
+Nodes (15): DhcpSource, LeaseComment, ServerComment, Settings, PppSource, ActiveComment, Default, ProfileComment (+7 more)
 
 ### Community 70 - "Role"
 Cohesion: 0.29
 Nodes (7): Role, Accent, Base, Error, Ok, Secondary, Warning
 
-### Community 71 - "status.rs"
-Cohesion: 0.26
-Nodes (9): Change, Report, circuit_line(), updated_line(), CircuitInfo, ReportSummary, status_json_has_the_spec_fields(), summary_takes_values_from_rows_and_the_old_state() (+1 more)
+### Community 71 - "State"
+Cohesion: 0.10
+Nodes (21): Change, changed_columns(), Entry, Report, GuardHold, Source, Dhcp, Hotspot (+13 more)
 
 ### Community 72 - "TUI btop++ refinement"
 Cohesion: 0.33
@@ -408,13 +385,9 @@ Nodes (19): KeyPath, counts_refresh_after_draft_actions(), Extra, Client, Lease,
 Cohesion: 0.22
 Nodes (8): Global Constraints, lqosync3 DHCP Client Overrides Implementation Plan (Plan 4c), Review Focus, Review rulings (fact-check of 2026-11-01), Task 1: Config, Task 2: The shared lease list and the cycle, Task 3: The DHCP view of the Settings tab, Task 4: Docs, review, graph
 
-### Community 76 - "state.rs"
-Cohesion: 0.19
-Nodes (14): CircuitNames, load_state(), HDR, read_csv(), read_csv_accepts_bom_crlf_and_missing_columns(), read_csv_skips_blank_names_and_keeps_repeated_names(), seed_infers_source_and_keeps_ids(), seed_nodes() (+6 more)
-
 ### Community 77 - "LeaseResult"
-Cohesion: 0.22
-Nodes (9): LeaseResult, Shaped, Skipped, RateSource, LeaseComment, Override, ServerComment, Settings (+1 more)
+Cohesion: 0.20
+Nodes (10): LeaseResult, Shaped, Skipped, LeaseView, RateSource, LeaseComment, Override, ServerComment (+2 more)
 
 ### Community 78 - "BoxKind"
 Cohesion: 0.40
@@ -428,33 +401,9 @@ Nodes (4): Stage, Edit, Result, Verifying
 Cohesion: 0.23
 Nodes (7): ADR-0009 DHCP discovery and exclusions, Speed Rules, Task 2: Rate format and speed rules (SpeedParser), Task 4: Circuit collection (collect_router), Circuit rules for each source, DhcpCfg::server(name) defaults, Output format (round3, fmt_rate, 14/15 CSV columns)
 
-### Community 81 - "src/secrets.rs"
-Cohesion: 0.24
-Nodes (7): error_never_contains_the_secret(), file(), missing_file_names_the_path(), read_secret(), reads_and_trims_a_good_secret(), rejects_group_or_other_bits(), rejects_wrong_owner()
-
-### Community 82 - "settings/validate.rs"
-Cohesion: 0.31
-Nodes (7): Env, env(), parse(), validate(), validate_accepts_a_typed_password_file(), validate_names_the_key(), validate_returns_warnings()
-
-### Community 83 - "Grad"
-Cohesion: 0.24
-Nodes (7): Grad, Cpu, Free, Mem, Used, lerp(), texts()
-
 ### Community 84 - "RouterResult"
-Cohesion: 0.27
-Nodes (10): dhcp_snap(), ppp(), ppp_owned(), RouterResult, Failed, Offline, Online, Unreachable (+2 more)
-
-### Community 85 - "Level"
 Cohesion: 0.31
-Nodes (9): check_warns_when_the_file_is_not_loaded(), check_with(), CheckLine, digest_line(), Level, Error, Ok, Warn (+1 more)
-
-### Community 86 - "Command"
-Cohesion: 0.25
-Nodes (8): Command, Check, Defaults, Detect, Diff, Once, Run, Tui
-
-### Community 87 - "Source"
-Cohesion: 0.33
-Nodes (6): Entry, Source, Dhcp, Hotspot, Ppp, Unknown
+Nodes (9): dhcp_snap(), ppp(), ppp_owned(), RouterResult, Failed, Offline, Online, Unreachable (+1 more)
 
 ### Community 88 - "LogLevel"
 Cohesion: 0.40
@@ -473,21 +422,21 @@ Nodes (4): SAction, Apply, None, Preview
 ## Knowledge Gaps
 - **187 isolated node(s):** `lqosync3`, `Check`, `Once`, `Run`, `Diff` (+182 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 504 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Task 3: Transport (post_json, send, token, chat_id)` connect `Telegram Notifier` to `Configuration reference`?**
-  _High betweenness centrality (0.162) - this node is a cross-community bridge._
+  _High betweenness centrality (0.183) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `Config` (e.g. with `diff_config()` and `action_timeout()`) actually correct?**
   _`Config` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `lqosync3`, `Check`, `Once` to the rest of the system?**
   _187 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `mock_router.rs` be split into smaller, more focused modules?**
-  _Cohesion score 0.1349206349206349 - nodes in this community are weakly interconnected._
-- **Why does `Config` connect `Config` to `mock_router.rs`, `Telegram Notifier`, `runner.rs`, `Topology`, `sources.rs`, `cycle.rs`, `Config`, `draft.rs`, `meta.rs`, `preview.rs`, `diff.rs`, `RouterCfg`, `theme.rs`, `dhcp_server_gives_override_or_`, `routeros.rs`, `main.rs`, `data.rs`, `tui/mod.rs`, `Status`, `NetworkMode`, `cli.rs`, `scenarios.rs`, `RouterAccess`, `detect.rs`, `state.rs`, `settings/validate.rs`, `RouterResult`, `Level`?**
-  _High betweenness centrality (0.114) - this node is a cross-community bridge._
+- **Should `Telegram Notifier` be split into smaller, more focused modules?**
+  _Cohesion score 0.06433566433566433 - nodes in this community are weakly interconnected._
+- **Why does `Config` connect `Config` to `mock_router.rs`, `Telegram Notifier`, `runner.rs`, `Topology`, `sources.rs`, `cycle.rs`, `files.rs`, `Config`, `draft.rs`, `meta.rs`, `preview.rs`, `RouterCfg`, `Theme`, `dhcp_server_gives_override_or_`, `main.rs`, `data.rs`, `src/validate.rs`, `tui/mod.rs`, `Status`, `ReadError`, `cli.rs`, `scenarios.rs`, `RouterAccess`, `detect.rs`, `PppSource`?**
+  _High betweenness centrality (0.141) - this node is a cross-community bridge._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._
