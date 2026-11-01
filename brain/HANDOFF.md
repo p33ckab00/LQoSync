@@ -8,6 +8,44 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-01T12:03:25+08:00 (Asia/Shanghai) — TUI cosmetics plan
+
+| Item | Value |
+|------|-------|
+| Goal | Prepare the implementation plan, review it against the spec, then commit and push the documents |
+| Last agent | Codex |
+| Branch and baseline | `lqosync3`, `cf2c959` before the documentation commit |
+| Worktree | `/home/pi/LQoSync3.0` |
+| Changed files | Cosmetics spec and plan, this handoff, `brain/Home.md`, and the cosmetics session note |
+| Review | PASS for plan coverage. All A1–A5 and B6–B10 requirements have implementation and test owners. |
+| Checks | Fresh TUI baseline: 160 passed, 0 failed, 1 ignored. Documentation structure, links, and diff checks. |
+| Unfinished work | Source implementation, full implementation gates, and real-terminal checks |
+| Next action | Read the spec and plan, then implement after the operator authorizes source changes |
+
+Plan: `docs/superpowers/plans/2026-11-01-lqosync3-tui-cosmetics.md`.
+The operator authorized the documentation commit and push after a successful plan review.
+No source changes or deployment form part of this step.
+The commit that contains this entry identifies the published documentation revision.
+
+## 2026-11-01T11:54:22+08:00 (Asia/Shanghai) — TUI cosmetics design
+
+| Item | Value |
+|------|-------|
+| Goal | Complete the cosmetics design spec for all A1–A5 and B6–B10 items |
+| Last agent | Codex |
+| Branch and baseline | `lqosync3`, `cf2c959` |
+| Worktree | `/home/pi/LQoSync3.0` |
+| State at takeover | Clean working tree. No cosmetics spec or implementation changes. Claude Code remained open, without a visible build or edit subprocess. |
+| Changed files | New cosmetics spec, this handoff, `brain/Home.md`, and the linked session note |
+| Checks | TUI baseline: 160 passed, 0 failed, 1 ignored. STE heuristic review and manual requirement review. |
+| Unfinished work | Review and implementation of the design. Full build gates and terminal visual checks belong to implementation. |
+| Next action | Read the spec and confirm current ownership before implementation edits. Preserve existing keys and the apply flow. |
+
+Spec: `docs/superpowers/specs/2026-11-01-lqosync3-tui-cosmetics-design.md`.
+Session: [[2026-11-01-tui-cosmetics-design-handoff]].
+No source code or production state changed during this takeover.
+The older sections below contain historical context. Verify their claims against current files.
+
 ## 2026-10-31 (Asia/Shanghai) — documentation phase
 
 | Item | Value |
