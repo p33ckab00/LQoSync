@@ -172,7 +172,7 @@ max_list_items = 15
 [tui]                           # used by lqosync3 tui only; the service checks them at start and at reload
 refresh_ms = 1000               # milliseconds between two reads of the status, the files, and the process
 journal_lines = 2000            # lines that the Journal tab keeps
-graph_samples = 120             # samples that each Dashboard graph keeps, one at each refresh_ms
+graph_samples = 120             # samples that each Dashboard graph keeps, one at each refresh_ms; restart the TUI after apply
 max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded
 osc52 = true                    # y copies with OSC 52; false: select with the terminal (s)
 apply_verify_timeout = 120      # seconds to wait for a result in status.json, plus libreqos.v2_timeout (a running cycle)
