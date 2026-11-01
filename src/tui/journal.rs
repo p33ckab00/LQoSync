@@ -1,6 +1,6 @@
 //! The Journal tab: `journalctl -f` of the service, with a level filter, search, and line selection.
 
-use crate::tui::theme::{Palette, Role};
+use crate::tui::theme::{BoxKind, Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -338,7 +338,7 @@ impl JournalView {
             if self.editing { "_" } else { "" }
         );
         f.render_widget(
-            Paragraph::new(lines).block(palette.panel(Line::from(title), true)),
+            Paragraph::new(lines).block(palette.panel(BoxKind::Proc, &title, true)),
             body,
         );
     }

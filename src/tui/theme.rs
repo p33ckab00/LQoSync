@@ -111,19 +111,6 @@ impl Palette {
         }
     }
 
-    pub fn panel<'a>(&self, title: Line<'a>, focused: bool) -> Block<'a> {
-        Block::default()
-            .style(self.canvas())
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(if focused {
-                self.role(Role::Accent)
-            } else {
-                Style::new().fg(self.color(Color::DarkGray))
-            })
-            .title(title.style(self.role(Role::Accent)))
-    }
-
     pub fn badge<'a>(&self, text: &'a str, role: Role, selected: bool) -> Span<'a> {
         let mut style = self
             .role(role)
@@ -280,19 +267,23 @@ impl Palette {
         Line::from(spans)
     }
 
-    /// A box with rounded corners, the border colour of its kind, and a btop++ title.
-    pub fn boxed(&self, kind: BoxKind, name: &str, hotkey: Option<u8>) -> Block<'static> {
+    /// A btop++ box: rounded corners, the border colour of its kind, the title as `┐name┌`.
+    /// The title of the focused box takes the selection colours.
+    pub fn panel(&self, kind: BoxKind, title: &str, focused: bool) -> Block<'static> {
         let border = Style::new().fg(self.box_color(kind));
-        let mut title = self.title(name, hotkey);
-        let last = title.spans.len() - 1;
-        title.spans[0].style = border;
-        title.spans[last].style = border;
+        let mut line = self.title(title.trim(), None);
+        let last = line.spans.len() - 1;
+        line.spans[0].style = border;
+        line.spans[last].style = border;
+        if focused {
+            line.spans[1].style = self.selection();
+        }
         Block::default()
             .style(self.canvas())
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(border)
-            .title(title)
+            .title(line)
     }
 
     /// A meter of `■` cells: the filled part takes the colours of the scale, the rest is dim.
@@ -454,6 +445,26 @@ mod tests {
         let t = p.title("devices", Some(1));
         assert_eq!(t.to_string(), "┐¹devices┌");
         assert_eq!(p.title("node", None).to_string(), "┐node┌");
+    }
+
+    #[test]
+    fn a_panel_has_the_box_colour_and_marks_focus_in_the_title() {
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use ratatui::widgets::Widget;
+        let p = Palette::new(Theme::Dark);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 12, 3));
+        p.panel(BoxKind::Net, " node ", true)
+            .render(buf.area, &mut buf);
+        let top: String = (0..12).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert_eq!(top, "╭┐node┌────╮");
+        assert_eq!(buf[(0, 0)].fg, Color::Rgb(0x5c, 0x58, 0x8d));
+        assert_eq!(buf[(2, 0)].bg, Color::Rgb(0x6a, 0x2f, 0x2f));
+        let mut buf = Buffer::empty(Rect::new(0, 0, 12, 3));
+        p.panel(BoxKind::Net, "node", false)
+            .render(buf.area, &mut buf);
+        assert_eq!(buf[(2, 0)].fg, Color::Rgb(0xee, 0xee, 0xee));
+        assert_ne!(buf[(2, 0)].bg, Color::Rgb(0x6a, 0x2f, 0x2f));
     }
 
     #[test]

@@ -7,7 +7,7 @@ use super::journal::JournalView;
 use super::network::NetworkView;
 use super::osc52::MAX_COPY;
 use super::settings::view::{PreviewJob, SAction, SettingsView};
-use super::theme::{Palette, Role};
+use super::theme::{BoxKind, Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -566,7 +566,7 @@ fn dialog<'a>(title: &'a str, m: Modal, palette: &Palette) -> Block<'a> {
         Modal::Discard => " [y] quit and discard   [n / Esc] stay ",
     };
     palette
-        .panel(Line::from(title), true)
+        .panel(BoxKind::Proc, title, true)
         .title_bottom(palette.keys(bar))
 }
 

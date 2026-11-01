@@ -3,7 +3,7 @@
 use super::app::split_main;
 use super::data::{Data, FLAG_DUP_IP, FLAG_NO_PARENT, FLAG_RATE};
 use crate::model::CsvRow;
-use crate::tui::theme::{Palette, Role};
+use crate::tui::theme::{BoxKind, Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -356,7 +356,11 @@ impl DevicesView {
         f.render_stateful_widget(
             Table::new(rows, widths)
                 .header(header)
-                .block(palette.panel(Line::from(title), true).title_bottom(summary))
+                .block(
+                    palette
+                        .panel(BoxKind::Cpu, &title, true)
+                        .title_bottom(summary),
+                )
                 .row_highlight_style(palette.selection()),
             main,
             &mut state,
@@ -370,7 +374,7 @@ impl DevicesView {
             .wrap(Wrap { trim: false })
             .block(
                 palette
-                    .panel(Line::from(" circuit "), false)
+                    .panel(BoxKind::Mem, "circuit", false)
                     .title_bottom(counts),
             ),
             side,

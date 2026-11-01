@@ -2,7 +2,7 @@
 
 use super::app::split_main;
 use super::data::Data;
-use crate::tui::theme::{Palette, Role, clip};
+use crate::tui::theme::{BoxKind, Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -224,7 +224,7 @@ impl NetworkView {
             .download_scale
             .map_or("unknown".into(), |v| v.to_string());
         let block = palette
-            .panel(Line::from(title), true)
+            .panel(BoxKind::Net, &title, true)
             .title_bottom(format!(" bar: download / max {scale} Mbps "));
         if self.visible.is_empty() {
             f.render_widget(
@@ -302,7 +302,7 @@ impl NetworkView {
         );
         f.render_widget(
             Paragraph::new(self.detail(d, side.height.saturating_sub(10) as usize))
-                .block(palette.panel(Line::from(" node "), false)),
+                .block(palette.panel(BoxKind::Mem, "node", false)),
             side,
         );
     }

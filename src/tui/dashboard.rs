@@ -1,7 +1,7 @@
 //! The Dashboard tab: the service, the last cycle, versions, the process, and the actions.
 
 use super::data::Data;
-use crate::tui::theme::{Palette, Role, clip};
+use crate::tui::theme::{BoxKind, Palette, Role, clip};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::symbols::Marker;
@@ -376,7 +376,15 @@ impl DashboardView {
                 .unwrap_or_else(|| "guard alerts: unknown".into()),
         ];
         for i in 0..6 {
-            let mut block = palette.panel(Line::from(format!(" {} ", titles[i])), false);
+            let kind = [
+                BoxKind::Mem,
+                BoxKind::Proc,
+                BoxKind::Net,
+                BoxKind::Mem,
+                BoxKind::Mem,
+                BoxKind::Cpu,
+            ][i];
+            let mut block = palette.panel(kind, titles[i], false);
             if i == 5 {
                 let context = d.proc.as_ref().map_or(" PID unknown ".into(), |p| {
                     format!(

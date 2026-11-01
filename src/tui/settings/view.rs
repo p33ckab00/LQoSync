@@ -11,7 +11,7 @@ use super::validate;
 use crate::model::RouterSnapshot;
 use crate::sources::{LeaseResult, LeaseView, RateSource};
 use crate::tui::dashboard::Sent;
-use crate::tui::theme::{Palette, Role};
+use crate::tui::theme::{BoxKind, Palette, Role};
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyModifiers;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
@@ -1858,14 +1858,9 @@ impl SettingsView {
                 self.raw
             );
             f.render_widget(
-                Paragraph::new(text).wrap(Wrap { trim: false }).block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(palette.canvas())
-                        .border_type(BorderType::Rounded)
-                        .title_style(palette.role(Role::Accent))
-                        .title(" config file "),
-                ),
+                Paragraph::new(text)
+                    .wrap(Wrap { trim: false })
+                    .block(palette.panel(BoxKind::Proc, "config file", true)),
                 body,
             );
             return;
@@ -1888,13 +1883,7 @@ impl SettingsView {
         };
         self.areas = [g, k, h];
         let hl = palette.selection();
-        let focus = |on: bool| {
-            if on {
-                Style::new().fg(palette.color(Color::Cyan))
-            } else {
-                Style::new().fg(palette.color(Color::DarkGray))
-            }
-        };
+
         let items: Vec<ListItem> = self
             .groups
             .iter()
@@ -1909,15 +1898,7 @@ impl SettingsView {
         let mut st = ListState::default().with_selected(Some(self.group));
         f.render_stateful_widget(
             List::new(items)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(palette.canvas())
-                        .border_type(BorderType::Rounded)
-                        .title_style(palette.role(Role::Accent))
-                        .border_style(focus(self.focus == 0))
-                        .title(" groups "),
-                )
+                .block(palette.panel(BoxKind::Mem, "groups", self.focus == 0))
                 .highlight_style(hl),
             g,
             &mut st,
@@ -2001,15 +1982,7 @@ impl SettingsView {
         let mut st = ListState::default().with_selected((self.focus == 1).then_some(self.key));
         f.render_stateful_widget(
             List::new(rows)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(palette.canvas())
-                        .border_type(BorderType::Rounded)
-                        .title_style(palette.role(Role::Accent))
-                        .border_style(focus(self.focus == 1))
-                        .title(" keys "),
-                )
+                .block(palette.panel(BoxKind::Cpu, "keys", self.focus == 1))
                 .highlight_style(hl),
             k,
             &mut st,
@@ -2019,18 +1992,17 @@ impl SettingsView {
                 .wrap(Wrap { trim: false })
                 .scroll((self.scroll, 0))
                 .block({
-                    let b = Block::default()
-                        .borders(Borders::ALL)
-                        .style(palette.canvas())
-                        .border_type(BorderType::Rounded)
-                        .title_style(palette.role(Role::Accent))
-                        .title(if self.conflict.is_some() {
-                            " the file on disk changed "
+                    let b = palette.panel(
+                        BoxKind::Net,
+                        if self.conflict.is_some() {
+                            "the file on disk changed"
                         } else if self.current_preview().is_some() {
-                            " preview ([ ] scroll) "
+                            "preview ([ ] scroll)"
                         } else {
-                            " help "
-                        });
+                            "help"
+                        },
+                        false,
+                    );
                     // The next step of edit, preview, apply stays on the border until it changes.
                     if step.is_empty() {
                         b
