@@ -49,10 +49,11 @@ esac
 cfg_mode="$mode"
 if [ -e "$CONF" ]; then
     cfg_mode="$(awk '/^[[:space:]]*\[/ { s = $0 } s ~ /^[[:space:]]*\[runtime\]/ && /^[[:space:]]*mode[[:space:]]*=/ { sub(/^[^"]*"/, ""); sub(/".*/, ""); print; exit }' "$CONF")"
-    cfg_mode="${cfg_mode:-shadow}"
+    # A form that this reader does not know counts as apply: the guard below then stops.
+    case "$cfg_mode" in shadow|apply) ;; "") cfg_mode=shadow ;; *) cfg_mode="unknown ($cfg_mode)" ;; esac
 fi
-if [ "$cfg_mode" = "apply" ] && systemctl is-active --quiet lqosync-updatecsv.service; then
-    die "the config has mode = \"apply\" and lqosync-updatecsv.service (the Python service) is active. Stop it first: sudo systemctl disable --now lqosync-updatecsv.service"
+if [ "$cfg_mode" != "shadow" ] && systemctl is-active --quiet lqosync-updatecsv.service; then
+    die "the config has runtime.mode = $cfg_mode and lqosync-updatecsv.service (the Python service) is active. Stop it first: sudo systemctl disable --now lqosync-updatecsv.service"
 fi
 
 # 4. The release: the newest v3 release, or --version.
@@ -95,7 +96,7 @@ else
 fi
 
 if systemctl is-active --quiet lqosync-updatecsv.service; then
-    echo "WARNING: lqosync-updatecsv.service (the Python service) is active. Stop it before you set mode = \"apply\"."
+    echo "WARNING: lqosync-updatecsv.service (the Python service) is active. Stop it before you set runtime.mode = \"apply\"."
 fi
 
 # 7. Check the config. Start (or restart) the service only if the check has no error.
@@ -114,4 +115,5 @@ elif [ "$was_active" -eq 1 ]; then
     echo "lqosync3.service: $(systemctl is-active lqosync3.service)"
 else
     echo "lqosync3.service was stopped before the upgrade: it stays stopped (enabled: $was_enabled)."
+    echo "To start it: sudo systemctl enable --now lqosync3.service"
 fi
