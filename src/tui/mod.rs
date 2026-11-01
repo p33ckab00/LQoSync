@@ -106,6 +106,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     app.osc52 = cfg.tui.osc52;
     app.action_timeout = action_timeout(&cfg);
     app.journal = journal::JournalView::new(cfg.tui.journal_lines);
+    app.dashboard.samples = cfg.tui.graph_samples;
     app.settings =
         settings::view::SettingsView::new(config.to_path_buf(), &app.data.config_text, read_only);
     let (ptx, prx) = mpsc::channel();

@@ -301,6 +301,8 @@ pub struct Tui {
     pub theme: Theme,
     pub refresh_ms: u64,
     pub journal_lines: usize,
+    /// Samples that each Dashboard graph keeps (one sample at each refresh).
+    pub graph_samples: usize,
     pub max_file_mb: u64,
     pub osc52: bool,
     pub apply_verify_timeout: u64,
@@ -1001,6 +1003,10 @@ impl Config {
             "config: tui.journal_lines must be 1 to 100000"
         );
         ensure!(
+            (10..=3600).contains(&tui.graph_samples),
+            "config: tui.graph_samples must be 10 to 3600"
+        );
+        ensure!(
             (1..=4096).contains(&tui.max_file_mb),
             "config: tui.max_file_mb must be 1 to 4096"
         );
@@ -1556,6 +1562,7 @@ mod tests {
         assert_eq!(c.tui.service_unit, "lqosync3.service");
         assert_eq!(c.tui.apply_verify_timeout, 120);
         assert_eq!(c.tui.preview_max_age, 300);
+        assert_eq!(c.tui.graph_samples, 120);
         assert_eq!(
             c.tui.lqosd_units,
             ["lqosd.service", "libreqos-lqosd.service"]
@@ -1566,6 +1573,7 @@ mod tests {
             ("max_file_mb=0", "tui.max_file_mb"),
             ("apply_verify_timeout=1", "tui.apply_verify_timeout"),
             ("preview_max_age=5", "tui.preview_max_age"),
+            ("graph_samples=1", "tui.graph_samples"),
             ("service_unit=\" \"", "tui.service_unit"),
         ] {
             let e = Config::from_toml_str(&format!("[tui]\n{bad}\n{MIN}")).unwrap_err();

@@ -367,23 +367,7 @@ impl App {
             return;
         }
         let keys = self.key_hint();
-        let mut hint_lines = vec![String::new()];
-        for part in keys.split("  ").filter(|p| !p.is_empty()) {
-            let last = hint_lines.last_mut().unwrap();
-            if !last.is_empty()
-                && Line::from(format!("{last}  {part}")).width() > area.width as usize
-            {
-                if hint_lines.len() == 2 {
-                    break;
-                }
-                hint_lines.push(part.to_string());
-            } else {
-                if !last.is_empty() {
-                    last.push_str("  ");
-                }
-                last.push_str(part);
-            }
-        }
+        let hint_lines = wrap_hint(&keys, area.width);
         let settings_msg = (self.tab == Tab::Settings)
             .then_some(self.settings.message.as_ref())
             .flatten();
@@ -588,6 +572,24 @@ impl App {
     }
 }
 
+/// The key hint in lines of at most `width` cells. A break is only between two keys,
+/// and no key is dropped.
+fn wrap_hint(keys: &str, width: u16) -> Vec<String> {
+    let mut lines = vec![String::new()];
+    for part in keys.split("  ").map(str::trim).filter(|p| !p.is_empty()) {
+        let last = lines.last_mut().unwrap();
+        if !last.is_empty() && Line::from(format!("{last}  {part}")).width() > width as usize {
+            lines.push(part.to_string());
+        } else {
+            if !last.is_empty() {
+                last.push_str("  ");
+            }
+            last.push_str(part);
+        }
+    }
+    lines
+}
+
 /// The keys of a dialog, for the footer.
 fn modal_keys(m: Modal) -> &'static str {
     match m {
@@ -696,6 +698,43 @@ mod tests {
         assert_eq!(buf[(r.x + 2, r.y)].bg, a.palette.selection().bg.unwrap());
         let r0 = a.tab_rects[0];
         assert_ne!(buf[(r0.x + 2, r0.y)].bg, a.palette.selection().bg.unwrap());
+    }
+
+    #[test]
+    fn a_long_hint_wraps_without_a_lost_key() {
+        let lines = wrap_hint("[a] one   [b] two  [c] three  [d] four", 14);
+        assert_eq!(lines, ["[a] one", "[b] two", "[c] three", "[d] four"]);
+    }
+
+    #[test]
+    fn every_key_of_each_hint_shows_at_80_columns() {
+        let mut a = app(false);
+        let mut cases: Vec<(Tab, Option<Modal>)> = Tab::ALL.iter().map(|&t| (t, None)).collect();
+        cases.push((Tab::Devices, Some(Modal::ConfirmSync)));
+        cases.push((Tab::Devices, Some(Modal::Discard)));
+        for (tab, modal) in cases {
+            a.tab = tab;
+            a.modal = modal;
+            let hint = a.key_hint();
+            let s = draw(&mut a, 80, 24);
+            let footer: String = s.lines().skip(20).collect::<Vec<_>>().join("\n");
+            let mut rest = hint.as_str();
+            while let Some(i) = rest.find('[') {
+                let j = i + rest[i..].find(']').unwrap() + 1;
+                assert!(
+                    footer.contains(&rest[i..j]),
+                    "{tab:?} {}: {footer}",
+                    &rest[i..j]
+                );
+                rest = &rest[j..];
+            }
+            assert!(
+                !footer
+                    .lines()
+                    .any(|l| l.starts_with(' ') && !l.trim().is_empty()),
+                "{footer}"
+            );
+        }
     }
 
     #[test]

@@ -263,11 +263,17 @@ impl NetworkView {
                     "plan" => Role::Warning,
                     _ => Role::Secondary,
                 };
-                let name_width = main.width.saturating_sub(
-                    Line::from(format!("{}{} [{}]", n.prefix, mark, n.kind)).width() as u16 + 3,
-                ) as usize;
+                // A deep node keeps at least 8 cells of its name: the left guides go first.
+                let avail = (main.width as usize)
+                    .saturating_sub(Line::from(format!("{mark} [{}]", n.kind)).width() + 3);
+                let guides: Vec<char> = n.prefix.chars().collect();
+                let keep = guides
+                    .len()
+                    .min(avail.saturating_sub(n.name.chars().count().min(8)));
+                let name_width = avail - keep;
+                let prefix: String = guides[guides.len() - keep..].iter().collect();
                 let mut spans = vec![
-                    Span::styled(n.prefix.clone(), style(Role::Secondary)),
+                    Span::styled(prefix, style(Role::Secondary)),
                     Span::raw(mark),
                     Span::styled(clip(&n.name, name_width), style(Role::Base)),
                     Span::styled(format!(" [{}]", n.kind), style(role)),
@@ -275,21 +281,30 @@ impl NetworkView {
                 let numeric = n
                     .rate
                     .filter(|(d, u)| d.is_finite() && u.is_finite() && *d >= 0.0 && *u >= 0.0);
-                let rate = numeric.map_or(
-                    vec![Span::styled(" unknown", style(Role::Accent))],
-                    |(d, u)| {
+                // The full rate with its meter, else a shorter form that fits.
+                let rates = match numeric {
+                    Some((d, u)) => {
                         let ratio = rate_fill(Some(d), self.download_scale).unwrap_or(0.0);
-                        let mut v = vec![Span::raw(" ")];
-                        v.extend(palette.meter(ratio, 8, Grad::Free).spans);
-                        v.push(Span::styled(
+                        let mut full = vec![Span::raw(" ")];
+                        full.extend(palette.meter(ratio, 8, Grad::Free).spans);
+                        full.push(Span::styled(
                             format!(" D/U Mbps {d}/{u}"),
                             style(Role::Accent),
                         ));
-                        v
-                    },
-                );
-                if Line::from(spans.clone()).width() + Line::from(rate.clone()).width() + 2
-                    <= main.width as usize
+                        vec![
+                            full,
+                            vec![Span::styled(format!(" {d}/{u}"), style(Role::Accent))],
+                        ]
+                    }
+                    None => vec![
+                        vec![Span::styled(" unknown", style(Role::Accent))],
+                        vec![Span::styled(" ?", style(Role::Accent))],
+                    ],
+                };
+                let used = Line::from(spans.clone()).width();
+                if let Some(rate) = rates
+                    .into_iter()
+                    .find(|r| used + Line::from(r.clone()).width() + 2 <= main.width as usize)
                 {
                     spans.extend(rate);
                 }
@@ -418,6 +433,54 @@ mod tests {
         (0..20)
             .map(|y| (0..120).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
             .collect()
+    }
+
+    fn narrow(v: &mut NetworkView, d: &Data, w: u16) -> String {
+        let mut t = Terminal::new(TestBackend::new(w, 20)).unwrap();
+        t.draw(|f| v.draw(f, f.area(), d, &Palette::new(crate::config::Theme::Dark)))
+            .unwrap();
+        let buf = t.backend().buffer();
+        (0..20)
+            .map(|y| (0..w).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
+            .collect()
+    }
+
+    #[test]
+    fn a_deep_node_keeps_its_name_on_a_narrow_screen() {
+        let mut tree = json!({"deepest": {"id": "x"}});
+        for i in (0..15).rev() {
+            tree = json!({ format!("L{i}"): {"children": tree} });
+        }
+        let d = Data {
+            tree: Arc::new(tree),
+            ..Data::default()
+        };
+        let mut v = NetworkView::default();
+        v.on_data(&d);
+        v.on_key(key(KeyCode::Char('e')), &d);
+        for _ in 0..15 {
+            v.on_key(key(KeyCode::Down), &d);
+        }
+        let s = narrow(&mut v, &d, 36);
+        let tree_panel: String = s.lines().take(11).collect();
+        assert!(tree_panel.contains("deep"), "{s}");
+        assert!(s.lines().take(11).all(|l| !l.contains(" [│")), "{s}");
+    }
+
+    #[test]
+    fn a_narrow_screen_keeps_a_short_rate() {
+        let d = Data {
+            tree: Arc::new(json!({
+                "a-long-site-name-here": {"downloadBandwidthMbps": 100, "uploadBandwidthMbps": 90},
+                "b-long-site-name-here": {"id": "b"}
+            })),
+            ..Data::default()
+        };
+        let mut v = NetworkView::default();
+        v.on_data(&d);
+        let s = narrow(&mut v, &d, 44);
+        assert!(s.contains("100/90"), "{s}");
+        assert!(s.contains("unknown") || s.contains(" ?"), "{s}");
     }
 
     #[test]

@@ -172,6 +172,7 @@ max_list_items = 15
 [tui]                           # used by lqosync3 tui only; the service checks them at start and at reload
 refresh_ms = 1000               # milliseconds between two reads of the status, the files, and the process
 journal_lines = 2000            # lines that the Journal tab keeps
+graph_samples = 120             # samples that each Dashboard graph keeps, one at each refresh_ms
 max_file_mb = 50                # a larger ShapedDevices.csv or network.json is not loaded
 osc52 = true                    # y copies with OSC 52; false: select with the terminal (s)
 apply_verify_timeout = 120      # seconds to wait for a result in status.json, plus libreqos.v2_timeout (a running cycle)
@@ -395,6 +396,7 @@ The `[tui]` keys are for `lqosync3 tui` only. The service does not use them, but
 
 - `refresh_ms` (100 to 60000): the time between two reads of `status.json`, the files, `systemctl`, and `/proc`.
 - `journal_lines` (1 to 100000): the lines that the Journal tab keeps.
+- `graph_samples` (10 to 3600): the samples that each Dashboard graph keeps. The TUI adds one sample at each `refresh_ms`. A graph cell shows two samples.
 - `max_file_mb` (1 to 4096): a larger `ShapedDevices.csv`, `network.json`, or `libreqos_network.json` is not loaded. The screen keeps the last data and shows an error.
 - `osc52`: `y` copies with OSC 52. With `false`, select with the terminal (`s`).
 - `apply_verify_timeout` (5 to 3600 seconds): the time to wait for the result of sync now, reload, and a settings apply in `status.json`. The TUI adds `libreqos.v2_timeout`, because the service handles a signal only after the running cycle.

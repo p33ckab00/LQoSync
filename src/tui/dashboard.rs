@@ -10,7 +10,8 @@ use serde_json::Value;
 use std::collections::VecDeque;
 
 /// Graph samples kept for this TUI session.
-const SAMPLES: usize = 120;
+/// The CPU samples are in tenths of a percent, so 100% of one core is 1000.
+const CPU_SCALE: u64 = 1000;
 
 /// `YYYY-MM-DD hh:mm:ss` of a Unix time, in UTC (days to civil date, H. Hinnant).
 pub fn fmt_utc(unix: u64) -> String {
@@ -303,11 +304,23 @@ pub fn send(kind: Kind, d: &Data, now: u64, main_pid: Option<u32>) -> Result<Sen
     })
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DashboardView {
     /// CPU percent in tenths, and RSS in kB.
     pub cpu: VecDeque<u64>,
     pub rss: VecDeque<u64>,
+    /// `tui.graph_samples`.
+    pub samples: usize,
+}
+
+impl Default for DashboardView {
+    fn default() -> Self {
+        Self {
+            cpu: VecDeque::new(),
+            rss: VecDeque::new(),
+            samples: crate::config::defaults().tui.graph_samples,
+        }
+    }
 }
 
 impl DashboardView {
@@ -315,10 +328,10 @@ impl DashboardView {
     pub fn on_data(&mut self, d: &Data) {
         if let Some(p) = &d.proc {
             // An unknown CPU value (the first sample) is not drawn as 0.
-            let cpu = p.cpu_pct.map(|c| (c * 10.0) as u64);
+            let cpu = p.cpu_pct.map(|c| (c * (CPU_SCALE as f64 / 100.0)) as u64);
             for (q, v) in [(&mut self.cpu, cpu), (&mut self.rss, Some(p.rss_kb))] {
                 let Some(v) = v else { continue };
-                if q.len() == SAMPLES {
+                while q.len() >= self.samples.max(1) {
                     q.pop_front();
                 }
                 q.push_back(v);
@@ -612,7 +625,7 @@ impl DashboardView {
                     label,
                     Role::Accent,
                     cpu.map_or(0.0, |v| fill_ratio(v, 100.0)),
-                    1000,
+                    CPU_SCALE,
                     &self.cpu,
                     "0 ─ 100% of one core".to_string(),
                 )
@@ -768,7 +781,7 @@ fn draw_routers(f: &mut Frame, area: Rect, d: &Data, palette: &Palette) {
 }
 
 fn card_areas(area: Rect) -> [Rect; 6] {
-    let graph_height = (area.height * 2 / 5)
+    let graph_height = ((u32::from(area.height) * 2 / 5) as u16)
         .max(8)
         // The cards need about 18 rows; the graphs take the rest.
         .max(area.height.saturating_sub(18))
@@ -1043,6 +1056,12 @@ mod tests {
         }
     }
     #[test]
+    fn a_very_tall_area_does_not_overflow() {
+        let cards = card_areas(Rect::new(0, 0, 1, 60_000));
+        assert!(cards[5].height >= 24_000);
+    }
+
+    #[test]
     fn dashboard_card_geometry() {
         let cards = card_areas(Rect::new(0, 0, 80, 20));
         assert_eq!(cards[5], Rect::new(0, 0, 80, 8));
@@ -1061,6 +1080,31 @@ mod tests {
             assert!(cards[2].y > cards[5].y);
         }
     }
+    #[test]
+    fn the_graphs_keep_tui_graph_samples() {
+        let mut v = DashboardView {
+            samples: 3,
+            ..DashboardView::default()
+        };
+        let mut d = Data::default();
+        for i in 0..5 {
+            d.proc = Some(ProcInfo {
+                pid: 1,
+                start_unix: 1,
+                elapsed_s: 1,
+                rss_kb: i,
+                cpu_pct: Some(i as f64),
+            });
+            v.on_data(&d);
+        }
+        assert_eq!(v.rss, [2, 3, 4]);
+        assert_eq!(v.cpu, [20, 30, 40]);
+        assert_eq!(
+            DashboardView::default().samples,
+            crate::config::defaults().tui.graph_samples
+        );
+    }
+
     #[test]
     fn process_gauge_scales_and_unknowns() {
         assert_eq!(fill_ratio(25.0, 100.0), 0.25);
