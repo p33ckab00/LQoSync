@@ -9,6 +9,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 # Handoff
 
 
+## 2026-11-01T08:26:04+00:00 — btop TUI, review fixes, new LibreQoS installation
+
+| Item | Value |
+|------|-------|
+| Goal | Make the TUI like btop++, fix the review findings, and support a new LibreQoS installation |
+| Last agent | Claude Code (Opus 5.5), with Sonnet reviewers |
+| Branch and source revision | `lqosync3`, `fa7ffd9` before the brain notes |
+| Worktree | `/home/pi/LQoSync3.0` |
+| Changed files | `src/tui/*`, `src/runner.rs`, `src/cli.rs`, `src/config.rs`, `config/defaults.toml`, docs, specs, brain |
+| Checks | 437 library tests and all integration tests passed. Clippy and fmt passed. Final reviews: PASS. |
+| Deploy | The operator installed the release build and restarted the service. |
+| Unfinished work | The approved process chart (CPU, RSS, I/O, network). Real-terminal review of the TUI. |
+| Next action | Build the process chart. I/O and network need `IOAccounting=yes` and `IPAccounting=yes` on the service. |
+
+Session: [[2026-11-01-btop-tui-and-fresh-install]].
+Decision: [[ADR-0010-first-full-libreqos-run]].
+
 ## 2026-11-01T12:45:09+08:00 (Asia/Shanghai) — TUI cosmetics implementation
 
 | Item | Value |

@@ -11,6 +11,7 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-01-btop-tui-and-fresh-install]]
 - [[2026-11-01-tui-cosmetics-implementation]]
 - [[2026-11-01-tui-cosmetics-design-handoff]]
 - [[2026-10-31-project-setup-and-v3-simulation]]
@@ -28,6 +29,7 @@ Read [[HANDOFF]] first for the current state.
 - [[ADR-0007-fresh-design-not-a-port]] — accepted
 - [[ADR-0008-terminal-ui]] — accepted
 - [[ADR-0009-dhcp-discovery-and-exclusions]] — accepted
+- [[ADR-0010-first-full-libreqos-run]] — accepted
 
 ## Knowledge
 - [[libreqos-v3-ingress-facts]]
