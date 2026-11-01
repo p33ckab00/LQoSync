@@ -89,7 +89,7 @@ The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key o
    - circuits that the removal guard holds. The next cycle removes them.
 10. Push `A` and read the confirmation. Push `y` to apply, or `n` or `Esc` to cancel. Other keys do nothing. The TUI:
    - stops if another person changed the file after the start of the edit,
-   - copies the old file to `<state_dir>/config-backups/<unix seconds>.toml` (it keeps `runtime.keep_backups` files),
+   - copies the old file to `<state_dir>/config-backups/<unix seconds>.toml` (a second apply in the same second gets `-1`, `-2`; it keeps `runtime.keep_backups` files),
    - writes the secret files (mode `0600`, owner root), then the config file,
    - sends `SIGHUP` to the service.
 11. Wait for the result in the header. "applied" shows only when `status.json` has the digest of the new file. "not applied" shows the `config_error` of the service: the old config stays. "not verified" shows the two digests.

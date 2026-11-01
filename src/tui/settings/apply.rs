@@ -16,22 +16,34 @@ pub enum ApplyError {
 }
 
 /// Keep the newest `keep` config backups (`<12 digits>.toml`). Never remove `new`.
+/// The order key of a config backup name: `<12 digits>.toml` or `<12 digits>-<n>.toml`.
+fn backup_key(p: &Path) -> Option<(u64, u64)> {
+    if p.extension().is_none_or(|x| x != "toml") {
+        return None;
+    }
+    let stem = p.file_stem()?.to_str()?;
+    let (secs, n) = match stem.split_once('-') {
+        Some((s, n)) => (s, n.parse::<u64>().ok()?),
+        None => (stem, 0),
+    };
+    if secs.len() != 12 || !secs.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some((secs.parse().ok()?, n))
+}
+
+/// Keep the newest `keep` config backups. Never remove `new`.
 fn prune(dir: &Path, keep: usize, new: &Path) {
     let Ok(rd) = std::fs::read_dir(dir) else {
         return;
     };
-    let mut names: Vec<PathBuf> = rd
+    let mut names: Vec<((u64, u64), PathBuf)> = rd
         .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension().is_some_and(|x| x == "toml")
-                && p.file_stem()
-                    .and_then(|s| s.to_str())
-                    .is_some_and(|s| s.len() == 12 && s.bytes().all(|b| b.is_ascii_digit()))
-        })
+        .filter_map(|p| backup_key(&p).map(|k| (k, p)))
         .collect();
     names.sort();
     let extra = names.len().saturating_sub(keep.max(1));
-    for p in names.into_iter().take(extra).filter(|p| p != new) {
+    for (_, p) in names.into_iter().take(extra).filter(|(_, p)| p != new) {
         let _ = std::fs::remove_file(p);
     }
 }
@@ -58,7 +70,14 @@ pub fn apply(
     }
     let dir = state_dir.join("config-backups");
     std::fs::create_dir_all(&dir).map_err(|e| io(&format!("cannot make {}", dir.display()), &e))?;
-    let backup = dir.join(format!("{now:012}.toml"));
+    // Two applies in one second: the second backup gets a number, so none is replaced.
+    let backup = (0..)
+        .map(|n: u64| match n {
+            0 => dir.join(format!("{now:012}.toml")),
+            n => dir.join(format!("{now:012}-{n}.toml")),
+        })
+        .find(|p| !p.exists())
+        .expect("a free backup name");
     // fs::copy keeps the mode of the old file.
     std::fs::copy(path, &backup)
         .map_err(|e| io(&format!("cannot write {}", backup.display()), &e))?;
@@ -256,6 +275,36 @@ mod tests {
         }
         assert_eq!(backups(&e), ["000000000002.toml", "000000000003.toml"]);
         let b = std::fs::read_to_string(e.state.join("config-backups/000000000003.toml")).unwrap();
+        assert!(b.contains("102"), "{b}");
+    }
+
+    #[test]
+    fn two_applies_in_one_second_keep_both_backups() {
+        let e = env();
+        for (n, text) in [
+            "[runtime]\nscan_interval_idle = 101\n",
+            "[runtime]\nscan_interval_idle = 102\n",
+            "[runtime]\nscan_interval_idle = 103\n",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let start = config_digest(&std::fs::read(&e.cfg).unwrap());
+            apply(
+                &e.cfg,
+                &start,
+                text,
+                &[],
+                &e.state,
+                2,
+                if n == 0 { 5 } else { 7 },
+            )
+            .unwrap();
+        }
+        // The two newest stay: the second and the third apply (both at second 7).
+        assert_eq!(backups(&e), ["000000000007-1.toml", "000000000007.toml"]);
+        let b =
+            std::fs::read_to_string(e.state.join("config-backups/000000000007-1.toml")).unwrap();
         assert!(b.contains("102"), "{b}");
     }
 
