@@ -131,27 +131,61 @@ NOTE: The TUI never restarts the service. A config file with a TOML error opens 
 
 Each cycle writes one summary line. The line has the counts of added, updated, and removed circuits, the time of each router read, and the result of the apply step.
 
-## Change the configuration
+## Change the configuration by hand
 
-1. Edit `/etc/lqosync3/lqosync3.toml`.
-2. Check the file:
+You can edit `/etc/lqosync3/lqosync3.toml` with a text editor instead of the TUI. Read these facts first:
+
+- The service does not watch the file. It uses the new file only after a reload (`SIGHUP`) or a restart.
+- At a reload, a bad file does not stop the service. The old configuration stays, and `status.json` shows `config_error`. The Dashboard shows the error.
+- At a restart, a bad file stops the service. systemd tries again each 10 seconds (`Restart=on-failure`), and no cycle runs until you correct the file.
+- Until the reload, `lqosync3 check` and the Dashboard tell you that the file on disk is not the loaded configuration.
+- If the TUI Settings tab is open during your edit, the TUI finds the change. It shows "the file on disk changed" and does not apply its draft over your edit.
+
+A manual edit does not give the protections of the TUI:
+
+- no preview of the changed circuits and nodes, and no removal guard warnings. The TUI preview starts from the file on disk, so it cannot show a change that is already in the file. For a preview, make the change in the TUI.
+- no backup in `<state_dir>/config-backups/`,
+- no secret files. A password file that you write must have mode `0600` and owner `root`.
+
+WARNING: DO NOT USE A RESTART AFTER A MANUAL EDIT. A BAD FILE THEN STOPS ALL SYNC CYCLES. USE A RELOAD.
+
+Procedure:
+
+1. Make a copy of the file:
+
+   ```bash
+   sudo cp /etc/lqosync3/lqosync3.toml /etc/lqosync3/lqosync3.toml.bak
+   ```
+
+2. Edit the file:
+
+   ```bash
+   sudo nano /etc/lqosync3/lqosync3.toml
+   ```
+
+3. Check the file:
 
    ```bash
    sudo lqosync3 check
    ```
 
-3. Show the changes that the new configuration makes. In `apply` mode, `once` writes the live files. Use a copy of the config with `mode = "shadow"` and a different `state_dir` for this step.
+   Expected result: no `ERROR` line. If an `ERROR` line shows, correct the file and do this step again. Do not go to step 4 with an error.
+
+4. Load the file:
 
    ```bash
-   sudo lqosync3 once     # in shadow mode: writes only <state_dir>/candidate/
-   sudo lqosync3 diff
+   sudo systemctl reload lqosync3.service
    ```
 
-4. Restart the service:
+5. Make sure that the service loaded the file. On the Dashboard, `config error` must be `none` and `config` must be `loaded`. Or read `status.json`:
 
    ```bash
-   sudo systemctl restart lqosync3.service
+   sudo lqosync3 check
    ```
+
+   Expected result: no line "the config file on disk is not the loaded config".
+
+To go back to the old file: copy `lqosync3.toml.bak` back to `lqosync3.toml`, then do steps 3 and 4 again.
 
 ## Cutover from the Python service
 
