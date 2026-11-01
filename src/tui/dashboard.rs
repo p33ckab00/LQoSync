@@ -345,7 +345,12 @@ impl DashboardView {
             (&mut self.io, self.last.0, io),
             (&mut self.net, self.last.1, net),
         ] {
-            let (Some(p), Some(c)) = (prev, cur) else {
+            let Some(c) = cur else {
+                // Accounting is off: drop the old line, so the chart shows no stale values.
+                q.clear();
+                continue;
+            };
+            let Some(p) = prev else {
                 continue;
             };
             if c < p || secs <= 0.0 {
@@ -1286,10 +1291,14 @@ mod tests {
         // Zero seconds gives no rate.
         v.push_counters(Some(20), Some(260), 0.0);
         assert_eq!((v.io.len(), v.net.len()), (2, 2));
+        // Accounting off: the old line goes, so no stale line shows next to "unknown".
+        v.push_counters(None, Some(270), 1.0);
+        assert!(v.io.is_empty());
+        assert_eq!(v.net.len(), 3);
     }
 
     #[test]
-    fn process_gauge_scales_and_unknowns() {
+    fn no_process_data_gives_no_samples() {
         let mut v = DashboardView::default();
         let d = Data::default();
         v.on_data(&d);
