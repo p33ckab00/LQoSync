@@ -685,9 +685,23 @@ impl SettingsView {
     }
 
     fn modal_key(&mut self, m: VModal, k: KeyEvent) -> SAction {
-        if k.code != KeyCode::Char('y') {
-            self.message = Some("cancelled".into());
-            return SAction::None;
+        match k.code {
+            KeyCode::Char('y') => {}
+            KeyCode::Char('n') | KeyCode::Esc => {
+                self.message = Some("cancelled: nothing changed".into());
+                return SAction::None;
+            }
+            _ => {
+                // Only y, n, and Esc act: another key does not close the dialog.
+                let what = if m == VModal::ConfirmApply {
+                    "apply"
+                } else {
+                    "remove"
+                };
+                self.message = Some(format!("push y to {what}, or n / Esc to cancel"));
+                self.modal = Some(m);
+                return SAction::None;
+            }
         }
         match m {
             VModal::ConfirmApply => return SAction::Apply,
@@ -1228,6 +1242,28 @@ impl SettingsView {
         }
     }
 
+    /// The keys of the open dialog or input, for the footer.
+    pub fn hint(&self) -> String {
+        self.bar().replace(['[', ']'], "")
+    }
+
+    /// The keys of the open dialog or input, as `[key] action` parts.
+    fn bar(&self) -> String {
+        match (&self.modal, &self.input) {
+            (Some(VModal::ConfirmApply), _) => "[y] apply   [n / Esc] cancel",
+            (Some(_), _) => "[y] remove   [n / Esc] cancel",
+            (None, Input::Field { .. } | Input::AddServer { .. }) => "[Enter] save   [Esc] cancel",
+            (None, Input::Dropdown { .. }) => "[Up/Down] choose   [Enter] save   [Esc] cancel",
+            (None, Input::List { .. }) => "[a] add   [d] delete   [K] up   [J] down   [Esc] close",
+            (None, Input::Secret { .. }) => {
+                "type the secret (hidden)   [Enter] keep   [Esc] cancel"
+            }
+            (None, Input::AddRouter { .. }) => "[Enter] next   [Esc] cancel",
+            (None, Input::None) => "",
+        }
+        .to_string()
+    }
+
     fn backup_text(&self) -> String {
         self.last_backup
             .as_ref()
@@ -1508,6 +1544,8 @@ impl SettingsView {
     }
 
     fn draw_popup(&self, f: &mut Frame, area: Rect) {
+        // The keys are on the bottom border: a long text never hides them.
+        let bar = self.bar();
         let popup = |f: &mut Frame, title: &str, lines: Vec<Line>, h: u16| {
             let h = h.min(area.height);
             let r = Rect::new(area.x, area.y + (area.height - h) / 2, area.width, h);
@@ -1516,22 +1554,24 @@ impl SettingsView {
                 Paragraph::new(lines).wrap(Wrap { trim: false }).block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(format!(" {title} ")),
+                        .border_style(Style::new().fg(Color::Yellow))
+                        .title(format!(" {title} "))
+                        .title_bottom(Line::styled(
+                            format!(" {bar} "),
+                            Style::new()
+                                .fg(Color::Black)
+                                .bg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        )),
                 ),
                 r,
             );
         };
         match &self.input {
             Input::None => {}
-            Input::Field { path, buf, .. } => popup(
-                f,
-                &path_text(path),
-                vec![
-                    Line::from(format!("{buf}_")),
-                    Line::from("Enter save, Esc cancel"),
-                ],
-                4,
-            ),
+            Input::Field { path, buf, .. } => {
+                popup(f, &path_text(path), vec![Line::from(format!("{buf}_"))], 4)
+            }
             Input::Dropdown {
                 path, choices, sel, ..
             } => {
@@ -1558,7 +1598,7 @@ impl SettingsView {
                     .and_then(|d| d.effective(path))
                     .and_then(|(v, _)| v.as_array().map(|a| a.iter().map(show).collect()))
                     .unwrap_or_default();
-                let mut lines: Vec<Line> = items
+                let lines: Vec<Line> = items
                     .iter()
                     .enumerate()
                     .map(|(i, x)| {
@@ -1572,7 +1612,7 @@ impl SettingsView {
                         }
                     })
                     .collect();
-                lines.push(Line::from("a add, d delete, K up, J down, Esc close"));
+
                 popup(f, &path_text(path), lines, items.len() as u16 + 3);
             }
             Input::Secret { path, value } => popup(
@@ -1581,17 +1621,13 @@ impl SettingsView {
                 vec![
                     Line::from(format!("file: {}", path.display())),
                     Line::from("*".repeat(value.len())),
-                    Line::from("Enter keep for apply, Esc cancel"),
                 ],
                 5,
             ),
             Input::AddServer { buf, .. } => popup(
                 f,
                 "add DHCP server",
-                vec![
-                    Line::from(format!("name: {buf}_")),
-                    Line::from("Enter add, Esc cancel"),
-                ],
+                vec![Line::from(format!("name: {buf}_"))],
                 4,
             ),
             Input::AddRouter {
@@ -1621,7 +1657,7 @@ impl SettingsView {
                         String::new()
                     }
                 )));
-                lines.push(Line::from("Enter next, Esc cancel"));
+
                 popup(f, "add router", lines, 7);
             }
         }
@@ -1664,7 +1700,7 @@ impl SettingsView {
                     lines.push(Line::from(format!("secret file: {}", p.path.display())));
                 }
                 lines.push(Line::from(
-                    "y apply (write the file, then SIGHUP), another key cancels",
+                    "y writes the file and the secret files, then sends SIGHUP to the service",
                 ));
                 let h = lines.len() as u16 + 2;
                 popup(f, "apply", lines, h);
@@ -1681,7 +1717,6 @@ impl SettingsView {
                         "the password file {} stays: delete it by hand",
                         self.router_password_file(*r)
                     )),
-                    Line::from("y remove, another key cancels"),
                 ],
                 5,
             ),
@@ -1695,13 +1730,10 @@ impl SettingsView {
                 popup(
                     f,
                     "remove DHCP server",
-                    vec![
-                        Line::from(format!(
-                            "remove DHCP server {sname} of router {}",
-                            self.router_name(*r)
-                        )),
-                        Line::from("y remove, another key cancels"),
-                    ],
+                    vec![Line::from(format!(
+                        "remove DHCP server {sname} of router {}",
+                        self.router_name(*r)
+                    ))],
                     4,
                 )
             }
@@ -1893,7 +1925,10 @@ mod tests {
         done(&mut v, ran());
         assert_eq!(v.on_key(key(KeyCode::Char('A'))), SAction::None);
         let s = screen(&mut v, 140, 40);
-        assert!(s.contains("1 changed key") && s.contains("y apply"), "{s}");
+        assert!(
+            s.contains("1 changed key") && s.contains("[y] apply"),
+            "{s}"
+        );
         assert_eq!(v.on_key(key(KeyCode::Char('y'))), SAction::Apply);
     }
 
@@ -2142,6 +2177,50 @@ mod tests {
         v.select("routers.0.pppoe.enabled");
         v.on_key(key(KeyCode::Char('-')));
         assert!(screen(&mut v, 160, 40).contains("remove router R1"));
+    }
+
+    #[test]
+    fn the_apply_keys_stay_visible_and_only_y_n_esc_act() {
+        let mut v = view(false);
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        let many: Vec<String> = (0..60).map(|i| format!("W{i}")).collect();
+        let refs: Vec<&str> = many.iter().map(String::as_str).collect();
+        done(&mut v, ran_with(10, &refs));
+        v.on_key(key(KeyCode::Char('A')));
+        let s = screen(&mut v, 140, 40);
+        assert!(
+            s.contains("[y] apply") && s.contains("[n / Esc] cancel"),
+            "{s}"
+        );
+        assert_eq!(v.hint(), "y apply   n / Esc cancel");
+        // Another key does not cancel: the dialog stays and says which keys act.
+        assert_eq!(v.on_key(key(KeyCode::Char('x'))), SAction::None);
+        assert_eq!(v.modal, Some(VModal::ConfirmApply));
+        assert!(v.message.as_deref().unwrap().contains("y to apply"));
+        v.on_key(key(KeyCode::Char('n')));
+        assert!(v.modal.is_none());
+        v.on_key(key(KeyCode::Char('A')));
+        v.on_key(key(KeyCode::Esc));
+        assert!(v.modal.is_none());
+        v.on_key(key(KeyCode::Char('A')));
+        assert_eq!(v.on_key(key(KeyCode::Char('y'))), SAction::Apply);
+    }
+
+    #[test]
+    fn each_input_shows_its_keys_on_the_border() {
+        let mut v = view(false);
+        v.select("runtime.id_length");
+        v.on_key(key(KeyCode::Enter));
+        assert!(screen(&mut v, 140, 40).contains("[Enter] save   [Esc] cancel"));
+        v.on_key(key(KeyCode::Esc));
+        v.select("routers.0.pppoe.enabled");
+        v.on_key(key(KeyCode::Char('-')));
+        let s = screen(&mut v, 140, 40);
+        assert!(
+            s.contains("[y] remove") && s.contains("[n / Esc] cancel"),
+            "{s}"
+        );
     }
 
     #[test]

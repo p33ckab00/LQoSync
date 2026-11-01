@@ -193,8 +193,14 @@ impl App {
             return match (m, k.code) {
                 (Modal::ConfirmSync, KeyCode::Char('y')) => Action::SyncNow,
                 (Modal::Discard, KeyCode::Char('y')) => Action::Quit,
-                _ => {
-                    self.message = Some("cancelled".into());
+                (_, KeyCode::Char('n') | KeyCode::Esc) => {
+                    self.message = Some("cancelled: nothing changed".into());
+                    Action::None
+                }
+                // Only y, n, and Esc act: another key does not close the dialog.
+                (m, _) => {
+                    self.modal = Some(m);
+                    self.message = Some(modal_keys(m).replace("   ", ", or ").to_string());
                     Action::None
                 }
             };
@@ -364,7 +370,7 @@ impl App {
             Tab::Dashboard => self.dashboard.draw(f, main, &self.data, self.now),
             Tab::Settings => self.settings.draw(f, main),
         }
-        let keys = match self.tab {
+        let tab_keys = match self.tab {
             Tab::Devices if self.devices.editing => "type to search  Enter done  Esc clear",
             Tab::Devices => {
                 "/ search  o sort  i reverse  Enter parent node  q quit  1-5 tabs  S sync  R reload"
@@ -381,6 +387,12 @@ impl App {
                 "arrows move  Enter/Space edit  r reset  u undo  P secret  + add  - remove  v preview  A apply  q quit"
             }
             Tab::Dashboard => "S sync now (asks first)  R reload the config  q quit  1-5/Tab tabs",
+        };
+        // An open dialog or input shows its own keys, so confirm and cancel are always visible.
+        let keys = match self.modal {
+            Some(m) => modal_keys(m).to_string(),
+            None if self.tab == Tab::Settings && self.settings.capturing() => self.settings.hint(),
+            None => tab_keys.to_string(),
         };
         // An action message first, then a loader error, then the keys.
         let settings_msg = (self.tab == Tab::Settings)
@@ -400,10 +412,10 @@ impl App {
             f.render_widget(Clear, r);
             f.render_widget(
                 Paragraph::new(format!(
-                    "{} settings change(s) are not applied.\nPress y to quit and discard them, another key to stay.",
+                    "{} settings change(s) are not applied.\ny quits and discards them.",
                     self.settings_changes()
                 ))
-                .block(Block::default().borders(Borders::ALL).title(" quit ")),
+                .block(dialog(" quit ", Modal::Discard)),
                 r,
             );
         }
@@ -412,9 +424,9 @@ impl App {
             f.render_widget(Clear, r);
             f.render_widget(
                 Paragraph::new(
-                    "Sync now releases a guard hold.\nPress y to send, another key to cancel.",
+                                        "Sync now starts a cycle and releases a guard hold.\ny sends SIGUSR1 to the service.",
                 )
-                .block(Block::default().borders(Borders::ALL).title(" sync now ")),
+                .block(dialog(" sync now ", Modal::ConfirmSync)),
                 r,
             );
         }
@@ -483,6 +495,33 @@ impl App {
         }
         f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
+}
+
+/// The keys of a dialog, for the footer.
+fn modal_keys(m: Modal) -> &'static str {
+    match m {
+        Modal::ConfirmSync => "y sync now   n / Esc cancel",
+        Modal::Discard => "y quit and discard   n / Esc stay",
+    }
+}
+
+/// A dialog block with its keys on the bottom border, so they are always visible.
+fn dialog(title: &str, m: Modal) -> Block<'_> {
+    let bar = match m {
+        Modal::ConfirmSync => " [y] sync now   [n / Esc] cancel ",
+        Modal::Discard => " [y] quit and discard   [n / Esc] stay ",
+    };
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(Color::Yellow))
+        .title(title)
+        .title_bottom(Line::styled(
+            bar,
+            Style::new()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))
 }
 
 /// A `w` x `h` rectangle in the middle of `area`, cut to `area`.
@@ -785,6 +824,31 @@ mod tests {
         a.on_key(key(KeyCode::Char(' ')));
         let s = draw(&mut a, 140, 30);
         assert!(s.lines().last().unwrap().contains("read-only"), "{s}");
+    }
+
+    #[test]
+    fn app_dialogs_show_their_keys_and_only_y_n_esc_act() {
+        let mut a = app(false);
+        a.on_key(key(KeyCode::Char('S')));
+        let s = draw(&mut a, 120, 30);
+        assert!(
+            s.contains("[y] sync now") && s.contains("[n / Esc] cancel"),
+            "{s}"
+        );
+        assert!(s.lines().last().unwrap().contains("y sync now"), "{s}");
+        assert_eq!(a.on_key(key(KeyCode::Char('x'))), Action::None);
+        assert_eq!(a.modal, Some(Modal::ConfirmSync));
+        assert_eq!(a.on_key(key(KeyCode::Esc)), Action::None);
+        assert!(a.modal.is_none());
+        a.on_key(key(KeyCode::Char('3')));
+        a.settings.select("safety.enabled");
+        a.on_key(key(KeyCode::Char(' ')));
+        a.on_key(key(KeyCode::Char('q')));
+        let s = draw(&mut a, 120, 30);
+        assert!(
+            s.contains("[y] quit and discard") && s.contains("[n / Esc] stay"),
+            "{s}"
+        );
     }
 
     #[test]

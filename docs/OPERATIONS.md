@@ -63,7 +63,8 @@ sudo lqosync3 tui
 - `y` copies with OSC 52. The terminal does not show if the copy arrived. If the text does not arrive, push `s` (select mode): the mouse goes to the terminal, and the normal terminal selection operates. Push `s` again to end. `tui.osc52 = false` turns OSC 52 off.
 - The Journal tab can read the journal only as root, or as a member of the group `adm` or `systemd-journal`. If not, the tab shows the `journalctl` hint in red.
 - An unknown value shows `unknown`, never `0`. A file error shows in red in the footer.
-- `q` or `Ctrl+C` stops the view.
+- Each dialog shows its keys on its bottom border, and the footer shows them too. Only `y` confirms. Only `n` or `Esc` cancels. Other keys do nothing.
+- `q` or `Ctrl+C` stops the view. With settings changes that are not applied, the view asks first.
 
 ## Change the configuration in the TUI
 
@@ -85,7 +86,7 @@ The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key o
    - a router with no snapshot,
    - a source that the last cycle did not read,
    - circuits that the removal guard holds. The next cycle removes them.
-9. Push `A`, read the confirmation, and push `y`. The TUI:
+9. Push `A` and read the confirmation. Push `y` to apply, or `n` or `Esc` to cancel. Other keys do nothing. The TUI:
    - stops if another person changed the file after the start of the edit,
    - copies the old file to `<state_dir>/config-backups/<unix seconds>.toml` (it keeps `runtime.keep_backups` files),
    - writes the secret files (mode `0600`, owner root), then the config file,
