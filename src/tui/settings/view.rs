@@ -1242,6 +1242,28 @@ impl SettingsView {
         }
     }
 
+    /// The next step of the edit, preview, apply procedure. Empty if there is nothing to do.
+    pub fn next_step(&self) -> String {
+        if self.draft.is_none() {
+            return String::new();
+        }
+        if let Stage::Verifying { .. } = self.stage {
+            return "apply: waiting for the service".into();
+        }
+        if self.running.is_some() {
+            return "preview running, wait".into();
+        }
+        if !self.dirty() {
+            return String::new();
+        }
+        match self.current_preview().map(|s| &s.result) {
+            None => "[v] preview the changes (needed before apply)",
+            Some(Preview::Failed(_)) => "apply blocked: fix the cause, then [v] preview again",
+            Some(_) => "[A] apply (asks first)   [ / ] scroll",
+        }
+        .into()
+    }
+
     /// The keys of the open dialog or input, for the footer.
     pub fn hint(&self) -> String {
         self.bar().replace(['[', ']'], "")
@@ -1285,8 +1307,14 @@ impl SettingsView {
             Stage::Verifying { .. } => " | apply: waiting for the service".into(),
             Stage::Result(m) => format!(" | {m}"),
         };
+        let step = self.next_step();
+        let next = if step.is_empty() {
+            String::new()
+        } else {
+            format!(" | next: {step}")
+        };
         let line = format!(
-            " Settings: {n} changed {} | {} secret(s) | {}{stage}",
+            " Settings: {n} changed {} | {} secret(s){next} | {}{stage}",
             if n == 1 { "key" } else { "keys" },
             self.secrets.len(),
             self.path.display()
@@ -1406,17 +1434,31 @@ impl SettingsView {
             Paragraph::new(self.right_panel())
                 .wrap(Wrap { trim: false })
                 .scroll((self.scroll, 0))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title(if self.conflict.is_some() {
-                            " the file on disk changed "
-                        } else if self.current_preview().is_some() {
-                            " preview ([ ] scroll) "
-                        } else {
-                            " help "
-                        }),
-                ),
+                .block({
+                    let b =
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .title(if self.conflict.is_some() {
+                                " the file on disk changed "
+                            } else if self.current_preview().is_some() {
+                                " preview ([ ] scroll) "
+                            } else {
+                                " help "
+                            });
+                    // The next step of edit, preview, apply stays on the border until it changes.
+                    if step.is_empty() {
+                        b
+                    } else {
+                        b.border_style(Style::new().fg(Color::Yellow))
+                            .title_bottom(Line::styled(
+                                format!(" next: {step} "),
+                                Style::new()
+                                    .fg(Color::Black)
+                                    .bg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ))
+                    }
+                }),
             h,
         );
         self.draw_popup(f, k);
@@ -2220,6 +2262,54 @@ mod tests {
         assert!(
             s.contains("[y] remove") && s.contains("[n / Esc] cancel"),
             "{s}"
+        );
+    }
+
+    #[test]
+    fn the_next_step_stays_visible() {
+        let mut v = view(false);
+        assert_eq!(v.next_step(), "");
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        v.on_key(key(KeyCode::Down));
+        let s = screen(&mut v, 160, 40);
+        assert!(
+            s.contains("[v] preview the changes (needed before apply)"),
+            "{s}"
+        );
+        // A without a preview: the step stays on the screen, not only in a message.
+        v.on_key(key(KeyCode::Char('A')));
+        v.on_key(key(KeyCode::Up));
+        assert!(screen(&mut v, 160, 40).contains("[v] preview the changes (needed before apply)"));
+        let SAction::Preview(job) = v.on_key(key(KeyCode::Char('v'))) else {
+            panic!()
+        };
+        v.on_key(key(KeyCode::Down));
+        assert!(screen(&mut v, 160, 40).contains("preview running, wait"));
+        v.preview_done(PreviewDone {
+            id: job.id,
+            result: ran(),
+            warnings: vec![],
+        });
+        v.on_key(key(KeyCode::Down));
+        let s = screen(&mut v, 160, 40);
+        assert!(
+            s.contains("[A] apply (asks first)") && s.contains("[ / ] scroll"),
+            "{s}"
+        );
+        assert!(s.lines().next().unwrap().contains("next: [A] apply"), "{s}");
+    }
+
+    #[test]
+    fn a_failed_preview_shows_that_apply_is_blocked() {
+        let mut v = view(false);
+        v.select("safety.enabled");
+        v.on_key(key(KeyCode::Char(' ')));
+        done(&mut v, Preview::Failed("bad".into()));
+        v.on_key(key(KeyCode::Down));
+        assert!(
+            screen(&mut v, 160, 40)
+                .contains("apply blocked: fix the cause, then [v] preview again")
         );
     }
 

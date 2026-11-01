@@ -80,7 +80,7 @@ The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key o
 4. Routers: push `+` to add a router (name, address, user, password). The password goes to `/etc/lqosync3/secrets/<name>.password` at apply. Push `-` in a router group to remove a router. Its password file stays: delete it by hand.
 5. DHCP servers: push `+` in the `dhcp` group of a router to add a server. Push `-` in a server group to remove it.
 6. Push `P` in a router group to set a new router password. Push `P` in `telegram` to set a new bot token. The screen shows only `*`.
-7. Push `v`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
+7. Push `v`. The yellow "next" bar (header and right panel border) always shows the next step: `[v] preview`, `preview running`, `[A] apply`, or `apply blocked`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
 8. Read the warnings. Examples:
    - an old `snapshot.json`,
    - a router with no snapshot,
