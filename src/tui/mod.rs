@@ -68,6 +68,12 @@ fn unix_now() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
+/// The time to wait for the result of an action in `status.json`. The service handles a signal
+/// between two cycles, and a v2 cycle can take up to `libreqos.v2_timeout` (the LibreQoS reload).
+fn action_timeout(cfg: &crate::config::Config) -> u64 {
+    cfg.tui.apply_verify_timeout + cfg.libreqos.v2_timeout
+}
+
 /// The MainPID of the service from systemd now.
 fn fresh_pid(cfg: &crate::config::Config) -> Option<u32> {
     data::systemctl_show("systemctl", &cfg.tui.service_unit, &["MainPID"]).map(|u| u.main_pid)
@@ -96,7 +102,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     let read_only = unsafe { libc::geteuid() } != 0;
     let mut app = App::new(read_only, config_text, config_error);
     app.osc52 = cfg.tui.osc52;
-    app.action_timeout = cfg.tui.apply_verify_timeout;
+    app.action_timeout = action_timeout(&cfg);
     app.journal = journal::JournalView::new(cfg.tui.journal_lines);
     app.settings =
         settings::view::SettingsView::new(config.to_path_buf(), &app.data.config_text, read_only);
@@ -239,6 +245,14 @@ mod tests {
     static RESTORED: AtomicUsize = AtomicUsize::new(0);
     fn count() {
         RESTORED.fetch_add(1, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn the_action_wait_covers_a_long_v2_cycle() {
+        let mut c = crate::config::defaults().clone();
+        c.tui.apply_verify_timeout = 120;
+        c.libreqos.v2_timeout = 300;
+        assert_eq!(action_timeout(&c), 420);
     }
 
     #[test]
