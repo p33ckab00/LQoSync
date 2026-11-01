@@ -77,7 +77,7 @@ The tool writes only `<libreqos.directory>/<libreqos.v3_network_file>` (default 
 ## Out of scope
 
 - The check that `lqosd` accepted the files (needs a v3 shaper).
-- `libreqos-v3-preflight` and `notify_on_preflight_warning`.
+- `libreqos-v3-preflight`. (`notify_on_preflight_warning` is not a v3 key. Refer to the Telegram design.)
 - A test on an operating v3 shaper. The writer is checked with the offline v3 parser.
 
 ## Offline check result (2026-10-31)

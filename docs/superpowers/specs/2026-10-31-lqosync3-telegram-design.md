@@ -60,7 +60,7 @@ The memory holds the events of the last cycle, also when a send failed. A failed
 
 - New keys: `api_host = "api.telegram.org"`, `api_port = 443`.
 - Remove `include_computation`. lqosync3 has no computation report.
-- `notify_on_preflight_warning` stays for LibreQoS v3 (Plan 3). It has no effect before Plan 3.
+- `notify_on_preflight_warning` stays, with no effect. Correction (2026-11-01): this key is not for LibreQoS v3. In `updatecsv.py`, it added the list of its own preflight checks to each Telegram message. The owner did not ask to port that list.
 - Validation: if `enabled`, `chat_id` or `chat_id_env` must not be empty, and `max_message_chars` must be 100 to 4096.
 - `lqosync3 check`: if `enabled`, check the token source and the chat ID.
 

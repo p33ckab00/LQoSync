@@ -163,7 +163,7 @@ timeout = 10                    # seconds, for each send
 max_message_chars = 3900        # the tool splits a longer message
 notify_on_changes = true
 notify_on_error = true
-notify_on_preflight_warning = true   # LibreQoS v3 only (Plan 3)
+notify_on_preflight_warning = true   # no effect; kept so that old config files load
 include_added = true
 include_updated = true
 include_removed = true
@@ -392,7 +392,7 @@ Set `telegram.enabled = true` to send messages. Refer to the [Telegram design](s
 - The tool does not send the same error again in each cycle. After a restart, the first cycle can send a router alert again.
 - In `shadow` mode, each title starts with `[shadow]`.
 - A send failure gives the log line `warning: telegram: ...`. It does not change the cycle result or the files.
-- `notify_on_preflight_warning` has an effect only with LibreQoS v3 (Plan 3).
+- `notify_on_preflight_warning` has no effect. In `updatecsv.py`, it put the list of preflight checks in each Telegram message. lqosync3 does not send that list: a preflight error stops the start, and `lqosync3 check` shows the warnings. The key stays, so that a config file with it still loads.
 
 ## Terminal view
 
