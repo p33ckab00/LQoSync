@@ -79,6 +79,19 @@ Deferred minor items from the Plan 4a review (2026-10-31):
 - The perf test does not time the name sort or the full `App::draw`.
 - The Journal selection anchor moves when old lines drop from a full buffer.
 
+Deferred minor items from the Plan 4b review (2026-11-01):
+- `r`, `u`, and `P` act on the first key of a group while the focus is on the groups panel.
+- Config backups are named by second: two applies in one second overwrite one backup.
+- The temporary file of `write_secret` has a fixed name, no `O_EXCL`/`O_NOFOLLOW`, and stays after an error. `password_file` paths are not checked.
+- Each `v` starts a new preview thread, also while one runs.
+- A bad number closes the field and loses the typed text.
+- A list move that changes nothing, and `20` against `20.0`, count as changes.
+- During `Loaded`, the header says "waiting" while the footer says "applied".
+- The preview does not warn about routers that were failed, unreachable, or offline in the snapshot.
+- Each draw of the Settings tab calls `text()` and `diff_lines()`: cache them on a change.
+- `add_server` and `remove_server` change the draft before their index checks.
+- `Secret` push and pop, and `SecretUndo`, can leave secret bytes in freed memory.
+
 Settings: all defaults are in `config/defaults.toml` (embedded). Plan 5 must install a `/etc/lqosync3/lqosync3.toml` with `[[routers]]` and comments that point to the defaults file.
 
 ### Production state
