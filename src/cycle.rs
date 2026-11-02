@@ -473,7 +473,8 @@ pub fn assemble(
     } else {
         None
     };
-    let network = to_network_json(&nodes, preserved, &input.state.nodes);
+    let mut network = to_network_json(&nodes, preserved, &input.state.nodes);
+    crate::topology::add_locations(&mut network, &nodes, &cfg.routers);
 
     // Rule 7: validation.
     let out_rows: Vec<CsvRow> = rows
@@ -636,6 +637,33 @@ mod tests {
     }
     fn rp() -> Config {
         cfg("root_promotion", "")
+    }
+
+    #[test]
+    fn router_coordinates_go_on_the_nodes_of_that_router() {
+        let mut c = rp();
+        c.routers[0].latitude = Some(14.5995);
+        c.routers[0].longitude = Some(120.9842);
+        let out = run(
+            &c,
+            &State::default(),
+            vec![
+                ("R1", ppp(&[("a", "100.64.0.1")])),
+                ("R2", ppp(&[("b", "100.64.0.2")])),
+            ],
+        );
+        let n1 = &out.network["PPP-R1"];
+        assert_eq!(
+            (n1["latitude"].as_f64(), n1["longitude"].as_f64()),
+            (Some(14.5995), Some(120.9842)),
+            "{}",
+            out.network
+        );
+        let n2 = &out.network["PPP-R2"];
+        assert!(
+            n2.get("latitude").is_none() && n2.get("longitude").is_none(),
+            "{n2}"
+        );
     }
 
     #[test]

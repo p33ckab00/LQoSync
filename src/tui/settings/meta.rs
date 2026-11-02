@@ -129,6 +129,18 @@ const EXTRA: &[(&str, Base, &str, bool)] = &[
         false,
     ),
     (
+        "routers.*.latitude",
+        Base::Float,
+        "latitude of the nodes of this router on the LibreQoS Site Map (-90 to 90); set it with longitude",
+        true,
+    ),
+    (
+        "routers.*.longitude",
+        Base::Float,
+        "longitude of the nodes of this router on the LibreQoS Site Map (-180 to 180); set it with latitude",
+        true,
+    ),
+    (
         "routers.*.hotspot.download_limit_mbps",
         Base::Float,
         "Mbps for each hotspot client; not set: bandwidth_defaults.hotspot_default_per_client_mbps",
@@ -483,6 +495,8 @@ mod tests {
             "routers.3.pppoe.enabled",
             "routers.1.dhcp.servers.2.mode",
             "routers.0.hotspot.download_limit_mbps",
+            "routers.0.latitude",
+            "routers.1.longitude",
             "nodes.ppp.type",
         ] {
             assert!(find(k).is_some(), "{k}");

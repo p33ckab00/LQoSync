@@ -331,6 +331,11 @@ pub struct RouterCfg {
     pub dhcp: DhcpCfg,
     /// More exclusions for this router. The tool joins them with the global `[exclude]`.
     pub exclude: Exclude,
+    /// The location of the nodes that the tool makes for this router (the LibreQoS Site Map).
+    #[serde(default)]
+    pub latitude: Option<f64>,
+    #[serde(default)]
+    pub longitude: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -786,6 +791,25 @@ impl Config {
                 "config: routers[].name \"{}\" is used two times",
                 r.name
             );
+            match (r.latitude, r.longitude) {
+                (None, None) => {}
+                (Some(la), Some(lo)) => {
+                    ensure!(
+                        (-90.0..=90.0).contains(&la),
+                        "config: router \"{}\": latitude {la} must be from -90 to 90",
+                        r.name
+                    );
+                    ensure!(
+                        (-180.0..=180.0).contains(&lo),
+                        "config: router \"{}\": longitude {lo} must be from -180 to 180",
+                        r.name
+                    );
+                }
+                _ => bail!(
+                    "config: router \"{}\": set latitude and longitude together",
+                    r.name
+                ),
+            }
             let mut macs = BTreeSet::new();
             for c in &r.dhcp.clients {
                 let Some(mac) = normalize_mac(&c.mac) else {
@@ -1172,6 +1196,30 @@ mod tests {
 
     const MIN: &str =
         "[[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n";
+
+    #[test]
+    fn router_coordinates_are_optional_and_checked() {
+        let c = Config::from_toml_str(MIN).unwrap();
+        assert_eq!(
+            (c.routers[0].latitude, c.routers[0].longitude),
+            (None, None)
+        );
+        let c = Config::from_toml_str(&format!("{MIN}latitude = 14.5995\nlongitude = 120.9842\n"))
+            .unwrap();
+        assert_eq!(
+            (c.routers[0].latitude, c.routers[0].longitude),
+            (Some(14.5995), Some(120.9842))
+        );
+        for (extra, want) in [
+            ("latitude = 14.6\n", "latitude and longitude"),
+            ("longitude = 121.0\n", "latitude and longitude"),
+            ("latitude = 91.0\nlongitude = 121.0\n", "-90 to 90"),
+            ("latitude = 14.6\nlongitude = -181.0\n", "-180 to 180"),
+        ] {
+            let e = Config::from_toml_str(&format!("{MIN}{extra}")).unwrap_err();
+            assert!(format!("{e:#}").contains(want), "{extra}: {e:#}");
+        }
+    }
 
     #[test]
     fn minimal_config_gets_documented_defaults() {

@@ -299,6 +299,32 @@ fn node_json(n: &StoredNode, children: Map<String, Value>) -> Value {
     })
 }
 
+/// Put `latitude` and `longitude` on each node that the tool made for a router with a location
+/// (the LibreQoS Site Map). Other nodes, for example an operator node, do not change.
+pub fn add_locations(
+    tree: &mut Value,
+    nodes: &BTreeMap<String, StoredNode>,
+    routers: &[crate::config::RouterCfg],
+) {
+    let Some(map) = tree.as_object_mut() else {
+        return;
+    };
+    for (name, node) in map.iter_mut() {
+        let place = nodes
+            .get(name)
+            .and_then(|n| n.router.as_deref())
+            .and_then(|r| routers.iter().find(|c| c.name == r))
+            .and_then(|c| c.latitude.zip(c.longitude));
+        if let (Some((la, lo)), Some(obj)) = (place, node.as_object_mut()) {
+            obj.insert("latitude".into(), la.into());
+            obj.insert("longitude".into(), lo.into());
+        }
+        if let Some(kids) = node.get_mut("children") {
+            add_locations(kids, nodes, routers);
+        }
+    }
+}
+
 /// Remove the named nodes at all levels of a network.json tree.
 fn remove_named(tree: &mut Map<String, Value>, names: &BTreeMap<String, StoredNode>) {
     tree.retain(|k, _| !names.contains_key(k));

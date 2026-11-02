@@ -431,6 +431,24 @@ LibreQoS v3 with `compile_mode = "ap_site"` can keep only `site` and `ap` nodes.
 `type` in a `[nodes]` entry applies to all targets.
 A node type must not be empty. This rule also applies to `network.root_type` and `nodes.client.type`.
 
+## Node location
+
+The LibreQoS v3 Site Map shows each `site` and `ap` node at its `latitude` and `longitude`. A node without a location goes to the "Unmapped" list.
+Set the location of the nodes that the tool makes for one router in its `[[routers]]` entry:
+
+```toml
+[[routers]]
+name = "R1"
+latitude = 14.5995      # -90 to 90
+longitude = 120.9842    # -180 to 180
+```
+
+- Set both keys or neither key. Without them, the nodes have no location.
+- Each node that the tool makes for this router gets the location: its group nodes and its router root node. All these nodes show at one point.
+- The tool writes the location in `network.json` (`v2_pair`, `v3_pair`) and in `libreqos_network.json` (`v3_network`).
+- With `network.preserve_network_config = true`, an operator node in `network.json` keeps its own keys. The tool does not change it.
+- LibreQoS has no location for a circuit. The Site Map does not show subscribers.
+
 ## LibreQoS v3 checks
 
 - `network.mode = "no_parent"` with a v3 target: `check` fails and the cycle stops. Use `root_promotion`. v3 does not accept an empty Parent Node ID.

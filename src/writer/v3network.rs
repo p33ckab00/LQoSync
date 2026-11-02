@@ -74,6 +74,11 @@ fn walk(
             );
         }
         let mut node = json!({"id": id, "type": kind, "parent": parent, "name": name});
+        for k in ["latitude", "longitude"] {
+            if let Some(v) = n.get(k).filter(|v| v.is_number()) {
+                node[k] = v.clone();
+            }
+        }
         let rate = |k: &str| n.get(k).and_then(Value::as_f64);
         if let (Some(d), Some(u)) = (rate("downloadBandwidthMbps"), rate("uploadBandwidthMbps")) {
             // v3 requires all four values. A pair node has one rate, so commit = ceil (as the v3 legacy import).
@@ -438,6 +443,19 @@ mod tests {
             "{alerts:?}"
         );
         assert!(alerts.iter().any(|a| a.contains("badmask")), "{alerts:?}");
+    }
+
+    #[test]
+    fn node_coordinates_go_to_the_schema_2_node() {
+        let t = json!({"S": {"id": "lq3-s", "type": "site", "latitude": 14.5, "longitude": 121.0,
+                       "downloadBandwidthMbps": 10.0, "uploadBandwidthMbps": 10.0, "children": {}}});
+        let (text, _) = render_libreqos_network(&[], &t).unwrap();
+        let v: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(v["topology"][0]["latitude"], 14.5);
+        assert_eq!(v["topology"][0]["longitude"], 121.0);
+        let t = json!({"S": {"id": "lq3-s", "type": "site", "children": {}}});
+        let (text, _) = render_libreqos_network(&[], &t).unwrap();
+        assert!(!text.contains("latitude"), "{text}");
     }
 
     #[test]
