@@ -1,11 +1,25 @@
 # LibreQoS v3 ingress
 
-This document records what LibreQoS 3.0.7 reads as topology input. The data comes from an offline simulation on 2026-10-31.
-LibreQoS v3 was not installed. The production shaper operates LibreQoS 2.2.
+This document records what LibreQoS 3.0.7 reads as topology input.
+The initial evidence came from an offline simulation on 2026-10-31.
+The production shaper completed its v3 cutover on 2026-11-02.
+The live `v3_pair` path now has evidence from input files, imported topology, and applied runtime state.
 
 > [!warning] Evidence limit
-> The data comes from the package files and the v3 Python binding. It does not come from a v3 `lqosd` that operates.
-> The `lqosd` file watcher, the last-good behavior, and the shaping result need a test on a v3 shaper.
+> The native `v3_network` path still has offline evidence only.
+> Live checks cover the current `shaped_devices` pair and full topology mode.
+> Rejection recovery and interrupted multi-file updates have not had live fault tests.
+
+## Live input ownership
+
+With `source = "shaped_devices"`, LQoSync writes both `/opt/libreqos/src/ShapedDevices.csv` and `/opt/libreqos/src/network.json`.
+The CSV supplies circuits and device details. The JSON supplies their parent topology and node rates.
+LibreQoS reads this pair and owns the derived state under `/opt/libreqos/state/`.
+It does not replace LQoSync as the writer of the source pair.
+
+The live check found 26 circuits and five site nodes, with no missing parent names or IDs.
+The imported compatibility network equals the source `network.json`. The imported circuit IDs equal the source CSV IDs.
+The operator view contains 26 circuit nodes and five site nodes. The runtime topology is ready.
 
 ## Source package
 
@@ -41,6 +55,17 @@ The scheduler does not produce topology for `libreqos_network`. The `lqosd` watc
 - `lqosd` watches the input files with inotify. The log strings are `ShapedDevices reload reason=` and `NetworkJson reload reason=`.
 - The watcher does not accept a symbolic link (`watched path is a symlink; a regular file is required`).
 - If `libreqos_network.json` is not valid, `lqosd` keeps the last good topology (`libreqos_network.json rejected; last-good topology retained`).
+- With `source = "shaped_devices"`, the scheduler imports the pair into `state/topology/topology_import.json`.
+  The scheduler log shows an import at start, on `Reload requested by admin`, and every 30 minutes (`importAndShapePartialReload`).
+  On 2026-11-02, no log line showed an import that a file write started. Without a reload request, a new pair can wait up to 30 minutes.
+- The scheduler reads `state/scheduler/reload_request.json` each second (`reload_request_tick`). The LibreQoS UI reload button uses this file.
+  The token is `{"requested_at": <Unix seconds>, "nonce": "<unique>", "requested_by": "<name>"}`.
+  The scheduler ignores a token older than its start or with a nonce that it used before. It deletes the file and runs one `importAndShapeFullReload`.
+  This interface is internal to LibreQoS. An upgrade can change it.
+- After each change of the pair, LQoSync writes this token with `requested_by = "lqosync3"`. It writes a temporary file, then renames it.
+- LQoSync compares `imported.compatibility_network_json` and `imported.shaped_devices` with the files that it wrote.
+  The status shows `waiting for the LibreQoS import (<n> s)` until they agree, then `imported by LibreQoS`.
+  After 40 minutes without agreement, the cycle reports the error `LibreQoS did not import the new files`.
 
 ## `ShapedDevices.csv` in v3
 
@@ -128,9 +153,18 @@ The simulation used the v3 Python binding `liblqos_python.so` from the extracted
 
 The production pair has 5 nodes and 27 circuits. Both paths gave 27 devices with the same circuit ID, parent, IP, and rates. The only difference was the device `comment`.
 
+The repeated check on 2026-11-02 used five nodes and 26 circuits from the operating v3 shaper.
+Both installed-binding compiler calls passed. Compiled circuit fields matched, except device comments.
+However, the native compiled canonical output lost node kinds and rates. Its compatibility tree emitted 1 Mbps node limits.
+The native import retained the supplied policy before compilation. The pair compiled output retained it after compilation.
+This difference blocks a production source migration until node policy preservation is proven.
+The check did not exercise the live native watcher or change the active source.
+Artifacts are under `/home/pi/.local/state/libreqos-native-check-s12invb1`.
+
 ## Open items
 
-- [ ] Find the path that `lqosd` watches for `libreqos_network.json`. The probable path is `<lqos_directory>/libreqos_network.json`.
-- [ ] Find the file that shows that `lqosd` accepted a new generation.
+- [x] Confirm the watched native input path: `<lqos_directory>/libreqos_network.json`, resolved through `legacy_runtime_file_path`.
+- [x] Find the file that shows that `lqosd` accepted a new generation. For `shaped_devices`: `state/topology/topology_import.json`. `topology_runtime_status.json` shows `ready` and `source_generation`.
+- [ ] Find if a write of the pair starts an import before the 30-minute job. Examine the first live LQoSync change.
 - [ ] Test the watcher and the last-good behavior on a v3 test shaper.
 - [ ] Find if `lqosd` fills the node type and rate in `topology_canonical_state.json` for `libreqos_network`. The offline compiler leaves them empty.

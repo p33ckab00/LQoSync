@@ -16,6 +16,10 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// The time that LibreQoS v3 can take to import a new `shaped_devices` pair. Its scheduler
+/// imports the pair at start, on a reload request, and every 30 minutes.
+pub const IMPORT_LIMIT_SECS: u64 = 40 * 60;
+
 /// A random ID of `len` characters from `A-Z0-9`.
 pub fn random_id(len: usize) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -435,12 +439,62 @@ where
         let pending = state_dir.join("reload-pending");
         let mut reload_error = None;
         if v3 {
-            // LibreQoS v3: lqosd watches the files. LibreQoS.py --updateonly does nothing.
+            // LibreQoS v3: LibreQoS.py --updateonly does nothing. lqosd watches libreqos_network.json;
+            // the scheduler imports the pair (below).
             if self.cfg.runtime.mode == RuntimeMode::Apply {
-                status.reload = "lqosd watches the files".into();
+                status.reload = if target == Target::V3Pair {
+                    "no change"
+                } else {
+                    "lqosd watches the files"
+                }
+                .into();
             }
             if pending.exists() {
                 std::fs::remove_file(&pending)?;
+            }
+            // The v3 scheduler imports the pair later. Check each cycle that the import has our files.
+            let import = state_dir.join("import-pending");
+            if target == Target::V3Pair && self.cfg.runtime.mode == RuntimeMode::Apply {
+                let lqos_state = Path::new(&self.cfg.libreqos.state_directory);
+                if changed {
+                    files::write_if_changed(&import, now.to_string().as_bytes())?;
+                    // The reload request of the LibreQoS UI button: the scheduler imports the pair
+                    // in about 1 s. Without it, the import waits for the 30-minute job.
+                    let token = serde_json::json!({
+                        "requested_at": now,
+                        "nonce": random_id(16),
+                        "requested_by": "lqosync3",
+                    });
+                    let req = lqos_state.join("scheduler/reload_request.json");
+                    if let Err(e) = files::write_if_changed(&req, token.to_string().as_bytes()) {
+                        eprintln!("warning: cannot write {}: {e:#}", req.display());
+                    }
+                }
+                if import.exists() {
+                    // files[0] is network.json for the pair targets.
+                    if files::imported(lqos_state, &files[0].1, &out.rows) {
+                        status.reload = "imported by LibreQoS".into();
+                        std::fs::remove_file(&import)?;
+                    } else {
+                        // An unreadable time starts the wait again.
+                        let since = std::fs::read_to_string(&import)
+                            .ok()
+                            .and_then(|t| t.trim().parse::<u64>().ok())
+                            .unwrap_or(now);
+                        let waited = now.saturating_sub(since);
+                        status.reload = format!("waiting for the LibreQoS import ({waited} s)");
+                        if waited >= IMPORT_LIMIT_SECS {
+                            let e = format!(
+                                "LibreQoS did not import the new files in {} min; examine the libreqos-scheduler log",
+                                waited / 60
+                            );
+                            status.reload = e.clone();
+                            reload_error = Some(e);
+                        }
+                    }
+                }
+            } else if import.exists() {
+                std::fs::remove_file(&import)?;
             }
         } else if self.cfg.runtime.mode == RuntimeMode::Apply && (changed || pending.exists()) {
             let l = &self.cfg.libreqos;
@@ -935,10 +989,164 @@ mod tests {
             "{csv}"
         );
         assert!(!e.lqos.join("reloaded").exists());
-        assert_eq!(
-            (s.status.target.as_str(), s.status.reload.as_str()),
-            ("v3_pair", "lqosd watches the files")
+        assert_eq!(s.status.target, "v3_pair");
+        assert!(
+            s.status
+                .reload
+                .starts_with("waiting for the LibreQoS import"),
+            "{}",
+            s.status.reload
         );
+    }
+
+    fn v3_apply(e: &Env) -> Config {
+        let mut c = cfg(e, "apply", "");
+        c.libreqos.target = crate::config::Target::V3Pair;
+        c
+    }
+
+    /// Write the `topology_import.json` that LibreQoS makes from the live pair.
+    fn libreqos_imports(e: &Env) {
+        let net: serde_json::Value =
+            serde_json::from_str(&read(&e.lqos.join("network.json"))).unwrap();
+        let rows = crate::state::read_csv(&read(&e.lqos.join("ShapedDevices.csv"))).unwrap();
+        let f = |s: &str| s.parse::<f64>().unwrap();
+        let devices: Vec<_> = rows
+            .iter()
+            .map(|r| {
+                serde_json::json!({
+                    "circuit_id": r.circuit_id, "device_id": r.device_id,
+                    "parent_node": r.parent_node,
+                    "download_max_mbps": f(&r.download_max), "upload_max_mbps": f(&r.upload_max),
+                })
+            })
+            .collect();
+        let dir = e.lqos.join("lqstate/topology");
+        std::fs::create_dir_all(&dir).unwrap();
+        let v = serde_json::json!({"imported": {"compatibility_network_json": net, "shaped_devices": devices}});
+        std::fs::write(dir.join("topology_import.json"), v.to_string()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn v3_pair_waits_until_libreqos_imports_the_new_files() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, v3_apply(&e));
+        let s1 = r.cycle(1_000, false).await;
+        assert_eq!(s1.error, None);
+        assert!(
+            s1.status.reload.starts_with("waiting"),
+            "{}",
+            s1.status.reload
+        );
+        // An old import (from before this change) is not the new files.
+        let s2 = r.cycle(1_120, false).await;
+        assert_eq!(s2.error, None);
+        assert!(
+            s2.status.reload.starts_with("waiting"),
+            "{}",
+            s2.status.reload
+        );
+        libreqos_imports(&e);
+        let s3 = r.cycle(1_240, false).await;
+        assert_eq!(
+            (s3.error, s3.status.reload.as_str()),
+            (None, "imported by LibreQoS")
+        );
+        assert!(!e.state.join("import-pending").exists());
+        let s4 = r.cycle(1_360, false).await;
+        assert_eq!(s4.status.reload, "no change");
+    }
+
+    #[tokio::test]
+    async fn v3_pair_asks_the_scheduler_for_a_reload_only_when_the_files_change() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let req = e.lqos.join("lqstate/scheduler/reload_request.json");
+        let mut r = runner(&e, v3_apply(&e));
+        r.cycle(1_000, false).await;
+        let t: serde_json::Value = serde_json::from_str(&read(&req)).unwrap();
+        assert_eq!(
+            (&t["requested_at"], &t["requested_by"]),
+            (&serde_json::json!(1_000), &serde_json::json!("lqosync3"))
+        );
+        let nonce = t["nonce"].as_str().unwrap().to_string();
+        assert!(!nonce.is_empty());
+        // The scheduler deletes the request. No change: no new request.
+        std::fs::remove_file(&req).unwrap();
+        r.cycle(1_120, false).await;
+        assert!(!req.exists());
+        // A change: a new request with a new nonce.
+        users(&e, &[("alice", "100.64.0.2"), ("bob", "100.64.0.3")]);
+        r.cycle(1_240, false).await;
+        let t: serde_json::Value = serde_json::from_str(&read(&req)).unwrap();
+        assert_eq!(t["requested_at"], 1_240);
+        assert_ne!(t["nonce"].as_str().unwrap(), nonce);
+    }
+
+    #[tokio::test]
+    async fn v3_pair_in_shadow_mode_asks_for_no_reload() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = v3_apply(&e);
+        c.runtime.mode = RuntimeMode::Shadow;
+        runner(&e, c).cycle(1_000, false).await;
+        assert!(
+            !e.lqos
+                .join("lqstate/scheduler/reload_request.json")
+                .exists()
+        );
+    }
+
+    #[tokio::test]
+    async fn v3_pair_reports_an_import_that_does_not_come() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, v3_apply(&e));
+        r.cycle(1_000, false).await;
+        let s = r.cycle(1_000 + IMPORT_LIMIT_SECS, false).await;
+        assert!(
+            s.error
+                .as_deref()
+                .unwrap_or_default()
+                .contains("LibreQoS did not import"),
+            "{:?}",
+            s.error
+        );
+        // The check stays on until LibreQoS imports the files.
+        libreqos_imports(&e);
+        let s = r.cycle(1_100 + IMPORT_LIMIT_SECS, false).await;
+        assert_eq!(
+            (s.error, s.status.reload.as_str()),
+            (None, "imported by LibreQoS")
+        );
+    }
+
+    #[tokio::test]
+    async fn v3_pair_with_a_new_network_json_and_an_old_csv_is_repaired_by_the_next_cycle() {
+        // A crash between the two renames leaves the new network.json and state.json with the old CSV.
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, v3_apply(&e));
+        r.cycle(1_000, false).await;
+        let old_csv = read(&e.lqos.join("ShapedDevices.csv"));
+        users(&e, &[("alice", "100.64.0.2"), ("bob", "100.64.0.3")]);
+        r.cycle(1_120, false).await;
+        let (new_csv, new_net) = (
+            read(&e.lqos.join("ShapedDevices.csv")),
+            read(&e.lqos.join("network.json")),
+        );
+        assert!(new_csv.contains("bob") && !old_csv.contains("bob"));
+        std::fs::write(e.lqos.join("ShapedDevices.csv"), &old_csv).unwrap();
+        drop(r); // the process stops
+
+        let s = runner(&e, v3_apply(&e)).cycle(1_240, false).await;
+        assert_eq!(s.error, None);
+        assert!(s.changed);
+        assert_eq!(read(&e.lqos.join("ShapedDevices.csv")), new_csv);
+        assert_eq!(read(&e.lqos.join("network.json")), new_net);
+        let r = &s.status.report;
+        assert_eq!((r.added.len(), r.removed.len()), (0, 0), "{r:?}");
     }
 
     #[tokio::test]

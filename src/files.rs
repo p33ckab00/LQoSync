@@ -239,6 +239,70 @@ pub fn backup(
     Ok(())
 }
 
+/// True if LibreQoS v3 imported this pair: `<lqos_state>/topology/topology_import.json` has the same
+/// nodes and the same devices, circuits, parents and maximum rates. A missing or bad file is false.
+pub fn imported(lqos_state: &Path, network: &str, rows: &[CsvRow]) -> bool {
+    let read = |p: &Path| -> Option<serde_json::Value> {
+        serde_json::from_str(&std::fs::read_to_string(p).ok()?).ok()
+    };
+    let (Some(v), Ok(net)) = (
+        read(&lqos_state.join("topology/topology_import.json")),
+        serde_json::from_str::<serde_json::Value>(network),
+    ) else {
+        return false;
+    };
+    let imp = &v["imported"];
+    let Some(list) = imp["shaped_devices"].as_array() else {
+        return false;
+    };
+    let mut want: Vec<_> = rows
+        .iter()
+        .map(|r| {
+            (
+                r.device_id.as_str(),
+                r.circuit_id.as_str(),
+                r.parent_node.as_str(),
+                r.download_max.parse::<f64>().ok(),
+                r.upload_max.parse::<f64>().ok(),
+            )
+        })
+        .collect();
+    let mut got: Vec<_> = list
+        .iter()
+        .map(|d| {
+            let s = |k: &str| d[k].as_str().unwrap_or_default();
+            (
+                s("device_id"),
+                s("circuit_id"),
+                s("parent_node"),
+                d["download_max_mbps"].as_f64(),
+                d["upload_max_mbps"].as_f64(),
+            )
+        })
+        .collect();
+    let by = |a: &(&str, &str, &str, _, _), b: &(&str, &str, &str, _, _)| {
+        (a.0, a.1, a.2).cmp(&(b.0, b.1, b.2))
+    };
+    want.sort_by(by);
+    got.sort_by(by);
+    want == got && same_json(&imp["compatibility_network_json"], &net)
+}
+
+/// JSON equality where `620` and `620.0` are the same number.
+fn same_json(a: &serde_json::Value, b: &serde_json::Value) -> bool {
+    use serde_json::Value::{Array, Number, Object};
+    match (a, b) {
+        (Number(x), Number(y)) => x.as_f64() == y.as_f64(),
+        (Array(x), Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| same_json(p, q)),
+        (Object(x), Object(y)) => {
+            x.len() == y.len()
+                && x.iter()
+                    .all(|(k, p)| y.get(k).is_some_and(|q| same_json(p, q)))
+        }
+        _ => a == b,
+    }
+}
+
 /// Run the LibreQoS reload command with a time limit. The error has the exit code and the end of stderr.
 pub async fn run_reload(cmd: &str, args: &[String], timeout: Duration) -> Result<(), String> {
     let child = tokio::process::Command::new(cmd)
@@ -274,6 +338,43 @@ mod tests {
     use std::time::Duration;
 
     const HDR: &str = "Circuit ID,Circuit Name,Device ID,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps,Comment\n";
+
+    #[test]
+    fn imported_compares_devices_rates_and_nodes() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(d.path().join("topology")).unwrap();
+        let import = |rate: f64| {
+            let v = serde_json::json!({"imported": {
+                "compatibility_network_json": {"A": {"downloadBandwidthMbps": 620.0}},
+                "shaped_devices": [{"device_id": "D1", "circuit_id": "C1", "parent_node": "A",
+                    "download_max_mbps": rate, "upload_max_mbps": 10.0}],
+            }});
+            std::fs::write(
+                d.path().join("topology/topology_import.json"),
+                v.to_string(),
+            )
+            .unwrap();
+        };
+        let rows = vec![CsvRow {
+            device_id: "D1".into(),
+            circuit_id: "C1".into(),
+            parent_node: "A".into(),
+            download_max: "20".into(),
+            upload_max: "10".into(),
+            ..CsvRow::default()
+        }];
+        let net = r#"{"A": {"downloadBandwidthMbps": 620}}"#;
+        assert!(!imported(d.path(), net, &rows), "no import file");
+        import(20.0);
+        assert!(imported(d.path(), net, &rows));
+        assert!(!imported(
+            d.path(),
+            r#"{"A": {"downloadBandwidthMbps": 621}}"#,
+            &rows
+        ));
+        import(25.0);
+        assert!(!imported(d.path(), net, &rows), "old rate");
+    }
 
     #[test]
     fn second_lock_fails() {
