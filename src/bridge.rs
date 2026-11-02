@@ -92,7 +92,9 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn read_on_this_host() {
-        let b = read().await.expect("the bridge counters of this LibreQoS v3 host");
+        let b = read()
+            .await
+            .expect("the bridge counters of this LibreQoS v3 host");
         eprintln!("{b:?}");
     }
 

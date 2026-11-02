@@ -571,6 +571,22 @@ impl DashboardView {
                     .as_u64()
                     .map_or("unknown".into(), |v| v.to_string());
                 compact.push(format!("cycle: {seq} | {ms} ms"));
+                let b = &st["bridge"];
+                if b.is_object() {
+                    let v = |k: &str| b[k].as_u64().map_or("unknown".into(), |v| v.to_string());
+                    compact.push(format!(
+                        "bridge: defers {} | >100ms {}",
+                        v("budget_defers"),
+                        v("iter_gt100ms")
+                    ));
+                }
+                if let Some(native) = st["native"].as_str().filter(|v| !v.is_empty())
+                    && compact.len() < inner.height as usize
+                {
+                    // Only the state: ready, blocked or error. The reason is in the full list.
+                    let state = native.split(':').next().unwrap_or(native);
+                    compact.push(format!("native schema 2: {state}"));
+                }
                 if compact.len() < inner.height as usize
                     && st["error"].as_str().is_none()
                     && st["config_error"].as_str().is_none()
@@ -1151,6 +1167,36 @@ mod tests {
             t.iter().any(|l| l.starts_with("R1: failed, rows unknown")),
             "{t:#?}"
         );
+    }
+
+    #[test]
+    fn the_bridge_line_shows_in_a_short_status_panel() {
+        // The full status list is longer than the panel, so the panel shows the compact list.
+        let d = data(
+            json!({"mode": "apply", "target": "v3_pair", "updated": 1_000, "cycle_ms": 20,
+            "cycle_seq": 3, "trigger": "timer", "files_changed": false, "reload": "no change",
+            "telegram": "ok", "routers": [], "report": {"counts": {}},
+            "native": "blocked: node PROBE-SITE compiled to 1/1 Mbps, expected 200/100",
+            "bridge": {"budget_defers": 1, "iter_gt100ms": 0, "iter_gt1s": 0, "iter_max_ms": 94}}),
+        );
+        for (w, h) in [(120, 40), (160, 48)] {
+            let mut t = Terminal::new(TestBackend::new(w, h)).unwrap();
+            t.draw(|f| {
+                DashboardView::default().draw(
+                    f,
+                    f.area(),
+                    &d,
+                    2_000,
+                    &Palette::new(crate::config::Theme::Dark),
+                )
+            })
+            .unwrap();
+            let buf = t.backend().buffer();
+            let s: String = (0..h)
+                .map(|y| (0..w).map(|x| buf[(x, y)].symbol()).collect::<String>() + "\n")
+                .collect();
+            assert!(s.contains("bridge: defers 1 | >100ms 0"), "{w}x{h}\n{s}");
+        }
     }
 
     #[test]
