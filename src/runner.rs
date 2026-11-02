@@ -290,6 +290,24 @@ where
         let target = crate::detect::resolve(&self.cfg.libreqos)?.target;
         status.target = target_name(target).into();
         let v3 = target != Target::V2Pair;
+        // LibreQoS 3.0.7 compiles libreqos_network.json with 1 Mbps nodes. The probe runs again
+        // after a LibreQoS upgrade; v3_network writes only when it passes.
+        let (native, native_new) = crate::probe::status(&self.cfg.libreqos, state_dir, now).await;
+        status.native = native.as_ref().map_or(String::new(), |p| p.summary());
+        status.native_ready_new = native_new;
+        if target == Target::V3Network
+            && self.cfg.runtime.mode == RuntimeMode::Apply
+            && !native.as_ref().is_some_and(|p| p.ready())
+        {
+            anyhow::bail!(
+                "v3_network: the native probe of LibreQoS did not pass ({}); nothing was written. Set [topology] source = \"shaped_devices\" in {}",
+                native.map_or(
+                    "it cannot run: LibreQoS v3 and its Python binding are necessary".into(),
+                    |p| p.summary()
+                ),
+                self.cfg.libreqos.v3_config
+            );
+        }
         let Inputs {
             live,
             state,
@@ -637,7 +655,7 @@ mod tests {
 
     fn cfg(e: &Env, mode: &str, extra: &str) -> Config {
         Config::from_toml_str(&format!(
-            "[runtime]\nmode=\"{mode}\"\nstate_dir=\"{1}\"\n[libreqos]\ntarget=\"v2_pair\"\ndirectory=\"{0}\"\nstate_directory=\"{0}/lqstate\"\nv2_command=\"/bin/sh\"\nv2_args=[\"-c\",\"touch {0}/reloaded\"]\nv2_first_args=[\"-c\",\"touch {0}/full && mkdir -p {0}/lqstate/shaping && touch {0}/lqstate/shaping/ShapedDevices.lastLoaded.csv\"]\n\
+            "[runtime]\nmode=\"{mode}\"\nstate_dir=\"{1}\"\n[libreqos]\ntarget=\"v2_pair\"\ndpkg_status=\"{0}/no-dpkg-status\"\ndirectory=\"{0}\"\nstate_directory=\"{0}/lqstate\"\nv2_command=\"/bin/sh\"\nv2_args=[\"-c\",\"touch {0}/reloaded\"]\nv2_first_args=[\"-c\",\"touch {0}/full && mkdir -p {0}/lqstate/shaping && touch {0}/lqstate/shaping/ShapedDevices.lastLoaded.csv\"]\n\
              [network]\nmode=\"root_promotion\"\n[safety]\nenabled=false\n{extra}\n\
              [[routers]]\nname=\"R1\"\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/x\"\n[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
             e.lqos.display(),
@@ -1161,9 +1179,11 @@ mod tests {
         .unwrap();
         let mut c = cfg(&e, "apply", "");
         c.libreqos.target = crate::config::Target::V3Network;
+        native_probe(&e, &mut c, "ready");
         let before_csv = read(&e.lqos.join("ShapedDevices.csv"));
         let s = runner(&e, c).cycle(1_000, false).await;
         assert_eq!(s.error, None);
+        assert_eq!(s.status.native, "ready");
         let v: serde_json::Value =
             serde_json::from_str(&read(&e.lqos.join("libreqos_network.json"))).unwrap();
         assert_eq!(v["schema_version"], 2);
@@ -1182,6 +1202,96 @@ mod tests {
             s.status.report.alerts
         );
         assert_eq!(s.status.target, "v3_network");
+    }
+
+    /// A LibreQoS v3 with the binding, and a cached native probe with `state`.
+    fn native_probe(e: &Env, c: &mut Config, state: &str) {
+        let dpkg = e.lqos.join("dpkg-v3");
+        std::fs::write(
+            &dpkg,
+            "Package: libreqos\nStatus: install ok installed\nVersion: 3.0.7.1\n",
+        )
+        .unwrap();
+        let conf = e.lqos.join("lqos.conf");
+        std::fs::write(&conf, "[topology]\ncompile_mode = \"full\"\n").unwrap();
+        std::fs::write(e.lqos.join(crate::probe::BINDING), "x").unwrap();
+        c.libreqos.dpkg_status = dpkg.display().to_string();
+        c.libreqos.v3_config = conf.display().to_string();
+        let p = crate::probe::Probe {
+            key: crate::probe::key(&c.libreqos).unwrap(),
+            state: state.into(),
+            detail: if state == "ready" {
+                ""
+            } else {
+                "node PROBE-SITE compiled to 1/1 Mbps"
+            }
+            .into(),
+            at: 1,
+        };
+        std::fs::create_dir_all(&e.state).unwrap();
+        std::fs::write(
+            e.state.join(crate::probe::CACHE),
+            serde_json::to_string(&p).unwrap(),
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn v3_network_writes_nothing_when_the_native_probe_is_blocked() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(&e, "apply", "");
+        c.libreqos.target = crate::config::Target::V3Network;
+        native_probe(&e, &mut c, "blocked");
+        let s = runner(&e, c).cycle(1_000, false).await;
+        let err = s.error.unwrap_or_default();
+        assert!(err.contains("native") && err.contains("1/1 Mbps"), "{err}");
+        assert!(!e.lqos.join("libreqos_network.json").exists());
+        assert!(
+            s.status.native.starts_with("blocked"),
+            "{}",
+            s.status.native
+        );
+    }
+
+    #[tokio::test]
+    async fn v3_network_without_a_probe_writes_nothing() {
+        // A fixed target without dpkg data: the probe cannot run, so the write is not safe.
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(&e, "apply", "");
+        c.libreqos.target = crate::config::Target::V3Network;
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert!(s.error.unwrap_or_default().contains("native"));
+        assert!(!e.lqos.join("libreqos_network.json").exists());
+    }
+
+    #[tokio::test]
+    async fn v3_network_in_shadow_mode_writes_the_candidate_when_blocked() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(&e, "shadow", "");
+        c.libreqos.target = crate::config::Target::V3Network;
+        native_probe(&e, &mut c, "blocked");
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        assert!(e.state.join("candidate/libreqos_network.json").exists());
+    }
+
+    #[tokio::test]
+    async fn v3_pair_reports_the_native_probe_and_is_not_blocked() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = v3_apply(&e);
+        native_probe(&e, &mut c, "blocked");
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        assert!(
+            s.status.native.starts_with("blocked"),
+            "{}",
+            s.status.native
+        );
+        assert!(!s.status.native_ready_new);
     }
 
     #[tokio::test]

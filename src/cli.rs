@@ -138,12 +138,36 @@ pub fn check_with(
     typed: &std::collections::HashSet<PathBuf>,
 ) -> Vec<CheckLine> {
     let mut out = Vec::new();
-    match crate::detect::resolve(&cfg.libreqos) {
-        Ok(d) => out.push(line(
-            Level::Ok,
-            format!("target {} ({})", target_name(d.target), d.reason),
-        )),
-        Err(e) => out.push(line(Level::Error, format!("libreqos.target: {e:#}"))),
+    let target = match crate::detect::resolve(&cfg.libreqos) {
+        Ok(d) => {
+            out.push(line(
+                Level::Ok,
+                format!("target {} ({})", target_name(d.target), d.reason),
+            ));
+            Some(d.target)
+        }
+        Err(e) => {
+            out.push(line(Level::Error, format!("libreqos.target: {e:#}")));
+            None
+        }
+    };
+    let state = Path::new(&cfg.runtime.state_dir);
+    if let Some(p) = crate::probe::cached(&cfg.libreqos, state) {
+        let native = target == Some(crate::config::Target::V3Network);
+        out.push(match p {
+            Some(p) if p.ready() => line(Level::Ok, "native schema 2: ready"),
+            Some(p) => line(
+                if native { Level::Error } else { Level::Ok },
+                format!(
+                    "native schema 2: {}; keep [topology] source = \"shaped_devices\"",
+                    p.summary()
+                ),
+            ),
+            None => line(
+                Level::Ok,
+                "native schema 2: not probed for this LibreQoS yet; the service probes it in its next cycle",
+            ),
+        });
     }
     for r in &cfg.routers {
         let at = format!("router {}", r.name);
@@ -390,6 +414,63 @@ mod tests {
         c.libreqos.state_directory = std::env::temp_dir().display().to_string();
         let warn = texts(&check(&c, e.uid), Level::Warn).join("\n");
         assert!(!warn.contains("state_directory"), "{warn}");
+    }
+
+    #[test]
+    fn check_shows_the_native_probe_of_libreqos_v3() {
+        let e = env("[routers.pppoe]\nenabled=true\n", "");
+        let mut c = Config::from_toml_str(&e.toml).unwrap();
+        assert!(
+            !format!("{:?}", check(&c, e.uid)).contains("native"),
+            "no line on v2"
+        );
+        let lqos = Path::new(&c.libreqos.directory).to_path_buf();
+        std::fs::write(
+            &c.libreqos.dpkg_status,
+            "Package: libreqos\nStatus: install ok installed\nVersion: 3.0.7.1\n",
+        )
+        .unwrap();
+        std::fs::write(lqos.join(crate::probe::BINDING), "x").unwrap();
+        c.libreqos.v3_config = lqos.join("lqos.conf").display().to_string();
+        std::fs::write(
+            &c.libreqos.v3_config,
+            "[topology]\nsource = \"shaped_devices\"\n",
+        )
+        .unwrap();
+        let all = |c: &Config| format!("{:?}", check(c, e.uid));
+        assert!(
+            all(&c).contains("native schema 2: not probed"),
+            "{}",
+            all(&c)
+        );
+
+        let state = Path::new(&c.runtime.state_dir);
+        std::fs::create_dir_all(state).unwrap();
+        let p = crate::probe::Probe {
+            key: crate::probe::key(&c.libreqos).unwrap(),
+            state: "blocked".into(),
+            detail: "node PROBE-SITE compiled to 1/1 Mbps".into(),
+            at: 1,
+        };
+        std::fs::write(
+            state.join(crate::probe::CACHE),
+            serde_json::to_string(&p).unwrap(),
+        )
+        .unwrap();
+        let ok = texts(&check(&c, e.uid), Level::Ok).join("\n");
+        assert!(
+            ok.contains("native schema 2: blocked: node PROBE-SITE"),
+            "{ok}"
+        );
+        // With the native source, a blocked probe is an error.
+        std::fs::write(
+            &c.libreqos.v3_config,
+            "[topology]\nsource = \"libreqos_network\"\n",
+        )
+        .unwrap();
+        c.libreqos.target = crate::config::Target::Auto;
+        let err = texts(&check(&c, e.uid), Level::Error).join("\n");
+        assert!(err.contains("native schema 2: blocked"), "{err}");
     }
 
     #[test]

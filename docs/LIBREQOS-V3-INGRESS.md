@@ -161,6 +161,23 @@ This difference blocks a production source migration until node policy preservat
 The check did not exercise the live native watcher or change the active source.
 Artifacts are under `/home/pi/.local/state/libreqos-native-check-s12invb1`.
 
+## Native probe
+
+LibreQoS 3.0.7 compiles `libreqos_network.json` with 1 Mbps nodes in `full` and `full2` mode.
+See [the defect report](reports/2026-11-02-libreqos-native-node-rate-loss.md).
+LQoSync thus probes the installed compiler before it writes the native file.
+
+- The probe compiles a synthetic schema 2 topology with `<libreqos.directory>/liblqos_python.so`.
+  It uses the scratch folder `<state_dir>/native-probe/` and its own `lqos.conf`, and it removes the folder after the probe.
+  It does not read or write the live input files, the live state, or `/etc/lqos.conf`.
+- The probe passes only if the compiled tree keeps the synthetic node rates.
+- The result is in `<state_dir>/native-probe.json`. The key is the LibreQoS version, the `compile_mode`, and the size and time of the binding.
+  The probe runs again only when the key changes. If the probe cannot run, LQoSync tries it again after 1 hour.
+- `status.json` shows the result in `native`: `ready`, `blocked: <reason>`, or `error: <reason>`.
+- In `apply` mode, the `v3_network` target writes nothing until the probe is `ready`. The cycle reports an error.
+- `lqosync3 check` shows the cached result. With the `v3_network` target, a result that is not `ready` is an error.
+- When the probe becomes `ready`, Telegram sends one notice. The operator then decides to change `[topology] source`.
+
 ## Open items
 
 - [x] Confirm the watched native input path: `<lqos_directory>/libreqos_network.json`, resolved through `legacy_runtime_file_path`.

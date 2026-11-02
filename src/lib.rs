@@ -13,6 +13,7 @@ pub mod files;
 pub mod mikrotik;
 pub mod model;
 pub mod notify;
+pub mod probe;
 pub mod routeros;
 pub mod routerstate;
 pub mod runner;

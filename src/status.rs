@@ -143,6 +143,10 @@ pub struct Status {
     pub program_version: String,
     /// The last Telegram send: disabled | none | ok | the error text.
     pub telegram: String,
+    /// The native probe of LibreQoS v3 (`probe.rs`): ready | blocked: … | error: …. Empty: not v3.
+    pub native: String,
+    /// True in the cycle where the native probe became `ready`.
+    pub native_ready_new: bool,
 }
 
 impl Status {

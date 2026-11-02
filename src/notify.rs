@@ -187,6 +187,8 @@ impl Notifier {
             "ALERT: <b>router state changed</b>"
         } else if on_err && alerts_new {
             "ALERT: <b>removal guard held a write</b>"
+        } else if st.native_ready_new {
+            "OK: <b>LibreQoS native schema 2 is ready</b>"
         } else if changes && st.mode == "shadow" {
             "OK: <b>lqosync3 candidate files changed</b>"
         } else if changes {
@@ -217,6 +219,11 @@ impl Notifier {
             ),
             format!("<b>Next scan:</b> {}s", st.next_scan_seconds),
         ];
+        if st.native_ready_new {
+            out.push(
+                "<b>Native schema 2:</b> the probe passed. The operator can change [topology] source from shaped_devices to libreqos_network.".into(),
+            );
+        }
         if let Some(e) = &st.error {
             code_block(&mut out, "Error", e);
         }
@@ -527,6 +534,23 @@ mod tests {
         let mut n = Notifier::default();
         assert_eq!(n.message(&tg(), &st("apply", "online")), None);
         assert_eq!(n.message(&tg(), &st("apply", "online")), None);
+    }
+
+    #[test]
+    fn a_native_probe_that_becomes_ready_gives_one_notice() {
+        let mut n = Notifier::default();
+        let mut s = st("apply", "online");
+        s.target = "v3_pair".into();
+        s.native = "ready".into();
+        s.native_ready_new = true;
+        let m = n.message(&tg(), &s).expect("a notice");
+        assert!(m.contains("native schema 2"), "{m}");
+        assert!(
+            m.contains("shaped_devices") && m.contains("libreqos_network"),
+            "{m}"
+        );
+        s.native_ready_new = false;
+        assert_eq!(n.message(&tg(), &s), None, "one time only");
     }
 
     #[test]
