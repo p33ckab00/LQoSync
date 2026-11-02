@@ -33,6 +33,10 @@ All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml
 
 Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again. A bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
 After each cycle, `<state_dir>/status.json` (version 3) shows the router states, the changes, and any error. It also shows `config_path`, `config_digest`, `cycle_seq`, `pid`, `trigger` (`start`, `timer`, `sync_now`, `reload`, `once`), `program_version`, and `telegram` (the last send: `disabled`, `none`, `ok`, or the error).
+On LibreQoS v3, `status.json` also shows `native` (the native probe: `ready`, `blocked: <reason>`, or `error: <reason>`) and `bridge`.
+`bridge` holds the load counters of the DPDK bridge from its journal: `budget_defers`, `iter_gt100ms`, `iter_gt1s` and `iter_max_ms`.
+The bridge worker polls the NIC, so its CPU is always 100%. Use these counters, not the CPU, to see the load.
+The counters start again at 0 when the bridge starts. If `budget_defers` or `iter_gt100ms` goes up, Telegram sends one alert (`notify_on_error`). The Dashboard shows both lines.
 After each reload signal, the service writes `status.json` at once with `trigger = "reload"` and the `config_digest` of the loaded file. If the new config is bad, `config_error` shows the error until a good reload, and the old config stays. Then a cycle starts.
 `lqosync3 check` gives a warning if the config file on disk is not the loaded config (the digests are different). Send `SIGHUP` to load it.
 After each router read, the service writes `<state_dir>/snapshot.json` (mode `0600`). It holds the router tables of the last cycle, and no secret. Plan 4b uses it for the settings preview.

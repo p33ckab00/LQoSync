@@ -147,6 +147,8 @@ pub struct Status {
     pub native: String,
     /// True in the cycle where the native probe became `ready`.
     pub native_ready_new: bool,
+    /// The load counters of the LibreQoS v3 bridge (`bridge.rs`). `None`: not v3 or not readable.
+    pub bridge: Option<crate::bridge::BridgeStats>,
 }
 
 impl Status {

@@ -58,6 +58,7 @@ pub struct Notifier {
     routers: BTreeMap<String, &'static str>,
     last_error: Option<String>,
     last_alerts: Vec<String>,
+    last_bridge: Option<crate::bridge::BridgeStats>,
 }
 
 /// At most `max` characters of `s`, with "..." at the end if it was cut.
@@ -167,6 +168,24 @@ impl Notifier {
         let error_new = error.is_some() && error != self.last_error;
         let cleared = error.is_none() && self.last_error.is_some();
         let alerts_new = !alerts.is_empty() && alerts != self.last_alerts;
+        // The bridge counters only go up. A lower value is a bridge restart: a new baseline.
+        let mut bridge_up = Vec::new();
+        if let (Some(p), Some(c)) = (self.last_bridge, st.bridge)
+            && c.budget_defers >= p.budget_defers
+            && c.iter_gt100ms >= p.iter_gt100ms
+        {
+            for (name, a, b) in [
+                ("budget_defers", p.budget_defers, c.budget_defers),
+                ("iter_gt100ms", p.iter_gt100ms, c.iter_gt100ms),
+            ] {
+                if b > a {
+                    bridge_up.push(format!("{name} {a} to {b}"));
+                }
+            }
+        }
+        if st.bridge.is_some() {
+            self.last_bridge = st.bridge;
+        }
         self.routers = st
             .routers
             .iter()
@@ -187,6 +206,8 @@ impl Notifier {
             "ALERT: <b>router state changed</b>"
         } else if on_err && alerts_new {
             "ALERT: <b>removal guard held a write</b>"
+        } else if on_err && !bridge_up.is_empty() {
+            "ALERT: <b>LibreQoS bridge worker is behind</b>"
         } else if st.native_ready_new {
             "OK: <b>LibreQoS native schema 2 is ready</b>"
         } else if changes && st.mode == "shadow" {
@@ -219,6 +240,20 @@ impl Notifier {
             ),
             format!("<b>Next scan:</b> {}s", st.next_scan_seconds),
         ];
+        if !bridge_up.is_empty() {
+            let b = st.bridge.unwrap_or(crate::bridge::BridgeStats {
+                budget_defers: 0,
+                iter_gt100ms: 0,
+                iter_gt1s: 0,
+                iter_max_ms: 0,
+            });
+            out.push(format!(
+                "<b>Bridge:</b> {} (iter_gt1s {}, iter_max_ms {}). If it goes up again, add a worker: [queues] workers in lqos.conf.",
+                esc(&bridge_up.join(", ")),
+                b.iter_gt1s,
+                b.iter_max_ms
+            ));
+        }
         if st.native_ready_new {
             out.push(
                 "<b>Native schema 2:</b> the probe passed. The operator can change [topology] source from shaped_devices to libreqos_network.".into(),
@@ -551,6 +586,45 @@ mod tests {
         );
         s.native_ready_new = false;
         assert_eq!(n.message(&tg(), &s), None, "one time only");
+    }
+
+    #[test]
+    fn a_bridge_counter_that_goes_up_gives_one_alert() {
+        let b = |d: u64, g: u64| crate::bridge::BridgeStats {
+            budget_defers: d,
+            iter_gt100ms: g,
+            iter_gt1s: 0,
+            iter_max_ms: 94,
+        };
+        let mut n = Notifier::default();
+        let mut s = st("apply", "online");
+        s.bridge = Some(b(1, 0));
+        assert_eq!(
+            n.message(&tg(), &s),
+            None,
+            "the first value is the baseline"
+        );
+        assert_eq!(n.message(&tg(), &s), None, "no change");
+        s.bridge = Some(b(4, 0));
+        let m = n.message(&tg(), &s).expect("an alert");
+        assert!(
+            m.contains("bridge") && m.contains("budget_defers 1 to 4"),
+            "{m}"
+        );
+        assert_eq!(n.message(&tg(), &s), None, "one time only");
+        s.bridge = Some(b(4, 2));
+        let m = n.message(&tg(), &s).expect("an alert");
+        assert!(m.contains("iter_gt100ms 0 to 2"), "{m}");
+        s.bridge = None;
+        assert_eq!(n.message(&tg(), &s), None, "no data");
+        s.bridge = Some(b(0, 0));
+        assert_eq!(
+            n.message(&tg(), &s),
+            None,
+            "a bridge restart starts the counters again"
+        );
+        s.bridge = Some(b(1, 0));
+        assert!(n.message(&tg(), &s).is_some());
     }
 
     #[test]

@@ -95,8 +95,21 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
             st["config_error"].as_str().unwrap_or(none)
         ),
         format!("telegram: {}", s("telegram")),
-        "[routers]".into(),
     ];
+    // LibreQoS v3 only: the load of the bridge worker (its CPU is always 100%) and the native probe.
+    let b = &st["bridge"];
+    if b.is_object() {
+        out.push(format!(
+            "bridge: budget_defers {} | iter_gt100ms {} | iter_max_ms {}",
+            n(&b["budget_defers"]),
+            n(&b["iter_gt100ms"]),
+            n(&b["iter_max_ms"])
+        ));
+    }
+    if let Some(native) = st["native"].as_str().filter(|v| !v.is_empty()) {
+        out.push(format!("native schema 2: {native}"));
+    }
+    out.push("[routers]".into());
     match st["routers"].as_array() {
         Some(rs) if !rs.is_empty() => {
             for r in rs {
@@ -926,6 +939,33 @@ mod tests {
 
     fn text(d: &Data) -> Vec<String> {
         lines(d, 2_000).into_iter().map(|l| l.to_string()).collect()
+    }
+
+    #[test]
+    fn bridge_and_native_lines_show_only_on_libreqos_v3() {
+        let v2 = data(
+            json!({"version": 3, "mode": "apply", "target": "v2_pair", "routers": [],
+            "report": {"counts": {}}, "native": ""}),
+        );
+        let t = text(&v2).join("\n");
+        assert!(
+            !t.contains("bridge:") && !t.contains("native schema 2"),
+            "{t}"
+        );
+        let v3 = data(
+            json!({"version": 3, "mode": "apply", "target": "v3_pair", "routers": [],
+            "report": {"counts": {}}, "native": "blocked: node PROBE-SITE compiled to 1/1 Mbps",
+            "bridge": {"budget_defers": 1, "iter_gt100ms": 0, "iter_gt1s": 0, "iter_max_ms": 94}}),
+        );
+        let t = text(&v3).join("\n");
+        assert!(
+            t.contains("bridge: budget_defers 1 | iter_gt100ms 0 | iter_max_ms 94"),
+            "{t}"
+        );
+        assert!(
+            t.contains("native schema 2: blocked: node PROBE-SITE"),
+            "{t}"
+        );
     }
 
     #[test]

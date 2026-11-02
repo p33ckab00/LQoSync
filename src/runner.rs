@@ -295,6 +295,10 @@ where
         let (native, native_new) = crate::probe::status(&self.cfg.libreqos, state_dir, now).await;
         status.native = native.as_ref().map_or(String::new(), |p| p.summary());
         status.native_ready_new = native_new;
+        // The same test as the probe: LibreQoS v3 with its binding has the DPDK bridge.
+        if native.is_some() {
+            status.bridge = crate::bridge::read().await;
+        }
         if target == Target::V3Network
             && self.cfg.runtime.mode == RuntimeMode::Apply
             && !native.as_ref().is_some_and(|p| p.ready())
