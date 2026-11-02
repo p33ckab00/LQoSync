@@ -11,6 +11,13 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-02-native-runtime-policy-validation]]
+- [[2026-11-02-native-topology-source-check]]
+- [[2026-11-02-libreqos-v3-live-cutover]]
+- [[2026-11-02-v3-upgrade-preparation]]
+- [[2026-11-01-libreqos-v3-upgrade-investigation]]
+- [[2026-11-01-preflight-update-prepared]]
+- [[2026-11-01-host-storage-cleanup]]
 - [[2026-11-01-btop-tui-and-fresh-install]]
 - [[2026-11-01-tui-cosmetics-implementation]]
 - [[2026-11-01-tui-cosmetics-design-handoff]]

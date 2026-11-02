@@ -8,6 +8,134 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-02T18:30:00+08:00 (Asia/Manila) — v3 import request, native probe, bridge monitor
+
+| Item | Value |
+|------|-------|
+| Goal | Make the live `v3_pair` path fast and safe. Block the native source while LibreQoS has the 1 Mbps defect. Show the bridge load. |
+| Last agent | Claude Code |
+| Branch and revision | `lqosync3`, `727c068` (pushed) |
+| Changes | Reload request and import check (`0978937`), native probe and `v3_network` guard (`68e6005`), defect report and ADR-0011 to 0013 (`ff6756f`), bridge monitor (`727c068`) |
+| Runtime | `lqosync3` apply/auto, `v3_pair`. Installed `3.0.128+gff6756f`. Release `727c068` is built and not installed yet. Host time zone Asia/Manila. |
+| Checks | 462 tests pass, clippy clean. Live: reload request in the same second, import in about 3 s, `imported by LibreQoS`. Probe `blocked` (1/1 Mbps). |
+| Decisions | `subscriber_grace = 0` stays (ADR-0012). LQoSync does not change `/etc/lqos.conf`. |
+| Next action | Operator: hold the LibreQoS packages, install `727c068`, post the upstream issue. |
+
+Session: [[2026-11-02-v3-import-probe-bridge-monitor]].
+The LibreQoS packages were not on hold on 2026-11-02. Run `sudo apt-mark hold libreqos libreqos-api libreqos-dataplane`.
+
+## 2026-11-02T14:29:00+08:00 (Asia/Shanghai) — native policy fails isolated daemon validation
+
+The user asked whether runtime processing repairs the native compiler's missing node rates.
+Two isolated cold starts of the installed daemon compared pair and native sources with the same example config.
+The native watcher accepted the exact candidate hash. Operator view and final transaction still show 1 Mbps group limits.
+All five group policies differ. All 25 matched runtime leaf plans also differ and have 1 Mbps ceilings.
+Both modes emitted 25 of 26 fixture circuits. That shared exclusion remains unexplained.
+There was no physical dataplane or throughput test.
+
+Production remains `shaped_devices` / `full`, with active LQoSync and DPDK and a healthy matching seam.
+No live file hash changed, no service restarted, and no source switch occurred.
+All task containers were removed. Temporary executable copies were removed. Private JSON/log artifacts remain.
+Report: `/home/pi/.local/state/libreqos-native-check-s12invb1/runtime-8ac8796e/policy-comparison.json`.
+Session: [[2026-11-02-native-runtime-policy-validation]].
+
+Next: correct the full compiler's canonical reconstruction in a separate authorized task, then repeat policy equivalence and recovery checks.
+Do not activate native input on this build to test client traffic.
+Repository branch/revision: `lqosync3`, `0978937` (existing user commit). This task changed notes only.
+
+## 2026-11-02T13:50:56+08:00 (Asia/Shanghai) — native source validation completed
+
+The user requested validation of `libreqos_network` as the active source.
+The live source remains `shaped_devices`, with LQoSync apply/auto and v3_pair.
+Both production services remain active. No live input or config hash changed.
+
+The native writer produced five nodes and 26 circuits with zero alerts.
+The installed Python binding compiled both formats successfully in isolated directories with socket connections blocked.
+Compiled subscriber fields match except comments. Native node policy does not match:
+the import retains supplied rates, but the compiled canonical output loses kinds/rates and emits 1 Mbps compatibility node limits.
+Do not activate the source until this discrepancy is resolved or a controlled full runtime test proves policy preservation.
+The live native watcher was not exercised. No compiler fix or live source change was authorized by this validation request.
+
+Artifacts: `/home/pi/.local/state/libreqos-native-check-s12invb1` (private subscriber data, mode `0700`).
+Session: [[2026-11-02-native-topology-source-check]].
+Existing uncommitted edits in `src/files.rs` and `src/runner.rs` were present at task start and remain untouched.
+
+## 2026-11-02T13:04:36+08:00 (Asia/Shanghai) — live LibreQoS v3 cutover verified
+
+| Item | Value |
+|------|-------|
+| Goal | Complete the LibreQoS v3 live cutover |
+| Last agent | Codex |
+| Branch and revision | `lqosync3`, `55c4852` |
+| Worktree | `/home/pi/LQoSync3.0` |
+| Repository changes | Home, this handoff, preparation note, and final cutover note. Preserved earlier uncommitted notes. No application code changes. |
+| Runtime | All three packages at `3.0.7.202610310038`. Five services active and enabled. LQoSync apply/auto detects v3_pair. Full topology. |
+| Checks | Fresh topology ready. Healthy seam with matching applied state. No sync errors or circuit removals. Traffic in both directions. No recovery timers remain. |
+| Network | Persistent independent dataplane ports, no `br0`. Management on `enp3s0`. Persistent mlx5 `txq_mem_algn=0` override and hugepages. |
+| UI limitation | Network editor expects Linux `br0` and reports Conflict. Do not apply its managed preview or Take Over action to clear the badge. |
+| Backup | `/root/libreqos-before-v3-RRb5MEle`; sync-stage rollback files in `sync-apply-FLarX9AD` below it |
+| Remaining | Operator package hold command, optional planned reboot test, and upstream netplan-editor compatibility review |
+| Next action | Operator: `sudo apt-mark hold libreqos libreqos-api libreqos-dataplane`. The upgrade cleared the previous hold. Do not reboot merely to clear the UI badge. |
+
+Session: [[2026-11-02-libreqos-v3-live-cutover]].
+The operational cutover is complete. Boot recovery and actual v2 rollback remain untested.
+
+## 2026-11-02T12:32:10+08:00 (Asia/Shanghai) — v3 installed, dataplane startup failed
+
+| Item | Value |
+|------|-------|
+| Goal | Complete the user-authorized LibreQoS v3 cutover |
+| Last agent | Codex |
+| Branch and revision | `lqosync3`, `55c4852` |
+| Worktree | `/home/pi/LQoSync3.0` |
+| Changed files | This handoff, Home, and the v3 preparation session note |
+| Operator changes | Runtime archive, matched v3 package installation, automatic config migration, persistent 3072 hugepages |
+| Checks | Resumed DPDK active. LQoSync shadow passed: v3_pair, no circuit changes, two expected node type changes. LQoSync service inactive. |
+| Fixed failure | `txq_mem_algn=0` bypassed mlx5 shared Tx umem registration failure. The compatibility override is installed. |
+| Network | Resumed persistence succeeded. `br0` absent. Management remains on `enp3s0`. Recovery timer deadline: 2026-11-02T13:04:08+08:00. |
+| Next action | After client traffic confirmation, operator runs `/home/pi/.local/state/libreqos-v3-cutover/apply-lqosync-v3.sh` with sudo. It backs up configs/pair, selects full topology, applies once, verifies fresh topology and matching seam, and starts LQoSync. It cancels the network timer after config validation. |
+| Access | Agent sudo requires a password. Operator executes root commands in their terminal. |
+
+Session: [[2026-11-02-v3-upgrade-preparation]].
+Backup: `/root/libreqos-before-v3-RRb5MEle`.
+Rollback artifact: `/home/pi/libreqos-v2-rollback/libreqos_2.2.202609081854_amd64.deb`.
+The compatibility override is installed. Successful v3 startup and an applied generation are confirmed.
+Root inspection reports managed `br0`, `can_adopt=false`. Its preview retains the kernel bridge.
+The operator ran the trial and confirmed client internet. Verify that the trial timer was actually stopped.
+The operator ran the persistence script successfully. The persistent recovery timer was still active at inspection.
+The reported `BRIDGE_SEAM_REPLACED` warning recovered: healthy seam, matching applied content key, no reject or divergence, and traffic counters in both directions.
+Later inspection at 2026-11-02T12:47:19+08:00 confirms timer recovery restored `br0` and stopped DPDK.
+The shadow block exited at its first guard. Live LQoSync config remains `apply` / `v2_pair` and the service remains stopped.
+The revised persistence and combined resume scripts passed syntax and guard checks but have not run as root.
+The operator subsequently ran resume successfully. Current config: shadow/auto, detected v3_pair, expected two-node diff only.
+The next activation script is prepared and checked but has not executed as root.
+
+## 2026-11-02T12:15:41+08:00 (Asia/Shanghai) — v3 upgrade preparation resumed
+
+| Item | Value |
+|------|-------|
+| Goal | Resume the LibreQoS v3 preparation from the inaccessible chat |
+| Last agent | Codex |
+| Branch and revision | `lqosync3`, `55c4852` |
+| Worktree | `/home/pi/LQoSync3.0` |
+| Changed files | This handoff, `brain/Home.md`, and the session note below |
+| Checks | Read-only package, service, route, bridge, firmware, and memory checks passed. No application code changed or tests ran. |
+| Current state | LibreQoS v2.2 remains held. The three existing services remain active. No runtime changes. |
+| Unfinished work | Root netplan inspection, verified v2 rollback package, protected backups, firmware compatibility, hugepages, and exact cutover commands |
+| Next action | User requested cutover. Recover existing root backup and cutover paths through the operator, then continue the existing procedure. Root authentication remains unavailable to this agent. |
+
+Session: [[2026-11-02-v3-upgrade-preparation]].
+The wider search found a v2 archive rollback package and two staged v3 packages.
+Their hashes match local APT metadata. APT simulation and rollback dry-run passed.
+The v2 artifact is `2.2.202609081854`, not the installed `2.2.202608181454`.
+The operator found `/root/libreqos-before-v3-RRb5MEle` and `/root/libreqos-before-root-preflight-0EN8CBr9`.
+The file list confirms `configs.tar.gz`, a manifest, package snapshots, holds, and network snapshots.
+The operator supplied the archive list and root preflight: `WARN`, no `BLOCK`, valid legacy pair, `br0` adoption required.
+Next: stop old services, back up runtime state, and install the matched `3.0.7.202610310038` set through the operator terminal.
+Keep LQoSync stopped until the v3 target, topology mode, bridge adoption, and runtime acceptance pass.
+Sudo authentication in the operator terminal does not reach the agent session.
+Preserved the existing Home edits and three untracked session notes from 2026-11-01.
+
 
 ## 2026-11-01T09:40:00+00:00 — first release v3.0.122
 
