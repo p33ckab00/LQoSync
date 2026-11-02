@@ -173,8 +173,6 @@ pub enum BoxKind {
     Proc,
 }
 
-const SUPERSCRIPT: [char; 10] = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
-
 fn hex(v: u32) -> Color {
     Color::Rgb((v >> 16) as u8, (v >> 8) as u8, v as u8)
 }
@@ -258,14 +256,12 @@ impl Palette {
         }
     }
 
-    /// A box title in btop++ form: `┐¹name┌`. The brackets take the style of the box border.
+    /// A box title in btop++ form: `┐1name┌`. The brackets take the style of the box border.
     pub fn title(&self, name: &str, hotkey: Option<u8>) -> Line<'static> {
         let mut spans = vec![Span::raw("┐")];
         if let Some(k) = hotkey {
-            spans.push(Span::styled(
-                SUPERSCRIPT[(k % 10) as usize].to_string(),
-                self.hotkey(),
-            ));
+            // An ASCII digit: many terminal fonts have no glyph for the superscripts ⁴ to ⁹.
+            spans.push(Span::styled((k % 10).to_string(), self.hotkey()));
         }
         spans.push(Span::styled(name.to_string(), self.title_style()));
         spans.push(Span::raw("┌"));
@@ -401,7 +397,7 @@ mod tests {
     fn a_box_title_has_the_btop_brackets_and_hotkey() {
         let p = Palette::new(Theme::Dark);
         let t = p.title("devices", Some(1));
-        assert_eq!(t.to_string(), "┐¹devices┌");
+        assert_eq!(t.to_string(), "┐1devices┌");
         assert_eq!(p.title("node", None).to_string(), "┐node┌");
     }
 

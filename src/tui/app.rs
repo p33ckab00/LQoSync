@@ -541,7 +541,7 @@ impl App {
         }
     }
 
-    /// The tabs as btop++ box titles on one line: `─┐¹ShapedDevices┌─┐²Network┌─`.
+    /// The tabs as btop++ box titles on one line: `─┐1ShapedDevices┌─┐2Network┌─`.
     /// The titles are drawn as spans, so the stored rectangles match the screen.
     fn draw_tabs(&mut self, f: &mut Frame, area: Rect) {
         self.tab_rects.clear();
@@ -689,7 +689,7 @@ mod tests {
         let row: String = (0..120)
             .map(|x| buf[(x, r.y)].symbol().to_string())
             .collect();
-        for want in ["┐¹ShapedDevices┌", "┐²Network┌", "┐⁵Dashboard┌"] {
+        for want in ["┐1ShapedDevices┌", "┐2Network┌", "┐5Dashboard┌"] {
             assert!(row.contains(want), "{want}: {row}");
         }
         assert_eq!(buf[(r.x, r.y)].symbol(), "┐");
@@ -750,10 +750,10 @@ mod tests {
         ] {
             assert!(first.contains(want), "{want}: {first}");
         }
-        assert!(s.lines().nth(1).unwrap().contains("┐¹ShapedDevices┌"));
+        assert!(s.lines().nth(1).unwrap().contains("┐1ShapedDevices┌"));
         // At 80 columns the header takes two lines and keeps each word.
         let s = draw(&mut a, 80, 24);
-        assert!(s.lines().nth(2).unwrap().contains("┐¹ShapedDevices┌"));
+        assert!(s.lines().nth(2).unwrap().contains("┐1ShapedDevices┌"));
     }
 
     #[test]
