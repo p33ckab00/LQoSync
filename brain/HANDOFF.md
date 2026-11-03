@@ -22,7 +22,7 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 | Next action | After each LibreQoS update, compare the EAL arguments in `50-ports.conf` and `90-mlx5-compat.conf` ([[libreqos-v3-mlx5-compat]]). Check the Web UI and `/api/v3`. |
 
 Session: [[2026-11-03-libreqos-v3-package-update]].
-NIC firmware upgrade `14.25.1020` to `14.32.1912` is prepared, not done: `docs/reports/2026-11-03-nic-firmware-upgrade.md`. Verified images and `mstflint` are in `/home/pi/nic-firmware/`. The operator must run the backup (section 6.3). Secure Boot lockdown can block `mstflint` (section 5).
+NIC firmware upgrade `14.25.1020` to `14.32.1912` is prepared, not done: `docs/reports/2026-11-03-nic-firmware-upgrade.md`. Verified images and `mstflint` are in `/home/pi/nic-firmware/`. Update 10:12: the Secure Boot lockdown blocks `mstflint` (`direct PCI access is restricted`). No backup exists. Next: report section 8.4 (signed `mstflint-dkms` module, MOK enrollment at a reboot with a physical console). A bridge stop during the test caused a 2 min 24 s traffic stop (10:12:09 to 10:14:33). The bridge recovered with 26 circuits.
 The LibreQoS packages are still not on hold. The earlier hold command names `libreqos-api`, which is now removed. Use `sudo apt-mark hold libreqos libreqos-dataplane`.
 
 ## 2026-11-02T18:30:00+08:00 (Asia/Manila) — v3 import request, native probe, bridge monitor

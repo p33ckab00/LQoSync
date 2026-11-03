@@ -5,13 +5,17 @@ Data source: `ethtool -i`, `lspci`, `fwupdmgr`, `mokutil`, `/sys/kernel/security
 The agent had no root access. The agent did not read or write the NIC flash.
 Related procedure: [mlx5 override removal](2026-11-03-mlx5-override-removal.md).
 
+> [!warning] Update 2026-11-03 10:12 (Asia/Manila)
+> The kernel lockdown blocks `mstflint`. The backup and the burn are not possible with the current boot configuration.
+> The firmware is still `14.25.1020`. Refer to section 8 for the result and the next steps.
+
 ## 1. Summary
 
 - The NIC has firmware `14.25.1020` from April 2019. The latest firmware for this card is `14.32.1912` from January 2026.
 - The new firmware has 42 bug fixes since `14.25.1020`. Some fixes prevent a firmware hang when the peer port goes down. This is important for an inline shaper.
 - NVIDIA recommends `14.32.1908` or later for "reliability improvements and security hardening enhancements".
 - The agent downloaded and verified the new image, the old image (for rollback), and the `mstflint` package.
-- Secure Boot is on and the kernel lockdown is `integrity`. This can prevent `mstflint` access to the NIC. Section 5 gives the options.
+- Secure Boot is on and the kernel lockdown is `integrity`. The lockdown blocks `mstflint` access to the NIC (test result in section 8). Section 5 gives the options. Section 8 recommends option A.
 - The firmware upgrade does not prove a fix for the mlx5 `txq_mem_algn` problem. Keep `90-mlx5-compat.conf` active during the upgrade. Do the override test later, in a different window.
 
 ## 2. Card identification
@@ -108,8 +112,8 @@ The host state on 2026-11-03:
 | DKMS MOK key `/var/lib/shim-signed/mok/` | empty |
 
 In `integrity` mode, the kernel can prevent direct PCI access from user space.
-`mstflint` uses direct PCI access to the flash. The agent did not test this, because the test needs root.
-If `mstflint` fails, the error is possibly `Operation not permitted`, and `dmesg` shows a line that starts with `Lockdown:`.
+`mstflint` uses direct PCI access to the flash.
+The operator tested this on 2026-11-03. The lockdown blocks the access. Refer to section 8.1.
 
 If the access fails, select one of these options:
 
@@ -172,6 +176,8 @@ If a `Lockdown:` line names the access, do one option from section 5. Then do st
 ### 6.3 Back up the current firmware and configuration
 
 These steps read the flash only. They do not change the NIC.
+
+CAUTION: DO NOT STOP THE BRIDGE FOR THESE STEPS. IF YOU STOP THE BRIDGE, ALL SUBSCRIBERS LOSE THE INTERNET. ONLY SECTION 6.4 STOPS THE BRIDGE.
 
 ```bash
 sudo mstflint -d 0000:01:00.0 q full | tee /home/pi/nic-firmware/query-before.txt
@@ -264,7 +270,212 @@ sudo mstflint -d 0000:01:00.0 -i /home/pi/nic-firmware/fw-ConnectX4Lx-rel-14_25_
 2. Update the firmware value in `brain/30-knowledge/libreqos-v3-mlx5-compat.md`.
 3. In a different maintenance window, do the [mlx5 override removal](2026-11-03-mlx5-override-removal.md) test.
 
-## 8. Sources
+## 8. Update 2026-11-03: access test result and next steps
+
+### 8.1 Result of the access test
+
+The operator installed `mstflint 4.26.0+1-2ubuntu3` and did section 6.2 and section 6.3.
+Each `mstflint` and `mstconfig` command failed:
+
+```
+write counter to semaphore: Operation not permitted
+-E- Cannot open Device: 0000:01:00.0. No such file or directory. MFE_CR_ERROR
+```
+
+```
+-E- Failed to open the device
+```
+
+`dmesg` shows the cause:
+
+```
+Lockdown: mstflint: direct PCI access is restricted; see man kernel_lockdown.7
+```
+
+Conclusion:
+
+- The kernel lockdown (`integrity`, from Secure Boot) blocks the access of `mstflint` to the NIC.
+- The result is the same when the bridge operates and when the bridge is stopped. The bridge does not cause the failure.
+- No backup file exists. The NIC firmware did not change.
+- A change to the access needs a reboot. The lockdown mode cannot change while the kernel operates.
+
+NOTE: `dmesg` also shows `Lockdown: bridge_rs: raw io port access is restricted`. These lines occurred before this test. The bridge operates correctly with them. They are not related to the firmware upgrade.
+
+### 8.2 Traffic stop during the test
+
+The operator stopped the bridge during the backup steps. These steps did not need a bridge stop.
+
+| Item | Value |
+|------|-------|
+| Bridge stop | 10:12:09 (Asia/Manila) |
+| Bridge start | 10:14:33 (Asia/Manila) |
+| Traffic stop | approximately 2 minutes 24 seconds |
+| State after the start | `applied_mappings=26`, `installed_prefixes=26`, `tripwire=ok`, `nombuf[down=0,up=0]` |
+
+Section 6.3 now has a CAUTION. Only section 6.4 stops the bridge.
+
+### 8.3 Recommendation
+
+Use option A from section 5: a signed `mstflint_access` kernel module.
+
+| Item | Option A: signed module | Option B: Secure Boot off |
+|------|-------------------------|---------------------------|
+| Secure Boot | Stays on | Off during the upgrade |
+| Reboots | 1 | 2 |
+| Physical console | Necessary (MOK enrollment) | Necessary (BIOS menu and HP confirmation code) |
+| New packages | `dkms 3.0.11-1ubuntu13`, `mstflint-dkms 4.26.0+1-2ubuntu3` | None |
+| Later firmware upgrades | No more reboots for the access | The same two reboots each time |
+| Risk | A kernel update must rebuild the module. DKMS does this automatically. | An operator can forget to enable Secure Boot again. |
+
+Use option B only if option A fails.
+
+### 8.4 Procedure for option A
+
+#### 8.4.1 Before the maintenance window (no traffic stop)
+
+1. Install the module package:
+
+```bash
+sudo apt install mstflint-dkms
+```
+
+Expected result: DKMS builds `mstflint_access` for the kernel `6.8.0-147-generic`.
+
+2. If the installer asks for a MOK password, type a new password. Write the password on paper. You must type it on the console after the reboot.
+3. If the installer does not ask for a password, import the key:
+
+```bash
+sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
+```
+
+Expected result: the command asks for a new password two times.
+
+4. Make sure that the key waits for enrollment:
+
+```bash
+sudo mokutil --list-new | grep -i -m1 subject
+dkms status | grep -i mstflint
+```
+
+Expected result: one key subject, and `mstflint` with the status `installed`.
+
+CAUTION: DO NOT REBOOT THE HOST NOW. THE REBOOT STOPS THE TRAFFIC. DO THE REBOOT ONLY IN THE MAINTENANCE WINDOW.
+
+#### 8.4.2 In the maintenance window
+
+1. Connect a monitor and a keyboard to the host. Keep an SSH connection on `enp3s0` also.
+2. Reboot the host:
+
+```bash
+sudo reboot
+```
+
+3. Examine the console. The blue "Perform MOK management" screen shows for 10 seconds only. Push a key immediately.
+4. Select "Enroll MOK". Select "Continue". Select "Yes".
+5. Type the MOK password from section 8.4.1. Select "Reboot".
+6. If the 10 seconds pass before you push a key, the host boots without the key. Do section 8.4.1 step 3 again, then do this section again.
+
+#### 8.4.3 After the reboot
+
+1. Make sure that the services operate:
+
+```bash
+for u in libreqos-lqosd libreqos-bridge libreqos-scheduler lqosync3; do echo "$u $(systemctl is-active $u)"; done
+```
+
+Expected result: each service is `active`.
+
+2. Make sure that the bridge is healthy:
+
+```bash
+journalctl -u libreqos-bridge -n 200 --no-pager | grep CLASS-COVER | tail -1
+```
+
+Expected result: `applied_mappings=26` (or the current circuit count) and `tripwire=ok`. Make sure that a test subscriber has the internet.
+
+3. If a service is not active, stop this procedure. Repair the boot problem first. The firmware upgrade can wait.
+4. Make sure that the key is enrolled and Secure Boot is on:
+
+```bash
+mokutil --sb-state
+sudo mokutil --test-key /var/lib/shim-signed/mok/MOK.der
+```
+
+Expected result: `SecureBoot enabled`, and the key "is already enrolled".
+
+5. Load the module:
+
+```bash
+sudo modprobe mstflint_access
+lsmod | grep mstflint
+```
+
+Expected result: one `mstflint_access` line.
+
+6. Test the access:
+
+```bash
+sudo mstflint -d 0000:01:00.0 q
+```
+
+Expected result: `FW Version: 14.25.1020` and `PSID: MT_2420110034`.
+
+7. If the access fails, do these checks:
+
+```bash
+sudo dmesg | grep -iE "lockdown|mstflint" | tail -5
+ls /dev | grep -i mst
+```
+
+If `dmesg` shows a new `Lockdown:` line for `mstflint`, option A does not operate on this host. Use option B (section 8.5).
+
+8. If the access is correct, do section 6.3 (backup). Do not stop the bridge.
+9. If the backup is correct, do sections 6.4 and 6.5. You can do them in the same window. Do them only after steps 1 to 4 pass.
+
+### 8.5 Procedure for option B (only if option A fails)
+
+NOTE: The BIOS menu names for the HP ProDesk 400 G5 (BIOS Q08 02.30.00) are not verified. The names on the host can be different.
+
+1. In the maintenance window, connect a monitor and a keyboard to the host.
+2. Reboot the host. Push `F10` to open the BIOS setup.
+3. Go to Advanced > Secure Boot Configuration. Select "Legacy Support Disable and Secure Boot Disable".
+4. Save the change and exit.
+5. At the next boot, the BIOS shows a confirmation code. Type the code and push `Enter`.
+6. After the boot, make sure that the lockdown is off:
+
+```bash
+mokutil --sb-state
+cat /sys/kernel/security/lockdown
+```
+
+Expected result: `SecureBoot disabled`, and `[none]` in the lockdown line.
+
+7. Do section 8.4.3 steps 1 to 3. Then do sections 6.2 to 6.5.
+8. Reboot the host and push `F10`. Select "Legacy Support Disable and Secure Boot Enable". Save the change and exit.
+9. Type the confirmation code at the next boot.
+10. Make sure that Secure Boot is on again:
+
+```bash
+mokutil --sb-state
+```
+
+Expected result: `SecureBoot enabled`.
+
+11. Do section 8.4.3 steps 1 and 2 again.
+
+CAUTION: DO NOT KEEP SECURE BOOT OFF AFTER THE UPGRADE. IF SECURE BOOT IS OFF, THE FIRMWARE DOES NOT EXAMINE THE SIGNATURES OF THE BOOT LOADER AND THE KERNEL.
+
+### 8.6 Status and next actions
+
+| Item | Status |
+|------|--------|
+| Firmware | `14.25.1020`, no change |
+| `mstflint` | Installed `4.26.0+1-2ubuntu3`. Access blocked by the lockdown. |
+| Backup files | Not made |
+| Bridge | Operates since 10:14:33. 26 circuits applied. |
+| Next action | Operator: section 8.4.1 (no traffic stop). Then plan a maintenance window with a physical console for section 8.4.2. |
+
+## 9. Sources
 
 - [ConnectX-4 Lx FW 14.32.1912 — Firmware Compatible Products](https://networking-docs.nvidia.com/connectx4lxfwrn/14321912/firmware-compatible-products)
 - [ConnectX-4 Lx FW 14.32.1912 — Changes and New Features](https://networking-docs.nvidia.com/connectx4lxfwrn/14321912/changes-and-new-features)
