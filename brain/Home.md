@@ -11,6 +11,7 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-03-libreqos-v3-package-update]]
 - [[2026-11-02-native-runtime-policy-validation]]
 - [[2026-11-02-native-topology-source-check]]
 - [[2026-11-02-libreqos-v3-live-cutover]]
@@ -43,6 +44,7 @@ Read [[HANDOFF]] first for the current state.
 - [[v3-offline-simulation-method]]
 - [[updatecsv-py-dissection]]
 - [[v3-node-handling]]
+- [[libreqos-v3-mlx5-compat]]
 
 ## Documents
 - `README.md`
