@@ -19,6 +19,12 @@
 - UI-06: Every operational route SHALL show a time or age for its data and a distinct stale or unknown state.
 - UI-07: Subscriber, profile, assignment, and router views SHALL link related records by stable IDs.
 - UI-08: A mutation SHALL show pending, applied, or failed state from a server result; a button click SHALL NOT imply success.
+- UI-09: The desktop layout SHALL keep the sidebar, top bar, page header, cards, and tables in the order of the visual map.
+- UI-10: The mobile layout SHALL keep navigation and permitted row actions reachable without page-level horizontal scrolling.
+- UI-11: A status SHALL use text as well as color. Interactive controls SHALL show keyboard focus.
+- UI-12: Ordinary body text SHALL be at least 14 px in the reference layout, and touch actions SHALL have a 44 px target on phones.
+- UI-13: A closed mobile navigation drawer SHALL remove its links from keyboard focus; Escape SHALL close an open drawer or dialog.
+- UI-14: Loading, empty, stale, and failed states SHALL use distinct words and SHALL preserve the page structure.
 - PERF-01: A web request SHALL NOT start a RouterOS collection cycle.
 - PERF-02: Subscriber and assignment APIs SHALL filter and page large result sets.
 - PERF-03: Traffic charts SHALL use time-bucket aggregates.
@@ -26,6 +32,9 @@
 - PERF-05: Operational responses SHALL include data age and stale/error state.
 - PERF-06: A repeated reconciliation SHALL NOT write unchanged RouterOS or LibreQoS state.
 - PERF-07: The implementation SHALL measure API latency, browser load time, memory, collection duration, and RouterOS operation counts on documented workloads.
+- PERF-08: The UI SHALL render only visible rows for large subscriber, assignment, and CSV-preview datasets.
+- PERF-09: A hidden WAN graph SHALL NOT keep processing every live sample.
+- PERF-10: A summary card SHALL use a snapshot version and SHALL NOT infer success or freshness from an old value.
 - WAN-01: The engine SHALL support percentage, subscriber-count, and manual policies.
 - WAN-02: The engine SHALL keep a valid subscriber assignment stable.
 - WAN-03: The engine SHALL NOT assign a subscriber to a known-down upstream.

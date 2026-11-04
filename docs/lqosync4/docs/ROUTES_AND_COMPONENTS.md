@@ -2,6 +2,8 @@
 
 This document maps the screenshot references to Leptos pages, child components, Rust API reads, background jobs, and navigation. It is a design contract; no LQoSync4 web route or API exists yet. The [product spec](PRODUCT_SPEC.md) defines behavior, the [feature/function map](FEATURE_FUNCTION_MAP.md) identifies backend owners, and the [LibreQoS v3 map](LIBREQOS_V3_DATA_FLOW.md) defines the existing shaping path.
 
+The [visual and responsive UI map](UI_VISUAL_SYSTEM.md) records exact text/card placement, screen-by-screen hierarchy, CSS classes, desktop and phone grids, and readability checks.
+
 ## Route rules and shared shell
 
 - Browser routes are Leptos routes. API paths are server routes under `/api/v1`. Path names below are proposed and must be frozen before implementation.

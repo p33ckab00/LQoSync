@@ -31,6 +31,8 @@ Sources: [README](https://github.com/p33ckab00/LQoSync/blob/lqosync3/README.md),
 
 The screenshot's 1,038 allocated subscribers are sample data, not a scale limit.
 
+See [the visual and responsive UI map](UI_VISUAL_SYSTEM.md) for placement, text hierarchy, CSS starter, desktop and phone breakpoints, and screenshot-to-component mapping.
+
 ## Functional requirements
 
 1. Each subscriber has one effective upstream. Keep it stable while the assignment remains valid.
