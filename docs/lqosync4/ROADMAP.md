@@ -1,6 +1,8 @@
 # LQoSync4 delivery roadmap
 
-**State:** planning. The checkout contains the LQoSync3 Rust core. It does not contain the LQoSync4 HTTP API or Leptos application. This roadmap assigns future work to roles; it does not claim that agents have completed those tasks.
+**Product baseline:** The LQoSync4 web application is the target product and the basis for API, data, workflow, and UI contracts. The existing LQoSync3 Rust code is the reusable synchronization core inside that product. Remove its TUI, preserve proven LibreQoS behavior, and enhance the core where the web workflows require it. Do not build a separate LQoSync3 web product.
+
+**State:** planning. This checkout contains the LQoSync3 Rust core. The LQoSync4 HTTP API and Leptos application have not been implemented. The roles below own future work; task assignment does not imply completion.
 
 ## Agent entry and source order
 

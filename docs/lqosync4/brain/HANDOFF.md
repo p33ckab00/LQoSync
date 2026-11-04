@@ -3,6 +3,7 @@
 ## Owner decisions
 
 - Port LQoSync3 without its TUI. Build the web UI and its required backend.
+- Use the LQoSync4 web application as the product baseline. Reuse and enhance the existing LQoSync3 synchronization core within it.
 - Follow the documented functional, visual, placement, and styling requirements for LQoSync4.
 - MikroTik core owns routing and session behavior after failover. A public-IP change or interrupted active session is acceptable.
 - The local `lqosync4` branch is already checked out. Do not create another clone for planning.

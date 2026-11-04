@@ -12,6 +12,7 @@
 | D-08 | Use Leptos for the Rust/Wasm frontend; start with CSR and measure the Dashboard and table slice. | Owner | Accepted |
 | D-09 | Select the Rust backend framework after an API and live-update spike; Rocket is a candidate. | Proposal | Open |
 | D-10 | Use agent-tandem coordination, Graphify source checks, shared brain handoffs, and the production completion gate for AI coding work. | Owner | Accepted |
+| D-11 | Use the LQoSync4 web application as the product baseline; reuse and enhance LQoSync3 code as its TUI-free synchronization core. | Owner | Accepted |
 
 ## Open decisions
 

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Port the LQoSync3 synchronization core without TUI. Build a web application for router, subscriber, profile, LibreQoS, and upstream operations. Implement the documented LQoSync4 workflows and visual system with original code.
+Build LQoSync4 as the web application for router, subscriber, profile, LibreQoS, and upstream operations. Its web workflows define the target API and data contracts. Reuse and improve the existing LQoSync3 synchronization core within LQoSync4, and remove the TUI. Implement the documented LQoSync4 workflows and visual system with original code.
 
 All application logic, API handlers, UI components, and browser-side application code SHALL be written in Rust. The browser client SHALL use Leptos and compile to WebAssembly. CSS and required browser/wasm binding glue remain permitted assets; do not add hand-written JavaScript or TypeScript application code. See [Rust frontend options](RUST_FRONTEND_OPTIONS.md) for the decision context. The backend framework remains open.
 

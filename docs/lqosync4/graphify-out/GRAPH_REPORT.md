@@ -1,15 +1,15 @@
 # Graph Report - lqosync4  (2026-11-04)
 
 ## Corpus Check
-- Corpus is ~18,692 words - fits in a single context window. You may not need a graph.
+- Corpus is ~18,852 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 75 nodes · 141 edges · 6 communities
+- 75 nodes · 142 edges · 6 communities
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bae71e25`
+- Built from commit: `9cafe1c4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,12 +22,12 @@
 - LibreQoS sync and related topics
 
 ## God Nodes (most connected - your core abstractions)
-1. `LQoSync4 web UI` - 14 edges
+1. `LQoSync4 web UI` - 15 edges
 2. `Route and component contract` - 14 edges
 3. `Load Balancer` - 11 edges
-4. `AppShell` - 11 edges
-5. `Visual and responsive UI map` - 11 edges
-6. `LQoSync4 delivery roadmap` - 10 edges
+4. `LQoSync4 delivery roadmap` - 11 edges
+5. `AppShell` - 11 edges
+6. `Visual and responsive UI map` - 11 edges
 7. `Implementation phases` - 9 edges
 8. `Backend and frontend function map` - 9 edges
 9. `Rust backend` - 8 edges
@@ -78,11 +78,11 @@ Nodes (6): LibreQoS sync, /libreqos, SourcePreview, LibreQoS v3 data flow, v3 na
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Route and component contract` connect `LQoSync4 web UI and related topics` to `LQoSync4 delivery roadmap and related topics`, `Backend and frontend function map and related topics`, `Visual and responsive UI map and related topics`, `LibreQoS sync and related topics`?**
-  _High betweenness centrality (0.231) - this node is a cross-community bridge._
+- **Why does `LQoSync4 web UI` connect `LQoSync4 web UI and related topics` to `Load Balancer and related topics`, `LQoSync4 delivery roadmap and related topics`, `Backend and frontend function map and related topics`, `Visual and responsive UI map and related topics`, `LibreQoS sync and related topics`?**
+  _High betweenness centrality (0.252) - this node is a cross-community bridge._
 - **What connects `App classification`, `ASN and organization`, `CDN identification` to the rest of the system?**
   _16 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Why does `LQoSync4 web UI` connect `LQoSync4 web UI and related topics` to `Load Balancer and related topics`, `Backend and frontend function map and related topics`, `Visual and responsive UI map and related topics`, `LibreQoS sync and related topics`?**
-  _High betweenness centrality (0.215) - this node is a cross-community bridge._
+- **Why does `Route and component contract` connect `LQoSync4 web UI and related topics` to `LQoSync4 delivery roadmap and related topics`, `Backend and frontend function map and related topics`, `Visual and responsive UI map and related topics`, `LibreQoS sync and related topics`?**
+  _High betweenness centrality (0.221) - this node is a cross-community bridge._
 - **Why does `Backend and frontend function map` connect `Backend and frontend function map and related topics` to `Load Balancer and related topics`, `LQoSync4 delivery roadmap and related topics`, `LQoSync4 web UI and related topics`, `LibreQoS sync and related topics`?**
-  _High betweenness centrality (0.201) - this node is a cross-community bridge._
+  _High betweenness centrality (0.197) - this node is a cross-community bridge._

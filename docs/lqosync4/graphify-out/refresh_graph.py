@@ -142,6 +142,7 @@ for a, b, evidence in [
     (team, "docs_implementation_plan_phases", "brain/AGENT_WORKFLOW.md"),
     (roadmap, team, "ROADMAP.md"),
     (roadmap, "docs_implementation_plan_phases", "ROADMAP.md"),
+    (roadmap, "docs_product_spec_web_ui", "ROADMAP.md"),
     (roadmap, "ste_requirements_acceptance", "ROADMAP.md"),
     (engineering, "docs_improvements_improvements", "brain/AGENTIC_ENGINEERING_RULES.md"),
     (completion, "ste_requirements_acceptance", "brain/PRODUCTION_READY_GATE.md"),
