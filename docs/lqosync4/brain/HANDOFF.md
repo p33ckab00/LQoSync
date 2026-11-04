@@ -5,7 +5,7 @@
 - Port LQoSync3 without its TUI. Build the web UI and the backend required by all supplied screenshots.
 - Use screenshots as functional and visual references, including placement and styling. NetCore source code is not available.
 - MikroTik core owns routing and session behavior after failover. A public-IP change or interrupted active session is acceptable.
-- Do not clone the future LQoSync4 branch yet.
+- The local `lqosync4` branch is already checked out. Do not create another clone for planning.
 - Future roadmap: destination IP, ASN, organization, CDN, and possible app tracking.
 - Use Rust for backend and frontend application logic. Use Leptos for the WebAssembly browser UI; measure its Dashboard and table slice.
 
@@ -15,4 +15,4 @@ Planning only. The local `/opt/lqosync4` checkout tracks the public `lqosync4` b
 
 ## Next work
 
-Confirm remaining features, hosting, authentication, telemetry source, backend framework, and the exact MikroTik core write contract. Then execute [the plan](../docs/IMPLEMENTATION_PLAN.md) starting in shadow mode.
+Use [the feature and function map](../docs/FEATURE_FUNCTION_MAP.md), [workflows](../docs/ARCHITECTURE_WORKFLOWS.md), [STE answers](../ste/WH_AND_HOW.md), and [improvement list](../docs/IMPROVEMENTS.md) as the current design map. Resolve the listed owner decisions before implementing router writes. Then execute [the plan](../docs/IMPLEMENTATION_PLAN.md) starting in shadow mode.
