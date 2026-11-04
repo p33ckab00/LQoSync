@@ -1,13 +1,13 @@
 # LQoSync4 routes and component contract — proposed
 
-This document maps the screenshot references to Leptos pages, child components, Rust API reads, background jobs, and navigation. It is a design contract; no LQoSync4 web route or API exists yet. The [product spec](PRODUCT_SPEC.md) defines behavior, the [feature/function map](FEATURE_FUNCTION_MAP.md) identifies backend owners, and the [LibreQoS v3 map](LIBREQOS_V3_DATA_FLOW.md) defines the existing shaping path.
+This document maps LQoSync4 pages to child components, Rust API reads, background jobs, and navigation. It is a design contract; no LQoSync4 web route or API exists yet. The [product spec](PRODUCT_SPEC.md) defines behavior, the [feature/function map](FEATURE_FUNCTION_MAP.md) identifies backend owners, and the [LibreQoS v3 map](LIBREQOS_V3_DATA_FLOW.md) defines the existing shaping path.
 
 The [visual and responsive UI map](UI_VISUAL_SYSTEM.md) records exact text/card placement, screen-by-screen hierarchy, CSS classes, desktop and phone grids, and readability checks.
 
 ## Route rules and shared shell
 
 - Browser routes are Leptos routes. API paths are server routes under `/api/v1`. Path names below are proposed and must be frozen before implementation.
-- The sidebar keeps the screenshot order: Dashboard, Routers; IPoE Subscribers and Profiles; PPPoE Users and Profiles; LibreQoS, Load Balancer, Users, Settings. The dark sidebar stays visible on desktop and becomes a navigation drawer on small screens. The slim top bar contains local time, data freshness, account menu, and theme control. Theme is a UI setting, not an operational action.
+- The sidebar order is Dashboard, Routers; IPoE Subscribers and Profiles; PPPoE Users and Profiles; LibreQoS, Load Balancer, Users, Settings. The dark sidebar stays visible on desktop and becomes a navigation drawer on small screens. The slim top bar contains local time, data freshness, account menu, and theme control. Theme is a UI setting, not an operational action.
 - `AppShell` owns `SidebarNav`, `TopBar`, `RouteOutlet`, `ToastRegion`, and `ActionDialogHost`. `RouteOutlet` changes pages; shell components must not fetch subscriber tables. `RouteError` distinguishes permission failure, unavailable data, and route not found.
 - All operational cards use `StatusBadge`, `DataAge`, `EmptyState`, and `ErrorNotice`. A green status requires fresh evidence; stale or unknown uses a separate state. Tables share `TableToolbar`, `PageControls`, `SortHeader`, and `RowActionMenu`. Long tables use server paging and visible-row rendering; key actions remain reachable during horizontal scrolling.
 - Reads come from cached, versioned backend snapshots. Mutations require role checks, a preview when they affect RouterOS or LibreQoS, an explicit apply step, and an audit result. A pending action never appears as applied. URLs contain search, filter, page, tab, and time-window state when a view benefits from a shareable link. Secrets never enter URLs.
@@ -53,9 +53,9 @@ flowchart LR
 
 ## Page and child-component breakdown
 
-| Page | Placement from reference | Child components and responsibility | Backend reads and jobs |
+| Page | Placement | Child components and responsibility | Backend reads and jobs |
 |---|---|---|---|
-| `DashboardPage` | Summary cards first; traffic and allocation charts second; UptimeRobot-style health grid and load-balancer table below. | `SummaryCards` owns subscriber/router/LibreQoS counts; `TrafficChart` owns window selection and bucketed series; `AllocationBreakdown` owns share/utilization; `HealthGrid` shows age and health; `AllocationSummaryTable` links each WAN to assignments. | `GET /overview`, `/traffic?window=`, `/upstreams`, `/allocations/summary`. Health source may be UptimeRobot or another approved monitor; do not hard-code the vendor. |
+| `DashboardPage` | Summary cards first; traffic and allocation charts second; upstream health grid and load-balancer table below. | `SummaryCards` owns subscriber/router/LibreQoS counts; `TrafficChart` owns window selection and bucketed series; `AllocationBreakdown` owns share/utilization; `HealthGrid` shows age and health; `AllocationSummaryTable` links each WAN to assignments. | `GET /overview`, `/traffic?window=`, `/upstreams`, `/allocations/summary`. Health source is an approved monitor; do not hard-code a vendor. |
 | `RoutersPage` | Header and core/access router list. | `RouterTable` shows role, address label, online state and last read; `RouterDetailDrawer` shows read status/errors and safe config; `RouterForm` collects connection settings; `ConnectionTestPanel` shows a test result. | `GET /routers`, `GET /routers/{id}`; test and sync start bounded background jobs. No credentials in reads. |
 | `IpoeSubscribersPage` | Dense searchable list beneath a compact filter bar. | `SubscriberTable` shows identity, MAC/IP, router, authorization, profile, online and WAN; `SubscriberDetailDrawer` shows source and observation time; `AuthorizationPanel` previews grant/revoke; `ProfilePicker` selects IPoE profile. | `GET /subscribers?kind=ipoe&...`; authorization and profile actions go through policy preview/apply. Discovery is a collector job, not an HTTP scan. |
 | `IpoeProfilesPage` | Vertical profile cards; expanded card has inline schedule editor. | `ProfileCards` show name, baseline down/up, subscriber count; `BaselineEditor` edits rates; `ScheduleTable` lists days/window/rates/priority; `ScheduleEditor` previews effective speed and conflicts. | `GET /profiles?kind=ipoe`; profile/schedule preview and versioned mutation. |
@@ -94,4 +94,4 @@ All mutation results need a stable job or plan ID, explicit error code, audit ID
 
 ## Review gaps before implementation
 
-The reference images show layouts and actions but do not establish API contracts. RouterOS writable objects, role matrix, credential storage, monitor source, remote LibreQoS sync contract, exact profile enforcement path, native JSON acceptance check, and failback policy remain open. Do not treat those UI controls as functional until their server contract and readback are defined. The implementation plan should deliver read views first, then each write action with its preview, authorization, audit, and test gate.
+The visual layout does not establish API contracts. RouterOS writable objects, role matrix, credential storage, monitor source, remote LibreQoS sync contract, exact profile enforcement path, native JSON acceptance check, and failback policy remain open. Do not treat those UI controls as functional until their server contract and readback are defined. The implementation plan should deliver read views first, then each write action with its preview, authorization, audit, and test gate.

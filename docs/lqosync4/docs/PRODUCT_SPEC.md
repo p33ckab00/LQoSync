@@ -2,7 +2,7 @@
 
 ## Goal
 
-Port the LQoSync3 synchronization core without TUI. Build a web application for router, subscriber, profile, LibreQoS, and upstream operations. Use all supplied NetCore screenshots as workflow and visual references. Implement original code; no NetCore internals were inspected.
+Port the LQoSync3 synchronization core without TUI. Build a web application for router, subscriber, profile, LibreQoS, and upstream operations. Implement the documented LQoSync4 workflows and visual system with original code.
 
 All application logic, API handlers, UI components, and browser-side application code SHALL be written in Rust. The browser client SHALL use Leptos and compile to WebAssembly. CSS and required browser/wasm binding glue remain permitted assets; do not add hand-written JavaScript or TypeScript application code. See [Rust frontend options](RUST_FRONTEND_OPTIONS.md) for the decision context. The backend framework remains open.
 
@@ -14,9 +14,9 @@ The public LQoSync3 branch collects PPPoE, DHCP, and Hotspot data over RouterOS 
 
 Sources: [README](https://github.com/p33ckab00/LQoSync/blob/lqosync3/README.md), [architecture](https://github.com/p33ckab00/LQoSync/blob/lqosync3/docs/ARCHITECTURE.md).
 
-## Screens and backend
+## Pages and backend
 
-| Screen shown | Placement and interaction | Backend requirement |
+| Page | Placement and interaction | Backend requirement |
 |---|---|---|
 | Dashboard | Fixed dark left sidebar; slim top bar; summary cards above charts; health and load balancer panels below. | Counts, traffic samples, upstream state, LibreQoS sync, timestamps and errors. |
 | Routers | Core and access router management. | Registration, connection checks, read-only sync, status. |
@@ -29,9 +29,9 @@ Sources: [README](https://github.com/p33ckab00/LQoSync/blob/lqosync3/README.md),
 | Upstream monitoring | Health grid and per-upstream capacity, members, RX/TX and utilization. | Checks, thresholds, failure/recovery state and traffic sampling. |
 | Users and Settings | Same shell, dark cards and green/red badges. | Auth, roles, config, credentials and audit. |
 
-The screenshot's 1,038 allocated subscribers are sample data, not a scale limit.
+The 1,000-subscriber planning workload is a test fixture, not a scale limit.
 
-See [the visual and responsive UI map](UI_VISUAL_SYSTEM.md) for placement, text hierarchy, CSS starter, desktop and phone breakpoints, and screenshot-to-component mapping.
+See [the visual and responsive UI map](UI_VISUAL_SYSTEM.md) for placement, text hierarchy, CSS starter, and desktop and phone breakpoints.
 
 ## Functional requirements
 
@@ -59,7 +59,7 @@ See [the visual and responsive UI map](UI_VISUAL_SYSTEM.md) for placement, text 
 - Filter and page subscriber and assignment tables on the server. Render only visible rows in the browser. Charts request time-bucket aggregates rather than raw subscriber samples.
 - Cache repeated lookup results and use incremental planning when only a subset of subscribers or upstreams changes. Do not write RouterOS or LibreQoS state when the desired and observed values match.
 - Measure first-load WebAssembly transfer size, time to interactive, API p50/p95 latency, peak memory, collector cycle time, and RouterOS write count. Compare the port with LQoSync3 before setting final budgets.
-- Provisional load profiles are the reference screenshot scale (about 1,000 subscribers and nine allocations) and a 10,000-subscriber stress profile. These are test workloads, not promised capacity. Final thresholds require representative hardware and network measurements.
+- Provisional load profiles are 1,000 subscribers with nine allocations and a 10,000-subscriber stress profile. These are test workloads, not promised capacity. Final thresholds require representative hardware and network measurements.
 
 ## Later IP intelligence
 

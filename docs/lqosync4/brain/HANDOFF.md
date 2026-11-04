@@ -2,8 +2,8 @@
 
 ## Owner decisions
 
-- Port LQoSync3 without its TUI. Build the web UI and the backend required by all supplied screenshots.
-- Use screenshots as functional and visual references, including placement and styling. NetCore source code is not available.
+- Port LQoSync3 without its TUI. Build the web UI and its required backend.
+- Follow the documented functional, visual, placement, and styling requirements for LQoSync4.
 - MikroTik core owns routing and session behavior after failover. A public-IP change or interrupted active session is acceptable.
 - The local `lqosync4` branch is already checked out. Do not create another clone for planning.
 - Future roadmap: destination IP, ASN, organization, CDN, and possible app tracking.

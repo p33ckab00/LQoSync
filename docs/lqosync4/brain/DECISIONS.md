@@ -3,7 +3,7 @@
 | ID | Decision | Basis | State |
 |---|---|---|---|
 | D-01 | Port LQoSync3 core and remove TUI. | Owner | Accepted |
-| D-02 | Build complete web UI and backend from screenshot clues. | Owner | Accepted |
+| D-02 | Build the complete web UI and required backend. | Owner | Accepted |
 | D-03 | MikroTik core owns routing and session behavior. | Owner | Accepted |
 | D-04 | Separate LibreQoS shaping state from WAN assignment state. | Proposal | Validate |
 | D-05 | Start router-changing behavior in shadow/dry-run mode. | Proposal | Validate |
