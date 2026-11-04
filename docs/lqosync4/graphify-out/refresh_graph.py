@@ -75,6 +75,20 @@ web_perf = add("web_performance", "Web UI performance and readability", "docs/IM
 team = add("agent_workflow", "Agent tandem workflow", "brain/AGENT_WORKFLOW.md")
 engineering = add("engineering_rules", "Agentic engineering rules", "brain/AGENTIC_ENGINEERING_RULES.md")
 completion = add("completion_gate", "Production completion gate", "brain/PRODUCTION_READY_GATE.md")
+roadmap = add("delivery_roadmap", "LQoSync4 delivery roadmap", "ROADMAP.md")
+phase_specs = [
+    ("phase_0_evidence", "Phase 0 evidence and contracts", "roadmap/00-evidence.md", "brain_decisions_decisions"),
+    ("phase_1_core", "Phase 1 core port", "roadmap/01-core-port.md", "docs_product_spec_core_port"),
+    ("phase_2_web", "Phase 2 web foundation", "roadmap/02-web-foundation.md", "planning_route_contract"),
+    ("phase_3_profiles", "Phase 3 profiles", "roadmap/03-profiles.md", "docs_product_spec_profiles"),
+    ("phase_4_assignment", "Phase 4 assignment planner", "roadmap/04-assignment.md", "docs_product_spec_assignments"),
+    ("phase_5_health", "Phase 5 health and apply", "roadmap/05-health-apply.md", "docs_product_spec_failover"),
+    ("phase_6_telemetry", "Phase 6 telemetry and intelligence", "roadmap/06-telemetry.md", "docs_product_spec_ip_intel"),
+]
+for key, label, source, feature in phase_specs:
+    phase = add(key, label, source)
+    connect(roadmap, phase, source)
+    connect(phase, feature, source)
 
 route_specs = [
     ("dashboard", "/", "docs_product_spec_dashboard"),
@@ -126,6 +140,9 @@ for a, b, evidence in [
     (team, "brain_decisions_decisions", "brain/DECISIONS.md"),
     (team, "docs_feature_function_map_function_map", "brain/AGENT_WORKFLOW.md"),
     (team, "docs_implementation_plan_phases", "brain/AGENT_WORKFLOW.md"),
+    (roadmap, team, "ROADMAP.md"),
+    (roadmap, "docs_implementation_plan_phases", "ROADMAP.md"),
+    (roadmap, "ste_requirements_acceptance", "ROADMAP.md"),
     (engineering, "docs_improvements_improvements", "brain/AGENTIC_ENGINEERING_RULES.md"),
     (completion, "ste_requirements_acceptance", "brain/PRODUCTION_READY_GATE.md"),
     ("planning_route_load_balancer", "docs_product_spec_assignments", "docs/ROUTES_AND_COMPONENTS.md"),

@@ -1,5 +1,7 @@
 # LQoSync4 implementation plan — draft
 
+The [delivery roadmap](../ROADMAP.md) is the agent-ready execution plan. Its phase files define task IDs, layer owners, dependencies, implementation instructions, and acceptance evidence. This file remains the short phase summary; use the roadmap for task handoffs.
+
 The local `/opt/lqosync4` checkout tracks the new `lqosync4` branch. Do not deploy or perform live RouterOS writes during planning. Confirm the core-router contract before implementation.
 
 **Stack constraint:** Rust backend and Leptos browser frontend compiled to WebAssembly. CSS and generated wasm/browser glue are allowed; no hand-written JavaScript or TypeScript application logic. Use a stable Leptos release and measure the Dashboard and table slice. Choose the backend framework after the API spike in [Rust backend options](RUST_BACKEND_OPTIONS.md). Share typed DTOs in a small Rust crate; keep RouterOS and database types server-only.
