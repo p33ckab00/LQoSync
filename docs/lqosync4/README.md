@@ -2,6 +2,8 @@
 
 This directory holds the LQoSync4 design. The surrounding checkout is the `lqosync4` branch based on LQoSync3. The new web application has not been implemented.
 
+AI coding agents start at root [AGENTS.md](../../AGENTS.md). The [brain workflow](brain/AGENT_WORKFLOW.md) links the full engineering rules and completion gate.
+
 Read [the spec](docs/PRODUCT_SPEC.md), [the feature and function map](docs/FEATURE_FUNCTION_MAP.md), [the route and component breakdown](docs/ROUTES_AND_COMPONENTS.md), [the visual and responsive UI map](docs/UI_VISUAL_SYSTEM.md), [the CSS starter](ui-reference.css), [the LibreQoS v3 data flow](docs/LIBREQOS_V3_DATA_FLOW.md), [the workflows and diagrams](docs/ARCHITECTURE_WORKFLOWS.md), [the improvements](docs/IMPROVEMENTS.md), [the STE WHAT/WHY/WHO/WHEN/WHERE/HOW answers](ste/WH_AND_HOW.md), [the plan](docs/IMPLEMENTATION_PLAN.md), and [the handoff](brain/HANDOFF.md). [Rust frontend options](docs/RUST_FRONTEND_OPTIONS.md) and [Rust backend options](docs/RUST_BACKEND_OPTIONS.md) record stack decisions. `graphify-out/` contains the knowledge graph.
 
 Evidence labels: **Owner** = explicit direction; **LQoSync3** = source review; **Proposal** = design to validate before code.

@@ -72,6 +72,9 @@ css = add("css_starter", "CSS starter", "ui-reference.css")
 desktop = add("desktop_layout", "Desktop layout", "docs/UI_VISUAL_SYSTEM.md")
 mobile = add("mobile_layout", "Mobile layout", "docs/UI_VISUAL_SYSTEM.md")
 web_perf = add("web_performance", "Web UI performance and readability", "docs/IMPROVEMENTS.md")
+team = add("agent_workflow", "Agent tandem workflow", "brain/AGENT_WORKFLOW.md")
+engineering = add("engineering_rules", "Agentic engineering rules", "brain/AGENTIC_ENGINEERING_RULES.md")
+completion = add("completion_gate", "Production completion gate", "brain/PRODUCTION_READY_GATE.md")
 
 route_specs = [
     ("dashboard", "/", "docs_product_spec_dashboard"),
@@ -118,6 +121,13 @@ for a, b, evidence in [
     (visual, web_perf, "docs/UI_VISUAL_SYSTEM.md"),
     (web_perf, "docs_improvements_improvements", "docs/IMPROVEMENTS.md"),
     (web_perf, "docs_product_spec_performance", "docs/PRODUCT_SPEC.md"),
+    (team, engineering, "brain/AGENT_WORKFLOW.md"),
+    (team, completion, "brain/AGENT_WORKFLOW.md"),
+    (team, "brain_decisions_decisions", "brain/DECISIONS.md"),
+    (team, "docs_feature_function_map_function_map", "brain/AGENT_WORKFLOW.md"),
+    (team, "docs_implementation_plan_phases", "brain/AGENT_WORKFLOW.md"),
+    (engineering, "docs_improvements_improvements", "brain/AGENTIC_ENGINEERING_RULES.md"),
+    (completion, "ste_requirements_acceptance", "brain/PRODUCTION_READY_GATE.md"),
     ("planning_route_load_balancer", "docs_product_spec_assignments", "docs/ROUTES_AND_COMPONENTS.md"),
     ("planning_route_load_balancer", "docs_product_spec_allocations", "docs/ROUTES_AND_COMPONENTS.md"),
 ]:

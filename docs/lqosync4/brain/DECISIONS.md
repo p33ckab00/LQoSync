@@ -11,7 +11,8 @@
 | D-07 | Use Rust for backend and browser-side UI; compile the UI to WebAssembly. | Owner | Accepted |
 | D-08 | Use Leptos for the Rust/Wasm frontend; start with CSR and measure the Dashboard and table slice. | Owner | Accepted |
 | D-09 | Select the Rust backend framework after an API and live-update spike; Rocket is a candidate. | Proposal | Open |
+| D-10 | Use agent-tandem coordination, Graphify source checks, shared brain handoffs, and the production completion gate for AI coding work. | Owner | Accepted |
 
 ## Open decisions
 
-Target branch/path; web stack; database; auth; RouterOS write mechanism; upstream health source and thresholds; manual-pin behavior on outage; failback policy; destination-traffic source and retention.
+Backend HTTP framework; persistent store; auth; RouterOS write mechanism; upstream health source and thresholds; manual-pin behavior on outage; failback policy; destination-traffic source and retention.
