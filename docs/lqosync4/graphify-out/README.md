@@ -2,4 +2,4 @@
 
 `graph.json`, `graph.html`, and `GRAPH_REPORT.md` describe the LQoSync4 planning documents in this directory. The graph was built with Graphify from manual semantic extraction because no LLM extraction key was configured. It contains planning concepts and their documented relationships, not a graph of LQoSync4 source code.
 
-Open `graph.html` locally or query `graph.json` with Graphify. Regenerate after the planning documents change; this snapshot does not update itself.
+Open `graph.html` locally or query `graph.json` with Graphify. Regenerate after the planning documents change; this snapshot does not update itself. The new LibreQoS v3 source map is in [LIBREQOS_V3_DATA_FLOW.md](../docs/LIBREQOS_V3_DATA_FLOW.md) and is not yet included in this graph snapshot.

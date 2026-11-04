@@ -32,8 +32,8 @@ Caption: The API serves snapshots. The collector and writers run outside request
 1. The collector reads enabled RouterOS tables with bounded timeouts and retries.
 2. The core assembles one circuit model and validates it.
 3. The target detector selects the LibreQoS format.
-4. Shadow mode reports a diff. Apply mode writes only changed bytes and checks the result.
-5. The snapshot publisher records the result, version, time, and error state.
+4. Shadow mode writes candidate files. Apply mode backs up changed live files and writes only changed bytes. The v3 pair path checks LibreQoS import; native JSON acceptance needs a separate check.
+5. The snapshot publisher records written and imported states separately, with version, time, and errors. See [the exact v3 data flow](LIBREQOS_V3_DATA_FLOW.md).
 
 ```mermaid
 sequenceDiagram
