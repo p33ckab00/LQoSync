@@ -8,6 +8,9 @@
 | D-04 | Separate LibreQoS shaping state from WAN assignment state. | Proposal | Validate |
 | D-05 | Start router-changing behavior in shadow/dry-run mode. | Proposal | Validate |
 | D-06 | Show evidence and confidence for IP-to-app classification. | Proposal | Roadmap |
+| D-07 | Use Rust for backend and browser-side UI; compile the UI to WebAssembly. | Owner | Accepted |
+| D-08 | Use Leptos for the Rust/Wasm frontend; start with CSR and measure the Dashboard and table slice. | Owner | Accepted |
+| D-09 | Select the Rust backend framework after an API and live-update spike; Rocket is a candidate. | Proposal | Open |
 
 ## Open decisions
 

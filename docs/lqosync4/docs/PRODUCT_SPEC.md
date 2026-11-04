@@ -4,6 +4,8 @@
 
 Port the LQoSync3 synchronization core without TUI. Build a web application for router, subscriber, profile, LibreQoS, and upstream operations. Use all supplied NetCore screenshots as workflow and visual references. Implement original code; no NetCore internals were inspected.
 
+All application logic, API handlers, UI components, and browser-side application code SHALL be written in Rust. The browser client SHALL use Leptos and compile to WebAssembly. CSS and required browser/wasm binding glue remain permitted assets; do not add hand-written JavaScript or TypeScript application code. See [Rust frontend options](RUST_FRONTEND_OPTIONS.md) for the decision context. The backend framework remains open.
+
 LQoSync4 selects and reconciles subscriber assignments. MikroTik core applies routing and handles sessions. LibreQoS remains the shaping target. Failover may change the public IP and interrupt active sessions.
 
 ## Baseline
@@ -46,6 +48,16 @@ The screenshot's 1,038 allocated subscribers are sample data, not a scale limit.
 - Repeated reconciliation makes no extra writes when actual state matches desired state.
 - Simulated outage/recovery produces traceable history and no assignment to a known-down upstream.
 - Desktop and mobile layouts remain usable; wide tables scroll without hiding actions.
+
+## Performance and data flow
+
+- RouterOS collection and LibreQoS reconciliation run independently of HTTP requests. A page request reads the latest validated snapshot and does not start a router scan.
+- Use one bounded collector per router, bounded retry queues, and a single writer for each externally owned target. A slow router cannot hold the UI response path or create an unbounded backlog.
+- Publish snapshot versions and changed records to the UI. Batch rapid changes. Include `observed_at`, `updated_at`, and stale/error state in every operational response.
+- Filter and page subscriber and assignment tables on the server. Render only visible rows in the browser. Charts request time-bucket aggregates rather than raw subscriber samples.
+- Cache repeated lookup results and use incremental planning when only a subset of subscribers or upstreams changes. Do not write RouterOS or LibreQoS state when the desired and observed values match.
+- Measure first-load WebAssembly transfer size, time to interactive, API p50/p95 latency, peak memory, collector cycle time, and RouterOS write count. Compare the port with LQoSync3 before setting final budgets.
+- Provisional load profiles are the reference screenshot scale (about 1,000 subscribers and nine allocations) and a 10,000-subscriber stress profile. These are test workloads, not promised capacity. Final thresholds require representative hardware and network measurements.
 
 ## Later IP intelligence
 

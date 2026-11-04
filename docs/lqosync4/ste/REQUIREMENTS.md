@@ -7,11 +7,22 @@
 - CORE-03: Shadow mode SHALL NOT change LibreQoS files or MikroTik configuration.
 - CORE-04: The core port SHALL preserve validated LQoSync3 output formats.
 - CORE-05: LQoSync4 SHALL NOT include the LQoSync3 TUI.
+- CORE-06: LQoSync4 application logic and browser UI components SHALL use Rust.
+- CORE-07: The browser UI SHALL compile to WebAssembly.
+- CORE-08: The project SHALL NOT contain hand-written JavaScript or TypeScript application logic.
+- CORE-09: The browser UI SHALL use Leptos.
 - UI-01: The web UI SHALL show a left sidebar and a top bar.
 - UI-02: The dashboard SHALL show subscriber, router, upstream, traffic, and LibreQoS status.
 - UI-03: Each status view SHALL show its last successful update time.
 - UI-04: An operator SHALL be able to find a subscriber and view its upstream.
 - UI-05: The load balancer SHALL show Allocations, Assignments, Discovery, and History.
+- PERF-01: A web request SHALL NOT start a RouterOS collection cycle.
+- PERF-02: Subscriber and assignment APIs SHALL filter and page large result sets.
+- PERF-03: Traffic charts SHALL use time-bucket aggregates.
+- PERF-04: Collector retries and UI update queues SHALL have finite bounds.
+- PERF-05: Operational responses SHALL include data age and stale/error state.
+- PERF-06: A repeated reconciliation SHALL NOT write unchanged RouterOS or LibreQoS state.
+- PERF-07: The implementation SHALL measure API latency, browser load time, memory, collection duration, and RouterOS operation counts on documented workloads.
 - WAN-01: The engine SHALL support percentage, subscriber-count, and manual policies.
 - WAN-02: The engine SHALL keep a valid subscriber assignment stable.
 - WAN-03: The engine SHALL NOT assign a subscriber to a known-down upstream.
