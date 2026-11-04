@@ -4,6 +4,8 @@
 
 **Existing** means a function is present on the `lqosync4` branch because it is based on LQoSync3. **Proposed** means an interface or module to implement. The name of a proposed function is a working name. The Rust HTTP framework, persistent store, and RouterOS write objects remain open decisions. Leptos is the selected frontend.
 
+The [route and component contract](ROUTES_AND_COMPONENTS.md) is the detailed map for screen placement, nested components, reads, actions, and cross-route navigation. Route and endpoint names in the table below are short summaries of that contract.
+
 The browser reads API snapshots. The collector owns RouterOS reads. The shaping writer owns LibreQoS output. A separate, narrowly scoped router writer will own any new MikroTik changes. HTTP handlers must not call the collector or writer directly.
 
 ## Existing core functions to retain or adapt
@@ -31,7 +33,7 @@ These functions do not implement WAN assignment, RouterOS writes, HTTP endpoints
 | IPoE subscribers | `subscribers::discover()` identifies DHCP clients; `subscribers::authorize()` applies approved access policy. | Paged `GET /api/v1/subscribers?kind=ipoe`; explicit authorization action | `/ipoe/subscribers` — `SubscriberTable`, `AuthorizationPanel` | Unknown and unauthorized are distinct. |
 | PPPoE users | `subscribers::reconcile_pppoe()` imports users and live state; `profiles::assign()` changes the desired profile. | Paged `GET /api/v1/subscribers?kind=pppoe`; profile action | `/pppoe/users` — `PppoeUserTable`, `ProfilePicker` | User identity remains stable across IP changes. |
 | Profiles | `profiles::effective_at()` resolves baseline, schedule, and manual override; `profiles::preview()` shows impact. | `GET /api/v1/profiles`; preview and mutation actions | `/ipoe/profiles`, `/pppoe/profiles` — `ProfileCards`, `ScheduleEditor` | Midnight, overlap, timezone, priority. |
-| LibreQoS | Existing cycle and writer plus `shaping::status()` and `shaping::preview()` expose latest result. See [v3 data flow](LIBREQOS_V3_DATA_FLOW.md). | `GET /api/v1/libreqos/status`, paged preview | `/libreqos` — `SyncStatus`, `CsvPreview` | Output parity; distinguish written from imported; no live write in shadow mode. |
+| LibreQoS | Existing cycle and writer plus `shaping::status()` and `shaping::preview()` expose latest result. See [v3 data flow](LIBREQOS_V3_DATA_FLOW.md). | `GET /api/v1/libreqos/status`, paged preview | `/libreqos` — `SyncStatus`, `SourcePreview` | Output parity; distinguish written from imported; no live write in shadow mode. |
 | Load Balancer | `assignment::plan()` computes stable desired WAN; `assignment::diff()` compares with observed; `assignment::apply()` sends approved changes to one writer. | `GET /api/v1/allocations`, paged `GET /api/v1/assignments`, preview/apply actions | `/load-balancer` — `AllocationCards`, `AssignmentTable`, `DiscoveryTab`, `HistoryTab` | Same inputs give same plan; repeated apply makes no write. |
 | Upstream health | `health::sample()` and `health::transition()` derive unknown/up/down/recovering with hold-down. | `GET /api/v1/upstreams`; event stream | `HealthGrid`, `UpstreamCard` | Stale is visible; flapping does not cause repeated moves. |
 | Audit and users | `auth::authorize()` checks each action; `audit::append()` records actor, reason, before/after, result. | Auth and paged audit endpoints | `/users`, `/settings`, `HistoryTab` | Unauthorized write is rejected and logged. |

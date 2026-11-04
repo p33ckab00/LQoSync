@@ -16,6 +16,9 @@
 - UI-03: Each status view SHALL show its last successful update time.
 - UI-04: An operator SHALL be able to find a subscriber and view its upstream.
 - UI-05: The load balancer SHALL show Allocations, Assignments, Discovery, and History.
+- UI-06: Every operational route SHALL show a time or age for its data and a distinct stale or unknown state.
+- UI-07: Subscriber, profile, assignment, and router views SHALL link related records by stable IDs.
+- UI-08: A mutation SHALL show pending, applied, or failed state from a server result; a button click SHALL NOT imply success.
 - PERF-01: A web request SHALL NOT start a RouterOS collection cycle.
 - PERF-02: Subscriber and assignment APIs SHALL filter and page large result sets.
 - PERF-03: Traffic charts SHALL use time-bucket aggregates.

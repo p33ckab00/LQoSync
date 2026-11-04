@@ -15,4 +15,4 @@ Planning only. The local `/opt/lqosync4` checkout tracks the public `lqosync4` b
 
 ## Next work
 
-Use [the feature and function map](../docs/FEATURE_FUNCTION_MAP.md), [workflows](../docs/ARCHITECTURE_WORKFLOWS.md), [STE answers](../ste/WH_AND_HOW.md), and [improvement list](../docs/IMPROVEMENTS.md) as the current design map. Resolve the listed owner decisions before implementing router writes. Then execute [the plan](../docs/IMPLEMENTATION_PLAN.md) starting in shadow mode.
+Use [the feature and function map](../docs/FEATURE_FUNCTION_MAP.md), [route and component contract](../docs/ROUTES_AND_COMPONENTS.md), [workflows](../docs/ARCHITECTURE_WORKFLOWS.md), [STE answers](../ste/WH_AND_HOW.md), and [improvement list](../docs/IMPROVEMENTS.md) as the current design map. Resolve the listed owner decisions before implementing router writes. Then execute [the plan](../docs/IMPLEMENTATION_PLAN.md) starting in shadow mode.
