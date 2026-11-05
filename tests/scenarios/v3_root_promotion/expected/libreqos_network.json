@@ -1,0 +1,254 @@
+{
+  "circuits": [
+    {
+      "devices": [
+        {
+          "comment": "DHCP",
+          "id": "N0006",
+          "ipv4": [
+            "100.66.1.2"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:03:01",
+          "name": "020000000301"
+        }
+      ],
+      "display_name": "DHCP-020000000301",
+      "id": "N0005",
+      "match": {
+        "prefixes": [
+          "100.66.1.2/32"
+        ]
+      },
+      "parent": "lq3-1b4a06be07846add",
+      "plan": {
+        "ceil_down_mbps": 20.0,
+        "ceil_up_mbps": 10.0,
+        "commit_down_mbps": 2.0,
+        "commit_up_mbps": 1.0
+      }
+    },
+    {
+      "devices": [
+        {
+          "comment": "pc-1",
+          "id": "D0000201",
+          "ipv4": [
+            "100.66.0.2"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:02:01",
+          "name": "pc-1"
+        }
+      ],
+      "display_name": "DHCP-pc-1",
+      "id": "C0000201",
+      "match": {
+        "prefixes": [
+          "100.66.0.2/32"
+        ]
+      },
+      "parent": "lq3-468bd7be2000daf6",
+      "plan": {
+        "ceil_down_mbps": 50.0,
+        "ceil_up_mbps": 50.0,
+        "commit_down_mbps": 5.0,
+        "commit_up_mbps": 5.0
+      }
+    },
+    {
+      "devices": [
+        {
+          "comment": "pc-2",
+          "id": "N0004",
+          "ipv4": [
+            "100.66.0.3"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:02:02",
+          "name": "pc-2"
+        }
+      ],
+      "display_name": "DHCP-pc-2",
+      "id": "N0003",
+      "match": {
+        "prefixes": [
+          "100.66.0.3/32"
+        ]
+      },
+      "parent": "lq3-468bd7be2000daf6",
+      "plan": {
+        "ceil_down_mbps": 50.0,
+        "ceil_up_mbps": 50.0,
+        "commit_down_mbps": 5.0,
+        "commit_up_mbps": 5.0
+      }
+    },
+    {
+      "devices": [
+        {
+          "comment": "PPP",
+          "id": "D0000011",
+          "ipv4": [
+            "100.64.0.11"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:00:11",
+          "name": "g1"
+        }
+      ],
+      "display_name": "g1",
+      "id": "C0000011",
+      "match": {
+        "prefixes": [
+          "100.64.0.11/32"
+        ]
+      },
+      "parent": "lq3-3fac2a02b0faebac",
+      "plan": {
+        "ceil_down_mbps": 50.0,
+        "ceil_up_mbps": 50.0,
+        "commit_down_mbps": 5.0,
+        "commit_up_mbps": 5.0
+      }
+    },
+    {
+      "devices": [
+        {
+          "comment": "PPP",
+          "id": "D0000012",
+          "ipv4": [
+            "100.64.0.12"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:00:12",
+          "name": "g2"
+        }
+      ],
+      "display_name": "g2",
+      "id": "C0000012",
+      "match": {
+        "prefixes": [
+          "100.64.0.12/32"
+        ]
+      },
+      "parent": "lq3-3fac2a02b0faebac",
+      "plan": {
+        "ceil_down_mbps": 50.0,
+        "ceil_up_mbps": 50.0,
+        "commit_down_mbps": 5.0,
+        "commit_up_mbps": 5.0
+      }
+    },
+    {
+      "devices": [
+        {
+          "comment": "PPP",
+          "id": "N0002",
+          "ipv4": [
+            "100.64.0.13"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:00:13",
+          "name": "g3"
+        }
+      ],
+      "display_name": "g3",
+      "id": "N0001",
+      "match": {
+        "prefixes": [
+          "100.64.0.13/32"
+        ]
+      },
+      "parent": "lq3-3fac2a02b0faebac",
+      "plan": {
+        "ceil_down_mbps": 50.0,
+        "ceil_up_mbps": 50.0,
+        "commit_down_mbps": 5.0,
+        "commit_up_mbps": 5.0
+      }
+    },
+    {
+      "devices": [
+        {
+          "comment": "PPP",
+          "id": "D0000021",
+          "ipv4": [
+            "100.64.0.21"
+          ],
+          "ipv6": [],
+          "mac": "02:00:00:00:00:21",
+          "name": "s1"
+        }
+      ],
+      "display_name": "s1",
+      "id": "C0000021",
+      "match": {
+        "prefixes": [
+          "100.64.0.21/32"
+        ]
+      },
+      "parent": "lq3-13287de13eb621bb",
+      "plan": {
+        "ceil_down_mbps": 50.0,
+        "ceil_up_mbps": 5.0,
+        "commit_down_mbps": 5.0,
+        "commit_up_mbps": 0.5
+      }
+    }
+  ],
+  "match": {
+    "mode": "ip"
+  },
+  "schema_version": 2,
+  "topology": [
+    {
+      "id": "lq3-1b4a06be07846add",
+      "name": "DHCP-IOT-Hub-1",
+      "parent": null,
+      "rate": {
+        "ceil_down_mbps": 20.0,
+        "ceil_up_mbps": 10.0,
+        "commit_down_mbps": 20.0,
+        "commit_up_mbps": 10.0
+      },
+      "type": "site"
+    },
+    {
+      "id": "lq3-468bd7be2000daf6",
+      "name": "DHCP-LAN-Hub-1",
+      "parent": null,
+      "rate": {
+        "ceil_down_mbps": 100.0,
+        "ceil_up_mbps": 100.0,
+        "commit_down_mbps": 100.0,
+        "commit_up_mbps": 100.0
+      },
+      "type": "site"
+    },
+    {
+      "id": "lq3-3fac2a02b0faebac",
+      "name": "Gold-Hub-1",
+      "parent": null,
+      "rate": {
+        "ceil_down_mbps": 52.5,
+        "ceil_up_mbps": 52.5,
+        "commit_down_mbps": 52.5,
+        "commit_up_mbps": 52.5
+      },
+      "type": "site"
+    },
+    {
+      "id": "lq3-13287de13eb621bb",
+      "name": "Silver-Hub-1",
+      "parent": null,
+      "rate": {
+        "ceil_down_mbps": 17.5,
+        "ceil_up_mbps": 1.75,
+        "commit_down_mbps": 17.5,
+        "commit_up_mbps": 1.75
+      },
+      "type": "site"
+    }
+  ]
+}

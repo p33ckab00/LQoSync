@@ -412,7 +412,19 @@ where
         let files: Vec<(std::path::PathBuf, String)> = match target {
             Target::V3Network => {
                 let (text, alerts) = render_libreqos_network(&out.rows, &out.network)?;
+                let omission = if self.cfg.runtime.mode == RuntimeMode::Apply {
+                    alerts.first().map(|first| format!(
+                        "v3_network: {} circuit(s) would be omitted; no LibreQoS input was written. First: {first}. Run shadow mode to inspect all alerts",
+                        alerts.len()
+                    ))
+                } else {
+                    None
+                };
                 out.report.alerts.extend(alerts);
+                if let Some(message) = omission {
+                    status.report = ReportSummary::from_report(&out.report, &out.rows, &state);
+                    anyhow::bail!(message);
+                }
                 vec![(target_dir.join(&self.cfg.libreqos.v3_network_file), text)]
             }
             _ => {
@@ -1172,7 +1184,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn v3_network_writes_only_the_json_and_reports_skipped_circuits() {
+    async fn v3_network_apply_rejects_a_missing_static_parent_and_accepts_an_explicit_one() {
         let e = env();
         users(&e, &[("alice", "100.64.0.2")]);
         std::fs::write(
@@ -1185,26 +1197,56 @@ mod tests {
         c.libreqos.target = crate::config::Target::V3Network;
         native_probe(&e, &mut c, "ready");
         let before_csv = read(&e.lqos.join("ShapedDevices.csv"));
-        let s = runner(&e, c).cycle(1_000, false).await;
+        let previous_native = "{\"schema_version\":2,\"topology\":[],\"circuits\":[]}";
+        std::fs::write(e.lqos.join("libreqos_network.json"), previous_native).unwrap();
+        let s = runner(&e, c.clone()).cycle(1_000, false).await;
+        assert!(s.error.as_deref().unwrap_or_default().contains("office"));
+        assert_eq!(read(&e.lqos.join("libreqos_network.json")), previous_native);
+        assert_eq!(read(&e.lqos.join("ShapedDevices.csv")), before_csv);
+        assert!(!e.state.join("state.json").exists());
+        assert!(s.status.report.alerts.iter().any(|a| a.contains("office")));
+
+        let mut shadow = c.clone();
+        shadow.runtime.mode = RuntimeMode::Shadow;
+        let s = runner(&e, shadow).cycle(1_001, false).await;
+        assert_eq!(s.error, None);
+        assert!(s.status.report.alerts.iter().any(|a| a.contains("office")));
+        assert!(e.state.join("candidate/libreqos_network.json").exists());
+        assert_eq!(read(&e.lqos.join("libreqos_network.json")), previous_native);
+
+        std::fs::write(
+            e.lqos.join("ShapedDevices.csv"),
+            before_csv.replace("S1,office,SD1,office,,,", "S1,office,SD1,office,HS-R1,,"),
+        )
+        .unwrap();
+        let s = runner(&e, c).cycle(1_002, false).await;
         assert_eq!(s.error, None);
         assert_eq!(s.status.native, "ready");
         let v: serde_json::Value =
             serde_json::from_str(&read(&e.lqos.join("libreqos_network.json"))).unwrap();
         assert_eq!(v["schema_version"], 2);
-        assert_eq!(v["circuits"].as_array().unwrap().len(), 1, "{v}");
-        assert_eq!(v["circuits"][0]["display_name"], "alice");
+        assert_eq!(v["circuits"].as_array().unwrap().len(), 2, "{v}");
+        let office = v["circuits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["display_name"] == "office")
+            .unwrap();
+        let hs = v["topology"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["name"] == "HS-R1")
+            .unwrap();
+        assert_eq!(office["parent"], hs["id"]);
         assert_eq!(
             read(&e.lqos.join("ShapedDevices.csv")),
-            before_csv,
+            before_csv.replace("S1,office,SD1,office,,,", "S1,office,SD1,office,HS-R1,,"),
             "the pair is not written"
         );
         assert!(!e.lqos.join("network.json").exists());
         assert!(!e.lqos.join("reloaded").exists());
-        assert!(
-            s.status.report.alerts.iter().any(|a| a.contains("office")),
-            "{:?}",
-            s.status.report.alerts
-        );
+        assert!(s.status.report.alerts.is_empty());
         assert_eq!(s.status.target, "v3_network");
     }
 

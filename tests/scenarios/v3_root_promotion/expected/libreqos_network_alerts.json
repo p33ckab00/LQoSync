@@ -1,0 +1,3 @@
+[
+    "v3_network: circuit fixed-ap is not written: it has no parent node, and LibreQoS v3 requires one"
+]

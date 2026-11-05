@@ -8,6 +8,7 @@ use lqosync3::cycle::{CycleInput, CycleOutput, RouterResult, assemble};
 use lqosync3::model::{Columns, CsvRow, RouterSnapshot, State};
 use lqosync3::state::{read_csv, seed_state, split_static};
 use lqosync3::writer::pair::{render_csv, render_network_json};
+use lqosync3::writer::v3network::render_libreqos_network;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
@@ -108,11 +109,19 @@ fn scenarios_match_expected_output() {
             out = cycle(&cfg, &out.state.clone(), &statics, snap, v3, &mut n);
         }
         let cols = if v3 { Columns::V3 } else { Columns::V2 };
-        let got = [
+        let mut got = vec![
             ("ShapedDevices.csv", render_csv(&out.rows, cols)),
             ("network.json", render_network_json(&out.network)),
             ("report.json", report_json(&out)),
         ];
+        if v3 {
+            let (native, alerts) = render_libreqos_network(&out.rows, &out.network).unwrap();
+            got.push(("libreqos_network.json", native));
+            got.push((
+                "libreqos_network_alerts.json",
+                render_network_json(&serde_json::json!(alerts)),
+            ));
+        }
         let scratch = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target/scenario-out")
             .join(&case);
