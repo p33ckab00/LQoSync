@@ -24,7 +24,7 @@ Sources: [README](https://github.com/p33ckab00/LQoSync/blob/lqosync3/README.md),
 | IPoE Profiles | Cards with baseline speed and inline scheduled overrides. | CRUD, overlap priority, effective speed, scheduler. |
 | PPPoE Users | Dense table with router, profile, effective speed, override, status and actions. | RouterOS import, status refresh, profile and manual-speed changes. |
 | PPPoE Profiles | Router-filtered cards, user counts, sync and schedule controls. | RouterOS profile reconciliation and scheduled overrides. |
-| LibreQoS | Last sync, local/remote state, rows, path and CSV preview. | Existing output generation, status, digest comparison, safe resync. |
+| LibreQoS | Last sync, local/remote state, persistent missing-parent alert, affected-circuit list, rows, path and CSV preview. | Existing output generation, typed circuit diagnostics, status, digest comparison, safe resync. See [the missing-parent alert contract](MISSING_PARENT_ALERT.md). |
 | Load Balancer | Summary cards; Allocations, Assignments, Discovery, History tabs; allocation cards; searchable assignment table. | Percentage/count/manual policies, stable assignments, dry-run diff, manual move, audit history. |
 | Upstream monitoring | Health grid and per-upstream capacity, members, RX/TX and utilization. | Checks, thresholds, failure/recovery state and traffic sampling. |
 | Users and Settings | Same shell, dark cards and green/red badges. | Auth, roles, config, credentials and audit. |
@@ -42,6 +42,7 @@ See [the visual and responsive UI map](UI_VISUAL_SYSTEM.md) for placement, text 
 5. Support baseline speed and scheduled overrides with days, time window, download/upload, and priority. Show the effective value and its source.
 6. Show the age of health and traffic data. `Unknown` is distinct from `Up` and `Down`.
 7. Authorize every state-changing action. Do not expose secrets in API results or audit records.
+8. Show the count and details of circuits with no Parent Node when v3 native input is selected. Keep the alert visible across a rejected apply, distinguish shadow from live state, and clear it only after a newer clean cycle.
 
 ## Acceptance
 
@@ -49,6 +50,7 @@ See [the visual and responsive UI map](UI_VISUAL_SYSTEM.md) for placement, text 
 - A dry-run enumerates every proposed subscriber and RouterOS change.
 - Repeated reconciliation makes no extra writes when actual state matches desired state.
 - Simulated outage/recovery produces traceable history and no assignment to a known-down upstream.
+- A native v3 cycle with a missing Parent Node shows circuit and row counts on the Dashboard and LibreQoS page; rejected apply leaves the prior live input intact, and a newer clean native cycle clears the warning.
 - Desktop and mobile layouts remain usable; wide tables scroll without hiding actions.
 
 ## Performance and data flow

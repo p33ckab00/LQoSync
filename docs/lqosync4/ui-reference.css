@@ -73,6 +73,12 @@ button, a, input, select { accent-color: var(--green); }
 .badge--critical { background: var(--red-bg); color: var(--text); }
 .badge--warning { background: var(--amber-bg); color: var(--text); }
 .badge--unknown { background: var(--border); color: var(--text); }
+.issue-alert { display: grid; gap: 8px; min-width: 0; padding: 16px 18px; border: 1px solid var(--amber); border-radius: 12px; background: var(--surface); overflow-wrap: anywhere; }
+.issue-alert[data-severity="critical"] { border-color: var(--red); }
+.issue-alert[data-state="stale"] { border-color: var(--border); }
+.issue-alert__heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 650; }
+.issue-alert__meta { color: var(--muted); font-size: 14px; }
+.issue-alert__link { display: inline-flex; align-items: center; min-height: 44px; width: fit-content; color: var(--blue); font-weight: 600; }
 .tabbar { display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid var(--border); }
 .tabbar__tab { flex: 0 0 auto; padding: 10px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); }
 .tabbar__tab[aria-selected="true"] { border-bottom-color: var(--text); color: var(--text); }

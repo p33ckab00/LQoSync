@@ -89,6 +89,21 @@ for key, label, source, feature in phase_specs:
     phase = add(key, label, source)
     connect(roadmap, phase, source)
     connect(phase, feature, source)
+baseline = add("e01_baseline", "E01 source and output baseline", "roadmap/E01_BASELINE.md")
+connect(baseline, "planning_phase_0_evidence", "roadmap/E01_BASELINE.md")
+connect(baseline, "docs_feature_function_map_function_map", "roadmap/E01_BASELINE.md")
+connect(baseline, v3, "roadmap/E01_BASELINE.md")
+web_contract = add("e02_web_contract", "E02 first web contract and G0 proposal", "roadmap/E02_WEB_CONTRACT.md")
+connect(web_contract, "planning_phase_0_evidence", "roadmap/E02_WEB_CONTRACT.md")
+connect(web_contract, "planning_phase_2_web", "roadmap/E02_WEB_CONTRACT.md")
+connect(web_contract, routes, "roadmap/E02_WEB_CONTRACT.md")
+connect(web_contract, "brain_decisions_decisions", "brain/DECISIONS.md")
+parent_alert = add("missing_parent_alert", "Missing Parent Node web alert", "docs/MISSING_PARENT_ALERT.md")
+connect(parent_alert, native, "docs/MISSING_PARENT_ALERT.md")
+connect(parent_alert, routes, "docs/MISSING_PARENT_ALERT.md")
+connect(parent_alert, visual, "docs/MISSING_PARENT_ALERT.md")
+connect(parent_alert, "planning_phase_2_web", "roadmap/02-web-foundation.md")
+connect(web_contract, parent_alert, "roadmap/E02_WEB_CONTRACT.md")
 
 route_specs = [
     ("dashboard", "/", "docs_product_spec_dashboard"),

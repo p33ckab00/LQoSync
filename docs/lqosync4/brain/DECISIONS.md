@@ -13,6 +13,7 @@
 | D-09 | Select the Rust backend framework after an API and live-update spike; Rocket is a candidate. | Proposal | Open |
 | D-10 | Use agent-tandem coordination, Graphify source checks, shared brain handoffs, and the production completion gate for AI coding work. | Owner | Accepted |
 | D-11 | Use the LQoSync4 web application as the product baseline; reuse and enhance LQoSync3 code as its TUI-free synchronization core. | Owner | Accepted |
+| D-12 | G0 proposal: Axum API, single-controller SQLite on local disk, server-side local sessions, and viewer/operator/admin roles for the first web slice. Exact DB library, MFA, and operator apply permission need validation. See [E02](../roadmap/E02_WEB_CONTRACT.md). | E02 recommendation; no owner selection yet | Open |
 
 ## Open decisions
 

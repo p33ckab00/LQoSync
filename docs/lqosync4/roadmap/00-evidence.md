@@ -1,6 +1,9 @@
 # Phase 0 — Evidence and contracts
 
-**Exit:** A coding agent can reproduce the current behavior and identify each open decision before changing a write path. All tasks start as **planned**.
+**Exit:** A coding agent can reproduce the current behavior and identify each open decision before changing a write path. **Progress:** E01 baseline captured and verified; E02 has a first-slice contract and G0 recommendation pending owner decision; E03 remains planned.
+
+The [E01 source and output baseline](E01_BASELINE.md) pins the initial commit, maps the existing execution path, and points to the synthetic fixtures and parity commands.
+The [E02 web contract](E02_WEB_CONTRACT.md) fixes candidate first-slice endpoint names, DTO fields, error and stale semantics, and backend/frontend ownership. Its framework, store, session, and role recommendations are not accepted G0 decisions.
 
 | ID / owner | Depends | Implementation instruction | Acceptance evidence |
 |---|---|---|---|
