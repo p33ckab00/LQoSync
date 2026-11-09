@@ -22,6 +22,7 @@ pub struct LibreView {
     horizontal: u16,
     cursor: usize,
     expanded: bool,
+    hidden_rows: usize,
     controls: [Rect; 2],
     tabs: [Rect; 2],
     pages: [Rect; 2],
@@ -209,7 +210,9 @@ impl LibreView {
             if self.preview.area.contains((m.column, m.row).into())
                 && m.column < self.preview.area.right().saturating_sub(1)
             {
-                self.cursor = self.preview.offset + usize::from(m.row - self.preview.area.y);
+                self.cursor = self.preview.offset
+                    + self.hidden_rows
+                    + usize::from(m.row - self.preview.area.y);
             }
         }
         if self.preview.mouse(m) {
@@ -221,6 +224,7 @@ impl LibreView {
     }
     pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, now: u64, p: &Palette) {
         // Only the compact composition needs a bounded virtual canvas.
+        self.hidden_rows = 0;
         let height = area.height.max(29);
         self.body.offset = self
             .body
@@ -241,23 +245,15 @@ impl LibreView {
                         b[(x, y + self.body.offset as u16)].clone();
                 }
             }
-            let map = |r: Rect| {
-                let y = i32::from(r.y) - self.body.offset as i32;
-                if y >= 0 && y < i32::from(area.height) {
-                    Rect::new(
-                        area.x + r.x,
-                        area.y + y as u16,
-                        r.width,
-                        r.height.min(area.height - y as u16),
-                    )
-                } else {
-                    Rect::default()
-                }
-            };
+            let map = |r: Rect| design::viewport_rect(r, area, self.body.offset);
             self.controls = self.controls.map(map);
             self.tabs = self.tabs.map(map);
             self.pages = self.pages.map(map);
             self.issue_button = map(self.issue_button);
+            self.hidden_rows = self
+                .body
+                .offset
+                .saturating_sub(self.preview.area.y as usize);
             self.preview.area = map(self.preview.area);
         } else {
             self.draw_body(f, area, d, now, p);

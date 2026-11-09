@@ -74,3 +74,18 @@ Pressure requires fresh complete diagnostics for CLEAR. Missing/stale samples ne
 Table/details/compact body have independent wheel routing and interactive scrollbars.
 Checks: 529 tests pass, zero fail, six ignored; Clippy, formatting, whitespace, build, and real terminal screenshot review pass.
 Capture: `docs/design/tui/captures/workers-v1.png`. Next: local commit, Settings, then Journal. Production unchanged.
+
+## Settings checkpoint
+
+Implemented category/group navigation, loaded/draft/unit values, cached review, field help, and review/apply controls.
+Added the full router form with TLS/source/CA controls. A validated trial draft prevents partial additions and duplicate-router changes.
+A router addition is one undo step. Typed secrets remain in Secret memory until existing apply writes them; cancel/undo drops them.
+Mouse input covers fields, choices, lists, toggles, router selection, reset/undo, preview/apply/discard, and dialogs.
+Inline field edits cannot reuse an old preview. Sidebar clicks preserve an active field. Read-only, confirmation, conflict, backup, and reload verification gates remain.
+Fixed partial-viewport mouse target clipping in shared code, including row offsets in compact worker/source previews.
+Review lines render only the visible range. Help and all overflowing Settings panels have independent mouse scrolling.
+Checks: 534 tests pass, zero fail, seven manual tests ignored; Clippy, formatting, whitespace, build, and screenshot review pass.
+Actual terminal capture is read-only. Writable Add Router and values/review images come from actual Ratatui fixture frames.
+Sudo needs an operator password and user namespaces are restricted; no privileged capture or production change occurred.
+Captures: `docs/design/tui/captures/settings-*.png`. Reproduce fixture frames with the ignored Settings exporter and `scripts/dev/render_terminal_frame.py`.
+Next: local commit, then Journal. Do not push.

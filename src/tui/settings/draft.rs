@@ -338,6 +338,26 @@ impl Draft {
         Ok(r.len() - 1)
     }
 
+    /// Add the form's settings as one undo step. Other router defaults remain inherited.
+    pub fn add_router_config(&mut self, r: &crate::config::RouterCfg) -> anyhow::Result<usize> {
+        let i = self.add_router(&r.name, &r.address, &r.username, &r.password_file)?;
+        let table = self.routers().get_mut(i).expect("added router");
+        table.insert("port", toml_edit::value(i64::from(r.port)));
+        table.insert("tls", toml_edit::value(r.tls));
+        table.insert("tls_verify", toml_edit::value(r.tls_verify));
+        table.insert("tls_ca_file", toml_edit::value(&r.tls_ca_file));
+        for (name, enabled) in [
+            ("pppoe", r.pppoe.enabled),
+            ("dhcp", r.dhcp.enabled),
+            ("hotspot", r.hotspot.enabled),
+        ] {
+            let mut source = Table::new();
+            source.insert("enabled", toml_edit::value(enabled));
+            table.insert(name, Item::Table(source));
+        }
+        Ok(i)
+    }
+
     pub fn remove_router(&mut self, i: usize) -> anyhow::Result<()> {
         ensure!(i < self.routers().len(), "router {i} does not exist");
         self.save();

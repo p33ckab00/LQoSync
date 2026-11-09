@@ -16,7 +16,7 @@ Keep drawing free of I/O. Bound row work and history. Preserve missing/stale evi
 - [x] Routers: approved cards/filters/table/details/status and navigation; review/test/capture; local commit.
 - [x] LibreQoS: approved target/compatibility/source previews with existing confirmation; review/test/capture; local commit.
 - [x] Workers: approved utilization/detail/pressure/status with source semantics; review/test/capture; local commit.
-- [ ] Settings: approved router form and typed values/diff with existing draft/preview/apply/secret gates; review/test/capture; local commit.
+- [x] Settings: approved router form and typed values/diff with existing draft/preview/apply/secret gates; review/test/capture; local commit.
 - [ ] Journal: approved cards/filters/table/details/status, bounded retention, original-text copy and terminal selection; review/test/capture; local commit.
 
 ## Verification per checkpoint

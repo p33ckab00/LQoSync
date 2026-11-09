@@ -49,6 +49,21 @@ pub fn selected(p: &Palette) -> Style {
         p.selection()
     }
 }
+/// Convert a virtual-body target into the visible terminal viewport.
+pub fn viewport_rect(r: Rect, area: Rect, offset: usize) -> Rect {
+    let clipped = r.intersection(Rect::new(0, offset as u16, area.width, area.height));
+    if clipped.width == 0 || clipped.height == 0 {
+        Rect::default()
+    } else {
+        Rect::new(
+            area.x + clipped.x,
+            area.y + clipped.y - offset as u16,
+            clipped.width,
+            clipped.height,
+        )
+    }
+}
+
 pub fn accent(p: &Palette) -> Style {
     if p.theme == Theme::Dark {
         surface(p).fg(Color::Rgb(128, 170, 255))
@@ -118,6 +133,18 @@ impl Scroll {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn partially_visible_targets_keep_only_the_visible_rectangle() {
+        assert_eq!(
+            viewport_rect(Rect::new(2, 5, 20, 10), Rect::new(30, 4, 80, 18), 8),
+            Rect::new(32, 4, 20, 7)
+        );
+        assert_eq!(
+            viewport_rect(Rect::new(2, 1, 20, 2), Rect::new(30, 4, 80, 18), 8),
+            Rect::default()
+        );
+    }
+
     #[test]
     fn scrollbar_wheel_track_drag_and_bounds() {
         use ratatui::crossterm::event::KeyModifiers;

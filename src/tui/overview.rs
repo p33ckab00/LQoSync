@@ -102,19 +102,7 @@ impl Overview {
                         b[(x, y + self.scroll.offset as u16)].clone();
                 }
             }
-            let map = |r: Rect| {
-                let y = i32::from(r.y) - self.scroll.offset as i32;
-                if y >= 0 && y < i32::from(area.height) {
-                    Rect::new(
-                        area.x + r.x,
-                        area.y + y as u16,
-                        r.width,
-                        r.height.min(area.height - y as u16),
-                    )
-                } else {
-                    Rect::default()
-                }
-            };
+            let map = |r: Rect| design::viewport_rect(r, area, self.scroll.offset);
             self.ranges = self.ranges.map(map);
             self.refresh = map(self.refresh);
             self.alert_scroll.area = map(self.alert_scroll.area);

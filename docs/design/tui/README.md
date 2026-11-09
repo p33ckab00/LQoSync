@@ -512,6 +512,27 @@ Use temporary files and synthetic RouterOS peers for repeatable checks. Live rou
 
 Both Settings views have owner approval. Functional acceptance remains separate from visual approval.
 
+### Settings runtime review
+
+Actual terminal capture: [read-only Settings](captures/settings-readonly-terminal-v1.png).
+Writable states use actual Ratatui fixture renders: [Add Router](captures/settings-add-router-v1.png) and [Values/review](captures/settings-values-review-v1.png).
+These fixture renders do not claim a privileged running-terminal capture. Sudo requires the operator's password on this host.
+The form and typed-value layout follow the two approved Settings compositions.
+
+Add Router supports name, address, API port, TLS/verification, username, masked password, password file, source toggles, and advanced CA file.
+The complete form passes config validation in a separate draft before the current draft changes.
+A successful Add to draft is one undo step. Secrets stay in memory until the existing apply path writes their files.
+Invalid input, duplicate routers, cancellation, and read-only mode do not write files.
+The Loaded column represents the file at the start of this edit, including its inherited defaults.
+Service-loaded digest checks and external-file conflict checks remain in the existing preview/apply flow.
+
+Click groups, values, choices, toggles, router entries, reset/undo, list actions, preview/apply/discard, and dialog buttons.
+Use `g` or Next section to reach nested sections within a category.
+The help, review, keys, router list, choices, and compact body support wheel and interactive scrollbars.
+An inline field commits before a clicked action. A change invalidates the previous preview; it cannot bypass Save & apply gates.
+Clicks outside the editor do not commit an active field. Dialogs block background activation.
+The review uses cached field changes and collects visible lines. It does not run a quadratic line diff during draw.
+
 ## Journal
 
 ![Journal proposal](mockups/journal-proposal-v1.png)

@@ -23,6 +23,7 @@ pub struct WorkerUi {
     actions: [Rect; 2],
     expanded: bool,
     initialized: bool,
+    hidden_rows: usize,
 }
 pub enum WorkerAction {
     None,
@@ -215,8 +216,10 @@ impl WorkersView {
             }
             let r = self.approved.table.area;
             if r.contains((m.column, m.row).into()) && m.column < r.right().saturating_sub(1) {
-                self.approved.cursor = (self.approved.table.offset + usize::from(m.row - r.y))
-                    .min(self.approved.filtered.len().saturating_sub(1));
+                self.approved.cursor = (self.approved.table.offset
+                    + self.approved.hidden_rows
+                    + usize::from(m.row - r.y))
+                .min(self.approved.filtered.len().saturating_sub(1));
                 self.approved.focus = 3;
                 self.approved.editing = false;
             }
@@ -234,6 +237,7 @@ impl WorkersView {
     }
     pub fn draw_approved(&mut self, f: &mut Frame, area: Rect, d: &Data, now: u64, p: &Palette) {
         self.refresh(d, now);
+        self.approved.hidden_rows = 0;
         let height = area.height.max(28);
         self.approved.body.offset = self
             .approved
@@ -255,21 +259,14 @@ impl WorkersView {
                         b[(x, y + self.approved.body.offset as u16)].clone();
                 }
             }
-            let map = |r: Rect| {
-                let y = i32::from(r.y) - self.approved.body.offset as i32;
-                if y >= 0 && y < i32::from(area.height) {
-                    Rect::new(
-                        area.x + r.x,
-                        area.y + y as u16,
-                        r.width,
-                        r.height.min(area.height - y as u16),
-                    )
-                } else {
-                    Rect::default()
-                }
-            };
+            let map = |r: Rect| design::viewport_rect(r, area, self.approved.body.offset);
             self.approved.controls = self.approved.controls.map(map);
             self.approved.actions = self.approved.actions.map(map);
+            self.approved.hidden_rows = self
+                .approved
+                .body
+                .offset
+                .saturating_sub(self.approved.table.area.y as usize);
             self.approved.table.area = map(self.approved.table.area);
             self.approved.detail.area = map(self.approved.detail.area);
         } else {

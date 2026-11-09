@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T15:26:26+08:00 (Asia/Shanghai) — Settings checkpoint
+
+- Owner task remains seven screens, per-screen review/test/capture and local commits. Do not push.
+- Completed commits: Dashboard `d9e0ffb`, Subscribers `72b09c6`, Routers `74a12c4`, LibreQoS `7f6f61b`, Workers `62007b1`.
+- Settings passes checks: full router form, loaded/draft values, review/apply, mouse/list/dialog/scroll controls, and existing save/secret gates.
+- New code: `src/tui/settings/view/approved.rs`, `form.rs`; atomic router-config undo helper in Draft.
+- Shared fix: clip partially visible mouse targets; account for hidden row offsets in compact previews.
+- Checks: 534 tests pass, zero fail, seven manual ignored; all-target Clippy, formatting, whitespace, build, and capture review pass.
+- Actual read-only terminal image and two labeled writable Ratatui fixture renders are in `docs/design/tui/captures/settings-*.png`.
+- Sudo needs a password; user namespaces are restricted. No privileged running-terminal capture or production change occurred.
+- Next: commit Settings locally, then implement approved Journal and global confirmation mouse buttons. Finish full verification and update all design statuses.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T14:38:28+08:00 (Asia/Shanghai) — Workers checkpoint
 
 - User authorized all seven approved screens with per-screen review/test/capture and local commits. Do not push.

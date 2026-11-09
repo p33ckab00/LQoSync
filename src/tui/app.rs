@@ -261,7 +261,7 @@ impl App {
             KeyCode::Tab
                 if matches!(
                     self.tab,
-                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers
+                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers | Tab::Settings
                 ) =>
             {
                 return self.tab_key(k);
@@ -269,7 +269,7 @@ impl App {
             KeyCode::BackTab
                 if matches!(
                     self.tab,
-                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers
+                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers | Tab::Settings
                 ) =>
             {
                 return self.tab_key(k);
@@ -329,7 +329,11 @@ impl App {
     }
 
     fn settings_key(&mut self, k: KeyEvent) -> Action {
-        match self.settings.on_key(k) {
+        let action = self.settings.approved_key(k);
+        self.settings_action(action)
+    }
+    fn settings_action(&mut self, action: SAction) -> Action {
+        match action {
             SAction::None => Action::None,
             SAction::Preview(job) => Action::Preview(Box::new(job)),
             SAction::Apply => Action::ApplySettings,
@@ -450,11 +454,12 @@ impl App {
     }
 
     pub fn on_mouse(&mut self, m: MouseEvent) -> Action {
-        if self.modal.is_some()
-            || self.select_mode
-            || (self.tab == Tab::Settings && self.settings.capturing())
-        {
+        if self.modal.is_some() || self.select_mode {
             return Action::None;
+        }
+        if self.tab == Tab::Settings && self.settings.capturing() {
+            let action = self.settings.approved_mouse(m);
+            return self.settings_action(action);
         }
         if self.capturing_search() {
             if self.tab == Tab::Workers {
@@ -502,6 +507,13 @@ impl App {
         {
             return self.copy_text(text);
         }
+        if self.tab == Tab::Settings {
+            let action = self.settings.approved_mouse(m);
+            let action = self.settings_action(action);
+            if action != Action::None {
+                return action;
+            }
+        }
         if self.tab == Tab::Dashboard && self.overview.mouse(m, &self.data) {
             return self.on_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
         }
@@ -538,6 +550,7 @@ impl App {
 
     pub fn draw(&mut self, f: &mut Frame) {
         let area = f.area();
+        self.settings.clear_approved_areas();
         self.workers.clear_areas();
         self.devices.clear_approved_areas();
         self.overview.clear();
@@ -620,7 +633,7 @@ impl App {
             Tab::Dashboard => self
                 .overview
                 .draw(f, main, &self.data, self.now, &self.palette),
-            Tab::Settings => self.settings.draw(f, main, &self.palette),
+            Tab::Settings => self.settings.draw_approved(f, main, &self.palette),
             Tab::Workers => {
                 self.workers
                     .draw_approved(f, main, &self.data, self.now, &self.palette)
@@ -856,6 +869,26 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn settings_approved_body_exposes_loaded_draft_review_and_apply() {
+        let mut a = app(true);
+        a.tab = Tab::Settings;
+        let text = draw(&mut a, 200, 48);
+        for label in [
+            "Configuration",
+            "Settings groups",
+            "Loaded",
+            "Draft",
+            "Unit",
+            "Review and apply",
+            "Validate & preview",
+            "Save & apply",
+        ] {
+            assert!(text.contains(label), "missing {label}");
+        }
+        assert!(text.contains("READ-ONLY") || text.contains("read-only"));
     }
 
     #[test]
@@ -1485,8 +1518,11 @@ mod tests {
         let mut a = app(false);
         a.on_key(key(KeyCode::Char('6')));
         let screen = draw(&mut a, 140, 30);
-        assert!(screen.contains("Settings: 0 changed keys"), "{screen}");
-        assert!(screen.contains("mode = \"apply\""), "{screen}");
+        assert!(screen.contains("Draft: 0 changes"), "{screen}");
+        assert!(
+            screen.contains("Loaded") && screen.contains("Draft") && screen.contains("apply"),
+            "{screen}"
+        );
     }
 
     #[test]

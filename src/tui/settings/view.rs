@@ -1,5 +1,7 @@
 //! The Settings screen: groups, keys, help; the inputs; preview, confirm, apply, verify.
 
+mod approved;
+mod form;
 use super::apply::{ApplyError, Verify, apply, verify};
 use super::draft::{
     Draft, KeyPath, Origin, Seg, line_diff, parse_value, path_text, valid_router_name,
@@ -207,6 +209,7 @@ struct Group {
 }
 
 pub struct SettingsView {
+    approved: approved::SettingsUi,
     path: PathBuf,
     pub draft: Option<Draft>,
     load_error: Option<String>,
@@ -324,6 +327,7 @@ impl SettingsView {
             Err(e) => (None, Some(format!("{e:#}"))),
         };
         let mut v = SettingsView {
+            approved: Default::default(),
             path,
             draft,
             load_error,
@@ -364,10 +368,11 @@ impl SettingsView {
 
     /// An input or a modal is open: it takes all keys.
     pub fn capturing(&self) -> bool {
-        !matches!(self.input, Input::None) || self.modal.is_some()
+        !matches!(self.input, Input::None) || self.modal.is_some() || self.approved.form.is_some()
     }
 
     fn after_change(&mut self) {
+        self.approved.diff_dirty = true;
         self.changed = self.draft.as_ref().map(Draft::changed).unwrap_or_default();
         self.refresh_leases();
         self.rebuild_groups();
@@ -1790,6 +1795,9 @@ impl SettingsView {
 
     /// The keys of the open dialog or input, for the footer.
     pub fn hint(&self) -> String {
+        if self.approved.form.is_some() {
+            return "[Tab/Shift+Tab] next/previous  [Enter] edit/toggle/activate  [Esc] cancel form".into();
+        }
         self.bar()
     }
 
