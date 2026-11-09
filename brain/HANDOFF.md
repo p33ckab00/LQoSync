@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T18:38:29+08:00 (Asia/Shanghai) — Reviewed TUI release preparation
+
+- Owner now authorizes push, binary deployment, and restart after a clean performance review. This supersedes local-only instructions below.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+- Review found and fixed clock-regression ordering during analytics read failure in `src/worker_util/traffic.rs`.
+- Regression test failed before the fix. Final suite: 542 pass, zero fail, seven manual ignored; Clippy, formatting, and whitespace pass.
+- Synthetic 50,000-row debug benchmark: 2.013–7.703 ms/frame across seven screens/two sizes; unchanged snapshot mean 0.001 ms.
+- Evidence: `/home/pi/.local/state/lqosync3/tui-release-review/`. See the linked session for limits.
+- Next: commit/push, build a clean release, prepare atomic binary swap/rollback and post-restart checks. Root execution needs sudo authentication.
+- Production remains active at `3.0.144+g1d2b4d5`. Do not report deployment until binary/process/status/telemetry checks pass.
+
+Session: [[2026-11-09-tui-release-review]].
+
 ## 2026-11-09T18:32:30+08:00 (Asia/Shanghai) — All approved TUI screens complete
 
 - Goal achieved: Dashboard -> Subscribers -> Routers -> LibreQoS -> Workers -> Settings -> Journal implemented, reviewed, and locally checkpointed. Do not push.

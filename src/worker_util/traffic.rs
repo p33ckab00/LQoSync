@@ -39,6 +39,11 @@ impl History {
         sample: Option<(u64, Counters)>,
         now: u64,
     ) {
+        // Wall-clock changes must not leave future points before a new sample or gap.
+        if points.back().is_some_and(|p| p.at > now) {
+            points.clear();
+            self.baseline = None;
+        }
         let mut point = Point {
             at: now,
             down_mbps: None,
@@ -91,6 +96,47 @@ impl History {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn wall_clock_regression_during_read_failure_resets_history() {
+        let mut h = History::default();
+        let mut points = VecDeque::new();
+        for now in [10, 12, 14] {
+            h.record(
+                &mut points,
+                Some((
+                    now * 1000,
+                    Counters {
+                        download_bytes: now * 1000,
+                        upload_bytes: now * 1000,
+                    },
+                )),
+                now,
+            );
+        }
+        h.record(&mut points, None, 8);
+        assert_eq!(points.len(), 1);
+        assert_eq!(points.front().unwrap().at, 8);
+        assert!(points.front().unwrap().down_mbps.is_none());
+        h.record(
+            &mut points,
+            Some((
+                16000,
+                Counters {
+                    download_bytes: 16000,
+                    upload_bytes: 16000,
+                },
+            )),
+            10,
+        );
+        assert!(points.back().unwrap().down_mbps.is_none());
+        assert!(
+            points
+                .iter()
+                .zip(points.iter().skip(1))
+                .all(|(a, b)| a.at < b.at)
+        );
+    }
+
     #[test]
     fn repeated_frames_resets_gaps_and_retention() {
         let mut h = History::default();
