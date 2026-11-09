@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T20:32:29+08:00 (Asia/Shanghai) — Live collection deployment complete
+
+- Operator deployed `3.0.157+g39459a7`. Installed checksum matches the artifact; deployment checked the running executable and raw source counts.
+- Service active/running, PID `61153`, zero automatic restarts. Independent cycle 2 check passed with no service/config errors.
+- Collection and status PID/sequence agree. Latest cycle: PPPoE 21 online / three offline; DHCP five BOUND leases; Hotspot disabled.
+- Collection remains fresh under the existing sync-cycle cadence. DPDK telemetry is fresh and traffic history grows.
+- Installed TUI read-only smoke passes all seven routes, DPDK panel, subscriber states, quit/cleanup, and no panic.
+- Config unchanged. Backup: `/var/backups/lqosync3/tui-39459a7-6rmrzs5d`.
+- Evidence: `/home/pi/.local/state/lqosync3/collection-39459a7/DEPLOYED.json` and `installed-tui-smoke.json`.
+- Task complete. Next operator action: reopen existing TUI sessions. No implementation or deployment work remains.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-live-subscriber-collection]].
+
 ## 2026-11-09T19:46:45+08:00 (Asia/Shanghai) — Cycle collection fix pushed; activation pending
 
 - Owner requested live PPPoE/Hotspot/DHCP collection and states; chose refresh only with the current sync cycle.

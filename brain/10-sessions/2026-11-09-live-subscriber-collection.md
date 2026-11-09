@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-09
 tags: [collection, tui, subscriber-state]
-status: deployment-pending
+status: complete
 related: ["[[2026-11-09-tui-release-review]]"]
 ---
 
@@ -59,3 +59,23 @@ Non-interactive sudo failed before mutation: a password is required.
 Operator step: `sudo /home/pi/.local/state/lqosync3/collection-39459a7/deploy.sh`.
 After execution, verify `DEPLOYED.json`, current process version, fresh source counts, subscriber states, and the installed TUI.
 The operator was notified. Do not report activation until these runtime checks pass.
+
+## Deployment verified
+
+Updated: 2026-11-09T20:32:29+08:00 (Asia/Shanghai).
+The operator ran the prepared deployment script. Release `3.0.157+g39459a7` is installed and running.
+Installed SHA-256 matches the verified artifact. Service PID `61153` is active/running with zero automatic restarts.
+The deployment script checked the running executable and compared source counts with the private cycle snapshot.
+Configuration is unchanged. Backup: `/var/backups/lqosync3/tui-39459a7-6rmrzs5d`.
+
+Independent verification passed at cycle 2: status and collection PID/sequence agree, with no service/config error.
+The latest cycle contains 21 online PPPoE records, three offline PPPoE accounts, and five DHCP BOUND leases.
+Hotspot remains disabled. A BOUND lease does not prove device reachability.
+Collection refresh follows the existing sync cycle. At verification, collection age was 107.4 seconds within its 190-second freshness limit.
+Worker/DPDK telemetry was fresh at 2.4 seconds, with 114 traffic history points.
+
+The installed TUI passed a read-only live-config terminal smoke test: all seven routes rendered,
+the DPDK panel and ONLINE/OFFLINE/BOUND states appeared, and quit restored the terminal with no panic.
+Evidence: `/home/pi/.local/state/lqosync3/collection-39459a7/DEPLOYED.json` and `installed-tui-smoke.json`.
+No raw subscriber identities were saved in smoke-test evidence.
+The authorized fix, release, deployment, restart, and verification are complete. Reopen existing TUI sessions to load this release.
