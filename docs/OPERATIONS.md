@@ -459,7 +459,7 @@ The service reads a snapshot every two seconds from `libreqos.v3_analytics_socke
 Its default is `/dev/shm/libreqos-analytics.sock`. Match this path to the bridge's analytics socket.
 The service normally runs as root and can read the root-only socket.
 The TUI reads the public cache at `<runtime.state_dir>/worker-utilization.json`.
-This cache contains worker metrics only. It contains no host or flow records.
+This cache contains worker metrics and buffer/ring diagnostics only. It contains no host or flow records.
 
 The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
 Snapshots and cached values expire after six seconds. A socket error marks the last-good values stale.
@@ -470,3 +470,30 @@ The Dashboard keeps its journal counters when worker telemetry is unavailable.
 This feature does not change worker counts, queue counts, shaping files, or the topology source.
 The monitor applies config reloads and stops with the service.
 After a binary upgrade, reopen the TUI to use the new tab.
+
+### Buffer and ring pressure
+
+The Workers tab also shows buffer/ring pressure and its causes.
+The same two-second poll reads the diagnostic fields. It adds no socket request.
+The service journal records each pressure state change once:
+
+```bash
+journalctl -u lqosync3.service -g 'buffer/ring pressure' --since '10 minutes ago'
+```
+
+The monitor warns when free pool buffers are at or below 10 percent.
+It also warns when any handoff ring exceeds 75 percent, or aggregate ring use reaches 75 percent.
+These thresholds indicate operational pressure. They do not prove a dataplane failure.
+A single-worker topology can have no handoff rings. The display then shows `no rings`.
+
+New RX buffer exhaustion events (`rx_nombuf`) and pool pressure drops also produce warnings.
+`New drops` shows increments since the preceding valid sample, normally two seconds earlier.
+RX events and pool drops are separate signals. Do not add them as a total packet loss count.
+The first sample establishes counter baselines. A decreasing counter shows `unknown` for that interval.
+A read failure, producer restart, or sample gap above six seconds establishes a new baseline.
+Repeated snapshots do not replay increments. Journal messages do not repeat while the same causes remain active.
+
+Missing fields show `unknown` or `unavailable`. Invalid gauges do not hide valid worker utilization.
+Zero pool capacity is unknown. Stale telemetry shows unknown current pressure, never a recovery verdict.
+`clear` means that all monitored fields are available and no current threshold or increment indicates pressure.
+This feature adds local TUI and journal alerts. It does not change Telegram notification policy.

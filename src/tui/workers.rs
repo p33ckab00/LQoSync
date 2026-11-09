@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Layout, Rect},
-    widgets::{Cell, Paragraph, Row, Table},
+    widgets::{Cell, Paragraph, Row, Table, Wrap},
 };
 
 #[derive(Default)]
@@ -55,9 +55,15 @@ impl WorkersView {
             );
             return;
         };
-        let [status, reason, table] = Layout::vertical([
+        let pressure_height = if report.pressure.is_some() {
+            (inner.height / 2).min(7)
+        } else {
+            1
+        };
+        let [status, reason, pressure, table] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(pressure_height),
             Constraint::Min(0),
         ])
         .areas(inner);
@@ -93,6 +99,33 @@ impl WorkersView {
         f.render_widget(
             Paragraph::new(detail).style(palette.role(Role::Secondary)),
             reason,
+        );
+        let (pressure_state, role) = if !live {
+            ("stale; current pressure unknown".to_owned(), Role::Warning)
+        } else if let Some(p) = &report.pressure {
+            let alerts = p.alerts();
+            if !alerts.is_empty() {
+                (format!("ALERT: {}", alerts.join(", ")), Role::Warning)
+            } else if p.complete() {
+                ("clear".into(), Role::Ok)
+            } else {
+                (
+                    "unavailable; missing diagnostics or counter baseline".into(),
+                    Role::Warning,
+                )
+            }
+        } else {
+            ("unavailable".into(), Role::Warning)
+        };
+        let mut pressure_lines = vec![format!("Buffer/ring pressure: {pressure_state}")];
+        if live && let Some(p) = &report.pressure {
+            pressure_lines.extend(p.measurements());
+        }
+        f.render_widget(
+            Paragraph::new(pressure_lines.join("\n"))
+                .wrap(Wrap { trim: false })
+                .style(palette.role(role)),
+            pressure,
         );
         let visible = table.height.saturating_sub(1) as usize;
         self.offset = self
@@ -166,6 +199,7 @@ mod tests {
                     busy_ppm: 125000,
                     backlog_mean: Some(3),
                 }],
+                pressure: None,
             })),
             ..Data::default()
         }
@@ -193,6 +227,41 @@ mod tests {
         assert!(!text.contains("0.0%"));
         data.target = "v2_pair".into();
         assert!(render(&data, 101, 80, 15, Theme::Dark).contains("LibreQoS v3"));
+    }
+
+    #[test]
+    fn pressure_view_shows_causes_measurements_and_never_calls_stale_values_clear() {
+        let mut data = live();
+        let report = Arc::make_mut(data.worker_util.as_mut().unwrap());
+        report.pressure = Some(
+            serde_json::from_value(serde_json::json!({
+                "diagnostics":{"pool_free_mbufs":100,"pool_total_mbufs":1000,
+                    "ring_count":2,"ring_capacity":200,"ring_used":50,"rings_over_75":1},
+                "rx_nombuf_delta":2,"pool_drop_delta":4
+            }))
+            .unwrap(),
+        );
+        for theme in [Theme::Dark, Theme::Light, Theme::Mono] {
+            let text = render(&data, 101, 100, 24, theme);
+            for want in [
+                "pressure: ALERT",
+                "RX buffer exhaustion",
+                "free <=10%",
+                "ring pressure",
+                "100/1000",
+                "RX 2 / pool 4",
+            ] {
+                assert!(text.contains(want), "missing {want}: {text}");
+            }
+            let text = render(&data, 120, 100, 24, theme);
+            assert!(text.contains("pressure: stale"), "{text}");
+            assert!(!text.contains("pressure: clear") && !text.contains("pressure: ALERT"));
+            for (w, h) in [(25, 5), (40, 8), (80, 12)] {
+                render(&data, 101, w, h, theme);
+            }
+        }
+        Arc::make_mut(data.worker_util.as_mut().unwrap()).pressure = None;
+        assert!(render(&data, 101, 100, 24, Theme::Dark).contains("pressure: unavailable"));
     }
 
     #[test]

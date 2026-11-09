@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T09:42:49+08:00 (Asia/Shanghai) — Buffer and ring pressure
+
+- Goal: Complete priority task 3, review, checks, commit, push, deployment, and restart.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changes: optional snapshot diagnostics, pressure evaluation, counter baselines, transition journal alerts, Workers display, tests, and operations notes.
+- Checks: 511 tests pass. Formatting and Clippy pass. No unresolved review finding.
+- Performance: same bounded two-second poll. No new dependency or service. No packet-path changes.
+- Live state before deployment: active `3.0.142+g8ee064d`, PID 99607, `v3_pair`.
+- Unfinished: commit, push, release build, CI, root deployment, and live verification.
+- Next action: prepare the verified release and deployment script. Sudo needs interactive authentication.
+
+Session: [[2026-11-09-buffer-pressure]].
+
 ## 2026-11-09T09:33:41+08:00 (Asia/Shanghai) — Worker utilization verified
 
 - Goal: Complete priority task 2, review, checks, commit, push, deployment, and restart.

@@ -11,6 +11,7 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-09-buffer-pressure]]
 - [[2026-11-09-worker-utilization]]
 - [[2026-11-09-node-minimums]]
 - [[2026-11-09-libreqos-beta19-integration-review]]

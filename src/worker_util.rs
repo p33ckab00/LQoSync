@@ -1,7 +1,9 @@
 //! Read-only DPDK worker utilization for the service and TUI.
 
 mod ipc;
+pub mod pressure;
 pub use ipc::read_snapshot;
+use pressure::{Diagnostics, Pressure, TransitionLog};
 
 use anyhow::ensure;
 use serde::{Deserialize, Serialize};
@@ -27,6 +29,7 @@ pub struct Snapshot {
     pub captured_at_millis: u64,
     #[serde(default)]
     pub workers: Vec<WorkerRow>,
+    pub diagnostics: Option<Diagnostics>,
 }
 
 fn validate_rows(rows: &[WorkerRow]) -> anyhow::Result<()> {
@@ -60,6 +63,8 @@ pub struct Telemetry {
     pub stale: bool,
     pub reason: Option<String>,
     pub workers: Vec<WorkerRow>,
+    #[serde(default)]
+    pub pressure: Option<Pressure>,
 }
 
 impl Default for Telemetry {
@@ -70,6 +75,7 @@ impl Default for Telemetry {
             stale: true,
             reason: Some("no sample yet".into()),
             workers: Vec::new(),
+            pressure: None,
         }
     }
 }
@@ -95,6 +101,8 @@ impl Telemetry {
 struct Tracker {
     captured: Option<u64>,
     report: Telemetry,
+    previous_diagnostics: Option<Diagnostics>,
+    previous_at: u64,
 }
 
 impl Tracker {
@@ -109,9 +117,14 @@ impl Tracker {
                     .is_none_or(|last| sample.captured_at_millis < last)
                 {
                     self.captured = Some(sample.captured_at_millis);
+                    self.previous_diagnostics = sample.diagnostics;
+                    self.previous_at = now;
                     self.report
                         .fail("waiting for next producer snapshot".into());
                 } else if self.captured != Some(sample.captured_at_millis) {
+                    if now < self.previous_at || now - self.previous_at > MAX_AGE {
+                        self.previous_diagnostics = None;
+                    }
                     self.captured = Some(sample.captured_at_millis);
                     sample.workers.sort_unstable_by_key(|w| w.queue_id);
                     self.report = Telemetry {
@@ -120,13 +133,22 @@ impl Tracker {
                         stale: false,
                         reason: None,
                         workers: sample.workers,
+                        pressure: Some(Pressure::between(
+                            sample.diagnostics.as_ref(),
+                            self.previous_diagnostics.as_ref(),
+                        )),
                     };
+                    self.previous_diagnostics = sample.diagnostics;
+                    self.previous_at = now;
                 } else if !self.report.live(now) {
                     self.report
                         .fail("producer snapshot has not advanced".into());
                 }
             }
-            Err(error) => self.report.fail(error.to_string()),
+            Err(error) => {
+                self.previous_diagnostics = None;
+                self.report.fail(error.to_string());
+            }
         }
     }
 }
@@ -142,8 +164,11 @@ pub fn read_cache(path: &Path) -> Telemetry {
             bytes.len() as u64 <= MAX_CACHE_BYTES,
             "worker cache is too large"
         );
-        let report: Telemetry = serde_json::from_slice(&bytes)?;
+        let mut report: Telemetry = serde_json::from_slice(&bytes)?;
         ensure!(report.version == 1, "unsupported worker cache version");
+        if report.pressure.as_ref().is_some_and(|p| !p.valid()) {
+            report.pressure = Some(Pressure::default());
+        }
         if !report.workers.is_empty() {
             validate_rows(&report.workers)?;
         }
@@ -200,6 +225,7 @@ impl Monitor {
             let mut current = changes.borrow().clone();
             let mut tracker = Tracker::default();
             let mut warned = false;
+            let mut pressure_log = TransitionLog::default();
             let mut tick = tokio::time::interval(Duration::from_secs(2));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
@@ -214,6 +240,9 @@ impl Monitor {
                         let sample = read_snapshot(Path::new(&current.socket)).await;
                         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                         tracker.record(sample, now);
+                        if let Some(message) = pressure_log.record(&tracker.report, now) {
+                            eprintln!("{message}");
+                        }
                         if let Err(error) = publish(Path::new(&current.state), &tracker.report) {
                             if !warned { eprintln!("worker telemetry cache: {error}"); }
                             warned = true;
@@ -251,6 +280,85 @@ mod tests {
 
     fn sample(at: u64) -> Snapshot {
         serde_json::from_value(json!({"captured_at_millis":at,"workers":[{"queue_id":0,"busy_ppm":125000,"backlog_mean":3}]})).unwrap()
+    }
+
+    fn pressure_sample(at: u64, drops: u64, free: u64, rings_over: u64) -> Snapshot {
+        serde_json::from_value(json!({"captured_at_millis":at,
+            "workers":[{"queue_id":0,"busy_ppm":125000}],
+            "diagnostics":{"rx_nombuf":drops,"pool_drop_packets":drops * 2,
+                "pool_total_mbufs":1000,
+                "pool_free_mbufs":free,"ring_count":2,"ring_capacity":200,
+                "ring_used":50,"rings_over_75":rings_over}}))
+        .unwrap()
+    }
+
+    #[test]
+    fn pressure_tracks_new_drops_without_replaying_totals_or_repeated_frames() {
+        let mut tracker = Tracker::default();
+        tracker.record(Ok(pressure_sample(100, 100, 500, 0)), 10);
+        tracker.record(Ok(pressure_sample(200, 102, 500, 0)), 12);
+        let report = serde_json::to_value(&tracker.report).unwrap();
+        assert_eq!(report["pressure"]["rx_nombuf_delta"], 2);
+        assert_eq!(report["pressure"]["pool_drop_delta"], 4);
+        tracker.record(Ok(pressure_sample(200, 102, 500, 0)), 14);
+        assert_eq!(
+            serde_json::to_value(&tracker.report).unwrap()["pressure"],
+            report["pressure"]
+        );
+        tracker.record(Ok(pressure_sample(300, 102, 500, 0)), 16);
+        assert_eq!(
+            serde_json::to_value(&tracker.report).unwrap()["pressure"]["rx_nombuf_delta"],
+            0
+        );
+        tracker.record(Ok(pressure_sample(400, 1, 500, 0)), 18);
+        assert!(
+            serde_json::to_value(&tracker.report).unwrap()["pressure"]["rx_nombuf_delta"].is_null()
+        );
+        tracker.record(Err(anyhow::anyhow!("disconnected")), 19);
+        tracker.record(Ok(pressure_sample(500, 10, 500, 0)), 20);
+        assert!(
+            serde_json::to_value(&tracker.report).unwrap()["pressure"]["rx_nombuf_delta"].is_null()
+        );
+    }
+
+    #[test]
+    fn pressure_rebases_after_a_gap_or_producer_restart() {
+        let mut tracker = Tracker::default();
+        tracker.record(Ok(pressure_sample(100, 100, 500, 0)), 10);
+        tracker.record(Ok(pressure_sample(200, 102, 500, 0)), 12);
+        tracker.record(Ok(pressure_sample(300, 500, 500, 0)), 30);
+        assert!(
+            serde_json::to_value(&tracker.report).unwrap()["pressure"]["rx_nombuf_delta"].is_null(),
+            "a gap needs a new counter baseline"
+        );
+        tracker.record(Ok(pressure_sample(50, 600, 500, 0)), 31);
+        assert!(!tracker.report.live(31));
+        tracker.record(Ok(pressure_sample(60, 602, 500, 0)), 33);
+        assert_eq!(
+            serde_json::to_value(&tracker.report).unwrap()["pressure"]["rx_nombuf_delta"],
+            2
+        );
+    }
+
+    #[test]
+    fn pressure_cache_keeps_worker_data_with_old_or_invalid_diagnostics() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(CACHE);
+        let old = json!({"version":1,"updated":100,"stale":false,"reason":null,
+            "workers":[{"queue_id":0,"busy_ppm":125000}]});
+        std::fs::write(&path, old.to_string()).unwrap();
+        let report = read_cache(&path);
+        assert!(report.live(100) && report.pressure.is_none());
+        let mut invalid = old;
+        invalid["pressure"] = json!({"diagnostics":{"pool_free_mbufs":101,"pool_total_mbufs":100},
+            "rx_nombuf_delta":0,"pool_drop_delta":0});
+        std::fs::write(&path, invalid.to_string()).unwrap();
+        let report = read_cache(&path);
+        assert!(
+            report.live(100),
+            "invalid pressure must not hide valid worker values"
+        );
+        assert!(!report.pressure.unwrap().complete());
     }
 
     #[test]

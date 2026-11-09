@@ -704,6 +704,7 @@ mod tests {
                         busy_ppm: 125000,
                         backlog_mean: Some(3),
                     }],
+                    pressure: None,
                 })),
                 ..Data::default()
             },
