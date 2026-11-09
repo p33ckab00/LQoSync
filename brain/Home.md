@@ -11,6 +11,7 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-09-libreqos-beta19-integration-review]]
 - [[2026-11-03-libreqos-v3-package-update]]
 - [[2026-11-02-native-runtime-policy-validation]]
 - [[2026-11-02-native-topology-source-check]]
