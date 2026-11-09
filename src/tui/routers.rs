@@ -415,7 +415,19 @@ impl RoutersView {
                     clip(&r.name, 18),
                     clip(&r.endpoint, 24),
                     clip(state, 11),
-                    format!("{} / {}", n("ppp"), n("dhcp")),
+                    format!(
+                        "{} / {}",
+                        if r.sources[0] {
+                            n("/ppp/active")
+                        } else {
+                            "OFF".into()
+                        },
+                        if r.sources[1] {
+                            n("/ip/dhcp-server/lease")
+                        } else {
+                            "OFF".into()
+                        }
+                    ),
                     Self::age(d, now),
                     if r.report["error"].is_string() {
                         "FAILED"
@@ -494,8 +506,24 @@ impl RoutersView {
                 Line::raw("Collected records"),
                 Line::raw(format!(
                     "PPP {} | IPoE {}",
-                    number(&r.report["rows"]["ppp"]),
-                    number(&r.report["rows"]["dhcp"])
+                    if r.sources[0] {
+                        number(&r.report["rows"]["/ppp/active"])
+                    } else {
+                        "OFF".into()
+                    },
+                    if r.sources[1] {
+                        number(&r.report["rows"]["/ip/dhcp-server/lease"])
+                    } else {
+                        "OFF".into()
+                    }
+                )),
+                Line::raw(format!(
+                    "Hotspot {} active",
+                    if r.sources[2] {
+                        number(&r.report["rows"]["/ip/hotspot/active"])
+                    } else {
+                        "OFF".into()
+                    }
                 )),
                 Line::styled(
                     r.report["error"].as_str().unwrap_or("").to_owned(),
@@ -563,7 +591,7 @@ mod tests {
     use ratatui::{Terminal, backend::TestBackend, crossterm::event::KeyModifiers};
     #[test]
     fn router_filters_navigation_and_snapshot_refresh_preserve_selection() {
-        let mut d=Data{config_text:Arc::new("[[routers]]\nname='R1'\naddress='2001:db8::1'\nusername='private-user'\npassword_file='/fixture/secret'\n".into()),status:Some(Arc::new(serde_json::json!({"updated":100,"routers":[{"name":"R1","state":"online","rows":{"ppp":2},"read_ms":10}]}))),..Default::default()};
+        let mut d=Data{config_text:Arc::new("[[routers]]\nname='R1'\naddress='2001:db8::1'\nusername='private-user'\npassword_file='/fixture/secret'\n".into()),status:Some(Arc::new(serde_json::json!({"updated":100,"routers":[{"name":"R1","state":"online","rows":{"/ppp/active":2},"read_ms":10}]}))),..Default::default()};
         let mut v = RoutersView::default();
         v.on_data(&d);
         assert_eq!(v.records.len(), 1);

@@ -5,9 +5,9 @@ The [visual contract](../README.md) links the unchanged approved concepts.
 
 | Screen | Implementation image | Capture type |
 |---|---|---|
-| Dashboard | [Dashboard](dashboard-v1.png) | Running Zutty terminal, Xvfb |
-| Subscribers | [Subscribers](subscribers-v1.png) | Running terminal |
-| Routers | [Routers](routers-v1.png) | Running terminal |
+| Dashboard | [Dashboard](dashboard-collection-v2.png) | Running Zutty terminal, Xvfb |
+| Subscribers | [Subscribers](subscribers-collection-v2.png) | Running terminal |
+| Routers | [Routers](routers-collection-v2.png) | Running terminal |
 | LibreQoS | [LibreQoS](libreqos-v1.png) | Running terminal |
 | Workers | [Workers](workers-v1.png) | Running terminal |
 | Settings | [Read-only](settings-readonly-terminal-v1.png) | Running terminal |
@@ -38,3 +38,10 @@ Sudo requires an operator password on this host. No production configuration was
 The final 63-frame matrix is stored outside the repository in
 `/home/pi/.local/state/lqosync3/tui-complete-review-20261109`.
 Use `export_dashboard_frames` with the same environment variable to reproduce it.
+
+## Collection update
+
+The Dashboard, Subscribers, and Routers v2 captures use the cycle collection read model and real table-path keys.
+The fixture includes active/inactive PPP accounts, active Hotspot users, bound/unbound DHCP leases, and collected-only accounts.
+All sources are enabled in this isolated fixture. This does not enable a production source.
+The v1 images remain historical implementation evidence. All approved concept hashes remain unchanged.

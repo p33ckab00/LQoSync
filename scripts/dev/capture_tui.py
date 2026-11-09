@@ -46,6 +46,8 @@ username = "fixture"
 password_file = "{path}/fixture.password"
 [routers.pppoe]
 enabled = true
+[routers.hotspot]
+enabled = true
 [routers.dhcp]
 enabled = true
 ''')
@@ -85,8 +87,19 @@ enabled = true
             # Keep snapshots fresh while the terminal starts; all data stays in this directory.
             def snapshots():
                 now = int(time.time())
-                status = {'updated': now, 'target': 'v3_pair', 'mode': 'apply', 'reload': 'imported by LibreQoS', 'files_changed': False, 'telegram': 'disabled', 'routers': [{'name': 'EDGE-01', 'state': 'online', 'rows': {'ppp': 684, 'dhcp': 312}, 'read_ms': 184}], 'report': {'alerts': [], 'counts': {}}}
+                status = {'updated': now, 'target': 'v3_pair', 'mode': 'apply', 'reload': 'imported by LibreQoS', 'files_changed': False, 'telegram': 'disabled', 'routers': [{'name': 'EDGE-01', 'state': 'online', 'rows': {'/ppp/active': 12, '/ppp/secret': 18, '/ppp/profile': 1, '/ip/hotspot/active': 2, '/ip/dhcp-server': 1, '/ip/dhcp-server/lease': 16}, 'read_ms': 184}], 'report': {'alerts': [], 'counts': {}}}
                 (path / 'status.json').write_text(json.dumps(status))
+                subscribers = []
+                for i in range(32):
+                    source = 'ppp' if i % 2 else 'dhcp'
+                    state = ('online' if i < 24 else 'offline') if source == 'ppp' else ('bound' if i < 24 else 'unbound')
+                    subscribers.append({'key': f'{source}-{i}', 'source': source, 'name': f'Client {i}', 'circuit': f'Subscriber {i:02}', 'ipv4': f'192.0.2.{i+1}', 'mac': f'02:00:00:00:00:{i:02x}', 'state': state})
+                for i in range(2):
+                    subscribers.append({'key': f'ppp-offline-{i}', 'source':'ppp', 'name':f'Offline account {i}', 'circuit':f'Offline account {i}', 'ipv4':'', 'mac':'', 'state':'offline'})
+                    subscribers.append({'key': f'hotspot-{i}', 'source':'hotspot', 'name':f'Guest {i}', 'circuit':f'Hotspot guest {i}', 'ipv4':f'198.51.100.{i+1}', 'mac':'', 'state':'online'})
+                collection = {'version':1,'pid':1,'updated':now,'fresh_for':150,'routers':[{'name':'EDGE-01','state':'online','observed_at':now,'sources':{'ppp':{'enabled':True,'records':12,'online':12,'offline':6},'hotspot':{'enabled':True,'records':2,'online':2,'offline':None},'dhcp':{'enabled':True,'records':16,'online':12,'offline':4}},'subscribers':subscribers}]}
+                (path / 'collection.json').write_text(json.dumps(collection))
+
                 points = [{'at': now-3600+i*2, 'down_mbps': 800+math.sin(i/10)*80, 'up_mbps': 95+math.sin(i/15)*12} for i in range(1801)]
                 report = {'version': 1, 'updated': now, 'stale': False, 'reason': None, 'workers': [{'queue_id': i, 'busy_ppm': 431000-i*70000, 'backlog_mean': 8-i} for i in range(4)], 'pressure': {'diagnostics': {'pool_total_mbufs': 1000, 'pool_free_mbufs': 840, 'ring_count': 2, 'ring_capacity': 200, 'ring_used': 25, 'rings_over_75': 0}, 'rx_nombuf_delta': 0, 'pool_drop_delta': 0}, 'traffic': points}
                 (path / 'worker-utilization.json').write_text(json.dumps(report))

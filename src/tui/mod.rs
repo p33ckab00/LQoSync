@@ -10,6 +10,7 @@ mod libreqos;
 pub mod network;
 pub mod osc52;
 mod overview;
+mod presence;
 pub mod proc;
 mod routers;
 pub mod settings;

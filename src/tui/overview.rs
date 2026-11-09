@@ -134,16 +134,7 @@ impl Overview {
         let regions = Layout::horizontal([Constraint::Ratio(1, 5); 5]).split(cards);
         let st = d.status.as_deref();
         let routers = st.and_then(|s| s["routers"].as_array());
-        let count = |source: &str| {
-            routers
-                .filter(|r| !r.is_empty() && r.iter().all(|v| v["state"] == "online"))
-                .and_then(|r| {
-                    r.iter()
-                        .map(|v| v["rows"][source].as_u64())
-                        .try_fold(0u64, |a, n| a.checked_add(n?))
-                })
-                .map_or("unknown".into(), |n| n.to_string())
-        };
+        let count = |source: &str| super::presence::count(d, now, source, false);
         let reachable = routers.map_or("unknown".into(), |rs| {
             format!(
                 "{} / {}",
@@ -153,9 +144,13 @@ impl Overview {
         });
         let reload = st.and_then(|s| s["reload"].as_str()).unwrap_or("unknown");
         for (i, (title, value, note)) in [
-            ("IPoE clients", count("dhcp"), "latest collection"),
+            ("IPoE clients", count("dhcp"), "bound leases; latest cycle"),
             ("PPPoE online", count("ppp"), "latest collection"),
-            ("PPPoE offline", "unknown".into(), "no session evidence"),
+            (
+                "PPPoE offline",
+                super::presence::count(d, now, "ppp", true),
+                "latest collection",
+            ),
             ("Routers", reachable, "latest collection"),
             ("LibreQoS", reload.to_owned(), "last reload result"),
         ]
@@ -165,7 +160,14 @@ impl Overview {
             f.render_widget(
                 Paragraph::new(vec![
                     Line::from(value),
-                    Line::styled(note, design::role(p, Role::Secondary)),
+                    Line::styled(
+                        if title == "Routers" {
+                            format!("Hotspot {} active", count("hotspot"))
+                        } else {
+                            note.into()
+                        },
+                        design::role(p, Role::Secondary),
+                    ),
                 ])
                 .block(design::panel(title, p)),
                 regions[i],

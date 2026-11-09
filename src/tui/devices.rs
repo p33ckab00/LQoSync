@@ -62,7 +62,7 @@ pub fn flag_words(f: u8) -> Vec<&'static str> {
 }
 
 /// The source and router of a circuit, for the screen. A circuit not in `state.json` is static.
-fn source_of<'a>(d: &'a Data, name: &str) -> (&'static str, &'a str) {
+pub(super) fn source_of<'a>(d: &'a Data, name: &str) -> (&'static str, &'a str) {
     match d.sources.get(name) {
         Some((s, r)) => (
             match s.as_str() {
@@ -154,7 +154,7 @@ impl DevicesView {
             }
             Column::Source => {
                 self.index
-                    .sort_by_cached_key(|&i| source_of(d, &rows[i as usize].circuit_name).0);
+                    .sort_by_cached_key(|&i| super::presence::source(d, &rows[i as usize]).0);
             }
             _ => {
                 let field = |r: &CsvRow| -> String {
@@ -272,7 +272,7 @@ impl DevicesView {
             let selected = pos == self.cursor;
             let r = &d.rows[i as usize];
             let fl = d.flags.get(i as usize).copied().unwrap_or(0);
-            let (src, router) = source_of(d, &r.circuit_name);
+            let (src, router) = super::presence::source(d, r);
             let mut badges = Vec::new();
             for (bit, label, role) in [
                 (FLAG_DUP_IP, "dup IP", Role::Error),
@@ -390,7 +390,7 @@ impl DevicesView {
             return vec![Line::from("no row")];
         };
         let r = &d.rows[i as usize];
-        let (source, router) = source_of(d, &r.circuit_name);
+        let (source, router) = super::presence::source(d, r);
         let flags = flag_words(d.flags.get(i as usize).copied().unwrap_or(0));
         let part = width.saturating_sub(20) / 2;
         [
@@ -439,14 +439,28 @@ impl DevicesView {
             return vec![Line::from("no row")];
         };
         let r = &d.rows[i as usize];
-        let (src, router) = source_of(d, &r.circuit_name);
+        let (src, router) = super::presence::source(d, r);
         let fl = d.flags.get(i as usize).copied().unwrap_or(0);
         let flags = flag_words(fl);
-        [
+        let mut lines: Vec<Line<'static>> = [
             ("Circuit Name", r.circuit_name.clone()),
-            ("Circuit ID", r.circuit_id.clone()),
+            (
+                "Circuit ID",
+                if r.circuit_id.starts_with("observed:") {
+                    "not assigned; collection only".into()
+                } else {
+                    r.circuit_id.clone()
+                },
+            ),
             ("Device Name", r.device_name.clone()),
-            ("Device ID", r.device_id.clone()),
+            (
+                "Device ID",
+                if r.circuit_id.starts_with("observed:") {
+                    "not assigned; collection only".into()
+                } else {
+                    r.device_id.clone()
+                },
+            ),
             ("MAC", r.mac.clone()),
             ("IPv4", r.ipv4.clone()),
             ("IPv6", r.ipv6.clone()),
@@ -474,7 +488,23 @@ impl DevicesView {
         ]
         .into_iter()
         .map(|(k, v)| Line::from(format!("{k}: {v}")))
-        .collect()
+        .collect();
+        lines.push(Line::raw(format!(
+            "State: {}",
+            super::presence::state(d, r, self.approved.now).label()
+        )));
+        if let Some(p) = d.presence.get(&r.circuit_id) {
+            lines.push(Line::raw(format!(
+                "Observed: {}",
+                super::shell::local_clock(p.observed_at)
+            )));
+        }
+        lines.push(Line::raw(if r.circuit_id.starts_with("observed:") {
+            "Collection only; no shaping match"
+        } else {
+            "Shaping input record"
+        }));
+        lines
     }
 }
 

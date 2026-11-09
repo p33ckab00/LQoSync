@@ -28,6 +28,8 @@ pub struct Versions {
 #[derive(Debug, Clone, Default)]
 pub struct Data {
     pub status: Option<Arc<Value>>,
+    pub collection: Option<Arc<crate::collection::Report>>,
+    pub presence: Arc<HashMap<String, super::presence::Evidence>>,
     pub worker_util: Option<Arc<crate::worker_util::Telemetry>>,
     pub service: Option<Unit>,
     pub target: String,
@@ -88,6 +90,7 @@ pub struct Loader {
     config_stamp: Stamp,
     snapshot_stamp: Stamp,
     worker_stamp: Stamp,
+    collection_stamp: Stamp,
     versions_at: Option<Instant>,
     sampler: Sampler,
 }
@@ -106,6 +109,7 @@ impl Loader {
             config_stamp: None,
             snapshot_stamp: None,
             worker_stamp: None,
+            collection_stamp: None,
             versions_at: None,
             sampler: Sampler::default(),
         }
@@ -183,6 +187,12 @@ impl Loader {
             self.data.versions = Versions { libreqos, lqosd };
         }
 
+        let collection_path = state_dir.join(crate::collection::CACHE);
+        let collection_stamp = stamp(&collection_path);
+        if collection_stamp != self.collection_stamp || self.data.collection.is_none() {
+            self.data.collection = crate::collection::read(&collection_path).ok().map(Arc::new);
+            self.collection_stamp = collection_stamp;
+        }
         let snap_path = state_dir.join("snapshot.json");
         let ss = stamp(&snap_path);
         if ss != self.snapshot_stamp {

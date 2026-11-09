@@ -108,6 +108,7 @@ pub struct App {
     routers: super::routers::RoutersView,
     libreqos: super::libreqos::LibreView,
     pub data: Data,
+    subscriber_data: super::presence::Projection,
     pub devices: DevicesView,
     pub network: NetworkView,
     pub journal: JournalView,
@@ -146,6 +147,7 @@ impl App {
                 config_text: Arc::new(config_text),
                 ..Data::default()
             },
+            subscriber_data: Default::default(),
             devices: DevicesView::default(),
             network: NetworkView::default(),
             journal: JournalView::new(2000),
@@ -165,14 +167,17 @@ impl App {
     /// Advance display freshness even when the loader does not send data.
     pub fn on_tick(&mut self, now: u64) {
         self.now = now;
+        self.devices.approved_tick(&self.subscriber_data.view, now);
     }
 
     /// New data from the loader. `now` is Unix seconds.
     pub fn set_data(&mut self, data: Data, now: u64) {
         self.data = data;
         self.now = now;
-        self.devices.on_data(&self.data);
-        self.devices.approved_data(&self.data);
+        self.subscriber_data.update(&self.data);
+        self.devices.on_data(&self.subscriber_data.view);
+        self.devices.approved_tick(&self.subscriber_data.view, now);
+        self.devices.approved_data(&self.subscriber_data.view);
         self.routers.on_data(&self.data);
         self.libreqos.on_data(&self.data);
         self.settings.set_snapshot(self.data.snapshot.clone());
@@ -327,7 +332,7 @@ impl App {
     fn router_action(&mut self, action: super::routers::RouterAction) -> Action {
         match action {
             super::routers::RouterAction::Subscribers(name) => {
-                self.devices.filter_router(name, &self.data);
+                self.devices.filter_router(name, &self.subscriber_data.view);
                 self.tab = Tab::Devices;
             }
             super::routers::RouterAction::Settings(i) => {
@@ -372,7 +377,7 @@ impl App {
     /// A key for the current tab.
     fn tab_key(&mut self, k: KeyEvent) -> Action {
         if self.tab == Tab::Devices {
-            match self.devices.approved_key(k, &self.data) {
+            match self.devices.approved_key(k, &self.subscriber_data.view) {
                 super::devices::SubscriberInput::Parent(node) => {
                     self.network.reveal(&self.data, &node);
                     self.tab = Tab::Network;
@@ -526,7 +531,7 @@ impl App {
                 return self.router_action(action);
             }
             if self.tab == Tab::Devices {
-                match self.devices.approved_mouse(m, &self.data) {
+                match self.devices.approved_mouse(m, &self.subscriber_data.view) {
                     super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
                     super::devices::SubscriberInput::Parent(node) => {
                         self.network.reveal(&self.data, &node);
@@ -538,7 +543,7 @@ impl App {
             return Action::None;
         }
         if self.tab == Tab::Devices {
-            match self.devices.approved_mouse(m, &self.data) {
+            match self.devices.approved_mouse(m, &self.subscriber_data.view) {
                 super::devices::SubscriberInput::Parent(node) => {
                     self.network.reveal(&self.data, &node);
                     self.tab = Tab::Network;
@@ -678,10 +683,13 @@ impl App {
             Tab::LibreQoS => self
                 .libreqos
                 .draw(f, main, &self.data, self.now, &self.palette),
-            Tab::Devices => {
-                self.devices
-                    .draw_approved(f, main, &self.data, self.now, &self.palette)
-            }
+            Tab::Devices => self.devices.draw_approved(
+                f,
+                main,
+                &self.subscriber_data.view,
+                self.now,
+                &self.palette,
+            ),
             Tab::Network => self.network.draw(f, main, &self.data, &self.palette),
             Tab::Journal => {
                 self.journal
@@ -944,6 +952,76 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn collection_updates_subscriber_states_across_cycles_without_changing_shaping() {
+        let config = "[[routers]]\nname='R1'\naddress='192.0.2.1'\nusername='u'\npassword_file='/fixture/password'\n[routers.pppoe]\nenabled=true\n[routers.hotspot]\nenabled=true\n[routers.dhcp]\nenabled=true\n";
+        let cfg = crate::config::Config::from_toml_str(config).unwrap();
+        let mut a = App::new(true, config.into(), None);
+        for (now, user) in [(100, "alice"), (200, "bob")] {
+            let snapshot=serde_json::from_value(serde_json::json!({"ppp_secret":[{"name":"alice"},{"name":"bob"}],"ppp_active":[{"name":user,"address":"192.0.2.10"}],"hotspot_active":[{"user":"guest","mac-address":"02:00:00:00:00:01"}],"dhcp_lease":[{"host-name":"lease","address":"192.0.2.12","mac-address":"02:00:00:00:00:02","status":"bound"}]})).unwrap();
+            let collection = crate::collection::Report::collect(
+                &cfg,
+                &[("R1".into(), crate::cycle::RouterResult::Online(snapshot))],
+                None,
+                now,
+            );
+            let alice = collection.routers[0]
+                .subscribers
+                .iter()
+                .find(|s| s.name == "alice")
+                .unwrap()
+                .circuit
+                .clone();
+            let d = Data {
+                rows: Arc::new(vec![crate::model::CsvRow {
+                    circuit_id: "shaped-alice".into(),
+                    circuit_name: alice.clone(),
+                    download_max: "100".into(),
+                    ..Default::default()
+                }]),
+                row_search: Arc::new(vec![alice.clone()]),
+                sources: Arc::new([(alice, ("ppp".into(), "R1".into()))].into_iter().collect()),
+                collection: Some(Arc::new(collection)),
+                config_text: Arc::new(config.into()),
+                ..Default::default()
+            };
+            a.set_data(d, now);
+            assert_eq!(
+                a.data.rows.len(),
+                1,
+                "collection must never alter shaping preview"
+            );
+            assert_eq!(
+                a.subscriber_data.view.rows.len(),
+                4,
+                "shaped record must match rather than duplicate"
+            );
+            a.tab = Tab::Devices;
+            let text = draw(&mut a, 200, 40);
+            assert!(
+                text.contains("2 known"),
+                "current online count after cycle {now}\n{text}"
+            );
+            assert!(
+                text.contains("1 known"),
+                "known offline account after cycle {now}\n{text}"
+            );
+            assert!(text.contains("Bound 1"));
+        }
+        a.devices
+            .approved_key(key(KeyCode::Char('t')), &a.subscriber_data.view);
+        assert_eq!(a.devices.index.len(), 2);
+        a.on_tick(10000);
+        assert!(
+            a.devices.index.is_empty(),
+            "timer expiry must remove live-state filter results"
+        );
+        assert_eq!(
+            super::super::presence::count(&a.data, 10000, "ppp", false),
+            "unknown"
+        );
     }
 
     #[test]

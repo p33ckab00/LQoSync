@@ -6,6 +6,7 @@ pub const VERSION: &str = env!("LQOSYNC_VERSION");
 
 pub mod bridge;
 pub mod cli;
+pub mod collection;
 pub mod config;
 pub mod cycle;
 pub mod detect;

@@ -57,7 +57,7 @@ pub trait Connector: Send + Sync {
 }
 
 /// The tables and their fields, in read order (spec section 3).
-pub const TABLES: [(&str, &str); 6] = [
+pub const TABLES: [(&str, &str); 7] = [
     ("/ppp/secret", "name,profile,comment,disabled,caller-id"),
     ("/ppp/active", "name,address,caller-id,comment"),
     ("/ppp/profile", "name,comment,rate-limit"),
@@ -67,6 +67,7 @@ pub const TABLES: [(&str, &str); 6] = [
         "/ip/dhcp-server/lease",
         "server,address,active-address,mac-address,host-name,comment,status",
     ),
+    ("/ip/hotspot/user", "name,disabled"),
 ];
 
 /// Read the tables of the enabled sources. Each call has `api_timeout`.
@@ -83,19 +84,27 @@ pub async fn read_snapshot<S: RouterSession>(
         router.hotspot.enabled,
         router.dhcp.enabled,
         router.dhcp.enabled,
+        router.hotspot.enabled,
     ];
     for (i, (path, fields)) in TABLES.iter().enumerate() {
         if !wanted[i] {
             continue;
         }
-        let rows = tokio::time::timeout(api_timeout, s.print(path, fields))
+        let result = tokio::time::timeout(api_timeout, s.print(path, fields))
             .await
             .map_err(|_| {
                 ReadError::Timeout(format!(
                     "{path}/print took more than {} s",
                     api_timeout.as_secs()
                 ))
-            })??;
+            })
+            .and_then(|r| r);
+        // Account inventory is observability only. A failure must not block shaping reads.
+        if i == 6 {
+            snap.hotspot_user = result.ok();
+            continue;
+        }
+        let rows = result?;
         let slot = match i {
             0 => &mut snap.ppp_secret,
             1 => &mut snap.ppp_active,
@@ -236,6 +245,47 @@ mod tests {
     }
     fn row(k: &str, v: &str) -> RosRow {
         [(k.to_string(), v.to_string())].into_iter().collect()
+    }
+
+    #[tokio::test]
+    async fn unavailable_hotspot_inventory_does_not_fail_active_shaping_reads() {
+        let (mut r, a) = ppp_router();
+        r.pppoe.enabled = false;
+        r.hotspot.enabled = true;
+        let f = Fake::default();
+        f.script.lock().unwrap().extend([
+            Ok(vec![row("user", "guest")]),
+            Err(ReadError::Trap("inventory denied".into())),
+        ]);
+        let mut session = None;
+        let snapshot = read_router(&f, &mut session, &r, &a).await.unwrap();
+        assert_eq!(snapshot.hotspot_active.len(), 1);
+        assert!(snapshot.hotspot_user.is_none());
+    }
+
+    #[tokio::test]
+    async fn hotspot_inventory_is_read_only_for_enabled_source_without_password_fields() {
+        let (mut r, a) = ppp_router();
+        r.pppoe.enabled = false;
+        r.hotspot.enabled = true;
+        let f = Fake::default();
+        f.script
+            .lock()
+            .unwrap()
+            .extend([Ok(vec![]), Ok(vec![row("name", "guest")])]);
+        let mut session = None;
+        let snap = read_router(&f, &mut session, &r, &a).await.unwrap();
+        assert_eq!(
+            f.calls.lock().unwrap().as_slice(),
+            [
+                "/ip/hotspot/active user,address,mac-address",
+                "/ip/hotspot/user name,disabled"
+            ]
+        );
+        assert_eq!(
+            serde_json::to_value(snap).unwrap()["hotspot_user"][0]["name"],
+            "guest"
+        );
     }
 
     #[tokio::test(start_paused = true)]

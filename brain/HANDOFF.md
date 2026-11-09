@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T19:37:05+08:00 (Asia/Shanghai) — Live cycle collection implementation
+
+- Owner requested real PPPoE/Hotspot/DHCP collection counts and states; chose refresh only with existing sync cycles.
+- Code: `src/collection.rs`, Runner publishing, optional enabled-source Hotspot inventory, `tui/presence.rs`, loader/App wiring, source/state/filter UI.
+- Subscriber projection keeps observed-only accounts outside shaping inputs; no changes to removal, grace, rates, or reload rules.
+- Cache is bounded and omits secrets. Failed/stale/older-cycle evidence cannot become live or imply offline.
+- New actual fixture captures: `docs/design/tui/captures/*-collection-v2.png`. Concepts remain unchanged.
+- Performance evidence and tests are in `/home/pi/.local/state/lqosync3/collection-*.log`; see the session for measured limits.
+- Next: finish verification, commit/push and build clean artifact, prepare deployment and runtime collection checks. Sudo needs operator authentication.
+- Production Hotspot remains disabled; this task does not enable production sources or change scan intervals.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-live-subscriber-collection]].
+
 ## 2026-11-09T18:45:30+08:00 (Asia/Shanghai) — TUI deployment complete
 
 - Operator ran the prepared sudo deployment. Release `3.0.154+g7259316` is installed and running.

@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-09-live-subscriber-collection]]
+
 - [[2026-11-09-tui-release-review]]
 
 - [[2026-11-09-approved-tui-implementation]]

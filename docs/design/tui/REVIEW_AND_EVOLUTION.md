@@ -23,9 +23,9 @@ Compact bodies retain panel access through scrolling. The wide concept remains t
 
 | Reference | Implemented composition | Evidence and limits |
 |---|---|---|
-| [Dashboard](mockups/dashboard-dpdk-v2.png) | Five cards; DPDK chart/health split; planned WAN; alerts. | [Terminal](captures/dashboard-v1.png). Actual counters require two producer samples. Gaps and stale data remain explicit. |
-| [Subscribers](mockups/subscribers-approved-v1.png) | Cards; search/source/router/state controls; table/details; paging; status. | [Terminal](captures/subscribers-v1.png). Online/offline remains unknown without session evidence. |
-| [Routers](mockups/routers-approved-v1.png) | Three cards; filters; table/details; source flags; navigation; status. | [Terminal](captures/routers-v1.png). Reachability is the last collection result. |
+| [Dashboard](mockups/dashboard-dpdk-v2.png) | Five cards; DPDK chart/health split; planned WAN; alerts. | [Terminal](captures/dashboard-collection-v2.png). Actual counters require two producer samples. Gaps and stale data remain explicit. |
+| [Subscribers](mockups/subscribers-approved-v1.png) | Cards; search/source/router/state controls; table/details; paging; status. | [Terminal](captures/subscribers-collection-v2.png). Cycle evidence now supplies session/account and lease states. Missing/stale records remain unknown; collected-only accounts remain outside shaping. |
+| [Routers](mockups/routers-approved-v1.png) | Three cards; filters; table/details; source flags; navigation; status. | [Terminal](captures/routers-collection-v2.png). Reachability is the last collection result. |
 | [LibreQoS](mockups/libreqos-approved-v1.png) | Actions; compatibility; sync cards; source tabs; selection; status. | [Terminal](captures/libreqos-v1.png). Native input stays distinct from compatibility output. Remote sync is not configured. |
 | [Workers](mockups/workers-approved-v1.png) | Cards; filters; utilization/details; pressure; snapshot status. | [Terminal](captures/workers-v1.png). Fresh complete diagnostics are required for CLEAR. |
 | [Settings router form](mockups/settings-add-router-approved-v1.png) | Categories; routers; complete form; masked secret; review/apply; result. | [Fixture render](captures/settings-add-router-v1.png). Trial-draft validation and one-step undo preserve integrity. |
@@ -51,7 +51,7 @@ Global and Settings dialogs block background actions and use the existing confir
 
 ## Verification
 
-The full suite passes: 541 tests, zero failures, seven ignored manual tests.
+The full suite passes: 552 tests, zero failures, seven ignored manual tests.
 Formatting, all-target Clippy with warnings denied, debug build, whitespace, and stored concept hashes pass.
 The final frame export produces 63 frames. Isolated PTY navigation, theme, resize, quit, and terminal cleanup pass.
 Focused tests cover DPDK resets/gaps, source freshness, input ownership, scrolling, Settings forms/gates, and Journal selection/stream lifecycle.
@@ -63,7 +63,7 @@ The new service monitor must be deployed before the live cache contains DPDK tra
 Sudo requires an operator password, and user namespaces are restricted. Writable Settings images are labeled fixture renders.
 A privileged running-terminal save/reload check remains a deployment check. Existing isolated apply/secret/rollback tests pass.
 No install, service restart, or push occurred. WAN plans and Profiles remain planned.
-Subscriber online state and native row counts remain unknown where the backend lacks evidence.
+Subscriber state now uses the cycle collection cache. Unknown external account inventory and unavailable native row counts remain explicit.
 
 ## Terminal style and browser delivery
 

@@ -53,13 +53,13 @@ Settings retains the existing draft, validation, preview, confirmation, conflict
 Journal retains original-text copy and terminal selection. Tab moves between controls within adapted screens.
 Keys 1 through 7 select pages. Dashboard and Network also retain Tab route navigation.
 
-Missing evidence remains unknown or unavailable. Subscriber online state has no verified session read model yet.
+Missing evidence remains unknown or unavailable. Subscriber states now use cycle collection evidence; missing, failed, and expired evidence remains unknown/stale.
 Router reachability describes the latest collection result, not a new connection test.
 The wide header uses `LOG AGE` on Journal and `SYNC AGE` elsewhere. Panel status labels show each source's freshness.
 The DPDK chart uses actual aggregate counters and bounded service-owned history. Deploy the new monitor to populate the live cache.
 WAN plans, Profiles, remote sync, and unavailable native row counts retain their explicit planned/unknown labels.
 
-Checks: 541 tests pass, zero fail, seven manual tests are ignored. All-target Clippy, formatting, and the build pass.
+Checks: 552 tests pass, zero fail, seven manual tests are ignored. All-target Clippy, formatting, and the build pass.
 The final exporter covers 63 frames: seven routes, three themes, and 80x24, 120x40, and 160x48 viewports.
 Real terminal captures use isolated synthetic sources. Writable Settings images use actual Ratatui fixture frames.
 See the [capture index](captures/README.md) for evidence, reproduction steps, and limits.
@@ -237,10 +237,10 @@ Keep packet direction and series provenance explicit. Do not combine `actual` an
 
 ### Dashboard runtime review
 
-Actual terminal capture: [Dashboard](captures/dashboard-v1.png). This uses synthetic fixture records in a real Zutty terminal.
+Actual terminal capture: [Dashboard cycle collection](captures/dashboard-collection-v2.png). This uses synthetic fixture records in a real Zutty terminal.
 The panel order, chart/health split, colors, and selected navigation follow the approved composition.
 Terminal font and border placement change raster pixels. This capture does not claim pixel identity with the concept image.
-Unavailable PPPoE-offline evidence stays unknown. The planned WAN panel contains no invented production records.
+PPPoE offline comes from known local account inventory. Missing account evidence stays unknown. The planned WAN panel contains no invented production records.
 The sidebar service state reflects the isolated fixture unit, which is inactive.
 
 Click the time windows or use `w` to cycle windows with enough retained history.
@@ -268,10 +268,17 @@ A record in a shaping file alone does not prove a current online session.
 
 ### Subscribers runtime review
 
-Actual terminal capture: [Subscribers](captures/subscribers-v1.png), with isolated synthetic data.
+Actual terminal capture: [Subscribers cycle collection](captures/subscribers-collection-v2.png), with isolated synthetic data.
 The cards, filters, table/details split, selection, paging controls, and data-status strip follow the approved image.
 Online/offline counts and row states remain unknown without current session evidence. Static shaping rows never imply online state.
 The table builds only visible rows. Source and router choices update when collected metadata changes.
+The collection cache refreshes with the existing sync cycle. It adds observed-only accounts to this view, without changing shaping inputs.
+Local PPP and Hotspot inventory provides known offline accounts. Active sessions provide online state, including active RADIUS users.
+DHCP rows show BOUND/UNBOUND lease state. Disabled sources show OFF; failed or expired evidence cannot claim online/offline.
+The State filter also provides Bound, Unbound, Disabled, and Unknown (including stale).
+Cards count known session/account states. The status strip gives collection age, lease counts, and disabled records.
+The same five Dashboard cards remain; Hotspot active count appears in the Routers card note.
+
 Click controls or use `s` for Source, `r` for Router, `t` for State, and Tab to move focus.
 Use Enter on a focused filter, `e` or Enter from the table for expanded details, `n` for the parent, and `c` for copy.
 Left/Right scroll the table columns. Details and the table have independent wheel and scrollbar controls.
@@ -310,7 +317,7 @@ Keep these details from the approved image:
 
 ### Routers runtime review
 
-Actual terminal capture: [Routers](captures/routers-v1.png), with isolated synthetic data.
+Actual terminal capture: [Routers cycle collection](captures/routers-collection-v2.png), with isolated synthetic data.
 The cards, filters, list/details split, selection, source flags, paging, and status strip follow the approved composition.
 Configured endpoints and source flags come from the loaded config. Reachable and failed counts describe the latest collection.
 Config parsing occurs only when the config changes. Collection updates preserve selection and refresh cached result fields.

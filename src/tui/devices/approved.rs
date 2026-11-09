@@ -11,6 +11,10 @@ pub struct SubscribersUi {
     pub source: Option<String>,
     pub router: Option<String>,
     state: usize,
+    pub(super) now: u64,
+    live: bool,
+    counts: [usize; 7],
+    evidence: Option<Arc<std::collections::HashMap<String, crate::tui::presence::Evidence>>>,
     sources: Vec<String>,
     routers: Vec<String>,
     metadata: Option<Arc<std::collections::HashMap<String, (String, String)>>>,
@@ -25,10 +29,30 @@ pub struct SubscribersUi {
 }
 impl SubscribersUi {
     pub fn matches(&self, d: &Data, r: &CsvRow) -> bool {
-        let (src, router) = source_of(d, &r.circuit_name);
+        let (src, router) = crate::tui::presence::source(d, r);
         self.source.as_deref().is_none_or(|s| s == src)
             && self.router.as_deref().is_none_or(|s| s == router)
-            && (self.state == 0 || self.state == 3)
+            && match self.state {
+                0 => true,
+                1 => {
+                    crate::tui::presence::state(d, r, self.now) == crate::collection::State::Online
+                }
+                2 => {
+                    crate::tui::presence::state(d, r, self.now) == crate::collection::State::Offline
+                }
+                3 => matches!(
+                    crate::tui::presence::state(d, r, self.now),
+                    crate::collection::State::Unknown | crate::collection::State::Stale
+                ),
+                4 => crate::tui::presence::state(d, r, self.now) == crate::collection::State::Bound,
+                5 => {
+                    crate::tui::presence::state(d, r, self.now) == crate::collection::State::Unbound
+                }
+                _ => {
+                    crate::tui::presence::state(d, r, self.now)
+                        == crate::collection::State::Disabled
+                }
+            }
     }
 }
 
@@ -49,17 +73,51 @@ impl DevicesView {
             .metadata
             .as_ref()
             .is_none_or(|v| !Arc::ptr_eq(v, &d.sources))
+            || self
+                .approved
+                .evidence
+                .as_ref()
+                .is_none_or(|v| !Arc::ptr_eq(v, &d.presence))
         {
             self.approved.metadata = Some(d.sources.clone());
+            self.approved.evidence = Some(d.presence.clone());
+            self.count_states(d);
             let mut sources = std::collections::BTreeSet::new();
             let mut routers = std::collections::BTreeSet::new();
             for r in d.rows.iter() {
-                let (s, r) = source_of(d, &r.circuit_name);
+                let (s, r) = crate::tui::presence::source(d, r);
                 sources.insert(s.to_owned());
                 routers.insert(r.to_owned());
             }
             self.approved.sources = sources.into_iter().collect();
             self.approved.routers = routers.into_iter().collect();
+            self.rebuild(d);
+        }
+    }
+    fn count_states(&mut self, d: &Data) {
+        self.approved.counts = [0; 7];
+        let mut seen = std::collections::HashSet::new();
+        for r in d.rows.iter() {
+            if !seen.insert(&r.circuit_id) {
+                continue;
+            }
+            let index = match crate::tui::presence::state(d, r, self.approved.now) {
+                crate::collection::State::Online => 1,
+                crate::collection::State::Offline => 2,
+                crate::collection::State::Bound => 4,
+                crate::collection::State::Unbound => 5,
+                crate::collection::State::Disabled => 6,
+                _ => 3,
+            };
+            self.approved.counts[index] += 1;
+        }
+    }
+    pub fn approved_tick(&mut self, d: &Data, now: u64) {
+        self.approved.now = now;
+        let live = crate::tui::presence::fresh(d, now);
+        if live != self.approved.live {
+            self.approved.live = live;
+            self.count_states(d);
             self.rebuild(d);
         }
     }
@@ -90,7 +148,7 @@ impl DevicesView {
                     Some(n) => choices.get(n + 1).cloned(),
                 };
             }
-            3 => self.approved.state = (self.approved.state + 1) % 4,
+            3 => self.approved.state = (self.approved.state + 1) % 7,
             _ => {
                 self.query.clear();
                 self.editing = false;
@@ -135,7 +193,9 @@ impl DevicesView {
             KeyCode::Char('r') => self.cycle_filter(2, d),
             KeyCode::Char('t') => self.cycle_filter(3, d),
             KeyCode::Char('n') => {
-                if let Some(p) = self.on_key(KeyEvent::new(KeyCode::Enter, k.modifiers), d) {
+                if let Some(p) = self.on_key(KeyEvent::new(KeyCode::Enter, k.modifiers), d)
+                    && !p.is_empty()
+                {
                     return Input::Parent(p);
                 }
             }
@@ -233,6 +293,7 @@ impl DevicesView {
     }
     pub fn draw_approved(&mut self, f: &mut Frame, area: Rect, d: &Data, now: u64, p: &Palette) {
         use ratatui::style::Modifier;
+        self.approved_tick(d, now);
         f.render_widget(
             ratatui::widgets::Block::default().style(design::surface(p)),
             area,
@@ -245,9 +306,31 @@ impl DevicesView {
         ])
         .areas(area);
         for (i, (title, value)) in [
-            ("Total", self.total_circuits.to_string()),
-            ("Online", "unknown".into()),
-            ("Offline", "unknown".into()),
+            ("Total", format!("{} records", d.rows.len())),
+            (
+                "Online",
+                if crate::tui::presence::fresh(d, now)
+                    && d.collection
+                        .as_ref()
+                        .is_some_and(|c| c.routers.iter().any(|r| r.state == "online"))
+                {
+                    format!("{} known", self.approved.counts[1])
+                } else {
+                    "unknown".into()
+                },
+            ),
+            (
+                "Offline",
+                if crate::tui::presence::fresh(d, now)
+                    && d.collection
+                        .as_ref()
+                        .is_some_and(|c| c.routers.iter().any(|r| r.state == "online"))
+                {
+                    format!("{} known", self.approved.counts[2])
+                } else {
+                    "unknown".into()
+                },
+            ),
         ]
         .into_iter()
         .enumerate()
@@ -279,7 +362,9 @@ impl DevicesView {
             ),
             format!(
                 "State [{}]",
-                ["All", "Online", "Offline", "Unknown"][self.approved.state]
+                [
+                    "All", "Online", "Offline", "Unknown", "Bound", "Unbound", "Disabled"
+                ][self.approved.state]
             ),
             "Clear".into(),
         ];
@@ -304,14 +389,7 @@ impl DevicesView {
             Layout::horizontal([Constraint::Percentage(68), Constraint::Percentage(32)]).areas(body)
         };
         if left.height > 0 {
-            let block = design::panel(
-                format!(
-                    "Subscriber list | {} records / {} circuits",
-                    self.index.len(),
-                    self.filtered_circuits
-                ),
-                p,
-            );
+            let block = design::panel(format!("Subscriber list | {} records", self.index.len()), p);
             let inner = block.inner(left);
             f.render_widget(block, left);
             let [header, rows, footer] = Layout::vertical([
@@ -358,14 +436,18 @@ impl DevicesView {
             self.rows_built = 0;
             for (y, &i) in self.index.iter().skip(self.offset).take(height).enumerate() {
                 let r = &d.rows[i as usize];
-                let (source, router) = source_of(d, &r.circuit_name);
+                let (source, router) = crate::tui::presence::source(d, r);
                 let text = cols(&[
                     r.circuit_name.clone(),
                     source.into(),
                     r.ipv4.clone(),
                     router.into(),
-                    "UNKNOWN".into(),
-                    format!("{}/{}", r.download_max, r.upload_max),
+                    crate::tui::presence::state(d, r, now).label().into(),
+                    if r.circuit_id.starts_with("observed:") {
+                        "unmatched".into()
+                    } else {
+                        format!("{}/{}", r.download_max, r.upload_max)
+                    },
                     r.parent_node.clone(),
                 ]);
                 let style = if self.offset + y == self.cursor {
@@ -402,7 +484,13 @@ impl DevicesView {
                 let id = self
                     .index
                     .get(self.cursor)
-                    .map(|&i| d.rows[i as usize].circuit_id.as_str())
+                    .map(|&i| {
+                        if d.rows[i as usize].circuit_id.starts_with("observed:") {
+                            d.rows[i as usize].circuit_name.as_str()
+                        } else {
+                            d.rows[i as usize].circuit_id.as_str()
+                        }
+                    })
                     .unwrap_or("none");
                 f.render_widget(
                     Paragraph::new(format!("Selected: {}", clip(id, 20))),
@@ -421,22 +509,59 @@ impl DevicesView {
         f.render_widget(block, right);
         let mut lines = if let Some(&i) = self.index.get(self.cursor) {
             let r = &d.rows[i as usize];
-            let (source, router) = source_of(d, &r.circuit_name);
+            let (source, router) = crate::tui::presence::source(d, r);
             vec![
-                Line::raw(format!("ID       {}", r.circuit_id)),
+                Line::raw(format!(
+                    "ID       {}",
+                    if r.circuit_id.starts_with("observed:") {
+                        "not assigned; collection only"
+                    } else {
+                        &r.circuit_id
+                    }
+                )),
                 Line::raw(format!("Source   {source}")),
                 Line::raw(format!("Router   {router}")),
                 Line::raw(format!("IP       {}", r.ipv4)),
                 Line::raw(format!("MAC      {}", r.mac)),
-                Line::styled("State    UNKNOWN", design::role(p, Role::Warning)),
-                Line::raw("Last seen unknown"),
+                Line::styled(
+                    format!(
+                        "State    {}",
+                        crate::tui::presence::state(d, r, now).label()
+                    ),
+                    design::role(p, Role::Warning),
+                ),
+                Line::raw(
+                    d.presence
+                        .get(&r.circuit_id)
+                        .map_or("Last observed unknown".into(), |p| {
+                            format!("Observed {}", crate::tui::shell::local_clock(p.observed_at))
+                        }),
+                ),
                 Line::raw(""),
                 Line::raw("Shaping"),
-                Line::raw(format!("Download {} Mbps", r.download_max)),
-                Line::raw(format!("Upload   {} Mbps", r.upload_max)),
+                Line::raw(format!(
+                    "Download {}",
+                    if r.download_max.is_empty() {
+                        "unknown".into()
+                    } else {
+                        format!("{} Mbps", r.download_max)
+                    }
+                )),
+                Line::raw(format!(
+                    "Upload   {}",
+                    if r.upload_max.is_empty() {
+                        "unknown".into()
+                    } else {
+                        format!("{} Mbps", r.upload_max)
+                    }
+                )),
                 Line::raw(format!("Parent   {}", r.parent_node)),
                 Line::raw(format!("Input    {}", d.target)),
-                Line::raw("No current session evidence"),
+                Line::raw(if r.circuit_id.starts_with("observed:") {
+                    "Collection only; no shaping match"
+                } else {
+                    "Shaping input record; cycle state shown above"
+                }),
                 Line::raw("Profile and WAN controls planned"),
             ]
         } else {
@@ -462,6 +587,10 @@ impl DevicesView {
             detail,
         );
         self.approved.detail.draw(f, detail, total, p);
+        let has_parent = self
+            .index
+            .get(self.cursor)
+            .is_some_and(|&i| !d.rows[i as usize].parent_node.is_empty());
         for (i, label) in [
             "[Enter] Expand details",
             "[c] Copy details",
@@ -471,21 +600,31 @@ impl DevicesView {
         .enumerate()
         {
             let r = Rect::new(actions.x, actions.y + i as u16, actions.width, 1);
-            self.approved.actions[i] = r;
-            f.render_widget(Paragraph::new(label).style(design::accent(p)), r);
+            let enabled = i != 2 || has_parent;
+            self.approved.actions[i] = if enabled { r } else { Rect::default() };
+            f.render_widget(
+                Paragraph::new(if enabled { label } else { "No shaping parent" }).style(
+                    if enabled {
+                        design::accent(p)
+                    } else {
+                        design::role(p, Role::Secondary)
+                    },
+                ),
+                r,
+            );
         }
         let age = d
-            .status
+            .collection
             .as_ref()
-            .and_then(|s| s["updated"].as_u64())
+            .map(|s| s.updated)
             .filter(|&t| t <= now)
             .map_or("unknown".into(), |t| format!("{}s", now - t));
         f.render_widget(
             Paragraph::new(vec![
                 Line::raw(format!(
-                    "Shaping input | Cycle age {age} | Source: cached input + collected metadata"
+                    "Cycle collection | Age {age} | Bound {} | Unbound {} | Disabled {}",self.approved.counts[4],self.approved.counts[5],self.approved.counts[6]
                 )),
-                Line::raw("Online/offline unknown without current session evidence"),
+                Line::raw(if d.collection.is_some() {"PPP/Hotspot session state; DHCP BOUND is a lease, not a reachability test. STALE is not offline."} else {"Collection unavailable; online/offline unknown without current session evidence"}),
             ])
             .block(design::panel("Data status", p)),
             status,

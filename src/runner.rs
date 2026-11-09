@@ -72,6 +72,7 @@ pub struct Runner<C: Connector + 'static> {
     telegram: String,
     /// The last status written.
     last: Option<Status>,
+    collection: Option<crate::collection::Report>,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -155,6 +156,7 @@ where
             cycle_seq: 0,
             telegram: "none".into(),
             last: None,
+            collection: None,
         }
     }
 
@@ -375,6 +377,9 @@ where
                 for ((path, _), t) in TABLES.iter().zip(tables) {
                     rows.insert(path.to_string(), t.len());
                 }
+                if let Some(users) = &snap.hotspot_user {
+                    rows.insert("/ip/hotspot/user".into(), users.len());
+                }
             }
             status.routers.push(RouterStatus {
                 name: router.name.clone(),
@@ -386,6 +391,13 @@ where
             memos.insert(router.name.clone(), memo);
             routers.push((router.name.clone(), result));
         }
+        let mut collection =
+            crate::collection::Report::collect(&self.cfg, &routers, self.collection.as_ref(), now);
+        collection.cycle_seq = self.cycle_seq;
+        if let Err(error) = crate::collection::publish(state_dir, &collection) {
+            eprintln!("warning: cannot write collection.json: {error:#}");
+        }
+        self.collection = Some(collection);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
         if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {
             eprintln!("warning: cannot write snapshot.json: {e:#}");
@@ -1412,6 +1424,20 @@ mod tests {
         assert_eq!(rs[0]["read_at"], 1_000);
         assert!(rs[0]["read_ms"].is_u64());
         assert_eq!(rs[0]["snapshot"]["ppp_active"][0]["name"], "alice");
+        let collection = crate::collection::read(&e.state.join(crate::collection::CACHE)).unwrap();
+        assert_eq!(collection.updated, 1000);
+        assert_eq!(collection.routers[0].sources["ppp"].online, Some(1));
+        assert_eq!(collection.routers[1].state, "failed");
+        assert!(collection.routers[1].sources["ppp"].online.is_none());
+        assert_eq!(
+            std::fs::metadata(e.state.join(crate::collection::CACHE))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o644
+        );
+
         assert_eq!(
             (rs[1]["state"].as_str(), rs[1]["snapshot"].is_null()),
             (Some("failed"), true)

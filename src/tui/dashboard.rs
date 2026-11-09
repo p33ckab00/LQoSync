@@ -1454,7 +1454,7 @@ mod tests {
                 let mut d = data(
                     json!({"mode":"apply","target":"v2_pair","updated":1793505600,"next_scan_seconds":120,"cycle_ms":184,"cycle_seq":918,"trigger":"timer","files_changed":false,"reload":"skipped","telegram":"ok","program_version":crate::VERSION,"config_digest":crate::cli::config_digest(config.as_bytes()),
                     "report":{"counts":{"added":7,"updated":2,"removed":0,"held":1,"duplicates":0},"alerts":[]},
-                    "routers":[{"name":"Core","state":"online","rows":{"ppp":63},"read_ms":22},{"name":"North","state":"online","rows":{"dhcp":41},"read_ms":18},{"name":"Backup","state":"failed","read_ms":500,"error":"timeout; cached subscribers retained"}]}),
+                    "routers":[{"name":"Core","state":"online","rows":{"/ppp/active":63},"read_ms":22},{"name":"North","state":"online","rows":{"/ip/dhcp-server/lease":41},"read_ms":18},{"name":"Backup","state":"failed","read_ms":500,"error":"timeout; cached subscribers retained"}]}),
                 );
                 d.service = Some(Unit {
                     load: "loaded".into(),

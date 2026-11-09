@@ -79,6 +79,29 @@ Journal levels use explicit message prefixes. Unknown prefixes show UNKNOWN, not
 - Each dialog shows its keys on its bottom border, and the footer shows them too. Use `y` or Confirm to proceed. Use `n`, Esc, or Cancel to cancel. Other keys do nothing.
 - `q` or `Ctrl+C` stops the view. With settings changes that are not applied, the view asks first.
 
+## Cycle collection and subscriber state
+
+Dashboard, Subscribers, and Routers read the existing sync cycle's RouterOS observations.
+There is no new background poll. The active/idle scan intervals still control collection; Refresh only rereads local files.
+`collection.json` in `runtime.state_dir` is a bounded, atomic public cache. It contains names, IP/MAC identity, source, state, and timestamps.
+It omits passwords, tokens, comments, and arbitrary RouterOS fields. The raw Settings preview snapshot remains private.
+
+PPPoE state joins local account inventory with active sessions. Active RADIUS users are included without requiring a local secret.
+Hotspot state joins active sessions with local account names and disabled flags when that source is enabled.
+The Hotspot inventory read is optional: failure leaves account totals unknown and does not stop shaping reads.
+Offline totals cover known local accounts, not an external RADIUS account database.
+DHCP rows show BOUND, UNBOUND, or UNKNOWN from lease status. BOUND does not prove current device reachability.
+The semantics follow [MikroTik PPP](https://manual.mikrotik.com/docs/authentication-authorization-accounting/ppp-aaa/),
+[Hotspot](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/), and
+[DHCP](https://help.mikrotik.com/docs/spaces/ROS/pages/24805500/DHCP).
+
+Subscribers includes collected accounts that have no shaping row. These show `unmatched`, unassigned shaping IDs, and no shaping parent. Ambiguous identities also stay unmatched.
+This view never inserts those accounts into LibreQoS inputs. Shaping previews and removal/grace rules remain separate.
+State filters include Online, Offline, Bound, Unbound, Disabled, and Unknown; Unknown also includes stale evidence.
+The status strip shows cycle age and lease/disabled counts. The Online/Offline cards show known session/account counts.
+Failed routers, an expired cache, or an older process/cycle cannot supply live states. A failed read never implies disconnected subscribers.
+Disabled sources show OFF/DISABLED, not zero users. Enable a source through Settings only when its collection/shaping is intended.
+
 ## Change the configuration in the TUI
 
 The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key order of the file stay. A reset removes the key from the file, so the default of `config/defaults.toml` applies. Root is necessary.

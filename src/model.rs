@@ -116,6 +116,8 @@ pub struct RouterSnapshot {
     #[serde(default)]
     pub hotspot_active: Vec<RosRow>,
     #[serde(default)]
+    pub hotspot_user: Option<Vec<RosRow>>,
+    #[serde(default)]
     pub dhcp_server: Vec<RosRow>,
     #[serde(default)]
     pub dhcp_lease: Vec<RosRow>,
