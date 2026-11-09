@@ -444,3 +444,29 @@ The tool writes `network.json` before `ShapedDevices.csv`. Each new file gets th
 | Circuits do not use the node tree on v3 | `compile_mode` is not `full` | Set `compile_mode = "full"` in `/etc/libreqos/lqos.conf`. |
 | Reload fails on a new LibreQoS with an error about `ShapedDevices.lastLoaded.csv` | `--updateonly` ran before the first full run of LibreQoS | The tool does a full run when that file does not exist in `libreqos.state_directory`. Make sure that `libreqos.state_directory` is the LibreQoS state directory. |
 | No change after a router change | The output hash did not change | Run `once` in `shadow` mode and `diff`. Make sure that the router data changed. |
+## Worker utilization
+
+Open `lqosync3 tui` and press `6` for Workers.
+Use Up, Down, Page Up, Page Down, Home, and End to scroll.
+Tabs 1 through 5 keep their previous functions.
+
+The table shows the DPDK worker ID, busy percentage, idle percentage, and mean backlog in packets.
+Busy excludes empty receive polling. Idle is the complement of busy.
+These percentages differ from the operating system CPU percentage of a polling worker.
+A missing backlog shows `unknown`. Missing worker fields do not become zero values.
+
+The service reads a snapshot every two seconds from `libreqos.v3_analytics_socket`.
+Its default is `/dev/shm/libreqos-analytics.sock`. Match this path to the bridge's analytics socket.
+The service normally runs as root and can read the root-only socket.
+The TUI reads the public cache at `<runtime.state_dir>/worker-utilization.json`.
+This cache contains worker metrics only. It contains no host or flow records.
+
+The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
+Snapshots and cached values expire after six seconds. A socket error marks the last-good values stale.
+An older bridge without the worker fields shows `unavailable`.
+Freshness describes the snapshot, not a separate health verdict for each worker.
+The Dashboard keeps its journal counters when worker telemetry is unavailable.
+
+This feature does not change worker counts, queue counts, shaping files, or the topology source.
+The monitor applies config reloads and stops with the service.
+After a binary upgrade, reopen the TUI to use the new tab.

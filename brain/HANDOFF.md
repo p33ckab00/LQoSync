@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T09:18:00+08:00 (Asia/Shanghai) — Worker utilization
+
+- Goal: Implement priority task 2, review performance and integrity, check, commit, push, and restart LQoSync3.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changes: bounded read-only analytics client, service monitor, worker cache, config socket path, Workers tab 6, tests, and docs.
+- Checks: 502 tests pass. Clippy and formatting pass. Local socket tests cover descriptor cleanup, fragmentation, and timeout.
+- Review: no unresolved finding. One request per two seconds. TUI formats visible rows only. No shaping or worker-count changes.
+- Live state: confirmed task 1 deployment, version `3.0.140+gdbde3d2`, `v3_pair`, and no cycle error.
+- Unfinished: commit, push, build, root deployment, and post-restart verification. The production socket requires root.
+- Next: push verified source, build its release, and prepare an operator command. Sudo requires interactive authentication.
+
+Session: [[2026-11-09-worker-utilization]].
+
 ## 2026-11-09T08:52:00+08:00 (Asia/Shanghai) — Optional node minimums
 
 - Goal: Implement priority task 1, review, check, commit, push, and restart LQoSync3.

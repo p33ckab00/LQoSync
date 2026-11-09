@@ -26,4 +26,5 @@ pub mod status;
 pub mod topology;
 pub mod tui;
 pub mod validate;
+pub mod worker_util;
 pub mod writer;

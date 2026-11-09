@@ -28,6 +28,7 @@ pub struct Versions {
 #[derive(Debug, Clone, Default)]
 pub struct Data {
     pub status: Option<Arc<Value>>,
+    pub worker_util: Option<Arc<crate::worker_util::Telemetry>>,
     pub service: Option<Unit>,
     pub target: String,
     pub rows: Arc<Vec<CsvRow>>,
@@ -83,6 +84,7 @@ pub struct Loader {
     input_stamps: Vec<Stamp>,
     config_stamp: Stamp,
     snapshot_stamp: Stamp,
+    worker_stamp: Stamp,
     versions_at: Option<Instant>,
     sampler: Sampler,
 }
@@ -100,6 +102,7 @@ impl Loader {
             input_stamps: Vec::new(),
             config_stamp: None,
             snapshot_stamp: None,
+            worker_stamp: None,
             versions_at: None,
             sampler: Sampler::default(),
         }
@@ -208,6 +211,18 @@ impl Loader {
             Some(m) => m == "shadow",
             None => self.cfg.runtime.mode == RuntimeMode::Shadow,
         };
+        let worker_path = state_dir.join(crate::worker_util::CACHE);
+        let ws = stamp(&worker_path);
+        if target.starts_with("v3_") {
+            if ws != self.worker_stamp || self.data.worker_util.is_none() {
+                self.data.worker_util =
+                    Some(Arc::new(crate::worker_util::read_cache(&worker_path)));
+                self.worker_stamp = ws;
+            }
+        } else {
+            self.data.worker_util = None;
+            self.worker_stamp = None;
+        }
         let dir = if shadow {
             state_dir.join("candidate")
         } else {
@@ -507,6 +522,23 @@ mod tests {
         assert!(d.status.is_none() && d.service.is_none() && d.proc.is_none());
         assert_eq!(d.target, "v2_pair");
         let _ = &e.config;
+    }
+
+    #[test]
+    fn worker_util_loader_reads_updates_and_removes_the_cache() {
+        let (e, mut loader) = env();
+        pair(&e, "");
+        loader.cfg.libreqos.target = crate::config::Target::V3Pair;
+        let path = e.state.join(crate::worker_util::CACHE);
+        std::fs::write(&path, r#"{"version":1,"updated":100,"stale":false,"reason":null,"workers":[{"queue_id":0,"busy_ppm":125000,"backlog_mean":3}]}"#).unwrap();
+        let first = loader.load();
+        assert_eq!(first.worker_util.unwrap().workers[0].busy_ppm, 125000);
+        std::fs::write(&path, "invalid").unwrap();
+        assert!(loader.load().worker_util.unwrap().workers.is_empty());
+        std::fs::remove_file(&path).unwrap();
+        assert!(loader.load().worker_util.unwrap().stale);
+        loader.cfg.libreqos.target = crate::config::Target::V2Pair;
+        assert!(loader.load().worker_util.is_none());
     }
 
     #[test]

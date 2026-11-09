@@ -81,6 +81,7 @@ target = "auto"                 # auto | v2_pair | v3_pair | v3_network
 directory = "/opt/libreqos/src" # LibreQoS lqos_directory
 state_directory = "/opt/libreqos/state"   # LibreQoS state; no shaping/ShapedDevices.lastLoaded.csv = no full run yet
 v3_config = "/etc/libreqos/lqos.conf"
+v3_analytics_socket = "/dev/shm/libreqos-analytics.sock" # read-only worker telemetry
 dpkg_status = "/var/lib/dpkg/status"   # the target "auto" reads the libreqos version here
 v3_network_file = "libreqos_network.json"   # v3_network: the file in directory
 v2_command = "/opt/libreqos/src/LibreQoS.py"

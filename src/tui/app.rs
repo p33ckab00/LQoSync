@@ -8,6 +8,7 @@ use super::network::NetworkView;
 use super::osc52::MAX_COPY;
 use super::settings::view::{PreviewJob, SAction, SettingsView};
 use super::theme::{BoxKind, Palette, Role};
+use super::workers::WorkersView;
 use ratatui::Frame;
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -25,15 +26,17 @@ pub enum Tab {
     Settings,
     Journal,
     Dashboard,
+    Workers,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 5] = [
+    pub const ALL: [Tab; 6] = [
         Tab::Devices,
         Tab::Network,
         Tab::Settings,
         Tab::Journal,
         Tab::Dashboard,
+        Tab::Workers,
     ];
 
     pub fn title(self) -> &'static str {
@@ -43,6 +46,7 @@ impl Tab {
             Tab::Settings => "Settings",
             Tab::Journal => "Journal",
             Tab::Dashboard => "Dashboard",
+            Tab::Workers => "Workers",
         }
     }
 }
@@ -94,6 +98,7 @@ pub struct App {
     pub network: NetworkView,
     pub journal: JournalView,
     pub dashboard: DashboardView,
+    pub workers: WorkersView,
     /// The action that waits for its result in `status.json`.
     pub pending: Option<Sent>,
     /// `tui.apply_verify_timeout`.
@@ -126,6 +131,7 @@ impl App {
             network: NetworkView::default(),
             journal: JournalView::new(2000),
             dashboard: DashboardView::default(),
+            workers: WorkersView::default(),
             pending: None,
             action_timeout: 120,
             osc52: true,
@@ -225,9 +231,11 @@ impl App {
             return self.tab_key(k);
         }
         match k.code {
-            KeyCode::Char(c @ '1'..='5') => self.tab = Tab::ALL[c as usize - '1' as usize],
-            KeyCode::Tab => self.tab = Tab::ALL[(self.tab as usize + 1) % 5],
-            KeyCode::BackTab => self.tab = Tab::ALL[(self.tab as usize + 4) % 5],
+            KeyCode::Char(c @ '1'..='6') => self.tab = Tab::ALL[c as usize - '1' as usize],
+            KeyCode::Tab => self.tab = Tab::ALL[(self.tab as usize + 1) % Tab::ALL.len()],
+            KeyCode::BackTab => {
+                self.tab = Tab::ALL[(self.tab as usize + Tab::ALL.len() - 1) % Tab::ALL.len()]
+            }
             KeyCode::Char('S') => {
                 if self.blocked("sync now") {
                     return Action::None;
@@ -268,6 +276,9 @@ impl App {
         }
         if self.tab == Tab::Network {
             self.network.on_key(k, &self.data);
+        }
+        if self.tab == Tab::Workers {
+            self.workers.on_key(k, &self.data);
         }
         if self.tab == Tab::Journal {
             match k.code {
@@ -407,6 +418,9 @@ impl App {
                 .dashboard
                 .draw(f, main, &self.data, self.now, &self.palette),
             Tab::Settings => self.settings.draw(f, main, &self.palette),
+            Tab::Workers => self
+                .workers
+                .draw(f, main, &self.data, self.now, &self.palette),
         }
         f.render_widget(
             Paragraph::new(
@@ -451,13 +465,14 @@ impl App {
         }
         match self.tab {
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] parent node  [1-5] tabs  [S] sync  [R] reload",
+            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] parent node  [1-6] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Network => "[q] quit  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-5] tabs",
+            Tab::Network => "[q] quit  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-6] tabs",
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Journal => "[q] quit  [l] level  [/] search  [f] follow  [y] copy  [s] select mode  [Shift+arrows] select",
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
-            Tab::Dashboard => "[q] quit  [S] sync  [R] reload  [1-5/Tab] tabs",
+            Tab::Dashboard => "[q] quit  [S] sync  [R] reload  [1-6/Tab] tabs",
+            Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-6/Tab] tabs",
         }.into()
     }
 
@@ -653,13 +668,17 @@ mod tests {
     }
 
     #[test]
-    fn keys_1_to_5_select_the_tabs_and_q_quits() {
+    fn keys_1_to_6_select_the_tabs_and_q_quits() {
         let mut a = app(false);
         assert_eq!(a.tab, Tab::Devices);
-        for (c, t) in ['1', '2', '3', '4', '5'].into_iter().zip(Tab::ALL) {
+        for (c, t) in ['1', '2', '3', '4', '5', '6'].into_iter().zip(Tab::ALL) {
             assert_eq!(a.on_key(key(KeyCode::Char(c))), Action::None);
             assert_eq!(a.tab, t);
         }
+        a.on_key(key(KeyCode::Tab));
+        assert_eq!(a.tab, Tab::Devices);
+        a.on_key(key(KeyCode::BackTab));
+        assert_eq!(a.tab, Tab::Workers);
         assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::Quit);
     }
 
@@ -1106,7 +1125,7 @@ mod tests {
                     a.tab = tab;
                     let text = draw(&mut a, w, h);
                     assert!(text.contains("╭"), "{theme:?} {tab:?}: {text}");
-                    assert_eq!(a.tab_rects.len(), 5);
+                    assert_eq!(a.tab_rects.len(), Tab::ALL.len());
                     assert!(text.contains("[q]"));
                 }
             }

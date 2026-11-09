@@ -88,6 +88,7 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
         }),
     );
     runner.lock()?;
+    let worker_monitor = lqosync3::worker_util::Monitor::start(&cfg);
     runner.set_source(path, digest.clone());
     let (mut hup, mut usr1) = (
         signal(SignalKind::hangup())?,
@@ -119,6 +120,7 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
                 match cli::reload(&mut cfg, &mut digest, path) {
                     Ok(()) => {
                         eprintln!("config reloaded from {}", path.display());
+                        worker_monitor.reconfigure(&cfg);
                         runner.set_config(cfg.clone());
                         runner.set_source(path, digest.clone());
                     }

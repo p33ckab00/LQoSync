@@ -10,6 +10,7 @@ pub mod osc52;
 pub mod proc;
 pub mod settings;
 pub mod theme;
+pub mod workers;
 
 use app::{Action, App};
 use ratatui::Terminal;
