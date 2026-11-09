@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T18:42:04+08:00 (Asia/Shanghai) — TUI pushed; root deployment pending
+
+- Code review/fix commit `7259316` and all TUI commits are pushed to `origin/lqosync3`. GitHub CI `42602346450` passed.
+- Clean release: `3.0.154+g7259316`; 542 tests pass, zero failures, seven manual ignored; fmt/Clippy/release build pass.
+- Artifact and concrete deployment script: `/home/pi/.local/state/lqosync3/tui-7259316/`.
+- Run as operator: `sudo /home/pi/.local/state/lqosync3/tui-7259316/deploy.sh`. It includes rollback, restart, and executable/cycle/telemetry checks.
+- Non-interactive sudo requires a password. The attempted deployment stopped before changing the binary. Operator execution was requested.
+- Last observed service: active/running, PID 1833, `3.0.144+g1d2b4d5`. No deployment or restart occurred in this task yet.
+- Next: after operator execution, inspect `DEPLOYED.json`, current process version/hash, successful cycle, and fresh worker/traffic cache. Do not claim deployment from build success.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-tui-release-review]].
+
 ## 2026-11-09T18:38:29+08:00 (Asia/Shanghai) — Reviewed TUI release preparation
 
 - Owner now authorizes push, binary deployment, and restart after a clean performance review. This supersedes local-only instructions below.
