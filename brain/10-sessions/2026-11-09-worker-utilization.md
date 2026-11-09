@@ -42,8 +42,10 @@ The Dashboard keeps the previous journal counters. Shaping files and worker coun
 
 The review covered descriptor ownership, bounded input, stale values, cache permissions, monitor lifetime, config reloads, and TUI costs.
 The monitor sends one bounded request per two seconds. The table formats visible rows only.
-Review found no unresolved code issue after fixes.
-The full test suite has 502 passes, zero failures, and six manual tests ignored.
+Final review found that a stalled TUI loader could freeze the display clock.
+The independent timer now advances that clock. A regression test confirms expiry without loader updates.
+Review found no unresolved code issue after this fix.
+The full test suite has 503 passes, zero failures, and six manual tests ignored.
 Clippy with warnings denied and formatting pass.
 Real local socket tests cover fragmented headers, timeouts, invalid descriptors, wrong reply kinds, and old frames.
 Tests also cover failed reads, repeated timestamps, cache corruption, config reloads, and monitor shutdown.

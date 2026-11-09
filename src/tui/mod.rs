@@ -169,6 +169,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
         }
         if last_tick.elapsed() >= tick {
             // The clocks change each second.
+            app.on_tick(unix_now());
             last_tick = Instant::now();
             dirty = true;
         }

@@ -142,6 +142,11 @@ impl App {
         }
     }
 
+    /// Advance display freshness even when the loader does not send data.
+    pub fn on_tick(&mut self, now: u64) {
+        self.now = now;
+    }
+
     /// New data from the loader. `now` is Unix seconds.
     pub fn set_data(&mut self, data: Data, now: u64) {
         self.data = data;
@@ -680,6 +685,33 @@ mod tests {
         a.on_key(key(KeyCode::BackTab));
         assert_eq!(a.tab, Tab::Workers);
         assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::Quit);
+    }
+
+    #[test]
+    fn worker_util_expires_on_timer_ticks_without_loader_updates() {
+        let mut a = app(true);
+        a.tab = Tab::Workers;
+        a.set_data(
+            Data {
+                target: "v3_pair".into(),
+                worker_util: Some(Arc::new(crate::worker_util::Telemetry {
+                    version: 1,
+                    updated: 100,
+                    stale: false,
+                    reason: None,
+                    workers: vec![crate::worker_util::WorkerRow {
+                        queue_id: 0,
+                        busy_ppm: 125000,
+                        backlog_mean: Some(3),
+                    }],
+                })),
+                ..Data::default()
+            },
+            100,
+        );
+        assert!(draw(&mut a, 80, 24).contains("workers: live"));
+        a.on_tick(107);
+        assert!(draw(&mut a, 80, 24).contains("workers: stale"));
     }
 
     #[test]
