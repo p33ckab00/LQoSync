@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T14:13:22+08:00 (Asia/Shanghai) — Subscribers checkpoint
+
+- Goal remains all approved screens, with review/tests/captures and local commits. Do not push.
+- Dashboard local commit: `d9e0ffb`. Subscribers body now passes review and verification.
+- Code: `src/tui/devices/approved.rs`, device index integration, app input routing, and shared selection style.
+- Capture: `docs/design/tui/captures/subscribers-v1.png`; synthetic fixtures in a real terminal.
+- Checks: 523 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, and build pass.
+- Review: visible rows only; cached filters; unknown online state; guarded input; bounded OSC 52 copy; independent table/detail scrolling.
+- Next: commit Subscribers locally, then Routers -> LibreQoS -> Workers -> Settings -> Journal.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex. Production unchanged.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T14:05:42+08:00 (Asia/Shanghai) — Approved screens implementation: Dashboard
 
 - Owner authorized all seven screen bodies, per-screen review/test/capture, and local commits. Do not push.

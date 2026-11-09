@@ -1,9 +1,11 @@
 //! The ShapedDevices tab: a table of the rows with search, sort, flags, and a detail panel.
 
+mod approved;
 use super::app::split_main;
 use super::data::{Data, FLAG_DUP_IP, FLAG_NO_PARENT, FLAG_RATE};
 use crate::model::CsvRow;
 use crate::tui::theme::{BoxKind, Palette, Role};
+pub use approved::Input as SubscriberInput;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -77,6 +79,7 @@ fn source_of<'a>(d: &'a Data, name: &str) -> (&'static str, &'a str) {
 
 #[derive(Debug, Default)]
 pub struct DevicesView {
+    approved: approved::SubscribersUi,
     pub total_circuits: usize,
     pub filtered_circuits: usize,
     pub query: String,
@@ -115,7 +118,8 @@ impl DevicesView {
         let q = self.query.to_lowercase();
         self.index = (0..d.rows.len() as u32)
             .filter(|&i| {
-                q.is_empty() || d.row_search.get(i as usize).is_some_and(|s| s.contains(&q))
+                (q.is_empty() || d.row_search.get(i as usize).is_some_and(|s| s.contains(&q)))
+                    && self.approved.matches(d, &d.rows[i as usize])
             })
             .collect();
         self.filtered_circuits = self

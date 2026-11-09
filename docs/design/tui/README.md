@@ -264,6 +264,18 @@ Profile and WAN controls remain marked planned. Approval of this screen does not
 Subscriber online evidence and freshness must come from the source record.
 A record in a shaping file alone does not prove a current online session.
 
+### Subscribers runtime review
+
+Actual terminal capture: [Subscribers](captures/subscribers-v1.png), with isolated synthetic data.
+The cards, filters, table/details split, selection, paging controls, and data-status strip follow the approved image.
+Online/offline counts and row states remain unknown without current session evidence. Static shaping rows never imply online state.
+The table builds only visible rows. Source and router choices update when collected metadata changes.
+Click controls or use `s` for Source, `r` for Router, `t` for State, and Tab to move focus.
+Use Enter on a focused filter, `e` or Enter from the table for expanded details, `n` for the parent, and `c` for copy.
+Left/Right scroll the table columns. Details and the table have independent wheel and scrollbar controls.
+The full identifier and all shaping fields remain available in expanded details.
+Copy retains the bounded OSC 52 path and its unconfirmed result label.
+
 ## Routers
 
 ![Approved Routers screen](mockups/routers-approved-v1.png)

@@ -170,6 +170,7 @@ impl App {
         self.data = data;
         self.now = now;
         self.devices.on_data(&self.data);
+        self.devices.approved_data(&self.data);
         self.settings.set_snapshot(self.data.snapshot.clone());
         self.settings
             .on_status(self.data.status.as_deref(), now, self.action_timeout);
@@ -255,6 +256,8 @@ impl App {
         }
         match k.code {
             KeyCode::Char(c @ '1'..='7') => self.tab = Tab::ALL[c as usize - '1' as usize],
+            KeyCode::Tab if self.tab == Tab::Devices => return self.tab_key(k),
+            KeyCode::BackTab if self.tab == Tab::Devices => return self.tab_key(k),
             KeyCode::Tab => self.tab = Tab::ALL[(self.tab.navigation_index() + 1) % Tab::ALL.len()],
             KeyCode::BackTab => {
                 self.tab =
@@ -301,11 +304,15 @@ impl App {
 
     /// A key for the current tab.
     fn tab_key(&mut self, k: KeyEvent) -> Action {
-        if self.tab == Tab::Devices
-            && let Some(node) = self.devices.on_key(k, &self.data)
-        {
-            self.network.reveal(&self.data, &node);
-            self.tab = Tab::Network;
+        if self.tab == Tab::Devices {
+            match self.devices.approved_key(k, &self.data) {
+                super::devices::SubscriberInput::Parent(node) => {
+                    self.network.reveal(&self.data, &node);
+                    self.tab = Tab::Network;
+                }
+                super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
+                _ => {}
+            }
         }
         if self.tab == Tab::Network {
             self.network.on_key(k, &self.data);
@@ -364,10 +371,14 @@ impl App {
 
     /// Copy the selected journal lines with OSC 52.
     fn copy(&mut self) -> Action {
-        let text = self.journal.selection_text();
+        self.copy_text(self.journal.selection_text())
+    }
+
+    fn copy_text(&mut self, text: String) -> Action {
         if !self.osc52 {
             self.message = Some(
-                "OSC 52 is off (tui.osc52 = false); press s and select with the terminal".into(),
+                "OSC 52 is off (tui.osc52 = false); use terminal text selection (Shift+mouse)"
+                    .into(),
             );
             return Action::None;
         }
@@ -398,10 +409,32 @@ impl App {
     pub fn on_mouse(&mut self, m: MouseEvent) -> Action {
         if self.modal.is_some()
             || self.select_mode
-            || self.capturing_search()
             || (self.tab == Tab::Settings && self.settings.capturing())
         {
             return Action::None;
+        }
+        if self.capturing_search() {
+            if self.tab == Tab::Devices {
+                match self.devices.approved_mouse(m, &self.data) {
+                    super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
+                    super::devices::SubscriberInput::Parent(node) => {
+                        self.network.reveal(&self.data, &node);
+                        self.tab = Tab::Network;
+                    }
+                    _ => {}
+                }
+            }
+            return Action::None;
+        }
+        if self.tab == Tab::Devices {
+            match self.devices.approved_mouse(m, &self.data) {
+                super::devices::SubscriberInput::Parent(node) => {
+                    self.network.reveal(&self.data, &node);
+                    self.tab = Tab::Network;
+                }
+                super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
+                _ => {}
+            }
         }
         if m.kind == MouseEventKind::Down(MouseButton::Left)
             && self.theme_rect.contains((m.column, m.row).into())
@@ -435,6 +468,7 @@ impl App {
 
     pub fn draw(&mut self, f: &mut Frame) {
         let area = f.area();
+        self.devices.clear_approved_areas();
         self.overview.clear();
         self.theme_rect = Rect::default();
         self.routers.clear_area();
@@ -507,7 +541,10 @@ impl App {
                 self.libreqos
                     .draw(f, main, &self.data, self.now, false, &self.palette)
             }
-            Tab::Devices => self.devices.draw(f, main, &self.data, &self.palette),
+            Tab::Devices => {
+                self.devices
+                    .draw_approved(f, main, &self.data, self.now, &self.palette)
+            }
             Tab::Network => self.network.draw(f, main, &self.data, &self.palette),
             Tab::Journal => self.journal.draw(f, main, &self.palette),
             Tab::Dashboard => self
@@ -563,7 +600,7 @@ impl App {
         }
         match self.tab {
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] parent node  [1-7] tabs  [S] sync  [R] reload",
+            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-7] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Network => "[q] quit  [Esc] subscribers  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-7] tabs",
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
@@ -745,6 +782,27 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn subscribers_approved_body_has_filters_details_and_unknown_state() {
+        let mut a = app(true);
+        a.tab = Tab::Devices;
+        let text = draw(&mut a, 200, 48);
+        for label in [
+            "Total",
+            "Online",
+            "Offline",
+            "Source [",
+            "Router [",
+            "State [",
+            "Subscriber list",
+            "Subscriber details",
+            "Data status",
+        ] {
+            assert!(text.contains(label), "missing {label}");
+        }
+        assert!(!text.contains("996"));
     }
 
     #[test]
@@ -1142,7 +1200,7 @@ mod tests {
     }
 
     #[test]
-    fn enter_opens_the_parent_node_in_the_network_tab() {
+    fn n_opens_the_parent_node_in_the_network_tab() {
         let mut a = app(false);
         a.tab = Tab::Devices;
         let row = crate::model::CsvRow {
@@ -1159,7 +1217,7 @@ mod tests {
             ..Data::default()
         };
         a.set_data(d, 0);
-        a.on_key(key(KeyCode::Enter));
+        a.on_key(key(KeyCode::Char('n')));
         assert_eq!(
             (a.tab, a.network.selected_name()),
             (Tab::Network, Some("AP"))

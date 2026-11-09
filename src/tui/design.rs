@@ -42,6 +42,13 @@ pub fn role(p: &Palette, role: Role) -> Style {
     })
 }
 
+pub fn selected(p: &Palette) -> Style {
+    if p.theme == Theme::Dark {
+        surface(p).bg(Color::Rgb(44, 64, 82))
+    } else {
+        p.selection()
+    }
+}
 pub fn accent(p: &Palette) -> Style {
     if p.theme == Theme::Dark {
         surface(p).fg(Color::Rgb(128, 170, 255))

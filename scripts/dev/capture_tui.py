@@ -53,6 +53,7 @@ password_file = "{path}/fixture.password"
             writer.writerow(['Circuit ID', 'Circuit Name', 'Device ID', 'Device Name', 'Parent Node', 'MAC', 'IPv4', 'IPv6', 'Download Min Mbps', 'Upload Min Mbps', 'Download Max Mbps', 'Upload Max Mbps', 'Comment'])
             for i in range(32):
                 writer.writerow([f'SUB-{i:04}', f'Subscriber {i:02}', f'd{i}', f'Client {i}', 'AP-NORTH', f'02:00:00:00:00:{i:02x}', f'192.0.2.{i+1}', '', 5, 2, 100, 50, 'capture fixture'])
+        (path / 'state.json').write_text(json.dumps({'version':1,'circuits':{f'Subscriber {i:02}':{'router':'EDGE-01','source':'ppp' if i%2 else 'dhcp','last_seen':int(time.time()),'row':{}} for i in range(32)},'nodes':{},'routers':{}}))
         display = next(f':{i}' for i in range(190, 220) if not Path(f'/tmp/.X11-unix/X{i}').exists())
         processes = []
         try:

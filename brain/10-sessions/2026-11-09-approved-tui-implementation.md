@@ -31,3 +31,14 @@ Checks/logs: `/tmp/lqosync3-dashboard-*.log`.
 
 Remaining: Subscribers, Routers, LibreQoS, Workers, Settings, Journal. Continue after this local checkpoint.
 No push, production configuration write, installation, or production service restart.
+
+## Subscribers checkpoint
+
+Implemented approved cards, source/router/state filters, table/details, selected ID, paging, expanded details, copy, and parent navigation.
+The row index and sort cache remain authoritative. The renderer builds only visible rows; the focused test uses 1,000 records.
+Missing online evidence stays unknown. Copy uses the existing OSC 52 size limit and reports an unconfirmed clipboard result.
+Search owns typed input; its Clear action remains clickable. Background navigation stays blocked during active search and dialogs.
+Table and details have independent wheel and interactive scrollbars. Left/Right exposes wide table columns.
+Actual Zutty/Xvfb capture: `docs/design/tui/captures/subscribers-v1.png`, using synthetic data.
+Checks: 523 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, and build pass.
+Next: commit locally and continue Routers. No push or production changes.
