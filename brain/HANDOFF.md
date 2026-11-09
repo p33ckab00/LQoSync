@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T18:32:30+08:00 (Asia/Shanghai) — All approved TUI screens complete
+
+- Goal achieved: Dashboard -> Subscribers -> Routers -> LibreQoS -> Workers -> Settings -> Journal implemented, reviewed, and locally checkpointed. Do not push.
+- Last agent: Codex. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`.
+- Prior commits: `d9e0ffb`, `72b09c6`, `74a12c4`, `7f6f61b`, `62007b1`, `f49b377`. This checkpoint contains Journal and final docs.
+- Final code: `src/tui/journal/approved.rs`, Journal lifecycle/retention/search, App input/dialog mouse routing, bounded main-loop queue/drain, Journal header freshness.
+- Checks: 541 tests pass, zero fail, seven manual ignored; formatting, Clippy, build, whitespace, 15 concept hashes, 63 frames, capture PNGs/links, and isolated PTY smoke pass.
+- Evidence: `docs/design/tui/captures/README.md`; logs and frames in `/home/pi/.local/state/lqosync3/tui-complete-review-20261109`.
+- Performance/integrity: visible rows, cached filters/diffs, bounded history/logs, original retained-record copy, explicit unknown/stale states, existing Settings save/secret gates.
+- No implementation work remains in the approved seven-screen slice. Deployment remains separate: live DPDK history needs the new monitor; privileged Settings terminal verification needs the operator's sudo access.
+- No install, service restart, production configuration write, or push occurred. Next action: report completion; wait for deployment/push instructions.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T15:26:26+08:00 (Asia/Shanghai) — Settings checkpoint
 
 - Owner task remains seven screens, per-screen review/test/capture and local commits. Do not push.

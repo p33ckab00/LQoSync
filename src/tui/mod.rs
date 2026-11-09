@@ -112,12 +112,13 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     app.osc52 = cfg.tui.osc52;
     app.action_timeout = action_timeout(&cfg);
     app.journal = journal::JournalView::new(cfg.tui.journal_lines);
+    app.journal.unit = cfg.tui.service_unit.clone();
     app.dashboard.samples = cfg.tui.graph_samples;
     app.dashboard.refresh_ms = cfg.tui.refresh_ms;
     app.settings =
         settings::view::SettingsView::new(config.to_path_buf(), &app.data.config_text, read_only);
     let (ptx, prx) = mpsc::channel();
-    let (jtx, jrx) = mpsc::channel();
+    let (jtx, jrx) = mpsc::sync_channel(2048);
     let mut journal_child = None;
 
     // ratatui::init is not used: its panic hook restores the terminal on any thread.
@@ -163,7 +164,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
             app.settings.preview_done(done);
             dirty = true;
         }
-        let batch: Vec<_> = jrx.try_iter().collect();
+        let batch: Vec<_> = jrx.try_iter().take(512).collect();
         if !batch.is_empty() {
             app.journal.push_batch(batch);
             dirty = true;

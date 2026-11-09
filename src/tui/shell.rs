@@ -176,7 +176,12 @@ pub fn draw(f: &mut Frame, area: Rect, app: &App) -> Shell {
         theme_label.len() as u16,
         1,
     );
-    let detail = format!("SYNC AGE {age} | {} | ", local_clock(now));
+    let freshness = if tab == Tab::Journal {
+        format!("LOG AGE {}", app.journal.age(now))
+    } else {
+        format!("SYNC AGE {age}")
+    };
+    let detail = format!("{freshness} | {} | ", local_clock(now));
     let title = format!(" {}", tab.title());
     let padding =
         (content.width as usize).saturating_sub(title.len() + detail.len() + theme_label.len() + 1);

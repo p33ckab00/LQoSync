@@ -13,11 +13,15 @@ use ratatui::widgets::Paragraph;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::SyncSender;
+mod approved;
+pub use approved::JournalAction;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JournalMsg {
     Line(String),
+    Started,
+    Stopped(String),
     /// A start error, a stderr line, or the end of the child.
     Error(String),
 }
@@ -41,7 +45,7 @@ pub fn spawn_journal(
     program: &str,
     unit: &str,
     lines: usize,
-    tx: Sender<JournalMsg>,
+    tx: SyncSender<JournalMsg>,
 ) -> JournalHandle {
     let child = Command::new(program)
         .args([
@@ -66,6 +70,7 @@ pub fn spawn_journal(
             return JournalHandle { child: None };
         }
     };
+    let _ = tx.send(JournalMsg::Started);
     if let Some(err) = child.stderr.take() {
         let tx = tx.clone();
         let _ = std::thread::Builder::new()
@@ -88,24 +93,49 @@ pub fn spawn_journal(
                         return;
                     }
                 }
-                let _ = tx.send(JournalMsg::Error(format!("{program} stopped")));
+                let _ = tx.send(JournalMsg::Stopped(format!("{program} output stopped")));
             });
     }
     JournalHandle { child: Some(child) }
 }
 
-/// 0 info, 1 warning, 2 error. The words of `main.rs` and of the service log.
-fn level_of(l: &str) -> u8 {
-    if l.contains("error:") || l.contains("ERROR") {
-        2
-    } else if l.contains("warning:") || l.contains("ALERT") {
-        1
+/// Message severity is inferred from an explicit prefix, not journal PRIORITY metadata.
+fn severity(line: &str) -> Option<(&'static str, u8)> {
+    let message = if let Some((_, s)) = line.split_once("]: ") {
+        s
+    } else if let Some(s) = line.strip_prefix("lqosync3: ") {
+        s
     } else {
-        0
+        line
+    };
+    let token = message
+        .split_whitespace()
+        .next()?
+        .trim_end_matches(':')
+        .to_ascii_lowercase();
+    match token.as_str() {
+        "error" | "err" => Some(("ERROR", 2)),
+        "critical" | "fatal" => Some(("CRITICAL", 2)),
+        "warning" | "warn" | "alert" => Some(("WARN", 1)),
+        "info" => Some(("INFO", 0)),
+        "debug" => Some(("DEBUG", 0)),
+        "trace" => Some(("TRACE", 0)),
+        _ => None,
     }
+}
+fn level_of(line: &str) -> u8 {
+    severity(line).map_or(0, |(_, n)| n)
 }
 
 pub struct JournalView {
+    approved: approved::JournalUi,
+    pub unit: String,
+    search: VecDeque<String>,
+    last_received: Option<u64>,
+    started: bool,
+    stopped: bool,
+    selection_expired: bool,
+    discarded: u64,
     /// Level and text of each line, at most `max`.
     pub lines: VecDeque<(u8, String)>,
     max: usize,
@@ -129,6 +159,14 @@ pub struct JournalView {
 impl JournalView {
     pub fn new(max: usize) -> Self {
         JournalView {
+            approved: Default::default(),
+            unit: "unknown".into(),
+            search: VecDeque::new(),
+            last_received: None,
+            started: false,
+            stopped: false,
+            selection_expired: false,
+            discarded: 0,
             lines: VecDeque::with_capacity(max.min(100_000)),
             max: max.max(1),
             level: 0,
@@ -149,30 +187,63 @@ impl JournalView {
         if msgs.is_empty() {
             return;
         }
+        let keep = (!self.follow)
+            .then(|| self.view.get(self.cursor).copied())
+            .flatten();
+        let anchor = (!self.follow)
+            .then(|| self.anchor.and_then(|a| self.view.get(a).copied()))
+            .flatten();
         let mut dropped = 0;
         for m in msgs {
             match m {
                 JournalMsg::Line(l) => {
                     if self.lines.len() == self.max {
                         self.lines.pop_front();
+                        self.search.pop_front();
                         dropped += 1;
                     }
+                    self.last_received = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .ok()
+                        .map(|d| d.as_secs());
+                    self.started = true;
+                    self.stopped = false;
+                    self.search.push_back(l.to_lowercase());
                     self.lines.push_back((level_of(&l), l));
+                }
+                JournalMsg::Started => {
+                    self.started = true;
+                    self.stopped = false;
+                    self.error = None;
+                }
+                JournalMsg::Stopped(reason) => {
+                    self.stopped = true;
+                    self.error = Some(reason);
                 }
                 JournalMsg::Error(e) => self.error = Some(e),
             }
         }
-        let keep = (!self.follow)
-            .then(|| self.view.get(self.cursor).copied())
-            .flatten();
+        self.discarded = self.discarded.saturating_add(dropped as u64);
         self.refilter();
-        // A paused view keeps the same line, also when old lines go out.
-        if let Some(i) = keep {
-            self.cursor = self
-                .view
-                .iter()
-                .position(|&v| v + dropped >= i)
-                .unwrap_or(0);
+        if let Some(old) = keep {
+            if let Some(i) = old
+                .checked_sub(dropped)
+                .and_then(|n| self.view.iter().position(|&v| v == n))
+            {
+                self.cursor = i;
+            } else {
+                self.cursor = 0;
+                self.selection_expired = true;
+                self.anchor = None;
+            }
+            if let Some(old) = anchor.filter(|_| !self.selection_expired) {
+                self.anchor = old
+                    .checked_sub(dropped)
+                    .and_then(|n| self.view.iter().position(|&v| v == n));
+                if self.anchor.is_none() {
+                    self.selection_expired = true;
+                }
+            }
         }
     }
 
@@ -182,8 +253,9 @@ impl JournalView {
             .lines
             .iter()
             .enumerate()
-            .filter(|(_, (lv, l))| {
-                *lv >= self.level && (q.is_empty() || l.to_lowercase().contains(&q))
+            .filter(|(i, (lv, _))| {
+                *lv >= self.level
+                    && (q.is_empty() || self.search.get(*i).is_some_and(|s| s.contains(&q)))
             })
             .map(|(i, _)| i)
             .collect();
@@ -197,6 +269,9 @@ impl JournalView {
 
     /// The selected lines, or the line under the cursor.
     pub fn selection_text(&self) -> String {
+        if self.selection_expired {
+            return String::new();
+        }
         let (a, b) = match self.anchor {
             Some(a) => (a.min(self.cursor), a.max(self.cursor)),
             None => (self.cursor, self.cursor),
@@ -212,6 +287,8 @@ impl JournalView {
 
     pub fn on_key(&mut self, k: KeyEvent) {
         if self.editing {
+            self.anchor = None;
+            self.selection_expired = false;
             match k.code {
                 KeyCode::Esc => {
                     self.editing = false;
@@ -239,6 +316,7 @@ impl JournalView {
             _ => None,
         };
         if let Some(to) = moved {
+            self.selection_expired = false;
             if shift {
                 self.anchor.get_or_insert(self.cursor);
             } else {
@@ -250,11 +328,15 @@ impl JournalView {
         }
         match k.code {
             KeyCode::Char('/') => self.editing = true,
+            KeyCode::Char('x') => self.clear_search(),
             KeyCode::Char('l') => {
+                self.anchor = None;
+                self.selection_expired = false;
                 self.level = (self.level + 1) % 3;
                 self.refilter();
             }
             KeyCode::Char('f') => {
+                self.selection_expired = false;
                 self.follow = !self.follow;
                 self.refilter();
             }
@@ -408,6 +490,34 @@ mod tests {
     }
 
     #[test]
+    fn paused_selection_survives_rollover_or_expires_without_copying_new_records() {
+        let mut v = view(4, &["a", "b", "c", "d"]);
+        v.on_key(key(KeyCode::Home));
+        v.on_key(key(KeyCode::Down));
+        v.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT));
+        v.push_batch(vec![JournalMsg::Line("e".into())]);
+        assert_eq!(v.selection_text(), "b\nc");
+        v.push_batch(vec![JournalMsg::Line("f".into())]);
+        assert!(v.selection_expired);
+        assert!(v.selection_text().is_empty());
+        assert_eq!(v.lines.len(), v.search.len());
+        v.on_key(key(KeyCode::End));
+        assert_eq!(v.selection_text(), "f");
+        assert!(!v.selection_expired);
+    }
+
+    #[test]
+    fn explicit_prefix_severity_does_not_infer_from_arbitrary_message_words() {
+        assert_eq!(
+            severity("2026-11-09T10:00:00+0800 host lqosync3[1]: ERROR reload failed"),
+            Some(("ERROR", 2))
+        );
+        assert_eq!(severity("info no error reported"), Some(("INFO", 0)));
+        assert_eq!(severity("reload error_count=0"), None);
+        assert_eq!(severity("unknown"), None);
+    }
+
+    #[test]
     fn buffer_keeps_the_last_n_lines() {
         let v = view(3, &["1", "2", "3", "4", "5"]);
         assert_eq!(shown(&v), ["3", "4", "5"]);
@@ -488,7 +598,7 @@ mod tests {
 
     #[test]
     fn journal_start_error_is_shown() {
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, rx) = std::sync::mpsc::sync_channel(2048);
         let _h = spawn_journal("/nonexistent/journalctl", "lqosync3.service", 10, tx);
         match rx.recv_timeout(Duration::from_secs(5)).unwrap() {
             JournalMsg::Error(e) => assert!(e.contains("cannot start"), "{e}"),
@@ -503,10 +613,10 @@ mod tests {
         let script = dir.path().join("journalctl");
         std::fs::write(&script, "#!/bin/sh\necho line one\necho 'Hint: you are not in the adm group' >&2\nexec sleep 30\n").unwrap();
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, rx) = std::sync::mpsc::sync_channel(2048);
         let h = spawn_journal(script.to_str().unwrap(), "lqosync3.service", 10, tx);
         let mut got = Vec::new();
-        while got.len() < 2 {
+        while got.len() < 3 {
             got.push(rx.recv_timeout(Duration::from_secs(5)).unwrap());
         }
         assert!(

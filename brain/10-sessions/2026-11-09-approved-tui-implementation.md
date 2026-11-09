@@ -89,3 +89,24 @@ Actual terminal capture is read-only. Writable Add Router and values/review imag
 Sudo needs an operator password and user namespaces are restricted; no privileged capture or production change occurred.
 Captures: `docs/design/tui/captures/settings-*.png`. Reproduce fixture frames with the ignored Settings exporter and `scripts/dev/render_terminal_frame.py`.
 Next: local commit, then Journal. Do not push.
+
+## Journal and final verification
+
+Completed the approved Journal cards, filters, table/details, selection controls, and stream status.
+Original-text copy stays bounded. Sanitized display cannot emit log control characters.
+Explicit prefixes supply severity; unknown prefixes stay UNKNOWN. Child/receive evidence supplies lifecycle and LOG AGE.
+Paused selections survive rollover while retained. Expired selections cannot copy replacement records.
+Search text is cached; the channel retains at most 2,048 messages, and one loop drains at most 512.
+Mouse controls and per-panel wheel/scrollbars use the same actions as keys. Global sync/discard dialogs now have mouse buttons.
+Review found and fixed the old Journal keyboard handler wiring. A regression test verifies focus and details expansion.
+
+Final checks: 541 tests pass, zero fail, seven manual tests ignored. All-target Clippy with warnings denied, formatting, build, and whitespace pass.
+All fifteen concept PNG hashes/dimensions remain unchanged. Nine implementation images decode; design local links pass.
+Final export: 63 frames across seven routes, three themes, and three sizes. Isolated PTY navigation/theme/80x24 resize/quit passes with terminal cleanup.
+Evidence and logs: `/home/pi/.local/state/lqosync3/tui-complete-review-20261109`.
+Capture index: `docs/design/tui/captures/README.md`. The Journal terminal capture uses an isolated synthetic log provider.
+Writable Settings images remain clearly labeled Ratatui fixture renders. Privileged terminal save/reload is a deployment check.
+The new monitor needs deployment to populate live DPDK history. No install, production write, restart, or push occurred.
+
+All seven implementation checkpoints are complete. Earlier local commits: Dashboard `d9e0ffb`, Subscribers `72b09c6`, Routers `74a12c4`, LibreQoS `7f6f61b`, Workers `62007b1`, Settings `f49b377`.
+This final checkpoint records Journal and reconciles the design/operations documentation. Keep commits local per owner instruction.

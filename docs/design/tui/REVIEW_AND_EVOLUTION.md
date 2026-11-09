@@ -5,114 +5,69 @@ Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
 
 ## Decision and scope
 
-The web-style TUI is feasible within the current Ratatui application.
-This conclusion follows from the local layout, event, loader, and Settings code.
-The approved PNGs remain the visual baseline. No approved image changed in this review.
-The owner approved the unchanged Journal PNG on 2026-11-09.
+All seven approved screen bodies now run in the existing Ratatui application.
+The owner approved the unchanged Journal image before this implementation.
+The fifteen concept PNGs retain their original hashes. No production service or configuration changed.
+Each screen has a separate local checkpoint. Push and deployment are deferred by the owner.
 
-This task updates documentation and creates the Journal proposal. It does not implement the remaining screens.
-The existing shared-shell work remains in the worktree. Production configuration and services remain unchanged.
+## Comparison method and evidence
 
-## Review method
-
-Inspect each canonical PNG directly. Compare panel order, relative widths, spacing, colors, labels, focus, and selection.
-Compare the current source and first-slice terminal frames with those references.
-The first-slice frames use synthetic data at 80x24, 120x40, and 160x48.
-They are terminal-cell exports, not proof of full screenshot parity.
-
-Reference images have a 2172x724 raster size. Terminal fonts and cell sizes affect final raster dimensions.
-Compare actual captures at a matched viewport and font. Preserve panel geometry in terminal cells.
-Check dark-theme appearance against the PNGs. Check light and monochrome themes separately for usability.
+Compare panel order, proportions, labels, palette, selection, and action placement against the canonical concepts.
+The [capture index](captures/README.md) links the running-terminal images and Settings fixture renders.
+Captures use isolated synthetic data. They do not expose operator records or prove live router connectivity.
+Terminal font metrics and cell borders differ from the generated concepts. This review does not claim pixel identity.
+The final frame matrix covers seven routes, three themes, and three sizes: 80x24, 120x40, and 160x48.
+Compact bodies retain panel access through scrolling. The wide concept remains the visual baseline.
 
 ## Screen comparison
 
-| Reference | Required composition confirmed by image review | Current implementation gap |
+| Reference | Implemented composition | Evidence and limits |
 |---|---|---|
-| [Dashboard](mockups/dashboard-dpdk-v2.png) | Overview row; five cards; DPDK chart left, health right; planned WAN table; alerts. | Existing process dashboard body remains. Add evidence-based cards, DPDK rates/history, health, and alerts. |
-| [Subscribers](mockups/subscribers-approved-v1.png) | Three cards; four filters and Clear; table/details split; pagination; data status. | Existing device view remains. Add the approved body, filters, details, and online-state evidence. |
-| [Routers](mockups/routers-approved-v1.png) | Configured/Reachable/Failed reads cards; search/state/Clear; table/details split; data status. | Temporary cached text view. Add table, selected details, counts, filters, and links to Subscribers/Settings. |
-| [LibreQoS](mockups/libreqos-approved-v1.png) | Action row; compatibility notice; last/remote sync panels; tabbed source preview; data status. | Temporary cached status view. Add target-specific preview and evidence-based import/compatibility states. |
-| [Workers](mockups/workers-approved-v1.png) | Three cards; filters; utilization table/details; pressure panel; snapshot status. | Existing worker view remains. Adapt its body and interactions without changing telemetry semantics. |
-| [Settings: Add Router](mockups/settings-add-router-approved-v1.png) | Config/draft strips; group list; router list; full form; review/apply; result strip. | Existing wizard/editor remains. Build the displayed form and mouse targets around its draft and secret controls. |
-| [Settings: Values](mockups/settings-values-approved-v1.png) | Group list; loaded/draft/unit table; help; diff; review/apply; result strip. | Existing editor remains. Add the approved columns, focus behavior, diff placement, and explicit gated actions. |
-| [Journal proposal](mockups/journal-proposal-v1.png) | Three cards; toolbar; log table/details; selection strip; stream status; footer. | Proposal only. Reuse current workflows; add parsing, stream evidence, details, and scrollbar interaction. |
+| [Dashboard](mockups/dashboard-dpdk-v2.png) | Five cards; DPDK chart/health split; planned WAN; alerts. | [Terminal](captures/dashboard-v1.png). Actual counters require two producer samples. Gaps and stale data remain explicit. |
+| [Subscribers](mockups/subscribers-approved-v1.png) | Cards; search/source/router/state controls; table/details; paging; status. | [Terminal](captures/subscribers-v1.png). Online/offline remains unknown without session evidence. |
+| [Routers](mockups/routers-approved-v1.png) | Three cards; filters; table/details; source flags; navigation; status. | [Terminal](captures/routers-v1.png). Reachability is the last collection result. |
+| [LibreQoS](mockups/libreqos-approved-v1.png) | Actions; compatibility; sync cards; source tabs; selection; status. | [Terminal](captures/libreqos-v1.png). Native input stays distinct from compatibility output. Remote sync is not configured. |
+| [Workers](mockups/workers-approved-v1.png) | Cards; filters; utilization/details; pressure; snapshot status. | [Terminal](captures/workers-v1.png). Fresh complete diagnostics are required for CLEAR. |
+| [Settings router form](mockups/settings-add-router-approved-v1.png) | Categories; routers; complete form; masked secret; review/apply; result. | [Fixture render](captures/settings-add-router-v1.png). Trial-draft validation and one-step undo preserve integrity. |
+| [Settings values](mockups/settings-values-approved-v1.png) | Loaded/draft/unit columns; help; cached diff; guarded actions. | [Fixture render](captures/settings-values-review-v1.png) and [read-only terminal](captures/settings-readonly-terminal-v1.png). No privileged terminal session was available. |
+| [Journal](mockups/journal-proposal-v1.png) | Cards; toolbar; table/details; selection; stream status. | [Terminal](captures/journal-v1.png). Prefix severity is explicit; raw copy is preserved; expired selection cannot copy a replacement record. |
 
-The shared shell now provides the navigation order, wide sidebar, top bar, and local theme control.
+The shared shell retains sidebar groups, local theme control, and direct page keys.
+Journal uses LOG AGE. Other headers use SYNC AGE; individual panels state their own source freshness.
+Tab focuses controls in adapted screens. Active inputs and dialogs own their keyboard and mouse events.
 
-The old body style still uses different borders and gaps. Full screenshot parity does not pass yet.
-The shell displays `SYNC AGE`, while approved images use screen-specific freshness labels.
-Keep that interim label truthful until each source has its own freshness state.
+## Performance and integrity review
 
-The screenshot footer uses Tab for control focus. The current app uses Tab for route cycling.
-Before form adaptation, define focus traversal and retain keys 1 through 7 for direct page navigation.
-Do not pass Tab to global navigation while an editor owns input.
+Draw reads memory. Background loaders perform file and socket I/O.
+Filters and derived views rebuild on source/input changes. Tables render visible rows.
+Settings review caches field changes; drawing does not perform a quadratic text diff.
+DPDK history has at most 1,801 points. Rates use producer deltas and reset after invalid intervals or counter regression.
+Journal caches lowercase search text, retains the configured line limit, queues at most 2,048 messages, and drains at most 512 per loop.
+Journal copies original retained records. Display sanitizes control characters. Severity requires an explicit prefix, otherwise UNKNOWN.
+Quiet streams remain connected until exit or error evidence. Paused selections survive rollover while their records remain.
+Settings preserves read-only checks, exact-draft preview, secret revisions, confirmation, conflicts, backups, rollback, reload, and digest verification.
+Shared scrollbars route wheel, track clicks, and thumb drags to their panels. Resize clears old hit targets.
+Global and Settings dialogs block background actions and use the existing confirmation paths.
 
-## Journal image review
+## Verification
 
-The new image uses the Workers and Dashboard PNGs as style references.
-The sidebar width, groups, active marker, top bar, footer, palette, and border style match that visual system.
-The eight displayed messages contain the search word `reload`.
-The selected 10:14:42 ERROR message matches its detail panel. Follow is paused in all displayed controls and status labels.
-The source card and entry details both show `lqosync3.service`.
-The scrollbar, copy actions, follow controls, and text-selection strip are visible without clipped panels.
-The image retains a `DESIGN PROPOSAL | SAMPLE DATA` label.
+The full suite passes: 541 tests, zero failures, seven ignored manual tests.
+Formatting, all-target Clippy with warnings denied, debug build, whitespace, and stored concept hashes pass.
+The final frame export produces 63 frames. Isolated PTY navigation, theme, resize, quit, and terminal cleanup pass.
+Focused tests cover DPDK resets/gaps, source freshness, input ownership, scrolling, Settings forms/gates, and Journal selection/stream lifecycle.
+These tests and bounded work do not establish latency under every production dataset.
 
-The entry-detail panel omits a separate title above its timestamp. Its visible title is `Selected entry`.
-Use that actual label. Do not create extra fields from the generation prompt.
-All sample counts and states require runtime evidence before display as operational values.
-The full interaction and data requirements are in the [Journal section](README.md#journal).
+## Deployment limits
 
-## Existing implementation foundation
-
-| Source | Reusable capability | Work still required |
-|---|---|---|
-| `src/tui/mod.rs` | Terminal event loop, mouse capture, worker channels, terminal cleanup. | Preserve cleanup and input ownership across new controls. |
-| `src/tui/shell.rs`, `app.rs` | Seven routes, sidebar, theme, modal guards, resize target reset. | Match final screen freshness, focus, and status layouts. |
-| `src/tui/data.rs` | Background cached-data loading. Draw reads memory. | Add missing fields and freshness outside draw; bound parsing and retained data. |
-| `src/worker_util.rs`, `worker_util/ipc.rs` | Read-only analytics integration and telemetry validation. | Extend the read model for verified directional traffic counters and bounded history. |
-| `src/tui/settings/` | Typed draft, validation, preview, secret controls, conflict checks, apply verification. | Reuse these actions in the approved form layout. Preserve all gates. |
-| `src/tui/journal.rs`, `osc52.rs` | Bounded lines, search, minimum-level filter, follow, selection, bounded copy. | Add details, lifecycle/receive evidence, reliable field parsing, and complete mouse controls. |
-
-The code already separates background loading from drawing. Keep that separation.
-No new UI framework is required for the approved terminal composition.
-These conclusions do not establish performance under every production dataset.
-
-## Transition order and acceptance
-
-1. Keep the shared shell. Define consistent focus and action ownership before adding forms.
-2. Implement Dashboard from its approved PNG. Verify DPDK counter direction and reset/gap handling before plotting rates.
-3. Adapt Subscribers, Routers, LibreQoS, and Workers. Reuse current data paths and preserve unavailable/stale states.
-4. Adapt Settings around existing draft/apply behavior. Verify router creation and typed edits with isolated fixtures.
-5. Adapt Journal from its approved image. Preserve current behavior in the meantime.
-6. Complete control clicks, per-panel wheel routing, scrollbar track clicks, and thumb dragging across all screens.
-7. Capture actual terminals and compare each screen against its canonical PNG. Check compact layouts separately.
-
-Require two valid producer samples for a traffic rate. Reset after counter decreases, restarts, or invalid sample intervals.
-Use chart gaps for unavailable traffic. Do not substitute process network totals or configured bandwidth for traffic.
-Use real collection evidence for subscriber online state. Keep planned WAN and Profiles controls inactive.
-Test empty, loading, permission denied, unavailable, stale, failed, and populated states.
-
-For Settings, test exact-draft preview, cancellation, conflicts, masked secrets, backup, confirmation, reload, and result verification.
-
-For Journal, test retention rollover, paused selection, search/filter changes, stream exit, permissions, long messages, and copy fallback.
-
-For mouse input, test dialog click-through, stale resize targets, independent scrolling, and keyboard action parity.
-
-The minimum terminal remains 80x24. Compact adaptation must preserve access to all required panels and actions.
-The wide mockups do not approve an arbitrary compact redesign.
-Use bounded visible-row rendering and bounded history. Measure large-data responsiveness before release.
-Report screenshot parity only after both visual comparison and functional checks pass.
+The new service monitor must be deployed before the live cache contains DPDK traffic history.
+Sudo requires an operator password, and user namespaces are restricted. Writable Settings images are labeled fixture renders.
+A privileged running-terminal save/reload check remains a deployment check. Existing isolated apply/secret/rollback tests pass.
+No install, service restart, or push occurred. WAN plans and Profiles remain planned.
+Subscriber online state and native row counts remain unknown where the backend lacks evidence.
 
 ## Terminal style and browser delivery
 
-The requested terminal evolution can provide sidebar navigation, cards, tables, details, forms, and mouse interaction.
-The application still runs inside a terminal. Its layout uses terminal cells and the terminal's font and clipboard support.
-If browser access becomes a separate requirement, it needs its own delivery plan, authentication, API, and deployment design.
-That browser work is outside this terminal design task.
-
-## Verification of this documentation task
-
-Review all seven existing canonical views and the new Journal image directly.
-Verify all fifteen PNG dimensions and stored hashes. Verify existing hashes remain unchanged.
-Check local Markdown links and whitespace. Do not rerun application tests for image and prose changes alone.
-The earlier 516-test result belongs to the shared-shell slice. This review does not establish new runtime acceptance.
+The terminal now supplies the approved sidebar, cards, tables, forms, detail panels, and mouse controls.
+It still runs in a terminal and uses that terminal's font and clipboard support.
+A separate browser product requires its own authentication, API, delivery, and deployment design.
+That work is outside this implementation.

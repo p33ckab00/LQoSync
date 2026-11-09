@@ -66,6 +66,22 @@ enabled = true
             time.sleep(.5)
             env = {**os.environ, 'DISPLAY': display, 'LIBGL_ALWAYS_SOFTWARE': '1', 'TERM': 'xterm-256color', 'COLORTERM': 'truecolor'}
             env.pop('NO_COLOR', None)
+            if args.screen == 7:
+                # Isolated journalctl provider. Do not read or write the host journal.
+                tools_dir = path / 'bin'; tools_dir.mkdir()
+                messages = [
+                    'INFO reload request received', 'INFO reload validating input',
+                    'INFO reload source files read', 'WARN reload delayed; retry scheduled',
+                    'ERROR reload failed: source read timeout on EDGE-01',
+                    'INFO reload retry started', 'INFO reload validation passed',
+                    'INFO reload complete; configuration accepted',
+                ]
+                logs = [f'2026-11-09T10:14:{38+i:02}+0800 fixture lqosync3[321]: {m}' for i,m in enumerate(messages)]
+                provider = tools_dir / 'journalctl'
+                provider.write_text('#!/usr/bin/python3\nimport time\nfor line in '+repr(logs)+':\n print(line, flush=True)\ntime.sleep(120)\n')
+                provider.chmod(0o700)
+                env['PATH'] = str(tools_dir) + os.pathsep + env['PATH']
+
             # Keep snapshots fresh while the terminal starts; all data stays in this directory.
             def snapshots():
                 now = int(time.time())
@@ -98,6 +114,13 @@ enabled = true
                 code=x.XKeysymToKeycode(d,x.XStringToKeysym(text.encode()))
                 xt.XTestFakeKeyEvent(d,code,1,0);xt.XTestFakeKeyEvent(d,code,0,0);x.XFlush(d)
             snapshots();key(str(args.screen));time.sleep(1)
+            if args.screen == 7:
+                key('f'); key('slash')
+                for char in 'reload': key(char)
+                key('Return'); key('Home')
+                for _ in range(4): key('Down')
+                time.sleep(.4)
+
             if processes[-1].poll() is not None:
                 raise RuntimeError((path/'zutty.log').read_text())
             ImageGrab.grab(xdisplay=display).save(args.output)

@@ -29,7 +29,7 @@ All commands take `--config <path>`. The default is `/etc/lqosync3/lqosync3.toml
 | `lqosync3 run` | Operates as a service. The systemd unit uses this command. |
 | `lqosync3 defaults` | Prints all settings with their default values. |
 | `lqosync3 detect` | Prints the target that `libreqos.target = "auto"` selects, and the reason. |
-| `lqosync3 tui` | Opens the terminal view: ShapedDevices, Network, Settings, Journal, Dashboard. Refer to "Terminal view". |
+| `lqosync3 tui` | Opens Dashboard and the seven-page terminal console. Refer to "Terminal view". |
 
 Signals to `lqosync3 run`: `systemctl reload lqosync3` (`SIGHUP`) reads the config again. A bad config keeps the old one. `systemctl kill -s USR1 lqosync3` starts a cycle now and releases a guard hold.
 After each cycle, `<state_dir>/status.json` (version 3) shows the router states, the changes, and any error. It also shows `config_path`, `config_digest`, `cycle_seq`, `pid`, `trigger` (`start`, `timer`, `sync_now`, `reload`, `once`), `program_version`, and `telegram` (the last send: `disabled`, `none`, `ok`, or the error).
@@ -53,50 +53,48 @@ sudo lqosync3 tui
 
 - Without `sudo`, the view is read-only. The header shows `READ-ONLY (not root)`, and `S` and `R` do not operate.
 - The view reads the files and `status.json` each `tui.refresh_ms`. It does not change the service. It does not restart the service.
-- Click a tab, or push `1` to `5`, or `Tab`.
+- Click a page or push `1` to `7`. Tab focuses controls within adapted screens. Use the sidebar or direct keys to change pages.
 
-| Tab | Keys |
-|-----|------|
-| 1 ShapedDevices | `/` search (name, ID, MAC, IP), `o` next sort column, `i` reverse order, `Enter` open the parent node |
-| 2 Network | `Space` open or close a node, `e` expand all, `c` collapse all, `/` search |
-| 3 Settings | Arrows select (`Left`/`Right` change the panel), `Enter` or `Space` edit, `r` reset to the default, `u` undo, `P` new secret, `+` add, `-` remove, `v` preview, `A` apply. Refer to "Change the configuration in the TUI". |
-| 4 Journal | `l` level filter, `/` search, `f` follow, `Shift`+arrows or the mouse select lines, `y` copy, `s` select mode |
-| 5 Dashboard | `S` sync now (asks first, releases a guard hold), `R` reload the config |
+| Page | Keys |
+|---|---|
+| 1 Dashboard | `r` refresh cached sources, `w` chart window, arrows scroll, `S` confirmed sync, `R` reload |
+| 2 Subscribers | `/` search, `s/r/t` source/router/state, `o/i` sort/reverse, `e` details, `n` parent Network view, `c` copy |
+| 3 Routers | `/` search, `t` state, `x` clear, `d` details, `s` Subscribers, `e` Settings, `c` endpoint copy |
+| 4 LibreQoS | `p` preview/back, `s` confirmed sync, Tab source file, `i` issues, arrows selection/scroll |
+| 5 Workers | `/` worker search, `t` sample filter, `x` clear, `e` details, `c` evidence copy |
+| 6 Settings | Arrows select, Enter/Space edit, `g` next nested section, `r` reset, `u` undo, `P` secret, `+/-` add/remove, `v` preview, `A` apply |
+| 7 Journal | `/` search, `l` minimum level, `x` clear search, `f` follow, `e` details, `y/c` original-text copy, `s` terminal selection |
+
+Network is a parent-node detail view from Subscribers. Escape returns to Subscribers.
+Enabled controls accept clicks. Overflowing panels accept wheel input, scrollbar track clicks, and thumb drags.
+Use Shift+arrows or mouse drag to select Journal records. Retention can expire a paused selection; copy then requires a new selection.
+Journal levels use explicit message prefixes. Unknown prefixes show UNKNOWN, not an inferred journal priority.
 
 - `S` sends `SIGUSR1` and `R` sends `SIGHUP` to the MainPID of `tui.service_unit`. The TUI first checks that the process name is `lqosync3`. The result comes from `status.json`, not from the signal. If no result comes in `tui.apply_verify_timeout` seconds, the footer shows "no result from the service".
 - `y` copies with OSC 52. The terminal does not show if the copy arrived. If the text does not arrive, push `s` (select mode): the mouse goes to the terminal, and the normal terminal selection operates. Push `s` again to end. `tui.osc52 = false` turns OSC 52 off.
 - The Journal tab can read the journal only as root, or as a member of the group `adm` or `systemd-journal`. If not, the tab shows the `journalctl` hint in red.
 - An unknown value shows `unknown`, never `0`. A file error shows in red in the footer.
-- The Process panel of the Dashboard has one chart with four lines: CPU, RSS, disk I/O, and network of the service. CPU is in percent of one core. The other lines are in percent of their peak in the chart window. The line above the chart gives the current values. In the `mono` theme, each line has its own marker.
-- Disk I/O and network come from the systemd accounting of `tui.service_unit`. The unit file of the tool turns it on. If the values show `unknown`, add the accounting to an installed unit:
-
-  ```bash
-  sudo mkdir -p /etc/systemd/system/lqosync3.service.d
-  printf '[Service]\nIOAccounting=yes\nIPAccounting=yes\n' | sudo tee /etc/systemd/system/lqosync3.service.d/accounting.conf
-  sudo systemctl daemon-reload
-  sudo systemctl restart lqosync3.service
-  ```
-
-  The counters include the child processes of the service, for example `LibreQoS.py`. The network counter includes the router API and Telegram traffic.
-- Each dialog shows its keys on its bottom border, and the footer shows them too. Only `y` confirms. Only `n` or `Esc` cancels. Other keys do nothing.
+- Dashboard shows five summary cards, LibreQoS DPDK Traffic, dataplane health, planned WAN, and alerts.
+- Traffic comes from actual aggregate analytics byte counters. It requires two valid producer samples and a deployed monitor that writes history. Missing/stale data stays unavailable. Process/systemd network totals are not used for this chart.
+- Each dialog shows its keys on its bottom border, and the footer shows them too. Use `y` or Confirm to proceed. Use `n`, Esc, or Cancel to cancel. Other keys do nothing.
 - `q` or `Ctrl+C` stops the view. With settings changes that are not applied, the view asks first.
 
 ## Change the configuration in the TUI
 
 The Settings tab edits `/etc/lqosync3/lqosync3.toml`. The comments and the key order of the file stay. A reset removes the key from the file, so the default of `config/defaults.toml` applies. Root is necessary.
 
-1. Start the view: `sudo lqosync3 tui`. Push `3`.
+1. Start the view: `sudo lqosync3 tui`. Push `6`.
 2. Select a group on the left, then a key in the center (`Right`). The help is on the right.
 3. Push `Enter` or `Space`:
    - A boolean changes at once.
    - A key with fixed values opens a list. Select the value and push `Enter`.
    - A number or a text opens a field. Push `Enter` to keep the value, `Esc` to cancel. An error names the key.
    - A list opens a list editor: `a` add, `d` delete, `K` up, `J` down.
-4. Routers: push `+` to add a router (name, address, user, password). The password goes to `/etc/lqosync3/secrets/<name>.password` at apply. Push `-` in a router group to remove a router. Its password file stays: delete it by hand.
+4. Routers: select the Routers category and push `+`. Fill the name, address, port, TLS, username, masked password/file, and source switches. Advanced fields include the CA file. Add to draft validates the complete trial configuration first. The password goes to `/etc/lqosync3/secrets/<name>.password` at apply. Push `-` in a router group to remove a router. Its password file stays: delete it by hand.
 5. DHCP servers: push `+` in the `dhcp` group of a router to add a server. Push `-` in a server group to remove it.
 6. DHCP clients: the server groups of a router show the leases of the last cycle (from `snapshot.json`). Push `Enter` on a lease to set its download and upload max rates: this makes a `[[routers.dhcp.clients]]` entry. Push `r` on the lease to remove the override. A grey lease is not shaped, and its line gives the reason. The group `router <name> dhcp clients` shows each override, and "no active lease" if the client is not on the router now.
 7. Push `P` in a router group to set a new router password. Push `P` in `telegram` to set a new bot token. The screen shows only `*`.
-8. Push `v`. The yellow "next" bar (header and right panel border) always shows the next step: `[v] preview`, `preview running`, `[A] apply`, or `apply blocked`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
+8. Push `v`. The review panel shows the next step: `[v] preview`, `preview running`, `[A] apply`, or `apply blocked`. The TUI checks the file with the rules of `lqosync3 check`. Then it runs the cycle core on `<state_dir>/snapshot.json` two times: with the current config, and with the new config. The right panel shows the changed lines of the file, the changed circuits and nodes, and the warnings.
 9. Read the warnings. Examples:
    - an old `snapshot.json`,
    - a router with no snapshot,

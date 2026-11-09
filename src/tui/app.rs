@@ -104,6 +104,7 @@ pub struct App {
     /// The navigation rectangles of the last draw, for the mouse.
     pub tab_rects: Vec<Rect>,
     theme_rect: Rect,
+    dialog_buttons: [Rect; 2],
     routers: super::routers::RoutersView,
     libreqos: super::libreqos::LibreView,
     pub data: Data,
@@ -138,6 +139,7 @@ impl App {
             modal: None,
             tab_rects: Vec::new(),
             theme_rect: Rect::default(),
+            dialog_buttons: [Rect::default(); 2],
             routers: Default::default(),
             libreqos: Default::default(),
             data: Data {
@@ -261,7 +263,12 @@ impl App {
             KeyCode::Tab
                 if matches!(
                     self.tab,
-                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers | Tab::Settings
+                    Tab::Devices
+                        | Tab::Routers
+                        | Tab::LibreQoS
+                        | Tab::Workers
+                        | Tab::Settings
+                        | Tab::Journal
                 ) =>
             {
                 return self.tab_key(k);
@@ -269,7 +276,12 @@ impl App {
             KeyCode::BackTab
                 if matches!(
                     self.tab,
-                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers | Tab::Settings
+                    Tab::Devices
+                        | Tab::Routers
+                        | Tab::LibreQoS
+                        | Tab::Workers
+                        | Tab::Settings
+                        | Tab::Journal
                 ) =>
             {
                 return self.tab_key(k);
@@ -328,6 +340,23 @@ impl App {
         Action::None
     }
 
+    fn journal_action(&mut self, action: super::journal::JournalAction) -> Action {
+        match action {
+            super::journal::JournalAction::None => Action::None,
+            super::journal::JournalAction::Key(code) => {
+                self.on_key(KeyEvent::new(code, KeyModifiers::NONE))
+            }
+            super::journal::JournalAction::Clear => {
+                self.journal.clear_search();
+                Action::None
+            }
+            super::journal::JournalAction::Copy => self.copy(),
+            super::journal::JournalAction::Select => {
+                self.on_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE))
+            }
+        }
+    }
+
     fn settings_key(&mut self, k: KeyEvent) -> Action {
         let action = self.settings.approved_key(k);
         self.settings_action(action)
@@ -378,7 +407,7 @@ impl App {
         }
         if self.tab == Tab::Journal {
             match k.code {
-                KeyCode::Char('y') if !self.journal.editing => return self.copy(),
+                KeyCode::Char('y' | 'c') if !self.journal.editing => return self.copy(),
                 KeyCode::Char('s') if !self.journal.editing => {
                     self.select_mode = !self.select_mode;
                     self.message = Some(if self.select_mode {
@@ -389,7 +418,7 @@ impl App {
                     });
                     return Action::SelectMode(self.select_mode);
                 }
-                _ => self.journal.on_key(k),
+                _ => self.journal.approved_key(k),
             }
         }
         if self.tab == Tab::Settings {
@@ -422,6 +451,10 @@ impl App {
     }
 
     fn copy_text(&mut self, text: String) -> Action {
+        if text.is_empty() {
+            self.message = Some("No retained selection to copy; choose an entry".into());
+            return Action::None;
+        }
         if !self.osc52 {
             self.message = Some(
                 "OSC 52 is off (tui.osc52 = false); use terminal text selection (Shift+mouse)"
@@ -454,7 +487,21 @@ impl App {
     }
 
     pub fn on_mouse(&mut self, m: MouseEvent) -> Action {
-        if self.modal.is_some() || self.select_mode {
+        if self.modal.is_some() {
+            if m.kind == MouseEventKind::Down(MouseButton::Left)
+                && let Some(i) = self
+                    .dialog_buttons
+                    .iter()
+                    .position(|r| r.contains((m.column, m.row).into()))
+            {
+                return self.on_key(KeyEvent::new(
+                    KeyCode::Char(if i == 0 { 'y' } else { 'n' }),
+                    KeyModifiers::NONE,
+                ));
+            }
+            return Action::None;
+        }
+        if self.select_mode {
             return Action::None;
         }
         if self.tab == Tab::Settings && self.settings.capturing() {
@@ -462,6 +509,10 @@ impl App {
             return self.settings_action(action);
         }
         if self.capturing_search() {
+            if self.tab == Tab::Journal {
+                let action = self.journal.approved_mouse(m);
+                return self.journal_action(action);
+            }
             if self.tab == Tab::Workers {
                 if let super::workers::WorkerAction::Copy(text) =
                     self.workers.approved_mouse(m, &self.data, self.now)
@@ -543,13 +594,16 @@ impl App {
                 KeyModifiers::NONE,
             ));
         } else if self.tab == Tab::Journal {
-            self.journal.on_mouse(m);
+            let action = self.journal.approved_mouse(m);
+            return self.journal_action(action);
         }
         Action::None
     }
 
     pub fn draw(&mut self, f: &mut Frame) {
         let area = f.area();
+        self.dialog_buttons = [Rect::default(); 2];
+        self.journal.clear_approved_areas();
         self.settings.clear_approved_areas();
         self.workers.clear_areas();
         self.devices.clear_approved_areas();
@@ -629,7 +683,10 @@ impl App {
                     .draw_approved(f, main, &self.data, self.now, &self.palette)
             }
             Tab::Network => self.network.draw(f, main, &self.data, &self.palette),
-            Tab::Journal => self.journal.draw(f, main, &self.palette),
+            Tab::Journal => {
+                self.journal
+                    .draw_approved(f, main, self.now, self.select_mode, &self.palette)
+            }
             Tab::Dashboard => self
                 .overview
                 .draw(f, main, &self.data, self.now, &self.palette),
@@ -661,6 +718,7 @@ impl App {
                 .block(dialog(" quit ", Modal::Discard, &self.palette)),
                 r,
             );
+            self.draw_dialog_buttons(f, r);
         }
         if self.modal == Some(Modal::ConfirmSync) {
             let r = center(main, 50, 5);
@@ -671,6 +729,23 @@ impl App {
                 )
                 .block(dialog(" sync now ", Modal::ConfirmSync, &self.palette)),
                 r,
+            );
+            self.draw_dialog_buttons(f, r);
+        }
+    }
+
+    fn draw_dialog_buttons(&mut self, f: &mut Frame, r: Rect) {
+        let inner = r.inner(ratatui::layout::Margin::new(1, 1));
+        let half = inner.width / 2;
+        let row = inner.bottom().saturating_sub(1);
+        self.dialog_buttons = [
+            Rect::new(inner.x, row, half, 1),
+            Rect::new(inner.x + half, row, inner.width - half, 1),
+        ];
+        for (i, label) in ["[y Confirm]", "[n Cancel]"].into_iter().enumerate() {
+            f.render_widget(
+                Paragraph::new(label).style(super::design::accent(&self.palette)),
+                self.dialog_buttons[i],
             );
         }
     }
@@ -688,7 +763,7 @@ impl App {
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Network => "[q] quit  [Esc] subscribers  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-7] tabs",
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Journal => "[q] quit  [l] level  [/] search  [f] follow  [y] copy  [s] select mode  [Shift+arrows] select",
+            Tab::Journal => "[q] quit  [Tab] focus  [l] level  [/] search  [x] clear  [f] follow  [e] details  [y/c] copy  [s] terminal select  [Shift+arrows] select  [Left/Right] columns",
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
             Tab::Routers if self.routers.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
@@ -869,6 +944,26 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn journal_approved_body_exposes_stream_filters_details_and_selection() {
+        let mut a = app(true);
+        a.tab = Tab::Journal;
+        let text = draw(&mut a, 200, 48);
+        for label in [
+            "Log source",
+            "Retained lines",
+            "View",
+            "Level [",
+            "Follow",
+            "Service journal",
+            "Selected entry",
+            "Selection and navigation",
+            "Data status",
+        ] {
+            assert!(text.contains(label), "missing {label}");
+        }
     }
 
     #[test]
@@ -1176,6 +1271,8 @@ mod tests {
             assert_eq!(a.tab, t);
         }
         a.on_key(key(KeyCode::Tab));
+        assert_eq!(a.tab, Tab::Journal);
+        a.on_key(key(KeyCode::Char('1')));
         assert_eq!(a.tab, Tab::Dashboard);
         a.on_key(key(KeyCode::BackTab));
         assert_eq!(a.tab, Tab::Journal);
@@ -1422,6 +1519,20 @@ mod tests {
     }
 
     #[test]
+    fn journal_keyboard_focus_and_expansion_use_approved_controls() {
+        let mut a = journal_app(&["info ready", "error failed"]);
+        a.on_key(key(KeyCode::Tab));
+        a.on_key(key(KeyCode::Enter));
+        assert_eq!(a.journal.level, 1);
+        a.on_key(key(KeyCode::Char('e')));
+        let expanded = draw(&mut a, 200, 40);
+        assert!(expanded.contains("Selected entry"));
+        assert!(!expanded.contains("Service journal"));
+        a.on_key(key(KeyCode::Esc));
+        assert!(draw(&mut a, 200, 40).contains("Service journal"));
+    }
+
+    #[test]
     fn y_on_journal_copies_with_osc52() {
         let mut a = journal_app(&["one", "two"]);
         assert_eq!(
@@ -1533,6 +1644,31 @@ mod tests {
         a.on_key(key(KeyCode::Char(' ')));
         let s = draw(&mut a, 140, 30);
         assert!(s.contains("read-only"), "{s}");
+    }
+
+    #[test]
+    fn global_dialog_mouse_buttons_use_confirmation_gates() {
+        let mut a = app(false);
+        a.on_key(key(KeyCode::Char('S')));
+        draw(&mut a, 200, 40);
+        let click = |r: Rect| MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: r.x,
+            row: r.y,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert_eq!(a.on_mouse(click(a.dialog_buttons[1])), Action::None);
+        assert!(a.modal.is_none());
+        a.on_key(key(KeyCode::Char('S')));
+        draw(&mut a, 200, 40);
+        assert_eq!(a.on_mouse(click(a.dialog_buttons[0])), Action::SyncNow);
+        a.on_key(key(KeyCode::Char('6')));
+        a.settings.select("safety.enabled");
+        a.on_key(key(KeyCode::Char(' ')));
+        a.on_key(key(KeyCode::Char('q')));
+        draw(&mut a, 200, 40);
+        assert_eq!(a.modal, Some(Modal::Discard));
+        assert_eq!(a.on_mouse(click(a.dialog_buttons[0])), Action::Quit);
     }
 
     #[test]

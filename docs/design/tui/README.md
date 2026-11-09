@@ -1,7 +1,7 @@
 # LQoSync3 TUI visual contract
 
 Date: 2026-11-09. Time zone: Asia/Shanghai.
-Scope: approved screenshot baseline and staged TUI implementation. The shared shell and Dashboard body are implemented. The other screen bodies are in progress.
+Scope: approved screenshot baseline and all seven implemented TUI screen bodies. Local verification is complete; deployment is separate.
 
 ## Owner decisions and reference order
 
@@ -47,22 +47,24 @@ Dialogs and active inputs block background navigation. A resize clears obsolete 
 Terminals below 140 columns or 28 rows retain the compact header and body layout.
 The minimum supported terminal remains 80 columns by 24 rows.
 
-The Dashboard now uses the approved five-card, chart/health, planned WAN, and alert composition.
-Other existing screen bodies remain during this transition. Routers and LibreQoS currently show cached status views.
-These temporary bodies do not replace their approved screenshots as the visual baseline.
-Router collection status does not prove a current connection. Missing evidence shows as unknown or unavailable.
-The top bar labels the last cycle age as `SYNC AGE`; it does not claim a complete refresh of every source.
+All seven screen bodies now use the approved panel order and shared visual roles.
+Enabled controls accept clicks. Overflowing panels support wheel input and scrollbar track clicks and thumb drags.
+Settings retains the existing draft, validation, preview, confirmation, conflict, backup, secret, and reload-result checks.
+Journal retains original-text copy and terminal selection. Tab moves between controls within adapted screens.
+Keys 1 through 7 select pages. Dashboard and Network also retain Tab route navigation.
 
-The DPDK chart uses validated actual aggregate counters and bounded service-owned history.
-Other screen-body layouts and their complete mouse interactions remain in progress.
-The pending mouse work includes forms, per-panel wheel routing, scrollbar track clicks, and thumb drags.
-Subscriber online state needs collection evidence. The owner has approved the Journal proposal below.
-The compact layout needs visual review before a new compact composition can claim acceptance.
+Missing evidence remains unknown or unavailable. Subscriber online state has no verified session read model yet.
+Router reachability describes the latest collection result, not a new connection test.
+The wide header uses `LOG AGE` on Journal and `SYNC AGE` elsewhere. Panel status labels show each source's freshness.
+The DPDK chart uses actual aggregate counters and bounded service-owned history. Deploy the new monitor to populate the live cache.
+WAN plans, Profiles, remote sync, and unavailable native row counts retain their explicit planned/unknown labels.
 
-Checks for this slice: 516 tests pass, six manual tests remain ignored, and Clippy passes with warnings denied.
-The existing frame exporter produced 63 synthetic-data terminal frames across seven routes, three themes, and three sizes.
-An isolated pseudo-terminal smoke check passed navigation, theme switching, resize, and normal terminal cleanup.
-These checks establish the first slice only. Full screenshot parity and real-terminal visual acceptance remain pending.
+Checks: 541 tests pass, zero fail, seven manual tests are ignored. All-target Clippy, formatting, and the build pass.
+The final exporter covers 63 frames: seven routes, three themes, and 80x24, 120x40, and 160x48 viewports.
+Real terminal captures use isolated synthetic sources. Writable Settings images use actual Ratatui fixture frames.
+See the [capture index](captures/README.md) for evidence, reproduction steps, and limits.
+The terminal composition follows the concepts. Font metrics, cell borders, and evidence-dependent labels prevent pixel identity.
+Production deployment and a privileged Settings terminal session remain separate operational checks.
 
 ## Shared shell
 
@@ -293,7 +295,7 @@ Keep credentials out of both the table and the detail panel.
 An `OFF` source describes configuration. It must not count as a failed router read.
 
 The approved visual actions are Expand details, View subscribers, Open Settings, and Copy endpoint.
-Connection management uses the Settings workflow. Runtime action wiring remains future implementation work.
+Connection management uses the implemented Settings workflow. Navigation actions preserve the current draft.
 This screen does not add routing, assignment, or profile writes.
 Router health describes the latest collection evidence. Stale evidence must remain distinct from a failed read.
 
@@ -346,7 +348,7 @@ Show that issue only when applicable to the native target. Keep last-known diagn
 
 Clear a native issue only after a newer valid native result proves recovery.
 The sample native compatibility notice is separate from a native missing-parent alert.
-This screen has owner approval. Runtime implementation remains separate.
+This screen has owner approval. Its runtime review follows below.
 
 Keep these details from the approved image:
 
@@ -398,7 +400,7 @@ Freshness refers to the analytics snapshot. It does not prove that each worker i
 
 The screen is read-only. Navigation, copy, and refresh do not change worker count, queues, CPU assignments, or bridge state.
 Unknown or stale data must never show an active `CLEAR` or `LIVE` verdict.
-This screen has owner approval. Runtime implementation remains separate.
+This screen has owner approval. Its runtime review follows below.
 
 ### Workers runtime review
 
@@ -572,8 +574,19 @@ Recompute hit targets after resize. Preserve modal guards and prevent background
 
 The proposal adds stream lifecycle and last-received labels. These require receive-time and child-state evidence.
 A quiet stream is not automatically disconnected. Show startup, permission failure, stopped stream, and unknown states explicitly.
-The existing severity classifier uses message text. Structured level display requires verified parsing or a documented fallback.
+Severity comes only from an explicit message prefix. Unknown prefixes display UNKNOWN; this is not journal PRIORITY metadata.
 No Journal control restarts a service, deletes logs, or applies configuration.
+
+### Journal runtime review
+
+Actual terminal capture: [Journal](captures/journal-v1.png), with an isolated synthetic `journalctl` provider.
+The three cards, filters, table/details, selection strip, and stream status follow the approved composition.
+The selected ERROR entry and detail text refer to the same retained record. Copy keeps the original record unchanged.
+Receive time supplies LOG AGE. Started, waiting, connected, error, and stopped labels use child/receive evidence.
+A quiet stream stays connected. Retention expiry blocks copy until a new selection or resume action.
+Search uses cached lowercase records. Retention, the receive queue, and per-loop drain are bounded.
+Table and details have independent wheel/scrollbar input. Compact view uses a scrollable body.
+Global sync and discard dialogs now have clickable confirmation/cancel buttons through the existing gates.
 
 ## Review against the reference screenshots
 
@@ -597,8 +610,8 @@ No Journal control restarts a service, deletes logs, or applies configuration.
 | Settings image integrity | Both approved copies match their reviewed final proposals byte for byte; no regeneration or visual edit. |
 | Settings functionality | Requirements trace to the existing editor. Functional acceptance still requires real TUI verification; images do not prove runtime success. |
 | Mouse interaction | Owner requires clickable enabled controls, wheel scrolling, and clickable/draggable visible scrollbars across screens. Appearance remains unchanged. |
-| Sample values and current application state | Separated explicitly. The shared shell exists; approved screen-body parity remains pending. |
-| Journal proposal | Same shell and palette; cards, toolbar, table/details, selection strip, stream status, and footer reviewed against the generated image. Owner approval remains pending. |
+| Sample values and current application state | Separated explicitly. All seven bodies use backend evidence and retain unknown states. |
+| Journal proposal | Approved unchanged; implemented cards, toolbar, table/details, selection strip, stream status, and footer reviewed against the concept. |
 
 The image edit preserves the Dashboard composition. It does not prove pixel identity outside the title region.
 This review covers the design documentation and concept images. It does not establish implementation parity.
@@ -610,7 +623,7 @@ Exercise keyboard navigation, search, detail selection, freshness expiry, and al
 Check narrow layouts separately. Preserve access to data and actions without silently dropping a panel.
 The wide screenshots do not approve a narrow-screen composition. Present that adaptation before changing the visual baseline.
 
-This documentation-only update needs no application test.
-The shared-shell slice is implemented. Screen-body adaptation, DPDK traffic history, full mouse support, and real-terminal comparison remain pending.
+All seven bodies, DPDK history, mouse controls, and isolated terminal captures are implemented and checked.
+These checks do not claim pixel identity or production deployment.
 
-See the [visual review and transition assessment](REVIEW_AND_EVOLUTION.md) for the current gaps and acceptance gates.
+See the [visual review and transition assessment](REVIEW_AND_EVOLUTION.md) for results and remaining deployment limits.
