@@ -8,6 +8,137 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T13:46:29+08:00 (Asia/Shanghai) — Journal proposal and transition review
+
+- Goal: Update visual documentation, compare exact mockups, propose Journal, and assess terminal evolution.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed in this task: root README link, visual contract, new `REVIEW_AND_EVOLUTION.md`, `JOURNAL_PROMPT.md`, Journal PNG, hashes, Home, this handoff, and session note.
+- Journal state: proposal only. No owner approval has been recorded.
+- Review: all seven canonical approved views inspected; new Journal reviewed against the shared shell and its own screenshot.
+- Feasibility: current Ratatui supports the requested composition. Reuse current workflows; add missing read models, focus, forms, and complete mouse controls.
+- Checks: fifteen PNG hashes/dimensions pass; fourteen prior hashes unchanged; local design links and whitespace pass. Manual prose review followed the STE heuristic.
+- Runtime status: shared shell implemented; screen bodies, DPDK chart/history, full mouse, and actual screenshot parity remain pending.
+- Journal needs field parsing and stream lifecycle/receive evidence. Preserve bounded retention, paused selection, minimum-level filters, OSC 52 fallback, and terminal selection.
+- Next action: review Journal proposal, then implement approved bodies under `docs/design/tui/REVIEW_AND_EVOLUTION.md` acceptance steps.
+- No application code, production config, service, commit, or push changed. Preserve earlier uncommitted work.
+
+Session: [[2026-11-09-journal-design-and-tui-evolution]].
+
+## 2026-11-09T13:29:01+08:00 (Asia/Shanghai) — First TUI shared-shell slice
+
+- Goal: Begin the approved web-style TUI with the shared shell. First-slice checks pass.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Code: `src/tui/app.rs`, `mod.rs`, new `shell.rs`, and new `operations.rs`.
+- Docs: Operations, visual-contract implementation status, first-slice plan, Home, session note, and this handoff.
+- Preserve all earlier uncommitted design assets and documentation.
+- Behavior: Dashboard default; seven key/click routes; wide sidebar; local theme; cached status bodies; modal/input guards; resize target invalidation.
+- Checks: 516 tests pass, zero fail, six manual ignored; all-target Clippy with warnings denied, debug build, formatting, whitespace, and fourteen image hashes pass.
+- Export: 63 synthetic-data terminal frames. Isolated pseudo-terminal navigation/theme/resize/quit passes with terminal cleanup and no panic.
+- Evidence: `/home/pi/.local/state/lqosync3/tui-shell-review-20261109`; full-suite and Clippy logs under `/tmp/lqosync3-shell-*.log`.
+- Unfinished: approved screen bodies, DPDK history and source handling, subscriber online evidence, full mouse controls and scrollbar dragging, Journal design, compact visual review, and actual screenshot comparison.
+- Next action: implement Dashboard body from its approved DPDK mockup while preserving source freshness and missing-data semantics.
+- No commit, push, install, production configuration write, or service restart occurred in this slice.
+
+Session: [[2026-11-09-tui-shell-implementation]].
+
+## 2026-11-09T10:52:22+08:00 (Asia/Shanghai) — Mouse interaction requirements
+
+- Goal: Document mouse clicks across all screens, wheel support, and interactive scrollbars.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed files in this task: visual contract, session note, and this handoff. Preserve earlier uncommitted design work.
+- Owner requirement: every enabled action supports clicks; overflowing panels support wheel input; visible scrollbars support track clicks and thumb drags.
+- Scope includes Settings, router creation, typed editing, choices, toggles, preview/apply, and dialogs.
+- Existing foundation: crossterm capture and partial mouse handling. Full interaction support is a future implementation task.
+- Integrity: mouse input uses the same action gates as keyboard input. Dialogs block click-through. Resize invalidates stale targets.
+- Appearance: approved screenshots remain unchanged. Interaction requirements supplement the visual baseline.
+- Checks: all fourteen image hashes unchanged; local design links and whitespace pass. No application tests apply to this documentation task.
+- Next action: use the mouse contract during implementation and prove clicks, wheel, scrollbar drag, and keyboard parity in real terminals.
+- No application code, production configuration, shaping input, or service changed.
+
+Session: [[2026-11-09-tui-approved-mockups]].
+
+## 2026-11-09T10:43:59+08:00 (Asia/Shanghai) — Settings approved and documented
+
+- Goal: Record approval of both Settings views and review the visual contract against the exact screenshots.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Owner approvals: Dashboard, Subscribers, Routers, LibreQoS, Workers, and Settings (Add Router and Edit Values / Review Changes).
+- Canonical Settings references: `settings-add-router-approved-v1.png` and `settings-values-approved-v1.png` under `docs/design/tui/mockups/`.
+- Review: group/list/form placement, fields, toggles, masks, draft actions, loaded/draft values, units, diff, preview/apply gates, status strips, and footer match.
+- Image integrity: both approved Settings assets match the reviewed final proposals byte for byte. No generation or image edit occurred.
+- Changes: visual contract, approval metadata in prompt records, canonical image copies, hashes, README, session note, and this handoff.
+- Checks: fourteen PNGs decode at 2172 by 724 pixels; all twelve prior hashes unchanged; approved copies and local design links pass; whitespace passes.
+- Functional requirements remain: router add/edit/remove, typed values, exact-draft preview, explicit confirmation, backup/save, reload, and service-result verification.
+- Unfinished: new-layout implementation, functional end-to-end checks, and real-terminal screenshot comparison. This approval does not establish runtime acceptance.
+- Next action: use `docs/design/tui/README.md` and its approved images as the implementation baseline when implementation is requested.
+- Preserve previous uncommitted design work. This task changed no application code, production configuration, shaping input, or service.
+
+Session: [[2026-11-09-tui-approved-mockups]].
+
+## 2026-11-09T10:34:18+08:00 (Asia/Shanghai) — Workers approved; functional Settings proposals
+
+- Goal: Record Workers approval, check its screenshot contract, and propose Settings with real router and value workflows.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Owner approvals: Dashboard, Subscribers, Routers, LibreQoS, and Workers. Preserve the approved visual compositions.
+- Workers integrity: `workers-approved-v1.png` matches the reviewed proposal byte for byte.
+- Settings: two proposals, Add Router and Edit Values / Review Changes. Current canonical proposal paths are in the visual contract.
+- Functional requirement: draft -> validate/preview -> review/confirm -> backup/save -> reload/verify. Do not bypass existing editor controls.
+- Source review: add-router drafts, pending secrets, typed metadata, validation, preview, apply, conflicts, and service verification already exist.
+- Changes: documentation, prompt records, images, and hashes only. Preserve earlier uncommitted design work.
+- Checks: all eight prior image hashes unchanged; approved Workers copy identical; twelve valid PNGs at 2172 by 724; local links and source references pass; whitespace passes.
+- Unfinished: Settings visual approval, new-layout implementation, functional end-to-end checks, and real-terminal comparison.
+- Next: review the two Settings proposals. A mockup is not evidence of a successful router add or config apply.
+- No application code, production configuration, shaping input, or service changed in this task.
+
+Session: [[2026-11-09-tui-approved-mockups]].
+
+## 2026-11-09T10:25:56+08:00 (Asia/Shanghai) — LibreQoS approved; Workers proposal
+
+- Goal: Record LibreQoS approval, compare its contract with the screenshot, and provide the Workers proposal.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Owner approvals: Dashboard, Subscribers, Routers, and LibreQoS. Preserve the exact approved visual compositions.
+- Changed files: visual contract, mockup assets and hashes, prompt records, root README, session note, and this handoff.
+- LibreQoS review: actions, notice, sync cards, source tabs, preview columns, selection, page controls, Data status, and footer match.
+- Image integrity: `libreqos-approved-v1.png` is identical to the reviewed `libreqos-proposal-v1.png`.
+- Workers: proposal only. Summary cards, worker table, selected details, pressure panel, and snapshot status. Read-only.
+- Checks: eight PNGs decode at 2172 by 724 pixels. All six prior hashes are unchanged. Local design links and whitespace checks pass. No application tests apply.
+- Unfinished: Workers approval, runtime implementation, traffic history, and real-terminal visual comparison.
+- Next action: review `docs/design/tui/mockups/workers-proposal-v1.png`. Use the visual contract for future implementation.
+- Preserve prior uncommitted design work. No application code, production input, or service changed.
+
+Session: [[2026-11-09-tui-approved-mockups]].
+
+## 2026-11-09T10:20:36+08:00 (Asia/Shanghai) — Routers approved; LibreQoS proposal
+
+- Goal: Record Routers approval, check the contract against its screenshot, and provide the LibreQoS screen proposal.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Owner approvals: Dashboard, Subscribers, and Routers. Keep the exact approved visual compositions.
+- Changed files: visual contract, prompt record, mockup assets and hashes, root README, session note, and this handoff.
+- Routers review: cards, filters, table columns, selection, detail groups, Data status, and footer match the approved image.
+- Image integrity: `routers-approved-v1.png` matches the reviewed `routers-proposal-v1.png` byte for byte.
+- LibreQoS: proposal only. Sync cards, native compatibility notice, remote status, and paged read-only source preview.
+- Checks: six PNGs decode at 2172 by 724 pixels. Prior hashes are unchanged. Local design links and whitespace checks pass. No application tests apply.
+- Unfinished: LibreQoS approval, runtime implementation, traffic history, and real-terminal visual comparison.
+- Next action: review `docs/design/tui/mockups/libreqos-proposal-v1.png`. Use the visual contract for future implementation.
+- Existing uncommitted design documentation remains intact. No application code, production input, or service changed.
+
+Session: [[2026-11-09-tui-approved-mockups]].
+
+## 2026-11-09T10:14:38+08:00 (Asia/Shanghai) — Approved TUI mockups
+
+- Goal: Update the Dashboard design and documentation, compare with approved screenshots, and provide a Routers proposal.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Owner approval: Dashboard and Subscribers composition. Dashboard chart title/source: `LibreQoS DPDK Traffic`.
+- Changes: `docs/design/tui/` contract and PNG assets, README link, earlier cosmetics-spec pointer, Home, and session note.
+- Review: Dashboard v2 retains the approved composition with the selected title. Subscribers PNG remains the original approved asset.
+- Status: design documentation only. Routers remains a proposal. Runtime application code and service state did not change.
+- Checks: four valid PNGs, each 2172 by 724 pixels. Original approved assets match byte for byte. Local contract links and whitespace checks pass.
+- Artifact hashes: `docs/design/tui/SHA256SUMS`. The generation record contains the final prompts. No application tests apply.
+- Unfinished: Router design approval, runtime redesign, DPDK traffic collection/history, and real-terminal visual comparison.
+- Next action: review the Routers screenshot. Use `docs/design/tui/README.md` as the visual baseline for future implementation.
+- Preserve the earlier buffer-pressure deployment task below. This design task does not resolve its live deployment status.
+
+Session: [[2026-11-09-tui-approved-mockups]].
+
 ## 2026-11-09T09:42:49+08:00 (Asia/Shanghai) — Buffer and ring pressure
 
 - Goal: Complete priority task 3, review, checks, commit, push, deployment, and restart.

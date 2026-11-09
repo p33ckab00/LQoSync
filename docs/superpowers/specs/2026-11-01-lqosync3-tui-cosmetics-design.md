@@ -6,6 +6,9 @@ Scope: All items A1–A5 and B6–B10 from the operator request.
 
 Reference baseline: `cf2c959`, branch `lqosync3`.
 
+New visual baseline: [approved screenshot contract](../../design/tui/README.md), dated 2026-11-09.
+That contract defines the planned redesign. This document records the earlier implemented appearance and behavior constraints.
+
 ## 1. Goal and limits
 
 Give all five tabs a consistent appearance inspired by btop.

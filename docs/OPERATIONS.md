@@ -446,9 +446,14 @@ The tool writes `network.json` before `ShapedDevices.csv`. Each new file gets th
 | No change after a router change | The output hash did not change | Run `once` in `shadow` mode and `diff`. Make sure that the router data changed. |
 ## Worker utilization
 
-Open `lqosync3 tui` and press `6` for Workers.
+Open `lqosync3 tui` and press `5` for Workers.
 Use Up, Down, Page Up, Page Down, Home, and End to scroll.
-Tabs 1 through 5 keep their previous functions.
+The redesign starts on Dashboard. The navigation keys are 1 Dashboard, 2 Subscribers, 3 Routers,
+4 LibreQoS, 5 Workers, 6 Settings, and 7 Journal.
+Wide terminals use a sidebar. Compact terminals retain a header, navigation strip, body, and footer.
+Parent-node inspection opens Network detail from Subscribers. Press Escape to return.
+Press `T` or click the wide header theme control to change the current view theme.
+Persist the default theme through Settings. The header control does not write the configuration.
 
 The table shows the DPDK worker ID, busy percentage, idle percentage, and mean backlog in packets.
 Busy excludes empty receive polling. Idle is the complement of busy.

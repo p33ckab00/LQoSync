@@ -6,9 +6,11 @@ pub mod data;
 pub mod devices;
 pub mod journal;
 pub mod network;
+mod operations;
 pub mod osc52;
 pub mod proc;
 pub mod settings;
+mod shell;
 pub mod theme;
 pub mod workers;
 

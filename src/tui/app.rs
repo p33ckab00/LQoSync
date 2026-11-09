@@ -18,7 +18,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph};
 use std::sync::Arc;
 
-/// The tabs, in the order of the spec.
+/// Route identities. ALL defines the primary navigation order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
     Devices,
@@ -27,26 +27,35 @@ pub enum Tab {
     Journal,
     Dashboard,
     Workers,
+    Routers,
+    LibreQoS,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 6] = [
+    pub const ALL: [Tab; 7] = [
+        Tab::Dashboard,
         Tab::Devices,
-        Tab::Network,
+        Tab::Routers,
+        Tab::LibreQoS,
+        Tab::Workers,
         Tab::Settings,
         Tab::Journal,
-        Tab::Dashboard,
-        Tab::Workers,
     ];
+
+    fn navigation_index(self) -> usize {
+        Self::ALL.iter().position(|&t| t == self).unwrap_or(1)
+    }
 
     pub fn title(self) -> &'static str {
         match self {
-            Tab::Devices => "ShapedDevices",
+            Tab::Devices => "Subscribers",
             Tab::Network => "Network",
             Tab::Settings => "Settings",
             Tab::Journal => "Journal",
             Tab::Dashboard => "Dashboard",
             Tab::Workers => "Workers",
+            Tab::Routers => "Routers",
+            Tab::LibreQoS => "LibreQoS",
         }
     }
 }
@@ -91,8 +100,11 @@ pub struct App {
     pub read_only: bool,
     pub message: Option<String>,
     pub modal: Option<Modal>,
-    /// The tab title rectangles of the last draw, for the mouse.
+    /// The navigation rectangles of the last draw, for the mouse.
     pub tab_rects: Vec<Rect>,
+    theme_rect: Rect,
+    routers: super::operations::StatusView,
+    libreqos: super::operations::StatusView,
     pub data: Data,
     pub devices: DevicesView,
     pub network: NetworkView,
@@ -118,11 +130,14 @@ impl App {
         let settings = SettingsView::new(std::path::PathBuf::new(), &config_text, read_only);
         App {
             palette: Palette::new(crate::config::Theme::Dark),
-            tab: Tab::Devices,
+            tab: Tab::Dashboard,
             read_only,
             message: None,
             modal: None,
             tab_rects: Vec::new(),
+            theme_rect: Rect::default(),
+            routers: Default::default(),
+            libreqos: Default::default(),
             data: Data {
                 config_text: Arc::new(config_text),
                 ..Data::default()
@@ -236,11 +251,20 @@ impl App {
             return self.tab_key(k);
         }
         match k.code {
-            KeyCode::Char(c @ '1'..='6') => self.tab = Tab::ALL[c as usize - '1' as usize],
-            KeyCode::Tab => self.tab = Tab::ALL[(self.tab as usize + 1) % Tab::ALL.len()],
+            KeyCode::Char(c @ '1'..='7') => self.tab = Tab::ALL[c as usize - '1' as usize],
+            KeyCode::Tab => self.tab = Tab::ALL[(self.tab.navigation_index() + 1) % Tab::ALL.len()],
             KeyCode::BackTab => {
-                self.tab = Tab::ALL[(self.tab as usize + Tab::ALL.len() - 1) % Tab::ALL.len()]
+                self.tab =
+                    Tab::ALL[(self.tab.navigation_index() + Tab::ALL.len() - 1) % Tab::ALL.len()]
             }
+            KeyCode::Char('T') => {
+                self.palette = Palette::new(match self.palette.theme {
+                    crate::config::Theme::Dark => crate::config::Theme::Light,
+                    crate::config::Theme::Light => crate::config::Theme::Mono,
+                    crate::config::Theme::Mono => crate::config::Theme::Dark,
+                });
+            }
+            KeyCode::Esc if self.tab == Tab::Network => self.tab = Tab::Devices,
             KeyCode::Char('S') => {
                 if self.blocked("sync now") {
                     return Action::None;
@@ -281,6 +305,12 @@ impl App {
         }
         if self.tab == Tab::Network {
             self.network.on_key(k, &self.data);
+        }
+        if self.tab == Tab::Routers {
+            self.routers.on_key(k.code);
+        }
+        if self.tab == Tab::LibreQoS {
+            self.libreqos.on_key(k.code);
         }
         if self.tab == Tab::Workers {
             self.workers.on_key(k, &self.data);
@@ -359,13 +389,34 @@ impl App {
     }
 
     pub fn on_mouse(&mut self, m: MouseEvent) -> Action {
+        if self.modal.is_some()
+            || self.select_mode
+            || self.capturing_search()
+            || (self.tab == Tab::Settings && self.settings.capturing())
+        {
+            return Action::None;
+        }
+        if m.kind == MouseEventKind::Down(MouseButton::Left)
+            && self.theme_rect.contains((m.column, m.row).into())
+        {
+            return self.on_key(KeyEvent::new(KeyCode::Char('T'), KeyModifiers::NONE));
+        }
+        if self.tab == Tab::Routers {
+            self.routers.on_mouse(m);
+        }
+        if self.tab == Tab::LibreQoS {
+            self.libreqos.on_mouse(m);
+        }
         if let MouseEventKind::Down(MouseButton::Left) = m.kind
             && let Some(i) = self
                 .tab_rects
                 .iter()
                 .position(|r| r.contains((m.column, m.row).into()))
         {
-            self.tab = Tab::ALL[i];
+            return self.on_key(KeyEvent::new(
+                KeyCode::Char(char::from(b'1' + i as u8)),
+                KeyModifiers::NONE,
+            ));
         } else if self.tab == Tab::Journal {
             self.journal.on_mouse(m);
         }
@@ -374,6 +425,9 @@ impl App {
 
     pub fn draw(&mut self, f: &mut Frame) {
         let area = f.area();
+        self.theme_rect = Rect::default();
+        self.routers.clear_area();
+        self.libreqos.clear_area();
         f.render_widget(Block::default().style(self.palette.canvas()), area);
         if area.width < 80 || area.height < 24 {
             self.tab_rects.clear();
@@ -383,7 +437,13 @@ impl App {
             return;
         }
         let keys = self.key_hint();
-        let hint_lines = wrap_hint(&keys, area.width);
+        let wide = super::shell::enabled(area);
+        let content_width = if wide {
+            area.width - super::shell::sidebar_width(area.width)
+        } else {
+            area.width
+        };
+        let hint_lines = wrap_hint(&keys, content_width);
         let settings_msg = (self.tab == Tab::Settings)
             .then_some(self.settings.message.as_ref())
             .flatten();
@@ -392,30 +452,50 @@ impl App {
             .as_ref()
             .or(settings_msg)
             .or(self.config_error.as_ref())
-            .or(self.data.errors.first());
+            .or(self.data.errors.first())
+            .cloned();
         let message_role = if self.message.is_some() || settings_msg.is_some() {
             Role::Base
         } else {
             Role::Error
         };
-        let head = self.header_lines(area.width);
-        let [header, tabs, main, msg_area, footer] = Layout::vertical([
-            Constraint::Length(head.len() as u16),
-            Constraint::Length(1),
+        let content = if wide {
+            let shell = super::shell::draw(f, area, self);
+            self.tab_rects = shell.navigation;
+            self.theme_rect = shell.theme;
+            shell.content
+        } else {
+            let head = self.header_lines(area.width);
+            let [header, tabs, content] = Layout::vertical([
+                Constraint::Length(head.len() as u16),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .areas(area);
+            f.render_widget(Paragraph::new(head), header);
+            self.draw_tabs(f, tabs);
+            content
+        };
+        let [main, msg_area, footer] = Layout::vertical([
             Constraint::Min(0),
             Constraint::Length(u16::from(message.is_some())),
             Constraint::Length(hint_lines.len() as u16),
         ])
-        .areas(area);
+        .areas(content);
         if let Some(m) = message {
             f.render_widget(
-                Paragraph::new(m.as_str()).style(self.palette.role(message_role)),
+                Paragraph::new(m).style(self.palette.role(message_role)),
                 msg_area,
             );
         }
-        f.render_widget(Paragraph::new(head), header);
-        self.draw_tabs(f, tabs);
         match self.tab {
+            Tab::Routers => self
+                .routers
+                .draw(f, main, &self.data, self.now, true, &self.palette),
+            Tab::LibreQoS => {
+                self.libreqos
+                    .draw(f, main, &self.data, self.now, false, &self.palette)
+            }
             Tab::Devices => self.devices.draw(f, main, &self.data, &self.palette),
             Tab::Network => self.network.draw(f, main, &self.data, &self.palette),
             Tab::Journal => self.journal.draw(f, main, &self.palette),
@@ -470,14 +550,15 @@ impl App {
         }
         match self.tab {
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] parent node  [1-6] tabs  [S] sync  [R] reload",
+            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] parent node  [1-7] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Network => "[q] quit  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-6] tabs",
+            Tab::Network => "[q] quit  [Esc] subscribers  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-7] tabs",
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Journal => "[q] quit  [l] level  [/] search  [f] follow  [y] copy  [s] select mode  [Shift+arrows] select",
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
-            Tab::Dashboard => "[q] quit  [S] sync  [R] reload  [1-6/Tab] tabs",
-            Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-6/Tab] tabs",
+            Tab::Routers | Tab::LibreQoS => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [1-7] pages  [T] theme  [S] sync  [R] reload",
+            Tab::Dashboard => "[q] quit  [S] sync  [R] reload  [1-7/Tab] tabs",
+            Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-7/Tab] tabs",
         }.into()
     }
 
@@ -561,34 +642,29 @@ impl App {
         }
     }
 
-    /// The tabs as btop++ box titles on one line: `─┐1ShapedDevices┌─┐2Network┌─`.
-    /// The titles are drawn as spans, so the stored rectangles match the screen.
+    /// Compact navigation keeps all seven routes visible at the minimum width.
     fn draw_tabs(&mut self, f: &mut Frame, area: Rect) {
         self.tab_rects.clear();
-        let rule = self.palette.role(Role::Secondary);
-        let mut spans = vec![Span::styled("─", rule)];
-        let mut x = area.x.saturating_add(1);
-        for (i, t) in Tab::ALL.into_iter().enumerate() {
-            let mut title = self.palette.title(t.title(), Some(i as u8 + 1));
-            title.spans[0].style = rule;
-            title.spans[3].style = rule;
-            title.spans[2].style = if t == self.tab {
+        let mut x = area.x;
+        for (i, tab) in Tab::ALL.into_iter().enumerate() {
+            let name = match tab {
+                Tab::Dashboard => "Dash",
+                Tab::Devices => "Subs",
+                _ => tab.title(),
+            };
+            let label = format!("{}{} ", i + 1, name);
+            let width = (label.len() as u16).min(area.right().saturating_sub(x));
+            let rect = Rect::new(x, area.y, width, 1);
+            self.tab_rects.push(rect);
+            let selected = self.tab == tab || (self.tab == Tab::Network && tab == Tab::Devices);
+            let style = if selected {
                 self.palette.selection()
             } else {
                 self.palette.role(Role::Secondary)
             };
-            let w = (title.width() as u16).min(area.right().saturating_sub(x));
-            self.tab_rects.push(Rect::new(x, area.y, w, 1));
-            x = x.saturating_add(w + 1);
-            spans.extend(title.spans);
-            spans.push(Span::styled("─", rule));
+            f.render_widget(Paragraph::new(label).style(style), rect);
+            x += width;
         }
-        let used = Line::from(spans.clone()).width() as u16;
-        spans.push(Span::styled(
-            "─".repeat(area.width.saturating_sub(used) as usize),
-            rule,
-        ));
-        f.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 }
 
@@ -658,6 +734,121 @@ mod tests {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
     }
 
+    #[test]
+    fn approved_shell_starts_on_dashboard_and_has_seven_routes() {
+        let mut a = app(false);
+        assert_eq!(a.tab.title(), "Dashboard");
+        for (key_char, label) in [
+            ('1', "Dashboard"),
+            ('2', "Subscribers"),
+            ('3', "Routers"),
+            ('4', "LibreQoS"),
+            ('5', "Workers"),
+            ('6', "Settings"),
+            ('7', "Journal"),
+        ] {
+            a.on_key(key(KeyCode::Char(key_char)));
+            assert_eq!(a.tab.title(), label);
+        }
+        let text = draw(&mut a, 200, 40);
+        for label in [
+            "TERMINAL CONSOLE",
+            "OPERATIONS",
+            "MANAGEMENT",
+            "Profiles",
+            "planned",
+            "WAN plans",
+        ] {
+            assert!(text.contains(label), "missing {label}: {text}");
+        }
+    }
+
+    #[test]
+    fn wide_header_labels_its_local_time_offset_and_unknown_startup_clock() {
+        let mut a = app(true);
+        assert!(draw(&mut a, 200, 40).contains("time unknown"));
+        a.on_tick(1793505614);
+        let text = draw(&mut a, 200, 40);
+        assert!(
+            regex::Regex::new(r"[0-9]{2}:[0-9]{2} [+-][0-9]{2}:[0-9]{2}")
+                .unwrap()
+                .is_match(text.lines().next().unwrap())
+        );
+    }
+
+    #[test]
+    fn modal_blocks_navigation_clicks_and_old_targets_do_not_survive_resize() {
+        let mut a = app(false);
+        draw(&mut a, 200, 40);
+        let r = a.tab_rects[1];
+        a.modal = Some(Modal::ConfirmSync);
+        let old = a.tab;
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: r.x + 1,
+            row: r.y,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert_eq!(a.on_mouse(click), Action::None);
+        assert_eq!(a.tab, old);
+        a.modal = None;
+        draw(&mut a, 40, 10);
+        a.on_mouse(click);
+        assert_eq!(a.tab, old);
+    }
+
+    #[test]
+    fn sidebar_clicks_and_theme_use_the_current_draw_and_preserve_editor_input() {
+        let mut a = app(false);
+        for index in 0..7 {
+            draw(&mut a, 200, 40);
+            let r = a.tab_rects[index];
+            a.on_mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x + 1,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            });
+            assert_eq!(
+                a.tab.title(),
+                [
+                    "Dashboard",
+                    "Subscribers",
+                    "Routers",
+                    "LibreQoS",
+                    "Workers",
+                    "Settings",
+                    "Journal"
+                ][index]
+            );
+        }
+        let r = a.theme_rect;
+        a.on_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: r.x,
+            row: r.y,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(a.palette.theme, crate::config::Theme::Light);
+        a.tab = Tab::Settings;
+        a.settings.select("runtime.id_length");
+        a.on_key(key(KeyCode::Enter));
+        draw(&mut a, 200, 40);
+        let r = a.tab_rects[0];
+        a.on_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: r.x + 1,
+            row: r.y,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(a.tab, Tab::Settings);
+        assert!(a.settings.capturing());
+        a.on_key(key(KeyCode::Esc));
+        a.tab = Tab::Network;
+        a.on_key(key(KeyCode::Esc));
+        assert_eq!(a.tab, Tab::Devices);
+    }
+
     fn draw(a: &mut App, w: u16, h: u16) -> String {
         let mut t = Terminal::new(TestBackend::new(w, h)).unwrap();
         t.draw(|f| a.draw(f)).unwrap();
@@ -673,17 +864,20 @@ mod tests {
     }
 
     #[test]
-    fn keys_1_to_6_select_the_tabs_and_q_quits() {
+    fn keys_1_to_7_select_the_tabs_and_q_quits() {
         let mut a = app(false);
-        assert_eq!(a.tab, Tab::Devices);
-        for (c, t) in ['1', '2', '3', '4', '5', '6'].into_iter().zip(Tab::ALL) {
+        assert_eq!(a.tab, Tab::Dashboard);
+        for (c, t) in ['1', '2', '3', '4', '5', '6', '7']
+            .into_iter()
+            .zip(Tab::ALL)
+        {
             assert_eq!(a.on_key(key(KeyCode::Char(c))), Action::None);
             assert_eq!(a.tab, t);
         }
         a.on_key(key(KeyCode::Tab));
-        assert_eq!(a.tab, Tab::Devices);
+        assert_eq!(a.tab, Tab::Dashboard);
         a.on_key(key(KeyCode::BackTab));
-        assert_eq!(a.tab, Tab::Workers);
+        assert_eq!(a.tab, Tab::Journal);
         assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::Quit);
     }
 
@@ -719,7 +913,7 @@ mod tests {
     fn a_click_on_a_tab_title_selects_it() {
         let mut a = app(false);
         draw(&mut a, 120, 30);
-        let r = a.tab_rects[3];
+        let r = a.tab_rects[6];
         let click = MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
             column: r.x + 1,
@@ -731,7 +925,7 @@ mod tests {
     }
 
     #[test]
-    fn the_tab_strip_has_btop_titles_with_hotkeys() {
+    fn compact_navigation_keeps_all_routes_and_selected_parent_view() {
         let mut a = app(false);
         a.tab = Tab::Network;
         let mut t = Terminal::new(TestBackend::new(120, 30)).unwrap();
@@ -741,11 +935,17 @@ mod tests {
         let row: String = (0..120)
             .map(|x| buf[(x, r.y)].symbol().to_string())
             .collect();
-        for want in ["┐1ShapedDevices┌", "┐2Network┌", "┐5Dashboard┌"] {
+        for want in [
+            "1Dash",
+            "2Subs",
+            "3Routers",
+            "4LibreQoS",
+            "5Workers",
+            "6Settings",
+            "7Journal",
+        ] {
             assert!(row.contains(want), "{want}: {row}");
         }
-        assert_eq!(buf[(r.x, r.y)].symbol(), "┐");
-        assert_eq!(buf[(r.x + r.width - 1, r.y)].symbol(), "┌");
         // The active tab name takes the selection colours; the other names do not.
         assert_eq!(buf[(r.x + 2, r.y)].bg, a.palette.selection().bg.unwrap());
         let r0 = a.tab_rects[0];
@@ -794,18 +994,10 @@ mod tests {
         let mut a = app(true);
         let s = draw(&mut a, 160, 30);
         let first = s.lines().next().unwrap();
-        for want in [
-            "lqosync3",
-            "READ-ONLY (not root)",
-            "target unknown",
-            "next scan unknown",
-        ] {
-            assert!(first.contains(want), "{want}: {first}");
-        }
-        assert!(s.lines().nth(1).unwrap().contains("┐1ShapedDevices┌"));
-        // At 80 columns the header takes two lines and keeps each word.
+        assert!(first.contains("Dashboard") && first.contains("SYNC AGE unknown"));
+        assert!(s.contains("READ-ONLY") && s.contains("TERMINAL CONSOLE"));
         let s = draw(&mut a, 80, 24);
-        assert!(s.lines().nth(2).unwrap().contains("┐1ShapedDevices┌"));
+        assert!(s.lines().nth(2).unwrap().contains("1Dash"));
     }
 
     #[test]
@@ -883,6 +1075,7 @@ mod tests {
     #[test]
     fn enter_opens_the_parent_node_in_the_network_tab() {
         let mut a = app(false);
+        a.tab = Tab::Devices;
         let row = crate::model::CsvRow {
             circuit_id: "c1".into(),
             circuit_name: "alice".into(),
@@ -907,6 +1100,7 @@ mod tests {
     #[test]
     fn search_text_takes_the_global_keys() {
         let mut a = app(false);
+        a.tab = Tab::Devices;
         a.on_key(key(KeyCode::Char('/')));
         assert_eq!(a.on_key(key(KeyCode::Char('q'))), Action::None);
         a.on_key(key(KeyCode::Char('2')));
@@ -921,7 +1115,7 @@ mod tests {
                 .map(|l| JournalMsg::Line(l.to_string()))
                 .collect(),
         );
-        a.on_key(key(KeyCode::Char('4')));
+        a.on_key(key(KeyCode::Char('7')));
         a
     }
 
@@ -1020,7 +1214,7 @@ mod tests {
     #[test]
     fn settings_tab_shows_the_editor() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('3')));
+        a.on_key(key(KeyCode::Char('6')));
         let screen = draw(&mut a, 140, 30);
         assert!(screen.contains("Settings: 0 changed keys"), "{screen}");
         assert!(screen.contains("mode = \"apply\""), "{screen}");
@@ -1029,7 +1223,7 @@ mod tests {
     #[test]
     fn settings_messages_show_in_the_footer() {
         let mut a = app(true);
-        a.on_key(key(KeyCode::Char('3')));
+        a.on_key(key(KeyCode::Char('6')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         let s = draw(&mut a, 140, 30);
@@ -1050,7 +1244,7 @@ mod tests {
         assert_eq!(a.modal, Some(Modal::ConfirmSync));
         assert_eq!(a.on_key(key(KeyCode::Esc)), Action::None);
         assert!(a.modal.is_none());
-        a.on_key(key(KeyCode::Char('3')));
+        a.on_key(key(KeyCode::Char('6')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         a.on_key(key(KeyCode::Char('q')));
@@ -1064,7 +1258,7 @@ mod tests {
     #[test]
     fn quit_with_changes_asks_first() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('3')));
+        a.on_key(key(KeyCode::Char('6')));
         assert!(a.settings.select("safety.enabled"));
         a.on_key(key(KeyCode::Char(' ')));
         assert!(a.settings.dirty());
@@ -1079,7 +1273,7 @@ mod tests {
     #[test]
     fn an_open_field_takes_q_and_digits() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('3')));
+        a.on_key(key(KeyCode::Char('6')));
         assert!(a.settings.select("runtime.id_length"));
         a.on_key(key(KeyCode::Enter));
         assert!(a.settings.capturing());
@@ -1093,7 +1287,7 @@ mod tests {
     #[test]
     fn settings_preview_and_apply_become_actions() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('3')));
+        a.on_key(key(KeyCode::Char('6')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         assert!(matches!(
@@ -1157,7 +1351,7 @@ mod tests {
                 for tab in Tab::ALL {
                     a.tab = tab;
                     let text = draw(&mut a, w, h);
-                    assert!(text.contains("╭"), "{theme:?} {tab:?}: {text}");
+                    assert!(text.contains("[q]"), "{theme:?} {tab:?}: {text}");
                     assert_eq!(a.tab_rects.len(), Tab::ALL.len());
                     assert!(text.contains("[q]"));
                 }

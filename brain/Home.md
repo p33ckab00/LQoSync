@@ -11,6 +11,11 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-09-journal-design-and-tui-evolution]]
+
+- [[2026-11-09-tui-shell-implementation]]
+
+- [[2026-11-09-tui-approved-mockups]]
 - [[2026-11-09-buffer-pressure]]
 - [[2026-11-09-worker-utilization]]
 - [[2026-11-09-node-minimums]]

@@ -28,6 +28,7 @@ The default target is `auto`. The tool reads the installed LibreQoS version and 
 
 ## Documents
 
+- [TUI visual contract](docs/design/tui/README.md): approved Dashboard, Subscribers, Routers, LibreQoS, Workers, and Settings mockups, the Journal proposal, functional Settings requirements, and a transition assessment.
 - [Architecture](docs/ARCHITECTURE.md): parts, data flow, and performance rules.
 - [Configuration](docs/CONFIGURATION.md): the TOML reference and the map from `config.json`.
 - [Installation](docs/INSTALLATION.md): the installation from a release, and the manual procedure from source.
