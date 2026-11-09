@@ -26,6 +26,7 @@ def main():
         path = Path(folder)
         config = path / 'config.toml'
         config.write_text(f'''[runtime]
+mode = "apply"
 state_dir = "{path}"
 [libreqos]
 target = "v3_pair"
@@ -43,6 +44,10 @@ name = "EDGE-01"
 address = "192.0.2.101"
 username = "fixture"
 password_file = "{path}/fixture.password"
+[routers.pppoe]
+enabled = true
+[routers.dhcp]
+enabled = true
 ''')
         (path / 'fixture.password').write_text('synthetic-not-a-real-password')
         (path / 'fixture.password').chmod(0o600)

@@ -104,7 +104,7 @@ pub struct App {
     /// The navigation rectangles of the last draw, for the mouse.
     pub tab_rects: Vec<Rect>,
     theme_rect: Rect,
-    routers: super::operations::StatusView,
+    routers: super::routers::RoutersView,
     libreqos: super::operations::StatusView,
     pub data: Data,
     pub devices: DevicesView,
@@ -171,6 +171,7 @@ impl App {
         self.now = now;
         self.devices.on_data(&self.data);
         self.devices.approved_data(&self.data);
+        self.routers.on_data(&self.data);
         self.settings.set_snapshot(self.data.snapshot.clone());
         self.settings
             .on_status(self.data.status.as_deref(), now, self.action_timeout);
@@ -256,8 +257,12 @@ impl App {
         }
         match k.code {
             KeyCode::Char(c @ '1'..='7') => self.tab = Tab::ALL[c as usize - '1' as usize],
-            KeyCode::Tab if self.tab == Tab::Devices => return self.tab_key(k),
-            KeyCode::BackTab if self.tab == Tab::Devices => return self.tab_key(k),
+            KeyCode::Tab if matches!(self.tab, Tab::Devices | Tab::Routers) => {
+                return self.tab_key(k);
+            }
+            KeyCode::BackTab if matches!(self.tab, Tab::Devices | Tab::Routers) => {
+                return self.tab_key(k);
+            }
             KeyCode::Tab => self.tab = Tab::ALL[(self.tab.navigation_index() + 1) % Tab::ALL.len()],
             KeyCode::BackTab => {
                 self.tab =
@@ -292,6 +297,23 @@ impl App {
         (self.tab == Tab::Devices && self.devices.editing)
             || (self.tab == Tab::Network && self.network.editing)
             || (self.tab == Tab::Journal && self.journal.editing)
+            || (self.tab == Tab::Routers && self.routers.editing)
+    }
+
+    fn router_action(&mut self, action: super::routers::RouterAction) -> Action {
+        match action {
+            super::routers::RouterAction::Subscribers(name) => {
+                self.devices.filter_router(name, &self.data);
+                self.tab = Tab::Devices;
+            }
+            super::routers::RouterAction::Settings(i) => {
+                self.settings.select(&format!("routers.{i}.name"));
+                self.tab = Tab::Settings;
+            }
+            super::routers::RouterAction::Copy(text) => return self.copy_text(text),
+            _ => {}
+        }
+        Action::None
     }
 
     fn settings_key(&mut self, k: KeyEvent) -> Action {
@@ -321,7 +343,8 @@ impl App {
             self.overview.key(k.code, &self.data);
         }
         if self.tab == Tab::Routers {
-            self.routers.on_key(k.code);
+            let action = self.routers.on_key(k);
+            return self.router_action(action);
         }
         if self.tab == Tab::LibreQoS {
             self.libreqos.on_key(k.code);
@@ -414,6 +437,10 @@ impl App {
             return Action::None;
         }
         if self.capturing_search() {
+            if self.tab == Tab::Routers {
+                let action = self.routers.on_mouse(m);
+                return self.router_action(action);
+            }
             if self.tab == Tab::Devices {
                 match self.devices.approved_mouse(m, &self.data) {
                     super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
@@ -445,7 +472,11 @@ impl App {
             return self.on_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
         }
         if self.tab == Tab::Routers {
-            self.routers.on_mouse(m);
+            let action = self.routers.on_mouse(m);
+            let action = self.router_action(action);
+            if action != Action::None {
+                return action;
+            }
         }
         if self.tab == Tab::LibreQoS {
             self.libreqos.on_mouse(m);
@@ -536,7 +567,7 @@ impl App {
         match self.tab {
             Tab::Routers => self
                 .routers
-                .draw(f, main, &self.data, self.now, true, &self.palette),
+                .draw(f, main, &self.data, self.now, &self.palette),
             Tab::LibreQoS => {
                 self.libreqos
                     .draw(f, main, &self.data, self.now, false, &self.palette)
@@ -606,7 +637,9 @@ impl App {
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Journal => "[q] quit  [l] level  [/] search  [f] follow  [y] copy  [s] select mode  [Shift+arrows] select",
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
-            Tab::Routers | Tab::LibreQoS => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [1-7] pages  [T] theme  [S] sync  [R] reload",
+            Tab::Routers if self.routers.editing => "[Enter] done  [Esc] clear  type to search",
+            Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
+            Tab::LibreQoS => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [1-7] pages  [T] theme  [S] sync  [R] reload",
             Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
             Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-7/Tab] tabs",
         }.into()
@@ -782,6 +815,24 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn routers_approved_body_has_collection_cards_and_details() {
+        let mut a = app(true);
+        a.tab = Tab::Routers;
+        let text = draw(&mut a, 200, 48);
+        for label in [
+            "Configured",
+            "Reachable",
+            "Failed reads",
+            "Router list",
+            "Router details",
+            "Data status",
+        ] {
+            assert!(text.contains(label), "missing {label}");
+        }
+        assert!(text.contains("unknown"));
     }
 
     #[test]

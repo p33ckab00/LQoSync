@@ -38,6 +38,11 @@ pub enum Input {
     Copy(String),
 }
 impl DevicesView {
+    pub fn filter_router(&mut self, name: String, d: &Data) {
+        self.approved.router = Some(name);
+        self.cursor = 0;
+        self.rebuild(d);
+    }
     pub fn approved_data(&mut self, d: &Data) {
         if self
             .approved

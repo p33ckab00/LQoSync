@@ -42,3 +42,13 @@ Table and details have independent wheel and interactive scrollbars. Left/Right 
 Actual Zutty/Xvfb capture: `docs/design/tui/captures/subscribers-v1.png`, using synthetic data.
 Checks: 523 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, and build pass.
 Next: commit locally and continue Routers. No push or production changes.
+
+## Routers checkpoint
+
+Implemented configured/reachable/failed cards, filters, list/details, enabled-source flags, paging, and status.
+Config changes trigger parsing; collection changes update cached results. Selection survives refresh.
+Actions navigate to filtered Subscribers or the selected router Settings without modifying the draft.
+Copy returns only the endpoint, including correctly bracketed IPv6 addresses. It cannot include credentials.
+Table/detail scrollbars, wheel input, keyboard filters, and mouse controls share guarded paths.
+Checks: 525 tests pass, zero fail, six ignored; Clippy, formatting, whitespace, build, and actual capture review pass.
+Capture: `docs/design/tui/captures/routers-v1.png`. Production unchanged. Next: LibreQoS after local commit.

@@ -306,6 +306,17 @@ Keep these details from the approved image:
 - Router details at the right, grouped into identity, Enabled sources, Collected records, and Navigation.
 - Full-width Data status panel above the keyboard footer.
 
+### Routers runtime review
+
+Actual terminal capture: [Routers](captures/routers-v1.png), with isolated synthetic data.
+The cards, filters, list/details split, selection, source flags, paging, and status strip follow the approved composition.
+Configured endpoints and source flags come from the loaded config. Reachable and failed counts describe the latest collection.
+Config parsing occurs only when the config changes. Collection updates preserve selection and refresh cached result fields.
+Use `/` for search, `t` for state, `x` for Clear, Tab for focus, and arrows/PageUp/PageDown for selection.
+Use `d` for expanded details, `s` for router-filtered Subscribers, `e` for Settings, and `c` for the endpoint.
+Clicks use these same actions. Table and details have independent wheel and scrollbar controls; Left/Right exposes table columns.
+Copy includes the endpoint only. It does not include credentials or secret paths.
+
 ## LibreQoS
 
 ![Approved LibreQoS screen](mockups/libreqos-approved-v1.png)

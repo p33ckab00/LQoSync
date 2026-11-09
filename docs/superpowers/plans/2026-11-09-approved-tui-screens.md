@@ -13,7 +13,7 @@ Keep drawing free of I/O. Bound row work and history. Preserve missing/stale evi
 
 - [x] Dashboard: add failing rate/reset/gap and layout/input tests; extend `worker_util` actual counters/cache/history; add approved body and controls; capture and review; test/lint; local commit.
 - [x] Subscribers: approved cards/filters/table/details/status; source evidence; mouse and keyboard; review/test/capture; local commit.
-- [ ] Routers: approved cards/filters/table/details/status and navigation; review/test/capture; local commit.
+- [x] Routers: approved cards/filters/table/details/status and navigation; review/test/capture; local commit.
 - [ ] LibreQoS: approved target/compatibility/source previews with existing confirmation; review/test/capture; local commit.
 - [ ] Workers: approved utilization/detail/pressure/status with source semantics; review/test/capture; local commit.
 - [ ] Settings: approved router form and typed values/diff with existing draft/preview/apply/secret gates; review/test/capture; local commit.

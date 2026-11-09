@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T14:20:19+08:00 (Asia/Shanghai) — Routers checkpoint
+
+- Goal: complete all approved screens with review/tests/captures and local commits. Do not push.
+- Done locally: Dashboard `d9e0ffb`, Subscribers `72b09c6`; Routers now passes review and checks.
+- Router code: `src/tui/routers.rs`, app routing, and Subscriber router-filter navigation.
+- Checks: 525 tests pass, zero fail, six ignored; all-target Clippy, build, formatting, whitespace, and real terminal capture review pass.
+- Capture: `docs/design/tui/captures/routers-v1.png`, isolated synthetic data. Config parse only on config changes; visible rows only.
+- Router copy contains only the IPv4/hostname/bracketed IPv6 endpoint. Actions only navigate; they do not modify Settings drafts.
+- Next: commit Routers locally, then LibreQoS -> Workers -> Settings -> Journal.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex. Production unchanged.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T14:13:22+08:00 (Asia/Shanghai) — Subscribers checkpoint
 
 - Goal remains all approved screens, with review/tests/captures and local commits. Do not push.

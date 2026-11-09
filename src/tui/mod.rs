@@ -11,6 +11,7 @@ mod operations;
 pub mod osc52;
 mod overview;
 pub mod proc;
+mod routers;
 pub mod settings;
 mod shell;
 pub mod theme;
