@@ -69,7 +69,7 @@ enabled = true
             # Keep snapshots fresh while the terminal starts; all data stays in this directory.
             def snapshots():
                 now = int(time.time())
-                status = {'updated': now, 'target': 'v3_pair', 'mode': 'apply', 'reload': 'imported', 'files_changed': False, 'telegram': 'disabled', 'routers': [{'name': 'EDGE-01', 'state': 'online', 'rows': {'ppp': 684, 'dhcp': 312}, 'read_ms': 184}], 'report': {'alerts': [], 'counts': {}}}
+                status = {'updated': now, 'target': 'v3_pair', 'mode': 'apply', 'reload': 'imported by LibreQoS', 'files_changed': False, 'telegram': 'disabled', 'routers': [{'name': 'EDGE-01', 'state': 'online', 'rows': {'ppp': 684, 'dhcp': 312}, 'read_ms': 184}], 'report': {'alerts': [], 'counts': {}}}
                 (path / 'status.json').write_text(json.dumps(status))
                 points = [{'at': now-3600+i*2, 'down_mbps': 800+math.sin(i/10)*80, 'up_mbps': 95+math.sin(i/15)*12} for i in range(1801)]
                 report = {'version': 1, 'updated': now, 'stale': False, 'reason': None, 'workers': [{'queue_id': i, 'busy_ppm': 431000-i*70000, 'backlog_mean': 8-i} for i in range(4)], 'pressure': {'diagnostics': {'pool_total_mbufs': 1000, 'pool_free_mbufs': 840, 'ring_count': 2, 'ring_capacity': 200, 'ring_used': 25, 'rings_over_75': 0}, 'rx_nombuf_delta': 0, 'pool_drop_delta': 0}, 'traffic': points}

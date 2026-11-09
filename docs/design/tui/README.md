@@ -358,6 +358,18 @@ Keep these details from the approved image:
 - Blue selected row, page controls, and selected-circuit label below the table.
 - Full-width Data status panel above the keyboard footer.
 
+### LibreQoS runtime review
+
+Actual terminal capture: [LibreQoS](captures/libreqos-v1.png), with isolated synthetic data.
+The action row, compatibility notice, sync cards, source preview, selection, paging, and data-status strip follow the approved layout.
+`IMPORTED` requires the service result `imported by LibreQoS`. A file write or native watcher does not imply successful import.
+Unknown import timestamps remain unknown. The native probe never changes the active pair target.
+Native missing-parent notices retain circuit diagnostics after failed reads. Row counts remain unknown when the producer supplies no count.
+A newer ready native result with valid input and no parent alerts clears the notice.
+The native file preview uses the original loaded native JSON; the compatibility-tree tab is labeled separately.
+Use `p` for preview/back, `s` for guarded sync, Tab for source files, `i` for native issue details, and Left/Right for columns.
+Mouse actions use the same gates. The source panel and compact body have wheel and interactive scrollbar controls.
+
 ## Workers
 
 ![Approved Workers screen](mockups/workers-approved-v1.png)

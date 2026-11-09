@@ -52,3 +52,15 @@ Copy returns only the endpoint, including correctly bracketed IPv6 addresses. It
 Table/detail scrollbars, wheel input, keyboard filters, and mouse controls share guarded paths.
 Checks: 525 tests pass, zero fail, six ignored; Clippy, formatting, whitespace, build, and actual capture review pass.
 Capture: `docs/design/tui/captures/routers-v1.png`. Production unchanged. Next: LibreQoS after local commit.
+
+## LibreQoS checkpoint
+
+Implemented action row, compatibility notice, sync cards, source files, paging/selection, and data status.
+Only the service's verified pair-import result displays IMPORTED. Native file writing and watcher status remain separate.
+Native source preview retains the original loaded JSON. JSON formatting runs only when the corresponding Arc changes.
+Persistent parent diagnostics survive read errors and clear only after a newer valid ready result without those alerts.
+Sync key/click uses the existing read-only, confirmation, and result gates. Preview performs no write or network request.
+Compact layout keeps all panels on a scrollable body. Local timestamps include seconds and the UTC offset.
+Checks: 527 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, build, and real terminal capture review pass.
+Capture: `docs/design/tui/captures/libreqos-v1.png`. Removed the obsolete temporary operations view.
+Next: local commit, then Workers -> Settings -> Journal. Production unchanged.

@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T14:29:51+08:00 (Asia/Shanghai) — LibreQoS checkpoint
+
+- Owner task remains all approved screens with review, tests, captures, and local commits. Do not push.
+- Done: Dashboard `d9e0ffb`, Subscribers `72b09c6`, Routers `74a12c4`; LibreQoS now passes checks.
+- LibreQoS source: `src/tui/libreqos.rs`, native input retention in loader, app guarded sync routing, local timestamp formatter.
+- Removed the temporary `operations.rs`. New view formats JSON only on input changes and builds visible rows only.
+- Capture: `docs/design/tui/captures/libreqos-v1.png`, real Zutty with isolated synthetic data.
+- Checks: 527 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, build, and screenshot review pass.
+- Next: commit LibreQoS locally, then Workers -> Settings -> Journal. No production changes.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T14:20:19+08:00 (Asia/Shanghai) — Routers checkpoint
 
 - Goal: complete all approved screens with review/tests/captures and local commits. Do not push.

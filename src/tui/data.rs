@@ -38,6 +38,9 @@ pub struct Data {
     /// Circuit name to (source, router), from `state.json`.
     pub sources: Arc<HashMap<String, (String, String)>>,
     pub tree: Arc<Value>,
+    /// Original native input, before the compatibility-tree conversion.
+    pub native_input: Option<Arc<Value>>,
+    pub native_file: String,
     /// Parent node name to the row indexes.
     pub node_circuits: Arc<HashMap<String, Vec<u32>>>,
     pub config_text: Arc<String>,
@@ -246,7 +249,12 @@ impl Loader {
                     let v: Value = serde_json::from_str(&t)
                         .map_err(|e| errors.push(format!("{}: {e}", inputs[0].display())))
                         .ok()?;
-                    rows_from_libreqos_network(&v)
+                    let parsed = rows_from_libreqos_network(&v);
+                    if parsed.is_ok() {
+                        self.data.native_input = Some(Arc::new(v));
+                        self.data.native_file = self.cfg.libreqos.v3_network_file.clone();
+                    }
+                    parsed
                         .map_err(|e| errors.push(format!("{}: {e:#}", inputs[0].display())))
                         .ok()
                 })
@@ -272,6 +280,9 @@ impl Loader {
             };
             // A failed read keeps the old data and the old stamps, so the next refresh tries again.
             if let Some((rows, tree)) = parsed {
+                if !v3net {
+                    self.data.native_input = None;
+                }
                 self.input_stamps = stamps;
                 self.data.target = target;
                 let state: Option<State> = std::fs::read_to_string(&state_path)

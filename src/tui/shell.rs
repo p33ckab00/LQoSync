@@ -21,7 +21,7 @@ pub fn sidebar_width(width: u16) -> u16 {
     ((u32::from(width) * 14 / 100) as u16).clamp(22, 32)
 }
 
-fn local_clock(now: u64) -> String {
+pub(super) fn local_clock(now: u64) -> String {
     let Some(at) = (now > 0)
         .then(|| libc::time_t::try_from(now).ok())
         .flatten()
@@ -37,12 +37,13 @@ fn local_clock(now: u64) -> String {
     let time = unsafe { time.assume_init() };
     let offset = time.tm_gmtoff.unsigned_abs();
     format!(
-        "{:04}-{:02}-{:02} {:02}:{:02} {}{:02}:{:02}",
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}{:02}:{:02}",
         i64::from(time.tm_year) + 1900,
         time.tm_mon + 1,
         time.tm_mday,
         time.tm_hour,
         time.tm_min,
+        time.tm_sec,
         if time.tm_gmtoff < 0 { '-' } else { '+' },
         offset / 3600,
         offset % 3600 / 60

@@ -105,7 +105,7 @@ pub struct App {
     pub tab_rects: Vec<Rect>,
     theme_rect: Rect,
     routers: super::routers::RoutersView,
-    libreqos: super::operations::StatusView,
+    libreqos: super::libreqos::LibreView,
     pub data: Data,
     pub devices: DevicesView,
     pub network: NetworkView,
@@ -172,6 +172,7 @@ impl App {
         self.devices.on_data(&self.data);
         self.devices.approved_data(&self.data);
         self.routers.on_data(&self.data);
+        self.libreqos.on_data(&self.data);
         self.settings.set_snapshot(self.data.snapshot.clone());
         self.settings
             .on_status(self.data.status.as_deref(), now, self.action_timeout);
@@ -257,10 +258,10 @@ impl App {
         }
         match k.code {
             KeyCode::Char(c @ '1'..='7') => self.tab = Tab::ALL[c as usize - '1' as usize],
-            KeyCode::Tab if matches!(self.tab, Tab::Devices | Tab::Routers) => {
+            KeyCode::Tab if matches!(self.tab, Tab::Devices | Tab::Routers | Tab::LibreQoS) => {
                 return self.tab_key(k);
             }
-            KeyCode::BackTab if matches!(self.tab, Tab::Devices | Tab::Routers) => {
+            KeyCode::BackTab if matches!(self.tab, Tab::Devices | Tab::Routers | Tab::LibreQoS) => {
                 return self.tab_key(k);
             }
             KeyCode::Tab => self.tab = Tab::ALL[(self.tab.navigation_index() + 1) % Tab::ALL.len()],
@@ -346,8 +347,13 @@ impl App {
             let action = self.routers.on_key(k);
             return self.router_action(action);
         }
-        if self.tab == Tab::LibreQoS {
-            self.libreqos.on_key(k.code);
+        if self.tab == Tab::LibreQoS
+            && matches!(
+                self.libreqos.key(k, &self.data),
+                super::libreqos::LibreAction::Sync
+            )
+        {
+            return self.on_key(KeyEvent::new(KeyCode::Char('S'), KeyModifiers::NONE));
         }
         if self.tab == Tab::Workers {
             self.workers.on_key(k, &self.data);
@@ -478,8 +484,13 @@ impl App {
                 return action;
             }
         }
-        if self.tab == Tab::LibreQoS {
-            self.libreqos.on_mouse(m);
+        if self.tab == Tab::LibreQoS
+            && matches!(
+                self.libreqos.mouse(m, &self.data),
+                super::libreqos::LibreAction::Sync
+            )
+        {
+            return self.on_key(KeyEvent::new(KeyCode::Char('S'), KeyModifiers::NONE));
         }
         if let MouseEventKind::Down(MouseButton::Left) = m.kind
             && let Some(i) = self
@@ -568,10 +579,9 @@ impl App {
             Tab::Routers => self
                 .routers
                 .draw(f, main, &self.data, self.now, &self.palette),
-            Tab::LibreQoS => {
-                self.libreqos
-                    .draw(f, main, &self.data, self.now, false, &self.palette)
-            }
+            Tab::LibreQoS => self
+                .libreqos
+                .draw(f, main, &self.data, self.now, &self.palette),
             Tab::Devices => {
                 self.devices
                     .draw_approved(f, main, &self.data, self.now, &self.palette)
@@ -639,7 +649,7 @@ impl App {
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
             Tab::Routers if self.routers.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
-            Tab::LibreQoS => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [1-7] pages  [T] theme  [S] sync  [R] reload",
+            Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-7] pages",
             Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
             Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-7/Tab] tabs",
         }.into()
@@ -815,6 +825,37 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn libreqos_sync_click_keeps_read_only_and_confirmation_gates() {
+        let mut a = app(false);
+        a.tab = Tab::LibreQoS;
+        a.on_key(key(KeyCode::Char('s')));
+        assert_eq!(a.modal, Some(Modal::ConfirmSync));
+        assert_eq!(a.on_key(key(KeyCode::Char('n'))), Action::None);
+        a.read_only = true;
+        a.on_key(key(KeyCode::Char('s')));
+        assert!(a.modal.is_none());
+        assert!(a.message.as_deref().unwrap().contains("read-only"));
+    }
+
+    #[test]
+    fn libreqos_body_preserves_preview_and_guarded_sync_actions() {
+        let mut a = app(true);
+        a.tab = Tab::LibreQoS;
+        let text = draw(&mut a, 200, 48);
+        for label in [
+            "Shaping input",
+            "Native compatibility",
+            "Last sync",
+            "Remote sync",
+            "Source preview",
+            "Data status",
+        ] {
+            assert!(text.contains(label), "missing {label}");
+        }
+        assert!(text.contains("NOT CONFIGURED"));
     }
 
     #[test]
