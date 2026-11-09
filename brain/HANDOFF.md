@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T19:46:45+08:00 (Asia/Shanghai) — Cycle collection fix pushed; activation pending
+
+- Owner requested live PPPoE/Hotspot/DHCP collection and states; chose refresh only with the current sync cycle.
+- Code commit `39459a7` pushed. 552 tests pass, zero fail, seven ignored; fmt/Clippy/build/capture review pass. GitHub CI `42611316069` passed.
+- Clean artifact: `3.0.157+g39459a7` in `/home/pi/.local/state/lqosync3/collection-39459a7/`.
+- New cache `collection.json` comes from cycle reads. Optional local Hotspot inventory is read only for enabled sources; failure cannot block shaping.
+- Subscribers projects collected-only accounts separately from shaping. Ambiguous identity, failed reads, old cycle/process, and expiry cannot claim live states.
+- Operator command: `sudo /home/pi/.local/state/lqosync3/collection-39459a7/deploy.sh`. It includes rollback/restart and raw-count/runtime verification.
+- Sudo requires an operator password. Attempt stopped before mutation; operator execution was requested.
+- Next: inspect deployment record, version/PID/hash, successful cycle, collection and DPDK freshness, then smoke the installed UI.
+- No production source enablement or scan interval change is authorized by this fix. Existing Hotspot source remains disabled.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-live-subscriber-collection]].
+
 ## 2026-11-09T19:37:05+08:00 (Asia/Shanghai) — Live cycle collection implementation
 
 - Owner requested real PPPoE/Hotspot/DHCP collection counts and states; chose refresh only with existing sync cycles.

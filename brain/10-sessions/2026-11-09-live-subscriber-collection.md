@@ -44,3 +44,18 @@ Concept hashes, design links, whitespace, and implementation PNG decoding pass. 
 The release review also rejects a shared shaping ID or ambiguous DHCP endpoint instead of assigning a false subscriber state.
 Publish failure or an older cache sequence cannot claim a fresh collection. Raw observations remain available without a forced shaping match.
 No production config, source enablement, scan interval, or removal rule changed during implementation.
+
+## Verified release prepared
+
+Updated: 2026-11-09T19:46:45+08:00 (Asia/Shanghai).
+Code commit `39459a7` is pushed to `origin/lqosync3`. GitHub CI run `42611316069` passed.
+The clean optimized artifact reports `3.0.157+g39459a7`.
+SHA-256: `49fb42b61f22993a7d8c08a8397219414621a701a8b9f47a15dae09c81ef54e5`.
+Artifact, manifest, operator instructions, and deployment script: `/home/pi/.local/state/lqosync3/collection-39459a7/`.
+Script syntax and checksum checks pass. It includes backup, atomic replacement, rollback, restart, executable/cycle/telemetry checks,
+and collection-count comparison against the new cycle's private raw RouterOS snapshot.
+
+Non-interactive sudo failed before mutation: a password is required.
+Operator step: `sudo /home/pi/.local/state/lqosync3/collection-39459a7/deploy.sh`.
+After execution, verify `DEPLOYED.json`, current process version, fresh source counts, subscriber states, and the installed TUI.
+The operator was notified. Do not report activation until these runtime checks pass.
