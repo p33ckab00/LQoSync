@@ -15,7 +15,7 @@ The public HTTP API does not expose the required fields in beta19.
 - [x] Preserve the existing dashboard journal counters and tabs 1 through 5.
 - [x] Test transport failures, lifecycle, narrow terminals, and all current color themes.
 - [x] Review performance and integrity. Run full tests, clippy, and formatting. CI follows the push.
-- [ ] Commit and push to `lqosync3`. Build the committed revision, then deploy and restart if host permissions permit.
+- [x] Commit and push to `lqosync3`. Build, deploy, restart, and verify the active version and fresh production telemetry (`3.0.142+g8ee064d`).
 
 Freshness needs an advancing producer timestamp. The first frame establishes the baseline.
 Repeated timestamps become stale after six seconds. TUI cache age also expires after six seconds.

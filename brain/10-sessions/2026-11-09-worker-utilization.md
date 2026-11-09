@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-09
 tags: [session, libreqos-v3, telemetry, tui]
-status: deployment-pending
+status: complete
 related: ["[[2026-11-09-node-minimums]]", "[[2026-11-09-libreqos-beta19-integration-review]]", "[[HANDOFF]]"]
 ---
 
@@ -51,6 +51,16 @@ Real local socket tests cover fragmented headers, timeouts, invalid descriptors,
 Tests also cover failed reads, repeated timestamps, cache corruption, config reloads, and monitor shutdown.
 UI checks cover all themes, narrow terminals, tab navigation, and the last worker in a long list.
 
-The root-only production socket and live throughput were not tested in this session.
-Host sudo still needs interactive authentication. Prepare the committed release and operator deployment command after push.
+## Deployment verification
+
+Verified at 2026-11-09T09:33:41+08:00 (Asia/Shanghai).
+Implementation commits `febea1f` and `8ee064d` are pushed to `lqosync3`.
+GitHub CI for `8ee064d` passed both the test job and the Rust 1.89 MSRV job.
+The installed service runs `3.0.142+g8ee064d`, PID `99607`, and is active.
+Runtime status shows `v3_pair`, cycle 2, and no cycle error.
+The production telemetry cache advances and has no stale flag or error reason.
+One sample shows worker 0 at 43.1 percent busy, 56.9 percent idle, and mean backlog 8 packets.
+The cache age was two seconds. These values describe one sample, not a throughput benchmark.
+Deployment and restart are complete. No additional restart is needed for these notes.
+Live throughput was not benchmarked.
 The graph remains unchanged. Current source and this note supersede its old monitoring descriptions.

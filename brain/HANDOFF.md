@@ -8,16 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
-## 2026-11-09T09:18:00+08:00 (Asia/Shanghai) — Worker utilization
+## 2026-11-09T09:33:41+08:00 (Asia/Shanghai) — Worker utilization verified
 
-- Goal: Implement priority task 2, review performance and integrity, check, commit, push, and restart LQoSync3.
+- Goal: Complete priority task 2, review, checks, commit, push, deployment, and restart.
 - Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
-- Changes: bounded read-only analytics client, service monitor, worker cache, config socket path, Workers tab 6, tests, and docs.
-- Checks: 503 tests pass. Clippy and formatting pass. Local socket tests cover descriptor cleanup, fragmentation, and timeout.
-- Review: no unresolved finding. One request per two seconds. TUI formats visible rows only. No shaping or worker-count changes.
-- Live state: confirmed task 1 deployment, version `3.0.140+gdbde3d2`, `v3_pair`, and no cycle error.
-- Unfinished: commit, push, build, root deployment, and post-restart verification. The production socket requires root.
-- Next: push verified source, build its release, and prepare an operator command. Sudo requires interactive authentication.
+- Code: `febea1f` and `8ee064d`, pushed. Changes cover the bounded analytics client, monitor, cache, socket config, Workers tab 6, tests, and docs.
+- Checks: 503 tests pass. Clippy and formatting pass. Final GitHub CI test and Rust 1.89 MSRV jobs pass.
+- Review: no unresolved finding. One bounded request per two seconds. Only visible table rows are formatted. Independent TUI ticks expire stale metrics.
+- Live state: service active, version `3.0.142+g8ee064d`, PID `99607`, `v3_pair`, cycle 2, no cycle error.
+- Production telemetry: fresh cache, no error reason, advancing samples. Worker 0 sample: 43.1 percent busy, 56.9 percent idle, mean backlog 8 packets.
+- Changed files in this verification: this handoff, the session note, and the implementation plan. No application code changed.
+- Unfinished: none for task 2. Live throughput was not benchmarked.
+- Next action: user can open Workers with key 6. Further integration tasks require their own scope.
 
 Session: [[2026-11-09-worker-utilization]].
 
