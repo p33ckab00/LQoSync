@@ -12,6 +12,24 @@ fn collect_nodes(
     out: &mut HashMap<String, String>,
 ) -> anyhow::Result<()> {
     for (name, node) in tree {
+        for (min_key, max_key) in [
+            ("downloadBandwidthMbpsMin", "downloadBandwidthMbps"),
+            ("uploadBandwidthMbpsMin", "uploadBandwidthMbps"),
+        ] {
+            if let Some(value) = node.get(min_key) {
+                let min = value.as_u64().filter(|min| *min > 0).with_context(|| {
+                    format!(
+                        "network.json: node \"{name}\": {min_key} must be a whole Mbps value >= 1"
+                    )
+                })?;
+                ensure!(
+                    node.get(max_key)
+                        .and_then(Value::as_f64)
+                        .is_some_and(|max| max.is_finite() && min as f64 <= max),
+                    "network.json: node \"{name}\": {min_key} is above or has no valid {max_key} ceiling"
+                );
+            }
+        }
         let id = node
             .get("id")
             .and_then(Value::as_str)

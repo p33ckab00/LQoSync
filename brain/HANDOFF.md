@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T08:52:00+08:00 (Asia/Shanghai) — Optional node minimums
+
+- Goal: Implement priority task 1, review, check, commit, push, and restart LQoSync3.
+- Last agent: Codex. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changes: config, node state, pair output, minimum validation, diffs, native translation, Settings metadata, tests, and docs.
+- Checks: 489 tests pass, clippy and formatting pass. One additional installed pair compiler test passes.
+- Review: fixed preserve-mode loss with old state and manual edits. Added regression tests. No new packet-path work or dependencies.
+- Live state: unchanged configuration, `v3_pair`, service version `3.0.136+ge8d6cbd`. No minimums enabled.
+- Unfinished: root deployment and post-restart verification. Passwordless sudo is unavailable. The service restart requires interactive authentication.
+- Next: commit and push the verified source, build that revision, and prepare the operator deployment command.
+
+Session: [[2026-11-09-node-minimums]].
+
 ## 2026-11-03T09:30:00+08:00 (Asia/Manila) — LibreQoS v3 package update 3.0.7.202611021200
 
 | Item | Value |

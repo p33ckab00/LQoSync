@@ -208,6 +208,8 @@ pub fn build_nodes(
         r#type: net.root_type.clone(),
         down: net.root_download_mbps,
         up: net.root_upload_mbps,
+        down_min: net.root_download_min_mbps,
+        up_min: net.root_upload_min_mbps,
         seeded: false,
     };
     match net.mode {
@@ -240,6 +242,8 @@ pub fn build_nodes(
                         r#type: cfg.nodes.client.r#type.clone(),
                         down: max(&row.download_max),
                         up: max(&row.upload_max),
+                        down_min: None,
+                        up_min: None,
                         seeded: false,
                     },
                 )?;
@@ -281,6 +285,8 @@ pub fn build_nodes(
                     r#type: tpl.type_for(v3),
                     down: rate.down,
                     up: rate.up,
+                    down_min: tpl.download_min_mbps,
+                    up_min: tpl.upload_min_mbps,
                     seeded: false,
                 },
             )?;
@@ -289,14 +295,35 @@ pub fn build_nodes(
     Ok(nodes)
 }
 
-fn node_json(n: &StoredNode, children: Map<String, Value>) -> Value {
-    json!({
-        "children": Value::Object(children),
+fn node_json(n: &StoredNode, previous: Option<Map<String, Value>>) -> Value {
+    let has_previous = previous.is_some();
+    let mut previous = previous.unwrap_or_default();
+    let children = previous
+        .remove("children")
+        .filter(Value::is_object)
+        .unwrap_or_else(|| json!({}));
+    let mut node = json!({
+        "children": children,
         "downloadBandwidthMbps": n.down,
         "id": n.id,
         "type": n.r#type,
         "uploadBandwidthMbps": n.up,
-    })
+    });
+    for (key, min) in [
+        ("downloadBandwidthMbpsMin", n.down_min),
+        ("uploadBandwidthMbpsMin", n.up_min),
+    ] {
+        // The current operator file takes precedence over cached state, including removal.
+        let value = if n.seeded && has_previous {
+            previous.remove(key)
+        } else {
+            min.map(Value::from)
+        };
+        if let Some(value) = value {
+            node[key] = value;
+        }
+    }
+    node
 }
 
 /// Put `latitude` and `longitude` on each node that the tool made for a router with a location
@@ -335,14 +362,11 @@ fn remove_named(tree: &mut Map<String, Value>, names: &BTreeMap<String, StoredNo
     }
 }
 
-/// Take the children of a node out of a map, if the node is there.
-fn take_children(map: &mut Map<String, Value>, name: &str) -> Map<String, Value> {
+/// Take a previous node out of a map, if the node is there.
+fn take_node(map: &mut Map<String, Value>, name: &str) -> Option<Map<String, Value>> {
     match map.remove(name) {
-        Some(Value::Object(mut old)) => match old.remove("children") {
-            Some(Value::Object(k)) => k,
-            _ => Map::new(),
-        },
-        _ => Map::new(),
+        Some(Value::Object(old)) => Some(old),
+        _ => None,
     }
 }
 
@@ -391,8 +415,8 @@ pub fn to_network_json(
     remove_named(&mut tree, &stale);
     // Roots first, so that each child finds its parent.
     for (name, n) in nodes.iter().filter(|(_, n)| n.parent.is_none()) {
-        let kids = take_children(&mut tree, name);
-        tree.insert(name.clone(), node_json(n, kids));
+        let old = take_node(&mut tree, name);
+        tree.insert(name.clone(), node_json(n, old));
     }
     // Parents before children: sort by depth in the node map, then by name.
     let mut children: Vec<(&String, &StoredNode)> =
@@ -403,11 +427,11 @@ pub fn to_network_json(
         match find_mut(&mut tree, parent).and_then(|p| p.get_mut("children")) {
             Some(Value::Object(kids)) => {
                 // A node that is already there keeps its operator children.
-                let old = take_children(kids, name);
+                let old = take_node(kids, name);
                 kids.insert(name.clone(), node_json(n, old));
             }
             _ => {
-                tree.insert(name.clone(), node_json(n, Map::new()));
+                tree.insert(name.clone(), node_json(n, None));
             }
         }
     }
@@ -626,6 +650,8 @@ upload_factor = 1.0
             r#type: "plan".into(),
             down: 9.0,
             up: 9.0,
+            down_min: None,
+            up_min: None,
             seeded: false,
         };
         carried.insert("Old-R2".into(), old.clone());
@@ -652,6 +678,8 @@ upload_factor = 1.0
                 r#type: "plan".into(),
                 down: 2.0,
                 up: 2.0,
+                down_min: None,
+                up_min: None,
                 seeded: false,
             },
         );
@@ -665,6 +693,8 @@ upload_factor = 1.0
                 r#type: "site".into(),
                 down: 640.0,
                 up: 640.0,
+                down_min: None,
+                up_min: None,
                 seeded: false,
             },
         );
@@ -724,6 +754,8 @@ upload_factor = 1.0
                 r#type: "site".into(),
                 down: 1.0,
                 up: 1.0,
+                down_min: None,
+                up_min: None,
                 seeded: true,
             },
         );
@@ -743,6 +775,8 @@ upload_factor = 1.0
             r#type: "site".into(),
             down: 1.0,
             up: 1.0,
+            down_min: None,
+            up_min: None,
             seeded: true,
         };
         let mut nodes = BTreeMap::new();

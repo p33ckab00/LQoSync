@@ -494,3 +494,38 @@ The tool has no import of `config.json`. Use this table, the TUI, or `lqosync3 d
 `tui.theme` accepts `dark` (default), `light`, or `mono`.
 Apply a change through the normal Settings flow, then restart the TUI.
 The theme does not change sync output.
+
+## Optional node minimums
+
+LibreQoS v3 beta19 retains node minimums through its pair importer.
+Set these optional keys to request a minimum for generated roots and groups:
+
+```toml
+[network]
+root_download_min_mbps = 20
+root_upload_min_mbps = 10
+
+[nodes.ppp]
+download_min_mbps = 8
+upload_min_mbps = 4
+```
+
+Each group template accepts `download_min_mbps` and `upload_min_mbps`:
+`nodes.ppp`, `nodes.ppp_plan`, `nodes.hotspot`, `nodes.dhcp_site`, and `nodes.dhcp_plan`.
+A template applies to each group that uses it. Root keys apply to generated roots.
+The keys are also available in the Settings editor. Reset an optional key to remove it.
+
+Use whole Mbps values of at least 1. The pair writer emits integer JSON values.
+An absent key adds no minimum field and keeps the previous output.
+No minimums apply to generated client nodes in `flat_promotion`.
+The native writer carries explicit minimums, but the native readiness guard still applies.
+This feature does not change the topology source.
+
+A minimum above its generated ceiling stops the cycle before a live write.
+A group ceiling can decrease when subscribers leave, so choose minimums with this condition in mind.
+LibreQoS computes the effective commit from the requested minimum and the sum of circuit minimums.
+It also applies the node ceiling and parent commit limits. A request equal to its ceiling can produce a lower commit.
+These values do not reserve bandwidth that the parent cannot provide.
+
+Keep `v3_pair` on this host until isolated checks prove that the native compiler preserves node policies.
+The installed `3.0.7.202611082352` native probe still reports the 1 Mbps defect.

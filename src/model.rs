@@ -139,6 +139,10 @@ pub struct StoredNode {
     pub r#type: String,
     pub down: f64,
     pub up: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub down_min: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub up_min: Option<u64>,
     /// True for a node from the first network.json (an operator or legacy node).
     /// The tool never deletes a seeded node in preserve mode.
     #[serde(default)]

@@ -92,6 +92,12 @@ pub fn seed_nodes(network: &serde_json::Value) -> BTreeMap<String, StoredNode> {
                         .to_string(),
                     down: num("downloadBandwidthMbps"),
                     up: num("uploadBandwidthMbps"),
+                    down_min: node
+                        .get("downloadBandwidthMbpsMin")
+                        .and_then(serde_json::Value::as_u64),
+                    up_min: node
+                        .get("uploadBandwidthMbpsMin")
+                        .and_then(serde_json::Value::as_u64),
                     seeded: true,
                 },
             );

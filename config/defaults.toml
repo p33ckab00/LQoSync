@@ -51,10 +51,15 @@ root_name = "LibreQoS-Network"  # root name for flat_global_root
 root_type = "site"
 root_download_mbps = 640
 root_upload_mbps = 640
+# Optional whole-Mbps node minimums. Absent keys keep the LibreQoS defaults.
+# root_download_min_mbps = 20
+# root_upload_min_mbps = 10
 
 # Names and types of the nodes that the tool makes.
 # Name fields: {router}, and {profile} / {server} / {plan} where shown.
 # v2_type is for LibreQoS 2.x, v3_type for LibreQoS 3.x. Add type = "..." to use one type for both.
+# Each group template accepts optional download_min_mbps and upload_min_mbps.
+# A minimum must be >= 1 and <= the generated ceiling. Parent limits still apply.
 [nodes.ppp]
 name = "PPP-{router}"
 v2_type = "plan"

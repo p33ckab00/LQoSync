@@ -350,6 +350,27 @@ fn build() -> Vec<KeyMeta> {
         })
         .collect();
     out.extend(router);
+    for prefix in [
+        "network.root",
+        "nodes.ppp",
+        "nodes.ppp_plan",
+        "nodes.hotspot",
+        "nodes.dhcp_site",
+        "nodes.dhcp_plan",
+    ] {
+        for direction in ["download", "upload"] {
+            let path = if prefix == "network.root" {
+                format!("network.root_{direction}_min_mbps")
+            } else {
+                format!("{prefix}.{direction}_min_mbps")
+            };
+            out.push(KeyMeta {
+                path, kind: Kind::Int, default: None,
+                help: "optional node minimum, whole Mbps >= 1 and <= the generated ceiling; absent: LibreQoS default; parent limits still apply".into(),
+                optional: true, read_only: false,
+            });
+        }
+    }
     for (path, base, help, optional) in EXTRA {
         let base = match base {
             Base::Text => Kind::Text,

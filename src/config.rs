@@ -131,6 +131,8 @@ pub struct Network {
     pub root_type: String,
     pub root_download_mbps: f64,
     pub root_upload_mbps: f64,
+    pub root_download_min_mbps: Option<u64>,
+    pub root_upload_min_mbps: Option<u64>,
 }
 
 /// Name template and optional type of a node that the tool makes.
@@ -143,6 +145,8 @@ pub struct NodeTemplate {
     pub r#type: Option<String>,
     pub v2_type: String,
     pub v3_type: String,
+    pub download_min_mbps: Option<u64>,
+    pub upload_min_mbps: Option<u64>,
 }
 
 impl NodeTemplate {
@@ -951,6 +955,39 @@ impl Config {
         );
 
         let n = &self.network;
+        for (key, min, max) in [
+            (
+                "root_download_min_mbps",
+                n.root_download_min_mbps,
+                n.root_download_mbps,
+            ),
+            (
+                "root_upload_min_mbps",
+                n.root_upload_min_mbps,
+                n.root_upload_mbps,
+            ),
+        ] {
+            if let Some(min) = min {
+                ensure!(
+                    min > 0 && min as f64 <= max,
+                    "config: network.{key} must be >= 1 and <= the root ceiling"
+                );
+            }
+        }
+        for (name, template) in [
+            ("ppp", &self.nodes.ppp),
+            ("ppp_plan", &self.nodes.ppp_plan),
+            ("hotspot", &self.nodes.hotspot),
+            ("dhcp_site", &self.nodes.dhcp_site),
+            ("dhcp_plan", &self.nodes.dhcp_plan),
+        ] {
+            for (key, min) in [
+                ("download_min_mbps", template.download_min_mbps),
+                ("upload_min_mbps", template.upload_min_mbps),
+            ] {
+                ensure!(min != Some(0), "config: nodes.{name}.{key} must be >= 1");
+            }
+        }
         ensure!(
             n.root_download_mbps > 0.0,
             "config: network.root_download_mbps must be > 0"

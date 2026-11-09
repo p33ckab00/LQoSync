@@ -32,9 +32,9 @@ fn group(rows: Vec<CsvRow>) -> BTreeMap<String, Vec<CsvRow>> {
     m
 }
 
-/// name -> (parent, type, download, upload) at all levels of a network.json tree.
-fn nodes(tree: &Value) -> BTreeMap<String, [String; 4]> {
-    fn walk(m: &Map<String, Value>, parent: &str, out: &mut BTreeMap<String, [String; 4]>) {
+/// Node parent, type, ceilings, and minimums at all levels of a network.json tree.
+fn nodes(tree: &Value) -> BTreeMap<String, [String; 6]> {
+    fn walk(m: &Map<String, Value>, parent: &str, out: &mut BTreeMap<String, [String; 6]>) {
         for (name, n) in m {
             let text = |k: &str| {
                 n.get(k).map_or(String::new(), |v| {
@@ -48,6 +48,8 @@ fn nodes(tree: &Value) -> BTreeMap<String, [String; 4]> {
                     text("type"),
                     text("downloadBandwidthMbps"),
                     text("uploadBandwidthMbps"),
+                    text("downloadBandwidthMbpsMin"),
+                    text("uploadBandwidthMbpsMin"),
                 ],
             );
             if let Some(Value::Object(kids)) = n.get("children") {
@@ -127,10 +129,12 @@ pub fn diff_pair(
         "type",
         "downloadBandwidthMbps",
         "uploadBandwidthMbps",
+        "downloadBandwidthMbpsMin",
+        "uploadBandwidthMbpsMin",
     ];
     for (name, o) in on.iter().filter(|(n, _)| nn.contains_key(*n)) {
         let n = &nn[name];
-        let changes: Vec<String> = (0..4)
+        let changes: Vec<String> = (0..keys.len())
             .filter(|&i| !same(&o[i], &n[i]))
             .map(|i| format!("{} {} -> {}", keys[i], o[i], n[i]))
             .collect();

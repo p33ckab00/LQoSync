@@ -81,8 +81,8 @@ fn walk(
         }
         let rate = |k: &str| n.get(k).and_then(Value::as_f64);
         if let (Some(d), Some(u)) = (rate("downloadBandwidthMbps"), rate("uploadBandwidthMbps")) {
-            // v3 requires all four values. A pair node has one rate, so commit = ceil (as the v3 legacy import).
-            node["rate"] = json!({"commit_down_mbps": d, "commit_up_mbps": u, "ceil_down_mbps": d, "ceil_up_mbps": u});
+            // Keep the previous commit = ceil default when the pair has no explicit minimum.
+            node["rate"] = json!({"commit_down_mbps": rate("downloadBandwidthMbpsMin").unwrap_or(d), "commit_up_mbps": rate("uploadBandwidthMbpsMin").unwrap_or(u), "ceil_down_mbps": d, "ceil_up_mbps": u});
         }
         out.push(node);
         ids.insert(name.clone(), id.clone());
