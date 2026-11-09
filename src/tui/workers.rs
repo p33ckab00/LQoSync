@@ -1,7 +1,9 @@
 //! A read-only table of actual DPDK worker utilization.
 
+mod approved;
 use super::data::Data;
 use super::theme::{BoxKind, Palette, Role};
+pub use approved::WorkerAction;
 use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
@@ -11,6 +13,7 @@ use ratatui::{
 
 #[derive(Default)]
 pub struct WorkersView {
+    approved: approved::WorkerUi,
     offset: usize,
 }
 
@@ -186,7 +189,7 @@ mod tests {
             .collect()
     }
 
-    fn live() -> Data {
+    pub(super) fn live() -> Data {
         Data {
             target: "v3_pair".into(),
             worker_util: Some(Arc::new(Telemetry {

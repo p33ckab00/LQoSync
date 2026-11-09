@@ -64,3 +64,13 @@ Compact layout keeps all panels on a scrollable body. Local timestamps include s
 Checks: 527 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, build, and real terminal capture review pass.
 Capture: `docs/design/tui/captures/libreqos-v1.png`. Removed the obsolete temporary operations view.
 Next: local commit, then Workers -> Settings -> Journal. Production unchanged.
+
+## Workers checkpoint
+
+Implemented summary cards, Worker ID/Sample filters, utilization table, selected-worker bars/details, pressure, and snapshot status.
+Filters rebuild only when telemetry/filter/freshness changes. Timer expiry updates Live/Stale filters without loader input.
+Only visible worker rows render. Copy contains selected worker evidence through the existing bounded clipboard path.
+Pressure requires fresh complete diagnostics for CLEAR. Missing/stale samples never indicate recovery.
+Table/details/compact body have independent wheel routing and interactive scrollbars.
+Checks: 529 tests pass, zero fail, six ignored; Clippy, formatting, whitespace, build, and real terminal screenshot review pass.
+Capture: `docs/design/tui/captures/workers-v1.png`. Next: local commit, Settings, then Journal. Production unchanged.

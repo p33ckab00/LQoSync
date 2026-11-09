@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T14:38:28+08:00 (Asia/Shanghai) — Workers checkpoint
+
+- User authorized all seven approved screens with per-screen review/test/capture and local commits. Do not push.
+- Done: Dashboard `d9e0ffb`, Subscribers `72b09c6`, Routers `74a12c4`, LibreQoS `7f6f61b`; Workers passes checks.
+- Code: `src/tui/workers/approved.rs`, WorkerView state, guarded app input paths.
+- Review: cache/filter work outside visible-row draw; selection/copy uses reported worker; timer expiry invalidates Live filter; pressure needs fresh complete diagnostics for CLEAR.
+- Checks: 529 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, build, and real terminal screenshot review pass.
+- Capture: `docs/design/tui/captures/workers-v1.png` uses isolated synthetic data.
+- Next: commit Workers locally, then Settings -> Journal. Keep existing exact-draft preview/apply and secret gates.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex. Production unchanged.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T14:29:51+08:00 (Asia/Shanghai) — LibreQoS checkpoint
 
 - Owner task remains all approved screens with review, tests, captures, and local commits. Do not push.

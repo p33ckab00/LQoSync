@@ -400,6 +400,16 @@ The screen is read-only. Navigation, copy, and refresh do not change worker coun
 Unknown or stale data must never show an active `CLEAR` or `LIVE` verdict.
 This screen has owner approval. Runtime implementation remains separate.
 
+### Workers runtime review
+
+Actual terminal capture: [Workers](captures/workers-v1.png), with isolated synthetic telemetry.
+The cards, filters, utilization/detail split, pressure panel, snapshot strip, and bars follow the approved composition.
+Live/Stale filters update on timer expiry even when no loader event arrives. Worker selection uses the reported queue ID.
+Copy includes selected worker evidence only. Busy excludes empty polling and does not represent OS CPU usage.
+Use `/` for Worker ID search, `t` for Sample, `x` for Clear, Tab for focus, and `e`/Enter for expanded details.
+The table, detail, and compact body support mouse wheel input and interactive scrollbars.
+Pressure shows CLEAR only with fresh complete diagnostics. Missing or stale evidence never implies recovery.
+
 ## Settings and functional requirements
 
 The owner requires a functional Settings editor, especially for router creation and configuration values.

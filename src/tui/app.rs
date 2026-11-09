@@ -258,10 +258,20 @@ impl App {
         }
         match k.code {
             KeyCode::Char(c @ '1'..='7') => self.tab = Tab::ALL[c as usize - '1' as usize],
-            KeyCode::Tab if matches!(self.tab, Tab::Devices | Tab::Routers | Tab::LibreQoS) => {
+            KeyCode::Tab
+                if matches!(
+                    self.tab,
+                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers
+                ) =>
+            {
                 return self.tab_key(k);
             }
-            KeyCode::BackTab if matches!(self.tab, Tab::Devices | Tab::Routers | Tab::LibreQoS) => {
+            KeyCode::BackTab
+                if matches!(
+                    self.tab,
+                    Tab::Devices | Tab::Routers | Tab::LibreQoS | Tab::Workers
+                ) =>
+            {
                 return self.tab_key(k);
             }
             KeyCode::Tab => self.tab = Tab::ALL[(self.tab.navigation_index() + 1) % Tab::ALL.len()],
@@ -299,6 +309,7 @@ impl App {
             || (self.tab == Tab::Network && self.network.editing)
             || (self.tab == Tab::Journal && self.journal.editing)
             || (self.tab == Tab::Routers && self.routers.editing)
+            || (self.tab == Tab::Workers && self.workers.editing())
     }
 
     fn router_action(&mut self, action: super::routers::RouterAction) -> Action {
@@ -355,8 +366,11 @@ impl App {
         {
             return self.on_key(KeyEvent::new(KeyCode::Char('S'), KeyModifiers::NONE));
         }
-        if self.tab == Tab::Workers {
-            self.workers.on_key(k, &self.data);
+        if self.tab == Tab::Workers
+            && let super::workers::WorkerAction::Copy(text) =
+                self.workers.approved_key(k, &self.data, self.now)
+        {
+            return self.copy_text(text);
         }
         if self.tab == Tab::Journal {
             match k.code {
@@ -443,6 +457,14 @@ impl App {
             return Action::None;
         }
         if self.capturing_search() {
+            if self.tab == Tab::Workers {
+                if let super::workers::WorkerAction::Copy(text) =
+                    self.workers.approved_mouse(m, &self.data, self.now)
+                {
+                    return self.copy_text(text);
+                }
+                return Action::None;
+            }
             if self.tab == Tab::Routers {
                 let action = self.routers.on_mouse(m);
                 return self.router_action(action);
@@ -473,6 +495,12 @@ impl App {
             && self.theme_rect.contains((m.column, m.row).into())
         {
             return self.on_key(KeyEvent::new(KeyCode::Char('T'), KeyModifiers::NONE));
+        }
+        if self.tab == Tab::Workers
+            && let super::workers::WorkerAction::Copy(text) =
+                self.workers.approved_mouse(m, &self.data, self.now)
+        {
+            return self.copy_text(text);
         }
         if self.tab == Tab::Dashboard && self.overview.mouse(m, &self.data) {
             return self.on_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
@@ -510,6 +538,7 @@ impl App {
 
     pub fn draw(&mut self, f: &mut Frame) {
         let area = f.area();
+        self.workers.clear_areas();
         self.devices.clear_approved_areas();
         self.overview.clear();
         self.theme_rect = Rect::default();
@@ -592,9 +621,10 @@ impl App {
                 .overview
                 .draw(f, main, &self.data, self.now, &self.palette),
             Tab::Settings => self.settings.draw(f, main, &self.palette),
-            Tab::Workers => self
-                .workers
-                .draw(f, main, &self.data, self.now, &self.palette),
+            Tab::Workers => {
+                self.workers
+                    .draw_approved(f, main, &self.data, self.now, &self.palette)
+            }
         }
         f.render_widget(
             Paragraph::new(
@@ -651,7 +681,8 @@ impl App {
             Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
             Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-7] pages",
             Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
-            Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-7/Tab] tabs",
+            Tab::Workers if self.workers.editing() => "[Enter] done  [Esc] clear  type to search",
+            Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select  [1-7] pages",
         }.into()
     }
 
@@ -825,6 +856,25 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn workers_approved_body_has_summary_filter_details_and_pressure() {
+        let mut a = app(true);
+        a.tab = Tab::Workers;
+        let text = draw(&mut a, 200, 48);
+        for label in [
+            "Busiest worker",
+            "Telemetry",
+            "Worker ID",
+            "Sample [",
+            "Worker utilization",
+            "Worker details",
+            "Buffer/ring pressure",
+        ] {
+            assert!(text.contains(label), "missing {label}");
+        }
+        assert!(text.contains("unavailable"));
     }
 
     #[test]
@@ -1123,9 +1173,9 @@ mod tests {
             },
             100,
         );
-        assert!(draw(&mut a, 80, 24).contains("workers: live"));
+        assert!(draw(&mut a, 160, 40).contains("Snapshot LIVE"));
         a.on_tick(107);
-        assert!(draw(&mut a, 80, 24).contains("workers: stale"));
+        assert!(draw(&mut a, 160, 40).contains("Snapshot STALE"));
     }
 
     #[test]
