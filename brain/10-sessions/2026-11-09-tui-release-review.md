@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-09
 tags: [tui, performance, release]
-status: deployment-pending
+status: complete
 related: ["[[2026-11-09-approved-tui-implementation]]"]
 ---
 
@@ -66,3 +66,19 @@ The service remains active at PID 1833, version `3.0.144+g1d2b4d5`. No binary re
 The operator was given this command:
 `sudo /home/pi/.local/state/lqosync3/tui-7259316/deploy.sh`.
 After execution, verify `DEPLOYED.json`, process/status identity, service health, and telemetry before reporting completion.
+
+## Deployment verified
+
+Verified at 2026-11-09T18:45:30+08:00 (Asia/Shanghai), after the operator ran the prepared sudo command.
+The deployment success record confirms the atomic replacement and restart at 2026-11-09T18:44:05+08:00.
+Installed release: `3.0.154+g7259316`. SHA-256 matches the verified artifact.
+The deployment script verified the running executable hash. Independent status checks match PID `13860` and the same version.
+The service is active/running, with zero automatic restarts. Cycle 1 succeeded without service/config errors.
+Mode remains `apply`, target remains `v3_pair`, and the deployment record confirms unchanged configuration.
+Fresh worker telemetry contains actual directional DPDK rates. History grew from 2 to 29 points during verification.
+The deployment reported backup `/var/backups/lqosync3/tui-7259316-zv2e3xw_`. No rollback was required.
+
+The installed binary also passed a read-only live-config PTY smoke check: seven routes, DPDK panel, no panic, exit 0, terminal cleanup.
+Evidence: `DEPLOYED.json` and `installed-tui-smoke.json` in the artifact directory.
+The live TUI smoke did not write settings or trigger sync/reload actions.
+Deployment, restart, and verification are complete. Existing TUI sessions must be reopened to use the new binary.

@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T18:45:30+08:00 (Asia/Shanghai) — TUI deployment complete
+
+- Operator ran the prepared sudo deployment. Release `3.0.154+g7259316` is installed and running.
+- Verified checksum matches the artifact; deployment verified running executable hash. Independent status agrees on PID `13860` and version.
+- Service active/running, zero automatic restarts; successful cycle without service/config errors. Mode `apply`, target `v3_pair`, configuration unchanged.
+- Fresh worker telemetry and actual DPDK rates pass; traffic history is growing. No rollback required.
+- Installed TUI read-only live-config smoke passes all seven routes, DPDK panel, quit/cleanup, and no panic.
+- Evidence: `/home/pi/.local/state/lqosync3/tui-7259316/DEPLOYED.json` and `installed-tui-smoke.json`.
+- Backup: `/var/backups/lqosync3/tui-7259316-zv2e3xw_`.
+- Owner task is complete: review, fix, tests/CI, push, deploy, restart, and verification. Reopen existing TUI sessions for the new UI.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-09-tui-release-review]].
+
 ## 2026-11-09T18:42:04+08:00 (Asia/Shanghai) — TUI pushed; root deployment pending
 
 - Code review/fix commit `7259316` and all TUI commits are pushed to `origin/lqosync3`. GitHub CI `42602346450` passed.
