@@ -3,11 +3,13 @@
 pub mod app;
 pub mod dashboard;
 pub mod data;
+mod design;
 pub mod devices;
 pub mod journal;
 pub mod network;
 mod operations;
 pub mod osc52;
+mod overview;
 pub mod proc;
 pub mod settings;
 mod shell;
@@ -187,6 +189,11 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
         dirty = true;
         match action {
             Action::Quit => break,
+            Action::Refresh => {
+                if let Some(worker) = &loader {
+                    worker.thread().unpark();
+                }
+            }
             Action::SelectMode(on) => {
                 if on {
                     execute!(stdout(), DisableMouseCapture)?;

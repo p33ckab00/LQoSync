@@ -2,6 +2,7 @@
 
 mod ipc;
 pub mod pressure;
+pub mod traffic;
 pub use ipc::read_snapshot;
 use pressure::{Diagnostics, Pressure, TransitionLog};
 
@@ -30,6 +31,7 @@ pub struct Snapshot {
     #[serde(default)]
     pub workers: Vec<WorkerRow>,
     pub diagnostics: Option<Diagnostics>,
+    pub actual: Option<traffic::Counters>,
 }
 
 fn validate_rows(rows: &[WorkerRow]) -> anyhow::Result<()> {
@@ -65,6 +67,8 @@ pub struct Telemetry {
     pub workers: Vec<WorkerRow>,
     #[serde(default)]
     pub pressure: Option<Pressure>,
+    #[serde(default)]
+    pub traffic: std::collections::VecDeque<traffic::Point>,
 }
 
 impl Default for Telemetry {
@@ -76,6 +80,7 @@ impl Default for Telemetry {
             reason: Some("no sample yet".into()),
             workers: Vec::new(),
             pressure: None,
+            traffic: Default::default(),
         }
     }
 }
@@ -103,6 +108,7 @@ struct Tracker {
     report: Telemetry,
     previous_diagnostics: Option<Diagnostics>,
     previous_at: u64,
+    traffic: traffic::History,
 }
 
 impl Tracker {
@@ -112,6 +118,11 @@ impl Tracker {
             Ok(sample)
         }) {
             Ok(mut sample) => {
+                self.traffic.record(
+                    &mut self.report.traffic,
+                    sample.actual.map(|c| (sample.captured_at_millis, c)),
+                    now,
+                );
                 if self
                     .captured
                     .is_none_or(|last| sample.captured_at_millis < last)
@@ -133,6 +144,7 @@ impl Tracker {
                         stale: false,
                         reason: None,
                         workers: sample.workers,
+                        traffic: std::mem::take(&mut self.report.traffic),
                         pressure: Some(Pressure::between(
                             sample.diagnostics.as_ref(),
                             self.previous_diagnostics.as_ref(),
@@ -146,6 +158,7 @@ impl Tracker {
                 }
             }
             Err(error) => {
+                self.traffic.record(&mut self.report.traffic, None, now);
                 self.previous_diagnostics = None;
                 self.report.fail(error.to_string());
             }
@@ -165,6 +178,19 @@ pub fn read_cache(path: &Path) -> Telemetry {
             "worker cache is too large"
         );
         let mut report: Telemetry = serde_json::from_slice(&bytes)?;
+        ensure!(
+            report.traffic.len() <= traffic::MAX_POINTS
+                && report.traffic.iter().all(traffic::Point::valid),
+            "invalid traffic history"
+        );
+        ensure!(
+            report
+                .traffic
+                .iter()
+                .zip(report.traffic.iter().skip(1))
+                .all(|(a, b)| a.at < b.at),
+            "unordered traffic history"
+        );
         ensure!(report.version == 1, "unsupported worker cache version");
         if report.pressure.as_ref().is_some_and(|p| !p.valid()) {
             report.pressure = Some(Pressure::default());
@@ -277,6 +303,26 @@ impl Drop for Monitor {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn dashboard_actual_rates_need_two_samples_and_rebase_after_failure() {
+        let mut tracker = Tracker::default();
+        let traffic = |at, down, up| {
+            serde_json::from_value(json!({
+            "captured_at_millis":at,"workers":[{"queue_id":0,"busy_ppm":125000}],
+            "actual":{"download_bytes":down,"upload_bytes":up}}))
+            .unwrap()
+        };
+        tracker.record(Ok(traffic(1000, 0, 0)), 10);
+        tracker.record(Ok(traffic(3000, 2000000, 250000)), 12);
+        let report = serde_json::to_value(&tracker.report).unwrap();
+        assert_eq!(report["traffic"][1]["down_mbps"], 8.0);
+        assert_eq!(report["traffic"][1]["up_mbps"], 1.0);
+        tracker.record(Err(anyhow::anyhow!("offline")), 13);
+        tracker.record(Ok(traffic(5000, 3000000, 500000)), 14);
+        let report = serde_json::to_value(&tracker.report).unwrap();
+        assert!(report["traffic"].as_array().unwrap().last().unwrap()["down_mbps"].is_null());
+    }
 
     fn sample(at: u64) -> Snapshot {
         serde_json::from_value(json!({"captured_at_millis":at,"workers":[{"queue_id":0,"busy_ppm":125000,"backlog_mean":3}]})).unwrap()

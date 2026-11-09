@@ -69,6 +69,7 @@ pub enum Action {
     Reload,
     /// Copy this text with OSC 52.
     Copy(String),
+    Refresh,
     /// `true`: release the mouse to the terminal.
     SelectMode(bool),
     /// Run a settings preview in a worker thread.
@@ -110,6 +111,7 @@ pub struct App {
     pub network: NetworkView,
     pub journal: JournalView,
     pub dashboard: DashboardView,
+    overview: super::overview::Overview,
     pub workers: WorkersView,
     /// The action that waits for its result in `status.json`.
     pub pending: Option<Sent>,
@@ -146,6 +148,7 @@ impl App {
             network: NetworkView::default(),
             journal: JournalView::new(2000),
             dashboard: DashboardView::default(),
+            overview: Default::default(),
             workers: WorkersView::default(),
             pending: None,
             action_timeout: 120,
@@ -257,6 +260,7 @@ impl App {
                 self.tab =
                     Tab::ALL[(self.tab.navigation_index() + Tab::ALL.len() - 1) % Tab::ALL.len()]
             }
+            KeyCode::Char('r') if self.tab == Tab::Dashboard => return Action::Refresh,
             KeyCode::Char('T') => {
                 self.palette = Palette::new(match self.palette.theme {
                     crate::config::Theme::Dark => crate::config::Theme::Light,
@@ -305,6 +309,9 @@ impl App {
         }
         if self.tab == Tab::Network {
             self.network.on_key(k, &self.data);
+        }
+        if self.tab == Tab::Dashboard {
+            self.overview.key(k.code, &self.data);
         }
         if self.tab == Tab::Routers {
             self.routers.on_key(k.code);
@@ -401,6 +408,9 @@ impl App {
         {
             return self.on_key(KeyEvent::new(KeyCode::Char('T'), KeyModifiers::NONE));
         }
+        if self.tab == Tab::Dashboard && self.overview.mouse(m, &self.data) {
+            return self.on_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
+        }
         if self.tab == Tab::Routers {
             self.routers.on_mouse(m);
         }
@@ -425,6 +435,7 @@ impl App {
 
     pub fn draw(&mut self, f: &mut Frame) {
         let area = f.area();
+        self.overview.clear();
         self.theme_rect = Rect::default();
         self.routers.clear_area();
         self.libreqos.clear_area();
@@ -500,7 +511,7 @@ impl App {
             Tab::Network => self.network.draw(f, main, &self.data, &self.palette),
             Tab::Journal => self.journal.draw(f, main, &self.palette),
             Tab::Dashboard => self
-                .dashboard
+                .overview
                 .draw(f, main, &self.data, self.now, &self.palette),
             Tab::Settings => self.settings.draw(f, main, &self.palette),
             Tab::Workers => self
@@ -511,7 +522,9 @@ impl App {
             Paragraph::new(
                 hint_lines
                     .iter()
-                    .map(|l| self.palette.keys(l))
+                    .map(|l| {
+                        Line::styled(l.clone(), super::design::role(&self.palette, Role::Base))
+                    })
                     .collect::<Vec<_>>(),
             ),
             footer,
@@ -557,7 +570,7 @@ impl App {
             Tab::Journal => "[q] quit  [l] level  [/] search  [f] follow  [y] copy  [s] select mode  [Shift+arrows] select",
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
             Tab::Routers | Tab::LibreQoS => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [1-7] pages  [T] theme  [S] sync  [R] reload",
-            Tab::Dashboard => "[q] quit  [S] sync  [R] reload  [1-7/Tab] tabs",
+            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
             Tab::Workers => "[q] quit  [Up/Down/PgUp/PgDn] scroll  [Home/End] first/last  [1-7/Tab] tabs",
         }.into()
     }
@@ -735,6 +748,61 @@ mod tests {
     }
 
     #[test]
+    fn dashboard_refresh_click_and_compact_scroll_use_guarded_actions() {
+        let mut a = app(true);
+        draw(&mut a, 80, 24);
+        let r = a.overview.scroll.area;
+        let wheel = MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: r.x + 2,
+            row: r.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        a.on_mouse(wheel);
+        assert!(a.overview.scroll.offset > 0);
+        a.modal = Some(Modal::ConfirmSync);
+        let before = a.overview.scroll.offset;
+        a.on_mouse(wheel);
+        assert_eq!(a.overview.scroll.offset, before);
+        a.modal = None;
+        assert_eq!(a.on_key(key(KeyCode::Char('r'))), Action::Refresh);
+        draw(&mut a, 200, 48);
+        let r = a.overview.refresh_target();
+        assert_eq!(
+            a.on_mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE
+            }),
+            Action::Refresh
+        );
+    }
+
+    #[test]
+    fn dashboard_body_matches_approved_panel_order_and_missing_data() {
+        let mut a = app(true);
+        let text = draw(&mut a, 200, 48);
+        let mut last = 0;
+        for label in [
+            "Network overview",
+            "IPoE clients",
+            "LibreQoS DPDK Traffic",
+            "WAN overview",
+            "Operational alerts",
+        ] {
+            let pos = text
+                .find(label)
+                .unwrap_or_else(|| panic!("missing {label}"));
+            assert!(pos >= last);
+            last = pos;
+        }
+        assert!(text.contains("Dataplane health"));
+        assert!(text.contains("unavailable"));
+        assert!(!text.contains("812 Mbps"));
+    }
+
+    #[test]
     fn approved_shell_starts_on_dashboard_and_has_seven_routes() {
         let mut a = app(false);
         assert_eq!(a.tab.title(), "Dashboard");
@@ -899,6 +967,7 @@ mod tests {
                         backlog_mean: Some(3),
                     }],
                     pressure: None,
+                    traffic: Default::default(),
                 })),
                 ..Data::default()
             },
@@ -1366,6 +1435,8 @@ mod tests {
             "updated":100,"cycle_ms":5,"cycle_seq":3,"trigger":"timer","files_changed":true,"reload":"failed","telegram":"failed",
             "routers":[{"name":"router-with-a-very-long-name-aaaaaaaaaaaaaaaaaa","state":"failed"},{"name":"router-with-a-very-long-name-bbbbbbbbbbbbbbbbbb","state":"offline"}]
         }))), ..Data::default() },110);
+        draw(&mut a, 80, 24);
+        a.on_key(key(KeyCode::End));
         let s = draw(&mut a, 80, 24);
         let router_text = s.clone();
         assert!(

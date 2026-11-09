@@ -1,7 +1,7 @@
 # LQoSync3 TUI visual contract
 
 Date: 2026-11-09. Time zone: Asia/Shanghai.
-Scope: approved screenshot baseline and staged TUI implementation. The first shared-shell slice is implemented; screen-body parity remains pending.
+Scope: approved screenshot baseline and staged TUI implementation. The shared shell and Dashboard body are implemented. The other screen bodies are in progress.
 
 ## Owner decisions and reference order
 
@@ -21,7 +21,7 @@ Document any necessary deviation and get the owner's approval before changing th
 | LibreQoS | Approved composition; identical to the reviewed proposal | [LibreQoS v1](mockups/libreqos-approved-v1.png) |
 | Workers | Approved composition; identical to the reviewed proposal | [Workers v1](mockups/workers-approved-v1.png) |
 | Settings | Approved: Add Router and Edit Values / Review Changes | [Add Router](mockups/settings-add-router-approved-v1.png), [Edit Values](mockups/settings-values-approved-v1.png) |
-| Journal | Proposal; owner review pending | [Journal v1](mockups/journal-proposal-v1.png) |
+| Journal | Approved by owner | [Journal v1](mockups/journal-proposal-v1.png) |
 | Original Dashboard | Historical approval evidence; v2 supersedes its chart title | [Dashboard v1](mockups/dashboard-approved-v1.png) |
 
 The PNG files are imagegen concept mockups, not screenshots of an implemented application.
@@ -47,14 +47,16 @@ Dialogs and active inputs block background navigation. A resize clears obsolete 
 Terminals below 140 columns or 28 rows retain the compact header and body layout.
 The minimum supported terminal remains 80 columns by 24 rows.
 
-Existing screen bodies remain during this transition. Routers and LibreQoS currently show cached status views.
+The Dashboard now uses the approved five-card, chart/health, planned WAN, and alert composition.
+Other existing screen bodies remain during this transition. Routers and LibreQoS currently show cached status views.
 These temporary bodies do not replace their approved screenshots as the visual baseline.
 Router collection status does not prove a current connection. Missing evidence shows as unknown or unavailable.
 The top bar labels the last cycle age as `SYNC AGE`; it does not claim a complete refresh of every source.
 
-Full screen-body layout, the DPDK traffic chart, and complete mouse interactions remain pending.
+The DPDK chart uses validated actual aggregate counters and bounded service-owned history.
+Other screen-body layouts and their complete mouse interactions remain in progress.
 The pending mouse work includes forms, per-panel wheel routing, scrollbar track clicks, and thumb drags.
-Subscriber online state needs collection evidence. The Journal proposal below still needs owner approval.
+Subscriber online state needs collection evidence. The owner has approved the Journal proposal below.
 The compact layout needs visual review before a new compact composition can claim acceptance.
 
 Checks for this slice: 516 tests pass, six manual tests remain ignored, and Clippy passes with warnings denied.
@@ -222,12 +224,28 @@ Show unknown values and chart gaps after invalid samples. Never draw a synthetic
 Preserve stale values with their age and state. Do not label stale data `LIVE`.
 
 Store bounded, time-bucketed history for the selected windows. Enable a window only when the required history is available.
-Document retention and restart behavior before implementation. The current worker cache does not implement this history.
+Retain history in the service process and publish it in the existing public telemetry cache. The worker cache now carries up to 1,801 samples over one hour. The service polls every two seconds.
+History resets when the service restarts. Invalid intervals remain gaps; values do not interpolate across them.
+Older caches without traffic history show unavailable data. The new monitor code must run before it can populate new history.
 
 Use real aggregate counters, not a sum of a limited subscriber result page.
 Keep packet direction and series provenance explicit. Do not combine `actual` and `shaped` into one undocumented total.
 
 [Upstream snapshot contract](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc/rust/libreqos_dpdk/analytics_ipc/src/lib.rs).
+
+### Dashboard runtime review
+
+Actual terminal capture: [Dashboard](captures/dashboard-v1.png). This uses synthetic fixture records in a real Zutty terminal.
+The panel order, chart/health split, colors, and selected navigation follow the approved composition.
+Terminal font and border placement change raster pixels. This capture does not claim pixel identity with the concept image.
+Unavailable PPPoE-offline evidence stays unknown. The planned WAN panel contains no invented production records.
+The sidebar service state reflects the isolated fixture unit, which is inactive.
+
+Click the time windows or use `w` to cycle windows with enough retained history.
+Click Refresh or press `r` to wake the cached-data loader. Refresh never starts a sync cycle.
+Use arrows, PageUp/PageDown, Home/End, or the mouse wheel for the compact body.
+Operational alerts have independent wheel and scrollbar controls. Visible scrollbars accept track clicks and thumb drags.
+The top bar retains truthful `SYNC AGE` for the last collection cycle.
 
 ## Subscribers
 
@@ -449,11 +467,11 @@ Use temporary files and synthetic RouterOS peers for repeatable checks. Live rou
 
 Both Settings views have owner approval. Functional acceptance remains separate from visual approval.
 
-## Journal proposal
+## Journal
 
 ![Journal proposal](mockups/journal-proposal-v1.png)
 
-State: proposal for owner review. The existing six screen approvals do not approve this new Journal image.
+State: approved by the owner on 2026-11-09. Use this unchanged image as the Journal visual baseline.
 The [generation record](JOURNAL_PROMPT.md) preserves the exact prompt and reference images.
 
 Preserve this panel order when implementing the accepted Journal design:

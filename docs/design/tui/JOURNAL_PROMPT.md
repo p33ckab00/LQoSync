@@ -3,7 +3,7 @@
 Tool: built-in `image_gen.imagegen`. Background: opaque.
 References: `mockups/workers-approved-v1.png` and `mockups/dashboard-dpdk-v2.png`.
 Output: `mockups/journal-proposal-v1.png` (2172 by 724 pixels).
-State: proposal for owner review. No Journal approval has been recorded.
+State at generation: proposal. The owner approved the unchanged image on 2026-11-09.
 
 ## Final prompt
 

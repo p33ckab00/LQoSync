@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-09T14:05:42+08:00 (Asia/Shanghai) — Approved screens implementation: Dashboard
+
+- Owner authorized all seven screen bodies, per-screen review/test/capture, and local commits. Do not push.
+- Journal mockup is approved unchanged. Last agent: Codex. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`.
+- Dashboard is implemented: cards, actual aggregate DPDK rates, bounded history, health, planned WAN, alerts, refresh, and scroll input.
+- New code: `src/tui/overview.rs`, `design.rs`, `src/worker_util/traffic.rs`; integration in app/loader/monitor.
+- Actual screenshot and reproducible capture script: `docs/design/tui/captures/dashboard-v1.png`, `scripts/dev/capture_tui.py`.
+- Checks: 521 tests pass, zero fail, six ignored; all-target Clippy, formatting, whitespace, debug build, and screenshot review pass.
+- The new monitor needs deployment to populate traffic on the live system. Production is unchanged.
+- Next action: commit this checkpoint locally, then implement Subscribers and continue Routers -> LibreQoS -> Workers -> Settings -> Journal.
+- Keep existing Settings gates, source freshness, bounded data work, and keyboard/mouse parity.
+
+Session: [[2026-11-09-approved-tui-implementation]].
+
 ## 2026-11-09T13:46:29+08:00 (Asia/Shanghai) — Journal proposal and transition review
 
 - Goal: Update visual documentation, compare exact mockups, propose Journal, and assess terminal evolution.

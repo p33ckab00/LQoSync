@@ -8,7 +8,7 @@ Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
 The web-style TUI is feasible within the current Ratatui application.
 This conclusion follows from the local layout, event, loader, and Settings code.
 The approved PNGs remain the visual baseline. No approved image changed in this review.
-The Journal PNG is a new proposal. Owner approval remains pending.
+The owner approved the unchanged Journal PNG on 2026-11-09.
 
 This task updates documentation and creates the Journal proposal. It does not implement the remaining screens.
 The existing shared-shell work remains in the worktree. Production configuration and services remain unchanged.
@@ -60,7 +60,7 @@ The image retains a `DESIGN PROPOSAL | SAMPLE DATA` label.
 The entry-detail panel omits a separate title above its timestamp. Its visible title is `Selected entry`.
 Use that actual label. Do not create extra fields from the generation prompt.
 All sample counts and states require runtime evidence before display as operational values.
-The full interaction and data requirements are in the [Journal section](README.md#journal-proposal).
+The full interaction and data requirements are in the [Journal section](README.md#journal).
 
 ## Existing implementation foundation
 
@@ -83,7 +83,7 @@ These conclusions do not establish performance under every production dataset.
 2. Implement Dashboard from its approved PNG. Verify DPDK counter direction and reset/gap handling before plotting rates.
 3. Adapt Subscribers, Routers, LibreQoS, and Workers. Reuse current data paths and preserve unavailable/stale states.
 4. Adapt Settings around existing draft/apply behavior. Verify router creation and typed edits with isolated fixtures.
-5. Adapt Journal after the owner reviews its proposal. Preserve current behavior in the meantime.
+5. Adapt Journal from its approved image. Preserve current behavior in the meantime.
 6. Complete control clicks, per-panel wheel routing, scrollbar track clicks, and thumb dragging across all screens.
 7. Capture actual terminals and compare each screen against its canonical PNG. Check compact layouts separately.
 

@@ -200,6 +200,7 @@ mod tests {
                     backlog_mean: Some(3),
                 }],
                 pressure: None,
+                traffic: Default::default(),
             })),
             ..Data::default()
         }

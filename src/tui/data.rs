@@ -447,7 +447,7 @@ pub fn spawn_loader(
         .name("tui-loader".into())
         .spawn(move || {
             while tx.send(l.load()).is_ok() {
-                std::thread::sleep(refresh);
+                std::thread::park_timeout(refresh);
             }
         })
 }
