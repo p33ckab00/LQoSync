@@ -16,8 +16,12 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 - Checks: 511 tests pass. Formatting and Clippy pass. No unresolved review finding.
 - Performance: same bounded two-second poll. No new dependency or service. No packet-path changes.
 - Live state before deployment: active `3.0.142+g8ee064d`, PID 99607, `v3_pair`.
-- Unfinished: commit, push, release build, CI, root deployment, and live verification.
-- Next action: prepare the verified release and deployment script. Sudo needs interactive authentication.
+- Code commit: `1d2b4d5`, pushed. CI run `42547035993` passes, including Rust 1.89 MSRV.
+- Release: `3.0.144+g1d2b4d5`. Build and artifact hash check pass. Deployment script syntax passes.
+- Unfinished: root deployment and live verification.
+- Next action: operator runs `sudo /home/pi/.local/state/lqosync3/buffer-pressure-1d2b4d5/deploy.sh`. Sudo needs interactive authentication.
+- The script checks the artifact, backs up the binary, restarts, checks a successful cycle and fresh diagnostics, and restores on failure.
+- This handoff update changes notes only. The prepared binary remains the verified code commit `1d2b4d5`.
 
 Session: [[2026-11-09-buffer-pressure]].
 

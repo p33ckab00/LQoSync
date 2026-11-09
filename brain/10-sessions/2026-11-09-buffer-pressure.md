@@ -55,13 +55,22 @@ Review found no unresolved code issue. The review did not measure live throughpu
 - Regression tests first failed for absent deltas, gap handling, zero-ring support, and cache isolation.
 - UI tests cover stale data, missing fields, all three themes, and narrow terminals.
 - Transport tests confirm diagnostic fields survive real socket descriptor transfer.
-- CI and deployment: pending after commit and push.
+- GitHub CI run `42547035993`: passed, including Rust 1.89 MSRV.
+- Release build: passed. Artifact reports `3.0.144+g1d2b4d5`, with no dirty marker.
+- Artifact SHA-256 check and deployment script syntax check: passed.
 
 ## Live state and next action
 
 Before deployment, the active service runs `3.0.142+g8ee064d`, PID 99607, with `v3_pair`.
-Passwordless sudo is unavailable. The operator must run the prepared deployment script with sudo.
+Passwordless sudo is unavailable. The code commit `1d2b4d5` is pushed to `origin/lqosync3`.
+The verified release and deployment script are in `/home/pi/.local/state/lqosync3/buffer-pressure-1d2b4d5/`.
+The operator must run `sudo /home/pi/.local/state/lqosync3/buffer-pressure-1d2b4d5/deploy.sh`.
+The script rejects a wrong artifact version or hash. It restores the old binary if restart checks fail.
+Post-restart checks require a successful cycle and fresh worker/pressure diagnostics.
 The script must verify its artifact, back up the binary, restart, and check the new cycle and telemetry.
 
 The implementation plan is `docs/superpowers/plans/2026-11-09-buffer-pressure.md`.
 The existing graph predates worker telemetry. Current code and this note take precedence.
+
+Release preparation completed at 2026-11-09T09:45:21+08:00 (Asia/Shanghai).
+Root deployment and post-restart verification remain open. No root restart occurred in this session.

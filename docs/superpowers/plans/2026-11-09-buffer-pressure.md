@@ -28,8 +28,9 @@ Upstream contract: `analytics_ipc/src/lib.rs` at `9ebe29bc`.
 - [x] Integrate pressure into the tracker, cache validation, and monitor transition logs.
 - [x] Add TUI tests, then show the pressure state and measurements in `src/tui/workers.rs`.
 - [x] Review descriptor bounds, freshness, log volume, overflow, and compatibility.
-- [ ] Run full tests, formatting, Clippy, and CI. Record results and remaining limits.
-- [ ] Commit and push `lqosync3`. Build, deploy, restart, and check the live service if host privileges permit.
+- [x] Run full tests, formatting, Clippy, and CI. Results: 511 tests pass, six manual tests ignored. CI run `42547035993` passes.
+- [x] Commit and push `1d2b4d5` to `lqosync3`. Build `3.0.144+g1d2b4d5` and check the artifact hash.
+- [ ] Operator runs the prepared deployment script with sudo. Check the restarted service and fresh diagnostics.
 
 The existing graph predates worker telemetry. Current source and session notes take precedence.
 Execute inline under the user's authorization. No separate plan approval is required.
