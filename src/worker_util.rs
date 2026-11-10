@@ -3,7 +3,7 @@
 pub mod classification;
 pub mod detail;
 pub mod health;
-mod ipc;
+pub(crate) mod ipc;
 pub mod pressure;
 pub mod queue;
 pub mod traffic;
@@ -307,10 +307,10 @@ fn publish(dir: &Path, report: &Telemetry) -> anyhow::Result<()> {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-struct Settings {
-    v3: bool,
-    socket: String,
-    state: String,
+pub(crate) struct Settings {
+    pub(crate) v3: bool,
+    pub(crate) socket: String,
+    pub(crate) state: String,
 }
 
 impl Settings {
@@ -328,11 +328,13 @@ impl Settings {
 pub struct Monitor {
     settings: watch::Sender<Settings>,
     task: tokio::task::JoinHandle<()>,
+    subscriber_task: tokio::task::JoinHandle<()>,
 }
 
 impl Monitor {
     pub fn start(cfg: &crate::config::Config) -> Self {
         let (settings, mut changes) = watch::channel(Settings::from_config(cfg));
+        let subscriber_task = crate::subscriber_stats::start(changes.clone());
         let task = tokio::spawn(async move {
             let mut current = changes.borrow().clone();
             let mut tracker = Tracker::default();
@@ -371,7 +373,11 @@ impl Monitor {
                 }
             }
         });
-        Self { settings, task }
+        Self {
+            settings,
+            task,
+            subscriber_task,
+        }
     }
 
     pub fn reconfigure(&self, cfg: &crate::config::Config) {
@@ -390,6 +396,7 @@ impl Monitor {
 impl Drop for Monitor {
     fn drop(&mut self) {
         self.task.abort();
+        self.subscriber_task.abort();
     }
 }
 
@@ -977,7 +984,7 @@ mod tests {
             assert_eq!(
                 kinds,
                 if n == 0 || n == 5 {
-                    vec!["health", "snapshot"]
+                    vec!["health", "snapshot", "state"]
                 } else {
                     vec!["snapshot"]
                 },
@@ -1001,6 +1008,7 @@ mod tests {
             tokio::task::yield_now().await;
         }
         assert!(first.path().join(CACHE).exists());
+        assert!(first.path().join(crate::subscriber_stats::CACHE).exists());
         cfg.runtime.state_dir = second.path().display().to_string();
         monitor.reconfigure(&cfg);
         for _ in 0..10 {
@@ -1011,14 +1019,24 @@ mod tests {
             tokio::task::yield_now().await;
         }
         assert!(second.path().join(CACHE).exists());
+        assert!(second.path().join(crate::subscriber_stats::CACHE).exists());
         drop(monitor);
         std::fs::write(second.path().join(CACHE), "stopped").unwrap();
+        std::fs::write(
+            second.path().join(crate::subscriber_stats::CACHE),
+            "stopped",
+        )
+        .unwrap();
         tokio::time::advance(Duration::from_secs(10)).await;
         for _ in 0..10 {
             tokio::task::yield_now().await;
         }
         assert_eq!(
             std::fs::read_to_string(second.path().join(CACHE)).unwrap(),
+            "stopped"
+        );
+        assert_eq!(
+            std::fs::read_to_string(second.path().join(crate::subscriber_stats::CACHE)).unwrap(),
             "stopped"
         );
     }

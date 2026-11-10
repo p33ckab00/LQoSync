@@ -24,6 +24,7 @@ pub mod sources;
 pub mod speed;
 pub mod state;
 pub mod status;
+pub mod subscriber_stats;
 pub mod topology;
 pub mod tui;
 pub mod validate;

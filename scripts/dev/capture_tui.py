@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--traffic-source', choices=['actual','mapped','unmapped'], default='actual')
     parser.add_argument('--worker-phases', action='store_true')
     parser.add_argument('--worker-health', action='store_true')
+    parser.add_argument('--subscriber-stats', action='store_true')
     args = parser.parse_args()
     if args.screen != 1 and args.traffic_source != 'actual':
         parser.error('--traffic-source applies to Dashboard only')
@@ -29,6 +30,8 @@ def main():
         parser.error('--worker-phases applies to Workers only')
     if args.worker_health and (args.screen != 5 or args.worker_phases):
         parser.error('--worker-health requires Workers and cannot combine with --worker-phases')
+    if args.subscriber_stats and args.screen != 2:
+        parser.error('--subscriber-stats applies to Subscribers only')
     root = Path(__file__).resolve().parents[2]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='lqosync3-capture-') as folder:
@@ -116,6 +119,13 @@ enabled = true
                                   busy_laps=218000000, cycles_per_busy_lap=285000,
                                   phase_cycles=[772000000000,146000000000,231000000000,0,362000000000,
                                                 53000000000,1216000000000,6637000000000,0,56105000000000])
+                subscriber_stats={'version':1,'updated':now,'stale':False,'reason':None,'hosts':{}}
+                for i in range(32):
+                    subscriber_stats['hosts'][f'SUB-{i:04}']={f'192.0.2.{i+1}':{
+                        'actual':{'download_bytes':1500000000,'upload_bytes':230000000},
+                        'down_mbps':12.375,'up_mbps':1.25,'rtt_ms':10.5,'rtt_down_ms':12.0,'rtt_up_ms':3.0,
+                        'retransmits':3,'retransmits_down':2,'retransmits_up':1,'seen_age_ms':80}}
+                (path/'subscriber-telemetry.json').write_text(json.dumps(subscriber_stats))
                 report['health'] = {'updated':now, 'stale':False, 'reason':None,
                                     'summary':{'status':'degraded','version':'0.1.0','uptime_ms':44966000,
                                                'topology_tier':None,'classification_empty':False,
@@ -155,6 +165,20 @@ enabled = true
             if args.screen == 1:
                 for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)): key('v')
                 time.sleep(.2)
+            if args.subscriber_stats:
+                key('slash');time.sleep(.1)
+                for char in 'subscriber 00':
+                    key('space' if char==' ' else char);time.sleep(.03)
+                key('Return');time.sleep(.2)
+                key('e'); time.sleep(.3)
+                xt.XTestFakeMotionEvent.argtypes=[C.c_void_p,C.c_int,C.c_int,C.c_int,C.c_ulong]
+                xt.XTestFakeButtonEvent.argtypes=[C.c_void_p,C.c_uint,C.c_int,C.c_ulong]
+                xt.XTestFakeMotionEvent(d,-1,1000,350,0)
+                xt.XTestFakeButtonEvent(d,1,1,0);xt.XTestFakeButtonEvent(d,1,0,0);x.XFlush(d)
+                time.sleep(.2);key('Home')
+                for _ in range(15):
+                    key('Down');time.sleep(.03)
+                time.sleep(.4)
             if args.worker_health:
                 key('e'); key('Tab')
                 for _ in range(27): key('Down')

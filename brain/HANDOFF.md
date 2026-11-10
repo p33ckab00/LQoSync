@@ -8,6 +8,22 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T20:49:33+08:00 (Asia/Shanghai) — DPDK task 5 implementation
+
+- Task 5 adds per-IP subscriber delivered rates/bytes, RTT sample medians, observed retransmit counters, and packet age at read.
+- Three operator-run samples verified 26/26 applied slot/name/IP matches. Slot 1 names the first circuit. Producer timestamps advanced.
+- A bounded sampler reads state/snapshot/state every ten seconds and shares monitor reload/shutdown ownership. Aggregate polling remains separate.
+- A separate 1 MiB cache stores at most 512 shaped host summaries. Missing/capped rows remain unknown, with no online/offline inference.
+- Canonical ownership rejects duplicate/overlapping IPs, including projected collection-only records. Routed prefixes remain unsupported.
+- Subscribers keeps approved composition, persistent selection context, wrapped scrolling, mouse focus, page keys, and copy.
+- Checks passed: 596 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, live probe, and capture review.
+- Maximum host cache: 351,809 bytes; one debug publish/read sample 35.1 ms. A 75,000-row ownership index took 634.9 ms on reload.
+- No push, deployment, restart, or production configuration change. Next: Task 6 on-demand circuit queue diagnostics.
+- Preserve the unrelated local-profile Knowledge link and note.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-subscriber-observations]].
+
 ## 2026-11-10T20:13:44+08:00 (Asia/Shanghai) — DPDK task 4 implementation
 
 - Task 4 adds independent bridge health, reported uptime, topology/classification state, and named degraded subsystems.

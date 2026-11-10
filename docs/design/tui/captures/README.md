@@ -55,3 +55,14 @@ The approved panel order remains unchanged. Scrolling exposes the additional con
 
 Reproduce with `python3 scripts/dev/capture_tui.py --screen 1 --output /tmp/dashboard-health.png`.
 Use `--screen 5 --worker-health --output /tmp/workers-health.png` for the expanded health pane.
+
+## Subscriber DPDK update
+
+Task 5 adds [default Subscribers](subscribers-dpdk-default-v1.png) and [expanded DPDK observations](subscribers-dpdk-v1.png).
+Both are actual terminal frames with isolated synthetic data.
+The default frame shows an unassigned collection-only record. The expanded frame shows a matched shaping record.
+The [checkpoint review](../DPDK_STATS.md#task-5-subscriber-traffic-rtt-and-retransmissions) records source scope, live-probe evidence, and layout checks.
+The approved panel order remains unchanged. The detail pane keeps selection context and wrapped scrolling.
+
+Reproduce with `python3 scripts/dev/capture_tui.py --screen 2 --output /tmp/subscribers-default.png`.
+Add `--subscriber-stats` to filter a matched fixture record, expand its details, and scroll to the DPDK measurements.

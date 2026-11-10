@@ -668,3 +668,13 @@ Keep the existing Dashboard health and Workers detail panes. Retain the approved
 Health freshness and source status must remain separate from snapshot/traffic freshness.
 Show uptime as reported, missing values as unknown, and stale health as last known.
 The status display must preserve named degraded subsystems. It does not authorize an automatic restart.
+
+
+## Subscriber DPDK observations extension
+
+The [Task 5 review](DPDK_STATS.md#task-5-subscriber-traffic-rtt-and-retransmissions) records source mapping, capture evidence, and verification.
+Keep the approved Subscribers composition. Add metrics in the existing scrollable detail pane and copy output.
+Keep the selected subscriber visible in the pane title during expansion and scrolling.
+Clearly separate shaped limits, RouterOS collection state, and observed DPDK host measurements.
+Show the capped scope, per-IP identity, source freshness, and unknown or stale states.
+A missing sample must not become zero traffic, an offline state, or a whole-circuit total.

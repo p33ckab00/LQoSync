@@ -134,8 +134,49 @@ Formatting, all-target Clippy with warnings denied, build, source probe, and ter
 Tests cover request kinds, independent health/snapshot failures, cadence, cache compatibility, expiry, duplicate uptime, restart, missing fields, bounds, and stale copy.
 No push, deployment, restart, new dependency, or runtime key belongs to this checkpoint.
 
+## Task 5: subscriber traffic, RTT, and retransmissions
+
+Subscribers keeps the approved cards, filters, table/details split, expanded details, actions, and footer.
+The selected detail pane adds per-IP delivered rates/bytes, RTT sample medians, and observed TCP retransmission counters.
+The title keeps the selected subscriber visible during scrolling. Wrapped text has exact scrollbar bounds.
+Mouse focus, wheel, scrollbar, Up/Down, page keys, Home, End, expansion, and copy remain available.
+
+The default view shows an unassigned collection record as unavailable. The expanded view shows an exact shaping match.
+Actual terminal captures use isolated synthetic records:
+
+- [Default Subscribers layout](captures/subscribers-dpdk-default-v1.png)
+- [Expanded DPDK observations](captures/subscribers-dpdk-v1.png)
+
+The source caps shaped hosts at 512 for this sampler. Missing hosts and fields remain unknown.
+No host sum becomes a bridge or whole-circuit total. No absence changes collection state.
+RTT is the median of retained nonzero samples, with pooled and directional fields kept separate.
+TCP retransmissions are observed cumulative counters. They do not claim packet-loss percentages.
+Stale observations keep their last-known label and hide current rates.
+
+The operator's three read-only samples contained 26 shaped hosts. All 26 matched applied circuit names and exact IPs.
+The probe verified one-based slot mapping, advancing timestamps, delivered-byte fields, and pooled/directional TCP fields.
+It printed only counts and source timestamps, without subscriber identities.
+The live CSV had no routed-prefix or IPv6 fields. IPv6 canonicalization is covered by isolated tests.
+Sources: [host contract](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc/rust/libreqos_dpdk/analytics_ipc/src/lib.rs), [applied-state contract](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc/rust/libreqos_dpdk/analytics_ipc/src/ipc.rs).
+
+A bounded sampler reads state/snapshot/state every ten seconds. State generations and slot names must agree.
+Two stable observations and producer progress establish attribution. Remaps, errors, resets, duplicates, and gaps cannot invent rates.
+The sampler shares monitor reload/shutdown ownership. Aggregate snapshot cadence, limits, history, and cache remain unchanged.
+A separate 1 MiB public cache stores only bounded host summaries. Each source reply keeps the 2 MiB transport bound.
+Exact circuit/IP matching rejects ambiguous local ownership, including overlapping prefixes and projected collection-only rows.
+Non-host prefixes remain unsupported. At most sixteen exact host addresses are supported per row.
+
+The maximum 512-host cache fixture measured 351,809 bytes. One debug publish/read sample took 35.1 ms.
+A 75,000-row ownership index took 634.9 ms in one debug run. Index work occurs on row changes, not on frames.
+Projected ownership is cached across telemetry-only updates. Frames use bounded selected-host lookups.
+These synthetic measurements are not production performance guarantees.
+
+Verification: 596 tests passed, zero failed, seven manual tests ignored.
+Formatting, all-target Clippy with warnings denied, build, source probe, and terminal capture review passed.
+The suite covers source decoding, slot order, mapping changes, counter resets, omissions, optional fields, ownership conflicts, cache bounds, lifecycle, copy, and scrolling.
+No deployment, restart, or production configuration change occurred.
+
 ## Next checkpoints
-5. Subscriber traffic, RTT, and retransmissions.
 6. On-demand circuit queue diagnostics.
 
 Each checkpoint requires its own tests, review, documentation, and local commit.

@@ -42,14 +42,21 @@ fn decode<T: serde::de::DeserializeOwned>(mut bytes: &[u8]) -> anyhow::Result<T>
     Ok(value)
 }
 
-async fn request<T: serde::de::DeserializeOwned>(path: &Path, kind: &str) -> anyhow::Result<T> {
+async fn request<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    kind: &str,
+    limit: usize,
+) -> anyhow::Result<T> {
     tokio::time::timeout(Duration::from_secs(2), async {
         let mut stream = UnixStream::connect(path)
             .await
             .context("analytics socket unavailable")?;
-        // Both requests are read-only. A limit of 1 bounds snapshot host and flow rows.
+        // All supported requests are read-only. The caller bounds snapshot host and flow rows.
         let mut request = Vec::new();
-        ciborium::into_writer(&serde_json::json!({"kind":kind,"limit":1}), &mut request)?;
+        ciborium::into_writer(
+            &serde_json::json!({"kind":kind,"limit":limit}),
+            &mut request,
+        )?;
         stream
             .write_all(&(request.len() as u32).to_be_bytes())
             .await?;
@@ -104,15 +111,32 @@ async fn request<T: serde::de::DeserializeOwned>(path: &Path, kind: &str) -> any
 }
 
 pub async fn read_snapshot(path: &Path) -> anyhow::Result<Snapshot> {
-    let snapshot: Snapshot = request(path, "snapshot").await?;
+    let snapshot: Snapshot = request(path, "snapshot", 1).await?;
     snapshot.validate()?;
     Ok(snapshot)
 }
 
 pub async fn read_health(path: &Path) -> anyhow::Result<super::health::Report> {
-    let health: super::health::Report = request(path, "health").await?;
+    let health: super::health::Report = request(path, "health", 1).await?;
     health.validate()?;
     Ok(health)
+}
+
+pub(crate) async fn read_hosts(path: &Path) -> anyhow::Result<crate::subscriber_stats::Snapshot> {
+    let hosts: crate::subscriber_stats::Snapshot =
+        request(path, "snapshot", crate::subscriber_stats::LIMIT).await?;
+    hosts.validate()?;
+    Ok(hosts)
+}
+
+pub(crate) async fn read_mapping(path: &Path) -> anyhow::Result<crate::subscriber_stats::Mapping> {
+    let state: crate::subscriber_stats::State = request(path, "state", 1).await?;
+    match state {
+        crate::subscriber_stats::State::Report(report) => report.mapping(),
+        crate::subscriber_stats::State::Unavailable(_) => {
+            anyhow::bail!("applied state unavailable")
+        }
+    }
 }
 
 #[cfg(test)]
@@ -123,12 +147,12 @@ mod tests {
     use std::io::{IoSlice, Read, Write};
     use std::os::unix::net::UnixListener;
 
-    fn serve(
-        value: Value,
+    fn serve<V: serde::Serialize + Send + 'static>(
+        value: V,
         kind: &str,
         length: Option<usize>,
         count: usize,
-        expected_request: &'static str,
+        expected_request: (&'static str, usize),
     ) -> (tempfile::TempDir, std::thread::JoinHandle<()>) {
         let dir = tempfile::tempdir().unwrap();
         let listener = UnixListener::bind(dir.path().join("analytics.sock")).unwrap();
@@ -144,8 +168,8 @@ mod tests {
             let mut request = vec![0; u32::from_be_bytes(head) as usize];
             socket.read_exact(&mut request).unwrap();
             let request: Value = decode(&request).unwrap();
-            assert_eq!(request["kind"], expected_request);
-            assert_eq!(request["limit"], 1);
+            assert_eq!(request["kind"], expected_request.0);
+            assert_eq!(request["limit"], expected_request.1);
             let mut bytes = Vec::new();
             ciborium::into_writer(&value, &mut bytes).unwrap();
             let mut file = std::fs::File::options()
@@ -181,11 +205,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn subscriber_applied_slot_order_roundtrips_and_requires_current_schema() {
+        let mut slots = Vec::new();
+        ciborium::into_writer(&vec!["c1", "c2"], &mut slots).unwrap();
+        let state = json!({"Report":{"generation":"g1","report_schema":1,"slot_order":slots}});
+        let (dir, server) = serve(state.clone(), "state", None, 1, ("state", 1));
+        let mapping = read_mapping(&dir.path().join("analytics.sock"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(mapping.names, vec!["c1", "c2"]);
+        for bad in [
+            json!({"Unavailable":"no_report_yet"}),
+            json!({"Report":{"report_schema":2,"generation":"g1","slot_order":[]}}),
+        ] {
+            let (dir, server) = serve(bad, "state", None, 1, ("state", 1));
+            assert!(
+                read_mapping(&dir.path().join("analytics.sock"))
+                    .await
+                    .is_err()
+            );
+            server.join().unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn subscriber_host_snapshot_decodes_real_ip_and_keeps_aggregate_limit_separate() {
+        let snapshot: crate::subscriber_stats::Snapshot = serde_json::from_value(json!({
+            "captured_at_millis":1000,"hosts":[{"id":{"circuit_id":1,"subscriber_ip":"192.0.2.1"},
+            "actual":{"download_bytes":100,"upload_bytes":200},"rtt_samples_us":[1000,2000],"tcp_retransmits":3}]})).unwrap();
+        let (dir, server) = serve(snapshot, "snapshot", None, 1, ("snapshot", 512));
+        let decoded = read_hosts(&dir.path().join("analytics.sock"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(
+            decoded.hosts.as_ref().unwrap()[0]
+                .id
+                .subscriber_ip
+                .to_string(),
+            "192.0.2.1"
+        );
+        assert_eq!(decoded.hosts.as_ref().unwrap()[0].tcp_retransmits, Some(3));
+    }
+
+    #[tokio::test]
     async fn health_uses_the_bounded_descriptor_transport_and_requires_its_reply_kind() {
         let value = json!({"status":"degraded","version":"v3","uptime_ms":12345,
             "workers":[],"classification_empty":true,"topology_tier":"bootstrap_trunk",
             "degraded_subsystems":["stats_summary"]});
-        let (dir, server) = serve(value, "health", None, 1, "health");
+        let (dir, server) = serve(value, "health", None, 1, ("health", 1));
         let health = read_health(&dir.path().join("analytics.sock"))
             .await
             .unwrap();
@@ -196,7 +265,7 @@ mod tests {
             health.degraded_subsystems.as_deref().unwrap(),
             &["stats_summary"]
         );
-        let (dir, server) = serve(sample(), "snapshot", None, 1, "health");
+        let (dir, server) = serve(sample(), "snapshot", None, 1, ("health", 1));
         assert!(
             read_health(&dir.path().join("analytics.sock"))
                 .await
@@ -211,7 +280,7 @@ mod tests {
 
     #[tokio::test]
     async fn worker_util_ipc_reads_a_fragmented_reply_and_ignores_unrelated_data() {
-        let (dir, server) = serve(sample(), "snapshot", None, 1, "snapshot");
+        let (dir, server) = serve(sample(), "snapshot", None, 1, ("snapshot", 1));
         let sample = read_snapshot(&dir.path().join("analytics.sock"))
             .await
             .unwrap();
@@ -252,7 +321,7 @@ mod tests {
             ("snapshot", None, 0),
             ("snapshot", None, 2),
         ] {
-            let (dir, server) = serve(sample(), kind, length, count, "snapshot");
+            let (dir, server) = serve(sample(), kind, length, count, ("snapshot", 1));
             assert!(
                 read_snapshot(&dir.path().join("analytics.sock"))
                     .await
@@ -277,7 +346,7 @@ mod tests {
             "snapshot",
             None,
             1,
-            "snapshot",
+            ("snapshot", 1),
         );
         assert!(
             read_snapshot(&dir.path().join("analytics.sock"))

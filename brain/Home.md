@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-10-dpdk-subscriber-observations]]
+
 - [[2026-11-10-dpdk-bridge-health]]
 
 - [[2026-11-10-dpdk-worker-details]]

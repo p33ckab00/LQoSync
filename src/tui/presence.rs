@@ -92,6 +92,7 @@ impl Projection {
             self.view.row_search = old.row_search;
             self.view.flags = old.flags;
             self.view.presence = old.presence;
+            self.view.ip_owners = old.ip_owners;
             return;
         }
         self.base = Some(d.clone());
@@ -268,6 +269,9 @@ impl Projection {
                 );
             }
         }
+        if rows.len() != d.rows.len() {
+            self.view.ip_owners = Arc::new(crate::subscriber_stats::owners(&rows));
+        }
         self.view.rows = Arc::new(rows);
         self.view.row_search = Arc::new(search);
         self.view.flags = Arc::new(flags);
@@ -341,6 +345,16 @@ mod tests {
             State::Unknown
         );
         assert_eq!(projection.view.rows.len(), 3);
+        assert_eq!(
+            projection
+                .view
+                .ip_owners
+                .get(&"192.0.2.10".parse().unwrap()),
+            Some(&3)
+        );
+        let owners = projection.view.ip_owners.clone();
+        projection.update(&d);
+        assert!(Arc::ptr_eq(&owners, &projection.view.ip_owners));
     }
 
     #[test]

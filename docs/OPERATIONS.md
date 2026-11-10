@@ -636,3 +636,51 @@ Health supports older bridges without the new optional fields. An unsupported en
 The public cache stores only a bounded health summary. It stores no per-worker health records, subscriber identities, or flow records.
 
 This feature performs no supervision action or automatic restart. It changes no router, bridge, or shaping configuration.
+
+### Subscriber DPDK observations
+
+Open Subscribers and select a shaping record. Expand or scroll its details for DPDK host observations.
+Copy includes the same observations. The title keeps the selected subscriber visible during scrolling.
+Click the detail pane or use Tab to focus it. Use the wheel, scrollbar, Up/Down, PageUp/PageDown, Home, or End.
+The original table, filters, summary cards, shaping values, and collection states remain available.
+
+The view shows delivered download/upload Mbps and cumulative bytes for each exact host IP.
+It also shows pooled and directional RTT sample medians in milliseconds, observed TCP retransmission counters, and packet age at read.
+RTT uses retained source samples. It is not a ping measurement.
+Retransmission counters are not packet-loss percentages. Missing fields and empty RTT samples remain unknown.
+These are per-IP observations, not a complete circuit total or a speed entitlement.
+
+The service samples at most 512 shaped host rows every ten seconds.
+The source sorts and caps host records. A missing host does not imply zero traffic or offline state.
+Best-effort hosts and flow records do not enter this cache. Aggregate Actual/Mapped/Unmapped traffic remains separate.
+The worker/aggregate snapshot keeps its limit of 1 and its two-second cadence.
+
+The sampler reads applied state, a host snapshot, then applied state again.
+Both state reads must agree on generation and authoritative slot names.
+The verified mapping is one-based: slot 1 names the first circuit. Slot 0 is best effort and is excluded.
+Two samples with the same mapping and an advancing producer timestamp establish live attribution.
+A changed mapping, producer reset, or source failure requires a new baseline.
+Duplicate snapshots cannot refresh freshness. Health and aggregate-worker outcomes remain independent.
+
+Rates require consecutive observations of the same circuit/IP with increasing counters.
+A missing host, counter reset, clock regression, or interval beyond fifteen seconds prevents a rate for that interval.
+A failed read marks retained observations stale. Fifteen-second expiry also hides current rates.
+Stale byte/RTT/retransmission values remain last-known observations.
+The UI does not extrapolate packet age or RTT sample freshness.
+
+The join requires the exact circuit ID, canonical IPv4/IPv6 host address, and unique local IP ownership.
+Host masks `/32` and `/128` are accepted. Routed prefixes and records with unsupported addresses remain unavailable.
+At most sixteen host addresses are supported per row. No prefix-wide total is inferred from a host sample.
+Duplicate or overlapping ownership, including collection-only records, prevents attribution.
+A collection-only record without an assigned shaping circuit remains unavailable.
+The existing RouterOS collection cycle and online/offline states do not change.
+
+The public file `<runtime.state_dir>/subscriber-telemetry.json` has mode 0644 and a 1 MiB limit.
+It contains circuit IDs, subscriber host IPs, and bounded metric summaries.
+It contains no credential, subscriber-name, remote-flow, raw-RTT, or packet fields.
+Each analytics request keeps the two-second deadline and 2 MiB reply bound.
+An unsupported state report, missing slot order, or oversized reply shows unavailable instead of guessing a mapping.
+A bounded sampler task shares the existing monitor's configuration and shutdown lifecycle.
+It cannot block the aggregate poll while it waits for state or host replies.
+
+This feature adds no router read/write, new service, dependency, runtime key, push, or automatic restart.

@@ -148,3 +148,36 @@ The UI retains unknown topology, independent freshness, and last-known states.
 The maximum cache fixture measured 742,194 bytes after fallback with full histories and bounded health.
 One debug publish/read sample took 155.3 ms; this is not a production guarantee.
 No push, deployment, or restart occurred. Task 5 subscriber traffic, RTT, and retransmissions is next.
+
+## Checkpoint 5: subscriber host observations
+
+Keep the aggregate snapshot request at limit 1 and its two-second cadence.
+Use a separate bounded sampler within the monitor lifecycle for subscriber observations every ten seconds.
+Read applied state before and after a snapshot capped at 512 shaped host rows.
+Require a stable applied generation and authoritative slot order. Verify the slot/IP join with a read-only live probe.
+Require producer progress under the same mapping across samples before enabling live attribution.
+A state change, failure, duplicate timestamp, reset, missing host, or counter reset cannot produce invented rates.
+
+- Reuse the descriptor transport, two-second request deadline, and 2 MiB reply bound.
+- Ignore flow records and best-effort hosts. Do not sum capped hosts into whole-bridge totals.
+- Publish a separate bounded host-summary cache. Keep the aggregate cache and its 1 MiB budget unchanged.
+- Join the selected subscriber by exact circuit ID and canonical host IP. Reject duplicate local ownership and collection-only records.
+- Show delivered rates/bytes, observed RTT medians, and TCP retransmission counts with explicit units and freshness.
+- Keep missing fields, absent samples, and capped coverage explicit. These metrics do not establish online/offline state.
+- Keep the approved Subscribers composition, detail scrolling, and copy action.
+- Test transport, mapping changes, counter resets, capped omissions, optional fields, cache limits, identity conflicts, and UI behavior.
+- Review terminal captures, performance, integrity, full checks, and documentation. Commit locally only.
+
+No flow history, completion-ring drain, packet capture, router read/write, new service, dependency, runtime key, push, deployment, or restart belongs to this checkpoint.
+
+## Checkpoint 5 result
+
+Implemented and locally verified. All 26 hosts matched the one-based applied slot order and exact CSV IPs across three live samples.
+Producer timestamps advanced. Pooled/directional RTT and retransmission fields were present.
+The sampler keeps aggregate polling separate and publishes a bounded host-only cache.
+The final review added ownership checks for projected collection-only rows and persistent selection context.
+596 tests passed, zero failed, seven manual tests ignored. Formatting, Clippy, build, and terminal capture review passed.
+The maximum host cache measured 351,809 bytes. One debug publish/read sample took 35.1 ms.
+A 75,000-row ownership index took 634.9 ms on row reload, not per frame. These are synthetic measurements.
+No push, deployment, restart, or production configuration change occurred.
+Task 6, on-demand circuit queue diagnostics, is next.

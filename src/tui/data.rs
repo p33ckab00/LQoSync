@@ -31,6 +31,8 @@ pub struct Data {
     pub collection: Option<Arc<crate::collection::Report>>,
     pub presence: Arc<HashMap<String, super::presence::Evidence>>,
     pub worker_util: Option<Arc<crate::worker_util::Telemetry>>,
+    pub subscriber_stats: Option<Arc<crate::subscriber_stats::Report>>,
+    pub ip_owners: Arc<std::collections::BTreeMap<std::net::IpAddr, usize>>,
     pub service: Option<Unit>,
     pub target: String,
     pub rows: Arc<Vec<CsvRow>>,
@@ -90,6 +92,7 @@ pub struct Loader {
     config_stamp: Stamp,
     snapshot_stamp: Stamp,
     worker_stamp: Stamp,
+    subscriber_stamp: Stamp,
     collection_stamp: Stamp,
     versions_at: Option<Instant>,
     sampler: Sampler,
@@ -109,6 +112,7 @@ impl Loader {
             config_stamp: None,
             snapshot_stamp: None,
             worker_stamp: None,
+            subscriber_stamp: None,
             collection_stamp: None,
             versions_at: None,
             sampler: Sampler::default(),
@@ -236,6 +240,19 @@ impl Loader {
             self.data.worker_util = None;
             self.worker_stamp = None;
         }
+        let subscriber_path = state_dir.join(crate::subscriber_stats::CACHE);
+        let ss = stamp(&subscriber_path);
+        if target.starts_with("v3_") {
+            if ss != self.subscriber_stamp || self.data.subscriber_stats.is_none() {
+                self.data.subscriber_stats = Some(Arc::new(crate::subscriber_stats::read_cache(
+                    &subscriber_path,
+                )));
+                self.subscriber_stamp = ss;
+            }
+        } else {
+            self.data.subscriber_stats = None;
+            self.subscriber_stamp = None;
+        }
         let dir = if shadow {
             state_dir.join("candidate")
         } else {
@@ -350,6 +367,7 @@ impl Loader {
         self.data.flags = Arc::new(flags);
         self.data.node_circuits = Arc::new(node_circuits);
         self.data.tree = Arc::new(tree);
+        self.data.ip_owners = Arc::new(crate::subscriber_stats::owners(&rows));
         self.data.rows = Arc::new(rows);
     }
 }
@@ -543,6 +561,34 @@ mod tests {
         assert!(d.status.is_none() && d.service.is_none() && d.proc.is_none());
         assert_eq!(d.target, "v2_pair");
         let _ = &e.config;
+    }
+
+    #[test]
+    fn subscriber_loader_reads_cache_changes_and_builds_canonical_ownership_once() {
+        let (e, mut l) = env();
+        pair(&e, "c1,alice,d1,alice,AP,aa:bb,192.0.2.1/32,,1,1,10,10,x\n");
+        l.cfg.libreqos.target = crate::config::Target::V3Pair;
+        let path = e.state.join(crate::subscriber_stats::CACHE);
+        std::fs::write(
+            &path,
+            r#"{"version":1,"updated":100,"stale":false,"reason":null,"hosts":{}}"#,
+        )
+        .unwrap();
+        let first = l.load();
+        assert!(first.subscriber_stats.as_ref().unwrap().live(100));
+        assert_eq!(first.ip_owners.get(&"192.0.2.1".parse().unwrap()), Some(&1));
+        let second = l.load();
+        assert!(Arc::ptr_eq(&first.ip_owners, &second.ip_owners));
+        assert!(Arc::ptr_eq(
+            first.subscriber_stats.as_ref().unwrap(),
+            second.subscriber_stats.as_ref().unwrap()
+        ));
+        std::fs::write(&path, "invalid").unwrap();
+        assert!(!l.load().subscriber_stats.unwrap().live(100));
+        std::fs::remove_file(path).unwrap();
+        assert!(l.load().subscriber_stats.unwrap().stale);
+        l.cfg.libreqos.target = crate::config::Target::V2Pair;
+        assert!(l.load().subscriber_stats.is_none());
     }
 
     #[test]

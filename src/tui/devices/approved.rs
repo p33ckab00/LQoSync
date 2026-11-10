@@ -62,6 +62,21 @@ pub enum Input {
     Copy(String),
 }
 impl DevicesView {
+    fn host_details(&self, d: &Data) -> Vec<String> {
+        let Some(&i) = self.index.get(self.cursor) else {
+            return vec!["DPDK host observations unavailable: no selected record".into()];
+        };
+        d.subscriber_stats.as_ref().map_or_else(
+            || {
+                crate::subscriber_stats::Report::default().measurements(
+                    &d.rows[i as usize],
+                    &d.ip_owners,
+                    self.approved.now,
+                )
+            },
+            |s| s.measurements(&d.rows[i as usize], &d.ip_owners, self.approved.now),
+        )
+    }
     pub fn filter_router(&mut self, name: String, d: &Data) {
         self.approved.router = Some(name);
         self.cursor = 0;
@@ -170,13 +185,29 @@ impl DevicesView {
             match k.code {
                 KeyCode::Up => scroll.offset = scroll.offset.saturating_sub(1),
                 KeyCode::Down => scroll.offset = scroll.offset.saturating_add(1).min(scroll.max),
+                KeyCode::PageUp => {
+                    scroll.offset = scroll
+                        .offset
+                        .saturating_sub(scroll.area.height.max(1) as usize)
+                }
+                KeyCode::PageDown => {
+                    scroll.offset = scroll
+                        .offset
+                        .saturating_add(scroll.area.height.max(1) as usize)
+                        .min(scroll.max)
+                }
                 KeyCode::Home => scroll.offset = 0,
                 KeyCode::End => scroll.offset = scroll.max,
                 _ => {}
             }
             if matches!(
                 k.code,
-                KeyCode::Up | KeyCode::Down | KeyCode::Home | KeyCode::End
+                KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::PageUp
+                    | KeyCode::PageDown
+                    | KeyCode::Home
+                    | KeyCode::End
             ) {
                 return Input::None;
             }
@@ -200,13 +231,9 @@ impl DevicesView {
                 }
             }
             KeyCode::Char('c') => {
-                return Input::Copy(
-                    self.detail(d)
-                        .into_iter()
-                        .map(|l| l.to_string())
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                );
+                let mut lines: Vec<_> = self.detail(d).into_iter().map(|l| l.to_string()).collect();
+                lines.extend(self.host_details(d));
+                return Input::Copy(lines.join("\n"));
             }
             KeyCode::Enter | KeyCode::Char('e') => self.approved.expanded = !self.approved.expanded,
             KeyCode::Esc => self.approved.expanded = false,
@@ -260,6 +287,13 @@ impl DevicesView {
                     KeyEvent::new(KeyCode::Char(['e', 'c', 'n'][i]), m.modifiers),
                     d,
                 );
+            }
+            let detail = self.approved.detail.area;
+            if detail.contains((m.column, m.row).into())
+                && m.column < detail.right().saturating_sub(1)
+            {
+                self.approved.focus = Some(6);
+                self.editing = false;
             }
             let r = self.approved.table.area;
             if r.contains((m.column, m.row).into()) && m.column < r.right().saturating_sub(1) {
@@ -504,7 +538,24 @@ impl DevicesView {
                 );
             }
         }
-        let block = design::panel("Subscriber details", p);
+        let title = self
+            .index
+            .get(self.cursor)
+            .map_or("Subscriber details".into(), |&i| {
+                let r = &d.rows[i as usize];
+                format!(
+                    "Subscriber details | {}",
+                    clip(
+                        if r.circuit_name.is_empty() {
+                            &r.circuit_id
+                        } else {
+                            &r.circuit_name
+                        },
+                        24
+                    )
+                )
+            });
+        let block = design::panel(title, p);
         let inner = block.inner(right);
         f.render_widget(block, right);
         let mut lines = if let Some(&i) = self.index.get(self.cursor) {
@@ -567,24 +618,29 @@ impl DevicesView {
         } else {
             vec![Line::raw("No selected record")]
         };
+        lines.extend(self.host_details(d).into_iter().map(Line::raw));
         if self.approved.expanded {
             lines.extend(self.detail(d));
         }
-        self.approved.detail.max = lines
-            .len()
-            .saturating_sub(inner.height.saturating_sub(3) as usize);
-        self.approved.detail.offset = self.approved.detail.offset.min(self.approved.detail.max);
         let [detail, actions] =
             Layout::vertical([Constraint::Min(0), Constraint::Length(3)]).areas(inner);
-        let total = lines.len();
+        let content = Rect {
+            width: detail.width.saturating_sub(1),
+            ..detail
+        };
+        let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
+        let total = paragraph.line_count(content.width);
+        self.approved.detail.offset = self
+            .approved
+            .detail
+            .offset
+            .min(total.saturating_sub(content.height as usize));
         f.render_widget(
-            Paragraph::new(
-                lines
-                    .into_iter()
-                    .skip(self.approved.detail.offset)
-                    .collect::<Vec<_>>(),
-            ),
-            detail,
+            paragraph.scroll((
+                u16::try_from(self.approved.detail.offset).unwrap_or(u16::MAX),
+                0,
+            )),
+            content,
         );
         self.approved.detail.draw(f, detail, total, p);
         let has_parent = self
@@ -637,6 +693,89 @@ mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
     use ratatui::{Terminal, backend::TestBackend};
+    #[test]
+    fn subscriber_long_details_use_mouse_focus_wrapped_scroll_bounds_and_page_keys() {
+        let rows = vec![CsvRow {
+            circuit_id: "c1".into(),
+            ipv4: "192.0.2.1".into(),
+            ..Default::default()
+        }];
+        let d = Data {
+            rows: Arc::new(rows),
+            ..Default::default()
+        };
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        v.approved_data(&d);
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        terminal
+            .draw(|f| {
+                v.draw_approved(
+                    f,
+                    f.area(),
+                    &d,
+                    100,
+                    &Palette::new(crate::config::Theme::Dark),
+                )
+            })
+            .unwrap();
+        let r = v.approved.detail.area;
+        assert!(v.approved.detail.max > 0);
+        v.approved_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &d,
+        );
+        assert_eq!(v.approved.focus, Some(6));
+        v.approved_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE), &d);
+        assert!(v.approved.detail.offset > 0);
+        assert_eq!(v.cursor, 0);
+        v.approved_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), &d);
+        assert_eq!(v.approved.detail.offset, v.approved.detail.max);
+        v.approved_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE), &d);
+        assert!(v.approved.detail.offset < v.approved.detail.max);
+    }
+
+    #[test]
+    fn subscriber_dpdk_copy_uses_selected_circuit_ip_and_stale_rates_are_hidden() {
+        let rows = vec![CsvRow {
+            circuit_id: "c1".into(),
+            ipv4: "192.0.2.1".into(),
+            ..Default::default()
+        }];
+        let report=serde_json::from_value(serde_json::json!({"version":1,"updated":100,"stale":false,"reason":null,
+            "hosts":{"c1":{"192.0.2.1":{"actual":{"download_bytes":100,"upload_bytes":200},"down_mbps":1.0,"up_mbps":2.0,
+            "rtt_ms":2.0,"rtt_down_ms":1.5,"rtt_up_ms":null,"retransmits":3,"retransmits_down":2,"retransmits_up":1,"seen_age_ms":100}}}})).unwrap();
+        let d = Data {
+            ip_owners: Arc::new(crate::subscriber_stats::owners(&rows)),
+            rows: Arc::new(rows),
+            subscriber_stats: Some(Arc::new(report)),
+            ..Default::default()
+        };
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        v.approved_data(&d);
+        v.approved.now = 100;
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
+        let Input::Copy(text) = v.approved_key(key, &d) else {
+            panic!("copy")
+        };
+        assert!(
+            text.contains("Delivered Mbps: down 1.000 | up 2.000")
+                && text.contains("RTT sample median")
+                && text.contains("TCP retransmits")
+        );
+        v.approved.now = 116;
+        let Input::Copy(text) = v.approved_key(key, &d) else {
+            panic!("copy")
+        };
+        assert!(text.contains("STALE") && text.contains("down unknown | up unknown"));
+    }
+
     #[test]
     fn filters_copy_and_visible_row_work_are_bounded() {
         let rows: Vec<_> = (0..1000)
