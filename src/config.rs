@@ -102,6 +102,7 @@ pub struct Libreqos {
     pub state_directory: String,
     pub v3_config: String,
     pub v3_analytics_socket: String,
+    pub v3_dpdk_telemetry_socket: String,
     pub dpkg_status: String,
     pub v3_network_file: String,
     pub v2_command: String,

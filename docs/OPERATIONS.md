@@ -741,3 +741,17 @@ Use `a` or All to restore every source. Focus helps with small or overlapping tr
 The legend keeps independent freshness, age, rates, and sample counts for each source.
 The peak summary names the focused source, or the first visible source.
 See the [visual contract](design/tui/MIRRORED_TRAFFIC.md) for screenshots, keyboard/mouse behavior, and rendering limits.
+
+### Native DPDK NIC diagnostics
+
+Set `libreqos.v3_dpdk_telemetry_socket` to the active bridge's native telemetry v2 socket if its path differs from the default.
+The default is `/run/dpdk/rte/dpdk_telemetry.v2`. The service queries it every ten seconds and writes `nic-telemetry.json`.
+The TUI reads this public cache. It requires no direct access to the root-only socket for NIC diagnostics.
+
+Dashboard Dataplane health shows link state, speed, duplex, basic errors, and interval increments for each observed port.
+Workers details includes the extended raw statistics. Use its existing scroll controls and Copy action.
+A NIC-only setting change preserves aggregate traffic history.
+
+Port RX/TX is separate from subscriber download/upload. Ethernet link speed is separate from WAN capacity.
+Extended statistics can contain gauges or aliases of basic counters. Do not add them to estimate loss.
+Missing or stale observations remain unknown. See [NIC diagnostics](design/tui/NIC_DIAGNOSTICS.md) for source and reset rules.

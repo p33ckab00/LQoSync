@@ -102,3 +102,13 @@ The default `--traffic-source combined` shows all sources. Explicit Actual, Mapp
 [Dashboard with dynamic mirrored bounds](dashboard-dynamic-ceiling-v1.png) uses the actual TUI with synthetic records.
 Each directional ceiling follows its own largest visible peak in the selected window, with headroom and fine decimal steps.
 The screenshot is separate from live telemetry evidence.
+
+## Native NIC diagnostics
+
+These actual terminal captures use synthetic NIC records. They are separate from the operator's live probe evidence.
+
+- [Dashboard NIC summary](dashboard-nic-v1.png)
+- [Workers NIC details](workers-nic-v1.png)
+
+The existing panel composition, independent traffic scales, mouse wheel, and scrollbars remain in use.
+Source and verification rules: [NIC diagnostics](../NIC_DIAGNOSTICS.md).

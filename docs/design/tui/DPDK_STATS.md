@@ -231,3 +231,10 @@ They also cover mouse activation, selection changes, copy, and access from a rea
 A synthetic fixture with sixteen tins per direction and fifty nonempty bins produced 5,212 bytes of detail text.
 One thousand debug formats took 61.0 ms. This fixture measurement is not a production performance guarantee.
 No production binary, configuration, service, permission, or public telemetry cache changed.
+
+## Task 7: native NIC diagnostics
+
+A separate ten-second sampler reads native DPDK Ethernet statistics.
+Dashboard Dataplane health shows port link state and basic errors. Workers details adds extended raw statistics and copy.
+Freshness, unknown values, port identity, and reset handling remain independent from aggregate analytics.
+See [NIC diagnostics](NIC_DIAGNOSTICS.md) for the verified source, limits, display contract, and evidence.

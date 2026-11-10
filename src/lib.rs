@@ -15,6 +15,7 @@ pub mod diff;
 pub mod files;
 pub mod mikrotik;
 pub mod model;
+pub mod nic_stats;
 pub mod notify;
 pub mod probe;
 pub mod routeros;

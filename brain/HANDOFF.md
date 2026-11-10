@@ -8,6 +8,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T01:03:51+08:00 (Asia/Shanghai) — Native NIC diagnostics implemented locally
+
+- Owner prioritized NIC diagnostics. Operator probe verified two UP, 10 Gbps full-duplex ports with 78 extended statistics each.
+- Native endpoint: `/run/dpdk/rte/dpdk_telemetry.v2`; peer `bridge_rs`, DPDK 25.11.0.
+- Added an independent ten-second sampler, bounded public `nic-telemetry.json`, and configurable native socket path.
+- Dashboard health shows port summaries. Workers details and Copy show raw extended statistics through existing scrolling.
+- Basic deltas rebase on failures, gaps, resets, process/port changes. Extended vendor statistics remain raw because they can include gauges.
+- NIC-only settings changes preserve analytics histories and subscriber sampler state. Obsolete reads cannot publish after reload.
+- Checks: 632 passed, zero failed, seven ignored, fmt, all-target Clippy, build, whitespace, source replay, and actual terminal capture review.
+- Maximum cache: 312,567 bytes. One hundred debug detail formats: 90.7 ms. No new dependency or packet-path processing.
+- Main code: `src/nic_stats.rs`, `src/nic_stats/{ipc,tests}.rs`, config/defaults, monitor lifecycle, TUI loader/overview/workers, and capture helper.
+- Docs: `docs/design/tui/NIC_DIAGNOSTICS.md`, stats/operations/capture index, and two NIC terminal captures.
+- Work is local and uncommitted. Production remains `3.0.172+gb6778cb`. No push, deployment, restart, config, or socket permission change occurred.
+- Preserve unrelated `brain/Home.md` and local-profile Knowledge note. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-dpdk-nic-diagnostics]].
+
 ## 2026-11-11T00:42:44+08:00 (Asia/Shanghai) — Independent directional scale deployment verified
 
 - Operator deployed `3.0.172+gb6778cb`. Independent checks passed at 2026-11-11T00:42:21+08:00.

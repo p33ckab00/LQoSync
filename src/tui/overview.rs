@@ -234,6 +234,14 @@ impl Overview {
             .map(Line::raw)
             .collect();
         lines.extend(
+            d.nic_stats
+                .as_deref()
+                .unwrap_or(&crate::nic_stats::Report::default())
+                .measurements(now, false)
+                .into_iter()
+                .map(Line::raw),
+        );
+        lines.extend(
             crate::worker_util::queue::Queue::measurements(
                 telemetry.and_then(|t| t.queue.as_ref()),
                 live,
@@ -349,6 +357,14 @@ impl Overview {
                 design::role(p, Role::Warning),
             )),
         }
+        a.extend(
+            d.nic_stats
+                .as_deref()
+                .unwrap_or(&crate::nic_stats::Report::default())
+                .alerts(now)
+                .into_iter()
+                .map(|line| Line::styled(line, design::role(p, Role::Warning))),
+        );
         if let Some(st) = st {
             let text = |key: &str| st[key].as_str().unwrap_or("unknown");
             a.push(Line::raw(format!(

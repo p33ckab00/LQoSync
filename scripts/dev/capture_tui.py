@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--traffic-source', choices=['combined','actual','mapped','unmapped'], default='combined')
     parser.add_argument('--worker-phases', action='store_true')
     parser.add_argument('--worker-health', action='store_true')
+    parser.add_argument('--nic-diagnostics', action='store_true')
     parser.add_argument('--subscriber-stats', action='store_true')
     parser.add_argument('--queue-diagnostics', action='store_true')
     args = parser.parse_args()
@@ -29,6 +30,8 @@ def main():
         parser.error('--traffic-source applies to Dashboard only')
     if args.worker_phases and args.screen != 5:
         parser.error('--worker-phases applies to Workers only')
+    if args.nic_diagnostics and args.screen not in (1, 5):
+        parser.error('--nic-diagnostics applies to Dashboard or Workers')
     if args.worker_health and (args.screen != 5 or args.worker_phases):
         parser.error('--worker-health requires Workers and cannot combine with --worker-phases')
     if (args.subscriber_stats or args.queue_diagnostics) and args.screen != 2:
@@ -138,6 +141,19 @@ enabled = true
                     'unmapped': {'bytes': {'download_bytes': 2000000, 'upload_bytes': 3000000},
                                  'history': [dict(v, down_mbps=.04+math.sin(i/12)*.01, up_mbps=.004+math.sin(i/15)*.001) for i,v in enumerate(points)]},
                 }
+                if args.nic_diagnostics:
+                    ports = []
+                    for port in range(2):
+                        ports.append({'id':port, 'name':f'0000:01:00.{port}', 'status':'UP',
+                                      'speed_mbps':10000, 'duplex':'full-duplex', 'reset':False,
+                                      'stats':{'ipackets':1000000,'opackets':800000,'ibytes':1200000000,'obytes':640000000,
+                                               'ierrors':0,'oerrors':0,'imissed':0,'rx_nombuf':0},
+                                      'deltas':{'ipackets':1000,'opackets':800,'ibytes':1200000,'obytes':640000,
+                                                'ierrors':0,'oerrors':0,'imissed':0,'rx_nombuf':0},
+                                      'xstats':{'rx_phy_crc_errors':0,'rx_out_of_buffer':0,'tx_pp_jitter':10},'xstats_capped':False})
+                    nic={'version':1,'updated':now,'stale':False,'reason':None,'pid':1,'dpdk_version':'DPDK fixture',
+                         'ports':ports,'ports_capped':False,'interval_ms':10000}
+                    (path/'nic-telemetry.json').write_text(json.dumps(nic))
                 (path / 'worker-utilization.json').write_text(json.dumps(report))
             snapshots()
             if args.queue_diagnostics:
@@ -200,6 +216,14 @@ enabled = true
                 key('e'); key('Tab')
                 for _ in range(12): key('Down')
                 time.sleep(.2)
+            if args.nic_diagnostics:
+                if args.screen == 1:
+                    for _ in range(6): key('j');time.sleep(.05)
+                else:
+                    if not (args.worker_health or args.worker_phases): key('e');key('Tab')
+                    key('Home');time.sleep(.1)
+                    for _ in range(33): key('Down');time.sleep(.05)
+                time.sleep(.3)
             if args.screen == 7:
                 key('f'); key('slash')
                 for char in 'reload': key(char)

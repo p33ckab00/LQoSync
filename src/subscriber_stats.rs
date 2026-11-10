@@ -359,12 +359,12 @@ pub(crate) fn start(
             tokio::select! {
                 changed=changes.changed()=>{
                     if changed.is_err() {break;}
-                    current=changes.borrow_and_update().clone();tracker=Tracker::default();tick.reset_immediately();
+                    let next=changes.borrow_and_update().clone();if !current.same_analytics(&next){tracker=Tracker::default();tick.reset_immediately();}current=next;
                 }
                 _=tick.tick()=>{
                     if !current.v3 {continue;}
                     let result=sample(Path::new(&current.socket)).await;
-                    if *changes.borrow()!=current {continue;}
+                    if !changes.borrow().same_analytics(&current) {continue;}
                     let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
                     tracker.record(result,now);
                     if let Err(e)=publish(Path::new(&current.state),&tracker.report) {

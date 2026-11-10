@@ -186,6 +186,14 @@ impl WorkersView {
                             text.push_str(&format!("\nTelemetry note: {reason}"));
                         }
                     }
+                    text.push('\n');
+                    text.push_str(
+                        &d.nic_stats
+                            .as_deref()
+                            .unwrap_or(&crate::nic_stats::Report::default())
+                            .measurements(now, true)
+                            .join("\n"),
+                    );
                     return WorkerAction::Copy(text);
                 }
                 let health = d.worker_util.as_ref().map_or_else(
@@ -193,8 +201,13 @@ impl WorkersView {
                     |t| t.health.measurements(now),
                 );
                 return WorkerAction::Copy(format!(
-                    "Worker details unavailable\n{}",
-                    health.join("\n")
+                    "Worker details unavailable\n{}\n{}",
+                    health.join("\n"),
+                    d.nic_stats
+                        .as_deref()
+                        .unwrap_or(&crate::nic_stats::Report::default())
+                        .measurements(now, true)
+                        .join("\n")
                 ));
             }
             KeyCode::Up if self.approved.focus == 4 => {
@@ -534,6 +547,14 @@ impl WorkersView {
                 .map(Line::raw),
         );
         lines.extend(
+            d.nic_stats
+                .as_deref()
+                .unwrap_or(&crate::nic_stats::Report::default())
+                .measurements(now, true)
+                .into_iter()
+                .map(Line::raw),
+        );
+        lines.extend(
             crate::worker_util::queue::Queue::measurements(
                 report.and_then(|r| r.queue.as_ref()),
                 live,
@@ -551,7 +572,7 @@ impl WorkersView {
         }
         lines.extend([
             Line::raw("New = increments per valid sample."),
-            Line::raw("Source Analytics snapshot | read-only"),
+            Line::raw("Sources: Analytics snapshot and native DPDK NIC telemetry | read-only"),
             Line::raw("Busy is forwarding utilization, not OS CPU usage."),
         ]);
         let content = Rect {
@@ -715,6 +736,39 @@ mod tests {
         assert!(view.approved.detail.offset > 0);
     }
 
+    #[test]
+    fn nic_copy_has_independent_freshness_and_preserves_vendor_raw_values() {
+        let mut d = super::super::tests::live();
+        d.nic_stats = Some(Arc::new(crate::nic_stats::Report {
+            version: 1,
+            updated: 100,
+            stale: false,
+            ports: vec![crate::nic_stats::Port {
+                id: 0,
+                name: Some("0000:01:00.0".into()),
+                status: Some("UP".into()),
+                speed_mbps: Some(10000),
+                stats: std::collections::BTreeMap::from([("ierrors".into(), 0)]),
+                xstats: std::collections::BTreeMap::from([("tx_pp_jitter".into(), 10)]),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }));
+        let mut view = WorkersView::default();
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 100) else {
+            panic!("copy expected")
+        };
+        assert!(
+            text.contains("NIC diagnostics LIVE")
+                && text.contains("Port 0 0000:01:00.0 | UP | 10000 Mbps")
+        );
+        assert!(text.contains("tx_pp_jitter: 10") && !text.contains("tx_pp_jitter: 10 | new"));
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 116) else {
+            panic!("copy expected")
+        };
+        assert!(text.contains("NIC diagnostics STALE") && text.contains("tx_pp_jitter: unknown"));
+    }
     #[test]
     fn extended_worker_details_and_copy_keep_units_phase_names_and_stale_labels() {
         let mut d = super::super::tests::live();

@@ -310,15 +310,23 @@ fn publish(dir: &Path, report: &Telemetry) -> anyhow::Result<()> {
 pub(crate) struct Settings {
     pub(crate) v3: bool,
     pub(crate) socket: String,
+    pub(crate) nic_socket: String,
     pub(crate) state: String,
 }
 
 impl Settings {
+    pub(crate) fn same_analytics(&self, other: &Self) -> bool {
+        self.v3 == other.v3 && self.socket == other.socket && self.state == other.state
+    }
+    pub(crate) fn same_nic(&self, other: &Self) -> bool {
+        self.v3 == other.v3 && self.nic_socket == other.nic_socket && self.state == other.state
+    }
     fn from_config(cfg: &crate::config::Config) -> Self {
         Self {
             v3: crate::detect::resolve(&cfg.libreqos)
                 .is_ok_and(|d| d.target != crate::config::Target::V2Pair),
             socket: cfg.libreqos.v3_analytics_socket.clone(),
+            nic_socket: cfg.libreqos.v3_dpdk_telemetry_socket.clone(),
             state: cfg.runtime.state_dir.clone(),
         }
     }
@@ -329,12 +337,14 @@ pub struct Monitor {
     settings: watch::Sender<Settings>,
     task: tokio::task::JoinHandle<()>,
     subscriber_task: tokio::task::JoinHandle<()>,
+    nic_task: tokio::task::JoinHandle<()>,
 }
 
 impl Monitor {
     pub fn start(cfg: &crate::config::Config) -> Self {
         let (settings, mut changes) = watch::channel(Settings::from_config(cfg));
         let subscriber_task = crate::subscriber_stats::start(changes.clone());
+        let nic_task = crate::nic_stats::start(changes.clone());
         let task = tokio::spawn(async move {
             let mut current = changes.borrow().clone();
             let mut tracker = Tracker::default();
@@ -347,9 +357,12 @@ impl Monitor {
                 tokio::select! {
                     changed = changes.changed() => {
                         if changed.is_err() { break; }
-                        current = changes.borrow_and_update().clone();
-                        tracker = Tracker::default();
-                        next_health = tokio::time::Instant::now();
+                        let next = changes.borrow_and_update().clone();
+                        if !current.same_analytics(&next) {
+                            tracker = Tracker::default();
+                            next_health = tokio::time::Instant::now();
+                        }
+                        current = next;
                     }
                     _ = tick.tick() => {
                         if !current.v3 { continue; }
@@ -360,7 +373,7 @@ impl Monitor {
                             if due { Some(read_health(path).await) } else { None }
                         });
                         // A configuration reload can arrive while the old socket read is pending.
-                        if *changes.borrow() != current { continue; }
+                        if !changes.borrow().same_analytics(&current) { continue; }
                         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                         tracker.record(sample, now);
                         if let Some(health) = health { tracker.report.health.record(health, now); }
@@ -379,6 +392,7 @@ impl Monitor {
             settings,
             task,
             subscriber_task,
+            nic_task,
         }
     }
 
@@ -399,6 +413,7 @@ impl Drop for Monitor {
     fn drop(&mut self) {
         self.task.abort();
         self.subscriber_task.abort();
+        self.nic_task.abort();
     }
 }
 
@@ -407,6 +422,19 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[test]
+    fn nic_and_analytics_settings_preserve_each_others_sampler_state() {
+        let original = Settings::from_config(crate::config::defaults());
+        let mut next = original.clone();
+        next.nic_socket = "other-nic.sock".into();
+        assert!(original.same_analytics(&next) && !original.same_nic(&next));
+        let mut next = original.clone();
+        next.socket = "other-analytics.sock".into();
+        assert!(original.same_nic(&next) && !original.same_analytics(&next));
+        let mut next = original.clone();
+        next.state = "other-state".into();
+        assert!(!original.same_nic(&next) && !original.same_analytics(&next));
+    }
     #[test]
     fn dashboard_actual_rates_need_two_samples_and_rebase_after_failure() {
         let mut tracker = Tracker::default();

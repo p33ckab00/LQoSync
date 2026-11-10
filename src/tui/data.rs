@@ -32,6 +32,7 @@ pub struct Data {
     pub presence: Arc<HashMap<String, super::presence::Evidence>>,
     pub worker_util: Option<Arc<crate::worker_util::Telemetry>>,
     pub subscriber_stats: Option<Arc<crate::subscriber_stats::Report>>,
+    pub nic_stats: Option<Arc<crate::nic_stats::Report>>,
     pub ip_owners: Arc<std::collections::BTreeMap<std::net::IpAddr, usize>>,
     pub service: Option<Unit>,
     pub target: String,
@@ -93,6 +94,7 @@ pub struct Loader {
     snapshot_stamp: Stamp,
     worker_stamp: Stamp,
     subscriber_stamp: Stamp,
+    nic_stamp: Stamp,
     collection_stamp: Stamp,
     versions_at: Option<Instant>,
     sampler: Sampler,
@@ -113,6 +115,7 @@ impl Loader {
             snapshot_stamp: None,
             worker_stamp: None,
             subscriber_stamp: None,
+            nic_stamp: None,
             collection_stamp: None,
             versions_at: None,
             sampler: Sampler::default(),
@@ -239,6 +242,17 @@ impl Loader {
         } else {
             self.data.worker_util = None;
             self.worker_stamp = None;
+        }
+        let nic_path = state_dir.join(crate::nic_stats::CACHE);
+        let ns = stamp(&nic_path);
+        if target.starts_with("v3_") {
+            if ns != self.nic_stamp || self.data.nic_stats.is_none() {
+                self.data.nic_stats = Some(Arc::new(crate::nic_stats::read_cache(&nic_path)));
+                self.nic_stamp = ns;
+            }
+        } else {
+            self.data.nic_stats = None;
+            self.nic_stamp = None;
         }
         let subscriber_path = state_dir.join(crate::subscriber_stats::CACHE);
         let ss = stamp(&subscriber_path);
@@ -608,6 +622,27 @@ mod tests {
         assert!(loader.load().worker_util.is_none());
     }
 
+    #[test]
+    fn nic_loader_reuses_valid_cache_and_handles_removal_and_v2_target() {
+        let (e, mut loader) = env();
+        pair(&e, "");
+        loader.cfg.libreqos.target = crate::config::Target::V3Pair;
+        let path = e.state.join(crate::nic_stats::CACHE);
+        std::fs::write(&path,r#"{"version":1,"updated":100,"stale":false,"reason":null,"ports":[],"ports_capped":false,"pid":1,"dpdk_version":"fixture","interval_ms":null}"#).unwrap();
+        let first = loader.load();
+        assert!(first.nic_stats.as_ref().unwrap().live(100));
+        let second = loader.load();
+        assert!(Arc::ptr_eq(
+            first.nic_stats.as_ref().unwrap(),
+            second.nic_stats.as_ref().unwrap()
+        ));
+        std::fs::write(&path, "invalid").unwrap();
+        assert!(loader.load().nic_stats.unwrap().stale);
+        std::fs::remove_file(path).unwrap();
+        assert!(loader.load().nic_stats.unwrap().stale);
+        loader.cfg.libreqos.target = crate::config::Target::V2Pair;
+        assert!(loader.load().nic_stats.is_none());
+    }
     #[test]
     fn a_missing_csv_is_an_error() {
         let (_e, mut l) = env();
