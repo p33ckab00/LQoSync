@@ -201,6 +201,7 @@ mod tests {
                     queue_id: 0,
                     busy_ppm: 125000,
                     backlog_mean: Some(3),
+                    ..Default::default()
                 }],
                 pressure: None,
                 traffic: Default::default(),
@@ -278,6 +279,7 @@ mod tests {
                 queue_id,
                 busy_ppm: 100000,
                 backlog_mean: None,
+                ..Default::default()
             })
             .collect();
         let mut view = WorkersView::default();

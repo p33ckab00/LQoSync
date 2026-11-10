@@ -247,6 +247,7 @@ mod tests {
                     queue_id: id,
                     busy_ppm: 1000000,
                     backlog_mean: Some(u64::MAX),
+                    ..Default::default()
                 })
                 .collect(),
             traffic: history,

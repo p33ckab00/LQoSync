@@ -778,7 +778,7 @@ impl App {
             Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-7] pages",
             Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [v] traffic source  [j/k] health  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
             Tab::Workers if self.workers.editing() => "[Enter] done  [Esc] clear  type to search",
-            Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select  [1-7] pages",
+            Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select/scroll  [1-7] pages",
         }.into()
     }
 
@@ -1415,6 +1415,7 @@ mod tests {
                         queue_id: 0,
                         busy_ppm: 125000,
                         backlog_mean: Some(3),
+                        ..Default::default()
                     }],
                     pressure: None,
                     traffic: Default::default(),

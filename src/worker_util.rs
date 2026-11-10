@@ -1,6 +1,7 @@
 //! Read-only DPDK worker utilization for the service and TUI.
 
 pub mod classification;
+pub mod detail;
 mod ipc;
 pub mod pressure;
 pub mod queue;
@@ -20,11 +21,21 @@ pub const MAX_AGE: u64 = 6;
 const MAX_WORKERS: usize = 4096;
 const MAX_CACHE_BYTES: u64 = 1024 * 1024;
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct WorkerRow {
     pub queue_id: u16,
     pub busy_ppm: u64,
     pub backlog_mean: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub idle_ppm: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub laps_per_s: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub busy_laps: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cycles_per_busy_lap: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase_cycles: Option<Vec<u64>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -131,6 +142,9 @@ impl Tracker {
             Ok(sample)
         }) {
             Ok(mut sample) => {
+                for worker in &mut sample.workers {
+                    worker.sanitize_extended();
+                }
                 if self.captured != Some(sample.captured_at_millis) {
                     self.classification.record(
                         &mut self.report.classification,
@@ -241,6 +255,9 @@ pub fn read_cache(path: &Path) -> Telemetry {
         report.classification.sanitize();
         if !report.workers.is_empty() {
             validate_rows(&report.workers)?;
+            for worker in &mut report.workers {
+                worker.sanitize_extended();
+            }
         }
         ensure!(
             report.stale || !report.workers.is_empty(),
@@ -257,8 +274,25 @@ pub fn read_cache(path: &Path) -> Telemetry {
 
 fn publish(dir: &Path, report: &Telemetry) -> anyhow::Result<()> {
     use std::os::unix::fs::PermissionsExt;
+    let mut bytes = serde_json::to_vec(report)?;
+    if bytes.len() as u64 > MAX_CACHE_BYTES {
+        let mut basic = report.clone();
+        for worker in &mut basic.workers {
+            worker.clear_extended();
+        }
+        let notice = "Extended worker metrics omitted: 1 MiB cache budget";
+        basic.reason = Some(match &report.reason {
+            Some(reason) => format!("{reason}; {notice}"),
+            None => notice.into(),
+        });
+        bytes = serde_json::to_vec(&basic)?;
+    }
+    ensure!(
+        bytes.len() as u64 <= MAX_CACHE_BYTES,
+        "worker cache exceeds its size budget"
+    );
     let tmp = dir.join(format!(".{CACHE}.tmp-{}", std::process::id()));
-    std::fs::write(&tmp, serde_json::to_vec(report)?)?;
+    std::fs::write(&tmp, bytes)?;
     std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644))?;
     std::fs::rename(tmp, dir.join(CACHE))?;
     Ok(())
@@ -366,6 +400,134 @@ mod tests {
         tracker.record(Ok(traffic(5000, 3000000, 500000)), 14);
         let report = serde_json::to_value(&tracker.report).unwrap();
         assert!(report["traffic"].as_array().unwrap().last().unwrap()["down_mbps"].is_null());
+    }
+
+    #[test]
+    fn extended_worker_cache_budget_preserves_basic_rows_and_histories_without_mutating_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut report = Telemetry {
+            updated: 3601,
+            stale: false,
+            workers: (0..4096)
+                .map(|queue_id| WorkerRow {
+                    queue_id,
+                    busy_ppm: 1000000,
+                    backlog_mean: Some(u64::MAX),
+                    idle_ppm: Some(0),
+                    laps_per_s: Some(u64::MAX),
+                    busy_laps: Some(u64::MAX),
+                    cycles_per_busy_lap: Some(u64::MAX),
+                    phase_cycles: Some(vec![u64::MAX; 10]),
+                })
+                .collect(),
+            ..Telemetry::default()
+        };
+        let history: std::collections::VecDeque<_> = (0..traffic::MAX_POINTS)
+            .map(|i| traffic::Point {
+                at: 1 + i as u64 * 2,
+                down_mbps: Some(f64::MAX),
+                up_mbps: Some(f64::MAX),
+            })
+            .collect();
+        report.traffic = history.clone();
+        report.classification.mapped.history = history.clone();
+        report.classification.unmapped.history = history;
+        report.reason = Some("source warning".into());
+        assert!(serde_json::to_vec(&report).unwrap().len() as u64 > MAX_CACHE_BYTES);
+        let start = std::time::Instant::now();
+        publish(dir.path(), &report).unwrap();
+        let path = dir.path().join(CACHE);
+        assert!(std::fs::metadata(&path).unwrap().len() <= MAX_CACHE_BYTES);
+        let r = read_cache(&path);
+        println!(
+            "Extended-worker cache fallback: {} bytes; publish/read {:?}",
+            std::fs::metadata(&path).unwrap().len(),
+            start.elapsed()
+        );
+        assert!(r.live(3601));
+        assert_eq!(r.workers.len(), 4096);
+        assert_eq!(r.workers[0].busy_ppm, 1000000);
+        assert!(r.workers[0].phase_cycles.is_none() && r.workers[0].laps_per_s.is_none());
+        assert!(r.reason.as_deref().unwrap().contains("cache budget"));
+        assert!(r.reason.as_deref().unwrap().contains("source warning"));
+        assert_eq!(r.traffic.len(), traffic::MAX_POINTS);
+        assert_eq!(r.classification.mapped.history.len(), traffic::MAX_POINTS);
+        assert_eq!(r.classification.unmapped.history.len(), traffic::MAX_POINTS);
+        assert!(report.workers[0].phase_cycles.is_some());
+        report.workers.truncate(1);
+        publish(dir.path(), &report).unwrap();
+        let restored = read_cache(&path);
+        assert!(restored.workers[0].phase_cycles.is_some());
+        assert_eq!(restored.reason.as_deref(), Some("source warning"));
+    }
+
+    #[test]
+    fn cache_budget_failure_keeps_the_previous_public_cache_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut report = Telemetry::default();
+        publish(dir.path(), &report).unwrap();
+        let path = dir.path().join(CACHE);
+        let before = std::fs::read(&path).unwrap();
+        report.reason = Some("x".repeat(MAX_CACHE_BYTES as usize));
+        assert!(publish(dir.path(), &report).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    #[test]
+    fn extended_worker_metrics_survive_advanced_samples_and_old_rows_remain_unknown() {
+        let mut tracker = Tracker::default();
+        let sample = |at| {
+            serde_json::from_value(json!({"captured_at_millis":at,"workers":[{
+            "queue_id":0,"busy_ppm":125000,"backlog_mean":3,"idle_ppm":875000,
+            "laps_per_s":100000,"busy_laps":42,"cycles_per_busy_lap":250,
+            "phase_cycles":[1,2,3,4,5,6,7,8,9,10]}]}))
+            .unwrap()
+        };
+        tracker.record(Ok(sample(1000)), 10);
+        tracker.record(Ok(sample(3000)), 12);
+        let r = serde_json::to_value(&tracker.report).unwrap();
+        let w = &r["workers"][0];
+        assert_eq!(w["idle_ppm"], 875000);
+        assert_eq!(w["laps_per_s"], 100000);
+        assert_eq!(w["busy_laps"], 42);
+        assert_eq!(w["cycles_per_busy_lap"], 250);
+        assert_eq!(w["phase_cycles"].as_array().unwrap().len(), 10);
+        tracker.record(
+            Ok(
+                serde_json::from_value(json!({"captured_at_millis":3000,"workers":[{
+            "queue_id":0,"busy_ppm":125000,"laps_per_s":999999}]}))
+                .unwrap(),
+            ),
+            14,
+        );
+        assert_eq!(
+            serde_json::to_value(&tracker.report).unwrap()["workers"][0],
+            w.clone()
+        );
+        tracker.record(Ok(super::tests::sample(5000)), 16);
+        let old = serde_json::to_value(&tracker.report).unwrap();
+        assert!(old["workers"][0]["idle_ppm"].is_null());
+        assert!(old["workers"][0]["laps_per_s"].is_null());
+        assert!(old["workers"][0]["phase_cycles"].is_null());
+    }
+
+    #[test]
+    fn invalid_extended_metrics_do_not_hide_basic_worker_values() {
+        let mut tracker = Tracker::default();
+        let sample = |at| {
+            serde_json::from_value(json!({"captured_at_millis":at,"workers":[{
+            "queue_id":0,"busy_ppm":125000,"idle_ppm":1000000,
+            "laps_per_s":0,"busy_laps":0,"cycles_per_busy_lap":0,"phase_cycles":[1,2]}]}))
+            .unwrap()
+        };
+        tracker.record(Ok(sample(1000)), 10);
+        tracker.record(Ok(sample(3000)), 12);
+        let r = serde_json::to_value(&tracker.report).unwrap();
+        assert!(tracker.report.live(12));
+        assert_eq!(r["workers"][0]["busy_ppm"], 125000);
+        assert_eq!(r["workers"][0]["laps_per_s"], 0);
+        assert!(r["workers"][0]["idle_ppm"].is_null());
+        assert!(r["workers"][0]["phase_cycles"].is_null());
     }
 
     fn class_sample(at: u64, mapped: Option<u64>, unmapped: Option<u64>) -> Snapshot {

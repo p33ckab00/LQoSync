@@ -164,6 +164,13 @@ impl WorkersView {
                     );
                     text.push('\n');
                     text.push_str(
+                        &w.extended_measurements(
+                            d.worker_util.as_ref().is_some_and(|t| t.live(now)),
+                        )
+                        .join("\n"),
+                    );
+                    text.push('\n');
+                    text.push_str(
                         &crate::worker_util::queue::Queue::measurements(
                             d.worker_util.as_ref().and_then(|t| t.queue.as_ref()),
                             d.worker_util.as_ref().is_some_and(|t| t.live(now)),
@@ -173,6 +180,9 @@ impl WorkersView {
                     if let Some(t) = &d.worker_util {
                         text.push('\n');
                         text.push_str(&t.classification.measurements(t.live(now), now).join("\n"));
+                        if let Some(reason) = &t.reason {
+                            text.push_str(&format!("\nTelemetry note: {reason}"));
+                        }
                     }
                     return WorkerAction::Copy(text);
                 }
@@ -187,6 +197,25 @@ impl WorkersView {
                     .offset
                     .saturating_add(1)
                     .min(self.approved.detail.max)
+            }
+            KeyCode::PageUp if self.approved.focus == 4 => {
+                self.approved.detail.offset = self
+                    .approved
+                    .detail
+                    .offset
+                    .saturating_sub(self.approved.detail.area.height.max(1) as usize)
+            }
+            KeyCode::PageDown if self.approved.focus == 4 => {
+                self.approved.detail.offset = self
+                    .approved
+                    .detail
+                    .offset
+                    .saturating_add(self.approved.detail.area.height.max(1) as usize)
+                    .min(self.approved.detail.max)
+            }
+            KeyCode::Home if self.approved.focus == 4 => self.approved.detail.offset = 0,
+            KeyCode::End if self.approved.focus == 4 => {
+                self.approved.detail.offset = self.approved.detail.max
             }
             KeyCode::Up => self.approved.cursor = self.approved.cursor.saturating_sub(1),
             KeyCode::Down => {
@@ -226,6 +255,13 @@ impl WorkersView {
                     d,
                     now,
                 );
+            }
+            let detail = self.approved.detail.area;
+            if detail.contains((m.column, m.row).into())
+                && m.column < detail.right().saturating_sub(1)
+            {
+                self.approved.focus = 4;
+                self.approved.editing = false;
             }
             let r = self.approved.table.area;
             if r.contains((m.column, m.row).into()) && m.column < r.right().saturating_sub(1) {
@@ -448,7 +484,10 @@ impl WorkersView {
                 footer,
             );
         }
-        let block = design::panel("Worker details", p);
+        let title = self.worker(d).map_or("Worker details".into(), |w| {
+            format!("Worker details | ID {} | {state}", w.queue_id)
+        });
+        let block = design::panel(title, p);
         let inner = block.inner(detail);
         f.render_widget(block, detail);
         let [fields, actions] =
@@ -471,6 +510,7 @@ impl WorkersView {
                 )),
                 Line::raw(format!("Sample age {age} | {state}")),
             ]);
+            lines.extend(w.extended_measurements(live).into_iter().map(Line::raw));
         } else {
             lines.push(Line::raw("Worker details unavailable"));
         }
@@ -573,6 +613,80 @@ impl WorkersView {
 mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
+    #[test]
+    fn worker_detail_mouse_focus_and_page_keys_scroll_without_changing_worker() {
+        let d = super::super::tests::live();
+        let mut view = WorkersView::default();
+        let mut term = ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 30)).unwrap();
+        term.draw(|f| {
+            view.draw_approved(
+                f,
+                f.area(),
+                &d,
+                100,
+                &Palette::new(crate::config::Theme::Dark),
+            )
+        })
+        .unwrap();
+        assert!(view.approved.detail.max > 0);
+        let r = view.approved.detail.area;
+        view.approved_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &d,
+            100,
+        );
+        assert_eq!(view.approved.focus, 4);
+        let key = |code| KeyEvent::new(code, KeyModifiers::NONE);
+        view.approved_key(key(KeyCode::End), &d, 100);
+        assert_eq!(view.approved.detail.offset, view.approved.detail.max);
+        assert_eq!(view.approved.cursor, 0);
+        view.approved_key(key(KeyCode::PageUp), &d, 100);
+        assert!(view.approved.detail.offset < view.approved.detail.max);
+        view.approved_key(key(KeyCode::Home), &d, 100);
+        assert_eq!(view.approved.detail.offset, 0);
+        view.approved_key(key(KeyCode::PageDown), &d, 100);
+        assert!(view.approved.detail.offset > 0);
+    }
+
+    #[test]
+    fn extended_worker_details_and_copy_keep_units_phase_names_and_stale_labels() {
+        let mut d = super::super::tests::live();
+        Arc::make_mut(d.worker_util.as_mut().unwrap()).workers[0] =
+            serde_json::from_value(serde_json::json!({
+                "queue_id":0,"busy_ppm":125000,"backlog_mean":3,"idle_ppm":875000,
+                "laps_per_s":100000,"busy_laps":42,"cycles_per_busy_lap":250,
+                "phase_cycles":[1,2,3,4,5,6,7,8,9,10]
+            }))
+            .unwrap();
+        let mut view = WorkersView::default();
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 100) else {
+            panic!("expected copy")
+        };
+        for expected in [
+            "Reported idle: 87.5%",
+            "Laps/s (reported): 100000",
+            "Busy laps (reported): 42",
+            "Cycles/busy lap: 250",
+            "Phase TSC cycles (cumulative)",
+            "empty_rx: 10",
+            "not packets/s",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 107) else {
+            panic!("expected copy")
+        };
+        assert!(
+            text.contains("Worker metrics STALE (last known)") && text.contains("empty_rx: 10")
+        );
+    }
+
     #[test]
     fn classified_copy_preserves_scope_and_current_data_age() {
         let mut d = super::super::tests::live();

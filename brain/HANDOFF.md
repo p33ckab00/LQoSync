@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T20:01:01+08:00 (Asia/Shanghai) — DPDK task 3 implementation
+
+- Task 3 adds reported idle, laps/s, busy laps, cycles/busy lap, and ten cumulative phase counters.
+- The operator probe verified three advancing samples. Laps/s equaled busy ppm; retain the producer-reported label.
+- Workers retains approved composition, scrolling, copy, mouse focus, page keys, and a persistent worker/state title.
+- The 1 MiB fallback preserves basic workers and histories with a reason. Source values remain intact in memory.
+- Checks passed: 576 tests, zero failed, seven ignored, fmt, Clippy, build, and capture review.
+- Synthetic maximum fallback: 739,546 bytes; one debug publish/read sample 154.6 ms.
+- No push, deployment, or restart. Next: Task 4 bridge health, uptime, and degraded subsystems.
+- Preserve the unrelated local-profile Knowledge link and note.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-worker-details]].
+
 ## 2026-11-10T18:27:59+08:00 (Asia/Shanghai) — DPDK task 2 implementation
 
 - Task 2 adds whole-bridge mapped/unmapped enqueue counters, independent rates/histories, and explicit source selection.

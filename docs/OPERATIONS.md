@@ -588,3 +588,24 @@ Run `sudo ./target/debug/examples/dpdk_mapping_probe` where the analytics socket
 An optional first argument selects a different socket. The probe prints three aggregate samples.
 It labels delivered and enqueued counters separately and prints no subscriber identities.
 A probe does not deploy a service binary or activate new cache fields.
+
+### Extended worker measurements
+
+Workers adds reported idle, laps/s, busy laps, cycles per busy lap, and ten named phase counters.
+The approved cards, filters, table/detail split, pressure panel, and status remain in the same order.
+Click the detail pane or use Tab to focus it. Wheel, scrollbar, Up/Down, PageUp/PageDown, Home, and End scroll details.
+Use `e` to expand and `c` to copy. The title retains the worker ID and snapshot state during scrolling.
+Copy output includes the same units, stale labels, and cache notices.
+
+Laps/s remains explicitly producer-reported. Three live samples equaled busy ppm.
+Do not treat it as independently verified processing throughput or packets/s.
+Reported idle stays separate from the derived idle bar. Phase values are raw cumulative TSC cycles.
+The verified order is `rx`, `dissect`, `select`, `charge`, `leaf`, `tx`, `begin_cycle`, `drop_overdue`, `handoff`, `empty_rx`.
+These totals do not show interval percentages. Zero remains a valid reported value.
+Missing fields stay unknown. Invalid idle or phase length does not hide valid basic worker values.
+Stale values retain a last-known label. Freshness describes the complete snapshot.
+
+The implementation reuses one snapshot poll. It adds no dependency or runtime configuration key.
+If extended values exceed the 1 MiB public-cache budget, publication omits them with an explicit reason.
+Basic workers and all three histories remain available. The source report stays intact in memory.
+A later smaller report restores extended fields. An oversized basic report cannot replace the previous cache.

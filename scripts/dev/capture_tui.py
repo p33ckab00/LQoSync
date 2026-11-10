@@ -20,9 +20,12 @@ def main():
     parser.add_argument('--screen', type=int, choices=range(1, 8), default=1)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--traffic-source', choices=['actual','mapped','unmapped'], default='actual')
+    parser.add_argument('--worker-phases', action='store_true')
     args = parser.parse_args()
     if args.screen != 1 and args.traffic_source != 'actual':
         parser.error('--traffic-source applies to Dashboard only')
+    if args.worker_phases and args.screen != 5:
+        parser.error('--worker-phases applies to Workers only')
     root = Path(__file__).resolve().parents[2]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='lqosync3-capture-') as folder:
@@ -105,6 +108,11 @@ enabled = true
 
                 points = [{'at': now-3600+i*2, 'down_mbps': 800+math.sin(i/10)*80, 'up_mbps': 95+math.sin(i/15)*12} for i in range(1801)]
                 report = {'version': 1, 'updated': now, 'stale': False, 'reason': None, 'workers': [{'queue_id': i, 'busy_ppm': 431000-i*70000, 'backlog_mean': 8-i} for i in range(4)], 'pressure': {'diagnostics': {'pool_total_mbufs': 1000, 'pool_free_mbufs': 840, 'ring_count': 2, 'ring_capacity': 200, 'ring_used': 25, 'rings_over_75': 0}, 'rx_nombuf_delta': 0, 'pool_drop_delta': 0}, 'traffic': points, 'queue': {'totals': {'drop_pkts': 103, 'aqm_marks': 205, 'backlog_bytes': 4096}, 'drop_delta': 3, 'aqm_delta': 5}}
+                for worker in report['workers']:
+                    worker.update(idle_ppm=1000000-worker['busy_ppm'], laps_per_s=120000,
+                                  busy_laps=218000000, cycles_per_busy_lap=285000,
+                                  phase_cycles=[772000000000,146000000000,231000000000,0,362000000000,
+                                                53000000000,1216000000000,6637000000000,0,56105000000000])
                 report['classification'] = {
                     'mapped': {'bytes': {'download_bytes': 3000000000, 'upload_bytes': 400000000},
                                'history': [dict(v, down_mbps=v['down_mbps']*1.02, up_mbps=v['up_mbps']*1.02) for v in points]},
@@ -138,6 +146,10 @@ enabled = true
             snapshots();key(str(args.screen));time.sleep(1)
             if args.screen == 1:
                 for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)): key('v')
+                time.sleep(.2)
+            if args.worker_phases:
+                key('e'); key('Tab')
+                for _ in range(12): key('Down')
                 time.sleep(.2)
             if args.screen == 7:
                 key('f'); key('slash')

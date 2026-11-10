@@ -173,7 +173,7 @@ mod tests {
     }
 
     fn sample() -> Value {
-        json!({"captured_at_millis":100,"workers":[{"queue_id":2,"busy_ppm":850000,"idle_ppm":150000,"backlog_mean":12}],"diagnostics":{"rx_nombuf":42,"pool_drop_packets":84,"pool_total_mbufs":1000,"pool_free_mbufs":100},"qdisc_totals":{"drop_pkts":3,"aqm_marks":5,"backlog_bytes":4096},"mapped":{"download_bytes":10,"upload_bytes":20},"unmapped":{"download_bytes":30,"upload_bytes":40},"hosts":[{"private":"ignored"}]})
+        json!({"captured_at_millis":100,"workers":[{"queue_id":2,"busy_ppm":850000,"idle_ppm":150000,"backlog_mean":12,"laps_per_s":12345,"busy_laps":42,"cycles_per_busy_lap":250,"phase_cycles":[1,2,3,4,5,6,7,8,9,10]}],"diagnostics":{"rx_nombuf":42,"pool_drop_packets":84,"pool_total_mbufs":1000,"pool_free_mbufs":100},"qdisc_totals":{"drop_pkts":3,"aqm_marks":5,"backlog_bytes":4096},"mapped":{"download_bytes":10,"upload_bytes":20},"unmapped":{"download_bytes":30,"upload_bytes":40},"hosts":[{"private":"ignored"}]})
     }
 
     #[tokio::test]
@@ -185,6 +185,14 @@ mod tests {
         server.join().unwrap();
         assert_eq!(sample.workers[0].busy_ppm, 850000);
         assert_eq!(sample.workers[0].backlog_mean, Some(12));
+        assert_eq!(sample.workers[0].idle_ppm, Some(150000));
+        assert_eq!(sample.workers[0].laps_per_s, Some(12345));
+        assert_eq!(sample.workers[0].busy_laps, Some(42));
+        assert_eq!(sample.workers[0].cycles_per_busy_lap, Some(250));
+        assert_eq!(
+            sample.workers[0].phase_cycles.as_deref(),
+            Some(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..])
+        );
         let mapped = sample.mapped.unwrap();
         let unmapped = sample.unmapped.unwrap();
         assert_eq!(mapped.download_bytes, 10);

@@ -85,3 +85,37 @@ Formatting, all-target Clippy, debug build, whitespace, and terminal capture rev
 The operator's aggregate probe verified both source classes and producer progress.
 The maximum-cache fixture remains below 1 MiB with three full histories and 4,096 workers.
 No push, deployment, or restart occurred. Task 3 is next. Bridge health remains Task 4.
+
+## Checkpoint 3: worker details
+
+Keep one analytics snapshot poll. Read optional `idle_ppm`, `laps_per_s`, `busy_laps`,
+`cycles_per_busy_lap`, and `phase_cycles` from each worker row.
+The source declares ten cumulative phase counters in this order:
+rx, dissect, select, charge, leaf, tx, begin_cycle, drop_overdue, handoff, empty_rx.
+Do not label laps/s as packets/s or cumulative phase totals as current interval utilization.
+Keep derived idle from busy separate from reported idle. Absent fields stay unknown.
+Sanitize an inconsistent reported idle or an unknown phase-vector length without hiding valid busy/backlog data.
+
+- Add optional row fields and detail formatting in the existing worker telemetry path.
+- Add source/cache tests before implementation, then verify the live aggregate worker rows with a read-only probe.
+- Add metrics to the scrollable Workers detail pane and copy output. Retain the approved panel order.
+- Keep basic telemetry and histories within the 1 MiB public cache bound.
+  If extended rows exceed that budget, publish basic rows with an explicit omission notice.
+  Preserve all extended values in memory. Never publish a cache that old readers must reject for size.
+- Test unsupported fields, bad idle/phase data, duplicate samples, stale labels, copy, and cache fallback.
+- Verify mouse focus and keyboard scrolling for the longer detail pane.
+- Run the full suite, Clippy, formatting, build, captures, performance/integrity review, and local commit.
+
+No health endpoint, new poll, dependency, runtime key, router write, deployment, restart, or push belongs to this checkpoint.
+Task 4 owns bridge health, uptime, and degraded subsystems.
+
+
+## Checkpoint 3 result
+
+Implemented and locally verified. 576 tests passed, zero failed, seven manual tests ignored.
+Formatting, all-target Clippy, debug build, and terminal capture review passed.
+The operator probe verified all five optional fields, ten phases, and advancing producer timestamps.
+Reported laps/s equaled busy ppm in the three samples. Keep its producer-reported label; do not infer packets/s.
+Cache fallback preserves basic telemetry and histories within 1 MiB without mutating the source report.
+The maximum fallback fixture measured 739,546 bytes and 154.6 ms for one debug publish/read sample.
+No push, deployment, or restart occurred. Task 4 bridge health, uptime, and degraded subsystems is next.

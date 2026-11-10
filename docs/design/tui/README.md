@@ -650,3 +650,12 @@ Dashboard source buttons and `v` select Actual delivered traffic or the Mapped/U
 Dashboard health, Workers details, and copy output identify whole-bridge scope and current/stale evidence.
 Each chart uses its own history. The established panel order remains unchanged.
 Bridge health, uptime, and degraded subsystems remain Task 4 in the statistics plan.
+
+
+## Extended worker measurements
+
+The [Task 3 review](DPDK_STATS.md#task-3-extended-worker-measurements) records worker fields and actual terminal captures.
+Retain the approved panel order. Add measurements inside the existing scrollable detail pane.
+Keep the worker ID and snapshot state visible in its title during scrolling and expansion.
+Reported laps/s and cumulative phase cycles must retain their units and source limitations.
+Missing, stale, and cache-budget omissions must remain explicit.
