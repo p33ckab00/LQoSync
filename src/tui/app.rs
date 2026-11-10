@@ -776,7 +776,7 @@ impl App {
             Tab::Routers if self.routers.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
             Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-7] pages",
-            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
+            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [j/k] health  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
             Tab::Workers if self.workers.editing() => "[Enter] done  [Esc] clear  type to search",
             Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select  [1-7] pages",
         }.into()
@@ -1358,6 +1358,48 @@ mod tests {
     }
 
     #[test]
+    fn queue_totals_render_in_dashboard_and_workers_with_stale_delta_suppression() {
+        let mut a = app(true);
+        let telemetry: crate::worker_util::Telemetry = serde_json::from_value(serde_json::json!({
+            "version":1,"updated":100,"stale":false,"reason":null,
+            "workers":[{"queue_id":0,"busy_ppm":125000,"backlog_mean":3}],
+            "queue":{"totals":{"drop_pkts":103,"aqm_marks":205,"backlog_bytes":4096},
+                "drop_delta":3,"aqm_delta":5}
+        }))
+        .unwrap();
+        a.set_data(
+            Data {
+                target: "v3_pair".into(),
+                worker_util: Some(Arc::new(telemetry)),
+                ..Data::default()
+            },
+            100,
+        );
+        for tab in [Tab::Dashboard, Tab::Workers] {
+            a.tab = tab;
+            let s = draw(&mut a, 240, 48);
+            for text in [
+                "Queues LIVE",
+                "whole bridge",
+                "Drops: 103",
+                "AQM marks: 205",
+                "New/sample: drops 3",
+                "Backlog: 4096 bytes",
+            ] {
+                assert!(s.contains(text), "{tab:?} missing {text}: {s}");
+            }
+            a.on_tick(107);
+            let s = draw(&mut a, 240, 48);
+            assert!(s.contains("Queues STALE (last known)"), "{tab:?}: {s}");
+            assert!(
+                s.contains("Drops: 103") && s.contains("New/sample: drops unknown"),
+                "{s}"
+            );
+            a.on_tick(100);
+        }
+    }
+
+    #[test]
     fn worker_util_expires_on_timer_ticks_without_loader_updates() {
         let mut a = app(true);
         a.tab = Tab::Workers;
@@ -1376,6 +1418,7 @@ mod tests {
                     }],
                     pressure: None,
                     traffic: Default::default(),
+                    queue: None,
                 })),
                 ..Data::default()
             },

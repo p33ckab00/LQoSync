@@ -173,7 +173,7 @@ mod tests {
     }
 
     fn sample() -> Value {
-        json!({"captured_at_millis":100,"workers":[{"queue_id":2,"busy_ppm":850000,"idle_ppm":150000,"backlog_mean":12}],"diagnostics":{"rx_nombuf":42,"pool_drop_packets":84,"pool_total_mbufs":1000,"pool_free_mbufs":100},"hosts":[{"private":"ignored"}]})
+        json!({"captured_at_millis":100,"workers":[{"queue_id":2,"busy_ppm":850000,"idle_ppm":150000,"backlog_mean":12}],"diagnostics":{"rx_nombuf":42,"pool_drop_packets":84,"pool_total_mbufs":1000,"pool_free_mbufs":100},"qdisc_totals":{"drop_pkts":3,"aqm_marks":5,"backlog_bytes":4096},"hosts":[{"private":"ignored"}]})
     }
 
     #[tokio::test]
@@ -185,6 +185,10 @@ mod tests {
         server.join().unwrap();
         assert_eq!(sample.workers[0].busy_ppm, 850000);
         assert_eq!(sample.workers[0].backlog_mean, Some(12));
+        let queue = sample.qdisc_totals.unwrap();
+        assert_eq!(queue.drop_pkts, Some(3));
+        assert_eq!(queue.aqm_marks, Some(5));
+        assert_eq!(queue.backlog_bytes, Some(4096));
         let diagnostics = sample.diagnostics.unwrap();
         assert_eq!(diagnostics.rx_nombuf, Some(42));
         assert_eq!(diagnostics.pool_free_mbufs, Some(100));

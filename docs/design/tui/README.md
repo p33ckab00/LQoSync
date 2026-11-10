@@ -634,3 +634,10 @@ All seven bodies, DPDK history, mouse controls, and isolated terminal captures a
 These checks do not claim pixel identity or production deployment.
 
 See the [visual review and transition assessment](REVIEW_AND_EVOLUTION.md) for results and remaining deployment limits.
+
+
+## DPDK queue statistics extension
+
+The [statistics checkpoint review](DPDK_STATS.md) records the additive queue measurements and capture evidence.
+The Dashboard and Workers retain the approved panel order.
+Queue counts describe the whole bridge. Missing and stale evidence cannot imply zero or current increments.

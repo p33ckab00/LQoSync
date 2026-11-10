@@ -2,6 +2,7 @@
 
 mod ipc;
 pub mod pressure;
+pub mod queue;
 pub mod traffic;
 pub use ipc::read_snapshot;
 use pressure::{Diagnostics, Pressure, TransitionLog};
@@ -32,6 +33,7 @@ pub struct Snapshot {
     pub workers: Vec<WorkerRow>,
     pub diagnostics: Option<Diagnostics>,
     pub actual: Option<traffic::Counters>,
+    pub qdisc_totals: Option<queue::Totals>,
 }
 
 fn validate_rows(rows: &[WorkerRow]) -> anyhow::Result<()> {
@@ -69,6 +71,8 @@ pub struct Telemetry {
     pub pressure: Option<Pressure>,
     #[serde(default)]
     pub traffic: std::collections::VecDeque<traffic::Point>,
+    #[serde(default)]
+    pub queue: Option<queue::Queue>,
 }
 
 impl Default for Telemetry {
@@ -81,6 +85,7 @@ impl Default for Telemetry {
             workers: Vec::new(),
             pressure: None,
             traffic: Default::default(),
+            queue: None,
         }
     }
 }
@@ -108,6 +113,7 @@ struct Tracker {
     report: Telemetry,
     previous_diagnostics: Option<Diagnostics>,
     previous_at: u64,
+    previous_queue: Option<queue::Totals>,
     traffic: traffic::History,
 }
 
@@ -128,6 +134,7 @@ impl Tracker {
                     .is_none_or(|last| sample.captured_at_millis < last)
                 {
                     self.captured = Some(sample.captured_at_millis);
+                    self.previous_queue = sample.qdisc_totals;
                     self.previous_diagnostics = sample.diagnostics;
                     self.previous_at = now;
                     self.report
@@ -135,7 +142,19 @@ impl Tracker {
                 } else if self.captured != Some(sample.captured_at_millis) {
                     if now < self.previous_at || now - self.previous_at > MAX_AGE {
                         self.previous_diagnostics = None;
+                        self.previous_queue = None;
                     }
+                    if self
+                        .captured
+                        .is_some_and(|last| sample.captured_at_millis - last > MAX_AGE * 1000)
+                    {
+                        self.previous_queue = None;
+                    }
+                    let queue = sample
+                        .qdisc_totals
+                        .clone()
+                        .map(|totals| queue::Queue::between(totals, self.previous_queue.as_ref()));
+                    self.previous_queue = sample.qdisc_totals;
                     self.captured = Some(sample.captured_at_millis);
                     sample.workers.sort_unstable_by_key(|w| w.queue_id);
                     self.report = Telemetry {
@@ -145,6 +164,7 @@ impl Tracker {
                         reason: None,
                         workers: sample.workers,
                         traffic: std::mem::take(&mut self.report.traffic),
+                        queue,
                         pressure: Some(Pressure::between(
                             sample.diagnostics.as_ref(),
                             self.previous_diagnostics.as_ref(),
@@ -160,6 +180,7 @@ impl Tracker {
             Err(error) => {
                 self.traffic.record(&mut self.report.traffic, None, now);
                 self.previous_diagnostics = None;
+                self.previous_queue = None;
                 self.report.fail(error.to_string());
             }
         }
@@ -194,6 +215,9 @@ pub fn read_cache(path: &Path) -> Telemetry {
         ensure!(report.version == 1, "unsupported worker cache version");
         if report.pressure.as_ref().is_some_and(|p| !p.valid()) {
             report.pressure = Some(Pressure::default());
+        }
+        if report.queue.as_ref().is_some_and(|q| !q.valid()) {
+            report.queue = None;
         }
         if !report.workers.is_empty() {
             validate_rows(&report.workers)?;
@@ -322,6 +346,96 @@ mod tests {
         tracker.record(Ok(traffic(5000, 3000000, 500000)), 14);
         let report = serde_json::to_value(&tracker.report).unwrap();
         assert!(report["traffic"].as_array().unwrap().last().unwrap()["down_mbps"].is_null());
+    }
+
+    fn queue_sample(at: u64, drops: u64, marks: u64, backlog: u64) -> Snapshot {
+        serde_json::from_value(json!({"captured_at_millis":at,
+            "workers":[{"queue_id":0,"busy_ppm":125000}],
+            "qdisc_totals":{"drop_pkts":drops,"aqm_marks":marks,"backlog_bytes":backlog}}))
+        .unwrap()
+    }
+
+    #[test]
+    fn queue_totals_follow_producer_samples_and_keep_gauges_separate() {
+        let mut t = Tracker::default();
+        t.record(Ok(queue_sample(1000, 100, 200, 8192)), 10);
+        assert!(!t.report.live(10));
+        t.record(Ok(queue_sample(3000, 103, 205, 4096)), 12);
+        let report = serde_json::to_value(&t.report).unwrap();
+        assert_eq!(report["queue"]["totals"]["drop_pkts"], 103);
+        assert_eq!(report["queue"]["drop_delta"], 3);
+        assert_eq!(report["queue"]["aqm_delta"], 5);
+        assert_eq!(report["queue"]["totals"]["backlog_bytes"], 4096);
+        t.record(Ok(queue_sample(3000, 999, 999, 0)), 14);
+        assert_eq!(
+            serde_json::to_value(&t.report).unwrap()["queue"],
+            report["queue"]
+        );
+        t.record(Ok(queue_sample(5000, 103, 205, 0)), 16);
+        let q = serde_json::to_value(&t.report).unwrap()["queue"].clone();
+        assert_eq!(q["drop_delta"], 0);
+        assert_eq!(q["aqm_delta"], 0);
+        assert_eq!(q["totals"]["backlog_bytes"], 0);
+    }
+
+    #[test]
+    fn queue_totals_rebase_after_failure_gap_restart_missing_data_and_counter_reset() {
+        let mut t = Tracker::default();
+        t.record(Ok(queue_sample(1000, 100, 200, 1)), 10);
+        t.record(Ok(queue_sample(3000, 103, 205, 2)), 12);
+        t.record(Err(anyhow::anyhow!("disconnected")), 13);
+        assert!(!t.report.live(13));
+        t.record(Ok(queue_sample(5000, 500, 600, 3)), 14);
+        let check_unknown = |t: &Tracker| {
+            let q = serde_json::to_value(&t.report).unwrap()["queue"].clone();
+            assert!(q["drop_delta"].is_null());
+            assert!(q["aqm_delta"].is_null());
+        };
+        check_unknown(&t);
+        t.record(Ok(queue_sample(7000, 800, 900, 4)), 30);
+        check_unknown(&t);
+        t.record(Ok(queue_sample(100, 1000, 1100, 5)), 31);
+        assert!(!t.report.live(31));
+        t.record(Ok(queue_sample(200, 1002, 1103, 6)), 33);
+        assert_eq!(
+            serde_json::to_value(&t.report).unwrap()["queue"]["drop_delta"],
+            2
+        );
+        t.record(Ok(queue_sample(300, 1, 2, 7)), 35);
+        check_unknown(&t);
+        t.record(Ok(sample(400)), 37);
+        assert!(serde_json::to_value(&t.report).unwrap()["queue"].is_null());
+        t.record(Ok(queue_sample(500, 10, 20, 8)), 39);
+        check_unknown(&t);
+        t.record(Ok(queue_sample(600, 12, 23, 9)), 41);
+        assert_eq!(
+            serde_json::to_value(&t.report).unwrap()["queue"]["drop_delta"],
+            2
+        );
+        t.record(Ok(queue_sample(700, 14, 25, 10)), 40);
+        check_unknown(&t);
+    }
+
+    #[test]
+    fn queue_cache_is_optional_and_preserves_partial_unknown_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(CACHE);
+        let mut value = json!({"version":1,"updated":100,"stale":false,"reason":null,
+            "workers":[{"queue_id":0,"busy_ppm":125000}]});
+        std::fs::write(&path, value.to_string()).unwrap();
+        assert!(read_cache(&path).live(100));
+        value["queue"] = json!({"totals":{"backlog_bytes":10},"drop_delta":null,"aqm_delta":null});
+        std::fs::write(&path, value.to_string()).unwrap();
+        let r = read_cache(&path);
+        assert!(r.live(100));
+        let q = serde_json::to_value(r).unwrap()["queue"].clone();
+        assert_eq!(q["totals"]["backlog_bytes"], 10);
+        assert!(q["totals"]["drop_pkts"].is_null());
+        value["queue"]["drop_delta"] = json!(1);
+        std::fs::write(&path, value.to_string()).unwrap();
+        let r = read_cache(&path);
+        assert!(r.live(100), "queue validation must not hide worker data");
+        assert!(serde_json::to_value(r).unwrap()["queue"].is_null());
     }
 
     fn sample(at: u64) -> Snapshot {

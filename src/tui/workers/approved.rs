@@ -150,7 +150,7 @@ impl WorkersView {
             KeyCode::Esc => self.approved.expanded = false,
             KeyCode::Char('c') => {
                 if let Some(w) = self.worker(d) {
-                    return WorkerAction::Copy(format!(
+                    let mut text = format!(
                         "Worker {}\nBusy {:.1}%\nIdle {:.1}%\nBacklog {} packets\nSnapshot {}",
                         w.queue_id,
                         w.busy_ppm as f64 / 10000.0,
@@ -161,7 +161,16 @@ impl WorkersView {
                         } else {
                             "STALE"
                         }
-                    ));
+                    );
+                    text.push('\n');
+                    text.push_str(
+                        &crate::worker_util::queue::Queue::measurements(
+                            d.worker_util.as_ref().and_then(|t| t.queue.as_ref()),
+                            d.worker_util.as_ref().is_some_and(|t| t.live(now)),
+                        )
+                        .join("\n"),
+                    );
+                    return WorkerAction::Copy(text);
                 }
             }
             KeyCode::Up if self.approved.focus == 4 => {
@@ -457,29 +466,37 @@ impl WorkersView {
                     w.backlog_mean.map_or("unknown".into(), |n| n.to_string())
                 )),
                 Line::raw(format!("Sample age {age} | {state}")),
-                Line::raw("Source Analytics snapshot"),
-                Line::raw(""),
-                Line::raw("Read-only inspection"),
-                Line::raw("Busy is forwarding utilization,"),
-                Line::raw("not OS CPU usage."),
             ]);
         } else {
             lines.push(Line::raw("Worker details unavailable"));
         }
+        lines.extend(
+            crate::worker_util::queue::Queue::measurements(
+                report.and_then(|r| r.queue.as_ref()),
+                live,
+            )
+            .into_iter()
+            .map(Line::raw),
+        );
+        lines.extend([
+            Line::raw("New = increments per valid sample."),
+            Line::raw("Source Analytics snapshot | read-only"),
+            Line::raw("Busy is forwarding utilization, not OS CPU usage."),
+        ]);
+        let content = Rect {
+            width: fields.width.saturating_sub(1),
+            ..fields
+        };
+        let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
+        let total = paragraph.line_count(content.width);
         self.approved.detail.offset = self
             .approved
             .detail
             .offset
-            .min(lines.len().saturating_sub(fields.height as usize));
-        let total = lines.len();
+            .min(total.saturating_sub(content.height as usize));
         f.render_widget(
-            Paragraph::new(
-                lines
-                    .into_iter()
-                    .skip(self.approved.detail.offset)
-                    .collect::<Vec<_>>(),
-            ),
-            fields,
+            paragraph.scroll((self.approved.detail.offset as u16, 0)),
+            content,
         );
         self.approved.detail.draw(f, fields, total, p);
         for (i, label) in ["[e/Enter] Expand details", "[c] Copy details"]
@@ -544,6 +561,32 @@ impl WorkersView {
 mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
+    #[test]
+    fn queue_copy_preserves_scope_and_suppresses_stale_increments() {
+        let mut d = super::super::tests::live();
+        Arc::make_mut(d.worker_util.as_mut().unwrap()).queue = Some(serde_json::from_value(serde_json::json!({
+            "totals":{"drop_pkts":10,"aqm_marks":20,"backlog_bytes":30},"drop_delta":1,"aqm_delta":2
+        })).unwrap());
+        let mut view = WorkersView::default();
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 100) else {
+            panic!("expected copy")
+        };
+        assert!(
+            text.contains("whole bridge")
+                && text.contains("Drops: 10")
+                && text.contains("New/sample: drops 1"),
+            "{text}"
+        );
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 107) else {
+            panic!("expected copy")
+        };
+        assert!(
+            text.contains("STALE (last known)") && text.contains("New/sample: drops unknown"),
+            "{text}"
+        );
+    }
+
     #[test]
     fn sample_filters_expire_on_ticks_and_copy_only_selected_worker_evidence() {
         let d = super::super::tests::live();

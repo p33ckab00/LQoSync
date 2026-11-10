@@ -485,7 +485,8 @@ The service reads a snapshot every two seconds from `libreqos.v3_analytics_socke
 Its default is `/dev/shm/libreqos-analytics.sock`. Match this path to the bridge's analytics socket.
 The service normally runs as root and can read the root-only socket.
 The TUI reads the public cache at `<runtime.state_dir>/worker-utilization.json`.
-This cache contains worker metrics and buffer/ring diagnostics only. It contains no host or flow records.
+This cache contains worker metrics, aggregate traffic history, buffer/ring diagnostics, and optional bridge queue totals.
+It contains no host or flow records.
 
 The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
 Snapshots and cached values expire after six seconds. A socket error marks the last-good values stale.
@@ -523,3 +524,31 @@ Missing fields show `unknown` or `unavailable`. Invalid gauges do not hide valid
 Zero pool capacity is unknown. Stale telemetry shows unknown current pressure, never a recovery verdict.
 `clear` means that all monitored fields are available and no current threshold or increment indicates pressure.
 This feature adds local TUI and journal alerts. It does not change Telegram notification policy.
+
+
+### Whole-bridge queue statistics
+
+The same two-second analytics poll reads optional `qdisc_totals`.
+The public cache adds `queue.totals`, `queue.drop_delta`, and `queue.aqm_delta`.
+Older caches and bridges without these fields remain readable. Missing values show `unknown` or `unavailable`, never zero.
+
+- `drop_pkts` is the cumulative queue drop count.
+- `aqm_marks` is the cumulative AQM mark count. It is distinct from the drop count.
+- `backlog_bytes` is the current aggregate queue backlog in bytes, not a counter increment.
+- `New/sample` shows increments since the previous valid producer sample. It is not an event rate per second.
+
+Counter decreases, read errors, producer timestamp regression, or sample gaps above six seconds require a new baseline.
+Repeated producer snapshots do not replay increments. Stale displays retain labeled last-known totals but hide current increments.
+Do not add queue drops to RX/pool drop counts. Do not interpret AQM marks as packet drops or a complete packet-loss percentage.
+These measurements cover the whole bridge. They do not describe one selected worker, subscriber, or WAN.
+
+Dashboard shows the measurements in Dataplane health. Use `j`/`k`, the mouse wheel, or the scrollbar to inspect wrapped lines.
+Workers shows them in its existing detail pane. Tab to the detail pane and use Up/Down, or use the mouse wheel/scrollbar.
+The detail pane supports expansion. Queue measurements remain separate from the selected worker's mean backlog in packets.
+The UI reads the cache and performs no socket requests during rendering.
+
+For read-only source verification, build `cargo build --locked --example dpdk_queue_probe`.
+Run `sudo ./target/debug/examples/dpdk_queue_probe` where the socket requires root.
+An optional first argument selects a different analytics socket.
+The probe prints three timestamped aggregate samples and never prints host or flow identities.
+A successful probe does not deploy a service binary or activate the new cache fields.

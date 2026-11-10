@@ -204,6 +204,7 @@ mod tests {
                 }],
                 pressure: None,
                 traffic: Default::default(),
+                queue: None,
             })),
             ..Data::default()
         }

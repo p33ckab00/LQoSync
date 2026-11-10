@@ -17,6 +17,7 @@ use ratatui::{
 pub struct Overview {
     pub scroll: Scroll,
     alert_scroll: Scroll,
+    health_scroll: Scroll,
     window: usize,
     ranges: [Rect; 3],
     refresh: Rect,
@@ -29,6 +30,7 @@ impl Overview {
     pub fn clear(&mut self) {
         self.scroll.clear();
         self.alert_scroll.clear();
+        self.health_scroll.clear();
         self.ranges = [Rect::default(); 3];
         self.refresh = Rect::default();
     }
@@ -42,6 +44,16 @@ impl Overview {
                         break;
                     }
                 }
+            }
+            KeyCode::Char('j') => {
+                self.health_scroll.offset = self
+                    .health_scroll
+                    .offset
+                    .saturating_add(1)
+                    .min(self.health_scroll.max)
+            }
+            KeyCode::Char('k') => {
+                self.health_scroll.offset = self.health_scroll.offset.saturating_sub(1)
             }
             KeyCode::Down => {
                 self.scroll.offset = self.scroll.offset.saturating_add(1).min(self.scroll.max)
@@ -75,7 +87,7 @@ impl Overview {
                 return true;
             }
         }
-        if !self.alert_scroll.mouse(m) {
+        if !self.health_scroll.mouse(m) && !self.alert_scroll.mouse(m) {
             self.scroll.mouse(m);
         }
         false
@@ -106,6 +118,7 @@ impl Overview {
             self.ranges = self.ranges.map(map);
             self.refresh = map(self.refresh);
             self.alert_scroll.area = map(self.alert_scroll.area);
+            self.health_scroll.area = map(self.health_scroll.area);
         }
         self.scroll.draw(f, area, height as usize, p);
     }
@@ -179,7 +192,13 @@ impl Overview {
         self.chart(f, chart, d, now, p);
         let telemetry = d.worker_util.as_deref();
         let live = telemetry.is_some_and(|s| s.live(now));
-        let mut lines = Vec::new();
+        let mut lines: Vec<Line> = crate::worker_util::queue::Queue::measurements(
+            telemetry.and_then(|t| t.queue.as_ref()),
+            live,
+        )
+        .into_iter()
+        .map(Line::raw)
+        .collect();
         if let Some(t) = telemetry {
             if let Some(w) = t.workers.iter().max_by_key(|w| w.busy_ppm) {
                 for (label, ppm) in [("busy", w.busy_ppm), ("idle", 1000000 - w.busy_ppm)] {
@@ -221,12 +240,22 @@ impl Overview {
         } else {
             lines.push(Line::raw("Telemetry unavailable"));
         }
+        let block = design::panel("Dataplane health [j/k scroll]", p);
+        let inner = block.inner(health);
+        f.render_widget(block, health);
+        let content = Rect {
+            width: inner.width.saturating_sub(1),
+            ..inner
+        };
+        let paragraph = Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: false });
+        let total = paragraph.line_count(content.width);
+        self.health_scroll.max = total.saturating_sub(content.height as usize);
+        self.health_scroll.offset = self.health_scroll.offset.min(self.health_scroll.max);
         f.render_widget(
-            Paragraph::new(lines)
-                .wrap(ratatui::widgets::Wrap { trim: false })
-                .block(design::panel("Dataplane health", p)),
-            health,
+            paragraph.scroll((self.health_scroll.offset as u16, 0)),
+            content,
         );
+        self.health_scroll.draw(f, inner, total, p);
         f.render_widget(
             Paragraph::new(vec![
                 Line::raw("Upstream       State       Capacity       RX       TX       Data age"),
@@ -420,5 +449,45 @@ impl Overview {
                 .style(design::surface(p)),
             plot,
         );
+    }
+}
+
+#[cfg(test)]
+mod queue_tests {
+    use super::*;
+    use crate::config::Theme;
+    use ratatui::{Terminal, backend::TestBackend, crossterm::event::KeyModifiers};
+
+    #[test]
+    fn health_panel_scrolls_wrapped_diagnostics_with_mouse_and_keyboard() {
+        let data = Data::default();
+        let mut view = Overview::default();
+        let palette = Palette::new(Theme::Dark);
+        let mut terminal = Terminal::new(TestBackend::new(40, 24)).unwrap();
+        terminal
+            .draw(|f| view.draw(f, f.area(), &data, 100, &palette))
+            .unwrap();
+        assert!(view.health_scroll.max > 0);
+        let r = view.health_scroll.area;
+        view.mouse(
+            MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &data,
+        );
+        assert!(view.health_scroll.offset > 0);
+        let offset = view.health_scroll.offset;
+        view.key(KeyCode::Char('k'), &data);
+        assert_eq!(view.health_scroll.offset, offset - 1);
+        view.key(KeyCode::Char('j'), &data);
+        assert_eq!(view.health_scroll.offset, offset);
+        terminal
+            .draw(|f| view.draw(f, f.area(), &data, 100, &palette))
+            .unwrap();
+        view.clear();
+        assert_eq!(view.health_scroll.area, Rect::default());
     }
 }

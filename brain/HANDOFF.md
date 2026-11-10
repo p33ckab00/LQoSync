@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T18:07:51+08:00 (Asia/Shanghai) — DPDK task 1 implementation
+
+- Owner requested six DPDK statistics checkpoints. Task 1 is queue drops, AQM marks, and backlog bytes.
+- Code extends the same analytics poll/cache and the Dashboard/Workers details. No new service or request cadence.
+- Read-only root probe passed: all fields exist and producer timestamps advance.
+- Missing/stale/reset handling and whole-bridge scope are explicit. UI and copy suppress stale increments.
+- Synthetic terminal captures: `docs/design/tui/captures/dashboard-queue-v1.png` and `workers-queue-v1.png`.
+- Checks passed: 560 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, and capture review.
+- Review/check logs: `/home/pi/.local/state/lqosync3/dpdk-queue-*.log`.
+- No push, deployment, or restart. Next checkpoint: mapped/unmapped traffic.
+- Preserve unrelated edits in the capture index and local-profile Brain discussion.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-queue-statistics]].
+
 ## 2026-11-09T20:32:29+08:00 (Asia/Shanghai) — Live collection deployment complete
 
 - Operator deployed `3.0.157+g39459a7`. Installed checksum matches the artifact; deployment checked the running executable and raw source counts.
