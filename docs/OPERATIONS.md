@@ -730,7 +730,8 @@ See the [telemetry review](design/tui/DPDK_REVIEW.md) for the source boundaries 
 
 The Dashboard now shows Actual, Mapped, and Unmapped on the same chart.
 Blue identifies Actual, amber identifies Mapped, and violet identifies Unmapped.
-Download appears above zero. Upload appears below zero. Both halves share the same scale.
+Download appears above zero. Upload appears below zero. Each direction uses its own dynamic scale.
+Each ceiling follows its highest visible rate in the selected timeline, with headroom and decimal rounding.
 The displayed upload rates remain positive. The chart overlays sources without adding their values.
 
 Click a legend row to show or hide its trace.

@@ -698,7 +698,7 @@ Retain the source distinction, unknown values, stale labels, and source-driven u
 The owner approved a single combined mirrored chart in place of the exclusive source selectors.
 The [visual contract](MIRRORED_TRAFFIC.md) supersedes the earlier traffic selector behavior.
 Actual is blue, Mapped is amber, and Unmapped is violet. Download is above zero and upload is below zero.
-Keep one symmetric scale. Preserve positive numeric values and independent source freshness.
+Use independent dynamic download and upload scales. Preserve positive numeric values and independent source freshness.
 Legend rows toggle traces. Focus isolates a source. All restores all sources.
 Retain the approved Dashboard panel order, clear missing-data labels, and existing mouse scrolling.
 The implementation uses cached curves and one canvas for bounded rendering cost.

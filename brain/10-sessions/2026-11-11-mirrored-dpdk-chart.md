@@ -88,3 +88,44 @@ All seven installed TUI routes passed the read-only smoke check. No panic occurr
 Backup: `/var/backups/lqosync3/mirror-fd5430a-5o36lykc`. No rollback was required.
 Evidence: `DEPLOYED.json`, `independent-verification.json`, and `installed-tui-smoke.json` in the artifact directory above.
 Reopen existing TUI sessions to load the installed chart.
+
+## Dynamic ceiling enhancement
+
+Updated: 2026-11-11T00:32:42+08:00 (Asia/Shanghai).
+
+The owner requested a ceiling that follows the highest traffic while preserving the mirrored view.
+The old scale rounded to 1/2/5 steps and imposed a 1 Mbps floor when Actual was visible.
+The new scale adds 10% headroom, then rounds up in fine decimal steps. All sources share a 1 kbps minimum.
+Both bounds follow the highest visible directional peak in the selected window.
+The bounds increase for a new peak and decrease when a peak expires or its source is hidden.
+An old visible peak keeps the scale stable when the latest rate falls. Upload can set both bounds.
+There is no new poll, retained state, dependency, or history scan.
+
+Regression tests cover higher peaks, expired peaks, hidden sources, upload dominance, small rates, and empty windows.
+The full suite passed 617 tests, with zero failed and seven ignored. Formatting, Clippy, build, and capture review passed.
+One initial full run hit a Journal channel-disconnect failure. Its isolated rerun and full-suite rerun passed.
+The Journal code was not changed.
+Actual synthetic terminal capture: `docs/design/tui/captures/dashboard-dynamic-ceiling-v1.png`.
+
+The enhancement remains in the local worktree. Production remains `3.0.169+gfd5430a`.
+No push, deployment, restart, or configuration change occurred for this enhancement.
+
+## Independent directional scales
+
+Updated: 2026-11-11T00:37:02+08:00 (Asia/Shanghai).
+
+The owner clarified that each direction must follow its own timeline peak. This replaces the equal-bound enhancement proposal above.
+Download and upload now have independent dynamic ceilings. Zero stays centered in the mirrored layout.
+All visible download sources share the download ceiling. All visible upload sources share the upload ceiling.
+Hiding a source or expiring its peak updates each directional ceiling separately.
+The panel title states `independent D/U scales`. Read each directional axis to compare absolute rates across halves.
+
+The renderer normalizes coordinates on one canvas without allocating transformed point arrays.
+Histories, current rates, and peak values retain Mbps. Source polling and cache ownership are unchanged.
+Regression tests check separate axis labels, expiry, visibility, upload dominance, low-rate traffic, and actual plotted geometry.
+The full suite passed 618 tests, with zero failed and seven ignored. Formatting, Clippy, build, whitespace, and screenshot review passed.
+One hundred maximum debug redraws took 1,505.9 ms for three 1,801-point histories and 818.7 ms for three 901-segment histories.
+These synthetic timings are not terminal frame-rate guarantees.
+
+The corrected screenshot is `docs/design/tui/captures/dashboard-dynamic-ceiling-v1.png`.
+The enhancement remains local and uncommitted. Production remains `3.0.169+gfd5430a`.

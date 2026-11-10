@@ -8,16 +8,39 @@ pub struct Scale {
 }
 impl Scale {
     pub fn new(peak: f64, floor: f64) -> Self {
-        let peak = peak.max(floor);
-        let decade = 10f64.powf(peak.log10().floor());
-        let step = [1.0, 2.0, 5.0, 10.0]
-            .into_iter()
-            .find(|s| *s * decade >= peak)
-            .unwrap_or(10.0);
-        let top = (step * decade).min(f64::MAX / 2.0);
+        // Window peaks hold the scale between reports; fine steps avoid excessive empty space.
+        let padded = (peak * 1.1).max(floor).min(f64::MAX / 2.0);
+        let quantum = 10f64.powf(padded.log10().floor()) / 10.0;
+        let top = (((padded / quantum - 1e-12).ceil()) * quantum).min(f64::MAX / 2.0);
         Self {
             top,
             top_label: rate(Some(top), false),
+        }
+    }
+}
+/// Normalize only rendered coordinates. Histories and numeric labels retain Mbps.
+pub struct Segment<'a> {
+    pub coords: &'a [(f64, f64)],
+    pub ceiling: f64,
+    pub color: ratatui::style::Color,
+}
+impl ratatui::widgets::canvas::Shape for Segment<'_> {
+    fn draw(&self, painter: &mut ratatui::widgets::canvas::Painter) {
+        use ratatui::widgets::canvas::Line;
+        for &(x, y) in self.coords {
+            if let Some((x, y)) = painter.get_point(x, y / self.ceiling) {
+                painter.paint(x, y, self.color);
+            }
+        }
+        for pair in self.coords.windows(2) {
+            Line {
+                x1: pair[0].0,
+                y1: pair[0].1 / self.ceiling,
+                x2: pair[1].0,
+                y2: pair[1].1 / self.ceiling,
+                color: self.color,
+            }
+            .draw(painter);
         }
     }
 }
@@ -196,6 +219,41 @@ mod tests {
         assert_eq!(point.up_mbps, Some(2.0));
     }
     #[test]
+    fn independent_rate_ceilings_fill_each_half_without_changing_stored_points() {
+        use ratatui::{Terminal, backend::TestBackend, style::Color, widgets::canvas::Canvas};
+        let down = [(0.0, 13.0)];
+        let up = [(1.0, -2.0)];
+        let mut term = Terminal::new(TestBackend::new(20, 10)).unwrap();
+        term.draw(|f| {
+            f.render_widget(
+                Canvas::default()
+                    .x_bounds([0.0, 1.0])
+                    .y_bounds([-1.0, 1.0])
+                    .paint(|ctx| {
+                        ctx.draw(&Segment {
+                            coords: &down,
+                            ceiling: 13.0,
+                            color: Color::Blue,
+                        });
+                        ctx.draw(&Segment {
+                            coords: &up,
+                            ceiling: 2.0,
+                            color: Color::Magenta,
+                        });
+                    }),
+                f.area(),
+            )
+        })
+        .unwrap();
+        let buffer = term.backend().buffer();
+        assert_ne!(buffer[(0, 0)].symbol(), " ");
+        assert_ne!(buffer[(19, 9)].symbol(), " ");
+        assert_eq!(buffer[(0, 0)].fg, Color::Blue);
+        assert_eq!(buffer[(19, 9)].fg, Color::Magenta);
+        assert_eq!(down[0].1, 13.0);
+        assert_eq!(up[0].1, -2.0);
+    }
+    #[test]
     fn combined_visibility_focus_and_empty_selection_are_independent() {
         let mut v = Visibility::default();
         assert_eq!(v.mask(), 7);
@@ -265,9 +323,9 @@ mod tests {
     }
     #[test]
     fn chart_axis_labels_match_the_plotted_bounds_with_stable_steps() {
-        for (peak, expected) in [(0.025, 0.05), (1.1, 2.0), (98.0, 100.0), (2500.0, 5000.0)] {
+        for (peak, expected) in [(0.025, 0.028), (1.1, 1.3), (98.0, 110.0), (2500.0, 2800.0)] {
             let a = Scale::new(peak, 0.001);
-            assert_eq!(a.top, expected);
+            assert!((a.top - expected).abs() < expected * 1e-12);
             assert_eq!(a.top_label, rate(Some(expected), false));
         }
         assert_eq!(Scale::new(0.0, 1.0).top, 1.0);

@@ -12,7 +12,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{
         Paragraph,
-        canvas::{Canvas, Line as CanvasLine, Points},
+        canvas::{Canvas, Line as CanvasLine},
     },
 };
 
@@ -407,7 +407,10 @@ impl Overview {
     }
     fn chart(&mut self, f: &mut Frame, area: Rect, d: &Data, now: u64, p: &Palette) {
         use super::traffic_chart::{self as chart, NAMES};
-        let block = design::panel("LibreQoS DPDK Traffic | mirrored", p);
+        let block = design::panel(
+            "LibreQoS DPDK Traffic | mirrored | independent D/U scales",
+            p,
+        );
         let inner = block.inner(area);
         f.render_widget(block, area);
         self.ranges = [Rect::default(); 3];
@@ -541,20 +544,25 @@ impl Overview {
         if plot.height < 3 {
             return;
         }
-        let peak = (0..3)
-            .filter(|i| mask & (1 << i) != 0)
-            .map(|i| {
-                prepared[i]
-                    .down_peak
+        let scales = [false, true].map(|upload| {
+            let peak = (0..3)
+                .filter(|i| mask & (1 << i) != 0)
+                .map(|i| {
+                    if upload {
+                        prepared[i].up_peak
+                    } else {
+                        prepared[i].down_peak
+                    }
                     .unwrap_or(0.0)
-                    .max(prepared[i].up_peak.unwrap_or(0.0))
-            })
-            .fold(0.0, f64::max);
-        let scale = chart::Scale::new(peak, if mask & 1 != 0 { 1.0 } else { 0.001 });
+                })
+                .fold(0.0, f64::max);
+            chart::Scale::new(peak, 0.001)
+        });
         let start = now.saturating_sub(seconds) as f64;
         let end = now.max(1) as f64;
         // Paint all segments on one canvas. A canvas per gap makes unstable histories expensive.
-        let axis_width = (scale.top_label.len() + 3).min((plot.width / 3).max(1) as usize) as u16;
+        let axis_width = (scales.iter().map(|s| s.top_label.len()).max().unwrap_or(0) + 3)
+            .min((plot.width / 3).max(1) as usize) as u16;
         let canvas = Rect::new(
             plot.x + axis_width,
             plot.y,
@@ -566,9 +574,9 @@ impl Overview {
         }
         let axis_style = design::role(p, Role::Secondary);
         for (label, y) in [
-            (format!("D {}", scale.top_label), canvas.y),
+            (format!("D {}", scales[0].top_label), canvas.y),
             ("0".into(), canvas.y + canvas.height / 2),
-            (format!("U {}", scale.top_label), canvas.bottom() - 1),
+            (format!("U {}", scales[1].top_label), canvas.bottom() - 1),
         ] {
             f.render_widget(
                 Paragraph::new(label)
@@ -612,7 +620,8 @@ impl Overview {
                         .unwrap_or(ratatui::style::Color::Reset),
                 )
                 .x_bounds([start, end])
-                .y_bounds([-scale.top, scale.top])
+                // Each half uses its own rate ceiling; normalized coordinates keep zero centered.
+                .y_bounds([-1.0, 1.0])
                 .paint(|ctx| {
                     ctx.draw(&CanvasLine {
                         x1: start,
@@ -626,17 +635,14 @@ impl Overview {
                         let color = chart::source_style(p, i)
                             .fg
                             .unwrap_or(ratatui::style::Color::Reset);
-                        for segment in prepared[i].down.iter().chain(&prepared[i].up) {
-                            ctx.draw(&Points {
-                                coords: segment,
-                                color,
-                            });
-                            for pair in segment.windows(2) {
-                                ctx.draw(&CanvasLine {
-                                    x1: pair[0].0,
-                                    y1: pair[0].1,
-                                    x2: pair[1].0,
-                                    y2: pair[1].1,
+                        for (segments, scale) in [
+                            (&prepared[i].down, &scales[0]),
+                            (&prepared[i].up, &scales[1]),
+                        ] {
+                            for segment in segments {
+                                ctx.draw(&chart::Segment {
+                                    coords: segment,
+                                    ceiling: scale.top,
                                     color,
                                 });
                             }
@@ -822,6 +828,55 @@ mod queue_tests {
         );
     }
     #[test]
+    fn directional_ceilings_track_their_own_visible_window_peaks() {
+        use crate::worker_util::{Telemetry, traffic::Point};
+        use std::sync::Arc;
+        let point = |at, down, up| Point {
+            at,
+            down_mbps: Some(down),
+            up_mbps: Some(up),
+        };
+        let mut report = Telemetry::default();
+        report
+            .traffic
+            .extend([point(100, 100.0, 1.0), point(400, 0.025, 0.01)]);
+        report
+            .classification
+            .mapped
+            .history
+            .push_back(point(400, 1.0, 40.0));
+        let mut d = Data {
+            worker_util: Some(Arc::new(report)),
+            ..Default::default()
+        };
+        let mut view = Overview::default();
+        let mut term = Terminal::new(TestBackend::new(200, 20)).unwrap();
+        let mut render = |view: &mut Overview, d: &Data, now| {
+            term.draw(|f| view.chart(f, f.area(), d, now, &Palette::new(Theme::Dark)))
+                .unwrap();
+            term.backend()
+                .buffer()
+                .content
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<String>()
+        };
+        let check = |text: String, down: &str, up: &str| {
+            assert!(text.contains(&format!("D {down}")), "{text}");
+            assert!(text.contains(&format!("U {up}")), "{text}");
+        };
+        check(render(&mut view, &d, 400), "110.0 Mbps", "44.0 Mbps");
+        // Expiring a download peak must not change the independent upload ceiling.
+        check(render(&mut view, &d, 401), "1.1 Mbps", "44.0 Mbps");
+        view.traces.toggle(1);
+        check(render(&mut view, &d, 401), "28.0 kbps", "11.0 kbps");
+        let mut report = (**d.worker_util.as_ref().unwrap()).clone();
+        report.traffic.push_back(point(402, 11.0, 2.0));
+        d.worker_util = Some(Arc::new(report));
+        check(render(&mut view, &d, 402), "13.0 Mbps", "2.2 Mbps");
+        check(render(&mut view, &d, 703), "1.0 kbps", "1.0 kbps");
+    }
+    #[test]
     fn combined_chart_defaults_to_all_sources_and_keeps_mouse_focus_and_resizing_safe() {
         use std::sync::Arc;
         let report=serde_json::from_value(serde_json::json!({"version":1,"updated":100,"stale":false,"reason":null,
@@ -852,8 +907,8 @@ mod queue_tests {
             "[x] Mapped Down 8.000 Mbps Up 4.000 Mbps",
             "[x] Unmapped Down 0.000 Mbps Up 0.000 Mbps",
             "Actual delivered; Mapped/Unmapped enqueued",
-            "D 10.0 Mbps",
-            "U 10.0 Mbps",
+            "D 11.0 Mbps",
+            "U 4.4 Mbps",
         ] {
             assert!(text.contains(label), "missing {label}: {text}");
         }

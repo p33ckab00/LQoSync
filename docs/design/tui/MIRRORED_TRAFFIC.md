@@ -13,7 +13,14 @@ The Dashboard retains its approved panel order. Its traffic panel overlays three
 | Unmapped | Violet | Whole-bridge unmapped enqueue traffic |
 
 Download appears above zero. Upload appears below zero with the same source colors.
-Both halves use one symmetric scale. Axis labels identify D and U with positive magnitudes.
+Each half uses an independent dynamic scale. Axis labels identify D and U with positive magnitudes.
+The download ceiling follows the highest valid visible download sample in the selected time window.
+The upload ceiling follows the highest valid visible upload sample in the same window.
+The scale adds 10% headroom, then rounds up in small decimal steps.
+A new peak raises only its directional bound. Each bound decreases when its old peak expires or its source is hidden.
+Current low traffic does not shrink the scale while a higher historical sample remains visible.
+This preserves visible spikes and avoids changes on every terminal redraw.
+The minimum ceiling is 1 kbps, including when Actual is visible. An empty window retains explicit unknown labels.
 Upload values, peaks, and stored rates stay positive. Only upload plot coordinates are negative.
 
 The chart does not stack or sum delivered and enqueue measurements.
@@ -49,7 +56,9 @@ Freshness and text values are evaluated on every draw. Source focus does not req
 The cache retains one report and at most the three bounded source histories.
 The renderer paints all segments on one canvas. A zero-reference layer and at most three source layers retain their own colors.
 It does not allocate one canvas or layer for each gap.
-Symmetric bounds remain finite, including extreme finite cache values.
+Directional bounds remain finite, including extreme finite cache values.
+Only rendered coordinates are normalized to keep zero centered. Stored rates retain their original units.
+Trace heights compare sources within one direction. Read the separate D and U labels to compare rates across directions.
 
 The TUI keeps its existing source-driven cadence and terminal diff rendering.
 It adds no background poll, dependency, packet-path work, animation, or interpolated measurement.
@@ -63,7 +72,7 @@ This preserves gaps without the repeated canvas allocation.
 
 The complete suite passes 616 tests, with zero failed and seven manual tests ignored.
 Formatting, all-target Clippy with warnings denied, build, and whitespace checks pass.
-Tests cover mirror signs, preserved positive rates, shared bounds, visibility, focus, empty selection, and cache expiry.
+Tests cover mirror signs, preserved positive rates, independent directional bounds, visibility, focus, empty selection, and cache expiry.
 They also cover clock changes, source removal, missing data, stale labels, all themes, resizing, and mouse targets.
 The maximum fixture has three histories of 1,801 points each.
 A second fixture has 901 isolated segments per source. Both fixtures verify reuse of prepared curves.
@@ -76,3 +85,25 @@ Actual terminal captures use isolated synthetic records:
 - [Focused Unmapped view](captures/dashboard-mirror-unmapped-v1.png)
 
 The captures exercise the real TUI. They are separate from production telemetry measurements.
+
+## Dynamic ceiling review
+
+The previous scale used coarse 1/2/5 steps and a 1 Mbps floor when Actual was visible.
+The scale now follows the selected window more closely and supports low-rate traffic in the combined view.
+For example, an 11 Mbps peak produces a 13 Mbps ceiling after headroom and rounding.
+Download and upload retain separate ceilings. A 13 Mbps download peak and a 2 Mbps upload peak use different bounds.
+Source polling, history retention, cache ownership, and rendering cadence remain unchanged.
+
+Regression checks cover rising peaks, expiry, hidden sources, upload-dominant traffic, low rates, and empty windows.
+Actual terminal capture: [Dynamic ceiling](captures/dashboard-dynamic-ceiling-v1.png).
+
+The first ceiling revision passed 617 tests, with zero failed and seven manual tests ignored.
+Formatting, all-target Clippy with warnings denied, the debug build, and terminal capture review passed.
+One initial full run hit a Journal channel-disconnect failure. Its isolated rerun and the full-suite rerun passed.
+The Journal code was not changed.
+
+The owner clarified independent directional ceilings after the first revision. This supersedes the equal-scale design.
+The final directional-scale suite passed 618 tests, with zero failed and seven ignored.
+Formatting, all-target Clippy, build, whitespace, and the updated actual terminal capture review passed.
+One hundred maximum debug redraws took 1,505.9 ms for full histories and 818.7 ms for fragmented histories.
+The renderer retains one canvas and allocates no transformed point arrays.

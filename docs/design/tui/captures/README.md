@@ -96,3 +96,9 @@ Build with `cargo build --locked`.
 Capture all sources with `python3 scripts/dev/capture_tui.py --screen 1 --output /tmp/mirrored.png`.
 Add `--traffic-source unmapped` to capture source focus.
 The default `--traffic-source combined` shows all sources. Explicit Actual, Mapped, and Unmapped options select focus.
+
+## Dynamic mirrored ceiling
+
+[Dashboard with dynamic mirrored bounds](dashboard-dynamic-ceiling-v1.png) uses the actual TUI with synthetic records.
+Each directional ceiling follows its own largest visible peak in the selected window, with headroom and fine decimal steps.
+The screenshot is separate from live telemetry evidence.

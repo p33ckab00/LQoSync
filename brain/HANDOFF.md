@@ -8,6 +8,37 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T00:37:02+08:00 (Asia/Shanghai) — Independent download and upload scales
+
+- Owner clarified that download and upload must follow separate directional peaks. This replaces the equal-bound proposal below.
+- The mirror layout remains. Download is above zero; upload is below zero. Each half has its own dynamic rate ceiling.
+- Each ceiling follows its highest visible directional sample in the selected window, with headroom and fine decimal rounding.
+- Only rendered coordinates are normalized. Cached histories, reported rates, and peaks retain their units and values.
+- One canvas remains. The new segment renderer performs no per-segment allocation or extra source read.
+- Checks passed: 618 tests, zero failed, seven ignored, fmt, all-target Clippy, build, whitespace, and actual terminal capture review.
+- Maximum debug redraws: 1,505.9 ms for 100 frames with three 1,801-point histories; 818.7 ms for three 901-segment histories.
+- Updated visual/operations docs and `dashboard-dynamic-ceiling-v1.png` show independent D/U labels and geometry.
+- Work remains local and uncommitted. Production remains `3.0.169+gfd5430a`. No push, deployment, restart, or config change occurred.
+- Preserve unrelated `brain/Home.md` and the local-profile Knowledge note.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+
+## 2026-11-11T00:32:42+08:00 (Asia/Shanghai) — Dynamic mirrored ceiling ready locally
+
+- Owner prioritized dynamic traffic scaling before chart inspection.
+- Fine decimal steps replace coarse 1/2/5 steps. Bounds follow the highest visible download/upload peak with headroom.
+- Removed the Actual-specific 1 Mbps floor. All source selections use a 1 kbps minimum.
+- Both mirror halves share bounds. Old peaks remain until expiry; hidden sources no longer set the ceiling.
+- Checks passed: 617 tests, zero failed, seven ignored, fmt, all-target Clippy, build, whitespace, and actual terminal capture review.
+- One initial full run hit an unchanged Journal test's channel-disconnect failure. Its isolated rerun and full-suite rerun passed.
+- Changed: `src/tui/overview.rs`, `src/tui/traffic_chart.rs`, mirrored visual contract, capture index/image, and these notes.
+- Enhancement is local and uncommitted. Production remains `3.0.169+gfd5430a`. No deployment or restart occurred.
+- Preserve unrelated `brain/Home.md` and the local-profile Knowledge note. No new telemetry polling or render-path I/O exists.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+
 ## 2026-11-11T00:20:56+08:00 (Asia/Shanghai) — Mirrored chart deployment verified
 
 - Operator deployed `3.0.169+gfd5430a`. Independent checks passed.
