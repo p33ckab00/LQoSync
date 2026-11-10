@@ -8,6 +8,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T01:26:13+08:00 (Asia/Shanghai) — Native NIC diagnostics deployment verified
+
+- Operator deployed `3.0.175+gb4e3846` at 2026-11-11T01:24:51+08:00. Independent checks passed at 2026-11-11T01:25:35+08:00.
+- Installed binary hash matches the clean artifact. Service is active/running, PID 596019, with zero automatic restarts.
+- Cycle 1 succeeded in `apply` mode with target `v3_pair`. No service or configuration error exists. Configuration hash is unchanged.
+- Root deployment matched native NIC peer/port identities, basic deltas, and extended field names against the service cache.
+- Independent NIC timestamp advanced after deployment. Both ports report UP at 10,000 Mbps, full duplex, with 78 extended statistics each.
+- Basic error, missed-packet, and no-mbuf increments were zero in the observed interval. This is an interval observation, not a long-term health guarantee.
+- Existing aggregate, classification, health, host, queue, worker, circuit, and collection checks passed. Bridge reports healthy with no degraded subsystems.
+- Three circuit samples matched and advanced, with false gap/reset flags. Installed TUI smoke passed all seven routes with clean exit and no panic.
+- Backup: `/var/backups/lqosync3/nic-b4e3846-6koqynjh`. No rollback was required.
+- Evidence: `/home/pi/.local/state/lqosync3/nic-b4e3846/` contains `DEPLOYED.json`, `independent-verification.json`, `deployed-nic-source.jsonl`, and `installed-tui-smoke.json`.
+- Task complete. Reopen existing TUI sessions to load NIC diagnostics.
+- Preserve unrelated `brain/Home.md` and local-profile Knowledge note. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-dpdk-nic-diagnostics]].
+
 ## 2026-11-11T01:24:25+08:00 (Asia/Shanghai) — NIC diagnostics release pushed; activation pending
 
 - Owner authorized commit, push, and deployment. Code `b4e3846` is on GitHub `lqosync3`.

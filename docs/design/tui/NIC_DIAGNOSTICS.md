@@ -76,7 +76,10 @@ Formatting, all-target Clippy with warnings denied, build, whitespace, and termi
 Tests cover the native transport, malformed and oversized replies, missing endpoints, port identity changes, and counter limits.
 They also cover resets, raw vendor gauges, freshness, cache bounds, reload ownership, poll cadence, shutdown, cache reuse, and copy behavior.
 The existing compact-screen and mouse-scroll tests remain active.
-The production service remains on `3.0.172+gb6778cb` until this feature is committed and deployed separately.
+Production now uses verified release `3.0.175+gb4e3846` from source commit `b4e3846`.
+CI passed both jobs. The installed binary hash, process, successful cycle, and unchanged configuration passed verification.
+Native source/cache checks verified peer and port identities, basic increments, extended field names, and advancing timestamps.
+All seven installed TUI routes passed smoke. Deployment evidence is in `/home/pi/.local/state/lqosync3/nic-b4e3846/`.
 
 The maximum cache fixture used 312,567 bytes. One hundred debug detail formats took 90.7 ms.
 These synthetic timings do not guarantee a terminal frame rate.

@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-11
 tags: [dpdk, nic, telemetry, tui]
-status: pushed-deployment-pending
+status: deployed-verified
 related: ["[[2026-11-11-mirrored-dpdk-chart]]", "[[HANDOFF]]"]
 ---
 
@@ -60,8 +60,8 @@ Visual and source contract: `docs/design/tui/NIC_DIAGNOSTICS.md`.
 
 ## Deployment state
 
-The feature is local and uncommitted. Production remains `3.0.172+gb6778cb`.
-No push, deployment, service restart, or configuration change occurred for this task.
+At the initial implementation checkpoint, the feature was local and production remained `3.0.172+gb6778cb`.
+The verified deployment below supersedes that checkpoint.
 Preserve the unrelated local-profile Knowledge note and the pre-existing `brain/Home.md` change.
 
 ## Release preparation
@@ -78,3 +78,21 @@ Native NIC checks match source/cache process and port identity, basic increments
 The NIC deployment gate passed a replay of the verified source shape.
 Host sudo requires a password. The operator has the prepared deployment command.
 Activation remains pending until deployment and independent verification pass.
+
+## Deployment verified
+
+Updated: 2026-11-11T01:26:13+08:00 (Asia/Shanghai).
+
+The operator deployed `3.0.175+gb4e3846` at 2026-11-11T01:24:51+08:00.
+Independent checks passed at 2026-11-11T01:25:35+08:00. Binary hash, process identity, successful cycle, and configuration hash match.
+Service PID: 596019. Automatic restarts: zero. Configuration changes: none.
+
+Native NIC source and service-cache checks match process, port identities, basic increments, and extended field names.
+The NIC cache timestamp advanced after deployment. Both ports report UP at 10,000 Mbps with full duplex and 78 extended statistics each.
+Basic error, missed-packet, and no-mbuf increments were zero in the observed interval.
+Existing telemetry remains fresh and advances. The bridge reports healthy with no degraded subsystems.
+The circuit samples matched and advanced, with false gap/reset flags. Collection freshness and cycle identity passed.
+All seven installed TUI routes passed smoke with clean exit, terminal cleanup, and no panic.
+
+Backup: `/var/backups/lqosync3/nic-b4e3846-6koqynjh`. No rollback was required.
+Evidence directory: `/home/pi/.local/state/lqosync3/nic-b4e3846/`. Reopen existing TUI sessions to load the new NIC view.
