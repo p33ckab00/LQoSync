@@ -8,6 +8,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T23:24:06+08:00 (Asia/Shanghai) — DPDK deployment verified
+
+- Operator deployed the reviewed release at 2026-11-10T23:23:22+08:00. Independent verification passed at 23:24:06+08:00.
+- Installed `3.0.166+g828061e` matches the clean artifact checksum. Service active/running, PID 510745, zero automatic restarts.
+- Deployment verified the running executable hash. Current service, cycle status, and deployment record retain the same PID/version.
+- Successful cycle 1: mode `apply`, target `v3_pair`, no service/configuration error. Configuration checksum is unchanged.
+- All six telemetry sources passed deployment checks. Independent checks confirm fresh aggregate, classification, health, and host caches with advancing timestamps/uptime.
+- Bridge reports healthy with no degraded subsystems. The three circuit samples matched their slot and advanced, with false gap/reset flags.
+- Installed TUI smoke passed all seven routes, clean quit, terminal cleanup, and no panic.
+- Source commit `828061e` and documentation commit `830eed7` are on GitHub. Their CI checks passed. Local suite: 613 passed, zero failed, seven ignored.
+- Backup: `/var/backups/lqosync3/dpdk-828061e-5hq48cg8`. No rollback was required.
+- Evidence: `/home/pi/.local/state/lqosync3/dpdk-828061e/DEPLOYED.json`, `independent-verification.json`, `deployed-circuit-source.jsonl`, and `installed-tui-smoke.json`.
+- Task complete. Reopen existing TUI sessions to use the installed UI. A root TUI is still required for direct circuit queue reads on this root-only socket.
+- Preserve unrelated local-profile Knowledge notes. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-performance-and-deployment-review]].
+
 ## 2026-11-10T23:19:10+08:00 (Asia/Shanghai) — DPDK release pushed; root activation pending
 
 - Reviewed code commit `828061e` and the six prior DPDK checkpoints are on GitHub `lqosync3`.

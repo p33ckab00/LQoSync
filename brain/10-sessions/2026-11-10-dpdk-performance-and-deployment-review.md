@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-10
 tags: [dpdk, telemetry, performance, deployment]
-status: pushed-awaiting-root-activation
+status: deployed-verified
 related: ["[[2026-11-10-dpdk-circuit-queues]]", "[[HANDOFF]]"]
 ---
 
@@ -72,3 +72,29 @@ The operator has a pending request to run `sudo /home/pi/.local/state/lqosync3/d
 Production remains on the prior release until this command succeeds.
 After execution, verify `DEPLOYED.json`, live process/hash/version, cycle identity, fresh caches, circuit samples, and the installed TUI.
 This documentation commit does not change the code in the reviewed artifact.
+
+
+## Deployment complete
+
+The operator ran the prepared script. Deployment succeeded at 2026-11-10T23:23:22+08:00 (Asia/Shanghai).
+Independent verification passed at 2026-11-10T23:24:06+08:00.
+Installed release: `3.0.166+g828061e`. Its checksum matches the reviewed artifact.
+The deployment verified the running executable hash. The current service and status retain PID 510745 and the same version.
+The service is active/running, with zero automatic restarts.
+
+Cycle 1 succeeded in `apply` mode for `v3_pair`. No service or configuration error exists.
+The configuration checksum is unchanged. Collection matches the new cycle and the raw source counts.
+Deployment checks passed for all six telemetry sources, including the root-only circuit endpoint.
+Independent checks confirm fresh aggregate, classification, health, and host caches.
+Their timestamps and bridge uptime advanced after deployment. The bridge reports healthy, with no degraded subsystems.
+The three circuit samples matched their slot and advanced. Their gap/reset flags were false.
+
+The installed TUI passed all seven routes, clean quit, terminal cleanup, and no panic.
+Both the reviewed code and its preceding documentation CI passed.
+No rollback was required. Backup: `/var/backups/lqosync3/dpdk-828061e-5hq48cg8`.
+Evidence directory: `/home/pi/.local/state/lqosync3/dpdk-828061e/`.
+Evidence files: `DEPLOYED.json`, `independent-verification.json`, `deployed-circuit-source.jsonl`, and `installed-tui-smoke.json`.
+
+The task is complete. Existing TUI sessions must reopen to use the installed release.
+Direct circuit queue reads still require a root TUI on this host.
+No production configuration or RouterOS policy changed as part of the deployment script.
