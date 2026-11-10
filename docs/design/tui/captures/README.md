@@ -66,3 +66,12 @@ The approved panel order remains unchanged. The detail pane keeps selection cont
 
 Reproduce with `python3 scripts/dev/capture_tui.py --screen 2 --output /tmp/subscribers-default.png`.
 Add `--subscriber-stats` to filter a matched fixture record, expand its details, and scroll to the DPDK measurements.
+
+## Circuit queue update
+
+Task 6 adds [default composition](subscribers-queues-default-v1.png) and [expanded circuit queues](subscribers-queues-v1.png).
+The running terminal reads an isolated synthetic socket through the real on-demand worker and CBOR transport.
+Build `cargo build --locked --example circuit_queue_fixture` before capture.
+Run `python3 scripts/dev/capture_tui.py --screen 2 --queue-diagnostics --output docs/design/tui/captures/subscribers-queues-v1.png`.
+The [checkpoint review](../DPDK_STATS.md#task-6-on-demand-circuit-queue-diagnostics) separates synthetic layout evidence from the operator's live probe.
+The approved Subscribers panel order remains unchanged. Queue details use the existing scroll pane and action area.

@@ -121,6 +121,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
     let (ptx, prx) = mpsc::channel();
     let (jtx, jrx) = mpsc::sync_channel(2048);
     let mut journal_child = None;
+    let mut queue_worker: Option<crate::circuit_queue::worker::Worker> = None;
 
     // ratatui::init is not used: its panic hook restores the terminal on any thread.
     install_panic_hook(restore_terminal);
@@ -160,6 +161,11 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 cfg.tui.journal_lines,
                 jtx.clone(),
             ));
+        }
+        if let Some(done) = queue_worker.as_ref().and_then(|w| w.poll()) {
+            app.devices.queue_done(done);
+            queue_worker = None;
+            dirty = true;
         }
         for done in prx.try_iter() {
             app.settings.preview_done(done);
@@ -222,6 +228,18 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 unix_now(),
                 fresh_pid(&cfg),
             )),
+            Action::QueueDiagnostics(request) => {
+                match crate::circuit_queue::worker::Worker::start(
+                    config.to_path_buf(),
+                    request.clone(),
+                ) {
+                    Ok(worker) => queue_worker = Some(worker),
+                    Err(e) => app.devices.queue_done(crate::circuit_queue::Done {
+                        request,
+                        result: Err(format!("Cannot start queue worker: {e}")),
+                    }),
+                }
+            }
             Action::Preview(job) => {
                 let tx = ptx.clone();
                 // The preview reads files and runs the cycle core: never in the draw loop.

@@ -58,7 +58,7 @@ sudo lqosync3 tui
 | Page | Keys |
 |---|---|
 | 1 Dashboard | `r` refresh cached sources, `w` chart window, arrows scroll, `S` confirmed sync, `R` reload |
-| 2 Subscribers | `/` search, `s/r/t` source/router/state, `o/i` sort/reverse, `e` details, `n` parent Network view, `c` copy |
+| 2 Subscribers | `/` search, `s/r/t` source/router/state, `o/i` sort/reverse, `e` details, `d` circuit queues, `n` parent Network view, `c` copy |
 | 3 Routers | `/` search, `t` state, `x` clear, `d` details, `s` Subscribers, `e` Settings, `c` endpoint copy |
 | 4 LibreQoS | `p` preview/back, `s` confirmed sync, Tab source file, `i` issues, arrows selection/scroll |
 | 5 Workers | `/` worker search, `t` sample filter, `x` clear, `e` details, `c` evidence copy |
@@ -684,3 +684,34 @@ A bounded sampler task shares the existing monitor's configuration and shutdown 
 It cannot block the aggregate poll while it waits for state or host replies.
 
 This feature adds no router read/write, new service, dependency, runtime key, push, or automatic restart.
+
+### On-demand circuit queues
+
+Open Subscribers. Select a LibreQoS v3 shaping record. Click `Read / refresh queue diagnostics` or press `d`.
+Expand or scroll the detail pane. The `c` action copies the same measurements and labels.
+A collection-only record has no shaping slot and cannot request queues.
+
+Each action reads one whole circuit, with separate download and upload queues.
+It shows depth, drops, queue-full drops, AQM marks, tins, and the pooled RTT histogram.
+Tin counters show sent bytes, backlog bytes, and reported p99 sojourn in milliseconds.
+Sojourn measures queue delay. It is separate from host RTT.
+`memory_used (reported raw)` has no verified source unit. Do not interpret it as backlog bytes.
+These are point observations. They do not establish interval rates or loss percentages.
+
+The action permits one request at a time, with a two-second cooldown.
+It uses a background worker with a seven-second overall deadline.
+Selection, screen refresh, and normal collection do not request queue details.
+The reader checks the applied generation and slot order before and after the queue read.
+A mapping change rejects the observation. A result remains bound to its requested circuit.
+
+`FRESH` requires a source timestamp and an observation age of at most fifteen seconds.
+A missing source time shows `OBSERVED (source age unknown)`.
+Old data and data during a refresh show `STALE (last observed)`.
+A failed refresh retains a labeled previous observation for the same circuit.
+Gap/reset flags and a future source clock remain explicit. Missing fields stay unknown.
+A zero histogram means zero reported samples. A malformed histogram stays unknown.
+
+This read uses the current TUI user's socket permissions. It does not use sudo or change permissions.
+The installed analytics socket is root-only. Start the TUI with `sudo lqosync3 tui` for live queue reads on this host.
+Include your normal `--config` option if you use another configuration path.
+An unprivileged TUI can still read the other public telemetry caches.

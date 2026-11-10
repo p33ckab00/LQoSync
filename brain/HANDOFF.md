@@ -8,6 +8,24 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T21:30:00+08:00 (Asia/Shanghai) — DPDK task 6 implementation
+
+- Task 6 adds manual selected-circuit queues in Subscribers: `d`, mouse, copy, and existing scrolling.
+- A cancellable background worker reads state/queue_stats/state for one slot. Stable generation and slot order are required.
+- One request and a two-second cooldown bound each TUI. Per-request limits remain two seconds and 2 MiB, with a seven-second job deadline.
+- Source age, missing fields, gap/reset, and stale values remain explicit. A persistent title retains state during scrolling.
+- Queue memory uses the raw reported unit. Tin sojourn is separate from host RTT. No interval rates or loss percentages are inferred.
+- Operator probe: three matching single rows, eight tins per direction, fifty RTT bins, advancing sequence, stable epoch, false gap/reset.
+- The current user needs socket access. This host requires a root TUI. No broker, ACL, cache writer, or automatic queue poll exists.
+- Checks passed: 606 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, source probe, and terminal capture review.
+- A sixteen-tin-per-direction fixture produced 5,212 bytes. One thousand debug formats took 61.0 ms.
+- All six local implementation checkpoints are complete. Publication and deployment await a later operator request.
+- Preserve the unrelated local-profile Knowledge link and note. No push, deployment, restart, or production configuration change occurred.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+- Changed files: `src/circuit_queue*`, `worker_util/ipc`, TUI action/detail paths, probe/fixture examples, capture script, review docs, and these notes.
+
+Session: [[2026-11-10-dpdk-circuit-queues]].
+
 ## 2026-11-10T20:49:33+08:00 (Asia/Shanghai) — DPDK task 5 implementation
 
 - Task 5 adds per-IP subscriber delivered rates/bytes, RTT sample medians, observed retransmit counters, and packet age at read.

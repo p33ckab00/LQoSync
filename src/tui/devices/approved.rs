@@ -20,7 +20,8 @@ pub struct SubscribersUi {
     metadata: Option<Arc<std::collections::HashMap<String, (String, String)>>>,
     controls: [Rect; 5],
     pages: [Rect; 2],
-    actions: [Rect; 3],
+    actions: [Rect; 4],
+    queue: crate::circuit_queue::View,
     table: Scroll,
     detail: Scroll,
     horizontal: u16,
@@ -60,8 +61,27 @@ pub enum Input {
     None,
     Parent(String),
     Copy(String),
+    Queue(crate::circuit_queue::Request),
+    Notice(String),
 }
 impl DevicesView {
+    fn queue_circuit(&self, d: &Data) -> Option<String> {
+        if !d.target.starts_with("v3_") {
+            return None;
+        }
+        let r = &d.rows[*self.index.get(self.cursor)? as usize];
+        (!r.circuit_id.is_empty() && !r.circuit_id.starts_with("observed:"))
+            .then(|| r.circuit_id.clone())
+    }
+    fn queue_details(&self, d: &Data) -> Vec<String> {
+        self.queue_circuit(d).map_or_else(
+            || vec!["Queue diagnostics unavailable: select a v3 shaping circuit".into()],
+            |c| self.approved.queue.measurements(&c, self.approved.now),
+        )
+    }
+    pub fn queue_done(&mut self, done: crate::circuit_queue::Done) {
+        self.approved.queue.complete(done);
+    }
     fn host_details(&self, d: &Data) -> Vec<String> {
         let Some(&i) = self.index.get(self.cursor) else {
             return vec!["DPDK host observations unavailable: no selected record".into()];
@@ -138,7 +158,7 @@ impl DevicesView {
     }
     pub fn clear_approved_areas(&mut self) {
         self.approved.controls = [Rect::default(); 5];
-        self.approved.actions = [Rect::default(); 3];
+        self.approved.actions = [Rect::default(); 4];
         self.approved.pages = [Rect::default(); 2];
         self.approved.table.clear();
         self.approved.detail.clear();
@@ -230,9 +250,25 @@ impl DevicesView {
                     return Input::Parent(p);
                 }
             }
+            KeyCode::Char('d') => {
+                let Some(circuit) = self.queue_circuit(d) else {
+                    return Input::Notice(
+                        "Select a v3 shaping circuit for queue diagnostics".into(),
+                    );
+                };
+                return match self
+                    .approved
+                    .queue
+                    .begin(&circuit, std::time::Instant::now())
+                {
+                    Ok(request) => Input::Queue(request),
+                    Err(reason) => Input::Notice(reason.into()),
+                };
+            }
             KeyCode::Char('c') => {
                 let mut lines: Vec<_> = self.detail(d).into_iter().map(|l| l.to_string()).collect();
                 lines.extend(self.host_details(d));
+                lines.extend(self.queue_details(d));
                 return Input::Copy(lines.join("\n"));
             }
             KeyCode::Enter | KeyCode::Char('e') => self.approved.expanded = !self.approved.expanded,
@@ -284,7 +320,7 @@ impl DevicesView {
                 .position(|r| r.contains((m.column, m.row).into()))
             {
                 return self.approved_key(
-                    KeyEvent::new(KeyCode::Char(['e', 'c', 'n'][i]), m.modifiers),
+                    KeyEvent::new(KeyCode::Char(['e', 'c', 'n', 'd'][i]), m.modifiers),
                     d,
                 );
             }
@@ -555,6 +591,27 @@ impl DevicesView {
                     )
                 )
             });
+        let title = self
+            .queue_circuit(d)
+            .and_then(|c| self.approved.queue.label(&c, now))
+            .map_or_else(
+                || title.clone(),
+                |label| {
+                    let badge = match label {
+                        "STALE (last observed)" => "STALE",
+                        "OBSERVED (source age unknown)" => "UNKNOWN AGE",
+                        "OBSERVED (source clock is ahead)" => "CLOCK AHEAD",
+                        "GAP/RESET observation" => "GAP/RESET",
+                        other => other,
+                    };
+                    format!(
+                        "Queues {badge} | {}",
+                        title
+                            .strip_prefix("Subscriber details | ")
+                            .unwrap_or(&title)
+                    )
+                },
+            );
         let block = design::panel(title, p);
         let inner = block.inner(right);
         f.render_widget(block, right);
@@ -619,11 +676,12 @@ impl DevicesView {
             vec![Line::raw("No selected record")]
         };
         lines.extend(self.host_details(d).into_iter().map(Line::raw));
+        lines.extend(self.queue_details(d).into_iter().map(Line::raw));
         if self.approved.expanded {
             lines.extend(self.detail(d));
         }
         let [detail, actions] =
-            Layout::vertical([Constraint::Min(0), Constraint::Length(3)]).areas(inner);
+            Layout::vertical([Constraint::Min(0), Constraint::Length(4)]).areas(inner);
         let content = Rect {
             width: detail.width.saturating_sub(1),
             ..detail
@@ -651,21 +709,27 @@ impl DevicesView {
             "[Enter] Expand details",
             "[c] Copy details",
             "[n] Open parent node",
+            "[d] Read / refresh queue diagnostics",
         ]
         .into_iter()
         .enumerate()
         {
             let r = Rect::new(actions.x, actions.y + i as u16, actions.width, 1);
-            let enabled = i != 2 || has_parent;
+            let enabled = (i != 2 || has_parent) && (i != 3 || self.queue_circuit(d).is_some());
             self.approved.actions[i] = if enabled { r } else { Rect::default() };
             f.render_widget(
-                Paragraph::new(if enabled { label } else { "No shaping parent" }).style(
-                    if enabled {
-                        design::accent(p)
-                    } else {
-                        design::role(p, Role::Secondary)
-                    },
-                ),
+                Paragraph::new(if enabled {
+                    label
+                } else if i == 3 {
+                    "Queues require a v3 shaping circuit"
+                } else {
+                    "No shaping parent"
+                })
+                .style(if enabled {
+                    design::accent(p)
+                } else {
+                    design::role(p, Role::Secondary)
+                }),
                 r,
             );
         }
@@ -693,6 +757,86 @@ mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
     use ratatui::{Terminal, backend::TestBackend};
+    #[test]
+    fn circuit_queue_mouse_action_is_manual_bound_to_selection_and_copyable() {
+        let mut d = Data {
+            target: "v3_pair".into(),
+            rows: Arc::new(vec![
+                CsvRow {
+                    circuit_id: "c1".into(),
+                    ..Default::default()
+                },
+                CsvRow {
+                    circuit_id: "c2".into(),
+                    ..Default::default()
+                },
+            ]),
+            ..Default::default()
+        };
+        let mut v = DevicesView::default();
+        v.on_data(&d);
+        v.approved_data(&d);
+        let mut term = Terminal::new(TestBackend::new(160, 40)).unwrap();
+        term.draw(|f| {
+            v.draw_approved(
+                f,
+                f.area(),
+                &d,
+                100,
+                &Palette::new(crate::config::Theme::Dark),
+            )
+        })
+        .unwrap();
+        assert!(v.queue_details(&d).join("\n").contains("not requested"));
+        let r = v.approved.actions[3];
+        assert!(r.width > 0);
+        let Input::Queue(request) = v.approved_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &d,
+        ) else {
+            panic!("click must request diagnostics")
+        };
+        assert_eq!(request.circuit, "c1");
+        assert!(matches!(
+            v.approved_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE), &d),
+            Input::Notice(_)
+        ));
+        v.cursor = 1;
+        v.queue_done(crate::circuit_queue::Done {
+            request,
+            result: Err("source unavailable".into()),
+        });
+        let Input::Copy(text) =
+            v.approved_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE), &d)
+        else {
+            panic!("copy")
+        };
+        assert!(
+            text.contains("not requested for selected circuit")
+                && !text.contains("source unavailable")
+        );
+        d.target = "v2_pair".into();
+        assert!(matches!(
+            v.approved_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE), &d),
+            Input::Notice(_)
+        ));
+        d.target = "v3_pair".into();
+        d.rows = Arc::new(vec![CsvRow {
+            circuit_id: "observed:1".into(),
+            ..Default::default()
+        }]);
+        v.on_data(&d);
+        v.approved_data(&d);
+        assert!(matches!(
+            v.approved_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE), &d),
+            Input::Notice(_)
+        ));
+    }
     #[test]
     fn subscriber_long_details_use_mouse_focus_wrapped_scroll_bounds_and_page_keys() {
         let rows = vec![CsvRow {

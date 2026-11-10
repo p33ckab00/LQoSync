@@ -678,3 +678,10 @@ Keep the selected subscriber visible in the pane title during expansion and scro
 Clearly separate shaped limits, RouterOS collection state, and observed DPDK host measurements.
 Show the capped scope, per-IP identity, source freshness, and unknown or stale states.
 A missing sample must not become zero traffic, an offline state, or a whole-circuit total.
+
+## Circuit queue diagnostics extension
+
+The [Task 6 review](DPDK_STATS.md#task-6-on-demand-circuit-queue-diagnostics) records the source contract and terminal capture.
+Keep the approved Subscribers composition. Add manual queue reads in the existing detail pane and action area.
+Use the current selected shaping circuit. Keep queue scope separate from per-IP host observations and RouterOS collection state.
+Every observation must retain age, missing-field, gap/reset, and permission labels in both the view and copy output.

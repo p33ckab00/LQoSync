@@ -76,6 +76,7 @@ pub enum Action {
     Preview(Box<PreviewJob>),
     /// Apply the settings draft, then send SIGHUP.
     ApplySettings,
+    QueueDiagnostics(crate::circuit_queue::Request),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -383,6 +384,13 @@ impl App {
                     self.tab = Tab::Network;
                 }
                 super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
+                super::devices::SubscriberInput::Queue(request) => {
+                    return Action::QueueDiagnostics(request);
+                }
+                super::devices::SubscriberInput::Notice(reason) => {
+                    self.message = Some(reason);
+                    return Action::None;
+                }
                 _ => {}
             }
         }
@@ -533,6 +541,13 @@ impl App {
             if self.tab == Tab::Devices {
                 match self.devices.approved_mouse(m, &self.subscriber_data.view) {
                     super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
+                    super::devices::SubscriberInput::Queue(request) => {
+                        return Action::QueueDiagnostics(request);
+                    }
+                    super::devices::SubscriberInput::Notice(reason) => {
+                        self.message = Some(reason);
+                        return Action::None;
+                    }
                     super::devices::SubscriberInput::Parent(node) => {
                         self.network.reveal(&self.data, &node);
                         self.tab = Tab::Network;
@@ -549,6 +564,13 @@ impl App {
                     self.tab = Tab::Network;
                 }
                 super::devices::SubscriberInput::Copy(text) => return self.copy_text(text),
+                super::devices::SubscriberInput::Queue(request) => {
+                    return Action::QueueDiagnostics(request);
+                }
+                super::devices::SubscriberInput::Notice(reason) => {
+                    self.message = Some(reason);
+                    return Action::None;
+                }
                 _ => {}
             }
         }
@@ -767,7 +789,7 @@ impl App {
         }
         match self.tab {
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-7] tabs  [S] sync  [R] reload",
+            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [d] queues  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-7] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Network => "[q] quit  [Esc] subscribers  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-7] tabs",
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
@@ -954,6 +976,26 @@ mod tests {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
     }
 
+    #[test]
+    fn circuit_queue_action_is_available_in_read_only_tui_without_a_write_confirmation() {
+        let mut a = app(true);
+        a.tab = Tab::Devices;
+        a.set_data(
+            Data {
+                target: "v3_pair".into(),
+                rows: Arc::new(vec![crate::model::CsvRow {
+                    circuit_id: "c1".into(),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            },
+            100,
+        );
+        assert!(
+            matches!(a.on_key(key(KeyCode::Char('d'))),Action::QueueDiagnostics(r) if r.circuit=="c1")
+        );
+        assert!(a.modal.is_none());
+    }
     #[test]
     fn collection_updates_subscriber_states_across_cycles_without_changing_shaping() {
         let config = "[[routers]]\nname='R1'\naddress='192.0.2.1'\nusername='u'\npassword_file='/fixture/password'\n[routers.pppoe]\nenabled=true\n[routers.hotspot]\nenabled=true\n[routers.dhcp]\nenabled=true\n";

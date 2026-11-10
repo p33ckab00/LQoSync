@@ -176,7 +176,58 @@ Formatting, all-target Clippy with warnings denied, build, source probe, and ter
 The suite covers source decoding, slot order, mapping changes, counter resets, omissions, optional fields, ownership conflicts, cache bounds, lifecycle, copy, and scrolling.
 No deployment, restart, or production configuration change occurred.
 
-## Next checkpoints
-6. On-demand circuit queue diagnostics.
+## Task 6: on-demand circuit queue diagnostics
 
-Each checkpoint requires its own tests, review, documentation, and local commit.
+The approved Subscribers cards, filters, table/detail split, and collection status remain in their approved order.
+The existing detail pane adds one manual action: click `Read / refresh queue diagnostics` or press `d`.
+Wheel, scrollbar, click focus, page keys, expansion, and copy retain their existing paths.
+The action works in read-only mode when the operating system permits socket access.
+The installed root-only socket requires a root TUI. A permission error explains this requirement.
+
+The reader requests one nonzero slot with `queue_stats`, `limit = 1`, and one `queue_slots` entry.
+It reads the applied state before and after the queue request. Generation and authoritative slot order must agree.
+The source must return exactly the requested row. Collection-only records cannot request queues.
+One request can run per TUI. A two-second cooldown bounds repeated clicks.
+A cancellable background worker keeps socket reads outside input handlers and frame rendering.
+Each source request retains the two-second deadline and 2 MiB bound. The job also has a seven-second deadline.
+There is no automatic queue poll, cache writer, daemon endpoint, permission change, or new dependency.
+
+The view shows separate directional depth, drop counters, queue-full drop counters, and AQM marks.
+Each direction permits at most sixteen tins. Tins show sent bytes, backlog bytes, and reported p99 sojourn.
+Sojourn converts nanoseconds to milliseconds. It does not represent ping or host RTT.
+The source does not document the unit of `memory_used`. The view labels it as a reported raw value.
+The pooled RTT histogram has fifty bins. Bins cover ten milliseconds each, with a final `>=490 ms` bin.
+The view shows nonempty bins and the reported sample count. It does not derive percentiles or interval rates.
+
+Freshness uses both source time and response time. Missing timestamps cannot establish freshness.
+Older observations, in-flight refreshes, and failed refreshes retain a last-observed label.
+Gap/reset flags, source clock skew, missing fields, and malformed histograms remain explicit.
+A result for another circuit cannot appear under the current selection.
+
+Actual terminal captures: [default composition](captures/subscribers-queues-default-v1.png) and [expanded circuit queues](captures/subscribers-queues-v1.png).
+The capture uses an isolated synthetic analytics socket. It is not a live network measurement.
+The approved composition stays intact. Queue controls occupy the existing detail-action area.
+The expanded capture includes source age, sequence, queue counters, and tin observations with explicit units.
+The persistent detail title keeps the queue state visible during scrolling.
+The default capture also verifies that a collection-only record has a disabled queue control.
+
+The operator ran three read-only samples against the installed endpoint.
+Each returned one matching slot, eight tins per direction, and fifty RTT bins with eight samples.
+The sample sequence advanced from 243961 to 243971 to 243981. Elapsed time and cadence both reported 200 ms.
+The epoch stayed stable. All three reported `actor_gap = false` and `counter_reset = false`.
+Direction counters reported zero depth, drops, and marks during these observations.
+These short observations do not establish long-term health or absence of congestion.
+Evidence: `/home/pi/.local/state/lqosync3/dpdk-circuit-task6/live-source.jsonl`.
+SHA256: `ee882dc464805eaaf91432bca8d5906dc9c5eecc2d8bab5d9df24d29b539b472`.
+Source: [LibreQoS queue contract](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc/rust/libreqos_dpdk/analytics_ipc/src/lib.rs).
+
+All six checkpoints have local implementations. Publication and deployment require a later operator request.
+
+
+Verification: 606 tests passed, zero failed, seven manual tests ignored.
+Formatting, all-target Clippy with warnings denied, build, whitespace, and terminal capture review passed.
+The tests cover mapping changes, reply identity, unknown fields, histogram bounds, age, request throttling, and cancellation.
+They also cover mouse activation, selection changes, copy, and access from a read-only TUI.
+A synthetic fixture with sixteen tins per direction and fifty nonempty bins produced 5,212 bytes of detail text.
+One thousand debug formats took 61.0 ms. This fixture measurement is not a production performance guarantee.
+No production binary, configuration, service, permission, or public telemetry cache changed.

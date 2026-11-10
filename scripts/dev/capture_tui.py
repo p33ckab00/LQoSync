@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--worker-phases', action='store_true')
     parser.add_argument('--worker-health', action='store_true')
     parser.add_argument('--subscriber-stats', action='store_true')
+    parser.add_argument('--queue-diagnostics', action='store_true')
     args = parser.parse_args()
     if args.screen != 1 and args.traffic_source != 'actual':
         parser.error('--traffic-source applies to Dashboard only')
@@ -30,8 +31,8 @@ def main():
         parser.error('--worker-phases applies to Workers only')
     if args.worker_health and (args.screen != 5 or args.worker_phases):
         parser.error('--worker-health requires Workers and cannot combine with --worker-phases')
-    if args.subscriber_stats and args.screen != 2:
-        parser.error('--subscriber-stats applies to Subscribers only')
+    if (args.subscriber_stats or args.queue_diagnostics) and args.screen != 2:
+        parser.error('Subscriber detail options apply to Subscribers only')
     root = Path(__file__).resolve().parents[2]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='lqosync3-capture-') as folder:
@@ -139,6 +140,14 @@ enabled = true
                 }
                 (path / 'worker-utilization.json').write_text(json.dumps(report))
             snapshots()
+            if args.queue_diagnostics:
+                fixture = root / 'target/debug/examples/circuit_queue_fixture'
+                processes.append(subprocess.Popen([str(fixture), str(path/'analytics.sock')], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+                deadline = time.monotonic()+2
+                while not (path/'analytics.sock').exists():
+                    if time.monotonic() > deadline:
+                        raise RuntimeError('Synthetic analytics fixture did not start')
+                    time.sleep(.02)
             log = (path / 'zutty.log').open('w')
             processes.append(subprocess.Popen(['zutty', '-geometry', '240x40', '-font', '9x18', '-title', 'LQoSync3 - SYNTHETIC CAPTURE', '-e', str(root / 'target/debug/lqosync3'), 'tui', '--config', str(config)], env=env, stdout=log, stderr=log))
             time.sleep(1.5)
@@ -165,18 +174,20 @@ enabled = true
             if args.screen == 1:
                 for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)): key('v')
                 time.sleep(.2)
-            if args.subscriber_stats:
+            if args.subscriber_stats or args.queue_diagnostics:
                 key('slash');time.sleep(.1)
                 for char in 'subscriber 00':
                     key('space' if char==' ' else char);time.sleep(.03)
                 key('Return');time.sleep(.2)
                 key('e'); time.sleep(.3)
+                if args.queue_diagnostics:
+                    key('d'); time.sleep(.8)
                 xt.XTestFakeMotionEvent.argtypes=[C.c_void_p,C.c_int,C.c_int,C.c_int,C.c_ulong]
                 xt.XTestFakeButtonEvent.argtypes=[C.c_void_p,C.c_uint,C.c_int,C.c_ulong]
                 xt.XTestFakeMotionEvent(d,-1,1000,350,0)
                 xt.XTestFakeButtonEvent(d,1,1,0);xt.XTestFakeButtonEvent(d,1,0,0);x.XFlush(d)
                 time.sleep(.2);key('Home')
-                for _ in range(15):
+                for _ in range(25 if args.queue_diagnostics else 15):
                     key('Down');time.sleep(.03)
                 time.sleep(.4)
             if args.worker_health:

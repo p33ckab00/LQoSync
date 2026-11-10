@@ -47,16 +47,21 @@ async fn request<T: serde::de::DeserializeOwned>(
     kind: &str,
     limit: usize,
 ) -> anyhow::Result<T> {
+    request_fields(path, kind, serde_json::json!({"kind":kind,"limit":limit})).await
+}
+
+async fn request_fields<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    kind: &str,
+    fields: serde_json::Value,
+) -> anyhow::Result<T> {
     tokio::time::timeout(Duration::from_secs(2), async {
         let mut stream = UnixStream::connect(path)
             .await
             .context("analytics socket unavailable")?;
         // All supported requests are read-only. The caller bounds snapshot host and flow rows.
         let mut request = Vec::new();
-        ciborium::into_writer(
-            &serde_json::json!({"kind":kind,"limit":limit}),
-            &mut request,
-        )?;
+        ciborium::into_writer(&fields, &mut request)?;
         stream
             .write_all(&(request.len() as u32).to_be_bytes())
             .await?;
@@ -139,6 +144,21 @@ pub(crate) async fn read_mapping(path: &Path) -> anyhow::Result<crate::subscribe
     }
 }
 
+pub(crate) async fn read_queue(
+    path: &Path,
+    slot: u64,
+) -> anyhow::Result<crate::circuit_queue::Reply> {
+    ensure!(slot > 0, "best-effort slot has no circuit queue");
+    let mut reply: crate::circuit_queue::Reply = request_fields(
+        path,
+        "queue_stats",
+        serde_json::json!({"kind":"queue_stats","limit":1,"queue_slots":[slot]}),
+    )
+    .await?;
+    reply.sanitize(slot)?;
+    Ok(reply)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,6 +190,11 @@ mod tests {
             let request: Value = decode(&request).unwrap();
             assert_eq!(request["kind"], expected_request.0);
             assert_eq!(request["limit"], expected_request.1);
+            if expected_request.0 == "queue_stats" {
+                assert_eq!(request["queue_slots"], json!([1]));
+            } else {
+                assert!(request.get("queue_slots").is_none());
+            }
             let mut bytes = Vec::new();
             ciborium::into_writer(&value, &mut bytes).unwrap();
             let mut file = std::fs::File::options()
@@ -202,6 +227,30 @@ mod tests {
             let _ = socket.write_all(&reply);
         });
         (dir, thread)
+    }
+
+    #[tokio::test]
+    async fn circuit_queue_request_uses_one_selected_nonzero_slot_and_strict_reply_kind() {
+        let value = json!({"rows":[{"slot_id":1,"download":{"tins":[{"sent_bytes":10,"backlog_bytes":20,"sojourn_p99_ns":1500000}],"memory_used":20,"queue_depth_pkts":2,"drop_pkts":3,"drop_pkts_queue_full":1,"aqm_marks":4},"upload":{},"rtt_histogram":vec![0u64;50]}],"sampled_at_unix_ms":100000,"sample_seq":5});
+        let (dir, server) = serve(value, "queue_stats", None, 1, ("queue_stats", 1));
+        let q = read_queue(&dir.path().join("analytics.sock"), 1)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(q.rows[0].download.as_ref().unwrap().drop_pkts, Some(3));
+        assert_eq!(q.sample_seq, Some(5));
+        let (dir, server) = serve(sample(), "snapshot", None, 1, ("queue_stats", 1));
+        assert!(
+            read_queue(&dir.path().join("analytics.sock"), 1)
+                .await
+                .is_err()
+        );
+        server.join().unwrap();
+        assert!(
+            read_queue(&dir.path().join("not-used.sock"), 0)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

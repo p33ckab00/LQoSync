@@ -181,3 +181,41 @@ The maximum host cache measured 351,809 bytes. One debug publish/read sample too
 A 75,000-row ownership index took 634.9 ms on row reload, not per frame. These are synthetic measurements.
 No push, deployment, restart, or production configuration change occurred.
 Task 6, on-demand circuit queue diagnostics, is next.
+
+## Checkpoint 6: on-demand circuit queues
+
+Add one manual read-only action in Subscribers for the selected shaping circuit.
+Run state/queue_stats/state in a bounded background worker. Query one nonzero slot and require stable applied names/generation.
+Keep source metadata optional. Distinguish a fresh source observation, stale data, and unknown producer age.
+Do not derive rates, drop deltas, or loss percentages from a single point.
+
+- Reuse the descriptor transport, strict reply kinds, two-second request deadline, and 2 MiB reply bound.
+- Show download/upload queue counters, reported memory, tin sent/backlog bytes, reported p99 sojourn, and pooled RTT histogram.
+- Preserve absent fields as unknown and reported zeros as zeros. Bound direction tins, histogram length, text, and rows.
+- Add keyboard/mouse request controls, in-progress state, selected-circuit binding, refresh throttling, copy, and scroll access.
+- Keep one request in flight per TUI. Do not query during drawing or selection changes.
+- Use the TUI user's existing analytics-socket access. On this root-only host, live queries require a root TUI.
+  A read-only TUI can request diagnostics when its user has socket access; it must not change privileges or socket permissions.
+- Verify the installed queue endpoint with a read-only operator probe that prints no subscriber identities.
+- Test protocol frames, malformed/old replies, mapping changes, freshness/gap/reset labels, failed refreshes, worker lifecycle, UI binding, controls, and bounds.
+- Update captures/docs, review performance/integrity, run full checks, and commit locally only.
+
+No automatic queue poll, broker service, cache writer, packet capture, flow drain, router read/write, enforcement change, push, deployment, or restart belongs to this checkpoint.
+
+
+## Checkpoint 6 result
+
+The manual circuit action uses a cancellable background worker and the existing bounded CBOR descriptor transport.
+Applied generation and slot order must match before and after the single-row queue read.
+The view keeps missing values unknown and binds results to the requested circuit.
+Freshness remains visible in the persistent detail title. Mouse controls, scrolling, and copy retain their existing paths.
+The worker uses current-user socket permissions. The root-only production socket requires a root TUI.
+No broker, cache writer, automatic queue poll, dependency, or service change exists.
+
+The operator's three read-only samples returned one matching row, eight tins per direction, and fifty RTT bins.
+Sample sequence advanced. All samples reported a stable epoch, 200 ms cadence, and false gap/reset flags.
+The source review keeps `memory_used` as a raw reported value because its unit has no verified contract.
+
+Checks passed: 606 tests, zero failed, seven ignored, formatting, all-target Clippy, build, and capture review.
+The sixteen-tin-per-direction fixture produced 5,212 bytes. One thousand debug formats took 61.0 ms.
+Task 6 completes the six local implementation checkpoints. No push, deployment, or restart occurred.

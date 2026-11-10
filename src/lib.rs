@@ -5,6 +5,7 @@
 pub const VERSION: &str = env!("LQOSYNC_VERSION");
 
 pub mod bridge;
+pub mod circuit_queue;
 pub mod cli;
 pub mod collection;
 pub mod config;
