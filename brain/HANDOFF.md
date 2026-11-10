@@ -8,6 +8,22 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T23:07:32+08:00 (Asia/Shanghai) — DPDK performance review and deployment preparation
+
+- Owner authorized review of all six DPDK tasks, improvements, commit/push, and deployment.
+- Fixed an aggregate reload race. A read from superseded settings cannot publish its cache after the pending socket read completes.
+- Shared adaptive rate units cover charts, classification, subscriber details, and copy. Stored values remain Mbps.
+- Chart labels retain source scope, age, current state, window peaks, sample counts, and exact axis bounds. Time gaps break plotted lines.
+- Operational alerts include bridge degradation and stale health. Long notices wrap within existing mouse scroll controls.
+- Checks passed: 613 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, and actual terminal capture review.
+- A maximum 1,801-point chart took 770.1 ms for 100 debug redraws at 240x40. No extra polling, dependency, or packet-path work exists.
+- Next: push the reviewed commit, verify CI, build a clean artifact, and deploy with checksum, backup, health checks, and rollback.
+- Non-interactive sudo currently requires a password. Complete the artifact and deployment script before requesting the operator's terminal action.
+- Preserve unrelated local-profile Knowledge notes. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-performance-and-deployment-review]].
+Review: `docs/design/tui/DPDK_REVIEW.md`.
+
 ## 2026-11-10T21:30:00+08:00 (Asia/Shanghai) — DPDK task 6 implementation
 
 - Task 6 adds manual selected-circuit queues in Subscribers: `d`, mouse, copy, and existing scrolling.

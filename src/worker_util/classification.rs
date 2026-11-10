@@ -61,8 +61,7 @@ impl Classification {
             } else {
                 "warming / gap"
             };
-            let rate =
-                |value: Option<f64>| value.map_or("unknown".into(), |n| format!("{n:.3} Mbps"));
+            let rate = |value| traffic::format_rate(value, true);
             lines.push(format!(
                 "{name} {state}: Down {} | Up {}",
                 rate(point.and_then(|p| p.down_mbps)),

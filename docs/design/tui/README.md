@@ -685,3 +685,10 @@ The [Task 6 review](DPDK_STATS.md#task-6-on-demand-circuit-queue-diagnostics) re
 Keep the approved Subscribers composition. Add manual queue reads in the existing detail pane and action area.
 Use the current selected shaping circuit. Keep queue scope separate from per-IP host observations and RouterOS collection state.
 Every observation must retain age, missing-field, gap/reset, and permission labels in both the view and copy output.
+
+## Telemetry performance review
+
+The [deployment review](DPDK_REVIEW.md) covers all six DPDK checkpoints and the current chart/text improvements.
+Keep the approved Dashboard composition. Show adaptive rate units, sample age, visible-window peaks, and valid-sample counts within its traffic panel.
+Bridge health degradation must also appear in Operational alerts. Wrap long notices within the scrollable alert pane.
+Retain the source distinction, unknown values, stale labels, and source-driven update cadence.

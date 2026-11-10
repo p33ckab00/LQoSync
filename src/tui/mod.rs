@@ -16,6 +16,7 @@ mod routers;
 pub mod settings;
 mod shell;
 pub mod theme;
+mod traffic_chart;
 pub mod workers;
 
 use app::{Action, App};

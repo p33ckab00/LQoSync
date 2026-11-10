@@ -715,3 +715,13 @@ This read uses the current TUI user's socket permissions. It does not use sudo o
 The installed analytics socket is root-only. Start the TUI with `sudo lqosync3 tui` for live queue reads on this host.
 Include your normal `--config` option if you use another configuration path.
 An unprivileged TUI can still read the other public telemetry caches.
+
+### Traffic display units and chart history
+
+The Dashboard and subscriber/classification details select bps, kbps, Mbps, or Gbps for display.
+The cache still stores rate values in Mbps. Zero is a measured value. Unknown is unavailable data.
+The chart legend shows sample age, visible-window peaks, and the number of valid rate samples.
+Window peaks describe history. A stale source cannot supply a current rate.
+The plot breaks across missing samples and timestamp gaps longer than six seconds.
+Bridge health warnings appear in Operational alerts. Stale bridge health stays unknown.
+See the [telemetry review](design/tui/DPDK_REVIEW.md) for the source boundaries and verification.

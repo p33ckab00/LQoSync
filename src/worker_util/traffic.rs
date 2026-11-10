@@ -4,6 +4,17 @@ use std::collections::VecDeque;
 
 pub const MAX_POINTS: usize = 1801;
 
+/// Format observed rates without changing the stored Mbps value.
+pub fn format_rate(n: Option<f64>, precise: bool) -> String {
+    match n.filter(|n| n.is_finite() && *n >= 0.0) {
+        None => "unknown".into(),
+        Some(n) if n > 0.0 && n < 0.001 => format!("{:.1} bps", n * 1_000_000.0),
+        Some(n) if n > 0.0 && n < 1.0 => format!("{:.1} kbps", n * 1000.0),
+        Some(n) if n >= 1000.0 => format!("{:.3} Gbps", n / 1000.0),
+        Some(n) if precise => format!("{n:.3} Mbps"),
+        Some(n) => format!("{n:.1} Mbps"),
+    }
+}
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct Counters {
     pub download_bytes: u64,

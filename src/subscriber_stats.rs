@@ -533,9 +533,15 @@ impl Report {
             let value = |n: Option<f64>| n.map_or("unknown".into(), |v| format!("{v:.3}"));
             let count = |n: Option<u64>| n.map_or("unknown".into(), |v| v.to_string());
             lines.push(format!(
-                "Delivered Mbps: down {} | up {}",
-                value(self.live(now).then_some(m.down_mbps).flatten()),
-                value(self.live(now).then_some(m.up_mbps).flatten())
+                "Delivered: down {} | up {}",
+                crate::worker_util::traffic::format_rate(
+                    self.live(now).then_some(m.down_mbps).flatten(),
+                    true
+                ),
+                crate::worker_util::traffic::format_rate(
+                    self.live(now).then_some(m.up_mbps).flatten(),
+                    true
+                )
             ));
             lines.push(format!(
                 "Observed bytes: down {} | up {}",
@@ -650,7 +656,7 @@ mod tests {
         let own = owners(std::slice::from_ref(&row));
         let text = t.report.measurements(&row, &own, 20).join("\n");
         assert!(
-            text.contains("down 1.000 | up 2.000")
+            text.contains("down 1.000 Mbps | up 2.000 Mbps")
                 && text.contains("pooled 2.000")
                 && text.contains("pooled 3")
         );

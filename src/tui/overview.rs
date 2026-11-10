@@ -318,6 +318,24 @@ impl Overview {
                 design::role(p, Role::Warning),
             )),
         }
+        match telemetry.map(|t| &t.health) {
+            Some(health) if health.live(now) => {
+                if let Some(summary) = &health.summary
+                    && (summary.status != "healthy"
+                        || summary
+                            .degraded_subsystems
+                            .as_ref()
+                            .is_some_and(|v| !v.is_empty())
+                        || summary.aqm_degraded_workers.is_some_and(|n| n > 0))
+                {
+                    a.push(Line::styled(format!("[WARN] Bridge health: {} | degraded subsystems: {} | AQM degraded workers: {}",summary.status,summary.degraded_subsystems.as_ref().map_or("unknown".into(),|v| if v.is_empty() {"none".into()} else {v.join(", ")}),summary.aqm_degraded_workers.map_or("unknown".into(),|n|n.to_string())),design::role(p,Role::Warning)));
+                }
+            }
+            _ => a.push(Line::styled(
+                "[UNKNOWN] Bridge health unavailable or stale",
+                design::role(p, Role::Warning),
+            )),
+        }
         if let Some(st) = st {
             let text = |key: &str| st[key].as_str().unwrap_or("unknown");
             a.push(Line::raw(format!(
@@ -357,16 +375,20 @@ impl Overview {
         let block = design::panel("Operational alerts", p);
         let inner = block.inner(alerts);
         f.render_widget(block, alerts);
-        self.alert_scroll.max = a.len().saturating_sub(inner.height as usize);
+        let content = Rect {
+            width: inner.width.saturating_sub(1),
+            ..inner
+        };
+        let paragraph = Paragraph::new(a).wrap(ratatui::widgets::Wrap { trim: false });
+        let total = paragraph.line_count(content.width);
+        self.alert_scroll.max = total.saturating_sub(content.height as usize);
         self.alert_scroll.offset = self.alert_scroll.offset.min(self.alert_scroll.max);
-        let total = a.len();
         f.render_widget(
-            Paragraph::new(
-                a.into_iter()
-                    .skip(self.alert_scroll.offset)
-                    .collect::<Vec<_>>(),
-            ),
-            inner,
+            paragraph.scroll((
+                u16::try_from(self.alert_scroll.offset).unwrap_or(u16::MAX),
+                0,
+            )),
+            content,
         );
         self.alert_scroll.draw(f, inner, total, p);
     }
@@ -404,28 +426,30 @@ impl Overview {
             2 => t.classification.unmapped.bytes.is_some(),
             _ => true,
         });
-        let rate = |n: Option<f64>| {
-            n.map_or("unknown".into(), |n| {
-                if self.source == 0 {
-                    format!("{n:.1} Mbps")
-                } else {
-                    format!("{n:.3} Mbps")
-                }
-            })
-        };
-        let state = if source_known
-            && telemetry.is_some_and(|t| t.live(now))
-            && last.is_some_and(|v| {
-                v.down_mbps.is_some()
-                    && v.up_mbps.is_some()
-                    && now >= v.at
-                    && now - v.at <= crate::worker_util::MAX_AGE
-            }) {
+        let rate = |n| super::traffic_chart::rate(n, self.source != 0);
+        let seconds = [300, 900, 3600][self.window];
+        let prepared = super::traffic_chart::Plot::new(
+            telemetry.into_iter().flat_map(|t| self.history(t).iter()),
+            now,
+            seconds,
+        );
+        let current = last.filter(|v| {
+            source_known
+                && telemetry.is_some_and(|t| t.live(now))
+                && v.down_mbps.is_some()
+                && v.up_mbps.is_some()
+                && now >= v.at
+                && now - v.at <= crate::worker_util::MAX_AGE
+        });
+        let state = if !source_known || last.is_none() {
+            "UNAVAILABLE"
+        } else if !telemetry.is_some_and(|t| t.live(now)) {
+            "STALE (history only)"
+        } else if current.is_some() {
             "LIVE"
         } else {
-            "unavailable / stale"
+            "WARMING / GAP"
         };
-        let current = last.filter(|_| state == "LIVE");
         let down = current.and_then(|v| v.down_mbps);
         let up = current.and_then(|v| v.up_mbps);
         let scope = match self.source {
@@ -433,7 +457,7 @@ impl Overview {
             2 => "unmapped enqueued aggregate",
             _ => "actual delivered aggregate",
         };
-        let legend = Rect::new(inner.x, inner.y + 2, inner.width, 2);
+        let legend = Rect::new(inner.x, inner.y + 2, inner.width, 3);
         f.render_widget(
             Paragraph::new(vec![
                 Line::from(vec![
@@ -442,7 +466,9 @@ impl Overview {
                 ]),
                 Line::styled(
                     format!(
-                        "{state} | {scope} | {} history",
+                        "{state} | {scope} | age {} | {} history",
+                        last.and_then(|v| now.checked_sub(v.at))
+                            .map_or("unknown".into(), |age| format!("{age}s")),
                         if self.enough(d, [300, 900, 3600][self.window]) {
                             "ready"
                         } else {
@@ -451,44 +477,36 @@ impl Overview {
                     ),
                     design::role(p, Role::Secondary),
                 ),
+                Line::styled(
+                    format!(
+                        "Window peak D {} / U {} | {} rate samples",
+                        rate(prepared.down_peak),
+                        rate(prepared.up_peak),
+                        prepared.count
+                    ),
+                    design::role(p, Role::Secondary),
+                ),
             ]),
             legend,
         );
         let plot = Rect::new(
             inner.x,
-            inner.y + 4,
+            inner.y + 5,
             inner.width,
-            inner.height.saturating_sub(4),
+            inner.height.saturating_sub(5),
         );
         if plot.height < 3 {
             return;
         }
-        let seconds = [300, 900, 3600][self.window];
-        let mut down_segments: Vec<Vec<(f64, f64)>> = vec![Vec::new()];
-        let mut up_segments = down_segments.clone();
-        if let Some(t) = telemetry {
-            for v in self
-                .history(t)
-                .iter()
-                .filter(|v| v.at <= now && now - v.at <= seconds)
-            {
-                if let (Some(down), Some(up)) = (v.down_mbps, v.up_mbps) {
-                    down_segments.last_mut().unwrap().push((v.at as f64, down));
-                    up_segments.last_mut().unwrap().push((v.at as f64, up));
-                } else if !down_segments.last().unwrap().is_empty() {
-                    down_segments.push(Vec::new());
-                    up_segments.push(Vec::new());
-                }
-            }
-        }
-        let peak = down_segments
-            .iter()
-            .chain(&up_segments)
-            .flatten()
-            .map(|v| v.1)
-            .fold(if self.source == 0 { 1.0 } else { 0.001 }, f64::max)
-            .min(f64::MAX / 1.1)
-            * 1.1;
+        let scale = super::traffic_chart::Scale::new(
+            prepared
+                .down_peak
+                .unwrap_or(0.0)
+                .max(prepared.up_peak.unwrap_or(0.0)),
+            if self.source == 0 { 1.0 } else { 0.001 },
+        );
+        let down_segments = &prepared.down;
+        let up_segments = &prepared.up;
         let sets: Vec<_> = down_segments
             .iter()
             .map(|s| {
@@ -512,14 +530,11 @@ impl Overview {
         f.render_widget(
             Chart::new(sets)
                 .x_axis(axis)
-                .y_axis(Axis::default().bounds([0.0, peak]).labels([
-                    "0 M".to_owned(),
-                    if peak < 1.0 {
-                        format!("{peak:.3} M")
-                    } else {
-                        format!("{peak:.0} M")
-                    },
-                ]))
+                .y_axis(
+                    Axis::default()
+                        .bounds([0.0, scale.top])
+                        .labels(["0".into(), scale.top_label]),
+                )
                 .style(design::surface(p)),
             plot,
         );
@@ -532,6 +547,141 @@ mod queue_tests {
     use crate::config::Theme;
     use ratatui::{Terminal, backend::TestBackend, crossterm::event::KeyModifiers};
 
+    #[test]
+    fn bridge_degradation_is_visible_in_operational_alerts_independent_of_snapshot() {
+        use std::sync::Arc;
+        let mut health = crate::worker_util::health::Health::default();
+        for (now, up) in [(90, 1), (100, 10001)] {
+            health.record(Ok(serde_json::from_value(serde_json::json!({"status":"degraded","version":"v3","uptime_ms":up,"workers":[],"degraded_subsystems":["stats_summary"]})).unwrap()),now);
+        }
+        let d = Data {
+            worker_util: Some(Arc::new(crate::worker_util::Telemetry {
+                health,
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+        let mut term = Terminal::new(TestBackend::new(180, 40)).unwrap();
+        let mut view = Overview::default();
+        for (now, label) in [
+            (100, "[WARN] Bridge health: degraded"),
+            (116, "[UNKNOWN] Bridge health unavailable or stale"),
+        ] {
+            term.draw(|f| view.draw(f, f.area(), &d, now, &Palette::new(Theme::Dark)))
+                .unwrap();
+            let text = term
+                .backend()
+                .buffer()
+                .content
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<String>();
+            assert!(
+                text.contains(label),
+                "missing operational alert {label}: {text}"
+            );
+        }
+    }
+    #[test]
+    fn chart_dynamic_values_retain_age_zero_missing_and_historical_peak_labels() {
+        use std::sync::Arc;
+        let mut report = crate::worker_util::Telemetry {
+            updated: 100,
+            stale: false,
+            ..Default::default()
+        };
+        report
+            .traffic
+            .push_back(crate::worker_util::traffic::Point {
+                at: 100,
+                down_mbps: Some(0.025),
+                up_mbps: Some(0.0),
+            });
+        let d = Data {
+            worker_util: Some(Arc::new(report)),
+            ..Default::default()
+        };
+        let mut view = Overview::default();
+        let mut term = Terminal::new(TestBackend::new(160, 20)).unwrap();
+        for (now, state, down) in [
+            (100, "LIVE", "Down 25.0 kbps"),
+            (107, "STALE (history only)", "Down unknown"),
+        ] {
+            term.draw(|f| view.chart(f, f.area(), &d, now, &Palette::new(Theme::Dark)))
+                .unwrap();
+            let text = term
+                .backend()
+                .buffer()
+                .content
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<String>();
+            for label in [state, down, "Window peak D 25.0 kbps", "1 rate samples"] {
+                assert!(text.contains(label), "missing {label}: {text}");
+            }
+            assert!(text.contains(&format!("age {}s", now - 100)));
+        }
+        let mut report = (*d.worker_util.unwrap()).clone();
+        report.traffic.back_mut().unwrap().down_mbps = None;
+        let d = Data {
+            worker_util: Some(Arc::new(report)),
+            ..Default::default()
+        };
+        term.draw(|f| view.chart(f, f.area(), &d, 100, &Palette::new(Theme::Dark)))
+            .unwrap();
+        let text = term
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|c| c.symbol())
+            .collect::<String>();
+        assert!(text.contains("WARMING / GAP") && text.contains("Window peak D unknown"));
+    }
+    #[test]
+    fn chart_maximum_history_redraw_cost_and_point_bounds() {
+        use std::sync::Arc;
+        let mut report = crate::worker_util::Telemetry {
+            updated: 4000,
+            stale: false,
+            ..Default::default()
+        };
+        report.traffic = (0..crate::worker_util::traffic::MAX_POINTS)
+            .map(|i| crate::worker_util::traffic::Point {
+                at: 4000 - 3600 + i as u64 * 2,
+                down_mbps: Some((i % 100) as f64),
+                up_mbps: Some((i % 10) as f64),
+            })
+            .collect();
+        report.classification.mapped.history = report.traffic.clone();
+        report.classification.unmapped.history = report.traffic.clone();
+        let d = Data {
+            worker_util: Some(Arc::new(report)),
+            ..Default::default()
+        };
+        let mut view = Overview {
+            window: 2,
+            ..Default::default()
+        };
+        let mut term = Terminal::new(TestBackend::new(240, 40)).unwrap();
+        let start = std::time::Instant::now();
+        for _ in 0..100 {
+            term.draw(|f| view.chart(f, f.area(), &d, 4000, &Palette::new(Theme::Dark)))
+                .unwrap();
+        }
+        eprintln!(
+            "maximum traffic chart: 1801 points, 100 debug redraws {:?}",
+            start.elapsed()
+        );
+        let text = term
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|c| c.symbol())
+            .collect::<String>();
+        assert!(text.contains("1801 rate samples"));
+    }
     #[test]
     fn classified_chart_selects_actual_mapped_and_unmapped_without_mixing_units() {
         use std::sync::Arc;
@@ -575,7 +725,7 @@ mod queue_tests {
         );
         let text = render(&mut term, &mut v, 107);
         assert!(
-            text.contains("Down unknown") && text.contains("unavailable / stale"),
+            text.contains("Down unknown") && text.contains("STALE (history only)"),
             "{text}"
         );
         v.key(KeyCode::Char('v'), &d);

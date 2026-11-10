@@ -5,7 +5,7 @@ The [visual contract](../README.md) links the unchanged approved concepts.
 
 | Screen | Implementation image | Capture type |
 |---|---|---|
-| Dashboard | [Dashboard](dashboard-collection-v2.png) | Running Zutty terminal, Xvfb |
+| Dashboard | [Dashboard](dashboard-telemetry-v3.png) | Running Zutty terminal, Xvfb |
 | Subscribers | [Subscribers](subscribers-collection-v2.png) | Running terminal |
 | Routers | [Routers](routers-collection-v2.png) | Running terminal |
 | LibreQoS | [LibreQoS](libreqos-v1.png) | Running terminal |
@@ -75,3 +75,12 @@ Build `cargo build --locked --example circuit_queue_fixture` before capture.
 Run `python3 scripts/dev/capture_tui.py --screen 2 --queue-diagnostics --output docs/design/tui/captures/subscribers-queues-v1.png`.
 The [checkpoint review](../DPDK_STATS.md#task-6-on-demand-circuit-queue-diagnostics) separates synthetic layout evidence from the operator's live probe.
 The approved Subscribers panel order remains unchanged. Queue details use the existing scroll pane and action area.
+
+## Telemetry review update
+
+The [current Dashboard](dashboard-telemetry-v3.png) adds exact axis units, sample age, window peaks, and a bridge health warning.
+The [Unmapped view](dashboard-unmapped-v2.png) demonstrates small positive traffic in kbps.
+The [subscriber view](subscribers-telemetry-v2.png) uses explicit adaptive rate units.
+These running-terminal captures use isolated synthetic files. The approved panel order remains intact.
+Reproduce with screen 1, screen 1 plus `--traffic-source unmapped`, and screen 2 plus `--subscriber-stats`.
+See the [review](../DPDK_REVIEW.md) for performance measurements and regression proof.

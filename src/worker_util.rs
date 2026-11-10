@@ -359,6 +359,8 @@ impl Monitor {
                         let (sample, health) = tokio::join!(read_snapshot(path), async {
                             if due { Some(read_health(path).await) } else { None }
                         });
+                        // A configuration reload can arrive while the old socket read is pending.
+                        if *changes.borrow() != current { continue; }
                         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                         tracker.record(sample, now);
                         if let Some(health) = health { tracker.report.health.record(health, now); }
@@ -991,6 +993,58 @@ mod tests {
                 "tick {n}"
             );
         }
+        drop(monitor);
+        server.abort();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn aggregate_read_started_before_reload_cannot_publish_to_old_destination() {
+        use tokio::io::AsyncReadExt;
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let socket = first.path().join("analytics.sock");
+        let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let server = tokio::spawn(async move {
+            let mut held = Vec::new();
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut head = [0; 4];
+                stream.read_exact(&mut head).await.unwrap();
+                let mut bytes = vec![0; u32::from_be_bytes(head) as usize];
+                stream.read_exact(&mut bytes).await.unwrap();
+                let v: serde_json::Value = ciborium::from_reader(bytes.as_slice()).unwrap();
+                tx.send(v["kind"].as_str().unwrap().to_owned()).unwrap();
+                held.push(stream);
+            }
+        });
+        let mut cfg = crate::config::defaults().clone();
+        cfg.libreqos.target = crate::config::Target::V3Pair;
+        cfg.libreqos.v3_analytics_socket = socket.display().to_string();
+        cfg.runtime.state_dir = first.path().display().to_string();
+        let monitor = Monitor::start(&cfg);
+        let mut requests = std::collections::HashSet::new();
+        for _ in 0..200 {
+            tokio::task::yield_now().await;
+            while let Ok(kind) = rx.try_recv() {
+                requests.insert(kind);
+            }
+            if requests.len() == 3 {
+                break;
+            }
+        }
+        assert_eq!(requests.len(), 3);
+        cfg.runtime.state_dir = second.path().display().to_string();
+        cfg.libreqos.v3_analytics_socket = second.path().join("missing.sock").display().to_string();
+        monitor.reconfigure(&cfg);
+        tokio::time::advance(Duration::from_secs(3)).await;
+        for _ in 0..100 {
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            !first.path().join(CACHE).exists(),
+            "a superseded read must not publish an old-source cache"
+        );
         drop(monitor);
         server.abort();
     }

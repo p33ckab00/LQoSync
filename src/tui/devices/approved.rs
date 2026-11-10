@@ -909,7 +909,7 @@ mod tests {
             panic!("copy")
         };
         assert!(
-            text.contains("Delivered Mbps: down 1.000 | up 2.000")
+            text.contains("Delivered: down 1.000 Mbps | up 2.000 Mbps")
                 && text.contains("RTT sample median")
                 && text.contains("TCP retransmits")
         );
