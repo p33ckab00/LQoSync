@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-10
 tags: [dpdk, telemetry, performance, deployment]
-status: reviewed-ready-to-deploy
+status: pushed-awaiting-root-activation
 related: ["[[2026-11-10-dpdk-circuit-queues]]", "[[HANDOFF]]"]
 ---
 
@@ -47,3 +47,28 @@ The current service is active, PID 61153, version `3.0.157+g39459a7`, with no cy
 Non-interactive sudo requires a password. Prepare the complete deployment before requesting the operator's terminal action.
 Verify the installed checksum, process identity, new cycle, collection, aggregate/health/host caches, and circuit source after restart.
 Preserve the unrelated local-profile Knowledge link and note.
+
+
+## Publication and prepared artifact
+
+Updated: 2026-11-10T23:19:10+08:00 (Asia/Shanghai).
+Code commit `828061e` and all six earlier DPDK commits are on GitHub `lqosync3`.
+CI run `42841241848` passed test and MSRV jobs.
+URL: https://github.com/p33ckab00/LQoSync/actions/runs/42841241848.
+
+The clean detached build reports `3.0.166+g828061e`.
+Binary SHA256: `29ae89c2f5eac09b9a2597010460450d439ba8f43e6b0fb440d1b2e8de9a173b`.
+The artifact TUI passed all seven routes, clean quit, and terminal cleanup against the live read-only configuration.
+The smoke harness forces complete redraws. Differential terminal output can omit unchanged label letters.
+The initial harness failures did not indicate a product failure.
+
+Artifact directory: `/home/pi/.local/state/lqosync3/dpdk-828061e/`.
+It contains the clean binary, circuit probe, manifest, CI result, deployment script, and terminal smoke report.
+The script verifies checksums, current config, previous binary, backup, restart, cycle, collection, and all six telemetry sources.
+It restores the prior binary and restarts the service if post-install checks fail.
+
+Non-interactive sudo failed before mutation because the host requires a password.
+The operator has a pending request to run `sudo /home/pi/.local/state/lqosync3/dpdk-828061e/deploy.sh`.
+Production remains on the prior release until this command succeeds.
+After execution, verify `DEPLOYED.json`, live process/hash/version, cycle identity, fresh caches, circuit samples, and the installed TUI.
+This documentation commit does not change the code in the reviewed artifact.

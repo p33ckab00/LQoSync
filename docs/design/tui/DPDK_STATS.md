@@ -37,7 +37,7 @@ Dashboard adds Actual, Mapped, and Unmapped buttons inside the traffic panel.
 The keyboard shortcut is `v`. Mouse targets remain clipped to the visible panel after resize and scrolling.
 The time-window controls follow the selected source.
 Actual means delivered bytes. Mapped and Unmapped mean enqueue classes for the whole bridge.
-The legend retains that distinction. Small class rates use three decimal places and a sub-Mbps axis scale.
+The legend retains that distinction. The current display uses adaptive rate units and matching axis bounds. See the [later review](DPDK_REVIEW.md).
 Stale legends hide current rates while historical traces remain available.
 
 The scrollable Dashboard health and Workers detail panes add class rates and cumulative bytes.

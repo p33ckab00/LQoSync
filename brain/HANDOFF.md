@@ -8,6 +8,22 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T23:19:10+08:00 (Asia/Shanghai) — DPDK release pushed; root activation pending
+
+- Reviewed code commit `828061e` and the six prior DPDK checkpoints are on GitHub `lqosync3`.
+- GitHub CI run `42841241848` passed both test and MSRV jobs. Local checks: 613 passed, zero failed, seven ignored.
+- Clean detached source build produced `3.0.166+g828061e`. Binary SHA256: `29ae89c2f5eac09b9a2597010460450d439ba8f43e6b0fb440d1b2e8de9a173b`.
+- The release TUI passed seven routes, clean quit, and terminal cleanup against the live read-only configuration.
+- The smoke harness forces complete redraws because raw terminal diffs can omit unchanged letters. Initial harness failures were not product failures.
+- Artifact: `/home/pi/.local/state/lqosync3/dpdk-828061e/`. It contains the manifest, CI result, binary, circuit probe, deployment script, and smoke report.
+- Deployment verifies hashes, config, backup, atomic replacement, restart, cycle, collection, six telemetry sources, and rollback.
+- `sudo -n` stopped before mutation with `a password is required`. The operator has a pending request to run `sudo /home/pi/.local/state/lqosync3/dpdk-828061e/deploy.sh`.
+- Next: after operator execution, inspect `DEPLOYED.json`, process/hash/version, current cycle, fresh caches, probe evidence, and installed TUI smoke.
+- Production remains at `3.0.157+g39459a7` until that script succeeds. Do not report deployment complete without evidence.
+- Preserve the unrelated local-profile Knowledge notes. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-performance-and-deployment-review]].
+
 ## 2026-11-10T23:07:32+08:00 (Asia/Shanghai) — DPDK performance review and deployment preparation
 
 - Owner authorized review of all six DPDK tasks, improvements, commit/push, and deployment.
