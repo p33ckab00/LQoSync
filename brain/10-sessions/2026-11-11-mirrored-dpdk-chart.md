@@ -141,3 +141,19 @@ Artifact: `/home/pi/.local/state/lqosync3/directional-b6778cb/`.
 The deployment script includes backup, restart, cycle and telemetry verification, and rollback.
 Host sudo requires a password. The operator has the prepared command to execute in a terminal.
 Production activation remains pending until deployment and independent verification pass.
+
+## Independent directional scale deployment verified
+
+Updated: 2026-11-11T00:42:44+08:00 (Asia/Shanghai).
+
+The operator deployed `3.0.172+gb6778cb` at 2026-11-11T00:41:56+08:00.
+Independent checks passed at 2026-11-11T00:42:21+08:00. The installed binary hash matches the clean artifact.
+Service PID: 566154. Automatic restarts: zero. Configuration hash: unchanged.
+The successful cycle uses `apply` mode and target `v3_pair`, with no service or configuration error.
+All six telemetry sources passed deployment checks. Public cache timestamps and bridge uptime advanced after deployment.
+The bridge reports healthy with no degraded subsystems. Three circuit samples matched and advanced, with false gap/reset flags.
+The collection cache is fresh. All seven installed TUI routes passed the smoke check, with clean exit and no panic.
+
+Backup: `/var/backups/lqosync3/directional-b6778cb-kgw7_dtn`. No rollback was required.
+Evidence: `DEPLOYED.json`, `independent-verification.json`, and `installed-tui-smoke.json` in `/home/pi/.local/state/lqosync3/directional-b6778cb/`.
+Download and upload now follow independent dynamic scales. Reopen existing TUI sessions to use the installed renderer.

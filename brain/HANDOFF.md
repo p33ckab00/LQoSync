@@ -8,6 +8,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T00:42:44+08:00 (Asia/Shanghai) — Independent directional scale deployment verified
+
+- Operator deployed `3.0.172+gb6778cb`. Independent checks passed at 2026-11-11T00:42:21+08:00.
+- Installed binary hash matches the clean artifact. Service is active/running, PID 566154, with zero automatic restarts.
+- Cycle 1 succeeded in `apply` mode with target `v3_pair`. No service or configuration error exists. Configuration hash is unchanged.
+- All six telemetry sources passed root deployment checks. Independent checks confirm fresh, advancing aggregate, classification, bridge health, and host data.
+- Bridge reports healthy with no degraded subsystems. Three circuit samples matched their slot and advanced. Gap/reset flags were false.
+- Collection cache is fresh and matches the service PID/cycle. Root deployment checks verified raw snapshot counts.
+- Installed TUI smoke passed all seven routes, clean exit, and terminal cleanup, with no panic.
+- Backup: `/var/backups/lqosync3/directional-b6778cb-kgw7_dtn`. No rollback was required.
+- Evidence: `/home/pi/.local/state/lqosync3/directional-b6778cb/` contains `DEPLOYED.json`, `independent-verification.json`, and `installed-tui-smoke.json`.
+- Download and upload now use separate dynamic ceilings. Reopen existing TUI sessions to load the installed renderer.
+- Task complete. Preserve unrelated `brain/Home.md` and local-profile Knowledge note.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+
 ## 2026-11-11T00:40:53+08:00 (Asia/Shanghai) — Directional scale release pushed; activation pending
 
 - Owner authorized commit, push, and deployment. Code commit `b6778cb` is on GitHub `lqosync3`.
