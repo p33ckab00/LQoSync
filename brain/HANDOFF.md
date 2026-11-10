@@ -8,6 +8,22 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T01:24:25+08:00 (Asia/Shanghai) — NIC diagnostics release pushed; activation pending
+
+- Owner authorized commit, push, and deployment. Code `b4e3846` is on GitHub `lqosync3`.
+- CI run `42863911257` passed test and MSRV jobs. Local checks remain current: 632 passed, zero failed, seven ignored.
+- Clean detached source build produced `3.0.175+gb4e3846`. All seven release TUI routes passed smoke with clean exit and no panic.
+- Artifact: `/home/pi/.local/state/lqosync3/nic-b4e3846/`. It includes source, manifest, CI evidence, binaries, native NIC probe, deploy, smoke, and independent verification scripts.
+- Binary SHA256: `4058fdee9fea04b6f457a511f68108ecc06ac2ecbee206c3eb763e43acd41f4b`.
+- Deployment adds native NIC endpoint/cache checks to the existing backup, atomic install, restart, cycle, collection, telemetry, and rollback checks.
+- The NIC gate verifies peer PID, port IDs/names, fresh baseline increments, and extended field names. Its live-shape replay passed.
+- `sudo -n` stopped before mutation because a password is required. Pending operator command: `sudo /home/pi/.local/state/lqosync3/nic-b4e3846/deploy.sh`.
+- Production remains `3.0.172+gb6778cb`, PID 566154, active/running, zero automatic restarts. Configuration hash is unchanged.
+- Next after operator execution: inspect `DEPLOYED.json`, run artifact `smoke.py /usr/local/bin/lqosync3`, then `verify.py`. The NIC cache timestamp must advance after deployment verification.
+- Preserve unrelated `brain/Home.md` and local-profile Knowledge note. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-dpdk-nic-diagnostics]].
+
 ## 2026-11-11T01:03:51+08:00 (Asia/Shanghai) — Native NIC diagnostics implemented locally
 
 - Owner prioritized NIC diagnostics. Operator probe verified two UP, 10 Gbps full-duplex ports with 78 extended statistics each.

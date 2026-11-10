@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-11
 tags: [dpdk, nic, telemetry, tui]
-status: implemented-not-deployed
+status: pushed-deployment-pending
 related: ["[[2026-11-11-mirrored-dpdk-chart]]", "[[HANDOFF]]"]
 ---
 
@@ -63,3 +63,18 @@ Visual and source contract: `docs/design/tui/NIC_DIAGNOSTICS.md`.
 The feature is local and uncommitted. Production remains `3.0.172+gb6778cb`.
 No push, deployment, service restart, or configuration change occurred for this task.
 Preserve the unrelated local-profile Knowledge note and the pre-existing `brain/Home.md` change.
+
+## Release preparation
+
+Updated: 2026-11-11T01:24:25+08:00 (Asia/Shanghai).
+
+Owner authorized publication and deployment. Code `b4e3846` is on GitHub `lqosync3`.
+CI run `42863911257` passed both jobs. Clean release: `3.0.175+gb4e3846`.
+All seven release TUI routes passed smoke with clean exit and no panic.
+Artifact: `/home/pi/.local/state/lqosync3/nic-b4e3846/`.
+
+The deployment script includes backup, atomic replacement, restart, cycle, collection, existing telemetry, and native NIC checks.
+Native NIC checks match source/cache process and port identity, basic increments, freshness, and raw extended field names.
+The NIC deployment gate passed a replay of the verified source shape.
+Host sudo requires a password. The operator has the prepared deployment command.
+Activation remains pending until deployment and independent verification pass.
