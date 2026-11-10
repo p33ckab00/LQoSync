@@ -180,12 +180,22 @@ impl WorkersView {
                     if let Some(t) = &d.worker_util {
                         text.push('\n');
                         text.push_str(&t.classification.measurements(t.live(now), now).join("\n"));
+                        text.push('\n');
+                        text.push_str(&t.health.measurements(now).join("\n"));
                         if let Some(reason) = &t.reason {
                             text.push_str(&format!("\nTelemetry note: {reason}"));
                         }
                     }
                     return WorkerAction::Copy(text);
                 }
+                let health = d.worker_util.as_ref().map_or_else(
+                    || crate::worker_util::health::Health::default().measurements(now),
+                    |t| t.health.measurements(now),
+                );
+                return WorkerAction::Copy(format!(
+                    "Worker details unavailable\n{}",
+                    health.join("\n")
+                ));
             }
             KeyCode::Up if self.approved.focus == 4 => {
                 self.approved.detail.offset = self.approved.detail.offset.saturating_sub(1)
@@ -515,6 +525,15 @@ impl WorkersView {
             lines.push(Line::raw("Worker details unavailable"));
         }
         lines.extend(
+            report
+                .map_or_else(
+                    || crate::worker_util::health::Health::default().measurements(now),
+                    |r| r.health.measurements(now),
+                )
+                .into_iter()
+                .map(Line::raw),
+        );
+        lines.extend(
             crate::worker_util::queue::Queue::measurements(
                 report.and_then(|r| r.queue.as_ref()),
                 live,
@@ -613,6 +632,49 @@ impl WorkersView {
 mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
+    #[test]
+    fn bridge_health_copy_uses_independent_health_freshness_and_preserves_source_status() {
+        let mut d = super::super::tests::live();
+        let h = &mut Arc::make_mut(d.worker_util.as_mut().unwrap()).health;
+        let report = |up| {
+            serde_json::from_value(serde_json::json!({"status":"degraded","version":"v3","uptime_ms":up,
+            "workers":[],"degraded_subsystems":["stats_collector"],"classification_empty":true,"topology_tier":"last_known_good"})).unwrap()
+        };
+        h.record(Ok(report(1)), 90);
+        h.record(Ok(report(10001)), 100);
+        let mut view = WorkersView::default();
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 100) else {
+            panic!("copy")
+        };
+        assert!(
+            text.contains("Bridge health LIVE")
+                && text.contains("Status: degraded")
+                && text.contains("stats_collector")
+        );
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 107) else {
+            panic!("copy")
+        };
+        assert!(text.contains("Bridge health LIVE") && text.contains("Worker metrics unavailable"));
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 116) else {
+            panic!("copy")
+        };
+        assert!(
+            text.contains("Bridge health STALE (last known)") && text.contains("stats_collector")
+        );
+        Arc::make_mut(d.worker_util.as_mut().unwrap())
+            .workers
+            .clear();
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 100) else {
+            panic!("health copy without workers")
+        };
+        assert!(
+            text.contains("Worker details unavailable")
+                && text.contains("Bridge health LIVE")
+                && text.contains("stats_collector")
+        );
+    }
+
     #[test]
     fn worker_detail_mouse_focus_and_page_keys_scroll_without_changing_worker() {
         let d = super::super::tests::live();

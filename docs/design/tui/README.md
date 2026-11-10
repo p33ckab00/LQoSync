@@ -649,7 +649,7 @@ The [statistics checkpoint review](DPDK_STATS.md#task-2-mapped-and-unmapped-traf
 Dashboard source buttons and `v` select Actual delivered traffic or the Mapped/Unmapped enqueue classes.
 Dashboard health, Workers details, and copy output identify whole-bridge scope and current/stale evidence.
 Each chart uses its own history. The established panel order remains unchanged.
-Bridge health, uptime, and degraded subsystems remain Task 4 in the statistics plan.
+The Task 4 review below records bridge health, uptime, and degraded subsystems.
 
 
 ## Extended worker measurements
@@ -659,3 +659,12 @@ Retain the approved panel order. Add measurements inside the existing scrollable
 Keep the worker ID and snapshot state visible in its title during scrolling and expansion.
 Reported laps/s and cumulative phase cycles must retain their units and source limitations.
 Missing, stale, and cache-budget omissions must remain explicit.
+
+
+## Bridge health extension
+
+The [Task 4 review](DPDK_STATS.md#task-4-bridge-health-uptime-and-degraded-subsystems) records source semantics, terminal captures, and validation.
+Keep the existing Dashboard health and Workers detail panes. Retain the approved panel order and scrolling controls.
+Health freshness and source status must remain separate from snapshot/traffic freshness.
+Show uptime as reported, missing values as unknown, and stale health as last known.
+The status display must preserve named degraded subsystems. It does not authorize an automatic restart.

@@ -212,13 +212,22 @@ impl Overview {
         self.chart(f, chart, d, now, p);
         let telemetry = d.worker_util.as_deref();
         let live = telemetry.is_some_and(|s| s.live(now));
-        let mut lines: Vec<Line> = crate::worker_util::queue::Queue::measurements(
-            telemetry.and_then(|t| t.queue.as_ref()),
-            live,
-        )
-        .into_iter()
-        .map(Line::raw)
-        .collect();
+        let mut lines: Vec<Line> = telemetry
+            .map_or_else(
+                || crate::worker_util::health::Health::default().measurements(now),
+                |t| t.health.measurements(now),
+            )
+            .into_iter()
+            .map(Line::raw)
+            .collect();
+        lines.extend(
+            crate::worker_util::queue::Queue::measurements(
+                telemetry.and_then(|t| t.queue.as_ref()),
+                live,
+            )
+            .into_iter()
+            .map(Line::raw),
+        );
         if let Some(t) = telemetry {
             lines.extend(
                 t.classification

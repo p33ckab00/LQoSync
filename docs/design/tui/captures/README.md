@@ -45,3 +45,13 @@ The Dashboard, Subscribers, and Routers v2 captures use the cycle collection rea
 The fixture includes active/inactive PPP accounts, active Hotspot users, bound/unbound DHCP leases, and collected-only accounts.
 All sources are enabled in this isolated fixture. This does not enable a production source.
 The v1 images remain historical implementation evidence. All approved concept hashes remain unchanged.
+
+## Bridge health update
+
+Task 4 adds [Dashboard health](dashboard-health-v1.png) and [expanded Workers health](workers-health-v1.png).
+Both are actual terminal frames with isolated synthetic data. The fixture deliberately reports a degraded subsystem.
+The [checkpoint review](../DPDK_STATS.md#task-4-bridge-health-uptime-and-degraded-subsystems) records the comparison and separate live-probe evidence.
+The approved panel order remains unchanged. Scrolling exposes the additional content.
+
+Reproduce with `python3 scripts/dev/capture_tui.py --screen 1 --output /tmp/dashboard-health.png`.
+Use `--screen 5 --worker-health --output /tmp/workers-health.png` for the expanded health pane.

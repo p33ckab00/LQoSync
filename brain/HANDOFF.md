@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T20:13:44+08:00 (Asia/Shanghai) — DPDK task 4 implementation
+
+- Task 4 adds independent bridge health, reported uptime, topology/classification state, and named degraded subsystems.
+- Three operator-run samples reported healthy, no degraded subsystems, one worker, and advancing uptime. Empty topology tier stays unknown.
+- One monitor runs health every ten seconds alongside the two-second snapshot cadence. Outcomes and freshness remain independent.
+- Dashboard/Workers retain approved composition, scroll controls, and copy. The public cache stores bounded aggregate health only.
+- Checks passed: 585 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, source probe, and capture review.
+- Maximum cache fixture: 742,194 bytes after fallback; one synthetic debug publish/read sample 155.3 ms.
+- No push, deployment, or restart. Next: Task 5 subscriber traffic, RTT, and retransmissions.
+- Preserve the unrelated local-profile Knowledge link and note.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-bridge-health]].
+
 ## 2026-11-10T20:01:01+08:00 (Asia/Shanghai) — DPDK task 3 implementation
 
 - Task 3 adds reported idle, laps/s, busy laps, cycles/busy lap, and ten cumulative phase counters.

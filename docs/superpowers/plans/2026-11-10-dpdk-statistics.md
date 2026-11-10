@@ -119,3 +119,32 @@ Reported laps/s equaled busy ppm in the three samples. Keep its producer-reporte
 Cache fallback preserves basic telemetry and histories within 1 MiB without mutating the source report.
 The maximum fallback fixture measured 739,546 bytes and 154.6 ms for one debug publish/read sample.
 No push, deployment, or restart occurred. Task 4 bridge health, uptime, and degraded subsystems is next.
+
+## Checkpoint 4: bridge health
+
+Use the read-only health request on the existing analytics socket.
+Keep one monitor. Request health every ten seconds, with the existing two-second transport deadline.
+Run due health and snapshot requests concurrently. A failed health request cannot invalidate valid traffic or workers.
+Health has its own update time, producer-uptime progress check, and fifteen-second expiry.
+Do not infer bridge health or uptime from a snapshot timestamp or operating-system CPU load.
+
+- Reuse the bounded CBOR/descriptor transport. Require the correct health reply kind.
+- Keep aggregate health only: status, version, uptime, topology tier, classification state, named degraded subsystems, and worker rollup/AQM summary.
+- Preserve missing fields as unknown and zero as a valid value. Bound strings, lists, and worker counts.
+- Test decoding, old reports, unknown statuses, malformed values, duplicates, failures, expiry, restart, and cache compatibility.
+- Verify three live aggregate reads through an operator-run root probe.
+- Add health to the existing scrollable Dashboard and Workers panes and copy output.
+- Keep approved composition, mouse scrolling, and independently labeled health freshness.
+- Update captures, review performance/integrity, run full checks, and commit locally.
+
+No supervisor action, restart policy, flow scan, router read, runtime key, push, deployment, or restart belongs to this checkpoint.
+
+## Checkpoint 4 result
+
+Implemented and locally verified. The operator's three read-only samples reported healthy with advancing uptime.
+No degraded subsystems or AQM-degraded workers were reported. The source topology tier was empty.
+The UI retains unknown topology, independent freshness, and last-known states.
+585 tests passed, zero failed, seven manual tests ignored. Formatting, Clippy, build, and terminal capture review passed.
+The maximum cache fixture measured 742,194 bytes after fallback with full histories and bounded health.
+One debug publish/read sample took 155.3 ms; this is not a production guarantee.
+No push, deployment, or restart occurred. Task 5 subscriber traffic, RTT, and retransmissions is next.

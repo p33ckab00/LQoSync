@@ -1358,6 +1358,32 @@ mod tests {
     }
 
     #[test]
+    fn bridge_health_dashboard_retains_freshness_when_worker_snapshot_is_stale() {
+        let mut a = app(true);
+        let mut t = crate::worker_util::Telemetry::default();
+        let report = |up| {
+            serde_json::from_value(serde_json::json!({"status":"degraded", "version":"v3", "uptime_ms":up,"workers":[], "degraded_subsystems":["stats_summary"]})).unwrap()
+        };
+        t.health.record(Ok(report(1)), 90);
+        t.health.record(Ok(report(10001)), 100);
+        a.set_data(
+            Data {
+                worker_util: Some(Arc::new(t)),
+                ..Data::default()
+            },
+            100,
+        );
+        let s = draw(&mut a, 240, 48);
+        assert!(
+            s.contains("Bridge health LIVE")
+                && s.contains("Status: degraded")
+                && s.contains("stats_summary")
+        );
+        a.on_tick(116);
+        assert!(draw(&mut a, 240, 48).contains("Bridge health STALE (last known)"));
+    }
+
+    #[test]
     fn queue_totals_render_in_dashboard_and_workers_with_stale_delta_suppression() {
         let mut a = app(true);
         let telemetry: crate::worker_util::Telemetry = serde_json::from_value(serde_json::json!({
@@ -1421,6 +1447,7 @@ mod tests {
                     traffic: Default::default(),
                     queue: None,
                     classification: Default::default(),
+                    health: Default::default(),
                 })),
                 ..Data::default()
             },

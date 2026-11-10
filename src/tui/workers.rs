@@ -207,6 +207,7 @@ mod tests {
                 traffic: Default::default(),
                 queue: None,
                 classification: Default::default(),
+                health: Default::default(),
             })),
             ..Data::default()
         }

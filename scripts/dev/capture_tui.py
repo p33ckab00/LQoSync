@@ -21,11 +21,14 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--traffic-source', choices=['actual','mapped','unmapped'], default='actual')
     parser.add_argument('--worker-phases', action='store_true')
+    parser.add_argument('--worker-health', action='store_true')
     args = parser.parse_args()
     if args.screen != 1 and args.traffic_source != 'actual':
         parser.error('--traffic-source applies to Dashboard only')
     if args.worker_phases and args.screen != 5:
         parser.error('--worker-phases applies to Workers only')
+    if args.worker_health and (args.screen != 5 or args.worker_phases):
+        parser.error('--worker-health requires Workers and cannot combine with --worker-phases')
     root = Path(__file__).resolve().parents[2]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='lqosync3-capture-') as folder:
@@ -113,6 +116,11 @@ enabled = true
                                   busy_laps=218000000, cycles_per_busy_lap=285000,
                                   phase_cycles=[772000000000,146000000000,231000000000,0,362000000000,
                                                 53000000000,1216000000000,6637000000000,0,56105000000000])
+                report['health'] = {'updated':now, 'stale':False, 'reason':None,
+                                    'summary':{'status':'degraded','version':'0.1.0','uptime_ms':44966000,
+                                               'topology_tier':None,'classification_empty':False,
+                                               'degraded_subsystems':['stats_summary'],'worker_count':4,
+                                               'missing_rollups':0,'max_rollup_age_ms':93,'aqm_degraded_workers':0}}
                 report['classification'] = {
                     'mapped': {'bytes': {'download_bytes': 3000000000, 'upload_bytes': 400000000},
                                'history': [dict(v, down_mbps=v['down_mbps']*1.02, up_mbps=v['up_mbps']*1.02) for v in points]},
@@ -146,6 +154,10 @@ enabled = true
             snapshots();key(str(args.screen));time.sleep(1)
             if args.screen == 1:
                 for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)): key('v')
+                time.sleep(.2)
+            if args.worker_health:
+                key('e'); key('Tab')
+                for _ in range(27): key('Down')
                 time.sleep(.2)
             if args.worker_phases:
                 key('e'); key('Tab')

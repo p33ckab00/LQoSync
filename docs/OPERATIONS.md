@@ -489,7 +489,8 @@ This cache contains worker metrics, aggregate traffic history, buffer/ring diagn
 It contains no host or flow records.
 
 The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
-Snapshots and cached values expire after six seconds. A socket error marks the last-good values stale.
+Snapshot worker/traffic values expire after six seconds. A snapshot error marks their last-good values stale.
+Bridge health has its own freshness rules, as described below.
 An older bridge without the worker fields shows `unavailable`.
 Freshness describes the snapshot, not a separate health verdict for each worker.
 The Dashboard keeps its journal counters when worker telemetry is unavailable.
@@ -609,3 +610,29 @@ The implementation reuses one snapshot poll. It adds no dependency or runtime co
 If extended values exceed the 1 MiB public-cache budget, publication omits them with an explicit reason.
 Basic workers and all three histories remain available. The source report stays intact in memory.
 A later smaller report restores extended fields. An oversized basic report cannot replace the previous cache.
+
+### Bridge health and uptime
+
+The service requests read-only health on the same analytics socket every ten seconds.
+The existing monitor runs due health and snapshot requests concurrently. Each request retains its two-second deadline.
+A failed health request does not invalidate valid worker/traffic data. A failed snapshot does not invalidate fresh health.
+The TUI reads health from the same public cache. It makes no socket request during rendering.
+
+Dashboard health and Workers details show the source status, bridge version, reported uptime, topology tier, and classification-empty flag.
+They also show named degraded subsystems, worker count, missing rollups, maximum rollup age at read, and AQM-degraded worker count.
+These are whole-bridge health observations. They do not describe only the selected worker.
+Copy output retains these labels and health freshness.
+
+The first read establishes the uptime baseline. An advancing uptime enables LIVE health.
+A duplicate uptime, source error, or fifteen-second expiry makes health stale.
+A lower uptime establishes a new baseline after a possible restart. The next advancing read enables LIVE again.
+Stale status and uptime remain last-known observations. The display does not extrapolate uptime between reads.
+Rollup age is the source value at read, not a continuously measured worker timer.
+
+Missing optional fields show unknown. An empty source topology tier also shows unknown.
+An empty degraded-subsystem list means none reported. It does not override the source status or prove complete system health.
+Unknown source status text stays visible. LQoSync does not promote it to healthy.
+Health supports older bridges without the new optional fields. An unsupported endpoint shows unavailable.
+The public cache stores only a bounded health summary. It stores no per-worker health records, subscriber identities, or flow records.
+
+This feature performs no supervision action or automatic restart. It changes no router, bridge, or shaping configuration.

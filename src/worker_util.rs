@@ -2,11 +2,12 @@
 
 pub mod classification;
 pub mod detail;
+pub mod health;
 mod ipc;
 pub mod pressure;
 pub mod queue;
 pub mod traffic;
-pub use ipc::read_snapshot;
+pub use ipc::{read_health, read_snapshot};
 use pressure::{Diagnostics, Pressure, TransitionLog};
 
 use anyhow::ensure;
@@ -89,6 +90,8 @@ pub struct Telemetry {
     pub queue: Option<queue::Queue>,
     #[serde(default)]
     pub classification: classification::Classification,
+    #[serde(default)]
+    pub health: health::Health,
 }
 
 impl Default for Telemetry {
@@ -103,6 +106,7 @@ impl Default for Telemetry {
             traffic: Default::default(),
             queue: None,
             classification: Default::default(),
+            health: Default::default(),
         }
     }
 }
@@ -196,6 +200,7 @@ impl Tracker {
                         traffic: std::mem::take(&mut self.report.traffic),
                         queue,
                         classification: std::mem::take(&mut self.report.classification),
+                        health: std::mem::take(&mut self.report.health),
                         pressure: Some(Pressure::between(
                             sample.diagnostics.as_ref(),
                             self.previous_diagnostics.as_ref(),
@@ -253,6 +258,9 @@ pub fn read_cache(path: &Path) -> Telemetry {
             report.queue = None;
         }
         report.classification.sanitize();
+        if !report.health.valid() {
+            report.health = health::Health::default();
+        }
         if !report.workers.is_empty() {
             validate_rows(&report.workers)?;
             for worker in &mut report.workers {
@@ -316,7 +324,7 @@ impl Settings {
     }
 }
 
-/// One poll task per service. The TUI reads its public, worker-only cache.
+/// One monitor per service. The TUI reads aggregate telemetry from its public cache.
 pub struct Monitor {
     settings: watch::Sender<Settings>,
     task: tokio::task::JoinHandle<()>,
@@ -329,6 +337,7 @@ impl Monitor {
             let mut current = changes.borrow().clone();
             let mut tracker = Tracker::default();
             let mut warned = false;
+            let mut next_health = tokio::time::Instant::now();
             let mut pressure_log = TransitionLog::default();
             let mut tick = tokio::time::interval(Duration::from_secs(2));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -338,12 +347,19 @@ impl Monitor {
                         if changed.is_err() { break; }
                         current = changes.borrow_and_update().clone();
                         tracker = Tracker::default();
+                        next_health = tokio::time::Instant::now();
                     }
                     _ = tick.tick() => {
                         if !current.v3 { continue; }
-                        let sample = read_snapshot(Path::new(&current.socket)).await;
+                        let due = tokio::time::Instant::now() >= next_health;
+                        if due { next_health = tokio::time::Instant::now() + Duration::from_secs(health::POLL_SECS); }
+                        let path = Path::new(&current.socket);
+                        let (sample, health) = tokio::join!(read_snapshot(path), async {
+                            if due { Some(read_health(path).await) } else { None }
+                        });
                         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                         tracker.record(sample, now);
+                        if let Some(health) = health { tracker.report.health.record(health, now); }
                         if let Some(message) = pressure_log.record(&tracker.report, now) {
                             eprintln!("{message}");
                         }
@@ -403,6 +419,47 @@ mod tests {
     }
 
     #[test]
+    fn bridge_health_survives_independent_snapshot_failures_and_public_cache_roundtrip() {
+        let mut tracker = Tracker::default();
+        let report = |up| {
+            serde_json::from_value(
+                json!({"status":"healthy", "version":"v3", "uptime_ms":up,"workers":[]}),
+            )
+            .unwrap()
+        };
+        tracker.report.health.record(Ok(report(1)), 10);
+        tracker.report.health.record(Ok(report(10001)), 20);
+        tracker.record(Ok(sample(1000)), 20);
+        tracker.record(Ok(sample(3000)), 22);
+        assert!(tracker.report.health.live(22) && tracker.report.live(22));
+        tracker
+            .report
+            .health
+            .record(Err(anyhow::anyhow!("health unavailable")), 23);
+        assert!(tracker.report.live(23) && !tracker.report.health.live(23));
+        tracker.report.health.record(Ok(report(20001)), 30);
+        tracker.record(Err(anyhow::anyhow!("snapshot unavailable")), 30);
+        assert!(tracker.report.health.live(30) && !tracker.report.live(30));
+        let dir = tempfile::tempdir().unwrap();
+        publish(dir.path(), &tracker.report).unwrap();
+        let r = read_cache(&dir.path().join(CACHE));
+        assert!(r.health.live(30));
+        assert_eq!(r.health.summary.as_ref().unwrap().uptime_ms, 20001);
+        let mut value = serde_json::to_value(&tracker.report).unwrap();
+        value.as_object_mut().unwrap().remove("health");
+        std::fs::write(dir.path().join(CACHE), serde_json::to_vec(&value).unwrap()).unwrap();
+        let r = read_cache(&dir.path().join(CACHE));
+        assert!(r.health.summary.is_none());
+        assert_eq!(r.workers.len(), 1);
+        value["health"] = serde_json::to_value(&tracker.report.health).unwrap();
+        value["health"]["summary"]["status"] = json!("x".repeat(33));
+        std::fs::write(dir.path().join(CACHE), serde_json::to_vec(&value).unwrap()).unwrap();
+        let r = read_cache(&dir.path().join(CACHE));
+        assert!(r.health.summary.is_none());
+        assert_eq!(r.workers.len(), 1);
+    }
+
+    #[test]
     fn extended_worker_cache_budget_preserves_basic_rows_and_histories_without_mutating_source() {
         let dir = tempfile::tempdir().unwrap();
         let mut report = Telemetry {
@@ -433,6 +490,12 @@ mod tests {
         report.classification.mapped.history = history.clone();
         report.classification.unmapped.history = history;
         report.reason = Some("source warning".into());
+        report.health = serde_json::from_value(json!({"updated":3601,"stale":false,"summary":{
+            "status":"degraded","version":"v".repeat(128),"uptime_ms":u64::MAX,
+            "topology_tier":"t".repeat(64),"classification_empty":true,
+            "degraded_subsystems":vec!["s".repeat(64);32],"worker_count":4096,
+            "missing_rollups":0,"max_rollup_age_ms":u64::MAX,"aqm_degraded_workers":4096}}))
+        .unwrap();
         assert!(serde_json::to_vec(&report).unwrap().len() as u64 > MAX_CACHE_BYTES);
         let start = std::time::Instant::now();
         publish(dir.path(), &report).unwrap();
@@ -445,6 +508,18 @@ mod tests {
             start.elapsed()
         );
         assert!(r.live(3601));
+        assert!(r.health.live(3601));
+        assert_eq!(
+            r.health
+                .summary
+                .as_ref()
+                .unwrap()
+                .degraded_subsystems
+                .as_ref()
+                .unwrap()
+                .len(),
+            32
+        );
         assert_eq!(r.workers.len(), 4096);
         assert_eq!(r.workers[0].busy_ppm, 1000000);
         assert!(r.workers[0].phase_cycles.is_none() && r.workers[0].laps_per_s.is_none());
@@ -861,6 +936,56 @@ mod tests {
         }
         std::fs::write(&path, vec![b' '; MAX_CACHE_BYTES as usize + 1]).unwrap();
         assert!(read_cache(&path).reason.unwrap().contains("too large"));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn bridge_health_monitor_requests_every_ten_seconds_and_keeps_snapshot_cadence() {
+        use tokio::io::AsyncReadExt;
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("analytics.sock");
+        let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let server = tokio::spawn(async move {
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut head = [0; 4];
+                stream.read_exact(&mut head).await.unwrap();
+                let mut bytes = vec![0; u32::from_be_bytes(head) as usize];
+                stream.read_exact(&mut bytes).await.unwrap();
+                let v: serde_json::Value = ciborium::from_reader(bytes.as_slice()).unwrap();
+                tx.send(v["kind"].as_str().unwrap().to_string()).unwrap();
+                // Closing without a reply also verifies retry cadence after source failures.
+            }
+        });
+        let mut cfg = crate::config::defaults().clone();
+        cfg.libreqos.target = crate::config::Target::V3Pair;
+        cfg.libreqos.v3_analytics_socket = socket.display().to_string();
+        cfg.runtime.state_dir = dir.path().display().to_string();
+        let monitor = Monitor::start(&cfg);
+        for n in 0..=5 {
+            if n > 0 {
+                tokio::time::advance(Duration::from_secs(2)).await;
+            }
+            for _ in 0..50 {
+                tokio::task::yield_now().await;
+            }
+            let mut kinds = Vec::new();
+            while let Ok(kind) = rx.try_recv() {
+                kinds.push(kind);
+            }
+            kinds.sort();
+            assert_eq!(
+                kinds,
+                if n == 0 || n == 5 {
+                    vec!["health", "snapshot"]
+                } else {
+                    vec!["snapshot"]
+                },
+                "tick {n}"
+            );
+        }
+        drop(monitor);
+        server.abort();
     }
 
     #[tokio::test(start_paused = true)]

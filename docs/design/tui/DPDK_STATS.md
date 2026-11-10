@@ -95,8 +95,46 @@ One debug publish/read sample took 154.6 ms. This is a synthetic measurement, no
 Verification: 576 tests passed, zero failed, seven manual tests ignored.
 Formatting, all-target Clippy with warnings denied, debug build, and capture review passed.
 
+## Task 4: bridge health, uptime, and degraded subsystems
+
+Dashboard health adds source status, version, reported uptime, topology tier, classification state, and named degraded subsystems.
+The panel also shows aggregate worker rollup/AQM evidence. The content remains wrapped and scrollable.
+Workers adds the same whole-bridge summary inside its existing detail pane and copy output.
+The approved cards, chart/health split, worker table/details, pressure/status panels, and footer retain their order.
+No new navigation route or privileged UI action exists.
+Health copy also works when no worker row exists.
+
+Health has its own LIVE/STALE/unavailable labels and update age. Snapshot freshness remains separate.
+The first read and a lower uptime require a new advancing baseline. Duplicate uptime and failed reads cannot refresh health.
+Expiry is fifteen seconds. Uptime and rollup age remain observations at read; neither is extrapolated.
+Missing fields and empty topology tiers show unknown. An empty degraded-subsystem list means none reported.
+Unknown source statuses remain source text. No CPU or snapshot-age heuristic invents a health verdict.
+
+Actual terminal captures use isolated synthetic records:
+
+- [Dashboard health](captures/dashboard-health-v1.png)
+- [Expanded Workers health](captures/workers-health-v1.png)
+
+The fixture deliberately shows degraded `stats_summary` to verify the named-subsystem display.
+It is separate from the operator's three live samples, which reported healthy, no degraded subsystems, and zero AQM-degraded workers.
+Live uptime advanced from 44,962,108 to 44,966,115 ms. One worker had observed rollup ages of 84–93 ms.
+The source topology tier was empty and remains unknown in the UI.
+These samples do not prove long-term bridge health or production activation of this implementation.
+Source: [LibreQoS health contract](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc/rust/libreqos_dpdk/analytics_ipc/src/lib.rs).
+
+One monitor requests health every ten seconds alongside the existing two-second snapshot cadence.
+Due requests run concurrently with separate outcomes and the existing transport bounds.
+The public cache retains only an aggregate summary. Strings, subsystem counts, and worker counts are bounded.
+The maximum fixture includes 4,096 workers, three full histories, and a full bounded health summary.
+Cache fallback measured 742,194 bytes. One debug publish/read sample took 155.3 ms.
+These synthetic measurements are not a production performance guarantee.
+
+Verification: 585 tests passed, zero failed, seven manual tests ignored.
+Formatting, all-target Clippy with warnings denied, build, source probe, and terminal capture review passed.
+Tests cover request kinds, independent health/snapshot failures, cadence, cache compatibility, expiry, duplicate uptime, restart, missing fields, bounds, and stale copy.
+No push, deployment, restart, new dependency, or runtime key belongs to this checkpoint.
+
 ## Next checkpoints
-4. Bridge health, uptime, and degraded subsystems.
 5. Subscriber traffic, RTT, and retransmissions.
 6. On-demand circuit queue diagnostics.
 
