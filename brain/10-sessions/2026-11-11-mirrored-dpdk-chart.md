@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-11
 tags: [tui, dpdk, traffic, performance]
-status: pushed-deployment-pending
+status: deployed-verified
 related: ["[[2026-11-10-dpdk-performance-and-deployment-review]]", "[[HANDOFF]]"]
 ---
 
@@ -54,8 +54,8 @@ The capture tool defaults to combined mode. Its explicit source options select f
 
 ## Handoff
 
-The implementation is local. The production service remains on the previously verified `3.0.166+g828061e` release.
-No production service, configuration, or router policy changed.
+The initial implementation checkpoint was local. Production now uses the verified `3.0.169+gfd5430a` release.
+The deployment restarted the service. Configuration and router policy remain unchanged.
 Preserve the unrelated local-profile Knowledge link and note.
 The current code and visual contract are authoritative for this change. The project graph remains an older reference.
 
@@ -71,3 +71,20 @@ Binary SHA256: `9652ccc93a9f30c0454f17c78166a4fedb2d608362e1a4e55fcf215c922062d8
 The deployment script is ready with backup, checks, restart, and rollback.
 Non-interactive sudo requires a password. The operator must run the prepared script in a terminal.
 Deployment remains pending until the script and independent verification pass.
+
+## Deployment verification
+
+Updated: 2026-11-11T00:20:56+08:00 (Asia/Shanghai).
+
+The operator deployed the release at 2026-11-11T00:18:53+08:00.
+Independent checks confirmed the installed binary hash, version, service PID, and successful cycle.
+Service PID: 544762. Automatic restarts: zero. Configuration hash: unchanged.
+All six telemetry sources passed deployment checks. Fresh timestamps and bridge uptime advanced after deployment.
+The bridge reports healthy with no degraded subsystems.
+The circuit probe returned three matching, advancing samples.
+Gap flags: [False, False, False]. Counter reset flags: [False, False, False].
+All seven installed TUI routes passed the read-only smoke check. No panic occurred.
+
+Backup: `/var/backups/lqosync3/mirror-fd5430a-5o36lykc`. No rollback was required.
+Evidence: `DEPLOYED.json`, `independent-verification.json`, and `installed-tui-smoke.json` in the artifact directory above.
+Reopen existing TUI sessions to load the installed chart.

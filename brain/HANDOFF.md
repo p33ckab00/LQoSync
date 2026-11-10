@@ -8,6 +8,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T00:20:56+08:00 (Asia/Shanghai) — Mirrored chart deployment verified
+
+- Operator deployed `3.0.169+gfd5430a`. Independent checks passed.
+- Installed binary hash matches the clean artifact. Service is active/running, PID 544762, with zero automatic restarts.
+- Cycle 1 succeeded in `apply` mode with target `v3_pair`. No service or configuration error exists. Configuration hash is unchanged.
+- All six telemetry sources passed the root deployment checks. Independent checks confirm fresh, advancing aggregate, classification, bridge health, and host data.
+- Bridge reports healthy with no degraded subsystems. The circuit probe returned three advancing samples with matching slots and fifty RTT bins.
+- Circuit gap flags: [False, False, False]. Counter reset flags: [False, False, False].
+- Collection cache is fresh and matches the service PID and cycle. The root script verified raw snapshot counts; that snapshot is not user-readable.
+- Installed TUI smoke passed all seven routes, clean exit, and terminal cleanup, with no panic.
+- Backup: `/var/backups/lqosync3/mirror-fd5430a-5o36lykc`. No rollback was required.
+- Evidence: `/home/pi/.local/state/lqosync3/mirror-fd5430a/` contains `DEPLOYED.json`, `independent-verification.json`, and `installed-tui-smoke.json`.
+- Task complete. Reopen existing TUI sessions to use the mirrored chart.
+- Preserve unrelated local-profile Knowledge notes. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+
 ## 2026-11-11T00:18:38+08:00 (Asia/Shanghai) — Mirrored chart pushed; deployment pending
 
 - Owner authorized commit, push, and deployment. Code commit `fd5430a` is on GitHub `lqosync3`.
