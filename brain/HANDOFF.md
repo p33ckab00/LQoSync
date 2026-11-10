@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T00:18:38+08:00 (Asia/Shanghai) — Mirrored chart pushed; deployment pending
+
+- Owner authorized commit, push, and deployment. Code commit `fd5430a` is on GitHub `lqosync3`.
+- GitHub CI run `42852687985` passed the test and MSRV jobs. Local checks remain current: 616 passed, zero failed, seven ignored.
+- Clean detached build produced `3.0.169+gfd5430a`. All seven release TUI routes passed the read-only smoke check.
+- Artifact: `/home/pi/.local/state/lqosync3/mirror-fd5430a/`. The manifest records source, binary hashes, config hash, and CI result.
+- Deployment script checks hashes and config, backs up, installs atomically, restarts, verifies the cycle and six telemetry sources, and restores the old binary on failure.
+- `sudo -n` stopped before mutation because a password is required. The operator has a pending request to run `sudo /home/pi/.local/state/lqosync3/mirror-fd5430a/deploy.sh`.
+- Production remains `3.0.166+g828061e`, active/running, PID 510745, zero automatic restarts. No configuration change occurred.
+- Next: after operator execution, inspect `DEPLOYED.json`, verify installed version/hash, service/cycle identity, fresh advancing telemetry, and installed TUI smoke.
+- Preserve unrelated local-profile Knowledge notes. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+
 ## 2026-11-11T00:11:15+08:00 (Asia/Shanghai) — Combined mirrored chart implementation
 
 - Owner approved implementation of one combined mirrored chart and requested a performance/reliability review.

@@ -2,7 +2,7 @@
 type: session
 created: 2026-11-11
 tags: [tui, dpdk, traffic, performance]
-status: implemented-not-deployed
+status: pushed-deployment-pending
 related: ["[[2026-11-10-dpdk-performance-and-deployment-review]]", "[[HANDOFF]]"]
 ---
 
@@ -58,3 +58,16 @@ The implementation is local. The production service remains on the previously ve
 No production service, configuration, or router policy changed.
 Preserve the unrelated local-profile Knowledge link and note.
 The current code and visual contract are authoritative for this change. The project graph remains an older reference.
+
+## Release preparation
+
+Updated: 2026-11-11T00:18:38+08:00 (Asia/Shanghai).
+
+Code commit `fd5430a` is on GitHub `lqosync3`. CI run `42852687985` passed both jobs.
+The clean release is `3.0.169+gfd5430a`. All seven TUI routes passed the release smoke check.
+Artifact and deployment evidence directory: `/home/pi/.local/state/lqosync3/mirror-fd5430a/`.
+Binary SHA256: `9652ccc93a9f30c0454f17c78166a4fedb2d608362e1a4e55fcf215c922062d8`.
+
+The deployment script is ready with backup, checks, restart, and rollback.
+Non-interactive sudo requires a password. The operator must run the prepared script in a terminal.
+Deployment remains pending until the script and independent verification pass.
