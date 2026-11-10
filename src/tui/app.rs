@@ -776,7 +776,7 @@ impl App {
             Tab::Routers if self.routers.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
             Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-7] pages",
-            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [j/k] health  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
+            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [v] traffic source  [j/k] health  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
             Tab::Workers if self.workers.editing() => "[Enter] done  [Esc] clear  type to search",
             Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select  [1-7] pages",
         }.into()
@@ -1419,6 +1419,7 @@ mod tests {
                     pressure: None,
                     traffic: Default::default(),
                     queue: None,
+                    classification: Default::default(),
                 })),
                 ..Data::default()
             },

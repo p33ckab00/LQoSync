@@ -55,3 +55,33 @@ Formatting, all-target Clippy, debug build, whitespace, and capture review passe
 The operator's live probe verified field support and producer progress.
 The existing poll and bounded cache remain the only data path.
 No production deployment, restart, or push occurred. Task 2 is the next checkpoint.
+
+## Checkpoint 2: mapped and unmapped traffic
+
+Use the writing-plans and test-first workflow for this checkpoint.
+Read the optional whole-bridge `mapped` and `unmapped` byte counters from the same snapshot.
+The source counts these bytes at enqueue. The Actual chart continues to use delivered bytes.
+Never infer unmapped bytes by subtraction from Actual or by summing capped host/flow rows.
+
+- Add a classification module with two bounded histories. Reuse `traffic::History` for rate calculations and resets.
+- Integrate optional snapshot fields and backward-compatible cache fields in `src/worker_util.rs`.
+- Verify counters and producer progress with a read-only aggregate probe.
+- Add Actual/Mapped/Unmapped chart selection and scope labels in Dashboard.
+- Add classification measurements to the scrollable health/worker detail panes and copy output.
+- Keep counters and history independent for each class. Missing fields, stale evidence, resets, and gaps remain explicit.
+- Test source decoding, reset/duplicate/failure behavior, old and invalid caches, cache size, UI controls, and stale copy output.
+- Review captures, performance, integrity, and the final diff. Commit locally after checks pass.
+
+Each class retains at most 1,801 points and one hour. The public cache remains bounded at 1 MiB.
+The transport retains its 2 MiB snapshot bound, two-second deadline, `limit=1`, and one monitor.
+No router read, subscriber scan, WAN attribution, service restart, deployment, or push belongs to this checkpoint.
+Task 4 still owns bridge health, uptime, and degraded-subsystem diagnostics.
+
+
+## Checkpoint 2 result
+
+Implemented and locally verified. 568 tests passed, zero failed, seven manual tests ignored.
+Formatting, all-target Clippy, debug build, whitespace, and terminal capture review passed.
+The operator's aggregate probe verified both source classes and producer progress.
+The maximum-cache fixture remains below 1 MiB with three full histories and 4,096 workers.
+No push, deployment, or restart occurred. Task 3 is next. Bridge health remains Task 4.

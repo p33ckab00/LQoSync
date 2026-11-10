@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-10T18:27:59+08:00 (Asia/Shanghai) — DPDK task 2 implementation
+
+- Task 2 adds whole-bridge mapped/unmapped enqueue counters, independent rates/histories, and explicit source selection.
+- Actual remains delivered traffic. No subtraction from Actual, capped host sum, WAN attribution, or new poll exists.
+- Root read probe verified both counters and producer progress. Evidence: `/home/pi/.local/state/lqosync3/dpdk-mapping-task2/live-source.jsonl`.
+- Dashboard buttons/`v`, scrollable details, and copy show correct scope and stale/unknown states.
+- Checks passed: 568 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, and capture review.
+- Maximum-cache fixture: 740,161 bytes for 4,096 workers and three full histories, within the 1 MiB read limit.
+- No push, deployment, or restart. Task 1 and Task 2 remain local implementation checkpoints.
+- Next: Task 3 worker details. Task 4 still includes bridge health, uptime, and degraded subsystems, as clarified to the owner.
+- Preserve unrelated capture-index/local-profile edits. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-10-dpdk-mapped-unmapped]].
+
 ## 2026-11-10T18:07:51+08:00 (Asia/Shanghai) — DPDK task 1 implementation
 
 - Owner requested six DPDK statistics checkpoints. Task 1 is queue drops, AQM marks, and backlog bytes.

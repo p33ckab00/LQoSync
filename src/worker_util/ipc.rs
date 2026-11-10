@@ -173,7 +173,7 @@ mod tests {
     }
 
     fn sample() -> Value {
-        json!({"captured_at_millis":100,"workers":[{"queue_id":2,"busy_ppm":850000,"idle_ppm":150000,"backlog_mean":12}],"diagnostics":{"rx_nombuf":42,"pool_drop_packets":84,"pool_total_mbufs":1000,"pool_free_mbufs":100},"qdisc_totals":{"drop_pkts":3,"aqm_marks":5,"backlog_bytes":4096},"hosts":[{"private":"ignored"}]})
+        json!({"captured_at_millis":100,"workers":[{"queue_id":2,"busy_ppm":850000,"idle_ppm":150000,"backlog_mean":12}],"diagnostics":{"rx_nombuf":42,"pool_drop_packets":84,"pool_total_mbufs":1000,"pool_free_mbufs":100},"qdisc_totals":{"drop_pkts":3,"aqm_marks":5,"backlog_bytes":4096},"mapped":{"download_bytes":10,"upload_bytes":20},"unmapped":{"download_bytes":30,"upload_bytes":40},"hosts":[{"private":"ignored"}]})
     }
 
     #[tokio::test]
@@ -185,6 +185,12 @@ mod tests {
         server.join().unwrap();
         assert_eq!(sample.workers[0].busy_ppm, 850000);
         assert_eq!(sample.workers[0].backlog_mean, Some(12));
+        let mapped = sample.mapped.unwrap();
+        let unmapped = sample.unmapped.unwrap();
+        assert_eq!(mapped.download_bytes, 10);
+        assert_eq!(mapped.upload_bytes, 20);
+        assert_eq!(unmapped.download_bytes, 30);
+        assert_eq!(unmapped.upload_bytes, 40);
         let queue = sample.qdisc_totals.unwrap();
         assert_eq!(queue.drop_pkts, Some(3));
         assert_eq!(queue.aqm_marks, Some(5));

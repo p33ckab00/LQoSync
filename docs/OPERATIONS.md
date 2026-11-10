@@ -485,7 +485,7 @@ The service reads a snapshot every two seconds from `libreqos.v3_analytics_socke
 Its default is `/dev/shm/libreqos-analytics.sock`. Match this path to the bridge's analytics socket.
 The service normally runs as root and can read the root-only socket.
 The TUI reads the public cache at `<runtime.state_dir>/worker-utilization.json`.
-This cache contains worker metrics, aggregate traffic history, buffer/ring diagnostics, and optional bridge queue totals.
+This cache contains worker metrics, aggregate traffic history, buffer/ring diagnostics, optional bridge queue totals, and classification traffic.
 It contains no host or flow records.
 
 The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
@@ -552,3 +552,39 @@ Run `sudo ./target/debug/examples/dpdk_queue_probe` where the socket requires ro
 An optional first argument selects a different analytics socket.
 The probe prints three timestamped aggregate samples and never prints host or flow identities.
 A successful probe does not deploy a service binary or activate the new cache fields.
+
+
+### Mapped and unmapped traffic
+
+Dashboard retains the Actual delivered chart and adds Mapped and Unmapped views.
+Click the source buttons or press `v` to change the chart source.
+Time-window controls apply to the selected source. An incomplete window shows `warming`.
+Dashboard health and Workers details show class rates and cumulative byte totals.
+Workers copy output retains the same scope and stale labels.
+
+The bridge counts `mapped` and `unmapped` bytes at enqueue, before it limits host rows.
+Mapped means that the bridge resolved a circuit for the subscriber IP.
+Unmapped means best-effort classification. It does not prove unauthorized use or packet loss.
+Actual uses delivered bytes. Do not infer unmapped traffic by subtracting mapped bytes from Actual.
+Do not sum capped host/flow records to estimate class totals.
+These are whole-bridge classes, not WAN-specific or selected-worker measurements.
+
+The same two-second snapshot poll supplies the class counters. It adds no request or router scan.
+The public cache adds `classification.mapped` and `classification.unmapped`.
+Each class contains optional cumulative `bytes` and a `history` of download/upload Mbps.
+The source timestamp supplies the rate interval. Each class retains at most 1,801 points and one hour.
+Source errors, resets, and gaps establish new baselines. Duplicate frames do not replay class values.
+A missing class does not invalidate the other class or worker data.
+Unknown values remain unknown. Fresh evidence of no traffic can show zero.
+Stale views retain labeled last-known totals and historical points but hide current rates.
+
+Old caches and sources without class fields remain readable. Their class measurements show unavailable.
+A corrupt class history is discarded without hiding valid worker metrics or the other class.
+The cache keeps its 1 MiB read limit. Rendering reads cached data and draws only the selected chart history.
+No subscriber identity or flow record enters this cache.
+
+Build `cargo build --locked --example dpdk_mapping_probe` for read-only source verification.
+Run `sudo ./target/debug/examples/dpdk_mapping_probe` where the analytics socket requires root.
+An optional first argument selects a different socket. The probe prints three aggregate samples.
+It labels delivered and enqueued counters separately and prints no subscriber identities.
+A probe does not deploy a service binary or activate new cache fields.

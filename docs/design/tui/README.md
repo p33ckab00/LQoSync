@@ -641,3 +641,12 @@ See the [visual review and transition assessment](REVIEW_AND_EVOLUTION.md) for r
 The [statistics checkpoint review](DPDK_STATS.md) records the additive queue measurements and capture evidence.
 The Dashboard and Workers retain the approved panel order.
 Queue counts describe the whole bridge. Missing and stale evidence cannot imply zero or current increments.
+
+
+## Mapped and unmapped traffic extension
+
+The [statistics checkpoint review](DPDK_STATS.md#task-2-mapped-and-unmapped-traffic) records Task 2 and its terminal captures.
+Dashboard source buttons and `v` select Actual delivered traffic or the Mapped/Unmapped enqueue classes.
+Dashboard health, Workers details, and copy output identify whole-bridge scope and current/stale evidence.
+Each chart uses its own history. The established panel order remains unchanged.
+Bridge health, uptime, and degraded subsystems remain Task 4 in the statistics plan.

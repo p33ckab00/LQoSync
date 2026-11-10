@@ -31,9 +31,36 @@ It adds no request per frame, flow scan, router scan, or runtime dependency.
 The Ratatui dependency enables rendered-line information for exact wrapped scrollbar bounds.
 The lockfile remains unchanged.
 
-## Remaining checkpoints
+## Task 2: mapped and unmapped traffic
 
-2. Mapped and unmapped traffic.
+Dashboard adds Actual, Mapped, and Unmapped buttons inside the traffic panel.
+The keyboard shortcut is `v`. Mouse targets remain clipped to the visible panel after resize and scrolling.
+The time-window controls follow the selected source.
+Actual means delivered bytes. Mapped and Unmapped mean enqueue classes for the whole bridge.
+The legend retains that distinction. Small class rates use three decimal places and a sub-Mbps axis scale.
+Stale legends hide current rates while historical traces remain available.
+
+The scrollable Dashboard health and Workers detail panes add class rates and cumulative bytes.
+The copy action retains the scope and freshness labels.
+The screen keeps the approved panel order. No WAN-specific classification or subscriber identity is inferred.
+
+Actual terminal captures use isolated synthetic records:
+
+- [Mapped chart](captures/dashboard-mapped-v1.png)
+- [Unmapped chart](captures/dashboard-unmapped-v1.png)
+- [Worker details](captures/workers-classification-v1.png)
+
+A separate root-only read probe confirmed both counters on the installed bridge.
+Producer timestamps advanced. Measured download rates were 96.296–98.683 Mbps mapped and 0.031–0.055 Mbps unmapped.
+These observations do not establish long-term traffic proportions or a health verdict.
+
+The collector reuses the snapshot poll and limits. Each class has a bounded independent history.
+No class total comes from the capped host/flow rows or subtraction from Actual.
+The maximum-cache fixture measured 740,161 bytes with 4,096 workers and three full histories.
+A single debug sample took 35.9 ms to encode and 26.1 ms to read/decode. These are synthetic measurements.
+No new dependency or runtime configuration key is required.
+
+## Next checkpoints
 3. More worker measurements.
 4. Bridge health and uptime.
 5. Subscriber traffic, RTT, and retransmissions.

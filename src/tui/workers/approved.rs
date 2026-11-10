@@ -170,6 +170,10 @@ impl WorkersView {
                         )
                         .join("\n"),
                     );
+                    if let Some(t) = &d.worker_util {
+                        text.push('\n');
+                        text.push_str(&t.classification.measurements(t.live(now), now).join("\n"));
+                    }
                     return WorkerAction::Copy(text);
                 }
             }
@@ -478,6 +482,14 @@ impl WorkersView {
             .into_iter()
             .map(Line::raw),
         );
+        if let Some(t) = report {
+            lines.extend(
+                t.classification
+                    .measurements(live, now)
+                    .into_iter()
+                    .map(Line::raw),
+            );
+        }
         lines.extend([
             Line::raw("New = increments per valid sample."),
             Line::raw("Source Analytics snapshot | read-only"),
@@ -561,6 +573,34 @@ impl WorkersView {
 mod tests {
     use super::*;
     use ratatui::crossterm::event::KeyModifiers;
+    #[test]
+    fn classified_copy_preserves_scope_and_current_data_age() {
+        let mut d = super::super::tests::live();
+        Arc::make_mut(d.worker_util.as_mut().unwrap()).classification = serde_json::from_value(serde_json::json!({
+            "mapped":{"bytes":{"download_bytes":1000,"upload_bytes":500},"history":[{"at":100,"down_mbps":1.0,"up_mbps":0.5}]}
+        })).unwrap();
+        let mut view = WorkersView::default();
+        let key = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 100) else {
+            panic!("expected copy")
+        };
+        assert!(
+            text.contains("Classification | whole bridge | enqueued")
+                && text.contains("Mapped LIVE: Down 1.000 Mbps")
+                && text.contains("Unmapped unavailable"),
+            "{text}"
+        );
+        let WorkerAction::Copy(text) = view.approved_key(key, &d, 107) else {
+            panic!("expected copy")
+        };
+        assert!(
+            text.contains("Mapped STALE (last known): Down unknown")
+                && text.contains("Mapped bytes D/U: 1000 / 500")
+                && !text.contains("1.000 Mbps"),
+            "{text}"
+        );
+    }
+
     #[test]
     fn queue_copy_preserves_scope_and_suppresses_stale_increments() {
         let mut d = super::super::tests::live();

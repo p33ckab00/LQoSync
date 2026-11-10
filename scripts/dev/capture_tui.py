@@ -19,7 +19,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--screen', type=int, choices=range(1, 8), default=1)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--traffic-source', choices=['actual','mapped','unmapped'], default='actual')
     args = parser.parse_args()
+    if args.screen != 1 and args.traffic_source != 'actual':
+        parser.error('--traffic-source applies to Dashboard only')
     root = Path(__file__).resolve().parents[2]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='lqosync3-capture-') as folder:
@@ -102,6 +105,12 @@ enabled = true
 
                 points = [{'at': now-3600+i*2, 'down_mbps': 800+math.sin(i/10)*80, 'up_mbps': 95+math.sin(i/15)*12} for i in range(1801)]
                 report = {'version': 1, 'updated': now, 'stale': False, 'reason': None, 'workers': [{'queue_id': i, 'busy_ppm': 431000-i*70000, 'backlog_mean': 8-i} for i in range(4)], 'pressure': {'diagnostics': {'pool_total_mbufs': 1000, 'pool_free_mbufs': 840, 'ring_count': 2, 'ring_capacity': 200, 'ring_used': 25, 'rings_over_75': 0}, 'rx_nombuf_delta': 0, 'pool_drop_delta': 0}, 'traffic': points, 'queue': {'totals': {'drop_pkts': 103, 'aqm_marks': 205, 'backlog_bytes': 4096}, 'drop_delta': 3, 'aqm_delta': 5}}
+                report['classification'] = {
+                    'mapped': {'bytes': {'download_bytes': 3000000000, 'upload_bytes': 400000000},
+                               'history': [dict(v, down_mbps=v['down_mbps']*1.02, up_mbps=v['up_mbps']*1.02) for v in points]},
+                    'unmapped': {'bytes': {'download_bytes': 2000000, 'upload_bytes': 3000000},
+                                 'history': [dict(v, down_mbps=.04+math.sin(i/12)*.01, up_mbps=.004+math.sin(i/15)*.001) for i,v in enumerate(points)]},
+                }
                 (path / 'worker-utilization.json').write_text(json.dumps(report))
             snapshots()
             log = (path / 'zutty.log').open('w')
@@ -127,6 +136,9 @@ enabled = true
                 code=x.XKeysymToKeycode(d,x.XStringToKeysym(text.encode()))
                 xt.XTestFakeKeyEvent(d,code,1,0);xt.XTestFakeKeyEvent(d,code,0,0);x.XFlush(d)
             snapshots();key(str(args.screen));time.sleep(1)
+            if args.screen == 1:
+                for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)): key('v')
+                time.sleep(.2)
             if args.screen == 7:
                 key('f'); key('slash')
                 for char in 'reload': key(char)

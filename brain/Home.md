@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-10-dpdk-mapped-unmapped]]
+
 - [[2026-11-10-dpdk-queue-statistics]]
 
 - [[2026-11-09-live-subscriber-collection]]

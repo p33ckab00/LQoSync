@@ -1,5 +1,6 @@
 //! Read-only DPDK worker utilization for the service and TUI.
 
+pub mod classification;
 mod ipc;
 pub mod pressure;
 pub mod queue;
@@ -33,6 +34,8 @@ pub struct Snapshot {
     pub workers: Vec<WorkerRow>,
     pub diagnostics: Option<Diagnostics>,
     pub actual: Option<traffic::Counters>,
+    pub mapped: Option<traffic::Counters>,
+    pub unmapped: Option<traffic::Counters>,
     pub qdisc_totals: Option<queue::Totals>,
 }
 
@@ -73,6 +76,8 @@ pub struct Telemetry {
     pub traffic: std::collections::VecDeque<traffic::Point>,
     #[serde(default)]
     pub queue: Option<queue::Queue>,
+    #[serde(default)]
+    pub classification: classification::Classification,
 }
 
 impl Default for Telemetry {
@@ -86,6 +91,7 @@ impl Default for Telemetry {
             pressure: None,
             traffic: Default::default(),
             queue: None,
+            classification: Default::default(),
         }
     }
 }
@@ -115,6 +121,7 @@ struct Tracker {
     previous_at: u64,
     previous_queue: Option<queue::Totals>,
     traffic: traffic::History,
+    classification: classification::Tracker,
 }
 
 impl Tracker {
@@ -124,6 +131,15 @@ impl Tracker {
             Ok(sample)
         }) {
             Ok(mut sample) => {
+                if self.captured != Some(sample.captured_at_millis) {
+                    self.classification.record(
+                        &mut self.report.classification,
+                        sample.captured_at_millis,
+                        sample.mapped,
+                        sample.unmapped,
+                        now,
+                    );
+                }
                 self.traffic.record(
                     &mut self.report.traffic,
                     sample.actual.map(|c| (sample.captured_at_millis, c)),
@@ -165,6 +181,7 @@ impl Tracker {
                         workers: sample.workers,
                         traffic: std::mem::take(&mut self.report.traffic),
                         queue,
+                        classification: std::mem::take(&mut self.report.classification),
                         pressure: Some(Pressure::between(
                             sample.diagnostics.as_ref(),
                             self.previous_diagnostics.as_ref(),
@@ -178,6 +195,8 @@ impl Tracker {
                 }
             }
             Err(error) => {
+                self.classification
+                    .fail(&mut self.report.classification, now);
                 self.traffic.record(&mut self.report.traffic, None, now);
                 self.previous_diagnostics = None;
                 self.previous_queue = None;
@@ -219,6 +238,7 @@ pub fn read_cache(path: &Path) -> Telemetry {
         if report.queue.as_ref().is_some_and(|q| !q.valid()) {
             report.queue = None;
         }
+        report.classification.sanitize();
         if !report.workers.is_empty() {
             validate_rows(&report.workers)?;
         }
@@ -346,6 +366,83 @@ mod tests {
         tracker.record(Ok(traffic(5000, 3000000, 500000)), 14);
         let report = serde_json::to_value(&tracker.report).unwrap();
         assert!(report["traffic"].as_array().unwrap().last().unwrap()["down_mbps"].is_null());
+    }
+
+    fn class_sample(at: u64, mapped: Option<u64>, unmapped: Option<u64>) -> Snapshot {
+        serde_json::from_value(json!({"captured_at_millis":at,
+            "workers":[{"queue_id":0,"busy_ppm":125000}],
+            "actual":{"download_bytes":0,"upload_bytes":0},
+            "mapped":mapped.map(|n|json!({"download_bytes":n,"upload_bytes":n/2})),
+            "unmapped":unmapped.map(|n|json!({"download_bytes":n,"upload_bytes":n/2})),
+            "hosts":[{"actual":{"download_bytes":999999999999u64}}]}))
+        .unwrap()
+    }
+
+    #[test]
+    fn classified_traffic_uses_independent_source_totals_not_actual_or_capped_host_rows() {
+        let mut t = Tracker::default();
+        t.record(Ok(class_sample(1000, Some(0), Some(0))), 10);
+        t.record(Ok(class_sample(3000, Some(2000000), Some(500000))), 12);
+        let r = serde_json::to_value(&t.report).unwrap();
+        assert_eq!(
+            r["classification"]["mapped"]["bytes"]["download_bytes"],
+            2000000
+        );
+        assert_eq!(
+            r["classification"]["mapped"]["history"][1]["down_mbps"],
+            8.0
+        );
+        assert_eq!(r["classification"]["mapped"]["history"][1]["up_mbps"], 4.0);
+        assert_eq!(
+            r["classification"]["unmapped"]["history"][1]["down_mbps"],
+            2.0
+        );
+        assert_eq!(r["traffic"][1]["down_mbps"], 0.0);
+        t.record(Ok(class_sample(3000, Some(9999999), Some(9999999))), 14);
+        assert_eq!(
+            serde_json::to_value(&t.report).unwrap()["classification"],
+            r["classification"]
+        );
+        t.record(Ok(class_sample(5000, None, Some(1000000))), 16);
+        let r = serde_json::to_value(&t.report).unwrap();
+        assert!(r["classification"]["mapped"]["bytes"].is_null());
+        assert!(r["classification"]["mapped"]["history"][2]["down_mbps"].is_null());
+        assert_eq!(
+            r["classification"]["unmapped"]["history"][2]["down_mbps"],
+            2.0
+        );
+    }
+
+    #[test]
+    fn classified_traffic_rebases_after_failure_restart_counter_reset_and_gap() {
+        let mut t = Tracker::default();
+        t.record(Ok(class_sample(1000, Some(0), Some(0))), 10);
+        t.record(Ok(class_sample(3000, Some(100), Some(100))), 12);
+        t.record(Err(anyhow::anyhow!("offline")), 13);
+        t.record(Ok(class_sample(3000, Some(100), Some(100))), 14);
+        assert!(!t.report.live(14));
+        t.record(Ok(class_sample(5000, Some(300), Some(300))), 16);
+        let rate = |t: &Tracker, class: &str| {
+            serde_json::to_value(&t.report).unwrap()["classification"][class]["history"]
+                .as_array()
+                .unwrap()
+                .last()
+                .unwrap()["down_mbps"]
+                .clone()
+        };
+        assert!(rate(&t, "mapped").is_null());
+        t.record(Ok(class_sample(7000, Some(1), Some(400))), 18);
+        assert!(rate(&t, "mapped").is_null());
+        assert!(rate(&t, "unmapped").as_f64().is_some());
+        t.record(Ok(class_sample(15000, Some(500), Some(500))), 20);
+        assert!(rate(&t, "mapped").is_null() && rate(&t, "unmapped").is_null());
+        t.record(Ok(class_sample(100, Some(10), Some(10))), 22);
+        assert!(!t.report.live(22));
+        assert!(rate(&t, "mapped").is_null());
+        t.record(Ok(class_sample(200, Some(20), Some(20))), 24);
+        assert!(rate(&t, "mapped").as_f64().is_some());
+        t.record(Ok(class_sample(300, Some(30), Some(30))), 23);
+        assert!(rate(&t, "mapped").is_null());
     }
 
     fn queue_sample(at: u64, drops: u64, marks: u64, backlog: u64) -> Snapshot {

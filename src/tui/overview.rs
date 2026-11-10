@@ -20,6 +20,8 @@ pub struct Overview {
     health_scroll: Scroll,
     window: usize,
     ranges: [Rect; 3],
+    source: usize,
+    sources: [Rect; 3],
     refresh: Rect,
 }
 impl Overview {
@@ -32,14 +34,16 @@ impl Overview {
         self.alert_scroll.clear();
         self.health_scroll.clear();
         self.ranges = [Rect::default(); 3];
+        self.sources = [Rect::default(); 3];
         self.refresh = Rect::default();
     }
     pub fn key(&mut self, k: KeyCode, d: &Data) {
         match k {
+            KeyCode::Char('v') => self.source = (self.source + 1) % 3,
             KeyCode::Char('w') => {
                 for step in 1..=3 {
                     let i = (self.window + step) % 3;
-                    if Self::enough(d, [300, 900, 3600][i]) {
+                    if self.enough(d, [300, 900, 3600][i]) {
                         self.window = i;
                         break;
                     }
@@ -68,18 +72,33 @@ impl Overview {
             _ => {}
         }
     }
-    fn enough(d: &Data, seconds: u64) -> bool {
+    fn history<'a>(
+        &self,
+        t: &'a crate::worker_util::Telemetry,
+    ) -> &'a std::collections::VecDeque<crate::worker_util::traffic::Point> {
+        match self.source {
+            1 => &t.classification.mapped.history,
+            2 => &t.classification.unmapped.history,
+            _ => &t.traffic,
+        }
+    }
+    fn enough(&self, d: &Data, seconds: u64) -> bool {
         d.worker_util.as_ref().is_some_and(|t| {
-            t.traffic
+            self.history(t)
                 .front()
-                .zip(t.traffic.back())
+                .zip(self.history(t).back())
                 .is_some_and(|(a, b)| b.at.saturating_sub(a.at) >= seconds)
         })
     }
     pub fn mouse(&mut self, m: MouseEvent, d: &Data) -> bool {
         if m.kind == MouseEventKind::Down(MouseButton::Left) {
+            for (i, r) in self.sources.iter().enumerate() {
+                if r.contains((m.column, m.row).into()) {
+                    self.source = i;
+                }
+            }
             for (i, r) in self.ranges.iter().enumerate() {
-                if r.contains((m.column, m.row).into()) && Self::enough(d, [300, 900, 3600][i]) {
+                if r.contains((m.column, m.row).into()) && self.enough(d, [300, 900, 3600][i]) {
                     self.window = i;
                 }
             }
@@ -116,6 +135,7 @@ impl Overview {
             }
             let map = |r: Rect| design::viewport_rect(r, area, self.scroll.offset);
             self.ranges = self.ranges.map(map);
+            self.sources = self.sources.map(map);
             self.refresh = map(self.refresh);
             self.alert_scroll.area = map(self.alert_scroll.area);
             self.health_scroll.area = map(self.health_scroll.area);
@@ -200,6 +220,12 @@ impl Overview {
         .map(Line::raw)
         .collect();
         if let Some(t) = telemetry {
+            lines.extend(
+                t.classification
+                    .measurements(live, now)
+                    .into_iter()
+                    .map(Line::raw),
+            );
             if let Some(w) = t.workers.iter().max_by_key(|w| w.busy_ppm) {
                 for (label, ppm) in [("busy", w.busy_ppm), ("idle", 1000000 - w.busy_ppm)] {
                     let filled = (ppm / 50000) as usize;
@@ -350,20 +376,55 @@ impl Overview {
                 r,
             );
         }
+        for (i, label) in ["Actual", "Mapped", "Unmapped"].into_iter().enumerate() {
+            let r = Rect::new(inner.x + i as u16 * 11, inner.y + 1, 10, 1).intersection(inner);
+            self.sources[i] = r;
+            f.render_widget(
+                Paragraph::new(format!("[{label}]")).style(if i == self.source {
+                    design::accent(p)
+                } else {
+                    design::role(p, Role::Secondary)
+                }),
+                r,
+            );
+        }
         let telemetry = d.worker_util.as_deref();
-        let last = telemetry.and_then(|t| t.traffic.back());
-        let rate = |n: Option<f64>| n.map_or("unknown".into(), |n| format!("{n:.1} Mbps"));
-        let state = if telemetry.is_some_and(|t| t.live(now))
+        let last = telemetry.and_then(|t| self.history(t).back());
+        let source_known = telemetry.is_some_and(|t| match self.source {
+            1 => t.classification.mapped.bytes.is_some(),
+            2 => t.classification.unmapped.bytes.is_some(),
+            _ => true,
+        });
+        let rate = |n: Option<f64>| {
+            n.map_or("unknown".into(), |n| {
+                if self.source == 0 {
+                    format!("{n:.1} Mbps")
+                } else {
+                    format!("{n:.3} Mbps")
+                }
+            })
+        };
+        let state = if source_known
+            && telemetry.is_some_and(|t| t.live(now))
             && last.is_some_and(|v| {
-                v.down_mbps.is_some() && now >= v.at && now - v.at <= crate::worker_util::MAX_AGE
+                v.down_mbps.is_some()
+                    && v.up_mbps.is_some()
+                    && now >= v.at
+                    && now - v.at <= crate::worker_util::MAX_AGE
             }) {
             "LIVE"
         } else {
             "unavailable / stale"
         };
-        let down = last.and_then(|v| v.down_mbps);
-        let up = last.and_then(|v| v.up_mbps);
-        let legend = Rect::new(inner.x, inner.y + 1, inner.width, 2);
+        let current = last.filter(|_| state == "LIVE");
+        let down = current.and_then(|v| v.down_mbps);
+        let up = current.and_then(|v| v.up_mbps);
+        let scope = match self.source {
+            1 => "mapped enqueued aggregate",
+            2 => "unmapped enqueued aggregate",
+            _ => "actual delivered aggregate",
+        };
+        let legend = Rect::new(inner.x, inner.y + 2, inner.width, 2);
         f.render_widget(
             Paragraph::new(vec![
                 Line::from(vec![
@@ -372,8 +433,8 @@ impl Overview {
                 ]),
                 Line::styled(
                     format!(
-                        "{state} | actual delivered aggregate | {} history",
-                        if Self::enough(d, [300, 900, 3600][self.window]) {
+                        "{state} | {scope} | {} history",
+                        if self.enough(d, [300, 900, 3600][self.window]) {
                             "ready"
                         } else {
                             "warming"
@@ -386,9 +447,9 @@ impl Overview {
         );
         let plot = Rect::new(
             inner.x,
-            inner.y + 3,
+            inner.y + 4,
             inner.width,
-            inner.height.saturating_sub(3),
+            inner.height.saturating_sub(4),
         );
         if plot.height < 3 {
             return;
@@ -397,8 +458,8 @@ impl Overview {
         let mut down_segments: Vec<Vec<(f64, f64)>> = vec![Vec::new()];
         let mut up_segments = down_segments.clone();
         if let Some(t) = telemetry {
-            for v in t
-                .traffic
+            for v in self
+                .history(t)
                 .iter()
                 .filter(|v| v.at <= now && now - v.at <= seconds)
             {
@@ -416,7 +477,8 @@ impl Overview {
             .chain(&up_segments)
             .flatten()
             .map(|v| v.1)
-            .fold(1.0, f64::max)
+            .fold(if self.source == 0 { 1.0 } else { 0.001 }, f64::max)
+            .min(f64::MAX / 1.1)
             * 1.1;
         let sets: Vec<_> = down_segments
             .iter()
@@ -441,11 +503,14 @@ impl Overview {
         f.render_widget(
             Chart::new(sets)
                 .x_axis(axis)
-                .y_axis(
-                    Axis::default()
-                        .bounds([0.0, peak])
-                        .labels(["0 M".to_owned(), format!("{peak:.0} M")]),
-                )
+                .y_axis(Axis::default().bounds([0.0, peak]).labels([
+                    "0 M".to_owned(),
+                    if peak < 1.0 {
+                        format!("{peak:.3} M")
+                    } else {
+                        format!("{peak:.0} M")
+                    },
+                ]))
                 .style(design::surface(p)),
             plot,
         );
@@ -457,6 +522,84 @@ mod queue_tests {
     use super::*;
     use crate::config::Theme;
     use ratatui::{Terminal, backend::TestBackend, crossterm::event::KeyModifiers};
+
+    #[test]
+    fn classified_chart_selects_actual_mapped_and_unmapped_without_mixing_units() {
+        use std::sync::Arc;
+        let report = serde_json::from_value(serde_json::json!({
+            "version":1,"updated":100,"stale":false,"reason":null,
+            "workers":[{"queue_id":0,"busy_ppm":125000}],
+            "traffic":[{"at":100,"down_mbps":10.0,"up_mbps":1.0}],
+            "classification":{
+                "mapped":{"bytes":{"download_bytes":1000,"upload_bytes":500},"history":[{"at":100,"down_mbps":8.0,"up_mbps":4.0}]},
+                "unmapped":{"bytes":{"download_bytes":0,"upload_bytes":0},"history":[{"at":100,"down_mbps":0.0,"up_mbps":0.0}]}
+            }
+        })).unwrap();
+        let d = Data {
+            worker_util: Some(Arc::new(report)),
+            ..Data::default()
+        };
+        let p = Palette::new(Theme::Dark);
+        let mut v = Overview::default();
+        let mut term = Terminal::new(TestBackend::new(180, 40)).unwrap();
+        let render = |term: &mut Terminal<TestBackend>, v: &mut Overview, now| {
+            term.draw(|f| v.draw(f, f.area(), &d, now, &p)).unwrap();
+            term.backend()
+                .buffer()
+                .content
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<String>()
+        };
+        assert!(render(&mut term, &mut v, 100).contains("actual delivered aggregate"));
+        v.key(KeyCode::Char('v'), &d);
+        let text = render(&mut term, &mut v, 100);
+        assert!(
+            text.contains("mapped enqueued aggregate") && text.contains("Down 8.000 Mbps"),
+            "{text}"
+        );
+        v.key(KeyCode::Char('v'), &d);
+        let text = render(&mut term, &mut v, 100);
+        assert!(
+            text.contains("unmapped enqueued aggregate") && text.contains("Down 0.000 Mbps"),
+            "{text}"
+        );
+        let text = render(&mut term, &mut v, 107);
+        assert!(
+            text.contains("Down unknown") && text.contains("unavailable / stale"),
+            "{text}"
+        );
+        v.key(KeyCode::Char('v'), &d);
+        assert!(render(&mut term, &mut v, 100).contains("actual delivered aggregate"));
+        let r = v.sources[2];
+        v.mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &d,
+        );
+        assert!(render(&mut term, &mut v, 100).contains("unmapped enqueued aggregate"));
+        v.clear();
+        assert_eq!(v.sources, [Rect::default(); 3]);
+        for theme in [Theme::Dark, Theme::Light, Theme::Mono] {
+            for (width, height) in [(40, 24), (80, 24), (120, 40)] {
+                let mut term = Terminal::new(TestBackend::new(width, height)).unwrap();
+                for _ in 0..3 {
+                    term.draw(|f| v.draw(f, f.area(), &d, 100, &Palette::new(theme)))
+                        .unwrap();
+                    for source in v.sources {
+                        if source.width > 0 && source.height > 0 {
+                            assert!(source.right() <= width && source.bottom() <= height);
+                        }
+                    }
+                    v.key(KeyCode::Char('v'), &d);
+                }
+            }
+        }
+    }
 
     #[test]
     fn health_panel_scrolls_wrapped_diagnostics_with_mouse_and_keyboard() {
