@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T00:40:53+08:00 (Asia/Shanghai) — Directional scale release pushed; activation pending
+
+- Owner authorized commit, push, and deployment. Code commit `b6778cb` is on GitHub `lqosync3`.
+- CI run `42856413482` passed test and MSRV jobs. Local checks: 618 passed, zero failed, seven ignored.
+- Clean detached source build produced `3.0.172+gb6778cb`. Release TUI smoke passed all seven routes with clean exit and no panic.
+- Artifact: `/home/pi/.local/state/lqosync3/directional-b6778cb/`. It includes manifest, binary, circuit probe, CI evidence, smoke, deploy, and independent verification scripts.
+- Binary SHA256: `207a64570b3221f623c063efdaa823468246f733515f224660827d3d7163d556`.
+- Deployment verifies hashes/config, backup, atomic replacement, restart, successful cycle, collection, six telemetry sources, and rollback.
+- `sudo -n` stopped before mutation because a password is required. Operator request: `sudo /home/pi/.local/state/lqosync3/directional-b6778cb/deploy.sh`.
+- Production remains `3.0.169+gfd5430a`, PID 544762, active/running, zero automatic restarts.
+- Next after operator execution: inspect `DEPLOYED.json`, run `smoke.py /usr/local/bin/lqosync3`, then `verify.py` from the artifact directory.
+- Preserve unrelated `brain/Home.md` and local-profile Knowledge note. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+
 ## 2026-11-11T00:37:02+08:00 (Asia/Shanghai) — Independent download and upload scales
 
 - Owner clarified that download and upload must follow separate directional peaks. This replaces the equal-bound proposal below.

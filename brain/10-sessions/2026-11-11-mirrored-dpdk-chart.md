@@ -129,3 +129,15 @@ These synthetic timings are not terminal frame-rate guarantees.
 
 The corrected screenshot is `docs/design/tui/captures/dashboard-dynamic-ceiling-v1.png`.
 The enhancement remains local and uncommitted. Production remains `3.0.169+gfd5430a`.
+
+## Directional scale release preparation
+
+Updated: 2026-11-11T00:40:53+08:00 (Asia/Shanghai).
+
+Owner authorized publication and deployment. Commit `b6778cb` is on GitHub `lqosync3`.
+CI run `42856413482` passed both jobs. The clean release is `3.0.172+gb6778cb`.
+All seven release TUI routes passed the smoke check.
+Artifact: `/home/pi/.local/state/lqosync3/directional-b6778cb/`.
+The deployment script includes backup, restart, cycle and telemetry verification, and rollback.
+Host sudo requires a password. The operator has the prepared command to execute in a terminal.
+Production activation remains pending until deployment and independent verification pass.
