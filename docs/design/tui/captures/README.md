@@ -5,7 +5,7 @@ The [visual contract](../README.md) links the unchanged approved concepts.
 
 | Screen | Implementation image | Capture type |
 |---|---|---|
-| Dashboard | [Dashboard](dashboard-telemetry-v3.png) | Running Zutty terminal, Xvfb |
+| Dashboard | [Dashboard](dashboard-mirror-v1.png) | Running Zutty terminal, Xvfb |
 | Subscribers | [Subscribers](subscribers-collection-v2.png) | Running terminal |
 | Routers | [Routers](routers-collection-v2.png) | Running terminal |
 | LibreQoS | [LibreQoS](libreqos-v1.png) | Running terminal |
@@ -84,3 +84,15 @@ The [subscriber view](subscribers-telemetry-v2.png) uses explicit adaptive rate 
 These running-terminal captures use isolated synthetic files. The approved panel order remains intact.
 Reproduce with screen 1, screen 1 plus `--traffic-source unmapped`, and screen 2 plus `--subscriber-stats`.
 See the [review](../DPDK_REVIEW.md) for performance measurements and regression proof.
+
+## Combined mirrored chart
+
+The [combined Dashboard](dashboard-mirror-v1.png) shows all three sources with mirrored upload traces.
+The [Unmapped focus](dashboard-mirror-unmapped-v1.png) shows the same chart with a scale for small traffic.
+Both images come from a running terminal with isolated synthetic records.
+The [visual contract](../MIRRORED_TRAFFIC.md) records controls, source scope, caching, and reliability checks.
+
+Build with `cargo build --locked`.
+Capture all sources with `python3 scripts/dev/capture_tui.py --screen 1 --output /tmp/mirrored.png`.
+Add `--traffic-source unmapped` to capture source focus.
+The default `--traffic-source combined` shows all sources. Explicit Actual, Mapped, and Unmapped options select focus.

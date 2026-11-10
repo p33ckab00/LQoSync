@@ -8,6 +8,25 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T00:11:15+08:00 (Asia/Shanghai) — Combined mirrored chart implementation
+
+- Owner approved implementation of one combined mirrored chart and requested a performance/reliability review.
+- Actual, Mapped, and Unmapped start visible in blue, amber, and violet. Download is above zero; upload is below zero.
+- Both halves share a symmetric scale. Stored and displayed upload rates remain positive. Delivered/enqueue classes remain separate overlays.
+- Legend clicks and uppercase A/M/U toggle traces. v cycles focus and returns to the prior selection. a restores all sources.
+- Source rates, freshness, ages, and counts remain independent. Time gaps and missing samples remain visible.
+- A bounded curve cache tracks report identity, selected window, expiry, future points, clock regression, and source removal.
+- Replaced expensive per-segment rendering with one canvas after a fragmented-history stress test exposed the cost.
+- Checks passed: 616 tests, zero failed, seven ignored, fmt, Clippy, build, whitespace, and actual terminal capture review.
+- Three full 1,801-point histories: 1123.6 ms for 100 cached debug redraws. Three 901-segment histories: 797.6 ms.
+- The approved panel order, all themes, compact/resized layouts, and mouse scroll controls remain supported.
+- Changed files: `src/tui/{overview,traffic_chart,app}.rs`, capture script, visual/operations docs, captures, plan, and these notes.
+- Local implementation only. Production remains on verified `3.0.166+g828061e`. No push, deployment, restart, configuration, or router-policy change occurred.
+- Preserve unrelated local-profile Knowledge notes. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-mirrored-dpdk-chart]].
+Visual contract: `docs/design/tui/MIRRORED_TRAFFIC.md`.
+
 ## 2026-11-10T23:24:06+08:00 (Asia/Shanghai) — DPDK deployment verified
 
 - Operator deployed the reviewed release at 2026-11-10T23:23:22+08:00. Independent verification passed at 23:24:06+08:00.

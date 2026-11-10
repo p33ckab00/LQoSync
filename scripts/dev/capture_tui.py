@@ -19,13 +19,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--screen', type=int, choices=range(1, 8), default=1)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--traffic-source', choices=['actual','mapped','unmapped'], default='actual')
+    parser.add_argument('--traffic-source', choices=['combined','actual','mapped','unmapped'], default='combined')
     parser.add_argument('--worker-phases', action='store_true')
     parser.add_argument('--worker-health', action='store_true')
     parser.add_argument('--subscriber-stats', action='store_true')
     parser.add_argument('--queue-diagnostics', action='store_true')
     args = parser.parse_args()
-    if args.screen != 1 and args.traffic_source != 'actual':
+    if args.screen != 1 and args.traffic_source != 'combined':
         parser.error('--traffic-source applies to Dashboard only')
     if args.worker_phases and args.screen != 5:
         parser.error('--worker-phases applies to Workers only')
@@ -172,7 +172,9 @@ enabled = true
                 xt.XTestFakeKeyEvent(d,code,1,0);xt.XTestFakeKeyEvent(d,code,0,0);x.XFlush(d)
             snapshots();key(str(args.screen));time.sleep(1)
             if args.screen == 1:
-                for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)): key('v')
+                if args.traffic_source != 'combined':
+                    for _ in range(['actual','mapped','unmapped'].index(args.traffic_source)+1):
+                        key('v');time.sleep(.05)
                 time.sleep(.2)
             if args.subscriber_stats or args.queue_diagnostics:
                 key('slash');time.sleep(.1)

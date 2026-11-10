@@ -57,7 +57,7 @@ sudo lqosync3 tui
 
 | Page | Keys |
 |---|---|
-| 1 Dashboard | `r` refresh cached sources, `w` chart window, arrows scroll, `S` confirmed sync, `R` reload |
+| 1 Dashboard | `r` refresh cached sources, `w` chart window, `v` source focus, `a` all, `A/M/U` toggle traces, arrows scroll, `S` confirmed sync, `R` reload |
 | 2 Subscribers | `/` search, `s/r/t` source/router/state, `o/i` sort/reverse, `e` details, `d` circuit queues, `n` parent Network view, `c` copy |
 | 3 Routers | `/` search, `t` state, `x` clear, `d` details, `s` Subscribers, `e` Settings, `c` endpoint copy |
 | 4 LibreQoS | `p` preview/back, `s` confirmed sync, Tab source file, `i` issues, arrows selection/scroll |
@@ -725,3 +725,18 @@ Window peaks describe history. A stale source cannot supply a current rate.
 The plot breaks across missing samples and timestamp gaps longer than six seconds.
 Bridge health warnings appear in Operational alerts. Stale bridge health stays unknown.
 See the [telemetry review](design/tui/DPDK_REVIEW.md) for the source boundaries and verification.
+
+### Combined mirrored traffic
+
+The Dashboard now shows Actual, Mapped, and Unmapped on the same chart.
+Blue identifies Actual, amber identifies Mapped, and violet identifies Unmapped.
+Download appears above zero. Upload appears below zero. Both halves share the same scale.
+The displayed upload rates remain positive. The chart overlays sources without adding their values.
+
+Click a legend row to show or hide its trace.
+Uppercase `A`, `M`, and `U` toggle Actual, Mapped, and Unmapped with the keyboard.
+Use `v` or Focus to inspect one source. The cycle returns to the prior visibility selection after Unmapped.
+Use `a` or All to restore every source. Focus helps with small or overlapping traces.
+The legend keeps independent freshness, age, rates, and sample counts for each source.
+The peak summary names the focused source, or the first visible source.
+See the [visual contract](design/tui/MIRRORED_TRAFFIC.md) for screenshots, keyboard/mouse behavior, and rendering limits.

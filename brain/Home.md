@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-11-mirrored-dpdk-chart]]
+
 - [[2026-11-10-dpdk-performance-and-deployment-review]]
 
 - [[2026-11-10-dpdk-circuit-queues]]

@@ -10,7 +10,10 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     symbols::Marker,
     text::{Line, Span},
-    widgets::{Axis, Chart, Dataset, GraphType, Paragraph},
+    widgets::{
+        Paragraph,
+        canvas::{Canvas, Line as CanvasLine, Points},
+    },
 };
 
 #[derive(Default, Debug)]
@@ -20,7 +23,10 @@ pub struct Overview {
     health_scroll: Scroll,
     window: usize,
     ranges: [Rect; 3],
-    source: usize,
+    traces: super::traffic_chart::Visibility,
+    curves: super::traffic_chart::Cache,
+    all_sources: Rect,
+    focus_source: Rect,
     sources: [Rect; 3],
     refresh: Rect,
 }
@@ -36,10 +42,16 @@ impl Overview {
         self.ranges = [Rect::default(); 3];
         self.sources = [Rect::default(); 3];
         self.refresh = Rect::default();
+        self.all_sources = Rect::default();
+        self.focus_source = Rect::default();
     }
     pub fn key(&mut self, k: KeyCode, d: &Data) {
         match k {
-            KeyCode::Char('v') => self.source = (self.source + 1) % 3,
+            KeyCode::Char('v') => self.traces.cycle_focus(),
+            KeyCode::Char('a') => self.traces.all(),
+            KeyCode::Char('A') => self.traces.toggle(0),
+            KeyCode::Char('M') => self.traces.toggle(1),
+            KeyCode::Char('U') => self.traces.toggle(2),
             KeyCode::Char('w') => {
                 for step in 1..=3 {
                     let i = (self.window + step) % 3;
@@ -72,30 +84,29 @@ impl Overview {
             _ => {}
         }
     }
-    fn history<'a>(
-        &self,
-        t: &'a crate::worker_util::Telemetry,
-    ) -> &'a std::collections::VecDeque<crate::worker_util::traffic::Point> {
-        match self.source {
-            1 => &t.classification.mapped.history,
-            2 => &t.classification.unmapped.history,
-            _ => &t.traffic,
-        }
-    }
     fn enough(&self, d: &Data, seconds: u64) -> bool {
         d.worker_util.as_ref().is_some_and(|t| {
-            self.history(t)
-                .front()
-                .zip(self.history(t).back())
-                .is_some_and(|(a, b)| b.at.saturating_sub(a.at) >= seconds)
+            (0..3).any(|i| {
+                self.traces.mask() & (1 << i) != 0
+                    && super::traffic_chart::history(t, i)
+                        .front()
+                        .zip(super::traffic_chart::history(t, i).back())
+                        .is_some_and(|(a, b)| b.at.saturating_sub(a.at) >= seconds)
+            })
         })
     }
     pub fn mouse(&mut self, m: MouseEvent, d: &Data) -> bool {
         if m.kind == MouseEventKind::Down(MouseButton::Left) {
             for (i, r) in self.sources.iter().enumerate() {
                 if r.contains((m.column, m.row).into()) {
-                    self.source = i;
+                    self.traces.toggle(i);
                 }
+            }
+            if self.all_sources.contains((m.column, m.row).into()) {
+                self.traces.all();
+            }
+            if self.focus_source.contains((m.column, m.row).into()) {
+                self.traces.cycle_focus();
             }
             for (i, r) in self.ranges.iter().enumerate() {
                 if r.contains((m.column, m.row).into()) && self.enough(d, [300, 900, 3600][i]) {
@@ -112,7 +123,7 @@ impl Overview {
         false
     }
     pub fn draw(&mut self, f: &mut Frame, area: Rect, d: &Data, now: u64, p: &Palette) {
-        let height = area.height.max(33);
+        let height = area.height.max(35);
         self.scroll.max = height.saturating_sub(area.height) as usize;
         self.scroll.offset = self.scroll.offset.min(self.scroll.max);
         if self.scroll.max == 0 {
@@ -136,6 +147,8 @@ impl Overview {
             let map = |r: Rect| design::viewport_rect(r, area, self.scroll.offset);
             self.ranges = self.ranges.map(map);
             self.sources = self.sources.map(map);
+            self.all_sources = map(self.all_sources);
+            self.focus_source = map(self.focus_source);
             self.refresh = map(self.refresh);
             self.alert_scroll.area = map(self.alert_scroll.area);
             self.health_scroll.area = map(self.health_scroll.area);
@@ -150,7 +163,7 @@ impl Overview {
         let [heading, cards, main, wan, alerts] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Length(5),
-            Constraint::Min(12),
+            Constraint::Min(14),
             Constraint::Length(7),
             Constraint::Length(7),
         ])
@@ -393,10 +406,19 @@ impl Overview {
         self.alert_scroll.draw(f, inner, total, p);
     }
     fn chart(&mut self, f: &mut Frame, area: Rect, d: &Data, now: u64, p: &Palette) {
-        let inner = design::panel("LibreQoS DPDK Traffic", p).inner(area);
-        f.render_widget(design::panel("LibreQoS DPDK Traffic", p), area);
+        use super::traffic_chart::{self as chart, NAMES};
+        let block = design::panel("LibreQoS DPDK Traffic | mirrored", p);
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        self.ranges = [Rect::default(); 3];
+        self.sources = [Rect::default(); 3];
+        self.all_sources = Rect::default();
+        self.focus_source = Rect::default();
+        if inner.width == 0 || inner.height == 0 {
+            return;
+        }
         for (i, label) in ["5m", "15m", "1h"].into_iter().enumerate() {
-            let r = Rect::new(inner.x + i as u16 * 6, inner.y, 5, 1);
+            let r = Rect::new(inner.x + i as u16 * 6, inner.y, 5, 1).intersection(inner);
             self.ranges[i] = r;
             f.render_widget(
                 Paragraph::new(format!("[{label}]")).style(if i == self.window {
@@ -407,136 +429,225 @@ impl Overview {
                 r,
             );
         }
-        for (i, label) in ["Actual", "Mapped", "Unmapped"].into_iter().enumerate() {
-            let r = Rect::new(inner.x + i as u16 * 11, inner.y + 1, 10, 1).intersection(inner);
+        self.all_sources = Rect::new(inner.x + 19, inner.y, 7, 1).intersection(inner);
+        self.focus_source = Rect::new(inner.x + 28, inner.y, 24, 1).intersection(inner);
+        f.render_widget(
+            Paragraph::new("[a All]").style(design::accent(p)),
+            self.all_sources,
+        );
+        f.render_widget(
+            Paragraph::new(format!(
+                "[v Focus: {}]",
+                self.traces.focused().map_or(
+                    if self.traces.mask() == 7 {
+                        "All"
+                    } else {
+                        "Selection"
+                    },
+                    |i| NAMES[i]
+                )
+            ))
+            .style(design::accent(p)),
+            self.focus_source,
+        );
+        let seconds = [300, 900, 3600][self.window];
+        let mask = self.traces.mask();
+        let prepared = self.curves.prepare(d.worker_util.as_ref(), now, seconds);
+        for i in 0..3 {
+            let history = d.worker_util.as_ref().map(|t| chart::history(t, i));
+            let last = history.and_then(|h| h.back());
+            let known = d.worker_util.as_ref().is_some_and(|t| match i {
+                1 => t.classification.mapped.bytes.is_some(),
+                2 => t.classification.unmapped.bytes.is_some(),
+                _ => true,
+            });
+            let current = last.filter(|v| {
+                known
+                    && d.worker_util.as_ref().is_some_and(|t| t.live(now))
+                    && v.down_mbps.is_some()
+                    && v.up_mbps.is_some()
+                    && now >= v.at
+                    && now - v.at <= crate::worker_util::MAX_AGE
+            });
+            let state = if !known || last.is_none() {
+                "UNAVAILABLE"
+            } else if !d.worker_util.as_ref().is_some_and(|t| t.live(now)) {
+                "STALE"
+            } else if current.is_none() {
+                "WARMING/GAP"
+            } else {
+                "LIVE"
+            };
+            let age = last
+                .and_then(|v| now.checked_sub(v.at))
+                .map_or("?".into(), |n| format!("{n}s"));
+            let down = chart::rate(current.and_then(|v| v.down_mbps), i != 0);
+            let up = chart::rate(current.and_then(|v| v.up_mbps), i != 0);
+            let on = mask & (1 << i) != 0;
+            let check = if on { "x" } else { " " };
+            let text = if inner.width >= 85 {
+                format!(
+                    "[{check}] {:<8} Down {down:>13}  Up {up:>13} | {state} age {age} | n={}",
+                    NAMES[i], prepared[i].count
+                )
+            } else {
+                format!(
+                    "[{check}] {:<8} D {down:>10} U {up:>10} {state} {age}",
+                    NAMES[i]
+                )
+            };
+            let r = Rect::new(inner.x, inner.y + 1 + i as u16, inner.width, 1).intersection(inner);
             self.sources[i] = r;
+            let style = chart::source_style(p, i);
             f.render_widget(
-                Paragraph::new(format!("[{label}]")).style(if i == self.source {
-                    design::accent(p)
+                Paragraph::new(text).style(if on {
+                    style
                 } else {
-                    design::role(p, Role::Secondary)
+                    style.add_modifier(ratatui::style::Modifier::DIM)
                 }),
                 r,
             );
         }
-        let telemetry = d.worker_util.as_deref();
-        let last = telemetry.and_then(|t| self.history(t).back());
-        let source_known = telemetry.is_some_and(|t| match self.source {
-            1 => t.classification.mapped.bytes.is_some(),
-            2 => t.classification.unmapped.bytes.is_some(),
-            _ => true,
-        });
-        let rate = |n| super::traffic_chart::rate(n, self.source != 0);
-        let seconds = [300, 900, 3600][self.window];
-        let prepared = super::traffic_chart::Plot::new(
-            telemetry.into_iter().flat_map(|t| self.history(t).iter()),
-            now,
-            seconds,
-        );
-        let current = last.filter(|v| {
-            source_known
-                && telemetry.is_some_and(|t| t.live(now))
-                && v.down_mbps.is_some()
-                && v.up_mbps.is_some()
-                && now >= v.at
-                && now - v.at <= crate::worker_util::MAX_AGE
-        });
-        let state = if !source_known || last.is_none() {
-            "UNAVAILABLE"
-        } else if !telemetry.is_some_and(|t| t.live(now)) {
-            "STALE (history only)"
-        } else if current.is_some() {
-            "LIVE"
-        } else {
-            "WARMING / GAP"
-        };
-        let down = current.and_then(|v| v.down_mbps);
-        let up = current.and_then(|v| v.up_mbps);
-        let scope = match self.source {
-            1 => "mapped enqueued aggregate",
-            2 => "unmapped enqueued aggregate",
-            _ => "actual delivered aggregate",
-        };
-        let legend = Rect::new(inner.x, inner.y + 2, inner.width, 3);
+        let scope = Rect::new(inner.x, inner.y + 4, inner.width, 1).intersection(inner);
         f.render_widget(
-            Paragraph::new(vec![
-                Line::from(vec![
-                    Span::styled(format!("Down {}  ", rate(down)), design::accent(p)),
-                    Span::styled(format!("Up {}", rate(up)), design::role(p, Role::Ok)),
-                ]),
-                Line::styled(
-                    format!(
-                        "{state} | {scope} | age {} | {} history",
-                        last.and_then(|v| now.checked_sub(v.at))
-                            .map_or("unknown".into(), |age| format!("{age}s")),
-                        if self.enough(d, [300, 900, 3600][self.window]) {
-                            "ready"
-                        } else {
-                            "warming"
-                        }
-                    ),
-                    design::role(p, Role::Secondary),
-                ),
-                Line::styled(
-                    format!(
-                        "Window peak D {} / U {} | {} rate samples",
-                        rate(prepared.down_peak),
-                        rate(prepared.up_peak),
-                        prepared.count
-                    ),
-                    design::role(p, Role::Secondary),
-                ),
-            ]),
-            legend,
+            Paragraph::new("Actual delivered; Mapped/Unmapped enqueued | D above / U below")
+                .style(design::role(p, Role::Secondary)),
+            scope,
+        );
+        let summary = Rect::new(inner.x, inner.y + 5, inner.width, 1).intersection(inner);
+        let selected = (0..3).find(|i| mask & (1 << i) != 0);
+        let text = selected.map_or(
+            "No traces selected; click a legend row or press a".into(),
+            |i| {
+                format!(
+                    "{} window peak D {} / U {} | {} rate samples",
+                    NAMES[i],
+                    chart::rate(prepared[i].down_peak, i != 0),
+                    chart::rate(prepared[i].up_peak, i != 0),
+                    prepared[i].count
+                )
+            },
+        );
+        f.render_widget(
+            Paragraph::new(text).style(design::role(p, Role::Secondary)),
+            summary,
         );
         let plot = Rect::new(
             inner.x,
-            inner.y + 5,
+            inner.y + 6,
             inner.width,
-            inner.height.saturating_sub(5),
+            inner.height.saturating_sub(6),
         );
         if plot.height < 3 {
             return;
         }
-        let scale = super::traffic_chart::Scale::new(
-            prepared
-                .down_peak
-                .unwrap_or(0.0)
-                .max(prepared.up_peak.unwrap_or(0.0)),
-            if self.source == 0 { 1.0 } else { 0.001 },
-        );
-        let down_segments = &prepared.down;
-        let up_segments = &prepared.up;
-        let sets: Vec<_> = down_segments
-            .iter()
-            .map(|s| {
-                Dataset::default()
-                    .marker(Marker::Braille)
-                    .graph_type(GraphType::Line)
-                    .style(design::accent(p))
-                    .data(s)
+        let peak = (0..3)
+            .filter(|i| mask & (1 << i) != 0)
+            .map(|i| {
+                prepared[i]
+                    .down_peak
+                    .unwrap_or(0.0)
+                    .max(prepared[i].up_peak.unwrap_or(0.0))
             })
-            .chain(up_segments.iter().map(|s| {
-                Dataset::default()
-                    .marker(Marker::Braille)
-                    .graph_type(GraphType::Line)
-                    .style(design::role(p, Role::Ok))
-                    .data(s)
-            }))
-            .collect();
-        let axis = Axis::default()
-            .bounds([now.saturating_sub(seconds) as f64, now.max(1) as f64])
-            .labels([format!("-{}m", seconds / 60), "now".into()]);
+            .fold(0.0, f64::max);
+        let scale = chart::Scale::new(peak, if mask & 1 != 0 { 1.0 } else { 0.001 });
+        let start = now.saturating_sub(seconds) as f64;
+        let end = now.max(1) as f64;
+        // Paint all segments on one canvas. A canvas per gap makes unstable histories expensive.
+        let axis_width = (scale.top_label.len() + 3).min((plot.width / 3).max(1) as usize) as u16;
+        let canvas = Rect::new(
+            plot.x + axis_width,
+            plot.y,
+            plot.width.saturating_sub(axis_width),
+            plot.height.saturating_sub(2),
+        );
+        if canvas.width == 0 || canvas.height == 0 {
+            return;
+        }
+        let axis_style = design::role(p, Role::Secondary);
+        for (label, y) in [
+            (format!("D {}", scale.top_label), canvas.y),
+            ("0".into(), canvas.y + canvas.height / 2),
+            (format!("U {}", scale.top_label), canvas.bottom() - 1),
+        ] {
+            f.render_widget(
+                Paragraph::new(label)
+                    .alignment(ratatui::layout::Alignment::Right)
+                    .style(axis_style),
+                Rect::new(plot.x, y, axis_width.saturating_sub(1), 1),
+            );
+        }
+        for y in canvas.y..canvas.bottom() {
+            f.render_widget(
+                Paragraph::new(if y == canvas.y + canvas.height / 2 {
+                    "┼"
+                } else {
+                    "│"
+                })
+                .style(axis_style),
+                Rect::new(canvas.x - 1, y, 1, 1),
+            );
+        }
         f.render_widget(
-            Chart::new(sets)
-                .x_axis(axis)
-                .y_axis(
-                    Axis::default()
-                        .bounds([0.0, scale.top])
-                        .labels(["0".into(), scale.top_label]),
+            Paragraph::new(format!("└{}", "─".repeat(canvas.width as usize))).style(axis_style),
+            Rect::new(canvas.x - 1, canvas.bottom(), canvas.width + 1, 1),
+        );
+        let ticks = canvas.bottom() + 1;
+        f.render_widget(
+            Paragraph::new(format!("-{}m", seconds / 60)).style(axis_style),
+            Rect::new(canvas.x, ticks, canvas.width, 1),
+        );
+        f.render_widget(
+            Paragraph::new("now")
+                .alignment(ratatui::layout::Alignment::Right)
+                .style(axis_style),
+            Rect::new(canvas.x, ticks, canvas.width, 1),
+        );
+        f.render_widget(
+            Canvas::default()
+                .marker(Marker::Braille)
+                .background_color(
+                    design::surface(p)
+                        .bg
+                        .unwrap_or(ratatui::style::Color::Reset),
                 )
-                .style(design::surface(p)),
-            plot,
+                .x_bounds([start, end])
+                .y_bounds([-scale.top, scale.top])
+                .paint(|ctx| {
+                    ctx.draw(&CanvasLine {
+                        x1: start,
+                        y1: 0.0,
+                        x2: end,
+                        y2: 0.0,
+                        color: axis_style.fg.unwrap_or(ratatui::style::Color::Reset),
+                    });
+                    ctx.layer();
+                    for i in [1, 0, 2].into_iter().filter(|i| mask & (1 << i) != 0) {
+                        let color = chart::source_style(p, i)
+                            .fg
+                            .unwrap_or(ratatui::style::Color::Reset);
+                        for segment in prepared[i].down.iter().chain(&prepared[i].up) {
+                            ctx.draw(&Points {
+                                coords: segment,
+                                color,
+                            });
+                            for pair in segment.windows(2) {
+                                ctx.draw(&CanvasLine {
+                                    x1: pair[0].0,
+                                    y1: pair[0].1,
+                                    x2: pair[1].0,
+                                    y2: pair[1].1,
+                                    color,
+                                });
+                            }
+                        }
+                        // Isolate source colors without allocating a layer for every gap.
+                        if prepared[i].count > 0 {
+                            ctx.layer();
+                        }
+                    }
+                }),
+            canvas,
         );
     }
 }
@@ -605,7 +716,7 @@ mod queue_tests {
         let mut term = Terminal::new(TestBackend::new(160, 20)).unwrap();
         for (now, state, down) in [
             (100, "LIVE", "Down 25.0 kbps"),
-            (107, "STALE (history only)", "Down unknown"),
+            (107, "STALE", "Down unknown"),
         ] {
             term.draw(|f| view.chart(f, f.area(), &d, now, &Palette::new(Theme::Dark)))
                 .unwrap();
@@ -616,7 +727,8 @@ mod queue_tests {
                 .iter()
                 .map(|c| c.symbol())
                 .collect::<String>();
-            for label in [state, down, "Window peak D 25.0 kbps", "1 rate samples"] {
+            let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            for label in [state, down, "window peak D 25.0 kbps", "1 rate samples"] {
                 assert!(text.contains(label), "missing {label}: {text}");
             }
             assert!(text.contains(&format!("age {}s", now - 100)));
@@ -636,7 +748,7 @@ mod queue_tests {
             .iter()
             .map(|c| c.symbol())
             .collect::<String>();
-        assert!(text.contains("WARMING / GAP") && text.contains("Window peak D unknown"));
+        assert!(text.contains("WARMING/GAP") && text.contains("window peak D unknown"));
     }
     #[test]
     fn chart_maximum_history_redraw_cost_and_point_bounds() {
@@ -669,8 +781,12 @@ mod queue_tests {
             term.draw(|f| view.chart(f, f.area(), &d, 4000, &Palette::new(Theme::Dark)))
                 .unwrap();
         }
+        assert_eq!(
+            view.curves.builds, 1,
+            "unchanged source curves must be reused"
+        );
         eprintln!(
-            "maximum traffic chart: 1801 points, 100 debug redraws {:?}",
+            "maximum mirrored chart: 3 x 1801 points, 100 cached debug redraws {:?}",
             start.elapsed()
         );
         let text = term
@@ -681,26 +797,43 @@ mod queue_tests {
             .map(|c| c.symbol())
             .collect::<String>();
         assert!(text.contains("1801 rate samples"));
+        let mut gapped = (**d.worker_util.as_ref().unwrap()).clone();
+        for (i, point) in gapped.traffic.iter_mut().enumerate() {
+            if i % 2 == 1 {
+                point.down_mbps = None;
+                point.up_mbps = None;
+            }
+        }
+        gapped.classification.mapped.history = gapped.traffic.clone();
+        gapped.classification.unmapped.history = gapped.traffic.clone();
+        let gapped = Data {
+            worker_util: Some(Arc::new(gapped)),
+            ..Default::default()
+        };
+        let start = std::time::Instant::now();
+        for _ in 0..100 {
+            term.draw(|f| view.chart(f, f.area(), &gapped, 4000, &Palette::new(Theme::Dark)))
+                .unwrap();
+        }
+        assert_eq!(view.curves.builds, 2, "gapped curves must also be cached");
+        eprintln!(
+            "maximum gapped mirrored chart: 3 x 901 segments, 100 cached debug redraws {:?}",
+            start.elapsed()
+        );
     }
     #[test]
-    fn classified_chart_selects_actual_mapped_and_unmapped_without_mixing_units() {
+    fn combined_chart_defaults_to_all_sources_and_keeps_mouse_focus_and_resizing_safe() {
         use std::sync::Arc;
-        let report = serde_json::from_value(serde_json::json!({
-            "version":1,"updated":100,"stale":false,"reason":null,
-            "workers":[{"queue_id":0,"busy_ppm":125000}],
-            "traffic":[{"at":100,"down_mbps":10.0,"up_mbps":1.0}],
-            "classification":{
-                "mapped":{"bytes":{"download_bytes":1000,"upload_bytes":500},"history":[{"at":100,"down_mbps":8.0,"up_mbps":4.0}]},
-                "unmapped":{"bytes":{"download_bytes":0,"upload_bytes":0},"history":[{"at":100,"down_mbps":0.0,"up_mbps":0.0}]}
-            }
-        })).unwrap();
+        let report=serde_json::from_value(serde_json::json!({"version":1,"updated":100,"stale":false,"reason":null,
+            "workers":[{"queue_id":0,"busy_ppm":125000}],"traffic":[{"at":100,"down_mbps":10.0,"up_mbps":1.0}],
+            "classification":{"mapped":{"bytes":{"download_bytes":1,"upload_bytes":1},"history":[{"at":100,"down_mbps":8.0,"up_mbps":4.0}]},"unmapped":{"bytes":{"download_bytes":0,"upload_bytes":0},"history":[{"at":100,"down_mbps":0.0,"up_mbps":0.0}]}}})).unwrap();
         let d = Data {
             worker_util: Some(Arc::new(report)),
-            ..Data::default()
+            ..Default::default()
         };
         let p = Palette::new(Theme::Dark);
         let mut v = Overview::default();
-        let mut term = Terminal::new(TestBackend::new(180, 40)).unwrap();
+        let mut term = Terminal::new(TestBackend::new(200, 40)).unwrap();
         let render = |term: &mut Terminal<TestBackend>, v: &mut Overview, now| {
             term.draw(|f| v.draw(f, f.area(), &d, now, &p)).unwrap();
             term.backend()
@@ -709,27 +842,26 @@ mod queue_tests {
                 .iter()
                 .map(|c| c.symbol())
                 .collect::<String>()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
         };
-        assert!(render(&mut term, &mut v, 100).contains("actual delivered aggregate"));
-        v.key(KeyCode::Char('v'), &d);
         let text = render(&mut term, &mut v, 100);
-        assert!(
-            text.contains("mapped enqueued aggregate") && text.contains("Down 8.000 Mbps"),
-            "{text}"
-        );
-        v.key(KeyCode::Char('v'), &d);
-        let text = render(&mut term, &mut v, 100);
-        assert!(
-            text.contains("unmapped enqueued aggregate") && text.contains("Down 0.000 Mbps"),
-            "{text}"
-        );
-        let text = render(&mut term, &mut v, 107);
-        assert!(
-            text.contains("Down unknown") && text.contains("STALE (history only)"),
-            "{text}"
-        );
-        v.key(KeyCode::Char('v'), &d);
-        assert!(render(&mut term, &mut v, 100).contains("actual delivered aggregate"));
+        for label in [
+            "[x] Actual Down 10.0 Mbps Up 1.0 Mbps",
+            "[x] Mapped Down 8.000 Mbps Up 4.000 Mbps",
+            "[x] Unmapped Down 0.000 Mbps Up 0.000 Mbps",
+            "Actual delivered; Mapped/Unmapped enqueued",
+            "D 10.0 Mbps",
+            "U 10.0 Mbps",
+        ] {
+            assert!(text.contains(label), "missing {label}: {text}");
+        }
+        assert_eq!(v.traces.mask(), 7);
+        for expected in [1, 2, 4, 7] {
+            v.key(KeyCode::Char('v'), &d);
+            assert_eq!(v.traces.mask(), expected);
+        }
         let r = v.sources[2];
         v.mouse(
             MouseEvent {
@@ -740,18 +872,68 @@ mod queue_tests {
             },
             &d,
         );
-        assert!(render(&mut term, &mut v, 100).contains("unmapped enqueued aggregate"));
+        assert_eq!(v.traces.mask(), 3);
+        assert!(render(&mut term, &mut v, 100).contains("Focus: Selection"));
+        v.key(KeyCode::Char('U'), &d);
+        assert_eq!(v.traces.mask(), 7);
+        v.key(KeyCode::Char('A'), &d);
+        assert_eq!(v.traces.mask(), 6);
+        v.key(KeyCode::Char('M'), &d);
+        assert_eq!(v.traces.mask(), 4);
+        v.key(KeyCode::Char('a'), &d);
+        assert_eq!(v.traces.mask(), 7);
+        let text = render(&mut term, &mut v, 107);
+        assert!(
+            text.contains("STALE")
+                && text.contains("Down unknown")
+                && text.contains("Actual window peak D 10.0 Mbps")
+        );
+        for i in 0..3 {
+            if v.traces.mask() & (1 << i) != 0 {
+                v.traces.toggle(i);
+            }
+        }
+        assert!(render(&mut term, &mut v, 100).contains("No traces selected"));
+        let r = v.all_sources;
+        v.mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &d,
+        );
+        assert_eq!(v.traces.mask(), 7);
+        let r = v.focus_source;
+        v.mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: r.x,
+                row: r.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            &d,
+        );
+        assert_eq!(v.traces.mask(), 1);
         v.clear();
         assert_eq!(v.sources, [Rect::default(); 3]);
+        assert_eq!(v.all_sources, Rect::default());
         for theme in [Theme::Dark, Theme::Light, Theme::Mono] {
-            for (width, height) in [(40, 24), (80, 24), (120, 40)] {
+            for (width, height) in [(40, 24), (80, 24), (120, 40), (240, 40)] {
                 let mut term = Terminal::new(TestBackend::new(width, height)).unwrap();
-                for _ in 0..3 {
+                v.scroll.offset = 100;
+                for _ in 0..4 {
                     term.draw(|f| v.draw(f, f.area(), &d, 100, &Palette::new(theme)))
                         .unwrap();
-                    for source in v.sources {
-                        if source.width > 0 && source.height > 0 {
-                            assert!(source.right() <= width && source.bottom() <= height);
+                    for r in v
+                        .sources
+                        .into_iter()
+                        .chain(v.ranges)
+                        .chain([v.all_sources, v.focus_source])
+                    {
+                        if r.width > 0 && r.height > 0 {
+                            assert!(r.right() <= width && r.bottom() <= height);
                         }
                     }
                     v.key(KeyCode::Char('v'), &d);
