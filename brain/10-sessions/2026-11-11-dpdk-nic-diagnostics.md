@@ -96,3 +96,17 @@ All seven installed TUI routes passed smoke with clean exit, terminal cleanup, a
 
 Backup: `/var/backups/lqosync3/nic-b4e3846-6koqynjh`. No rollback was required.
 Evidence directory: `/home/pi/.local/state/lqosync3/nic-b4e3846/`. Reopen existing TUI sessions to load the new NIC view.
+
+## Later bridge epoch verification
+
+Checked at 2026-11-11T08:21:05+08:00 (Asia/Shanghai).
+
+The LibreQoS bridge process changed to PID 630703 at 08:09:05+08:00. This agent did not restart it.
+LQoSync retained PID 596019 and reached cycle 213 without service errors or automatic restarts.
+Its binary and configuration hashes still match the reviewed release.
+An eleven-second observation confirmed advancing bridge uptime and NIC timestamps.
+Both ports remain UP at 10,000 Mbps with 78 extended statistics each. Basic error increments were zero in that interval.
+Fresh caches and complete interval increments confirm recovery in the new bridge epoch.
+The immediate deployment audit intentionally rejects a different bridge PID or lower uptime than its deployment baseline.
+For later epochs, use current-process progress checks instead of that historical comparison.
+Evidence: `/home/pi/.local/state/lqosync3/nic-b4e3846/latest-runtime-verification.json`.

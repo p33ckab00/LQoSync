@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-11T08:21:05+08:00 (Asia/Shanghai) — NIC runtime recovery confirmed
+
+- Continued verification found a newer LibreQoS bridge process, PID 630703, started at 08:09:05+08:00. This agent did not restart it.
+- LQoSync remains active on `3.0.175+gb4e3846`, PID 596019, cycle 213, with no service/configuration error and zero automatic restarts.
+- Binary and configuration hashes still match the reviewed release.
+- Two samples eleven seconds apart confirmed advancing NIC timestamps and bridge uptime in the new process epoch.
+- Bridge reports healthy. Both NIC ports remain UP at 10,000 Mbps, with 78 extended statistics each. Basic error increments were zero in the observed interval.
+- Aggregate, health, host, NIC, and collection caches are fresh. The collector recovered its baseline after the bridge process change.
+- The original immediate deployment audit compares against the deployment bridge PID/uptime. It is not a later-epoch runtime monitor.
+- Current evidence: `/home/pi/.local/state/lqosync3/nic-b4e3846/latest-runtime-verification.json`. Original deployment evidence is preserved.
+- No production code, config, permission, or service change occurred during this follow-up.
+
+Session: [[2026-11-11-dpdk-nic-diagnostics]].
+
 ## 2026-11-11T01:26:13+08:00 (Asia/Shanghai) — Native NIC diagnostics deployment verified
 
 - Operator deployed `3.0.175+gb4e3846` at 2026-11-11T01:24:51+08:00. Independent checks passed at 2026-11-11T01:25:35+08:00.
