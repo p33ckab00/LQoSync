@@ -8,6 +8,32 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-12T08:33:16+08:00 (Asia/Shanghai) — Unified health deployed and verified
+
+- Owner authorized release and ran the root deploy script. Last agent: Codex `/root`.
+- Feature commit `12e3d57` is pushed to `lqosync3`; installed release `3.0.179+g12e3d57` runs as PID 882084.
+- Installed checksum and configuration hash match the manifest. Service is active/running, with zero automatic restarts.
+- GitHub CI, 690 local tests, release smoke, and installed seven-route terminal smoke passed.
+- Independent checks confirmed advancing telemetry, collection freshness, shared health, notification worker, and native policy evidence.
+- Allocation remains 64 native / 1000 generated slots. Startup wrote no new pair, so shared apply state has no tracked operation.
+- No forced shaping-file write or synthetic Telegram message occurred. Live two-stage delivery awaits the next actual managed-file change.
+- Backup: `/var/backups/lqosync3/health-12e3d57-146zv46b`. Evidence: `/home/pi/.local/state/lqosync3/health-12e3d57/`.
+- No deployment work remains. Preserve unrelated profile/WAN notes and Home link.
+
+Session: [[2026-11-12-unified-health-deployment]].
+
+## 2026-11-12T08:31:24+08:00 (Asia/Shanghai) — Unified health pushed; root deploy pending
+
+- Owner authorized commit, push, and deployment. Feature commit `12e3d579b055fd5c42d6757ad4100954d9e7b0b3` is on `origin/lqosync3`.
+- Clean artifact: `3.0.179+g12e3d57`, `/home/pi/.local/state/lqosync3/health-12e3d57/lqosync3`.
+- Both CI jobs passed: https://github.com/p33ckab00/LQoSync/actions/runs/43127174714. Release terminal smoke passed seven routes.
+- Deployment script checks passed. Binary/config/state backup, atomic install, restart, six telemetry sources, unified health, delivery worker, native policy proof, and binary rollback are prepared.
+- Root execution is pending because noninteractive sudo requires a password. Operator was asked to run `/home/pi/.local/state/lqosync3/health-12e3d57/deploy.sh` with sudo.
+- Next: inspect DEPLOYED.json; run artifact `smoke.py /usr/local/bin/lqosync3`, then `verify.py`. Do not claim deployment until those checks pass.
+- Main worktree retains unrelated Home Knowledge link and untracked profile/WAN note. This handoff update is local pending deployment completion.
+- Artifact checkout is detached and clean at the feature commit. Private native captures remain outside Git.
+
+
 ## 2026-11-12T08:25:19+08:00 (Asia/Shanghai) — Unified health release authorized
 
 - Owner requested commit, push to `lqosync3`, and deployment. Last agent: Codex `/root`.

@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-12-unified-health-deployment]]
+
 - [[2026-11-11-unified-health-implementation]]
 
 - [[2026-11-11-unified-health-telegram-research]]
