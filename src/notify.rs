@@ -1,5 +1,7 @@
 //! Telegram notifier (Plan 2b): events from the cycle status, the message text, and the send.
 
+pub mod delivery;
+pub mod outbox;
 use crate::config::Telegram;
 use crate::secrets::read_secret;
 use crate::status::{CircuitInfo, Status, UpdatedInfo};
@@ -53,7 +55,7 @@ pub fn split(text: &str, max: usize) -> Vec<String> {
 }
 
 /// The events of the last cycles, so that the same event is sent one time only.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Notifier {
     routers: BTreeMap<String, &'static str>,
     last_error: Option<String>,
@@ -269,66 +271,84 @@ impl Notifier {
         let max = tg.max_list_items;
         let changes_text: Vec<String> = router_changes.into_iter().map(|(_, t)| t).collect();
         list(&mut out, "Router changes", &changes_text, max);
-        if tg.include_telemetry {
-            out.push(format!("<b>Cycle time:</b> {} ms", st.cycle_ms));
-            let routers: Vec<String> = st
-                .routers
-                .iter()
-                .map(|r| {
-                    let rows: usize = r.rows.values().sum();
-                    let why = r
-                        .error
-                        .as_deref()
-                        .map_or(String::new(), |e| format!(" ({e})"));
-                    format!(
-                        "{}: {}, {rows} rows, {} ms{why}",
-                        r.name, r.state, r.read_ms
-                    )
-                })
-                .collect();
-            list(&mut out, "Routers", &routers, max);
-        }
-        let rep = &st.report;
-        let n = |k: &str| rep.counts.get(k).copied().unwrap_or(0);
-        out.push("<b>Summary</b>".into());
-        for (label, k) in [
-            ("Added", "added"),
-            ("Updated", "updated"),
-            ("Removed", "removed"),
-            ("Held", "held"),
-            ("Duplicates", "duplicates"),
-            ("Warnings", "warnings"),
-        ] {
-            out.push(format!("- {label}: {}", n(k)));
-        }
-        out.push(String::new());
-        if tg.include_added {
-            let added: Vec<String> = rep.added.iter().map(|c| circuit_line(c, " -> ")).collect();
-            list(&mut out, "Added", &added, max);
-        }
-        if tg.include_updated {
-            let updated: Vec<String> = rep.updated.iter().map(updated_line).collect();
-            list(&mut out, "Updated", &updated, max);
-        }
-        if tg.include_removed {
-            let removed: Vec<String> = rep
-                .removed
-                .iter()
-                .map(|c| circuit_line(c, ", from "))
-                .collect();
-            list(&mut out, "Removed", &removed, max);
-        }
-        list(&mut out, "Held by the removal guard", &rep.held, max);
-        let dups: Vec<String> = rep
-            .duplicates
-            .iter()
-            .map(|(ip, kept, dropped)| format!("{ip}: kept {kept}, skipped {dropped}"))
-            .collect();
-        list(&mut out, "Duplicate IPs", &dups, max);
-        list(&mut out, "Alerts", &rep.alerts, max);
-        list(&mut out, "Warnings", &rep.warnings, max);
+        out.extend(cycle_telemetry(tg, st));
+        out.push(change_details(tg, &st.report));
         Some(out.join("\n").trim_end().to_string())
     }
+}
+
+pub(crate) fn cycle_telemetry(tg: &Telegram, st: &Status) -> Vec<String> {
+    let mut out = Vec::new();
+    if tg.include_telemetry {
+        out.push(if st.cycle_ms > 0 {
+            format!("<b>Cycle time:</b> {} ms", st.cycle_ms)
+        } else {
+            "<b>Cycle time:</b> pending at write snapshot".into()
+        });
+        let routers: Vec<String> = st
+            .routers
+            .iter()
+            .map(|r| {
+                let rows: usize = r.rows.values().sum();
+                let why = r
+                    .error
+                    .as_deref()
+                    .map_or(String::new(), |e| format!(" ({e})"));
+                format!(
+                    "{}: {}, {rows} rows, {} ms{why}",
+                    r.name, r.state, r.read_ms
+                )
+            })
+            .collect();
+        list(&mut out, "Routers", &routers, tg.max_list_items);
+    }
+    out
+}
+
+/// Freeze subscriber details with the options selected for this write.
+pub fn change_details(tg: &Telegram, rep: &crate::status::ReportSummary) -> String {
+    let mut out = Vec::new();
+    let max = tg.max_list_items;
+
+    let n = |k: &str| rep.counts.get(k).copied().unwrap_or(0);
+    out.push("<b>Summary</b>".into());
+    for (label, k) in [
+        ("Added", "added"),
+        ("Updated", "updated"),
+        ("Removed", "removed"),
+        ("Held", "held"),
+        ("Duplicates", "duplicates"),
+        ("Warnings", "warnings"),
+    ] {
+        out.push(format!("- {label}: {}", n(k)));
+    }
+    out.push(String::new());
+    if tg.include_added {
+        let added: Vec<String> = rep.added.iter().map(|c| circuit_line(c, " -> ")).collect();
+        list(&mut out, "Added", &added, max);
+    }
+    if tg.include_updated {
+        let updated: Vec<String> = rep.updated.iter().map(updated_line).collect();
+        list(&mut out, "Updated", &updated, max);
+    }
+    if tg.include_removed {
+        let removed: Vec<String> = rep
+            .removed
+            .iter()
+            .map(|c| circuit_line(c, ", from "))
+            .collect();
+        list(&mut out, "Removed", &removed, max);
+    }
+    list(&mut out, "Held by the removal guard", &rep.held, max);
+    let dups: Vec<String> = rep
+        .duplicates
+        .iter()
+        .map(|(ip, kept, dropped)| format!("{ip}: kept {kept}, skipped {dropped}"))
+        .collect();
+    list(&mut out, "Duplicate IPs", &dups, max);
+    list(&mut out, "Alerts", &rep.alerts, max);
+    list(&mut out, "Warnings", &rep.warnings, max);
+    out.join("\n").trim_end().to_string()
 }
 
 /// The bot token: the variable in `bot_token_env` if it is set and not empty, else `bot_token_file`.
@@ -360,11 +380,27 @@ pub fn chat_id(tg: &Telegram) -> String {
 
 /// Send one HTTP/1.1 POST with a JSON body and read the status. The error never contains `path`.
 pub async fn post_json<S: AsyncRead + AsyncWrite + Unpin>(
-    mut stream: S,
+    stream: S,
     host: &str,
     path: &str,
     body: &str,
 ) -> Result<(), String> {
+    let (code, value) = response(stream, host, path, body).await?;
+    if (200..300).contains(&code) {
+        Ok(())
+    } else {
+        Err(format!(
+            "HTTP {code}: {}",
+            value["description"].as_str().unwrap_or_default()
+        ))
+    }
+}
+async fn response<S: AsyncRead + AsyncWrite + Unpin>(
+    mut stream: S,
+    host: &str,
+    path: &str,
+    body: &str,
+) -> Result<(u16, serde_json::Value), String> {
     let req = format!(
         "POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
@@ -398,25 +434,33 @@ pub async fn post_json<S: AsyncRead + AsyncWrite + Unpin>(
         .nth(1)
         .and_then(|c| c.parse().ok())
         .ok_or("the answer has no HTTP status")?;
-    if (200..300).contains(&code) {
-        return Ok(());
+    if resp.len() > 64 * 1024 {
+        return Err("response exceeds bound".into());
     }
-    // The body from the raw bytes: chunk sizes count bytes, not characters.
-    let description = resp
+    let end = resp
         .windows(4)
         .position(|w| w == b"\r\n\r\n")
-        .map(|end| {
-            let body = &resp[end + 4..];
-            if is_chunked(&String::from_utf8_lossy(&resp[..end])) {
-                dechunk(body)
-            } else {
-                String::from_utf8_lossy(body).into_owned()
-            }
-        })
-        .and_then(|b| serde_json::from_str::<serde_json::Value>(b.trim()).ok())
-        .and_then(|v| v["description"].as_str().map(str::to_string))
-        .unwrap_or_default();
-    Err(format!("HTTP {code}: {description}"))
+        .ok_or("missing HTTP header")?;
+    let head = String::from_utf8_lossy(&resp[..end]);
+    let raw = &resp[end + 4..];
+    let body = if is_chunked(&head) {
+        if !body_complete(&resp) {
+            return Err("incomplete chunked body".into());
+        }
+        dechunk(raw)
+    } else {
+        if let Some(len) = head.lines().find_map(|l| {
+            let (k, v) = l.split_once(':')?;
+            k.eq_ignore_ascii_case("content-length")
+                .then(|| v.trim().parse::<usize>().ok())?
+        }) && raw.len() != len
+        {
+            return Err("incomplete HTTP body".into());
+        }
+        String::from_utf8(raw.to_vec()).map_err(|_| "invalid response encoding")?
+    };
+    let value = serde_json::from_str(&body).map_err(|_| "invalid API response")?;
+    Ok((code, value))
 }
 
 fn is_chunked(head: &str) -> bool {
@@ -430,21 +474,38 @@ fn is_chunked(head: &str) -> bool {
 
 /// The data of a chunked body (`<hex size>\r\n<data>\r\n` ... `0\r\n\r\n`), from the raw bytes.
 /// A bad size or a short chunk ends the parse; it never panics.
-fn dechunk(mut body: &[u8]) -> String {
+fn dechunk(body: &[u8]) -> String {
+    decode_chunks(body)
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+        .unwrap_or_default()
+}
+fn decode_chunks(mut body: &[u8]) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
-    while let Some(eol) = body.windows(2).position(|w| w == b"\r\n") {
-        let line = String::from_utf8_lossy(&body[..eol]);
-        let Ok(n) = usize::from_str_radix(line.split(';').next().unwrap_or("").trim(), 16) else {
-            break;
-        };
+    loop {
+        let eol = body
+            .windows(2)
+            .position(|w| w == b"\r\n")
+            .ok_or("missing chunk size")?;
+        let line = std::str::from_utf8(&body[..eol]).map_err(|_| "invalid chunk size")?;
+        let n = usize::from_str_radix(line.split(';').next().unwrap_or("").trim(), 16)
+            .map_err(|_| "invalid chunk size")?;
         let rest = &body[eol + 2..];
-        if n == 0 || rest.len() < n {
-            break;
+        if n == 0 {
+            if rest == b"\r\n" || rest.ends_with(b"\r\n\r\n") {
+                return Ok(out);
+            }
+            return Err("incomplete final chunk".into());
+        }
+        let end = n
+            .checked_add(2)
+            .filter(|end| *end <= rest.len())
+            .ok_or("incomplete chunk")?;
+        if &rest[n..end] != b"\r\n" {
+            return Err("invalid chunk separator".into());
         }
         out.extend_from_slice(&rest[..n]);
-        body = rest[n..].strip_prefix(b"\r\n").unwrap_or(&rest[n..]);
+        body = &rest[end..];
     }
-    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// The answer has its full head and a body of `Content-Length` bytes, or the last chunk.
@@ -455,7 +516,7 @@ fn body_complete(resp: &[u8]) -> bool {
     let head = String::from_utf8_lossy(&resp[..end]);
     if is_chunked(&head) {
         let body = &resp[end + 4..];
-        return body.starts_with(b"0\r\n\r\n") || body.windows(7).any(|w| w == b"\r\n0\r\n\r\n");
+        return decode_chunks(body).is_ok();
     }
     head.lines()
         .find_map(|l| {
@@ -487,40 +548,53 @@ fn tls_config() -> Arc<rustls::ClientConfig> {
 
 /// Send one message part. `timeout` covers the connect, TLS, request, and answer.
 pub async fn send(tg: &Telegram, text: &str, owner_uid: u32) -> Result<(), String> {
-    let token = token(tg, owner_uid)?;
+    send_receipt(tg, text, owner_uid)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+pub async fn send_receipt(
+    tg: &Telegram,
+    text: &str,
+    owner_uid: u32,
+) -> Result<delivery::ApiReceipt, delivery::DeliveryError> {
+    use delivery::DeliveryError;
+    let token = token(tg, owner_uid).map_err(|_| DeliveryError {
+        reason: "telegram_credentials_unavailable".into(),
+        retry_after: None,
+        permanent: true,
+    })?;
     let chat = chat_id(tg);
     if chat.is_empty() {
-        return Err("the chat ID is empty".into());
+        return Err(DeliveryError {
+            reason: "telegram_chat_missing".into(),
+            retry_after: None,
+            permanent: true,
+        });
     }
-    let body = serde_json::json!({
-        "chat_id": chat,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": true,
-    })
-    .to_string();
+    let body=serde_json::json!({"chat_id":chat,"text":text,"parse_mode":"HTML","disable_web_page_preview":true}).to_string();
     let path = format!("/bot{token}/sendMessage");
-    let (host, port) = (tg.api_host.as_str(), tg.api_port);
+    let host = tg.api_host.as_str();
     let work = async {
-        let tcp = tokio::net::TcpStream::connect((host, port))
+        let tcp = tokio::net::TcpStream::connect((host, tg.api_port))
             .await
-            .map_err(|e| format!("cannot connect to {host}:{port}: {e}"))?;
+            .map_err(|_| DeliveryError::transient("telegram_connect_failed"))?;
         let name = ServerName::try_from(host.to_string())
-            .map_err(|e| format!("telegram.api_host {host}: {e}"))?;
+            .map_err(|_| DeliveryError::transient("telegram_host_invalid"))?;
         let tls = tokio_rustls::TlsConnector::from(tls_config())
             .connect(name, tcp)
             .await
-            .map_err(|e| format!("TLS with {host}: {e}"))?;
-        post_json(tls, host, &path, &body).await
+            .map_err(|_| DeliveryError::transient("telegram_tls_failed"))?;
+        delivery::post_receipt(tls, host, &path, &body).await
     };
     tokio::time::timeout(Duration::from_secs(tg.timeout), work)
         .await
-        .map_err(|_| format!("no answer in the time limit of {} s", tg.timeout))?
+        .map_err(|_| DeliveryError::transient("telegram_timeout"))?
 }
 
 /// Send a message in parts of `max_message_chars`. Stop at the first failed part.
 pub async fn send_all(tg: &Telegram, text: &str, owner_uid: u32) -> Result<(), String> {
-    for part in split(text, tg.max_message_chars) {
+    for part in delivery::html_parts(text, tg.max_message_chars)? {
         send(tg, &part, owner_uid).await?;
     }
     Ok(())
@@ -885,7 +959,7 @@ mod tests {
     #[tokio::test]
     async fn post_json_error_has_the_description_and_not_the_path() {
         let (port, _h) = server(
-            "HTTP/1.1 400 Bad Request\r\nContent-Length: 58\r\n\r\n{\"ok\":false,\"description\":\"Bad Request: chat not found\"}",
+            "HTTP/1.1 400 Bad Request\r\nContent-Length: 56\r\n\r\n{\"ok\":false,\"description\":\"Bad Request: chat not found\"}",
         )
         .await;
         let s = tokio::net::TcpStream::connect(("127.0.0.1", port))

@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--screen', type=int, choices=range(1, 8), default=1)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--traffic-source', choices=['combined','actual','mapped','unmapped'], default='combined')
+    parser.add_argument('--system-health', action='store_true')
     parser.add_argument('--worker-phases', action='store_true')
     parser.add_argument('--worker-health', action='store_true')
     parser.add_argument('--nic-diagnostics', action='store_true')
@@ -154,6 +155,13 @@ enabled = true
                     nic={'version':1,'updated':now,'stale':False,'reason':None,'pid':1,'dpdk_version':'DPDK fixture',
                          'ports':ports,'ports_capped':False,'interval_ms':10000}
                     (path/'nic-telemetry.json').write_text(json.dumps(nic))
+                if args.system_health:
+                    components = []
+                    for domain, component in [('service','sync'),('collection','EDGE-01'),('write','managed_files'),('apply','latest_update'),('apply','allocation_capacity'),('dataplane','native_bridge'),('dataplane','nic_links'),('telemetry','aggregate'),('telemetry','subscriber_hosts'),('telemetry','nic'),('notification','telegram_delivery')]:
+                        mismatch = component in ('allocation_capacity','native_bridge')
+                        components.append(dict(domain=domain,component=component,state='DEGRADED' if mismatch else 'HEALTHY',reason=('native_capacity_differs_from_generated' if component=='allocation_capacity' else 'bridge_reported_degraded') if mismatch else 'fixture_verified',observed_at=now,max_age=15,source_epoch='synthetic-fixture',last_success=now))
+                    health = dict(version=1,updated=now,overall='DEGRADED',update=dict(write_id='SYNTHETIC0000000000000001',phase='APPLIED',observed_at=now),components=components,bridge=report['health'],acceptance=dict(circuit_capacity=64,desired_circuit_capacity=1000,peer_pid=1,source_generation='a'*64,shaping_generation='b'*64))
+                    (path/'system-health.json').write_text(json.dumps(health))
                 (path / 'worker-utilization.json').write_text(json.dumps(report))
             snapshots()
             if args.queue_diagnostics:
@@ -175,9 +183,18 @@ enabled = true
             x.XDefaultRootWindow.argtypes = [C.c_void_p]; x.XDefaultRootWindow.restype = C.c_ulong
             x.XQueryTree.argtypes = [C.c_void_p,C.c_ulong,C.POINTER(C.c_ulong),C.POINTER(C.c_ulong),C.POINTER(C.POINTER(C.c_ulong)),C.POINTER(C.c_uint)]
             root_window=x.XDefaultRootWindow(d); returned=C.c_ulong(); parent=C.c_ulong(); children=C.POINTER(C.c_ulong)(); count=C.c_uint()
-            x.XQueryTree(d,root_window,C.byref(returned),C.byref(parent),C.byref(children),C.byref(count))
-            if count.value == 0:
-                raise RuntimeError('Terminal did not open: '+(path/'zutty.log').read_text())
+            x.XFree.argtypes=[C.c_void_p]
+            deadline = time.monotonic()+5
+            while True:
+                x.XQueryTree(d,root_window,C.byref(returned),C.byref(parent),C.byref(children),C.byref(count))
+                if count.value:
+                    break
+                if children:
+                    x.XFree(children)
+                    children=C.POINTER(C.c_ulong)()
+                if processes[-1].poll() is not None or time.monotonic()>=deadline:
+                    raise RuntimeError(f'Terminal did not open (exit {processes[-1].poll()}): '+(path/'zutty.log').read_text())
+                time.sleep(.05)
             x.XSetInputFocus.argtypes=[C.c_void_p,C.c_ulong,C.c_int,C.c_ulong]; x.XSetInputFocus(d,children[0],1,0)
             x.XStringToKeysym.argtypes=[C.c_char_p];x.XStringToKeysym.restype=C.c_ulong
             x.XKeysymToKeycode.argtypes=[C.c_void_p,C.c_ulong];x.XKeysymToKeycode.restype=C.c_uint

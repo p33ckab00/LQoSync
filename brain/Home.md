@@ -11,6 +11,10 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-11-unified-health-implementation]]
+
+- [[2026-11-11-unified-health-telegram-research]]
+
 - [[2026-11-11-mirrored-dpdk-chart]]
 
 - [[2026-11-10-dpdk-performance-and-deployment-review]]

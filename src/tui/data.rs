@@ -33,6 +33,7 @@ pub struct Data {
     pub worker_util: Option<Arc<crate::worker_util::Telemetry>>,
     pub subscriber_stats: Option<Arc<crate::subscriber_stats::Report>>,
     pub nic_stats: Option<Arc<crate::nic_stats::Report>>,
+    pub system_health: Option<Arc<crate::system_health::Report>>,
     pub ip_owners: Arc<std::collections::BTreeMap<std::net::IpAddr, usize>>,
     pub service: Option<Unit>,
     pub target: String,
@@ -95,6 +96,7 @@ pub struct Loader {
     worker_stamp: Stamp,
     subscriber_stamp: Stamp,
     nic_stamp: Stamp,
+    health_stamp: Stamp,
     collection_stamp: Stamp,
     versions_at: Option<Instant>,
     sampler: Sampler,
@@ -116,6 +118,7 @@ impl Loader {
             worker_stamp: None,
             subscriber_stamp: None,
             nic_stamp: None,
+            health_stamp: None,
             collection_stamp: None,
             versions_at: None,
             sampler: Sampler::default(),
@@ -194,6 +197,14 @@ impl Loader {
             self.data.versions = Versions { libreqos, lqosd };
         }
 
+        let health_path = state_dir.join(crate::system_health::CACHE);
+        let hs = stamp(&health_path);
+        if hs != self.health_stamp || self.data.system_health.is_none() {
+            self.data.system_health = crate::system_health::Report::read(&health_path)
+                .ok()
+                .map(Arc::new);
+            self.health_stamp = hs;
+        }
         let collection_path = state_dir.join(crate::collection::CACHE);
         let collection_stamp = stamp(&collection_path);
         if collection_stamp != self.collection_stamp || self.data.collection.is_none() {

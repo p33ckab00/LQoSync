@@ -279,7 +279,7 @@ async fn failure_polling_is_bounded_to_ten_seconds_and_abort_stops_publication()
         state: dir.path().display().to_string(),
     };
     let (_tx, rx) = tokio::sync::watch::channel(settings);
-    let task = start(rx);
+    let task = start(rx, crate::system_health::Hub::default());
     for _ in 0..100 {
         tokio::task::yield_now().await;
     }
@@ -323,7 +323,7 @@ async fn superseded_nic_read_cannot_publish_after_settings_reload() {
         state: first.path().display().to_string(),
     };
     let (tx, rx) = tokio::sync::watch::channel(settings.clone());
-    let task = start(rx);
+    let task = start(rx, crate::system_health::Hub::default());
     tokio::time::timeout(std::time::Duration::from_secs(2), waiting.recv())
         .await
         .unwrap()
@@ -392,5 +392,44 @@ fn maximum_nic_report_fits_cache_budget_and_bounded_detail_formatting() {
     eprintln!(
         "maximum NIC cache {bytes} bytes; 100 debug detail formats {:?}",
         start.elapsed()
+    );
+}
+
+#[test]
+fn unified_health_separates_fresh_nic_data_from_link_failure() {
+    let hub = crate::system_health::Hub::default();
+    let mut tracker = Tracker::default();
+    tracker.record(Ok(source(10, 0)), 100_000);
+    tracker.report.ports[0].status = Some("DOWN".into());
+    record_system_health(&hub, &tracker.report, 100, "nic.sock");
+    let r = hub.snapshot(100, None);
+    assert_eq!(
+        r.components
+            .iter()
+            .find(|c| c.component == "nic")
+            .unwrap()
+            .state,
+        crate::system_health::State::Healthy
+    );
+    assert_eq!(
+        r.components
+            .iter()
+            .find(|c| c.component == "nic_links")
+            .unwrap()
+            .state,
+        crate::system_health::State::Degraded
+    );
+    tracker.report.ports[0].id = 1;
+    tracker.report.ports[0].status = Some("UP".into());
+    record_system_health(&hub, &tracker.report, 100, "nic.sock");
+    let r = hub.snapshot(100, None);
+    assert!(!r.components.iter().any(|c| c.component == "nic_port/0"));
+    assert_eq!(
+        r.components
+            .iter()
+            .find(|c| c.component == "nic_links")
+            .unwrap()
+            .state,
+        crate::system_health::State::Healthy
     );
 }

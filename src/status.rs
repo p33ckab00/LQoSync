@@ -128,6 +128,8 @@ pub struct Status {
     pub routers: Vec<RouterStatus>,
     pub report: ReportSummary,
     pub files_changed: bool,
+    /// Shared evidence and source freshness. Independent of whether the current write was accepted.
+    pub health: Option<crate::system_health::Report>,
     /// skipped | ok | the error text
     pub reload: String,
     pub error: Option<String>,

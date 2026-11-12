@@ -1400,6 +1400,38 @@ mod tests {
     }
 
     #[test]
+    fn unified_health_ages_during_draw_without_a_new_loader_event() {
+        use crate::system_health::{Domain, Hub, Observation, State};
+        let hub = Hub::default();
+        for domain in Domain::ALL {
+            hub.observe(Observation {
+                domain,
+                component: domain.label().into(),
+                state: State::Healthy,
+                reason: "sample_ok".into(),
+                observed_at: 100,
+                max_age: 6,
+                source_epoch: "fixture".into(),
+                last_success: None,
+            })
+            .unwrap();
+        }
+        let mut a = app(true);
+        a.set_data(
+            Data {
+                system_health: Some(Arc::new(hub.snapshot(100, None))),
+                ..Data::default()
+            },
+            100,
+        );
+        assert!(draw(&mut a, 240, 48).contains("System health Healthy"));
+        a.on_tick(107);
+        let text = draw(&mut a, 240, 48);
+        assert!(text.contains("System health Unknown"));
+        assert!(text.contains("source_stale"));
+    }
+
+    #[test]
     fn bridge_health_dashboard_retains_freshness_when_worker_snapshot_is_stale() {
         let mut a = app(true);
         let mut t = crate::worker_util::Telemetry::default();

@@ -239,68 +239,18 @@ pub fn backup(
     Ok(())
 }
 
-/// True if LibreQoS v3 imported this pair: `<lqos_state>/topology/topology_import.json` has the same
-/// nodes and the same devices, circuits, parents and maximum rates. A missing or bad file is false.
+/// Confirm imported pair inputs, including addresses and all rates. This is not native ACK proof.
 pub fn imported(lqos_state: &Path, network: &str, rows: &[CsvRow]) -> bool {
-    let read = |p: &Path| -> Option<serde_json::Value> {
-        serde_json::from_str(&std::fs::read_to_string(p).ok()?).ok()
-    };
-    let (Some(v), Ok(net)) = (
-        read(&lqos_state.join("topology/topology_import.json")),
-        serde_json::from_str::<serde_json::Value>(network),
-    ) else {
+    let Ok(expected) = crate::import_evidence::ExpectedImport::new(network, rows) else {
         return false;
     };
-    let imp = &v["imported"];
-    let Some(list) = imp["shaped_devices"].as_array() else {
+    let Some(artifact) = std::fs::read_to_string(lqos_state.join("topology/topology_import.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+    else {
         return false;
     };
-    let mut want: Vec<_> = rows
-        .iter()
-        .map(|r| {
-            (
-                r.device_id.as_str(),
-                r.circuit_id.as_str(),
-                r.parent_node.as_str(),
-                r.download_max.parse::<f64>().ok(),
-                r.upload_max.parse::<f64>().ok(),
-            )
-        })
-        .collect();
-    let mut got: Vec<_> = list
-        .iter()
-        .map(|d| {
-            let s = |k: &str| d[k].as_str().unwrap_or_default();
-            (
-                s("device_id"),
-                s("circuit_id"),
-                s("parent_node"),
-                d["download_max_mbps"].as_f64(),
-                d["upload_max_mbps"].as_f64(),
-            )
-        })
-        .collect();
-    let by = |a: &(&str, &str, &str, _, _), b: &(&str, &str, &str, _, _)| {
-        (a.0, a.1, a.2).cmp(&(b.0, b.1, b.2))
-    };
-    want.sort_by(by);
-    got.sort_by(by);
-    want == got && same_json(&imp["compatibility_network_json"], &net)
-}
-
-/// JSON equality where `620` and `620.0` are the same number.
-fn same_json(a: &serde_json::Value, b: &serde_json::Value) -> bool {
-    use serde_json::Value::{Array, Number, Object};
-    match (a, b) {
-        (Number(x), Number(y)) => x.as_f64() == y.as_f64(),
-        (Array(x), Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| same_json(p, q)),
-        (Object(x), Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, p)| y.get(k).is_some_and(|q| same_json(p, q)))
-        }
-        _ => a == b,
-    }
+    expected.matches(&artifact)
 }
 
 /// Run the LibreQoS reload command with a time limit. The error has the exit code and the end of stderr.
@@ -347,7 +297,9 @@ mod tests {
             let v = serde_json::json!({"imported": {
                 "compatibility_network_json": {"A": {"downloadBandwidthMbps": 620.0}},
                 "shaped_devices": [{"device_id": "D1", "circuit_id": "C1", "parent_node": "A",
-                    "download_max_mbps": rate, "upload_max_mbps": 10.0}],
+                    "download_max_mbps": rate, "upload_max_mbps": 10.0,
+                    "circuit_name":"", "device_name":"", "mac":"", "ipv4":[], "ipv6":[],
+                    "download_min_mbps":0, "upload_min_mbps":0}],
             }});
             std::fs::write(
                 d.path().join("topology/topology_import.json"),
@@ -374,6 +326,50 @@ mod tests {
         ));
         import(25.0);
         assert!(!imported(d.path(), net, &rows), "old rate");
+    }
+
+    #[test]
+    fn imported_rejects_old_addresses_and_minimum_rates() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(d.path().join("topology")).unwrap();
+        let row = CsvRow {
+            circuit_id: "C1".into(),
+            circuit_name: "Client".into(),
+            device_id: "D1".into(),
+            device_name: "Device".into(),
+            parent_node: "A".into(),
+            ipv4: "100.64.0.2".into(),
+            download_min: "2".into(),
+            upload_min: "1".into(),
+            download_max: "20".into(),
+            upload_max: "10".into(),
+            ..CsvRow::default()
+        };
+        let device = serde_json::json!({
+            "circuit_id":"C1", "circuit_name":"Client", "device_id":"D1", "device_name":"Device",
+            "parent_node":"A", "parent_node_id":null, "mac":"", "ipv4":[["100.64.0.2",32]], "ipv6":[],
+            "download_min_mbps":2, "upload_min_mbps":1, "download_max_mbps":20, "upload_max_mbps":10
+        });
+        let write = |device: &serde_json::Value| {
+            std::fs::write(d.path().join("topology/topology_import.json"),
+                serde_json::json!({"imported":{"compatibility_network_json":{},"shaped_devices":[device]}}).to_string()).unwrap();
+        };
+        write(&device);
+        assert!(imported(d.path(), "{}", std::slice::from_ref(&row)));
+        for (key, value) in [
+            ("ipv4", serde_json::json!([["100.64.0.3", 32]])),
+            ("download_min_mbps", serde_json::json!(3)),
+            ("upload_min_mbps", serde_json::json!(2)),
+            ("ipv6", serde_json::json!([["2001:db8::1", 128]])),
+        ] {
+            let mut old = device.clone();
+            old[key] = value;
+            write(&old);
+            assert!(
+                !imported(d.path(), "{}", std::slice::from_ref(&row)),
+                "stale {key}"
+            );
+        }
     }
 
     #[test]

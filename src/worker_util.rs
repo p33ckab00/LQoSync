@@ -332,8 +332,121 @@ impl Settings {
     }
 }
 
+fn record_system_health(
+    hub: &crate::system_health::Hub,
+    report: &Telemetry,
+    now: u64,
+    epoch: &str,
+) {
+    use crate::system_health::{Domain, Observation, State};
+    let _ = hub.observe(Observation {
+        domain: Domain::Telemetry,
+        component: "aggregate".into(),
+        state: if report.live(now) {
+            State::Healthy
+        } else {
+            State::Unknown
+        },
+        reason: if report.live(now) {
+            "sample_fresh"
+        } else {
+            "sample_unavailable"
+        }
+        .into(),
+        observed_at: report.updated,
+        max_age: MAX_AGE,
+        source_epoch: epoch.into(),
+        last_success: None,
+    });
+    let bridge = &report.health;
+    hub.set_bridge(Some(bridge.clone()));
+    let state = if !bridge.live(now) {
+        State::Unknown
+    } else if let Some(summary) = &bridge.summary {
+        if summary.status == "degraded"
+            || summary
+                .degraded_subsystems
+                .as_ref()
+                .is_some_and(|s| !s.is_empty())
+            || summary.aqm_degraded_workers.is_some_and(|n| n > 0)
+        {
+            State::Degraded
+        } else if summary.status == "healthy"
+            && summary.classification_empty == Some(false)
+            && summary
+                .degraded_subsystems
+                .as_ref()
+                .is_some_and(Vec::is_empty)
+        {
+            State::Healthy
+        } else {
+            State::Unknown
+        }
+    } else {
+        State::Unknown
+    };
+    let _ = hub.observe(Observation {
+        domain: Domain::Dataplane,
+        component: "native_bridge".into(),
+        state,
+        reason: match state {
+            State::Healthy => "bridge_reported_healthy",
+            State::Degraded => "bridge_reported_degraded",
+            _ => "bridge_health_unproven",
+        }
+        .into(),
+        observed_at: bridge.updated,
+        max_age: health::MAX_AGE,
+        source_epoch: epoch.into(),
+        last_success: None,
+    });
+}
+
+fn reset_health(hub: &crate::system_health::Hub, settings: &Settings, analytics: bool, nic: bool) {
+    use crate::system_health::{Domain, Observation, State};
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    for (domain, component, is_nic) in [
+        (Domain::Telemetry, "aggregate", false),
+        (Domain::Telemetry, "subscriber_hosts", false),
+        (Domain::Dataplane, "native_bridge", false),
+        (Domain::Telemetry, "nic", true),
+        (Domain::Dataplane, "nic_links", true),
+    ] {
+        if if is_nic { !nic } else { !analytics } {
+            continue;
+        }
+        hub.remove(domain, component);
+        let _ = hub.observe(Observation {
+            domain,
+            component: component.into(),
+            state: if settings.v3 {
+                State::Warming
+            } else {
+                State::NotApplicable
+            },
+            reason: if settings.v3 {
+                "awaiting_source_sample"
+            } else {
+                "native_source_not_applicable"
+            }
+            .into(),
+            observed_at: now,
+            max_age: 15,
+            source_epoch: "source_reset".into(),
+            last_success: None,
+        });
+    }
+    if analytics {
+        hub.set_bridge(None);
+    }
+}
+
 /// One monitor per service. The TUI reads aggregate telemetry from its public cache.
 pub struct Monitor {
+    hub: crate::system_health::Hub,
     settings: watch::Sender<Settings>,
     task: tokio::task::JoinHandle<()>,
     subscriber_task: tokio::task::JoinHandle<()>,
@@ -342,15 +455,26 @@ pub struct Monitor {
 
 impl Monitor {
     pub fn start(cfg: &crate::config::Config) -> Self {
-        let (settings, mut changes) = watch::channel(Settings::from_config(cfg));
-        let subscriber_task = crate::subscriber_stats::start(changes.clone());
-        let nic_task = crate::nic_stats::start(changes.clone());
+        Self::start_with_health(cfg, crate::system_health::Hub::default())
+    }
+
+    pub fn start_with_health(cfg: &crate::config::Config, hub: crate::system_health::Hub) -> Self {
+        let initial = Settings::from_config(cfg);
+        reset_health(&hub, &initial, true, true);
+        let (settings, mut changes) = watch::channel(initial);
+        let subscriber_task = crate::subscriber_stats::start(changes.clone(), hub.clone());
+        let nic_task = crate::nic_stats::start(changes.clone(), hub.clone());
+        let worker_hub = hub.clone();
         let task = tokio::spawn(async move {
+            let hub = worker_hub;
             let mut current = changes.borrow().clone();
             let mut tracker = Tracker::default();
             let mut warned = false;
             let mut next_health = tokio::time::Instant::now();
             let mut pressure_log = TransitionLog::default();
+            let mut publisher = crate::system_health::Publisher::default();
+            let mut health_epoch = 0u64;
+            let mut last_uptime = None;
             let mut tick = tokio::time::interval(Duration::from_secs(2));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
@@ -361,11 +485,21 @@ impl Monitor {
                         if !current.same_analytics(&next) {
                             tracker = Tracker::default();
                             next_health = tokio::time::Instant::now();
+                            health_epoch=health_epoch.saturating_add(1);
+                            last_uptime=None;
+                            hub.remove(crate::system_health::Domain::Dataplane,"native_bridge");
+                            hub.set_bridge(None);
                         }
                         current = next;
                     }
                     _ = tick.tick() => {
-                        if !current.v3 { continue; }
+                        if !current.v3 {
+                            let now=SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+                            if let Err(error)=publisher.publish(Path::new(&current.state),&hub.snapshot(now,None)) {
+                                if !warned {eprintln!("health cache: {error}");}warned=true;
+                            }
+                            continue;
+                        }
                         let due = tokio::time::Instant::now() >= next_health;
                         if due { next_health = tokio::time::Instant::now() + Duration::from_secs(health::POLL_SECS); }
                         let path = Path::new(&current.socket);
@@ -375,8 +509,19 @@ impl Monitor {
                         // A configuration reload can arrive while the old socket read is pending.
                         if !changes.borrow().same_analytics(&current) { continue; }
                         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+                        if sample.as_ref().is_ok_and(|s|tracker.captured.is_some_and(|old|s.captured_at_millis<old)) {
+                            health_epoch=health_epoch.saturating_add(1);
+                        }
                         tracker.record(sample, now);
-                        if let Some(health) = health { tracker.report.health.record(health, now); }
+                        if let Some(health) = health {
+                            if let Ok(ref report)=health {
+                                if last_uptime.is_some_and(|old|report.uptime_ms<old) {health_epoch=health_epoch.saturating_add(1);}
+                                last_uptime=Some(report.uptime_ms);
+                            }
+                            tracker.report.health.record(health, now);
+                        }
+                        let epoch=format!("{}:{health_epoch}",crate::cli::config_digest(current.socket.as_bytes()));
+                        record_system_health(&hub,&tracker.report,now,&epoch);
                         if let Some(message) = pressure_log.record(&tracker.report, now) {
                             eprintln!("{message}");
                         }
@@ -384,11 +529,15 @@ impl Monitor {
                             if !warned { eprintln!("worker telemetry cache: {error}"); }
                             warned = true;
                         } else { warned = false; }
+                        if let Err(error)=publisher.publish(Path::new(&current.state),&hub.snapshot(now,None)) {
+                            if !warned {eprintln!("health cache: {error}");}warned=true;
+                        }
                     }
                 }
             }
         });
         Self {
+            hub,
             settings,
             task,
             subscriber_task,
@@ -398,14 +547,21 @@ impl Monitor {
 
     pub fn reconfigure(&self, cfg: &crate::config::Config) {
         let next = Settings::from_config(cfg);
+        let old = self.settings.borrow().clone();
         self.settings.send_if_modified(|old| {
             if *old == next {
                 false
             } else {
-                *old = next;
+                *old = next.clone();
                 true
             }
         });
+        reset_health(
+            &self.hub,
+            &next,
+            !old.same_analytics(&next),
+            !old.same_nic(&next),
+        );
     }
 }
 

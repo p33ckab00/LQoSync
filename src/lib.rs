@@ -4,6 +4,7 @@
 /// names the source.
 pub const VERSION: &str = env!("LQOSYNC_VERSION");
 
+pub mod apply_evidence;
 pub mod bridge;
 pub mod circuit_queue;
 pub mod cli;
@@ -13,6 +14,7 @@ pub mod cycle;
 pub mod detect;
 pub mod diff;
 pub mod files;
+pub mod import_evidence;
 pub mod mikrotik;
 pub mod model;
 pub mod nic_stats;
@@ -27,8 +29,10 @@ pub mod speed;
 pub mod state;
 pub mod status;
 pub mod subscriber_stats;
+pub mod system_health;
 pub mod topology;
 pub mod tui;
 pub mod validate;
 pub mod worker_util;
+pub mod write_receipt;
 pub mod writer;

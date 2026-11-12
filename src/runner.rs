@@ -13,7 +13,7 @@ use crate::writer::v3network::render_libreqos_network;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// The time that LibreQoS v3 can take to import a new `shaped_devices` pair. Its scheduler
@@ -69,10 +69,14 @@ pub struct Runner<C: Connector + 'static> {
     config_path: String,
     config_digest: String,
     cycle_seq: u64,
+    cycle_observed_at: u64,
+    collection_config_digest: String,
     telegram: String,
     /// The last status written.
     last: Option<Status>,
     collection: Option<crate::collection::Report>,
+    pub health: crate::system_health::Hub,
+    write_tracker: Option<Arc<Mutex<crate::write_receipt::Tracker>>>,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -154,10 +158,18 @@ where
             config_path: String::new(),
             config_digest: String::new(),
             cycle_seq: 0,
+            cycle_observed_at: 0,
+            collection_config_digest: String::new(),
             telegram: "none".into(),
             last: None,
             collection: None,
+            health: crate::system_health::Hub::default(),
+            write_tracker: None,
         }
+    }
+
+    pub fn pending_tracker(&self) -> Option<Arc<Mutex<crate::write_receipt::Tracker>>> {
+        self.write_tracker.clone()
     }
 
     /// The config file and the digest of its loaded text, for `status.json`.
@@ -215,7 +227,17 @@ where
         }
     }
 
-    fn write_status(&mut self, s: Status) {
+    fn write_status(&mut self, mut s: Status) {
+        self.record_health(&s);
+        s.health = Some(
+            self.health.snapshot(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
+                None,
+            ),
+        );
         let path = Path::new(&self.cfg.runtime.state_dir).join("status.json");
         if let Err(e) = files::write_if_changed(&path, s.to_json().as_bytes()) {
             eprintln!("error: cannot write status.json: {e:#}");
@@ -223,10 +245,172 @@ where
         self.last = Some(s);
     }
 
+    fn record_health(&self, s: &Status) {
+        use crate::system_health::{Domain, Observation, State};
+        let budget = s
+            .next_scan_seconds
+            .max(self.cfg.runtime.scan_interval_idle)
+            .saturating_mul(3)
+            .max(30);
+        let epoch = format!("{}:{}", s.pid, s.config_digest);
+        let receipt = |domain, component: &str, state, reason: &str| {
+            if let Err(error) = self.health.observe(Observation {
+                domain,
+                component: component.into(),
+                state,
+                reason: reason.into(),
+                observed_at: if domain == Domain::Collection {
+                    self.collection.as_ref().map_or(0, |r| r.updated)
+                } else if domain == Domain::Service && component == "configuration" {
+                    s.updated
+                } else {
+                    self.cycle_observed_at
+                },
+                max_age: budget,
+                source_epoch: epoch.clone(),
+                last_success: None,
+            }) {
+                eprintln!("health receipt: {error}");
+            }
+        };
+        receipt(
+            Domain::Service,
+            "sync_cycle",
+            if s.error.is_some() {
+                State::Degraded
+            } else {
+                State::Healthy
+            },
+            if s.error.is_some() {
+                "cycle_error"
+            } else {
+                "cycle_complete"
+            },
+        );
+        receipt(
+            Domain::Service,
+            "configuration",
+            if s.config_error.is_some() {
+                State::Degraded
+            } else {
+                State::Healthy
+            },
+            if s.config_error.is_some() {
+                "old_valid_configuration_retained"
+            } else {
+                "configuration_active"
+            },
+        );
+        if self.collection.as_ref().is_some_and(|r| {
+            r.cycle_seq == s.cycle_seq && self.collection_config_digest == self.config_digest
+        }) {
+            if s.routers.is_empty() {
+                receipt(
+                    Domain::Collection,
+                    "routers",
+                    State::NotApplicable,
+                    "no_configured_routers",
+                );
+            }
+            for r in &s.routers {
+                receipt(
+                    Domain::Collection,
+                    &r.name,
+                    if r.state == "online" {
+                        State::Healthy
+                    } else {
+                        State::Degraded
+                    },
+                    if r.state == "online" {
+                        "collection_complete"
+                    } else {
+                        "router_collection_unavailable"
+                    },
+                );
+            }
+        }
+        if s.error.is_none() {
+            receipt(
+                Domain::Write,
+                "cycle_validation",
+                if s.report.held.is_empty() {
+                    State::Healthy
+                } else {
+                    State::Degraded
+                },
+                if s.report.held.is_empty() {
+                    "output_validation_complete"
+                } else {
+                    "removal_guard_held"
+                },
+            );
+        }
+        if self.write_tracker.as_ref().is_none_or(|t| {
+            t.lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .current()
+                .is_none()
+        }) {
+            receipt(
+                Domain::Apply,
+                "latest_update",
+                State::NotApplicable,
+                "no_tracked_update",
+            );
+        }
+        if !self.cfg.telegram.enabled {
+            receipt(
+                Domain::Notification,
+                "telegram",
+                State::NotApplicable,
+                "telegram_disabled",
+            );
+        }
+        if s.target == "v2_pair" {
+            receipt(
+                Domain::Dataplane,
+                "native_bridge",
+                State::NotApplicable,
+                "v2_target",
+            );
+            receipt(
+                Domain::Telemetry,
+                "native_telemetry",
+                State::NotApplicable,
+                "v2_target",
+            );
+        }
+    }
+
     /// Take the instance lock on `state_dir` and hold it while the runner lives.
     pub fn lock(&mut self) -> anyhow::Result<()> {
         if self.lock.is_none() {
             self.lock = Some(files::lock(Path::new(&self.cfg.runtime.state_dir))?);
+            match crate::write_receipt::Tracker::load(Path::new(&self.cfg.runtime.state_dir)) {
+                Ok(tracker) => {
+                    tracker.restore_health(&self.health);
+                    if let Err(error) = tracker.recover_events(&self.health) {
+                        eprintln!("write event recovery: {error}");
+                    }
+                    self.write_tracker = Some(Arc::new(Mutex::new(tracker)));
+                }
+                Err(error) => {
+                    eprintln!("write receipt recovery: {error:#}");
+                    let _ = self.health.observe(crate::system_health::Observation {
+                        domain: crate::system_health::Domain::Write,
+                        component: "write_receipt_recovery".into(),
+                        state: crate::system_health::State::Degraded,
+                        reason: "write_receipt_recovery_failed".into(),
+                        observed_at: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs(),
+                        max_age: IMPORT_LIMIT_SECS,
+                        source_epoch: "service".into(),
+                        last_success: None,
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -234,6 +418,9 @@ where
     /// Use a new config. The sessions close, because an address or a password can change.
     pub fn set_config(&mut self, cfg: Config) {
         self.cfg = cfg;
+        self.health.clear(crate::system_health::Domain::Collection);
+        self.health
+            .clear(crate::system_health::Domain::Notification);
         self.sessions.clear();
         self.config_error = None;
     }
@@ -259,6 +446,7 @@ where
             };
         }
         self.cycle_seq += 1;
+        self.cycle_observed_at = now;
         status.cycle_seq = self.cycle_seq;
         let result = self.cycle_inner(now, force, &state_dir, &mut status).await;
         let (changed, error) = match result {
@@ -266,7 +454,7 @@ where
             Ok((changed, Some(reload))) => {
                 (changed, Some(format!("LibreQoS reload failed: {reload}")))
             }
-            Err(e) => (false, Some(format!("{e:#}"))),
+            Err(e) => (status.files_changed, Some(format!("{e:#}"))),
         };
         status.files_changed = changed;
         status.error = error.clone();
@@ -277,6 +465,16 @@ where
             status,
         };
         summary.status.next_scan_seconds = summary.next_sleep(&self.cfg.runtime);
+        self.record_health(&summary.status);
+        summary.status.health = Some(
+            self.health.snapshot(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
+                None,
+            ),
+        );
         self.write_status(summary.status.clone());
         summary
     }
@@ -397,6 +595,7 @@ where
         if let Err(error) = crate::collection::publish(state_dir, &collection) {
             eprintln!("warning: cannot write collection.json: {error:#}");
         }
+        self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
         if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {
@@ -466,8 +665,39 @@ where
                 self.cfg.runtime.keep_backups,
             )?;
         }
-        for (p, t) in &files {
-            files::write_if_changed(p, t.as_bytes())?;
+        self.record_health(status);
+        if target == Target::V3Pair && self.cfg.runtime.mode == RuntimeMode::Apply {
+            if let Some(tracker) = &self.write_tracker {
+                let mut tracker = tracker.lock().unwrap_or_else(|p| p.into_inner());
+                let result = tracker.write(
+                    &files,
+                    crate::write_receipt::Meta {
+                        cycle_seq: self.cycle_seq,
+                        config_digest: self.config_digest.clone(),
+                        notice: Some(crate::notify::outbox::Frozen::from_status(
+                            &self.cfg.telegram,
+                            status,
+                        )),
+                    },
+                    now,
+                    &self.health,
+                );
+                status.files_changed = result.changed;
+                if let Some(error) = result.tracking_error {
+                    eprintln!("write receipt storage: {error}");
+                }
+                if let Some(error) = result.error {
+                    anyhow::bail!("{error}");
+                }
+            } else {
+                for (p, t) in &files {
+                    status.files_changed |= files::write_if_changed(p, t.as_bytes())?;
+                }
+            }
+        } else {
+            for (p, t) in &files {
+                status.files_changed |= files::write_if_changed(p, t.as_bytes())?;
+            }
         }
         // A failed reload stays pending until it works, also when the files do not change again.
         let pending = state_dir.join("reload-pending");
@@ -508,6 +738,18 @@ where
                     // files[0] is network.json for the pair targets.
                     if files::imported(lqos_state, &files[0].1, &out.rows) {
                         status.reload = "imported by LibreQoS".into();
+                        if let Some(tracker) = &self.write_tracker {
+                            let mut tracker = tracker.lock().unwrap_or_else(|p| p.into_inner());
+                            if tracker.current().is_some_and(|r| r.phase.pending())
+                                && let Err(error) = tracker.transition(
+                                    crate::system_health::Phase::ImportConfirmed,
+                                    now,
+                                    &self.health,
+                                )
+                            {
+                                eprintln!("write import receipt: {error:#}");
+                            }
+                        }
                         std::fs::remove_file(&import)?;
                     } else {
                         // An unreadable time starts the wait again.
@@ -524,6 +766,18 @@ where
                             );
                             status.reload = e.clone();
                             reload_error = Some(e);
+                            if let Some(tracker) = &self.write_tracker {
+                                let mut tracker = tracker.lock().unwrap_or_else(|p| p.into_inner());
+                                if tracker.current().is_some_and(|r| r.phase.pending())
+                                    && let Err(error) = tracker.transition(
+                                        crate::system_health::Phase::VerifyTimeout,
+                                        now,
+                                        &self.health,
+                                    )
+                                {
+                                    eprintln!("write timeout receipt: {error:#}");
+                                }
+                            }
                         }
                     }
                 }
@@ -1050,7 +1304,10 @@ mod tests {
             .map(|r| {
                 serde_json::json!({
                     "circuit_id": r.circuit_id, "device_id": r.device_id,
-                    "parent_node": r.parent_node,
+                    "parent_node": r.parent_node, "parent_node_id": r.parent_node_id,
+                    "circuit_name":r.circuit_name, "device_name":r.device_name, "mac":r.mac, "comment":r.comment,
+                    "ipv4": r.ipv4.split(',').filter(|s| !s.is_empty()).map(|ip| (ip,32)).collect::<Vec<_>>(),
+                    "ipv6":[], "download_min_mbps":f(&r.download_min), "upload_min_mbps":f(&r.upload_min),
                     "download_max_mbps": f(&r.download_max), "upload_max_mbps": f(&r.upload_max),
                 })
             })
@@ -1059,6 +1316,36 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let v = serde_json::json!({"imported": {"compatibility_network_json": net, "shaped_devices": devices}});
         std::fs::write(dir.join("topology_import.json"), v.to_string()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn config_reload_does_not_refresh_cycle_or_collection_observations() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let config = v3_apply(&e);
+        let mut r = runner(&e, config.clone());
+        r.set_source(Path::new("config.toml"), "old".into());
+        assert!(r.cycle(1000, false).await.error.is_none());
+        r.set_config(config);
+        r.set_source(Path::new("config.toml"), "new".into());
+        r.write_reload_status(1100);
+        let report = r.health.snapshot(1100, None);
+        assert_eq!(
+            report
+                .components
+                .iter()
+                .find(|c| c.component == "sync_cycle")
+                .unwrap()
+                .observed_at,
+            1000
+        );
+        assert!(
+            report
+                .components
+                .iter()
+                .filter(|c| c.domain == crate::system_health::Domain::Collection)
+                .all(|c| c.observed_at <= 1000)
+        );
     }
 
     #[tokio::test]

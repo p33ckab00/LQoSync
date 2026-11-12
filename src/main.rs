@@ -63,6 +63,45 @@ fn print_summary(s: &CycleSummary) {
 /// Send the Telegram message of the cycle, if it has an event. A failure is only a log line.
 /// Returns the send result for `status.json`, or `None` if nothing was sent.
 async fn notify(n: &mut Notifier, cfg: &Config, s: &CycleSummary) -> Option<String> {
+    if s.status.target == "v3_pair" && s.status.mode == "apply" {
+        let hub = lqosync3::system_health::Hub::default();
+        let queued = queue_notify(n, cfg, s, &hub);
+        let work = async {
+            let mut outbox =
+                lqosync3::notify::outbox::Outbox::new(Path::new(&cfg.runtime.state_dir), hub)?;
+            loop {
+                let did =
+                    outbox
+                        .step(&cfg.telegram, now(), |text| {
+                            let tg = cfg.telegram.clone();
+                            async move {
+                                lqosync3::notify::send_receipt(&tg, &text, SECRET_OWNER_UID).await
+                            }
+                        })
+                        .await?;
+                if !did {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_secs(3)).await;
+            }
+            Ok::<_, anyhow::Error>(())
+        };
+        if let Ok(Err(error)) =
+            tokio::time::timeout(Duration::from_secs(cfg.telegram.timeout.max(1)), work).await
+        {
+            eprintln!("telegram outbox: {error}");
+        }
+        return queued.or_else(|| {
+            Some(
+                if cfg.telegram.enabled {
+                    "queued; run service resumes pending work"
+                } else {
+                    "disabled"
+                }
+                .into(),
+            )
+        });
+    }
     // The notifier keeps its event memory also when Telegram is off.
     let text = n.message(&cfg.telegram, &s.status);
     if !cfg.telegram.enabled {
@@ -80,6 +119,49 @@ async fn notify(n: &mut Notifier, cfg: &Config, s: &CycleSummary) -> Option<Stri
     )
 }
 
+/// Save notification work before changing deduplication memory. The service never awaits HTTP.
+fn queue_notify(
+    n: &mut Notifier,
+    cfg: &Config,
+    s: &CycleSummary,
+    hub: &lqosync3::system_health::Hub,
+) -> Option<String> {
+    use lqosync3::system_health::{Domain, Observation, State};
+    let old = n.clone();
+    let mut status = s.status.clone();
+    if status.target == "v3_pair" && status.mode == "apply" {
+        status.files_changed = false;
+    }
+    let text = n.message(&cfg.telegram, &status);
+    if !cfg.telegram.enabled {
+        return Some("disabled".into());
+    }
+    let text = text?;
+    match lqosync3::notify::outbox::enqueue(
+        Path::new(&cfg.runtime.state_dir),
+        &cfg.telegram,
+        &text,
+        now(),
+    ) {
+        Ok(()) => Some("queued".into()),
+        Err(error) => {
+            *n = old;
+            let _ = hub.observe(Observation {
+                domain: Domain::Notification,
+                component: "telegram_event_store".into(),
+                state: State::Degraded,
+                reason: "notification_event_not_saved".into(),
+                observed_at: now(),
+                max_age: u64::MAX,
+                source_epoch: "service".into(),
+                last_success: None,
+            });
+            eprintln!("telegram queue: {error}");
+            Some("queue storage failed".into())
+        }
+    }
+}
+
 async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result<()> {
     let mut runner = Runner::new(
         cfg.clone(),
@@ -88,8 +170,18 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
         }),
     );
     runner.lock()?;
-    let worker_monitor = lqosync3::worker_util::Monitor::start(&cfg);
+    let worker_monitor =
+        lqosync3::worker_util::Monitor::start_with_health(&cfg, runner.health.clone());
     runner.set_source(path, digest.clone());
+    let apply_monitor = runner.pending_tracker().map(|tracker| {
+        lqosync3::apply_evidence::Monitor::start(&cfg, &digest, tracker, runner.health.clone())
+    });
+    let telegram_worker = lqosync3::notify::outbox::Worker::start(
+        Path::new(&cfg.runtime.state_dir),
+        &cfg.telegram,
+        runner.health.clone(),
+        SECRET_OWNER_UID,
+    );
     let (mut hup, mut usr1) = (
         signal(SignalKind::hangup())?,
         signal(SignalKind::user_defined1())?,
@@ -103,7 +195,7 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
     loop {
         let summary = runner.cycle(now(), force).await;
         print_summary(&summary);
-        if let Some(t) = notify(&mut notifier, &runner.cfg, &summary).await {
+        if let Some(t) = queue_notify(&mut notifier, &runner.cfg, &summary, &runner.health) {
             runner.set_telegram(t);
         }
         force = false;
@@ -121,6 +213,8 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
                     Ok(()) => {
                         eprintln!("config reloaded from {}", path.display());
                         worker_monitor.reconfigure(&cfg);
+                        telegram_worker.reconfigure(&cfg.telegram);
+                        if let Some(monitor)=&apply_monitor {monitor.reconfigure(&cfg,&digest);}
                         runner.set_config(cfg.clone());
                         runner.set_source(path, digest.clone());
                     }

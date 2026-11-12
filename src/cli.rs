@@ -109,7 +109,12 @@ pub fn read_config(path: &Path) -> anyhow::Result<(Config, String)> {
 
 /// Read the config again. On an error, `cfg` and `digest` stay the same.
 pub fn reload(cfg: &mut Config, digest: &mut String, path: &Path) -> anyhow::Result<()> {
-    (*cfg, *digest) = read_config(path)?;
+    let (next, next_digest) = read_config(path)?;
+    anyhow::ensure!(
+        next.runtime.state_dir == cfg.runtime.state_dir,
+        "changing runtime.state_dir requires a service restart; the active state lock stays in use"
+    );
+    (*cfg, *digest) = (next, next_digest);
     Ok(())
 }
 
@@ -525,6 +530,22 @@ mod tests {
         reload(&mut cfg, &mut digest, &e.path).unwrap();
         assert_eq!(cfg.routers[0].name, "R2");
         assert_ne!(digest, first);
+    }
+
+    #[test]
+    fn reload_requires_restart_for_a_different_state_directory() {
+        let e = env("[routers.pppoe]\nenabled=true\n", "");
+        let (mut cfg, mut digest) = read_config(&e.path).unwrap();
+        let original = cfg.runtime.state_dir.clone();
+        let old_digest = digest.clone();
+        std::fs::write(
+            &e.path,
+            e.toml.replace(&original, "/tmp/lqosync-different-state"),
+        )
+        .unwrap();
+        assert!(reload(&mut cfg, &mut digest, &e.path).is_err());
+        assert_eq!(cfg.runtime.state_dir, original);
+        assert_eq!(digest, old_digest);
     }
 
     #[test]

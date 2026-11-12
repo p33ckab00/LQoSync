@@ -8,6 +8,60 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-12T08:25:19+08:00 (Asia/Shanghai) — Unified health release authorized
+
+- Owner requested commit, push to `lqosync3`, and deployment. Last agent: Codex `/root`.
+- Local implementation gates passed: 690 tests, Clippy, formatting, debug build, and seven-screen terminal smoke.
+- Next: create the feature commit, push, check CI, build a clean release artifact, and prepare backup/restart/rollback verification.
+- Host sudo still requires the operator password. Complete the package before requesting the operator's terminal step.
+- Keep unrelated profile/WAN note and its Home link outside the feature commit. Private native captures stay outside Git.
+
+
+## 2026-11-12T08:18:12+08:00 (Asia/Shanghai) — Unified health complete locally
+
+- Goal: report each v3 pair write as WRITTEN/PENDING, then a verified terminal outcome, without blocking collection.
+- Last agent: Codex `/root`. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Changes remain uncommitted.
+- All four plan tasks are implemented. Files include import/apply evidence, health hub, receipts, Telegram delivery/outbox, runner/main/samplers, TUI loaders/health panel, tests, examples, and documentation.
+- Final checks: 690 tests passed, zero failed, eight manual tests ignored; all-target Clippy, formatting, debug build, and diff whitespace checks passed.
+- Actual terminal smoke passed all seven routes. Dashboard capture uses synthetic data and preserves the approved layout.
+- Operator read-only native policy check passed. Allocation evidence differs: 64 native slots versus 1000 generated. Policy APPLIED and allocation DEGRADED remain separate facts.
+- No commit, push, deployment, production restart, or live Telegram test send occurred.
+- Unfinished release work: commit/push/deploy only when requested; verify the deployed worker and API delivery during that separate task.
+- Next action: report local completion. Investigate the native allocation mismatch separately if requested.
+- Evidence: `/home/pi/.local/state/lqosync3/unified-health-task1/`. Private native captures must stay outside Git.
+- Preserve unrelated profile/WAN Knowledge note and its pre-existing Home link.
+
+Session: [[2026-11-11-unified-health-implementation]].
+
+## 2026-11-11T16:21:30+08:00 (Asia/Shanghai) — Unified health implementation in progress
+
+- Owner approved execution and requested continuation. Work is local and uncommitted on `lqosync3` in `/home/pi/LQoSync3.0`.
+- Task 1 import comparator and native observer are implemented. Initial full checkpoint: 644 passed, zero failed, seven ignored; Clippy/fmt passed.
+- Operator native probe now succeeds after correcting the envelope/transaction schema distinction. Three stable samples match import and shaping generation; native/generated schemas are 6. Transaction equality remains false and needs encoding/folding analysis.
+- APPLIED is gated off. No false runtime acceptance is emitted.
+- Task 2 health hub, durable write receipts, runner/status wiring, and existing sampler metadata hooks are in progress. Focused health/receipt tests passed; final full checks are pending.
+- Task 3 Telegram worker and Task 4 shared TUI projection are not implemented. Do not deploy this unfinished worktree.
+- Next: finish Task 2 review/tests, validate exact native contract, then continue the plan. Session note contains the current file map and risks.
+- No production change, commit, push, restart, or live Telegram test send occurred. Preserve unrelated profile notes.
+
+Session: [[2026-11-11-unified-health-implementation]].
+
+## 2026-11-11T15:28:38+08:00 (Asia/Shanghai) — Unified health and Telegram design review
+
+- Owner requested review/research/brainstorming and selected immediate WRITTEN/PENDING reports with APPLIED/FAILED follow-ups.
+- The draft covers one logical update for the file pair, per-file outcomes, persisted write IDs, domain health, and asynchronous Telegram delivery.
+- Confirmed gaps: premature applied title, missing acceptance-transition trigger, inline send latency, best-effort delivery, and partial-write visibility.
+- Import comparison currently omits some policy-critical fields. Native generation correlation must be verified before enabling stronger APPLIED claims.
+- Draft: `docs/superpowers/specs/2026-11-11-unified-system-health-telegram-design.md`. Independent health incident/recovery alerts and queue limits remain proposals.
+- Reviewed official Telegram, Prometheus, SRE, installed scheduler, and pinned native state contract. Twenty-five focused notifier tests passed.
+- No product code, production config, live Telegram message, restart, or deployment changed during this research.
+- Performance follow-up (2026-11-11T15:36:15+08:00): draft adds receipt reuse, freshness deadlines, pending-only verification, bounded delivery work, and measurement gates. No implementation or measured speedup.
+- Next: review the draft and validate read-only acceptance evidence before implementation planning.
+- Preserve unrelated local-profile Knowledge note. `brain/Home.md` now has the new research-session link plus its pre-existing unrelated Knowledge link. Stage them separately.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Last agent: Codex.
+
+Session: [[2026-11-11-unified-health-telegram-research]].
+
 ## 2026-11-11T08:21:05+08:00 (Asia/Shanghai) — NIC runtime recovery confirmed
 
 - Continued verification found a newer LibreQoS bridge process, PID 630703, started at 08:09:05+08:00. This agent did not restart it.

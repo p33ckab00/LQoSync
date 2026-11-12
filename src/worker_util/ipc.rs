@@ -55,10 +55,25 @@ async fn request_fields<T: serde::de::DeserializeOwned>(
     kind: &str,
     fields: serde_json::Value,
 ) -> anyhow::Result<T> {
+    request_with_peer(path, kind, fields)
+        .await
+        .map(|(value, _)| value)
+}
+
+pub(crate) async fn request_with_peer<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    kind: &str,
+    fields: serde_json::Value,
+) -> anyhow::Result<(T, u32)> {
     tokio::time::timeout(Duration::from_secs(2), async {
         let mut stream = UnixStream::connect(path)
             .await
             .context("analytics socket unavailable")?;
+        let peer_pid = stream
+            .peer_cred()?
+            .pid()
+            .and_then(|p| u32::try_from(p).ok())
+            .context("analytics peer PID unavailable")?;
         // All supported requests are read-only. The caller bounds snapshot host and flow rows.
         let mut request = Vec::new();
         ciborium::into_writer(&fields, &mut request)?;
@@ -109,7 +124,7 @@ async fn request_fields<T: serde::de::DeserializeOwned>(
         // Read at offset zero without mmap: a truncated producer file returns an error.
         let mut bytes = vec![0; reply.snapshot_len];
         file.read_exact_at(&mut bytes, 0)?;
-        decode(&bytes)
+        Ok((decode(&bytes)?, peer_pid))
     })
     .await
     .context("analytics request timed out")?
@@ -276,6 +291,43 @@ mod tests {
             );
             server.join().unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn native_applied_report_keeps_transaction_and_peer_identity() {
+        let mut transaction = Vec::new();
+        ciborium::into_writer(
+            &json!({"schema_version":1,"generation":"g1","mapping_ops":[]}),
+            &mut transaction,
+        )
+        .unwrap();
+        let state = json!({"Report":{"generation":"g1","report_schema":1,"transaction":transaction,"content_key":"key","desired_world_content_key":"desired"}});
+        let (dir, server) = serve(state, "state", None, 1, ("state", 1));
+        let applied = crate::apply_evidence::read_applied(&dir.path().join("analytics.sock"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(applied.peer_pid, std::process::id());
+        assert_eq!(applied.generation, "g1");
+        assert_eq!(applied.transaction["generation"], "g1");
+        assert_eq!(applied.content_key, "key");
+        assert_eq!(applied.desired_world_content_key, "desired");
+    }
+
+    #[tokio::test]
+    async fn native_ack_unavailable_does_not_leak_producer_reason() {
+        let (dir, server) = serve(
+            json!({"Unavailable":"private-subscriber-reference"}),
+            "state",
+            None,
+            1,
+            ("state", 1),
+        );
+        let error = crate::apply_evidence::read_applied(&dir.path().join("analytics.sock"))
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.to_string(), "native acknowledgement unavailable");
     }
 
     #[tokio::test]

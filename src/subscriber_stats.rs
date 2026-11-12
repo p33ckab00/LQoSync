@@ -348,6 +348,7 @@ fn publish(dir: &Path, report: &Report) -> anyhow::Result<()> {
 
 pub(crate) fn start(
     mut changes: tokio::sync::watch::Receiver<crate::worker_util::Settings>,
+    hub: crate::system_health::Hub,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut current = changes.borrow().clone();
@@ -367,6 +368,12 @@ pub(crate) fn start(
                     if !changes.borrow().same_analytics(&current) {continue;}
                     let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
                     tracker.record(result,now);
+                    let _=hub.observe(crate::system_health::Observation {
+                        domain:crate::system_health::Domain::Telemetry,component:"subscriber_hosts".into(),
+                        state:if tracker.report.live(now){crate::system_health::State::Healthy}else{crate::system_health::State::Unknown},
+                        reason:if tracker.report.live(now){"sample_fresh"}else{"sample_unavailable"}.into(),
+                        observed_at:tracker.report.updated,max_age:MAX_AGE,
+                        source_epoch:crate::cli::config_digest(current.socket.as_bytes()),last_success:None});
                     if let Err(e)=publish(Path::new(&current.state),&tracker.report) {
                         if !warned {eprintln!("subscriber telemetry cache: {e}");}warned=true;
                     } else {warned=false;}

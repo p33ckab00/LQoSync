@@ -296,6 +296,56 @@ impl Overview {
         } else {
             lines.push(Line::raw("Telemetry unavailable"));
         }
+        if let Some(report) = &d.system_health {
+            let report = report.at(now);
+            let mut unified = vec![Line::styled(
+                format!("System health {:?}", report.overall),
+                design::role(
+                    p,
+                    match report.overall {
+                        crate::system_health::State::Healthy => Role::Ok,
+                        crate::system_health::State::Failed => Role::Error,
+                        _ => Role::Warning,
+                    },
+                ),
+            )];
+            if let Some(update) = &report.update {
+                unified.push(Line::raw(format!(
+                    "Update {:?} | {}",
+                    update.phase, update.write_id
+                )));
+            }
+            if let Some(proof) = &report.acceptance {
+                unified.push(Line::raw(format!(
+                    "Circuit slots native {} / generated {}",
+                    proof
+                        .circuit_capacity
+                        .map_or("unknown".into(), |v| v.to_string()),
+                    proof.desired_circuit_capacity
+                )));
+            }
+            for c in &report.components {
+                unified.push(Line::raw(format!(
+                    "{} / {}: {:?} | {} | age {}s",
+                    c.domain.label(),
+                    c.component,
+                    c.state,
+                    c.reason,
+                    now.saturating_sub(c.observed_at)
+                )));
+            }
+            unified.push(Line::raw(""));
+            unified.extend(lines);
+            lines = unified;
+        } else {
+            lines.insert(
+                0,
+                Line::styled(
+                    "System health unavailable",
+                    design::role(p, Role::Secondary),
+                ),
+            );
+        }
         let block = design::panel("Dataplane health [j/k scroll]", p);
         let inner = block.inner(health);
         f.render_widget(block, health);

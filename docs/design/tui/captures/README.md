@@ -112,3 +112,14 @@ These actual terminal captures use synthetic NIC records. They are separate from
 
 The existing panel composition, independent traffic scales, mouse wheel, and scrollbars remain in use.
 Source and verification rules: [NIC diagnostics](../NIC_DIAGNOSTICS.md).
+
+## Unified health projection
+
+![Dashboard with shared system health](dashboard-unified-health-v1.png)
+
+This actual terminal capture uses synthetic data and the approved Dashboard panel order.
+The health panel adds the operation phase, native/generated slot counts, component states, reasons, and source ages.
+Keyboard and mouse scrolling expose the remaining DPDK diagnostics.
+The mirror chart and its independent download/upload scales remain unchanged.
+Reproduce with `python3 scripts/dev/capture_tui.py --screen 1 --system-health --output /tmp/dashboard-unified-health.png`.
+This image is not evidence of a production deployment.

@@ -309,8 +309,82 @@ fn publish(dir: &Path, report: &Report) -> anyhow::Result<()> {
     std::fs::rename(tmp, dir.join(CACHE))?;
     Ok(())
 }
+fn record_system_health(hub: &crate::system_health::Hub, report: &Report, now: u64, socket: &str) {
+    use crate::system_health::{Domain, Observation, State};
+    let live = report.live(now);
+    let epoch = format!(
+        "{}:{}",
+        crate::cli::config_digest(socket.as_bytes()),
+        report.pid.unwrap_or(0)
+    );
+    let telemetry = if !live {
+        State::Unknown
+    } else if report.ports_capped {
+        State::Degraded
+    } else {
+        State::Healthy
+    };
+    let links = if !live || report.ports.is_empty() {
+        State::Unknown
+    } else if report.ports.iter().any(|p| {
+        p.status
+            .as_deref()
+            .is_some_and(|s| s.eq_ignore_ascii_case("down"))
+            || ["ierrors", "oerrors", "imissed", "rx_nombuf"]
+                .iter()
+                .any(|k| p.deltas.get(*k).is_some_and(|n| *n > 0))
+    }) {
+        State::Degraded
+    } else if report.ports_capped
+        || report.ports.iter().any(|p| {
+            !p.status
+                .as_deref()
+                .is_some_and(|s| s.eq_ignore_ascii_case("up"))
+        })
+    {
+        State::Unknown
+    } else {
+        State::Healthy
+    };
+    for (domain, component, state, reason) in [
+        (
+            Domain::Telemetry,
+            "nic",
+            telemetry,
+            if !live {
+                "nic_sample_unavailable"
+            } else if report.ports_capped {
+                "nic_sample_capped"
+            } else {
+                "nic_sample_fresh"
+            },
+        ),
+        (
+            Domain::Dataplane,
+            "nic_links",
+            links,
+            match links {
+                State::Healthy => "nic_links_up",
+                State::Degraded => "nic_link_or_interval_error",
+                _ => "nic_links_unproven",
+            },
+        ),
+    ] {
+        let _ = hub.observe(Observation {
+            domain,
+            component: component.into(),
+            state,
+            reason: reason.into(),
+            observed_at: report.updated,
+            max_age: MAX_AGE,
+            source_epoch: epoch.clone(),
+            last_success: None,
+        });
+    }
+}
 pub(crate) fn start(
     mut changes: tokio::sync::watch::Receiver<crate::worker_util::Settings>,
+    hub: crate::system_health::Hub,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut current = changes.borrow().clone();
@@ -323,7 +397,9 @@ pub(crate) fn start(
                 changed=changes.changed()=>{if changed.is_err(){break;}let next=changes.borrow_and_update().clone();if !current.same_nic(&next){tracker=Tracker::default();tick.reset_immediately();}current=next;}
                 _=tick.tick()=>{if !current.v3{continue;}let result=sample(Path::new(&current.nic_socket)).await;if !changes.borrow().same_nic(&current){continue;}
                     let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().try_into().unwrap_or(u64::MAX);
-                    tracker.record(result,now);if let Err(e)=publish(Path::new(&current.state),&tracker.report){if !warned{eprintln!("NIC telemetry cache: {e}");}warned=true;}else{warned=false;}
+                    tracker.record(result,now);
+                    record_system_health(&hub,&tracker.report,now/1000,&current.nic_socket);
+                    if let Err(e)=publish(Path::new(&current.state),&tracker.report){if !warned{eprintln!("NIC telemetry cache: {e}");}warned=true;}else{warned=false;}
                 }
             }
         }

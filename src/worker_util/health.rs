@@ -24,7 +24,7 @@ pub struct Worker {
 }
 
 impl Report {
-    pub(super) fn validate(&self) -> anyhow::Result<()> {
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
         ensure!(self.workers.len() <= 4096, "too many health workers");
         let mut ids = std::collections::HashSet::new();
         ensure!(
@@ -55,7 +55,7 @@ fn text_valid(s: &str, max: usize) -> bool {
     s.len() <= max && !s.chars().any(char::is_control)
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Health {
     pub updated: u64,
@@ -64,7 +64,7 @@ pub struct Health {
     pub summary: Option<Summary>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Summary {
     pub status: String,
     pub version: String,
@@ -87,7 +87,7 @@ impl Health {
             && now - self.updated <= MAX_AGE
     }
 
-    pub(super) fn valid(&self) -> bool {
+    pub(crate) fn valid(&self) -> bool {
         self.reason.as_ref().is_none_or(|v| text_valid(v, 180))
             && self.summary.as_ref().is_none_or(|s| {
                 text_valid(&s.status, 32)
