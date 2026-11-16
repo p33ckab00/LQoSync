@@ -509,6 +509,60 @@ mod tests {
         );
     }
     #[test]
+    fn boot_restored_partial_world_cannot_accept_a_newer_import() {
+        let (_dir, mut tracker, prepared, mut artifacts, mut applied, path) = fixture();
+        artifacts.generated["leaf_ops"] = json!(
+            (0..28)
+                .map(|i| { json!({"op":"upsert","circuit_id":format!("fixture-{i}")}) })
+                .collect::<Vec<_>>()
+        );
+        artifacts.generated["mapping_ops"] = json!((0..28).map(|i| {
+            json!({"op":"map","circuit_id":format!("fixture-{i}"),"ip":format!("192.0.2.{}",i+1),"prefix_len":32})
+        }).collect::<Vec<_>>());
+        applied.transaction = artifacts.generated.clone();
+        applied
+            .transaction
+            .as_object_mut()
+            .unwrap()
+            .remove("circuit_capacity");
+        applied.transaction["leaf_ops"]
+            .as_array_mut()
+            .unwrap()
+            .pop();
+        applied.transaction["mapping_ops"]
+            .as_array_mut()
+            .unwrap()
+            .pop();
+        applied.generation = "boot-world".into();
+        applied.transaction["generation"] = json!("boot-world");
+        applied.desired_world_content_key.clear();
+        let receipt = tracker.current().unwrap();
+        let check = |native: &Applied| {
+            validate(receipt, &prepared, &artifacts, native, native, &path, &path)
+        };
+        let Err(error) = check(&applied) else {
+            panic!("old generation must fail");
+        };
+        assert_eq!(error.to_string(), "runtime/native generation mismatch");
+        applied.generation = "g1".into();
+        applied.transaction["generation"] = json!("g1");
+        let Err(error) = check(&applied) else {
+            panic!("partial policy must fail");
+        };
+        assert_eq!(error.to_string(), "native applied world differs");
+        assert_eq!(tracker.current().unwrap().phase, Phase::Pending);
+        assert!(tracker.current().unwrap().acceptance.is_none());
+        applied.transaction = artifacts.generated.clone();
+        applied
+            .transaction
+            .as_object_mut()
+            .unwrap()
+            .remove("circuit_capacity");
+        let proof = check(&applied).unwrap();
+        tracker.accept(&proof, 11, &Hub::default()).unwrap();
+        assert_eq!(tracker.current().unwrap().phase, Phase::Applied);
+    }
+    #[test]
     fn input_changes_restarts_and_wrong_runtime_evidence_cannot_accept() {
         let (_dir, tracker, prepared, mut artifacts, applied, path) = fixture();
         let receipt = tracker.current().unwrap();
