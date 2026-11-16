@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-16T08:44:08+08:00 (Asia/Shanghai) — RAM-cache deployment authorized; CI fix
+
+- Owner authorized clean release preparation, deployment/restart, and production verification. Agent: Codex `/root`.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Preserve the unrelated profile/WAN work.
+- CI for `ad1665c` failed its same-size atomic-replacement loader regression. Local earlier runs passed because timestamps differed.
+- A deterministic same-mtime/same-size test reproduces the missed refresh. The shared TUI stamp now includes device and inode identity.
+- Fresh full checks passed 700 tests, zero failures, nine manual tests ignored. The corrective commit is required before release.
+- Next: commit/push this fix, verify its CI, build a clean detached release, prepare rollback and RAM-link checks, then deploy.
+- Host sudo requires the operator password. Prepare the complete deployment script before requesting the terminal step.
+- Current configuration hash differs from the November 12 manifest. Preserve the current configuration and pin its hash in the new artifact.
+- No production change has occurred in this deployment task yet. Allocation repair remains deferred.
+
+
 ## 2026-11-16T08:33:17+08:00 (Asia/Shanghai) — RAM-cache commit and push authorized
 
 - Owner requested commit and push only. Agent: Codex `/root`.

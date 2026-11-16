@@ -5,6 +5,7 @@ use crate::config::{Config, RuntimeMode};
 use crate::model::{CsvRow, State};
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
@@ -57,11 +58,11 @@ pub struct Data {
     pub snapshot: Option<Arc<String>>,
 }
 
-type Stamp = Option<(SystemTime, u64)>;
+type Stamp = Option<(SystemTime, u64, u64, u64)>;
 
 fn stamp(p: &Path) -> Stamp {
     let m = std::fs::metadata(p).ok()?;
-    Some((m.modified().ok()?, m.len()))
+    Some((m.modified().ok()?, m.len(), m.dev(), m.ino()))
 }
 
 /// `<systemctl> show -p <prop>... <unit>`. Stderr is dropped, so it does not draw over the screen.
@@ -653,6 +654,11 @@ mod tests {
         assert!(Arc::ptr_eq(&first, &loader.load().worker_util.unwrap()));
         let next = ram.path().join("next.json");
         std::fs::write(&next, snapshot(500000)).unwrap();
+        let old = std::fs::metadata(&target).unwrap();
+        let file = std::fs::OpenOptions::new().write(true).open(&next).unwrap();
+        file.set_times(std::fs::FileTimes::new().set_modified(old.modified().unwrap()))
+            .unwrap();
+        assert_eq!(std::fs::metadata(&next).unwrap().len(), old.len());
         std::fs::rename(next, &target).unwrap();
         assert_eq!(
             loader.load().worker_util.unwrap().workers[0].busy_ppm,
