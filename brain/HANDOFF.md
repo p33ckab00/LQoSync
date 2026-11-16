@@ -8,6 +8,331 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-16T18:48:21+08:00 (Asia/Shanghai) — Topology documentation/product review complete
+
+- Owner requests review against the current product, performance/reliability/integrity improvements, and STE for implementation text.
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, HEAD `0ad8b8d`. Preserve unrelated changes.
+- Added product review, proposed implementation design, and isolated foundation plan. Updated discussion/layout/research links, Home, and session notes.
+- Evidence: current collector/cycle identity and retention differ from fresh-only manager requirements. Reuse writer/receipts/native verification instead of parallel services.
+- Performance design: indexed observations, deterministic revision caches, unchanged-content suppression, bounded history, next-boundary schedules, and viewport-only UI.
+- Integrity: distinguish one subscriber circuit from multiple endpoints, preserve IDs, validate address namespaces, and do not claim atomic pair writes or freshness of held native mappings.
+- Checks: 117 focused tests passed, zero failures. Documentation whitespace, links, and source-reference checks passed. Ran STE heuristic plus manual prose review.
+- No performance benchmark or new runtime feature is claimed. No product code, live config, router, service, package, commit, push, or deployment changed.
+- Follow-up answer: scheduler targets include subscriber policies and WAN/group capacities. Updated all current design records. Configured true WAN and ancestor ceilings still apply. Overlap/overnight/DST policies remain undecided.
+- Next: isolated tasks in `docs/superpowers/plans/2026-11-16-topology-foundation.md`, then separate migration/publication/UI/scheduler slices.
+- Session: [[2026-11-16-topology-product-review]].
+
+## 2026-11-16T18:34:01+08:00 (Asia/Shanghai) — Speed schedule concept approved
+
+- Owner approves recurring speed schedules, multiple schedule profiles, and a configurable timezone dropdown defaulting to `Asia/Manila`.
+- Updated discussion record, TUI layout, and session. Schedule profiles are distinct from subscriber service/speed profiles.
+- Each schedule has weekday selection, start/end, enable state, and Mbps/Percentage settings. Automatic native verification remains required.
+- Outstanding: exact targets, midnight/day semantics, overlaps, inheritance, restart and DST edge behavior. Do not invent approved precedence.
+- Application timezone default is Asia/Manila. Documentation timestamps remain Asia/Shanghai per user workflow.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No code, live schedules, or production changes.
+- Checks: whitespace, scheduler approval markers, and timezone default passed. Preserve unrelated edits.
+
+## 2026-11-16T18:31:24+08:00 (Asia/Shanghai) — Recurring speed scheduler requested
+
+- Owner asks for Sunday-to-Saturday checkboxes, time ranges, and Percentage/Mbps speed settings.
+- Added proposed extension to the discussion record and Policies > Speed Schedules placement to the layout record. Updated the session.
+- First open question: target subscriber min/max, WAN/group capacities, or both. No target scope or overlap policy is approved.
+- Keep fresh-only observations, base-policy restoration, noncompounding percentages, and automatic DPDK verification.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No code, live schedule, or production changes.
+- Checks: documentation whitespace and proposed-scope markers passed. Preserve unrelated edits.
+
+## 2026-11-16T18:26:02+08:00 (Asia/Shanghai) — Initial Topology TUI layout approved
+
+- Owner approves the initial Topology sidebar entry, four views, and inventory/tree/details arrangement.
+- Owner explicitly expects further interface improvements. Treat this as a baseline, not a frozen final design.
+- Updated `docs/design/tui/TOPOLOGY_MANAGER_LAYOUT.md` and the topology session.
+- Next UI work: refine wide/compact wireframes and interactions while preserving approved behavior and automatic publication.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No renderer, runtime code, or production changes.
+- Checks: documentation whitespace, approval state, and requirements link passed. Preserve unrelated edits.
+
+## 2026-11-16T18:19:05+08:00 (Asia/Shanghai) — Topology TUI layout proposed
+
+- Owner asks about the manager's TUI location, feature placement, and UI terminology.
+- Read actual sidebar/routes. Proposed one Topology route after Routers, with Builder, Assignments, Policies, and Changes views.
+- Added `docs/design/tui/TOPOLOGY_MANAGER_LAYOUT.md` and updated the topology session. Layout remains unapproved.
+- Wide Builder: inventory, tree, details. Compact mode: focused-panel switcher. Automatic publication status remains visible.
+- No manual preview/Validate/Apply gate. Preserve keyboard focus and edited fields during refresh.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No renderer, runtime code, or production changes.
+- Checks: documentation whitespace and requirements link passed. Preserve unrelated edits.
+
+## 2026-11-16T18:15:31+08:00 (Asia/Shanghai) — Supplemental requirements approvals complete
+
+- Owner approves detail 2b: Subscriber Speed Policy controls in Topology Manager, global defaults, shared-source overrides, and per-control inheritance.
+- Marked all eleven behavior decisions and four supplemental groups approved in the discussion record. Updated the session.
+- Removed stale pending-default/UI wording. Existing migration values and fresh-only session observations remain required.
+- Next: concrete data model, Settings TUI migration boundaries, implementation tasks, and focused verification plan.
+- Exact identity adapters, native ACK correlation, interrupted writes, edit completion, and recovery parameters still require design/proof.
+- Requirements approval does not claim runtime implementation or authorize a live deployment.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No product code or production changes.
+- Checks: whitespace, all decision approval states, absence of pending owner-decision markers, and report link passed. Preserve unrelated edits.
+
+## 2026-11-16T18:13:43+08:00 (Asia/Shanghai) — Subscriber speed defaults approved
+
+- Owner approves new-policy maximum 100 percent and minimum fixed 1 Mbps, separately for download and upload.
+- Existing effective values remain preserved during migration. Both min/max unit selectors remain independently switchable.
+- Updated detail 2a, supplemental tracker, and session. Added pending detail 2b for UI location and per-control inheritance.
+- Proposal: all subscriber policy controls in Topology Manager, global defaults overridden by shared profile/service controls.
+- No per-WAN-instance or individual subscriber speed override in the proposal. Node capacity factors remain separate.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No code or production changes.
+- Checks: whitespace and approval-state consistency passed. Preserve unrelated edits.
+
+## 2026-11-16T18:10:48+08:00 (Asia/Shanghai) — Publication behavior approved, speed defaults pending
+
+- Owner approves supplemental detail 4: automatic triggers, serialized writes, fresh-data recovery, and correlated native verification.
+- Updated discussion record and session. Approval does not substitute for isolated implementation/protocol tests.
+- Next: detail 2a, initial subscriber speed defaults. Proposal: max 100 percent and min fixed 1 Mbps, each direction.
+- Preserve migrated settings. Mode selectors are already approved; new default values are not.
+- Proposed subscriber control location and inheritance still need separate confirmation.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No product code or production changes.
+- Checks: whitespace, approval states, and reference link passed. Preserve unrelated edits.
+
+## 2026-11-16T18:07:28+08:00 (Asia/Shanghai) — Identity registry approved, publication detail pending
+
+- Owner approves subscriber identity/policy registry after the CRM clarification, then requests the next detail.
+- CRM remains a future extension, not an authorized feature implementation.
+- Added supplemental detail 4 proposal: completed valid edits/fresh changed collections trigger serialized publication and native verification.
+- Recover from fresh observations; do not replay archived subscriber IP/MAC. Recheck delayed ACK before considering another mutation.
+- Detail 4 remains proposed. Subscriber policy defaults remain open; do not silently select them.
+- Updated record and session in `/home/pi/LQoSync3.0`, branch `lqosync3`. No product code or production changes.
+- Checks: whitespace, supplemental decision states, and report link passed. Preserve unrelated edits.
+
+## 2026-11-16T17:58:56+08:00 (Asia/Shanghai) — Min/max unit selectors approved
+
+- Owner explicitly approves Mbps/Percentage modes for both subscriber minimum and maximum speed, then requests the next detail.
+- Updated supplemental detail 2 and session. Do not infer selection of the proposed fixed-1-Mbps default.
+- Added detail 3 proposal: persistent internal subscriber ID mapped to verified source account/reference, with fresh-only endpoint observations.
+- PPP/Hotspot use authenticated active records; DHCP uses bound plus an independent reliable reference for durable continuity.
+- Changed IP/MAC without reliable identity evidence is a critical reconciliation conflict, not an automatic merge. Detail 3 remains proposed.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No code or production changes.
+- Checks: documentation whitespace and decision-state consistency passed. Preserve unrelated edits.
+
+## 2026-11-16T17:53:34+08:00 (Asia/Shanghai) — Subscriber speed unit selector requested
+
+- Owner requests switching between percentage-based and Mbps-based speed controls.
+- Updated supplemental detail 2 and the session. Minimum modes are confirmed; maximum fixed-Mbps scope needs clarification.
+- The proposed fixed-1-Mbps default, UI location, and inheritance details are not approved by this clarification.
+- Mode changes must not silently reinterpret the previous numeric value. Show base and resolved speeds.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. Checks: whitespace and pending-state consistency passed.
+- No runtime code or production changes. Preserve unrelated edits.
+
+## 2026-11-16T17:47:28+08:00 (Asia/Shanghai) — Supplemental topology detail 1 approved
+
+- Owner approves intermediate capacity inheritance, optional explicit limits, and no mixed subscriber/group children in the first version.
+- Owner adds explicit capacity based on a percentage of WAN capacity. Distinguish fixed Mbps and WAN-percentage modes.
+- Example: 50 percent of configured 310 Mbps is 155 Mbps, further constrained by any lower ancestor ceiling.
+- Updated discussion record and session in `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Next: supplemental detail 2, subscriber speed controls/defaults. Proposed UI, inheritance, and fixed-1-Mbps defaults remain unapproved.
+- Checks: whitespace, reference link, and percentage arithmetic passed. No runtime code or production changes. Preserve unrelated edits.
+
+## 2026-11-16T17:37:30+08:00 (Asia/Shanghai) — All eleven topology behavior decisions approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner explicitly approved corrected decision 11: automatic checks, write/apply, DPDK verification, bounded retries, and fresh-data recovery.
+- Preview is optional visibility. Routine operator Validate/Apply gates are superseded. Unresolved critical conflicts require intervention.
+- Updated `docs/design/TOPOLOGY_MANAGER_DISCUSSION.md` and the topology session to record all eleven approvals.
+- Remaining design details stay open: intermediate/mixed-node capacity, subscriber controls/defaults, source identity/presence, edit completion, and recovery mechanisms.
+- This completes the requested decision round. No implementation or live deployment occurred.
+- Checks: all eleven decision states, documentation whitespace, and report link passed. Preserve unrelated edits.
+- Next: use this record for the implementation design, without inventing open defaults or claiming runtime reliability proof.
+
+## 2026-11-16T17:32:42+08:00 (Asia/Shanghai) — Owner directs automatic topology publication
+
+- Owner supersedes the proposed manual Validate/Apply lifecycle: automatically write, apply, and verify the DPDK dataplane.
+- Preview shows changes without gating publication. Intervention is for unresolved critical conflicts.
+- Internal checks remain automatic to meet approved reliability and integrity requirements.
+- Revised decision 11 and earlier manual-Apply wording in the discussion record. Updated the session.
+- Keep configured, published, imported, and verified-applied states separate. Failed collection holds automatically; fresh recovery resumes automatically.
+- Detailed edit completion and recovery/rollback triggers remain open. Do not mark them approved by implication.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No code or production changes.
+- Checks: documentation whitespace and automatic-lifecycle consistency passed. Preserve unrelated edits.
+
+## 2026-11-16T17:20:53+08:00 (Asia/Shanghai) — Topology decision 10 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved visible max-rate oversubscription, blocking invalid commitments/unresolved placements, and explicit fallback only.
+- Added decision 11 proposal: separate drafts, saved policy, published files, imported world, and verified native application.
+- Rollback must restore policy with fresh subscriber observations, never replay historical IP/MAC rows.
+- Serialize writes and recover interrupted attempts. Pair-file renames do not form one atomic transaction.
+- Decision 11 remains unapproved. Added residual implementation questions to prevent a false design-complete claim.
+- Updated discussion record and session. Checks: whitespace and decision-state consistency passed.
+- No product code or production changes. Preserve unrelated edits.
+
+## 2026-11-16T17:17:10+08:00 (Asia/Shanghai) — Topology decision 9 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved decision 9 after DHCP bound-status and lease-expiry clarifications, then requested the next decision.
+- Approved lifecycle includes confirmed-absence removal, fresh return data, publication hold on failed required reads, and explicit reconciliation.
+- Empty manual nodes remain configured. Empty automatic branches leave active export but retain internal identities.
+- Added decision 10 proposal: allow visible maximum-rate oversubscription, reject invalid commitments, and hold unresolved required placements.
+- Strict publication and explicit fallback details remain unapproved. Publication hold does not block forwarding or prove shaping of new subscribers.
+- Updated discussion record and session. Checks: whitespace and decision-state consistency passed.
+- No product code or production changes. Preserve unrelated edits.
+
+## 2026-11-16T17:12:59+08:00 (Asia/Shanghai) — DHCP bound-state clarification
+
+- Owner asks about static/dynamic DHCP bound status. Verified official RouterOS DHCP documentation.
+- DHCPv4 active-lease criterion: current `status=bound`, with fresh address/MAC attributes. Static configuration alone does not qualify.
+- Bound is lease state, not immediate reachability. A device can disconnect before the lease changes or expires.
+- Updated discussion record and session. Decision 9 remains pending approval.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No code or production changes.
+- Checks: documentation whitespace and decision-state consistency passed. Preserve unrelated edits.
+
+## 2026-11-16T17:01:46+08:00 (Asia/Shanghai) — Immediate-parent rule approved, decision 9 pending
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved the corrected immediate-parent calculation and requested the next decision.
+- Added decision 9 proposal for fresh collection, confirmed absence, rename/source reconciliation, and empty-node exports.
+- Proposal: failed required reads hold the combined export; no stored-IP/MAC fallback or false fresh-publication claim.
+- Proposal: retain configured WAN/manual nodes; omit empty automatic branches from export while preserving definitions and instance IDs.
+- Decision 9 remains unapproved. Source-specific active-presence rules and remaining capacity/control details still need design.
+- Updated discussion record and session. Checks: whitespace and decision-state consistency passed.
+- No product code or production changes. Preserve unrelated edits.
+
+## 2026-11-16T16:59:45+08:00 (Asia/Shanghai) — Immediate subscriber parent calculation clarified
+
+- Owner clarifies that subscriber-based auto-compute and group factors apply at the immediate parent of subscribers.
+- Corrected decision 8 and removed the example that recalculated every ancestor from descendant plans.
+- WAN capacity stays explicitly configured. A direct-subscriber WAN does not switch to automatic calculation.
+- Example: 10 times 50 Mbps with group factor 0.8 computes 400 Mbps, capped at the configured 310 Mbps WAN. Subscriber maxima remain 50 Mbps.
+- Intermediate aggregates and mixed subscriber/group children still need an explicit policy. Do not invent their output rates.
+- Updated discussion record, topology session, and handoff in `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Checks: documentation whitespace and example arithmetic passed. No code or production changes. Preserve unrelated edits.
+
+## 2026-11-16T16:54:09+08:00 (Asia/Shanghai) — Topology decision 8 approved with subscriber speed controls
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved nested computation, with strict WAN ceilings for aggregate nodes and unchanged individual subscriber maxima.
+- Example: a 310 Mbps WAN caps descendant aggregate nodes at 310 Mbps, while a subscriber plan remains 50 Mbps.
+- Owner requests visible subscriber max factors and minimum settings: fixed Mbps or percent of the current read base speed.
+- These subscriber controls are separate from WAN/group factors. Minimum examples do not select a default.
+- Updated discussion record and session. UI location, inheritance, and initial minimum defaults remain open details.
+- Checks: documentation whitespace, approval state, and example arithmetic passed. No code or production changes.
+- Next: clarify subscriber-policy details, then decision 9. Preserve unrelated edits.
+
+## 2026-11-16T16:42:49+08:00 (Asia/Shanghai) — Topology decision 7 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved custom Auto default, optional Manual mode, default factors of 1.0, and preservation of migrated values.
+- Updated discussion record, topology session, and handoff. Read current group-rate formulas in `src/topology.rs`.
+- Next: decision 8, raw descendant demand, per-node factors, ancestor ceilings, and computed-only balancing. All new details remain proposed.
+- Preserve source-specific plan-sum versus count-times-unit formulas. Do not silently replace them with one generic formula.
+- Checks: documentation whitespace and decision-state consistency passed. No runtime code, live configuration, or product tests changed.
+- Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T16:40:58+08:00 (Asia/Shanghai) — Fresh-data clarification approved, decision 7 pending
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner explicitly approved fresh observations without stored-IP/MAC fallback, then requested the next decision.
+- Added decision 7 proposal to the discussion record. Updated the topology session and this handoff.
+- Proposal: automatic custom groups by default, optional explicit manual capacity, and factors of 1.0 without configured defaults.
+- Preserve migrated values, capacity modes on moves, and approved per-instance overrides. These new defaults remain unapproved.
+- Checks: documentation whitespace and decision-state consistency passed. No product code or live configuration changed.
+- Next: obtain decision 7. Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T16:39:35+08:00 (Asia/Shanghai) — Fresh subscriber data clarification
+
+- Owner prohibits reuse of stored IP/MAC observations and requires fresh subscriber data for active output.
+- Never fill current session fields from historical rows or reconcile identity through historical IP/MAC matches.
+- Saved operator policies remain separate. Failed reads must not present an old snapshot as fresh.
+- Updated the discussion record and topology session. Decision 6 remains approved with this clarification.
+- Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`. No runtime code or production changes.
+- Checks: documentation whitespace and required fresh-data statements passed. Preserve unrelated edits.
+- Next: decision 7. Source-specific failure/presence handling remains decision 9.
+
+## 2026-11-16T16:35:10+08:00 (Asia/Shanghai) — Topology decision 6 and subscriber lifecycle approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved pins and exceptions, with explicit subscriber identity integrity across disconnect and reconnect.
+- Confirmed absence removes active CSV/network subscriber output. Retain internal identity and valid saved pins separately.
+- Return requires fresh IP, MAC, and session data. Reused addresses must not transfer identity or policy.
+- Updated the discussion record, topology session, and this handoff. Added lifecycle acceptance requirements.
+- Failed or partial reads do not prove absence. Source-specific identity, presence, stale-data, and empty-group details still need design.
+- Next: decision 7, custom-node capacity policies. Decision 9 must retain these approved lifecycle requirements.
+- Checks: documentation whitespace and decision-state consistency passed. No runtime code or production changes.
+- Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T16:26:11+08:00 (Asia/Shanghai) — Topology decision 5 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved automatic initial assignment, stable current placements, previewed changes, and explicit scoped rebalance.
+- First-version continuous background redistribution remains disabled.
+- Updated the discussion record, topology session, and this handoff.
+- Next: decision 6, manual assignments, instance pins, and explicit eligibility exceptions. These details remain proposed.
+- Checks: documentation whitespace and decision-state consistency passed. No product code or live configuration changed.
+- Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T16:22:31+08:00 (Asia/Shanghai) — Topology decision 4 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved capacity-weighted plan allocation for destinations with configured capacities, with download and upload checks.
+- Group allocation without independent capacity remains decision 8.
+- Updated the discussion record, topology session, and this handoff.
+- Next: decision 5, new-subscriber assignment and controlled rebalance of current subscribers. Its defaults remain proposed.
+- Checks: documentation whitespace and decision-state consistency passed. No product code or live configuration changed.
+- Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T16:15:25+08:00 (Asia/Shanghai) — Topology decision 3 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved subscriber eligibility after clarification: a shared pool can span all selected WANs, even with one profile.
+- Optional explicit filters restrict destinations or exclude subscribers. Pool and WAN target selection remain explicit.
+- Updated the discussion record, topology session, and this handoff.
+- Next: decision 4, capacity-weighted plan allocation with directional capacity checks. It remains proposed.
+- Checks: documentation whitespace and decision-state consistency passed. No product code or live configuration changed.
+- Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T15:31:38+08:00 (Asia/Shanghai) — Topology decision 2 approved
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`.
+- Owner approved shared target sets, explicit placements, overlap deduplication, and explicit inclusion of new WANs.
+- Updated the discussion record, topology session, and this handoff.
+- Next: discuss decision 3, subscriber eligibility. The proposed source pools and filters remain unapproved.
+- Checks: documentation whitespace and decision-state consistency passed. No runtime code or live configuration changed.
+- Preserve unrelated edits. Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T15:28:57+08:00 (Asia/Shanghai) — Topology decision 1 approved
+
+- Agent: Codex `/root`. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`, HEAD `0ad8b8d`.
+- Owner approved shared source definitions/default factors, separate instances, and optional instance factor overrides.
+- Owner explicitly requires reliability and integrity. Added requirements for IDs, references, inheritance, uniqueness, and failure preservation.
+- Updated `docs/design/TOPOLOGY_MANAGER_DISCUSSION.md`, the topology session, and this handoff.
+- Decision 2 remains proposed: shared child targets versus explicit placement, overlap handling, and deliberate target-set changes.
+- Next: obtain the owner's decision on item 2. No runtime behavior is implemented or verified.
+- Checks: documentation whitespace and decision-state consistency. No code or live configuration changed. Preserve unrelated edits.
+- Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T15:26:14+08:00 (Asia/Shanghai) — Topology requirements recorded
+
+- Agent: Codex `/root`. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`, HEAD `0ad8b8d`.
+- Owner requests one decision per discussion round and documentation of all prior requirements.
+- Added `docs/design/TOPOLOGY_MANAGER_DISCUSSION.md`. Updated the topology session and this handoff.
+- The record separates confirmed direction from proposals and eleven pending decisions.
+- Topology assignment precedes routing. Traffic intelligence is a separate packet/IP classification function.
+- Next: discuss source identity and topology instances. Do not treat the proposed defaults as approved.
+- No product code or live configuration changed. Preserve prior unrelated changes.
+- Checks: documentation whitespace and report link. No product tests needed for this documentation update.
+- Session: [[2026-11-16-topology-manager-adoption]].
+
+## 2026-11-16T14:11:53+08:00 (Asia/Shanghai) — Topology Manager adoption research
+
+- Agent: Codex `/root`. Goal: research adoption of LibreQoS Topology Manager in LQoSync3.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`, HEAD `0ad8b8d`. Preserve prior unrelated edits.
+- Added `docs/reports/2026-11-16-topology-manager-adoption.md` and the matching session note. Updated Home and this handoff.
+- Read the project graph, local source, installed UI/state, and public source at `9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d`.
+- Manual import creates fixed nodes. Public native JSON lacks editor metadata. A source switch alone does not enable native moves.
+- Proposed paths: LQoSync-owned editor with current pair export, or an ingress extension for the native editor. Neither is implemented.
+- Checks passed: whitespace, report reference links, local code/note paths, and static source assertions.
+- Reviewed STE heuristic findings manually. Technical names and list-related findings remain. No certified-compliance claim.
+- No product test run was needed for these documentation changes. No live configuration, service, router, or package changed.
+- Open: select editor ownership and verify the exact installed ingress contract. Prior native rate-loss findings need a current-build retest.
+- Next: specify a persistent topology catalog and revision flow, or prototype native ingress in isolation. Keep the convergence investigation separate.
+- Session: [[2026-11-16-topology-manager-adoption]]. No commit, push, external message, or deployment occurred.
+
 ## 2026-11-16T08:44:08+08:00 (Asia/Shanghai) — RAM-cache deployment authorized; CI fix
 
 - Owner authorized clean release preparation, deployment/restart, and production verification. Agent: Codex `/root`.

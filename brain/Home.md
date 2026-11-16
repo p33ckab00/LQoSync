@@ -11,6 +11,10 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-16-topology-product-review]]
+
+- [[2026-11-16-topology-manager-adoption]]
+
 - [[2026-11-12-worker-ram-cache]]
 
 - [[2026-11-12-production-performance-observation]]
