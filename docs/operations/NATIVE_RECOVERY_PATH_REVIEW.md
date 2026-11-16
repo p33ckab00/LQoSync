@@ -103,3 +103,29 @@ Sources:
 - [Public broker recovery and maintenance control](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d/src/rust/lqosd/src/bridge_broker/mod.rs).
 - [Public maintenance classification](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d/src/rust/lqosd/src/bridge_broker/maintenance.rs).
 - Installed bridge wrapper, unit, binary strings, and read-only journal/snapshot observations.
+
+## Public release and support search
+
+Checked: 2026-11-16T10:46:56+08:00 (Asia/Shanghai).
+
+- The public main branch still points to `9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d`, the beta19 source projection dated 2026-11-08.
+- The GitHub releases endpoint lists v2 releases. It supplies no v3 recovery-build mapping.
+- Public issue searches for `non-suffix`, `NON_SUFFIX_STRUCTURAL_REMOVE`, and maintenance with 3.0 returned no matching issue.
+  This search does not cover private support channels or prove that upstream has no report.
+- The official v3 installation guide documents beta-to-beta package backup and rollback.
+  It requires config, LKG, and all three old package files before an upgrade.
+  The v2 migration rollback tool serves a different transition.
+- This generic package procedure does not confirm recovery from the combined non-suffix and maintenance hold on this build.
+- Direct reads of both beta `InRelease` and uncompressed `Packages` returned HTTP 403.
+  The local APT list dates from 2026-11-15. It cannot establish the current repository candidate.
+
+No public source found in this search confirms the exact supported recovery build, action, or rollback for this incident.
+The next step requires a maintainer answer to the prepared report. The report remains unsent.
+No package installation, APT refresh, service action, or maintenance override occurred.
+
+References:
+
+- [Public source projection](https://github.com/LibreQoE/LibreQoS/commit/9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d).
+- [Release list](https://github.com/LibreQoE/LibreQoS/releases).
+- [Official v3 installation and beta rollback guide](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d/docs/v3/install.md#beta-to-beta-upgrade).
+- [Official v2-to-v3 migration guide](https://github.com/LibreQoE/LibreQoS/blob/9ebe29bc9d49013aff9b0544de3c6f6fc6ba2f1d/docs/v3/upgrade-from-v2.md).
