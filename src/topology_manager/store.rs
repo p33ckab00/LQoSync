@@ -4,7 +4,7 @@ use super::model::{RegistryDocument, SubscriberRecord};
 use anyhow::{Context, ensure};
 use serde::Deserialize;
 use std::fs::File;
-use std::io::{BufReader, Seek};
+use std::io::{Read, Write};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
@@ -14,6 +14,7 @@ pub struct RegistryStore {
     path: PathBuf,
     document: Option<RegistryDocument>,
     disk_schema: u32,
+    history_cleanup_pending: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,8 +42,9 @@ impl RegistryStore {
                 let empty = RegistryDocument::default();
                 crate::files::write_secret(&path, &serde_json::to_vec(&empty)?)?;
                 LoadedDocument {
+                    bytes: std::fs::read(&path)?,
                     document: empty,
-                    disk_schema: 2,
+                    disk_schema: 3,
                 }
             }
             None => anyhow::bail!(
@@ -51,18 +53,144 @@ impl RegistryStore {
         };
         // Reconfirm a rename that could have preceded an earlier directory-sync error.
         File::open(&private)?.sync_all()?;
-        Ok(Self {
+        let mut store = Self {
             _lock: lock,
             path,
             document: Some(loaded.document),
             disk_schema: loaded.disk_schema,
-        })
+            history_cleanup_pending: false,
+        };
+        store.history_cleanup_pending = store.prune_history().is_err();
+        Ok(store)
     }
 
     pub fn document(&self) -> anyhow::Result<&RegistryDocument> {
         self.document
             .as_ref()
             .context("registry state is uncertain. Reopen the store")
+    }
+
+    /// Save the exact confirmed disk document. Never replace an existing backup.
+    pub fn backup_current(&mut self) -> anyhow::Result<BackupId> {
+        let current = self.document()?;
+        let disk = load(&self.path);
+        let loaded = match disk {
+            Ok(Some(loaded))
+                if loaded.document == *current && loaded.disk_schema == self.disk_schema =>
+            {
+                loaded
+            }
+            result => {
+                self.document = None;
+                result.context("cannot confirm registry before backup")?;
+                anyhow::bail!("registry changed before backup. Reopen the store");
+            }
+        };
+        let id = BackupId {
+            schema_version: loaded.disk_schema,
+            revision: loaded.document.revision,
+        };
+        let path = self.backup_path(id)?;
+        match load(&path)? {
+            Some(existing) => ensure!(
+                existing.bytes == loaded.bytes,
+                "existing registry backup conflicts with current bytes"
+            ),
+            None => write_backup(&path, &loaded.bytes)?,
+        }
+        let verified = load(&path)?.context("registry backup is missing")?;
+        ensure!(
+            verified.bytes == loaded.bytes,
+            "registry backup verification failed"
+        );
+        File::open(path.parent().context("registry directory is missing")?)?.sync_all()?;
+        self.history_cleanup_pending = self.prune_history().is_err();
+        Ok(id)
+    }
+
+    /// History maintenance errors do not change the result of a confirmed policy write.
+    pub fn history_cleanup_pending(&self) -> bool {
+        self.history_cleanup_pending
+    }
+
+    fn prune_history(&self) -> anyhow::Result<()> {
+        let revision = self.document()?.revision;
+        let directory = self
+            .path
+            .parent()
+            .context("registry directory is missing")?;
+        let mut history = Vec::new();
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                continue;
+            };
+            let Some(number) = name
+                .strip_prefix("registry-v3-r")
+                .and_then(|s| s.strip_suffix(".json"))
+            else {
+                continue;
+            };
+            let Ok(number) = number.parse::<u64>() else {
+                continue;
+            };
+            if number <= revision && name == format!("registry-v3-r{number}.json") {
+                history.push((number, entry.path()));
+            }
+        }
+        history.sort_unstable_by_key(|(revision, _)| *revision);
+        let obsolete = history.len().saturating_sub(16);
+        for (revision, path) in history.into_iter().take(obsolete) {
+            let loaded = load(&path)?.context("registry history entry is missing")?;
+            ensure!(
+                loaded.disk_schema == 3 && loaded.document.revision == revision,
+                "registry history metadata conflict"
+            );
+            std::fs::remove_file(path)?;
+        }
+        if obsolete > 0 {
+            File::open(directory)?.sync_all()?;
+        }
+        Ok(())
+    }
+
+    /// Restore topology/source settings as a forward edit. Keep current identities and subscriber intent.
+    pub fn restore_policy(
+        &mut self,
+        expected_revision: u64,
+        backup: BackupId,
+    ) -> anyhow::Result<CommitOutcome> {
+        let current = self.document()?;
+        ensure!(
+            current.revision == expected_revision,
+            "policy recovery revision conflict"
+        );
+        ensure!(
+            backup.revision <= expected_revision,
+            "policy recovery cannot use a future backup"
+        );
+        let loaded = load(&self.backup_path(backup)?)?.context("registry backup is missing")?;
+        ensure!(
+            loaded.disk_schema == backup.schema_version
+                && loaded.document.revision == backup.revision,
+            "registry backup metadata conflict"
+        );
+        let mut candidate = current.clone();
+        candidate.catalog = loaded.document.catalog;
+        candidate.source_settings = loaded.document.source_settings;
+        self.commit(expected_revision, candidate)
+    }
+
+    fn backup_path(&self, backup: BackupId) -> anyhow::Result<PathBuf> {
+        ensure!(
+            (1..=3).contains(&backup.schema_version),
+            "unsupported registry backup schema"
+        );
+        Ok(self.path.with_file_name(format!(
+            "registry-v{}-r{}.json",
+            backup.schema_version, backup.revision
+        )))
     }
 
     pub fn commit(
@@ -104,6 +232,13 @@ impl RegistryStore {
 
         let current = self.document()?;
         ensure!(
+            current.source_settings.is_none() || candidate.source_settings.is_some(),
+            "ordinary edit cannot remove configured source settings"
+        );
+        if let Some(settings) = &mut candidate.source_settings {
+            settings.canonicalize();
+        }
+        ensure!(
             current.catalog.is_none() || candidate.catalog.is_some(),
             "ordinary edit cannot remove a configured catalog"
         );
@@ -140,7 +275,7 @@ impl RegistryStore {
                 );
             }
         }
-        if candidate == *current && self.disk_schema == 2 {
+        if candidate == *current && self.disk_schema == 3 {
             return Ok(CommitOutcome {
                 revision: current.revision,
                 changed: false,
@@ -152,16 +287,49 @@ impl RegistryStore {
             .context("subscriber registry revision is exhausted")?;
         let bytes = serde_json::to_vec(&candidate).context("cannot encode subscriber registry")?;
         let revision = candidate.revision;
+        self.backup_current()?;
         // An error can follow rename. Never expose old memory as a confirmed current document.
         self.document = None;
         write(&self.path, &bytes)?;
         self.document = Some(candidate);
-        self.disk_schema = 2;
+        self.disk_schema = 3;
         Ok(CommitOutcome {
             revision,
             changed: true,
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackupId {
+    pub schema_version: u32,
+    pub revision: u64,
+}
+
+fn write_backup(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
+    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let sequence = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp = path.with_extension(format!("tmp-{}-{sequence}", std::process::id()));
+    let mut file = File::options()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&temp)?;
+    let result = (|| -> anyhow::Result<()> {
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        // A hard link publishes the complete file without replacing an existing backup.
+        std::fs::hard_link(&temp, path)?;
+        File::open(path.parent().context("registry directory is missing")?)?.sync_all()?;
+        Ok(())
+    })();
+    drop(file);
+    let cleanup = std::fs::remove_file(&temp);
+    result?;
+    cleanup?;
+    File::open(path.parent().context("registry directory is missing")?)?.sync_all()?;
+    Ok(())
 }
 
 fn check_private_directory(path: &Path) -> anyhow::Result<()> {
@@ -182,6 +350,7 @@ fn check_private_directory(path: &Path) -> anyhow::Result<()> {
 struct LoadedDocument {
     document: RegistryDocument,
     disk_schema: u32,
+    bytes: Vec<u8>,
 }
 
 #[derive(Deserialize)]
@@ -198,9 +367,19 @@ struct LegacyRegistry {
     subscribers: Vec<SubscriberRecord>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SchemaTwoRegistry {
+    schema_version: u32,
+    revision: u64,
+    next_id: u64,
+    subscribers: Vec<SubscriberRecord>,
+    catalog: Option<super::catalog::TopologyCatalog>,
+}
+
 fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
     check_private_directory(path.parent().context("registry directory is missing")?)?;
-    let file = match File::options()
+    let mut file = match File::options()
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
         .open(path)
@@ -219,34 +398,52 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
         metadata.uid() == unsafe { libc::geteuid() } && metadata.mode() & 0o077 == 0,
         "subscriber registry must be private and owned by the current user"
     );
-    let mut reader = BufReader::new(file);
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)?;
     let header: SchemaHeader =
-        serde_json::from_reader(&mut reader).context("cannot decode registry schema")?;
-    reader.rewind()?;
-    // Decode the original stream again so duplicate fields cannot disappear into a JSON map.
+        serde_json::from_slice(&bytes).context("cannot decode registry schema")?;
+    // Decode the original bytes again so duplicate fields cannot disappear into a JSON map.
     let document = match header.schema_version {
         1 => {
             let legacy: LegacyRegistry =
-                serde_json::from_reader(reader).context("cannot decode schema-1 registry")?;
+                serde_json::from_slice(&bytes).context("cannot decode schema-1 registry")?;
             ensure!(
                 legacy.schema_version == 1,
                 "registry schema changed during load"
             );
             RegistryDocument {
-                schema_version: 2,
+                schema_version: 3,
                 revision: legacy.revision,
                 next_id: legacy.next_id,
                 subscribers: legacy.subscribers,
                 catalog: None,
+                source_settings: None,
             }
         }
-        2 => serde_json::from_reader(reader).context("cannot decode schema-2 registry")?,
+        2 => {
+            let legacy: SchemaTwoRegistry =
+                serde_json::from_slice(&bytes).context("cannot decode schema-2 registry")?;
+            ensure!(
+                legacy.schema_version == 2,
+                "registry schema changed during load"
+            );
+            RegistryDocument {
+                schema_version: 3,
+                revision: legacy.revision,
+                next_id: legacy.next_id,
+                subscribers: legacy.subscribers,
+                catalog: legacy.catalog,
+                source_settings: None,
+            }
+        }
+        3 => serde_json::from_slice(&bytes).context("cannot decode schema-3 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     document.validate()?;
     Ok(Some(LoadedDocument {
         document,
         disk_schema: header.schema_version,
+        bytes,
     }))
 }
 
@@ -405,7 +602,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":3,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":4,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -569,7 +766,7 @@ mod tests {
         assert!(RegistryStore::open(dir.path()).is_err());
     }
 
-    fn catalog_candidate() -> RegistryDocument {
+    pub(super) fn catalog_candidate() -> RegistryDocument {
         let mut doc = candidate();
         doc.catalog = Some(super::super::catalog::tests::catalog());
         doc.subscribers[0].identities[0].scope = SourceScope {
@@ -600,10 +797,11 @@ mod tests {
         let mut json = serde_json::to_value(&legacy).unwrap();
         json["schema_version"] = serde_json::json!(1);
         json.as_object_mut().unwrap().remove("catalog");
+        json.as_object_mut().unwrap().remove("source_settings");
         crate::files::write_secret(&path(dir.path()), &serde_json::to_vec(&json).unwrap()).unwrap();
         let before = std::fs::read(path(dir.path())).unwrap();
         let mut store = RegistryStore::open(dir.path()).unwrap();
-        assert_eq!(store.document().unwrap().schema_version, 2);
+        assert_eq!(store.document().unwrap().schema_version, 3);
         assert_eq!(store.document().unwrap().subscribers, legacy.subscribers);
         assert_eq!(store.document().unwrap().next_id, 100);
         assert_eq!(store.document().unwrap().revision, 7);
@@ -622,7 +820,7 @@ mod tests {
         let reopened = RegistryStore::open(dir.path()).unwrap();
         assert_eq!(reopened.document().unwrap().revision, 8);
         assert_eq!(reopened.document().unwrap().subscribers, legacy.subscribers);
-        assert_eq!(reopened.document().unwrap().schema_version, 2);
+        assert_eq!(reopened.document().unwrap().schema_version, 3);
     }
 
     #[test]
@@ -656,7 +854,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":3,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":4,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());
@@ -704,3 +902,7 @@ mod tests {
         assert_eq!(store.commit(1, factors).unwrap().revision, 2);
     }
 }
+
+#[cfg(test)]
+#[path = "store_recovery_tests.rs"]
+mod recovery_tests;

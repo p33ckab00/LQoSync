@@ -51,7 +51,7 @@
 ## Task 3: Record sources and define the next identity slice
 
 - [x] Record the owner's available sources: PPP secrets, current DHCP hostname/MAC, and Hotspot active rows. No RADIUS service exists.
-- [ ] Next slice: implement protocol normalization and an explicit account lifecycle contract. Available tables do not prove ambiguous continuity.
+- [x] Add an explicit opt-in operator-reference lifecycle contract in the identity plan. Live authority settings and enrollment still require integration.
 - [x] Keep identity authority separate from current read evidence. Do not treat RouterOS locators as permanent subscriber IDs.
 
 ## Task 4: Check and capture
@@ -81,4 +81,5 @@ Source normalization and live activation must keep that distinction explicit.
 - Synthetic checks cover 10,000 reserved IDs and 10,000 reordered inventory rows. They are not production benchmarks.
 - Full suite: 903 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
 
-Task 3 normalization remains open by design. No stub or unverified adapter claims complete identity evidence.
+Current normalization now exists in the normalization plan. The identity plan adds opt-in operator-reference authorization.
+Live enrollment and durable authority settings remain integration gates. No fallback claims identity from addresses or row locators.

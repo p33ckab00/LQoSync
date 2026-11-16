@@ -52,16 +52,18 @@ pub struct RegistryDocument {
     pub next_id: u64,
     pub subscribers: Vec<SubscriberRecord>,
     pub catalog: Option<super::catalog::TopologyCatalog>,
+    pub source_settings: Option<super::settings::SourceSettings>,
 }
 
 impl Default for RegistryDocument {
     fn default() -> Self {
         Self {
-            schema_version: 2,
+            schema_version: 3,
             revision: 0,
             next_id: 1,
             subscribers: Vec::new(),
             catalog: None,
+            source_settings: None,
         }
     }
 }
@@ -73,7 +75,7 @@ impl RegistryDocument {
 
     pub(super) fn index(&self) -> anyhow::Result<RegistryIndex<'_>> {
         ensure!(
-            self.schema_version == 2,
+            self.schema_version == 3,
             "unsupported subscriber registry schema"
         );
         ensure!(self.next_id > 0, "subscriber ID counter must be positive");
@@ -156,6 +158,13 @@ impl RegistryDocument {
             for node in &catalog.nodes {
                 validate_id(&node.id, IdKind::Node, self.next_id)?;
             }
+        }
+        if let Some(settings) = &self.source_settings {
+            settings.validate(
+                self.catalog
+                    .as_ref()
+                    .context("source settings require a catalog")?,
+            )?;
         }
         Ok(RegistryIndex {
             by_id,
@@ -297,7 +306,7 @@ mod tests {
 
     #[test]
     fn unsupported_schema_and_unsafe_id_counters_are_rejected() {
-        for version in [0, 1, 3, u32::MAX] {
+        for version in [0, 1, 2, 4, u32::MAX] {
             let mut doc = registry();
             doc.schema_version = version;
             assert!(doc.validate().is_err());
@@ -329,7 +338,7 @@ mod tests {
 
     #[test]
     fn current_schema_checks_catalog_references_without_guessing_legacy_bindings() {
-        assert_eq!(RegistryDocument::default().schema_version, 2);
+        assert_eq!(RegistryDocument::default().schema_version, 3);
         let mut doc = registry();
         doc.catalog = Some(super::super::catalog::tests::catalog());
         assert!(doc.validate().is_err());

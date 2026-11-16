@@ -110,17 +110,20 @@ impl ExpectedImport {
     }
 
     pub fn matches(&self, artifact: &Value) -> bool {
-        self.compare(artifact).unwrap_or(false)
+        let imported = &artifact["imported"];
+        self.matches_parts(
+            &imported["compatibility_network_json"],
+            &imported["shaped_devices"],
+        )
     }
 
-    fn compare(&self, artifact: &Value) -> anyhow::Result<bool> {
-        let imp = &artifact["imported"];
-        let list = imp["shaped_devices"]
-            .as_array()
-            .context("imported devices missing")?;
-        if list.len() != self.devices.len()
-            || !same_json(&imp["compatibility_network_json"], &self.network)
-        {
+    pub(crate) fn matches_parts(&self, network: &Value, devices: &Value) -> bool {
+        self.compare(network, devices).unwrap_or(false)
+    }
+
+    fn compare(&self, network: &Value, devices: &Value) -> anyhow::Result<bool> {
+        let list = devices.as_array().context("imported devices missing")?;
+        if list.len() != self.devices.len() || !same_json(network, &self.network) {
             return Ok(false);
         }
         let mut seen = std::collections::HashSet::with_capacity(list.len());

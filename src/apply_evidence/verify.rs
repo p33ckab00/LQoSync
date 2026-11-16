@@ -26,6 +26,7 @@ pub struct Acceptance {
 /// Only a successful read-only correlation can construct this receipt.
 #[derive(Debug)]
 pub struct Verified {
+    topology: Option<crate::write_receipt::TopologyContext>,
     pub(super) write_id: String,
     pub(super) config_digest: String,
     pub(super) file_hashes: Vec<String>,
@@ -36,7 +37,8 @@ impl Verified {
         &self.acceptance
     }
     pub(crate) fn matches(&self, receipt: &Receipt) -> bool {
-        self.write_id == receipt.write_id
+        self.topology == receipt.meta.topology
+            && self.write_id == receipt.write_id
             && self.config_digest == receipt.meta.config_digest
             && self.file_hashes
                 == receipt
@@ -49,6 +51,7 @@ impl Verified {
 /// One normalization per pending operation; acceptance still checks fresh input hashes.
 #[derive(Clone)]
 pub struct Prepared {
+    topology: Option<crate::write_receipt::TopologyContext>,
     write_id: String,
     file_hashes: Vec<String>,
     expected: std::sync::Arc<ExpectedImport>,
@@ -78,6 +81,7 @@ pub fn prepare(receipt: &Receipt) -> anyhow::Result<Prepared> {
     }
     let rows = crate::state::read_csv(std::str::from_utf8(&bytes[csv])?)?;
     Ok(Prepared {
+        topology: receipt.meta.topology.clone(),
         write_id: receipt.write_id.clone(),
         file_hashes: receipt.files.iter().map(|f| f.sha256.clone()).collect(),
         expected: std::sync::Arc::new(ExpectedImport::new(
@@ -199,7 +203,8 @@ fn validate(
         );
     }
     ensure!(
-        prepared.write_id == receipt.write_id
+        prepared.topology == receipt.meta.topology
+            && prepared.write_id == receipt.write_id
             && prepared.file_hashes
                 == receipt
                     .files
@@ -247,6 +252,7 @@ fn validate(
         "native applied world differs"
     );
     Ok(Verified {
+        topology: receipt.meta.topology.clone(),
         write_id: receipt.write_id.clone(),
         config_digest: receipt.meta.config_digest.clone(),
         file_hashes: receipt.files.iter().map(|f| f.sha256.clone()).collect(),
@@ -384,6 +390,7 @@ mod tests {
         tracker.write(
             &files,
             Meta {
+                topology: None,
                 cycle_seq: 1,
                 config_digest: "cfg".into(),
                 notice: Some(crate::notify::outbox::Frozen::new(
@@ -610,6 +617,59 @@ mod tests {
         );
     }
     #[test]
+    fn topology_receipt_context_survives_the_existing_native_proof_path() {
+        let (_dir, tracker, _prepared, artifacts, applied, path) = fixture();
+        let mut receipt = tracker.current().unwrap().clone();
+        receipt.meta.topology = Some(crate::write_receipt::TopologyContext {
+            policy_revision: 8,
+            observation_generation: 4,
+            registry_digest: "b".repeat(64),
+        });
+        let prepared = prepare(&receipt).unwrap();
+        let proof = validate(
+            &receipt, &prepared, &artifacts, &applied, &applied, &path, &path,
+        )
+        .unwrap();
+        assert!(proof.matches(&receipt));
+        for field in 0..3 {
+            let mut changed = receipt.clone();
+            let context = changed.meta.topology.as_mut().unwrap();
+            match field {
+                0 => context.policy_revision += 1,
+                1 => context.observation_generation += 1,
+                _ => context.registry_digest = "c".repeat(64),
+            }
+            assert!(!proof.matches(&changed));
+            assert!(
+                validate(
+                    &changed, &prepared, &artifacts, &applied, &applied, &path, &path
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn topology_context_changes_cannot_reuse_prepared_or_verified_evidence() {
+        let (_dir, tracker, prepared, artifacts, applied, path) = fixture();
+        let receipt = tracker.current().unwrap();
+        let proof = validate(
+            receipt, &prepared, &artifacts, &applied, &applied, &path, &path,
+        )
+        .unwrap();
+        let mut value = serde_json::to_value(receipt).unwrap();
+        value["meta"]["topology"] = serde_json::json!({"policy_revision": 7, "observation_generation": 3, "registry_digest": "a".repeat(64)});
+        let changed: Receipt = serde_json::from_value(value).unwrap();
+        assert!(
+            validate(
+                &changed, &prepared, &artifacts, &applied, &applied, &path, &path
+            )
+            .is_err()
+        );
+        assert!(!proof.matches(&changed));
+    }
+
+    #[test]
     fn superseded_operation_cannot_consume_an_older_proof() {
         let (dir, mut tracker, prepared, artifacts, applied, path) = fixture();
         let proof = validate(
@@ -632,6 +692,7 @@ mod tests {
         tracker.write(
             &outputs,
             Meta {
+                topology: None,
                 cycle_seq: 2,
                 config_digest: "cfg".into(),
                 notice: None,

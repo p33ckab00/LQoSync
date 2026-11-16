@@ -851,7 +851,13 @@ Explicit scoped rebalance now uses one bounded sweep with fixed pins, current el
 It adds 25 checks. The full suite passes with 884 passed, zero failed, and 9 ignored.
 Catalog ID allocation and the role-based read boundary now exist in isolation.
 They add 19 checks. The full suite passes with 903 passed, zero failed, and 9 ignored.
-Verified protocol/identity adapters, migration, export/native integration, and TUI remain unfinished.
+Current protocol normalization now separates local-account evidence from endpoint-only evidence.
+It adds 24 checks. The full suite passes with 927 passed, zero failed, and 9 ignored.
+Opt-in independent reference authorization now connects fresh current data to registry reconciliation.
+Source service/profile mapping and exact sustained rate input now extend that isolated path to existing policy evaluation.
+It adds 23 checks. The full suite passes with 973 passed, zero failed, and 9 ignored.
+It adds 23 checks. The full suite passes with 950 passed, zero failed, and 9 ignored.
+Live authority configuration/enrollment, migration, export/native integration, and TUI remain unfinished.
 The registry persists identity/policy intent and consumes current complete observations separately.
 No live collector, export writer, TUI, or scheduler calls these modules.
 Requirements approval is complete for the recorded behavior scope. Full product integration remains unfinished.
@@ -867,4 +873,62 @@ The read boundary requests these inputs without passwords and without old config
 
 This clarification does not establish a permanent reference for ambiguous account replacement or DHCP endpoint changes.
 Current hostname/MAC and RouterOS row locators cannot, by themselves, justify transfer of old subscriber intent.
-Protocol adapters and account lifecycle checks remain unfinished. Preserve the approved identity-conflict guard.
+Current protocol normalization now checks presence, local joins, endpoints, and freshness.
+An explicit operator-managed reference contract now supports verified continuity through the current account/lease comment.
+The marker is `[lqosync-id:REFERENCE]`. It is an opt-in implementation path, not a reinterpretation of ordinary comments.
+The operator must assign independent references and never reuse one for another subscriber in that source scope.
+Missing, malformed, duplicate, or ambiguous references remain critical conflicts.
+This contract requires no RADIUS and performs no router writes. Live enrollment and authority settings still require integration.
+Preserve the approved identity-conflict guard when that contract is unavailable or cannot be trusted.
+
+## Implementation detail — Current source policy bindings
+
+Source selections now carry explicit service-name selectors and current profile-name selectors with stable source profile references.
+DHCP/Hotspot service selectors resolve from fresh server inventory. An unavailable service does not become an empty-source assertion.
+These names are selection rules and do not authorize subscriber continuity.
+Missing active mappings and malformed enabled rate input withhold source acceptance.
+Rate reads have per-profile Disabled/RateLimit modes and an explicit unprofiled mode for direct lease inputs.
+Missing rate text stays absent. SourceRead authority must have actual numeric evidence before placement succeeds.
+The integer parser has no float rounding, speed clamp, or default rate.
+Explicit local profiles remain effective when source rate reads are disabled.
+Durable settings, legacy source-priority migration, UI, and live activation remain separate work.
+
+## Implementation detail — Durable settings and policy recovery
+
+Schema 3 stores explicit source settings with the catalog and subscriber registry.
+Old schema-1/2 files load without a disk rewrite or invented authority. A checked commit upgrades the document.
+Each changed commit requires an exact verified private backup before primary replacement.
+History keeps 16 recent schema-3 backups and the backups before migration. Optional cleanup errors remain visible after restart.
+Forward recovery restores catalog/source settings while it preserves current subscriber records, pins, and the ID counter.
+Incompatible references block recovery. A corrupt primary does not trigger an automatic identity rewind from old backups.
+The restart integration uses saved settings and fresh source data through the existing capacity pipeline.
+Live legacy-policy parity migration, publication/native integration, enrollment, TUI, and schedules remain unfinished.
+
+## Implementation detail — Isolated publication and parity
+
+Fresh authorized manager output now reaches the current pair writer and receipt tracker through an isolated adapter.
+The adapter preserves the source deadline, expected policy revision, node ceilings, and subscriber maxima.
+Multi-WAN roots remain separate. Repeated labels use stable IDs in export keys.
+CSV rates preserve integer-bps precision through the f32 import format or produce a conflict.
+Optional receipt metadata binds the policy revision, observation generation, and registry digest to native evidence.
+An older receipt has no invented topology context. Unchanged content keeps the matching receipt identity.
+The shared tracker now requires durable intent before output writes. Optional notification history remains independent.
+Legacy parity reports unresolved IDs, changed rows/network content, and unmanaged baseline rows without address-based identity inference.
+Explicit legacy identity/label/ownership conversion, exact native admission, owner wiring, enrollment, TUI, and schedules remain unfinished.
+No manager-mode activation or live DPDK apply test forms part of this isolated slice.
+
+## Implementation detail — Explicit mappings and compiled admission
+
+Snapshot-specific manifests now declare legacy/current row and node mappings with revision, generation, and content fingerprints.
+Mappings change only declared identity/label fields for comparison. They do not infer continuity from endpoints or transfer registry ownership.
+Unclassified and protected baseline rows remain explicit issues, including coincident export IDs.
+
+The public manager publisher now requires checked canonical/compiled shaping artifacts.
+It rejects lost rates, endpoints, nodes, ancestry, or unexpected movement/matching metadata.
+Scratch compiler checks found 100.5 Mbps node input becomes 101 Mbps internally.
+The adapter now applies the approved ceiling-safe rule: export node limits downward to whole Mbps and expose both calculated/exported values.
+It rejects quantization below subscriber minimum commitments or configured automatic group floors.
+Subscriber speeds remain unchanged. A 50.5 Mbps subscriber survives the safe integer-node scratch compile.
+
+These checks remain isolated from the live runner. Durable legacy adoption, source-priority conversion, compiler/configuration binding, and runtime owner wiring remain unfinished.
+No live DPDK apply test occurred.

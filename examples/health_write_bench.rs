@@ -34,6 +34,7 @@ fn main() -> anyhow::Result<()> {
             ),
         ];
         let meta = || Meta {
+            topology: None,
             cycle_seq: 1,
             config_digest: "benchmark".into(),
             notice: None,

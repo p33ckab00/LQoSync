@@ -5,6 +5,7 @@ use lqosync3::{
 use std::path::PathBuf;
 fn meta() -> Meta {
     Meta {
+        topology: None,
         cycle_seq: 1,
         config_digest: "config-1".into(),
         notice: None,
@@ -218,4 +219,59 @@ fn csv_only_update_does_not_claim_a_network_replacement() {
         tracker.current().unwrap().files[1].outcome,
         FileOutcome::Written
     );
+}
+
+#[test]
+fn failed_durable_intent_stops_both_file_replacements() {
+    let d = tempfile::tempdir().unwrap();
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    let live = d.path().join("live");
+    let out = outputs(&live);
+    std::fs::create_dir(d.path().join("write-receipt.json")).unwrap();
+    let result = tracker.write(&out, meta(), 10, &Hub::default());
+    assert!(result.error.is_some());
+    assert!(!result.changed);
+    assert!(!out[0].0.exists());
+    assert!(!out[1].0.exists());
+}
+
+#[test]
+fn unchanged_inputs_without_a_matching_receipt_get_a_trackable_attempt() {
+    let d = tempfile::tempdir().unwrap();
+    let out = outputs(d.path());
+    for (path, text) in &out {
+        std::fs::write(path, text).unwrap();
+    }
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    let result = tracker.write(&out, meta(), 10, &Hub::default());
+    assert!(!result.changed);
+    let receipt = tracker
+        .current()
+        .expect("matching inputs still need a receipt");
+    assert!(
+        receipt
+            .files
+            .iter()
+            .all(|f| f.outcome == FileOutcome::Unchanged)
+    );
+    let id = receipt.write_id.clone();
+    tracker.write(&out, meta(), 11, &Hub::default());
+    assert_eq!(tracker.current().unwrap().write_id, id);
+}
+
+#[test]
+fn old_metadata_has_no_invented_topology_context_and_invalid_context_cannot_load() {
+    let old: Meta =
+        serde_json::from_str(r#"{"cycle_seq":1,"config_digest":"old","notice":null}"#).unwrap();
+    assert!(old.topology.is_none());
+    let d = tempfile::tempdir().unwrap();
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    tracker.write(&outputs(d.path()), old, 10, &Hub::default());
+    let path = d.path().join("write-receipt.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert!(value["meta"].get("topology").is_none());
+    value["meta"]["topology"] = serde_json::json!({"policy_revision":1,"observation_generation":0,"registry_digest":"invalid"});
+    std::fs::write(&path, value.to_string()).unwrap();
+    assert!(Tracker::load(d.path()).is_err());
 }

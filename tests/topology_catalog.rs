@@ -9,6 +9,220 @@ use lqosync3::topology_manager::rates::{Fraction, RateBps, SpeedOverrides};
 use lqosync3::topology_manager::store::RegistryStore;
 use std::os::unix::fs::MetadataExt;
 
+#[tokio::test(start_paused = true)]
+async fn fresh_authorized_return_restores_pins_after_restart_and_reaches_the_capacity_pipeline() {
+    use lqosync3::config::{RateLimitOrder, UnitlessUnit};
+    use lqosync3::model::RosRow;
+    use lqosync3::routeros::{ReadError, RouterSession};
+    use lqosync3::topology_manager::aggregate::evaluate;
+    use lqosync3::topology_manager::identity::{
+        AuthorizedReconciliation, ReferenceAuthority, SourceSelection, authorize_configured,
+    };
+    use lqosync3::topology_manager::normalize::normalize;
+    use lqosync3::topology_manager::observation::ObservationGate;
+    use lqosync3::topology_manager::reader::{ReadGuard, ReadPlan};
+    use lqosync3::topology_manager::resolver::resolve;
+    use lqosync3::topology_manager::settings::SourceSettings;
+    use lqosync3::topology_manager::source_policy::{ProfileBinding, RateRead, SourcePolicy};
+    use lqosync3::topology_manager::source_rate::RateFormat;
+    use std::time::Duration;
+
+    fn row(fields: &[(&str, &str)]) -> RosRow {
+        fields.iter().map(|&(k, v)| (k.into(), v.into())).collect()
+    }
+    struct Session {
+        online: bool,
+        missing_rate: bool,
+    }
+    impl RouterSession for Session {
+        async fn print(&mut self, path: &str, _: &str) -> Result<Vec<RosRow>, ReadError> {
+            Ok(match path {
+                "/ppp/profile" => vec![row(&[
+                    (".id", "*A1"),
+                    ("name", "gold"),
+                    ("rate-limit", if self.missing_rate { "" } else { "10M/50M" }),
+                ])],
+                "/ppp/secret" => vec![row(&[
+                    (".id", "*secret"),
+                    ("name", "renamed-account"),
+                    ("profile", "gold"),
+                    ("disabled", "false"),
+                    ("comment", "[lqosync-id:acct-1]"),
+                ])],
+                "/ppp/active" if self.online => vec![row(&[
+                    (".id", "*current-session"),
+                    ("name", "renamed-account"),
+                    ("address", "203.0.113.88"),
+                    ("caller-id", "AA:BB:CC:DD:EE:88"),
+                    ("service", "pppoe"),
+                ])],
+                _ => vec![],
+            })
+        }
+    }
+    async fn observed(
+        registry: &RegistryDocument,
+        generation: u64,
+        online: bool,
+        missing_rate: bool,
+    ) -> AuthorizedReconciliation {
+        let plan = ReadPlan::for_router(registry.catalog.as_ref().unwrap(), "distro").unwrap();
+        let read = ReadGuard::new("distro".into())
+            .unwrap()
+            .read(
+                &mut Some(Session {
+                    online,
+                    missing_rate,
+                }),
+                &plan,
+                generation,
+                Duration::from_secs(1),
+                Duration::from_secs(10),
+            )
+            .await
+            .unwrap();
+        let current = normalize(&read).unwrap();
+        authorize_configured(registry, registry.revision, generation, vec![current])
+            .unwrap()
+            .reconcile(&mut ObservationGate::default())
+            .unwrap()
+    }
+    for read_rates in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = RegistryStore::open(dir.path()).unwrap();
+        let mut seeded = document();
+        if read_rates {
+            seeded.catalog.as_mut().unwrap().profiles[0].base = BaseRateAuthority::SourceRead;
+        }
+        seeded.source_settings = Some(SourceSettings {
+            selections: vec![SourceSelection {
+                scope: scope(),
+                service_names: vec![],
+                authority: ReferenceAuthority::OperatorManagedComment,
+                policy: SourcePolicy {
+                    profiles: vec![ProfileBinding {
+                        current_name: "gold".into(),
+                        source_ref: "provider-profile".into(),
+                        rate: if read_rates {
+                            RateRead::RateLimit(RateFormat {
+                                order: RateLimitOrder::RouterosRxTx,
+                                unitless: UnitlessUnit::Bps,
+                            })
+                        } else {
+                            RateRead::Disabled
+                        },
+                    }],
+                    ..Default::default()
+                },
+            }],
+        });
+        seeded.subscribers[0].identities[0].account_ref = "operator-comment/v1/acct-1".into();
+        store.commit(0, seeded).unwrap();
+        let offline = observed(store.document().unwrap(), 1, false, false).await;
+        assert!(offline.reconciliation.active.is_empty());
+        assert_eq!(
+            offline.reconciliation.registry.subscribers[0]
+                .policy
+                .pin
+                .as_deref(),
+            Some("g1")
+        );
+        let evaluation = evaluate(resolve(offline.reconciliation).unwrap()).unwrap();
+        assert!(evaluation.placements.is_empty());
+        assert!(
+            !store
+                .commit(1, evaluation.candidate.unwrap())
+                .unwrap()
+                .changed
+        );
+        drop(store);
+        let mut store = RegistryStore::open(dir.path()).unwrap();
+        let returned = observed(store.document().unwrap(), 2, true, false).await;
+        let expires = returned.expires;
+        assert_eq!(returned.reconciliation.active.len(), 1);
+        assert_eq!(
+            returned.reconciliation.active[0].subscriber_id,
+            "tm-sub-0000000000000001"
+        );
+        assert_eq!(
+            returned.reconciliation.active[0].endpoints[0].endpoint.ips[0].to_string(),
+            "203.0.113.88"
+        );
+        let evaluation = evaluate(resolve(returned.reconciliation).unwrap()).unwrap();
+        assert!(evaluation.conflicts.is_empty());
+        assert_eq!(evaluation.placements[0].target_id, "g1");
+        assert_eq!(evaluation.placements[0].rates.max.down, 50_000_000);
+        assert_eq!(evaluation.placements[0].rates.max.up, 10_000_000);
+        assert!(tokio::time::Instant::now() < expires);
+        assert!(
+            !store
+                .commit(1, evaluation.candidate.unwrap())
+                .unwrap()
+                .changed
+        );
+        let saved =
+            std::fs::read_to_string(dir.path().join("topology-manager/registry.json")).unwrap();
+        for current_data in [
+            "203.0.113.88",
+            "AA:BB:CC:DD:EE:88",
+            "renamed-account",
+            "current-session",
+        ] {
+            assert!(!saved.contains(current_data));
+        }
+        if read_rates {
+            let missing = observed(store.document().unwrap(), 3, true, true).await;
+            let blocked = resolve(missing.reconciliation).unwrap();
+            assert!(blocked.candidate.is_none());
+            assert!(!blocked.conflicts.is_empty());
+        }
+        let fresh = observed(store.document().unwrap(), 4, true, false).await;
+        let pair = lqosync3::topology_manager::publication::prepare(fresh).unwrap();
+        assert_eq!(pair.rows()[0].download_max, "50");
+        assert_eq!(pair.rows()[0].ipv4, "203.0.113.88");
+        let live = dir.path().join("isolated-pair");
+        let hub = lqosync3::system_health::Hub::default();
+        let mut tracker = lqosync3::write_receipt::Tracker::load(dir.path()).unwrap();
+        let (canonical, shaping) = compilation_artifacts(&pair);
+        let pair =
+            lqosync3::topology_manager::admission::check_compiled(pair, &canonical, &shaping)
+                .unwrap();
+        let written = pair
+            .publish(
+                &mut store,
+                &mut tracker,
+                lqosync3::topology_manager::publication::PublishRequest {
+                    directory: &live,
+                    meta: lqosync3::write_receipt::Meta {
+                        topology: None,
+                        cycle_seq: 4,
+                        config_digest: "isolated-test".into(),
+                        notice: None,
+                    },
+                    now: 10,
+                    hub: &hub,
+                },
+            )
+            .unwrap();
+        assert!(written.changed && written.error.is_none());
+        let receipt = tracker.current().unwrap();
+        assert_eq!(
+            receipt
+                .meta
+                .topology
+                .as_ref()
+                .unwrap()
+                .observation_generation,
+            4
+        );
+        assert_eq!(
+            receipt.meta.topology.as_ref().unwrap().policy_revision,
+            store.document().unwrap().revision
+        );
+        lqosync3::apply_evidence::prepare(receipt).unwrap();
+    }
+}
+
 #[test]
 fn public_scoped_action_keeps_pins_and_persists_through_the_revision_checked_store() {
     use lqosync3::topology_manager::observation::{
@@ -358,4 +572,47 @@ fn an_orphaning_or_stale_edit_cannot_replace_the_valid_document() {
     assert!(store.commit(0, document()).is_err());
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
     assert_eq!(store.document().unwrap().revision, 1);
+}
+
+fn compilation_artifacts(
+    pair: &lqosync3::topology_manager::publication::PreparedPair,
+) -> (serde_json::Value, serde_json::Value) {
+    let mut nodes = Vec::new();
+    let mut work: Vec<_> = pair
+        .network()
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(name, node)| (name, node, None::<(&str, &str)>))
+        .collect();
+    let mut cursor = 0;
+    while cursor < work.len() {
+        let (name, node, parent) = work[cursor];
+        nodes.push(serde_json::json!({"node_id":node["id"],"node_name":name,"node_kind":node["type"],"can_move":false,"allowed_parents":[],"current_attachment_id":parent.map(|(_,id)|id),"current_attachment_name":parent.map(|(name,_)|name),"current_parent_node_id":parent.map(|(_,id)|id),"current_parent_node_name":parent.map(|(name,_)|name),"rate_input":{"intrinsic_download_mbps":node["downloadBandwidthMbps"],"intrinsic_upload_mbps":node["uploadBandwidthMbps"],"source":"imported_network_json"}}));
+        work.extend(
+            node["children"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(child, n)| {
+                    (
+                        child,
+                        n,
+                        Some((name.as_str(), node["id"].as_str().unwrap())),
+                    )
+                }),
+        );
+        cursor += 1;
+    }
+    let addresses = |text: &str, width: u8| {
+        text.split(',')
+            .filter(|s| !s.is_empty())
+            .map(|s| serde_json::json!([s, width]))
+            .collect::<Vec<_>>()
+    };
+    let devices:Vec<_>=pair.rows().iter().map(|r|serde_json::json!({"circuit_id":r.circuit_id,"circuit_name":r.circuit_name,"device_id":r.device_id,"device_name":r.device_name,"parent_node":r.parent_node,"parent_node_id":r.parent_node_id,"anchor_node_id":null,"mac":r.mac,"ipv4":addresses(&r.ipv4,32),"ipv6":addresses(&r.ipv6,128),"download_min_mbps":r.download_min.parse::<f32>().unwrap(),"upload_min_mbps":r.upload_min.parse::<f32>().unwrap(),"download_max_mbps":r.download_max.parse::<f32>().unwrap(),"upload_max_mbps":r.upload_max.parse::<f32>().unwrap(),"comment":r.comment})).collect();
+    (
+        serde_json::json!({"schema_version":1,"source":"legacy/manual","ingress_identity":"a".repeat(64),"ingress_kind":"native_integration","nodes":nodes,"compatibility_network_json":pair.network()}),
+        serde_json::json!({"schema_version":1,"source":"legacy/manual","compile_mode":"full","ingress_identity":"a".repeat(64),"shaped_devices":devices,"circuit_anchors":{"schema_version":0,"source":"","anchors":[]},"circuit_matches":{}}),
+    )
 }

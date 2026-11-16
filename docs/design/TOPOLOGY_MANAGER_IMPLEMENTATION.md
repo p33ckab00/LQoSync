@@ -3,7 +3,18 @@
 Status: architecture after review of the current product.
 The pure core, registry, catalog, placement/aggregate pipeline, and explicit scoped rebalance exist in isolation.
 Catalog ID allocation and a bounded-age RouterOS reader also exist in isolation.
-Verified source adapters, schedules, migration, export/native integration, and TUI remain unfinished.
+Current PPP, DHCP, and Hotspot normalization also exists in isolation.
+Opt-in operator-reference authorization also connects current evidence to registry reconciliation in isolation.
+Explicit source profile bindings and exact sustained rate evidence now connect that path to placement/capacity evaluation.
+Schema-3 source settings, verified pre-edit backups, and forward policy recovery now exist in isolation.
+An isolated publication adapter now connects fresh manager output to the current pair writer and receipt tracker.
+A diagnostic parity report exposes unresolved legacy identities and unmanaged rows.
+Explicit snapshot mappings and compiled-candidate admission now extend that boundary.
+Live enrollment, durable legacy adoption, source-priority conversion, shaping-planner admission, schedules, owner wiring, and TUI remain unfinished.
+See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
+See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
+See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
+See the [normalization plan](../superpowers/plans/2026-11-16-topology-normalization.md) for current account evidence and its limits.
 See the [source boundary plan](../superpowers/plans/2026-11-16-topology-source-boundary.md) for the read contract and identity limits.
 See the [rebalance plan](../superpowers/plans/2026-11-16-topology-rebalance.md) for explicit movement scope and proof.
 See the [aggregate plan](../superpowers/plans/2026-11-16-topology-aggregates.md) for capacity and commitment checks.
@@ -49,10 +60,19 @@ Keep `src/topology.rs` as the legacy builder during migration.
 
 | Module | Responsibility |
 |---|---|
-| `model.rs` | Registry identities, subscriber intent, and the schema-2 document |
+| `model.rs` | Registry identities, subscriber intent, and the schema-3 document |
 | `catalog.rs` | Router roles, source definitions, local profiles, hierarchy inputs, and reference checks |
 | `ids.rs` | Typed catalog ID batches from the shared durable counter |
 | `reader.rs` | Role-based complete current RouterOS evidence with time and configuration checks |
+| `normalize.rs` | Typed current accounts/profiles/endpoints with local joins and presence checks |
+| `publication.rs` | Fresh pair preparation, exact decimal rates, deadline fences, and the existing publication owner |
+| `migration.rs` | Explicit snapshot mappings and protected ownership classification for parity |
+| `admission.rs` | Exact compiled policy checks and the public admitted publisher |
+| `parity.rs` | Diagnostic legacy comparison without identity inference |
+| `settings.rs` | Durable service/profile selectors, reference authority, and static scope validation |
+| `identity.rs` | Explicit reference authority, selected scope membership, conflicts, and fresh registry reconciliation |
+| `source_policy.rs` | Current service/profile selectors, stable source references, and explicit rate read modes |
+| `source_rate.rs` | Exact sustained rate text to integer bps without floating point or default speeds |
 | `store.rs` | Versioned private policy document, expected-revision edits, and durable replacement |
 | `rates.rs` | Exact rate/factor resolution, inheritance, and ancestor ceilings |
 | `resolver.rs` | Current membership, eligibility, subscriber rates, stable placements, and pins |
@@ -70,14 +90,20 @@ Do not create another publication service, telemetry cache, or parallel verifica
 Use one private versioned JSON document for the first implementation.
 Use the current standard-library and serde stack. No database is required for this scope.
 Include `schema_version`, `revision`, and stable reference tables.
-The current private document uses schema 2 at `topology-manager/registry.json`.
-It contains the registry plus an optional catalog. None means unconfigured, not an active default topology.
-The loader reads schema 1 through a strict legacy struct and retains all IDs, references, counters, and intent.
-Open does not rewrite schema 1. A revision-checked commit persists schema 2 and advances the revision.
+The current private document uses schema 3 at `topology-manager/registry.json`.
+It contains the registry, an optional catalog, and optional source settings.
+None means unconfigured. It does not activate a default topology or reference authority.
+Strict schema-1/2 adapters preserve IDs, verified references, counters, catalog policy, and subscriber intent.
+Open does not rewrite an old primary file. A revision-checked commit writes schema 3 and advances the revision.
 Unknown versions, duplicate fields, and false downgrades are errors.
-Before production migration, retain a verified private backup and prove the rollback path.
-A configured catalog has no lossless schema-1 representation. Never drop it for a downgrade.
-Keep current state plus a bounded set of previous policy revisions.
+Before a changed commit, the store saves and verifies the exact old bytes in a private backup.
+Backup names include the original schema and revision. Existing conflicting backup bytes block replacement of the primary file.
+The store keeps 16 recent schema-3 backups and the backups before schema migration.
+Normal forward upgrades create at most one backup for each old schema.
+Optional history cleanup errors set `history_cleanup_pending`. They do not reverse a confirmed write result.
+Open checks history again, so an unresolved cleanup failure remains visible after restart.
+A configured catalog has no lossless schema-1 representation. Configured source settings have no lossless schema-2 representation.
+Never drop policy for a downgrade. Use the exact old backup only before new policy or identities require a newer schema.
 Do not include current session addresses as persistent policy fields.
 
 For an edit, check the expected revision before a change to the document.
@@ -180,11 +206,134 @@ Hotspot active rows require authentication checks and correlation with the appli
 DHCP normalization must require `bound` and fresh active endpoint fields.
 Hostname, current MAC, session locators, and RouterOS `.id` do not prove continuity after ambiguous reuse or replacement.
 Do not transfer old pins or policies through those fields alone. Keep the unresolved binding visible as a critical conflict.
-Protocol normalization and the durable account lifecycle contract remain the next implementation task.
+Current normalization and opt-in independent reference authorization now exist below.
+Deployment authority configuration and source mapping still require integration before activation.
 
 Reference: [MikroTik PPP AAA](https://help.mikrotik.com/docs/spaces/ROS/pages/132350049/PPP%2BAAA),
 [MikroTik DHCP](https://help.mikrotik.com/docs/spaces/ROS/pages/24805500/DHCP),
 and [MikroTik API](https://manual.mikrotik.com/docs/developer-guides/api/).
+
+## Implemented current protocol normalization
+
+`normalize.rs` accepts bounded-age reader evidence and returns typed current account data.
+It keeps the original router ID, generation, and expiry. Normalized account/profile access checks that same expiry.
+Normalization checks age before and after its work. It cannot extend a read deadline.
+Current output has no Clone or serde implementation. Neither the router result nor its account rows implement Debug.
+
+PPP active sessions join current secrets and profiles by exact account/profile names within one router and protocol.
+Missing or disabled local accounts and ambiguous names produce typed errors instead of silent removal.
+Several sessions for one current account retain all current endpoints and one profile reference.
+A non-MAC PPP caller ID does not invent a MAC address.
+Current profile definitions retain raw rate text. Missing rate text remains absent.
+
+DHCP includes only `bound` leases. Known non-bound states contribute no endpoints, even for static retained leases.
+Unknown states produce a typed conflict. Bound leases require fresh active IP and MAC values and an unambiguous enabled server.
+Hostname, client ID, comment, and the lease locator remain endpoint-only evidence.
+Repeated hostname/MAC values do not merge leases. Direct lease rate text remains uninterpreted input without a default.
+An unresolved wildcard server does not justify a guessed service mapping.
+
+Hotspot checks the current login method and local account/profile where applicable.
+It also requires a matching enabled server from current `/ip/hotspot` inventory.
+Named-account methods retain local-account evidence. MAC and trial methods retain endpoint-only evidence.
+Mixed named/MAC sessions for one local user remain endpoint-only, independent of reply order.
+A trial session remains separate and cannot borrow a matching local user's reference or profile.
+Unknown authentication methods and missing required local users produce typed conflicts.
+See [MikroTik Hotspot](https://help.mikrotik.com/docs/spaces/ROS/pages/56459266/HotSpot%20-%20Captive%20portal) for method semantics.
+
+Current addresses require valid unicast values. Required MAC fields reject invalid, zero, and multicast values.
+The normalizer checks IP ownership across these protocol reads and reports conflicts at the active row.
+It uses indexed joins and sorts output deterministically. Synthetic scale checks do not establish production throughput.
+
+Local-account evidence does not prove an account incarnation survived a rename, replacement, or name reuse.
+Endpoint-only evidence does not establish permanent subscriber continuity.
+The normalizer does not authorize permanent identity or create complete source reads by itself.
+The next stage below performs opt-in authorization before complete source acceptance.
+
+## Implemented independent reference authorization
+
+`identity.rs` consumes current normalized routers and explicit source selections under an expected registry revision.
+It requires matching collection generations, complete reads of each selected protocol, and fresh router evidence.
+A WAN-only read cannot become a complete empty subscriber read.
+Selected scopes must match the catalog's required scopes when a catalog exists.
+
+Reference authority has two explicit API states: Unconfigured and OperatorManagedComment.
+Unconfigured authority produces a critical conflict for a selected active account.
+The operator-managed contract reads `[lqosync-id:REFERENCE]` only from the current administrator-managed account or lease comment.
+It requires an independent reference that the operator never reuses for another subscriber within that source scope.
+This is an explicit operator assertion. The marker does not make row IDs, names, or endpoints immutable.
+No code writes this marker to a router or enables the contract for existing accounts automatically.
+
+References contain 1–128 ASCII letters/digits, with dot, underscore, or hyphen inside the value.
+They start and end with a letter/digit. Address-shaped, malformed, missing, and repeated markers produce conflicts.
+Registry identity references use `operator-comment/v1/REFERENCE`, scoped to the stable router/service/protocol identity.
+Equal reference values across routers/protocols do not merge circuits. Existing explicit registry aliases still apply.
+Two current account rows cannot claim one reference in the same scope.
+The operator contract must preserve uniqueness and non-reassignment. Software cannot detect a false operator assertion during an unobserved replacement.
+
+Selections can include the whole router/protocol or explicit service names.
+DHCP/Hotspot names resolve to server locators from current inventory. PPP uses explicit documented transport names.
+Service indexes limit each account check to matching selections. The code does not scan every source for every account.
+Overlapping scopes and partial multi-service membership produce critical conflicts instead of duplicated or leaked endpoints.
+The caller supplies stable source scopes and explicit service-name selectors. The current index resolves their server references.
+Authority contracts and selection edits need durable policy/UI integration before activation.
+
+Any critical identity conflict withholds the complete collection.
+A ready authorization reuses `ObservationGate` and registry reconciliation, with deadline checks before/after acceptance and reconciliation.
+The returned world carries the original minimum read deadline for later placement and publication checks.
+Saved policy follows an existing verified reference. A changed independent reference creates a distinct identity without the old pin.
+Offline reads keep saved intent and contribute no active endpoints. Current addresses never enter the durable registry.
+
+Current profile membership now uses the explicit source policy mappings below.
+Rate observations exist only when the corresponding rate read mode enables them.
+Both explicit local rates and SourceRead rates can reach the existing placement/capacity pipeline.
+The API does not commit candidates or publish outputs. Store revisions and later publication/native checks remain mandatory.
+Durable source/authority settings now exist. UI enrollment, legacy parity migration, and publication integration remain unfinished.
+
+## Implemented source policy mapping and exact rate evidence
+
+Each source selection now includes an explicit SourcePolicy.
+The separate `service_names` field selects current service names under that scope.
+DHCP/Hotspot selectors resolve against fresh server inventory. An unavailable selector produces a configuration conflict instead of an empty source assertion.
+A recreated server locator with the same explicit name selector uses the new current locator.
+Hotspot reader roles now require `/ip/hotspot` inventory before and after active reads, with two additional read-only commands per collection.
+Current server metadata includes name, locator, and disabled state under the original read deadline.
+
+A profile binding maps one current profile name selector to one stable source profile reference.
+The current inventory resolves that selector to its current row locator. The locator never supplies an implicit stable reference.
+Duplicate names/references and blank bindings fail configuration checks.
+An active profile without a matching current binding produces a typed critical conflict.
+
+A recreated locator with the same explicit name selector keeps the configured logical reference and reads its current rate text.
+A rename needs a revised selector. Retained row IDs and cached profile rows do not repair a missing mapping.
+Names act as operator selection rules here, not proof of a permanent profile incarnation or subscriber identity.
+Selected catalog profile filters require matching configured bindings, including during complete offline reads.
+Service filters and stable scope membership retain the prior explicit authorization checks.
+Service/profile names remain selection rules. They do not prove immutable physical services or subscriber continuity.
+
+Current service/profile inventory has one index per router, scoped by protocol and name.
+Each selected profile binding compiles once. Its accounts reuse the compiled membership/rate result.
+Invalid rate input in an unused profile does not become an active account observation.
+Original generations, read deadlines, and independent subscriber reference rules remain effective.
+
+Rate read modes are Disabled or RateLimit with explicit direction and unitless format settings.
+Each mapped profile has its own mode. Unprofiled sources such as DHCP have an explicit direct lease rate mode.
+Disabled mode creates no numeric evidence and ignores unrelated raw rate text.
+Enabled mode reads current profile or direct lease rate text. Missing text stays absent; invalid active input becomes a critical conflict.
+The resolver still requires numeric evidence for SourceRead authority. It does not fall back to an invented speed.
+
+The parser reads the first sustained rate token and supports a symmetric single value or an explicit pair.
+RouterOS Rx/Tx order maps Tx to download and Rx to upload. A separate explicit format preserves legacy download/upload and unitless Mbps input.
+MikroTik documents these direction and symmetry semantics in [PPP AAA](https://help.mikrotik.com/docs/spaces/ROS/pages/132350049/PPP%2BAAA).
+The parser accepts decimal k/M/G scales with case compatibility. It does not write RouterOS syntax.
+Burst, priority, and RouterOS minimum fields do not replace the Topology Manager's subscriber policy controls.
+
+Decimal arithmetic uses integers with overflow checks. Fractional bps, zero, malformed values, and overflow produce fixed errors without raw input.
+There is no float conversion, rounding, floor, clamp, or guessed default in this parser.
+Exact integer observations can exceed floating-point precision. Native bounds and export precision still need their later admission checks.
+The existing legacy speed parser remains unchanged.
+
+Bindings and read modes now have strict durable fields. Explicit migration of legacy source priorities, UI, and live activation remain unfinished.
+The API does not publish or commit shaping output. Publication must retain/recheck the returned deadline and prove native admission and DPDK application.
 
 `store.rs` reuses the instance lock and synced private-file writer.
 A new private directory receives a durable empty registry at revision 0.
@@ -193,6 +342,30 @@ Edits check the expected revision and disk document, then advance memory only af
 A possible replacement failure or detected external change blocks store use until reopen.
 The later daemon integration must transfer this lock ownership into one publication owner.
 No live collector, TUI, or writer calls these modules yet.
+
+## Implemented settings and recovery boundary
+
+`SourceSettings` stores explicit selections with service names, reference authority, profile bindings, and rate read modes.
+The settings and catalog commit as one revision. Unknown fields and absent required mode fields fail decoding.
+Static checks require exact catalog scope coverage, unique selectors/references, and bindings for selected catalog profile filters.
+Overlapping service selections fail before collection. DHCP/Hotspot names still require fresh service inventory at collection time.
+Unconfigured authority can exist in a saved draft. `authorize_configured` blocks it before acceptance, even when the source is empty.
+The configured authorization path uses only the settings from its expected registry revision.
+Ordinary edits cannot silently remove configured settings.
+
+`restore_policy` accepts an expected revision and a backup schema/revision.
+It restores catalog/source settings as a new revision and keeps current subscriber records, pins, and the ID counter.
+Current reference validation blocks a restore that would orphan an identity, pin, profile, or source binding.
+A stale revision, unknown backup schema, conflicting metadata, corrupt backup, or link cannot replace policy.
+A missing or corrupt primary still blocks open. An older backup alone cannot prove the latest identity counter or account history.
+Do not copy an old registry over a newer one to repair policy. Use forward policy recovery against a valid current registry.
+Full reconstruction after primary corruption requires independently verified complete identity evidence. Automatic identity rewind remains prohibited.
+
+Backups use mode 0600 inside the existing private directory. A synced temporary file becomes a backup through a non-replacing hard link.
+The store verifies the resulting bytes and syncs the directory before primary replacement.
+The original atomic writer still handles primary replacement. Uncertain results require reopen and a disk recheck.
+No source endpoints, raw rate strings, credentials, or sessions enter the durable settings or backups.
+Legacy comment/name/default speed priority conversion and manager-mode activation remain separate gates.
 
 ## Implemented catalog boundary
 
@@ -360,6 +533,110 @@ The current verifier already checks file hashes, import content, source/shape ge
 Extend its metadata rather than weakening those checks.
 Use read-only verification retries before another mutation.
 Display configured, published, imported, applied, and stale states separately.
+
+## Implemented publication boundary
+
+`publication::prepare` consumes authorized reconciliation and keeps its original source deadline.
+It reuses placement, aggregate checks, the current pair renderers, the existing validator, and import normalization.
+A critical placement/aggregate conflict or expired source evidence blocks preparation.
+
+Export includes the effective node ceiling and the unchanged subscriber min/max policy.
+Node keys combine the configured label and stable ID. Duplicate display labels remain distinct.
+Stable catalog node IDs remain in node metadata and CSV parent references.
+The synthetic root stays in policy metadata. The exported forest has no artificial common capacity.
+Empty automatic groups disappear. Configured WAN nodes remain.
+
+Each current session exports one device row. Rows share the durable subscriber circuit ID.
+Device IDs hash the current subscriber, source identity, and session locator. They do not establish durable subscriber identity.
+Only current addresses and MACs enter these rows. Offline registry intent supplies no endpoints.
+Subscriber/device display names use their IDs until explicit label migration exists.
+
+CSV rates use integer decimal Mbps text with up to six fractional digits.
+The adapter checks that the imported f32 rate recovers the same integer bps. It rejects precision loss instead of changing policy.
+The [LibreQoS ShapedDevice fields](https://github.com/LibreQoE/LibreQoS/blob/develop/src/rust/lqos_config/src/shaped_devices/shaped_device.rs) also use f32 rates.
+The existing file validator still applies its minimum-rate rules. Exact compiled-candidate admission now precedes publication.
+The installed compiler rounds a fractional node ceiling upward to a whole Mbps value.
+The adapter exports node ceilings downward to whole Mbps. The calculated policy value remains unchanged.
+`node_export_adjustments` exposes calculated and exported limits for preview.
+A 100.5 Mbps calculation exports 100 Mbps. Subscriber min/max rates remain unchanged.
+Export rejects a result below 1 Mbps or below current subscriber minimum commitments or a configured automatic group floor.
+The adapter then uses the checked bps/Mbps conversion. It never exports a ceiling above the calculated limit.
+The JSON import limit permits at most 63 node levels. The adapter checks depth before recursive serialization or validation.
+
+`AdmittedPair::publish` first reconciles an interrupted receipt when possible.
+It commits the candidate through the expected registry revision, then checks the source deadline again.
+It checks the deadline once more before the current tracker records intent and replaces files in network-first order.
+A deadline failure after registry commit leaves durable identity/assignment intent. It does not publish stale endpoints.
+A file write result remains pending. It does not establish import or DPDK acceptance.
+
+Optional receipt metadata stores the policy revision, observation generation, and registry digest.
+Old receipts have no invented topology context. Old callers set that optional field to None.
+Prepared/Verified evidence now binds this context as well as the existing write ID, hashes, and native evidence.
+A revision, generation, or digest change cannot consume an earlier proof.
+Matching unchanged content keeps its receipt identity and original attempt context.
+Matching files without a matching receipt create an attempt with unchanged file outcomes, without replacing file bytes.
+
+The shared tracker now stops both file writes when durable intent storage fails.
+Optional event-history failure still reports degraded notification state and does not reverse a confirmed shaping write.
+A partial pair remains explicit in the receipt. Fresh collection and the existing repair path remain required after interruption.
+The adapter has no live runner caller. These changes do not activate manager mode.
+
+## Implemented legacy parity boundary
+
+`compare_legacy` compares the prepared pair with an explicit baseline pair.
+It reports added, missing, changed, or duplicate circuit/device rows and changed network content.
+Rate-format differences compare as exact integer bps. JSON numeric spelling differences do not create changes.
+Other label, parent, endpoint, rate, metadata, and ownership differences remain visible.
+An unmanaged baseline row appears as missing. The report never silently adopts or deletes that row.
+Circuit/device IDs must match explicitly. An IP/MAC match does not create an identity mapping.
+
+This report does not convert comment/name/default speed priorities or enroll accounts.
+Explicit legacy ID/label/static ownership mapping and source-policy conversion still need parity proof before activation.
+The public restart test reaches temporary pair files and the existing Prepared evidence builder with saved settings and fresh source data.
+The native evidence tests use fixture artifacts. They do not establish live native admission or a DPDK apply result.
+
+## Implemented explicit mapping boundary
+
+`MigrationManifest` declares the expected revision, observation generation, and exact baseline/candidate fingerprints.
+The manifest contains explicit circuit/device row mappings, legacy labels, node mappings, and protected row IDs.
+Strict decoding rejects endpoint/session fields. The manifest is evidence for one snapshot, not durable enrollment or an address archive.
+A changed revision, generation, baseline, candidate, or expired source read invalidates the mapping check.
+
+Row and node mappings must reference existing objects and preserve one-to-one ownership.
+Several device rows of the same declared circuit can map to the same current circuit. Distinct legacy circuits cannot merge implicitly.
+The comparison changes only declared ID/label fields. Rates, current endpoints, hierarchy, and extra metadata remain visible.
+The comparison preserves the baseline and prepared pair. It does not transfer a registry identity or subscriber policy.
+
+Unmapped rows produce an UnclassifiedRow issue even when their export IDs happen to match.
+Protected rows produce a ProtectedRow issue and remain in the comparison.
+A protected row cannot also have a managed mapping. Protection alone does not authorize adoption or removal.
+Durable export aliases, protected row/node preservation, and legacy source-priority conversion remain activation gates.
+
+## Implemented compiled-candidate admission
+
+Only `AdmittedPair` exposes the public manager publisher. A prepared preview alone cannot publish.
+`check_compiled` consumes a fresh prepared pair and compares the compiler's canonical and compiled shaping artifacts.
+It requires the supported artifact schema/source and the same ingress identity in both artifacts.
+The existing import normalizer checks the complete compatibility tree and circuit/device policy/endpoints.
+Canonical node IDs, names, kinds, ancestry, attachments, and intrinsic rates must also match.
+Unrequested movement, allowed-parent extensions, anchors, or circuit-match extensions block admission.
+A compiler success flag alone is insufficient.
+
+The pair budget is 16 MiB. Canonical plus compiled shaping artifacts have a combined 64 MiB budget.
+The offline reader checks combined bounds before parse. The checker counts serialized artifact bytes without another full copy.
+Import comparison accepts borrowed network/device parts. It does not clone both compiled artifacts into a temporary document.
+Mapping checks index identities and move a single cloned network tree through the remap pass.
+
+`check_artifacts` and the development example provide offline diagnostics only. Serialized rows do not authorize fresh subscribers.
+The offline harness now compares requested policy instead of requiring an old node-ID prefix.
+Scratch checks use the installed binding, blocked socket connections, and the existing file-write audit.
+Integer node limits preserve policy. A raw 100.5 Mbps node compiles to 101 Mbps and fails admission.
+A safe 100 Mbps node plus a 50.5 Mbps subscriber compiles without changing the subscriber maximum.
+These checks do not apply a native world or prove live DPDK acceptance.
+
+Runtime wiring must obtain artifacts from its controlled compiler and bind them to the current compiler/configuration identity.
+It must preserve one lock/writer owner, source deadlines, static ownership, and pending receipt reconciliation.
+The existing post-write verifier remains necessary. Full shaping-planner bounds and a live DPDK acceptance check remain separate gates.
 
 ## Scheduler contract gate
 

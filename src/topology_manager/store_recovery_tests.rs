@@ -1,0 +1,315 @@
+use super::*;
+use std::os::unix::fs::{PermissionsExt, symlink};
+
+fn primary(root: &Path) -> PathBuf {
+    root.join("topology-manager/registry.json")
+}
+fn backup_path(root: &Path, schema: u32, revision: u64) -> PathBuf {
+    root.join(format!(
+        "topology-manager/registry-v{schema}-r{revision}.json"
+    ))
+}
+
+#[test]
+fn schema_two_migrates_without_inventing_authority_or_rewriting_disk() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let old = br#"{"schema_version":2,"revision":7,"next_id":90,"subscribers":[],"catalog":null}"#;
+    crate::files::write_secret(&primary(root.path()), old).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let value = serde_json::to_value(store.document().unwrap()).unwrap();
+    assert_eq!(value["schema_version"], 3);
+    assert!(value["source_settings"].is_null());
+    assert_eq!(value["next_id"], 90);
+    assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
+    let candidate = store.document().unwrap().clone();
+    assert_eq!(store.commit(7, candidate).unwrap().revision, 8);
+    assert_eq!(
+        std::fs::read(backup_path(root.path(), 2, 7)).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn changed_commit_preserves_exact_previous_bytes_in_a_private_backup() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    let mut next = store.document().unwrap().clone();
+    next.next_id = 20;
+    store.commit(0, next).unwrap();
+    let backup = backup_path(root.path(), 3, 0);
+    assert_eq!(std::fs::read(&backup).unwrap(), before);
+    assert_eq!(
+        std::fs::metadata(backup).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+}
+
+#[test]
+fn conflicting_or_linked_backup_blocks_commit_without_primary_changes() {
+    for linked in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let mut store = RegistryStore::open(root.path()).unwrap();
+        let before = std::fs::read(primary(root.path())).unwrap();
+        let backup = backup_path(root.path(), 3, 0);
+        if linked {
+            symlink(primary(root.path()), &backup).unwrap();
+        } else {
+            crate::files::write_secret(&backup, b"corrupt evidence").unwrap();
+        }
+        let mut candidate = store.document().unwrap().clone();
+        candidate.next_id = 3;
+        assert!(store.commit(0, candidate).is_err());
+        assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
+        assert_eq!(store.document().unwrap().revision, 0);
+    }
+}
+
+fn configured() -> RegistryDocument {
+    use crate::topology_manager::identity::{ReferenceAuthority, SourceSelection};
+    use crate::topology_manager::settings::SourceSettings;
+    use crate::topology_manager::source_policy::{ProfileBinding, RateRead, SourcePolicy};
+    let mut doc = super::tests::catalog_candidate();
+    doc.source_settings = Some(SourceSettings {
+        selections: vec![SourceSelection {
+            scope: doc.catalog.as_ref().unwrap().required_scopes().unwrap()[0].clone(),
+            service_names: vec![],
+            authority: ReferenceAuthority::OperatorManagedComment,
+            policy: SourcePolicy {
+                profiles: vec![ProfileBinding {
+                    source_ref: "provider-profile-id".into(),
+                    current_name: "gold".into(),
+                    rate: RateRead::Disabled,
+                }],
+                unprofiled_rate: RateRead::Disabled,
+            },
+        }],
+    });
+    doc
+}
+
+#[test]
+fn saved_settings_survive_restart_and_order_only_edits_do_not_advance_revision() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let mut doc = configured();
+    doc.source_settings.as_mut().unwrap().selections[0].service_names =
+        vec!["sstp".into(), "pppoe".into()];
+    store.commit(0, doc).unwrap();
+    drop(store);
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let mut doc = store.document().unwrap().clone();
+    assert!(
+        doc.source_settings
+            .as_ref()
+            .unwrap()
+            .ready_selections(doc.catalog.as_ref().unwrap())
+            .is_ok()
+    );
+    doc.source_settings.as_mut().unwrap().selections[0]
+        .service_names
+        .reverse();
+    assert!(!store.commit(1, doc).unwrap().changed);
+    assert!(!backup_path(root.path(), 3, 1).exists());
+    assert_eq!(
+        store.backup_current().unwrap(),
+        BackupId {
+            schema_version: 3,
+            revision: 1
+        }
+    );
+    let first = std::fs::read(backup_path(root.path(), 3, 1)).unwrap();
+    store.backup_current().unwrap();
+    assert_eq!(
+        std::fs::read(backup_path(root.path(), 3, 1)).unwrap(),
+        first
+    );
+}
+
+#[test]
+fn forward_policy_restore_keeps_new_subscribers_ids_pins_and_counter() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    store.commit(0, configured()).unwrap();
+    let old = store.backup_current().unwrap();
+    let mut next = store.document().unwrap().clone();
+    next.catalog.as_mut().unwrap().root_label = "Revised topology".into();
+    next.source_settings.as_mut().unwrap().selections[0].service_names = vec!["pppoe".into()];
+    let mut added = next.subscribers[0].clone();
+    added.id = "tm-sub-0000000000000002".into();
+    added.identities[0].account_ref = "new-independent-reference".into();
+    next.subscribers.push(added);
+    next.next_id = 30;
+    store.commit(1, next).unwrap();
+    let current = store.document().unwrap().clone();
+    assert_eq!(store.restore_policy(2, old).unwrap().revision, 3);
+    let restored = store.document().unwrap();
+    assert_eq!(restored.next_id, current.next_id);
+    assert_eq!(restored.subscribers, current.subscribers);
+    assert_ne!(restored.catalog, current.catalog);
+    assert!(
+        restored.source_settings.as_ref().unwrap().selections[0]
+            .service_names
+            .is_empty()
+    );
+    drop(store);
+    assert_eq!(
+        RegistryStore::open(root.path())
+            .unwrap()
+            .document()
+            .unwrap()
+            .revision,
+        3
+    );
+}
+
+#[test]
+fn recovery_rejects_stale_revisions_wrong_metadata_and_incompatible_current_pins() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    store.commit(0, configured()).unwrap();
+    let old = store.backup_current().unwrap();
+    let mut next = store.document().unwrap().clone();
+    let catalog = next.catalog.as_mut().unwrap();
+    let mut node = catalog
+        .nodes
+        .iter()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .clone();
+    node.id = "new-group".into();
+    node.source_id = None;
+    catalog.nodes.push(node);
+    catalog
+        .sources
+        .iter_mut()
+        .find(|s| s.id == "profile-source")
+        .unwrap()
+        .targets
+        .push("new-group".into());
+    next.subscribers[0].policy.assignment = Some("new-group".into());
+    next.subscribers[0].policy.pin = Some("new-group".into());
+    store.commit(1, next).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    assert!(store.restore_policy(1, old).is_err());
+    assert!(store.restore_policy(2, old).is_err());
+    let bad = BackupId {
+        schema_version: 3,
+        revision: 2,
+    };
+    crate::files::write_secret(
+        &backup_path(root.path(), 3, 2),
+        &std::fs::read(backup_path(root.path(), 3, 1)).unwrap(),
+    )
+    .unwrap();
+    assert!(store.restore_policy(2, bad).is_err());
+    assert!(
+        store
+            .restore_policy(
+                2,
+                BackupId {
+                    schema_version: 4,
+                    revision: 1
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
+    assert_eq!(store.document().unwrap().revision, 2);
+}
+
+#[test]
+fn invalid_settings_or_removal_do_not_replace_the_confirmed_registry() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    store.commit(0, configured()).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    let mut next = store.document().unwrap().clone();
+    next.source_settings.as_mut().unwrap().selections.clear();
+    assert!(store.commit(1, next).is_err());
+    let mut next = store.document().unwrap().clone();
+    next.source_settings = None;
+    assert!(store.commit(1, next).is_err());
+    assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
+    assert!(!backup_path(root.path(), 3, 1).exists());
+}
+
+#[test]
+fn corrupt_primary_requires_evidence_even_if_an_older_backup_is_available() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    store.commit(0, configured()).unwrap();
+    store.backup_current().unwrap();
+    drop(store);
+    crate::files::write_secret(&primary(root.path()), b"corrupt primary").unwrap();
+    assert!(RegistryStore::open(root.path()).is_err());
+    assert_eq!(
+        std::fs::read(primary(root.path())).unwrap(),
+        b"corrupt primary\n"
+    );
+}
+
+#[test]
+fn backup_preserves_a_legacy_file_without_a_trailing_newline() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let bytes = br#"{"schema_version":1,"revision":8,"next_id":200,"subscribers":[]}"#;
+    std::fs::write(primary(root.path()), bytes).unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    assert!(store.document().unwrap().source_settings.is_none());
+    let candidate = store.document().unwrap().clone();
+    store.commit(8, candidate).unwrap();
+    assert_eq!(
+        std::fs::read(backup_path(root.path(), 1, 8)).unwrap(),
+        bytes
+    );
+}
+
+#[test]
+fn normal_history_is_bounded_and_the_migration_backup_remains_available() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let old = br#"{"schema_version":2,"revision":7,"next_id":90,"subscribers":[],"catalog":null}"#;
+    std::fs::write(primary(root.path()), old).unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    for revision in 7..27 {
+        let mut candidate = store.document().unwrap().clone();
+        candidate.next_id += 1;
+        store.commit(revision, candidate).unwrap();
+    }
+    let history: Vec<_> = std::fs::read_dir(root.path().join("topology-manager"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with("registry-v3-"))
+        .collect();
+    assert_eq!(history.len(), 16);
+    assert_eq!(std::fs::read(backup_path(root.path(), 2, 7)).unwrap(), old);
+    assert!(backup_path(root.path(), 3, 26).exists());
+    assert!(!backup_path(root.path(), 3, 8).exists());
+}
+
+#[test]
+fn optional_history_cleanup_failure_does_not_hide_a_confirmed_commit() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    for revision in 0..17 {
+        let mut next = store.document().unwrap().clone();
+        next.next_id += 1;
+        store.commit(revision, next).unwrap();
+    }
+    assert!(!store.history_cleanup_pending());
+    let corrupt_old = backup_path(root.path(), 3, 0);
+    crate::files::write_secret(&corrupt_old, b"corrupt old history").unwrap();
+    let mut next = store.document().unwrap().clone();
+    next.next_id += 1;
+    assert_eq!(store.commit(17, next).unwrap().revision, 18);
+    assert!(store.history_cleanup_pending());
+    assert_eq!(store.document().unwrap().revision, 18);
+    assert!(backup_path(root.path(), 3, 17).exists());
+    drop(store);
+    let reopened = RegistryStore::open(root.path()).unwrap();
+    assert_eq!(reopened.document().unwrap().revision, 18);
+    assert!(reopened.history_cleanup_pending());
+}

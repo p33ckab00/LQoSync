@@ -30,10 +30,6 @@ env -i PATH=/usr/bin:/bin LQOS_CONFIG="$RUN/lqos.conf" SIM_MOD="$BIND" timeout 6
 if grep -E 'O_WRONLY|O_RDWR|O_CREAT|rename|unlink|mkdir' "$RUN/strace.log" | grep -v -E "$RUN|/dev/null|/proc/|ENOENT" | grep -q .; then
   echo "FAIL: write outside $RUN"; exit 1
 fi
-python3 -I - "$RUN/state/topology/topology_canonical_state.json" <<'PY'
-import json, sys
-nodes = json.load(open(sys.argv[1]))["nodes"]
-bad = [n["node_name"] for n in nodes if not n["node_id"].startswith("lq3-")]
-print(f"nodes: {len(nodes)}, without lq3- id: {bad}")
-sys.exit(1 if bad else 0)
-PY
+cargo run --quiet --manifest-path "$ROOT/Cargo.toml" --example topology_compilation_check -- \
+  "$RUN/src/network.json" "$RUN/src/ShapedDevices.csv" \
+  "$RUN/state/topology/topology_canonical_state.json" "$RUN/state/shaping/topology_compiled_shaping.json"

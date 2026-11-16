@@ -107,6 +107,7 @@ async fn main() -> anyhow::Result<()> {
             started: 0,
             updated: 0,
             meta: lqosync3::write_receipt::Meta {
+                topology: None,
                 cycle_seq: 0,
                 config_digest: "read-only-probe".into(),
                 notice: None,

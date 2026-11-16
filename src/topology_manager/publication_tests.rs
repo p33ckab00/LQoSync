@@ -1,0 +1,444 @@
+use super::*;
+use crate::topology_manager::{catalog, observation::*, rates::*};
+use std::time::Duration;
+
+pub(crate) fn input(count: u32) -> AuthorizedReconciliation {
+    let mut registry = RegistryDocument {
+        catalog: Some(catalog::tests::catalog()),
+        ..Default::default()
+    };
+    let catalog = registry.catalog.as_mut().unwrap();
+    if let catalog::SourceOrigin::Subscribers { group, .. } = &mut catalog.sources[2].origin {
+        group.backstop = None;
+    }
+    let scope = catalog.required_scopes().unwrap()[0].clone();
+    let accounts = (0..count)
+        .map(|i| AccountObservation {
+            account_ref: format!("account-{i}"),
+            endpoints: vec![Endpoint {
+                session_id: format!("session-{i}"),
+                ips: vec![std::net::IpAddr::V4((0x0a000001 + i).into())],
+                mac: None,
+            }],
+            policy: ObservedPolicy {
+                profile: ProfileObservation::Known(Some("provider-profile-id".into())),
+                plan: Some(RateBps {
+                    down: 50_000_000,
+                    up: 10_000_000,
+                }),
+            },
+        })
+        .collect();
+    let snapshot = ObservationGate::default()
+        .accept(
+            1,
+            std::slice::from_ref(&scope),
+            vec![SourceRead::Complete {
+                scope: scope.clone(),
+                accounts,
+            }],
+        )
+        .unwrap();
+    AuthorizedReconciliation {
+        reconciliation: reconcile(&registry, snapshot).unwrap(),
+        expires: Instant::now() + Duration::from_secs(10),
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn fresh_pair_keeps_subscriber_rates_node_ids_and_multiple_wan_roots() {
+    let pair = prepare(input(4)).unwrap();
+    assert_eq!(pair.rows().len(), 4);
+    assert_eq!(pair.network().as_object().unwrap().len(), 2);
+    let keys: Vec<_> = pair.network().as_object().unwrap().keys().collect();
+    assert!(keys.iter().any(|k| k.contains("wan1")));
+    assert!(keys.iter().any(|k| k.contains("wan2")));
+    assert!(!pair.network().as_object().unwrap().contains_key("Topology"));
+    for row in pair.rows() {
+        assert_eq!(row.download_max, "50");
+        assert_eq!(row.upload_max, "10");
+        assert!(!row.parent_node_id.is_empty());
+        assert!(row.device_id.starts_with("tm-device-"));
+    }
+    assert!(pair.csv().starts_with("Circuit ID,Circuit Name,Device ID"));
+    assert_eq!(crate::state::read_csv(pair.csv()).unwrap(), pair.rows());
+}
+
+#[tokio::test(start_paused = true)]
+async fn inactive_subscriber_intent_does_not_export_old_endpoints_or_groups() {
+    let pair = prepare(input(0)).unwrap();
+    assert!(pair.rows().is_empty());
+    assert_eq!(pair.network().as_object().unwrap().len(), 2);
+    for wan in pair.network().as_object().unwrap().values() {
+        assert_eq!(wan["children"], serde_json::json!({}));
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn expired_observations_cannot_prepare_a_pair() {
+    let mut observed = input(1);
+    observed.expires = Instant::now();
+    assert!(prepare(observed).is_err());
+}
+
+#[tokio::test(start_paused = true)]
+async fn import_precision_loss_blocks_instead_of_rounding_a_subscriber_maximum() {
+    let mut observed = input(1);
+    observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .profiles[0]
+        .base = catalog::BaseRateAuthority::Local(RateBps {
+        down: 50_000_001,
+        up: 10_000_000,
+    });
+    assert!(prepare(observed).is_err());
+}
+
+#[tokio::test(start_paused = true)]
+async fn multiple_current_sessions_export_one_circuit_with_distinct_device_ids() {
+    let mut observed = input(1);
+    let first = &observed.reconciliation.active[0].endpoints[0];
+    let mut endpoint = ActiveEndpoint {
+        identity: first.identity.clone(),
+        endpoint: first.endpoint.clone(),
+    };
+    endpoint.endpoint.session_id = "second-session".into();
+    endpoint.endpoint.ips = vec!["2001:db8::1".parse().unwrap()];
+    observed.reconciliation.active[0].endpoints.push(endpoint);
+    let pair = prepare(observed).unwrap();
+    assert_eq!(pair.rows().len(), 2);
+    assert_eq!(pair.rows()[0].circuit_id, pair.rows()[1].circuit_id);
+    assert_ne!(pair.rows()[0].device_id, pair.rows()[1].device_id);
+}
+
+fn metadata() -> crate::write_receipt::Meta {
+    crate::write_receipt::Meta {
+        topology: None,
+        cycle_seq: 1,
+        config_digest: "config".into(),
+        notice: None,
+    }
+}
+fn seeded_store(root: &std::path::Path) -> crate::topology_manager::store::RegistryStore {
+    let mut store = crate::topology_manager::store::RegistryStore::open(root).unwrap();
+    let baseline = RegistryDocument {
+        catalog: input(0).reconciliation.registry.catalog,
+        ..Default::default()
+    };
+    store.commit(0, baseline).unwrap();
+    store
+}
+
+#[tokio::test(start_paused = true)]
+async fn registry_precedes_network_first_receipt_and_unchanged_content_keeps_write_identity() {
+    let root = tempfile::tempdir().unwrap();
+    let live = root.path().join("live");
+    let hub = crate::system_health::Hub::default();
+    let mut store = seeded_store(root.path());
+    let mut tracker = crate::write_receipt::Tracker::load(root.path()).unwrap();
+    for generation in 1..=2 {
+        let mut observed = input(1);
+        observed.reconciliation.generation = generation;
+        if generation == 1 {
+            observed.reconciliation.registry.revision = 1;
+        } else {
+            observed.reconciliation.registry = store.document().unwrap().clone();
+        }
+        let pair = admitted(prepare(observed).unwrap());
+        let before = tracker.current().map(|r| r.write_id.clone());
+        let result = pair
+            .publish(
+                &mut store,
+                &mut tracker,
+                PublishRequest {
+                    directory: &live,
+                    meta: metadata(),
+                    now: generation,
+                    hub: &hub,
+                },
+            )
+            .unwrap();
+        assert!(result.error.is_none());
+        assert_eq!(result.changed, generation == 1);
+        let receipt = tracker.current().unwrap();
+        assert_eq!(receipt.files[0].path.file_name().unwrap(), "network.json");
+        assert_eq!(
+            receipt.files[1].path.file_name().unwrap(),
+            "ShapedDevices.csv"
+        );
+        let context = receipt.meta.topology.as_ref().unwrap();
+        assert_eq!(context.policy_revision, 2);
+        assert_eq!(context.observation_generation, 1);
+        assert_eq!(
+            context.registry_digest,
+            crate::write_receipt::sha256(&serde_json::to_vec(store.document().unwrap()).unwrap())
+        );
+        if let Some(before) = before {
+            assert_eq!(receipt.write_id, before);
+        }
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn stale_registry_and_expired_pair_leave_shaping_files_untouched() {
+    for expired in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let live = root.path().join("live");
+        let hub = crate::system_health::Hub::default();
+        let mut store = seeded_store(root.path());
+        let mut tracker = crate::write_receipt::Tracker::load(root.path()).unwrap();
+        let mut observed = input(1);
+        observed.reconciliation.registry.revision = 1;
+        let pair = admitted(prepare(observed).unwrap());
+        if expired {
+            tokio::time::advance(Duration::from_secs(11)).await;
+        } else {
+            let mut changed = store.document().unwrap().clone();
+            changed.catalog.as_mut().unwrap().root_label = "Updated policy".into();
+            store.commit(1, changed).unwrap();
+        }
+        assert!(
+            pair.publish(
+                &mut store,
+                &mut tracker,
+                PublishRequest {
+                    directory: &live,
+                    meta: metadata(),
+                    now: 10,
+                    hub: &hub
+                }
+            )
+            .is_err()
+        );
+        assert!(!live.join("network.json").exists());
+        assert!(!live.join("ShapedDevices.csv").exists());
+        assert!(tracker.current().is_none());
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn fractional_rates_survive_csv_export_without_the_legacy_three_decimal_rounding() {
+    let mut observed = input(1);
+    observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .profiles[0]
+        .base = catalog::BaseRateAuthority::Local(RateBps {
+        down: 1_234_567,
+        up: 2_500_000,
+    });
+    if let catalog::SourceOrigin::Subscribers { group, .. } = &mut observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .sources[2]
+        .origin
+    {
+        group.factors = catalog::Factors::default();
+    }
+    let pair = prepare(observed).unwrap();
+    assert_eq!(pair.rows()[0].download_max, "1.234567");
+    assert_eq!(pair.rows()[0].upload_max, "2.5");
+}
+
+#[tokio::test(start_paused = true)]
+async fn intent_storage_failure_keeps_the_registry_but_never_replaces_shaping_files() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = seeded_store(root.path());
+    let mut tracker = crate::write_receipt::Tracker::load(root.path()).unwrap();
+    std::fs::create_dir(root.path().join("write-receipt.json")).unwrap();
+    let live = root.path().join("live");
+    let mut observed = input(1);
+    observed.reconciliation.registry.revision = 1;
+    let pair = admitted(prepare(observed).unwrap());
+    let hub = crate::system_health::Hub::default();
+    let result = pair
+        .publish(
+            &mut store,
+            &mut tracker,
+            PublishRequest {
+                directory: &live,
+                meta: metadata(),
+                now: 10,
+                hub: &hub,
+            },
+        )
+        .unwrap();
+    assert!(result.error.is_some());
+    assert_eq!(store.document().unwrap().subscribers.len(), 1);
+    assert!(!live.join("network.json").exists());
+    assert!(!live.join("ShapedDevices.csv").exists());
+}
+
+#[tokio::test(start_paused = true)]
+async fn exported_child_ceilings_stay_within_wan_capacity_without_clamping_subscriber_maxima() {
+    let mut observed = input(20);
+    if let catalog::SourceOrigin::Subscribers { group, .. } = &mut observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .sources[2]
+        .origin
+    {
+        group.factors = catalog::Factors {
+            down: Fraction {
+                numerator: 2,
+                denominator: 1,
+            },
+            up: Fraction {
+                numerator: 2,
+                denominator: 1,
+            },
+        };
+    }
+    let pair = prepare(observed).unwrap();
+    for wan in pair.network().as_object().unwrap().values() {
+        for child in wan["children"].as_object().unwrap().values() {
+            assert!(
+                child["downloadBandwidthMbps"].as_f64().unwrap()
+                    <= wan["downloadBandwidthMbps"].as_f64().unwrap()
+            );
+            assert!(
+                child["uploadBandwidthMbps"].as_f64().unwrap()
+                    <= wan["uploadBandwidthMbps"].as_f64().unwrap()
+            );
+        }
+    }
+    assert!(
+        pair.rows()
+            .iter()
+            .all(|row| row.download_max == "50" && row.upload_max == "10")
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn excessive_hierarchy_depth_is_a_conflict_before_recursive_json_work() {
+    let mut observed = input(1);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    let mut parent = "wan1".to_string();
+    for i in 0..64 {
+        let id = format!("manual-{i}");
+        catalog.nodes.push(catalog::CatalogNode {
+            id: id.clone(),
+            name: id.clone(),
+            parent: Some(parent),
+            source_id: None,
+            kind: crate::topology_manager::layout::NodeKind::Intermediate,
+            capacity: catalog::CapacityPolicy::Inherit,
+        });
+        parent = id;
+    }
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == "group1")
+        .unwrap()
+        .parent = Some(parent);
+    let error = prepare(observed).err().unwrap();
+    assert!(error.to_string().contains("depth limit"));
+}
+
+fn admitted(pair: PreparedPair) -> super::super::admission::AdmittedPair {
+    let (canonical, shaping) = super::super::admission::tests::artifacts(&pair);
+    super::super::admission::check_compiled(pair, &canonical, &shaping).unwrap()
+}
+
+#[tokio::test(start_paused = true)]
+async fn fractional_node_ceiling_uses_supported_whole_mbps_without_rounding_up() {
+    let mut observed = input(1);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    catalog.sources[2].targets = vec!["group1".into()];
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .capacity = catalog::CapacityPolicy::Fixed {
+        base: RateBps {
+            down: 100_500_000,
+            up: 10_500_000,
+        },
+        factors: catalog::FactorChoice::Override(catalog::Factors::default()),
+    };
+    let pair = prepare(observed).unwrap();
+    let group = pair
+        .network()
+        .as_object()
+        .unwrap()
+        .values()
+        .flat_map(|wan| wan["children"].as_object().unwrap().values())
+        .find(|node| node["id"] == "group1")
+        .unwrap();
+    assert_eq!(group["downloadBandwidthMbps"], 100.0);
+    assert_eq!(group["uploadBandwidthMbps"], 10.0);
+    assert_eq!(pair.rows()[0].download_max, "50");
+}
+
+#[tokio::test(start_paused = true)]
+async fn export_quantization_cannot_erase_a_subscriber_minimum_commitment() {
+    let mut observed = input(1);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    catalog.sources[2].targets = vec!["group1".into()];
+    catalog.defaults.down_min = RateRule::FixedBps(1_100_000);
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .capacity = catalog::CapacityPolicy::Fixed {
+        base: RateBps {
+            down: 1_500_000,
+            up: 10_000_000,
+        },
+        factors: catalog::FactorChoice::Override(catalog::Factors::default()),
+    };
+    assert!(prepare(observed).is_err());
+}
+
+#[tokio::test(start_paused = true)]
+async fn export_adjustments_are_visible_and_cannot_undercut_a_configured_floor() {
+    let mut observed = input(1);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    catalog.sources[2].targets = vec!["group1".into()];
+    if let catalog::SourceOrigin::Subscribers { group, .. } = &mut catalog.sources[2].origin {
+        group.floor = Some(RateBps {
+            down: 100_500_000,
+            up: 10_000_000,
+        });
+    }
+    assert!(prepare(observed).is_err());
+    let mut observed = input(1);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    catalog.sources[2].targets = vec!["group1".into()];
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == "group1")
+        .unwrap()
+        .capacity = catalog::CapacityPolicy::Fixed {
+        base: RateBps {
+            down: 100_500_000,
+            up: 10_000_000,
+        },
+        factors: catalog::FactorChoice::Override(catalog::Factors::default()),
+    };
+    let pair = prepare(observed).unwrap();
+    let adjustment = pair
+        .node_export_adjustments()
+        .iter()
+        .find(|a| a.node_id == "group1")
+        .unwrap();
+    assert_eq!(adjustment.calculated_ceiling.down, 100_500_000);
+    assert_eq!(adjustment.exported_ceiling.down, 100_000_000);
+}

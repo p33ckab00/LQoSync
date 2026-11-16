@@ -647,6 +647,7 @@ mod tests {
         tracker.write(
             &outputs,
             Meta {
+                topology: None,
                 cycle_seq: 1,
                 config_digest: "cfg".into(),
                 notice: Some(Frozen::new(&tg, &Default::default())),

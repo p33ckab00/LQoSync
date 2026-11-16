@@ -8,6 +8,157 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T06:53:28+08:00 (Asia/Shanghai) — Topology checkpoint for GitHub
+
+- The owner authorized a commit and push before further implementation.
+- This checkpoint includes normalization, identity authorization, source policy, settings recovery, publication, explicit mappings, and compiled admission.
+- Checks: 1,031 passed, zero failed, 9 ignored. Format, Clippy, whitespace, and shell syntax passed.
+- Preserve unrelated operational edits outside this commit. No deployment or live apply occurs.
+- Next: durable legacy ownership adoption and source-priority conversion. Runtime integration remains gated.
+
+
+
+
+
+## 2026-11-17T06:28:03+08:00 (Asia/Shanghai) — Explicit mappings and compiled admission complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `489acc7` plus prior local slices.
+- Owner directs continuation. Added migration/admission modules and tests. Extended parity, publication, publication tests, and public topology integration.
+- Added topology_compilation_check example and strengthened tools/v3sim/check.sh. Extended import_evidence with borrowed comparison parts.
+- Updated design, discussion, plan, precision report, Home, session, and this handoff. Preserve unrelated operational work and all prior local slices.
+- Manifests declare explicit row/node ID/label mappings plus protected row IDs. They bind the revision, observation generation, and baseline/candidate fingerprints.
+- No endpoint/name-based identity inference or registry ownership transfer occurs. Rates, endpoints, hierarchy, and metadata remain visible.
+- Unmapped/protected baseline rows produce explicit issues even when export IDs match. Duplicate, many-to-one, stale, or conflicting ownership is rejected.
+- Manifests are evidence for one snapshot, not durable enrollment or a session alias archive. Durable export aliases and static preservation remain unfinished.
+- Only AdmittedPair exposes the public publisher. Fresh prepared pairs require exact canonical/compiled shaping checks before commit/write.
+- Checks cover artifact schema/source/ingress, full device policy/endpoints, nodes, parents, intrinsic rates, attachments, and unrequested movement/matching extensions.
+- Pair budget: 16 MiB. Combined artifacts: 64 MiB. Readers enforce combined bounds. Borrowed import comparison and one cloned/remapped network avoid extra full artifact copies.
+- Installed package 3.0.7.202611162151 accepts manager-style IDs. The old harness lq3-prefix assertion was too narrow and is replaced by exact policy comparison.
+- Scratch compilation found node 100.5 Mbps becomes intrinsic 101 Mbps. Success alone is insufficient. Admission correctly rejects this loss.
+- The adapter applies approved ceiling-safe whole-Mbps node export: 100.5 calculated -> 100 exported. It exposes both values, keeps subscriber rates, and rejects lost minimum commitments/group floors.
+- Final scratch check: node 100 Mbps and subscriber max 50.5 Mbps preserve policy. Socket connections were blocked and the write audit passed. No native world was applied.
+- Added 19 checks. Full suite: 1,031 passed, zero failed, 9 ignored. All 309 topology checks pass. Format, Clippy, whitespace, and shell syntax pass.
+- The public restart integration now passes compiled admission before temporary pair publication and the existing Prepared builder.
+- Author review fixed a reproduced offline duplicate-node-ID collapse. No independent reviewer participated. No code finding remains open in this slice.
+- No dependency, schema, legacy config/source parser, router reader, cycle, live caller, deployment, service, or router write changed. No commit or push occurred.
+- All new slices remain local/uncommitted. Next: durable legacy alias/label/static ownership adoption and source-priority conversion with parity.
+- Then wire the controlled compiler and one runtime lock/writer owner. Bind compiler/configuration identity and preserve fresh deadlines and pending receipt recovery.
+- Full shaping-planner admission, enrollment, TUI, schedules, corrupt-store reconstruction, and live DPDK acceptance remain activation gates.
+- Session: [[2026-11-17-topology-migration-admission]]. Plan: `docs/superpowers/plans/2026-11-17-topology-migration-admission.md`.
+- Precision report: `docs/reports/2026-11-17-native-node-export-precision.md`. Logs: `.superpowers/sdd/2026-11-17-topology-migration-admission/`.
+
+## 2026-11-17T05:38:14+08:00 (Asia/Shanghai) — Isolated publication and parity complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `489acc7` plus prior local slices.
+- Owner directs continuation. Added publication.rs/publication_tests.rs and parity.rs/parity_tests.rs. Extended module exports.
+- Extended write_receipt and apply_evidence/verify for optional TopologyContext. Updated runner/outbox fixtures, receipt/public topology tests, and two examples.
+- Updated design, discussion, plan, Home, this handoff, and the linked session. Preserve unrelated operational work and prior local slices.
+- Preparation consumes authorized reconciliation and reuses placement, aggregate checks, pair validation/renderers, and import normalization.
+- Exact decimal CSV rates must recover the same integer bps through f32 import. Precision loss blocks rather than changing subscriber policy.
+- Effective node ceilings preserve WAN bounds. Distinct label/ID keys support repeated labels. Synthetic root remains policy metadata. Empty automatic groups disappear.
+- Current sessions export distinct device rows under one subscriber circuit. Display names use IDs until explicit label migration exists. No archived endpoints supply rows.
+- The JSON import depth bound is 63 node levels. It is checked before recursive serialization/validation.
+- Publication commits registry intent, rechecks the original deadline, then uses the current tracker in network-first order. Partial outcomes remain explicit.
+- Optional context binds policy revision, observation generation, and registry digest into Prepared/Verified proof correlation. Existing native checks remain intact.
+- Matching unchanged content keeps its receipt identity and original context. Matching files without a receipt create a trackable attempt with unchanged outcomes.
+- Fixed two reproduced shared tracker defects: durable intent failure no longer permits file writes; unchanged inputs without a matching receipt no longer remain untrackable.
+- Optional event-history faults still degrade notification health without blocking shaping. These shared tracker fixes intentionally affect the legacy path.
+- Parity reports changed/added/missing/duplicate rows and changed network content. Unmanaged baseline rows remain visible. No IP/MAC-based identity mapping occurs.
+- Added 19 checks. Full suite: 1,012 passed, zero failed, 9 ignored. All 290 topology checks pass. Format, Clippy with denied warnings, and whitespace pass.
+- Public restart proof reaches temporary pair publication and the existing Prepared builder with saved Local/SourceRead settings and current endpoints.
+- Native proof checks use fixtures. No live native admission or DPDK apply test occurred. Author review only; no independent reviewer participated.
+- No manager caller was added to the runner. Its only change is optional metadata initialization. No dependencies, config/source parser, router reader, or cycle changed.
+- All new slices remain local/uncommitted. No push, deployment, live configuration, service, or router write occurred.
+- Next: explicit legacy identity/label/static ownership conversion and source-policy parity. Then exact native rate/size admission and runtime owner wiring.
+- Enrollment, TUI, schedules, and full corrupt-store identity reconstruction remain gated. Do not activate manager mode before its gates pass.
+- Session: [[2026-11-17-topology-publication]]. Plan: `docs/superpowers/plans/2026-11-17-topology-publication.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-publication/`.
+
+## 2026-11-17T04:40:31+08:00 (Asia/Shanghai) — Durable settings and forward recovery complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `489acc7` plus prior local slices.
+- Owner directs continuation. Added settings.rs/settings_tests.rs and store_recovery_tests.rs. Extended model/store to schema 3.
+- Added strict serialization to source selectors, authority, policy bindings, and exact rate formats. Legacy config enums remain unchanged.
+- Added authorize_configured and changed the public restart proof to consume persisted settings from the expected revision.
+- Updated design, discussion, plan, Home, this handoff, and the linked session. Preserve unrelated operational changes and prior local slices.
+- Settings/catalog validation rejects missing scopes, duplicate/overlapping selectors, and missing selected profile bindings. Unconfigured authority stays a draft and blocks configured acceptance.
+- Strict schema-1/2 load preserves IDs, intent, references, counters, and catalog policy without rewriting disk or inventing source authority.
+- Changed commits require exact verified private backups before primary replacement. Backup publication uses a synced temporary file and non-replacing hard link.
+- History keeps 16 recent schema-3 backups plus backups before migration. Normal forward upgrades create at most one backup per old schema.
+- Optional cleanup errors set history_cleanup_pending. Open repeats the check so unresolved errors remain visible after restart.
+- restore_policy creates a forward revision with old catalog/source settings and current subscriber records/pins/counter. Incompatible references block recovery.
+- Corrupt/missing primary files still block open. Old snapshots alone cannot authorize identity/counter rewind. Full reconstruction requires independently verified complete evidence.
+- Added 20 checks. Full suite: 993 passed, zero failed, 9 ignored. Format, Clippy with denied warnings, and whitespace passed.
+- The source has 276 topology checks. A reversed 10,000-profile case proves equivalent canonical output, not production throughput.
+- Author review only. No independent reviewer participated. No code finding remains open in this slice.
+- All new slices remain local/uncommitted. No dependency, legacy runtime/config/parser/reader, live caller, push, deployment, router write, or service action changed.
+- Next: publication boundary plus explicit legacy-policy parity migration. Keep source deadlines and prove native bounds/export precision, admission, and correlated DPDK evidence.
+- Then connect TUI and schedules. Live enrollment, full corrupt-store reconstruction, and manager-mode activation remain gated.
+- Session: [[2026-11-17-topology-settings-recovery]]. Plan: `docs/superpowers/plans/2026-11-17-topology-settings-recovery.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-settings-recovery/`.
+
+## 2026-11-17T03:18:43+08:00 (Asia/Shanghai) — Source mapping and exact rates complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `489acc7` plus local normalization/identity.
+- Owner directs continuation. Added source_rate/source_policy modules and tests. Extended identity selections, normalized service metadata, Hotspot inventory reads, and public integration proof.
+- Updated module exports, reader/normalizer/identity tests, design, discussion, source-policy plan, Home, session, and this handoff. Preserve unrelated work and prior local slices.
+- SourceSelection now uses `service_names` and an explicit SourcePolicy. No serialized settings or live callers used the earlier isolated `services` field.
+- Fresh DHCP/Hotspot name indexes resolve current locators. Unknown selectors fail instead of asserting an empty source. PPP uses documented transport names.
+- Hotspot requires `/ip/hotspot` inventory before/after active reads, with two extra read-only commands. Active server membership/disabled checks prevent incomplete provenance.
+- Explicit profile-name bindings provide stable source references. Missing active mappings and invalid enabled rates withhold source acceptance. Selected catalog filters require configured bindings.
+- Disabled/RateLimit modes are per mapped profile, with an explicit unprofiled/direct lease mode. Missing rates remain absent.
+- Exact integer parser supports sustained pairs/symmetric single values, configured direction/unitless units, decimals, and k/M/G case compatibility. No float, round, clamp, or default speed.
+- The public restart/store/placement/capacity test now covers both Local and SourceRead authority. Fresh locator mapping preserves the 50/10 Mbps subscriber max and valid saved pin.
+- Missing SourceRead speed blocks the resolver. A negative assertion initially entered aggregate evaluation after that block; the corrected assertion and final full suite pass.
+- Added 23 checks. All 256 topology checks pass. Full suite: 973 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
+- Synthetic evidence: reversed 10,000-account/10,000-service results remain equivalent; 2,000 decimal inputs match exact bps. No production benchmark claim.
+- All new slices remain local/uncommitted. No dependency, durable schema, legacy path, live caller, commit, push, deployment, router write, service, or configuration change occurred.
+- Next action: durable source/authority settings and migration/recovery. Then publication/native integration, TUI, and schedules.
+- Legacy comment/name/default speed priorities need explicit migration. Native bounds/export precision, retained deadlines, admission, and DPDK proof remain activation gates.
+- Session: [[2026-11-17-topology-source-policy]]. Plan: `docs/superpowers/plans/2026-11-17-topology-source-policy.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-source-policy/`.
+
+## 2026-11-17T02:38:16+08:00 (Asia/Shanghai) — Identity authorization complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `489acc7` plus local normalization.
+- Owner approves identity authorization. Added `identity.rs`/`identity_tests.rs`, normalized provenance/deadline metadata, module export, and a public catalog integration test.
+- Updated design, discussion, source/identity plans, Home, session, and this handoff. Preserve unrelated work and prior uncommitted normalization.
+- Opt-in operator reference: `[lqosync-id:REFERENCE]` in current administrator-managed account/lease comments. Namespace: `operator-comment/v1/`.
+- The contract requires independent references, uniqueness, and non-reassignment within each source scope. No authority default or automatic router enrollment.
+- Missing/invalid/duplicate references, ambiguous scopes, and partial multi-service membership withhold complete source acceptance. No endpoint/name/locator fallback.
+- Require expected registry revision, exact selected scopes, current router generations, selected protocol provenance, and the original read deadline.
+- Reuse `ObservationGate` and registry reconciliation. Return the deadline with the current world. Preserve saved intent only through verified references.
+- Cross-router/protocol equal references remain separate unless existing explicit registry aliases link them. Offline entries provide no endpoints.
+- Corrected a reproduced integrity defect: trial Hotspot sessions could borrow a matching local user's metadata. Trial sessions now have no such authority/profile.
+- Added 23 checks: 22 unit checks plus public restart/offline/rename/return/store/placement/capacity proof with unchanged subscriber max.
+- Full suite: 950 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed. Whitespace and stub scans passed.
+- Indexed service matching handles a reversed 10,000-account/10,000-service check with equivalent IDs and output. No production benchmark claim.
+- No dependency, schema, legacy path, live caller, commit, push, deployment, router write, service, or configuration changed in this slice.
+- Trusted reference assertions can be false. Software cannot detect deliberate or accidental tag reassignment during an unobserved replacement.
+- Next action: source-scope mapping and exact source-rate integration. Then durable authority settings/enrollment, migration/recovery, publication, TUI, and schedules.
+- Do not invent rates for SourceRead authority. Carry/recheck the deadline through later stages. Native admission/DPDK and manager-mode activation remain gated.
+- Session: [[2026-11-17-topology-identity]]. Plan: `docs/superpowers/plans/2026-11-17-topology-identity.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-identity/`.
+
+## 2026-11-17T00:02:43+08:00 (Asia/Shanghai) — Current protocol normalization complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `489acc7`.
+- Prior topology checkpoint `489acc7c1e48760935e0131fce35f09adecde6c9` was committed, pushed, and verified on GitHub at the owner's request.
+- The owner then requested continuation. Added `normalize.rs`/`normalize_tests.rs`, internal reader metadata access, and module export.
+- Updated design, discussion, source/normalization plans, Home, session, and this handoff. Preserve unrelated edits.
+- Normalize current PPP/Hotspot local account/profile joins and current bound DHCP endpoints. Group simultaneous local-account sessions once.
+- MAC/trial and DHCP evidence remain endpoint-only. Names, MACs, IPs, client IDs, and row locators do not establish durable identity continuity.
+- Reject ambiguous/disabled/missing required accounts, unknown methods/states, unusable endpoints, unresolved servers, and current IP ownership conflicts.
+- Keep raw current rates without guessed defaults. Keep the original read deadline and check it on normalized data access.
+- Review regression fixed the IP-conflict row location after session grouping. Mixed named/MAC authority stays endpoint-only independent of order.
+- Added 24 checks. Full suite: 927 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
+- A reversed 10,000-account check proves output equivalence, not production throughput. No new dependency or legacy path changed.
+- This slice is local and uncommitted. No live caller, registry write, source acceptance, deployment, router write, service, or configuration change occurred.
+- Next action: durable identity authorization and account lifecycle/conflict rules. Then source-scope/rate integration, migration/recovery, publication, TUI, and schedules.
+- Local account evidence is not an immutable account incarnation. Keep critical conflicts when continuity cannot be proved.
+- Session: [[2026-11-17-topology-normalization]]. Plan: `docs/superpowers/plans/2026-11-16-topology-normalization.md`.
+- Logs: `.superpowers/sdd/2026-11-16-topology-normalization/`. Complete source acceptance remains unfinished.
+
 ## 2026-11-16T21:50:35+08:00 (Asia/Shanghai) — Topology implementation commit authorized
 
 - Owner requests commit and push to GitHub. Agent: Codex `/root`.

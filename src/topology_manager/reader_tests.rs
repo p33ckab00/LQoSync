@@ -88,7 +88,11 @@ fn role_plans_request_only_required_tables_and_never_passwords_or_configured_dhc
         ),
         (
             RouterRole::Hotspot,
-            vec![Table::HotspotUsers, Table::HotspotProfiles],
+            vec![
+                Table::HotspotUsers,
+                Table::HotspotServers,
+                Table::HotspotProfiles,
+            ],
             vec![Table::HotspotActive],
         ),
     ] {
@@ -120,7 +124,7 @@ async fn all_roles_complete_once_with_inventory_checks_and_empty_presence() {
     let evidence = read(&mut guard, &mut s, &p, 1).await.unwrap();
     assert_eq!(evidence.generation(), 1);
     assert_eq!(evidence.router_id(), p.router_id);
-    assert_eq!(s.calls.len(), 15);
+    assert_eq!(s.calls.len(), 17);
     assert!(s.replies.is_empty());
     for table in p.inventory.iter().chain(&p.active) {
         assert!(evidence.rows(*table).unwrap().is_empty());

@@ -24,8 +24,24 @@ pub struct FileReceipt {
     pub sha256: String,
     pub outcome: FileOutcome,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TopologyContext {
+    pub policy_revision: u64,
+    pub observation_generation: u64,
+    pub registry_digest: String,
+}
+impl TopologyContext {
+    fn valid(&self) -> bool {
+        self.observation_generation > 0
+            && self.registry_digest.len() == 64
+            && self.registry_digest.bytes().all(|b| b.is_ascii_hexdigit())
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Meta {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topology: Option<TopologyContext>,
     pub cycle_seq: u64,
     pub config_digest: String,
     #[serde(default)]
@@ -68,6 +84,11 @@ impl Receipt {
                     && f.sha256.bytes().all(|b| b.is_ascii_hexdigit())
                     && f.path.as_os_str().len() <= 4096
             })
+            && self
+                .meta
+                .topology
+                .as_ref()
+                .is_none_or(TopologyContext::valid)
             && self.meta.config_digest.len() <= 128
             && self.error.as_ref().is_none_or(|s| s.len() <= 512)
     }
@@ -458,7 +479,28 @@ impl Tracker {
             .iter()
             .map(|(p, t)| !std::fs::read(p).is_ok_and(|old| old == t.as_bytes()))
             .collect();
-        if !differs.iter().any(|x| *x) {
+        if outputs.is_empty() {
+            return WriteResult::default();
+        }
+        if !differs.iter().any(|x| *x)
+            && self.current.as_ref().is_some_and(|receipt| {
+                receipt.files.len() == outputs.len()
+                    && receipt
+                        .files
+                        .iter()
+                        .zip(outputs)
+                        .all(|(file, (path, text))| {
+                            file.path == *path
+                                && file.sha256 == sha256(text.as_bytes())
+                                && matches!(
+                                    file.outcome,
+                                    FileOutcome::Written
+                                        | FileOutcome::Unchanged
+                                        | FileOutcome::Reconciled
+                                )
+                        })
+            })
+        {
             return WriteResult::default();
         }
         let mut result = WriteResult::default();
@@ -497,7 +539,10 @@ impl Tracker {
             superseded_by: None,
         });
         if let Err(e) = self.save() {
+            result.error = Some(format!("cannot persist write intent: {e:#}"));
             result.tracking_error = Some(bounded_error(e));
+            self.notification_fault(hub);
+            return result;
         }
         for (index, (path, text)) in outputs.iter().enumerate() {
             let outcome = crate::files::write_if_changed(path, text.as_bytes());

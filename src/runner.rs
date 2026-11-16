@@ -672,6 +672,7 @@ where
                 let result = tracker.write(
                     &files,
                     crate::write_receipt::Meta {
+                        topology: None,
                         cycle_seq: self.cycle_seq,
                         config_digest: self.config_digest.clone(),
                         notice: Some(crate::notify::outbox::Frozen::from_status(

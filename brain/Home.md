@@ -11,6 +11,18 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-17-topology-migration-admission]]
+
+- [[2026-11-17-topology-publication]]
+
+- [[2026-11-17-topology-settings-recovery]]
+
+- [[2026-11-17-topology-source-policy]]
+
+- [[2026-11-17-topology-identity]]
+
+- [[2026-11-17-topology-normalization]]
+
 - [[2026-11-16-topology-source-boundary]]
 
 - [[2026-11-16-topology-rebalance]]

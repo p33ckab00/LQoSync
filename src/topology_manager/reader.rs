@@ -16,6 +16,7 @@ pub enum Table {
     DhcpServers,
     DhcpLeases,
     HotspotUsers,
+    HotspotServers,
     HotspotProfiles,
     HotspotActive,
 }
@@ -36,6 +37,7 @@ impl Table {
                 ".id,server,status,active-address,active-mac-address,active-client-id,host-name,comment,rate-limit,dynamic",
             ),
             Self::HotspotUsers => ("/ip/hotspot/user", ".id,name,profile,comment,disabled"),
+            Self::HotspotServers => ("/ip/hotspot", ".id,name,disabled"),
             Self::HotspotProfiles => ("/ip/hotspot/user/profile", ".id,name,rate-limit"),
             Self::HotspotActive => (
                 "/ip/hotspot/active",
@@ -79,8 +81,11 @@ impl ReadPlan {
                     plan.active.insert(Table::DhcpLeases);
                 }
                 RouterRole::Hotspot => {
-                    plan.inventory
-                        .extend([Table::HotspotUsers, Table::HotspotProfiles]);
+                    plan.inventory.extend([
+                        Table::HotspotUsers,
+                        Table::HotspotServers,
+                        Table::HotspotProfiles,
+                    ]);
                     plan.active.insert(Table::HotspotActive);
                 }
             }
@@ -99,6 +104,12 @@ pub struct RouterRead {
 }
 
 impl RouterRead {
+    pub(super) fn tables(&self) -> impl Iterator<Item = Table> + '_ {
+        self.tables.keys().copied()
+    }
+    pub(super) fn expires(&self) -> Instant {
+        self.expires
+    }
     pub fn router_id(&self) -> &str {
         &self.router_id
     }
