@@ -11,6 +11,20 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-16-topology-source-boundary]]
+
+- [[2026-11-16-topology-rebalance]]
+
+- [[2026-11-16-topology-aggregates]]
+
+- [[2026-11-16-topology-resolver]]
+
+- [[2026-11-16-topology-catalog]]
+
+- [[2026-11-16-topology-registry]]
+
+- [[2026-11-16-topology-foundation]]
+
 - [[2026-11-16-topology-product-review]]
 
 - [[2026-11-16-topology-manager-adoption]]

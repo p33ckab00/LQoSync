@@ -92,17 +92,17 @@ Persistent policy and registry schemas belong to the next slice.
 - `resolve_aggregate(rule: &AggregateRule, direct_basis: RateBps, wan: Option<RateBps>, parent: Option<RateBps>) -> anyhow::Result<AggregateRates>`.
 - `new_policy_defaults() -> SpeedPolicy`.
 
-- [ ] Write tests for the approved defaults and independent overrides.
-- [ ] Assert that a 50,000,000 bps base resolves to minimum 1,000,000 and maximum 50,000,000 under new defaults.
-- [ ] Assert that a minimum fraction of 1/100 resolves to 500,000 bps from the same base.
-- [ ] Assert that a fixed maximum override replaces the global percentage rule.
-- [ ] Assert local 400,000,000 and ceiling 310,000,000 for a 500 Mbps basis, factor 4/5, and 310 Mbps WAN.
-- [ ] Assert that half a 310 Mbps WAN targets 155 Mbps and becomes 100 Mbps under a lower parent.
-- [ ] Assert errors for zero denominator, overflow, unsupported zero rates, and minimum above maximum.
-- [ ] Assert that fractional calculations never round a ceiling upward above its bound.
-- [ ] Run `cargo test --lib topology_manager::rates`. Make sure the tests fail before implementation.
-- [ ] Implement checked arithmetic with wider intermediates and one explicit rounding boundary.
-- [ ] Run the same command. Require all tests to pass.
+- [x] Write tests for the approved defaults and independent overrides.
+- [x] Assert that a 50,000,000 bps base resolves to minimum 1,000,000 and maximum 50,000,000 under new defaults.
+- [x] Assert that a minimum fraction of 1/100 resolves to 500,000 bps from the same base.
+- [x] Assert that a fixed maximum override replaces the global percentage rule.
+- [x] Assert local 400,000,000 and ceiling 310,000,000 for a 500 Mbps basis, factor 4/5, and 310 Mbps WAN.
+- [x] Assert that half a 310 Mbps WAN targets 155 Mbps and becomes 100 Mbps under a lower parent.
+- [x] Assert errors for zero denominator, overflow, unsupported zero rates, and minimum above maximum.
+- [x] Assert that fractional calculations never round a ceiling upward above its bound.
+- [x] Run `cargo test --lib topology_manager::rates`. Make sure the tests fail before implementation.
+- [x] Implement checked arithmetic with wider intermediates and one explicit rounding boundary.
+- [x] Run the same command. Require all tests to pass.
 
 Backend export bounds are adapter checks. Do not invent new native rate limits in these arithmetic functions.
 
@@ -114,16 +114,16 @@ Backend export bounds are adapter checks. Do not invent new native rate limits i
 
 **Produces:** `validate_layout(nodes: &[PolicyNode]) -> anyhow::Result<()>`.
 
-- [ ] Write tests for multiple top-level WANs and a profile-only tree.
-- [ ] Assert errors for duplicate/empty IDs, missing parents, self-parent relationships, and cycles.
-- [ ] Assert that distinct IDs with equal display names remain distinct model objects.
-- [ ] Assert that a WAN with direct subscribers remains valid with fixed capacity and cannot use Automatic mode.
-- [ ] Assert rejection of mixed direct subscribers and group children.
-- [ ] Assert that intermediate capacity uses only inherit, fixed, or WAN-percentage mode.
-- [ ] Assert that WAN-percentage mode requires a unique WAN ancestor.
-- [ ] Run `cargo test --lib topology_manager::layout`. Make sure the tests fail before implementation.
-- [ ] Implement ID indexes and bounded graph validation. Do not silently promote missing-parent nodes.
-- [ ] Run the same command. Require all tests to pass.
+- [x] Write tests for multiple top-level WANs and a profile-only tree.
+- [x] Assert errors for duplicate/empty IDs, missing parents, self-parent relationships, and cycles.
+- [x] Assert that distinct IDs with equal display names remain distinct model objects.
+- [x] Assert that a WAN with direct subscribers remains valid with fixed capacity and cannot use Automatic mode.
+- [x] Assert rejection of mixed direct subscribers and group children.
+- [x] Assert that intermediate capacity uses only inherit, fixed, or WAN-percentage mode.
+- [x] Assert that WAN-percentage mode requires a unique WAN ancestor.
+- [x] Run `cargo test --lib topology_manager::layout`. Make sure the tests fail before implementation.
+- [x] Implement ID indexes and bounded graph validation. Do not silently promote missing-parent nodes.
+- [x] Run the same command. Require all tests to pass.
 
 Unique export names remain an adapter responsibility. Display names must not become identity keys.
 
@@ -135,20 +135,20 @@ Unique export names remain an adapter responsibility. Display names must not bec
 
 **Produces:** isolated equivalence evidence, not an active manager path.
 
-- [ ] Add fixture tests for PPP plan sums and DHCP/Hotspot count-times-unit bases.
-- [ ] Compare rendered rate values with current `speed.rs` behavior and group fixtures.
-- [ ] Treat precision or backend-bound mismatches as explicit failures, not permission to change legacy expectations.
-- [ ] Run `cargo test --test topology_foundation`. Make sure the tests fail before the required conversion helpers exist.
-- [ ] Add only the conversion helpers required by those fixtures. Leave the live `cycle::assemble` path unchanged.
-- [ ] Run `cargo test --test topology_foundation` and `cargo test --lib topology_manager`.
-- [ ] Run `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` after the new code passes.
-- [ ] Repeat the focused regression suites in the review report. Explain any changed legacy expectation.
+- [x] Add fixture tests for PPP plan sums and DHCP/Hotspot count-times-unit bases.
+- [x] Compare rendered rate values with current `speed.rs` behavior and group fixtures.
+- [x] Treat precision or backend-bound mismatches as explicit failures, not permission to change legacy expectations.
+- [x] Run `cargo test --test topology_foundation`. Make sure the tests fail before the required conversion helpers exist.
+- [x] Add only the conversion helpers required by those fixtures. Leave the live `cycle::assemble` path unchanged.
+- [x] Run `cargo test --test topology_foundation` and `cargo test --lib topology_manager`.
+- [x] Run `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` after the new code passes.
+- [x] Repeat the focused regression suites in the review report. Explain any changed legacy expectation.
 
 ## Later feature slices
 
 Each slice needs a concrete plan after this foundation:
 
-1. Durable catalog/registry, expected-revision private store, migration identities, and fresh source observations.
+1. Durable catalog/registry and fresh sources. The isolated registry is complete in `2026-11-16-topology-registry.md`. Catalog/schema checks are complete in `2026-11-16-topology-catalog.md`. Source adapters and production migration remain.
 2. Eligibility, stable assignments, pins, balancing, export names, and shadow pair parity.
 3. Publication through the current tracker, interruption tests, and native evidence correlation.
 4. Topology TUI views, completed-edit detection, and migration of duplicate controls from general Settings.
@@ -164,4 +164,22 @@ Serialized CSV/JSON precision and actual backend rate bounds need adapter tests 
 The foundation is complete when its tests pass and no production path calls the new module.
 It does not complete the Topology Manager feature.
 Record checks, changed files, and remaining contract gates in the project vault.
-This review creates the plan only. No unchecked implementation step above has executed.
+The owner authorized this foundation after commit `b94ed7c`.
+All three tasks executed with failing tests before their implementations.
+Checks passed: 31 new tests, 735 total tests, zero failures, and 9 existing ignored tests.
+`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and whitespace checks passed.
+The full suite includes all focused regression suites from the review report.
+No legacy fixture or production caller changed.
+
+## Implementation rulings
+
+- WAN nodes are roots in this forest. The synthetic UI root is separate from capacity nodes.
+- `Inherit` requires a real parent ceiling. A profile-only root can use Automatic or Fixed capacity.
+- `SubscriberGroup` represents a leaf group. `Intermediate` contains group children and no direct subscribers.
+- `Fixed` holds the effective local target after manual factors. Later policy records must preserve configured inputs separately.
+- Fraction calculations round down once to integer bps. Nonpositive results and overflow are errors.
+- Legacy Mbps conversion requires an exact round trip. It does not validate native bounds or serialized output precision.
+- Hierarchy validation uses borrowed IDs, flat child indexes, and iterative traversal. Expected work is O(N + E), plus ID bytes.
+- A reversed tree with 50,000 levels passes without recursive traversal. This is a synthetic check, not a production benchmark.
+
+Session record: `brain/10-sessions/2026-11-16-topology-foundation.md`.

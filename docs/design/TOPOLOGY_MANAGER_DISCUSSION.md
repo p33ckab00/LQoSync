@@ -838,6 +838,33 @@ This extension does not authorize router routing changes, live scheduler activat
 
 ## Implementation state
 
-No product code or live configuration implements these requirements yet.
-Requirements approval is complete for the recorded behavior scope. Product implementation has not started in this discussion.
+The pure rate and hierarchy foundation now implements part of these requirements in isolation.
+The foundation has 31 new tests. The registry/observation slice adds 35 more.
+The catalog/schema slice adds 23 checks and persists catalog plus subscriber intent in one checked revision.
+The placement slice adds fresh profile/rate evidence, eligibility, stable assignments, and weighted allocation for new circuits.
+It adds 31 checks. At that stage, the full suite passed with 824 passed, zero failed, and 9 ignored.
+It keeps one placement per circuit, preserves valid pins, and withholds the candidate on unresolved placement conflicts.
+The aggregate slice computes direct source formulas, backstops/floors, ancestor ceilings, and summed minimum conflicts.
+It adds 35 checks. At that stage, the full suite passed with 859 passed, zero failed, and 9 ignored.
+It keeps subscriber maxima and treats plan oversubscription as a warning. Mathematical candidate checks do not prove native admission.
+Explicit scoped rebalance now uses one bounded sweep with fixed pins, current eligibility, and aggregate checks.
+It adds 25 checks. The full suite passes with 884 passed, zero failed, and 9 ignored.
+Catalog ID allocation and the role-based read boundary now exist in isolation.
+They add 19 checks. The full suite passes with 903 passed, zero failed, and 9 ignored.
+Verified protocol/identity adapters, migration, export/native integration, and TUI remain unfinished.
+The registry persists identity/policy intent and consumes current complete observations separately.
+No live collector, export writer, TUI, or scheduler calls these modules.
+Requirements approval is complete for the recorded behavior scope. Full product integration remains unfinished.
 The approved scheduler extension adds outstanding overlap and time-boundary decisions to that original behavior scope.
+
+## Source clarification — Local RouterOS accounts
+
+The owner identifies the available sources: PPP secrets, current DHCP hostname/MAC, and Hotspot active rows.
+The deployment has no RADIUS service. Local reads do not require RADIUS credentials.
+Use secrets for PPP account configuration and active rows for current presence.
+Use bound DHCP leases with fresh active addresses. Hotspot presence requires current authenticated sessions.
+The read boundary requests these inputs without passwords and without old configured DHCP endpoint fallbacks.
+
+This clarification does not establish a permanent reference for ambiguous account replacement or DHCP endpoint changes.
+Current hostname/MAC and RouterOS row locators cannot, by themselves, justify transfer of old subscriber intent.
+Protocol adapters and account lifecycle checks remain unfinished. Preserve the approved identity-conflict guard.

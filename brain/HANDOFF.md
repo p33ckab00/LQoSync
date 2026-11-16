@@ -8,6 +8,129 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-16T21:50:35+08:00 (Asia/Shanghai) — Topology implementation commit authorized
+
+- Owner requests commit and push to GitHub. Agent: Codex `/root`.
+- Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`.
+- Commit scope: isolated core, registry, catalog, placement, aggregates, scoped rebalance, IDs, and read guards.
+- Include their tests, plans, design updates, and session notes. Preserve unrelated operational work outside the commit.
+- Last checks: 903 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
+- Next: protocol normalization and account continuity checks. The manager still has no live caller.
+- Git push changes repository history only. No deployment or live configuration change is authorized by this request.
+
+## 2026-11-16T21:47:14+08:00 (Asia/Shanghai) — ID and read boundary complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c` plus prior uncommitted slices.
+- Added `ids.rs`/`ids_tests.rs` and `reader.rs`/`reader_tests.rs`. Updated model validation, exports, design, discussion, plan, and brain notes.
+- Catalog ID batches use the shared durable counter and expected revisions. Restart and deletion do not reuse generated IDs.
+- Role-based reads check configuration before/after active tables, reply completeness, row locators, age, timeout, and advancing generations.
+- No passwords or old configured DHCP endpoint fallbacks. Error/cancellation drops the API session before retry. Successful sessions remain reusable.
+- Full suite: 903 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed. Added 19 checks.
+- Synthetic checks cover 10,000 IDs and 10,000 reordered rows. No production benchmark claim.
+- Owner identifies PPP secrets, current DHCP hostname/MAC, and Hotspot active rows. No RADIUS service exists or is required for local reads.
+- Those tables do not prove ambiguous identity continuity. Keep old pins/policies isolated when account replacement or DHCP changes cannot be verified.
+- No protocol normalizer, complete source acceptance, or live caller exists yet. Multiple commands do not form an atomic RouterOS snapshot.
+- No commit, push, deployment, dependency, legacy reader, router, service, or configuration changed. Preserve unrelated edits and all prior uncommitted slices.
+- Next action: typed protocol normalization and explicit account lifecycle/conflict rules. Do not invent a RADIUS dependency or use raw row locators as permanent identities.
+- Then complete migration/recovery, export/native integration, TUI, and schedules. Scheduler overlap/overnight/DST decisions remain open.
+- Session: [[2026-11-16-topology-source-boundary]]. Plan: `docs/superpowers/plans/2026-11-16-topology-source-boundary.md`.
+- Logs: `.superpowers/sdd/2026-11-16-topology-source-boundary/`. Task 3 normalization remains open by design.
+
+## 2026-11-16T21:21:39+08:00 (Asia/Shanghai) — Scoped rebalance complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c` plus prior uncommitted slices.
+- Owner directs continuation. Added `rebalance.rs`/`rebalance_tests.rs`, resolver child-module declaration, root public alias, and a catalog public integration test.
+- The explicit request requires an expected revision and a source-pool or branch ID. It consumes fresh reconciliation and reuses normal resolver validation.
+- Normal resolution assigns new circuits first. Proposed moves refer to that baseline and affect current unpinned circuits within selected destinations only.
+- Pins, offline intent, and outside-scope assignments stay fixed and contribute demand. Source pools also check current membership.
+- One deterministic sweep favors larger plans, then stable IDs. Strict bottleneck checks prevent equal-quality movement from indivisible plans.
+- Sparse exact score deltas rank improving moves. The final proposal passes aggregate/minimum/floor checks; conflicts withhold its candidate.
+- Mixed bounded/unbounded scopes require compatible explicit capacity policy. No invented weights or implicit scope expansion.
+- Added 25 checks. Full suite: 884 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
+- Synthetic proof: 10,000 circuits and no moves on repeat. Score oracle checks 768 trials against full recomputation, including shared ancestors. No production benchmark claim.
+- API performs no durable writes or publication. Public integration proves revision-checked persistence, pins, restart, and no stored session endpoints.
+- No live caller, dependency, original fixture expectation, legacy builder, writer, router, service, configuration, commit, push, or deployment changed. Preserve unrelated edits.
+- Next: verified source/identity adapters and stable ID creation, then complete migration/recovery, export/native integration, and TUI.
+- One sweep does not prove a global optimum or globally minimum move count. Scheduler overlap/overnight/DST decisions remain open.
+- Session: [[2026-11-16-topology-rebalance]]. Plan: `docs/superpowers/plans/2026-11-16-topology-rebalance.md`. Logs under its `.superpowers/sdd/` workspace.
+
+## 2026-11-16T20:58:59+08:00 (Asia/Shanghai) — Aggregate boundary complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c` plus prior uncommitted slices.
+- Owner directs the next task. Added `aggregate.rs`/`aggregate_tests.rs`; updated module export, rate helper visibility, catalog floor input, and catalog/foundation tests.
+- The stage consumes fresh resolved placements. It computes direct formulas, applies factors/backstops/floors, and constrains capacities by every ancestor.
+- Demand/minimum sums count each circuit once. They support checks and display without recalculating intermediate capacities from subscriber plans.
+- Empty automatic branches are omitted; manual/WAN nodes and durable definitions remain. Subscriber maxima stay unchanged.
+- Oversubscription is a warning. Impossible minima or floors produce typed node conflicts and withhold the candidate.
+- Optional source floor defaults to None and omits its absent field. A configured floor still requires a compatible reader and a verified migration/rollback path.
+- Final review fixed acceptance of a stage input after current endpoint evidence was stripped. Conflict reason order is stable per node.
+- Added 35 checks. Full suite: 859 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
+- Public parity covers legacy PPP factors/backstop/floor. A reversed 20,000-level graph proves recursion safety, not production throughput.
+- No live caller, original fixture expectation, dependency, legacy builder, writer, service, router, configuration, commit, push, or deployment changed. Preserve unrelated edits.
+- Next: explicit scoped rebalance, then verified adapters/ID creation, complete migration/recovery, export/native integration, and TUI.
+- Candidate minimum checks are mathematical feasibility only. Native rate bounds, precision, admission, and DPDK evidence remain required.
+- Session: [[2026-11-16-topology-aggregates]]. Plan: `docs/superpowers/plans/2026-11-16-topology-aggregates.md`. Logs under its `.superpowers/sdd/` workspace.
+
+## 2026-11-16T20:41:06+08:00 (Asia/Shanghai) — Placement boundary complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c` plus prior uncommitted slices.
+- Owner asks for status and directs continuation. Added fresh profile/rate evidence, current account records, and a pure placement resolver.
+- Changed `observation.rs`, `catalog.rs`, `mod.rs`, the registry integration fixture, design/discussion, plan, and brain notes. Added `resolver.rs` and `resolver_tests.rs`.
+- Resolve explicit source/ancestor/profile restrictions, current alias agreement, explicit rate authority, min/max policies, stable assignments, pins, and weighted new allocations.
+- A circuit contributes plan demand once. Current endpoints and policy observations stay outside the registry.
+- Typed conflicts withhold the candidate. A placement candidate still needs aggregate/minimum/export/native checks before publication.
+- Review regressions fixed ratio equality, explicit-instance eligibility, target-set restrictions, ancestor bypass, and implicit SourceRead authority.
+- Added 31 checks. Full suite: 824 passed, zero failed, 9 ignored. Format and Clippy with denied warnings passed.
+- Synthetic proof: 10,000 circuits, reversed collection order, same placements. No production benchmark claim.
+- No live caller, dependency, service, router, configuration, shaping output, commit, push, or deployment changed. Preserve unrelated work.
+- Next: aggregate formulas and minimum feasibility, then scoped rebalance, verified adapters/ID creation, migration/recovery, publication, and TUI.
+- Scheduler still needs overlap, overnight, and DST decisions. Keep application default Asia/Manila separate from note timestamps.
+- Session: [[2026-11-16-topology-resolver]]. Plan: `docs/superpowers/plans/2026-11-16-topology-resolver.md`. Check logs under its `.superpowers/sdd/` workspace.
+
+## 2026-11-16T20:22:16+08:00 (Asia/Shanghai) — Catalog/schema boundary complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c` plus uncommitted prior slices.
+- Owner directs source/policy catalog and hierarchy persistence. Added catalog types/tests and public persistence tests; extended model/store/observation/rate helpers.
+- Schema 2 stores catalog plus subscriber intent in one checked revision. Schema 1 loads losslessly without rewriting; a revision-checked commit persists the upgrade.
+- Router roles, source origins, local profiles, explicit target sets, root label, hierarchy instances, configured capacities, and factors remain distinct.
+- Reference checks reject orphaned plans/assignments/pins. Canonical order avoids replacement on order-only edits. Snapshot scopes must match selected catalog scopes.
+- Review guards reject source-origin replacement under the same ID and invalid protocol formulas. DHCP site/per-plan basis remains explicit.
+- Tests: 23 new checks. Full suite: 793 passed, zero failed, 9 ignored. Formatting and Clippy with denied warnings passed.
+- Synthetic scale covers 10,000 nodes and 10,000 subscriber bindings. No production benchmark claim.
+- No live caller, prior fixture, dependency, config, service, router, dataplane, commit, push, or deployment changed. Preserve unrelated edits.
+- Next: fresh membership/profile resolution, eligibility, placements, rates, and typed conflicts. Keep configured WAN bases separate from compiled shaping targets.
+- ID creation, verified adapters, complete migration/backup/rollback, policy history, publication, and TUI remain gates before activation.
+- Session: [[2026-11-16-topology-catalog]]. Plan: `docs/superpowers/plans/2026-11-16-topology-catalog.md`.
+
+## 2026-11-16T19:40:11+08:00 (Asia/Shanghai) — Subscriber registry boundary complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c`. Prior foundation remains uncommitted.
+- Owner directs the next implementation slice. Added registry model, complete-observation reconciliation, and private store under `src/topology_manager/`.
+- Added public restart/reconnect integration test. Updated plans, design, discussion, Home, and session.
+- IDs/policy persist; current endpoints do not. Incomplete sources cannot produce a complete snapshot. Source adapter authority and wall-clock freshness remain future gates.
+- Reuse the instance lock and synced private writer. Revision checks, external-change detection, no-op suppression, and uncertain-write blocking passed.
+- Review fixes: initialize a durable empty document only for a new private directory; reject a missing file in an existing directory. Use a nonblocking open to reject FIFOs without waiting.
+- Tests: 35 new checks. Full suite: 770 passed, zero failed, 9 ignored. Formatting and Clippy with denied warnings passed.
+- Synthetic scale: 10,000 subscribers with two sessions each; changed endpoints keep registry intent. No production benchmark claim.
+- No new live caller, prior fixture, dependency, config, service, router, commit, push, or deployment changed. Preserve unrelated notes.
+- Next: complete source/policy catalog and hierarchy persistence, then adapters/migration, assignments, publication, and TUI. Store lock ownership must transfer into one daemon owner at integration.
+- Session: [[2026-11-16-topology-registry]]. Plan: `docs/superpowers/plans/2026-11-16-topology-registry.md`.
+
+## 2026-11-16T19:14:07+08:00 (Asia/Shanghai) — Topology foundation complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`, branch `lqosync3`, base `b94ed7c`.
+- Owner authorizes implementation and requests performance, integrity, and reliability review.
+- Added pure rates/layout modules, exported the module, and added compatibility integration tests. Updated plan, design, discussion, and session.
+- Review: checked u128-to-u64 arithmetic, independent replacement controls, local/ceiling separation, exact legacy conversions, and iterative graph validation.
+- Hierarchy uses expected O(N + E) work plus ID bytes and O(N) space. A reversed 50,000-level tree passes.
+- TDD: 31 new tests failed before implementation, then passed. Full suite: 735 passed, zero failed, 9 ignored.
+- Formatting, Clippy with denied warnings, and whitespace checks passed. No legacy fixture or dependency changed.
+- No production caller, live config, service, router, dataplane, commit, push, or deployment changed in this implementation slice.
+- Documentation baseline `b94ed7c` was committed and pushed before implementation. Preserve unrelated local edits.
+- Remaining: durable policy/registry, fresh observations, assignments, balancing, publication, and TUI. Export precision/backend bounds remain adapter gates.
+- Scheduler scope includes subscriber policies and WAN/group capacities. Overlap/overnight/DST decisions remain open.
+- Session: [[2026-11-16-topology-foundation]]. Plan: `docs/superpowers/plans/2026-11-16-topology-foundation.md`.
+
 ## 2026-11-16T18:48:21+08:00 (Asia/Shanghai) — Topology documentation/product review complete
 
 - Owner requests review against the current product, performance/reliability/integrity improvements, and STE for implementation text.
