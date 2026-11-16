@@ -14,15 +14,11 @@ async fn main() -> anyhow::Result<()> {
         let (mapping, snapshot) =
             lqosync3::subscriber_stats::sample(std::path::Path::new(&path)).await?;
         let hosts = snapshot.hosts.as_ref().unwrap();
-        let matches = |offset: usize| {
+        let matches = || {
             hosts
                 .iter()
                 .filter(|h| {
-                    let Some(name) = usize::try_from(h.id.circuit_id)
-                        .ok()
-                        .and_then(|slot| slot.checked_sub(offset))
-                        .and_then(|slot| mapping.names.get(slot))
-                    else {
+                    let Some(name) = mapping.names.get(&h.id.circuit_id) else {
                         return false;
                     };
                     rows.iter().any(|r| {
@@ -42,8 +38,8 @@ async fn main() -> anyhow::Result<()> {
             "{}",
             serde_json::json!({"captured_at_millis":snapshot.captured_at_millis,
               "producer_advanced":previous.map(|p|snapshot.captured_at_millis>p),"host_rows":hosts.len(),"limit":lqosync3::subscriber_stats::LIMIT,
-              "slot_names":mapping.names.len(),"first_slot_empty":mapping.names.first().is_some_and(String::is_empty),
-              "direct_slot_matches":matches(0),"offset_one_matches":matches(1),
+              "slot_names":mapping.names.len(),"first_slot_empty":mapping.names.values().next().is_some_and(String::is_empty),
+              "applied_slot_matches":matches(),
               "min_host_slot":hosts.iter().map(|h|h.id.circuit_id).min(),"max_host_slot":hosts.iter().map(|h|h.id.circuit_id).max(),
               "actual_fields":hosts.iter().filter(|h|h.actual.is_some()).count(),
               "pooled_rtt_fields":hosts.iter().filter(|h|h.rtt_samples_us.is_some()).count(),

@@ -278,7 +278,10 @@ mod tests {
             .await
             .unwrap();
         server.join().unwrap();
-        assert_eq!(mapping.names, vec!["c1", "c2"]);
+        assert_eq!(
+            mapping.names,
+            std::collections::BTreeMap::from([(1, "c1".into()), (2, "c2".into())])
+        );
         for bad in [
             json!({"Unavailable":"no_report_yet"}),
             json!({"Report":{"report_schema":2,"generation":"g1","slot_order":[]}}),

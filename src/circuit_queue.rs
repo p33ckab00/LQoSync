@@ -88,9 +88,8 @@ pub async fn fetch(path: &Path, circuit: &str) -> anyhow::Result<Observation> {
     let slot = before
         .names
         .iter()
-        .position(|name| name == circuit)
-        .context("selected circuit is not in the applied slot order")? as u64
-        + 1;
+        .find_map(|(slot, name)| (name == circuit).then_some(*slot))
+        .context("selected circuit is not in the applied slot order")?;
     let reply = crate::worker_util::ipc::read_queue(path, slot).await?;
     let after = crate::worker_util::ipc::read_mapping(path).await?;
     ensure!(before == after, "applied mapping changed during queue read");
@@ -339,7 +338,7 @@ mod tests {
         use nix::sys::socket::{ControlMessage, MsgFlags, sendmsg};
         use std::io::{IoSlice, Read, Write};
         use std::os::{fd::AsRawFd, unix::net::UnixListener};
-        for changed in [false, true] {
+        for (explicit, changed) in [(false, 0), (false, 1), (true, 0), (true, 1), (true, 2)] {
             let dir = tempfile::tempdir().unwrap();
             let path = dir.path().join("analytics.sock");
             let listener = UnixListener::bind(&path).unwrap();
@@ -359,12 +358,25 @@ mod tests {
                     assert_eq!(request["kind"], kind);
                     assert_eq!(request["limit"], 1);
                     let body = if step == 1 {
-                        assert_eq!(request["queue_slots"], json!([1]));
-                        serde_json::to_value(observation().reply).unwrap()
+                        let slot = if explicit { 5 } else { 1 };
+                        assert_eq!(request["queue_slots"], json!([slot]));
+                        let mut reply = observation().reply;
+                        reply.rows[0].slot_id = slot;
+                        serde_json::to_value(reply).unwrap()
                     } else {
                         let mut names = Vec::new();
                         ciborium::into_writer(&vec!["c1", "c2"], &mut names).unwrap();
-                        json!({"Report":{"generation":if changed && step==2 {"g2"} else {"g1"},"report_schema":1,"slot_order":names}})
+                        let mut report = json!({"generation":if changed==1 && step==2 {"g2"} else {"g1"},"report_schema":1,"slot_order":names});
+                        if explicit {
+                            let mut slots = Vec::new();
+                            ciborium::into_writer(
+                                &vec![if changed == 2 && step == 2 { 6u64 } else { 5 }, 2],
+                                &mut slots,
+                            )
+                            .unwrap();
+                            report["slot_numbers"] = json!(slots);
+                        }
+                        json!({"Report":report})
                     };
                     bytes.clear();
                     ciborium::into_writer(&body, &mut bytes).unwrap();
@@ -392,9 +404,9 @@ mod tests {
             });
             let result = fetch(&path, "c1").await;
             thread.join().unwrap();
-            assert_eq!(result.is_err(), changed);
+            assert_eq!(result.is_err(), changed != 0);
             if let Ok(q) = result {
-                assert_eq!(q.slot, 1);
+                assert_eq!(q.slot, if explicit { 5 } else { 1 });
                 assert_eq!(q.circuit, "c1");
             }
         }

@@ -44,11 +44,19 @@ pub struct Applied {
     pub generation: String,
     pub report_schema: u32,
     pub slot_order: Vec<u8>,
+    #[serde(default, deserialize_with = "present_slot_numbers")]
+    pub slot_numbers: Option<Vec<u8>>,
+}
+fn present_slot_numbers<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<u8>>, D::Error> {
+    // Only an omitted field selects legacy IDs; explicit null is invalid.
+    Vec::<u8>::deserialize(deserializer).map(Some)
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mapping {
     pub generation: String,
-    pub names: Vec<String>,
+    pub names: BTreeMap<u64, String>,
 }
 impl Applied {
     pub fn mapping(&self) -> anyhow::Result<Mapping> {
@@ -68,9 +76,32 @@ impl Applied {
             names.iter().all(|n| text(n, 256) && unique.insert(n)),
             "invalid or duplicate slot names"
         );
+        let slots: Vec<u64> = if let Some(encoded) = &self.slot_numbers {
+            ensure!(
+                encoded.len() <= 65536 * 9 + 9,
+                "slot numbers exceed size limit"
+            );
+            let mut bytes = encoded.as_slice();
+            let slots: Vec<u64> =
+                ciborium::from_reader(&mut bytes).context("slot numbers unavailable")?;
+            ensure!(
+                bytes.is_empty() && slots.len() == names.len(),
+                "invalid slot numbers size"
+            );
+            slots
+        } else {
+            (1..=names.len() as u64).collect()
+        };
+        let mut by_slot = BTreeMap::new();
+        for (slot, name) in slots.into_iter().zip(names) {
+            ensure!(
+                slot > 0 && by_slot.insert(slot, name).is_none(),
+                "invalid or duplicate slot numbers"
+            );
+        }
         Ok(Mapping {
             generation: self.generation.clone(),
-            names,
+            names: by_slot,
         })
     }
 }
@@ -220,10 +251,9 @@ impl Tracker {
                 .iter()
                 .filter(|h| h.id.circuit_id != 0)
             {
-                let slot = usize::try_from(h.id.circuit_id - 1)?;
                 let name = map
                     .names
-                    .get(slot)
+                    .get(&h.id.circuit_id)
                     .context("host slot outside applied mapping")?;
                 ensure!(
                     !name.is_empty() && text(name, 256) && keys.insert((name, h.id.subscriber_ip)),
@@ -260,7 +290,7 @@ impl Tracker {
             .into_iter()
             .filter(|h| h.id.circuit_id != 0)
         {
-            let circuit = map.names[h.id.circuit_id as usize - 1].clone();
+            let circuit = map.names[&h.id.circuit_id].clone();
             let key = (circuit.clone(), h.id.subscriber_ip);
             let mut m = Metrics {
                 actual: h.actual,
@@ -586,8 +616,94 @@ mod tests {
     fn mapping() -> Mapping {
         Mapping {
             generation: "g1".into(),
-            names: vec!["c1".into()],
+            names: BTreeMap::from([(1, "c1".into())]),
         }
+    }
+    fn wire_mapping(names: &[&str], slots: Option<Vec<u8>>) -> anyhow::Result<Mapping> {
+        let mut bytes = Vec::new();
+        ciborium::into_writer(&names, &mut bytes)?;
+        let mut report = json!({"generation":"g1","report_schema":1,"slot_order":bytes});
+        if let Some(slots) = slots {
+            report["slot_numbers"] = json!(slots);
+        }
+        serde_json::from_value::<Applied>(report)?.mapping()
+    }
+    fn encoded_slots(slots: &[u64]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        ciborium::into_writer(&slots, &mut bytes).unwrap();
+        bytes
+    }
+    #[test]
+    fn explicit_slots_route_sparse_hosts_and_reset_rates_when_ids_change() {
+        let map = wire_mapping(&["c1", "c2"], Some(encoded_slots(&[5, 2]))).unwrap();
+        let mut tracker = Tracker::default();
+        let sample = |at, down, slot| {
+            let mut s = snapshot(at, down, 200);
+            s.hosts.as_mut().unwrap()[0].id.circuit_id = slot;
+            s
+        };
+        tracker.record(Ok((map.clone(), sample(1000, 100, 5))), 10);
+        tracker.record(Ok((map.clone(), sample(11000, 1250100, 5))), 20);
+        assert!(tracker.report.live(20));
+        let ip: IpAddr = "192.0.2.1".parse().unwrap();
+        assert_eq!(tracker.report.hosts["c1"][&ip].down_mbps, Some(1.0));
+        let moved = wire_mapping(&["c1", "c2"], Some(encoded_slots(&[2, 5]))).unwrap();
+        tracker.record(Ok((moved.clone(), sample(21000, 2500100, 2))), 30);
+        assert!(!tracker.report.live(30) && tracker.report.hosts.is_empty());
+        tracker.record(Ok((moved, sample(31000, 3750100, 2))), 40);
+        assert_eq!(tracker.report.hosts["c1"][&ip].down_mbps, Some(1.0));
+        tracker.record(Ok((map, sample(41000, 4000000, 1))), 50);
+        assert!(!tracker.report.live(50));
+    }
+    #[test]
+    fn explicit_slots_reject_malformed_ids_instead_of_using_positions() {
+        for ids in [vec![], vec![1], vec![1, 1], vec![0, 2], vec![1, 2, 3]] {
+            assert!(
+                wire_mapping(&["c1", "c2"], Some(encoded_slots(&ids))).is_err(),
+                "{ids:?}"
+            );
+        }
+        for bytes in [vec![], vec![0xff], vec![0x80, 0], vec![0x82, 0x20, 1]] {
+            assert!(wire_mapping(&["c1", "c2"], Some(bytes)).is_err());
+        }
+    }
+    #[test]
+    fn explicit_slots_require_a_valid_present_field_and_preserve_legacy_absence() {
+        assert_eq!(wire_mapping(&["c1"], None).unwrap(), mapping());
+        for field in [
+            json!(null),
+            json!(true),
+            json!("bad"),
+            json!([-1]),
+            json!([256]),
+        ] {
+            assert!(
+                serde_json::from_value::<Applied>(json!({
+                    "generation":"g1", "report_schema":1, "slot_order":[], "slot_numbers":field
+                }))
+                .is_err()
+            );
+        }
+        let mut trailing = encoded_slots(&[5, 2]);
+        trailing.push(0);
+        assert!(wire_mapping(&["c1", "c2"], Some(trailing)).is_err());
+        assert!(wire_mapping(&["c1"], Some(vec![0; 65536 * 9 + 10])).is_err());
+        assert!(wire_mapping(&["c1", "c1"], Some(encoded_slots(&[5, 2]))).is_err());
+        let map = wire_mapping(&["c1", "c2"], Some(encoded_slots(&[u64::MAX, 2]))).unwrap();
+        assert_eq!(map.names.get(&u64::MAX).map(String::as_str), Some("c1"));
+        let reordered = wire_mapping(&["c2", "c1"], Some(encoded_slots(&[2, u64::MAX]))).unwrap();
+        assert_eq!(map, reordered);
+    }
+    #[test]
+    fn explicit_slots_keep_the_existing_mapping_size_bound() {
+        let names: Vec<String> = (0..65536).map(|i| format!("c{i}")).collect();
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let ids: Vec<u64> = (1..=65536).map(|i| i * 2).collect();
+        let map = wire_mapping(&refs, Some(encoded_slots(&ids))).unwrap();
+        assert_eq!(map.names.len(), 65536);
+        assert_eq!(map.names.get(&131072).map(String::as_str), Some("c65535"));
+        let too_many: Vec<&str> = refs.iter().copied().chain(["overflow"]).collect();
+        assert!(wire_mapping(&too_many, None).is_err());
     }
     fn snapshot(at: u64, down: u64, up: u64) -> Snapshot {
         serde_json::from_value(json!({"captured_at_millis":at,"hosts":[{
@@ -622,7 +738,7 @@ mod tests {
         assert_eq!(t.report.hosts["c1"][&ip].down_mbps, None);
         let mut moved = mapping();
         moved.generation = "g2".into();
-        moved.names[0] = "c2".into();
+        moved.names.insert(1, "c2".into());
         t.record(Ok((moved, snapshot(41000, 1000, 2000))), 60);
         assert!(!t.report.live(60) && t.report.hosts.is_empty());
         t.record(Ok((mapping(), snapshot(1, 100, 200))), 70);
@@ -792,6 +908,7 @@ mod tests {
             generation: "g1".into(),
             report_schema: 1,
             slot_order: bytes,
+            slot_numbers: None,
         };
         assert_eq!(a.mapping().unwrap(), mapping());
         let mut bad = snapshot(1000, 0, 0);
