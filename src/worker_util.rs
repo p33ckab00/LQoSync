@@ -1,5 +1,6 @@
 //! Read-only DPDK worker utilization for the service and TUI.
 
+mod cache;
 pub mod classification;
 pub mod detail;
 pub mod health;
@@ -300,10 +301,16 @@ fn publish(dir: &Path, report: &Telemetry) -> anyhow::Result<()> {
         "worker cache exceeds its size budget"
     );
     let tmp = dir.join(format!(".{CACHE}.tmp-{}", std::process::id()));
-    std::fs::write(&tmp, bytes)?;
-    std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644))?;
-    std::fs::rename(tmp, dir.join(CACHE))?;
-    Ok(())
+    let result = (|| {
+        std::fs::write(&tmp, bytes)?;
+        std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644))?;
+        std::fs::rename(&tmp, dir.join(CACHE))?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(tmp);
+    }
+    result
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -468,6 +475,7 @@ impl Monitor {
         let task = tokio::spawn(async move {
             let hub = worker_hub;
             let mut current = changes.borrow().clone();
+            let mut cache = cache::Publisher::new(Path::new(&current.state));
             let mut tracker = Tracker::default();
             let mut warned = false;
             let mut next_health = tokio::time::Instant::now();
@@ -482,6 +490,9 @@ impl Monitor {
                     changed = changes.changed() => {
                         if changed.is_err() { break; }
                         let next = changes.borrow_and_update().clone();
+                        if current.state != next.state {
+                            cache = cache::Publisher::new(Path::new(&next.state));
+                        }
                         if !current.same_analytics(&next) {
                             tracker = Tracker::default();
                             next_health = tokio::time::Instant::now();
@@ -525,7 +536,7 @@ impl Monitor {
                         if let Some(message) = pressure_log.record(&tracker.report, now) {
                             eprintln!("{message}");
                         }
-                        if let Err(error) = publish(Path::new(&current.state), &tracker.report) {
+                        if let Err(error) = cache.publish(&tracker.report) {
                             if !warned { eprintln!("worker telemetry cache: {error}"); }
                             warned = true;
                         } else { warned = false; }

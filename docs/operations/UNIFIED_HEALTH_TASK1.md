@@ -1,6 +1,6 @@
 # Unified health and managed-write reports
 
-Status: local implementation on `lqosync3`. Production remains unchanged.
+Status: deployed as `3.0.179+g12e3d57` on `lqosync3`. Live two-stage delivery passed verification on 2026-11-12.
 Plan: [Unified health and Telegram](../superpowers/plans/2026-11-11-unified-health-telegram.md).
 
 ## Update lifecycle
@@ -107,6 +107,89 @@ Keep its frozen route unchanged. A changed recipient must not receive an older p
 
 A live reload cannot move `runtime.state_dir`. Restart the service to change that directory and its lock/receipt ownership.
 
+## Live delivery verification
+
+Verified: 2026-11-12T14:46:14+08:00 (Asia/Shanghai).
+The operator ran a read-only probe against private operation and delivery records.
+
+A real operation wrote both `network.json` and `ShapedDevices.csv` at 14:16:29.
+Both current file hashes match its receipt. Native policy acceptance completed at 14:16:35.
+Telegram accepted these reports for the same write ID:
+
+| Report | Telegram message ID | Local API receipt time (+08:00) |
+| --- | --- | --- |
+| WRITTEN / PENDING | 4058 | 14:16:32 |
+| APPLIED | 4059 | 14:16:38 |
+
+Each report has one part and one positive API receipt.
+Both records show completion, with no skip, pause, or delivery error.
+The write queue is empty. No delivery-gap marker exists.
+The operation remained stable during the probe.
+
+Shared apply state is APPLIED. Notification health is HEALTHY.
+Overall health is DEGRADED because the native/generated allocation difference remains open.
+The owner deferred that allocation investigation pending upstream beta clarification or an update.
+This deferral does not remove or downgrade the reported evidence.
+
+API acceptance does not prove that a person read the message.
+This check did not induce a live failure, retry, or rate-limit response.
+The earlier automated tests cover those protocol and recovery paths.
+
+Private evidence: `/home/pi/.local/state/lqosync3/telegram-verification/`.
+The metadata probe excludes message bodies, subscriber identities, recipients, and credentials.
+No service restart, configuration change, or forced managed-file update was necessary.
+
+## Production performance observation
+
+Observed on 2026-11-12 from 14:50:16 to 14:55:16 (+08:00).
+The read-only observer sampled cgroup counters and public cache metadata every two seconds.
+It made no RouterOS or native socket requests.
+
+| Measurement | Result |
+| --- | --- |
+| Samples / complete sync cycles | 151 / 3 |
+| Average CPU, relative to one core | 0.285% |
+| Median / maximum CPU over a two-second interval | 0.082% / 6.661% |
+| Service cgroup memory | 25.69–28.04 MiB |
+| Sync duration, minimum / median / maximum | 157 / 159 / 164 ms |
+| Sync errors / automatic restarts | 0 / 0 |
+| Maximum worker / health cache age | 2.27 / 2.26 seconds |
+| Maximum subscriber / NIC cache age | 10.23 seconds |
+| Maximum collection age / freshness budget | 120.54 / 190 seconds |
+
+All six caches remained readable. No telemetry cache reported stale data.
+No health component exceeded its freshness budget.
+The known allocation difference was the only nonhealthy component.
+Memory pressure and OOM event counters did not increase.
+These results show no sustained CPU or memory bottleneck in this window.
+
+They do not prove behavior at a larger subscriber count or under a burst of writes.
+The window contained no managed-file change. It does not benchmark Telegram sends or TUI render time.
+
+The separate I/O window lasted 267 seconds and recorded 54,505,472 service cgroup write bytes.
+That is 199.36 KiB/s, or 16.43 GiB/day if the same rate continues.
+The daily figure is an extrapolation, not a full-day measurement.
+I/O pressure increased by only 105 microseconds, so the write volume did not show I/O saturation.
+
+The worker cache contained 1801 history points and occupied about 401 KB.
+The observer saw 150 cache versions in five minutes.
+Source inspection confirms full JSON serialization and atomic replacement every two seconds.
+This write pattern is consistent with most of the measured service write rate.
+The cgroup total does not attribute each byte to a specific file.
+
+The next optimization candidate is a RAM-backed runtime cache for worker telemetry.
+Preserve the two-second refresh and the current history window.
+Keep managed outputs, operation receipts, and Telegram delivery records durable.
+A change needs compatibility checks for cache readers, service startup, and stale-data behavior.
+No implementation or measured reduction is part of this observation.
+
+Follow-up: the local worker-cache implementation now passes migration, integrity, and isolated I/O checks.
+Production migration remains pending. See [RAM-backed worker cache](../OPERATIONS.md#ram-backed-worker-cache).
+
+Evidence: `/home/pi/.local/state/lqosync3/performance-observation/`.
+`analysis.json` contains the calculated results. `samples.jsonl` contains metadata samples.
+The observer excludes credentials, subscriber inventories, and message bodies.
+
 ## Development checks
 
 Final local checks: 690 tests passed, zero failed, eight manual tests ignored.
@@ -124,7 +207,7 @@ python3 scripts/dev/capture_tui.py --screen 1 --system-health --output /tmp/dash
 
 Benchmarks identify their build profile. Debug results are not production speedup claims.
 Synthetic terminal captures are separate from live probe evidence.
-This implementation has sent no live Telegram test message and has not changed the production service.
+The production service uses this implementation. Live verification used a real managed-file update and sent no synthetic test message.
 
 ## Measured development results
 

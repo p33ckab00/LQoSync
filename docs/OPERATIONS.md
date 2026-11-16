@@ -488,6 +488,52 @@ The TUI reads the public cache at `<runtime.state_dir>/worker-utilization.json`.
 This cache contains worker metrics, aggregate traffic history, buffer/ring diagnostics, optional bridge queue totals, and classification traffic.
 It contains no host or flow records.
 
+
+#### RAM-backed worker cache
+
+Status: local implementation verified on 2026-11-12. Production deployment is pending.
+
+The optimized publisher keeps the public path and JSON schema above.
+It places the worker cache on tmpfs at:
+
+```text
+/dev/shm/lqosync3-<effective-uid>/<canonical-state-path-sha256>/worker-utilization.json
+```
+
+The public state-directory entry becomes a symlink after the first complete runtime publication.
+Old TUI readers follow that link. The loader detects atomic replacements of its target.
+Separate canonical state paths use separate runtime directories.
+The runtime directory must be visible to the service and its TUI readers.
+
+New directories have mode 0755. The service rejects foreign ownership, symlink directories, and group/other write access.
+An existing directory must already permit public reads. The service does not broaden its permissions.
+The publisher checks for tmpfs before it uses the directory.
+The cache file retains mode 0644 and its existing 1 MiB limit.
+Atomic publication needs temporary space for another cache copy.
+Tmpfs can use swap if the host permits it.
+
+The source poll, public refresh, freshness rules, and all three histories remain unchanged.
+The service retains up to 1801 points per history, within its existing one-hour time limit.
+A reboot removes volatile runtime data. Until the service publishes again, the TUI shows unavailable or stale data.
+A service restart starts a new in-memory history, as before.
+Runtime files can remain until reboot after a state-directory change or rollback.
+
+If directory validation, runtime publication, or link publication fails, the service logs `worker telemetry cache: disk fallback` with a reason.
+It then uses the existing atomic disk publisher until the next service restart or destination change.
+Failed cache publication removes its temporary file when possible.
+Operation receipts, Telegram queues, subscriber collection, and shaping outputs retain their durable storage.
+
+Rollback requires no data conversion. The previous service binary replaces the public symlink with its regular cache file on its next publication.
+Do not edit the cache or its link while the service runs.
+Verify the public path with `readlink /var/lib/lqosync3/worker-utilization.json` after deployment.
+Use the configured state directory if it differs from this example.
+
+Local checks passed 700 tests, Clippy, formatting, and seven-screen terminal smoke.
+An isolated debug test published a 283,359-byte cache 50 times per path.
+Process I/O counters recorded zero block write bytes for steady tmpfs publication and 14,336,000 bytes for disk publication.
+This is a cache-specific measurement. It is not a measured production-wide reduction or a CPU speedup.
+After deployment, repeat the production observation to measure the total service write rate.
+
 The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
 Snapshot worker/traffic values expire after six seconds. A snapshot error marks their last-good values stale.
 Bridge health has its own freshness rules, as described below.

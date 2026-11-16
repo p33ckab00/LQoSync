@@ -634,6 +634,42 @@ mod tests {
     }
 
     #[test]
+    fn worker_loader_follows_runtime_replacements_and_regular_file_rollback() {
+        let (e, mut loader) = env();
+        pair(&e, "");
+        loader.cfg.libreqos.target = crate::config::Target::V3Pair;
+        let ram = tempfile::tempdir_in("/dev/shm").unwrap();
+        let target = ram.path().join("worker.json");
+        let path = e.state.join(crate::worker_util::CACHE);
+        let snapshot = |busy| {
+            format!(
+                r#"{{"version":1,"updated":100,"stale":false,"reason":null,"workers":[{{"queue_id":0,"busy_ppm":{busy}}}]}}"#
+            )
+        };
+        std::fs::write(&target, snapshot(125000)).unwrap();
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        let first = loader.load().worker_util.unwrap();
+        assert_eq!(first.workers[0].busy_ppm, 125000);
+        assert!(Arc::ptr_eq(&first, &loader.load().worker_util.unwrap()));
+        let next = ram.path().join("next.json");
+        std::fs::write(&next, snapshot(500000)).unwrap();
+        std::fs::rename(next, &target).unwrap();
+        assert_eq!(
+            loader.load().worker_util.unwrap().workers[0].busy_ppm,
+            500000
+        );
+        std::fs::remove_file(target).unwrap();
+        assert!(loader.load().worker_util.unwrap().stale);
+        let disk = e.state.join("rollback.json");
+        std::fs::write(&disk, snapshot(750000)).unwrap();
+        std::fs::rename(disk, path).unwrap();
+        assert_eq!(
+            loader.load().worker_util.unwrap().workers[0].busy_ppm,
+            750000
+        );
+    }
+
+    #[test]
     fn nic_loader_reuses_valid_cache_and_handles_removal_and_v2_target() {
         let (e, mut loader) = env();
         pair(&e, "");

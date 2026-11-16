@@ -8,6 +8,120 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-16T08:33:17+08:00 (Asia/Shanghai) — RAM-cache commit and push authorized
+
+- Owner requested commit and push only. Agent: Codex `/root`.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Starting HEAD and origin both point to `d569bf8`.
+- Scope: RAM-cache implementation/tests, operations documentation, implementation plan, and completed capacity/Telegram/performance session notes.
+- Preserve the unrelated profile/WAN Knowledge note and its Home link outside the commit.
+- Fresh pre-push checks passed: 700 tests, zero failures, nine manual tests ignored; formatting and diff checks passed. Prior Clippy, isolated I/O verification, and seven-route terminal smoke passed.
+- Commit and push follow this preparation note. Confirm the resulting HEAD against `origin/lqosync3` before reporting success.
+- Evidence belongs in `/home/pi/.local/state/lqosync3/ram-cache-task/`. No private native captures enter Git.
+- Deployment and restart are not requested in this task. Production performance savings remain unmeasured.
+- After push, the next release step is a clean artifact and deployment only when requested.
+
+Session: [[2026-11-12-worker-ram-cache]].
+
+## 2026-11-12T15:19:25+08:00 (Asia/Shanghai) — RAM-backed worker cache complete locally
+
+- Owner requested the next optimization. Agent: Codex `/root`. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`.
+- Implemented `src/worker_util/cache.rs`, monitor integration and temporary-file cleanup in `src/worker_util.rs`, plus a TUI loader regression in `src/tui/data.rs`.
+- Public cache path/schema remain compatible through an atomic symlink to a per-UID, per-state tmpfs directory. Polling and all chart histories remain unchanged.
+- Directory ownership/mode/tmpfs checks, private-directory preservation, rollback, runtime failure fallback, and stale/missing behavior have regression coverage.
+- Full checks: 700 passed, zero failed, nine manual tests ignored. Clippy, formatting, debug build, and seven-route TUI smoke passed.
+- Manual debug I/O test: 50 publications, 283,359-byte cache, zero RAM-path block writes versus 14,336,000 disk-path bytes. Not a production-wide reduction claim.
+- Plan: `docs/superpowers/plans/2026-11-12-worker-ram-cache.md`. Operations and unified-health follow-up documentation updated.
+- Evidence: `/home/pi/.local/state/lqosync3/ram-cache-task/`; red/green/review logs are under the existing performance-observation directory.
+- No commit, push, production migration, restart, or deployment occurred. Installed service remains `3.0.179+g12e3d57`.
+- Next when release is requested: commit only selected feature/docs files, push/check CI, build a clean release, deploy, then verify public link, reader access, freshness, and production I/O.
+- Preserve unrelated profile/WAN notes and earlier uncommitted diagnosis/verification documentation. Allocation work remains deferred by the owner.
+
+Session: [[2026-11-12-worker-ram-cache]].
+
+## 2026-11-12T14:56:30+08:00 (Asia/Shanghai) — Production performance observation complete
+
+- Owner approved observation. Agent: Codex `/root`. Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`.
+- Five minutes, 151 samples, three completed normal sync cycles. Average CPU 0.285% of one core; memory 25.69–28.04 MiB.
+- Sync times 157–164 ms, median 159 ms. No cycle errors, stale telemetry, cache read errors, or expired health components.
+- MainPID 882084 stayed active. Automatic restarts: zero. Known allocation mismatch remains the only nonhealthy component.
+- Service write rate: 199.36 KiB/s in a separate 267-second I/O window. This implies 16.43 GiB/day only if sustained.
+- About 401 KB of worker history is republished every two seconds. That pattern is consistent with most writes, but no per-file I/O attribution occurred.
+- No memory pressure or OOM increase. I/O pressure was negligible. No sustained CPU/memory bottleneck appeared in this short unchanged-output workload.
+- Evidence: `/home/pi/.local/state/lqosync3/performance-observation/`. Metadata only, no subscriber inventories or credentials.
+- Updated operations documentation, session note, Home link, and this handoff. Prior capacity/Telegram documentation changes remain local.
+- Checks: script syntax, result assertions, service status, and diff whitespace passed. No product-code tests apply.
+- No product code/config change, forced output write, restart, deployment, commit, or push occurred.
+- Proposed next task: RAM-backed worker telemetry cache, preserving two-second refresh, history, reader compatibility, and durable operation/outbox records. Not started.
+- The owner defers the LibreQoS beta allocation issue. Preserve unrelated profile/WAN notes.
+
+Session: [[2026-11-12-production-performance-observation]].
+
+## 2026-11-12T14:46:14+08:00 (Asia/Shanghai) — Live Telegram delivery verified
+
+- Owner deferred the beta LibreQoS allocation issue and requested the next task. Agent: Codex `/root`.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. Installed release remains `3.0.179+g12e3d57`.
+- Actual cycle 185 wrote both managed files. Current hashes match the durable receipt.
+- Same write ID: WRITTEN/PENDING message 4058, then APPLIED message 4059. One positive API receipt per report, completed, no skip/pause/error.
+- Operation remained stable during the root metadata probe. No pending write events or delivery-gap marker exist.
+- Shared apply is APPLIED, notification health HEALTHY. Overall remains DEGRADED because the allocation mismatch stays visible.
+- Private evidence: `/home/pi/.local/state/lqosync3/telegram-verification/`. `verified.json` records the assertion result and times.
+- Checks: probe syntax, stable operation, file hashes, IDs, report order, completion flags, and queue state passed. Diff whitespace check passed.
+- Updated operations documentation, this handoff, the session note, and its Home link. No product code changed.
+- No forced managed-file update, synthetic Telegram send, configuration change, service restart, deployment, commit, or push occurred.
+- API acceptance is verified. Human reading and live retry/failure cases are not part of this result.
+- Next proposed task: production performance observation. Allocation work remains deferred pending upstream clarification or a relevant beta update.
+- Preserve unrelated profile/WAN work and the earlier capacity diagnosis changes.
+
+Session: [[2026-11-12-telegram-delivery-verification]].
+
+## 2026-11-12T14:31:45+08:00 (Asia/Shanghai) — Capacity trace verified
+
+- Owner ran the root metadata probe. Agent: Codex `/root`. Branch/worktree remains `lqosync3`, `/home/pi/LQoSync3.0`.
+- Current native policy verification passes: 64 applied / 1000 desired slots. No managed-file write occurred.
+- Running/installed bridge hashes match. Revision: `f1cc998a013e`.
+- LKG schema 1 contains 26 leaf operations. The recursive metadata probe finds no explicit capacity field.
+- Correct the earlier hypothesis: the LKG does not demonstrably store literal 64. Startup derives a bound from restored placement.
+- Installed static code selects a placement-derived power-of-two bound before the separate 1000-slot fallback. A 26-entry placement gives 64.
+- Shared capacity initializes once by the observed direct-reference path. Reports and R3 rebuild paths read that value.
+- This is the supported mismatch mechanism. Exact branch confirmation by private source or a controlled boot test remains unavailable.
+- Evidence: `/home/pi/.local/state/lqosync3/capacity-trace/`. Keep metadata, static excerpts, reference inventory, and startup evidence outside Git.
+- Updated diagnosis session and handoff only. Probe syntax and JSON checks passed. Diff whitespace check passed. No product-code tests apply.
+- No code/configuration change, LKG edit, restart, deployment, commit, push, or Telegram send occurred.
+- Next repair boundary: upstream must reconcile desired/placement capacity at boot and define capacity-only updates. Do not assume ordinary restart repairs this.
+- Preserve unrelated profile/WAN work. The real two-stage Telegram delivery observation still awaits an actual managed-file change.
+
+Session: [[2026-11-12-native-capacity-diagnosis]].
+
+## 2026-11-12T14:28:03+08:00 (Asia/Shanghai) — Installed bridge trace; metadata pending
+
+- Owner requested the installed bridge allocation trace. Agent: Codex `/root`.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`. No product edits.
+- Exact bridge revision: `f1cc998a013e`. ELF build ID: `7d2a946d53a6712aa9fc2315b2cb31b7dbbd4e98`.
+- Startup journal confirms LKG autonomous boot with 26 leaves. Placement revision differed, so the bridge reconstructed that section.
+- Static inspection identifies power-of-two startup allocation and a separate 1000-slot fallback. Exact boot-object field remains uncertain.
+- Prepared `/home/pi/.local/state/lqosync3/capacity-trace/read-only-probe.py`. Syntax check passed.
+- Asked the operator to run it with sudo and redirect to `live-metadata.json` in the same directory. Host sudo needs the operator password.
+- Next: inspect that result for LKG/desired capacities, native acceptance, and running/installed binary hashes. Do not repeat the request if the result exists.
+- Evidence stays outside Git. No restart, configuration change, managed-file write, commit, push, or Telegram send occurred.
+- Updated this handoff and the diagnosis session. Preserve unrelated profile/WAN work.
+
+Session: [[2026-11-12-native-capacity-diagnosis]].
+
+## 2026-11-12T08:44:12+08:00 (Asia/Shanghai) — Capacity diagnosis
+
+- Goal: read-only investigation of 64 native / 1000 desired slots. Agent: Codex `/root`.
+- Branch/worktree: `lqosync3`, `/home/pi/LQoSync3.0`, HEAD `d569bf8`.
+- Public source confirms a 1000-slot emitter floor, policy-only broker convergence, and omitted capacity in projection/incremental delta.
+- Leading hypothesis: allocation does not propagate through that incremental path. The origin of 64 and installed bridge resize rules remain unproved.
+- Existing root proof verifies policy and reports capacity mismatch. No new root socket sample occurred.
+- Package version: `3.0.7.202611102128`. Public source revision is not a confirmed installed build revision.
+- No product/config/service changes, restart, deployment, commit, push, or Telegram send.
+- New files/changes: diagnosis session note and this handoff. Read-only checks only; no code tests required.
+- Next: establish the installed bridge cold-load/resize contract with upstream before a repair plan. Do not assume restart fixes capacity.
+- Preserve the unrelated profile/WAN note and Home link. Live two-stage Telegram delivery still awaits an actual managed-file change.
+
+Session: [[2026-11-12-native-capacity-diagnosis]].
+
 ## 2026-11-12T08:33:16+08:00 (Asia/Shanghai) — Unified health deployed and verified
 
 - Owner authorized release and ran the root deploy script. Last agent: Codex `/root`.
