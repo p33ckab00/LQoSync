@@ -8,6 +8,32 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T07:16:59+08:00 (Asia/Shanghai) — Durable aliases and base source priorities complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `728c2c2`.
+- The owner authorized this task after the GitHub checkpoint. No commit or push occurred in this task.
+- Added ownership/legacy_rate modules and tests. Extended model/store, publication, migration, source policy, current metadata, and reader fields.
+- Updated related tests, design, discussion, plan, Home, and session. Preserve unrelated operational work.
+- Schema 4 stores explicit export aliases and static ownership IDs. Strict schema-1/2/3 adapters preserve old primary bytes until a changed commit.
+- Exact pre-upgrade backups remain available. Normal history keeps 16 schema-4 backups. Current identities, counters, and export reservations survive recovery.
+- Circuit/device/node aliases preserve legacy output IDs and labels. Device aliases require independent identity references, not endpoints or saved sessions.
+- adopt_legacy requires explicit mappings and managed-policy parity at the exact revision, generation, fingerprints, and original deadline.
+- Managed disconnects emit no rows. Reconnects use current IP/MAC data. Ambiguous sessions cannot claim one aliased device ID.
+- Current authoritative static input can preserve declared independent roots. Missing rows/roots, absent parents, unclassified data, and managed-ID collisions block publication.
+- Static source/revision verification belongs to the future runtime owner. Shared static branches still require capacity rules.
+- Source conversion preserves configured PPP, DHCP-server, and Hotspot base priorities, order, units, direction, name rules, and explicit defaults.
+- Dynamic comments/rates remain in memory. Lossy integer-bps conversion, conflicting session speeds, or competing source authorities block acceptance.
+- Shared router indexes avoid a reproduced quadratic copy. Ownership checks use indexed membership. No production benchmark claim.
+- Added 19 tests. Full suite: 1,050 passed, zero failed, 9 ignored. All 328 topology tests pass. Format, Clippy, and whitespace pass.
+- A final fixture-only Clippy cleanup passed all 10 ownership tests. Author review only; no independent reviewer participated.
+- No dependency, legacy runtime/config parser, live caller, deployment, native apply, service action, or router write changed.
+- Next: controlled compiler/configuration binding and one runtime lock/writer owner. Preserve deadlines, pending receipts, and post-write proof.
+- Complete legacy shadow parity for exclusions, address-based overrides, minimum/factor policies, and shared static branches before activation.
+- Enrollment, native planner bounds, TUI, schedules, corrupt-store reconstruction, and live DPDK proof remain gates.
+- Session: [[2026-11-17-topology-legacy-adoption]]. Plan: `docs/superpowers/plans/2026-11-17-topology-legacy-adoption.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-legacy-adoption/`. Graph remains the earlier baseline.
+
+
 ## 2026-11-17T06:53:28+08:00 (Asia/Shanghai) — Topology checkpoint for GitHub
 
 - The owner authorized a commit and push before further implementation.

@@ -242,7 +242,7 @@ pub fn compare_mapped(
     Ok(result)
 }
 
-fn nodes(network: &Value) -> anyhow::Result<HashMap<&str, (&str, &Value)>> {
+pub(super) fn nodes(network: &Value) -> anyhow::Result<HashMap<&str, (&str, &Value)>> {
     let mut result = HashMap::new();
     let mut names = HashSet::new();
     let mut work = vec![(network, 0usize)];

@@ -19,7 +19,7 @@ fn schema_two_migrates_without_inventing_authority_or_rewriting_disk() {
     let before = std::fs::read(primary(root.path())).unwrap();
     let mut store = RegistryStore::open(root.path()).unwrap();
     let value = serde_json::to_value(store.document().unwrap()).unwrap();
-    assert_eq!(value["schema_version"], 3);
+    assert_eq!(value["schema_version"], 4);
     assert!(value["source_settings"].is_null());
     assert_eq!(value["next_id"], 90);
     assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
@@ -39,7 +39,7 @@ fn changed_commit_preserves_exact_previous_bytes_in_a_private_backup() {
     let mut next = store.document().unwrap().clone();
     next.next_id = 20;
     store.commit(0, next).unwrap();
-    let backup = backup_path(root.path(), 3, 0);
+    let backup = backup_path(root.path(), 4, 0);
     assert_eq!(std::fs::read(&backup).unwrap(), before);
     assert_eq!(
         std::fs::metadata(backup).unwrap().permissions().mode() & 0o777,
@@ -53,7 +53,7 @@ fn conflicting_or_linked_backup_blocks_commit_without_primary_changes() {
         let root = tempfile::tempdir().unwrap();
         let mut store = RegistryStore::open(root.path()).unwrap();
         let before = std::fs::read(primary(root.path())).unwrap();
-        let backup = backup_path(root.path(), 3, 0);
+        let backup = backup_path(root.path(), 4, 0);
         if linked {
             symlink(primary(root.path()), &backup).unwrap();
         } else {
@@ -84,6 +84,7 @@ fn configured() -> RegistryDocument {
                     rate: RateRead::Disabled,
                 }],
                 unprofiled_rate: RateRead::Disabled,
+                legacy_priority: None,
             },
         }],
     });
@@ -112,18 +113,18 @@ fn saved_settings_survive_restart_and_order_only_edits_do_not_advance_revision()
         .service_names
         .reverse();
     assert!(!store.commit(1, doc).unwrap().changed);
-    assert!(!backup_path(root.path(), 3, 1).exists());
+    assert!(!backup_path(root.path(), 4, 1).exists());
     assert_eq!(
         store.backup_current().unwrap(),
         BackupId {
-            schema_version: 3,
+            schema_version: 4,
             revision: 1
         }
     );
-    let first = std::fs::read(backup_path(root.path(), 3, 1)).unwrap();
+    let first = std::fs::read(backup_path(root.path(), 4, 1)).unwrap();
     store.backup_current().unwrap();
     assert_eq!(
-        std::fs::read(backup_path(root.path(), 3, 1)).unwrap(),
+        std::fs::read(backup_path(root.path(), 4, 1)).unwrap(),
         first
     );
 }
@@ -196,12 +197,12 @@ fn recovery_rejects_stale_revisions_wrong_metadata_and_incompatible_current_pins
     assert!(store.restore_policy(1, old).is_err());
     assert!(store.restore_policy(2, old).is_err());
     let bad = BackupId {
-        schema_version: 3,
+        schema_version: 4,
         revision: 2,
     };
     crate::files::write_secret(
-        &backup_path(root.path(), 3, 2),
-        &std::fs::read(backup_path(root.path(), 3, 1)).unwrap(),
+        &backup_path(root.path(), 4, 2),
+        &std::fs::read(backup_path(root.path(), 4, 1)).unwrap(),
     )
     .unwrap();
     assert!(store.restore_policy(2, bad).is_err());
@@ -210,7 +211,7 @@ fn recovery_rejects_stale_revisions_wrong_metadata_and_incompatible_current_pins
             .restore_policy(
                 2,
                 BackupId {
-                    schema_version: 4,
+                    schema_version: 5,
                     revision: 1
                 }
             )
@@ -233,7 +234,7 @@ fn invalid_settings_or_removal_do_not_replace_the_confirmed_registry() {
     next.source_settings = None;
     assert!(store.commit(1, next).is_err());
     assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
-    assert!(!backup_path(root.path(), 3, 1).exists());
+    assert!(!backup_path(root.path(), 4, 1).exists());
 }
 
 #[test]
@@ -282,12 +283,12 @@ fn normal_history_is_bounded_and_the_migration_backup_remains_available() {
     let history: Vec<_> = std::fs::read_dir(root.path().join("topology-manager"))
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("registry-v3-"))
+        .filter(|name| name.starts_with("registry-v4-"))
         .collect();
     assert_eq!(history.len(), 16);
     assert_eq!(std::fs::read(backup_path(root.path(), 2, 7)).unwrap(), old);
-    assert!(backup_path(root.path(), 3, 26).exists());
-    assert!(!backup_path(root.path(), 3, 8).exists());
+    assert!(backup_path(root.path(), 4, 26).exists());
+    assert!(!backup_path(root.path(), 4, 8).exists());
 }
 
 #[test]
@@ -300,16 +301,92 @@ fn optional_history_cleanup_failure_does_not_hide_a_confirmed_commit() {
         store.commit(revision, next).unwrap();
     }
     assert!(!store.history_cleanup_pending());
-    let corrupt_old = backup_path(root.path(), 3, 0);
+    let corrupt_old = backup_path(root.path(), 4, 0);
     crate::files::write_secret(&corrupt_old, b"corrupt old history").unwrap();
     let mut next = store.document().unwrap().clone();
     next.next_id += 1;
     assert_eq!(store.commit(17, next).unwrap().revision, 18);
     assert!(store.history_cleanup_pending());
     assert_eq!(store.document().unwrap().revision, 18);
-    assert!(backup_path(root.path(), 3, 17).exists());
+    assert!(backup_path(root.path(), 4, 17).exists());
     drop(store);
     let reopened = RegistryStore::open(root.path()).unwrap();
     assert_eq!(reopened.document().unwrap().revision, 18);
     assert!(reopened.history_cleanup_pending());
+}
+
+#[test]
+fn schema_three_upgrade_keeps_exact_backup_and_adds_no_ownership() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let old = br#"{"schema_version":3,"revision":9,"next_id":200,"subscribers":[],"catalog":null,"source_settings":null}"#;
+    crate::files::write_secret(&primary(root.path()), old).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    assert_eq!(store.document().unwrap().schema_version, 4);
+    assert!(store.document().unwrap().export_ownership.is_none());
+    assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
+    assert_eq!(
+        store
+            .commit(9, store.document().unwrap().clone())
+            .unwrap()
+            .revision,
+        10
+    );
+    assert_eq!(
+        std::fs::read(backup_path(root.path(), 3, 9)).unwrap(),
+        before
+    );
+    drop(store);
+    assert_eq!(
+        RegistryStore::open(root.path())
+            .unwrap()
+            .document()
+            .unwrap()
+            .next_id,
+        200
+    );
+}
+
+#[test]
+fn export_ownership_survives_restart_and_cannot_transfer_or_disappear() {
+    use crate::topology_manager::ownership::{CircuitAlias, DeviceAlias, ExportOwnership};
+    let root = tempfile::tempdir().unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let mut value = super::tests::candidate();
+    value.export_ownership = Some(ExportOwnership {
+        circuits: vec![CircuitAlias {
+            subscriber_id: value.subscribers[0].id.clone(),
+            id: "old-circuit".into(),
+            name: "Alice".into(),
+        }],
+        devices: vec![DeviceAlias {
+            identity: value.subscribers[0].identities[0].clone(),
+            id: "old-device".into(),
+            name: "Alice device".into(),
+        }],
+        ..Default::default()
+    });
+    store.commit(0, value).unwrap();
+    drop(store);
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let original = store.document().unwrap().clone();
+    assert_eq!(
+        original.export_ownership.as_ref().unwrap().circuits[0].id,
+        "old-circuit"
+    );
+    let before = std::fs::read(primary(root.path())).unwrap();
+    for action in 0..3 {
+        let mut next = original.clone();
+        match action {
+            0 => next.export_ownership = None,
+            1 => next.export_ownership.as_mut().unwrap().circuits[0].id = "other".into(),
+            _ => next.export_ownership.as_mut().unwrap().devices.clear(),
+        }
+        assert!(store.commit(1, next).is_err());
+        assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
+    }
+    let mut renamed = original;
+    renamed.export_ownership.as_mut().unwrap().circuits[0].name = "Alice new label".into();
+    store.commit(1, renamed).unwrap();
 }

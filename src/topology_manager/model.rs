@@ -53,17 +53,19 @@ pub struct RegistryDocument {
     pub subscribers: Vec<SubscriberRecord>,
     pub catalog: Option<super::catalog::TopologyCatalog>,
     pub source_settings: Option<super::settings::SourceSettings>,
+    pub export_ownership: Option<super::ownership::ExportOwnership>,
 }
 
 impl Default for RegistryDocument {
     fn default() -> Self {
         Self {
-            schema_version: 3,
+            schema_version: 4,
             revision: 0,
             next_id: 1,
             subscribers: Vec::new(),
             catalog: None,
             source_settings: None,
+            export_ownership: None,
         }
     }
 }
@@ -75,7 +77,7 @@ impl RegistryDocument {
 
     pub(super) fn index(&self) -> anyhow::Result<RegistryIndex<'_>> {
         ensure!(
-            self.schema_version == 3,
+            self.schema_version == 4,
             "unsupported subscriber registry schema"
         );
         ensure!(self.next_id > 0, "subscriber ID counter must be positive");
@@ -165,6 +167,9 @@ impl RegistryDocument {
                     .as_ref()
                     .context("source settings require a catalog")?,
             )?;
+        }
+        if let Some(ownership) = &self.export_ownership {
+            ownership.validate(self)?;
         }
         Ok(RegistryIndex {
             by_id,
@@ -306,7 +311,7 @@ mod tests {
 
     #[test]
     fn unsupported_schema_and_unsafe_id_counters_are_rejected() {
-        for version in [0, 1, 2, 4, u32::MAX] {
+        for version in [0, 1, 2, 3, u32::MAX] {
             let mut doc = registry();
             doc.schema_version = version;
             assert!(doc.validate().is_err());
@@ -338,7 +343,7 @@ mod tests {
 
     #[test]
     fn current_schema_checks_catalog_references_without_guessing_legacy_bindings() {
-        assert_eq!(RegistryDocument::default().schema_version, 3);
+        assert_eq!(RegistryDocument::default().schema_version, 4);
         let mut doc = registry();
         doc.catalog = Some(super::super::catalog::tests::catalog());
         assert!(doc.validate().is_err());

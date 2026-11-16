@@ -28,6 +28,8 @@ pub struct ProfileBinding {
 pub struct SourcePolicy {
     pub profiles: Vec<ProfileBinding>,
     pub unprofiled_rate: RateRead,
+    #[serde(default)]
+    pub legacy_priority: Option<super::legacy_rate::LegacyPriority>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +41,8 @@ pub enum SourcePolicyIssue {
 pub(super) struct SourceIndex<'a> {
     profiles: HashMap<(SourceKind, &'a str), &'a CurrentProfile>,
     services: HashMap<(SourceKind, &'a str), &'a CurrentService>,
+    profiles_by_ref: HashMap<(SourceKind, &'a str), &'a CurrentProfile>,
+    services_by_ref: HashMap<(SourceKind, &'a str), &'a CurrentService>,
 }
 impl<'a> SourceIndex<'a> {
     pub fn new(current: &'a CurrentRouter) -> anyhow::Result<Self> {
@@ -52,7 +56,20 @@ impl<'a> SourceIndex<'a> {
             .iter()
             .map(|service| ((service.kind, service.name.as_str()), service))
             .collect();
-        Ok(Self { profiles, services })
+        Ok(Self {
+            profiles,
+            services,
+            profiles_by_ref: current
+                .profiles()?
+                .iter()
+                .map(|p| ((p.kind, p.row_ref.as_str()), p))
+                .collect(),
+            services_by_ref: current
+                .services()?
+                .iter()
+                .map(|s| ((s.kind, s.row_ref.as_str()), s))
+                .collect(),
+        })
     }
     pub fn service_ref(&self, kind: SourceKind, name: &str) -> anyhow::Result<String> {
         if kind == SourceKind::Ppp {
@@ -73,7 +90,9 @@ impl<'a> SourceIndex<'a> {
     }
 }
 
-pub(super) struct CompiledPolicy {
+pub(super) struct CompiledPolicy<'a, 'b> {
+    index: &'b SourceIndex<'a>,
+    priority: Option<super::legacy_rate::CompiledPriority>,
     profiles: HashMap<String, Result<ObservedPolicy, SourcePolicyIssue>>,
     references: HashSet<String>,
     unprofiled_rate: RateRead,
@@ -84,6 +103,14 @@ impl SourcePolicy {
             kind != SourceKind::Dhcp || self.profiles.is_empty(),
             "DHCP scope cannot map account profiles"
         );
+        if let Some(priority) = &self.legacy_priority {
+            priority.compile(kind)?;
+            ensure!(
+                self.unprofiled_rate == RateRead::Disabled
+                    && self.profiles.iter().all(|b| b.rate == RateRead::Disabled),
+                "legacy priority conflicts with another source rate authority"
+            );
+        }
         let mut references = HashSet::new();
         let mut names = HashSet::new();
         for binding in &self.profiles {
@@ -103,11 +130,11 @@ impl SourcePolicy {
         Ok(())
     }
 
-    pub(super) fn compile(
+    pub(super) fn compile<'a, 'b>(
         &self,
         kind: SourceKind,
-        index: &SourceIndex<'_>,
-    ) -> anyhow::Result<CompiledPolicy> {
+        index: &'b SourceIndex<'a>,
+    ) -> anyhow::Result<CompiledPolicy<'a, 'b>> {
         self.validate(kind)?;
         let mut profiles = HashMap::with_capacity(self.profiles.len());
         let references = self.profiles.iter().map(|b| b.source_ref.clone()).collect();
@@ -125,13 +152,19 @@ impl SourcePolicy {
             }
         }
         Ok(CompiledPolicy {
+            index,
+            priority: self
+                .legacy_priority
+                .as_ref()
+                .map(|p| p.compile(kind))
+                .transpose()?,
             profiles,
             references,
             unprofiled_rate: self.unprofiled_rate,
         })
     }
 }
-impl CompiledPolicy {
+impl CompiledPolicy<'_, '_> {
     pub(super) fn has_reference(&self, reference: &str) -> bool {
         self.references.contains(reference)
     }
@@ -139,17 +172,39 @@ impl CompiledPolicy {
         &self,
         account: &CurrentAccount,
     ) -> Result<ObservedPolicy, SourcePolicyIssue> {
-        if let Some(reference) = &account.profile_ref {
-            return self
-                .profiles
+        let mut observed = if let Some(reference) = &account.profile_ref {
+            self.profiles
                 .get(reference)
                 .cloned()
-                .unwrap_or(Err(SourcePolicyIssue::MissingProfileMapping));
+                .unwrap_or(Err(SourcePolicyIssue::MissingProfileMapping))?
+        } else {
+            ObservedPolicy {
+                profile: ProfileObservation::Known(None),
+                plan: rate(self.unprofiled_rate, account.direct_rate_limit.as_deref())?,
+            }
+        };
+        if let Some(priority) = &self.priority {
+            let services: Vec<_> = account
+                .service_refs
+                .iter()
+                .filter_map(|id| {
+                    self.index
+                        .services_by_ref
+                        .get(&(account.kind, id.as_str()))
+                        .copied()
+                })
+                .collect();
+            observed.plan = priority
+                .read(
+                    account,
+                    account.profile_ref.as_deref().and_then(|id| {
+                        self.index.profiles_by_ref.get(&(account.kind, id)).copied()
+                    }),
+                    &services,
+                )
+                .map_err(|_| SourcePolicyIssue::InvalidSourceRate)?;
         }
-        Ok(ObservedPolicy {
-            profile: ProfileObservation::Known(None),
-            plan: rate(self.unprofiled_rate, account.direct_rate_limit.as_deref())?,
-        })
+        Ok(observed)
     }
 }
 

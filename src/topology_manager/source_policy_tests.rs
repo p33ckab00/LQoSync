@@ -23,11 +23,17 @@ fn profile(row_ref: &str, name: &str, rate: Option<&str>) -> CurrentProfile {
         row_ref: row_ref.into(),
         name: name.into(),
         rate_limit: rate.map(str::to_owned),
+        comment: None,
     }
 }
 fn index(profiles: &[CurrentProfile]) -> SourceIndex<'_> {
     SourceIndex {
         services: HashMap::new(),
+        services_by_ref: HashMap::new(),
+        profiles_by_ref: profiles
+            .iter()
+            .map(|p| ((p.kind, p.row_ref.as_str()), p))
+            .collect(),
         profiles: profiles
             .iter()
             .map(|p| ((p.kind, p.name.as_str()), p))
@@ -50,6 +56,7 @@ fn account(profile_ref: Option<&str>, direct: Option<&str>) -> CurrentAccount {
         direct_rate_limit: direct.map(str::to_owned),
         service_refs: vec![],
         endpoints: vec![],
+        active_comments: vec![],
     }
 }
 
@@ -60,7 +67,8 @@ fn explicit_name_selection_maps_current_locator_to_stable_reference() {
         profiles: vec![binding("gold", "stable-gold", RateRead::Disabled)],
         ..Default::default()
     };
-    let compiled = policy.compile(SourceKind::Ppp, &index(&profiles)).unwrap();
+    let source_index = index(&profiles);
+    let compiled = policy.compile(SourceKind::Ppp, &source_index).unwrap();
     assert!(compiled.has_reference("stable-gold"));
     let observed = compiled.observe(&account(Some("*new"), None)).unwrap();
     assert_eq!(
@@ -80,7 +88,8 @@ fn recreated_profile_uses_fresh_rate_and_keeps_only_the_explicit_stable_referenc
         ("*new", "3M/50M", 50_000_000),
     ] {
         let profiles = vec![profile(row_ref, "gold", Some(text))];
-        let compiled = policy.compile(SourceKind::Ppp, &index(&profiles)).unwrap();
+        let source_index = index(&profiles);
+        let compiled = policy.compile(SourceKind::Ppp, &source_index).unwrap();
         let observed = compiled.observe(&account(Some(row_ref), None)).unwrap();
         assert_eq!(
             observed.profile,
@@ -96,7 +105,8 @@ fn renamed_profile_without_revised_selector_cannot_reuse_old_locator_mapping() {
         profiles: vec![binding("gold", "stable-gold", enabled())],
         ..Default::default()
     };
-    let compiled = policy.compile(SourceKind::Ppp, &index(&profiles)).unwrap();
+    let source_index = index(&profiles);
+    let compiled = policy.compile(SourceKind::Ppp, &source_index).unwrap();
     assert_eq!(
         compiled.observe(&account(Some("stable-gold"), None)),
         Err(SourcePolicyIssue::MissingProfileMapping)
@@ -166,11 +176,12 @@ fn enabled_reads_keep_missing_rates_absent_and_invalid_rates_typed() {
 #[test]
 fn unprofiled_dhcp_uses_only_its_explicit_direct_rate_mode() {
     let profiles = vec![];
+    let source_index = index(&profiles);
     let compiled = SourcePolicy {
         unprofiled_rate: enabled(),
         ..Default::default()
     }
-    .compile(SourceKind::Dhcp, &index(&profiles))
+    .compile(SourceKind::Dhcp, &source_index)
     .unwrap();
     let observed = compiled.observe(&account(None, Some("2M/10M"))).unwrap();
     assert_eq!(observed.profile, ProfileObservation::Known(None));
@@ -195,7 +206,8 @@ fn mixed_local_and_source_profiles_keep_separate_read_modes_in_one_scope() {
         ],
         ..Default::default()
     };
-    let compiled = policy.compile(SourceKind::Ppp, &index(&profiles)).unwrap();
+    let source_index = index(&profiles);
+    let compiled = policy.compile(SourceKind::Ppp, &source_index).unwrap();
     assert!(
         compiled
             .observe(&account(Some("*local"), None))
@@ -213,4 +225,45 @@ fn mixed_local_and_source_profiles_keep_separate_read_modes_in_one_scope() {
             up: 2_000_000
         })
     );
+}
+
+#[test]
+fn converted_priority_uses_current_account_and_profile_data_without_another_authority() {
+    use crate::topology_manager::legacy_rate::LegacyPriority;
+    let speed = crate::config::Speed {
+        rate_limit_order: RateLimitOrder::RouterosRxTx,
+        pppoe_sources: vec![
+            crate::config::PppSource::SecretComment,
+            crate::config::PppSource::ProfileRateLimit,
+        ],
+        ..Default::default()
+    };
+    let mut policy = SourcePolicy {
+        profiles: vec![binding("gold", "stable", RateRead::Disabled)],
+        legacy_priority: Some(LegacyPriority::ppp(&speed, "10M/2M").unwrap()),
+        ..Default::default()
+    };
+    let profiles = vec![profile("*p", "gold", Some("3M/60M"))];
+    let index = index(&profiles);
+    let compiled = policy.compile(SourceKind::Ppp, &index).unwrap();
+    let mut account = account(Some("*p"), None);
+    if let AuthorityEvidence::LocalAccount { comment, .. } = &mut account.authority {
+        *comment = Some("Plan 25M/5M".into());
+    }
+    assert_eq!(
+        compiled.observe(&account).unwrap().plan.unwrap(),
+        RateBps {
+            down: 25_000_000,
+            up: 5_000_000
+        }
+    );
+    if let AuthorityEvidence::LocalAccount { comment, .. } = &mut account.authority {
+        *comment = None;
+    }
+    assert_eq!(
+        compiled.observe(&account).unwrap().plan.unwrap().down,
+        60_000_000
+    );
+    policy.profiles[0].rate = enabled();
+    assert!(policy.compile(SourceKind::Ppp, &index).is_err());
 }

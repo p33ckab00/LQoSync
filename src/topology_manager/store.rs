@@ -44,7 +44,7 @@ impl RegistryStore {
                 LoadedDocument {
                     bytes: std::fs::read(&path)?,
                     document: empty,
-                    disk_schema: 3,
+                    disk_schema: 4,
                 }
             }
             None => anyhow::bail!(
@@ -127,7 +127,7 @@ impl RegistryStore {
                 continue;
             };
             let Some(number) = name
-                .strip_prefix("registry-v3-r")
+                .strip_prefix("registry-v4-r")
                 .and_then(|s| s.strip_suffix(".json"))
             else {
                 continue;
@@ -135,7 +135,7 @@ impl RegistryStore {
             let Ok(number) = number.parse::<u64>() else {
                 continue;
             };
-            if number <= revision && name == format!("registry-v3-r{number}.json") {
+            if number <= revision && name == format!("registry-v4-r{number}.json") {
                 history.push((number, entry.path()));
             }
         }
@@ -144,7 +144,7 @@ impl RegistryStore {
         for (revision, path) in history.into_iter().take(obsolete) {
             let loaded = load(&path)?.context("registry history entry is missing")?;
             ensure!(
-                loaded.disk_schema == 3 && loaded.document.revision == revision,
+                loaded.disk_schema == 4 && loaded.document.revision == revision,
                 "registry history metadata conflict"
             );
             std::fs::remove_file(path)?;
@@ -184,7 +184,7 @@ impl RegistryStore {
 
     fn backup_path(&self, backup: BackupId) -> anyhow::Result<PathBuf> {
         ensure!(
-            (1..=3).contains(&backup.schema_version),
+            (1..=4).contains(&backup.schema_version),
             "unsupported registry backup schema"
         );
         Ok(self.path.with_file_name(format!(
@@ -235,6 +235,16 @@ impl RegistryStore {
             current.source_settings.is_none() || candidate.source_settings.is_some(),
             "ordinary edit cannot remove configured source settings"
         );
+        if let Some(old) = &current.export_ownership {
+            candidate
+                .export_ownership
+                .as_ref()
+                .context("ordinary edit cannot remove export ownership")?
+                .preserves(old)?;
+        }
+        if let Some(ownership) = &mut candidate.export_ownership {
+            ownership.canonicalize();
+        }
         if let Some(settings) = &mut candidate.source_settings {
             settings.canonicalize();
         }
@@ -275,7 +285,7 @@ impl RegistryStore {
                 );
             }
         }
-        if candidate == *current && self.disk_schema == 3 {
+        if candidate == *current && self.disk_schema == 4 {
             return Ok(CommitOutcome {
                 revision: current.revision,
                 changed: false,
@@ -292,7 +302,7 @@ impl RegistryStore {
         self.document = None;
         write(&self.path, &bytes)?;
         self.document = Some(candidate);
-        self.disk_schema = 3;
+        self.disk_schema = 4;
         Ok(CommitOutcome {
             revision,
             changed: true,
@@ -377,6 +387,17 @@ struct SchemaTwoRegistry {
     catalog: Option<super::catalog::TopologyCatalog>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SchemaThreeRegistry {
+    schema_version: u32,
+    revision: u64,
+    next_id: u64,
+    subscribers: Vec<SubscriberRecord>,
+    catalog: Option<super::catalog::TopologyCatalog>,
+    source_settings: Option<super::settings::SourceSettings>,
+}
+
 fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
     check_private_directory(path.parent().context("registry directory is missing")?)?;
     let mut file = match File::options()
@@ -412,12 +433,13 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 "registry schema changed during load"
             );
             RegistryDocument {
-                schema_version: 3,
+                schema_version: 4,
                 revision: legacy.revision,
                 next_id: legacy.next_id,
                 subscribers: legacy.subscribers,
                 catalog: None,
                 source_settings: None,
+                export_ownership: None,
             }
         }
         2 => {
@@ -428,15 +450,33 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 "registry schema changed during load"
             );
             RegistryDocument {
-                schema_version: 3,
+                schema_version: 4,
                 revision: legacy.revision,
                 next_id: legacy.next_id,
                 subscribers: legacy.subscribers,
                 catalog: legacy.catalog,
                 source_settings: None,
+                export_ownership: None,
             }
         }
-        3 => serde_json::from_slice(&bytes).context("cannot decode schema-3 registry")?,
+        3 => {
+            let old: SchemaThreeRegistry =
+                serde_json::from_slice(&bytes).context("cannot decode schema-3 registry")?;
+            ensure!(
+                old.schema_version == 3,
+                "registry schema changed during load"
+            );
+            RegistryDocument {
+                schema_version: 4,
+                revision: old.revision,
+                next_id: old.next_id,
+                subscribers: old.subscribers,
+                catalog: old.catalog,
+                source_settings: old.source_settings,
+                export_ownership: None,
+            }
+        }
+        4 => serde_json::from_slice(&bytes).context("cannot decode schema-4 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     document.validate()?;
@@ -455,7 +495,7 @@ mod tests {
     };
     use std::os::unix::fs::{MetadataExt, PermissionsExt, symlink};
 
-    fn candidate() -> RegistryDocument {
+    pub(super) fn candidate() -> RegistryDocument {
         RegistryDocument {
             next_id: 2,
             subscribers: vec![SubscriberRecord {
@@ -602,7 +642,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":4,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":5,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -798,10 +838,11 @@ mod tests {
         json["schema_version"] = serde_json::json!(1);
         json.as_object_mut().unwrap().remove("catalog");
         json.as_object_mut().unwrap().remove("source_settings");
+        json.as_object_mut().unwrap().remove("export_ownership");
         crate::files::write_secret(&path(dir.path()), &serde_json::to_vec(&json).unwrap()).unwrap();
         let before = std::fs::read(path(dir.path())).unwrap();
         let mut store = RegistryStore::open(dir.path()).unwrap();
-        assert_eq!(store.document().unwrap().schema_version, 3);
+        assert_eq!(store.document().unwrap().schema_version, 4);
         assert_eq!(store.document().unwrap().subscribers, legacy.subscribers);
         assert_eq!(store.document().unwrap().next_id, 100);
         assert_eq!(store.document().unwrap().revision, 7);
@@ -820,7 +861,7 @@ mod tests {
         let reopened = RegistryStore::open(dir.path()).unwrap();
         assert_eq!(reopened.document().unwrap().revision, 8);
         assert_eq!(reopened.document().unwrap().subscribers, legacy.subscribers);
-        assert_eq!(reopened.document().unwrap().schema_version, 3);
+        assert_eq!(reopened.document().unwrap().schema_version, 4);
     }
 
     #[test]
@@ -854,7 +895,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":4,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":5,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());

@@ -932,3 +932,20 @@ Subscriber speeds remain unchanged. A 50.5 Mbps subscriber survives the safe int
 
 These checks remain isolated from the live runner. Durable legacy adoption, source-priority conversion, compiler/configuration binding, and runtime owner wiring remain unfinished.
 No live DPDK apply test occurred.
+
+
+## Durable legacy adoption implementation, 2026-11-17
+
+The isolated implementation now stores explicit export aliases and protected static ownership in schema 4.
+Schema-1/2/3 files load without a rewrite. A changed commit saves the exact previous bytes before the upgrade.
+The history retains 16 recent schema-4 backups and all backups before migration.
+Ownership reservations survive restart and offline subscribers. Managed endpoints always come from the current accepted source read.
+
+Current authoritative static input can preserve independent static roots and their explicitly protected rows.
+Missing input, conflicting IDs, ambiguous device aliases, and static rows without parents block publication.
+Shared static branches below managed nodes remain gated until their capacity rules exist.
+
+The new source converter preserves configured PPP, DHCP-server, and Hotspot base speed priorities.
+Current source comments remain in memory. Source order and explicit defaults remain visible policy.
+Address-based overrides and complete legacy configuration migration still require explicit policy and shadow parity.
+The implementation does not activate manager mode, enroll live accounts, or change routing.

@@ -16,7 +16,8 @@ pub struct NodeExportAdjustment {
     pub exported_ceiling: super::rates::RateBps,
 }
 pub struct PreparedPair {
-    candidate: RegistryDocument,
+    pub(super) candidate: RegistryDocument,
+    pub(super) device_identities: HashMap<String, super::model::IdentityRef>,
     generation: u64,
     expires: Instant,
     rows: Vec<CsvRow>,
@@ -98,6 +99,12 @@ impl PreparedPair {
     }
 }
 pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> {
+    prepare_with_static(input, None)
+}
+pub fn prepare_with_static(
+    input: AuthorizedReconciliation,
+    static_input: Option<super::ownership::StaticInput<'_>>,
+) -> anyhow::Result<PreparedPair> {
     ensure!(
         Instant::now() < input.expires,
         "source evidence expired before pair preparation"
@@ -114,6 +121,7 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
         .catalog
         .as_ref()
         .context("publication requires a catalog")?;
+    let aliases = super::ownership::AliasIndex::new(&candidate)?;
     let definitions: HashMap<_, _> = catalog.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     let indices: HashMap<_, _> = evaluation
         .nodes
@@ -129,7 +137,10 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
         let definition = definitions
             .get(node.node_id.as_str())
             .context("export node definition missing")?;
-        let label = format!("{} [{}]", definition.name, definition.id);
+        let label = aliases.nodes.get(node.node_id.as_str()).map_or_else(
+            || format!("{} [{}]", definition.name, definition.id),
+            |a| a.name.clone(),
+        );
         ensure!(
             labels.insert(label.clone()),
             "export node labels are ambiguous"
@@ -207,7 +218,7 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
             );
         }
         built[i] = Some(
-            serde_json::json!({ "id": node.node_id, "type": "site", "downloadBandwidthMbps": rate.down, "uploadBandwidthMbps": rate.up, "children": child_map }),
+            serde_json::json!({ "id": aliases.nodes.get(node.node_id.as_str()).map_or(node.node_id.as_str(), |a| a.id.as_str()), "type": "site", "downloadBandwidthMbps": rate.down, "uploadBandwidthMbps": rate.up, "children": child_map }),
         );
     }
     let mut forest = serde_json::Map::new();
@@ -219,7 +230,7 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
             );
         }
     }
-    let network = Value::Object(forest);
+    let mut network = Value::Object(forest);
     let placements: HashMap<_, _> = evaluation
         .placements
         .iter()
@@ -227,6 +238,7 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
         .collect();
     let mut rows = Vec::new();
     let mut device_ids = HashSet::new();
+    let mut device_identities = HashMap::new();
     for subscriber in &evaluation.active {
         let placement = placements
             .get(subscriber.subscriber_id.as_str())
@@ -244,7 +256,12 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
                 &endpoint.identity,
                 &endpoint.endpoint.session_id,
             ))?;
-            let device_id = format!("tm-device-{}", crate::write_receipt::sha256(&identity));
+            let alias = aliases.devices.get(&endpoint.identity);
+            let device_id = alias.map_or_else(
+                || format!("tm-device-{}", crate::write_receipt::sha256(&identity)),
+                |a| a.id.clone(),
+            );
+            device_identities.insert(device_id.clone(), endpoint.identity.clone());
             ensure!(
                 device_ids.insert(device_id.clone()),
                 "duplicate current device identity"
@@ -265,12 +282,21 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
                 "current device has no endpoint"
             );
             rows.push(CsvRow {
-                circuit_id: subscriber.subscriber_id.clone(),
-                circuit_name: subscriber.subscriber_id.clone(),
-                device_name: device_id.clone(),
+                circuit_id: aliases
+                    .circuits
+                    .get(subscriber.subscriber_id.as_str())
+                    .map_or_else(|| subscriber.subscriber_id.clone(), |a| a.id.clone()),
+                circuit_name: aliases
+                    .circuits
+                    .get(subscriber.subscriber_id.as_str())
+                    .map_or_else(|| subscriber.subscriber_id.clone(), |a| a.name.clone()),
+                device_name: alias.map_or_else(|| device_id.clone(), |a| a.name.clone()),
                 device_id,
                 parent_node: keys[parent].clone(),
-                parent_node_id: placement.target_id.clone(),
+                parent_node_id: aliases
+                    .nodes
+                    .get(placement.target_id.as_str())
+                    .map_or_else(|| placement.target_id.clone(), |a| a.id.clone()),
                 ipv4: ipv4.join(","),
                 ipv6: ipv6.join(","),
                 mac: endpoint.endpoint.mac.clone().unwrap_or_default(),
@@ -282,6 +308,12 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
             });
         }
     }
+    super::ownership::merge_static(
+        candidate.export_ownership.as_ref(),
+        static_input,
+        &mut rows,
+        &mut network,
+    )?;
     rows.sort_unstable_by(|a, b| {
         (
             &a.parent_node,
@@ -310,6 +342,7 @@ pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> 
     node_adjustments.sort_unstable_by(|a, b| a.node_id.cmp(&b.node_id));
     Ok(PreparedPair {
         node_adjustments,
+        device_identities,
         candidate,
         generation: evaluation.generation,
         expires: input.expires,

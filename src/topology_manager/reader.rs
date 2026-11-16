@@ -30,7 +30,7 @@ impl Table {
                 ".id,name,profile,comment,disabled,caller-id,service",
             ),
             Self::PppProfiles => ("/ppp/profile", ".id,name,comment,rate-limit"),
-            Self::PppActive => ("/ppp/active", ".id,name,address,caller-id,service"),
+            Self::PppActive => ("/ppp/active", ".id,name,address,caller-id,service,comment"),
             Self::DhcpServers => ("/ip/dhcp-server", ".id,name,comment,disabled"),
             Self::DhcpLeases => (
                 "/ip/dhcp-server/lease",

@@ -21,6 +21,7 @@ pub(super) fn settings() -> SourceSettings {
                     }),
                 }],
                 unprofiled_rate: RateRead::Disabled,
+                legacy_priority: None,
             },
         }],
     }

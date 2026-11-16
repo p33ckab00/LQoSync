@@ -69,6 +69,7 @@ pub struct CurrentAccount {
     pub direct_rate_limit: Option<String>,
     pub service_refs: Vec<String>,
     pub endpoints: Vec<Endpoint>,
+    pub active_comments: Vec<Option<String>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -77,6 +78,7 @@ pub struct CurrentProfile {
     pub row_ref: String,
     pub name: String,
     pub rate_limit: Option<String>,
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -85,6 +87,7 @@ pub struct CurrentService {
     pub row_ref: String,
     pub name: String,
     pub disabled: bool,
+    pub comment: Option<String>,
 }
 
 pub struct CurrentRouter {
@@ -323,6 +326,7 @@ fn local_accounts(
             row_ref: required(row, profile_table, index, ".id")?.into(),
             name: required(row, profile_table, index, "name")?.into(),
             rate_limit: optional(row, "rate-limit"),
+            comment: optional(row, "comment"),
         });
     }
     let mut grouped: HashMap<String, usize> = HashMap::new();
@@ -421,6 +425,7 @@ fn local_accounts(
             if endpoint_only {
                 account.authority = authority;
             }
+            account.active_comments.push(optional(row, "comment"));
             account.endpoints.push(endpoint);
             account.service_refs.push(service);
         } else {
@@ -433,6 +438,7 @@ fn local_accounts(
                 direct_rate_limit: None,
                 service_refs: vec![service],
                 endpoints: vec![endpoint],
+                active_comments: vec![optional(row, "comment")],
             });
         }
     }
@@ -473,6 +479,7 @@ fn dhcp_accounts(
             direct_rate_limit: optional(row, "rate-limit"),
             service_refs: vec![required(server, Table::DhcpServers, server_index, ".id")?.into()],
             endpoints: vec![endpoint],
+            active_comments: vec![],
         });
     }
     Ok(())
@@ -492,6 +499,7 @@ fn service_inventory<'a>(
             row_ref: required(row, table, position, ".id")?.into(),
             name: required(row, table, position, "name")?.into(),
             disabled: disabled(row, table, position)?,
+            comment: optional(row, "comment"),
         });
     }
     Ok(index)

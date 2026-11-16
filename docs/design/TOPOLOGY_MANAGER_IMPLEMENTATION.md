@@ -6,11 +6,12 @@ Catalog ID allocation and a bounded-age RouterOS reader also exist in isolation.
 Current PPP, DHCP, and Hotspot normalization also exists in isolation.
 Opt-in operator-reference authorization also connects current evidence to registry reconciliation in isolation.
 Explicit source profile bindings and exact sustained rate evidence now connect that path to placement/capacity evaluation.
-Schema-3 source settings, verified pre-edit backups, and forward policy recovery now exist in isolation.
+Schema-4 source settings and export ownership, verified pre-edit backups, and forward policy recovery now exist in isolation.
 An isolated publication adapter now connects fresh manager output to the current pair writer and receipt tracker.
 A diagnostic parity report exposes unresolved legacy identities and unmanaged rows.
 Explicit snapshot mappings and compiled-candidate admission now extend that boundary.
-Live enrollment, durable legacy adoption, source-priority conversion, shaping-planner admission, schedules, owner wiring, and TUI remain unfinished.
+Durable export aliases, independent static ownership, and explicit legacy source priorities now exist in isolation.
+Live enrollment, shared static branches, shaping-planner admission, schedules, owner wiring, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
 See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
@@ -60,7 +61,7 @@ Keep `src/topology.rs` as the legacy builder during migration.
 
 | Module | Responsibility |
 |---|---|
-| `model.rs` | Registry identities, subscriber intent, and the schema-3 document |
+| `model.rs` | Registry identities, subscriber intent, and the schema-4 document |
 | `catalog.rs` | Router roles, source definitions, local profiles, hierarchy inputs, and reference checks |
 | `ids.rs` | Typed catalog ID batches from the shared durable counter |
 | `reader.rs` | Role-based complete current RouterOS evidence with time and configuration checks |
@@ -90,15 +91,15 @@ Do not create another publication service, telemetry cache, or parallel verifica
 Use one private versioned JSON document for the first implementation.
 Use the current standard-library and serde stack. No database is required for this scope.
 Include `schema_version`, `revision`, and stable reference tables.
-The current private document uses schema 3 at `topology-manager/registry.json`.
+The current private document uses schema 4 at `topology-manager/registry.json`.
 It contains the registry, an optional catalog, and optional source settings.
 None means unconfigured. It does not activate a default topology or reference authority.
-Strict schema-1/2 adapters preserve IDs, verified references, counters, catalog policy, and subscriber intent.
-Open does not rewrite an old primary file. A revision-checked commit writes schema 3 and advances the revision.
+Strict schema-1/2/3 adapters preserve IDs, verified references, counters, catalog policy, and subscriber intent.
+Open does not rewrite an old primary file. A revision-checked commit writes schema 4 and advances the revision.
 Unknown versions, duplicate fields, and false downgrades are errors.
 Before a changed commit, the store saves and verifies the exact old bytes in a private backup.
 Backup names include the original schema and revision. Existing conflicting backup bytes block replacement of the primary file.
-The store keeps 16 recent schema-3 backups and the backups before schema migration.
+The store keeps 16 recent schema-4 backups and the backups before schema migration.
 Normal forward upgrades create at most one backup for each old schema.
 Optional history cleanup errors set `history_cleanup_pending`. They do not reverse a confirmed write result.
 Open checks history again, so an unresolved cleanup failure remains visible after restart.
@@ -365,7 +366,7 @@ Backups use mode 0600 inside the existing private directory. A synced temporary 
 The store verifies the resulting bytes and syncs the directory before primary replacement.
 The original atomic writer still handles primary replacement. Uncertain results require reopen and a disk recheck.
 No source endpoints, raw rate strings, credentials, or sessions enter the durable settings or backups.
-Legacy comment/name/default speed priority conversion and manager-mode activation remain separate gates.
+The explicit conversion path below preserves legacy comment/name/default speed priorities. Manager-mode activation remains gated.
 
 ## Implemented catalog boundary
 
@@ -610,7 +611,7 @@ The comparison preserves the baseline and prepared pair. It does not transfer a 
 Unmapped rows produce an UnclassifiedRow issue even when their export IDs happen to match.
 Protected rows produce a ProtectedRow issue and remain in the comparison.
 A protected row cannot also have a managed mapping. Protection alone does not authorize adoption or removal.
-Durable export aliases, protected row/node preservation, and legacy source-priority conversion remain activation gates.
+The durable adoption path below extends these snapshot checks. Shared static branches remain an activation gate.
 
 ## Implemented compiled-candidate admission
 
@@ -679,3 +680,44 @@ No live deployment is part of the review deliverable.
 Write documentation, comments, errors, and UI text with the ASD-STE100 skill.
 Preserve exact commands, Rust identifiers, file paths, and source quotations.
 The heuristic checker does not certify STE compliance.
+
+## Durable legacy ownership and source priorities
+
+`ownership.rs` stores explicit circuit, device, and node aliases in schema 4.
+Circuit aliases refer to permanent subscriber IDs. Device aliases refer to verified `IdentityRef` values.
+Node aliases refer to stable catalog IDs. The registry stores export IDs and labels, never endpoints or session IDs.
+
+`adopt_legacy` checks the revision, observation generation, deadline, and both content fingerprints.
+It requires complete managed-policy parity before it constructs a candidate registry.
+An explicit mapping must classify every managed baseline row. Protected rows require declared independent static roots.
+The method does not infer identity or enroll a subscriber. The caller commits its candidate through the existing store.
+
+Current device evidence supplies every managed address and MAC value.
+An offline managed subscriber emits no rows. A return session can keep its explicit device alias with fresh endpoint values.
+Several current sessions cannot claim one legacy device alias. Ambiguous ownership blocks the pair.
+The store keeps ownership reservations after disconnect and restart. Ordinary edits cannot remove or transfer them.
+Labels can change. Forward policy recovery retains current export ownership and its labels.
+
+`prepare_with_static` requires current authoritative static input for all protected rows and roots.
+The protected row IDs and root IDs must match the saved ownership exactly.
+Every static row requires an explicit parent in its static forest. Static and managed node IDs cannot overlap.
+The combined pair must pass validation, byte limits, and exact compiled admission.
+Only independent static roots are supported. A static branch below a managed WAN requires a shared capacity design first.
+The future runtime owner must establish the source and revision of static input. Previous managed output is not an authoritative source.
+
+`legacy_rate.rs` converts the existing PPP, DHCP-server, and Hotspot speed priorities into explicit source settings.
+The converter preserves source order, rate direction, unitless units, the profile-name expression, and configured default values.
+It reuses `SpeedParser` and requires exact conversion to integer bps. A conversion cannot round a subscriber rate.
+PPP retains its configured fallback. DHCP has no implicit fallback when the selected sources contain no usable rate.
+Hotspot retains its configured per-client rate. Address-based DHCP overrides require a separate explicit identity policy.
+
+The current normalizer retains account, active-session, profile, and service comments only in memory.
+A priority rule reads these current values. Different effective speeds across simultaneous sessions block acceptance.
+A scope cannot combine legacy priorities with another enabled source-rate authority.
+Stable profile selection remains explicit. A legacy source rule does not infer an account identity or change a topology assignment.
+Profile and service indexes are shared per router. Ownership preservation uses indexed membership checks.
+These structural bounds and synthetic tests do not establish production throughput.
+
+The source-priority converter covers the base speed policy. Complete configuration migration still needs shadow parity.
+Exclusions, address-based overrides, shared static branches, and legacy minimum/factor policies require explicit decisions or matching policies.
+No runtime caller or automatic manager-mode switch is added by this slice.
