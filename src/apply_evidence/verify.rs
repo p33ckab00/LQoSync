@@ -37,7 +37,8 @@ impl Verified {
         &self.acceptance
     }
     pub(crate) fn matches(&self, receipt: &Receipt) -> bool {
-        self.topology == receipt.meta.topology
+        check_compiler(receipt).is_ok()
+            && self.topology == receipt.meta.topology
             && self.write_id == receipt.write_id
             && self.config_digest == receipt.meta.config_digest
             && self.file_hashes
@@ -63,6 +64,7 @@ impl Prepared {
     }
 }
 pub fn prepare(receipt: &Receipt) -> anyhow::Result<Prepared> {
+    check_compiler(receipt)?;
     ensure!(receipt.files.len() == 2, "managed pair required");
     let paths: Vec<_> = receipt.files.iter().map(|f| f.path.clone()).collect();
     let bytes = read_files(&paths)?;
@@ -186,6 +188,7 @@ fn validate(
     first_path: &Path,
     last_path: &Path,
 ) -> anyhow::Result<Verified> {
+    check_compiler(receipt)?;
     ensure!(
         matches!(
             receipt.phase,
@@ -284,6 +287,14 @@ pub async fn verify_prepared(
             && crate::detect::resolve(&cfg.libreqos)?.target == Target::V3Pair,
         "unsupported apply evidence target"
     );
+    if let Some(binding) = receipt
+        .meta
+        .topology
+        .as_ref()
+        .and_then(|c| c.compiler.as_ref())
+    {
+        binding.check_config(&cfg.libreqos)?;
+    }
     let base = Path::new(&cfg.libreqos.directory);
     ensure!(
         receipt.files.len() == 2
@@ -346,6 +357,18 @@ pub async fn verify_prepared(
     })
     .await
     .context("apply evidence comparison failed")?
+}
+
+fn check_compiler(receipt: &Receipt) -> anyhow::Result<()> {
+    if let Some(binding) = receipt
+        .meta
+        .topology
+        .as_ref()
+        .and_then(|c| c.compiler.as_ref())
+    {
+        binding.check_current()?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -621,6 +644,7 @@ mod tests {
         let (_dir, tracker, _prepared, artifacts, applied, path) = fixture();
         let mut receipt = tracker.current().unwrap().clone();
         receipt.meta.topology = Some(crate::write_receipt::TopologyContext {
+            compiler: None,
             policy_revision: 8,
             observation_generation: 4,
             registry_digest: "b".repeat(64),
@@ -701,5 +725,32 @@ mod tests {
             &Hub::default(),
         );
         assert!(tracker.accept(&proof, 12, &Hub::default()).is_err());
+    }
+    #[test]
+    fn compiler_drift_invalidates_prepared_and_already_constructed_proofs() {
+        let (_native, cfg, compiler) = crate::topology_manager::compiler::tests::fixture();
+        let (_dir, tracker, _prepared, artifacts, applied, path) = fixture();
+        let mut receipt = tracker.current().unwrap().clone();
+        receipt.meta.topology = Some(crate::write_receipt::TopologyContext {
+            policy_revision: 1,
+            observation_generation: 1,
+            registry_digest: "a".repeat(64),
+            compiler: Some(crate::topology_manager::compiler::tests::binding(&compiler)),
+        });
+        let prepared = prepare(&receipt).unwrap();
+        let proof = validate(
+            &receipt, &prepared, &artifacts, &applied, &applied, &path, &path,
+        )
+        .unwrap();
+        assert!(proof.matches(&receipt));
+        std::fs::write(cfg.v3_config, b"changed native configuration").unwrap();
+        assert!(prepare(&receipt).is_err());
+        assert!(!proof.matches(&receipt));
+        assert!(
+            validate(
+                &receipt, &prepared, &artifacts, &applied, &applied, &path, &path
+            )
+            .is_err()
+        );
     }
 }

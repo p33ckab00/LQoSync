@@ -19,6 +19,7 @@ pub struct PreparedPair {
     pub(super) candidate: RegistryDocument,
     pub(super) device_identities: HashMap<String, super::model::IdentityRef>,
     generation: u64,
+    pub(super) compiler: Option<super::compiler::CompilerBinding>,
     expires: Instant,
     rows: Vec<CsvRow>,
     network: Value,
@@ -39,10 +40,33 @@ impl PreparedPair {
         tracker: &mut crate::write_receipt::Tracker,
         mut request: PublishRequest<'_>,
     ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        if super::runtime::topology_owns(store.owner_directory())? {
+            let binding = self
+                .compiler
+                .as_ref()
+                .context("runtime ownership requires controlled compiler admission")?;
+            ensure!(
+                std::fs::canonicalize(tracker.state_directory())? == store.owner_directory(),
+                "receipt tracker belongs to a different writer owner"
+            );
+            ensure!(
+                std::fs::canonicalize(request.directory)?
+                    == std::fs::canonicalize(
+                        binding
+                            .library
+                            .parent()
+                            .context("compiler source directory is missing")?
+                    )?,
+                "publication directory differs from its controlled compiler source"
+            );
+        }
         ensure!(
             Instant::now() < self.expires,
             "source evidence expired before publication"
         );
+        if let Some(binding) = &self.compiler {
+            binding.check_current()?;
+        }
         tracker.reconcile(request.now, request.hub)?;
         ensure!(
             Instant::now() < self.expires,
@@ -55,6 +79,7 @@ impl PreparedPair {
             "source evidence expired after registry commit"
         );
         request.meta.topology = Some(crate::write_receipt::TopologyContext {
+            compiler: self.compiler.clone(),
             policy_revision: committed.revision,
             observation_generation: self.generation,
             registry_digest: crate::write_receipt::sha256(&serde_json::to_vec(store.document()?)?),
@@ -67,6 +92,9 @@ impl PreparedPair {
             Instant::now() < self.expires,
             "source evidence expired before file intent"
         );
+        if let Some(binding) = &self.compiler {
+            binding.check_current()?;
+        }
         Ok(tracker.write(&outputs, request.meta, request.now, request.hub))
     }
     pub fn node_export_adjustments(&self) -> &[NodeExportAdjustment] {
@@ -77,6 +105,9 @@ impl PreparedPair {
     }
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+    pub(super) fn deadline(&self) -> tokio::time::Instant {
+        self.expires
     }
     pub(super) fn check_fresh(&self) -> anyhow::Result<()> {
         ensure!(
@@ -342,6 +373,7 @@ pub fn prepare_with_static(
     node_adjustments.sort_unstable_by(|a, b| a.node_id.cmp(&b.node_id));
     Ok(PreparedPair {
         node_adjustments,
+        compiler: None,
         device_identities,
         candidate,
         generation: evaluation.generation,
@@ -375,4 +407,4 @@ fn rate_text(bps: u64) -> anyhow::Result<String> {
 
 #[cfg(test)]
 #[path = "publication_tests.rs"]
-pub(super) mod tests;
+pub(crate) mod tests;

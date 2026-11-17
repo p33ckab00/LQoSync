@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct RegistryStore {
-    _lock: File,
+    _lock: std::sync::Arc<crate::files::InstanceLock>,
     path: PathBuf,
     document: Option<RegistryDocument>,
     disk_schema: u32,
@@ -24,8 +24,17 @@ pub struct CommitOutcome {
 }
 
 impl RegistryStore {
+    pub(crate) fn owner_directory(&self) -> &Path {
+        self._lock.directory()
+    }
     pub fn open(state_dir: &Path) -> anyhow::Result<Self> {
-        let lock = crate::files::lock(state_dir)?;
+        Self::open_owned(crate::files::InstanceLock::acquire(state_dir)?)
+    }
+    pub(crate) fn open_owned(
+        lock: std::sync::Arc<crate::files::InstanceLock>,
+    ) -> anyhow::Result<Self> {
+        lock.check(lock.directory())?;
+        let state_dir = lock.directory();
         let private = state_dir.join("topology-manager");
         let created = match std::fs::DirBuilder::new().mode(0o700).create(&private) {
             Ok(()) => true,
@@ -207,6 +216,7 @@ impl RegistryStore {
         mut candidate: RegistryDocument,
         write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
     ) -> anyhow::Result<CommitOutcome> {
+        self._lock.check(self._lock.directory())?;
         let current = self.document()?;
         ensure!(
             expected_revision == current.revision,
@@ -342,7 +352,7 @@ fn write_backup(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_private_directory(path: &Path) -> anyhow::Result<()> {
+pub(super) fn check_private_directory(path: &Path) -> anyhow::Result<()> {
     let metadata =
         std::fs::symlink_metadata(path).context("cannot inspect private registry directory")?;
     ensure!(

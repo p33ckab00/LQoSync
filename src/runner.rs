@@ -10,6 +10,7 @@ use crate::routerstate::classify;
 use crate::status::{ReportSummary, RouterStatus, Status, Trigger};
 use crate::writer::pair::{render_csv, render_network_json};
 use crate::writer::v3network::render_libreqos_network;
+use anyhow::Context;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::path::Path;
@@ -61,7 +62,7 @@ pub struct Runner<C: Connector + 'static> {
     connector: Arc<C>,
     sessions: HashMap<String, Option<C::Session>>,
     /// The instance lock. Taken at the first cycle and held while the runner lives.
-    lock: Option<std::fs::File>,
+    lock: Option<Arc<files::InstanceLock>>,
     /// The error of the last config reload, until a good reload.
     config_error: Option<String>,
     /// The reason for the next cycle. The caller sets it.
@@ -77,6 +78,8 @@ pub struct Runner<C: Connector + 'static> {
     collection: Option<crate::collection::Report>,
     pub health: crate::system_health::Hub,
     write_tracker: Option<Arc<Mutex<crate::write_receipt::Tracker>>>,
+    topology_store: Option<crate::topology_manager::store::RegistryStore>,
+    last_topology_generation: u64,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -165,6 +168,8 @@ where
             collection: None,
             health: crate::system_health::Hub::default(),
             write_tracker: None,
+            topology_store: None,
+            last_topology_generation: 0,
         }
     }
 
@@ -384,8 +389,13 @@ where
 
     /// Take the instance lock on `state_dir` and hold it while the runner lives.
     pub fn lock(&mut self) -> anyhow::Result<()> {
+        if let Some(lock) = &self.lock {
+            lock.check(Path::new(&self.cfg.runtime.state_dir))?;
+        }
         if self.lock.is_none() {
-            self.lock = Some(files::lock(Path::new(&self.cfg.runtime.state_dir))?);
+            self.lock = Some(files::InstanceLock::acquire(Path::new(
+                &self.cfg.runtime.state_dir,
+            ))?);
             match crate::write_receipt::Tracker::load(Path::new(&self.cfg.runtime.state_dir)) {
                 Ok(tracker) => {
                     tracker.restore_health(&self.health);
@@ -415,6 +425,126 @@ where
         Ok(())
     }
 
+    /// Compile and publish a manager pair through this runner's sole writer owner.
+    /// The service loop must pass all activation gates before it calls this API.
+    pub async fn publish_topology(
+        &mut self,
+        compiler: &mut crate::topology_manager::compiler::ControlledCompiler,
+        pair: crate::topology_manager::publication::PreparedPair,
+        now: u64,
+    ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        self.lock()?;
+        anyhow::ensure!(
+            self.cfg.runtime.mode == RuntimeMode::Apply
+                && crate::detect::resolve(&self.cfg.libreqos)?.target == Target::V3Pair,
+            "manager publication requires the v3 pair apply target"
+        );
+        anyhow::ensure!(
+            self.write_tracker.is_some(),
+            "write receipt recovery must succeed before manager publication"
+        );
+        crate::topology_manager::runtime::topology_owns(Path::new(&self.cfg.runtime.state_dir))?;
+        anyhow::ensure!(
+            pair.generation() > self.last_topology_generation,
+            "out-of-order topology observation generation"
+        );
+        compiler.check_config(&self.cfg.libreqos)?;
+        let compiled = compiler.compile(pair).await?;
+        self.publish_compiled(compiled, now)
+    }
+    fn publish_compiled(
+        &mut self,
+        compiled: crate::topology_manager::compiler::CompiledPair,
+        now: u64,
+    ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        self.lock()?;
+        anyhow::ensure!(
+            self.cfg.runtime.mode == RuntimeMode::Apply
+                && crate::detect::resolve(&self.cfg.libreqos)?.target == Target::V3Pair,
+            "manager publication requires the v3 pair apply target"
+        );
+        anyhow::ensure!(
+            compiled.generation() > self.last_topology_generation,
+            "out-of-order topology observation generation"
+        );
+        compiled.check()?;
+        compiled.binding().check_config(&self.cfg.libreqos)?;
+        let tracker = self
+            .write_tracker
+            .as_ref()
+            .context("write receipt recovery must succeed before manager publication")?
+            .clone();
+        let mut tracker = tracker
+            .lock()
+            .map_err(|_| anyhow::anyhow!("write receipt owner is poisoned"))?;
+        if self.topology_store.is_none() {
+            self.topology_store = Some(crate::topology_manager::store::RegistryStore::open_owned(
+                self.lock
+                    .as_ref()
+                    .context("instance lock is missing")?
+                    .clone(),
+            )?);
+        }
+        let store = self
+            .topology_store
+            .as_mut()
+            .context("registry owner is missing")?;
+        anyhow::ensure!(
+            store.document()?.revision == compiled.expected_revision(),
+            "manager publication revision conflict"
+        );
+        self.last_topology_generation = compiled.generation();
+        crate::topology_manager::runtime::claim(Path::new(&self.cfg.runtime.state_dir))?;
+        let mut result = compiled.publish(
+            store,
+            &mut tracker,
+            crate::topology_manager::publication::PublishRequest {
+                directory: Path::new(&self.cfg.libreqos.directory),
+                meta: crate::write_receipt::Meta {
+                    topology: None,
+                    cycle_seq: self.cycle_seq,
+                    config_digest: self.config_digest.clone(),
+                    notice: None,
+                },
+                now,
+                hub: &self.health,
+            },
+        )?;
+        if result.error.is_none()
+            && let Some(receipt) = tracker.current()
+            && receipt.phase.pending()
+        {
+            let reload = files::request_v3_import(
+                Path::new(&self.cfg.libreqos.state_directory),
+                receipt.started,
+                &receipt.write_id,
+            );
+            let _ = self.health.observe(crate::system_health::Observation {
+                domain: crate::system_health::Domain::Write,
+                component: "topology_reload_request".into(),
+                state: if reload.is_ok() {
+                    crate::system_health::State::Updating
+                } else {
+                    crate::system_health::State::Degraded
+                },
+                reason: if reload.is_ok() {
+                    "reload_requested"
+                } else {
+                    "reload_request_failed"
+                }
+                .into(),
+                observed_at: now,
+                max_age: IMPORT_LIMIT_SECS,
+                source_epoch: "service".into(),
+                last_success: reload.as_ref().ok().map(|_| now),
+            });
+            if reload.is_err() {
+                result.error = Some("pair written; scheduler reload request failed".into());
+            }
+        }
+        Ok(result)
+    }
+
     /// Use a new config. The sessions close, because an address or a password can change.
     pub fn set_config(&mut self, cfg: Config) {
         self.cfg = cfg;
@@ -436,7 +566,13 @@ where
         let state_dir = Path::new(&self.cfg.runtime.state_dir).to_path_buf();
         let mut status = self.base_status(now);
         // Without the lock, another process owns the files: write nothing, not even the status.
-        if let Err(e) = self.lock() {
+        if let Err(e) = self.lock().and_then(|()| {
+            anyhow::ensure!(
+                !crate::topology_manager::runtime::topology_owns(&state_dir)?,
+                "topology owns the writer; legacy fallback is blocked"
+            );
+            Ok(())
+        }) {
             let error = Some(format!("{e:#}"));
             status.error = error.clone();
             return CycleSummary {
@@ -725,14 +861,8 @@ where
                     files::write_if_changed(&import, now.to_string().as_bytes())?;
                     // The reload request of the LibreQoS UI button: the scheduler imports the pair
                     // in about 1 s. Without it, the import waits for the 30-minute job.
-                    let token = serde_json::json!({
-                        "requested_at": now,
-                        "nonce": random_id(16),
-                        "requested_by": "lqosync3",
-                    });
-                    let req = lqos_state.join("scheduler/reload_request.json");
-                    if let Err(e) = files::write_if_changed(&req, token.to_string().as_bytes()) {
-                        eprintln!("warning: cannot write {}: {e:#}", req.display());
+                    if let Err(e) = files::request_v3_import(lqos_state, now, &random_id(16)) {
+                        eprintln!("warning: cannot write scheduler reload request: {e:#}");
                     }
                 }
                 if import.exists() {
@@ -1740,5 +1870,320 @@ mod tests {
         let s = runner(&e, cfg(&e, "shadow", "")).cycle(1_000, false).await;
         assert_eq!(s.error, None);
         assert!(read(&e.state.join("candidate/ShapedDevices.csv")).contains("alice"));
+    }
+    #[tokio::test]
+    async fn a_changed_state_directory_cannot_use_the_previous_instance_lock() {
+        let e = env();
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        r.lock().unwrap();
+        let changed = e._dir.path().join("other-state");
+        std::fs::create_dir_all(&changed).unwrap();
+        r.cfg.runtime.state_dir = changed.to_string_lossy().into_owned();
+        let result = r.cycle(1_000, false).await;
+        assert!(result.error.is_some());
+        assert!(!changed.join("status.json").exists());
+        assert!(!changed.join("candidate/ShapedDevices.csv").exists());
+    }
+
+    #[tokio::test]
+    async fn a_durable_topology_owner_prevents_legacy_fallback_after_restart() {
+        let e = env();
+        drop(crate::topology_manager::store::RegistryStore::open(&e.state).unwrap());
+        crate::files::write_secret(
+            &e.state.join("topology-manager/runtime-owner.json"),
+            br#"{"schema_version":1,"writer":"topology"}"#,
+        )
+        .unwrap();
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        let result = r.cycle(1_000, false).await;
+        assert!(result.error.is_some());
+        assert!(!e.state.join("candidate/ShapedDevices.csv").exists());
+        assert!(!e.state.join("status.json").exists());
+    }
+
+    #[tokio::test]
+    async fn manager_publication_reuses_one_lock_tracker_and_durable_owner() {
+        let e = env();
+        let (_native, mut native_cfg, mut compiler) =
+            crate::topology_manager::compiler::tests::fixture();
+        native_cfg.target = Target::V3Pair;
+        let pair = crate::topology_manager::publication::prepare(
+            crate::topology_manager::publication::tests::input(1),
+        )
+        .unwrap();
+        let compiled =
+            crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+        let mut config = cfg(&e, "apply", "");
+        config.libreqos = native_cfg.clone();
+        let mut r = runner(&e, config.clone());
+        r.lock().unwrap();
+        let tracker = r.pending_tracker().unwrap();
+        assert!(crate::topology_manager::store::RegistryStore::open(&e.state).is_err());
+        let result = r.publish_compiled(compiled, 1000).unwrap();
+        assert!(result.changed && result.error.is_none());
+        assert!(Arc::ptr_eq(&tracker, &r.pending_tracker().unwrap()));
+        let receipt = tracker.lock().unwrap().current().unwrap().clone();
+        assert!(
+            Path::new(&native_cfg.state_directory)
+                .join("scheduler/reload_request.json")
+                .exists()
+        );
+        assert!(receipt.meta.topology.as_ref().unwrap().compiler.is_some());
+        crate::apply_evidence::prepare(&receipt).unwrap();
+        let mut current = crate::topology_manager::publication::tests::input(0);
+        current.reconciliation.registry = r
+            .topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone();
+        let unbound = crate::topology_manager::publication::prepare(current).unwrap();
+        let (canonical, shaping) = crate::topology_manager::admission::tests::artifacts(&unbound);
+        let unbound =
+            crate::topology_manager::admission::check_compiled(unbound, &canonical, &shaping)
+                .unwrap();
+        assert!(
+            unbound
+                .publish(
+                    r.topology_store.as_mut().unwrap(),
+                    &mut tracker.lock().unwrap(),
+                    crate::topology_manager::publication::PublishRequest {
+                        directory: Path::new(&native_cfg.directory),
+                        meta: crate::write_receipt::Meta {
+                            topology: None,
+                            cycle_seq: 1,
+                            config_digest: "fixture".into(),
+                            notice: None
+                        },
+                        now: 1001,
+                        hub: &r.health
+                    }
+                )
+                .is_err()
+        );
+        let output =
+            std::fs::read(Path::new(&native_cfg.directory).join("ShapedDevices.csv")).unwrap();
+        assert!(r.cycle(1001, false).await.error.is_some());
+        drop(r);
+        let mut restarted = runner(&e, config);
+        assert!(restarted.cycle(1002, false).await.error.is_some());
+        assert_eq!(
+            std::fs::read(Path::new(&native_cfg.directory).join("ShapedDevices.csv")).unwrap(),
+            output
+        );
+        std::fs::write(
+            Path::new(&native_cfg.directory).join("liblqos_python.so"),
+            b"changed",
+        )
+        .unwrap();
+        assert!(crate::apply_evidence::prepare(&receipt).is_err());
+    }
+    #[tokio::test]
+    async fn manager_rejects_shadow_and_registry_revision_conflicts_before_claim() {
+        for shadow in [true, false] {
+            let e = env();
+            let (_native, mut native_cfg, mut compiler) =
+                crate::topology_manager::compiler::tests::fixture();
+            native_cfg.target = Target::V3Pair;
+            if !shadow {
+                let mut store =
+                    crate::topology_manager::store::RegistryStore::open(&e.state).unwrap();
+                let mut next = store.document().unwrap().clone();
+                next.next_id += 1;
+                store.commit(0, next).unwrap();
+            }
+            let pair = crate::topology_manager::publication::prepare(
+                crate::topology_manager::publication::tests::input(1),
+            )
+            .unwrap();
+            let compiled =
+                crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+            let mut config = cfg(&e, if shadow { "shadow" } else { "apply" }, "");
+            config.libreqos = native_cfg.clone();
+            let mut r = runner(&e, config);
+            assert!(r.publish_compiled(compiled, 1000).is_err());
+            assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
+            assert!(
+                !Path::new(&native_cfg.directory)
+                    .join("ShapedDevices.csv")
+                    .exists()
+            );
+        }
+    }
+    #[tokio::test]
+    async fn manager_reload_failure_keeps_ownership_and_retries_without_rewriting_the_pair() {
+        let e = env();
+        let (_native, mut native_cfg, mut compiler) =
+            crate::topology_manager::compiler::tests::fixture();
+        native_cfg.target = Target::V3Pair;
+        let blocked = Path::new(&native_cfg.state_directory).join("scheduler");
+        std::fs::write(&blocked, b"blocked").unwrap();
+        let pair = crate::topology_manager::publication::prepare(
+            crate::topology_manager::publication::tests::input(1),
+        )
+        .unwrap();
+        let bound = crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+        let mut config = cfg(&e, "apply", "");
+        config.libreqos = native_cfg.clone();
+        let mut r = runner(&e, config);
+        let result = r.publish_compiled(bound, 1000).unwrap();
+        assert!(result.changed && result.error.is_some());
+        assert!(crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+        let tracker = r.pending_tracker().unwrap();
+        let first = tracker.lock().unwrap().current().unwrap().clone();
+        assert!(first.phase.pending());
+        std::fs::remove_file(blocked).unwrap();
+        let mut current = crate::topology_manager::publication::tests::input(1);
+        current.reconciliation.generation = 2;
+        current.reconciliation.registry = r
+            .topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone();
+        let pair = crate::topology_manager::publication::prepare(current).unwrap();
+        let bound = crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+        let result = r.publish_compiled(bound, 1001).unwrap();
+        assert!(!result.changed && result.error.is_none());
+        assert_eq!(
+            tracker.lock().unwrap().current().unwrap().write_id,
+            first.write_id
+        );
+        let request: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(
+                Path::new(&native_cfg.state_directory).join("scheduler/reload_request.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(request["nonce"], first.write_id);
+    }
+    #[tokio::test]
+    async fn corrupt_or_linked_writer_ownership_stops_legacy_output() {
+        for linked in [false, true] {
+            let e = env();
+            drop(crate::topology_manager::store::RegistryStore::open(&e.state).unwrap());
+            let marker = e.state.join("topology-manager/runtime-owner.json");
+            if linked {
+                std::os::unix::fs::symlink("/dev/null", &marker).unwrap();
+            } else {
+                std::fs::write(&marker, b"corrupt").unwrap();
+            }
+            assert!(
+                runner(&e, cfg(&e, "shadow", ""))
+                    .cycle(1000, false)
+                    .await
+                    .error
+                    .is_some()
+            );
+            assert!(!e.state.join("candidate/ShapedDevices.csv").exists());
+        }
+    }
+    #[tokio::test]
+    async fn older_generations_cannot_replace_a_newer_manager_pair() {
+        let e = env();
+        let (_native, mut native_cfg, mut compiler) =
+            crate::topology_manager::compiler::tests::fixture();
+        native_cfg.target = Target::V3Pair;
+        let mut source = crate::topology_manager::publication::tests::input(1);
+        source.reconciliation.generation = 2;
+        let pair = crate::topology_manager::publication::prepare(source).unwrap();
+        let compiled =
+            crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+        let mut config = cfg(&e, "apply", "");
+        config.libreqos = native_cfg.clone();
+        let mut r = runner(&e, config);
+        r.publish_compiled(compiled, 1000).unwrap();
+        let output =
+            std::fs::read(Path::new(&native_cfg.directory).join("ShapedDevices.csv")).unwrap();
+        let mut source = crate::topology_manager::publication::tests::input(1);
+        source.reconciliation.registry = r
+            .topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone();
+        source.reconciliation.active[0].endpoints[0].endpoint.ips =
+            vec!["192.0.2.90".parse().unwrap()];
+        let pair = crate::topology_manager::publication::prepare(source).unwrap();
+        let compiled =
+            crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+        assert!(r.publish_compiled(compiled, 1001).is_err());
+        assert_eq!(
+            std::fs::read(Path::new(&native_cfg.directory).join("ShapedDevices.csv")).unwrap(),
+            output
+        );
+    }
+    #[tokio::test]
+    #[ignore = "requires explicit installed-binding runtime publication in temporary directories"]
+    async fn installed_binding_runs_the_public_manager_api_without_live_writes() {
+        let source = std::env::var("LQOSYNC3_RUNTIME_BINDING")
+            .expect("set LQOSYNC3_RUNTIME_BINDING explicitly");
+        let e = env();
+        let (_native, mut native_cfg, old_compiler) =
+            crate::topology_manager::compiler::tests::fixture();
+        drop(old_compiler);
+        std::fs::copy(
+            Path::new(&source).join("liblqos_python.so"),
+            Path::new(&native_cfg.directory).join("liblqos_python.so"),
+        )
+        .unwrap();
+        let mut table: toml::Table = toml::from_str(
+            &std::fs::read_to_string(Path::new(&source).join("lqos.example")).unwrap(),
+        )
+        .unwrap();
+        table.insert("lqos_directory".into(), native_cfg.directory.clone().into());
+        table.insert(
+            "state_directory".into(),
+            native_cfg.state_directory.clone().into(),
+        );
+        std::fs::write(&native_cfg.v3_config, toml::to_string(&table).unwrap()).unwrap();
+        native_cfg.target = Target::V3Pair;
+        let mut compiler = crate::topology_manager::compiler::ControlledCompiler::open(
+            &native_cfg,
+            &e.state.join("compiler-scratch"),
+        )
+        .unwrap();
+        let mut config = cfg(&e, "apply", "");
+        config.libreqos = native_cfg.clone();
+        let mut r = runner(&e, config);
+        let pair = crate::topology_manager::publication::prepare(
+            crate::topology_manager::publication::tests::input(1),
+        )
+        .unwrap();
+        let result = r.publish_topology(&mut compiler, pair, 1000).await.unwrap();
+        assert!(result.changed && result.error.is_none());
+        let mut current = crate::topology_manager::publication::tests::input(0);
+        current.reconciliation.generation = 2;
+        current.reconciliation.registry = r
+            .topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone();
+        let pair = crate::topology_manager::publication::prepare(current).unwrap();
+        let result = r.publish_topology(&mut compiler, pair, 1001).await.unwrap();
+        assert!(result.changed && result.error.is_none());
+        let receipt = r
+            .pending_tracker()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .current()
+            .unwrap()
+            .clone();
+        crate::apply_evidence::prepare(&receipt).unwrap();
+        let text =
+            std::fs::read_to_string(Path::new(&native_cfg.directory).join("ShapedDevices.csv"))
+                .unwrap();
+        assert!(crate::state::read_csv(&text).unwrap().is_empty());
+        assert!(r.cycle(1002, false).await.error.is_some());
+        println!(
+            "Public manager API preserves active and disconnected pairs in temporary directories; no live apply occurred."
+        );
     }
 }

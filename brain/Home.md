@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-17-topology-runtime-owner]]
+
 - [[2026-11-17-topology-legacy-adoption]]
 
 - [[2026-11-17-topology-migration-admission]]

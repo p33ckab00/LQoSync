@@ -27,13 +27,16 @@ pub struct FileReceipt {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TopologyContext {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compiler: Option<crate::topology_manager::compiler::CompilerBinding>,
     pub policy_revision: u64,
     pub observation_generation: u64,
     pub registry_digest: String,
 }
 impl TopologyContext {
     fn valid(&self) -> bool {
-        self.observation_generation > 0
+        self.compiler.as_ref().is_none_or(|b| b.valid())
+            && self.observation_generation > 0
             && self.registry_digest.len() == 64
             && self.registry_digest.bytes().all(|b| b.is_ascii_hexdigit())
     }
@@ -129,6 +132,9 @@ fn bounded_error(error: impl std::fmt::Display) -> String {
     error.to_string().chars().take(120).collect()
 }
 impl Tracker {
+    pub(crate) fn state_directory(&self) -> &Path {
+        &self.dir
+    }
     pub fn load(dir: &Path) -> anyhow::Result<Self> {
         let path = dir.join("write-receipt.json");
         let current = match std::fs::File::open(&path) {
@@ -484,7 +490,13 @@ impl Tracker {
         }
         if !differs.iter().any(|x| *x)
             && self.current.as_ref().is_some_and(|receipt| {
-                receipt.files.len() == outputs.len()
+                receipt
+                    .meta
+                    .topology
+                    .as_ref()
+                    .and_then(|c| c.compiler.as_ref())
+                    == meta.topology.as_ref().and_then(|c| c.compiler.as_ref())
+                    && receipt.files.len() == outputs.len()
                     && receipt
                         .files
                         .iter()

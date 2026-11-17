@@ -949,3 +949,19 @@ The new source converter preserves configured PPP, DHCP-server, and Hotspot base
 Current source comments remain in memory. Source order and explicit defaults remain visible policy.
 Address-based overrides and complete legacy configuration migration still require explicit policy and shadow parity.
 The implementation does not activate manager mode, enroll live accounts, or change routing.
+
+
+## Controlled runtime owner implementation, 2026-11-17
+
+An explicit runner API now compiles and publishes a fresh manager pair with one instance lock and one receipt tracker.
+The controlled child uses a private workspace, bounded inputs, kernel write/socket controls, and the original source deadline.
+The compiler records its exact library/source-config identity and the effective private-config digest.
+Native-loader migrations can change the private copy. They cannot change the requested pair, source, mode, or workspace paths.
+
+The runtime saves writer ownership before its first manager write. The updated runner blocks legacy fallback after restart.
+Older executables cannot enforce this marker. A downgrade requires an explicit migration procedure.
+Compiler drift, stale observations, wrong directories, corrupt ownership, and unbound runtime publication block the write.
+
+Scheduler import requests are automatic and correlate with the receipt ID.
+The existing monitor still checks native acceptance. The service loop remains on its current path until the activation gates pass.
+The installed-binding tests used temporary directories and did not apply a live native world.

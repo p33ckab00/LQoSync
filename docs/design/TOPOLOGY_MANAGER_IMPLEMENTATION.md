@@ -11,7 +11,8 @@ An isolated publication adapter now connects fresh manager output to the current
 A diagnostic parity report exposes unresolved legacy identities and unmanaged rows.
 Explicit snapshot mappings and compiled-candidate admission now extend that boundary.
 Durable export aliases, independent static ownership, and explicit legacy source priorities now exist in isolation.
-Live enrollment, shared static branches, shaping-planner admission, schedules, owner wiring, and TUI remain unfinished.
+Controlled compilation and a runner API now share one runtime writer owner.
+Live source orchestration, shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
 See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
@@ -70,6 +71,9 @@ Keep `src/topology.rs` as the legacy builder during migration.
 | `migration.rs` | Explicit snapshot mappings and protected ownership classification for parity |
 | `admission.rs` | Exact compiled policy checks and the public admitted publisher |
 | `parity.rs` | Diagnostic legacy comparison without identity inference |
+| `compiler.rs` | Private compilation, library/configuration identity, and sealed runtime admission |
+| `compiler_sandbox.rs` | Kernel controls for the compiler child |
+| `runtime.rs` | Durable runtime ownership and legacy fallback prevention |
 | `settings.rs` | Durable service/profile selectors, reference authority, and static scope validation |
 | `identity.rs` | Explicit reference authority, selected scope membership, conflicts, and fresh registry reconciliation |
 | `source_policy.rs` | Current service/profile selectors, stable source references, and explicit rate read modes |
@@ -721,3 +725,59 @@ These structural bounds and synthetic tests do not establish production throughp
 The source-priority converter covers the base speed policy. Complete configuration migration still needs shadow parity.
 Exclusions, address-based overrides, shared static branches, and legacy minimum/factor policies require explicit decisions or matching policies.
 No runtime caller or automatic manager-mode switch is added by this slice.
+
+## Controlled compiler and runtime publication
+
+`Runner::publish_topology` accepts a fresh prepared pair and a `ControlledCompiler`.
+The method requires apply mode and the v3 pair target. The service loop does not call it yet.
+The compiler API owns its subprocess command. Runtime callers cannot supply compiled artifacts or a replacement child command.
+The existing low-level diagnostic admission API remains available for isolated checks.
+After runtime ownership exists, the low-level publisher also requires a controlled compiler binding and the matching tracker/output directories.
+
+`InstanceLock` binds the canonical state directory, directory identity, and current lock-file identity.
+The runner and registry share this guard. The registry does not acquire a second lock inside the runner.
+A changed state directory requires a restart. A replaced lock path invalidates the existing guard.
+Manager compilation runs before the receipt mutex is acquired. Publication reuses the same tracker as the existing native monitor.
+The owner rejects older or repeated observation generations during one runner lifetime.
+Fresh tickets cannot be deserialized after restart. The new process starts its own current observation generation sequence.
+
+The compiler snapshots the exact library bytes in a private cache. It never treats that binary as newline-terminated text.
+Each compilation gets a new private workspace. Current CSV/network bytes enter that workspace with their original values.
+The child has a cleared environment, a fixed Python command, null output streams, and a source deadline of at most 60 seconds.
+Library input is at most 64 MiB. Native configuration is at most 1 MiB.
+The existing pair limit is 16 MiB. Both compiled artifacts together remain at most 64 MiB.
+Only regular artifact files are accepted. Symlink artifacts and oversized inputs fail before parse.
+
+The child requires Landlock ABI 3 or later. Content writes stay inside its private workspace.
+A seccomp filter denies socket creation, socket transmission, and `io_uring` setup.
+An unsupported kernel control blocks compilation. There is no unrestricted retry.
+These controls isolate trusted native compiler operations. They are not a general sandbox for hostile executables.
+The [Landlock documentation](https://www.kernel.org/doc/html/latest/userspace-api/landlock.html) describes the ABI requirement for truncation control.
+The [seccomp documentation](https://www.kernel.org/doc/html/next/userspace-api/seccomp_filter.html) describes the filter and `no_new_privs` requirement.
+
+The installed native loader can migrate its private configuration copy.
+The compiler records the effective configuration digest after it restores real source/state paths in that digest input.
+Random workspace paths do not create a new compiler identity each cycle.
+Source, mode, workspace paths, and requested pair bytes must remain unchanged.
+The original library/configuration digest remains distinct from this effective configuration digest.
+The original configuration and live pair remain untouched during compilation.
+
+Exact compiled policy admission precedes publication. Current library/configuration bytes are checked again before the pair write.
+Receipts store both compiler identities with the policy revision, observation generation, and registry digest.
+A new or changed compiler binding creates a new receipt even when output bytes match.
+The files keep their bytes in that case. Unchanged output with the same binding keeps its original receipt identity.
+The existing native proof checks compiler drift during preparation, validation, and proof acceptance.
+
+The runtime saves `topology-manager/runtime-owner.json` before its first manager write.
+The marker blocks the updated runner's legacy cycle after restart. Corrupt or linked ownership data also blocks that cycle.
+Do not remove the marker to change writer modes. A return to the legacy writer requires an explicit migration procedure.
+Older executables do not understand this marker. Do not run them against a state directory after manager ownership is claimed.
+
+Manager publication sends the existing scheduler reload request automatically.
+The request nonce uses the receipt ID. A retry can request import without replacing unchanged pair bytes.
+A reload-request failure remains explicit while ownership and the pending receipt remain intact.
+The read-only monitor must still establish native acceptance. A compile success or scheduler request is not a DPDK acknowledgement.
+
+The installed-binding scratch tests exercise compilation and the public manager API with active and empty batches.
+All runtime pair, marker, and scheduler writes in those tests target temporary directories.
+No live native apply occurs. Source orchestration, activation preflight, complete migration parity, native planner bounds, and live acceptance remain gates.

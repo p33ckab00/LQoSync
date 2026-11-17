@@ -31,6 +31,49 @@ pub fn lock(state_dir: &Path) -> anyhow::Result<File> {
     }
 }
 
+/// The lock and canonical state directory form one ownership proof.
+#[derive(Debug)]
+pub(crate) struct InstanceLock {
+    _file: File,
+    directory: std::path::PathBuf,
+    directory_identity: (u64, u64),
+}
+impl InstanceLock {
+    pub(crate) fn acquire(directory: &Path) -> anyhow::Result<std::sync::Arc<Self>> {
+        use std::os::unix::fs::MetadataExt;
+        let file = lock(directory)?;
+        let metadata = std::fs::metadata(directory)?;
+        let owner = Self {
+            _file: file,
+            directory: std::fs::canonicalize(directory)?,
+            directory_identity: (metadata.dev(), metadata.ino()),
+        };
+        owner.check(directory)?;
+        Ok(std::sync::Arc::new(owner))
+    }
+    pub(crate) fn check(&self, directory: &Path) -> anyhow::Result<()> {
+        use std::os::unix::fs::MetadataExt;
+        anyhow::ensure!(
+            std::fs::canonicalize(directory)? == self.directory,
+            "state directory differs from the instance lock"
+        );
+        let metadata = std::fs::metadata(directory)?;
+        let path = std::fs::symlink_metadata(self.directory.join("lqosync3.lock"))?;
+        let held = self._file.metadata()?;
+        anyhow::ensure!(
+            (metadata.dev(), metadata.ino()) == self.directory_identity
+                && path.is_file()
+                && (path.dev(), path.ino()) == (held.dev(), held.ino()),
+            "instance lock path or state directory was replaced"
+        );
+        Ok(())
+    }
+
+    pub(crate) fn directory(&self) -> &Path {
+        &self.directory
+    }
+}
+
 /// Write `bytes` to `path` only if they differ from the file. Atomic: temporary file, sync, rename,
 /// sync of the folder. Returns `true` if the file was written.
 pub fn write_if_changed(path: &Path, bytes: &[u8]) -> anyhow::Result<bool> {
@@ -281,6 +324,21 @@ pub async fn run_reload(cmd: &str, args: &[String], timeout: Duration) -> Result
     }
 }
 
+/// Request the scheduler import used by the LibreQoS UI. A stable nonce permits an unchanged retry.
+pub(crate) fn request_v3_import(
+    state: &Path,
+    requested_at: u64,
+    nonce: &str,
+) -> anyhow::Result<()> {
+    let token =
+        serde_json::json!({"requested_at":requested_at,"nonce":nonce,"requested_by":"lqosync3"});
+    write_if_changed(
+        &state.join("scheduler/reload_request.json"),
+        token.to_string().as_bytes(),
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -522,5 +580,22 @@ mod tests {
         assert!(write_if_changed(&p, b"new").unwrap());
         let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o640);
+    }
+}
+
+#[cfg(test)]
+mod instance_owner_tests {
+    use super::*;
+    #[test]
+    fn a_replaced_lock_path_cannot_retain_writer_authority() {
+        let root = tempfile::tempdir().unwrap();
+        let owner = InstanceLock::acquire(root.path()).unwrap();
+        std::fs::rename(
+            root.path().join("lqosync3.lock"),
+            root.path().join("old-lock"),
+        )
+        .unwrap();
+        std::fs::write(root.path().join("lqosync3.lock"), b"").unwrap();
+        assert!(owner.check(root.path()).is_err());
     }
 }

@@ -10,6 +10,18 @@ pub struct AdmittedPair {
     pair: PreparedPair,
 }
 impl AdmittedPair {
+    pub(super) fn generation(&self) -> u64 {
+        self.pair.generation()
+    }
+    pub(super) fn expected_revision(&self) -> u64 {
+        self.pair.expected_revision()
+    }
+    pub(super) fn check_fresh(&self) -> anyhow::Result<()> {
+        self.pair.check_fresh()
+    }
+    pub(super) fn bind_compiler(&mut self, binding: super::compiler::CompilerBinding) {
+        self.pair.compiler = Some(binding);
+    }
     pub fn publish(
         self,
         store: &mut super::store::RegistryStore,
@@ -226,4 +238,4 @@ fn check_content(
 
 #[cfg(test)]
 #[path = "admission_tests.rs"]
-pub(super) mod tests;
+pub(crate) mod tests;

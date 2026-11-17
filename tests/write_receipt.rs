@@ -275,3 +275,49 @@ fn old_metadata_has_no_invented_topology_context_and_invalid_context_cannot_load
     std::fs::write(&path, value.to_string()).unwrap();
     assert!(Tracker::load(d.path()).is_err());
 }
+
+#[test]
+fn compiler_binding_changes_create_new_receipts_without_replacing_matching_bytes() {
+    let d = tempfile::tempdir().unwrap();
+    let out = outputs(d.path());
+    let hub = Hub::default();
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    tracker.write(&out, meta(), 10, &hub);
+    let legacy = tracker.current().unwrap().write_id.clone();
+    let mut bound = meta();
+    bound.topology = Some(lqosync3::write_receipt::TopologyContext {
+        policy_revision: 1,
+        observation_generation: 1,
+        registry_digest: "a".repeat(64),
+        compiler: Some(lqosync3::topology_manager::compiler::CompilerBinding {
+            library: "/native/liblqos_python.so".into(),
+            config: "/native/lqos.conf".into(),
+            digest: "b".repeat(64),
+            effective_config_digest: "d".repeat(64),
+        }),
+    });
+    let result = tracker.write(&out, bound.clone(), 11, &hub);
+    assert!(!result.changed && result.error.is_none());
+    let first = tracker.current().unwrap().write_id.clone();
+    assert_ne!(first, legacy);
+    assert!(
+        tracker
+            .current()
+            .unwrap()
+            .files
+            .iter()
+            .all(|f| f.outcome == FileOutcome::Unchanged)
+    );
+    tracker.write(&out, bound.clone(), 12, &hub);
+    assert_eq!(tracker.current().unwrap().write_id, first);
+    bound
+        .topology
+        .as_mut()
+        .unwrap()
+        .compiler
+        .as_mut()
+        .unwrap()
+        .digest = "c".repeat(64);
+    tracker.write(&out, bound, 13, &hub);
+    assert_ne!(tracker.current().unwrap().write_id, first);
+}

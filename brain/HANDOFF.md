@@ -8,6 +8,30 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T10:58:55+08:00 (Asia/Shanghai) — Controlled compiler and runtime owner complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `b25e0cf53162a4d05e217b2e6fece39fe4efa130`.
+- Current task changes remain local and uncommitted. Preserve unrelated operational edits.
+- Added compiler, compiler sandbox, compiler tests, and runtime ownership modules under `src/topology_manager/`.
+- Extended files, runner, store, admission, publication, receipts, apply verification, and receipt tests.
+- Updated design, discussion, plan, Home, and session. No dependency changed.
+- `Runner::publish_topology` uses the shared instance lock, registry, and receipt tracker.
+- The compiler checks exact source/config bytes, deadlines, private artifacts, and effective config identity.
+- Kernel controls deny socket operations and content writes outside the private run workspace.
+- A durable marker blocks legacy publication after restart. Old executables require an explicit downgrade migration.
+- Automatic scheduler requests reuse receipt identity. Pending receipts retain the existing native proof requirements.
+- Full suite: 1,069 passed, zero failed, 11 ignored. All 337 topology tests pass.
+- Both optional installed-library tests pass in temporary directories. Format, Clippy, and whitespace checks pass.
+- Native config migration requires private workspace writes. Original config and library remain unchanged.
+- Author review only. No live activation, deployment, service action, router write, native apply, or benchmark occurred.
+- Next: configured source reads and identity authorization in the service loop, then legacy parity and activation preflight.
+- Legacy policy parity, native planner bounds, independent enrollment, and live DPDK proof remain activation gates.
+- TUI, schedules, and full corrupt-store reconstruction remain separate tasks.
+- Session: [[2026-11-17-topology-runtime-owner]]. Plan: `docs/superpowers/plans/2026-11-17-topology-runtime-owner.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-runtime-owner/`. Final results: `full-verified.log` and `clippy-final.log`.
+- The graph remains the earlier baseline. Current files take precedence.
+
+
 ## 2026-11-17T07:16:59+08:00 (Asia/Shanghai) — Durable aliases and base source priorities complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `728c2c2`.
