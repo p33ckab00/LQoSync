@@ -8,6 +8,30 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T18:55:19+08:00 (Asia/Shanghai) — Shared legacy adoption proposals complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `6e5debd`.
+- Commit `6e5debd` contains shared static attachments and budgets. The push succeeded.
+- The new proposal slice remains local and uncommitted. Preserve unrelated operational edits and old notes in this file.
+- Added `legacy_static.rs` and `legacy_static_tests.rs`. Reused tree-remap and snapshot parity helpers; extended coordinator tests and module registration.
+- Updated design, discussion, plan, Home, and session. No dependencies changed.
+- The pure API checks complete snapshot evidence and extracts only selected static roots and protected rows.
+- Actual legacy parents must match explicit managed parent mappings. No branch reparenting occurs during adoption.
+- Missing/overlapping roots, duplicate attachments, managed-node extraction, static identity collisions, and incomplete row classification fail.
+- Existing managed adoption builds aliases. The helper reconstructs the full aliased snapshot and checks preservation, shared budgets, import, and output bounds.
+- Configured adoption retains current source-filter proof and legacy policy preflight. Existing independent adoption APIs keep their behavior.
+- Returned source drafts use schema 1, positive revisions, 100,000-row limits, and 16-MiB byte limits. Serialization borrows the payload.
+- Dynamic subscriber endpoints enter neither registry policy nor the static draft. Restart/disconnect/reconnect tests use fresh IP/MAC with stable legacy aliases.
+- Repeated fresh proposals are stable. Expired evidence fails. The helper performs no commit, source installation, output write, owner claim, or service action.
+- Full suite: 1,167 passed, zero failed, 13 ignored. All 431 active topology tests pass. Added ten active tests and one optional native test.
+- Format, Clippy with warnings denied, whitespace, and installed-library scratch compilation pass. Author review only; no production benchmark.
+- Logs: `.superpowers/sdd/2026-11-17-topology-shared-adoption/`. Proof: `full.log`, `clippy.log`, `format.log`, and `native-adoption.log`.
+- No live source read, router write, native apply, service action, deployment, or mode switch occurred.
+- Next: controlled migration staging/recovery. The proposal does not prove later exact source installation or complete a migration transaction.
+- Native implicit commitments, planner/live proof, enrollment UI, schedules, TUI, service activation, and schema-2 circuit ID migration remain gates.
+- Session: [[2026-11-17-topology-shared-adoption]]. Plan: `docs/superpowers/plans/2026-11-17-topology-shared-adoption.md`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T18:36:55+08:00 (Asia/Shanghai) — Shared static attachments complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `f104356`.

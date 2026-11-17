@@ -20,7 +20,8 @@ Imported dynamic bounds now preserve legacy factors, floors, and rounded rate be
 Explicit per-direction node minimums now have policy, hierarchy budget checks, compatibility export, and dormant migration checks.
 Configured collection now binds independent static inputs to a private source document, revision, and byte digest.
 Explicit static attachments and shared budget checks now support protected roots below managed WAN/intermediate nodes.
-Shared legacy snapshot adoption, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
+Exact shared legacy extraction and adoption proposals now preserve explicit ownership mappings in isolation.
+Migration staging/recovery, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
 See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
@@ -1213,3 +1214,57 @@ The existing legacy adoption helpers still classify independent top-level static
 Shared legacy snapshot extraction and exact preservation need a separate migration slice.
 Enrollment UI, schedules, TUI, service activation, native implicit commitments, and planner/live proof remain unfinished.
 See [the shared branch plan](../superpowers/plans/2026-11-17-topology-shared-static.md).
+
+
+## Exact shared legacy adoption proposals
+
+`legacy_static::adopt` accepts a fresh prepared pair, the complete legacy snapshot, its explicit migration manifest, selected static root IDs, and attachments.
+The manifest still binds the registry revision, observation generation, baseline digest, and fresh candidate digest.
+Changed endpoints, rates, labels, or snapshot content require new evidence. Matching IP/MAC values never authorize identity continuity.
+
+The helper extracts selected subtrees from their actual positions. It retains unselected nodes and fields in the managed forest.
+Each nested selected root must have an attachment to its actual managed parent, after explicit legacy node mapping.
+An independent root must remain independent during adoption. Ordinary later hierarchy edits remain a separate action.
+Missing roots, overlapping selections, duplicate attachments, or a mapped managed node inside a selected static subtree fail.
+
+The existing managed adoption helper proves parity after the explicit static partition.
+It builds durable circuit, device, and node aliases through the existing authoritative identity mapping.
+The new path then resolves those aliases in the fresh managed snapshot and inserts the static branches at their declared positions.
+Source node IDs cannot collide with managed export IDs, including IDs of dormant managed nodes.
+
+The complete reconstructed snapshot must match the original legacy snapshot under the existing parity rules.
+Comparison includes every row field, all network fields, and the hierarchy. Numeric rate formats normalize to exact integer bps.
+The snapshot digest still binds the supplied row order. Semantic parity allows a different output row order.
+The checker applies existing import, size, collision, and shared guarantee checks before it returns a proposal.
+It never clips rates or moves a mismatched branch to make the migration pass.
+
+`legacy_static::adopt_configured` also checks current source-filter proof and the legacy configuration preflight.
+A changed filter or unmatched legacy speed policy blocks configured adoption, including when current row samples happen to match.
+The original independent-root adoption helpers retain their API and behavior.
+
+## Static adoption source draft
+
+`StaticAdoption` returns the proposed registry and a private static forest/row payload through `static_input()`.
+`source_document(revision)` serializes that payload as source schema version 1. The revision must be positive.
+The source draft follows the current 100,000-row and 16-MiB reader limits. Serialization borrows rows and network values.
+
+Only explicitly protected static rows and selected static subtrees enter the draft.
+Dynamic subscriber endpoints enter neither durable registry policy nor this source document.
+After restart or disconnect, the normal collection path must obtain current dynamic endpoints again.
+Tests preserve legacy subscriber aliases while returning subscribers receive a new IP and MAC.
+
+The helper performs no registry commit, source installation, output write, writer claim, or service action.
+Repeated calls with the same fresh evidence return the same proposal. Expired evidence cannot be reused.
+Discarding a proposal requires no rollback writes. Existing verified backups and forward registry recovery remain in use after later committed edits.
+
+The caller must establish the returned source as explicit operator-owned policy before normal configured publication.
+The source must use the private file boundary and current revision checks.
+A controlled transaction for source installation, registry adoption, and recovery is still required before activation.
+This proposal API does not prove that a later caller installed the exact draft or completed that transaction.
+
+Focused tests cover actual parent mapping, managed aliases, mixed independent/shared roots, classification gaps, dormant identity collisions, and budget conflicts.
+A temporary-store test covers restart, disconnect, and fresh reconnect data.
+The installed-library scratch compiler preserves the adopted legacy aliases, static branch, endpoints, and speeds without live apply.
+No production benchmark or independent review occurred. Native implicit commitments and planner/live proof remain gates.
+Schedules, enrollment UI, TUI, migration activation, and service activation remain unfinished.
+See [the shared adoption plan](../superpowers/plans/2026-11-17-topology-shared-adoption.md).

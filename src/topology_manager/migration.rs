@@ -192,32 +192,6 @@ pub fn compare_mapped(
             row.anchor_node_id = new_id.into();
         }
     }
-    fn remap_tree(tree: Value, ids: &HashMap<&str, (&str, &str)>) -> anyhow::Result<Value> {
-        let Value::Object(tree) = tree else {
-            anyhow::bail!("legacy network children must be objects");
-        };
-        let mut mapped = serde_json::Map::new();
-        for (name, mut node) in tree {
-            let new_name = if let Some(&(id, label)) = node
-                .get("id")
-                .and_then(Value::as_str)
-                .and_then(|id| ids.get(id))
-            {
-                node["id"] = id.into();
-                label.to_owned()
-            } else {
-                name
-            };
-            if let Some(children) = node.as_object_mut().and_then(|n| n.remove("children")) {
-                node["children"] = remap_tree(children, ids)?;
-            }
-            ensure!(
-                mapped.insert(new_name, node).is_none(),
-                "migration node labels collide"
-            );
-        }
-        Ok(Value::Object(mapped))
-    }
     let mapped_network = remap_tree(network.clone(), &node_ids)?;
     let mut result = super::parity::compare_legacy(pair, &normalized, &mapped_network)?;
     let mut ownership: Vec<_> = baseline.keys().copied().collect();
@@ -282,3 +256,30 @@ pub(super) fn nodes(network: &Value) -> anyhow::Result<HashMap<&str, (&str, &Val
 #[cfg(test)]
 #[path = "migration_tests.rs"]
 mod tests;
+
+pub(super) fn remap_tree(tree: Value, ids: &HashMap<&str, (&str, &str)>) -> anyhow::Result<Value> {
+    let Value::Object(tree) = tree else {
+        anyhow::bail!("legacy network children must be objects");
+    };
+    let mut mapped = serde_json::Map::new();
+    for (name, mut node) in tree {
+        let new_name = if let Some(&(id, label)) = node
+            .get("id")
+            .and_then(Value::as_str)
+            .and_then(|id| ids.get(id))
+        {
+            node["id"] = id.into();
+            label.to_owned()
+        } else {
+            name
+        };
+        if let Some(children) = node.as_object_mut().and_then(|n| n.remove("children")) {
+            node["children"] = remap_tree(children, ids)?;
+        }
+        ensure!(
+            mapped.insert(new_name, node).is_none(),
+            "migration node labels collide"
+        );
+    }
+    Ok(Value::Object(mapped))
+}

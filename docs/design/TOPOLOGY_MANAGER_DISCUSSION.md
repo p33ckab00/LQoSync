@@ -1087,3 +1087,18 @@ Subscriber maximum speeds remain unchanged. The checker does not silently reduce
 
 Completed policy edits persist through the current revision-checked store. Old documents default to no attachments.
 Shared legacy snapshot adoption still needs exact preservation proof. Native planner/live proof, service activation, schedules, and TUI remain separate work.
+
+
+## Exact shared legacy adoption implementation, 2026-11-17
+
+A new pure migration API extracts only explicitly selected static subtrees and protected rows.
+Each selected shared root must match its actual legacy parent through the declared managed node mapping.
+It cannot move a branch to another WAN or change an independent root into an attached root during adoption.
+
+The API reuses managed alias and parity checks, then reconstructs the complete legacy snapshot.
+Full preservation, shared guarantees, IDs, import bounds, and configured policy checks must pass before it returns a proposal.
+The result contains a registry candidate and a bounded static-source draft. It contains no cached dynamic subscriber endpoints.
+Normal fresh collection supplies returning subscribers' current IP/MAC while durable aliases remain stable.
+
+This stage does not install files, commit policy, select the writer, or activate the service.
+Controlled migration staging and recovery remain the next gate. Native planner/live proof, enrollment UI, schedules, and TUI remain separate work.

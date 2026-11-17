@@ -42,3 +42,5 @@ pub mod legacy_bounds;
 pub mod static_input;
 
 mod shared_static;
+
+pub mod legacy_static;

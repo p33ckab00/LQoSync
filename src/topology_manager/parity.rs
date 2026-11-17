@@ -34,8 +34,17 @@ pub fn compare_legacy(
     rows: &[CsvRow],
     network: &Value,
 ) -> anyhow::Result<Vec<ParityIssue>> {
+    compare_snapshots(pair.rows(), pair.network(), rows, network)
+}
+
+pub(super) fn compare_snapshots(
+    desired_rows: &[CsvRow],
+    desired_network: &Value,
+    rows: &[CsvRow],
+    network: &Value,
+) -> anyhow::Result<Vec<ParityIssue>> {
     let mut issues = Vec::new();
-    let desired = indexed(pair.rows(), &mut issues)?;
+    let desired = indexed(desired_rows, &mut issues)?;
     let baseline = indexed(rows, &mut issues)?;
     for ((circuit, device), row) in &desired {
         let identity = || (circuit.to_string(), device.to_string());
@@ -65,7 +74,7 @@ pub fn compare_legacy(
             });
         }
     }
-    if numeric_network(network.clone()) != numeric_network(pair.network().clone()) {
+    if numeric_network(network.clone()) != numeric_network(desired_network.clone()) {
         issues.push(ParityIssue::ChangedNetwork);
     }
     Ok(issues)

@@ -769,7 +769,78 @@ async fn configured_filtered_adoption_requires_current_filter_proof_and_exact_ma
         adopted.export_ownership.unwrap().devices[0].id,
         "legacy-device"
     );
+    let mut network = pair.network().clone();
+    let wan = network
+        .as_object_mut()
+        .unwrap()
+        .values_mut()
+        .find(|n| n["id"] == "wan1")
+        .unwrap();
+    wan["children"]["Static"] = serde_json::json!({"id":"static-root","type":"site",
+        "downloadBandwidthMbps":20,"uploadBandwidthMbps":10,"children":{}});
+    let mut shared_rows = legacy.clone();
+    shared_rows.push(crate::model::CsvRow {
+        circuit_id: "static-circuit".into(),
+        device_id: "static-device".into(),
+        circuit_name: "Static circuit".into(),
+        device_name: "Static device".into(),
+        parent_node: "Static".into(),
+        parent_node_id: "static-root".into(),
+        ipv4: "192.0.2.240".into(),
+        download_min: "1".into(),
+        upload_min: "1".into(),
+        download_max: "50".into(),
+        upload_max: "50".into(),
+        ..Default::default()
+    });
+    let mut shared_manifest = manifest.clone();
+    shared_manifest.protected_rows = vec![RowIdentity {
+        circuit_id: "static-circuit".into(),
+        device_id: "static-device".into(),
+    }];
+    shared_manifest.baseline_digest = fingerprint(&shared_rows, &network);
+    let roots = vec!["static-root".into()];
+    let attachments = vec![crate::topology_manager::ownership::StaticAttachment {
+        root_id: "static-root".into(),
+        parent_id: "wan1".into(),
+    }];
+    crate::topology_manager::legacy_static::adopt_configured(
+        &cfg,
+        &pair,
+        &shared_rows,
+        &network,
+        &shared_manifest,
+        &roots,
+        &attachments,
+    )
+    .unwrap();
+    let mut changed = cfg.clone();
+    changed.bandwidth_defaults.min_rate_percentage = 0.5;
+    assert!(
+        crate::topology_manager::legacy_static::adopt_configured(
+            &changed,
+            &pair,
+            &shared_rows,
+            &network,
+            &shared_manifest,
+            &roots,
+            &attachments
+        )
+        .is_err()
+    );
     cfg.exclude.ips.clear();
+    assert!(
+        crate::topology_manager::legacy_static::adopt_configured(
+            &cfg,
+            &pair,
+            &shared_rows,
+            &network,
+            &shared_manifest,
+            &roots,
+            &attachments
+        )
+        .is_err()
+    );
     assert!(
         crate::topology_manager::ownership::adopt_configured_legacy(
             &cfg,
