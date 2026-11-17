@@ -23,9 +23,20 @@ pub struct ProfileBinding {
     pub rate: RateRead,
 }
 
+/// Explicit migration intent. The legacy position locates a rate entry, never a subscriber.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DhcpOverrideBinding {
+    pub legacy_client_index: usize,
+    pub account_ref: String,
+    pub rate: super::rates::RateBps,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourcePolicy {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dhcp_overrides: Vec<DhcpOverrideBinding>,
     pub profiles: Vec<ProfileBinding>,
     pub unprofiled_rate: RateRead,
     #[serde(default)]
@@ -96,6 +107,7 @@ pub(super) struct CompiledPolicy<'a, 'b> {
     profiles: HashMap<String, Result<ObservedPolicy, SourcePolicyIssue>>,
     references: HashSet<String>,
     unprofiled_rate: RateRead,
+    dhcp_overrides: HashMap<String, super::rates::RateBps>,
 }
 impl SourcePolicy {
     pub(super) fn validate(&self, kind: SourceKind) -> anyhow::Result<()> {
@@ -103,6 +115,24 @@ impl SourcePolicy {
             kind != SourceKind::Dhcp || self.profiles.is_empty(),
             "DHCP scope cannot map account profiles"
         );
+        ensure!(
+            kind == SourceKind::Dhcp || self.dhcp_overrides.is_empty(),
+            "subscriber overrides require a DHCP scope"
+        );
+        let mut positions = HashSet::new();
+        let mut accounts = HashSet::new();
+        for binding in &self.dhcp_overrides {
+            ensure!(
+                !binding.account_ref.trim().is_empty(),
+                "empty override account reference"
+            );
+            binding.rate.validate()?;
+            ensure!(
+                positions.insert(binding.legacy_client_index)
+                    && accounts.insert(binding.account_ref.as_str()),
+                "duplicate DHCP override binding"
+            );
+        }
         if let Some(priority) = &self.legacy_priority {
             priority.compile(kind)?;
             ensure!(
@@ -161,12 +191,30 @@ impl SourcePolicy {
             profiles,
             references,
             unprofiled_rate: self.unprofiled_rate,
+            dhcp_overrides: self
+                .dhcp_overrides
+                .iter()
+                .map(|b| (b.account_ref.clone(), b.rate))
+                .collect(),
         })
     }
 }
 impl CompiledPolicy<'_, '_> {
     pub(super) fn has_reference(&self, reference: &str) -> bool {
         self.references.contains(reference)
+    }
+    pub(super) fn observe_identified(
+        &self,
+        account: &CurrentAccount,
+        account_ref: &str,
+    ) -> Result<ObservedPolicy, SourcePolicyIssue> {
+        if let Some(rate) = self.dhcp_overrides.get(account_ref) {
+            return Ok(ObservedPolicy {
+                profile: ProfileObservation::Known(None),
+                plan: Some(*rate),
+            });
+        }
+        self.observe(account)
     }
     pub(super) fn observe(
         &self,

@@ -11,6 +11,10 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-17-topology-dynamic-bounds]]
+
+- [[2026-11-17-topology-dhcp-overrides]]
+
 - [[2026-11-17-topology-exclusions]]
 
 - [[2026-11-17-topology-legacy-preflight]]

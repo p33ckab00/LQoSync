@@ -121,6 +121,10 @@ impl SourceSettings {
             selection.service_names.sort_unstable();
             selection
                 .policy
+                .dhcp_overrides
+                .sort_unstable_by_key(|b| b.legacy_client_index);
+            selection
+                .policy
                 .profiles
                 .sort_unstable_by(|a, b| a.source_ref.cmp(&b.source_ref));
         }

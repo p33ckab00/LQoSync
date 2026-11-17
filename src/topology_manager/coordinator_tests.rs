@@ -782,3 +782,225 @@ async fn configured_filtered_adoption_requires_current_filter_proof_and_exact_ma
         .is_err()
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn dhcp_override_follows_identity_after_disconnect_and_mac_reassignment() {
+    use crate::topology_manager::{
+        catalog::{BaseRateAuthority, SourceOrigin},
+        model::{IdentityRef, SubscriberRecord},
+        rates::RateBps,
+    };
+    let (mut cfg, mut registry, fake, mut coordinator) = fixture();
+    cfg.routers[0].pppoe.enabled = false;
+    cfg.routers[0].dhcp.enabled = true;
+    cfg.routers[0].dhcp.require_bound = true;
+    cfg.routers[0].dhcp.shape_unassigned = false;
+    cfg.bandwidth_defaults.dhcp_default_per_client_mbps = 50.0;
+    cfg.bandwidth_defaults.min_rate_percentage = 0.1;
+    cfg.routers[0].dhcp.clients.push(crate::config::DhcpClient {
+        mac: "AA:BB:CC:DD:EE:20".into(),
+        download_mbps: 20.0,
+        upload_mbps: 7.0,
+        name: None,
+    });
+    let catalog = registry.catalog.as_mut().unwrap();
+    catalog.profiles[0].base = BaseRateAuthority::SourceRead;
+    catalog.profiles[0].speed =
+        crate::topology_manager::legacy_bounds::import(&cfg.bandwidth_defaults).unwrap();
+    if let SourceOrigin::Subscribers {
+        scope, profile_ref, ..
+    } = &mut catalog.sources[2].origin
+    {
+        scope.kind = SourceKind::Dhcp;
+        *profile_ref = None;
+    }
+    let selection = &mut registry.source_settings.as_mut().unwrap().selections[0];
+    selection.scope.kind = SourceKind::Dhcp;
+    selection.policy = SourcePolicy {
+        legacy_priority: Some(
+            crate::topology_manager::legacy_rate::LegacyPriority::dhcp(
+                &cfg.speed,
+                &cfg.bandwidth_defaults,
+                &cfg.routers[0].dhcp.server("lan"),
+            )
+            .unwrap(),
+        ),
+        dhcp_overrides: vec![
+            crate::topology_manager::source_policy::DhcpOverrideBinding {
+                legacy_client_index: 0,
+                account_ref: "operator-comment/v1/customer-1".into(),
+                rate: RateBps {
+                    down: 20_000_000,
+                    up: 7_000_000,
+                },
+            },
+        ],
+        ..Default::default()
+    };
+    registry.subscribers.push(SubscriberRecord {
+        id: "enrolled-customer".into(),
+        identities: vec![IdentityRef {
+            scope: selection.scope.clone(),
+            account_ref: "operator-comment/v1/customer-1".into(),
+        }],
+        policy: Default::default(),
+    });
+    let lease = row(&[
+        (".id", "*l"),
+        ("server", "lan"),
+        ("status", "bound"),
+        ("active-address", "192.0.2.20"),
+        ("active-mac-address", "aa:bb:cc:dd:ee:20"),
+        ("host-name", "alice"),
+        ("comment", "[lqosync-id:customer-1]"),
+    ]);
+    fake.data.lock().unwrap().get_mut("Distro").unwrap().rows = std::collections::BTreeMap::from([
+        (
+            Table::DhcpServers,
+            vec![row(&[
+                (".id", "*d"),
+                ("name", "lan"),
+                ("disabled", "false"),
+            ])],
+        ),
+        (Table::DhcpLeases, vec![lease.clone()]),
+    ]);
+    let first = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(first.rows()[0].download_max, "20");
+    assert_eq!(first.rows()[0].upload_max, "7");
+    assert_eq!(first.rows()[0].download_min, "2");
+    assert_eq!(first.rows()[0].upload_min, "0.7");
+    let mut changed = cfg.clone();
+    changed.routers[0].dhcp.clients[0].download_mbps = 30.0;
+    assert!(first.check_source_filters(&changed).is_err());
+    changed.routers[0].dhcp.clients.clear();
+    assert!(first.check_source_filters(&changed).is_err());
+    fake.data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .get_mut(&Table::DhcpLeases)
+        .unwrap()
+        .clear();
+    let offline = coordinator
+        .prepare(&cfg, &first.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert!(offline.rows().is_empty());
+    assert_eq!(offline.candidate.subscribers[0].id, "enrolled-customer");
+    for wan in offline.network().as_object().unwrap().values() {
+        assert_eq!(wan["children"], serde_json::json!({}));
+    }
+    let mut returned = lease.clone();
+    returned.insert(".id".into(), "*new".into());
+    returned.insert("active-address".into(), "192.0.2.99".into());
+    returned.insert("active-mac-address".into(), "aa:bb:cc:dd:ee:99".into());
+    let mut other = lease;
+    other.insert("comment".into(), "[lqosync-id:customer-2]".into());
+    fake.data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .insert(Table::DhcpLeases, vec![other, returned]);
+    let back = coordinator
+        .prepare(&cfg, &offline.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    let customer = back.rows().iter().find(|r| r.ipv4 == "192.0.2.99").unwrap();
+    assert_eq!(customer.circuit_id, first.rows()[0].circuit_id);
+    assert_eq!(customer.download_max, "20");
+    assert_eq!(customer.mac, "AA:BB:CC:DD:EE:99");
+    let other = back.rows().iter().find(|r| r.ipv4 == "192.0.2.20").unwrap();
+    assert_ne!(other.circuit_id, customer.circuit_id);
+    assert_eq!(other.download_max, "50");
+    assert_eq!(other.mac, "AA:BB:CC:DD:EE:20");
+}
+
+#[tokio::test(start_paused = true)]
+async fn imported_bounds_follow_fresh_profile_rates_without_stored_speed_or_endpoints() {
+    let (mut cfg, mut registry, fake, mut coordinator) = fixture();
+    cfg.bandwidth_defaults.min_rate_percentage = 0.1;
+    cfg.speed.pppoe_sources = vec![crate::config::PppSource::ProfileRateLimit];
+    let profile = &mut registry.catalog.as_mut().unwrap().profiles[0];
+    profile.base = crate::topology_manager::catalog::BaseRateAuthority::SourceRead;
+    profile.speed =
+        crate::topology_manager::legacy_bounds::import(&cfg.bandwidth_defaults).unwrap();
+    registry.source_settings.as_mut().unwrap().selections[0]
+        .policy
+        .legacy_priority = Some(
+        crate::topology_manager::legacy_rate::LegacyPriority::ppp(
+            &cfg.speed,
+            &cfg.bandwidth_defaults.pppoe_default_rate,
+        )
+        .unwrap(),
+    );
+    let first = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(
+        (&*first.rows()[0].download_min, &*first.rows()[0].upload_min),
+        ("5", "1")
+    );
+    assert_eq!(
+        (&*first.rows()[0].download_max, &*first.rows()[0].upload_max),
+        ("50", "10")
+    );
+    let active = fake
+        .data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .remove(&Table::PppActive)
+        .unwrap();
+    fake.data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .insert(Table::PppActive, vec![]);
+    let offline = coordinator
+        .prepare(&cfg, &first.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert!(offline.rows().is_empty());
+    let mut active = active;
+    active[0].insert("address".into(), "192.0.2.99".into());
+    {
+        let mut data = fake.data.lock().unwrap();
+        let data = data.get_mut("Distro").unwrap();
+        data.rows.insert(Table::PppActive, active);
+        data.rows.get_mut(&Table::PppProfiles).unwrap()[0]
+            .insert("rate-limit".into(), "7M/23M".into());
+    }
+    let returned = coordinator
+        .prepare(&cfg, &offline.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(returned.rows()[0].circuit_id, first.rows()[0].circuit_id);
+    assert_eq!(returned.rows()[0].ipv4, "192.0.2.99");
+    assert_eq!(
+        (
+            &*returned.rows()[0].download_min,
+            &*returned.rows()[0].upload_min
+        ),
+        ("2.3", "0.7")
+    );
+    assert_eq!(
+        (
+            &*returned.rows()[0].download_max,
+            &*returned.rows()[0].upload_max
+        ),
+        ("23", "7")
+    );
+}

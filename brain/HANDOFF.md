@@ -8,6 +8,53 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T17:38:44+08:00 (Asia/Shanghai) — Dynamic subscriber bounds complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `7d3c95f`.
+- DHCP identity overrides and this dynamic-bound slice remain local and uncommitted. Preserve unrelated operational edits.
+- Added `legacy_bounds.rs` and tests. Extended rates, catalog validation, legacy preflight, coordinator tests, and module exports.
+- Updated design, discussion, plan, Home, and session.
+- The explicit importer produces four profile overrides. The existing revision-checked store persists completed edits.
+- `LegacyRoundedBase` preserves legacy three-decimal Mbps rounding and floors. Current exact fixed/fraction rules and new defaults keep their behavior.
+- Imported factors require exact six-decimal representation in `(0, 1]`. Configuration floors and exact rate conversions remain mandatory.
+- The catalog rejects reversed factors/floors without live samples. Dormant preflight compares all effective controls after inheritance.
+- Matching controls clear the dynamic-bound issue. Source priority, group factors/formulas, native minimums, ownership, and snapshot checks remain independent.
+- Fresh PPP speeds change from 50/10 Mbps to 23/7 Mbps after disconnect, with minimums of 2.3/0.7 Mbps at 10%.
+- The DHCP reconnect test also combines identity-bound 20/7 Mbps with minimums of 2/0.7 Mbps.
+- Full suite: 1,127 passed, zero failed, 12 ignored. All 392 topology tests pass. Added nine active tests.
+- The installed-library sync test passes in temporary directories. Format, Clippy with warnings denied, and whitespace checks pass.
+- Author review only. No production benchmark, dependency change, or schema-version change. Older readers reject the new variant.
+- No live source read, router write, service action, native apply, deployment, or mode switch occurred.
+- Next: native group minimum commitments. Keep WAN ceilings authoritative and keep capacity floors separate from guaranteed minimums.
+- Static-input authority, shared branches, enrollment UI, native planner admission, and live proof remain gates.
+- Schedules, service activation, and the Topology Manager TUI remain unfinished.
+- Session: [[2026-11-17-topology-dynamic-bounds]]. Plan: `docs/superpowers/plans/2026-11-17-topology-dynamic-bounds.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-dynamic-bounds/`. Proof: `full-complete.log`, `clippy-complete.log`, and `native-sync.log`.
+- The graph remains the earlier baseline. Current source files take precedence.
+
+## 2026-11-17T16:16:18+08:00 (Asia/Shanghai) — DHCP identity overrides complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `7d3c95f`.
+- The exclusion checkpoint is committed and pushed as `7d3c95f`. Current DHCP changes remain local and uncommitted.
+- Added `src/topology_manager/dhcp_overrides.rs`. Extended source policy, model, identity, settings, preflight, publication, runner assertion, and tests.
+- Updated design, discussion, plan, Home, and session. Preserve unrelated operational edits.
+- Explicit bindings map legacy rate-list positions to enrolled independent account references and exact rates. No endpoint identifies a subscriber.
+- Complete coverage spans disjoint selected DHCP scopes per router. Duplicate positions/references, unknown identities, conflicting aliases, changed rates, and local bases block collection.
+- Independent authorization precedes override selection. Offline removal and fresh reconnects preserve policy without stored endpoint reuse.
+- A second subscriber with the old MAC does not inherit the override. The existing legacy collector remains unchanged.
+- Prepared output binds to configured override rates. Changed or removed rates fail the existing pre-compilation/publication/adoption fence.
+- Identity/profile indexes and one rate-list read per router avoid repeated scans. No production benchmark occurred.
+- Full suite: 1,118 passed, zero failed, 12 ignored. All 383 topology tests pass. Added ten active tests.
+- The optional installed-library sync test passes in temporary directories. Format, Clippy with warnings denied, and whitespace checks pass.
+- Author review only. No dependency or schema-version change. Older readers reject a nonempty unknown policy field.
+- No live source read, router write, service action, native apply, deployment, or live mode switch occurred.
+- Next: dynamic subscriber min/max bounds migration. Source-read profiles still block configured legacy adoption on that requirement.
+- Native group minimums, static-input authority, shared branches, enrollment UI, native planner bounds, and live proof remain gates.
+- Schedules, service activation, and the Topology Manager TUI remain unfinished.
+- Session: [[2026-11-17-topology-dhcp-overrides]]. Plan: `docs/superpowers/plans/2026-11-17-topology-dhcp-overrides.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-dhcp-overrides/`. Proof: `full-complete.log`, `clippy-complete.log`, and `native-sync.log`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T15:12:42+08:00 (Asia/Shanghai) — Current-source exclusions complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `5528f9e`.

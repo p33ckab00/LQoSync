@@ -15,6 +15,8 @@ Controlled compilation and a runner API now share one runtime writer owner.
 Configured source orchestration now connects to an explicit runner sync API.
 A configuration preflight now blocks unsupported source rules and checks configured legacy adoption.
 Fresh source normalization applies global/router exclusions and binds prepared output to that policy.
+Explicit DHCP override bindings now connect legacy rate entries to enrolled independent subscriber references.
+Imported dynamic bounds now preserve legacy factors, floors, and rounded rate behavior for source-read profiles.
 Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
@@ -842,9 +844,9 @@ The coordinator requires an empty report before its first connection attempt.
 Valid global/router exclusions now pass source preflight and apply to current observations.
 Malformed IPv4/CIDR entries and empty relevant name patterns block their selected scopes.
 Unrelated protocol settings do not block a scope.
-DHCP endpoint overrides and unsupported membership still require separate migration.
+Unmapped DHCP endpoint overrides and unsupported membership still block configured collection.
 
-Configured DHCP client overrides require a future identity-based policy migration.
+Configured DHCP client overrides require explicit `dhcp_overrides` bindings in durable source policy.
 The preflight never converts an old MAC-address rule into a permanent subscriber identity.
 A matching current lease cannot waive an offline override or prove future MAC continuity.
 
@@ -859,14 +861,15 @@ It compares configured source priorities, sustained base-rate authority, local s
 It uses the current legacy rate function and exact integer-bps conversions for local profile bounds.
 Different DHCP service policies require separate source scopes.
 The checker preserves the legacy first-per-plan-server factor rule in its comparison.
-A dynamic base, a fixed group capacity, or an unrepresented native node minimum remains an explicit issue.
+Unproved dynamic bounds, fixed group capacities, and unrepresented native node minimums remain explicit issues.
 A capacity floor does not prove a native minimum commitment.
 
 Factor checks compare integer products. They do not use floating-point equality or tolerance.
 This first checker supports configured factors with exact conversion at six decimal places.
 Factors outside that conversion range remain unproved, even if a rounded output happens to match.
-All `SourceRead` profile bounds currently require further migration proof.
-This conservative result also applies when a particular source priority could supply a constant rate.
+`SourceRead` profiles require structurally matching imported bounds after inheritance.
+All four controls must preserve the configured factors, floors, and legacy rounding behavior.
+A matching current sample cannot substitute for that structural proof.
 
 `ownership::adopt_configured_legacy` requires current filter proof and a clear configuration report before the existing exact snapshot adoption checks.
 It retains revision, generation, content fingerprints, current identity mappings, static classification, and the original deadline.
@@ -880,7 +883,7 @@ Profile indexes and a single scope-to-profile index avoid repeated subscriber sc
 These structural checks do not establish production throughput.
 
 A clear configuration report proves only the checks described here.
-Override migration, dynamic bounds, static-input authority, shared branches, enrollment, and native planner bounds remain gates.
+Unmapped overrides, unmatched dynamic bounds, static-input authority, shared branches, enrollment, and native planner bounds remain gates.
 The existing native monitor must still establish live DPDK acceptance.
 
 
@@ -928,5 +931,96 @@ Runtime tests cover removal, fresh reconnect, policy changes, missing proof, and
 The installed-library scratch test publishes a valid excluded batch with no subscriber rows, then active and reconnect batches.
 All scratch pair, registry, and scheduler writes target temporary directories. No live native apply occurs.
 
-MAC-based speed overrides remain blocked until they have explicit independent identity mappings.
+Unmapped MAC-based speed overrides remain blocked. Explicit independent identity bindings now support their configured source rates.
 Dynamic bounds, native group minimums, static-input authority, shared branches, enrollment, native planner bounds, and service activation remain gates.
+
+
+## DHCP overrides through independent identity
+
+`SourcePolicy::dhcp_overrides` stores explicit `DhcpOverrideBinding` values.
+Each value contains a zero-based `legacy_client_index`, an enrolled `account_ref`, and an exact `RateBps` pair.
+The position selects the configured rate entry within that router. It never identifies a subscriber.
+The account reference must match an existing identity in the same DHCP scope.
+For operator comment authority, the stored reference has the form `operator-comment/v1/REFERENCE`.
+The current lease must provide `[lqosync-id:REFERENCE]` through the existing independent authority contract.
+
+Operators complete these bindings through revision-checked source policy edits before activation.
+The API does not infer a binding from MAC, IP, hostname, or a matching lease.
+The durable policy contains no endpoint. The legacy configuration and collector remain unchanged.
+An absent list defaults to empty. Empty lists do not change serialized source policy.
+Schema 4 remains current. An older reader rejects a nonempty unknown field instead of silently discarding the override.
+
+Source preflight requires complete coverage of configured override entries across the selected DHCP scopes of each router.
+Disjoint service scopes share that coverage. Duplicate positions cannot assign one legacy entry to multiple scopes.
+References and positions must be unique within each scope. Rates must be positive and valid.
+Subscriber aliases cannot declare conflicting override rates.
+The rates must equal the current configured entry after exact Mbps conversion.
+The effective subscriber profile must use `SourceRead` base authority. A local base cannot hide the override.
+Unselected catalog sources do not define that effective base.
+Missing, changed, removed, or unknown bindings stop collection before connection.
+These checks also cover offline subscribers.
+
+After independent authorization, the compiled policy finds the rate through an indexed account reference.
+The explicit override precedes fallback source text, as it does in the legacy collector.
+Normal subscriber min/max controls still apply to the base rate.
+Placement, WAN ceilings, and group factors retain their existing rules.
+The manager never consults the legacy MAC to find an active subscriber.
+A changed MAC alone does not change this explicit policy intent.
+
+The transient filter digest now also includes configured DHCP override rates in list order.
+Changed or removed rates invalidate prepared output before configured compilation, publication, or adoption.
+The digest excludes legacy MACs and operator labels because those values do not select manager subscribers.
+The original source deadline remains mandatory.
+
+Tests cover offline removal, store reopen, stale edits, complete scope coverage, duplicate bindings, and fresh reconnects.
+A reconnect test assigns the old MAC to another independent subscriber. The override follows the original verified reference.
+The new subscriber receives its own fallback rate.
+
+Unmatched dynamic subscriber bounds remain a configured legacy-adoption blocker for source-read profiles.
+This task does not authorize service activation or replace exact snapshot and native planner admission.
+See [the DHCP override plan](../superpowers/plans/2026-11-17-topology-dhcp-overrides.md).
+
+
+## Imported dynamic subscriber bounds
+
+`legacy_bounds::import` returns four explicit `SpeedOverrides` values from the configured bandwidth defaults.
+The helper does not change a registry or configuration. Persist the completed profile edit through the existing revision-checked store.
+`RateRule::LegacyRoundedBase { factor, floor_bps }` represents the imported behavior.
+The rule uses the existing legacy rounding function: three decimal places in Mbps, then the configured floor.
+
+The minimum controls use `min_rate_percentage` and `safe_min_mbps`.
+The maximum controls use a factor of one and the larger of `safe_min_mbps` and `max_floor_mbps`.
+The minimum factor must be positive and must not exceed one.
+This condition and the ordered floors keep each imported minimum within its maximum.
+The catalog rejects reversed factors or floors without a current subscriber sample.
+
+Imported factors require exact representation at six decimal places.
+The importer requires the existing configuration floors: minimum at least 0.1 Mbps and maximum at least 0.2 Mbps.
+All rate conversions require an exact round trip between integer bps and the legacy Mbps representation.
+Unsupported precision, invalid factors, and out-of-range rates fail instead of truncation or substitution.
+The exact `FixedBps` and `BaseFraction` controls retain their previous behavior.
+New policy defaults remain unchanged. Legacy rounding applies only through the explicit imported rule.
+
+Configured legacy adoption compares all four effective controls after inheritance.
+It calculates the expected controls once and compares rational factors through integer products.
+The comparison covers dormant profiles. It does not infer a complete policy from currently active speeds.
+A changed factor, floor, or effective rule retains the typed `DynamicSubscriberBounds` issue.
+Source priority, base authority, group factors/formulas, native group minimums, ownership, and exact snapshot checks remain independent.
+
+Each fresh authorized observation supplies the current source plan.
+The resolver calculates imported minimums and maximums from that plan without durable session speed storage.
+Disconnects remove current rows. Reconnects use the current plan and endpoints with the authorized subscriber identity.
+Group calculations and ancestor ceilings keep their existing rules. They do not rewrite subscriber speed controls.
+
+Tests compare the imported rules with the legacy function at floor transitions, rounding boundaries, asymmetric rates, and multiple factors.
+Literal checks cover ordinary rates and rates below the legacy floors.
+Other checks cover precision rejection, strict serialization, inherited controls, store reopen, and dormant policy changes.
+A coordinator test changes the source plan from 50/10 Mbps to 23/7 Mbps after disconnect.
+At a 10% factor, the returning subscriber receives minimums of 2.3/0.7 Mbps and maximums of 23/7 Mbps.
+The subscriber ID remains stable and the endpoint comes from the fresh read.
+
+Schema 4 remains current. Existing rule variants retain their serialized format.
+An older reader rejects the new variant rather than discarding its meaning.
+Native export precision and planner admission remain mandatory. This import does not establish live DPDK acceptance.
+Native group minimums, authoritative static inputs, shared branches, enrollment UI, schedules, service activation, and TUI remain unfinished.
+See [the dynamic bounds plan](../superpowers/plans/2026-11-17-topology-dynamic-bounds.md).

@@ -615,6 +615,20 @@ fn validate_speed(
                 u128::from(min.numerator) * u128::from(max.denominator)
                     <= u128::from(max.numerator) * u128::from(min.denominator)
             }
+            (
+                RateRule::LegacyRoundedBase {
+                    factor: min,
+                    floor_bps: min_floor,
+                },
+                RateRule::LegacyRoundedBase {
+                    factor: max,
+                    floor_bps: max_floor,
+                },
+            ) => {
+                min_floor <= max_floor
+                    && u128::from(min.numerator) * u128::from(max.denominator)
+                        <= u128::from(max.numerator) * u128::from(min.denominator)
+            }
             _ => true,
         };
         ensure!(valid, "subscriber minimum rule exceeds its maximum rule");

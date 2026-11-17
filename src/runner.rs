@@ -2497,7 +2497,11 @@ mod tests {
             .await
             .err()
             .unwrap();
-        assert!(error.to_string().contains("prepared source filters differ"));
+        assert!(
+            error
+                .to_string()
+                .contains("prepared source policies differ")
+        );
         assert!(!e.lqos.join("ShapedDevices.csv").exists());
         assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
     }

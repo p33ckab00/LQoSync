@@ -476,3 +476,20 @@ fn source_backed_group_formulas_preserve_protocol_and_group_basis() {
     }
     c.validate().unwrap();
 }
+
+#[test]
+fn imported_dynamic_controls_reject_impossible_factors_and_floors_without_live_rates() {
+    for floors in [false, true] {
+        let mut c = catalog();
+        c.profiles[0].base = BaseRateAuthority::SourceRead;
+        c.profiles[0].speed.down_min = RuleValue::Override(RateRule::LegacyRoundedBase {
+            factor: fraction(1, if floors { 10 } else { 2 }),
+            floor_bps: if floors { 300_000 } else { 100_000 },
+        });
+        c.profiles[0].speed.down_max = RuleValue::Override(RateRule::LegacyRoundedBase {
+            factor: fraction(1, if floors { 1 } else { 4 }),
+            floor_bps: 200_000,
+        });
+        assert!(c.validate().is_err(), "floors {floors}");
+    }
+}

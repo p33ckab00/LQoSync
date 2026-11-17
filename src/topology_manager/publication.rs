@@ -39,7 +39,7 @@ impl PreparedPair {
         self.check_fresh()?;
         ensure!(
             self.source_filters == super::preflight::source_filter_digest(cfg, &self.candidate)?,
-            "prepared source filters differ from current settings or lack configured collection proof"
+            "prepared source policies differ from current settings or lack configured collection proof"
         );
         Ok(())
     }

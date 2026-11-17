@@ -65,9 +65,15 @@ pub struct Fraction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub enum RateRule {
     FixedBps(u64),
     BaseFraction(Fraction),
+    /// Explicit legacy import: three-decimal Mbps rounding, then a configured floor.
+    LegacyRoundedBase {
+        factor: Fraction,
+        floor_bps: u64,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,6 +212,11 @@ impl RateRule {
                 Ok(())
             }
             Self::BaseFraction(fraction) => fraction.validate(),
+            Self::LegacyRoundedBase { factor, floor_bps } => {
+                super::legacy_bounds::factor_value(factor)?;
+                super::legacy_bounds::mbps(floor_bps)?;
+                Ok(())
+            }
         }
     }
 
@@ -216,6 +227,9 @@ impl RateRule {
                 Ok(rate)
             }
             Self::BaseFraction(fraction) => fraction.apply(base),
+            Self::LegacyRoundedBase { factor, floor_bps } => {
+                super::legacy_bounds::resolve(base, factor, floor_bps)
+            }
         }
     }
 }

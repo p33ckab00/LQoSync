@@ -352,24 +352,25 @@ pub fn authorize<'a>(
                 ));
                 continue;
             }
-            let policy = match policies[&position].observe(account) {
-                Ok(policy) => policy,
-                Err(issue) => {
-                    conflicts.push(conflict(
-                        selection,
-                        &account.row_ref,
-                        match issue {
-                            SourcePolicyIssue::MissingProfileMapping => {
-                                IdentityIssue::MissingProfileMapping
-                            }
-                            SourcePolicyIssue::InvalidSourceRate => {
-                                IdentityIssue::InvalidSourceRate
-                            }
-                        },
-                    ));
-                    continue;
-                }
-            };
+            let policy =
+                match policies[&position].observe_identified(account, &identity.account_ref) {
+                    Ok(policy) => policy,
+                    Err(issue) => {
+                        conflicts.push(conflict(
+                            selection,
+                            &account.row_ref,
+                            match issue {
+                                SourcePolicyIssue::MissingProfileMapping => {
+                                    IdentityIssue::MissingProfileMapping
+                                }
+                                SourcePolicyIssue::InvalidSourceRate => {
+                                    IdentityIssue::InvalidSourceRate
+                                }
+                            },
+                        ));
+                        continue;
+                    }
+                };
             accounts[position].push(AccountObservation {
                 account_ref: identity.account_ref,
                 endpoints: account.endpoints.clone(),

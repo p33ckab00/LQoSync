@@ -267,3 +267,73 @@ fn converted_priority_uses_current_account_and_profile_data_without_another_auth
     policy.profiles[0].rate = enabled();
     assert!(policy.compile(SourceKind::Ppp, &index).is_err());
 }
+
+#[test]
+fn dhcp_overrides_require_unique_references_positions_and_positive_rates() {
+    let binding = DhcpOverrideBinding {
+        legacy_client_index: 0,
+        account_ref: "operator-comment/v1/customer-1".into(),
+        rate: RateBps {
+            down: 20_000_000,
+            up: 7_000_000,
+        },
+    };
+    let policy = SourcePolicy {
+        dhcp_overrides: vec![binding.clone()],
+        ..Default::default()
+    };
+    assert!(policy.validate(SourceKind::Dhcp).is_ok());
+    assert!(policy.validate(SourceKind::Ppp).is_err());
+    assert!(policy.validate(SourceKind::Hotspot).is_err());
+    for case in 0..4 {
+        let mut changed = policy.clone();
+        match case {
+            0 => changed.dhcp_overrides[0].account_ref.clear(),
+            1 => changed.dhcp_overrides[0].rate.down = 0,
+            2 => {
+                let mut another = binding.clone();
+                another.account_ref = "another".into();
+                changed.dhcp_overrides.push(another);
+            }
+            _ => {
+                let mut another = binding.clone();
+                another.legacy_client_index = 1;
+                changed.dhcp_overrides.push(another);
+            }
+        }
+        assert!(changed.validate(SourceKind::Dhcp).is_err(), "case {case}");
+    }
+}
+
+#[test]
+fn authorized_override_precedes_source_rate_parsing_and_never_matches_a_locator() {
+    let policy = SourcePolicy {
+        dhcp_overrides: vec![DhcpOverrideBinding {
+            legacy_client_index: 0,
+            account_ref: "verified".into(),
+            rate: RateBps {
+                down: 20_000_000,
+                up: 7_000_000,
+            },
+        }],
+        unprofiled_rate: enabled(),
+        ..Default::default()
+    };
+    let source_index = index(&[]);
+    let compiled = policy.compile(SourceKind::Dhcp, &source_index).unwrap();
+    let account = account(None, Some("malformed-private-rate"));
+    assert_eq!(
+        compiled
+            .observe_identified(&account, "verified")
+            .unwrap()
+            .plan,
+        Some(RateBps {
+            down: 20_000_000,
+            up: 7_000_000
+        })
+    );
+    assert_eq!(
+        compiled.observe_identified(&account, &account.row_ref),
+        Err(SourcePolicyIssue::InvalidSourceRate)
+    );
+}

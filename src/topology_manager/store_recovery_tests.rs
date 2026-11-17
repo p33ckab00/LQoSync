@@ -85,6 +85,7 @@ fn configured() -> RegistryDocument {
                 }],
                 unprofiled_rate: RateRead::Disabled,
                 legacy_priority: None,
+                dhcp_overrides: vec![],
             },
         }],
     });

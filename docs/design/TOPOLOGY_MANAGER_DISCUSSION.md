@@ -1004,3 +1004,37 @@ Configured publication and legacy adoption reject missing or stale filter proof.
 Removal and fresh reconnect tests preserve the authorized Subscriber ID without stored endpoint reuse.
 The native scratch test confirms filtered publication in temporary directories.
 MAC speed overrides and the other activation gates remain separate tasks.
+
+
+## DHCP identity override implementation, 2026-11-17
+
+Durable source policy now supports explicit DHCP override bindings.
+The operator maps each legacy rate entry to an enrolled independent account reference in its selected scope.
+The manager does not use the legacy MAC to find subscribers.
+Complete coverage, exact rate equality, unique positions/references, and source-read base authority are mandatory before collection.
+Offline intent survives. Disconnects remove exported endpoints and automatic groups.
+Fresh reconnects retain the authorized subscriber identity and override after IP/MAC changes.
+A different subscriber that receives the old MAC does not inherit the override.
+The transient source-policy digest also fences changed or removed override rates before publication.
+
+Revision-checked source settings and existing registry storage carry these bindings.
+The legacy collector and configuration format remain unchanged.
+The TUI enrollment workflow, dynamic bound migration, native minimums, static ownership authority, and live acceptance remain separate gates.
+
+
+## Dynamic subscriber bounds implementation, 2026-11-17
+
+Source-read subscriber profiles can now import the legacy minimum/maximum controls explicitly.
+The imported rule preserves configured fractions, floors, and three-decimal Mbps rounding.
+The existing exact Mbps/percentage controls and new policy defaults keep their behavior.
+The importer returns a draft profile edit. The existing revision-checked store persists the completed edit.
+
+Configured adoption requires structural equivalence for all four effective controls, including dormant profiles.
+The checker rejects changed floors, factors, or inherited controls without reliance on a current sample.
+A fresh source plan supplies the base on every accepted batch.
+A disconnect/reconnect test preserves subscriber identity while the source plan changes from 50/10 Mbps to 23/7 Mbps.
+Minimums change to 2.3/0.7 Mbps at the configured 10% factor. Maximums remain 23/7 Mbps.
+
+Exact conversion checks reject unsupported rates and factor precision.
+Native group minimums, static-input authority, planner admission, enrollment UI, and live acceptance remain separate requirements.
+The service loop, Topology Manager TUI, and schedules remain outside this task.

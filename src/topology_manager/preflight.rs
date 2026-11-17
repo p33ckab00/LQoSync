@@ -8,7 +8,7 @@ use super::{
 };
 use crate::config::{Config, DhcpMode, RouterCfg};
 use anyhow::{Context, ensure};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PolicyIssueKind {
@@ -94,8 +94,12 @@ fn selected<'a>(
     }
     Ok(out)
 }
-fn source_checks(cfg: &Config, bindings: &[(&SourceSelection, &RouterCfg)]) -> Vec<PolicyIssue> {
-    let mut out = Vec::new();
+fn source_checks(
+    cfg: &Config,
+    registry: &RegistryDocument,
+    bindings: &[(&SourceSelection, &RouterCfg)],
+) -> Vec<PolicyIssue> {
+    let mut out = super::dhcp_overrides::issues(registry, bindings);
     for &(selection, router) in bindings {
         for (prefix, exclude) in [
             ("exclude", &cfg.exclude),
@@ -141,14 +145,6 @@ fn source_checks(cfg: &Config, bindings: &[(&SourceSelection, &RouterCfg)]) -> V
             }
         }
         if selection.scope.kind == SourceKind::Dhcp {
-            if !router.dhcp.clients.is_empty() {
-                issue(
-                    &mut out,
-                    selection,
-                    "routers.dhcp.clients",
-                    PolicyIssueKind::DhcpAddressOverrides,
-                );
-            }
             let declared: BTreeSet<_> = router
                 .dhcp
                 .servers
@@ -180,10 +176,10 @@ pub fn source_issues(
     cfg: &Config,
     registry: &RegistryDocument,
 ) -> anyhow::Result<Vec<PolicyIssue>> {
-    Ok(source_checks(cfg, &selected(cfg, registry)?))
+    Ok(source_checks(cfg, registry, &selected(cfg, registry)?))
 }
 
-/// Bind only effective filters for selected scopes. The binding contains no session data.
+/// Bind effective filters and DHCP override rates. The binding contains no session data.
 pub(super) fn source_filter_digest(
     cfg: &Config,
     registry: &RegistryDocument,
@@ -191,12 +187,18 @@ pub(super) fn source_filter_digest(
     let empty = |ex: &crate::config::Exclude| {
         ex.ips.is_empty() && ex.ppp_profiles.is_empty() && ex.dhcp_servers.is_empty()
     };
-    if empty(&cfg.exclude) && cfg.routers.iter().all(|r| empty(&r.exclude)) {
+    if empty(&cfg.exclude)
+        && cfg
+            .routers
+            .iter()
+            .all(|r| empty(&r.exclude) && r.dhcp.clients.is_empty())
+    {
         return Ok(None);
     }
     let mut bindings = selected(cfg, registry)?;
     bindings.sort_unstable_by(|a, b| a.0.scope.cmp(&b.0.scope));
     let mut records = Vec::new();
+    let mut rates = BTreeMap::new();
     let none: &[String] = &[];
     for (selection, router) in bindings {
         let ppp = selection.scope.kind == SourceKind::Ppp;
@@ -227,14 +229,32 @@ pub(super) fn source_filter_digest(
                 none
             },
         ];
+        // The legacy MAC is not a selector. Read each router's rate list once across its scopes.
+        if dhcp && !router.dhcp.clients.is_empty() {
+            rates
+                .entry(selection.scope.router_id.as_str())
+                .or_insert_with(|| {
+                    (
+                        router.name.as_str(),
+                        router
+                            .dhcp
+                            .clients
+                            .iter()
+                            .map(|c| (c.download_mbps.to_bits(), c.upload_mbps.to_bits()))
+                            .collect::<Vec<_>>(),
+                    )
+                });
+        }
         if global.iter().chain(&local).any(|rules| !rules.is_empty()) {
             records.push((&selection.scope, router.name.as_str(), global, local));
         }
     }
-    Ok(if records.is_empty() {
+    Ok(if records.is_empty() && rates.is_empty() {
         None
     } else {
-        Some(crate::write_receipt::sha256(&serde_json::to_vec(&records)?))
+        Some(crate::write_receipt::sha256(&serde_json::to_vec(&(
+            records, rates,
+        ))?))
     })
 }
 
@@ -337,7 +357,8 @@ pub fn legacy_issues(
     registry: &RegistryDocument,
 ) -> anyhow::Result<Vec<PolicyIssue>> {
     let bindings = selected(cfg, registry)?;
-    let mut out = source_checks(cfg, &bindings);
+    let imported_bounds = super::legacy_bounds::import(&cfg.bandwidth_defaults).ok();
+    let mut out = source_checks(cfg, registry, &bindings);
     let catalog = registry
         .catalog
         .as_ref()
@@ -495,12 +516,18 @@ pub fn legacy_issues(
                 .get(id)
                 .context("selected subscriber profile is missing")?;
             match profile.base {
-                BaseRateAuthority::SourceRead => issue(
-                    &mut out,
-                    selection,
-                    id,
-                    PolicyIssueKind::DynamicSubscriberBounds,
-                ),
+                BaseRateAuthority::SourceRead => {
+                    if imported_bounds.as_ref().is_none_or(|expected| {
+                        !super::legacy_bounds::matches(&catalog.defaults, &profile.speed, expected)
+                    }) {
+                        issue(
+                            &mut out,
+                            selection,
+                            id,
+                            PolicyIssueKind::DynamicSubscriberBounds,
+                        );
+                    }
+                }
                 BaseRateAuthority::Local(base) => {
                     if !constant(&expected.priority) || base != expected.priority.settings {
                         issue(&mut out, selection, id, PolicyIssueKind::BaseAuthority);

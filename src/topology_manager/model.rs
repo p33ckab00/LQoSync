@@ -167,6 +167,24 @@ impl RegistryDocument {
                     .as_ref()
                     .context("source settings require a catalog")?,
             )?;
+            let mut override_rates = HashMap::new();
+            for selection in &settings.selections {
+                for binding in &selection.policy.dhcp_overrides {
+                    let identity = IdentityRef {
+                        scope: selection.scope.clone(),
+                        account_ref: binding.account_ref.clone(),
+                    };
+                    let subscriber = by_identity
+                        .get(&identity)
+                        .context("DHCP override requires an enrolled independent identity")?;
+                    ensure!(
+                        override_rates
+                            .insert(*subscriber, binding.rate)
+                            .is_none_or(|rate| rate == binding.rate),
+                        "subscriber aliases have conflicting DHCP overrides"
+                    );
+                }
+            }
         }
         if let Some(ownership) = &self.export_ownership {
             ownership.validate(self)?;
