@@ -74,7 +74,11 @@ where
         let deadline = started
             .checked_add(max_age)
             .context("source age limit exceeds clock range")?;
-        registry.validate()?;
+        let issues = super::preflight::source_issues(cfg, registry)?;
+        ensure!(
+            issues.is_empty(),
+            "unsupported configured source policies: {issues:?}"
+        );
         let catalog = registry
             .catalog
             .as_ref()

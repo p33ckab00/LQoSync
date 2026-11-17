@@ -978,3 +978,14 @@ PPP, bound DHCP, and authenticated Hotspot evidence still require the configured
 Complete disconnects remove exported rows. Reconnects use fresh IP/MAC data with the same authorized Subscriber ID.
 The installed-library scratch test confirms this path without live writes or native apply.
 The service loop remains on its current path until legacy parity, enrollment, and native acceptance gates pass.
+
+
+## Legacy preflight implementation, 2026-11-17
+
+The configured source coordinator now blocks unsupported exclusions, DHCP endpoint overrides, and incompatible DHCP membership before connection.
+The compatibility report checks selected scopes. It does not silently discard legacy rules or infer identity from endpoints.
+
+A separate configured adoption API checks dormant source priorities, subscriber bounds, group factors/formulas, caps, and node minimums.
+It then applies the existing exact snapshot, identity, and deadline checks.
+Dynamic bounds and unsupported rules remain explicit conflicts. This slice does not implement their migration.
+A clear report does not activate the manager or prove a live DPDK policy.

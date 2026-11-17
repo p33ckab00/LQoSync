@@ -13,6 +13,7 @@ Explicit snapshot mappings and compiled-candidate admission now extend that boun
 Durable export aliases, independent static ownership, and explicit legacy source priorities now exist in isolation.
 Controlled compilation and a runner API now share one runtime writer owner.
 Configured source orchestration now connects to an explicit runner sync API.
+A configuration preflight now blocks unsupported source rules and checks configured legacy adoption.
 Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
@@ -68,6 +69,7 @@ Keep `src/topology.rs` as the legacy builder during migration.
 | `ids.rs` | Typed catalog ID batches from the shared durable counter |
 | `reader.rs` | Role-based complete current RouterOS evidence with time and configuration checks |
 | `coordinator.rs` | Configured parallel source batches, session ownership, authorization, and fresh preparation |
+| `preflight.rs` | Typed source compatibility issues and conservative checks of dormant legacy policies |
 | `normalize.rs` | Typed current accounts/profiles/endpoints with local joins and presence checks |
 | `publication.rs` | Fresh pair preparation, exact decimal rates, deadline fences, and the existing publication owner |
 | `migration.rs` | Explicit snapshot mappings and protected ownership classification for parity |
@@ -830,3 +832,52 @@ The authorized Subscriber ID remains stable. No live DPDK apply occurs.
 Source reads still use the current RouterOS transport allocation behavior.
 The deadline and final pair/artifact byte limits do not establish a hard transport memory ceiling or production throughput.
 Independent enrollment, legacy shadow parity, static-input authority, and native planner bounds remain activation requirements.
+
+
+## Legacy configuration preflight
+
+`preflight::source_issues` checks the selected scopes against the current configuration.
+The coordinator requires an empty report before its first connection attempt.
+Global and router-specific IP exclusions block every selected subscriber protocol that they affect.
+PPP profile exclusions block selected PPP scopes. DHCP server exclusions block selected DHCP scopes.
+Unrelated protocol settings do not block a scope.
+These checks expose unsupported rules. They do not implement the exclusion filters.
+
+Configured DHCP client overrides require a future identity-based policy migration.
+The preflight never converts an old MAC-address rule into a permanent subscriber identity.
+A matching current lease cannot waive an offline override or prove future MAC continuity.
+
+The fresh DHCP path requires `require_bound = true` and `shape_unassigned = false`.
+It requires current enabled server evidence. The legacy default for `shape_unassigned` can therefore produce a compatibility issue.
+If legacy DHCP discovery is disabled, explicit selected service names must equal the configured server set.
+These rules prevent silent collection of servers or leases that the previous policy did not select.
+A later implementation must migrate these membership rules explicitly.
+
+`preflight::legacy_issues` also checks declared policies that have no active subscriber.
+It compares configured source priorities, sustained base-rate authority, local subscriber minimums/maximums, group formulas, factors, caps, and node minimums.
+It uses the current legacy rate function and exact integer-bps conversions for local profile bounds.
+Different DHCP service policies require separate source scopes.
+The checker preserves the legacy first-per-plan-server factor rule in its comparison.
+A dynamic base, a fixed group capacity, or an unrepresented native node minimum remains an explicit issue.
+A capacity floor does not prove a native minimum commitment.
+
+Factor checks compare integer products. They do not use floating-point equality or tolerance.
+This first checker supports configured factors with exact conversion at six decimal places.
+Factors outside that conversion range remain unproved, even if a rounded output happens to match.
+All `SourceRead` profile bounds currently require further migration proof.
+This conservative result also applies when a particular source priority could supply a constant rate.
+
+`ownership::adopt_configured_legacy` requires a clear configuration report before the existing exact snapshot adoption checks.
+It retains revision, generation, content fingerprints, current identity mappings, static classification, and the original deadline.
+A current matching row cannot waive a dormant policy conflict.
+The lower-level `adopt_legacy` adapter remains available for isolated snapshot diagnostics.
+Neither adapter commits a registry, activates a service, or writes a shaping pair.
+
+The report contains scope IDs, setting paths, catalog IDs, and typed issue kinds.
+It does not copy endpoint overrides, router credentials, or source comments into diagnostics.
+Profile indexes and a single scope-to-profile index avoid repeated subscriber scans for each source instance.
+These structural checks do not establish production throughput.
+
+A clear configuration report proves only the checks described here.
+Complete exclusion/override migration, dynamic bounds, static-input authority, shared branches, enrollment, and native planner bounds remain gates.
+The existing native monitor must still establish live DPDK acceptance.

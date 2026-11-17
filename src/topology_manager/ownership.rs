@@ -454,3 +454,21 @@ pub fn adopt_legacy(
     pair.check_fresh()?;
     Ok(candidate)
 }
+
+/// Check configured legacy policies before exact snapshot ownership adoption.
+pub fn adopt_configured_legacy(
+    cfg: &crate::config::Config,
+    pair: &super::publication::PreparedPair,
+    rows: &[crate::model::CsvRow],
+    network: &serde_json::Value,
+    manifest: &super::migration::MigrationManifest,
+    protected_roots: &[String],
+) -> anyhow::Result<RegistryDocument> {
+    pair.check_fresh()?;
+    let issues = super::preflight::legacy_issues(cfg, &pair.candidate)?;
+    ensure!(
+        issues.is_empty(),
+        "legacy configuration parity conflicts remain: {issues:?}"
+    );
+    adopt_legacy(pair, rows, network, manifest, protected_roots)
+}

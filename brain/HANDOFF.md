@@ -8,6 +8,27 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T14:54:12+08:00 (Asia/Shanghai) — Legacy configuration preflight complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `e222547`.
+- The source coordinator is committed and pushed as `e222547`. Current preflight changes remain local and uncommitted.
+- Added preflight and preflight tests. Extended coordinator/tests, module exports, ownership adoption, and the optional native runner test.
+- Updated design, discussion, plan, Home, and session. Preserve unrelated operational edits.
+- Configured sync blocks unsupported selected-source exclusions, DHCP client overrides, and incompatible DHCP membership before connection.
+- Bound-only DHCP requires `require_bound = true` and `shape_unassigned = false`. Without discovery, selected service names must equal the configured server set.
+- `adopt_configured_legacy` checks dormant source priorities, local bounds, group formulas/factors, caps, and native minimum declarations before exact snapshot adoption.
+- Dynamic bounds and unsupported declarations remain explicit issues. A clear report is not activation authority.
+- Factor comparison uses integer products and exact configured conversion at six decimal places. Profile/assignment indexes avoid repeated subscriber scans.
+- Full suite: 1,096 passed, zero failed, 12 ignored. All 11 preflight and 14 coordinator tests pass. Added 12 active tests.
+- The optional installed-library sync test passes in temporary directories, including exclusion rejection before pair publication.
+- Format, Clippy with warnings denied, and whitespace checks pass. Author review only. No benchmark occurred.
+- No dependency/schema change, live source read, router write, service action, native apply, deployment, or live mode switch occurred.
+- Next: exclusion filters on current evidence with parity tests. Keep MAC overrides blocked until explicit independent identity mappings exist.
+- Dynamic bounds, node minimums, static-input authority, shared static branches, enrollment, native planner bounds, and live DPDK proof remain gates.
+- Session: [[2026-11-17-topology-legacy-preflight]]. Plan: `docs/superpowers/plans/2026-11-17-topology-legacy-preflight.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-legacy-preflight/`. Proof: `full.log`, `clippy.log`, `verified.log`, `coordinator.log`, and `native-sync.log`.
+- Graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T11:19:15+08:00 (Asia/Shanghai) — Configured source coordinator complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `16d2b80`.

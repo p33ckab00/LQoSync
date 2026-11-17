@@ -2389,6 +2389,18 @@ mod tests {
         let mut config = cfg(&e, "apply", "");
         config.libreqos = native_cfg.clone();
         let mut r = runner(&e, config.clone());
+        r.cfg.exclude.ips.push("192.0.2.0/24".into());
+        assert!(
+            r.sync_topology(&mut compiler, Duration::from_secs(10), 999)
+                .await
+                .is_err()
+        );
+        assert!(
+            !Path::new(&native_cfg.directory)
+                .join("ShapedDevices.csv")
+                .exists()
+        );
+        r.cfg.exclude.ips.clear();
         let result = r
             .sync_topology(&mut compiler, Duration::from_secs(10), 1000)
             .await

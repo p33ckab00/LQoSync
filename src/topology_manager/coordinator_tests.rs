@@ -466,6 +466,8 @@ async fn dhcp_and_hotspot_use_the_selected_protocol_and_current_active_state() {
         };
         cfg.routers[0].pppoe.enabled = false;
         cfg.routers[0].dhcp.enabled = dhcp;
+        cfg.routers[0].dhcp.require_bound = true;
+        cfg.routers[0].dhcp.shape_unassigned = false;
         cfg.routers[0].hotspot.enabled = !dhcp;
         let catalog = registry.catalog.as_mut().unwrap();
         if let super::super::catalog::SourceOrigin::Subscribers {
@@ -609,4 +611,17 @@ async fn changed_router_binding_cannot_reuse_the_previous_routers_session() {
         .unwrap();
     assert_eq!(pair.rows()[0].ipv4, "192.0.2.200");
     assert_eq!(fake.connects.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test(start_paused = true)]
+async fn unsupported_selected_source_policies_stop_before_connection() {
+    let (mut cfg, registry, fake, mut coordinator) = fixture();
+    cfg.exclude.ips.push("192.0.2.0/24".into());
+    assert!(
+        coordinator
+            .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+            .await
+            .is_err()
+    );
+    assert_eq!(fake.connects.load(Ordering::SeqCst), 0);
 }
