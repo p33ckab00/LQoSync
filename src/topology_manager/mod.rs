@@ -1,4 +1,4 @@
-//! Topology policy, durable identities, and current observations. No live path calls this module.
+//! Topology policy, durable identities, and current observations. Service activation remains gated.
 
 pub mod aggregate;
 pub mod catalog;
@@ -30,3 +30,5 @@ mod compiler_sandbox;
 pub mod compiler;
 
 pub(crate) mod runtime;
+
+pub(crate) mod coordinator;

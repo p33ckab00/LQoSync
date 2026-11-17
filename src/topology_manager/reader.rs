@@ -61,12 +61,16 @@ impl ReadPlan {
             .iter()
             .find(|r| r.id == router_id)
             .ok_or_else(|| anyhow::anyhow!("unknown catalog router"))?;
+        Ok(Self::for_roles(router_id, &router.roles))
+    }
+
+    pub(super) fn for_roles(router_id: &str, roles: &[RouterRole]) -> Self {
         let mut plan = Self {
             router_id: router_id.into(),
             inventory: BTreeSet::new(),
             active: BTreeSet::new(),
         };
-        for role in &router.roles {
+        for role in roles {
             match role {
                 RouterRole::Wan => {
                     plan.inventory.insert(Table::Interfaces);
@@ -90,7 +94,7 @@ impl ReadPlan {
                 }
             }
         }
-        Ok(plan)
+        plan
     }
 }
 

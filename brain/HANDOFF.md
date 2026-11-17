@@ -8,6 +8,28 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T11:19:15+08:00 (Asia/Shanghai) — Configured source coordinator complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `16d2b80`.
+- The runtime-owner checkpoint is pushed. Current task changes remain local and uncommitted.
+- Added coordinator and coordinator tests under `src/topology_manager/`. Extended reader, module exports, runner, and runner tests.
+- Updated implementation design, discussion, task plan, Home, and session. Preserve unrelated operational edits.
+- `Runner::sync_topology` connects configured source reads, authorization, compilation, and publication through the shared writer owner.
+- Catalog router names require one exact configured connection. Selected protocols require enabled settings and catalog roles.
+- Parallel reads share one deadline. Failed or cancelled batches cannot reuse stored subscriber observations.
+- A reproduced stale-session defect is fixed. Current connection fields govern reuse. Config reloads close all coordinator sessions.
+- Generations advance before reads and beyond the recovered receipt after restart. Current endpoints remain in memory only.
+- Full suite: 1,084 passed, zero failed, 12 ignored. All 13 coordinator tests pass. Added 15 active tests.
+- The optional installed-library sync test passes in temporary directories. It proves failure fencing, restart, disconnect, and fresh reconnect output.
+- Format, Clippy with warnings denied, and whitespace checks pass. Author review only. No benchmark or hard transport memory bound is claimed.
+- No dependency or live service loop changed. No live RouterOS read, native apply, routing change, router write, or deployment occurred.
+- Next: legacy-policy parity and activation preflight. Cover exclusions, DHCP address overrides, minimum/factor rules, and static-input authority.
+- Shared static branches, independent enrollment, native planner bounds, and live DPDK proof remain activation gates.
+- TUI, schedules, and complete recovery from a corrupt store remain separate tasks.
+- Session: [[2026-11-17-topology-source-coordinator]]. Plan: `docs/superpowers/plans/2026-11-17-topology-source-coordinator.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-source-coordinator/`. Proof: `full.log`, `clippy.log`, `coordinator-verified.log`, and `native-sync.log`.
+- Graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T10:58:55+08:00 (Asia/Shanghai) — Controlled compiler and runtime owner complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `b25e0cf53162a4d05e217b2e6fece39fe4efa130`.

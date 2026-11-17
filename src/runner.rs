@@ -80,6 +80,7 @@ pub struct Runner<C: Connector + 'static> {
     write_tracker: Option<Arc<Mutex<crate::write_receipt::Tracker>>>,
     topology_store: Option<crate::topology_manager::store::RegistryStore>,
     last_topology_generation: u64,
+    topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -153,6 +154,9 @@ where
     pub fn new(cfg: Config, connector: Arc<C>) -> Self {
         Runner {
             cfg,
+            topology_sources: crate::topology_manager::coordinator::Coordinator::new(
+                connector.clone(),
+            ),
             connector,
             sessions: HashMap::new(),
             lock: None,
@@ -425,14 +429,7 @@ where
         Ok(())
     }
 
-    /// Compile and publish a manager pair through this runner's sole writer owner.
-    /// The service loop must pass all activation gates before it calls this API.
-    pub async fn publish_topology(
-        &mut self,
-        compiler: &mut crate::topology_manager::compiler::ControlledCompiler,
-        pair: crate::topology_manager::publication::PreparedPair,
-        now: u64,
-    ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+    fn topology_preflight(&mut self) -> anyhow::Result<()> {
         self.lock()?;
         anyhow::ensure!(
             self.cfg.runtime.mode == RuntimeMode::Apply
@@ -444,6 +441,72 @@ where
             "write receipt recovery must succeed before manager publication"
         );
         crate::topology_manager::runtime::topology_owns(Path::new(&self.cfg.runtime.state_dir))?;
+        Ok(())
+    }
+
+    fn open_topology_store(&mut self) -> anyhow::Result<()> {
+        if self.topology_store.is_none() {
+            self.topology_store = Some(crate::topology_manager::store::RegistryStore::open_owned(
+                self.lock
+                    .as_ref()
+                    .context("instance lock is missing")?
+                    .clone(),
+            )?);
+        }
+        Ok(())
+    }
+
+    async fn prepare_topology(
+        &mut self,
+        max_age: Duration,
+    ) -> anyhow::Result<crate::topology_manager::publication::PreparedPair> {
+        self.topology_preflight()?;
+        self.open_topology_store()?;
+        let receipt_generation = self
+            .write_tracker
+            .as_ref()
+            .context("receipt owner is missing")?
+            .lock()
+            .map_err(|_| anyhow::anyhow!("write receipt owner is poisoned"))?
+            .current()
+            .and_then(|r| r.meta.topology.as_ref())
+            .map_or(0, |t| t.observation_generation);
+        self.topology_sources
+            .prepare(
+                &self.cfg,
+                self.topology_store
+                    .as_ref()
+                    .context("registry owner is missing")?
+                    .document()?,
+                self.last_topology_generation.max(receipt_generation),
+                max_age,
+            )
+            .await
+    }
+
+    /// Collect, authorize, compile, and publish one complete current source batch.
+    /// The service loop must pass all activation gates before it calls this API.
+    pub async fn sync_topology(
+        &mut self,
+        compiler: &mut crate::topology_manager::compiler::ControlledCompiler,
+        max_age: Duration,
+        now: u64,
+    ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        self.topology_preflight()?;
+        compiler.check_config(&self.cfg.libreqos)?;
+        let pair = self.prepare_topology(max_age).await?;
+        self.publish_topology(compiler, pair, now).await
+    }
+
+    /// Compile and publish a manager pair through this runner's sole writer owner.
+    /// The service loop must pass all activation gates before it calls this API.
+    pub async fn publish_topology(
+        &mut self,
+        compiler: &mut crate::topology_manager::compiler::ControlledCompiler,
+        pair: crate::topology_manager::publication::PreparedPair,
+        now: u64,
+    ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        self.topology_preflight()?;
         anyhow::ensure!(
             pair.generation() > self.last_topology_generation,
             "out-of-order topology observation generation"
@@ -477,14 +540,7 @@ where
         let mut tracker = tracker
             .lock()
             .map_err(|_| anyhow::anyhow!("write receipt owner is poisoned"))?;
-        if self.topology_store.is_none() {
-            self.topology_store = Some(crate::topology_manager::store::RegistryStore::open_owned(
-                self.lock
-                    .as_ref()
-                    .context("instance lock is missing")?
-                    .clone(),
-            )?);
-        }
+        self.open_topology_store()?;
         let store = self
             .topology_store
             .as_mut()
@@ -552,6 +608,7 @@ where
         self.health
             .clear(crate::system_health::Domain::Notification);
         self.sessions.clear();
+        self.topology_sources.clear_sessions();
         self.config_error = None;
     }
 
@@ -2184,6 +2241,229 @@ mod tests {
         assert!(r.cycle(1002, false).await.error.is_some());
         println!(
             "Public manager API preserves active and disconnected pairs in temporary directories; no live apply occurred."
+        );
+    }
+
+    fn source_registry(e: &Env) {
+        use crate::topology_manager::{
+            identity::{ReferenceAuthority, SourceSelection},
+            settings::SourceSettings,
+            source_policy::{ProfileBinding, RateRead, SourcePolicy},
+        };
+        let mut registry = crate::topology_manager::publication::tests::input(0)
+            .reconciliation
+            .registry;
+        registry.catalog.as_mut().unwrap().routers[1].name = "R1".into();
+        let scope = registry
+            .catalog
+            .as_ref()
+            .unwrap()
+            .required_scopes()
+            .unwrap()[0]
+            .clone();
+        registry.source_settings = Some(SourceSettings {
+            selections: vec![SourceSelection {
+                scope,
+                service_names: vec![],
+                authority: ReferenceAuthority::OperatorManagedComment,
+                policy: SourcePolicy {
+                    profiles: vec![ProfileBinding {
+                        source_ref: "provider-profile-id".into(),
+                        current_name: "gold".into(),
+                        rate: RateRead::Disabled,
+                    }],
+                    ..Default::default()
+                },
+            }],
+        });
+        let mut store = crate::topology_manager::store::RegistryStore::open(&e.state).unwrap();
+        store.commit(0, registry).unwrap();
+        e.fake.rows.lock().unwrap().insert(
+            "R1".into(),
+            BTreeMap::from([
+                (
+                    "/ppp/secret".into(),
+                    vec![row(&[
+                        (".id", "*s"),
+                        ("name", "alice"),
+                        ("profile", "gold"),
+                        ("disabled", "false"),
+                        ("comment", "[lqosync-id:customer-1]"),
+                    ])],
+                ),
+                (
+                    "/ppp/profile".into(),
+                    vec![row(&[
+                        (".id", "*p"),
+                        ("name", "gold"),
+                        ("rate-limit", "10M/50M"),
+                    ])],
+                ),
+                (
+                    "/ppp/active".into(),
+                    vec![row(&[
+                        (".id", "*a"),
+                        ("name", "alice"),
+                        ("address", "192.0.2.1"),
+                        ("service", "pppoe"),
+                    ])],
+                ),
+            ]),
+        );
+    }
+
+    #[tokio::test]
+    async fn configured_source_preparation_reuses_the_runner_lock_without_publishing() {
+        let e = env();
+        source_registry(&e);
+        let mut r = runner(&e, v3_apply(&e));
+        let pair = r.prepare_topology(Duration::from_secs(10)).await.unwrap();
+        assert_eq!(pair.rows().len(), 1);
+        assert_eq!(pair.rows()[0].ipv4, "192.0.2.1");
+        assert_eq!(pair.expected_revision(), 1);
+        assert_eq!(
+            r.topology_store
+                .as_ref()
+                .unwrap()
+                .document()
+                .unwrap()
+                .subscribers
+                .len(),
+            0
+        );
+        assert!(crate::topology_manager::store::RegistryStore::open(&e.state).is_err());
+        assert!(!e.lqos.join("ShapedDevices.csv").exists());
+        assert!(!e.lqos.join("network.json").exists());
+        assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
+    }
+
+    #[tokio::test]
+    async fn source_preparation_rejects_unsuitable_mode_or_target_before_source_reads() {
+        for case in 0..2 {
+            let e = env();
+            source_registry(&e);
+            let mut config = v3_apply(&e);
+            if case == 0 {
+                config.runtime.mode = RuntimeMode::Shadow;
+            } else {
+                config.libreqos.target = Target::V2Pair;
+            }
+            let mut r = runner(&e, config);
+            assert!(r.prepare_topology(Duration::from_secs(10)).await.is_err());
+            assert!(r.topology_store.is_none());
+            assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires explicit installed-binding configured source sync in temporary directories"]
+    async fn installed_binding_runs_configured_source_sync_without_live_writes() {
+        let source = std::env::var("LQOSYNC3_RUNTIME_BINDING")
+            .expect("set LQOSYNC3_RUNTIME_BINDING explicitly");
+        let e = env();
+        source_registry(&e);
+        let (_native, mut native_cfg, old_compiler) =
+            crate::topology_manager::compiler::tests::fixture();
+        drop(old_compiler);
+        std::fs::copy(
+            Path::new(&source).join("liblqos_python.so"),
+            Path::new(&native_cfg.directory).join("liblqos_python.so"),
+        )
+        .unwrap();
+        let mut table: toml::Table = toml::from_str(
+            &std::fs::read_to_string(Path::new(&source).join("lqos.example")).unwrap(),
+        )
+        .unwrap();
+        table.insert("lqos_directory".into(), native_cfg.directory.clone().into());
+        table.insert(
+            "state_directory".into(),
+            native_cfg.state_directory.clone().into(),
+        );
+        std::fs::write(&native_cfg.v3_config, toml::to_string(&table).unwrap()).unwrap();
+        native_cfg.target = Target::V3Pair;
+        let mut compiler = crate::topology_manager::compiler::ControlledCompiler::open(
+            &native_cfg,
+            &e.state.join("compiler-scratch"),
+        )
+        .unwrap();
+        let mut config = cfg(&e, "apply", "");
+        config.libreqos = native_cfg.clone();
+        let mut r = runner(&e, config.clone());
+        let result = r
+            .sync_topology(&mut compiler, Duration::from_secs(10), 1000)
+            .await
+            .unwrap();
+        assert!(result.changed && result.error.is_none());
+        let csv = Path::new(&native_cfg.directory).join("ShapedDevices.csv");
+        let first = read(&csv);
+        let id = crate::state::read_csv(&first).unwrap()[0]
+            .circuit_id
+            .clone();
+        e.fake.failing.lock().unwrap().insert("R1".into());
+        assert!(
+            r.sync_topology(&mut compiler, Duration::from_secs(10), 1001)
+                .await
+                .is_err()
+        );
+        assert_eq!(read(&csv), first);
+        e.fake.failing.lock().unwrap().clear();
+        e.fake
+            .rows
+            .lock()
+            .unwrap()
+            .get_mut("R1")
+            .unwrap()
+            .insert("/ppp/active".into(), vec![]);
+        drop(r);
+        let mut r = runner(&e, config);
+        let result = r
+            .sync_topology(&mut compiler, Duration::from_secs(10), 1002)
+            .await
+            .unwrap();
+        assert!(result.changed && result.error.is_none());
+        assert!(crate::state::read_csv(&read(&csv)).unwrap().is_empty());
+        assert!(
+            r.pending_tracker()
+                .unwrap()
+                .lock()
+                .unwrap()
+                .current()
+                .unwrap()
+                .meta
+                .topology
+                .as_ref()
+                .unwrap()
+                .observation_generation
+                > 1
+        );
+        e.fake.rows.lock().unwrap().get_mut("R1").unwrap().insert(
+            "/ppp/active".into(),
+            vec![row(&[
+                (".id", "*b"),
+                ("name", "alice"),
+                ("address", "192.0.2.99"),
+                ("caller-id", "aa:bb:cc:dd:ee:99"),
+                ("service", "pppoe"),
+            ])],
+        );
+        let result = r
+            .sync_topology(&mut compiler, Duration::from_secs(10), 1003)
+            .await
+            .unwrap();
+        assert!(result.changed && result.error.is_none());
+        let rows = crate::state::read_csv(&read(&csv)).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].circuit_id, id);
+        assert_eq!(rows[0].ipv4, "192.0.2.99");
+        assert_eq!(rows[0].mac, "AA:BB:CC:DD:EE:99");
+        assert!(
+            Path::new(&native_cfg.state_directory)
+                .join("scheduler/reload_request.json")
+                .exists()
+        );
+        assert!(r.cycle(1004, false).await.error.is_some());
+        println!(
+            "Configured source sync preserves identity, current endpoints, failure fencing, and restart generations in temporary directories."
         );
     }
 }

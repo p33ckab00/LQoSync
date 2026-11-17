@@ -965,3 +965,16 @@ Compiler drift, stale observations, wrong directories, corrupt ownership, and un
 Scheduler import requests are automatic and correlate with the receipt ID.
 The existing monitor still checks native acceptance. The service loop remains on its current path until the activation gates pass.
 The installed-binding tests used temporary directories and did not apply a live native world.
+
+
+## Configured source coordinator implementation, 2026-11-17
+
+The explicit runner sync API now connects configured source reads to authorization, compilation, and publication.
+It selects exact configured router names and only the required subscriber protocols.
+Parallel reads share one deadline. Failed, expired, or cancelled batches cannot reuse retained subscriber observations.
+Changed connection settings discard the previous router session. Restart generations advance beyond the recovered receipt.
+
+PPP, bound DHCP, and authenticated Hotspot evidence still require the configured independent identity reference.
+Complete disconnects remove exported rows. Reconnects use fresh IP/MAC data with the same authorized Subscriber ID.
+The installed-library scratch test confirms this path without live writes or native apply.
+The service loop remains on its current path until legacy parity, enrollment, and native acceptance gates pass.

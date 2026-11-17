@@ -12,7 +12,8 @@ A diagnostic parity report exposes unresolved legacy identities and unmanaged ro
 Explicit snapshot mappings and compiled-candidate admission now extend that boundary.
 Durable export aliases, independent static ownership, and explicit legacy source priorities now exist in isolation.
 Controlled compilation and a runner API now share one runtime writer owner.
-Live source orchestration, shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
+Configured source orchestration now connects to an explicit runner sync API.
+Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
 See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
@@ -66,6 +67,7 @@ Keep `src/topology.rs` as the legacy builder during migration.
 | `catalog.rs` | Router roles, source definitions, local profiles, hierarchy inputs, and reference checks |
 | `ids.rs` | Typed catalog ID batches from the shared durable counter |
 | `reader.rs` | Role-based complete current RouterOS evidence with time and configuration checks |
+| `coordinator.rs` | Configured parallel source batches, session ownership, authorization, and fresh preparation |
 | `normalize.rs` | Typed current accounts/profiles/endpoints with local joins and presence checks |
 | `publication.rs` | Fresh pair preparation, exact decimal rates, deadline fences, and the existing publication owner |
 | `migration.rs` | Explicit snapshot mappings and protected ownership classification for parity |
@@ -739,7 +741,7 @@ The runner and registry share this guard. The registry does not acquire a second
 A changed state directory requires a restart. A replaced lock path invalidates the existing guard.
 Manager compilation runs before the receipt mutex is acquired. Publication reuses the same tracker as the existing native monitor.
 The owner rejects older or repeated observation generations during one runner lifetime.
-Fresh tickets cannot be deserialized after restart. The new process starts its own current observation generation sequence.
+Fresh tickets cannot be deserialized after restart. The source coordinator advances past the generation in the recovered receipt.
 
 The compiler snapshots the exact library bytes in a private cache. It never treats that binary as newline-terminated text.
 Each compilation gets a new private workspace. Current CSV/network bytes enter that workspace with their original values.
@@ -780,4 +782,51 @@ The read-only monitor must still establish native acceptance. A compile success 
 
 The installed-binding scratch tests exercise compilation and the public manager API with active and empty batches.
 All runtime pair, marker, and scheduler writes in those tests target temporary directories.
-No live native apply occurs. Source orchestration, activation preflight, complete migration parity, native planner bounds, and live acceptance remain gates.
+No live native apply occurs. Activation preflight, complete migration parity, native planner bounds, and live acceptance remain gates.
+
+
+## Configured source orchestration
+
+`Runner::sync_topology(compiler, max_age, now)` collects and publishes one complete current batch.
+It uses the current registry source settings, the controlled compiler, and the same runtime writer owner.
+The method requires apply mode, the v3 pair target, valid runtime ownership, and successful receipt recovery.
+This explicit API does not activate manager mode in the service loop.
+
+A selected catalog router must match exactly one configured router by name.
+The catalog ID remains the source scope identity. The name only selects the configured connection.
+A missing or ambiguous connection blocks the whole batch before any connection attempt.
+Each selected subscriber protocol requires its catalog role and its enabled RouterOS source setting.
+No router address, credential, protocol, or identity authority is inferred.
+
+The coordinator reads only selected subscriber protocols and their required account/profile/service tables.
+Other catalog roles do not add commands to this batch.
+Configured WAN capacity does not require a current WAN interface read.
+WAN discovery remains a separate read operation. Placement does not assert actual packet routing.
+
+All selected routers collect in parallel. Connection, inventory checks, and active reads share one monotonic deadline.
+The deadline starts before the connection phase. Authorization, pair preparation, compilation, and publication preserve that deadline.
+Each router gets one attempt per batch. A later sync starts a new generation and reads every required source again.
+Legacy retry and retained-row rules do not supply observations to this path.
+
+Successful sessions can survive between batches. They contain no accepted subscriber snapshot.
+Changes to connection names, addresses, ports, TLS settings, usernames, or secret paths discard the old session.
+A config reload closes all coordinator sessions. Removed source routers also lose their sessions.
+Failed or cancelled reads drop their session. Unfinished tasks stop when the batch exits.
+A failed router or critical identity conflict blocks pair preparation for the whole batch.
+Errors from the transport and normalizer use fixed categories instead of raw source text.
+
+The coordinator advances its generation before the first asynchronous read.
+Failed and cancelled attempts cannot reuse that generation within the process.
+A restarted runner advances beyond the topology generation in its recovered receipt.
+Only fresh authorized results reach the observation gate and resolver.
+The registry retains identity and policy. Every exported endpoint still comes from the current accepted batch.
+
+Tests cover selected PPP, DHCP, and Hotspot sources, parallel reads, deadlines, cancellation, and connection changes.
+Complete DHCP unbinds and Hotspot disconnects remove rows from prepared output.
+The optional installed-library test exercises the public sync API entirely in temporary directories.
+It checks active publication, failed-read fencing, restart, disconnect, and reconnect with a changed IP/MAC.
+The authorized Subscriber ID remains stable. No live DPDK apply occurs.
+
+Source reads still use the current RouterOS transport allocation behavior.
+The deadline and final pair/artifact byte limits do not establish a hard transport memory ceiling or production throughput.
+Independent enrollment, legacy shadow parity, static-input authority, and native planner bounds remain activation requirements.
