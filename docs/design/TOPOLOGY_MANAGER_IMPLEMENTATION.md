@@ -21,7 +21,8 @@ Explicit per-direction node minimums now have policy, hierarchy budget checks, c
 Configured collection now binds independent static inputs to a private source document, revision, and byte digest.
 Explicit static attachments and shared budget checks now support protected roots below managed WAN/intermediate nodes.
 Exact shared legacy extraction and adoption proposals now preserve explicit ownership mappings in isolation.
-Controlled first-adoption staging and forward recovery now connect the proven static source and registry in isolation.
+Controlled first-adoption staging and forward recovery now connect the proven static source and registry.
+Runner enrollment and automatic recovery now use that boundary before normal service work.
 Shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
@@ -1291,7 +1292,7 @@ Dynamic session endpoints never enter this payload. Protected static endpoints r
 The pending journal blocks ordinary registry commits, writer claims, and both runtime publication paths.
 Malformed, future-version, unsafe, or corrupt journals also block these operations.
 The store can reopen for inspection and recovery. It does not automatically resume the transaction during open.
-The future enrollment controller must call recovery before normal runtime work. No new per-batch approval is required.
+The Runner now calls recovery before normal runtime work. No new per-batch approval is required.
 
 `staging::recover` first confirms that the current registry matches the recorded base or target.
 It confirms the current disk document and owner lock before any installation.
@@ -1319,6 +1320,52 @@ A missing source after registry commit requires explicit repair. Recovery does n
 After source installation, recovery must move forward. It never removes adopted identities or restores an older ID counter.
 After completion, later static-source edits use the existing revision and receipt rules. The completed transaction does not freeze future edits.
 
-The API has no TUI or service-start integration yet. Native implicit commitments and planner/live proof remain separate activation gates.
+The API has no enrollment UI yet. Native implicit commitments and planner/live proof remain separate activation gates.
 File checks cannot lock an unrelated external editor. Supported writers must hold the instance lock and respect pending migration state.
 See [the staging plan](../superpowers/plans/2026-11-17-topology-migration-staging.md).
+
+
+## Runner enrollment and automatic recovery
+
+`Runner::lock()` now checks for a pending migration under the existing instance lock.
+This boundary runs before receipt initialization, startup workers, cycles, and manager publication.
+A normal startup without a journal does not open or create a topology registry.
+The ordinary path adds only a journal presence check. It does not decode policy on each cycle.
+
+When a journal exists, the Runner clears cached registry state and transport sessions before recovery.
+It opens the registry with the same held lock and calls the existing staged recovery API.
+Only successful recovery replaces the cached store. An error cannot leave an older registry document in memory for later use.
+Publication generations and an existing receipt tracker remain unchanged.
+
+A critical conflict stops startup or the current operation before normal work.
+The Runner preserves the journal and unknown files. It does not write cycle outputs or status when lock initialization fails.
+After an explicit conflict repair, the same Runner can retry. A first-lock failure releases the temporary owner.
+A Runner that already holds the lock keeps it and its receipt tracker during a recovery failure.
+
+Recovery can finish after the runtime mode changes because it installs policy only.
+It does not create topology writer ownership, write a shaping pair, request a reload, or activate the manager service loop.
+The existing legacy loop keeps its previous behavior after successful policy recovery until a separate activation action selects the manager writer.
+
+`Runner::prepare_topology(max_age)` now exposes the existing fresh configured preparation method for preview and enrollment.
+Its existing v3 pair apply target and receipt recovery gates still apply.
+It returns a bounded-age candidate without a registry commit, shaping write, reload, or writer claim.
+The source coordinator still collects current data and authorizes identities.
+
+`Runner::enroll_topology(pair, manifest, protected_roots, attachments)` is the explicit first-adoption action.
+It checks the current target and receipt owner, then reads both live legacy files as bounded regular files.
+It rejects final-component symlinks, directories, missing files, malformed inputs, and combined raw input above 16 MiB.
+The reader reuses the compiler's existing regular-file helper. It keeps the original CSV row order.
+
+Configured adoption checks the current live snapshot against the manifest, fresh candidate, and current source policies.
+A changed endpoint, network field, filter, or incompatible legacy rate policy blocks installation.
+The controller then stages the sealed proposal and invokes the same automatic recovery boundary as startup.
+It returns the installed registry revision after successful completion.
+
+Repeated enrollment does not duplicate an installed revision. A completed first adoption fails the absent-source precondition on a later call.
+A pending interrupted transaction instead resumes automatically on the next Runner lock operation.
+The caller can inspect a fresh preview after recovery. It must not reuse an old prepared candidate after the registry revision changes.
+
+No enrollment UI or manifest editor is included in this slice.
+Existing-source replacement, active-owner migration, native implicit commitments, planner/live proof, schedules, TUI, and service activation remain separate work.
+External editors still need to respect the instance lock. The controller does not lock unrelated filesystem writers.
+See [the enrollment plan](../superpowers/plans/2026-11-17-topology-enrollment.md).

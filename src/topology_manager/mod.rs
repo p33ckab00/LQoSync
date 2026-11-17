@@ -46,3 +46,5 @@ mod shared_static;
 pub mod legacy_static;
 
 pub mod staging;
+
+pub(crate) mod enrollment;

@@ -8,6 +8,33 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T22:06:29+08:00 (Asia/Shanghai) — Runner enrollment and recovery complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `c9890b2`.
+- Committed and pushed the preceding migration staging slice. This new controller slice remains local and uncommitted. The index is empty.
+- Preserve unrelated operational edits and older entries in this file. The prior commit included only topology hunks from Home and HANDOFF.
+- Added `topology_manager/enrollment.rs` and `runner/tests/enrollment.rs`. Extended Runner lock initialization, the pending-state helper, reader visibility, and test fixture reuse.
+- Updated design, discussion, plan, session, and Home. No dependency, registry schema, CLI, or TUI changed.
+- `Runner::lock()` recovers pending migration before receipt initialization and normal service work, using the same instance lock.
+- No journal means no registry creation or policy decode during ordinary startup. The normal path adds a presence check.
+- Recovery clears cached registry state and transport sessions before it opens the store. Only success replaces the cached store.
+- First-lock failures release the temporary lock. An existing owner keeps its lock and receipt tracker. Failed recovery leaves no stale registry cache.
+- Critical conflicts block startup or the current operation and preserve unknown files. The same Runner can retry after explicit repair.
+- `prepare_topology(max_age)` now exposes the existing fresh preview API. It keeps target, receipt, collection, and identity gates.
+- `enroll_topology` reads the current legacy pair, checks configured adoption, stages policy, and completes the shared recovery boundary.
+- The reader requires two bounded regular files and a combined raw budget of 16 MiB. It rejects missing, malformed, oversized, or symlinked inputs.
+- The current manifest must still match live endpoints and hierarchy. Changed source filters or incompatible legacy rates fail before installation.
+- Enrollment returns the installed registry revision and preserves the live pair. It does not write shaping output, request a reload, or claim a topology writer.
+- Recovery can finish after a mode change because it writes policy only. Manager service activation remains gated; legacy behavior stays unchanged until separate activation.
+- Full suite: 1,193 passed, zero failed, 13 ignored. All 12 new enrollment tests and 445 active topology tests pass.
+- Format, Clippy with warnings denied, whitespace, and installed-library configured-source scratch sync pass. Author review only. No production benchmark occurred.
+- Logs: `.superpowers/sdd/2026-11-17-topology-enrollment/`. Proof: `full-final.log`, `clippy.log`, `format.log`, and `native-source.log`.
+- No live source read, router write, live shaping output, native apply, service action, deployment, or runtime mode switch occurred.
+- Next: enrollment interface and manifest workflow. Native implicit commitments, planner/live proof, schedules, TUI, and service activation remain gates.
+- Existing-source replacement, active-owner migration, mixed-version registry edits, uncoordinated external edits, and schema-2 circuit ID migration remain outside this slice.
+- Session: [[2026-11-17-topology-enrollment]]. Plan: `docs/superpowers/plans/2026-11-17-topology-enrollment.md`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T19:35:49+08:00 (Asia/Shanghai) — Migration staging and recovery complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `e0afb4b`.

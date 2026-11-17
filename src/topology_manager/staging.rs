@@ -40,9 +40,12 @@ fn absent(path: &Path) -> anyhow::Result<bool> {
         Err(e) => Err(e.into()),
     }
 }
+pub(crate) fn pending(state: &Path) -> anyhow::Result<bool> {
+    Ok(!absent(&state.join("topology-manager").join(JOURNAL))?)
+}
 pub(super) fn check_ready(state: &Path) -> anyhow::Result<()> {
     ensure!(
-        absent(&state.join("topology-manager").join(JOURNAL))?,
+        !pending(state)?,
         "migration is pending. Recover or cancel it before normal edits or publication"
     );
     Ok(())

@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-17-topology-enrollment]]
+
 - [[2026-11-17-topology-migration-staging]]
 
 - [[2026-11-17-topology-shared-adoption]]

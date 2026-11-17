@@ -1119,3 +1119,19 @@ The transaction saves explicit static policy only. It does not save current dyna
 
 This slice adds no TUI, service-start controller, routing, live apply, or service activation.
 The enrollment controller, native planner/live proof, schedules, and TUI remain separate work.
+
+
+## Runner enrollment and recovery implementation, 2026-11-17
+
+The Runner now resumes a pending migration under its existing instance lock before normal service work.
+Recovery needs no renewed operator approval. Unknown content or unsafe files cause a critical conflict and block the operation.
+Normal legacy startup without a journal does not create a topology registry.
+
+The explicit enrollment API reads the current live pair and checks the fresh manifest and configured legacy policy.
+It stages and completes the existing transaction without a shaping write or runtime owner claim.
+An existing fresh-preparation method now supports preview and enrollment callers.
+
+The controller clears old registry memory before recovery. It keeps publication generations and the existing receipt owner.
+A failed attempt can retry after an explicit conflict repair. Completion never increments the registry revision twice.
+
+The manager service loop remains gated. The enrollment UI, manifest editor, native planner/live proof, schedules, and TUI remain separate work.

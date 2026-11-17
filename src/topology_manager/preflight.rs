@@ -563,4 +563,4 @@ pub fn legacy_issues(
 }
 #[cfg(test)]
 #[path = "preflight_tests.rs"]
-mod tests;
+pub(crate) mod tests;

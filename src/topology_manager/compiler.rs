@@ -310,7 +310,7 @@ fn absolute(path: &Path) -> anyhow::Result<PathBuf> {
         std::env::current_dir()?.join(path)
     })
 }
-fn read_regular(path: &Path, limit: usize, no_follow: bool) -> anyhow::Result<Vec<u8>> {
+pub(super) fn read_regular(path: &Path, limit: usize, no_follow: bool) -> anyhow::Result<Vec<u8>> {
     let file = std::fs::File::options()
         .read(true)
         .custom_flags(libc::O_NONBLOCK | if no_follow { libc::O_NOFOLLOW } else { 0 })

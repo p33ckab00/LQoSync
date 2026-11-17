@@ -45,7 +45,9 @@ fn fixture_minimum(minimum: Option<u64>) -> Fixture {
         .nodes[0]
         .minimum
         .down = minimum;
-    let pair = prepare(observed).unwrap();
+    from_pair(prepare(observed).unwrap())
+}
+pub(crate) fn from_pair(pair: PreparedPair) -> Fixture {
     let nodes = crate::topology_manager::migration::nodes(pair.network()).unwrap();
     let wan_label = nodes["wan1"].0.to_string();
     let group_label = nodes["group1"].0.to_string();

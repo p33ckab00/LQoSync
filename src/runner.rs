@@ -393,13 +393,17 @@ where
 
     /// Take the instance lock on `state_dir` and hold it while the runner lives.
     pub fn lock(&mut self) -> anyhow::Result<()> {
-        if let Some(lock) = &self.lock {
-            lock.check(Path::new(&self.cfg.runtime.state_dir))?;
-        }
+        let directory = Path::new(&self.cfg.runtime.state_dir);
+        let lock = match &self.lock {
+            Some(lock) => {
+                lock.check(directory)?;
+                lock.clone()
+            }
+            None => files::InstanceLock::acquire(directory)?,
+        };
+        self.recover_topology_pending(lock.clone())?;
         if self.lock.is_none() {
-            self.lock = Some(files::InstanceLock::acquire(Path::new(
-                &self.cfg.runtime.state_dir,
-            ))?);
+            self.lock = Some(lock);
             match crate::write_receipt::Tracker::load(Path::new(&self.cfg.runtime.state_dir)) {
                 Ok(tracker) => {
                     tracker.restore_health(&self.health);
@@ -429,6 +433,54 @@ where
         Ok(())
     }
 
+    fn recover_topology_pending(&mut self, lock: Arc<files::InstanceLock>) -> anyhow::Result<()> {
+        if !crate::topology_manager::staging::pending(lock.directory())? {
+            return Ok(());
+        }
+        // Cleanup can fail after journal removal. Never retain an older cached registry on error.
+        self.topology_store = None;
+        self.sessions.clear();
+        self.topology_sources.clear_sessions();
+        let mut store = crate::topology_manager::store::RegistryStore::open_owned(lock)?;
+        crate::topology_manager::staging::recover(&mut store)?;
+        self.topology_store = Some(store);
+        Ok(())
+    }
+
+    /// Install configured migration policy. Keep runtime activation as a separate action.
+    /// The current live pair must still match the fresh manifest. No shaping output is written.
+    pub fn enroll_topology(
+        &mut self,
+        pair: &crate::topology_manager::publication::PreparedPair,
+        manifest: &crate::topology_manager::migration::MigrationManifest,
+        protected_roots: &[String],
+        attachments: &[crate::topology_manager::ownership::StaticAttachment],
+    ) -> anyhow::Result<u64> {
+        self.topology_preflight()?;
+        let proposal = crate::topology_manager::enrollment::prepare(
+            &self.cfg,
+            pair,
+            manifest,
+            protected_roots,
+            attachments,
+        )?;
+        self.open_topology_store()?;
+        crate::topology_manager::staging::stage(
+            self.topology_store
+                .as_mut()
+                .context("registry owner is missing")?,
+            &proposal,
+        )?;
+        // Use the same recovery boundary as startup, including after an interrupted install.
+        self.lock()?;
+        Ok(self
+            .topology_store
+            .as_ref()
+            .context("registry owner is missing")?
+            .document()?
+            .revision)
+    }
+
     fn topology_preflight(&mut self) -> anyhow::Result<()> {
         self.lock()?;
         anyhow::ensure!(
@@ -456,7 +508,8 @@ where
         Ok(())
     }
 
-    async fn prepare_topology(
+    /// Prepare fresh configured output for preview or enrollment. Do not write or claim a writer.
+    pub async fn prepare_topology(
         &mut self,
         max_age: Duration,
     ) -> anyhow::Result<crate::topology_manager::publication::PreparedPair> {
@@ -2519,4 +2572,5 @@ mod tests {
         assert!(!e.lqos.join("ShapedDevices.csv").exists());
         assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
     }
+    mod enrollment;
 }

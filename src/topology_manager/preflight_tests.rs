@@ -9,7 +9,7 @@ use crate::topology_manager::{
 };
 use std::time::Duration;
 
-fn fixture() -> (Config, RegistryDocument) {
+pub(crate) fn fixture() -> (Config, RegistryDocument) {
     let cfg = Config::from_toml_str("[speed]\npppoe_sources=['default']\n[bandwidth_defaults]\npppoe_default_rate='50M/10M'\nmin_rate_percentage=0.1\npppoe_aggregate_factor=0.8\n[[routers]]\nname='Distro'\naddress='192.0.2.1'\nusername='u'\npassword_file='/not-used'\n[routers.pppoe]\nenabled=true\nper_plan_node=true\n").unwrap();
     let mut registry = input(0).reconciliation.registry;
     let catalog = registry.catalog.as_mut().unwrap();
