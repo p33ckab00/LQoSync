@@ -19,6 +19,7 @@ pub struct AggregateNode {
     pub plan_demand: RateBps,
     pub maximum_demand: RateBps,
     pub minimum_demand: RateBps,
+    pub minimum_commitment: RateBps,
     pub basis: Option<RateBps>,
     pub calculated: RateBps,
     pub rates: AggregateRates,
@@ -39,8 +40,18 @@ pub struct AggregateWarning {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AggregateConflictReason {
-    MinimumExceedsCeiling { minimum: RateBps, ceiling: RateBps },
-    FloorExceedsCeiling { floor: RateBps, ceiling: RateBps },
+    MinimumExceedsCeiling {
+        minimum: RateBps,
+        ceiling: RateBps,
+    },
+    FloorExceedsCeiling {
+        floor: RateBps,
+        ceiling: RateBps,
+    },
+    MinimumBelowDescendants {
+        declared: super::rates::NodeMinimum,
+        required: RateBps,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,7 +259,8 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
     let mut omitted_nodes = Vec::new();
     let mut conflicts = Vec::new();
     let mut warnings = Vec::new();
-    for i in order {
+    let mut output_indices = vec![None; layout.len()];
+    for &i in &order {
         let node = &layout[i];
         let automatic = matches!(node.capacity, AggregateRule::Automatic { .. });
         if automatic && totals[i].circuits == 0 {
@@ -333,15 +345,6 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
             });
         }
         ceilings[i] = Some(rates.ceiling);
-        if Directions::over(totals[i].min, rates.ceiling).any() {
-            conflicts.push(AggregateConflict {
-                node_id: node.id.clone(),
-                reason: AggregateConflictReason::MinimumExceedsCeiling {
-                    minimum: totals[i].min,
-                    ceiling: rates.ceiling,
-                },
-            });
-        }
         let plan_over = Directions::over(totals[i].plan, rates.ceiling);
         let maximum_over = Directions::over(totals[i].max, rates.ceiling);
         if plan_over.any() || maximum_over.any() {
@@ -351,6 +354,7 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
                 maximum_over,
             });
         }
+        output_indices[i] = Some(nodes.len());
         nodes.push(AggregateNode {
             node_id: node.id.clone(),
             parent_id: node.parent.clone(),
@@ -359,10 +363,57 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
             plan_demand: totals[i].plan,
             maximum_demand: totals[i].max,
             minimum_demand: totals[i].min,
+            minimum_commitment: totals[i].min,
             basis,
             calculated,
             rates,
         });
+    }
+    // Propagate each child obligation once; a parent's own guarantee replaces its smaller subtree sum.
+    let mut required: Vec<_> = direct.iter().map(|d| d.min).collect();
+    for &i in order.iter().rev() {
+        let Some(output) = output_indices[i] else {
+            continue;
+        };
+        let declared = catalog.nodes[i].minimum;
+        if declared.down.is_some_and(|n| n < required[i].down)
+            || declared.up.is_some_and(|n| n < required[i].up)
+        {
+            conflicts.push(AggregateConflict {
+                node_id: layout[i].id.clone(),
+                reason: AggregateConflictReason::MinimumBelowDescendants {
+                    declared,
+                    required: required[i],
+                },
+            });
+        }
+        required[i] = RateBps {
+            down: declared.down.unwrap_or(0).max(required[i].down),
+            up: declared.up.unwrap_or(0).max(required[i].up),
+        };
+        let ceiling = nodes[output].rates.ceiling;
+        if Directions::over(required[i], ceiling).any() {
+            conflicts.push(AggregateConflict {
+                node_id: layout[i].id.clone(),
+                reason: AggregateConflictReason::MinimumExceedsCeiling {
+                    minimum: required[i],
+                    ceiling,
+                },
+            });
+        }
+        nodes[output].minimum_commitment = required[i];
+        if let Some(parent) = parents[i] {
+            required[parent] = RateBps {
+                down: required[parent]
+                    .down
+                    .checked_add(required[i].down)
+                    .context("download node commitments overflow")?,
+                up: required[parent]
+                    .up
+                    .checked_add(required[i].up)
+                    .context("upload node commitments overflow")?,
+            };
+        }
     }
     nodes.sort_unstable_by(|a, b| a.node_id.cmp(&b.node_id));
     omitted_nodes.sort_unstable();

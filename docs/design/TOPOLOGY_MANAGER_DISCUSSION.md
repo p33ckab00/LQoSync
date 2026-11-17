@@ -1038,3 +1038,21 @@ Minimums change to 2.3/0.7 Mbps at the configured 10% factor. Maximums remain 23
 Exact conversion checks reject unsupported rates and factor precision.
 Native group minimums, static-input authority, planner admission, enrollment UI, and live acceptance remain separate requirements.
 The service loop, Topology Manager TUI, and schedules remain outside this task.
+
+
+## Explicit node minimum implementation, 2026-11-17
+
+Each catalog node can now declare a separate minimum for download, upload, or both directions.
+The policy uses positive whole-Mbps values and preserves absent directions.
+The existing legacy template converts through checked arithmetic.
+
+The evaluator adds direct subscriber minimums and explicit child guarantees from leaves to roots.
+An explicit parent minimum must cover those obligations. Every propagated commitment must fit the effective ceiling.
+Sibling guarantees share the same parent and WAN budgets. A nested guarantee counts once at the next ancestor.
+Publication repeats the check against quantized node ceilings and exports explicit native minimum fields.
+
+Dormant adoption checks compare every selected source instance with its configured template.
+Changed or missing minimums remain conflicts. Capacity floors do not replace guaranteed minimums.
+The installed-library scratch compiler preserves an explicit minimum without live writes.
+Implicit native defaults, planner admission, static-input authority, and live acceptance remain separate requirements.
+The Topology Manager TUI, schedules, and service activation remain unfinished.

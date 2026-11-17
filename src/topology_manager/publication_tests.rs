@@ -330,6 +330,7 @@ async fn excessive_hierarchy_depth_is_a_conflict_before_recursive_json_work() {
     for i in 0..64 {
         let id = format!("manual-{i}");
         catalog.nodes.push(catalog::CatalogNode {
+            minimum: Default::default(),
             id: id.clone(),
             name: id.clone(),
             parent: Some(parent),
@@ -441,4 +442,92 @@ async fn export_adjustments_are_visible_and_cannot_undercut_a_configured_floor()
         .unwrap();
     assert_eq!(adjustment.calculated_ceiling.down, 100_500_000);
     assert_eq!(adjustment.exported_ceiling.down, 100_000_000);
+}
+
+#[tokio::test(start_paused = true)]
+async fn explicit_minimums_export_only_the_declared_direction_and_preserve_ceiling() {
+    let mut observed = input(2);
+    for node in &mut observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+    {
+        if node.source_id.as_deref() == Some("profile-source") {
+            let mut value = serde_json::to_value(&*node).unwrap();
+            value["minimum"] = serde_json::json!({"down":10_000_000});
+            *node = serde_json::from_value(value).unwrap();
+        }
+    }
+    let pair = prepare(observed).unwrap();
+    let mut groups = 0;
+    for wan in pair.network().as_object().unwrap().values() {
+        for group in wan["children"].as_object().unwrap().values() {
+            groups += 1;
+            assert_eq!(group["downloadBandwidthMbpsMin"], 10);
+            assert!(group.get("uploadBandwidthMbpsMin").is_none());
+            assert!(group["downloadBandwidthMbps"].as_f64().unwrap() >= 10.0);
+        }
+    }
+    assert!(groups > 0);
+    let (native, alerts) =
+        crate::writer::v3network::render_libreqos_network(&[], pair.network()).unwrap();
+    assert!(alerts.is_empty());
+    let native: serde_json::Value = serde_json::from_str(&native).unwrap();
+    for node in native["topology"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|node| {
+            node["id"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("group"))
+        })
+    {
+        assert_eq!(node["rate"]["commit_down_mbps"], 10.0);
+        assert_eq!(node["rate"]["commit_up_mbps"], node["rate"]["ceil_up_mbps"]);
+    }
+    assert!(pair.rows().iter().all(|r| r.download_max == "50"));
+}
+
+#[tokio::test(start_paused = true)]
+async fn quantized_parent_ceiling_must_cover_child_guarantees_and_subscriber_minima() {
+    let mut observed = input(1);
+    let c = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    c.defaults.down_min = RateRule::FixedBps(600_000);
+    c.defaults.up_min = RateRule::FixedBps(100_000);
+    c.sources[2].targets = vec!["group2".into()];
+    c.nodes[0].capacity = catalog::CapacityPolicy::Fixed {
+        base: RateBps {
+            down: 10_900_000,
+            up: 100_000_000,
+        },
+        factors: catalog::FactorChoice::Override(catalog::Factors::default()),
+    };
+    c.nodes[2].source_id = None;
+    c.nodes[2].minimum.down = Some(10_000_000);
+    c.nodes[2].capacity = catalog::CapacityPolicy::Fixed {
+        base: RateBps {
+            down: 10_000_000,
+            up: 5_000_000,
+        },
+        factors: catalog::FactorChoice::Override(catalog::Factors::default()),
+    };
+    c.nodes[3].parent = Some("wan1".into());
+    c.nodes[3].capacity = catalog::CapacityPolicy::Fixed {
+        base: RateBps {
+            down: 1_000_000,
+            up: 5_000_000,
+        },
+        factors: catalog::FactorChoice::Override(catalog::Factors::default()),
+    };
+    let error = prepare(observed).err().unwrap();
+    assert!(
+        error
+            .to_string()
+            .contains("quantization violates minimum commitments"),
+        "{error:#}"
+    );
 }

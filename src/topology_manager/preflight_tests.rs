@@ -715,3 +715,31 @@ fn inherited_imported_bounds_survive_a_revision_checked_store_edit() {
         PolicyIssueKind::GroupMinimum
     ));
 }
+
+#[test]
+fn node_minimum_migration_matches_every_dormant_instance_and_survives_reopen() {
+    let (mut cfg, mut registry) = fixture();
+    cfg.nodes.ppp_plan.download_min_mbps = Some(10);
+    let minimum =
+        crate::topology_manager::rates::NodeMinimum::from_legacy(&cfg.nodes.ppp_plan).unwrap();
+    for node in &mut registry.catalog.as_mut().unwrap().nodes {
+        if node.source_id.as_deref() == Some("profile-source") {
+            node.minimum = minimum;
+        }
+    }
+    assert_eq!(legacy_issues(&cfg, &registry).unwrap(), vec![]);
+    let root = tempfile::tempdir().unwrap();
+    let mut store = crate::topology_manager::store::RegistryStore::open(root.path()).unwrap();
+    store.commit(0, registry.clone()).unwrap();
+    drop(store);
+    let store = crate::topology_manager::store::RegistryStore::open(root.path()).unwrap();
+    assert_eq!(
+        legacy_issues(&cfg, store.document().unwrap()).unwrap(),
+        vec![]
+    );
+    registry.catalog.as_mut().unwrap().nodes[3].minimum.down = None;
+    assert!(has(
+        &legacy_issues(&cfg, &registry).unwrap(),
+        PolicyIssueKind::GroupMinimum
+    ));
+}

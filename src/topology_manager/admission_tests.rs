@@ -151,3 +151,35 @@ async fn offline_diagnostics_reject_duplicate_requested_node_ids() {
         .is_err()
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn dropped_or_changed_explicit_node_minimums_cannot_pass_compiler_admission() {
+    for drop_minimum in [true, false] {
+        let mut observed = input(1);
+        observed
+            .reconciliation
+            .registry
+            .catalog
+            .as_mut()
+            .unwrap()
+            .nodes[0]
+            .minimum
+            .down = Some(2_000_000);
+        let pair = prepare(observed).unwrap();
+        let (mut c, s) = artifacts(&pair);
+        let root = c["compatibility_network_json"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .find(|node| node.get("downloadBandwidthMbpsMin").is_some())
+            .unwrap();
+        if drop_minimum {
+            root.as_object_mut()
+                .unwrap()
+                .remove("downloadBandwidthMbpsMin");
+        } else {
+            root["downloadBandwidthMbpsMin"] = 1.into();
+        }
+        assert!(check_compiled(pair, &c, &s).is_err());
+    }
+}

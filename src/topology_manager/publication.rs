@@ -223,8 +223,9 @@ pub fn prepare_with_static(
             .validate()
             .context("node ceiling is below the supported whole-Mbps export range")?;
         ensure!(
-            node.minimum_demand.down <= exported.down && node.minimum_demand.up <= exported.up,
-            "node export quantization violates subscriber minimum commitments"
+            node.minimum_commitment.down <= exported.down
+                && node.minimum_commitment.up <= exported.up,
+            "node export quantization violates minimum commitments"
         );
         let definition = definitions[node.node_id.as_str()];
         if matches!(
@@ -257,9 +258,16 @@ pub fn prepare_with_static(
                 built[child].take().context("export child missing")?,
             );
         }
-        built[i] = Some(
-            serde_json::json!({ "id": aliases.nodes.get(node.node_id.as_str()).map_or(node.node_id.as_str(), |a| a.id.as_str()), "type": "site", "downloadBandwidthMbps": rate.down, "uploadBandwidthMbps": rate.up, "children": child_map }),
-        );
+        let mut exported_node = serde_json::json!({ "id": aliases.nodes.get(node.node_id.as_str()).map_or(node.node_id.as_str(), |a| a.id.as_str()), "type": "site", "downloadBandwidthMbps": rate.down, "uploadBandwidthMbps": rate.up, "children": child_map });
+        for (key, minimum) in [
+            ("downloadBandwidthMbpsMin", definition.minimum.down),
+            ("uploadBandwidthMbpsMin", definition.minimum.up),
+        ] {
+            if let Some(minimum) = minimum {
+                exported_node[key] = (minimum / 1_000_000).into();
+            }
+        }
+        built[i] = Some(exported_node);
     }
     let mut forest = serde_json::Map::new();
     for &(i, depth) in &order {

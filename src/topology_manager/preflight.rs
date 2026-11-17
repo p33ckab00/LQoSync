@@ -454,10 +454,13 @@ pub fn legacy_issues(
                     PolicyIssueKind::GroupBackstop,
                 );
             }
-            // A capacity floor does not preserve a native minimum commitment.
+            // A capacity floor remains distinct from a native minimum commitment.
+            let expected_minimum = super::rates::NodeMinimum::from_legacy(expected.node)?;
+            let source_instances = instances.get(source.id.as_str());
             if group.floor.is_some()
-                || expected.node.download_min_mbps.is_some()
-                || expected.node.upload_min_mbps.is_some()
+                || source_instances.is_none() && !expected_minimum.is_empty()
+                || source_instances
+                    .is_some_and(|nodes| nodes.iter().any(|node| node.minimum != expected_minimum))
             {
                 issue(
                     &mut out,

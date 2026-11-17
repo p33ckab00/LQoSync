@@ -8,6 +8,29 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T17:56:39+08:00 (Asia/Shanghai) — Explicit node minimums complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `e21f11d`.
+- Checkpoint `e21f11d` commits DHCP overrides and dynamic bounds. The push to `origin/lqosync3` succeeded.
+- Current node minimum changes remain local and uncommitted. Preserve unrelated operational edits.
+- Extended rates, catalog, aggregate, publication, legacy preflight, and tests. Updated external test constructors.
+- Updated design, discussion, plan, Home, and session.
+- Explicit optional directions require positive whole Mbps. Empty policies preserve old serialization. Schema 4 remains current.
+- Guaranteed budgets propagate iteratively from leaves to roots. Each child obligation counts once. Parent guarantees must cover descendants.
+- Sibling sums and each propagated commitment must fit the effective parent/WAN ceilings. Export checks the quantized ceilings again.
+- Automatic empty groups remain absent. Fixed empty branches reserve explicit minimums. No rate or guarantee is silently reduced.
+- Export writes explicit compatibility minimum keys. Dormant preflight checks every source instance against the legacy node template.
+- Compiler admission rejects changed or dropped minimum metadata. The installed-library scratch compiler preserves an explicit minimum.
+- Full suite: 1,137 passed, zero failed, 12 ignored. All 402 topology tests pass. Added ten active tests.
+- Format, Clippy with warnings denied, and whitespace checks pass. Author review only. No production benchmark occurred.
+- No live source read, router write, native apply, service action, deployment, or mode switch occurred.
+- These budgets cover explicit guarantees and subscriber minimums. Implicit native default commitments and planner/live proof remain gates.
+- The schema-2 node writer test uses no circuits. Generated manager device IDs exceed its 64-character ID limit. Current publication remains legacy/manual.
+- Next: authoritative static-input binding and source revisions. Shared branches, enrollment UI, schedules, service activation, and TUI remain unfinished.
+- Session: [[2026-11-17-topology-node-minimums]]. Plan: `docs/superpowers/plans/2026-11-17-topology-node-minimums.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-node-minimums/`. Proof: `full-complete.log`, `clippy-complete.log`, and `native-minimum.log`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T17:38:44+08:00 (Asia/Shanghai) — Dynamic subscriber bounds complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `7d3c95f`.

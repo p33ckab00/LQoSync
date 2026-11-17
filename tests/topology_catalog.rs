@@ -343,6 +343,7 @@ fn document() -> RegistryDocument {
         targets: Vec::new(),
     };
     let wan = |id: &str, source: &str, down| CatalogNode {
+        minimum: Default::default(),
         id: id.into(),
         name: id.into(),
         parent: None,
@@ -357,6 +358,7 @@ fn document() -> RegistryDocument {
         },
     };
     let group = |id: &str, parent: &str| CatalogNode {
+        minimum: Default::default(),
         id: id.into(),
         name: "Shared group".into(),
         parent: Some(parent.into()),
@@ -470,6 +472,7 @@ fn reopen_move_and_discovery_keep_ids_pins_and_explicit_target_sets() {
     let mut edit = store.document().unwrap().clone();
     let catalog = edit.catalog.as_mut().unwrap();
     catalog.nodes.push(CatalogNode {
+        minimum: Default::default(),
         id: "branch".into(),
         name: "Branch".into(),
         parent: Some("w2".into()),

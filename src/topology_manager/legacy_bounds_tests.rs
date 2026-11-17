@@ -164,3 +164,22 @@ fn imported_rules_are_strict_and_do_not_change_exact_percentage_rules() {
     };
     assert!(resolve_subscriber(base, &exact, &controls).is_err());
 }
+
+#[test]
+fn legacy_node_minimum_conversion_preserves_each_direction_and_rejects_overflow() {
+    use super::super::rates::NodeMinimum;
+    let mut template = crate::config::Config::default().nodes.ppp_plan;
+    template.download_min_mbps = Some(10);
+    template.upload_min_mbps = None;
+    assert_eq!(
+        NodeMinimum::from_legacy(&template).unwrap(),
+        NodeMinimum {
+            down: Some(10_000_000),
+            up: None
+        }
+    );
+    for value in [0, u64::MAX] {
+        template.download_min_mbps = Some(value);
+        assert!(NodeMinimum::from_legacy(&template).is_err());
+    }
+}

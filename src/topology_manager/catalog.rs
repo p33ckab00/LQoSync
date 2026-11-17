@@ -132,6 +132,8 @@ pub enum CapacityPolicy {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogNode {
+    #[serde(default, skip_serializing_if = "super::rates::NodeMinimum::is_empty")]
+    pub minimum: super::rates::NodeMinimum,
     pub id: String,
     pub name: String,
     pub parent: Option<String>,
@@ -383,6 +385,7 @@ impl TopologyCatalog {
         let mut layout = Vec::with_capacity(self.nodes.len());
         let mut instances = HashSet::new();
         for node in &self.nodes {
+            node.minimum.validate()?;
             let source = node
                 .source_id
                 .as_deref()

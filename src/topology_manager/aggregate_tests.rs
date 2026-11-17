@@ -217,6 +217,7 @@ fn inherited_intermediates_do_not_recalculate_subscriber_plans() {
     let mut r = registry();
     let c = r.catalog.as_mut().unwrap();
     c.nodes.push(CatalogNode {
+        minimum: Default::default(),
         id: "middle".into(),
         name: "Middle".into(),
         parent: Some("wan1".into()),
@@ -239,6 +240,7 @@ fn nested_limits_clip_descendants_without_compounding_factors() {
     let mut r = registry();
     let c = r.catalog.as_mut().unwrap();
     c.nodes.push(CatalogNode {
+        minimum: Default::default(),
         id: "middle".into(),
         name: "Middle".into(),
         parent: Some("wan1".into()),
@@ -408,6 +410,7 @@ fn a_deep_reversed_graph_uses_iterative_evaluation() {
     for i in 0..20_000 {
         let id = format!("middle-{i:05}");
         c.nodes.push(CatalogNode {
+            minimum: Default::default(),
             id: id.clone(),
             name: id.clone(),
             parent: Some(parent),
@@ -629,4 +632,96 @@ fn conflict_order_stays_canonical_when_multiple_checks_fail_for_one_node() {
     let second = run(&r, 10);
     assert_eq!(first.conflicts, second.conflicts);
     assert_eq!(first.conflicts.len(), 3);
+}
+
+#[test]
+fn explicit_node_minimums_reserve_parent_budget_and_never_double_count_descendants() {
+    let mut r = registry();
+    let catalog = r.catalog.as_mut().unwrap();
+    let group = catalog.nodes.iter_mut().find(|n| n.id == "group1").unwrap();
+    group.minimum = super::super::rates::NodeMinimum {
+        down: Some(20_000_000),
+        up: Some(3_000_000),
+    };
+    let result = run(&r, 1);
+    assert!(result.conflicts.is_empty());
+    assert_eq!(
+        node(&result, "group1").minimum_commitment,
+        rate(20_000_000, 3_000_000)
+    );
+    assert_eq!(
+        node(&result, "wan1").minimum_commitment,
+        rate(20_000_000, 3_000_000)
+    );
+    let wan = r
+        .catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == "wan1")
+        .unwrap();
+    wan.minimum = super::super::rates::NodeMinimum {
+        down: Some(25_000_000),
+        up: Some(4_000_000),
+    };
+    let result = run(&r, 1);
+    assert!(result.conflicts.is_empty());
+    assert_eq!(
+        node(&result, "wan1").minimum_commitment,
+        rate(25_000_000, 4_000_000)
+    );
+}
+
+#[test]
+fn explicit_minimums_cannot_understate_subscribers_or_exceed_ceilings() {
+    for (down, up) in [(1_000_000, 1_000_000), (90_000_000, 11_000_000)] {
+        let mut r = registry();
+        let group = r
+            .catalog
+            .as_mut()
+            .unwrap()
+            .nodes
+            .iter_mut()
+            .find(|n| n.id == "group1")
+            .unwrap();
+        group.minimum = super::super::rates::NodeMinimum {
+            down: Some(down),
+            up: Some(up),
+        };
+        let result = run(&r, 2);
+        assert!(!result.conflicts.is_empty());
+        assert!(result.candidate.is_none());
+    }
+}
+
+#[test]
+fn sibling_minimums_must_fit_the_wan_even_when_each_child_fits() {
+    let mut r = registry();
+    let c = r.catalog.as_mut().unwrap();
+    for child in &mut c.nodes[2..] {
+        child.parent = Some("wan1".into());
+        child.capacity = fixed(rate(200_000_000, 50_000_000));
+        child.minimum.down = Some(160_000_000);
+    }
+    c.nodes[3].source_id = None;
+    let result = run(&r, 0);
+    assert!(result.candidate.is_none());
+    assert_eq!(node(&result, "wan1").minimum_commitment.down, 320_000_000);
+    assert!(result.conflicts.iter().any(|c| c.node_id == "wan1"));
+}
+
+#[test]
+fn an_explicit_parent_guarantee_must_cover_child_guarantees() {
+    let mut r = registry();
+    let c = r.catalog.as_mut().unwrap();
+    c.nodes[2].minimum.down = Some(20_000_000);
+    c.nodes[0].minimum.down = Some(19_000_000);
+    let result = run(&r, 1);
+    assert!(result.candidate.is_none());
+    assert!(result.conflicts.iter().any(|c| c.node_id == "wan1"
+        && matches!(
+            c.reason,
+            AggregateConflictReason::MinimumBelowDescendants { .. }
+        )));
 }

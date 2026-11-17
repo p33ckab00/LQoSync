@@ -32,6 +32,7 @@ fn fixed(base: RateBps) -> CapacityPolicy {
 
 pub(crate) fn catalog() -> TopologyCatalog {
     let wan = |id: &str, source: &str, base| CatalogNode {
+        minimum: Default::default(),
         id: id.into(),
         name: id.into(),
         parent: None,
@@ -40,6 +41,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
         capacity: fixed(base),
     };
     let group = |id: &str, parent: &str| CatalogNode {
+        minimum: Default::default(),
         id: id.into(),
         name: "Shared label".into(),
         parent: Some(parent.into()),
@@ -151,6 +153,7 @@ fn one_profile_supports_multiple_wans_with_distinct_instances_and_equal_labels()
 fn profile_only_and_wan_only_topologies_keep_their_explicit_structure() {
     let mut c = catalog();
     c.nodes = vec![CatalogNode {
+        minimum: Default::default(),
         parent: None,
         ..c.nodes[2].clone()
     }];
@@ -389,6 +392,7 @@ fn a_large_catalog_uses_iterative_validation() {
     let mut c = TopologyCatalog {
         nodes: (0..10_000)
             .map(|i| CatalogNode {
+                minimum: Default::default(),
                 id: format!("group-{i}"),
                 name: "Same label".into(),
                 parent: None,
@@ -491,5 +495,21 @@ fn imported_dynamic_controls_reject_impossible_factors_and_floors_without_live_r
             floor_bps: 200_000,
         });
         assert!(c.validate().is_err(), "floors {floors}");
+    }
+}
+
+#[test]
+fn node_minimums_require_positive_exact_whole_mbps_and_keep_absent_policy_compatible() {
+    let original = catalog();
+    let text = serde_json::to_string(&original).unwrap();
+    assert!(!text.contains("minimum"));
+    assert_eq!(
+        serde_json::from_str::<TopologyCatalog>(&text).unwrap(),
+        original
+    );
+    for value in [0, 1, 1_500_000, u64::MAX] {
+        let mut c = original.clone();
+        c.nodes[2].minimum.down = Some(value);
+        assert!(c.validate().is_err(), "{value}");
     }
 }

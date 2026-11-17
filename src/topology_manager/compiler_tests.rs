@@ -119,7 +119,20 @@ async fn installed_binding_preserves_the_pair_inside_the_kernel_boundary() {
         ..Default::default()
     };
     let mut compiler = ControlledCompiler::open(&cfg, &root.path().join("scratch")).unwrap();
-    let compiled = compiler.compile(prepare(input(1)).unwrap()).await.unwrap();
+    let mut observed = input(1);
+    for node in &mut observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+    {
+        if node.source_id.as_deref() == Some("profile-source") {
+            node.minimum.down = Some(2_000_000);
+        }
+    }
+    let compiled = compiler.compile(prepare(observed).unwrap()).await.unwrap();
     compiled.check().unwrap();
     println!(
         "Installed compiler preserves the pair; sockets and outside content writes are blocked."

@@ -17,6 +17,7 @@ A configuration preflight now blocks unsupported source rules and checks configu
 Fresh source normalization applies global/router exclusions and binds prepared output to that policy.
 Explicit DHCP override bindings now connect legacy rate entries to enrolled independent subscriber references.
 Imported dynamic bounds now preserve legacy factors, floors, and rounded rate behavior for source-read profiles.
+Explicit per-direction node minimums now have policy, hierarchy budget checks, compatibility export, and dormant migration checks.
 Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
@@ -861,7 +862,7 @@ It compares configured source priorities, sustained base-rate authority, local s
 It uses the current legacy rate function and exact integer-bps conversions for local profile bounds.
 Different DHCP service policies require separate source scopes.
 The checker preserves the legacy first-per-plan-server factor rule in its comparison.
-Unproved dynamic bounds, fixed group capacities, and unrepresented native node minimums remain explicit issues.
+Unproved dynamic bounds, fixed group capacities, and unmatched native node minimums remain explicit issues.
 A capacity floor does not prove a native minimum commitment.
 
 Factor checks compare integer products. They do not use floating-point equality or tolerance.
@@ -1024,3 +1025,59 @@ An older reader rejects the new variant rather than discarding its meaning.
 Native export precision and planner admission remain mandatory. This import does not establish live DPDK acceptance.
 Native group minimums, authoritative static inputs, shared branches, enrollment UI, schedules, service activation, and TUI remain unfinished.
 See [the dynamic bounds plan](../superpowers/plans/2026-11-17-topology-dynamic-bounds.md).
+
+
+## Explicit node minimum commitments
+
+`CatalogNode::minimum` stores a `NodeMinimum` with optional `down` and `up` rates in bps.
+Each explicit rate must be positive whole Mbps and must pass the existing exact legacy conversion check.
+`NodeMinimum::from_legacy` converts the configured node template with checked multiplication.
+An absent direction remains absent. The policy does not substitute a capacity floor or multiply a minimum by a group factor.
+
+An absent catalog field defaults to empty. Empty policies do not change serialized node data.
+Schema 4 remains current. An older reader rejects a nonempty unknown field instead of discarding its meaning.
+The existing revision-checked store and backups preserve this intent.
+
+The aggregate evaluator checks guarantees from leaves to roots without recursion.
+Each node starts with the minimum demand of its direct subscribers.
+It adds each included child's required commitment once.
+If the node declares a minimum, that direction must cover its descendant obligations.
+The required commitment is the larger of that sum and the node's own explicit minimum.
+That value must fit the effective node ceiling, including WAN and ancestor limits.
+Sibling guarantees therefore share the same parent budget.
+A parent guarantee replaces its smaller descendant sum for the next ancestor. The evaluator does not count both values again.
+All additions use checked integer arithmetic.
+
+`minimum_demand` still reports subscriber minimum demand.
+`minimum_commitment` reports the propagated obligation, including explicit node guarantees.
+A conflict removes the publication candidate. The evaluator does not shrink guarantees or increase WAN capacity.
+Empty automatic groups remain absent from output. Their stored intent remains available for a fresh reconnect.
+Fixed empty branches remain present and reserve their declared minimums.
+
+Publication checks propagated commitments against the whole-Mbps exported ceilings.
+This check also catches a parent that fits before quantization but fails after it.
+Explicit directions export as integer `downloadBandwidthMbpsMin` or `uploadBandwidthMbpsMin` values.
+The current v3 network writer maps these fields to native `commit_down_mbps` and `commit_up_mbps` values.
+An absent direction retains the existing native default of commit equal to ceiling.
+Subscriber rates, node capacity factors, and WAN budgets keep their separate roles.
+
+Configured adoption checks every instance of a selected source against the legacy template, including dormant instances.
+One missing or different direction retains the `GroupMinimum` issue.
+A source without corresponding instances cannot claim a nonempty template minimum.
+Capacity floors remain separate conflicts. An exact snapshot and the existing compiler checks are still mandatory.
+The compiler admission check rejects changed or dropped minimum fields through the existing exact compatibility comparison.
+
+Tests cover hierarchy budgets, sibling excess, explicit parent limits, direct subscriber minimums, quantized ceilings, storage, and numeric limits.
+The installed-library scratch compiler preserves a pair with an explicit node minimum.
+Its writes target temporary directories. This check does not apply a live dataplane policy.
+
+These mathematical budgets cover declared node guarantees and subscriber minimums.
+They do not prove the feasibility of every implicit native default commitment or shaping-planner transformation.
+Native planner admission and live DPDK acceptance remain activation gates.
+Authoritative static inputs, shared branches, enrollment UI, schedules, service activation, and TUI remain unfinished.
+See [the node minimum plan](../superpowers/plans/2026-11-17-topology-node-minimums.md).
+
+
+The schema-2 writer check in this slice covers nodes only.
+Generated manager device IDs exceed that writer's 64-character ID limit.
+Current manager publication uses the legacy/manual pair. A future direct schema-2 path requires a compatible identity migration before activation.

@@ -108,6 +108,45 @@ pub struct SubscriberRates {
     pub max: RateBps,
 }
 
+/// Explicit node guarantees, independent of capacity floors and absent native defaults.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NodeMinimum {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub down: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub up: Option<u64>,
+}
+
+impl NodeMinimum {
+    pub fn is_empty(&self) -> bool {
+        self.down.is_none() && self.up.is_none()
+    }
+    pub fn from_legacy(node: &crate::config::NodeTemplate) -> anyhow::Result<Self> {
+        let bps = |value: u64| {
+            value
+                .checked_mul(1_000_000)
+                .context("node minimum conversion overflow")
+        };
+        let value = Self {
+            down: node.download_min_mbps.map(bps).transpose()?,
+            up: node.upload_min_mbps.map(bps).transpose()?,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+    pub(super) fn validate(self) -> anyhow::Result<()> {
+        for rate in [self.down, self.up].into_iter().flatten() {
+            ensure!(
+                rate > 0 && rate % 1_000_000 == 0,
+                "node minimum must be positive whole Mbps"
+            );
+            super::legacy_bounds::mbps(rate)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AggregateRule {
     Inherit,
