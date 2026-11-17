@@ -1071,3 +1071,19 @@ The existing automated sync path requires no per-batch operator approval. A miss
 
 The source contract does not add an editor or activate the service loop.
 Schedules, TUI, enrollment UI, shared branches, native planner bounds, and live acceptance remain separate work.
+
+
+## Explicit shared static branch implementation, 2026-11-17
+
+Protected static roots can now attach to managed WAN or intermediate nodes through explicit root and parent IDs.
+The static source remains a forest. Roots without an attachment stay independent.
+The exporter resolves managed aliases and preserves static policy. Subscriber groups remain leaves.
+
+Shared checks count each circuit once, including circuits with several device rows.
+Static nodes without explicit minimums reserve their full ceilings. Explicit guarantees must cover descendant obligations.
+Static and managed obligations share exported parent/WAN budgets in both directions, after managed capacity quantization.
+Oversized children, conflicting guarantees, invalid identities, and mixed direct circuits/child groups block the candidate.
+Subscriber maximum speeds remain unchanged. The checker does not silently reduce rates or move saved assignments.
+
+Completed policy edits persist through the current revision-checked store. Old documents default to no attachments.
+Shared legacy snapshot adoption still needs exact preservation proof. Native planner/live proof, service activation, schedules, and TUI remain separate work.

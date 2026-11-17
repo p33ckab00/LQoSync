@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-17-topology-shared-static]]
+
 - [[2026-11-17-topology-static-input]]
 
 - [[2026-11-17-topology-node-minimums]]

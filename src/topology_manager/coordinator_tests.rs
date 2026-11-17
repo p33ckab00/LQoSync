@@ -1032,6 +1032,10 @@ async fn protected_static_source_is_current_and_bound_to_the_configured_owner() 
             device_id: row.device_id.clone(),
         }],
         protected_roots: vec!["static-root".into()],
+        shared_attachments: vec![crate::topology_manager::ownership::StaticAttachment {
+            root_id: "static-root".into(),
+            parent_id: "wan1".into(),
+        }],
         ..Default::default()
     });
     assert!(
@@ -1053,7 +1057,11 @@ async fn protected_static_source_is_current_and_bound_to_the_configured_owner() 
         .prepare(&cfg, &registry, 0, Duration::from_secs(10))
         .await
         .unwrap();
-    assert_eq!(first.network()["Static root"]["downloadBandwidthMbps"], 20);
+    assert_eq!(
+        crate::topology_manager::migration::nodes(first.network()).unwrap()["wan1"].1["children"]["Static root"]
+            ["downloadBandwidthMbps"],
+        20
+    );
     assert_eq!(first.rows().len(), 2);
     first.check_source_filters(&cfg).unwrap();
     let other = tempfile::tempdir().unwrap();
@@ -1068,7 +1076,11 @@ async fn protected_static_source_is_current_and_bound_to_the_configured_owner() 
         .prepare(&cfg, &first.candidate, 0, Duration::from_secs(10))
         .await
         .unwrap();
-    assert_eq!(next.network()["Static root"]["downloadBandwidthMbps"], 30);
+    assert_eq!(
+        crate::topology_manager::migration::nodes(next.network()).unwrap()["wan1"].1["children"]["Static root"]
+            ["downloadBandwidthMbps"],
+        30
+    );
     assert_eq!(next.static_source.as_ref().unwrap().revision, 2);
     fake.data
         .lock()

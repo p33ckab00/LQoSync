@@ -26,6 +26,12 @@ pub struct NodeAlias {
     pub id: String,
     pub name: String,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StaticAttachment {
+    pub root_id: String,
+    pub parent_id: String,
+}
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExportOwnership {
@@ -33,7 +39,9 @@ pub struct ExportOwnership {
     pub devices: Vec<DeviceAlias>,
     pub nodes: Vec<NodeAlias>,
     pub protected_rows: Vec<RowIdentity>,
-    /// IDs of independent roots supplied by the current static configuration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_attachments: Vec<StaticAttachment>,
+    /// Root IDs supplied by the current static configuration.
     pub protected_roots: Vec<String>,
 }
 impl ExportOwnership {
@@ -125,9 +133,34 @@ impl ExportOwnership {
                 "conflicting protected root ownership"
             );
         }
+        if !self.shared_attachments.is_empty() {
+            let definitions: HashMap<_, _> = registry
+                .catalog
+                .iter()
+                .flat_map(|c| &c.nodes)
+                .map(|n| (n.id.as_str(), n))
+                .collect();
+            let mut attached = HashSet::new();
+            for attachment in &self.shared_attachments {
+                ensure!(
+                    roots.contains(&attachment.root_id) && attached.insert(&attachment.root_id),
+                    "attachment requires a unique protected static root"
+                );
+                let parent = definitions
+                    .get(attachment.parent_id.as_str())
+                    .context("static attachment parent is absent from the catalog")?;
+                ensure!(
+                    matches!(
+                        parent.kind,
+                        super::layout::NodeKind::Wan | super::layout::NodeKind::Intermediate
+                    ),
+                    "static attachment requires a managed WAN or intermediate parent"
+                );
+            }
+        }
         ensure!(
             self.protected_rows.is_empty() || !roots.is_empty(),
-            "protected rows require an independent static root"
+            "protected rows require a static source root"
         );
         Ok(())
     }
@@ -140,6 +173,8 @@ impl ExportOwnership {
             .sort_unstable_by(|a, b| a.node_id.cmp(&b.node_id));
         self.protected_rows.sort_unstable();
         self.protected_roots.sort_unstable();
+        self.shared_attachments
+            .sort_unstable_by(|a, b| a.root_id.cmp(&b.root_id));
     }
     pub(super) fn preserves(&self, old: &Self) -> anyhow::Result<()> {
         // Export IDs remain reserved, including when their subscriber is offline.
@@ -309,17 +344,18 @@ pub(super) fn merge_static(
         static_ids.keys().all(|id| !managed_ids.contains_key(id)),
         "static node ID collides with managed topology"
     );
-    let forest = network
-        .as_object_mut()
-        .context("managed network must be an object")?;
-    for (name, node) in roots {
-        ensure!(
-            !forest.contains_key(name),
-            "static root label collides with managed topology"
-        );
-        forest.insert(name.clone(), node.clone());
-    }
+    let shared = policy.is_some_and(|p| !p.shared_attachments.is_empty());
+    let managed_ids: HashSet<String> = if shared {
+        managed_ids.keys().map(|id| (*id).to_owned()).collect()
+    } else {
+        HashSet::new()
+    };
+    super::shared_static::merge(policy, roots, network)?;
+    super::migration::nodes(network)?;
     rows.extend_from_slice(input.rows);
+    if shared {
+        super::shared_static::check(rows, network, &managed_ids)?;
+    }
     Ok(())
 }
 
@@ -473,3 +509,7 @@ pub fn adopt_configured_legacy(
     );
     adopt_legacy(pair, rows, network, manifest, protected_roots)
 }
+
+#[cfg(test)]
+#[path = "shared_static_tests.rs"]
+mod shared_tests;

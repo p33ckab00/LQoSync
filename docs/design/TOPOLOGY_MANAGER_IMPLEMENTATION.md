@@ -19,7 +19,8 @@ Explicit DHCP override bindings now connect legacy rate entries to enrolled inde
 Imported dynamic bounds now preserve legacy factors, floors, and rounded rate behavior for source-read profiles.
 Explicit per-direction node minimums now have policy, hierarchy budget checks, compatibility export, and dormant migration checks.
 Configured collection now binds independent static inputs to a private source document, revision, and byte digest.
-Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
+Explicit static attachments and shared budget checks now support protected roots below managed WAN/intermediate nodes.
+Shared legacy snapshot adoption, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
 See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
@@ -1144,3 +1145,71 @@ The revision comparison uses the current receipt, not a separate permanent revis
 Shared managed/static branches, enrollment UI, schedules, TUI, service activation, and native planner proof remain unfinished.
 The automatic sync API exists; the service loop remains gated. This source binding does not prove live DPDK acceptance.
 See [the static input plan](../superpowers/plans/2026-11-17-topology-static-input.md).
+
+
+## Explicit shared static branches
+
+`ExportOwnership::shared_attachments` stores a list of `StaticAttachment` values.
+Each value maps a protected static `root_id` to an internal managed `parent_id`.
+A root can have one attachment. Several roots can use the same parent. The parent must be a catalog WAN or intermediate node.
+Subscriber groups remain leaves. Missing parents, unprotected roots, and duplicate attachment roots fail policy validation.
+
+The authoritative static source remains a forest. An attached root stays at the top of that source document.
+Publication inserts it below its managed parent. A protected source root without an attachment remains an independent output root.
+This separates explicit static ownership from its current hierarchy position. The source binding and revision checks remain mandatory.
+
+For example, add this policy field when `management-root` is already in `protected_roots`:
+
+```json
+"shared_attachments": [
+  { "root_id": "management-root", "parent_id": "wan1" }
+]
+```
+
+The parent ID identifies the managed catalog node. The exporter resolves durable ID and label aliases before insertion.
+Static root IDs, labels, capacities, minimums, descendants, and rows remain unchanged.
+An attachment never duplicates a static root across WANs. Distinct roots require distinct owned IDs and labels.
+Global node ID and label collision checks still apply. The combined tree must satisfy the JSON import depth limit.
+
+## Shared capacity checks
+
+The merge checks shared trees after managed export has floored capacities to whole Mbps.
+Attached static nodes also require positive whole-Mbps ceilings. Each child ceiling must fit its immediate parent.
+Publication rejects an oversized static child; it does not clip the source policy or alter subscriber speeds.
+Subscriber maximums can exceed the containing node ceiling. Their minimum guarantees must still fit the shared budget.
+
+The checker sums subscriber minimums once per circuit, across all its device rows.
+Device rows for one circuit must use the same parent and minimum/maximum rates.
+A shared circuit cannot span a shared node and another parent. A shared node cannot mix direct circuits and child groups.
+
+For each direction, an attached static node without an explicit minimum conservatively reserves its full ceiling.
+This also reserves capacity for an empty static branch. An explicit static minimum must cover the branch's descendant obligations.
+A managed node retains the current rule: absent explicit minimums contribute descendant obligations without a new implicit reservation.
+Native defaults and planner transformations still require separate admission proof before activation.
+
+The reverse traversal checks each explicit guarantee against its descendants and its exported ceiling.
+A child obligation counts once. The parent's explicit guarantee replaces a smaller descendant sum before propagation to the next ancestor.
+Static and managed siblings share the same parent and WAN budget. Download and upload checks are independent.
+Every sum uses checked integer arithmetic. A critical conflict blocks the whole candidate before compiler admission and registry commit.
+
+The checker does not change saved subscriber assignments or automatically run a rebalance.
+Existing placement stability and explicit rebalance scope remain in force. A new static reservation can therefore expose an existing assignment conflict.
+The operator must resolve the conflicting policy or use the separately scoped rebalance action.
+
+## Shared branch persistence and limits
+
+Schema 4 remains current. The new policy field defaults to empty and stays absent from serialized empty ownership policy.
+Existing documents keep their previous shape. Older strict readers reject a nonempty attachment field.
+The store canonicalizes attachments by root ID and persists them with the completed revision-checked settings edit.
+Reparenting changes hierarchy intent; it does not transfer or remove protected root ownership.
+
+Insertion visits the bounded hierarchy once. Budget checks use flat indexes and an iterative reverse traversal.
+Work and temporary storage grow with nodes, rows, and attachments. Independent-only policy skips the new shared budget pass.
+The existing source byte, source row, export byte, and depth limits remain in force. No production performance benchmark occurred.
+
+Configured collection and scratch compilation now exercise attached static policy with fresh dynamic observations.
+Compiler admission rejects changed or removed static attachment evidence. These checks do not establish live dataplane acceptance.
+The existing legacy adoption helpers still classify independent top-level static roots only.
+Shared legacy snapshot extraction and exact preservation need a separate migration slice.
+Enrollment UI, schedules, TUI, service activation, native implicit commitments, and planner/live proof remain unfinished.
+See [the shared branch plan](../superpowers/plans/2026-11-17-topology-shared-static.md).

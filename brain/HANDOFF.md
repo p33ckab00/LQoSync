@@ -8,6 +8,34 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T18:36:55+08:00 (Asia/Shanghai) — Shared static attachments complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `f104356`.
+- Commit `f104356` contains authoritative static-input binding. The push to `origin/lqosync3` succeeded. Remote tracking equals HEAD.
+- The shared branch slice remains local and uncommitted. Preserve unrelated operational edits and older notes in this file.
+- Added `shared_static.rs` and `shared_static_tests.rs`. Extended ownership, coordinator/compiler tests, and module registration.
+- Updated design, discussion, plan, Home, and session. No dependencies changed.
+- Optional `shared_attachments` maps unique protected roots to internal managed WAN/intermediate parent IDs.
+- Source documents remain forests. Publication resolves parent aliases and inserts roots without changing static nodes or rows.
+- Roots without attachments remain independent. Subscriber groups cannot receive children. Global IDs, labels, and depth checks remain mandatory.
+- Shared checks use exported whole-Mbps capacities and check both directions. Child ceilings must fit immediate parents.
+- Circuit minimums count once across device rows. Devices must agree on parent and rates. Mixed direct circuits/child groups fail.
+- An attached static node without an explicit minimum reserves its full ceiling, including when it has no rows.
+- Explicit guarantees must cover descendants. Reverse propagation counts each child obligation once. Shared obligations must fit parent/WAN budgets.
+- Subscriber maximums remain unchanged; a test keeps 50 Mbps below a 20/10 Mbps static node.
+- Schema 4 remains current. Empty fields preserve old serialization. Older strict readers reject nonempty attachment policy.
+- The store canonicalizes completed edits. Attachments survive restart. Reparenting does not remove protected root ownership.
+- Full suite: 1,157 passed, zero failed, 12 ignored. All 421 active topology tests pass. Added 12 active tests.
+- Format, Clippy with warnings denied, whitespace, and installed-library scratch compilation pass. Author review only; no production benchmark.
+- Logs: `.superpowers/sdd/2026-11-17-topology-shared-static/`. Proof: `full-verified.log`, `clippy-verified.log`, `format.log`, and `native-shared.log`.
+- No live source read, router write, native apply, service action, deployment, or mode switch occurred.
+- Placement weights and saved assignments remain unchanged. A new static reservation can expose an assignment conflict; no automatic rebalance occurs.
+- Native implicit managed commitments and planner/live proof remain gates. Source checks do not lock external editors across writes.
+- Next: exact shared legacy snapshot extraction and ownership adoption. Existing adoption helpers still classify independent roots only.
+- Enrollment UI, schedules, TUI, service activation, and direct schema-2 circuit ID migration remain unfinished.
+- Session: [[2026-11-17-topology-shared-static]]. Plan: `docs/superpowers/plans/2026-11-17-topology-shared-static.md`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T18:20:31+08:00 (Asia/Shanghai) — Independent static source complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `fa964c4`.

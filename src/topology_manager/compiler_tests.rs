@@ -59,6 +59,10 @@ fn static_pair(
     .unwrap();
     observed.reconciliation.registry.export_ownership = Some(ExportOwnership {
         protected_roots: vec!["static-root".into()],
+        shared_attachments: vec![super::super::ownership::StaticAttachment {
+            root_id: "static-root".into(),
+            parent_id: "wan1".into(),
+        }],
         ..Default::default()
     });
     let source = CurrentStatic::load(state).unwrap();
