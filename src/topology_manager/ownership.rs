@@ -230,7 +230,7 @@ impl<'a> AliasIndex<'a> {
 }
 
 /// Current operator-owned static configuration, never a previous managed output pair.
-/// The future runtime owner must establish the source and revision of these inputs.
+/// Configured runtime collection binds these inputs through `static_input::StaticBinding`.
 pub struct StaticInput<'a> {
     pub rows: &'a [crate::model::CsvRow],
     pub network: &'a serde_json::Value,

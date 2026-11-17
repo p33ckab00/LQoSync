@@ -5,7 +5,7 @@ use super::{
     model::{RegistryDocument, SourceKind},
     normalize::normalize_configured,
     observation::ObservationGate,
-    publication::{PreparedPair, prepare},
+    publication::{PreparedPair, prepare_with_static},
     reader::{ReadGuard, ReadPlan},
 };
 use crate::{
@@ -79,6 +79,13 @@ where
             issues.is_empty(),
             "unsupported configured source policies: {issues:?}"
         );
+        let static_source = super::static_input::required(registry)
+            .then(|| {
+                super::static_input::CurrentStatic::load(std::path::Path::new(
+                    &cfg.runtime.state_dir,
+                ))
+            })
+            .transpose()?;
         let source_filters = super::preflight::source_filter_digest(cfg, registry)?;
         let catalog = registry
             .catalog
@@ -222,7 +229,9 @@ where
         );
         let authorized = authorize_configured(registry, registry.revision, generation, current)?
             .reconcile(&mut self.gate)?;
-        let mut pair = prepare(authorized)?;
+        let mut pair = prepare_with_static(authorized, static_source.as_ref().map(|s| s.input()))?;
+        pair.static_source = static_source.map(|s| s.binding);
+        pair.check_fresh()?;
         pair.source_filters = source_filters;
         Ok(pair)
     }

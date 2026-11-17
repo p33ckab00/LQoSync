@@ -512,6 +512,20 @@ where
             "out-of-order topology observation generation"
         );
         pair.check_source_filters(&self.cfg)?;
+        {
+            let tracker = self
+                .write_tracker
+                .as_ref()
+                .context("receipt owner is missing")?
+                .lock()
+                .map_err(|_| anyhow::anyhow!("write receipt owner is poisoned"))?;
+            pair.check_static_previous(
+                tracker
+                    .current()
+                    .and_then(|r| r.meta.topology.as_ref())
+                    .and_then(|t| t.static_source.as_ref()),
+            )?;
+        }
         compiler.check_config(&self.cfg.libreqos)?;
         let compiled = compiler.compile(pair).await?;
         self.publish_compiled(compiled, now)

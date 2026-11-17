@@ -531,3 +531,118 @@ async fn quantized_parent_ceiling_must_cover_child_guarantees_and_subscriber_min
         "{error:#}"
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn static_revision_conflicts_block_before_registry_or_output_changes() {
+    use crate::topology_manager::{ownership::ExportOwnership, static_input::CurrentStatic};
+    let root = tempfile::tempdir().unwrap();
+    let live = root.path().join("live");
+    let hub = crate::system_health::Hub::default();
+    let mut store = seeded_store(root.path());
+    let mut tracker = crate::write_receipt::Tracker::load(root.path()).unwrap();
+    let source_path = root.path().join("topology-manager/static-input.json");
+    for (generation, revision, capacity, succeeds) in [
+        (1, 2, 20, true),
+        (2, 1, 30, false),
+        (3, 2, 30, false),
+        (4, 3, 30, true),
+        (5, 4, 40, false),
+    ] {
+        let document = serde_json::json!({"schema_version":1,"revision":revision,"rows":[],
+            "network":{"Static root":{"id":"static-root","type":"site",
+                "downloadBandwidthMbps":capacity,"uploadBandwidthMbps":20,"children":{}}}});
+        crate::files::write_secret(&source_path, &serde_json::to_vec(&document).unwrap()).unwrap();
+        let source = CurrentStatic::load(root.path()).unwrap();
+        let mut observed = input(0);
+        observed.reconciliation.registry = store.document().unwrap().clone();
+        observed.reconciliation.generation = generation;
+        observed.reconciliation.registry.export_ownership = Some(ExportOwnership {
+            protected_roots: vec!["static-root".into()],
+            ..Default::default()
+        });
+        let mut pair = prepare_with_static(observed, Some(source.input())).unwrap();
+        pair.static_source = Some(source.binding);
+        let pair = admitted(pair);
+        if generation == 5 {
+            let mut changed = document.clone();
+            changed["revision"] = serde_json::json!(5);
+            crate::files::write_secret(&source_path, &serde_json::to_vec(&changed).unwrap())
+                .unwrap();
+        }
+        let before = store.document().unwrap().revision;
+        let old_output = std::fs::read(live.join("network.json")).ok();
+        let result = pair.publish(
+            &mut store,
+            &mut tracker,
+            PublishRequest {
+                directory: &live,
+                meta: metadata(),
+                now: generation,
+                hub: &hub,
+            },
+        );
+        assert_eq!(result.is_ok(), succeeds);
+        if succeeds {
+            assert!(result.unwrap().error.is_none());
+            assert_eq!(
+                tracker
+                    .current()
+                    .unwrap()
+                    .meta
+                    .topology
+                    .as_ref()
+                    .unwrap()
+                    .static_source
+                    .as_ref()
+                    .unwrap()
+                    .revision,
+                revision
+            );
+        } else {
+            assert_eq!(store.document().unwrap().revision, before);
+            assert_eq!(std::fs::read(live.join("network.json")).ok(), old_output);
+        }
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn unbound_static_preview_cannot_publish_or_commit_registry_intent() {
+    use crate::topology_manager::ownership::{ExportOwnership, StaticInput};
+    let root = tempfile::tempdir().unwrap();
+    let mut store = seeded_store(root.path());
+    let mut tracker = crate::write_receipt::Tracker::load(root.path()).unwrap();
+    let mut observed = input(0);
+    observed.reconciliation.registry = store.document().unwrap().clone();
+    observed.reconciliation.registry.export_ownership = Some(ExportOwnership {
+        protected_roots: vec!["static-root".into()],
+        ..Default::default()
+    });
+    let network = serde_json::json!({"Static root":{"id":"static-root","type":"site",
+        "downloadBandwidthMbps":20,"uploadBandwidthMbps":20,"children":{}}});
+    let pair = prepare_with_static(
+        observed,
+        Some(StaticInput {
+            rows: &[],
+            network: &network,
+        }),
+    )
+    .unwrap();
+    let pair = admitted(pair);
+    let before = store.document().unwrap().revision;
+    assert!(
+        pair.publish(
+            &mut store,
+            &mut tracker,
+            PublishRequest {
+                directory: &root.path().join("live"),
+                meta: metadata(),
+                now: 1,
+                hub: &crate::system_health::Hub::default()
+            }
+        )
+        .is_err()
+    );
+    assert_eq!(store.document().unwrap().revision, before);
+    assert!(tracker.current().is_none());
+    assert!(!root.path().join("live/network.json").exists());
+}

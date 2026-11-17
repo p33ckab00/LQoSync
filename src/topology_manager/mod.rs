@@ -38,3 +38,5 @@ pub mod preflight;
 mod dhcp_overrides;
 
 pub mod legacy_bounds;
+
+pub mod static_input;

@@ -20,6 +20,7 @@ pub struct PreparedPair {
     pub(super) device_identities: HashMap<String, super::model::IdentityRef>,
     generation: u64,
     pub(super) compiler: Option<super::compiler::CompilerBinding>,
+    pub(super) static_source: Option<super::static_input::StaticBinding>,
     pub(super) source_filters: Option<String>,
     expires: Instant,
     rows: Vec<CsvRow>,
@@ -38,9 +39,25 @@ impl PreparedPair {
     pub(crate) fn check_source_filters(&self, cfg: &crate::config::Config) -> anyhow::Result<()> {
         self.check_fresh()?;
         ensure!(
+            !super::static_input::required(&self.candidate) || self.static_source.is_some(),
+            "protected static input lacks authoritative source proof"
+        );
+        if let Some(source) = &self.static_source {
+            source.check_state(std::path::Path::new(&cfg.runtime.state_dir))?;
+        }
+        ensure!(
             self.source_filters == super::preflight::source_filter_digest(cfg, &self.candidate)?,
             "prepared source policies differ from current settings or lack configured collection proof"
         );
+        Ok(())
+    }
+    pub(crate) fn check_static_previous(
+        &self,
+        previous: Option<&super::static_input::StaticBinding>,
+    ) -> anyhow::Result<()> {
+        if let Some(source) = &self.static_source {
+            source.check_previous(previous)?;
+        }
         Ok(())
     }
     pub(super) fn publish_admitted(
@@ -49,6 +66,10 @@ impl PreparedPair {
         tracker: &mut crate::write_receipt::Tracker,
         mut request: PublishRequest<'_>,
     ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        ensure!(
+            !super::static_input::required(&self.candidate) || self.static_source.is_some(),
+            "protected static input lacks authoritative source proof"
+        );
         if super::runtime::topology_owns(store.owner_directory())? {
             let binding = self
                 .compiler
@@ -81,6 +102,16 @@ impl PreparedPair {
             Instant::now() < self.expires,
             "source evidence expired during reconciliation"
         );
+        self.check_fresh()?;
+        if let Some(source) = &self.static_source {
+            source.check_state(store.owner_directory())?;
+            source.check_previous(
+                tracker
+                    .current()
+                    .and_then(|r| r.meta.topology.as_ref())
+                    .and_then(|t| t.static_source.as_ref()),
+            )?;
+        }
         let expected = self.candidate.revision;
         let committed = store.commit(expected, self.candidate)?;
         ensure!(
@@ -89,6 +120,7 @@ impl PreparedPair {
         );
         request.meta.topology = Some(crate::write_receipt::TopologyContext {
             compiler: self.compiler.clone(),
+            static_source: self.static_source.clone(),
             policy_revision: committed.revision,
             observation_generation: self.generation,
             registry_digest: crate::write_receipt::sha256(&serde_json::to_vec(store.document()?)?),
@@ -104,6 +136,13 @@ impl PreparedPair {
         if let Some(binding) = &self.compiler {
             binding.check_current()?;
         }
+        if let Some(source) = &self.static_source {
+            source.check_current()?;
+        }
+        ensure!(
+            Instant::now() < self.expires,
+            "source evidence expired during final input checks"
+        );
         Ok(tracker.write(&outputs, request.meta, request.now, request.hub))
     }
     pub fn node_export_adjustments(&self) -> &[NodeExportAdjustment] {
@@ -119,6 +158,9 @@ impl PreparedPair {
         self.expires
     }
     pub(super) fn check_fresh(&self) -> anyhow::Result<()> {
+        if let Some(source) = &self.static_source {
+            source.check_current()?;
+        }
         ensure!(
             Instant::now() < self.expires,
             "source evidence expired before admission"
@@ -392,6 +434,7 @@ pub fn prepare_with_static(
         node_adjustments,
         compiler: None,
         source_filters: None,
+        static_source: None,
         device_identities,
         candidate,
         generation: evaluation.generation,

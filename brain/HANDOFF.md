@@ -8,6 +8,34 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T18:20:31+08:00 (Asia/Shanghai) — Independent static source complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `fa964c4`.
+- Commit `fa964c4` contains explicit node minimums. The push to `origin/lqosync3` succeeded. Remote tracking equals HEAD.
+- The static-input slice remains local and uncommitted. Preserve unrelated operational edits in this worktree and in this file.
+- Added `static_input.rs`. Extended coordinator, publication, runner, receipts, compiler tests, apply-evidence tests, and receipt tests.
+- Updated design, discussion, plan, Home, and session. No dependencies changed.
+- Configured collection reads a separate private `topology-manager/static-input.json` only for declared protected ownership.
+- The document contains schema version 1, a positive revision, rows, and the compatibility forest. Generated output never supplies this source.
+- Reads require a private regular file and directory owned by the current user. Byte limit: 16 MiB. Decoder limit: 100,000 rows.
+- Existing checks require exact protected rows and independent roots. Dynamic subscriber endpoints still require current observations.
+- Source path, revision, and digest follow prepared/compiled pairs and receipts. Raw static previews cannot publish.
+- Missing source fails before router connection. Drift during compile or before publication fails. Wrong runtime owner paths fail.
+- The runner rejects revision conflicts before compile. Publication repeats the check before registry commit.
+- Against the current receipt, lower revisions and changed bytes at the same revision fail. Equal output still gets a new receipt for a new binding.
+- Old receipts without the optional field load. Older strict readers reject a nonempty new field. Receipt version remains 1.
+- Apply evidence includes the entire context. Tests reject reuse after static path, revision, or digest changes.
+- Full suite: 1,145 passed, zero failed, 12 ignored. All 409 active topology tests pass. Added eight active tests.
+- Format, Clippy with warnings denied, whitespace, and installed-library scratch compilation pass. Author review only; no production benchmark.
+- Logs: `.superpowers/sdd/2026-11-17-topology-static-input/`. Final proof: `full-verified.log`, `clippy-verified.log`, and `native-static.log`.
+- No live source read, router write, native apply, service action, deployment, or mode switch occurred.
+- Boundary checks do not lock an external editor across writes. A late source change can block file intent after a registry commit.
+- Revision continuity uses the current receipt, not a permanent separate ledger. Existing recovery rules remain in use.
+- Next: shared managed/static branch ownership and capacity budgets. Enrollment UI, schedules, TUI, service activation, and native planner/live proof remain gates.
+- Direct schema-2 circuit activation still needs a durable device-ID length migration. Current publication remains legacy/manual.
+- Session: [[2026-11-17-topology-static-input]]. Plan: `docs/superpowers/plans/2026-11-17-topology-static-input.md`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T17:56:39+08:00 (Asia/Shanghai) — Explicit node minimums complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `e21f11d`.

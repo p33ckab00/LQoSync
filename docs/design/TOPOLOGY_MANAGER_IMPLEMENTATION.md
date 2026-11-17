@@ -18,6 +18,7 @@ Fresh source normalization applies global/router exclusions and binds prepared o
 Explicit DHCP override bindings now connect legacy rate entries to enrolled independent subscriber references.
 Imported dynamic bounds now preserve legacy factors, floors, and rounded rate behavior for source-read profiles.
 Explicit per-direction node minimums now have policy, hierarchy budget checks, compatibility export, and dormant migration checks.
+Configured collection now binds independent static inputs to a private source document, revision, and byte digest.
 Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
@@ -1081,3 +1082,65 @@ See [the node minimum plan](../superpowers/plans/2026-11-17-topology-node-minimu
 The schema-2 writer check in this slice covers nodes only.
 Generated manager device IDs exceed that writer's 64-character ID limit.
 Current manager publication uses the legacy/manual pair. A future direct schema-2 path requires a compatible identity migration before activation.
+
+
+## Authoritative independent static input
+
+Configured collection reads `<state_dir>/topology-manager/static-input.json` when export ownership declares protected rows or roots.
+This file is separate from generated output and registry identity policy. Collection never creates it from the previous pair.
+Only the explicitly owned independent static forest belongs in this source. Dynamic subscriber endpoints still require current RouterOS observations.
+
+The source uses one JSON document with required `schema_version`, `revision`, `rows`, and `network` fields.
+Schema version 1 requires a positive revision. Rows use the existing `CsvRow` column names. The network uses the compatibility forest format.
+One document prevents a source update from mixing separate CSV and network generations.
+
+For example, this document supplies one independent static root and no static endpoints:
+
+```json
+{
+  "schema_version": 1,
+  "revision": 1,
+  "rows": [],
+  "network": {
+    "Management": {
+      "id": "management-root",
+      "type": "site",
+      "downloadBandwidthMbps": 20,
+      "uploadBandwidthMbps": 20,
+      "children": {}
+    }
+  }
+}
+```
+
+The registry must explicitly protect `management-root` before collection accepts this example.
+Every supplied row and root must match protected ownership. Missing entries, extra entries, collisions, or invalid endpoints block publication.
+The existing independent-tree validation remains mandatory. Static rows cannot borrow managed parents.
+
+The loader requires a private directory and regular file owned by the current user. It rejects a symlink, unsafe permissions, or oversized source.
+The source byte limit is 16 MiB. The row decoder stops above 100,000 entries before it builds the complete row vector.
+Existing combined export limits remain separate.
+Missing or invalid source files fail before router connections. Semantic ownership checks also run before pair admission.
+The automatic collection path rereads the current source for every batch. It does not cache static endpoints between batches.
+
+`StaticBinding` records the absolute source path, revision, and SHA-256 digest of the complete source bytes.
+Prepared and compiled pairs retain this binding. Admission and publication checks reread the file and verify the digest.
+Runtime publication requires the configured owner's source path. A raw `prepare_with_static` preview has no authoritative proof and cannot publish.
+
+The runner checks revision continuity before the expensive compiler call. Publication repeats this check before registry commit.
+Against the current receipt, a lower revision or different path fails. Changed bytes at the same revision also fail.
+Every source edit, including whitespace, requires a higher revision. Replace the complete document atomically with mode 0600.
+
+Write receipts store the optional binding. A new binding creates a new receipt even when generated output bytes are unchanged.
+This retains the current revision across restart. Existing receipts without the field still load.
+The receipt version remains 1. Older strict readers reject a nonempty new field; do not downgrade while such a receipt is active.
+Apply evidence retains the complete context. Changed source path, revision, or digest cannot reuse previous evidence.
+
+Checks run at admission and publication boundaries. They do not lock an external editor across output writes.
+A detected change before registry commit leaves policy and output unchanged. A later detected change blocks the file intent after the policy commit.
+The next attempt must collect current dynamic evidence and prepare a new pair. Existing recovery rules still apply to interrupted output writes.
+The revision comparison uses the current receipt, not a separate permanent revision ledger.
+
+Shared managed/static branches, enrollment UI, schedules, TUI, service activation, and native planner proof remain unfinished.
+The automatic sync API exists; the service loop remains gated. This source binding does not prove live DPDK acceptance.
+See [the static input plan](../superpowers/plans/2026-11-17-topology-static-input.md).

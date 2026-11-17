@@ -28,6 +28,8 @@ pub struct FileReceipt {
 #[serde(deny_unknown_fields)]
 pub struct TopologyContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub static_source: Option<crate::topology_manager::static_input::StaticBinding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compiler: Option<crate::topology_manager::compiler::CompilerBinding>,
     pub policy_revision: u64,
     pub observation_generation: u64,
@@ -35,7 +37,8 @@ pub struct TopologyContext {
 }
 impl TopologyContext {
     fn valid(&self) -> bool {
-        self.compiler.as_ref().is_none_or(|b| b.valid())
+        self.static_source.as_ref().is_none_or(|b| b.valid())
+            && self.compiler.as_ref().is_none_or(|b| b.valid())
             && self.observation_generation > 0
             && self.registry_digest.len() == 64
             && self.registry_digest.bytes().all(|b| b.is_ascii_hexdigit())
@@ -496,6 +499,15 @@ impl Tracker {
                     .as_ref()
                     .and_then(|c| c.compiler.as_ref())
                     == meta.topology.as_ref().and_then(|c| c.compiler.as_ref())
+                    && receipt
+                        .meta
+                        .topology
+                        .as_ref()
+                        .and_then(|c| c.static_source.as_ref())
+                        == meta
+                            .topology
+                            .as_ref()
+                            .and_then(|c| c.static_source.as_ref())
                     && receipt.files.len() == outputs.len()
                     && receipt
                         .files

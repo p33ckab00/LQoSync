@@ -38,6 +38,61 @@ pub(crate) async fn compiled(
     let code = script(&pair);
     compiler.compile_code(pair, &code).await.unwrap()
 }
+
+fn static_pair(
+    state: &Path,
+    mut observed: super::super::identity::AuthorizedReconciliation,
+) -> PreparedPair {
+    use super::super::{ownership::ExportOwnership, static_input::CurrentStatic};
+    let directory = state.join("topology-manager");
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&directory)
+        .unwrap();
+    let document = serde_json::json!({"schema_version":1,"revision":1,"rows":[],
+        "network":{"Static root":{"id":"static-root","type":"site",
+            "downloadBandwidthMbps":20,"uploadBandwidthMbps":20,"children":{}}}});
+    crate::files::write_secret(
+        &directory.join("static-input.json"),
+        &serde_json::to_vec(&document).unwrap(),
+    )
+    .unwrap();
+    observed.reconciliation.registry.export_ownership = Some(ExportOwnership {
+        protected_roots: vec!["static-root".into()],
+        ..Default::default()
+    });
+    let source = CurrentStatic::load(state).unwrap();
+    let mut pair =
+        super::super::publication::prepare_with_static(observed, Some(source.input())).unwrap();
+    pair.static_source = Some(source.binding);
+    pair
+}
+
+#[tokio::test]
+async fn static_source_drift_during_compilation_or_after_admission_invalidates_the_pair() {
+    let (root, _cfg, mut compiler) = fixture();
+    let pair = static_pair(root.path(), input(1));
+    let compiled = compiled(&mut compiler, pair).await;
+    compiled.check().unwrap();
+    let path = root.path().join("topology-manager/static-input.json");
+    let bytes = std::fs::read(&path).unwrap();
+    let mut changed = bytes.clone();
+    changed.push(b' ');
+    crate::files::write_secret(&path, &changed).unwrap();
+    assert!(compiled.check().is_err());
+    crate::files::write_secret(&path, &bytes).unwrap();
+    let (root2, _cfg2, mut compiler2) = fixture();
+    let pair = static_pair(root2.path(), input(1));
+    let code = format!("import time\ntime.sleep(0.2)\n{}", script(&pair));
+    let path = root2.path().join("topology-manager/static-input.json");
+    let change = async move {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        crate::files::write_secret(&path, &changed).unwrap();
+    };
+    let (result, ()) = tokio::join!(compiler2.compile_code(pair, &code), change);
+    assert!(result.is_err());
+}
+
 #[test]
 fn compiler_snapshot_preserves_exact_bytes_without_a_text_newline() {
     let (_root, cfg, compiler) = fixture();
@@ -132,7 +187,10 @@ async fn installed_binding_preserves_the_pair_inside_the_kernel_boundary() {
             node.minimum.down = Some(2_000_000);
         }
     }
-    let compiled = compiler.compile(prepare(observed).unwrap()).await.unwrap();
+    let compiled = compiler
+        .compile(static_pair(root.path(), observed))
+        .await
+        .unwrap();
     compiled.check().unwrap();
     println!(
         "Installed compiler preserves the pair; sockets and outside content writes are blocked."

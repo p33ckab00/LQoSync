@@ -1004,3 +1004,93 @@ async fn imported_bounds_follow_fresh_profile_rates_without_stored_speed_or_endp
         ("23", "7")
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn protected_static_source_is_current_and_bound_to_the_configured_owner() {
+    use crate::topology_manager::ownership::ExportOwnership;
+    use std::os::unix::fs::PermissionsExt;
+    let (mut cfg, mut registry, fake, mut coordinator) = fixture();
+    let state = tempfile::tempdir().unwrap();
+    cfg.runtime.state_dir = state.path().to_str().unwrap().into();
+    let row = crate::model::CsvRow {
+        circuit_id: "static-circuit".into(),
+        device_id: "static-device".into(),
+        circuit_name: "Management".into(),
+        device_name: "Management device".into(),
+        parent_node: "Static root".into(),
+        parent_node_id: "static-root".into(),
+        ipv4: "192.0.2.240".into(),
+        download_min: "1".into(),
+        upload_min: "1".into(),
+        download_max: "5".into(),
+        upload_max: "5".into(),
+        ..Default::default()
+    };
+    registry.export_ownership = Some(ExportOwnership {
+        protected_rows: vec![crate::topology_manager::migration::RowIdentity {
+            circuit_id: row.circuit_id.clone(),
+            device_id: row.device_id.clone(),
+        }],
+        protected_roots: vec!["static-root".into()],
+        ..Default::default()
+    });
+    assert!(
+        coordinator
+            .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+            .await
+            .is_err()
+    );
+    assert_eq!(fake.connects.load(Ordering::SeqCst), 0);
+    let dir = state.path().join("topology-manager");
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let path = dir.join("static-input.json");
+    let mut document = serde_json::json!({"schema_version":1,"revision":1,"rows":[row],
+        "network":{"Static root":{"id":"static-root","type":"site",
+            "downloadBandwidthMbps":20,"uploadBandwidthMbps":20,"children":{}}}});
+    crate::files::write_secret(&path, &serde_json::to_vec(&document).unwrap()).unwrap();
+    let first = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(first.network()["Static root"]["downloadBandwidthMbps"], 20);
+    assert_eq!(first.rows().len(), 2);
+    first.check_source_filters(&cfg).unwrap();
+    let other = tempfile::tempdir().unwrap();
+    let mut changed_cfg = cfg.clone();
+    changed_cfg.runtime.state_dir = other.path().to_str().unwrap().into();
+    assert!(first.check_source_filters(&changed_cfg).is_err());
+    document["revision"] = serde_json::json!(2);
+    document["network"]["Static root"]["downloadBandwidthMbps"] = serde_json::json!(30);
+    crate::files::write_secret(&path, &serde_json::to_vec(&document).unwrap()).unwrap();
+    assert!(first.check_fresh().is_err());
+    let next = coordinator
+        .prepare(&cfg, &first.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(next.network()["Static root"]["downloadBandwidthMbps"], 30);
+    assert_eq!(next.static_source.as_ref().unwrap().revision, 2);
+    fake.data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .insert(Table::PppActive, vec![]);
+    let offline = coordinator
+        .prepare(&cfg, &next.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(offline.rows().len(), 1);
+    assert_eq!(offline.rows()[0].device_id, "static-device");
+    assert_eq!(offline.rows()[0].ipv4, "192.0.2.240");
+    document["network"] = serde_json::json!({});
+    document["revision"] = serde_json::json!(3);
+    crate::files::write_secret(&path, &serde_json::to_vec(&document).unwrap()).unwrap();
+    assert!(
+        coordinator
+            .prepare(&cfg, &next.candidate, 0, Duration::from_secs(10))
+            .await
+            .is_err()
+    );
+}

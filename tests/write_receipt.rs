@@ -274,6 +274,25 @@ fn old_metadata_has_no_invented_topology_context_and_invalid_context_cannot_load
     value["meta"]["topology"] = serde_json::json!({"policy_revision":1,"observation_generation":0,"registry_digest":"invalid"});
     std::fs::write(&path, value.to_string()).unwrap();
     assert!(Tracker::load(d.path()).is_err());
+    value["meta"]["topology"] = serde_json::json!({"policy_revision":1,"observation_generation":1,"registry_digest":"a".repeat(64)});
+    std::fs::write(&path, value.to_string()).unwrap();
+    assert!(
+        Tracker::load(d.path())
+            .unwrap()
+            .current()
+            .unwrap()
+            .meta
+            .topology
+            .as_ref()
+            .unwrap()
+            .static_source
+            .is_none()
+    );
+    value["meta"]["topology"]["static_source"] = serde_json::json!({
+        "path":"/owner/topology-manager/static-input.json","revision":0,"digest":"b".repeat(64)
+    });
+    std::fs::write(&path, value.to_string()).unwrap();
+    assert!(Tracker::load(d.path()).is_err());
 }
 
 #[test]
@@ -286,6 +305,7 @@ fn compiler_binding_changes_create_new_receipts_without_replacing_matching_bytes
     let legacy = tracker.current().unwrap().write_id.clone();
     let mut bound = meta();
     bound.topology = Some(lqosync3::write_receipt::TopologyContext {
+        static_source: None,
         policy_revision: 1,
         observation_generation: 1,
         registry_digest: "a".repeat(64),
@@ -320,4 +340,53 @@ fn compiler_binding_changes_create_new_receipts_without_replacing_matching_bytes
         .digest = "c".repeat(64);
     tracker.write(&out, bound, 13, &hub);
     assert_ne!(tracker.current().unwrap().write_id, first);
+}
+
+#[test]
+fn unchanged_outputs_keep_the_current_static_source_revision_after_restart() {
+    let d = tempfile::tempdir().unwrap();
+    let out = outputs(d.path());
+    let hub = Hub::default();
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    let mut bound = meta();
+    bound.topology = Some(lqosync3::write_receipt::TopologyContext {
+        compiler: None,
+        static_source: Some(lqosync3::topology_manager::static_input::StaticBinding {
+            path: "/owner/topology-manager/static-input.json".into(),
+            revision: 1,
+            digest: "a".repeat(64),
+        }),
+        policy_revision: 1,
+        observation_generation: 1,
+        registry_digest: "b".repeat(64),
+    });
+    assert!(tracker.write(&out, bound.clone(), 10, &hub).error.is_none());
+    let first = tracker.current().unwrap().write_id.clone();
+    bound
+        .topology
+        .as_mut()
+        .unwrap()
+        .static_source
+        .as_mut()
+        .unwrap()
+        .revision = 2;
+    let result = tracker.write(&out, bound, 11, &hub);
+    assert!(!result.changed && result.error.is_none());
+    assert_ne!(tracker.current().unwrap().write_id, first);
+    drop(tracker);
+    let tracker = Tracker::load(d.path()).unwrap();
+    assert_eq!(
+        tracker
+            .current()
+            .unwrap()
+            .meta
+            .topology
+            .as_ref()
+            .unwrap()
+            .static_source
+            .as_ref()
+            .unwrap()
+            .revision,
+        2
+    );
 }

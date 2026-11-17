@@ -644,6 +644,11 @@ mod tests {
         let (_dir, tracker, _prepared, artifacts, applied, path) = fixture();
         let mut receipt = tracker.current().unwrap().clone();
         receipt.meta.topology = Some(crate::write_receipt::TopologyContext {
+            static_source: Some(crate::topology_manager::static_input::StaticBinding {
+                path: "/owner/topology-manager/static-input.json".into(),
+                revision: 1,
+                digest: "a".repeat(64),
+            }),
             compiler: None,
             policy_revision: 8,
             observation_generation: 4,
@@ -655,13 +660,18 @@ mod tests {
         )
         .unwrap();
         assert!(proof.matches(&receipt));
-        for field in 0..3 {
+        for field in 0..6 {
             let mut changed = receipt.clone();
             let context = changed.meta.topology.as_mut().unwrap();
             match field {
                 0 => context.policy_revision += 1,
                 1 => context.observation_generation += 1,
-                _ => context.registry_digest = "c".repeat(64),
+                2 => context.registry_digest = "c".repeat(64),
+                3 => context.static_source.as_mut().unwrap().revision += 1,
+                4 => context.static_source.as_mut().unwrap().digest = "d".repeat(64),
+                _ => {
+                    context.static_source.as_mut().unwrap().path = "/other/static-input.json".into()
+                }
             }
             assert!(!proof.matches(&changed));
             assert!(
@@ -732,6 +742,7 @@ mod tests {
         let (_dir, tracker, _prepared, artifacts, applied, path) = fixture();
         let mut receipt = tracker.current().unwrap().clone();
         receipt.meta.topology = Some(crate::write_receipt::TopologyContext {
+            static_source: None,
             policy_revision: 1,
             observation_generation: 1,
             registry_digest: "a".repeat(64),

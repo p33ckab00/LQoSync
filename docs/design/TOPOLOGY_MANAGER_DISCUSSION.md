@@ -1056,3 +1056,18 @@ Changed or missing minimums remain conflicts. Capacity floors do not replace gua
 The installed-library scratch compiler preserves an explicit minimum without live writes.
 Implicit native defaults, planner admission, static-input authority, and live acceptance remain separate requirements.
 The Topology Manager TUI, schedules, and service activation remain unfinished.
+
+
+## Independent static source implementation, 2026-11-17
+
+Configured collection now reads explicit independent static policy from a private revisioned source document.
+It never uses the previous generated pair as that source. Current dynamic subscribers still come from fresh router reads.
+The source must exactly match protected row and root ownership. Shared branches under managed nodes remain unsupported.
+
+A source binding follows the pair through compilation, publication, write receipts, and apply evidence.
+Changed or deleted source files block admission. Revision rollback and changed bytes without a new revision block publication.
+A raw static preview cannot publish without source proof. New source revisions receive new receipts even when output bytes remain equal.
+The existing automated sync path requires no per-batch operator approval. A missing or conflicting source blocks the batch.
+
+The source contract does not add an editor or activate the service loop.
+Schedules, TUI, enrollment UI, shared branches, native planner bounds, and live acceptance remain separate work.
