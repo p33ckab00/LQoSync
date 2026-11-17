@@ -135,7 +135,7 @@ fn source_path(state: &Path) -> anyhow::Result<PathBuf> {
     super::store::check_private_directory(&parent)?;
     Ok(std::fs::canonicalize(parent)?.join("static-input.json"))
 }
-fn read(path: &Path) -> anyhow::Result<Vec<u8>> {
+pub(super) fn read(path: &Path) -> anyhow::Result<Vec<u8>> {
     super::store::check_private_directory(
         path.parent()
             .context("static source directory is missing")?,

@@ -12,6 +12,7 @@ struct Owner {
     writer: String,
 }
 pub(crate) fn topology_owns(state: &Path) -> anyhow::Result<bool> {
+    super::staging::check_ready(state)?;
     let directory = state.join("topology-manager");
     match std::fs::symlink_metadata(&directory) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),

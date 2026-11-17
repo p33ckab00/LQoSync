@@ -1102,3 +1102,20 @@ Normal fresh collection supplies returning subscribers' current IP/MAC while dur
 
 This stage does not install files, commit policy, select the writer, or activate the service.
 Controlled migration staging and recovery remain the next gate. Native planner/live proof, enrollment UI, schedules, and TUI remain separate work.
+
+## Controlled migration transaction implementation, 2026-11-17
+
+A new first-adoption API stages the sealed shared adoption proposal under the existing instance lock.
+It confirms a registry backup and saves a bounded private journal before source or registry installation.
+The journal binds its owner directory, base policy, target policy, and exact static source with a SHA-256 digest.
+
+Recovery installs only recognized content. Unknown source bytes, owner records, or registry changes block the transaction without replacement.
+Ordinary edits and runtime publication reject pending migrations. A temporary owner marker also blocks earlier strict runtime writers.
+No runtime owner is selected on completion. The normal publication path still requires fresh observations and compiler admission.
+
+The first-adoption API requires no existing source or active topology owner.
+Cancellation is available before source installation. Later interruptions require forward recovery, with no duplicate registry revision.
+The transaction saves explicit static policy only. It does not save current dynamic subscriber endpoints for later publication.
+
+This slice adds no TUI, service-start controller, routing, live apply, or service activation.
+The enrollment controller, native planner/live proof, schedules, and TUI remain separate work.

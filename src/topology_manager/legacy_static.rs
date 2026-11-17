@@ -14,8 +14,21 @@ pub struct StaticAdoption {
     pub registry: RegistryDocument,
     rows: Vec<CsvRow>,
     network: Value,
+    seal: String,
+    expires: tokio::time::Instant,
 }
 impl StaticAdoption {
+    pub(super) fn check_seal(&self) -> anyhow::Result<()> {
+        ensure!(
+            tokio::time::Instant::now() < self.expires,
+            "shared adoption evidence expired"
+        );
+        ensure!(
+            self.seal == crate::write_receipt::sha256(&serde_json::to_vec(&self.registry)?),
+            "shared adoption registry changed after proof"
+        );
+        Ok(())
+    }
     pub fn static_input(&self) -> StaticInput<'_> {
         StaticInput {
             rows: &self.rows,
@@ -287,6 +300,8 @@ pub fn adopt(
     super::admission::check_pair_size(csv.len(), network_text.len())?;
     crate::import_evidence::ExpectedImport::new(&network_text, &aliased_rows)?;
     let proposal = StaticAdoption {
+        seal: crate::write_receipt::sha256(&serde_json::to_vec(&registry)?),
+        expires: pair.deadline(),
         registry,
         rows: static_rows,
         network: static_tree,

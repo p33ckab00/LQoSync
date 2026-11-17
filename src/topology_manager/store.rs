@@ -81,6 +81,7 @@ impl RegistryStore {
 
     /// Save the exact confirmed disk document. Never replace an existing backup.
     pub fn backup_current(&mut self) -> anyhow::Result<BackupId> {
+        self._lock.check(self._lock.directory())?;
         let current = self.document()?;
         let disk = load(&self.path);
         let loaded = match disk {
@@ -105,7 +106,7 @@ impl RegistryStore {
                 existing.bytes == loaded.bytes,
                 "existing registry backup conflicts with current bytes"
             ),
-            None => write_backup(&path, &loaded.bytes)?,
+            None => write_new(&path, &loaded.bytes)?,
         }
         let verified = load(&path)?.context("registry backup is missing")?;
         ensure!(
@@ -213,7 +214,25 @@ impl RegistryStore {
     fn commit_inner(
         &mut self,
         expected_revision: u64,
-        mut candidate: RegistryDocument,
+        candidate: RegistryDocument,
+        write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
+    ) -> anyhow::Result<CommitOutcome> {
+        super::staging::check_ready(self.owner_directory())?;
+        self.commit_staged_inner(expected_revision, candidate, write)
+    }
+
+    pub(super) fn commit_staged(
+        &mut self,
+        expected_revision: u64,
+        candidate: RegistryDocument,
+    ) -> anyhow::Result<CommitOutcome> {
+        self.commit_staged_inner(expected_revision, candidate, crate::files::write_secret)
+    }
+
+    fn commit_staged_inner(
+        &mut self,
+        expected_revision: u64,
+        candidate: RegistryDocument,
         write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
     ) -> anyhow::Result<CommitOutcome> {
         self._lock.check(self._lock.directory())?;
@@ -240,6 +259,36 @@ impl RegistryStore {
             }
         }
 
+        let candidate = self.preview(expected_revision, candidate)?;
+        if candidate.revision == expected_revision {
+            return Ok(CommitOutcome {
+                revision: expected_revision,
+                changed: false,
+            });
+        }
+        let bytes = serde_json::to_vec(&candidate).context("cannot encode subscriber registry")?;
+        let revision = candidate.revision;
+        self.backup_current()?;
+        // An error can follow rename. Never expose old memory as a confirmed current document.
+        self.document = None;
+        write(&self.path, &bytes)?;
+        self.document = Some(candidate);
+        self.disk_schema = 4;
+        Ok(CommitOutcome {
+            revision,
+            changed: true,
+        })
+    }
+    pub(super) fn preview(
+        &self,
+        expected_revision: u64,
+        mut candidate: RegistryDocument,
+    ) -> anyhow::Result<RegistryDocument> {
+        ensure!(
+            self.document()?.revision == expected_revision
+                && candidate.revision == expected_revision,
+            "migration registry revision conflict"
+        );
         let current = self.document()?;
         ensure!(
             current.source_settings.is_none() || candidate.source_settings.is_some(),
@@ -296,27 +345,13 @@ impl RegistryStore {
             }
         }
         if candidate == *current && self.disk_schema == 4 {
-            return Ok(CommitOutcome {
-                revision: current.revision,
-                changed: false,
-            });
+            return Ok(candidate);
         }
         candidate.revision = current
             .revision
             .checked_add(1)
             .context("subscriber registry revision is exhausted")?;
-        let bytes = serde_json::to_vec(&candidate).context("cannot encode subscriber registry")?;
-        let revision = candidate.revision;
-        self.backup_current()?;
-        // An error can follow rename. Never expose old memory as a confirmed current document.
-        self.document = None;
-        write(&self.path, &bytes)?;
-        self.document = Some(candidate);
-        self.disk_schema = 4;
-        Ok(CommitOutcome {
-            revision,
-            changed: true,
-        })
+        Ok(candidate)
     }
 }
 
@@ -326,7 +361,7 @@ pub struct BackupId {
     pub revision: u64,
 }
 
-fn write_backup(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
+pub(super) fn write_new(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
     static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let sequence = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let temp = path.with_extension(format!("tmp-{}-{sequence}", std::process::id()));
@@ -339,7 +374,7 @@ fn write_backup(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
     let result = (|| -> anyhow::Result<()> {
         file.write_all(bytes)?;
         file.sync_all()?;
-        // A hard link publishes the complete file without replacing an existing backup.
+        // A hard link publishes complete private bytes without replacing an existing file.
         std::fs::hard_link(&temp, path)?;
         File::open(path.parent().context("registry directory is missing")?)?.sync_all()?;
         Ok(())

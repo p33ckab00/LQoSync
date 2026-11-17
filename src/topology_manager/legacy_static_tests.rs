@@ -432,6 +432,8 @@ async fn installed_compiler_preserves_the_migrated_shared_legacy_snapshot() {
 #[test]
 fn source_drafts_cannot_exceed_current_reader_limits() {
     let mut proposal = StaticAdoption {
+        seal: String::new(),
+        expires: tokio::time::Instant::now(),
         registry: Default::default(),
         rows: vec![],
         network: json!({"oversized":"x".repeat(crate::topology_manager::admission::MAX_PAIR_BYTES)}),

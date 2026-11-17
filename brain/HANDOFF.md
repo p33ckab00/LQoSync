@@ -8,6 +8,35 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T19:35:49+08:00 (Asia/Shanghai) — Migration staging and recovery complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `e0afb4b`.
+- The preceding shared adoption slice is committed and pushed. This new slice remains local and uncommitted. The index is empty.
+- Preserve unrelated operational edits, the prior session changes, and older entries in this file.
+- Added `staging.rs` and `staging_tests.rs`. Extended proposal seals, store validation reuse, backup lock checks, runtime guards, and source read visibility.
+- Updated design, discussion, plan, session, and Home. No dependency or registry schema changed.
+- `stage` checks the original deadline and registry seal. It confirms a backup and saves a private journal before installation.
+- The journal binds the canonical runtime owner directory, base/target registry policy, and exact static source through SHA-256. It has a 48-MiB limit.
+- First adoption requires absent source and runtime-owner files. The existing 16-MiB static-source limit remains in force.
+- Journal, blocker, and source use the existing private hard-link publisher. Unknown destinations cannot be replaced, including symlinks or files created after an absence check.
+- Pending journals block ordinary commits, owner claims, and both runtime publication paths. Unsafe or corrupt journals also block these operations.
+- A temporary `migration-pending` owner marker blocks earlier strict runtime readers. It never grants topology ownership.
+- `recover` confirms recognized base/target policy and exact source bytes. It reuses ordinary store invariants and commits at most one target revision.
+- Interrupted writes retain the store's reopen requirement. Tests reopen after every durable boundary and resume without duplicate revisions.
+- Source loss or changes after commit require explicit repair. Unknown source, owner, or registry content is never replaced with a guess.
+- `cancel` works only before source installation with the base registry still current. Later recovery moves forward and preserves durable identities.
+- Completion removes the temporary marker and journal with directory syncs. Later source revisions remain possible through normal source/receipt checks.
+- Dynamic endpoints enter neither registry policy nor the journal's static source. Later publication still requires fresh collection and compiler admission.
+- Full suite: 1,181 passed, zero failed, 13 ignored. All 445 active topology tests pass. Added 14 active tests.
+- Format, Clippy with warnings denied, whitespace, and installed-library scratch compilation pass. Author review only. No production benchmark occurred.
+- Logs: `.superpowers/sdd/2026-11-17-topology-migration-staging/`. Proof: `full-final.log`, `clippy.log`, `format.log`, and `native-adoption.log`.
+- No live source read, router write, shaping output, native apply, service action, deployment, or runtime mode switch occurred.
+- Next: connect controlled enrollment/recovery before normal runtime work. No TUI or service-start controller calls these APIs yet.
+- Existing-source replacement, active-owner migration, mixed-version registry edits, and uncoordinated external edits remain outside this first-adoption API.
+- Native implicit commitments, planner/live proof, enrollment UI, schedules, TUI, service activation, and schema-2 circuit ID migration remain gates.
+- Session: [[2026-11-17-topology-migration-staging]]. Plan: `docs/superpowers/plans/2026-11-17-topology-migration-staging.md`.
+- The graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T18:55:19+08:00 (Asia/Shanghai) — Shared legacy adoption proposals complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `6e5debd`.

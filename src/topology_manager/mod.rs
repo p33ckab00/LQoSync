@@ -44,3 +44,5 @@ pub mod static_input;
 mod shared_static;
 
 pub mod legacy_static;
+
+pub mod staging;

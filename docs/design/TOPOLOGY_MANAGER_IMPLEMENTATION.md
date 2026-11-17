@@ -21,7 +21,8 @@ Explicit per-direction node minimums now have policy, hierarchy budget checks, c
 Configured collection now binds independent static inputs to a private source document, revision, and byte digest.
 Explicit static attachments and shared budget checks now support protected roots below managed WAN/intermediate nodes.
 Exact shared legacy extraction and adoption proposals now preserve explicit ownership mappings in isolation.
-Migration staging/recovery, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
+Controlled first-adoption staging and forward recovery now connect the proven static source and registry in isolation.
+Shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
 See the [identity plan](../superpowers/plans/2026-11-17-topology-identity.md) for the reference contract and acceptance proof.
@@ -1259,8 +1260,8 @@ Discarding a proposal requires no rollback writes. Existing verified backups and
 
 The caller must establish the returned source as explicit operator-owned policy before normal configured publication.
 The source must use the private file boundary and current revision checks.
-A controlled transaction for source installation, registry adoption, and recovery is still required before activation.
-This proposal API does not prove that a later caller installed the exact draft or completed that transaction.
+Use the controlled first-adoption transaction below to install the returned source and registry together.
+The proposal API alone does not prove installation.
 
 Focused tests cover actual parent mapping, managed aliases, mixed independent/shared roots, classification gaps, dormant identity collisions, and budget conflicts.
 A temporary-store test covers restart, disconnect, and fresh reconnect data.
@@ -1268,3 +1269,56 @@ The installed-library scratch compiler preserves the adopted legacy aliases, sta
 No production benchmark or independent review occurred. Native implicit commitments and planner/live proof remain gates.
 Schedules, enrollment UI, TUI, migration activation, and service activation remain unfinished.
 See [the shared adoption plan](../superpowers/plans/2026-11-17-topology-shared-adoption.md).
+
+## Controlled first-adoption transaction
+
+`staging::stage` accepts a sealed `StaticAdoption` and the locked `RegistryStore`.
+The proposal keeps its original evidence deadline. Changes to its public registry invalidate the seal.
+The store applies its existing identity, ownership, catalog, and revision checks to calculate the exact target policy.
+
+This first-adoption path requires an absent `static-input.json` and `runtime-owner.json`.
+It rejects existing files, including symlinks. Source replacement and migration of an active topology owner need a separate contract.
+The transaction does not select a runtime mode, claim topology ownership, or write shaping output.
+
+Before installation, the store confirms an exact private backup of the current registry.
+The transaction then saves `topology-manager/migration-pending.json` with schema version 1.
+Its payload contains the canonical owner directory, base policy, target policy, and exact static-source bytes.
+A SHA-256 digest covers the payload.
+
+The journal has a 48-MiB byte limit. The source keeps its 16-MiB limit.
+Dynamic session endpoints never enter this payload. Protected static endpoints remain explicit private policy.
+
+The pending journal blocks ordinary registry commits, writer claims, and both runtime publication paths.
+Malformed, future-version, unsafe, or corrupt journals also block these operations.
+The store can reopen for inspection and recovery. It does not automatically resume the transaction during open.
+The future enrollment controller must call recovery before normal runtime work. No new per-batch approval is required.
+
+`staging::recover` first confirms that the current registry matches the recorded base or target.
+It confirms the current disk document and owner lock before any installation.
+A journal from another owner directory fails. Unknown registry content, source bytes, or runtime ownership fails without replacement.
+
+Before source installation, recovery creates a temporary runtime-owner record with writer `migration-pending`.
+Earlier strict runtime readers reject that writer. The marker never grants topology ownership.
+Mixed-version registry editing remains unsupported. An older registry editor can cause a conflict that requires explicit recovery.
+
+Installation uses the existing private, no-replacement file publisher for the journal, blocker, and source.
+It creates a private temporary file, syncs its contents, and publishes it with a hard link.
+An existing destination cannot be replaced, including a file created after the initial absence check.
+The publisher then removes its temporary name and syncs the directory. It preserves exact bytes without an added newline.
+
+Recovery installs source revision 1, checks its exact bytes through the existing source reader, and commits the recorded registry target.
+The store keeps its ordinary backup, canonicalization, identity preservation, and uncertain-write rules.
+An uncertain registry write requires a store reopen. A restart accepts the exact base or target and never increments the revision twice.
+
+After registry and source confirmation, recovery removes the temporary owner marker and then the journal, with directory syncs.
+A restart during cleanup can repeat these steps. Recovery returns false when no journal remains.
+An existing source with different bytes never receives a guessed repair, even if its IDs match.
+A missing source after registry commit requires explicit repair. Recovery does not reconstruct it from historical dynamic observations.
+
+`staging::cancel` is available only while the registry still matches the base and no source exists.
+After source installation, recovery must move forward. It never removes adopted identities or restores an older ID counter.
+After completion, later static-source edits use the existing revision and receipt rules. The completed transaction does not freeze future edits.
+
+The API has no TUI or service-start integration yet. Native implicit commitments and planner/live proof remain separate activation gates.
+File checks cannot lock an unrelated external editor. Supported writers must hold the instance lock and respect pending migration state.
+See [the staging plan](../superpowers/plans/2026-11-17-topology-migration-staging.md).
