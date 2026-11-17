@@ -5,6 +5,7 @@ use super::observation::Endpoint;
 use super::reader::{RouterRead, Table};
 use crate::model::RosRow;
 use crate::routeros::ReadError;
+use crate::sources::Excluder;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::net::IpAddr;
 use tokio::time::Instant;
@@ -135,7 +136,29 @@ impl CurrentRouter {
     }
 }
 
+pub(super) fn normalize_configured(
+    read: &RouterRead,
+    global: &crate::config::Exclude,
+    local: &crate::config::Exclude,
+) -> Result<CurrentRouter, NormalizeError> {
+    normalize_inner(read, Some(&Excluder::from_lists(global, local)))
+}
+
 pub fn normalize(read: &RouterRead) -> Result<CurrentRouter, NormalizeError> {
+    normalize_inner(read, None)
+}
+
+fn excluded_ip(exclusions: &Excluder<'_>, endpoint: &Endpoint) -> bool {
+    endpoint
+        .ips
+        .iter()
+        .any(|ip| matches!(ip, IpAddr::V4(address) if exclusions.ipv4(*address)))
+}
+
+fn normalize_inner(
+    read: &RouterRead,
+    exclusions: Option<&Excluder<'_>>,
+) -> Result<CurrentRouter, NormalizeError> {
     let mut current = CurrentRouter {
         router_id: read.router_id().into(),
         generation: read.generation(),
@@ -168,16 +191,15 @@ pub fn normalize(read: &RouterRead) -> Result<CurrentRouter, NormalizeError> {
                 read,
                 &mut current,
                 kind,
-                inventory,
-                profiles,
-                active,
+                (inventory, profiles, active),
                 &mut ips,
+                exclusions,
             )?;
         }
     }
     if tables.contains(&Table::DhcpLeases) {
         current.completed.insert(SourceKind::Dhcp);
-        dhcp_accounts(read, &mut current, &mut ips)?;
+        dhcp_accounts(read, &mut current, &mut ips, exclusions)?;
     }
     for account in &mut current.accounts {
         account
@@ -302,11 +324,11 @@ fn local_accounts(
     read: &RouterRead,
     current: &mut CurrentRouter,
     kind: SourceKind,
-    inventory: Table,
-    profile_table: Table,
-    active: Table,
+    tables: (Table, Table, Table),
     ips: &mut HashSet<IpAddr>,
+    exclusions: Option<&Excluder<'_>>,
 ) -> Result<(), NormalizeError> {
+    let (inventory, profile_table, active) = tables;
     let servers = if kind == SourceKind::Hotspot {
         Some(service_inventory(
             read,
@@ -320,11 +342,17 @@ fn local_accounts(
     let accounts = named(rows(read, inventory)?, inventory)?;
     let profile_rows = rows(read, profile_table)?;
     let profiles = named(profile_rows, profile_table)?;
+    let mut excluded_profiles = HashSet::new();
     for (index, row) in profile_rows.iter().enumerate() {
+        let name = required(row, profile_table, index, "name")?;
+        let reference = required(row, profile_table, index, ".id")?;
+        if kind == SourceKind::Ppp && exclusions.is_some_and(|ex| ex.profile(name)) {
+            excluded_profiles.insert(reference);
+        }
         current.profiles.push(CurrentProfile {
             kind,
-            row_ref: required(row, profile_table, index, ".id")?.into(),
-            name: required(row, profile_table, index, "name")?.into(),
+            row_ref: reference.into(),
+            name: name.into(),
             rate_limit: optional(row, "rate-limit"),
             comment: optional(row, "comment"),
         });
@@ -420,6 +448,14 @@ fn local_accounts(
         } else {
             service.to_owned()
         };
+        // Validate identity joins, endpoints, and service evidence before an exclusion can hide a row.
+        if profile_ref
+            .as_deref()
+            .is_some_and(|id| excluded_profiles.contains(id))
+            || exclusions.is_some_and(|ex| excluded_ip(ex, &endpoint))
+        {
+            continue;
+        }
         if let Some(&position) = grouped.get(&row_ref) {
             let account = &mut current.accounts[position];
             if endpoint_only {
@@ -449,24 +485,35 @@ fn dhcp_accounts(
     read: &RouterRead,
     current: &mut CurrentRouter,
     ips: &mut HashSet<IpAddr>,
+    exclusions: Option<&Excluder<'_>>,
 ) -> Result<(), NormalizeError> {
     let table = Table::DhcpLeases;
     let servers = service_inventory(read, current, Table::DhcpServers, SourceKind::Dhcp)?;
+    let excluded_servers: HashSet<_> = servers
+        .keys()
+        .copied()
+        .filter(|name| exclusions.is_some_and(|ex| ex.server(name)))
+        .collect();
     for (index, row) in rows(read, table)?.iter().enumerate() {
         match required(row, table, index, "status")? {
             "waiting" | "testing" | "declined" | "offered" | "authorizing" | "conflict" => continue,
             "bound" => {}
             _ => return Err(error(table, index, Issue::InvalidField)),
         }
-        let server = required(row, table, index, "server")?;
+        let server_name = required(row, table, index, "server")?;
         let &(server_index, server) = servers
-            .get(server)
+            .get(server_name)
             .ok_or_else(|| error(table, index, Issue::MissingServer))?;
         if disabled(server, Table::DhcpServers, server_index)? {
             return Err(error(table, index, Issue::DisabledServer));
         }
         let endpoint = endpoint(row, table, index)?;
         claim(&endpoint, ips, table, index)?;
+        if excluded_servers.contains(server_name)
+            || exclusions.is_some_and(|ex| excluded_ip(ex, &endpoint))
+        {
+            continue;
+        }
         current.accounts.push(CurrentAccount {
             kind: SourceKind::Dhcp,
             row_ref: required(row, table, index, ".id")?.into(),

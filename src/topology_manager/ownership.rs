@@ -465,6 +465,7 @@ pub fn adopt_configured_legacy(
     protected_roots: &[String],
 ) -> anyhow::Result<RegistryDocument> {
     pair.check_fresh()?;
+    pair.check_source_filters(cfg)?;
     let issues = super::preflight::legacy_issues(cfg, &pair.candidate)?;
     ensure!(
         issues.is_empty(),

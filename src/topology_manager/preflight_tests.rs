@@ -48,7 +48,7 @@ fn has(issues: &[PolicyIssue], kind: PolicyIssueKind) -> bool {
 }
 
 #[test]
-fn selected_source_exclusions_are_blockers_even_without_active_subscribers() {
+fn valid_source_filters_are_supported_and_malformed_filters_block() {
     for global in [true, false] {
         let (mut cfg, registry) = fixture();
         let exclude = if global {
@@ -57,6 +57,13 @@ fn selected_source_exclusions_are_blockers_even_without_active_subscribers() {
             &mut cfg.routers[0].exclude
         };
         exclude.ips.push("192.0.2.0/24".into());
+        assert!(source_issues(&cfg, &registry).unwrap().is_empty());
+        let exclude = if global {
+            &mut cfg.exclude
+        } else {
+            &mut cfg.routers[0].exclude
+        };
+        exclude.ips.push("invalid-network".into());
         assert!(has(
             &source_issues(&cfg, &registry).unwrap(),
             PolicyIssueKind::IpExclusions
@@ -64,6 +71,8 @@ fn selected_source_exclusions_are_blockers_even_without_active_subscribers() {
     }
     let (mut cfg, registry) = fixture();
     cfg.exclude.ppp_profiles.push("management-*".into());
+    assert!(source_issues(&cfg, &registry).unwrap().is_empty());
+    cfg.exclude.ppp_profiles.push(String::new());
     assert!(has(
         &source_issues(&cfg, &registry).unwrap(),
         PolicyIssueKind::PppProfileExclusions
@@ -215,6 +224,19 @@ async fn configured_adoption_requires_both_policy_and_exact_snapshot_checks() {
         &[],
     )
     .unwrap();
+    let mut filtered = cfg.clone();
+    filtered.exclude.ips.push("198.51.100.0/24".into());
+    assert!(
+        super::super::ownership::adopt_configured_legacy(
+            &filtered,
+            &pair,
+            rows,
+            pair.network(),
+            &manifest,
+            &[]
+        )
+        .is_err()
+    );
     let mut changed = cfg.clone();
     changed.bandwidth_defaults.min_rate_percentage = 0.5;
     assert!(
@@ -363,10 +385,7 @@ fn dhcp_membership_and_server_rules_cannot_be_silently_dropped() {
         &source_issues(&cfg, &registry).unwrap(),
         PolicyIssueKind::DhcpMembership
     ));
-    cfg.routers[0]
-        .exclude
-        .dhcp_servers
-        .push("management-*".into());
+    cfg.routers[0].exclude.dhcp_servers.push(String::new());
     assert!(has(
         &source_issues(&cfg, &registry).unwrap(),
         PolicyIssueKind::DhcpServerExclusions

@@ -3,7 +3,7 @@ use super::{
     catalog::RouterRole,
     identity::authorize_configured,
     model::{RegistryDocument, SourceKind},
-    normalize::normalize,
+    normalize::normalize_configured,
     observation::ObservationGate,
     publication::{PreparedPair, prepare},
     reader::{ReadGuard, ReadPlan},
@@ -79,6 +79,7 @@ where
             issues.is_empty(),
             "unsupported configured source policies: {issues:?}"
         );
+        let source_filters = super::preflight::source_filter_digest(cfg, registry)?;
         let catalog = registry
             .catalog
             .as_ref()
@@ -154,6 +155,7 @@ where
             .retain(|id, _| required.contains_key(id.as_str()));
         // JoinSet aborts unfinished reads if this batch fails or its caller cancels it.
         let mut tasks = JoinSet::new();
+        let global_exclusions = std::sync::Arc::new(cfg.exclude.clone());
         for (id, router, plan) in plans {
             let held = self
                 .sessions
@@ -165,6 +167,7 @@ where
             };
             let connector = self.connector.clone();
             let access = cfg.router_access.clone();
+            let global_exclusions = global_exclusions.clone();
             tasks.spawn(async move {
                 let read = async {
                     if session.is_none() {
@@ -189,7 +192,8 @@ where
                         )
                         .await
                         .map_err(|_| anyhow::anyhow!("source read failed"))?;
-                    normalize(&evidence).map_err(|_| anyhow::anyhow!("source normalization failed"))
+                    normalize_configured(&evidence, &global_exclusions, &router.exclude)
+                        .map_err(|_| anyhow::anyhow!("source normalization failed"))
                 };
                 let current = timeout_at(deadline, read)
                     .await
@@ -218,7 +222,9 @@ where
         );
         let authorized = authorize_configured(registry, registry.revision, generation, current)?
             .reconcile(&mut self.gate)?;
-        prepare(authorized)
+        let mut pair = prepare(authorized)?;
+        pair.source_filters = source_filters;
+        Ok(pair)
     }
 }
 #[cfg(test)]

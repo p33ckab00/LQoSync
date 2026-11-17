@@ -8,6 +8,28 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-17T15:12:42+08:00 (Asia/Shanghai) — Current-source exclusions complete locally
+
+- Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `5528f9e`.
+- The preflight checkpoint is committed and pushed as `5528f9e`. Current exclusion changes remain local and uncommitted.
+- Shared the matcher in sources. Extended normalization, coordinator, preflight, publication, configured adoption, runner, and tests. Added exclusion tests.
+- Updated design, discussion, plan, Home, and session. Preserve unrelated operational edits.
+- Valid global/router IPv4, PPP profile, and DHCP server exclusions now apply to fresh sessions. Invalid relevant rules still block before connection.
+- Full row validation and duplicate-IP checks precede exclusion. Filtered sessions leave no active comments or service membership.
+- Inventory remains available. Excluded accounts do not need identity enrollment. IPv4 rules do not exclude IPv6 sessions.
+- Complete exclusions remove rows and automatic child groups. Fresh reconnects preserve independent Subscriber IDs with current endpoints.
+- Prepared output carries a transient filter digest. Configured publication/adoption reject missing or stale proof, also after filter removal.
+- Shared global lists, indexed name checks, and parsed IPv4 lookup avoid repeated work. No benchmark occurred.
+- Full suite: 1,108 passed, zero failed, 12 ignored. All 373 topology tests pass. Added 12 active tests.
+- The optional installed-library sync test passes in temporary directories with excluded, active, disconnected, and reconnected batches.
+- Format, Clippy with warnings denied, and whitespace checks pass. Author review only.
+- No dependency/schema change, live source read, router write, service action, native apply, deployment, or live mode switch occurred.
+- Next: explicit durable-identity mappings for DHCP overrides, with offline/reconnect and conflict tests. Do not infer identity from endpoints.
+- Dynamic bounds, native group minimums, static-input authority, shared branches, enrollment, native planner bounds, and live proof remain gates.
+- Session: [[2026-11-17-topology-exclusions]]. Plan: `docs/superpowers/plans/2026-11-17-topology-exclusions.md`.
+- Logs: `.superpowers/sdd/2026-11-17-topology-exclusions/`. Proof: `full.log`, `clippy.log`, `native-sync.log`, `topology-final.log`, and `publication.log`.
+- Graph remains the earlier baseline. Current files take precedence.
+
 ## 2026-11-17T14:54:12+08:00 (Asia/Shanghai) — Legacy configuration preflight complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base: `e222547`.

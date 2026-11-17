@@ -618,3 +618,6 @@ async fn missing_or_disabled_hotspot_server_cannot_establish_current_service_mem
         );
     }
 }
+
+#[path = "exclusion_tests.rs"]
+mod exclusions;

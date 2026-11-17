@@ -79,15 +79,21 @@ fn glob(pattern: &str, text: &str) -> bool {
 }
 
 /// The exclusion rules of one router: the global `[exclude]` and the router `exclude`.
-struct Excluder<'a> {
+pub(crate) struct Excluder<'a> {
     servers: Vec<&'a str>,
     profiles: Vec<&'a str>,
     nets: Vec<(u32, u32)>,
 }
 
 impl<'a> Excluder<'a> {
-    fn new(cfg: &'a Config, router: &'a RouterCfg) -> Self {
-        let both = [&cfg.exclude, &router.exclude];
+    pub(crate) fn new(cfg: &'a Config, router: &'a RouterCfg) -> Self {
+        Self::from_lists(&cfg.exclude, &router.exclude)
+    }
+    pub(crate) fn from_lists(
+        global: &'a crate::config::Exclude,
+        local: &'a crate::config::Exclude,
+    ) -> Self {
+        let both = [global, local];
         Excluder {
             servers: both
                 .iter()
@@ -103,18 +109,21 @@ impl<'a> Excluder<'a> {
                 .collect(),
         }
     }
-    fn server(&self, name: &str) -> bool {
+    pub(crate) fn server(&self, name: &str) -> bool {
         self.servers.iter().any(|p| glob(p, name))
     }
-    fn profile(&self, name: &str) -> bool {
+    pub(crate) fn profile(&self, name: &str) -> bool {
         self.profiles.iter().any(|p| glob(p, name))
     }
     fn ip(&self, ip: &str) -> bool {
         let Ok(a) = ip.trim().parse::<std::net::Ipv4Addr>() else {
             return false;
         };
-        let a = u32::from(a);
-        self.nets.iter().any(|(net, mask)| a & mask == *net)
+        self.ipv4(a)
+    }
+    pub(crate) fn ipv4(&self, address: std::net::Ipv4Addr) -> bool {
+        let address = u32::from(address);
+        self.nets.iter().any(|(net, mask)| address & mask == *net)
     }
 }
 

@@ -101,7 +101,11 @@ fn source_checks(cfg: &Config, bindings: &[(&SourceSelection, &RouterCfg)]) -> V
             ("exclude", &cfg.exclude),
             ("routers.exclude", &router.exclude),
         ] {
-            if !exclude.ips.is_empty() {
+            if exclude
+                .ips
+                .iter()
+                .any(|ip| crate::config::parse_ipv4_net(ip).is_none())
+            {
                 issue(
                     &mut out,
                     selection,
@@ -109,7 +113,12 @@ fn source_checks(cfg: &Config, bindings: &[(&SourceSelection, &RouterCfg)]) -> V
                     PolicyIssueKind::IpExclusions,
                 );
             }
-            if selection.scope.kind == SourceKind::Ppp && !exclude.ppp_profiles.is_empty() {
+            if selection.scope.kind == SourceKind::Ppp
+                && exclude
+                    .ppp_profiles
+                    .iter()
+                    .any(|name| name.trim().is_empty())
+            {
                 issue(
                     &mut out,
                     selection,
@@ -117,7 +126,12 @@ fn source_checks(cfg: &Config, bindings: &[(&SourceSelection, &RouterCfg)]) -> V
                     PolicyIssueKind::PppProfileExclusions,
                 );
             }
-            if selection.scope.kind == SourceKind::Dhcp && !exclude.dhcp_servers.is_empty() {
+            if selection.scope.kind == SourceKind::Dhcp
+                && exclude
+                    .dhcp_servers
+                    .iter()
+                    .any(|name| name.trim().is_empty())
+            {
                 issue(
                     &mut out,
                     selection,
@@ -167,6 +181,61 @@ pub fn source_issues(
     registry: &RegistryDocument,
 ) -> anyhow::Result<Vec<PolicyIssue>> {
     Ok(source_checks(cfg, &selected(cfg, registry)?))
+}
+
+/// Bind only effective filters for selected scopes. The binding contains no session data.
+pub(super) fn source_filter_digest(
+    cfg: &Config,
+    registry: &RegistryDocument,
+) -> anyhow::Result<Option<String>> {
+    let empty = |ex: &crate::config::Exclude| {
+        ex.ips.is_empty() && ex.ppp_profiles.is_empty() && ex.dhcp_servers.is_empty()
+    };
+    if empty(&cfg.exclude) && cfg.routers.iter().all(|r| empty(&r.exclude)) {
+        return Ok(None);
+    }
+    let mut bindings = selected(cfg, registry)?;
+    bindings.sort_unstable_by(|a, b| a.0.scope.cmp(&b.0.scope));
+    let mut records = Vec::new();
+    let none: &[String] = &[];
+    for (selection, router) in bindings {
+        let ppp = selection.scope.kind == SourceKind::Ppp;
+        let dhcp = selection.scope.kind == SourceKind::Dhcp;
+        let global = [
+            &cfg.exclude.ips[..],
+            if ppp {
+                &cfg.exclude.ppp_profiles[..]
+            } else {
+                none
+            },
+            if dhcp {
+                &cfg.exclude.dhcp_servers[..]
+            } else {
+                none
+            },
+        ];
+        let local = [
+            &router.exclude.ips[..],
+            if ppp {
+                &router.exclude.ppp_profiles[..]
+            } else {
+                none
+            },
+            if dhcp {
+                &router.exclude.dhcp_servers[..]
+            } else {
+                none
+            },
+        ];
+        if global.iter().chain(&local).any(|rules| !rules.is_empty()) {
+            records.push((&selection.scope, router.name.as_str(), global, local));
+        }
+    }
+    Ok(if records.is_empty() {
+        None
+    } else {
+        Some(crate::write_receipt::sha256(&serde_json::to_vec(&records)?))
+    })
 }
 
 struct Expected<'a> {

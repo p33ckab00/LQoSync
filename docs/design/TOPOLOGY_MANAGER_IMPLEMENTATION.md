@@ -14,6 +14,7 @@ Durable export aliases, independent static ownership, and explicit legacy source
 Controlled compilation and a runner API now share one runtime writer owner.
 Configured source orchestration now connects to an explicit runner sync API.
 A configuration preflight now blocks unsupported source rules and checks configured legacy adoption.
+Fresh source normalization applies global/router exclusions and binds prepared output to that policy.
 Shared static branches, shaping-planner admission, schedules, service activation, and TUI remain unfinished.
 See the [settings/recovery plan](../superpowers/plans/2026-11-17-topology-settings-recovery.md) for this storage boundary.
 See the [source policy plan](../superpowers/plans/2026-11-17-topology-source-policy.md) for mapping and exact rate scope.
@@ -727,7 +728,7 @@ Profile and service indexes are shared per router. Ownership preservation uses i
 These structural bounds and synthetic tests do not establish production throughput.
 
 The source-priority converter covers the base speed policy. Complete configuration migration still needs shadow parity.
-Exclusions, address-based overrides, shared static branches, and legacy minimum/factor policies require explicit decisions or matching policies.
+Address-based overrides, shared static branches, and legacy minimum/factor policies require explicit decisions or matching policies.
 No runtime caller or automatic manager-mode switch is added by this slice.
 
 ## Controlled compiler and runtime publication
@@ -838,10 +839,10 @@ Independent enrollment, legacy shadow parity, static-input authority, and native
 
 `preflight::source_issues` checks the selected scopes against the current configuration.
 The coordinator requires an empty report before its first connection attempt.
-Global and router-specific IP exclusions block every selected subscriber protocol that they affect.
-PPP profile exclusions block selected PPP scopes. DHCP server exclusions block selected DHCP scopes.
+Valid global/router exclusions now pass source preflight and apply to current observations.
+Malformed IPv4/CIDR entries and empty relevant name patterns block their selected scopes.
 Unrelated protocol settings do not block a scope.
-These checks expose unsupported rules. They do not implement the exclusion filters.
+DHCP endpoint overrides and unsupported membership still require separate migration.
 
 Configured DHCP client overrides require a future identity-based policy migration.
 The preflight never converts an old MAC-address rule into a permanent subscriber identity.
@@ -867,7 +868,7 @@ Factors outside that conversion range remain unproved, even if a rounded output 
 All `SourceRead` profile bounds currently require further migration proof.
 This conservative result also applies when a particular source priority could supply a constant rate.
 
-`ownership::adopt_configured_legacy` requires a clear configuration report before the existing exact snapshot adoption checks.
+`ownership::adopt_configured_legacy` requires current filter proof and a clear configuration report before the existing exact snapshot adoption checks.
 It retains revision, generation, content fingerprints, current identity mappings, static classification, and the original deadline.
 A current matching row cannot waive a dormant policy conflict.
 The lower-level `adopt_legacy` adapter remains available for isolated snapshot diagnostics.
@@ -879,5 +880,53 @@ Profile indexes and a single scope-to-profile index avoid repeated subscriber sc
 These structural checks do not establish production throughput.
 
 A clear configuration report proves only the checks described here.
-Complete exclusion/override migration, dynamic bounds, static-input authority, shared branches, enrollment, and native planner bounds remain gates.
+Override migration, dynamic bounds, static-input authority, shared branches, enrollment, and native planner bounds remain gates.
 The existing native monitor must still establish live DPDK acceptance.
+
+
+## Current-source exclusions
+
+Configured normalization reuses the legacy `Excluder` matcher.
+Global and router lists apply together. PPP profiles and DHCP server names use case-insensitive `*` wildcards.
+IP rules match IPv4 addresses and CIDR blocks. These rules do not exclude IPv6 sessions.
+Only PPP uses profile exclusions. Only DHCP uses DHCP server exclusions. All subscriber protocols use IP exclusions.
+
+Each current active row still requires valid account, profile, server, endpoint, and authentication evidence.
+Duplicate current IPs still block normalization, also when an exclusion would remove those rows.
+Exclusion occurs after these checks and before the normalizer groups sessions into accounts.
+A removed session contributes no endpoint, active comment, or service membership to identity authorization or rate selection.
+The reader keeps account/profile/server inventory unchanged. Normalized profile/server inventory also remains available.
+Excluded accounts do not need subscriber enrollment.
+
+A partial PPP exclusion preserves only the other current sessions of that account.
+It cannot leave an excluded session comment as a competing speed authority.
+Complete exclusions produce no active subscriber rows or automatic child groups. Configured WAN roots remain.
+The registry keeps previously authorized identity and policy intent.
+A later included session needs fresh evidence and its independent identity reference before the same Subscriber ID returns.
+
+The coordinator shares one immutable global exclusion snapshot across its tasks.
+It does not clone the whole configuration for each router.
+Profile and server wildcard checks run once per inventory item, not once per active session.
+Parsed current IPv4 addresses use the matcher directly, without text conversion and another parse.
+The legacy collector keeps its previous matcher behavior.
+
+A configured prepared pair carries an optional in-memory filter digest.
+The digest covers effective selected scope IDs, configured router names, and their global/router filter lists.
+Unrelated protocol filters do not change this digest. No session data enters the digest.
+The digest exists only when a relevant filter list is nonempty.
+It cannot be loaded as a current observation after restart.
+
+`Runner::publish_topology` requires the current filter binding before compilation.
+Configured legacy adoption requires that binding before configuration and exact snapshot checks.
+A changed or removed filter list invalidates the prepared pair. A pair without proof cannot publish under active filters.
+Normal automatic sync starts another fresh batch to use the changed policy.
+The binding does not extend the original source deadline or prove independent static-input authority.
+
+Tests compare current IPv4 membership with the legacy collector.
+They cover merged lists, wildcard names, unrelated protocols, retained IPv6 sessions, partial PPP sessions, malformed rows, duplicate IPs, and expiry.
+Runtime tests cover removal, fresh reconnect, policy changes, missing proof, and configured alias adoption.
+The installed-library scratch test publishes a valid excluded batch with no subscriber rows, then active and reconnect batches.
+All scratch pair, registry, and scheduler writes target temporary directories. No live native apply occurs.
+
+MAC-based speed overrides remain blocked until they have explicit independent identity mappings.
+Dynamic bounds, native group minimums, static-input authority, shared branches, enrollment, native planner bounds, and service activation remain gates.

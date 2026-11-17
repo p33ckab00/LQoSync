@@ -511,6 +511,7 @@ where
             pair.generation() > self.last_topology_generation,
             "out-of-order topology observation generation"
         );
+        pair.check_source_filters(&self.cfg)?;
         compiler.check_config(&self.cfg.libreqos)?;
         let compiled = compiler.compile(pair).await?;
         self.publish_compiled(compiled, now)
@@ -2390,15 +2391,17 @@ mod tests {
         config.libreqos = native_cfg.clone();
         let mut r = runner(&e, config.clone());
         r.cfg.exclude.ips.push("192.0.2.0/24".into());
+        let filtered = r
+            .sync_topology(&mut compiler, Duration::from_secs(10), 999)
+            .await
+            .unwrap();
+        assert!(filtered.error.is_none());
         assert!(
-            r.sync_topology(&mut compiler, Duration::from_secs(10), 999)
-                .await
-                .is_err()
-        );
-        assert!(
-            !Path::new(&native_cfg.directory)
-                .join("ShapedDevices.csv")
-                .exists()
+            crate::state::read_csv(&read(
+                &Path::new(&native_cfg.directory).join("ShapedDevices.csv")
+            ))
+            .unwrap()
+            .is_empty()
         );
         r.cfg.exclude.ips.clear();
         let result = r
@@ -2477,5 +2480,25 @@ mod tests {
         println!(
             "Configured source sync preserves identity, current endpoints, failure fencing, and restart generations in temporary directories."
         );
+    }
+
+    #[tokio::test]
+    async fn a_filtered_pair_cannot_publish_after_its_filter_settings_change() {
+        let e = env();
+        source_registry(&e);
+        let mut config = v3_apply(&e);
+        config.exclude.ips.push("198.51.100.0/24".into());
+        let mut r = runner(&e, config);
+        let pair = r.prepare_topology(Duration::from_secs(10)).await.unwrap();
+        let (_native, _cfg, mut compiler) = crate::topology_manager::compiler::tests::fixture();
+        r.cfg.exclude.ips.clear();
+        let error = r
+            .publish_topology(&mut compiler, pair, 1000)
+            .await
+            .err()
+            .unwrap();
+        assert!(error.to_string().contains("prepared source filters differ"));
+        assert!(!e.lqos.join("ShapedDevices.csv").exists());
+        assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
     }
 }

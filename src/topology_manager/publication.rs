@@ -20,6 +20,7 @@ pub struct PreparedPair {
     pub(super) device_identities: HashMap<String, super::model::IdentityRef>,
     generation: u64,
     pub(super) compiler: Option<super::compiler::CompilerBinding>,
+    pub(super) source_filters: Option<String>,
     expires: Instant,
     rows: Vec<CsvRow>,
     network: Value,
@@ -34,6 +35,14 @@ pub struct PublishRequest<'a> {
     pub hub: &'a crate::system_health::Hub,
 }
 impl PreparedPair {
+    pub(crate) fn check_source_filters(&self, cfg: &crate::config::Config) -> anyhow::Result<()> {
+        self.check_fresh()?;
+        ensure!(
+            self.source_filters == super::preflight::source_filter_digest(cfg, &self.candidate)?,
+            "prepared source filters differ from current settings or lack configured collection proof"
+        );
+        Ok(())
+    }
     pub(super) fn publish_admitted(
         self,
         store: &mut super::store::RegistryStore,
@@ -374,6 +383,7 @@ pub fn prepare_with_static(
     Ok(PreparedPair {
         node_adjustments,
         compiler: None,
+        source_filters: None,
         device_identities,
         candidate,
         generation: evaluation.generation,

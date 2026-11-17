@@ -989,3 +989,18 @@ A separate configured adoption API checks dormant source priorities, subscriber 
 It then applies the existing exact snapshot, identity, and deadline checks.
 Dynamic bounds and unsupported rules remain explicit conflicts. This slice does not implement their migration.
 A clear report does not activate the manager or prove a live DPDK policy.
+
+
+## Current-source exclusion implementation, 2026-11-17
+
+Valid exclusions now apply automatically to fresh source rows.
+The manager reuses the legacy IPv4/CIDR and case-insensitive name matcher.
+It validates every active row before exclusion, then groups only the retained sessions.
+An excluded PPP session contributes no active comment or service membership.
+Inventory remains visible. An excluded account does not need identity enrollment.
+
+Prepared output binds to the effective filter policy in memory.
+Configured publication and legacy adoption reject missing or stale filter proof.
+Removal and fresh reconnect tests preserve the authorized Subscriber ID without stored endpoint reuse.
+The native scratch test confirms filtered publication in temporary directories.
+MAC speed overrides and the other activation gates remain separate tasks.

@@ -614,9 +614,9 @@ async fn changed_router_binding_cannot_reuse_the_previous_routers_session() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn unsupported_selected_source_policies_stop_before_connection() {
+async fn malformed_source_exclusions_stop_before_connection() {
     let (mut cfg, registry, fake, mut coordinator) = fixture();
-    cfg.exclude.ips.push("192.0.2.0/24".into());
+    cfg.exclude.ips.push("not-a-network".into());
     assert!(
         coordinator
             .prepare(&cfg, &registry, 0, Duration::from_secs(10))
@@ -624,4 +624,161 @@ async fn unsupported_selected_source_policies_stop_before_connection() {
             .is_err()
     );
     assert_eq!(fake.connects.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test(start_paused = true)]
+async fn exclusions_remove_exported_members_and_reconnect_uses_fresh_endpoints() {
+    let (mut cfg, registry, fake, mut coordinator) = fixture();
+    let first = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    cfg.exclude.ips.push("192.0.2.0/24".into());
+    let excluded = coordinator
+        .prepare(&cfg, &first.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert!(excluded.rows().is_empty());
+    excluded.check_source_filters(&cfg).unwrap();
+    assert_eq!(excluded.network().as_object().unwrap().len(), 2);
+    for node in excluded.network().as_object().unwrap().values() {
+        assert_eq!(node["children"], serde_json::json!({}));
+    }
+    fake.data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .get_mut(&Table::PppActive)
+        .unwrap()[0]
+        .insert("address".into(), "192.0.2.99".into());
+    cfg.exclude.ips.clear();
+    let restored = coordinator
+        .prepare(&cfg, &excluded.candidate, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(restored.rows()[0].circuit_id, first.rows()[0].circuit_id);
+    assert_eq!(restored.rows()[0].ipv4, "192.0.2.99");
+}
+
+#[tokio::test(start_paused = true)]
+async fn excluded_accounts_do_not_need_identity_enrollment_and_keep_profile_inventory() {
+    let (mut cfg, registry, fake, mut coordinator) = fixture();
+    cfg.routers[0].exclude.ppp_profiles.push("G*D".into());
+    fake.data
+        .lock()
+        .unwrap()
+        .get_mut("Distro")
+        .unwrap()
+        .rows
+        .get_mut(&Table::PppSecrets)
+        .unwrap()[0]
+        .remove("comment");
+    let pair = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert!(pair.rows().is_empty());
+    assert!(pair.candidate.subscribers.is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn filtered_pair_cannot_outlive_its_exclusion_policy() {
+    let (mut cfg, registry, _, mut coordinator) = fixture();
+    cfg.exclude.ips.push("198.51.100.0/24".into());
+    let pair = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    pair.check_source_filters(&cfg).unwrap();
+    cfg.exclude.ips.push("192.0.2.1".into());
+    assert!(pair.check_source_filters(&cfg).is_err());
+    let unbound = crate::topology_manager::publication::prepare(
+        crate::topology_manager::publication::tests::input(1),
+    )
+    .unwrap();
+    assert!(unbound.check_source_filters(&cfg).is_err());
+}
+
+#[tokio::test(start_paused = true)]
+async fn configured_filtered_adoption_requires_current_filter_proof_and_exact_mappings() {
+    use crate::topology_manager::{
+        legacy_rate::LegacyPriority,
+        migration::{MigrationManifest, RowIdentity, RowMapping, fingerprint},
+        rates::{Fraction, RateRule},
+    };
+    let (mut cfg, mut registry, _, mut coordinator) = fixture();
+    cfg.speed.pppoe_sources = vec![crate::config::PppSource::Default];
+    cfg.bandwidth_defaults.pppoe_default_rate = "50M/10M".into();
+    cfg.bandwidth_defaults.min_rate_percentage = 0.1;
+    cfg.bandwidth_defaults.pppoe_aggregate_factor = 0.8;
+    cfg.exclude.ips.push("198.51.100.0/24".into());
+    let catalog = registry.catalog.as_mut().unwrap();
+    catalog.defaults.down_min = RateRule::BaseFraction(Fraction {
+        numerator: 1,
+        denominator: 10,
+    });
+    catalog.defaults.up_min = catalog.defaults.down_min;
+    if let crate::topology_manager::catalog::SourceOrigin::Subscribers { group, .. } =
+        &mut catalog.sources[2].origin
+    {
+        group.factors.up = group.factors.down;
+    }
+    registry.source_settings.as_mut().unwrap().selections[0]
+        .policy
+        .legacy_priority =
+        Some(LegacyPriority::ppp(&cfg.speed, &cfg.bandwidth_defaults.pppoe_default_rate).unwrap());
+    let pair = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    let mut legacy = pair.rows().to_vec();
+    legacy[0].circuit_id = "legacy-circuit".into();
+    legacy[0].device_id = "legacy-device".into();
+    let manifest = MigrationManifest {
+        expected_revision: pair.expected_revision(),
+        generation: pair.generation(),
+        baseline_digest: fingerprint(&legacy, pair.network()),
+        candidate_digest: fingerprint(pair.rows(), pair.network()),
+        rows: vec![RowMapping {
+            legacy: RowIdentity {
+                circuit_id: "legacy-circuit".into(),
+                device_id: "legacy-device".into(),
+            },
+            current: RowIdentity {
+                circuit_id: pair.rows()[0].circuit_id.clone(),
+                device_id: pair.rows()[0].device_id.clone(),
+            },
+            legacy_circuit_name: legacy[0].circuit_name.clone(),
+            legacy_device_name: legacy[0].device_name.clone(),
+        }],
+        nodes: vec![],
+        protected_rows: vec![],
+    };
+    let adopted = crate::topology_manager::ownership::adopt_configured_legacy(
+        &cfg,
+        &pair,
+        &legacy,
+        pair.network(),
+        &manifest,
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        adopted.export_ownership.unwrap().devices[0].id,
+        "legacy-device"
+    );
+    cfg.exclude.ips.clear();
+    assert!(
+        crate::topology_manager::ownership::adopt_configured_legacy(
+            &cfg,
+            &pair,
+            &legacy,
+            pair.network(),
+            &manifest,
+            &[]
+        )
+        .is_err()
+    );
 }
