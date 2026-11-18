@@ -349,16 +349,16 @@ fn failed_recovery_discards_cached_registry_and_keeps_the_held_owner() {
     );
 }
 
-mod cli_flow {
+pub(crate) mod cli_flow {
     use super::*;
     use crate::topology_manager::enroll_mapping::{MappingFile, RowDecision};
     use crate::topology_manager::policy_draft::tests as scenario;
     use std::time::Duration;
 
-    const AGE: Duration = Duration::from_secs(60);
+    pub(crate) const AGE: Duration = Duration::from_secs(60);
 
     /// The v3_root_promotion scenario as live legacy files and current router rows.
-    pub(super) fn setup(e: &Env, drop_legacy: Option<&str>) -> Config {
+    pub(crate) fn setup(e: &Env, drop_legacy: Option<&str>) -> Config {
         let (mut config, snap) = scenario::scenario();
         let mut old = scenario::legacy(&config, &snap);
         if let Some(name) = drop_legacy {

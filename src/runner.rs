@@ -104,6 +104,8 @@ pub struct Runner<C: Connector + 'static> {
     write_tracker: Option<Arc<Mutex<crate::write_receipt::Tracker>>>,
     topology_store: Option<crate::topology_manager::store::RegistryStore>,
     last_topology_generation: u64,
+    /// Start time of the most recent cycle, in Unix seconds.
+    last_cycle_started: Option<u64>,
     topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
 }
 
@@ -198,6 +200,7 @@ where
             write_tracker: None,
             topology_store: None,
             last_topology_generation: 0,
+            last_cycle_started: None,
         }
     }
 
@@ -503,6 +506,70 @@ where
             .context("registry owner is missing")?
             .document()?
             .revision)
+    }
+
+    /// The registry document when one exists. A read never creates the store.
+    fn api_document(
+        &mut self,
+    ) -> anyhow::Result<Option<crate::topology_manager::model::RegistryDocument>> {
+        self.lock()?;
+        let path = Path::new(&self.cfg.runtime.state_dir).join("topology-manager/registry.json");
+        if self.topology_store.is_none() && !path.exists() {
+            return Ok(None);
+        }
+        self.open_topology_store()?;
+        Ok(Some(
+            self.topology_store
+                .as_ref()
+                .context("registry owner is missing")?
+                .document()?
+                .clone(),
+        ))
+    }
+
+    /// API `status`: version, mode, registry revision, enrollment, and the last cycle start.
+    pub fn api_status(&mut self) -> anyhow::Result<serde_json::Value> {
+        let doc = self.api_document()?;
+        Ok(serde_json::json!({
+            "version": crate::VERSION,
+            "mode": format!("{:?}", self.cfg.runtime.mode).to_lowercase(),
+            "registry_revision": doc.as_ref().map(|d| d.revision),
+            "enrolled": doc.as_ref().is_some_and(|d| d.export_ownership.is_some()),
+            "last_cycle_started": self.last_cycle_started,
+        }))
+    }
+
+    /// API `registry.get`.
+    pub fn api_registry(
+        &mut self,
+    ) -> anyhow::Result<Option<crate::topology_manager::model::RegistryDocument>> {
+        self.api_document()
+    }
+
+    /// API `policy.commit`: replace the catalog and source settings under a revision check.
+    /// A failed commit drops the cached store, and the next request opens it again.
+    pub fn api_policy_commit(
+        &mut self,
+        expected_revision: u64,
+        catalog: crate::topology_manager::catalog::TopologyCatalog,
+        source_settings: crate::topology_manager::settings::SourceSettings,
+    ) -> anyhow::Result<u64> {
+        self.lock()?;
+        self.open_topology_store()?;
+        let store = self
+            .topology_store
+            .as_mut()
+            .context("registry owner is missing")?;
+        let mut candidate = store.document()?.clone();
+        candidate.catalog = Some(catalog);
+        candidate.source_settings = Some(source_settings);
+        match store.commit(expected_revision, candidate) {
+            Ok(outcome) => Ok(outcome.revision),
+            Err(e) => {
+                self.topology_store = None;
+                Err(e)
+            }
+        }
     }
 
     /// Bind the service API socket. The held instance lock proves socket ownership.
@@ -861,6 +928,7 @@ where
 
     /// Run one cycle. `force` releases a guard hold (a manual sync).
     pub async fn cycle(&mut self, now: u64, force: bool) -> CycleSummary {
+        self.last_cycle_started = Some(now);
         let start = Instant::now();
         let state_dir = Path::new(&self.cfg.runtime.state_dir).to_path_buf();
         let mut status = self.base_status(now);
