@@ -35,6 +35,7 @@ pub struct TopologyView {
     /// Depth-first tree order of the preview nodes. Rebuilt only when the preview changes.
     tree: Vec<(usize, usize)>,
     node_selected: usize,
+    sub_selected: usize,
     focus: Panel,
     link: Option<ApiLink>,
     outbox: Vec<(String, Value)>,
@@ -85,6 +86,26 @@ impl TopologyView {
             .map_or(&[], Vec::as_slice)
     }
 
+    fn subscribers(&self) -> &[Value] {
+        self.preview
+            .as_ref()
+            .and_then(|p| p["subscribers"].as_array())
+            .map_or(&[], Vec::as_slice)
+    }
+
+    pub(crate) fn selected_subscriber(&self) -> Option<&Value> {
+        self.subscribers().get(self.sub_selected)
+    }
+
+    fn node_label(&self, id: &str) -> String {
+        self.nodes()
+            .iter()
+            .find(|n| n["id"].as_str() == Some(id))
+            .and_then(|n| n["label"].as_str())
+            .unwrap_or(id)
+            .to_string()
+    }
+
     fn selected_node(&self) -> Option<&Value> {
         let &(_, i) = self.tree.get(self.node_selected)?;
         self.nodes().get(i)
@@ -95,6 +116,11 @@ impl TopologyView {
             .selected_node()
             .and_then(|n| n["id"].as_str())
             .map(str::to_string);
+        let subscriber = self
+            .selected_subscriber()
+            .and_then(|s| s["id"].as_str())
+            .map(str::to_string);
+        let old_row = self.sub_selected;
         self.preview = Some(v);
         self.tree = builder::index(self.nodes());
         self.node_selected = selected
@@ -105,6 +131,15 @@ impl TopologyView {
             })
             .unwrap_or(0)
             .min(self.tree.len().saturating_sub(1));
+        // Keep the same subscriber, or the nearest row when it is gone.
+        self.sub_selected = subscriber
+            .and_then(|id| {
+                self.subscribers()
+                    .iter()
+                    .position(|s| s["id"].as_str() == Some(id.as_str()))
+            })
+            .unwrap_or(old_row)
+            .min(self.subscribers().len().saturating_sub(1));
     }
 
     /// Open the route once, send queued requests, and apply ready answers. True when the view changed.
@@ -182,6 +217,13 @@ impl TopologyView {
                 }
             }
             KeyCode::Char('c') => self.screen = Screen::Changes,
+            KeyCode::Up if self.screen == Screen::Assignments => {
+                self.sub_selected = self.sub_selected.saturating_sub(1);
+            }
+            KeyCode::Down if self.screen == Screen::Assignments => {
+                self.sub_selected =
+                    (self.sub_selected + 1).min(self.subscribers().len().saturating_sub(1));
+            }
             KeyCode::Up if self.screen == Screen::Builder => {
                 self.node_selected = self.node_selected.saturating_sub(1);
             }
@@ -278,9 +320,10 @@ impl TopologyView {
             f.render_widget(Paragraph::new(text).style(p.role(Role::Base)), body);
             return;
         }
-        if self.screen == Screen::Builder {
-            builder::draw(self, f, body, p);
-            return;
+        match self.screen {
+            Screen::Builder => return builder::draw(self, f, body, p),
+            Screen::Assignments => return assignments::draw(self, f, body, p),
+            _ => {}
         }
         let title = match self.screen {
             Screen::Builder => "Builder",
@@ -458,3 +501,5 @@ mod tests {
 }
 
 mod builder;
+
+mod assignments;
