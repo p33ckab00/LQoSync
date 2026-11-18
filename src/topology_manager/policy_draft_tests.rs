@@ -69,7 +69,7 @@ pub(crate) fn legacy(cfg: &Config, snap: &RouterSnapshot) -> CycleOutput {
 }
 
 /// The same router rows in the manager reader form: RouterOS `.id` values and active lease fields.
-fn tables(snap: &RouterSnapshot) -> BTreeMap<Table, Vec<RosRow>> {
+pub(crate) fn tables(snap: &RouterSnapshot) -> BTreeMap<Table, Vec<RosRow>> {
     let with = |rows: &[RosRow], prefix: &str, extra: &dyn Fn(&mut RosRow)| {
         rows.iter()
             .enumerate()

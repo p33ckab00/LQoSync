@@ -1,4 +1,5 @@
 //! Current configured source batches. No saved subscriber endpoints enter this path.
+use super::normalize::CurrentRouter;
 use super::{
     catalog::RouterRole,
     identity::authorize_configured,
@@ -62,47 +63,15 @@ where
         self.sessions.clear();
     }
 
-    pub(crate) async fn prepare(
+    /// Read and normalize the required protocols of each selected router in one bounded batch.
+    async fn read_required(
         &mut self,
         cfg: &Config,
-        registry: &RegistryDocument,
+        catalog: &super::catalog::TopologyCatalog,
+        required: &BTreeMap<&str, BTreeSet<SourceKind>>,
         minimum_generation: u64,
-        max_age: Duration,
-    ) -> anyhow::Result<PreparedPair> {
-        let started = Instant::now();
-        ensure!(!max_age.is_zero(), "source age limit must be positive");
-        let deadline = started
-            .checked_add(max_age)
-            .context("source age limit exceeds clock range")?;
-        let issues = super::preflight::source_issues(cfg, registry)?;
-        ensure!(
-            issues.is_empty(),
-            "unsupported configured source policies: {issues:?}"
-        );
-        let static_source = super::static_input::required(registry)
-            .then(|| {
-                super::static_input::CurrentStatic::load(std::path::Path::new(
-                    &cfg.runtime.state_dir,
-                ))
-            })
-            .transpose()?;
-        let source_filters = super::preflight::source_filter_digest(cfg, registry)?;
-        let catalog = registry
-            .catalog
-            .as_ref()
-            .context("topology catalog is unconfigured")?;
-        let selections = registry
-            .source_settings
-            .as_ref()
-            .context("source settings are unconfigured")?
-            .ready_selections(catalog)?;
-        let mut required: BTreeMap<&str, BTreeSet<SourceKind>> = BTreeMap::new();
-        for selection in selections {
-            required
-                .entry(&selection.scope.router_id)
-                .or_default()
-                .insert(selection.scope.kind);
-        }
+        deadline: Instant,
+    ) -> anyhow::Result<(u64, Vec<CurrentRouter>)> {
         let mut by_name: HashMap<&str, Vec<_>> = HashMap::new();
         for router in &cfg.routers {
             by_name.entry(&router.name).or_default().push(router);
@@ -110,7 +79,7 @@ where
         let by_id: HashMap<_, _> = catalog.routers.iter().map(|r| (r.id.as_str(), r)).collect();
         let mut plans = Vec::with_capacity(required.len());
         let mut names = BTreeSet::new();
-        for (&id, kinds) in &required {
+        for (&id, kinds) in required {
             let catalog_router = by_id
                 .get(id)
                 .context("selected catalog router is missing")?;
@@ -223,6 +192,83 @@ where
             self.sessions.insert(id, session);
             current.push(router);
         }
+        Ok((generation, current))
+    }
+
+    /// Read every configured router protocol for a first policy proposal. No registry is needed.
+    pub(crate) async fn read_for_proposal(
+        &mut self,
+        cfg: &Config,
+        max_age: Duration,
+    ) -> anyhow::Result<Vec<CurrentRouter>> {
+        ensure!(!max_age.is_zero(), "source age limit must be positive");
+        let deadline = Instant::now()
+            .checked_add(max_age)
+            .context("source age limit exceeds clock range")?;
+        let catalog = super::policy_draft::read_catalog(cfg);
+        let mut required: BTreeMap<&str, BTreeSet<SourceKind>> = BTreeMap::new();
+        for router in &catalog.routers {
+            let kinds = required.entry(&router.id).or_default();
+            for role in &router.roles {
+                kinds.insert(match role {
+                    RouterRole::Ppp => SourceKind::Ppp,
+                    RouterRole::Dhcp => SourceKind::Dhcp,
+                    RouterRole::Hotspot => SourceKind::Hotspot,
+                    RouterRole::Wan => continue,
+                });
+            }
+        }
+        required.retain(|_, kinds| !kinds.is_empty());
+        Ok(self
+            .read_required(cfg, &catalog, &required, 0, deadline)
+            .await?
+            .1)
+    }
+
+    pub(crate) async fn prepare(
+        &mut self,
+        cfg: &Config,
+        registry: &RegistryDocument,
+        minimum_generation: u64,
+        max_age: Duration,
+    ) -> anyhow::Result<PreparedPair> {
+        let started = Instant::now();
+        ensure!(!max_age.is_zero(), "source age limit must be positive");
+        let deadline = started
+            .checked_add(max_age)
+            .context("source age limit exceeds clock range")?;
+        let issues = super::preflight::source_issues(cfg, registry)?;
+        ensure!(
+            issues.is_empty(),
+            "unsupported configured source policies: {issues:?}"
+        );
+        let static_source = super::static_input::required(registry)
+            .then(|| {
+                super::static_input::CurrentStatic::load(std::path::Path::new(
+                    &cfg.runtime.state_dir,
+                ))
+            })
+            .transpose()?;
+        let source_filters = super::preflight::source_filter_digest(cfg, registry)?;
+        let catalog = registry
+            .catalog
+            .as_ref()
+            .context("topology catalog is unconfigured")?;
+        let selections = registry
+            .source_settings
+            .as_ref()
+            .context("source settings are unconfigured")?
+            .ready_selections(catalog)?;
+        let mut required: BTreeMap<&str, BTreeSet<SourceKind>> = BTreeMap::new();
+        for selection in selections {
+            required
+                .entry(&selection.scope.router_id)
+                .or_default()
+                .insert(selection.scope.kind);
+        }
+        let (generation, current) = self
+            .read_required(cfg, catalog, &required, minimum_generation, deadline)
+            .await?;
         ensure!(
             Instant::now() < deadline,
             "source batch expired before authorization"

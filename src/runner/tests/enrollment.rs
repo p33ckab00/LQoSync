@@ -348,3 +348,165 @@ fn failed_recovery_discards_cached_registry_and_keeps_the_held_owner() {
         1
     );
 }
+
+mod cli_flow {
+    use super::*;
+    use crate::topology_manager::enroll_mapping::{MappingFile, RowDecision};
+    use crate::topology_manager::policy_draft::tests as scenario;
+    use std::time::Duration;
+
+    const AGE: Duration = Duration::from_secs(60);
+
+    /// The v3_root_promotion scenario as live legacy files and current router rows.
+    fn setup(e: &Env, drop_legacy: Option<&str>) -> Config {
+        let (mut config, snap) = scenario::scenario();
+        let mut old = scenario::legacy(&config, &snap);
+        if let Some(name) = drop_legacy {
+            old.rows.retain(|r| r.circuit_name != name);
+        }
+        config.runtime.state_dir = e.state.to_string_lossy().into_owned();
+        config.runtime.mode = RuntimeMode::Apply;
+        config.libreqos = cfg(e, "apply", "").libreqos;
+        config.libreqos.target = Target::V3Pair;
+        std::fs::create_dir_all(&e.state).unwrap();
+        std::fs::write(
+            e.lqos.join("ShapedDevices.csv"),
+            render_csv(&old.rows, Columns::V3),
+        )
+        .unwrap();
+        std::fs::write(
+            e.lqos.join("network.json"),
+            render_network_json(&old.network),
+        )
+        .unwrap();
+        let mut by_path = BTreeMap::new();
+        for (table, rows) in scenario::tables(&snap) {
+            let (path, fields) = table.command();
+            let wanted: Vec<_> = fields.split(',').collect();
+            let rows = rows
+                .into_iter()
+                .map(|r| {
+                    r.into_iter()
+                        .filter(|(k, _)| wanted.contains(&k.as_str()))
+                        .collect()
+                })
+                .collect();
+            by_path.insert(path.to_string(), rows);
+        }
+        e.fake.rows.lock().unwrap().insert("Hub-1".into(), by_path);
+        config
+    }
+
+    fn files(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+        let mut out = vec![];
+        let mut work = vec![dir.to_path_buf()];
+        while let Some(d) = work.pop() {
+            for entry in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    work.push(p);
+                } else {
+                    out.push((p.clone(), std::fs::read(&p).unwrap_or_default()));
+                }
+            }
+        }
+        out.sort();
+        out
+    }
+
+    fn confirm(file: &mut MappingFile) {
+        for row in &mut file.rows {
+            if let RowDecision::Map { confirmed, .. } = &mut row.decision {
+                *confirmed = true;
+            }
+        }
+        for node in &mut file.nodes {
+            node.confirmed = true;
+        }
+    }
+
+    #[tokio::test]
+    async fn check_takes_no_lock_and_writes_nothing() {
+        let e = env();
+        let c = setup(&e, None);
+        let _held = crate::files::InstanceLock::acquire(&e.state).unwrap();
+        let before = files(&e.state);
+        let mut r = runner(&e, c);
+        let draft = r.propose_policy(AGE).await.unwrap();
+        let check = r.check_topology(&draft, AGE).await.unwrap();
+        assert_eq!(files(&e.state), before);
+        assert!(check.policy_issues.is_empty(), "{check:?}");
+        assert_eq!(check.prepare_error, None);
+        assert_eq!((check.suggested, check.unmatched_legacy), (7, 0));
+    }
+
+    #[tokio::test]
+    async fn check_reports_candidate_only_scope() {
+        let e = env();
+        let c = setup(&e, Some("DHCP-020000000301"));
+        let mut r = runner(&e, c);
+        let draft = r.propose_policy(AGE).await.unwrap();
+        let check = r.check_topology(&draft, AGE).await.unwrap();
+        assert_eq!(
+            check.candidate_only_by_scope.get("dhcp-IOT"),
+            Some(&1),
+            "{check:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn check_warns_for_locally_administered_mac() {
+        let e = env();
+        let c = setup(&e, None);
+        let mut r = runner(&e, c);
+        let draft = r.propose_policy(AGE).await.unwrap();
+        let check = r.check_topology(&draft, AGE).await.unwrap();
+        // The scenario lease MACs start with 02, the locally administered bit.
+        assert_eq!(check.random_macs.len(), 3, "{check:?}");
+        assert!(check.policy_issues.is_empty());
+    }
+
+    #[tokio::test]
+    async fn install_policy_then_propose_then_enroll_installs_one_revision() {
+        let e = env();
+        let c = setup(&e, None);
+        let live = (
+            read(&e.lqos.join("ShapedDevices.csv")),
+            read(&e.lqos.join("network.json")),
+        );
+        let mut r = runner(&e, c);
+        let draft = r.propose_policy(AGE).await.unwrap();
+        assert_eq!(r.install_topology_policy(&draft).unwrap(), 1);
+        let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+        confirm(&mut file);
+        let dry = r.enroll_with_mapping(&file, AGE, false).await.unwrap();
+        assert_eq!(dry.revision, None);
+        assert_eq!(dry.mapped, 7);
+        assert!(!dry.rounded.is_empty());
+        let done = r.enroll_with_mapping(&file, AGE, true).await.unwrap();
+        assert_eq!(done.revision, Some(2));
+        assert_eq!(
+            (
+                read(&e.lqos.join("ShapedDevices.csv")),
+                read(&e.lqos.join("network.json"))
+            ),
+            live
+        );
+        assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+        assert!(r.install_topology_policy(&draft).is_err());
+    }
+
+    #[tokio::test]
+    async fn enroll_with_drift_writes_nothing() {
+        let e = env();
+        let c = setup(&e, None);
+        let mut r = runner(&e, c);
+        let draft = r.propose_policy(AGE).await.unwrap();
+        r.install_topology_policy(&draft).unwrap();
+        let file = r.propose_enrollment(None, AGE).await.unwrap();
+        let before = files(&e.state);
+        let e2 = r.enroll_with_mapping(&file, AGE, true).await.unwrap_err();
+        assert!(format!("{e2:#}").contains("unconfirmed"), "{e2:#}");
+        assert_eq!(files(&e.state), before);
+    }
+}

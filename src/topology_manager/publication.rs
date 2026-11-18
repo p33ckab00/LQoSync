@@ -145,6 +145,10 @@ impl PreparedPair {
         );
         Ok(tracker.write(&outputs, request.meta, request.now, request.hub))
     }
+    /// Current identity of each candidate device ID.
+    pub(crate) fn device_identities(&self) -> &HashMap<String, super::model::IdentityRef> {
+        &self.device_identities
+    }
     pub fn node_export_adjustments(&self) -> &[NodeExportAdjustment] {
         &self.node_adjustments
     }

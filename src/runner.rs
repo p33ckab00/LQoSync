@@ -56,6 +56,30 @@ impl CycleSummary {
     }
 }
 
+/// Read-only enrollment readiness. `prepare_error` holds a source or identity conflict.
+#[derive(Debug, Default)]
+pub struct TopologyCheck {
+    pub policy_issues: Vec<crate::topology_manager::preflight::PolicyIssue>,
+    pub prepare_error: Option<String>,
+    /// Current accounts with no legacy row, by source scope. They enter after activation.
+    pub candidate_only_by_scope: std::collections::BTreeMap<String, usize>,
+    pub suggested: usize,
+    pub unmatched_legacy: usize,
+    /// Locally administered DHCP client MACs. A random MAC can change the identity.
+    pub random_macs: Vec<String>,
+    pub rounded: Vec<crate::topology_manager::publication::NodeExportAdjustment>,
+}
+
+/// What an enrollment installs, or would install when `revision` is `None`.
+#[derive(Debug)]
+pub struct EnrollOutcome {
+    pub revision: Option<u64>,
+    pub mapped: usize,
+    pub protected: usize,
+    pub dropped: Vec<crate::topology_manager::migration::RowIdentity>,
+    pub rounded: Vec<crate::topology_manager::publication::NodeExportAdjustment>,
+}
+
 /// Runs cycles. The router sessions stay open between cycles.
 pub struct Runner<C: Connector + 'static> {
     pub cfg: Config,
@@ -479,6 +503,137 @@ where
             .context("registry owner is missing")?
             .document()?
             .revision)
+    }
+
+    /// Propose a first topology policy from the configuration and current router data.
+    /// No lock is taken and no file is written.
+    pub async fn propose_policy(
+        &mut self,
+        max_age: Duration,
+    ) -> anyhow::Result<crate::topology_manager::policy_draft::PolicyDraft> {
+        let current = self
+            .topology_sources
+            .read_for_proposal(&self.cfg, max_age)
+            .await?;
+        crate::topology_manager::policy_draft::propose(&self.cfg, &current)
+    }
+
+    /// Read-only enrollment readiness for a draft policy. No lock is taken and no file is written.
+    pub async fn check_topology(
+        &mut self,
+        draft: &crate::topology_manager::policy_draft::PolicyDraft,
+        max_age: Duration,
+    ) -> anyhow::Result<TopologyCheck> {
+        anyhow::ensure!(
+            self.cfg.runtime.mode == RuntimeMode::Apply
+                && crate::detect::resolve(&self.cfg.libreqos)?.target == Target::V3Pair,
+            "manager enrollment requires the v3 pair apply target"
+        );
+        let doc = crate::topology_manager::policy_draft::document(draft)?;
+        let mut out = TopologyCheck {
+            policy_issues: crate::topology_manager::preflight::legacy_issues(&self.cfg, &doc)?,
+            ..TopologyCheck::default()
+        };
+        let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
+        match self
+            .topology_sources
+            .prepare(&self.cfg, &doc, self.last_topology_generation, max_age)
+            .await
+        {
+            Err(e) => out.prepare_error = Some(format!("{e:#}")),
+            Ok(pair) => {
+                use crate::topology_manager::enroll_mapping::RowDecision;
+                let file =
+                    crate::topology_manager::enroll_mapping::propose(&pair, &rows, &network, None)?;
+                for row in &file.rows {
+                    match row.decision {
+                        RowDecision::Map { .. } => out.suggested += 1,
+                        RowDecision::Undecided => out.unmatched_legacy += 1,
+                        _ => {}
+                    }
+                }
+                let identities = pair.device_identities();
+                for account in &file.candidate_only {
+                    if let Some(identity) = identities.values().find(|i| &i.account_ref == account)
+                    {
+                        *out.candidate_only_by_scope
+                            .entry(identity.scope.source_id.clone())
+                            .or_default() += 1;
+                    }
+                }
+                let mut macs: Vec<_> = identities
+                    .values()
+                    .filter_map(|i| i.account_ref.strip_prefix("dhcp-mac/v1/"))
+                    // Bit 1 of the first octet marks a locally administered (often random) MAC.
+                    .filter(|mac| u8::from_str_radix(&mac[..2], 16).is_ok_and(|b| b & 2 != 0))
+                    .map(str::to_string)
+                    .collect();
+                macs.sort_unstable();
+                macs.dedup();
+                out.random_macs = macs;
+                out.rounded = pair.node_export_adjustments().to_vec();
+            }
+        }
+        Ok(out)
+    }
+
+    /// Install the first topology policy. Shaping stays with the legacy loop until activation.
+    pub fn install_topology_policy(
+        &mut self,
+        draft: &crate::topology_manager::policy_draft::PolicyDraft,
+    ) -> anyhow::Result<u64> {
+        self.topology_preflight()?;
+        self.open_topology_store()?;
+        let store = self
+            .topology_store
+            .as_mut()
+            .context("registry owner is missing")?;
+        let current = store.document()?.clone();
+        anyhow::ensure!(
+            current.export_ownership.is_none(),
+            "the topology registry is already enrolled; a first policy cannot replace it"
+        );
+        let mut candidate = current.clone();
+        candidate.catalog = Some(draft.catalog.clone());
+        candidate.source_settings = Some(draft.source_settings.clone());
+        store.commit(current.revision, candidate)?;
+        Ok(store.document()?.revision)
+    }
+
+    /// Propose an enrollment mapping file from a fresh candidate and the live legacy pair.
+    pub async fn propose_enrollment(
+        &mut self,
+        previous: Option<&crate::topology_manager::enroll_mapping::MappingFile>,
+        max_age: Duration,
+    ) -> anyhow::Result<crate::topology_manager::enroll_mapping::MappingFile> {
+        let pair = self.prepare_topology(max_age).await?;
+        let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
+        crate::topology_manager::enroll_mapping::propose(&pair, &rows, &network, previous)
+    }
+
+    /// Build the manifest from a confirmed mapping file. Install it only when `install` is true.
+    pub async fn enroll_with_mapping(
+        &mut self,
+        file: &crate::topology_manager::enroll_mapping::MappingFile,
+        max_age: Duration,
+        install: bool,
+    ) -> anyhow::Result<EnrollOutcome> {
+        let pair = self.prepare_topology(max_age).await?;
+        let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
+        let (manifest, roots, attachments) =
+            crate::topology_manager::enroll_mapping::build_manifest(&pair, &rows, &network, file)
+                .map_err(|drift| anyhow::anyhow!("{drift}"))?;
+        let mut out = EnrollOutcome {
+            revision: None,
+            mapped: manifest.rows.len(),
+            protected: manifest.protected_rows.len(),
+            dropped: manifest.dropped_rows.clone(),
+            rounded: pair.node_export_adjustments().to_vec(),
+        };
+        if install {
+            out.revision = Some(self.enroll_topology(&pair, &manifest, &roots, &attachments)?);
+        }
+        Ok(out)
     }
 
     fn topology_preflight(&mut self) -> anyhow::Result<()> {
