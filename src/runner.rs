@@ -106,6 +106,8 @@ pub struct Runner<C: Connector + 'static> {
     last_topology_generation: u64,
     /// Start time of the most recent cycle, in Unix seconds.
     last_cycle_started: Option<u64>,
+    /// The latest on-demand preview. It is for display only.
+    last_preview: Option<serde_json::Value>,
     topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
 }
 
@@ -201,6 +203,7 @@ where
             topology_store: None,
             last_topology_generation: 0,
             last_cycle_started: None,
+            last_preview: None,
         }
     }
 
@@ -570,6 +573,124 @@ where
                 Err(e)
             }
         }
+    }
+
+    /// API `topology.preview.refresh`: read routers, prepare a candidate without the writer-only
+    /// checks, and cache the view. A conflict preview is cached too. Other errors keep the cache.
+    pub async fn api_preview_refresh(&mut self) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::conflicts::PreparationConflicts;
+        let doc = self
+            .api_document()?
+            .filter(|d| d.catalog.is_some() && d.source_settings.is_some())
+            .ok_or_else(|| {
+                anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(
+                    "no installed topology policy".into(),
+                ))
+            })?;
+        let collected_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let prepared = self
+            .topology_sources
+            .prepare(
+                &self.cfg,
+                &doc,
+                self.last_topology_generation,
+                Duration::from_secs(30),
+            )
+            .await;
+        let value = match prepared {
+            Ok(pair) => {
+                let mut rounded = Vec::new();
+                for a in pair.node_export_adjustments() {
+                    let calculated = crate::speed::Rate::try_from(a.calculated_ceiling)?;
+                    let exported = crate::speed::Rate::try_from(a.exported_ceiling)?;
+                    rounded.push(serde_json::json!({
+                        "node_id": a.node_id,
+                        "calculated_mbps": [calculated.down, calculated.up],
+                        "exported_mbps": [exported.down, exported.up],
+                    }));
+                }
+                let view = pair.view();
+                serde_json::json!({
+                    "collected_at": collected_at,
+                    "registry_revision": doc.revision,
+                    "generation": pair.generation(),
+                    "state": "ok",
+                    "nodes": view.nodes,
+                    "subscribers": view.subscribers,
+                    "inventory": view.inventory,
+                    "conflicts": [],
+                    "rounded": rounded,
+                })
+            }
+            Err(e) => match e
+                .chain()
+                .find_map(|c| c.downcast_ref::<PreparationConflicts>())
+            {
+                Some(conflicts) => serde_json::json!({
+                    "collected_at": collected_at,
+                    "registry_revision": doc.revision,
+                    "generation": null,
+                    "state": "conflicts",
+                    "nodes": [],
+                    "subscribers": [],
+                    "inventory": [],
+                    "conflicts": conflicts.0,
+                    "rounded": [],
+                }),
+                None => return Err(e),
+            },
+        };
+        self.last_preview = Some(value.clone());
+        Ok(value)
+    }
+
+    /// API `topology.preview.get`: the cached preview, or `null`. No router read.
+    pub fn api_preview_get(&mut self) -> anyhow::Result<serde_json::Value> {
+        self.lock()?;
+        Ok(self.last_preview.clone().unwrap_or(serde_json::Value::Null))
+    }
+
+    /// API `topology.policies`: speed defaults and profiles. A source-read profile has no fixed
+    /// base rate, so its resolved rates are `null`.
+    pub fn api_policies(&mut self) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::catalog::BaseRateAuthority;
+        let Some(catalog) = self.api_document()?.and_then(|d| d.catalog) else {
+            return Ok(serde_json::Value::Null);
+        };
+        let mut profiles = Vec::new();
+        for p in &catalog.profiles {
+            let (base, min, max) = match p.base {
+                BaseRateAuthority::SourceRead => (serde_json::json!("source_read"), None, None),
+                BaseRateAuthority::Local(rate) => {
+                    let r = crate::topology_manager::rates::resolve_subscriber(
+                        rate,
+                        &catalog.defaults,
+                        &p.speed,
+                    )?;
+                    let (lo, hi) = (
+                        crate::speed::Rate::try_from(r.min)?,
+                        crate::speed::Rate::try_from(r.max)?,
+                    );
+                    let b = crate::speed::Rate::try_from(rate)?;
+                    (
+                        serde_json::json!({"local_mbps": [b.down, b.up]}),
+                        Some([lo.down, lo.up]),
+                        Some([hi.down, hi.up]),
+                    )
+                }
+            };
+            profiles.push(serde_json::json!({
+                "id": p.id,
+                "name": p.name,
+                "base": base,
+                "speed": p.speed,
+                "min_mbps": min,
+                "max_mbps": max,
+            }));
+        }
+        Ok(serde_json::json!({"defaults": catalog.defaults, "profiles": profiles}))
     }
 
     /// Bind the service API socket. The held instance lock proves socket ownership.
@@ -1320,6 +1441,7 @@ mod tests {
         rows: Mutex<BTreeMap<String, BTreeMap<String, Vec<RosRow>>>>,
         failing: Mutex<HashSet<String>>,
         panicking: Mutex<HashSet<String>>,
+        reads: std::sync::atomic::AtomicUsize,
     }
     struct FakeSession {
         router: String,
@@ -1352,6 +1474,9 @@ mod tests {
             path: &str,
             _p: &str,
         ) -> impl Future<Output = Result<Vec<RosRow>, ReadError>> + Send {
+            self.fake
+                .reads
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let fail = self.fake.failing.lock().unwrap().contains(&self.router);
             let rows = self
                 .fake
