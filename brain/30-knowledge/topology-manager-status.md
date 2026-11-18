@@ -66,6 +66,13 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Verification: 1,235 tests passed, 0 failed, 13 ignored. Format, Clippy with warnings denied, and whitespace checks passed. The MSRV 1.89 build runs in CI.
 - Next: Phase 2, the Topology Manager TUI tab and the Settings migration.
 
+## Phase 2a service API (2026-11-18)
+
+- The service listens on a root-only Unix socket, `/var/lib/lqosync3/api.sock`, with JSON-lines requests.
+- Operations: `status`, `registry.get`, `policy.commit`. Command: `lqosync3 api status`.
+- Edits do not change live shaping before Phase 4 activation.
+- Next: Phase 2b, the Topology TUI with per-subscriber plans and pins, through this API.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.

@@ -117,7 +117,10 @@ The legacy files have no rows for that server, so live shaping does not change. 
    ```bash
    sudo systemctl start lqosync3
    sudo journalctl -u lqosync3 -f
+   sudo lqosync3 api status
    ```
+
+   `lqosync3 api status` must show the new `registry_revision` and `"enrolled": true`.
 
 ## Effects after Phase 4 activation
 

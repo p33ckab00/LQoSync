@@ -1387,3 +1387,13 @@ Per-site DHCP uses a plan sum when the router has no DHCP client overrides.
 Parity maps a legacy fractional node capacity to its whole-Mbps export when the legacy value equals the calculated ceiling. Parity ignores the CSV `Comment` column.
 `Runner::check_topology` and `Runner::propose_policy` take no instance lock and write no file.
 Enrollment installs policy only. Service activation remains Phase 4.
+
+## Service API
+
+Phase 2a adds a root-only API in the running service. See [the design](../superpowers/specs/2026-11-18-topology-service-api-design.md).
+The service binds `<runtime.state_dir>/api.sock` with mode `0600` after it takes the instance lock. A guard removes the socket on every exit path.
+Each request is one JSON line (`"v": 1`). Each peer must be uid 0 or the service user.
+The main task answers requests while it waits for the next cycle. The cycle deadline does not move.
+Operations: `status`, `registry.get`, and a revision-checked `policy.commit`. Reads do not create the registry store.
+A revision mismatch gives `conflict`. A rule failure gives `invalid`. A lost lock answers `internal`, and the service stops.
+`lqosync3 api status` prints the status. Phase 2b adds the TUI operations.
