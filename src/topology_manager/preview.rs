@@ -22,8 +22,18 @@ pub struct NodeView {
     pub subscribers: u64,
 }
 
+/// One full identity of a subscriber, as the plan operations need it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct IdentityView {
+    pub router_id: String,
+    pub source_id: String,
+    pub kind: String,
+    pub account_ref: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SubscriberView {
+    pub identities: Vec<IdentityView>,
     pub id: String,
     pub account_ref: String,
     pub scope: String,
@@ -136,7 +146,20 @@ pub(super) fn build(
             .collect();
         macs.sort_unstable();
         macs.dedup();
+        let mut identities: Vec<IdentityView> = active
+            .endpoints
+            .iter()
+            .map(|e| IdentityView {
+                router_id: e.identity.scope.router_id.clone(),
+                source_id: e.identity.scope.source_id.clone(),
+                kind: format!("{:?}", e.identity.scope.kind),
+                account_ref: e.identity.account_ref.clone(),
+            })
+            .collect();
+        identities.sort();
+        identities.dedup();
         subscribers.push(SubscriberView {
+            identities,
             id: active.subscriber_id.clone(),
             account_ref: first.identity.account_ref.clone(),
             scope: first.identity.scope.source_id.clone(),
@@ -225,6 +248,29 @@ mod tests {
             .find(|s| s.account_ref.starts_with("dhcp-mac/v1/"))
             .unwrap();
         assert_eq!(lease.macs.len(), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn each_subscriber_lists_full_identities() {
+        let (cfg, snap) = scenario();
+        let pair = candidate(&cfg, &snap).await;
+        let g1 = pair
+            .view()
+            .subscribers
+            .iter()
+            .find(|s| s.account_ref == "ppp-name/v1/g1")
+            .unwrap();
+        assert_eq!(g1.identities.len(), 1);
+        let id = &g1.identities[0];
+        assert_eq!(
+            (
+                id.kind.as_str(),
+                id.source_id.as_str(),
+                id.account_ref.as_str()
+            ),
+            ("Ppp", "ppp", "ppp-name/v1/g1")
+        );
+        assert!(id.router_id.starts_with("lq3-"));
     }
 
     #[tokio::test(start_paused = true)]
