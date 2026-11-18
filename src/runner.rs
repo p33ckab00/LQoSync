@@ -505,6 +505,14 @@ where
             .revision)
     }
 
+    /// Bind the service API socket. The held instance lock proves socket ownership.
+    pub fn api_bind(
+        &self,
+    ) -> anyhow::Result<(tokio::net::UnixListener, crate::api::server::SocketGuard)> {
+        let lock = self.lock.as_ref().context("instance lock is missing")?;
+        crate::api::server::bind(Path::new(&self.cfg.runtime.state_dir), lock)
+    }
+
     /// Propose a first topology policy from the configuration and current router data.
     /// No lock is taken and no file is written.
     pub async fn propose_policy(
@@ -2738,5 +2746,6 @@ mod tests {
         assert!(!e.lqos.join("ShapedDevices.csv").exists());
         assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
     }
+    mod api;
     mod enrollment;
 }
