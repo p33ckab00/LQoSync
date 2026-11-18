@@ -54,6 +54,9 @@ pub struct TopologyView {
     /// The plan that waits for a y/n answer before delete.
     confirm_delete: Option<(String, String)>,
     plan_selected: usize,
+    /// The last `wan.discover` answer.
+    wan: Option<Value>,
+    discovering: bool,
     pub screen: Screen,
 }
 
@@ -349,6 +352,13 @@ impl TopologyView {
                 self.notice = Some("changed by another operator, try again".into());
                 self.reload();
             }
+            ("wan.discover", result) => {
+                self.discovering = false;
+                match result {
+                    Ok(v) => self.wan = Some(v),
+                    Err(e) => self.error = Some(e),
+                }
+            }
             (_, Err(e)) => self.error = Some(e),
             _ => {}
         }
@@ -376,6 +386,12 @@ impl TopologyView {
                 }
             }
             KeyCode::Char('r') => self.refresh(),
+            KeyCode::Char('w') if self.screen == Screen::Builder => {
+                if !self.discovering {
+                    self.discovering = true;
+                    self.send("wan.discover");
+                }
+            }
             KeyCode::Char('b') => self.screen = Screen::Builder,
             KeyCode::Char('a') => self.screen = Screen::Assignments,
             KeyCode::Char('p') => {

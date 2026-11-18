@@ -49,6 +49,67 @@ fn pair(v: &Value) -> String {
     format!("{}/{}", mbps(&v[0]), mbps(&v[1]))
 }
 
+/// The WAN candidates section of the Inventory panel.
+fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
+    let text = |x: &Value| x.as_str().unwrap_or_default().to_string();
+    let mut out = vec![String::new(), "WAN candidates".to_string()];
+    if v.discovering {
+        out.push("reading routers".into());
+    } else if v.wan.is_none() {
+        out.push("[w] discover WANs".into());
+    }
+    let wan = v.wan.as_ref();
+    for r in wan
+        .and_then(|w| w["routers"].as_array())
+        .into_iter()
+        .flatten()
+    {
+        if r["state"] == "ok" {
+            out.push(format!("{}  ok", text(&r["name"])));
+        } else {
+            out.push(format!(
+                "{}  failed: {}",
+                text(&r["name"]),
+                text(&r["error"])
+            ));
+        }
+        for c in r["candidates"].as_array().into_iter().flatten() {
+            let mut line = format!(
+                "  {}  {}  {}",
+                text(&c["name"]),
+                text(&c["type"]),
+                if c["running"] == true { "up" } else { "down" }
+            );
+            if c["disabled"] == true {
+                line.push_str("  disabled");
+            }
+            if c["suggested"] == true {
+                line.push_str("  WAN?");
+            }
+            let used = c["used_by"].as_array().map_or(0, Vec::len);
+            if used > 0 {
+                line.push_str(&format!("  used by {used}"));
+            }
+            out.push(line);
+        }
+        for m in r["missing"].as_array().into_iter().flatten() {
+            out.push(format!("  {}  missing", text(&m["endpoint_ref"])));
+        }
+    }
+    for u in wan
+        .and_then(|w| w["unconfigured"].as_array())
+        .into_iter()
+        .flatten()
+    {
+        out.push(format!(
+            "{}  router {} not configured",
+            text(&u["endpoint_ref"]),
+            text(&u["router_id"])
+        ));
+    }
+    out.into_iter().map(Line::from).collect()
+}
+
 fn panel_lines(v: &TopologyView, panel: Panel, height: usize) -> Vec<Line<'static>> {
     let nodes = v.nodes();
     match panel {
@@ -65,6 +126,7 @@ fn panel_lines(v: &TopologyView, panel: Panel, height: usize) -> Vec<Line<'stati
                     s["members"]
                 ))
             })
+            .chain(wan_lines(v))
             .collect(),
         Panel::Tree => {
             let start = v.node_selected.saturating_sub(height.saturating_sub(1));
@@ -223,5 +285,114 @@ pub(super) mod tests {
         let text = render(&v, 160, 30);
         assert!(text.contains("id: s"), "{text}");
         assert!(text.contains("source: Silver"), "{text}");
+    }
+
+    fn key(v: &mut TopologyView, c: char) -> bool {
+        v.on_key(ratatui::crossterm::event::KeyCode::Char(c))
+    }
+
+    fn ops(v: &mut TopologyView) -> Vec<String> {
+        v.take_outbox().into_iter().map(|(op, _)| op).collect()
+    }
+
+    fn discovered() -> TopologyView {
+        let mut v = sample();
+        v.focus = Panel::Inventory;
+        v.on_answer(ApiAnswer {
+            op: "wan.discover".into(),
+            result: Ok(json!({
+                "collected_at": 0,
+                "routers": [
+                    {"router_id": "r-core", "name": "Core", "state": "ok", "error": null,
+                     "candidates": [
+                        {"name": "pppoe-out1", "type": "pppoe-out", "running": true, "disabled": false,
+                         "comment": null, "suggested": true, "source_id": "wan-1", "used_by": ["n1", "n2"]},
+                        {"name": "ether5", "type": "ether", "running": false, "disabled": true,
+                         "comment": null, "suggested": false, "source_id": null, "used_by": []}
+                     ],
+                     "missing": [{"source_id": "wan-2", "endpoint_ref": "pppoe-out2"}]},
+                    {"router_id": "r-distro", "name": "Distro", "state": "failed", "error": "login refused",
+                     "candidates": [], "missing": []}
+                ],
+                "unconfigured": [{"source_id": "wan-3", "router_id": "r-old", "endpoint_ref": "pppoe-out9"}]
+            })),
+        });
+        v
+    }
+
+    #[test]
+    fn w_in_the_builder_sends_wan_discover_once_while_it_runs() {
+        let mut v = sample();
+        ops(&mut v);
+        assert!(key(&mut v, 'w'));
+        assert_eq!(ops(&mut v), ["wan.discover"]);
+        key(&mut v, 'w');
+        assert!(ops(&mut v).is_empty(), "one discovery at a time");
+        v.on_answer(ApiAnswer {
+            op: "wan.discover".into(),
+            result: Err("Internal: boom".into()),
+        });
+        key(&mut v, 'w');
+        assert_eq!(
+            ops(&mut v),
+            ["wan.discover"],
+            "an answer ends the discovery"
+        );
+    }
+
+    #[test]
+    fn a_discovery_during_a_preview_refresh_sends_both() {
+        let mut v = sample();
+        ops(&mut v);
+        key(&mut v, 'r');
+        key(&mut v, 'w');
+        let sent = ops(&mut v);
+        assert!(
+            sent.contains(&"topology.preview.refresh".to_string()),
+            "{sent:?}"
+        );
+        assert!(sent.contains(&"wan.discover".to_string()), "{sent:?}");
+        v.on_answer(ApiAnswer {
+            op: "wan.discover".into(),
+            result: Ok(json!({"collected_at": 0, "routers": [], "unconfigured": []})),
+        });
+        assert!(
+            v.refreshing,
+            "the WAN answer does not end the preview refresh"
+        );
+        assert!(v.wan.is_some());
+    }
+
+    #[test]
+    fn before_discovery_the_section_shows_the_key() {
+        let mut v = sample();
+        v.focus = Panel::Inventory;
+        let text = render(&v, 80, 24);
+        assert!(text.contains("WAN candidates"), "{text}");
+        assert!(text.contains("[w] discover WANs"), "{text}");
+        key(&mut v, 'w');
+        assert!(render(&v, 80, 24).contains("reading routers"));
+    }
+
+    #[test]
+    fn the_section_lists_candidates_with_marks_errors_and_missing_entries() {
+        let text = render(&discovered(), 160, 30);
+        for want in [
+            "Core  ok",
+            "pppoe-out1  pppoe-out  up  WAN?  used by 2",
+            "ether5  ether  down  disabled",
+            "pppoe-out2  missing",
+            "Distro  failed: login refused",
+            "pppoe-out9  router r-old not configured",
+        ] {
+            assert!(text.contains(want), "{want}: {text}");
+        }
+    }
+
+    #[test]
+    fn the_wan_section_fits_80_columns() {
+        let text = render(&discovered(), 80, 30);
+        assert!(text.contains("pppoe-out1  pppoe-out  up  WAN?"), "{text}");
+        assert!(text.contains("Distro  failed: login refused"), "{text}");
     }
 }
