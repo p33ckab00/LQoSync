@@ -125,6 +125,7 @@ async fn durable_adoption_requires_exact_snapshot_policy() {
     rows[0].circuit_name = "Alice".into();
     rows[0].device_name = "Alice device".into();
     let mut manifest = super::super::migration::MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: pair.expected_revision(),
         generation: pair.generation(),
         baseline_digest: super::super::migration::fingerprint(&rows, pair.network()),
@@ -262,6 +263,7 @@ async fn adopted_static_ownership_and_aliases_survive_store_restart_and_fresh_pr
         .extend(static_tree.as_object().unwrap().clone());
     baseline.push(static_row.clone());
     let manifest = MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: pair.expected_revision(),
         generation: pair.generation(),
         baseline_digest: fingerprint(&baseline, &network),

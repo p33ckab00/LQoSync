@@ -38,6 +38,9 @@ pub struct MigrationManifest {
     pub rows: Vec<RowMapping>,
     pub nodes: Vec<NodeMapping>,
     pub protected_rows: Vec<RowIdentity>,
+    /// Legacy rows that the operator explicitly leaves out of the adopted snapshot.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dropped_rows: Vec<RowIdentity>,
 }
 pub fn fingerprint(rows: &[CsvRow], network: &Value) -> String {
     let csv = crate::writer::pair::render_csv(rows, crate::model::Columns::V3);
@@ -50,6 +53,41 @@ pub fn fingerprint(rows: &[CsvRow], network: &Value) -> String {
         .expect("digest strings serialize"),
     )
 }
+/// Remove explicit dropped rows from the legacy baseline. The returned manifest binds the kept rows.
+/// A dropped row must exist once and must not also be mapped or protected.
+pub fn without_dropped(
+    rows: &[CsvRow],
+    network: &Value,
+    manifest: &MigrationManifest,
+) -> anyhow::Result<(Vec<CsvRow>, MigrationManifest)> {
+    ensure!(
+        manifest.baseline_digest == fingerprint(rows, network),
+        "migration content digest conflict"
+    );
+    let mut dropped = HashSet::new();
+    for row in &manifest.dropped_rows {
+        let key = (row.circuit_id.as_str(), row.device_id.as_str());
+        ensure!(
+            dropped.insert(key)
+                && rows
+                    .iter()
+                    .any(|r| (r.circuit_id.as_str(), r.device_id.as_str()) == key)
+                && !manifest.protected_rows.contains(row)
+                && !manifest.rows.iter().any(|m| &m.legacy == row),
+            "invalid dropped legacy row"
+        );
+    }
+    let kept: Vec<_> = rows
+        .iter()
+        .filter(|r| !dropped.contains(&(r.circuit_id.as_str(), r.device_id.as_str())))
+        .cloned()
+        .collect();
+    let mut kept_manifest = manifest.clone();
+    kept_manifest.dropped_rows.clear();
+    kept_manifest.baseline_digest = fingerprint(&kept, network);
+    Ok((kept, kept_manifest))
+}
+
 pub fn compare_mapped(
     pair: &PreparedPair,
     rows: &[CsvRow],

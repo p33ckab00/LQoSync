@@ -16,8 +16,13 @@ pub struct StaticAdoption {
     network: Value,
     seal: String,
     expires: tokio::time::Instant,
+    dropped: Vec<super::migration::RowIdentity>,
 }
 impl StaticAdoption {
+    /// Legacy rows that this adoption leaves out by explicit operator decision.
+    pub fn dropped(&self) -> &[super::migration::RowIdentity] {
+        &self.dropped
+    }
     pub(super) fn check_seal(&self) -> anyhow::Result<()> {
         ensure!(
             tokio::time::Instant::now() < self.expires,
@@ -125,6 +130,9 @@ pub fn adopt(
     attachments: &[StaticAttachment],
 ) -> anyhow::Result<StaticAdoption> {
     pair.check_fresh()?;
+    let dropped = manifest.dropped_rows.clone();
+    let (kept_rows, kept_manifest) = migration::without_dropped(rows, network, manifest)?;
+    let (rows, manifest) = (&kept_rows[..], &kept_manifest);
     ensure!(
         manifest.expected_revision == pair.expected_revision()
             && manifest.generation == pair.generation()
@@ -305,6 +313,7 @@ pub fn adopt(
         registry,
         rows: static_rows,
         network: static_tree,
+        dropped,
     };
     proposal.source_document(1)?;
     pair.check_fresh()?;

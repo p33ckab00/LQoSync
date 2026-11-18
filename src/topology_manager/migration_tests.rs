@@ -25,6 +25,7 @@ fn old_pair(pair: &PreparedPair) -> (Vec<CsvRow>, Value, MigrationManifest) {
     }
     let network = pair.network().clone();
     let manifest = MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: 0,
         generation: 1,
         baseline_digest: fingerprint(&rows, &network),
@@ -123,6 +124,7 @@ async fn protected_or_unclassified_rows_stay_visible_and_cannot_be_adopted_impli
 async fn identical_export_ids_do_not_replace_explicit_ownership_or_mapping() {
     let pair = prepare(input(1)).unwrap();
     let mut manifest = MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: 0,
         generation: 1,
         baseline_digest: fingerprint(pair.rows(), pair.network()),

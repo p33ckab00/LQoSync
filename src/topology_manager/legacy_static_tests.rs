@@ -90,6 +90,7 @@ pub(crate) fn from_pair(pair: PreparedPair) -> Fixture {
         ..Default::default()
     });
     let manifest = MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: pair.expected_revision(),
         generation: pair.generation(),
         baseline_digest: fingerprint(&rows, &network),
@@ -434,6 +435,7 @@ async fn installed_compiler_preserves_the_migrated_shared_legacy_snapshot() {
 #[test]
 fn source_drafts_cannot_exceed_current_reader_limits() {
     let mut proposal = StaticAdoption {
+        dropped: vec![],
         seal: String::new(),
         expires: tokio::time::Instant::now(),
         registry: Default::default(),
@@ -445,4 +447,71 @@ fn source_drafts_cannot_exceed_current_reader_limits() {
     proposal.rows =
         vec![CsvRow::default(); crate::topology_manager::static_input::MAX_STATIC_ROWS + 1];
     assert!(proposal.source_document(1).is_err());
+}
+
+fn with_offline_row(f: &mut Fixture) -> RowIdentity {
+    let mut offline = f.rows[0].clone();
+    offline.circuit_id = "offline-circuit".into();
+    offline.device_id = "offline-device".into();
+    offline.circuit_name = "Offline account".into();
+    offline.device_name = "Offline device".into();
+    offline.ipv4 = "198.51.100.77".into();
+    offline.mac = String::new();
+    f.rows.push(offline);
+    f.refresh();
+    RowIdentity {
+        circuit_id: "offline-circuit".into(),
+        device_id: "offline-device".into(),
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn unclassified_offline_row_still_blocks() {
+    let mut f = fixture();
+    with_offline_row(&mut f);
+    assert!(f.adopt().is_err());
+}
+
+#[tokio::test(start_paused = true)]
+async fn dropped_row_is_reported_and_does_not_block() {
+    let mut f = fixture();
+    let offline = with_offline_row(&mut f);
+    f.manifest.dropped_rows = vec![offline.clone()];
+    let result = f.adopt().unwrap();
+    assert_eq!(result.dropped(), &[offline]);
+    let document = result.source_document(1).unwrap();
+    assert!(
+        !std::str::from_utf8(&document)
+            .unwrap()
+            .contains("offline-device")
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn dropped_row_cannot_also_be_mapped_or_protected() {
+    for which in [0usize, 1] {
+        let mut f = fixture();
+        f.manifest.dropped_rows = vec![RowIdentity {
+            circuit_id: f.rows[which].circuit_id.clone(),
+            device_id: f.rows[which].device_id.clone(),
+        }];
+        assert!(f.adopt().is_err(), "row {which}");
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn unknown_dropped_row_is_rejected() {
+    let mut f = fixture();
+    f.manifest.dropped_rows = vec![RowIdentity {
+        circuit_id: "nope".into(),
+        device_id: "nope".into(),
+    }];
+    assert!(f.adopt().is_err());
+}
+
+#[test]
+fn old_manifest_without_dropped_rows_still_decodes() {
+    let text = r#"{"expected_revision":0,"generation":1,"baseline_digest":"a","candidate_digest":"b","rows":[],"nodes":[],"protected_rows":[]}"#;
+    let manifest: MigrationManifest = serde_json::from_str(text).unwrap();
+    assert!(manifest.dropped_rows.is_empty());
 }

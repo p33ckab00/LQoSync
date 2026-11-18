@@ -193,6 +193,7 @@ async fn configured_adoption_requires_both_policy_and_exact_snapshot_checks() {
     legacy_rows[0].circuit_id = "legacy-circuit".into();
     let rows = legacy_rows.as_slice();
     let manifest = super::super::migration::MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: pair.expected_revision(),
         generation: pair.generation(),
         baseline_digest: super::super::migration::fingerprint(rows, pair.network()),

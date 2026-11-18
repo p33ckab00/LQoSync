@@ -737,6 +737,7 @@ async fn configured_filtered_adoption_requires_current_filter_proof_and_exact_ma
     legacy[0].circuit_id = "legacy-circuit".into();
     legacy[0].device_id = "legacy-device".into();
     let manifest = MigrationManifest {
+        dropped_rows: vec![],
         expected_revision: pair.expected_revision(),
         generation: pair.generation(),
         baseline_digest: fingerprint(&legacy, pair.network()),
