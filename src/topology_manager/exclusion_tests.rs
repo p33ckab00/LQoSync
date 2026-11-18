@@ -84,7 +84,7 @@ async fn excluded_sessions_still_require_valid_account_and_endpoint_evidence() {
         Issue::DisabledAccount,
     );
     let mut rows = dhcp();
-    rows.get_mut(&Table::DhcpLeases).unwrap()[0].remove("active-mac-address");
+    rows.get_mut(&Table::DhcpLeases).unwrap()[0].remove("active-address");
     let read = evidence(rows, &[RouterRole::Dhcp]).await;
     issue(
         normalize_configured(&read, &cfg.exclude, &cfg.routers[0].exclude),

@@ -1142,3 +1142,27 @@ async fn duplicate_ppp_name_in_one_scope_fails_normalization() {
     };
     assert!(format!("{e:?}").contains("DuplicateName"), "{e:?}");
 }
+
+#[tokio::test(start_paused = true)]
+async fn lease_without_mac_is_missing_reference() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Dhcp,
+        ReferenceAuthority::DhcpClientMac,
+    );
+    let input = current(
+        "router-a",
+        1,
+        dhcp_macs(&[None, Some("aa:bb:cc:00:11:22")]),
+        &[RouterRole::Dhcp],
+    )
+    .await;
+    let registry = RegistryDocument::default();
+    let auth = authorize(&registry, 0, 1, vec![input], &[sel]).unwrap();
+    let issues: Vec<_> = auth
+        .conflicts()
+        .iter()
+        .map(|c| (c.row_ref.as_str(), c.issue))
+        .collect();
+    assert_eq!(issues, vec![("*l0", IdentityIssue::MissingReference)]);
+}

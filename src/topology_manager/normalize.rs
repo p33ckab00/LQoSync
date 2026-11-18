@@ -305,13 +305,16 @@ fn endpoint(row: &RosRow, table: Table, index: usize) -> Result<Endpoint, Normal
             .and_then(|v| crate::config::normalize_mac(v))
             .map(|v| mac(&v, table, index))
             .transpose()?
+    } else if table == Table::DhcpLeases {
+        // A lease without a valid client MAC fails only its own identity check, not the router read.
+        row.get("active-mac-address")
+            .and_then(|v| mac(v, table, index).ok())
     } else {
-        let key = if table == Table::DhcpLeases {
-            "active-mac-address"
-        } else {
-            "mac-address"
-        };
-        Some(mac(required(row, table, index, key)?, table, index)?)
+        Some(mac(
+            required(row, table, index, "mac-address")?,
+            table,
+            index,
+        )?)
     };
     Ok(Endpoint {
         session_id: required(row, table, index, ".id")?.into(),

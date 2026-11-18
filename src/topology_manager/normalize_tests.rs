@@ -278,7 +278,7 @@ async fn dhcp_bound_uses_current_fields_and_retains_endpoint_only_evidence() {
 
 #[tokio::test(start_paused = true)]
 async fn missing_active_dhcp_endpoint_or_status_cannot_be_replaced_by_retained_data() {
-    for field in ["active-address", "active-mac-address", "status"] {
+    for field in ["active-address", "status"] {
         let mut rows = dhcp();
         rows.get_mut(&Table::DhcpLeases).unwrap()[0].remove(field);
         issue(
@@ -506,10 +506,11 @@ async fn invalid_endpoint_macs_and_disabled_servers_do_not_become_absence() {
         let mut rows = dhcp();
         rows.get_mut(&Table::DhcpLeases).unwrap()[0]
             .insert("active-mac-address".into(), value.into());
-        issue(
-            normalize(&evidence(rows, &[RouterRole::Dhcp]).await),
-            Issue::InvalidField,
-        );
+        // The lease stays present. Only its MAC evidence is absent.
+        let normalized = normalize(&evidence(rows, &[RouterRole::Dhcp]).await).unwrap();
+        let accounts = normalized.accounts().unwrap();
+        assert_eq!(accounts.len(), 1, "{value}");
+        assert_eq!(accounts[0].endpoints[0].mac, None, "{value}");
     }
     let mut rows = dhcp();
     rows.get_mut(&Table::DhcpServers).unwrap()[0].insert("disabled".into(), "true".into());
@@ -621,3 +622,39 @@ async fn missing_or_disabled_hotspot_server_cannot_establish_current_service_mem
 
 #[path = "exclusion_tests.rs"]
 mod exclusions;
+
+#[tokio::test(start_paused = true)]
+async fn dhcp_lease_without_mac_keeps_the_router_read() {
+    let mut rows = dhcp();
+    rows.get_mut(&Table::DhcpLeases).unwrap()[0].remove("active-mac-address");
+    let normalized = normalize(&evidence(rows, &[RouterRole::Dhcp]).await).unwrap();
+    let accounts = normalized.accounts().unwrap();
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].endpoints[0].mac, None);
+    assert_eq!(accounts[0].endpoints[0].ips[0].to_string(), "192.0.2.2");
+}
+
+#[tokio::test(start_paused = true)]
+async fn dhcp_lease_with_multicast_or_malformed_mac_has_no_mac() {
+    for value in ["01:00:5e:00:00:01", "00:00:00:00:00:00", "not-a-mac"] {
+        let mut rows = dhcp();
+        rows.get_mut(&Table::DhcpLeases).unwrap()[0]
+            .insert("active-mac-address".into(), value.into());
+        let normalized = normalize(&evidence(rows, &[RouterRole::Dhcp]).await).unwrap();
+        assert_eq!(
+            normalized.accounts().unwrap()[0].endpoints[0].mac,
+            None,
+            "{value}"
+        );
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn hotspot_host_without_mac_still_fails_the_read() {
+    let mut rows = hotspot();
+    rows.get_mut(&Table::HotspotActive).unwrap()[0].remove("mac-address");
+    issue(
+        normalize(&evidence(rows, &[RouterRole::Hotspot]).await),
+        Issue::MissingField,
+    );
+}
