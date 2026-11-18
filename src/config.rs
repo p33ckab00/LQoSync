@@ -344,6 +344,13 @@ pub struct RouterCfg {
     pub longitude: Option<f64>,
 }
 
+impl RouterCfg {
+    /// True when the router has a subscriber protocol. The legacy cycle reads only these routers.
+    pub fn reads_subscribers(&self) -> bool {
+        self.pppoe.enabled || self.dhcp.enabled || self.hotspot.enabled
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PppoeCfg {

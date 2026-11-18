@@ -1282,8 +1282,12 @@ where
         } = cycle_inputs(&self.cfg, now)?;
 
         // Read all routers at the same time. Each task owns its session and gives it back.
+        // A router without a subscriber protocol (a WAN-only core) has no legacy read.
         let mut tasks = Vec::new();
         for router in self.cfg.routers.clone() {
+            if !router.reads_subscribers() {
+                continue;
+            }
             let mut session = self.sessions.remove(&router.name).flatten();
             let (conn, access) = (self.connector.clone(), self.cfg.router_access.clone());
             let name = router.name.clone();
@@ -1313,7 +1317,7 @@ where
         }
         let mut routers = Vec::new();
         let mut memos = BTreeMap::new();
-        for router in &self.cfg.routers {
+        for router in self.cfg.routers.iter().filter(|r| r.reads_subscribers()) {
             let (out, ms) = outcomes
                 .remove(&router.name)
                 .expect("one outcome for each router");
@@ -1870,6 +1874,52 @@ mod tests {
                 .unwrap_or_default()
                 .contains("down")
         );
+    }
+
+    #[tokio::test]
+    async fn a_router_without_protocols_is_not_read_and_does_not_hold_removals() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(
+            &e,
+            "shadow",
+            "[router_access]\nread_retries=0\nretry_delay=0\n",
+        );
+        let core = Config::from_toml_str(
+            "[[routers]]\nname=\"Core\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        )
+        .unwrap()
+        .routers
+        .remove(0);
+        assert!(!core.reads_subscribers());
+        c.routers.push(core);
+        // A read of Core would panic its task and show Core as failed.
+        e.fake.panicking.lock().unwrap().insert("Core".into());
+        e.fake.failing.lock().unwrap().insert("Core".into());
+        let s = runner(&e, c).cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let names: Vec<_> = s.status.routers.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, ["R1"]);
+        assert_eq!(s.status.routers[0].state, "online");
+        let st: serde_json::Value =
+            serde_json::from_str(&read(&e.state.join("status.json"))).unwrap();
+        assert!(!st.to_string().contains("Core"), "{st}");
+    }
+
+    #[test]
+    fn reads_subscribers_is_false_only_with_all_protocols_disabled() {
+        let base = "[[routers]]\nname=\"R\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n";
+        let one = |extra: &str| {
+            Config::from_toml_str(&format!("{base}{extra}"))
+                .unwrap()
+                .routers
+                .remove(0)
+                .reads_subscribers()
+        };
+        assert!(!one(""));
+        assert!(one("[routers.pppoe]\nenabled=true\n"));
+        assert!(one("[routers.dhcp]\nenabled=true\n"));
+        assert!(one("[routers.hotspot]\nenabled=true\n"));
     }
 
     #[tokio::test]

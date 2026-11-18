@@ -1178,3 +1178,28 @@ async fn protected_static_source_is_current_and_bound_to_the_configured_owner() 
             .is_err()
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn a_router_without_roles_is_not_read_for_a_proposal_or_preparation() {
+    let (mut cfg, registry, fake, mut coordinator) = fixture();
+    let core = Config::from_toml_str(
+        "[[routers]]\nname='Core'\naddress='192.0.2.9'\nusername='u'\npassword_file='/not-used'\n",
+    )
+    .unwrap()
+    .routers
+    .remove(0);
+    cfg.routers.push(core);
+    // Core has no fake data, so a connection to it would panic its task.
+    coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(fake.connects.load(Ordering::SeqCst), 1);
+    coordinator.clear_sessions();
+    let current = coordinator
+        .read_for_proposal(&cfg, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(current.len(), 1);
+    assert_eq!(fake.connects.load(Ordering::SeqCst), 2);
+}
