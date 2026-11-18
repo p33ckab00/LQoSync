@@ -1370,3 +1370,20 @@ No enrollment UI or manifest editor is included in this slice.
 Existing-source replacement, active-owner migration, native implicit commitments, planner/live proof, schedules, TUI, and service activation remain separate work.
 External editors still need to respect the instance lock. The controller does not lock unrelated filesystem writers.
 See [the enrollment plan](../superpowers/plans/2026-11-17-topology-enrollment.md).
+
+## Enrollment CLI and identity rules
+
+Phase 1 adds an operator path from the legacy deployment to an enrolled registry.
+See [the design](../superpowers/specs/2026-11-18-topology-enrollment-cli-design.md) and [the runbook](../operations/TOPOLOGY_ENROLLMENT.md).
+
+`ReferenceAuthority` now has `PppSecretName` and `DhcpClientMac`. Each rule is opt-in for one source scope and has its own `account_ref` namespace (`ppp-name/v1/`, `dhcp-mac/v1/`).
+A DHCP lease without a valid MAC stays present with no MAC. Only the MAC rule gives a conflict for that account.
+
+`policy_draft::propose` mirrors a `root_promotion` legacy configuration: the same `lq3-` group node IDs and labels, the legacy speed priority, factors, backstops, and minimums.
+Per-site DHCP uses a plan sum when the router has no DHCP client overrides.
+`enroll_mapping` suggests row mappings by PPP secret name or lease MAC. The operator confirms each one. An IP match never suggests a mapping.
+`MigrationManifest.dropped_rows` leaves explicit legacy rows out of the adopted snapshot.
+
+Parity maps a legacy fractional node capacity to its whole-Mbps export when the legacy value equals the calculated ceiling. Parity ignores the CSV `Comment` column.
+`Runner::check_topology` and `Runner::propose_policy` take no instance lock and write no file.
+Enrollment installs policy only. Service activation remains Phase 4.

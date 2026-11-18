@@ -47,7 +47,7 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 
 | Area | Current status |
 |---|---|
-| Enrollment interface and manifest editor | Next operator workflow. Backend preview and enrollment APIs exist |
+| Enrollment interface and manifest editor | Done in Phase 1 on 2026-11-18: `lqosync3 topology` CLI, PPP-name and DHCP-MAC identity rules, and a runbook. Production enrollment is an owner action |
 | Topology Manager TUI | Planned. No complete tab for discovered-node selection, hierarchy editing, promotion/demotion, or topology preview |
 | Settings TUI migration | Pending. Node capacity, factor, and subscriber policy controls still need the approved topology interface |
 | Speed scheduler | Planned. Subscriber policies and WAN/group capacities remain the approved scope |
@@ -56,6 +56,15 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 | Live DPDK acceptance | Pending production acceptance proof. Scratch compilation does not establish live acceptance |
 | Manager service activation | Gated. The existing service loop retains legacy behavior until a separate activation action |
 | Additional migration paths | Existing-source replacement, active-owner migration, and direct schema-2 circuit/device-ID migration remain separate work |
+
+## Phase 1 enrollment CLI (2026-11-18)
+
+- Commands: `lqosync3 topology policy propose | check | policy install | propose | enroll`. See [the runbook](../../docs/operations/TOPOLOGY_ENROLLMENT.md).
+- Identity rules: `PppSecretName` and `DhcpClientMac`, opt-in for each source scope. No router marker is necessary.
+- Parity accepts a whole-Mbps node export when the legacy value equals the calculated ceiling, and ignores the CSV `Comment` column.
+- Enrollment needs `routers.dhcp.require_bound = true`. Scopes with leases that are not in the legacy files, such as `ipoevlan10`, enter after Phase 4 activation.
+- Verification: 1,235 tests passed, 0 failed, 13 ignored. Format, Clippy with warnings denied, and whitespace checks passed. The MSRV 1.89 build runs in CI.
+- Next: Phase 2, the Topology Manager TUI tab and the Settings migration.
 
 ## Recorded verification
 
