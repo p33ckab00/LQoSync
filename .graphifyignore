@@ -7,3 +7,7 @@ target/
 .superpowers/
 # Export of the updatecsv.py anatomy page; brain/30-knowledge/updatecsv-py-dissection.md holds the facts.
 docs/Artifact.md
+
+# Generated presentation assets. Index source code and design documents instead.
+docs/design/tui/captures/
+docs/design/tui/mockups/

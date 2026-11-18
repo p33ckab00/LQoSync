@@ -1,9 +1,9 @@
 {
   "README.md": {
-    "mtime": 1793525192.8792176,
-    "seen": 1793525302.3699086,
-    "ast_hash": "9e80fa56572883e7d57f69070efbd368",
-    "semantic_hash": ""
+    "mtime": 1794926785.357893,
+    "seen": 1794974569.5386355,
+    "ast_hash": "4091a8aa523b191d0e02f3a86d5b1362",
+    "semantic_hash": "4091a8aa523b191d0e02f3a86d5b1362"
   },
   "brain/10-sessions/2026-10-31-project-setup-and-v3-simulation.md": {
     "mtime": 1793426645.0797083,
@@ -18,16 +18,16 @@
     "semantic_hash": "7a80d6f87f80fa2e1e2963080d6611e5"
   },
   "brain/20-decisions/ADR-0002-v3-target-selection.md": {
-    "mtime": 1793462360.6299305,
-    "seen": 1793462813.8127198,
+    "mtime": 1794926785.3728936,
+    "seen": 1794974569.5387487,
     "ast_hash": "9ba8f27114c65d4cfde856c54a06ffe6",
-    "semantic_hash": ""
+    "semantic_hash": "9ba8f27114c65d4cfde856c54a06ffe6"
   },
   "brain/30-knowledge/libreqos-v3-ingress-facts.md": {
-    "mtime": 1793432548.319103,
-    "seen": 1793439151.7179074,
-    "ast_hash": "83d88f6bc76744bb9fafef22d6590272",
-    "semantic_hash": "83d88f6bc76744bb9fafef22d6590272"
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387564,
+    "ast_hash": "92a4e4614eae31f0830382afd4704e33",
+    "semantic_hash": "92a4e4614eae31f0830382afd4704e33"
   },
   "brain/30-knowledge/v3-offline-simulation-method.md": {
     "mtime": 1793426671.9698799,
@@ -36,136 +36,136 @@
     "semantic_hash": "015ec06083c516f1adfc7929508c145b"
   },
   "brain/HANDOFF.md": {
-    "mtime": 1793521601.522463,
-    "seen": 1793522397.2875528,
-    "ast_hash": "669940282ca90b0037796e30cb278db4",
-    "semantic_hash": ""
+    "mtime": 1794926785.4228957,
+    "seen": 1794974569.5387626,
+    "ast_hash": "57443f99e0d4964e099a474182158d09",
+    "semantic_hash": "57443f99e0d4964e099a474182158d09"
   },
   "brain/Home.md": {
-    "mtime": 1793524254.1985774,
-    "seen": 1793525302.3699446,
-    "ast_hash": "e623506ae837e2ac5ad3ad649aa11e60",
-    "semantic_hash": ""
+    "mtime": 1794926841.454078,
+    "seen": 1794974569.538764,
+    "ast_hash": "d0f2eabff7588aa0c38f653273074449",
+    "semantic_hash": "d0f2eabff7588aa0c38f653273074449"
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1793520509.1603024,
-    "seen": 1793520683.9047542,
+    "mtime": 1794926785.4228957,
+    "seen": 1794974569.5387657,
     "ast_hash": "e9845f0d53cf304ff905ae08f73048ed",
-    "semantic_hash": ""
+    "semantic_hash": "e9845f0d53cf304ff905ae08f73048ed"
   },
   "docs/CONFIGURATION.md": {
-    "mtime": 1793525192.8802178,
-    "seen": 1793525302.3699474,
-    "ast_hash": "7763dafcbd9f078b9cba70572152de07",
-    "semantic_hash": ""
+    "mtime": 1794926785.4238958,
+    "seen": 1794974569.538767,
+    "ast_hash": "55aac1c264bc7cfb64304bfc81f3e1e3",
+    "semantic_hash": "55aac1c264bc7cfb64304bfc81f3e1e3"
   },
   "docs/INSTALLATION.md": {
-    "mtime": 1793524878.308586,
-    "seen": 1793525302.3699489,
+    "mtime": 1794926785.4238958,
+    "seen": 1794974569.5387685,
     "ast_hash": "02aac0326692b9b3229759b3caad3770",
-    "semantic_hash": ""
+    "semantic_hash": "02aac0326692b9b3229759b3caad3770"
   },
   "docs/LIBREQOS-V3-INGRESS.md": {
-    "mtime": 1793462360.6289306,
-    "seen": 1793462813.8127434,
-    "ast_hash": "0536cdd99a86dd2156085b8fdd1ecbef",
-    "semantic_hash": ""
+    "mtime": 1794926785.4238958,
+    "seen": 1794974569.5387704,
+    "ast_hash": "389260020f4656774887d7551b658f37",
+    "semantic_hash": "389260020f4656774887d7551b658f37"
   },
   "docs/OPERATIONS.md": {
-    "mtime": 1793522100.516847,
-    "seen": 1793522397.28756,
-    "ast_hash": "33d76297146aac78bec58bd135ec8fa9",
-    "semantic_hash": ""
+    "mtime": 1794926785.4238958,
+    "seen": 1794974569.5387719,
+    "ast_hash": "8a2b0138f85aa9528762b3ec79fc05d7",
+    "semantic_hash": "8a2b0138f85aa9528762b3ec79fc05d7"
   },
   "Cargo.toml": {
-    "mtime": 1793524591.480345,
-    "seen": 1793525302.3698342,
-    "ast_hash": "4846178b69c9f1cdd7fa7042e0761868",
-    "semantic_hash": ""
+    "mtime": 1794926785.357893,
+    "seen": 1794974569.5383606,
+    "ast_hash": "9c39cfd40b8b242d746df853b2bf96b2",
+    "semantic_hash": "9c39cfd40b8b242d746df853b2bf96b2"
   },
   "src/config.rs": {
-    "mtime": 1793520124.7207925,
-    "seen": 1793520683.9046562,
-    "ast_hash": "f4d4bcccf9eb88d565b50a33702a317d",
-    "semantic_hash": ""
+    "mtime": 1794926785.6739058,
+    "seen": 1794974569.5384047,
+    "ast_hash": "283a938c29c0daf6b11040962f3cd544",
+    "semantic_hash": "283a938c29c0daf6b11040962f3cd544"
   },
   "src/cycle.rs": {
-    "mtime": 1793501764.580311,
-    "seen": 1793503110.0554247,
-    "ast_hash": "3bf36a297d0c552c85a970b66845921a",
-    "semantic_hash": ""
+    "mtime": 1794926785.6749058,
+    "seen": 1794974569.5384066,
+    "ast_hash": "26df3022c3edeae5083b5d7f2042ce0b",
+    "semantic_hash": "26df3022c3edeae5083b5d7f2042ce0b"
   },
   "src/lib.rs": {
-    "mtime": 1793524591.480345,
-    "seen": 1793525302.3698509,
-    "ast_hash": "59d25d3ebb687777e46f43bbfd381d48",
-    "semantic_hash": ""
+    "mtime": 1794926785.675906,
+    "seen": 1794974569.5384152,
+    "ast_hash": "46072de0193659c2a77d6530a13c974e",
+    "semantic_hash": "46072de0193659c2a77d6530a13c974e"
   },
   "src/model.rs": {
-    "mtime": 1793469032.9934149,
-    "seen": 1793476119.3107967,
-    "ast_hash": "f64adbab3d21e81836fdd0516eb56815",
-    "semantic_hash": ""
+    "mtime": 1794926785.675906,
+    "seen": 1794974569.53842,
+    "ast_hash": "cdf7e8fa0b358d2f4921e77e65319970",
+    "semantic_hash": "cdf7e8fa0b358d2f4921e77e65319970"
   },
   "src/sources.rs": {
-    "mtime": 1793501764.6233115,
-    "seen": 1793503110.0554447,
-    "ast_hash": "41b0c2b35c539344ac8cdadf96049222",
-    "semantic_hash": ""
+    "mtime": 1794926785.6799061,
+    "seen": 1794974569.5384402,
+    "ast_hash": "4ab01ef25e092120bf1fae3fea4427db",
+    "semantic_hash": "4ab01ef25e092120bf1fae3fea4427db"
   },
   "src/speed.rs": {
-    "mtime": 1793447287.6594326,
-    "seen": 1793457910.8719962,
+    "mtime": 1794926785.680906,
+    "seen": 1794974569.538442,
     "ast_hash": "ec7c0ee461725788af83e869f4e9a01f",
     "semantic_hash": "ec7c0ee461725788af83e869f4e9a01f"
   },
   "src/state.rs": {
-    "mtime": 1793442265.8451781,
-    "seen": 1793445662.3711486,
-    "ast_hash": "b1c7e5a07ef9d87e618abccfe6385a8b",
-    "semantic_hash": "b1c7e5a07ef9d87e618abccfe6385a8b"
+    "mtime": 1794926785.680906,
+    "seen": 1794974569.5384436,
+    "ast_hash": "b51bab03f626892b319997eab496e5e9",
+    "semantic_hash": "b51bab03f626892b319997eab496e5e9"
   },
   "src/topology.rs": {
-    "mtime": 1793501764.47731,
-    "seen": 1793503110.0554504,
-    "ast_hash": "4b8c1666fffa81266d27cdff78f07276",
-    "semantic_hash": ""
+    "mtime": 1794926785.681906,
+    "seen": 1794974569.53845,
+    "ast_hash": "04e1e0a11f905053144dc5d72b151168",
+    "semantic_hash": "04e1e0a11f905053144dc5d72b151168"
   },
   "src/validate.rs": {
-    "mtime": 1793469820.6716263,
-    "seen": 1793476119.3108234,
-    "ast_hash": "bd59646f48debd3740ffffb85bd2ec82",
-    "semantic_hash": ""
+    "mtime": 1794926785.705907,
+    "seen": 1794974569.5385957,
+    "ast_hash": "9f675b5ff2bd729cf4dc0a3e15cc8d2c",
+    "semantic_hash": "9f675b5ff2bd729cf4dc0a3e15cc8d2c"
   },
   "src/writer/mod.rs": {
-    "mtime": 1793461953.69647,
-    "seen": 1793462813.8127003,
+    "mtime": 1794926785.7089071,
+    "seen": 1794974569.538612,
     "ast_hash": "3cda2f7e94be6806075c1470d38fa219",
-    "semantic_hash": ""
+    "semantic_hash": "3cda2f7e94be6806075c1470d38fa219"
   },
   "src/writer/pair.rs": {
-    "mtime": 1793443935.5103168,
-    "seen": 1793445662.371159,
+    "mtime": 1794926785.7089071,
+    "seen": 1794974569.5386138,
     "ast_hash": "96119166aec59e8eef9de189a85e2a9e",
     "semantic_hash": "96119166aec59e8eef9de189a85e2a9e"
   },
   "tests/config_doc.rs": {
-    "mtime": 1793447534.5291927,
-    "seen": 1793457910.872006,
+    "mtime": 1794926785.7099073,
+    "seen": 1794974569.538617,
     "ast_hash": "9451a92e5b2acec3aac7d7995eed2a46",
     "semantic_hash": "9451a92e5b2acec3aac7d7995eed2a46"
   },
   "tests/scenarios.rs": {
-    "mtime": 1793442240.885649,
-    "seen": 1793445662.3711631,
+    "mtime": 1794926785.7099073,
+    "seen": 1794974569.538623,
     "ast_hash": "11d1ddffa241b97940595e781d4db092",
     "semantic_hash": "11d1ddffa241b97940595e781d4db092"
   },
   "tools/v3sim/check.sh": {
-    "mtime": 1793437276.7265975,
-    "seen": 1793439151.7178876,
-    "ast_hash": "6eff74dbde0dbbe443f5318e3caca21b",
-    "semantic_hash": "6eff74dbde0dbbe443f5318e3caca21b"
+    "mtime": 1794926785.7149074,
+    "seen": 1794974569.538634,
+    "ast_hash": "e49aa8bf47e53ac768835702dc95ae7c",
+    "semantic_hash": "e49aa8bf47e53ac768835702dc95ae7c"
   },
   "brain/10-sessions/2026-10-31-updatecsv-dissection.md": {
     "mtime": 1793435794.1429276,
@@ -246,68 +246,68 @@
     "semantic_hash": "d549df5352fb792e23caa28c1bb13d5c"
   },
   "src/cli.rs": {
-    "mtime": 1793524598.4384234,
-    "seen": 1793525302.3698397,
-    "ast_hash": "0809cde19d097917ebcb5689af4b1e11",
-    "semantic_hash": ""
+    "mtime": 1794926785.6729057,
+    "seen": 1794974569.5384016,
+    "ast_hash": "1488ef119a41b105c3b51101ac4f4498",
+    "semantic_hash": "1488ef119a41b105c3b51101ac4f4498"
   },
   "src/diff.rs": {
-    "mtime": 1793462111.2976203,
-    "seen": 1793462813.8126755,
-    "ast_hash": "bf7706055d6852716eb8109ae5177a4d",
-    "semantic_hash": ""
+    "mtime": 1794926785.6749058,
+    "seen": 1794974569.53841,
+    "ast_hash": "ac88099e1eda93fdd9af8ecaae1a4bdc",
+    "semantic_hash": "ac88099e1eda93fdd9af8ecaae1a4bdc"
   },
   "src/files.rs": {
-    "mtime": 1793503638.5752313,
-    "seen": 1793504279.0412476,
-    "ast_hash": "ad6741f7cda4a0961b6389462327fe6a",
-    "semantic_hash": ""
+    "mtime": 1794926785.6749058,
+    "seen": 1794974569.5384119,
+    "ast_hash": "63246443dd625745d457bd7153d22236",
+    "semantic_hash": "63246443dd625745d457bd7153d22236"
   },
   "src/main.rs": {
-    "mtime": 1793524598.3444223,
-    "seen": 1793525302.369852,
-    "ast_hash": "a753a3ac8436ce8551653f8a41ee29ef",
-    "semantic_hash": ""
+    "mtime": 1794926785.675906,
+    "seen": 1794974569.5384166,
+    "ast_hash": "332c37406fa0d110c5e97ccc674c7316",
+    "semantic_hash": "332c37406fa0d110c5e97ccc674c7316"
   },
   "src/mikrotik.rs": {
-    "mtime": 1793445239.0437498,
-    "seen": 1793445662.3711379,
+    "mtime": 1794926785.675906,
+    "seen": 1794974569.5384185,
     "ast_hash": "e3d67fb53dc8bfeb24142bc4e0ebfbbf",
     "semantic_hash": "e3d67fb53dc8bfeb24142bc4e0ebfbbf"
   },
   "src/routeros.rs": {
-    "mtime": 1793447418.3318927,
-    "seen": 1793457910.8719895,
-    "ast_hash": "029beb4085c276cbc86afcaeb1eded47",
-    "semantic_hash": "029beb4085c276cbc86afcaeb1eded47"
+    "mtime": 1794926785.678906,
+    "seen": 1794974569.5384326,
+    "ast_hash": "768bfef5990bbce07934e7b0cca5236d",
+    "semantic_hash": "768bfef5990bbce07934e7b0cca5236d"
   },
   "src/routerstate.rs": {
-    "mtime": 1793443472.2396133,
-    "seen": 1793445662.371142,
+    "mtime": 1794926785.678906,
+    "seen": 1794974569.538434,
     "ast_hash": "2994c3ddd10e9af40a798bd7d817768e",
     "semantic_hash": "2994c3ddd10e9af40a798bd7d817768e"
   },
   "src/runner.rs": {
-    "mtime": 1793524598.3484223,
-    "seen": 1793525302.3698611,
-    "ast_hash": "09db492112bc8d6447633f59911aaa8e",
-    "semantic_hash": ""
+    "mtime": 1794926785.6799061,
+    "seen": 1794974569.5384357,
+    "ast_hash": "061f3dd6258c6d38ae951df48fc2c366",
+    "semantic_hash": "061f3dd6258c6d38ae951df48fc2c366"
   },
   "src/secrets.rs": {
-    "mtime": 1793443421.005965,
-    "seen": 1793445662.3711443,
+    "mtime": 1794926785.6799061,
+    "seen": 1794974569.5384386,
     "ast_hash": "e7d8387905f7fb1222c2c83f9112fdf2",
     "semantic_hash": "e7d8387905f7fb1222c2c83f9112fdf2"
   },
   "src/status.rs": {
-    "mtime": 1793469195.5237608,
-    "seen": 1793476119.310809,
-    "ast_hash": "54f256cfc432947a3b8f72e3cd3692e9",
-    "semantic_hash": ""
+    "mtime": 1794926785.680906,
+    "seen": 1794974569.538445,
+    "ast_hash": "3591dbe09132c7dae10e440d44e1de03",
+    "semantic_hash": "3591dbe09132c7dae10e440d44e1de03"
   },
   "tests/mock_router.rs": {
-    "mtime": 1793445239.07975,
-    "seen": 1793445662.371162,
+    "mtime": 1794926785.7099073,
+    "seen": 1794974569.53862,
     "ast_hash": "1fc9b96f56bb9f473a83226098114847",
     "semantic_hash": "1fc9b96f56bb9f473a83226098114847"
   },
@@ -324,16 +324,16 @@
     "semantic_hash": "20d64ed60ebebcc6f7a3f3f16a0d3bf0"
   },
   "src/notify.rs": {
-    "mtime": 1793504241.1569374,
-    "seen": 1793504279.041256,
-    "ast_hash": "3f39e77a89b028f6ef270fba4d3fd48a",
-    "semantic_hash": ""
+    "mtime": 1794926785.677906,
+    "seen": 1794974569.5384266,
+    "ast_hash": "6e3addd31e1245b3ec6db52698269ab6",
+    "semantic_hash": "6e3addd31e1245b3ec6db52698269ab6"
   },
   "brain/10-sessions/2026-10-31-first-live-shadow-run.md": {
-    "mtime": 1793461364.94765,
-    "seen": 1793461566.374423,
+    "mtime": 1794926785.357893,
+    "seen": 1794974569.5386372,
     "ast_hash": "a4dd18149ae3058c7a3697a807667dad",
-    "semantic_hash": ""
+    "semantic_hash": "a4dd18149ae3058c7a3697a807667dad"
   },
   "docs/superpowers/plans/2026-10-31-lqosync3-telegram.md": {
     "mtime": 1793458764.1217747,
@@ -342,267 +342,1839 @@
     "semantic_hash": "143bfe18ec34dc7e7599714012da4f1b"
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-telegram-design.md": {
-    "mtime": 1793521533.6510086,
-    "seen": 1793522397.2875745,
+    "mtime": 1794926785.6429045,
+    "seen": 1794974569.5388854,
     "ast_hash": "321e496110efab680937230cd1e25989",
-    "semantic_hash": ""
+    "semantic_hash": "321e496110efab680937230cd1e25989"
   },
   "src/detect.rs": {
-    "mtime": 1793461980.144835,
-    "seen": 1793462813.8126738,
+    "mtime": 1794926785.6749058,
+    "seen": 1794974569.5384085,
     "ast_hash": "6c33ad708f2b12875fdaced08c395f13",
-    "semantic_hash": ""
+    "semantic_hash": "6c33ad708f2b12875fdaced08c395f13"
   },
   "src/writer/v3network.rs": {
-    "mtime": 1793462759.7348492,
-    "seen": 1793462813.812703,
-    "ast_hash": "6919deb2e2481dc656eee65f75d8f177",
-    "semantic_hash": ""
+    "mtime": 1794926785.7089071,
+    "seen": 1794974569.5386152,
+    "ast_hash": "dffd3583baa186df6f56c370155628f8",
+    "semantic_hash": "dffd3583baa186df6f56c370155628f8"
   },
   "tests/v3_offline.rs": {
-    "mtime": 1793462809.2072372,
-    "seen": 1793462813.8127086,
+    "mtime": 1794926785.7139075,
+    "seen": 1794974569.5386307,
     "ast_hash": "a2e14bc18cee90976b47222e46c94b40",
-    "semantic_hash": ""
+    "semantic_hash": "a2e14bc18cee90976b47222e46c94b40"
   },
   "docs/superpowers/plans/2026-10-31-lqosync3-v3.md": {
-    "mtime": 1793461844.301941,
-    "seen": 1793462813.81275,
+    "mtime": 1794926785.6339042,
+    "seen": 1794974569.5388181,
     "ast_hash": "84dba123139df85b90add4f5c0c90cc4",
-    "semantic_hash": ""
+    "semantic_hash": "84dba123139df85b90add4f5c0c90cc4"
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-v3-design.md": {
-    "mtime": 1793521533.6510086,
-    "seen": 1793522397.287577,
+    "mtime": 1794926785.6439047,
+    "seen": 1794974569.5388887,
     "ast_hash": "65a51beecb7cf9740684b158fb388e23",
-    "semantic_hash": ""
+    "semantic_hash": "65a51beecb7cf9740684b158fb388e23"
   },
   "src/tui/app.rs": {
-    "mtime": 1793521674.6520019,
-    "seen": 1793522397.2874846,
-    "ast_hash": "160ef00398d1d4a11c4a1ff76b8adb1d",
-    "semantic_hash": ""
+    "mtime": 1794926785.6989067,
+    "seen": 1794974569.5385468,
+    "ast_hash": "f99c99d148e63a7cd00d8abb04ef938c",
+    "semantic_hash": "f99c99d148e63a7cd00d8abb04ef938c"
   },
   "src/tui/dashboard.rs": {
-    "mtime": 1793524598.3484223,
-    "seen": 1793525302.3698726,
-    "ast_hash": "ea4a993439a3506d7e27b2ddb21e1dc2",
-    "semantic_hash": ""
+    "mtime": 1794926785.6999068,
+    "seen": 1794974569.5385485,
+    "ast_hash": "6eba6840c60de4af5653d5eba8f9e24d",
+    "semantic_hash": "6eba6840c60de4af5653d5eba8f9e24d"
   },
   "src/tui/data.rs": {
-    "mtime": 1793521667.489947,
-    "seen": 1793522397.2874875,
-    "ast_hash": "c3267129b752b49ba18e553f6d87de71",
-    "semantic_hash": ""
+    "mtime": 1794926785.6999068,
+    "seen": 1794974569.53855,
+    "ast_hash": "9abfa8a55b178b71e752524f17fcd70a",
+    "semantic_hash": "9abfa8a55b178b71e752524f17fcd70a"
   },
   "src/tui/devices.rs": {
-    "mtime": 1793513265.20852,
-    "seen": 1793513288.2356746,
-    "ast_hash": "a70c055b897aa1cc0ea9708e05d28a57",
-    "semantic_hash": ""
+    "mtime": 1794926785.6999068,
+    "seen": 1794974569.538553,
+    "ast_hash": "7202ed42c6bef84b2391246d25af4b2e",
+    "semantic_hash": "7202ed42c6bef84b2391246d25af4b2e"
   },
   "src/tui/journal.rs": {
-    "mtime": 1793511723.8061564,
-    "seen": 1793512186.6522915,
-    "ast_hash": "78c2ab6417718960b3ba0b75ad0aeeb4",
-    "semantic_hash": ""
+    "mtime": 1794926785.7009068,
+    "seen": 1794974569.5385563,
+    "ast_hash": "3e6afa874674f9a77fc7afa71007223c",
+    "semantic_hash": "3e6afa874674f9a77fc7afa71007223c"
   },
   "src/tui/mod.rs": {
-    "mtime": 1793521713.7573082,
-    "seen": 1793522397.2874913,
-    "ast_hash": "b3d2b07180e92cdb7feb2b37123ef9bb",
-    "semantic_hash": ""
+    "mtime": 1794926785.701907,
+    "seen": 1794974569.538561,
+    "ast_hash": "4c236ab2b012f400fdf99513671c71af",
+    "semantic_hash": "4c236ab2b012f400fdf99513671c71af"
   },
   "src/tui/network.rs": {
-    "mtime": 1793513627.715413,
-    "seen": 1793513900.3877091,
+    "mtime": 1794926785.701907,
+    "seen": 1794974569.5385628,
     "ast_hash": "8a2d75c7cc481ab0bfe2c74f8f43f79f",
-    "semantic_hash": ""
+    "semantic_hash": "8a2d75c7cc481ab0bfe2c74f8f43f79f"
   },
   "src/tui/osc52.rs": {
-    "mtime": 1793470650.4699605,
-    "seen": 1793476119.3108203,
+    "mtime": 1794926785.701907,
+    "seen": 1794974569.538565,
     "ast_hash": "ac808c4803dd1cadeb26c512ac9029ed",
-    "semantic_hash": ""
+    "semantic_hash": "ac808c4803dd1cadeb26c512ac9029ed"
   },
   "src/tui/proc.rs": {
-    "mtime": 1793521843.983408,
-    "seen": 1793522397.2874954,
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.5385692,
     "ast_hash": "069c94b0e5e189f59de9d7f045354623",
-    "semantic_hash": ""
+    "semantic_hash": "069c94b0e5e189f59de9d7f045354623"
   },
   "docs/superpowers/plans/2026-10-31-lqosync3-tui-4a.md": {
-    "mtime": 1793468928.0157866,
-    "seen": 1793476119.3108745,
+    "mtime": 1794926785.6339042,
+    "seen": 1794974569.5388162,
     "ast_hash": "083a49734cadc96dee62169f50c8c807",
-    "semantic_hash": ""
+    "semantic_hash": "083a49734cadc96dee62169f50c8c807"
   },
   "docs/superpowers/specs/2026-10-31-lqosync3-tui-design.md": {
-    "mtime": 1793467525.8263032,
-    "seen": 1793476119.3108814,
+    "mtime": 1794926785.6429045,
+    "seen": 1794974569.538887,
     "ast_hash": "ab7f1db726146abbd30776b90175c299",
-    "semantic_hash": ""
+    "semantic_hash": "ab7f1db726146abbd30776b90175c299"
   },
   "src/tui/settings/apply.rs": {
-    "mtime": 1793503924.1554096,
-    "seen": 1793504279.0412834,
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.5385725,
     "ast_hash": "4cda154d9eeade168949628887b4f303",
-    "semantic_hash": ""
+    "semantic_hash": "4cda154d9eeade168949628887b4f303"
   },
   "src/tui/settings/draft.rs": {
-    "mtime": 1793503998.5802379,
-    "seen": 1793504279.0412846,
-    "ast_hash": "57f45bd6f3fcf7cbc790d853e2e76da8",
-    "semantic_hash": ""
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.538574,
+    "ast_hash": "5f41f930fa5ebb0dc8335009fe98b970",
+    "semantic_hash": "5f41f930fa5ebb0dc8335009fe98b970"
   },
   "src/tui/settings/meta.rs": {
-    "mtime": 1793507044.941136,
-    "seen": 1793512186.6523013,
-    "ast_hash": "26fcb04b2760633bf65db3cc4ec3e788",
-    "semantic_hash": ""
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.538576,
+    "ast_hash": "b569de0cfe754608929bd13a06453f8b",
+    "semantic_hash": "b569de0cfe754608929bd13a06453f8b"
   },
   "src/tui/settings/mod.rs": {
-    "mtime": 1793493376.4465568,
-    "seen": 1793495229.5194254,
+    "mtime": 1794926785.703907,
+    "seen": 1794974569.5385773,
     "ast_hash": "1bbd00f8d990ec5009126ee51f3fc68e",
-    "semantic_hash": ""
+    "semantic_hash": "1bbd00f8d990ec5009126ee51f3fc68e"
   },
   "src/tui/settings/preview.rs": {
-    "mtime": 1793503668.5885653,
-    "seen": 1793504279.0412886,
+    "mtime": 1794926785.703907,
+    "seen": 1794974569.538579,
     "ast_hash": "12aefa41b92d7ee5aa4b2c46b3c03e31",
-    "semantic_hash": ""
+    "semantic_hash": "12aefa41b92d7ee5aa4b2c46b3c03e31"
   },
   "src/tui/settings/secrets.rs": {
-    "mtime": 1793503598.9057899,
-    "seen": 1793504279.04129,
+    "mtime": 1794926785.703907,
+    "seen": 1794974569.5385802,
     "ast_hash": "5ceb3523d9794ec755b215dc729ac5bc",
-    "semantic_hash": ""
+    "semantic_hash": "5ceb3523d9794ec755b215dc729ac5bc"
   },
   "src/tui/settings/validate.rs": {
-    "mtime": 1793492673.6650643,
-    "seen": 1793495229.5194285,
+    "mtime": 1794926785.703907,
+    "seen": 1794974569.5385818,
     "ast_hash": "b8c56c9d920ab25e4f926e1a4e5c72fe",
-    "semantic_hash": ""
+    "semantic_hash": "b8c56c9d920ab25e4f926e1a4e5c72fe"
   },
   "src/tui/settings/view.rs": {
-    "mtime": 1793511787.6988432,
-    "seen": 1793512186.6523087,
-    "ast_hash": "7f583818238f120359ac172b81ced81d",
-    "semantic_hash": ""
+    "mtime": 1794926785.703907,
+    "seen": 1794974569.5385833,
+    "ast_hash": "187980c872a0bc16d4ebcf9e0889ce69",
+    "semantic_hash": "187980c872a0bc16d4ebcf9e0889ce69"
   },
   "docs/superpowers/plans/2026-11-01-lqosync3-tui-4b.md": {
-    "mtime": 1793492005.5191784,
-    "seen": 1793495229.5194864,
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.5388212,
     "ast_hash": "fcbe8d8911b8e4a6e3450a50200ecf87",
-    "semantic_hash": ""
+    "semantic_hash": "fcbe8d8911b8e4a6e3450a50200ecf87"
   },
   "docs/superpowers/plans/2026-11-01-lqosync3-dhcp-clients-4c.md": {
-    "mtime": 1793501401.3712616,
-    "seen": 1793503110.0555315,
+    "mtime": 1794926785.6339042,
+    "seen": 1794974569.5388196,
     "ast_hash": "6fb5f685a8849f169bffd7caf6555009",
-    "semantic_hash": ""
+    "semantic_hash": "6fb5f685a8849f169bffd7caf6555009"
   },
   "docs/superpowers/specs/2026-11-01-lqosync3-dhcp-clients-design.md": {
-    "mtime": 1793500611.3215244,
-    "seen": 1793503110.0555415,
+    "mtime": 1794926785.6439047,
+    "seen": 1794974569.5388918,
     "ast_hash": "18a40e86e43b91123570e5b195091c1e",
-    "semantic_hash": ""
+    "semantic_hash": "18a40e86e43b91123570e5b195091c1e"
   },
   "src/tui/theme.rs": {
-    "mtime": 1793521996.612823,
-    "seen": 1793522397.287507,
-    "ast_hash": "3d65615dc1b517821ffb022eec6b0a7c",
-    "semantic_hash": ""
+    "mtime": 1794926785.704907,
+    "seen": 1794974569.5385895,
+    "ast_hash": "361c21388bd56ab5e32da45f8806ee82",
+    "semantic_hash": "361c21388bd56ab5e32da45f8806ee82"
   },
   "brain/10-sessions/2026-11-01-tui-cosmetics-design-handoff.md": {
-    "mtime": 1793505837.0236952,
-    "seen": 1793512186.6523361,
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.538645,
     "ast_hash": "99a5e9a7282c51d35c08c951d52fc24e",
-    "semantic_hash": ""
+    "semantic_hash": "99a5e9a7282c51d35c08c951d52fc24e"
   },
   "brain/10-sessions/2026-11-01-tui-cosmetics-implementation.md": {
-    "mtime": 1793508369.8344758,
-    "seen": 1793512186.6523376,
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386465,
     "ast_hash": "50cb290400f29ec469a878511001a9a9",
-    "semantic_hash": ""
+    "semantic_hash": "50cb290400f29ec469a878511001a9a9"
   },
   "docs/superpowers/plans/2026-11-01-lqosync3-tui-cosmetics.md": {
-    "mtime": 1793508328.1130805,
-    "seen": 1793512186.652379,
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.5388227,
     "ast_hash": "4ba975202cd1b3a74feeb36ee942292d",
-    "semantic_hash": ""
+    "semantic_hash": "4ba975202cd1b3a74feeb36ee942292d"
   },
   "docs/superpowers/specs/2026-11-01-lqosync3-btop-refinement.md": {
-    "mtime": 1793522135.4652004,
-    "seen": 1793522397.2875779,
+    "mtime": 1794926785.6439047,
+    "seen": 1794974569.5388901,
     "ast_hash": "d42244b70ca1bc2bdf540e57efbd7e31",
-    "semantic_hash": ""
+    "semantic_hash": "d42244b70ca1bc2bdf540e57efbd7e31"
   },
   "docs/superpowers/specs/2026-11-01-lqosync3-tui-cosmetics-design.md": {
-    "mtime": 1793508328.1120806,
-    "seen": 1793512186.6523905,
-    "ast_hash": "7f5327481fa1011ce8eabc85586c2f8d",
-    "semantic_hash": ""
+    "mtime": 1794926785.6439047,
+    "seen": 1794974569.5388932,
+    "ast_hash": "844480d503ba664bbfd0a791ceb6cbb9",
+    "semantic_hash": "844480d503ba664bbfd0a791ceb6cbb9"
   },
   "brain/10-sessions/2026-11-01-btop-tui-and-fresh-install.md": {
-    "mtime": 1793521601.5084631,
-    "seen": 1793522397.287529,
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386388,
     "ast_hash": "42ef10ee4037917b5c1a69c91eed1ba0",
-    "semantic_hash": ""
+    "semantic_hash": "42ef10ee4037917b5c1a69c91eed1ba0"
   },
   "brain/20-decisions/ADR-0010-first-full-libreqos-run.md": {
-    "mtime": 1793521601.507463,
-    "seen": 1793522397.287546,
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387502,
     "ast_hash": "453443d1355d0557a3996292a5898de7",
-    "semantic_hash": ""
+    "semantic_hash": "453443d1355d0557a3996292a5898de7"
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1793525192.8752177,
-    "seen": 1793525302.3698258,
+    "mtime": 1794926785.355893,
+    "seen": 1794974569.5383499,
     "ast_hash": "18812fa55b7e0322cea53407866f1c5a",
-    "semantic_hash": ""
+    "semantic_hash": "18812fa55b7e0322cea53407866f1c5a"
   },
   ".github/workflows/release.yml": {
-    "mtime": 1793525192.8752177,
-    "seen": 1793525302.3698308,
+    "mtime": 1794926785.355893,
+    "seen": 1794974569.538357,
     "ast_hash": "6427d8f7d95753e3860c552c0c2a23c8",
-    "semantic_hash": ""
+    "semantic_hash": "6427d8f7d95753e3860c552c0c2a23c8"
   },
   "build.rs": {
-    "mtime": 1793525192.8752177,
-    "seen": 1793525302.3698363,
+    "mtime": 1794926785.4228957,
+    "seen": 1794974569.538363,
     "ast_hash": "7ac24aed2fdda76dee69bcc654006efa",
-    "semantic_hash": ""
+    "semantic_hash": "7ac24aed2fdda76dee69bcc654006efa"
   },
   "install.sh": {
-    "mtime": 1793525299.28882,
-    "seen": 1793525302.3698378,
+    "mtime": 1794926785.6709056,
+    "seen": 1794974569.5383863,
     "ast_hash": "eea021c08cf74509b1d9338e1359d062",
-    "semantic_hash": ""
+    "semantic_hash": "eea021c08cf74509b1d9338e1359d062"
   },
   "brain/10-sessions/2026-11-01-host-storage-cleanup.md": {
-    "mtime": 1793522801.0414717,
-    "seen": 1793525302.3699172,
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386405,
     "ast_hash": "2b1f2e5c6627fd57583c3027d3ea83a6",
-    "semantic_hash": ""
+    "semantic_hash": "2b1f2e5c6627fd57583c3027d3ea83a6"
   },
   "brain/10-sessions/2026-11-01-libreqos-v3-upgrade-investigation.md": {
-    "mtime": 1793524915.607009,
-    "seen": 1793525302.3699183,
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.538642,
     "ast_hash": "943746d9c5349b5492c3eed40dd2cb4a",
-    "semantic_hash": ""
+    "semantic_hash": "943746d9c5349b5492c3eed40dd2cb4a"
   },
   "brain/10-sessions/2026-11-01-preflight-update-prepared.md": {
-    "mtime": 1793523983.9016187,
-    "seen": 1793525302.3699195,
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386434,
     "ast_hash": "803fbfdf1b8892ff2b55e501519e2935",
-    "semantic_hash": ""
+    "semantic_hash": "803fbfdf1b8892ff2b55e501519e2935"
   },
   "docs/RELEASE.md": {
-    "mtime": 1793524861.03939,
-    "seen": 1793525302.369953,
+    "mtime": 1794926785.4238958,
+    "seen": 1794974569.5387738,
     "ast_hash": "c23a4ba54a36a2dd5691918fc5225ce7",
-    "semantic_hash": ""
+    "semantic_hash": "c23a4ba54a36a2dd5691918fc5225ce7"
+  },
+  "docs/reports/2026-11-02-libreqos-native-node-rate-loss/native_full_keeps_node_policy.rs": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5383651,
+    "ast_hash": "69522fa93625588dd3cb695a11187d7a",
+    "semantic_hash": "69522fa93625588dd3cb695a11187d7a"
+  },
+  "docs/reports/2026-11-02-libreqos-native-node-rate-loss/repro.py": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5383673,
+    "ast_hash": "bbf46a08083e9e5ae8d5dc9430f3e839",
+    "semantic_hash": "bbf46a08083e9e5ae8d5dc9430f3e839"
+  },
+  "examples/circuit_queue_fixture.rs": {
+    "mtime": 1794926785.6439047,
+    "seen": 1794974569.538369,
+    "ast_hash": "fe889265283b13ae91bf2893796ddc1c",
+    "semantic_hash": "fe889265283b13ae91bf2893796ddc1c"
+  },
+  "examples/dpdk_apply_probe.rs": {
+    "mtime": 1794926785.6449046,
+    "seen": 1794974569.5383708,
+    "ast_hash": "68b6fff37d4aa415c552c3b5e7a79e17",
+    "semantic_hash": "68b6fff37d4aa415c552c3b5e7a79e17"
+  },
+  "examples/dpdk_circuit_probe.rs": {
+    "mtime": 1794926785.6449046,
+    "seen": 1794974569.5383723,
+    "ast_hash": "89d79055843e9109d7f432a106d8c6c9",
+    "semantic_hash": "89d79055843e9109d7f432a106d8c6c9"
+  },
+  "examples/dpdk_health_probe.rs": {
+    "mtime": 1794926785.6449046,
+    "seen": 1794974569.538374,
+    "ast_hash": "9838f289a70ed3de0dc488894c1bca34",
+    "semantic_hash": "9838f289a70ed3de0dc488894c1bca34"
+  },
+  "examples/dpdk_mapping_probe.rs": {
+    "mtime": 1794926785.6459045,
+    "seen": 1794974569.5383751,
+    "ast_hash": "52d6b5153d7c015d68ef41903a6b34a6",
+    "semantic_hash": "52d6b5153d7c015d68ef41903a6b34a6"
+  },
+  "examples/dpdk_queue_probe.rs": {
+    "mtime": 1794926785.6459045,
+    "seen": 1794974569.538377,
+    "ast_hash": "5c73964045c78f96782d2943b68563ea",
+    "semantic_hash": "5c73964045c78f96782d2943b68563ea"
+  },
+  "examples/dpdk_subscriber_probe.rs": {
+    "mtime": 1794926785.6469047,
+    "seen": 1794974569.5383782,
+    "ast_hash": "a4b79337cdc5480daff7069b7f09a2ef",
+    "semantic_hash": "a4b79337cdc5480daff7069b7f09a2ef"
+  },
+  "examples/dpdk_worker_probe.rs": {
+    "mtime": 1794926785.6469047,
+    "seen": 1794974569.5383797,
+    "ast_hash": "5d9b7badf9dfb6a100de9f097271b0e8",
+    "semantic_hash": "5d9b7badf9dfb6a100de9f097271b0e8"
+  },
+  "examples/health_write_bench.rs": {
+    "mtime": 1794926785.6469047,
+    "seen": 1794974569.5383813,
+    "ast_hash": "8acc3dfcbf3b6ed9a130f82bfad645a9",
+    "semantic_hash": "8acc3dfcbf3b6ed9a130f82bfad645a9"
+  },
+  "examples/import_evidence_bench.rs": {
+    "mtime": 1794926785.6469047,
+    "seen": 1794974569.5383828,
+    "ast_hash": "ee28c41291c33d2a38ca2684f781f021",
+    "semantic_hash": "ee28c41291c33d2a38ca2684f781f021"
+  },
+  "examples/topology_compilation_check.rs": {
+    "mtime": 1794926785.6479046,
+    "seen": 1794974569.5383844,
+    "ast_hash": "33f8b2c6a308e33a87c405c0551f0950",
+    "semantic_hash": "33f8b2c6a308e33a87c405c0551f0950"
+  },
+  "scripts/dev/capture_tui.py": {
+    "mtime": 1794926785.6709056,
+    "seen": 1794974569.538388,
+    "ast_hash": "a8d3adeb19dfd6fa4d0752db192f970b",
+    "semantic_hash": "a8d3adeb19dfd6fa4d0752db192f970b"
+  },
+  "scripts/dev/render_terminal_frame.py": {
+    "mtime": 1794926785.6709056,
+    "seen": 1794974569.5383894,
+    "ast_hash": "31451286e8a0743b4343b278e84b96a0",
+    "semantic_hash": "31451286e8a0743b4343b278e84b96a0"
+  },
+  "src/apply_evidence.rs": {
+    "mtime": 1794926785.6709056,
+    "seen": 1794974569.538391,
+    "ast_hash": "837ccd183b3bfb677a914d7815fadd60",
+    "semantic_hash": "837ccd183b3bfb677a914d7815fadd60"
+  },
+  "src/apply_evidence/monitor.rs": {
+    "mtime": 1794926785.6719058,
+    "seen": 1794974569.5383923,
+    "ast_hash": "7f4de59107a43acd109f4ff631d27305",
+    "semantic_hash": "7f4de59107a43acd109f4ff631d27305"
+  },
+  "src/apply_evidence/transaction.rs": {
+    "mtime": 1794926785.6719058,
+    "seen": 1794974569.538394,
+    "ast_hash": "9bc74b4ef8beedf7cd9c048f675c77d7",
+    "semantic_hash": "9bc74b4ef8beedf7cd9c048f675c77d7"
+  },
+  "src/apply_evidence/verify.rs": {
+    "mtime": 1794926785.6729057,
+    "seen": 1794974569.5383952,
+    "ast_hash": "e32075a4c881e1abb64c32b1fb3efb6e",
+    "semantic_hash": "e32075a4c881e1abb64c32b1fb3efb6e"
+  },
+  "src/bridge.rs": {
+    "mtime": 1794926785.6729057,
+    "seen": 1794974569.5383966,
+    "ast_hash": "e1ad1ac503533c1c55210e717c940bb9",
+    "semantic_hash": "e1ad1ac503533c1c55210e717c940bb9"
+  },
+  "src/circuit_queue.rs": {
+    "mtime": 1794926785.6729057,
+    "seen": 1794974569.5383983,
+    "ast_hash": "6811b5fd49471af2e1f8c73bc32ad8a5",
+    "semantic_hash": "6811b5fd49471af2e1f8c73bc32ad8a5"
+  },
+  "src/circuit_queue/worker.rs": {
+    "mtime": 1794926785.6729057,
+    "seen": 1794974569.5383997,
+    "ast_hash": "aa651251e163b5d55c2ae67a609edd8a",
+    "semantic_hash": "aa651251e163b5d55c2ae67a609edd8a"
+  },
+  "src/collection.rs": {
+    "mtime": 1794926785.6739058,
+    "seen": 1794974569.538403,
+    "ast_hash": "5b5f153c9bbe3223cd690ac1d8bd02bb",
+    "semantic_hash": "5b5f153c9bbe3223cd690ac1d8bd02bb"
+  },
+  "src/import_evidence.rs": {
+    "mtime": 1794926785.675906,
+    "seen": 1794974569.5384133,
+    "ast_hash": "b260ae0236ecda0e30332d76d1eb6fc2",
+    "semantic_hash": "b260ae0236ecda0e30332d76d1eb6fc2"
+  },
+  "src/nic_stats.rs": {
+    "mtime": 1794926785.6769059,
+    "seen": 1794974569.5384214,
+    "ast_hash": "284f80505e3e0d8473ee712f805204b6",
+    "semantic_hash": "284f80505e3e0d8473ee712f805204b6"
+  },
+  "src/nic_stats/ipc.rs": {
+    "mtime": 1794926785.6769059,
+    "seen": 1794974569.538423,
+    "ast_hash": "2283a672d2dc4619819835e25efc474d",
+    "semantic_hash": "2283a672d2dc4619819835e25efc474d"
+  },
+  "src/nic_stats/tests.rs": {
+    "mtime": 1794926785.6769059,
+    "seen": 1794974569.5384247,
+    "ast_hash": "8f5603a2252ce1e9ded447095513bd49",
+    "semantic_hash": "8f5603a2252ce1e9ded447095513bd49"
+  },
+  "src/notify/delivery.rs": {
+    "mtime": 1794926785.677906,
+    "seen": 1794974569.5384278,
+    "ast_hash": "b272850786365b2f89a58a2360ae47ec",
+    "semantic_hash": "b272850786365b2f89a58a2360ae47ec"
+  },
+  "src/notify/outbox.rs": {
+    "mtime": 1794926785.678906,
+    "seen": 1794974569.5384295,
+    "ast_hash": "cbea256d459d6573a2897ccf07d663d0",
+    "semantic_hash": "cbea256d459d6573a2897ccf07d663d0"
+  },
+  "src/probe.rs": {
+    "mtime": 1794926785.678906,
+    "seen": 1794974569.538431,
+    "ast_hash": "8d6090101e7878f11c91e89c69b18c2c",
+    "semantic_hash": "8d6090101e7878f11c91e89c69b18c2c"
+  },
+  "src/runner/tests/enrollment.rs": {
+    "mtime": 1794926785.6799061,
+    "seen": 1794974569.5384371,
+    "ast_hash": "16d4be963ad4943792ff9b75a08b40a2",
+    "semantic_hash": "16d4be963ad4943792ff9b75a08b40a2"
+  },
+  "src/subscriber_stats.rs": {
+    "mtime": 1794926785.680906,
+    "seen": 1794974569.5384467,
+    "ast_hash": "76a45b6affa8659efb62de45612a0c96",
+    "semantic_hash": "76a45b6affa8659efb62de45612a0c96"
+  },
+  "src/system_health.rs": {
+    "mtime": 1794926785.681906,
+    "seen": 1794974569.5384483,
+    "ast_hash": "fecfd17ccd8a9a70bdd2bfeb6c240dc0",
+    "semantic_hash": "fecfd17ccd8a9a70bdd2bfeb6c240dc0"
+  },
+  "src/topology_manager/admission.rs": {
+    "mtime": 1794926785.681906,
+    "seen": 1794974569.5384517,
+    "ast_hash": "04d8e14e99bc7f11e7b7a5aa64c6e97b",
+    "semantic_hash": "04d8e14e99bc7f11e7b7a5aa64c6e97b"
+  },
+  "src/topology_manager/admission_tests.rs": {
+    "mtime": 1794926785.681906,
+    "seen": 1794974569.5384533,
+    "ast_hash": "c4cfa0e1aa29b92f8a0c562de5dd3d3b",
+    "semantic_hash": "c4cfa0e1aa29b92f8a0c562de5dd3d3b"
+  },
+  "src/topology_manager/aggregate.rs": {
+    "mtime": 1794926785.6829062,
+    "seen": 1794974569.5384548,
+    "ast_hash": "81897d7035ac402636c90c6fdbb8cfc8",
+    "semantic_hash": "81897d7035ac402636c90c6fdbb8cfc8"
+  },
+  "src/topology_manager/aggregate_tests.rs": {
+    "mtime": 1794926785.6829062,
+    "seen": 1794974569.5384562,
+    "ast_hash": "96130b9a5abf01ce9b79bac247404917",
+    "semantic_hash": "96130b9a5abf01ce9b79bac247404917"
+  },
+  "src/topology_manager/catalog.rs": {
+    "mtime": 1794926785.6829062,
+    "seen": 1794974569.5384576,
+    "ast_hash": "bfddaa7b56a9f99a09429f0609e20d6c",
+    "semantic_hash": "bfddaa7b56a9f99a09429f0609e20d6c"
+  },
+  "src/topology_manager/catalog_tests.rs": {
+    "mtime": 1794926785.6829062,
+    "seen": 1794974569.538459,
+    "ast_hash": "7b147a72df8cd32e4e76a489b9ca3c42",
+    "semantic_hash": "7b147a72df8cd32e4e76a489b9ca3c42"
+  },
+  "src/topology_manager/compiler.rs": {
+    "mtime": 1794926785.683906,
+    "seen": 1794974569.5384607,
+    "ast_hash": "fcc7d4ababe827663c2b8d418f5b5590",
+    "semantic_hash": "fcc7d4ababe827663c2b8d418f5b5590"
+  },
+  "src/topology_manager/compiler_sandbox.rs": {
+    "mtime": 1794926785.683906,
+    "seen": 1794974569.538462,
+    "ast_hash": "1111a3195e0a3fadb1560a817fbab247",
+    "semantic_hash": "1111a3195e0a3fadb1560a817fbab247"
+  },
+  "src/topology_manager/compiler_tests.rs": {
+    "mtime": 1794926785.683906,
+    "seen": 1794974569.5384636,
+    "ast_hash": "67e6ef7c2c6ea7813ad2fa1fabc016e6",
+    "semantic_hash": "67e6ef7c2c6ea7813ad2fa1fabc016e6"
+  },
+  "src/topology_manager/coordinator.rs": {
+    "mtime": 1794926785.683906,
+    "seen": 1794974569.538465,
+    "ast_hash": "28c22970623b1bd075a6e9128e98c8a1",
+    "semantic_hash": "28c22970623b1bd075a6e9128e98c8a1"
+  },
+  "src/topology_manager/coordinator_tests.rs": {
+    "mtime": 1794926785.6849062,
+    "seen": 1794974569.5384665,
+    "ast_hash": "f15dc2d32c460ec521f459a418b0991d",
+    "semantic_hash": "f15dc2d32c460ec521f459a418b0991d"
+  },
+  "src/topology_manager/dhcp_overrides.rs": {
+    "mtime": 1794926785.6849062,
+    "seen": 1794974569.5384681,
+    "ast_hash": "0735d87667cd5df4b6eb24add399a790",
+    "semantic_hash": "0735d87667cd5df4b6eb24add399a790"
+  },
+  "src/topology_manager/enrollment.rs": {
+    "mtime": 1794926785.6849062,
+    "seen": 1794974569.5384693,
+    "ast_hash": "f17b8597f55981b0bd67c771282f5a62",
+    "semantic_hash": "f17b8597f55981b0bd67c771282f5a62"
+  },
+  "src/topology_manager/exclusion_tests.rs": {
+    "mtime": 1794926785.6849062,
+    "seen": 1794974569.538471,
+    "ast_hash": "89c3fbd78eb9efdb50629bb0d333e406",
+    "semantic_hash": "89c3fbd78eb9efdb50629bb0d333e406"
+  },
+  "src/topology_manager/identity.rs": {
+    "mtime": 1794926785.6859062,
+    "seen": 1794974569.5384722,
+    "ast_hash": "bc8f9e225b4483949ed150496f8ab96f",
+    "semantic_hash": "bc8f9e225b4483949ed150496f8ab96f"
+  },
+  "src/topology_manager/identity_tests.rs": {
+    "mtime": 1794926785.6859062,
+    "seen": 1794974569.5384738,
+    "ast_hash": "2be3c4909b31351b9447aa90ca190288",
+    "semantic_hash": "2be3c4909b31351b9447aa90ca190288"
+  },
+  "src/topology_manager/ids.rs": {
+    "mtime": 1794926785.6859062,
+    "seen": 1794974569.5384753,
+    "ast_hash": "4e390a0bbc7cb2b79c01ab9aaef82b6a",
+    "semantic_hash": "4e390a0bbc7cb2b79c01ab9aaef82b6a"
+  },
+  "src/topology_manager/ids_tests.rs": {
+    "mtime": 1794926785.6869063,
+    "seen": 1794974569.5384767,
+    "ast_hash": "eacbc8aafc7734e5f2db335def4bcad8",
+    "semantic_hash": "eacbc8aafc7734e5f2db335def4bcad8"
+  },
+  "src/topology_manager/layout.rs": {
+    "mtime": 1794926785.6869063,
+    "seen": 1794974569.5384781,
+    "ast_hash": "79a016823512de4f000cdd31deda8285",
+    "semantic_hash": "79a016823512de4f000cdd31deda8285"
+  },
+  "src/topology_manager/legacy_bounds.rs": {
+    "mtime": 1794926785.6869063,
+    "seen": 1794974569.5384796,
+    "ast_hash": "9a573e651e6c2d0cb06335c954db942f",
+    "semantic_hash": "9a573e651e6c2d0cb06335c954db942f"
+  },
+  "src/topology_manager/legacy_bounds_tests.rs": {
+    "mtime": 1794926785.6869063,
+    "seen": 1794974569.5384815,
+    "ast_hash": "11167cbd6ae54f7a338d09816ed46a68",
+    "semantic_hash": "11167cbd6ae54f7a338d09816ed46a68"
+  },
+  "src/topology_manager/legacy_rate.rs": {
+    "mtime": 1794926785.6879063,
+    "seen": 1794974569.538483,
+    "ast_hash": "85ed3e7ef3215182da928dffe5dcfd27",
+    "semantic_hash": "85ed3e7ef3215182da928dffe5dcfd27"
+  },
+  "src/topology_manager/legacy_rate_tests.rs": {
+    "mtime": 1794926785.6879063,
+    "seen": 1794974569.5384846,
+    "ast_hash": "e5eb9ef83d1822b74466918dd371d747",
+    "semantic_hash": "e5eb9ef83d1822b74466918dd371d747"
+  },
+  "src/topology_manager/legacy_static.rs": {
+    "mtime": 1794926785.6879063,
+    "seen": 1794974569.538486,
+    "ast_hash": "667428fb09219e41010be553146a8890",
+    "semantic_hash": "667428fb09219e41010be553146a8890"
+  },
+  "src/topology_manager/legacy_static_tests.rs": {
+    "mtime": 1794926785.6879063,
+    "seen": 1794974569.5384874,
+    "ast_hash": "38d6e35b0bac24c7dc1914ec9b127aaa",
+    "semantic_hash": "38d6e35b0bac24c7dc1914ec9b127aaa"
+  },
+  "src/topology_manager/migration.rs": {
+    "mtime": 1794926785.6879063,
+    "seen": 1794974569.5384889,
+    "ast_hash": "08093e053040d216d54764d89e3403b5",
+    "semantic_hash": "08093e053040d216d54764d89e3403b5"
+  },
+  "src/topology_manager/migration_tests.rs": {
+    "mtime": 1794926785.6889064,
+    "seen": 1794974569.5384903,
+    "ast_hash": "e68694fbfa9edc5e034dc85fb1df986b",
+    "semantic_hash": "e68694fbfa9edc5e034dc85fb1df986b"
+  },
+  "src/topology_manager/mod.rs": {
+    "mtime": 1794926785.6889064,
+    "seen": 1794974569.538492,
+    "ast_hash": "fd3e9bf6622b0e1557828c6c871b8a94",
+    "semantic_hash": "fd3e9bf6622b0e1557828c6c871b8a94"
+  },
+  "src/topology_manager/model.rs": {
+    "mtime": 1794926785.6889064,
+    "seen": 1794974569.5384934,
+    "ast_hash": "9c6bc604e18c9fdd590c2ed7088e9a59",
+    "semantic_hash": "9c6bc604e18c9fdd590c2ed7088e9a59"
+  },
+  "src/topology_manager/normalize.rs": {
+    "mtime": 1794926785.6889064,
+    "seen": 1794974569.538495,
+    "ast_hash": "a62a3ec2590f08675e034a41112577b0",
+    "semantic_hash": "a62a3ec2590f08675e034a41112577b0"
+  },
+  "src/topology_manager/normalize_tests.rs": {
+    "mtime": 1794926785.6899064,
+    "seen": 1794974569.5384967,
+    "ast_hash": "d33db75dc5776942682be0a824432607",
+    "semantic_hash": "d33db75dc5776942682be0a824432607"
+  },
+  "src/topology_manager/observation.rs": {
+    "mtime": 1794926785.6899064,
+    "seen": 1794974569.5384984,
+    "ast_hash": "35e3cba61af2aa67b7000d75c066d05a",
+    "semantic_hash": "35e3cba61af2aa67b7000d75c066d05a"
+  },
+  "src/topology_manager/ownership.rs": {
+    "mtime": 1794926785.6899064,
+    "seen": 1794974569.5384998,
+    "ast_hash": "12cef2bb8ad394892df2e3711b068d0b",
+    "semantic_hash": "12cef2bb8ad394892df2e3711b068d0b"
+  },
+  "src/topology_manager/ownership_tests.rs": {
+    "mtime": 1794926785.6909065,
+    "seen": 1794974569.538501,
+    "ast_hash": "cf1435eb26921ea7641db5271614b42a",
+    "semantic_hash": "cf1435eb26921ea7641db5271614b42a"
+  },
+  "src/topology_manager/parity.rs": {
+    "mtime": 1794926785.6909065,
+    "seen": 1794974569.5385027,
+    "ast_hash": "5ef1f8a2748d73c1a26e254194ce5aed",
+    "semantic_hash": "5ef1f8a2748d73c1a26e254194ce5aed"
+  },
+  "src/topology_manager/parity_tests.rs": {
+    "mtime": 1794926785.6909065,
+    "seen": 1794974569.5385041,
+    "ast_hash": "38360aa3ccfd83f327a80dbeafa325d9",
+    "semantic_hash": "38360aa3ccfd83f327a80dbeafa325d9"
+  },
+  "src/topology_manager/preflight.rs": {
+    "mtime": 1794926785.6909065,
+    "seen": 1794974569.5385058,
+    "ast_hash": "e9d6729ac9e47d49ba54f4660bbc3424",
+    "semantic_hash": "e9d6729ac9e47d49ba54f4660bbc3424"
+  },
+  "src/topology_manager/preflight_tests.rs": {
+    "mtime": 1794926785.6909065,
+    "seen": 1794974569.53851,
+    "ast_hash": "ee29877b4e8107aca6513d28a16ab640",
+    "semantic_hash": "ee29877b4e8107aca6513d28a16ab640"
+  },
+  "src/topology_manager/publication.rs": {
+    "mtime": 1794926785.6919065,
+    "seen": 1794974569.5385115,
+    "ast_hash": "cc9801461ce8a61cb324636772a80926",
+    "semantic_hash": "cc9801461ce8a61cb324636772a80926"
+  },
+  "src/topology_manager/publication_tests.rs": {
+    "mtime": 1794926785.6919065,
+    "seen": 1794974569.5385132,
+    "ast_hash": "a8f0738a518161aea9dbb55ff91d20b4",
+    "semantic_hash": "a8f0738a518161aea9dbb55ff91d20b4"
+  },
+  "src/topology_manager/rates.rs": {
+    "mtime": 1794926785.6919065,
+    "seen": 1794974569.5385146,
+    "ast_hash": "bfea3c65789df93ea78573f52aafbebb",
+    "semantic_hash": "bfea3c65789df93ea78573f52aafbebb"
+  },
+  "src/topology_manager/reader.rs": {
+    "mtime": 1794926785.6929066,
+    "seen": 1794974569.5385165,
+    "ast_hash": "f5447bd552a3621b00fd066ebb06059c",
+    "semantic_hash": "f5447bd552a3621b00fd066ebb06059c"
+  },
+  "src/topology_manager/reader_tests.rs": {
+    "mtime": 1794926785.6929066,
+    "seen": 1794974569.5385177,
+    "ast_hash": "8fdeabeef2ace1ccaba95ffb43ddfdbe",
+    "semantic_hash": "8fdeabeef2ace1ccaba95ffb43ddfdbe"
+  },
+  "src/topology_manager/rebalance.rs": {
+    "mtime": 1794926785.6929066,
+    "seen": 1794974569.5385194,
+    "ast_hash": "c457d62af65cc384de32f8344d54e481",
+    "semantic_hash": "c457d62af65cc384de32f8344d54e481"
+  },
+  "src/topology_manager/rebalance_tests.rs": {
+    "mtime": 1794926785.6939065,
+    "seen": 1794974569.5385208,
+    "ast_hash": "47cea6819efcbb74d87203f27b26566d",
+    "semantic_hash": "47cea6819efcbb74d87203f27b26566d"
+  },
+  "src/topology_manager/resolver.rs": {
+    "mtime": 1794926785.6949067,
+    "seen": 1794974569.5385225,
+    "ast_hash": "ce4a04d936a61ed729d5d78945751cb8",
+    "semantic_hash": "ce4a04d936a61ed729d5d78945751cb8"
+  },
+  "src/topology_manager/resolver_tests.rs": {
+    "mtime": 1794926785.6949067,
+    "seen": 1794974569.5385242,
+    "ast_hash": "30c6fe03b7f2c3e0ce0c282e12e11c5f",
+    "semantic_hash": "30c6fe03b7f2c3e0ce0c282e12e11c5f"
+  },
+  "src/topology_manager/runtime.rs": {
+    "mtime": 1794926785.6949067,
+    "seen": 1794974569.5385256,
+    "ast_hash": "ea5be533b36f7ccefdbe66f8e1a4d043",
+    "semantic_hash": "ea5be533b36f7ccefdbe66f8e1a4d043"
+  },
+  "src/topology_manager/settings.rs": {
+    "mtime": 1794926785.6959066,
+    "seen": 1794974569.538527,
+    "ast_hash": "769e3ffc5a46eec5b119c2951e2ed64f",
+    "semantic_hash": "769e3ffc5a46eec5b119c2951e2ed64f"
+  },
+  "src/topology_manager/settings_tests.rs": {
+    "mtime": 1794926785.6959066,
+    "seen": 1794974569.5385284,
+    "ast_hash": "c03194ac0da419adf5db8cf2262f8651",
+    "semantic_hash": "c03194ac0da419adf5db8cf2262f8651"
+  },
+  "src/topology_manager/shared_static.rs": {
+    "mtime": 1794926785.6959066,
+    "seen": 1794974569.53853,
+    "ast_hash": "9866d188103344375c30086ae2e42cd6",
+    "semantic_hash": "9866d188103344375c30086ae2e42cd6"
+  },
+  "src/topology_manager/shared_static_tests.rs": {
+    "mtime": 1794926785.6959066,
+    "seen": 1794974569.5385315,
+    "ast_hash": "1fb82de45008c8cbd8eb537734bf3989",
+    "semantic_hash": "1fb82de45008c8cbd8eb537734bf3989"
+  },
+  "src/topology_manager/source_policy.rs": {
+    "mtime": 1794926785.6969068,
+    "seen": 1794974569.5385332,
+    "ast_hash": "79ecc12a7374baa122254db5b94ee2ad",
+    "semantic_hash": "79ecc12a7374baa122254db5b94ee2ad"
+  },
+  "src/topology_manager/source_policy_tests.rs": {
+    "mtime": 1794926785.6969068,
+    "seen": 1794974569.5385346,
+    "ast_hash": "9e5255f0091796138eee657feaa683e7",
+    "semantic_hash": "9e5255f0091796138eee657feaa683e7"
+  },
+  "src/topology_manager/source_rate.rs": {
+    "mtime": 1794926785.6969068,
+    "seen": 1794974569.5385363,
+    "ast_hash": "94344cbc004683c1598985d62a5a42fa",
+    "semantic_hash": "94344cbc004683c1598985d62a5a42fa"
+  },
+  "src/topology_manager/source_rate_tests.rs": {
+    "mtime": 1794926785.6969068,
+    "seen": 1794974569.5385377,
+    "ast_hash": "b91c312b3e8f8fc60bf54b0fee9c24de",
+    "semantic_hash": "b91c312b3e8f8fc60bf54b0fee9c24de"
+  },
+  "src/topology_manager/staging.rs": {
+    "mtime": 1794926785.6969068,
+    "seen": 1794974569.5385392,
+    "ast_hash": "fc6e54c596d0ffee22b2477256f2abf9",
+    "semantic_hash": "fc6e54c596d0ffee22b2477256f2abf9"
+  },
+  "src/topology_manager/staging_tests.rs": {
+    "mtime": 1794926785.6979067,
+    "seen": 1794974569.5385406,
+    "ast_hash": "0edb1029282ef3e78c43d8eb96fed949",
+    "semantic_hash": "0edb1029282ef3e78c43d8eb96fed949"
+  },
+  "src/topology_manager/static_input.rs": {
+    "mtime": 1794926785.6979067,
+    "seen": 1794974569.538542,
+    "ast_hash": "ff3abb0c38445196b36cd7ad06fb675e",
+    "semantic_hash": "ff3abb0c38445196b36cd7ad06fb675e"
+  },
+  "src/topology_manager/store.rs": {
+    "mtime": 1794926785.6979067,
+    "seen": 1794974569.5385437,
+    "ast_hash": "836580e3a87eb75f3967f517fe52c6cb",
+    "semantic_hash": "836580e3a87eb75f3967f517fe52c6cb"
+  },
+  "src/topology_manager/store_recovery_tests.rs": {
+    "mtime": 1794926785.6989067,
+    "seen": 1794974569.538545,
+    "ast_hash": "0eff0448d795f676dff6d246b1f74ef3",
+    "semantic_hash": "0eff0448d795f676dff6d246b1f74ef3"
+  },
+  "src/tui/design.rs": {
+    "mtime": 1794926785.6999068,
+    "seen": 1794974569.5385516,
+    "ast_hash": "792f14cd7d8c693a10085d8ff1371ac3",
+    "semantic_hash": "792f14cd7d8c693a10085d8ff1371ac3"
+  },
+  "src/tui/devices/approved.rs": {
+    "mtime": 1794926785.7009068,
+    "seen": 1794974569.5385547,
+    "ast_hash": "cb847afb38bac4146dfaf84a4265289c",
+    "semantic_hash": "cb847afb38bac4146dfaf84a4265289c"
+  },
+  "src/tui/journal/approved.rs": {
+    "mtime": 1794926785.7009068,
+    "seen": 1794974569.538558,
+    "ast_hash": "7c99067db99a8ddc3fdef1176c7e860b",
+    "semantic_hash": "7c99067db99a8ddc3fdef1176c7e860b"
+  },
+  "src/tui/libreqos.rs": {
+    "mtime": 1794926785.701907,
+    "seen": 1794974569.5385594,
+    "ast_hash": "6ec0530452438a5ccf1ce992b2fe0fff",
+    "semantic_hash": "6ec0530452438a5ccf1ce992b2fe0fff"
+  },
+  "src/tui/overview.rs": {
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.538566,
+    "ast_hash": "4dd158cc235c57fde861613ebe0b3138",
+    "semantic_hash": "4dd158cc235c57fde861613ebe0b3138"
+  },
+  "src/tui/presence.rs": {
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.5385678,
+    "ast_hash": "05a82d2fc60937fe7e73daf0c13f40a1",
+    "semantic_hash": "05a82d2fc60937fe7e73daf0c13f40a1"
+  },
+  "src/tui/routers.rs": {
+    "mtime": 1794926785.7029068,
+    "seen": 1794974569.5385706,
+    "ast_hash": "f79e2c997af6732051edd98eacd04a73",
+    "semantic_hash": "f79e2c997af6732051edd98eacd04a73"
+  },
+  "src/tui/settings/view/approved.rs": {
+    "mtime": 1794926785.704907,
+    "seen": 1794974569.538585,
+    "ast_hash": "d3f314f52b1cb85777926dea34fd80c9",
+    "semantic_hash": "d3f314f52b1cb85777926dea34fd80c9"
+  },
+  "src/tui/settings/view/form.rs": {
+    "mtime": 1794926785.704907,
+    "seen": 1794974569.5385864,
+    "ast_hash": "32541159d03f6d43f4d95243ba3341af",
+    "semantic_hash": "32541159d03f6d43f4d95243ba3341af"
+  },
+  "src/tui/shell.rs": {
+    "mtime": 1794926785.704907,
+    "seen": 1794974569.5385878,
+    "ast_hash": "5cd6f380cceccbababc738c72fd99fa7",
+    "semantic_hash": "5cd6f380cceccbababc738c72fd99fa7"
+  },
+  "src/tui/traffic_chart.rs": {
+    "mtime": 1794926785.704907,
+    "seen": 1794974569.538591,
+    "ast_hash": "51ff6fad5c81267cc4acc46e73eb3192",
+    "semantic_hash": "51ff6fad5c81267cc4acc46e73eb3192"
+  },
+  "src/tui/workers.rs": {
+    "mtime": 1794926785.705907,
+    "seen": 1794974569.5385926,
+    "ast_hash": "dd6b320ca23a3fc3247a27da53b99eb8",
+    "semantic_hash": "dd6b320ca23a3fc3247a27da53b99eb8"
+  },
+  "src/tui/workers/approved.rs": {
+    "mtime": 1794926785.705907,
+    "seen": 1794974569.538594,
+    "ast_hash": "a751ea38f97f219eccda53fe2f236ac6",
+    "semantic_hash": "a751ea38f97f219eccda53fe2f236ac6"
+  },
+  "src/worker_util.rs": {
+    "mtime": 1794926785.706907,
+    "seen": 1794974569.538597,
+    "ast_hash": "4586d999413d47e92330676b92513bcd",
+    "semantic_hash": "4586d999413d47e92330676b92513bcd"
+  },
+  "src/worker_util/cache.rs": {
+    "mtime": 1794926785.706907,
+    "seen": 1794974569.5385985,
+    "ast_hash": "8f7d1452eebdcfcd5aa10341cfc4aa91",
+    "semantic_hash": "8f7d1452eebdcfcd5aa10341cfc4aa91"
+  },
+  "src/worker_util/classification.rs": {
+    "mtime": 1794926785.706907,
+    "seen": 1794974569.5386,
+    "ast_hash": "c2ce28324d4dca84257d623b42574ef8",
+    "semantic_hash": "c2ce28324d4dca84257d623b42574ef8"
+  },
+  "src/worker_util/detail.rs": {
+    "mtime": 1794926785.706907,
+    "seen": 1794974569.5386014,
+    "ast_hash": "f956ffdb0599d88ba0e28272fff7dafb",
+    "semantic_hash": "f956ffdb0599d88ba0e28272fff7dafb"
+  },
+  "src/worker_util/health.rs": {
+    "mtime": 1794926785.7079072,
+    "seen": 1794974569.538603,
+    "ast_hash": "e1b7dc5335598de474d55b65213eda06",
+    "semantic_hash": "e1b7dc5335598de474d55b65213eda06"
+  },
+  "src/worker_util/ipc.rs": {
+    "mtime": 1794926785.7079072,
+    "seen": 1794974569.5386043,
+    "ast_hash": "530bb9f5dabf8b8d9fa6b3e2aa2bf10f",
+    "semantic_hash": "530bb9f5dabf8b8d9fa6b3e2aa2bf10f"
+  },
+  "src/worker_util/pressure.rs": {
+    "mtime": 1794926785.7079072,
+    "seen": 1794974569.538606,
+    "ast_hash": "44cbdd94d5d4b3de967567cfb52b79a2",
+    "semantic_hash": "44cbdd94d5d4b3de967567cfb52b79a2"
+  },
+  "src/worker_util/queue.rs": {
+    "mtime": 1794926785.7079072,
+    "seen": 1794974569.5386074,
+    "ast_hash": "3902dcb7fc9383932ec2b45c18684ea9",
+    "semantic_hash": "3902dcb7fc9383932ec2b45c18684ea9"
+  },
+  "src/worker_util/traffic.rs": {
+    "mtime": 1794926785.7089071,
+    "seen": 1794974569.5386086,
+    "ast_hash": "f0a6559f7b20371e21260ef11e0bcb66",
+    "semantic_hash": "f0a6559f7b20371e21260ef11e0bcb66"
+  },
+  "src/write_receipt.rs": {
+    "mtime": 1794926785.7089071,
+    "seen": 1794974569.5386102,
+    "ast_hash": "ceb693b75a8a12b3d855dab92e67d597",
+    "semantic_hash": "ceb693b75a8a12b3d855dab92e67d597"
+  },
+  "tests/fixtures/dpdk-nic-source.json": {
+    "mtime": 1794926785.7099073,
+    "seen": 1794974569.5386183,
+    "ast_hash": "40f6a57ba6f8f199764d9f8049b8f740",
+    "semantic_hash": "40f6a57ba6f8f199764d9f8049b8f740"
+  },
+  "tests/node_minimums.rs": {
+    "mtime": 1794926785.7099073,
+    "seen": 1794974569.5386214,
+    "ast_hash": "eb02bb5c1c0e2d2f98d116b81a3ea47b",
+    "semantic_hash": "eb02bb5c1c0e2d2f98d116b81a3ea47b"
+  },
+  "tests/system_health.rs": {
+    "mtime": 1794926785.7129073,
+    "seen": 1794974569.5386245,
+    "ast_hash": "37f9dbbca1bc45317c7a9488cb076c9c",
+    "semantic_hash": "37f9dbbca1bc45317c7a9488cb076c9c"
+  },
+  "tests/topology_catalog.rs": {
+    "mtime": 1794926785.7129073,
+    "seen": 1794974569.538626,
+    "ast_hash": "3ea66c5187266dc6de97ec8d60f9b68a",
+    "semantic_hash": "3ea66c5187266dc6de97ec8d60f9b68a"
+  },
+  "tests/topology_foundation.rs": {
+    "mtime": 1794926785.7139075,
+    "seen": 1794974569.5386276,
+    "ast_hash": "c074b80a1f7f39f9240a5c6d12eb3f50",
+    "semantic_hash": "c074b80a1f7f39f9240a5c6d12eb3f50"
+  },
+  "tests/topology_registry.rs": {
+    "mtime": 1794926785.7139075,
+    "seen": 1794974569.5386288,
+    "ast_hash": "445f4552c09e761a9e3853604daaa4f3",
+    "semantic_hash": "445f4552c09e761a9e3853604daaa4f3"
+  },
+  "tests/write_receipt.rs": {
+    "mtime": 1794926785.7139075,
+    "seen": 1794974569.5386322,
+    "ast_hash": "7c1ee22cc6d44781fdb9f135fa3c72a7",
+    "semantic_hash": "7c1ee22cc6d44781fdb9f135fa3c72a7"
+  },
+  "brain/10-sessions/2026-11-02-libreqos-v3-live-cutover.md": {
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386481,
+    "ast_hash": "bdcd3d814087a26bcf9472614706ff4c",
+    "semantic_hash": "bdcd3d814087a26bcf9472614706ff4c"
+  },
+  "brain/10-sessions/2026-11-02-native-runtime-policy-validation.md": {
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386496,
+    "ast_hash": "69180c4c26ab2b418b24aa78b6d433d0",
+    "semantic_hash": "69180c4c26ab2b418b24aa78b6d433d0"
+  },
+  "brain/10-sessions/2026-11-02-native-topology-source-check.md": {
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386512,
+    "ast_hash": "a8d0a45b0ba145b2f83ec2e44ab07fc5",
+    "semantic_hash": "a8d0a45b0ba145b2f83ec2e44ab07fc5"
+  },
+  "brain/10-sessions/2026-11-02-v3-import-probe-bridge-monitor.md": {
+    "mtime": 1794926785.3588932,
+    "seen": 1794974569.5386527,
+    "ast_hash": "4c79403f88efbeba9dcf42f19babbeb6",
+    "semantic_hash": "4c79403f88efbeba9dcf42f19babbeb6"
+  },
+  "brain/10-sessions/2026-11-02-v3-upgrade-preparation.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.5386539,
+    "ast_hash": "842a96a128399585468600575b3aa8c3",
+    "semantic_hash": "842a96a128399585468600575b3aa8c3"
+  },
+  "brain/10-sessions/2026-11-03-libreqos-v3-package-update.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.5386555,
+    "ast_hash": "81e217d536d34bd5898991490e704d6b",
+    "semantic_hash": "81e217d536d34bd5898991490e704d6b"
+  },
+  "brain/10-sessions/2026-11-09-approved-tui-implementation.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.538657,
+    "ast_hash": "d2d27994d02a3e7d00bf856f1bfbd6ef",
+    "semantic_hash": "d2d27994d02a3e7d00bf856f1bfbd6ef"
+  },
+  "brain/10-sessions/2026-11-09-buffer-pressure.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.5386586,
+    "ast_hash": "03c6356e04bd221ec765d48762fc59d4",
+    "semantic_hash": "03c6356e04bd221ec765d48762fc59d4"
+  },
+  "brain/10-sessions/2026-11-09-journal-design-and-tui-evolution.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.53866,
+    "ast_hash": "e0edd8b303834792cbf97751640e1be2",
+    "semantic_hash": "e0edd8b303834792cbf97751640e1be2"
+  },
+  "brain/10-sessions/2026-11-09-libreqos-beta19-integration-review.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.5386617,
+    "ast_hash": "af231e66b3f4ef09a9861104fe337aed",
+    "semantic_hash": "af231e66b3f4ef09a9861104fe337aed"
+  },
+  "brain/10-sessions/2026-11-09-live-subscriber-collection.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.5386631,
+    "ast_hash": "e03067147b177ffc800402fe68a83928",
+    "semantic_hash": "e03067147b177ffc800402fe68a83928"
+  },
+  "brain/10-sessions/2026-11-09-node-minimums.md": {
+    "mtime": 1794926785.359893,
+    "seen": 1794974569.5386648,
+    "ast_hash": "ee04e2ec994ab09da887199e573efb9b",
+    "semantic_hash": "ee04e2ec994ab09da887199e573efb9b"
+  },
+  "brain/10-sessions/2026-11-09-tui-approved-mockups.md": {
+    "mtime": 1794926785.3608932,
+    "seen": 1794974569.5386662,
+    "ast_hash": "84057b3503412a87f9e1e1af026958a4",
+    "semantic_hash": "84057b3503412a87f9e1e1af026958a4"
+  },
+  "brain/10-sessions/2026-11-09-tui-release-review.md": {
+    "mtime": 1794926785.3608932,
+    "seen": 1794974569.5386677,
+    "ast_hash": "68ed09dc53a68baa7511b3e210ce577f",
+    "semantic_hash": "68ed09dc53a68baa7511b3e210ce577f"
+  },
+  "brain/10-sessions/2026-11-09-tui-shell-implementation.md": {
+    "mtime": 1794926785.3608932,
+    "seen": 1794974569.5386693,
+    "ast_hash": "d7ade4e57bea5f84056913aad8fd5697",
+    "semantic_hash": "d7ade4e57bea5f84056913aad8fd5697"
+  },
+  "brain/10-sessions/2026-11-09-worker-utilization.md": {
+    "mtime": 1794926785.3608932,
+    "seen": 1794974569.5386708,
+    "ast_hash": "78d2f55dc20f84e36b5a387071c19141",
+    "semantic_hash": "78d2f55dc20f84e36b5a387071c19141"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-bridge-health.md": {
+    "mtime": 1794926785.3608932,
+    "seen": 1794974569.5386722,
+    "ast_hash": "1cf95880b43b664fb95fcb201794321e",
+    "semantic_hash": "1cf95880b43b664fb95fcb201794321e"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-circuit-queues.md": {
+    "mtime": 1794926785.3608932,
+    "seen": 1794974569.5386736,
+    "ast_hash": "538fbb1f62843efa882e95334cbc706b",
+    "semantic_hash": "538fbb1f62843efa882e95334cbc706b"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-mapped-unmapped.md": {
+    "mtime": 1794926785.3618932,
+    "seen": 1794974569.5386753,
+    "ast_hash": "8eb5083576fac6f7c7d2f6681c52363b",
+    "semantic_hash": "8eb5083576fac6f7c7d2f6681c52363b"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-performance-and-deployment-review.md": {
+    "mtime": 1794926785.3618932,
+    "seen": 1794974569.5386767,
+    "ast_hash": "27d0a2a2dbe69bb4083fa7e040b56b9f",
+    "semantic_hash": "27d0a2a2dbe69bb4083fa7e040b56b9f"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-queue-statistics.md": {
+    "mtime": 1794926785.3618932,
+    "seen": 1794974569.5386782,
+    "ast_hash": "a2c98bbe6f1981eedf635e62058d3e34",
+    "semantic_hash": "a2c98bbe6f1981eedf635e62058d3e34"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-subscriber-observations.md": {
+    "mtime": 1794926785.3618932,
+    "seen": 1794974569.5386796,
+    "ast_hash": "2c44f7d0f11259528affb9a6988a32af",
+    "semantic_hash": "2c44f7d0f11259528affb9a6988a32af"
+  },
+  "brain/10-sessions/2026-11-10-dpdk-worker-details.md": {
+    "mtime": 1794926785.3618932,
+    "seen": 1794974569.538681,
+    "ast_hash": "d408dbd0675d4537166dc19dbf0cb9d6",
+    "semantic_hash": "d408dbd0675d4537166dc19dbf0cb9d6"
+  },
+  "brain/10-sessions/2026-11-11-dpdk-nic-diagnostics.md": {
+    "mtime": 1794926785.3628933,
+    "seen": 1794974569.5386827,
+    "ast_hash": "01445bf69f2aa6000aa847a7e7ee2dd9",
+    "semantic_hash": "01445bf69f2aa6000aa847a7e7ee2dd9"
+  },
+  "brain/10-sessions/2026-11-11-mirrored-dpdk-chart.md": {
+    "mtime": 1794926785.3638933,
+    "seen": 1794974569.5386841,
+    "ast_hash": "a0ee16fb27769de5003e383f902a2ec9",
+    "semantic_hash": "a0ee16fb27769de5003e383f902a2ec9"
+  },
+  "brain/10-sessions/2026-11-11-unified-health-implementation.md": {
+    "mtime": 1794926785.3638933,
+    "seen": 1794974569.5386858,
+    "ast_hash": "9f77a5ac63effa85544cc2131ec17d4b",
+    "semantic_hash": "9f77a5ac63effa85544cc2131ec17d4b"
+  },
+  "brain/10-sessions/2026-11-11-unified-health-telegram-research.md": {
+    "mtime": 1794926785.3638933,
+    "seen": 1794974569.5386872,
+    "ast_hash": "2ff9f79a8c3bb6f68f5e2383eaaf8aa0",
+    "semantic_hash": "2ff9f79a8c3bb6f68f5e2383eaaf8aa0"
+  },
+  "brain/10-sessions/2026-11-12-native-capacity-diagnosis.md": {
+    "mtime": 1794926785.3638933,
+    "seen": 1794974569.5386884,
+    "ast_hash": "272f081d8fb81bc74ab352ff7cc19a11",
+    "semantic_hash": "272f081d8fb81bc74ab352ff7cc19a11"
+  },
+  "brain/10-sessions/2026-11-12-production-performance-observation.md": {
+    "mtime": 1794926785.3648934,
+    "seen": 1794974569.53869,
+    "ast_hash": "0d707ea265eefef1a330f44e92104b73",
+    "semantic_hash": "0d707ea265eefef1a330f44e92104b73"
+  },
+  "brain/10-sessions/2026-11-12-telegram-delivery-verification.md": {
+    "mtime": 1794926785.3648934,
+    "seen": 1794974569.5386915,
+    "ast_hash": "7eb9d06bbe959878e2851d54f322b8f1",
+    "semantic_hash": "7eb9d06bbe959878e2851d54f322b8f1"
+  },
+  "brain/10-sessions/2026-11-12-unified-health-deployment.md": {
+    "mtime": 1794926785.3648934,
+    "seen": 1794974569.5386932,
+    "ast_hash": "bdb2b9f5952634bf752554d4f1fd9f84",
+    "semantic_hash": "bdb2b9f5952634bf752554d4f1fd9f84"
+  },
+  "brain/10-sessions/2026-11-12-worker-ram-cache.md": {
+    "mtime": 1794926785.3648934,
+    "seen": 1794974569.5386946,
+    "ast_hash": "cb02563c515cc0be0ee106fc6e28d287",
+    "semantic_hash": "cb02563c515cc0be0ee106fc6e28d287"
+  },
+  "brain/10-sessions/2026-11-16-explicit-slot-mapping.md": {
+    "mtime": 1794926785.3648934,
+    "seen": 1794974569.5386963,
+    "ast_hash": "b7560e6e22cdaeca1393834c74651499",
+    "semantic_hash": "b7560e6e22cdaeca1393834c74651499"
+  },
+  "brain/10-sessions/2026-11-16-native-recovery-path-review.md": {
+    "mtime": 1794926785.3658934,
+    "seen": 1794974569.5386977,
+    "ast_hash": "d2b14ea38da06b715e30e449396991a4",
+    "semantic_hash": "d2b14ea38da06b715e30e449396991a4"
+  },
+  "brain/10-sessions/2026-11-16-post-reboot-native-ack-diagnosis.md": {
+    "mtime": 1794926785.3658934,
+    "seen": 1794974569.538699,
+    "ast_hash": "541981587d2d110182f6c61d813f6415",
+    "semantic_hash": "541981587d2d110182f6c61d813f6415"
+  },
+  "brain/10-sessions/2026-11-16-topology-aggregates.md": {
+    "mtime": 1794926785.3658934,
+    "seen": 1794974569.5387006,
+    "ast_hash": "6ea1f807f59e84f7add3bcf564264c39",
+    "semantic_hash": "6ea1f807f59e84f7add3bcf564264c39"
+  },
+  "brain/10-sessions/2026-11-16-topology-catalog.md": {
+    "mtime": 1794926785.3668935,
+    "seen": 1794974569.5387018,
+    "ast_hash": "e57c48208cf83e30b207a94e905693de",
+    "semantic_hash": "e57c48208cf83e30b207a94e905693de"
+  },
+  "brain/10-sessions/2026-11-16-topology-foundation.md": {
+    "mtime": 1794926785.3668935,
+    "seen": 1794974569.5387034,
+    "ast_hash": "b4f0de79129b3a193ea76fb737225fac",
+    "semantic_hash": "b4f0de79129b3a193ea76fb737225fac"
+  },
+  "brain/10-sessions/2026-11-16-topology-manager-adoption.md": {
+    "mtime": 1794926785.3668935,
+    "seen": 1794974569.5387049,
+    "ast_hash": "00155a400eeb4726a48871191228cd57",
+    "semantic_hash": "00155a400eeb4726a48871191228cd57"
+  },
+  "brain/10-sessions/2026-11-16-topology-product-review.md": {
+    "mtime": 1794926785.3668935,
+    "seen": 1794974569.5387065,
+    "ast_hash": "be794752a640bba14101f5f0df35f49d",
+    "semantic_hash": "be794752a640bba14101f5f0df35f49d"
+  },
+  "brain/10-sessions/2026-11-16-topology-rebalance.md": {
+    "mtime": 1794926785.3678935,
+    "seen": 1794974569.538708,
+    "ast_hash": "23b6d71058e3dce7aa445dba9ae21fd1",
+    "semantic_hash": "23b6d71058e3dce7aa445dba9ae21fd1"
+  },
+  "brain/10-sessions/2026-11-16-topology-registry.md": {
+    "mtime": 1794926785.3678935,
+    "seen": 1794974569.5387094,
+    "ast_hash": "44f8037579d68105f48eea59e8ea09ca",
+    "semantic_hash": "44f8037579d68105f48eea59e8ea09ca"
+  },
+  "brain/10-sessions/2026-11-16-topology-resolver.md": {
+    "mtime": 1794926785.3678935,
+    "seen": 1794974569.538711,
+    "ast_hash": "e79276da026ed4d314b08eaf97968ae7",
+    "semantic_hash": "e79276da026ed4d314b08eaf97968ae7"
+  },
+  "brain/10-sessions/2026-11-16-topology-source-boundary.md": {
+    "mtime": 1794926785.3688936,
+    "seen": 1794974569.5387125,
+    "ast_hash": "aad0aadf360786fe361eb163e74f6127",
+    "semantic_hash": "aad0aadf360786fe361eb163e74f6127"
+  },
+  "brain/10-sessions/2026-11-17-graphify-topology-status.md": {
+    "mtime": 1794926841.454078,
+    "seen": 1794974569.5387142,
+    "ast_hash": "e154e47e710719a4c2b6168d6e3ea76e",
+    "semantic_hash": "e154e47e710719a4c2b6168d6e3ea76e"
+  },
+  "brain/10-sessions/2026-11-17-topology-dhcp-overrides.md": {
+    "mtime": 1794926785.3688936,
+    "seen": 1794974569.5387154,
+    "ast_hash": "18ac8e565bc5a8f41d813b7136a8feb3",
+    "semantic_hash": "18ac8e565bc5a8f41d813b7136a8feb3"
+  },
+  "brain/10-sessions/2026-11-17-topology-dynamic-bounds.md": {
+    "mtime": 1794926785.3698936,
+    "seen": 1794974569.538717,
+    "ast_hash": "1f71178383148ae2923b870171c6e070",
+    "semantic_hash": "1f71178383148ae2923b870171c6e070"
+  },
+  "brain/10-sessions/2026-11-17-topology-enrollment.md": {
+    "mtime": 1794926785.3698936,
+    "seen": 1794974569.5387182,
+    "ast_hash": "def394b5ba67e511a8274885897692a1",
+    "semantic_hash": "def394b5ba67e511a8274885897692a1"
+  },
+  "brain/10-sessions/2026-11-17-topology-exclusions.md": {
+    "mtime": 1794926785.3698936,
+    "seen": 1794974569.5387254,
+    "ast_hash": "4ccac3c304ba6d2d176a2a94df0df8ad",
+    "semantic_hash": "4ccac3c304ba6d2d176a2a94df0df8ad"
+  },
+  "brain/10-sessions/2026-11-17-topology-identity.md": {
+    "mtime": 1794926785.3698936,
+    "seen": 1794974569.5387266,
+    "ast_hash": "bccba108d2ab60dae7facab7b791e0f4",
+    "semantic_hash": "bccba108d2ab60dae7facab7b791e0f4"
+  },
+  "brain/10-sessions/2026-11-17-topology-legacy-adoption.md": {
+    "mtime": 1794926785.3698936,
+    "seen": 1794974569.5387282,
+    "ast_hash": "4d3035cc442252d5178995056d637403",
+    "semantic_hash": "4d3035cc442252d5178995056d637403"
+  },
+  "brain/10-sessions/2026-11-17-topology-legacy-preflight.md": {
+    "mtime": 1794926785.3708935,
+    "seen": 1794974569.5387297,
+    "ast_hash": "7a47d794cb5d8971329c9678a1f3abcd",
+    "semantic_hash": "7a47d794cb5d8971329c9678a1f3abcd"
+  },
+  "brain/10-sessions/2026-11-17-topology-migration-admission.md": {
+    "mtime": 1794926785.3708935,
+    "seen": 1794974569.5387313,
+    "ast_hash": "a8aff9eb4835e433ca0922face99e229",
+    "semantic_hash": "a8aff9eb4835e433ca0922face99e229"
+  },
+  "brain/10-sessions/2026-11-17-topology-migration-staging.md": {
+    "mtime": 1794926785.3708935,
+    "seen": 1794974569.5387325,
+    "ast_hash": "e84644a66f1685edbb7bf38e95ab3149",
+    "semantic_hash": "e84644a66f1685edbb7bf38e95ab3149"
+  },
+  "brain/10-sessions/2026-11-17-topology-node-minimums.md": {
+    "mtime": 1794926785.3708935,
+    "seen": 1794974569.5387342,
+    "ast_hash": "ad4d08b17d8a4d59365d248634e0468c",
+    "semantic_hash": "ad4d08b17d8a4d59365d248634e0468c"
+  },
+  "brain/10-sessions/2026-11-17-topology-normalization.md": {
+    "mtime": 1794926785.3708935,
+    "seen": 1794974569.5387354,
+    "ast_hash": "49ffa3eb444d35b43e2457ffb22a5692",
+    "semantic_hash": "49ffa3eb444d35b43e2457ffb22a5692"
+  },
+  "brain/10-sessions/2026-11-17-topology-publication.md": {
+    "mtime": 1794926785.3718936,
+    "seen": 1794974569.5387368,
+    "ast_hash": "e195da63d4dc35f4073dab1713e2c5bf",
+    "semantic_hash": "e195da63d4dc35f4073dab1713e2c5bf"
+  },
+  "brain/10-sessions/2026-11-17-topology-runtime-owner.md": {
+    "mtime": 1794926785.3718936,
+    "seen": 1794974569.5387385,
+    "ast_hash": "43f43a4b32960480eb3020f318ff728e",
+    "semantic_hash": "43f43a4b32960480eb3020f318ff728e"
+  },
+  "brain/10-sessions/2026-11-17-topology-settings-recovery.md": {
+    "mtime": 1794926785.3718936,
+    "seen": 1794974569.53874,
+    "ast_hash": "7a6c6dcfbdda979fc8f5716893ebda1f",
+    "semantic_hash": "7a6c6dcfbdda979fc8f5716893ebda1f"
+  },
+  "brain/10-sessions/2026-11-17-topology-shared-adoption.md": {
+    "mtime": 1794926785.3718936,
+    "seen": 1794974569.5387414,
+    "ast_hash": "0edac9ece29f3d726d9f0b9296a32173",
+    "semantic_hash": "0edac9ece29f3d726d9f0b9296a32173"
+  },
+  "brain/10-sessions/2026-11-17-topology-shared-static.md": {
+    "mtime": 1794926785.3728936,
+    "seen": 1794974569.5387428,
+    "ast_hash": "6f64dd1d7394d192bc4b77ffd9f28bb4",
+    "semantic_hash": "6f64dd1d7394d192bc4b77ffd9f28bb4"
+  },
+  "brain/10-sessions/2026-11-17-topology-source-coordinator.md": {
+    "mtime": 1794926785.3728936,
+    "seen": 1794974569.538744,
+    "ast_hash": "9097d76956a538bb9fcb46a941975ca3",
+    "semantic_hash": "9097d76956a538bb9fcb46a941975ca3"
+  },
+  "brain/10-sessions/2026-11-17-topology-source-policy.md": {
+    "mtime": 1794926785.3728936,
+    "seen": 1794974569.5387456,
+    "ast_hash": "93112246a0e272ef0d25f88e048a154f",
+    "semantic_hash": "93112246a0e272ef0d25f88e048a154f"
+  },
+  "brain/10-sessions/2026-11-17-topology-static-input.md": {
+    "mtime": 1794926785.3728936,
+    "seen": 1794974569.538747,
+    "ast_hash": "524247cb700c24916c00b68476c6d9f5",
+    "semantic_hash": "524247cb700c24916c00b68476c6d9f5"
+  },
+  "brain/20-decisions/ADR-0011-v3-import-request-and-check.md": {
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387518,
+    "ast_hash": "dee7d8f5beb14ef392512d0c940a4c32",
+    "semantic_hash": "dee7d8f5beb14ef392512d0c940a4c32"
+  },
+  "brain/20-decisions/ADR-0012-no-subscriber-grace.md": {
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387533,
+    "ast_hash": "751e6e7f54e82da27b342d9d3421c609",
+    "semantic_hash": "751e6e7f54e82da27b342d9d3421c609"
+  },
+  "brain/20-decisions/ADR-0013-native-probe.md": {
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387545,
+    "ast_hash": "96de8d44e5d50d9a3eb29bb99201154a",
+    "semantic_hash": "96de8d44e5d50d9a3eb29bb99201154a"
+  },
+  "brain/30-knowledge/libreqos-v3-mlx5-compat.md": {
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387578,
+    "ast_hash": "956fc3c1c49792e0cc1efb04eafd903b",
+    "semantic_hash": "956fc3c1c49792e0cc1efb04eafd903b"
+  },
+  "brain/30-knowledge/network-ipv6-status.md": {
+    "mtime": 1794926785.3738937,
+    "seen": 1794974569.5387595,
+    "ast_hash": "04809e2f264ccaabcdecac2b95fba407",
+    "semantic_hash": "04809e2f264ccaabcdecac2b95fba407"
+  },
+  "brain/30-knowledge/topology-manager-status.md": {
+    "mtime": 1794926841.453078,
+    "seen": 1794974569.5387607,
+    "ast_hash": "481a3a0024d4e5411127219ed53279b3",
+    "semantic_hash": "481a3a0024d4e5411127219ed53279b3"
+  },
+  "docs/design/TOPOLOGY_MANAGER_DISCUSSION.md": {
+    "mtime": 1794926785.4248958,
+    "seen": 1794974569.5387752,
+    "ast_hash": "7e04128cad4e2d4ada5c12fa41e48557",
+    "semantic_hash": "7e04128cad4e2d4ada5c12fa41e48557"
+  },
+  "docs/design/TOPOLOGY_MANAGER_IMPLEMENTATION.md": {
+    "mtime": 1794926841.454078,
+    "seen": 1794974569.5387769,
+    "ast_hash": "5ae1ac14ca7ef8857f2102af0f6398a6",
+    "semantic_hash": "5ae1ac14ca7ef8857f2102af0f6398a6"
+  },
+  "docs/design/tui/DPDK_REVIEW.md": {
+    "mtime": 1794926785.4258957,
+    "seen": 1794974569.5387783,
+    "ast_hash": "a9ecf5cd81dcfc16dec728e20438e80b",
+    "semantic_hash": "a9ecf5cd81dcfc16dec728e20438e80b"
+  },
+  "docs/design/tui/DPDK_STATS.md": {
+    "mtime": 1794926785.4258957,
+    "seen": 1794974569.53878,
+    "ast_hash": "fd7a45153b0678910fa9f9b8157364b5",
+    "semantic_hash": "fd7a45153b0678910fa9f9b8157364b5"
+  },
+  "docs/design/tui/JOURNAL_PROMPT.md": {
+    "mtime": 1794926785.4268959,
+    "seen": 1794974569.5387812,
+    "ast_hash": "3a6bba115e725d8f08107cb23391616c",
+    "semantic_hash": "3a6bba115e725d8f08107cb23391616c"
+  },
+  "docs/design/tui/LIBREQOS_PROMPT.md": {
+    "mtime": 1794926785.4268959,
+    "seen": 1794974569.5387828,
+    "ast_hash": "dfe68bfc1ebf7f4fbf2a7eae80dd62d2",
+    "semantic_hash": "dfe68bfc1ebf7f4fbf2a7eae80dd62d2"
+  },
+  "docs/design/tui/MIRRORED_TRAFFIC.md": {
+    "mtime": 1794926785.4268959,
+    "seen": 1794974569.5387843,
+    "ast_hash": "1702584bb46aae6fad2d32db4fc4455a",
+    "semantic_hash": "1702584bb46aae6fad2d32db4fc4455a"
+  },
+  "docs/design/tui/NIC_DIAGNOSTICS.md": {
+    "mtime": 1794926785.4268959,
+    "seen": 1794974569.5387857,
+    "ast_hash": "7a58202c92caf4053a3f49d03d9545ee",
+    "semantic_hash": "7a58202c92caf4053a3f49d03d9545ee"
+  },
+  "docs/design/tui/PROMPTS.md": {
+    "mtime": 1794926785.4268959,
+    "seen": 1794974569.5387874,
+    "ast_hash": "109d42834b6534067e7ebf8feac20ecc",
+    "semantic_hash": "109d42834b6534067e7ebf8feac20ecc"
+  },
+  "docs/design/tui/README.md": {
+    "mtime": 1794926785.4278958,
+    "seen": 1794974569.5387886,
+    "ast_hash": "a0c5b3dc9d4563f5b4b9596a0647c1c7",
+    "semantic_hash": "a0c5b3dc9d4563f5b4b9596a0647c1c7"
+  },
+  "docs/design/tui/REVIEW_AND_EVOLUTION.md": {
+    "mtime": 1794926785.4278958,
+    "seen": 1794974569.5387902,
+    "ast_hash": "a4b5584cf47c82f9310b772ee981c0eb",
+    "semantic_hash": "a4b5584cf47c82f9310b772ee981c0eb"
+  },
+  "docs/design/tui/SETTINGS_PROMPTS.md": {
+    "mtime": 1794926785.4278958,
+    "seen": 1794974569.5387914,
+    "ast_hash": "b24d833f81f5152760bbaa0785d73492",
+    "semantic_hash": "b24d833f81f5152760bbaa0785d73492"
+  },
+  "docs/design/tui/TOPOLOGY_MANAGER_LAYOUT.md": {
+    "mtime": 1794926785.428896,
+    "seen": 1794974569.5387928,
+    "ast_hash": "22a08e6493951e7342770517fa2e037b",
+    "semantic_hash": "22a08e6493951e7342770517fa2e037b"
+  },
+  "docs/design/tui/WORKERS_PROMPT.md": {
+    "mtime": 1794926785.428896,
+    "seen": 1794974569.5387945,
+    "ast_hash": "2322d21e11c85cfa4f715171590b8b74",
+    "semantic_hash": "2322d21e11c85cfa4f715171590b8b74"
+  },
+  "docs/operations/EXPLICIT_SLOT_MAPPING.md": {
+    "mtime": 1794926785.629904,
+    "seen": 1794974569.5387957,
+    "ast_hash": "ca01a044d0fc861f40788a0afa9d2abf",
+    "semantic_hash": "ca01a044d0fc861f40788a0afa9d2abf"
+  },
+  "docs/operations/NATIVE_RECOVERY_PATH_REVIEW.md": {
+    "mtime": 1794926785.630904,
+    "seen": 1794974569.5387974,
+    "ast_hash": "02f06a632d8d4002319171c27e1f13cc",
+    "semantic_hash": "02f06a632d8d4002319171c27e1f13cc"
+  },
+  "docs/operations/NATIVE_RECOVERY_UPSTREAM_REPORT.md": {
+    "mtime": 1794926785.630904,
+    "seen": 1794974569.5387986,
+    "ast_hash": "5ca2ba5c3e67ac7fd088cd32b637ca60",
+    "semantic_hash": "5ca2ba5c3e67ac7fd088cd32b637ca60"
+  },
+  "docs/operations/POST_REBOOT_NATIVE_ACK_DIAGNOSIS.md": {
+    "mtime": 1794926785.630904,
+    "seen": 1794974569.5388002,
+    "ast_hash": "d1dc4089f79ec94ce10f1fd4b1f18a12",
+    "semantic_hash": "d1dc4089f79ec94ce10f1fd4b1f18a12"
+  },
+  "docs/operations/UNIFIED_HEALTH_TASK1.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5388017,
+    "ast_hash": "9e1646ea614495a5de1f94811df0ec1a",
+    "semantic_hash": "9e1646ea614495a5de1f94811df0ec1a"
+  },
+  "docs/reports/2026-11-01-libreqos-upstream-review.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5388029,
+    "ast_hash": "67288b32769d98a0370857dce820166f",
+    "semantic_hash": "67288b32769d98a0370857dce820166f"
+  },
+  "docs/reports/2026-11-02-hardware-upgrade-options.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5388045,
+    "ast_hash": "971979462292f3e369a3ed8926e22d0a",
+    "semantic_hash": "971979462292f3e369a3ed8926e22d0a"
+  },
+  "docs/reports/2026-11-02-libreqos-native-node-rate-loss.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5388057,
+    "ast_hash": "01f128a375a83f8f7915a559f0c2a6e6",
+    "semantic_hash": "01f128a375a83f8f7915a559f0c2a6e6"
+  },
+  "docs/reports/2026-11-02-libreqos-native-node-rate-loss/proposed-fix.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5388076,
+    "ast_hash": "28f63447cbc9c943e1cfdbf8e52e79eb",
+    "semantic_hash": "28f63447cbc9c943e1cfdbf8e52e79eb"
+  },
+  "docs/reports/2026-11-03-mlx5-override-removal.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.538809,
+    "ast_hash": "1929488ddd63d1a28dd6184afb0bf7c8",
+    "semantic_hash": "1929488ddd63d1a28dd6184afb0bf7c8"
+  },
+  "docs/reports/2026-11-03-nic-firmware-upgrade.md": {
+    "mtime": 1794926785.6319041,
+    "seen": 1794974569.5388103,
+    "ast_hash": "682946bb9b6bd3c2ab38cd05f7414d09",
+    "semantic_hash": "682946bb9b6bd3c2ab38cd05f7414d09"
+  },
+  "docs/reports/2026-11-16-topology-manager-adoption.md": {
+    "mtime": 1794926785.632904,
+    "seen": 1794974569.538812,
+    "ast_hash": "0048561f1549b47b0f8e98a8a5669ab3",
+    "semantic_hash": "0048561f1549b47b0f8e98a8a5669ab3"
+  },
+  "docs/reports/2026-11-16-topology-product-review.md": {
+    "mtime": 1794926785.632904,
+    "seen": 1794974569.538813,
+    "ast_hash": "cf503e6a8e46bcfb9a67f547e881f155",
+    "semantic_hash": "cf503e6a8e46bcfb9a67f547e881f155"
+  },
+  "docs/reports/2026-11-17-native-node-export-precision.md": {
+    "mtime": 1794926785.632904,
+    "seen": 1794974569.5388148,
+    "ast_hash": "64677c266ea5ba54cb0f83e622e5da93",
+    "semantic_hash": "64677c266ea5ba54cb0f83e622e5da93"
+  },
+  "docs/superpowers/plans/2026-11-09-approved-tui-screens.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.538824,
+    "ast_hash": "9ba7ca754e1c8e90d98a0ce3181d291b",
+    "semantic_hash": "9ba7ca754e1c8e90d98a0ce3181d291b"
+  },
+  "docs/superpowers/plans/2026-11-09-buffer-pressure.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.5388258,
+    "ast_hash": "23496762c311507dba3ebdc1b32270f7",
+    "semantic_hash": "23496762c311507dba3ebdc1b32270f7"
+  },
+  "docs/superpowers/plans/2026-11-09-live-subscriber-collection.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.538827,
+    "ast_hash": "ea5343b9591781a2e89f406a1e2d4895",
+    "semantic_hash": "ea5343b9591781a2e89f406a1e2d4895"
+  },
+  "docs/superpowers/plans/2026-11-09-node-minimums.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.5388286,
+    "ast_hash": "621b4f1c8f645153192fb98da9beb768",
+    "semantic_hash": "621b4f1c8f645153192fb98da9beb768"
+  },
+  "docs/superpowers/plans/2026-11-09-tui-web-style-shell.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.53883,
+    "ast_hash": "cf90268cc471d60c10138bd70c1218e5",
+    "semantic_hash": "cf90268cc471d60c10138bd70c1218e5"
+  },
+  "docs/superpowers/plans/2026-11-09-worker-utilization.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.5388315,
+    "ast_hash": "724d761bcaf73732308eec7d5c7deda1",
+    "semantic_hash": "724d761bcaf73732308eec7d5c7deda1"
+  },
+  "docs/superpowers/plans/2026-11-10-dpdk-deployment-review.md": {
+    "mtime": 1794926785.6349041,
+    "seen": 1794974569.538833,
+    "ast_hash": "67d67fbf73f7055732927e19acf7046b",
+    "semantic_hash": "67d67fbf73f7055732927e19acf7046b"
+  },
+  "docs/superpowers/plans/2026-11-10-dpdk-statistics.md": {
+    "mtime": 1794926785.6359043,
+    "seen": 1794974569.5388343,
+    "ast_hash": "450b8377ddb6c2eb7af6e5c6a28cf845",
+    "semantic_hash": "450b8377ddb6c2eb7af6e5c6a28cf845"
+  },
+  "docs/superpowers/plans/2026-11-10-mirrored-dpdk-chart.md": {
+    "mtime": 1794926785.6359043,
+    "seen": 1794974569.5388358,
+    "ast_hash": "3e0bfb0ae97b9c9a0dff848a3ce131ee",
+    "semantic_hash": "3e0bfb0ae97b9c9a0dff848a3ce131ee"
+  },
+  "docs/superpowers/plans/2026-11-11-unified-health-telegram.md": {
+    "mtime": 1794926785.6359043,
+    "seen": 1794974569.5388372,
+    "ast_hash": "8633cb76ca1d4d50b910e007a2de784e",
+    "semantic_hash": "8633cb76ca1d4d50b910e007a2de784e"
+  },
+  "docs/superpowers/plans/2026-11-12-worker-ram-cache.md": {
+    "mtime": 1794926785.6359043,
+    "seen": 1794974569.5388389,
+    "ast_hash": "86e08ee29edcd8e950c7f4436b4c40ae",
+    "semantic_hash": "86e08ee29edcd8e950c7f4436b4c40ae"
+  },
+  "docs/superpowers/plans/2026-11-16-explicit-slot-mapping.md": {
+    "mtime": 1794926785.6359043,
+    "seen": 1794974569.5388403,
+    "ast_hash": "c6a5ef2ec7dd0b5cd92f7b48463f16ea",
+    "semantic_hash": "c6a5ef2ec7dd0b5cd92f7b48463f16ea"
+  },
+  "docs/superpowers/plans/2026-11-16-post-reboot-native-ack.md": {
+    "mtime": 1794926785.6369042,
+    "seen": 1794974569.538842,
+    "ast_hash": "762cebc18cd16174b3f1471c357d842b",
+    "semantic_hash": "762cebc18cd16174b3f1471c357d842b"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-aggregates.md": {
+    "mtime": 1794926785.6369042,
+    "seen": 1794974569.5388432,
+    "ast_hash": "23c08e4b76e80329ee30cc6914cd15cb",
+    "semantic_hash": "23c08e4b76e80329ee30cc6914cd15cb"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-catalog.md": {
+    "mtime": 1794926785.6369042,
+    "seen": 1794974569.5388446,
+    "ast_hash": "528acfcd2ae68211f23de1a4350e374d",
+    "semantic_hash": "528acfcd2ae68211f23de1a4350e374d"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-foundation.md": {
+    "mtime": 1794926785.6369042,
+    "seen": 1794974569.5388463,
+    "ast_hash": "f0d0ea0a6efe486f801a1edfb9607118",
+    "semantic_hash": "f0d0ea0a6efe486f801a1edfb9607118"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-normalization.md": {
+    "mtime": 1794926785.6379044,
+    "seen": 1794974569.5388477,
+    "ast_hash": "9707edc3c36b0a33bf0356544d861333",
+    "semantic_hash": "9707edc3c36b0a33bf0356544d861333"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-rebalance.md": {
+    "mtime": 1794926785.6379044,
+    "seen": 1794974569.5388494,
+    "ast_hash": "9c1458b2759a918151d4779faf48dba3",
+    "semantic_hash": "9c1458b2759a918151d4779faf48dba3"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-registry.md": {
+    "mtime": 1794926785.6379044,
+    "seen": 1794974569.5388508,
+    "ast_hash": "15ee57ae2bbdf6c513675667eb8b5a56",
+    "semantic_hash": "15ee57ae2bbdf6c513675667eb8b5a56"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-resolver.md": {
+    "mtime": 1794926785.6389043,
+    "seen": 1794974569.538856,
+    "ast_hash": "e91dda4c01382892c39c01592a9a975f",
+    "semantic_hash": "e91dda4c01382892c39c01592a9a975f"
+  },
+  "docs/superpowers/plans/2026-11-16-topology-source-boundary.md": {
+    "mtime": 1794926785.6389043,
+    "seen": 1794974569.5388575,
+    "ast_hash": "13df9972c57089eec1fd9c8944dd8441",
+    "semantic_hash": "13df9972c57089eec1fd9c8944dd8441"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-dhcp-overrides.md": {
+    "mtime": 1794926785.6389043,
+    "seen": 1794974569.538859,
+    "ast_hash": "24a3609fee078964a51a725c26efd22d",
+    "semantic_hash": "24a3609fee078964a51a725c26efd22d"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-dynamic-bounds.md": {
+    "mtime": 1794926785.6389043,
+    "seen": 1794974569.5388606,
+    "ast_hash": "52018fb202c42bb4fda147ae553b1fe2",
+    "semantic_hash": "52018fb202c42bb4fda147ae553b1fe2"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-enrollment.md": {
+    "mtime": 1794926785.6389043,
+    "seen": 1794974569.538862,
+    "ast_hash": "321778ebd984d916598eac0d213798b0",
+    "semantic_hash": "321778ebd984d916598eac0d213798b0"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-exclusions.md": {
+    "mtime": 1794926785.6399045,
+    "seen": 1794974569.5388637,
+    "ast_hash": "211cad7ef71fcea3a0a478318a28c97d",
+    "semantic_hash": "211cad7ef71fcea3a0a478318a28c97d"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-identity.md": {
+    "mtime": 1794926785.6399045,
+    "seen": 1794974569.5388649,
+    "ast_hash": "cf64517d492511d777aefa1426c271d6",
+    "semantic_hash": "cf64517d492511d777aefa1426c271d6"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-legacy-adoption.md": {
+    "mtime": 1794926785.6399045,
+    "seen": 1794974569.5388665,
+    "ast_hash": "04cca3a9bb94e80675fc17d8d9fb1ec7",
+    "semantic_hash": "04cca3a9bb94e80675fc17d8d9fb1ec7"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-legacy-preflight.md": {
+    "mtime": 1794926785.6399045,
+    "seen": 1794974569.538868,
+    "ast_hash": "61be54b32089f75ae58bfff22f9feea2",
+    "semantic_hash": "61be54b32089f75ae58bfff22f9feea2"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-migration-admission.md": {
+    "mtime": 1794926785.6409044,
+    "seen": 1794974569.5388696,
+    "ast_hash": "1ca5145ab16860f42a27b92146f7077b",
+    "semantic_hash": "1ca5145ab16860f42a27b92146f7077b"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-migration-staging.md": {
+    "mtime": 1794926785.6409044,
+    "seen": 1794974569.5388708,
+    "ast_hash": "200c9159550bb01995b34df44dc79a23",
+    "semantic_hash": "200c9159550bb01995b34df44dc79a23"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-node-minimums.md": {
+    "mtime": 1794926785.6409044,
+    "seen": 1794974569.5388722,
+    "ast_hash": "e891916234f6b8bed8ed33971defd2a8",
+    "semantic_hash": "e891916234f6b8bed8ed33971defd2a8"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-publication.md": {
+    "mtime": 1794926785.6409044,
+    "seen": 1794974569.538874,
+    "ast_hash": "e7aea48cfeefa1ae7ddd16616fe5fb13",
+    "semantic_hash": "e7aea48cfeefa1ae7ddd16616fe5fb13"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-runtime-owner.md": {
+    "mtime": 1794926785.6409044,
+    "seen": 1794974569.538875,
+    "ast_hash": "ab1437fe67a6ecf333581f766aecf409",
+    "semantic_hash": "ab1437fe67a6ecf333581f766aecf409"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-settings-recovery.md": {
+    "mtime": 1794926785.6419046,
+    "seen": 1794974569.5388768,
+    "ast_hash": "d8d16b35f8bdfd84626495e7467d272b",
+    "semantic_hash": "d8d16b35f8bdfd84626495e7467d272b"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-shared-adoption.md": {
+    "mtime": 1794926785.6419046,
+    "seen": 1794974569.538878,
+    "ast_hash": "02c28154d700c5dffe431c5e37b22516",
+    "semantic_hash": "02c28154d700c5dffe431c5e37b22516"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-shared-static.md": {
+    "mtime": 1794926785.6419046,
+    "seen": 1794974569.5388794,
+    "ast_hash": "f7054af12a13b885ee63117ad5783ed6",
+    "semantic_hash": "f7054af12a13b885ee63117ad5783ed6"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-source-coordinator.md": {
+    "mtime": 1794926785.6419046,
+    "seen": 1794974569.5388808,
+    "ast_hash": "110d383918ec13e6ad6d77955297dd38",
+    "semantic_hash": "110d383918ec13e6ad6d77955297dd38"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-source-policy.md": {
+    "mtime": 1794926785.6429045,
+    "seen": 1794974569.5388823,
+    "ast_hash": "6f5e0697b95ec6dc046d213f219fa71b",
+    "semantic_hash": "6f5e0697b95ec6dc046d213f219fa71b"
+  },
+  "docs/superpowers/plans/2026-11-17-topology-static-input.md": {
+    "mtime": 1794926785.6429045,
+    "seen": 1794974569.5388837,
+    "ast_hash": "c486c9d4c0eeec3e5b33438d1b361933",
+    "semantic_hash": "c486c9d4c0eeec3e5b33438d1b361933"
+  },
+  "docs/superpowers/specs/2026-11-11-unified-system-health-telegram-design.md": {
+    "mtime": 1794926785.6439047,
+    "seen": 1794974569.538895,
+    "ast_hash": "17e8078be77d8ae94d7b60e01ce62e5f",
+    "semantic_hash": "17e8078be77d8ae94d7b60e01ce62e5f"
   }
 }

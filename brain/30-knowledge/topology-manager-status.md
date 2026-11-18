@@ -1,0 +1,74 @@
+---
+type: knowledge
+created: 2026-11-17
+tags: [topology, status, architecture, implementation]
+status: current
+related: ["[[2026-11-17-topology-enrollment]]", "[[2026-11-17-topology-migration-staging]]"]
+---
+
+# Topology Manager feature status
+
+Status checkpoint: `79ba5a2` on branch `lqosync3`. The commit is pushed to `origin/lqosync3`.
+The feature has backend engines and controlled Runner APIs. The complete operator TUI and production activation are unfinished.
+An implemented backend does not mean the feature is available in the TUI or active in production.
+
+## Implemented backend
+
+| Area | Current status | Evidence |
+|---|---|---|
+| Catalog and hierarchy | Implemented policy model, stable IDs, hierarchy validation, and layout operations | `src/topology_manager/catalog.rs`, `layout.rs`, `ids.rs` |
+| Placement and balancing | Implemented placement, capacity checks, stable assignments, and explicit scoped rebalance | `src/topology_manager/resolver.rs`, `aggregate.rs` |
+| Current subscriber data | Implemented PPP, DHCP, and Hotspot reads, normalization, observation gates, and configured orchestration | `src/topology_manager/reader.rs`, `normalize.rs`, `observation.rs`, `coordinator.rs` |
+| Subscriber identity | Implemented durable identity and authorized source-reference reconciliation | `src/topology_manager/identity.rs`, `model.rs`, `store.rs` |
+| Rates and capacities | Implemented rate rules, factors, subscriber bounds, node minimums, and hierarchy budgets | `src/topology_manager/rates.rs`, `catalog.rs`, `legacy_bounds.rs`, `source_rate.rs` |
+| Source compatibility | Implemented source-policy preflight, exclusions, and explicit DHCP override bindings | `src/topology_manager/preflight.rs`, `source_policy.rs`, `dhcp_overrides.rs` |
+| Static branches | Implemented authoritative source binding, protected ownership, shared attachments, and shared budgets | `src/topology_manager/static_input.rs`, `ownership.rs`, `shared_static.rs` |
+| Legacy migration | Implemented explicit mappings, parity checks, aliases, and exact shared snapshot adoption | `src/topology_manager/migration.rs`, `parity.rs`, `legacy_static.rs` |
+| Durable recovery | Implemented private backups, revision checks, staged installation, cancellation before installation, and forward recovery | `src/topology_manager/store.rs`, `staging.rs` |
+
+Dynamic subscriber endpoints come from fresh source reads. Saved policy does not supply an old session's IP or MAC.
+Placement in a WAN is topology intent. Router routing changes remain a separate task.
+
+## Connected Runner APIs
+
+| API or boundary | Current status |
+|---|---|
+| `Runner::prepare_topology` | Fresh configured preview. No registry commit, shaping write, reload, or writer claim |
+| `Runner::enroll_topology` | Controlled first adoption. Checks the current live pair and manifest, then stages and completes policy installation |
+| `Runner::lock` | Automatic recovery of a pending migration before receipt initialization and normal service work |
+| `Runner::sync_topology` | Explicit collection, authorization, compilation, and publication API. The service loop does not select it automatically |
+| Compiler and publication adapters | Implemented candidate preservation checks, one writer owner, write receipts, and apply-evidence integration |
+
+These APIs are in `src/runner.rs`. Compiler and publication adapters are in `src/topology_manager/compiler.rs` and `publication.rs`.
+Critical conflicts block the affected operation. Unknown files are not replaced with a guessed repair.
+Enrollment and recovery do not claim topology runtime ownership or activate the manager service loop.
+
+## Unfinished feature work
+
+| Area | Current status |
+|---|---|
+| Enrollment interface and manifest editor | Next operator workflow. Backend preview and enrollment APIs exist |
+| Topology Manager TUI | Planned. No complete tab for discovered-node selection, hierarchy editing, promotion/demotion, or topology preview |
+| Settings TUI migration | Pending. Node capacity, factor, and subscriber policy controls still need the approved topology interface |
+| Speed scheduler | Planned. Subscriber policies and WAN/group capacities remain the approved scope |
+| Scheduler profiles and timezone | Planned day/time rules and Mbps/percentage selectors. Configurable timezone defaults to `Asia/Manila` |
+| Native planner admission | Pending proof of native implicit commitments and planner transformations |
+| Live DPDK acceptance | Pending production acceptance proof. Scratch compilation does not establish live acceptance |
+| Manager service activation | Gated. The existing service loop retains legacy behavior until a separate activation action |
+| Additional migration paths | Existing-source replacement, active-owner migration, and direct schema-2 circuit/device-ID migration remain separate work |
+
+## Recorded verification
+
+At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
+It includes 445 active topology tests and 12 new enrollment/recovery tests.
+Format, Clippy with warnings denied, whitespace, and isolated native configured-source checks passed.
+This graph refresh does not rerun production acceptance or provide a production performance benchmark.
+
+## Sources
+
+- [Implementation design](../../docs/design/TOPOLOGY_MANAGER_IMPLEMENTATION.md)
+- [Approved discussion](../../docs/design/TOPOLOGY_MANAGER_DISCUSSION.md)
+- [Planned TUI layout](../../docs/design/tui/TOPOLOGY_MANAGER_LAYOUT.md)
+- [[2026-11-17-topology-enrollment]]
+- [[2026-11-17-topology-migration-staging]]
+- [[2026-11-17-topology-shared-adoption]]

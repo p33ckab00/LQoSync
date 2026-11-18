@@ -35,6 +35,13 @@
       "input_tokens": 79604,
       "output_tokens": 0,
       "files": 15
+    },
+    {
+      "date": "2026-11-18T04:04:33.246448+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 336,
+      "note": "host-agent extraction; token usage not measured"
     }
   ],
   "total_input_tokens": 639000,

@@ -1,6 +1,7 @@
 # Topology Manager implementation design
 
 Status: architecture after review of the current product.
+Current feature status: [Topology Manager status](../../brain/30-knowledge/topology-manager-status.md).
 The pure core, registry, catalog, placement/aggregate pipeline, and explicit scoped rebalance exist in isolation.
 Catalog ID allocation and a bounded-age RouterOS reader also exist in isolation.
 Current PPP, DHCP, and Hotspot normalization also exists in isolation.

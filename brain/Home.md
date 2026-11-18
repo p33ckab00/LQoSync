@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-17-graphify-topology-status]]
+
 - [[2026-11-17-topology-enrollment]]
 
 - [[2026-11-17-topology-migration-staging]]
@@ -139,6 +141,8 @@ Read [[HANDOFF]] first for the current state.
 - [[ADR-0010-first-full-libreqos-run]] — accepted
 
 ## Knowledge
+
+- [[topology-manager-status]] — backend, Runner APIs, TUI, scheduler, and activation status
 - [[libreqos-v3-ingress-facts]]
 - [[v3-offline-simulation-method]]
 - [[updatecsv-py-dissection]]
