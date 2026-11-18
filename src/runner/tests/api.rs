@@ -17,14 +17,16 @@ mod operations {
     use crate::api::protocol::Request;
     use serde_json::{Value, json};
 
-    fn call(r: &mut Runner<FakeConnector>, op: &str, args: Value) -> Value {
+    async fn call(r: &mut Runner<FakeConnector>, op: &str, args: Value) -> Value {
         let req = Request {
             v: 1,
             id: "t".into(),
             op: op.into(),
             args,
         };
-        let line = handle(r, &req).unwrap_or_else(|LostLock(l)| panic!("lost lock: {l}"));
+        let line = handle(r, &req)
+            .await
+            .unwrap_or_else(|LostLock(l)| panic!("lost lock: {l}"));
         serde_json::from_str(line.trim_end()).unwrap()
     }
 
@@ -37,7 +39,7 @@ mod operations {
         let e = env();
         let mut r = runner(&e, setup(&e, None));
         r.lock().unwrap();
-        let v = call(&mut r, "status", json!({}));
+        let v = call(&mut r, "status", json!({})).await;
         assert_eq!(v["ok"], json!(true), "{v}");
         assert_eq!(v["result"]["registry_revision"], Value::Null);
         assert_eq!(v["result"]["enrolled"], json!(false));
@@ -51,7 +53,7 @@ mod operations {
         let mut r = runner(&e, setup(&e, None));
         r.lock().unwrap();
         assert_eq!(
-            call(&mut r, "registry.get", json!({}))["result"],
+            call(&mut r, "registry.get", json!({})).await["result"],
             Value::Null
         );
         assert!(!e.state.join("topology-manager").exists());
@@ -64,10 +66,10 @@ mod operations {
         let d = r.propose_policy(AGE).await.unwrap();
         r.install_topology_policy(&d).unwrap();
         assert_eq!(
-            call(&mut r, "status", json!({}))["result"]["registry_revision"],
+            call(&mut r, "status", json!({})).await["result"]["registry_revision"],
             json!(1)
         );
-        let doc = call(&mut r, "registry.get", json!({}));
+        let doc = call(&mut r, "registry.get", json!({})).await;
         assert_eq!(doc["result"]["revision"], json!(1));
     }
 
@@ -78,7 +80,7 @@ mod operations {
         r.lock().unwrap();
         let d = draft(&mut r).await;
         let args = json!({"expected_revision": 0, "catalog": d["catalog"], "source_settings": d["source_settings"]});
-        let v = call(&mut r, "policy.commit", args);
+        let v = call(&mut r, "policy.commit", args).await;
         assert_eq!(v["result"]["revision"], json!(1), "{v}");
     }
 
@@ -90,13 +92,13 @@ mod operations {
         let d = draft(&mut r).await;
         let args = json!({"expected_revision": 0, "catalog": d["catalog"], "source_settings": d["source_settings"]});
         assert_eq!(
-            call(&mut r, "policy.commit", args.clone())["ok"],
+            call(&mut r, "policy.commit", args.clone()).await["ok"],
             json!(true)
         );
-        let v = call(&mut r, "policy.commit", args);
+        let v = call(&mut r, "policy.commit", args).await;
         assert_eq!(v["error"]["code"], json!("conflict"), "{v}");
         assert_eq!(
-            call(&mut r, "status", json!({}))["result"]["registry_revision"],
+            call(&mut r, "status", json!({})).await["result"]["registry_revision"],
             json!(1)
         );
     }
@@ -109,7 +111,7 @@ mod operations {
         let mut d = draft(&mut r).await;
         d["catalog"]["nodes"][0]["parent"] = json!("missing-node");
         let args = json!({"expected_revision": 0, "catalog": d["catalog"], "source_settings": d["source_settings"]});
-        let v = call(&mut r, "policy.commit", args);
+        let v = call(&mut r, "policy.commit", args).await;
         assert_eq!(v["error"]["code"], json!("invalid"), "{v}");
     }
 
@@ -119,10 +121,10 @@ mod operations {
         let mut r = runner(&e, setup(&e, None));
         r.lock().unwrap();
         assert_eq!(
-            call(&mut r, "nope", json!({}))["error"]["code"],
+            call(&mut r, "nope", json!({})).await["error"]["code"],
             json!("unknown_op")
         );
-        let v = call(&mut r, "policy.commit", json!({"expected_revision": "x"}));
+        let v = call(&mut r, "policy.commit", json!({"expected_revision": "x"})).await;
         assert_eq!(v["error"]["code"], json!("bad_request"), "{v}");
     }
 
@@ -140,7 +142,7 @@ mod operations {
             op: "status".into(),
             args: json!({}),
         };
-        let Err(LostLock(line)) = handle(&mut r, &req) else {
+        let Err(LostLock(line)) = handle(&mut r, &req).await else {
             panic!("a replaced state directory must lose the lock");
         };
         let v: Value = serde_json::from_str(line.trim_end()).unwrap();
@@ -158,7 +160,9 @@ async fn client_against_a_served_runner_gets_status() {
     crate::api::server::spawn(listener, tx);
     tokio::spawn(async move {
         while let Some(job) = rx.recv().await {
-            let line = crate::api::dispatch::handle(&mut r, &job.request).unwrap_or_else(|l| l.0);
+            let line = crate::api::dispatch::handle(&mut r, &job.request)
+                .await
+                .unwrap_or_else(|l| l.0);
             let _ = job.reply.send(line);
         }
     });
@@ -258,6 +262,34 @@ mod preview {
                 .any(|c| c.is::<crate::topology_manager::store::InvalidPolicy>()),
             "{err:#}"
         );
+    }
+
+    async fn call(r: &mut Runner<FakeConnector>, op: &str) -> Value {
+        let req = crate::api::protocol::Request {
+            v: 1,
+            id: "p".into(),
+            op: op.into(),
+            args: json!({}),
+        };
+        let line = crate::api::dispatch::handle(r, &req).await.unwrap();
+        serde_json::from_str::<Value>(line.trim_end()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn preview_operations_are_dispatched() {
+        let e = env();
+        let mut r = shadow_with_policy(&e).await;
+        assert_eq!(
+            call(&mut r, "topology.preview.get").await["result"],
+            Value::Null
+        );
+        let fresh = call(&mut r, "topology.preview.refresh").await;
+        assert_eq!(fresh["result"]["state"], json!("ok"), "{fresh}");
+        assert_eq!(
+            call(&mut r, "topology.preview.get").await["result"],
+            fresh["result"]
+        );
+        assert!(call(&mut r, "topology.policies").await["result"]["profiles"].is_array());
     }
 
     #[tokio::test]

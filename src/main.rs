@@ -207,9 +207,7 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
         let deadline = tokio::time::Instant::now()
             + Duration::from_secs(summary.next_sleep(&runner.cfg.runtime));
         tokio::select! {
-            served = lqosync3::api::wait::serve_until(deadline, &mut jobs, |request| {
-                lqosync3::api::dispatch::handle(&mut runner, request)
-            }) => {
+            served = lqosync3::api::wait::serve_until(deadline, &mut jobs, &mut runner) => {
                 if served.is_err() {
                     anyhow::bail!("instance lock lost; the API answered internal and the service stops");
                 }

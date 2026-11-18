@@ -29,7 +29,11 @@ fn code_of(e: &anyhow::Error) -> ErrorCode {
     }
 }
 
-fn run<C: Connector>(runner: &mut Runner<C>, request: &Request) -> Result<Value, ApiError> {
+async fn run<C>(runner: &mut Runner<C>, request: &Request) -> Result<Value, ApiError>
+where
+    C: Connector + 'static,
+    C::Session: 'static,
+{
     let fail = |e: anyhow::Error| ApiError::new(code_of(&e), format!("{e:#}"));
     match request.op.as_str() {
         "status" => runner.api_status().map_err(fail),
@@ -46,6 +50,9 @@ fn run<C: Connector>(runner: &mut Runner<C>, request: &Request) -> Result<Value,
                 .map(|revision| json!({"revision": revision}))
                 .map_err(fail)
         }
+        "topology.preview.refresh" => runner.api_preview_refresh().await.map_err(fail),
+        "topology.preview.get" => runner.api_preview_get().map_err(fail),
+        "topology.policies" => runner.api_policies().map_err(fail),
         other => Err(ApiError::new(
             ErrorCode::UnknownOp,
             format!("unknown operation \"{other}\""),
@@ -54,12 +61,16 @@ fn run<C: Connector>(runner: &mut Runner<C>, request: &Request) -> Result<Value,
 }
 
 /// Answer one request on the task that owns the `Runner`. A lost lock returns `LostLock`.
-pub fn handle<C: Connector>(runner: &mut Runner<C>, request: &Request) -> Result<String, LostLock> {
+pub async fn handle<C>(runner: &mut Runner<C>, request: &Request) -> Result<String, LostLock>
+where
+    C: Connector + 'static,
+    C::Session: 'static,
+{
     if let Err(e) = runner.lock() {
         let error = ApiError::new(ErrorCode::Internal, format!("instance lock lost: {e:#}"));
         return Err(LostLock(response_err(&request.id, &error)));
     }
-    Ok(match run(runner, request) {
+    Ok(match run(runner, request).await {
         Ok(result) => response_ok(&request.id, result),
         Err(error) => response_err(&request.id, &error),
     })
