@@ -21,8 +21,21 @@ pub enum Screen {
     Changes,
 }
 
+/// The focused Builder panel in a narrow terminal.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Panel {
+    Inventory,
+    #[default]
+    Tree,
+    Details,
+}
+
 #[derive(Default)]
 pub struct TopologyView {
+    /// Depth-first tree order of the preview nodes. Rebuilt only when the preview changes.
+    tree: Vec<(usize, usize)>,
+    node_selected: usize,
+    focus: Panel,
     link: Option<ApiLink>,
     outbox: Vec<(String, Value)>,
     pending: usize,
@@ -65,6 +78,35 @@ impl TopologyView {
         self.preview.as_ref()
     }
 
+    fn nodes(&self) -> &[Value] {
+        self.preview
+            .as_ref()
+            .and_then(|p| p["nodes"].as_array())
+            .map_or(&[], Vec::as_slice)
+    }
+
+    fn selected_node(&self) -> Option<&Value> {
+        let &(_, i) = self.tree.get(self.node_selected)?;
+        self.nodes().get(i)
+    }
+
+    fn set_preview(&mut self, v: Value) {
+        let selected = self
+            .selected_node()
+            .and_then(|n| n["id"].as_str())
+            .map(str::to_string);
+        self.preview = Some(v);
+        self.tree = builder::index(self.nodes());
+        self.node_selected = selected
+            .and_then(|id| {
+                self.tree
+                    .iter()
+                    .position(|&(_, i)| self.nodes()[i]["id"].as_str() == Some(id.as_str()))
+            })
+            .unwrap_or(0)
+            .min(self.tree.len().saturating_sub(1));
+    }
+
     /// Open the route once, send queued requests, and apply ready answers. True when the view changed.
     pub fn tick(&mut self, active: bool, now: u64) -> bool {
         self.now = now;
@@ -105,7 +147,7 @@ impl TopologyView {
                     .as_u64()
                     .map(|t| self.now.saturating_sub(t));
                 if !v.is_null() {
-                    self.preview = Some(v);
+                    self.set_preview(v);
                 }
                 if age.is_none_or(|a| a > STALE_AFTER_SECS) {
                     self.refresh();
@@ -115,7 +157,7 @@ impl TopologyView {
                 self.refreshing = false;
                 match result {
                     Ok(v) => {
-                        self.preview = Some(v);
+                        self.set_preview(v);
                         self.error = None;
                     }
                     Err(e) => self.error = Some(e),
@@ -140,6 +182,25 @@ impl TopologyView {
                 }
             }
             KeyCode::Char('c') => self.screen = Screen::Changes,
+            KeyCode::Up if self.screen == Screen::Builder => {
+                self.node_selected = self.node_selected.saturating_sub(1);
+            }
+            KeyCode::Down if self.screen == Screen::Builder => {
+                self.node_selected =
+                    (self.node_selected + 1).min(self.tree.len().saturating_sub(1));
+            }
+            KeyCode::Left if self.screen == Screen::Builder => {
+                self.focus = match self.focus {
+                    Panel::Details => Panel::Tree,
+                    _ => Panel::Inventory,
+                };
+            }
+            KeyCode::Right if self.screen == Screen::Builder => {
+                self.focus = match self.focus {
+                    Panel::Inventory => Panel::Tree,
+                    _ => Panel::Details,
+                };
+            }
             _ => return false,
         }
         true
@@ -215,6 +276,10 @@ impl TopologyView {
                 Line::from("See docs/operations/TOPOLOGY_ENROLLMENT.md"),
             ];
             f.render_widget(Paragraph::new(text).style(p.role(Role::Base)), body);
+            return;
+        }
+        if self.screen == Screen::Builder {
+            builder::draw(self, f, body, p);
             return;
         }
         let title = match self.screen {
@@ -391,3 +456,5 @@ mod tests {
         }
     }
 }
+
+mod builder;
