@@ -22,7 +22,7 @@ Enrollment needs this value for each router:
 require_bound = true
 ```
 
-WARNING: After this change, the legacy loop stops shaping DHCP leases that are not `bound`. These leases are normally offline clients. The owner must approve this change before the window.
+WARNING: After this change, the legacy loop stops shaping DHCP leases that are not `bound`. These leases are normally offline clients. The owner approved this change on 2026-11-18.
 
 A selected DHCP server can have bound leases that are not in the legacy files. Production server `ipoevlan10` is an example on 2026-11-18.
 `topology check` reports these accounts as "enter after activation". Enrollment cannot adopt them.
