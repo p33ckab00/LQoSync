@@ -552,4 +552,88 @@ pub(super) mod tests {
             "a marker shows the selection"
         );
     }
+
+    fn edits(v: &mut TopologyView) -> Vec<Value> {
+        v.take_outbox()
+            .into_iter()
+            .filter(|(op, _)| op == "topology.edit.propose")
+            .map(|(_, a)| a)
+            .collect()
+    }
+
+    fn select(v: &mut TopologyView, id: &str) {
+        v.node_selected = v
+            .tree
+            .iter()
+            .position(|&(_, i)| v.tree_nodes()[i]["id"] == id)
+            .unwrap();
+    }
+
+    fn press(v: &mut TopologyView, code: ratatui::crossterm::event::KeyCode) {
+        v.on_key(code);
+    }
+
+    use ratatui::crossterm::event::KeyCode as K;
+
+    #[test]
+    fn promote_proposes_the_grandparent_and_demote_lists_siblings() {
+        let mut v = with_tree(sample());
+        v.take_outbox();
+        select(&mut v, "g");
+        press(&mut v, K::Char('<'));
+        assert_eq!(
+            edits(&mut v),
+            vec![
+                json!({"expected_revision": 2, "edit": {"kind": "node.move", "node_id": "g", "parent": null}})
+            ]
+        );
+        select(&mut v, "g");
+        press(&mut v, K::Char('>'));
+        // `g2` is a group, so `g` has no sibling that can hold it.
+        assert!(render(&v, 100, 30).contains("no valid parent"));
+        press(&mut v, K::Esc);
+        assert!(!v.capturing());
+    }
+
+    #[test]
+    fn enter_on_a_source_proposes_instance_add_below_the_chosen_parent() {
+        let mut v = with_tree(sample());
+        v.focus = Panel::Inventory;
+        v.take_outbox();
+        press(&mut v, K::Enter);
+        assert!(v.capturing());
+        press(&mut v, K::Down);
+        press(&mut v, K::Enter);
+        assert_eq!(
+            edits(&mut v),
+            vec![
+                json!({"expected_revision": 2, "edit": {"kind": "instance.add", "source_id": "src-g", "parent": "wan1"}})
+            ]
+        );
+    }
+
+    #[test]
+    fn enter_on_a_wan_candidate_opens_the_wan_form() {
+        let mut v = discovered();
+        v.inventory_selected = 2;
+        press(&mut v, K::Enter);
+        assert!(render(&v, 100, 30).contains("New WAN"));
+    }
+
+    #[test]
+    fn remove_proposes_node_remove_and_edit_opens_the_form() {
+        let mut v = with_tree(sample());
+        v.take_outbox();
+        select(&mut v, "g2");
+        press(&mut v, K::Char('x'));
+        assert_eq!(
+            edits(&mut v),
+            vec![json!({"expected_revision": 2, "edit": {"kind": "node.remove", "node_id": "g2"}})]
+        );
+        press(&mut v, K::Char('e'));
+        assert!(render(&v, 100, 30).contains("Edit node"));
+        press(&mut v, K::Esc);
+        press(&mut v, K::Char('n'));
+        assert!(render(&v, 100, 30).contains("New node"));
+    }
 }

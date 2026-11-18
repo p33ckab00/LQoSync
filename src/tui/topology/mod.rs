@@ -61,6 +61,8 @@ pub struct TopologyView {
     inventory_selected: usize,
     /// The kept edit proposal that waits for Enter or Esc.
     proposal: Option<Value>,
+    node_form: Option<node_form::NodeForm>,
+    parent_picker: Option<parent_picker::ParentPicker>,
     discovering: bool,
     pub screen: Screen,
 }
@@ -133,6 +135,8 @@ impl TopologyView {
             || self.form.is_some()
             || self.confirm_delete.is_some()
             || self.proposal.is_some()
+            || self.node_form.is_some()
+            || self.parent_picker.is_some()
     }
 
     fn plans(&self) -> &[Value] {
@@ -158,7 +162,33 @@ impl TopologyView {
         self.pending += 1;
     }
 
+    fn propose(&mut self, edit: Value) {
+        self.send_edit("topology.edit.propose", json!({"edit": edit}));
+    }
+
     fn dialog_key(&mut self, code: KeyCode) {
+        if let Some(form) = self.node_form.as_mut() {
+            match form.key(code) {
+                node_form::Step::Stay => {}
+                node_form::Step::Cancel => self.node_form = None,
+                node_form::Step::Send(edit) => {
+                    self.node_form = None;
+                    self.propose(edit);
+                }
+            }
+            return;
+        }
+        if let Some(picker) = self.parent_picker.as_mut() {
+            match picker.key(code) {
+                parent_picker::Step::Stay => {}
+                parent_picker::Step::Cancel => self.parent_picker = None,
+                parent_picker::Step::Send(edit) => {
+                    self.parent_picker = None;
+                    self.propose(edit);
+                }
+            }
+            return;
+        }
         if let Some(p) = &self.proposal {
             let args = json!({"proposal_id": p["proposal_id"]});
             match code {
@@ -344,9 +374,86 @@ impl TopologyView {
         items
     }
 
-    #[cfg_attr(not(test), expect(dead_code, reason = "Task 5 actions use it"))]
     pub(crate) fn inventory_item(&self) -> Option<InventoryItem> {
         self.inventory_items().get(self.inventory_selected).cloned()
+    }
+
+    /// A parent picker over the catalog nodes in tree order.
+    fn pick(&mut self, purpose: parent_picker::Purpose) {
+        let all = self.tree_nodes();
+        let ordered: Vec<&Value> = self.tree.iter().map(|&(_, i)| &all[i]).collect();
+        self.parent_picker = Some(parent_picker::ParentPicker::new(&ordered, all, purpose));
+    }
+
+    /// The selected catalog node. Edits need the `topology.tree` answer.
+    fn selected_catalog_node(&mut self) -> Option<Value> {
+        if self.tree_data.is_none() {
+            self.error = Some("the tree is not loaded, press r".into());
+            return None;
+        }
+        self.selected_node().cloned()
+    }
+
+    fn parent_id(&self, id: &str) -> Option<String> {
+        self.tree_nodes()
+            .iter()
+            .find(|n| n["id"].as_str() == Some(id))
+            .and_then(|n| n["parent"].as_str())
+            .map(str::to_string)
+    }
+
+    /// Builder edit keys. True when the key started an action.
+    fn builder_key(&mut self, code: KeyCode) -> bool {
+        if code == KeyCode::Enter && self.focus == Panel::Inventory {
+            match self.inventory_item() {
+                Some(InventoryItem::Source(id)) => {
+                    if self.tree_data.is_some() {
+                        self.pick(parent_picker::Purpose::Instance(id));
+                    } else {
+                        self.error = Some("the tree is not loaded, press r".into());
+                    }
+                }
+                Some(InventoryItem::Wan {
+                    router_id,
+                    endpoint_ref,
+                }) => self.node_form = Some(node_form::NodeForm::wan(&router_id, &endpoint_ref)),
+                None => {}
+            }
+            return true;
+        }
+        let action = match code {
+            KeyCode::Char(c @ ('n' | 'e' | 'm' | '<' | '>' | 'x')) => c,
+            _ => return false,
+        };
+        let Some(node) = self.selected_catalog_node() else {
+            return true;
+        };
+        let id = node["id"].as_str().unwrap_or_default().to_string();
+        match action {
+            'n' => {
+                let parent = if node["kind"] == "group" {
+                    node["parent"].as_str().map(str::to_string)
+                } else {
+                    Some(id)
+                };
+                self.node_form = Some(node_form::NodeForm::intermediate(parent));
+            }
+            'e' => self.node_form = Some(node_form::NodeForm::update(&node)),
+            'm' if node["kind"] == "wan" => self.notice = Some("a WAN node stays a root".into()),
+            'm' => self.pick(parent_picker::Purpose::Move(id)),
+            '<' => match node["parent"].as_str() {
+                None => self.notice = Some("the node is at the root".into()),
+                Some(parent) => {
+                    let grandparent = self.parent_id(parent);
+                    self.propose(
+                        json!({"kind": "node.move", "node_id": id, "parent": grandparent}),
+                    );
+                }
+            },
+            '>' => self.pick(parent_picker::Purpose::Demote(id)),
+            _ => self.propose(json!({"kind": "node.remove", "node_id": id})),
+        }
+        true
     }
 
     fn set_preview(&mut self, v: Value) {
@@ -487,6 +594,9 @@ impl TopologyView {
     pub fn on_key(&mut self, code: KeyCode) -> bool {
         if self.capturing() {
             self.dialog_key(code);
+            return true;
+        }
+        if self.screen == Screen::Builder && self.builder_key(code) {
             return true;
         }
         match code {
@@ -675,6 +785,12 @@ impl TopologyView {
         }
         if let Some(proposal) = &self.proposal {
             proposal::draw(proposal, f, body, p);
+        }
+        if let Some(form) = &self.node_form {
+            form.draw(f, body, p);
+        }
+        if let Some(picker) = &self.parent_picker {
+            picker.draw(f, body, p);
         }
         if let Some((_, name)) = &self.confirm_delete {
             let lines = vec![Line::from(format!("Delete plan {name}? [y/n]"))];
@@ -882,6 +998,8 @@ mod builder;
 mod assignments;
 
 mod changes;
+mod node_form;
+mod parent_picker;
 mod picker;
 mod plan_form;
 mod policies;
