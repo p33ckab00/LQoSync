@@ -1397,3 +1397,13 @@ The main task answers requests while it waits for the next cycle. The cycle dead
 Operations: `status`, `registry.get`, and a revision-checked `policy.commit`. Reads do not create the registry store.
 A revision mismatch gives `conflict`. A rule failure gives `invalid`. A lost lock answers `internal`, and the service stops.
 `lqosync3 api status` prints the status. Phase 2b adds the TUI operations.
+
+## Topology TUI read-only views
+
+Phase 2b-1 adds the Topology route to `lqosync3 tui`. See [the design](../superpowers/specs/2026-11-18-topology-tui-readonly-design.md).
+The route sits after Routers. Pages are 1 to 8.
+The service builds the view models. Preparation keeps a `PreviewView` and returns critical conflicts as `PreparationConflicts` data.
+New API operations: `topology.preview.refresh` (router read, 30 s age limit, no writer-only checks), `topology.preview.get` (cache), and `topology.policies`.
+API handlers are async. A preview refresh can start the next cycle late by its read time.
+Views: Builder (Inventory, Tree, Details; one focused panel below 120 columns), Assignments, Policies, and Changes. A strip shows the preview age, the registry revision, the enrollment state, the legacy writer, and errors.
+The views are read-only. Phase 2b-2 adds per-subscriber plan, pin, and rebalance edits.

@@ -73,6 +73,12 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Edits do not change live shaping before Phase 4 activation.
 - Next: Phase 2b, the Topology TUI with per-subscriber plans and pins, through this API.
 
+## Phase 2b-1 Topology TUI read-only views (2026-11-18)
+
+- `lqosync3 tui` has a Topology route (page 4) with Builder, Assignments, Policies, and Changes views.
+- The preview is on demand: on route open when older than 300 s, or with `r`. It reads routers in the service and never publishes.
+- Next: Phase 2b-2, per-subscriber plan, pin, and scoped rebalance edits.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.

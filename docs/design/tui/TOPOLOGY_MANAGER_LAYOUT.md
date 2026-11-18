@@ -106,6 +106,6 @@ Show the selected target and its capacity ceiling in the schedule editor.
 Overlap and time-boundary behavior remain under discussion.
 Show active schedule and next transition without changing the approved automatic publication workflow.
 
-This is an approved initial layout only. No route or renderer has changed.
+This is an approved initial layout. Phase 2b-1 (2026-11-18) implements the Topology route, the read-only views, and the strip. Edits follow in Phase 2b-2 to 2b-4.
 Review wide and compact wireframes against the required operator tasks during the next interface refinement.
 Implementation checks must cover focus retention, edit completion, invalid fields, conflicts, keyboard reach, and terminal resize.
