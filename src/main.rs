@@ -170,6 +170,10 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
         }),
     );
     runner.lock()?;
+    // The guard removes the socket on every exit path of this function.
+    let (listener, _api_socket) = runner.api_bind()?;
+    let (api_jobs, mut jobs) = tokio::sync::mpsc::channel(16);
+    lqosync3::api::server::spawn(listener, api_jobs);
     let worker_monitor =
         lqosync3::worker_util::Monitor::start_with_health(&cfg, runner.health.clone());
     runner.set_source(path, digest.clone());
@@ -200,10 +204,16 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
         }
         force = false;
         runner.trigger = Trigger::Timer;
-        let sleep =
-            tokio::time::sleep(Duration::from_secs(summary.next_sleep(&runner.cfg.runtime)));
+        let deadline = tokio::time::Instant::now()
+            + Duration::from_secs(summary.next_sleep(&runner.cfg.runtime));
         tokio::select! {
-            _ = sleep => {}
+            served = lqosync3::api::wait::serve_until(deadline, &mut jobs, |request| {
+                lqosync3::api::dispatch::handle(&mut runner, request)
+            }) => {
+                if served.is_err() {
+                    anyhow::bail!("instance lock lost; the API answered internal and the service stops");
+                }
+            }
             _ = usr1.recv() => {
                 force = true;
                 runner.trigger = Trigger::SyncNow;
