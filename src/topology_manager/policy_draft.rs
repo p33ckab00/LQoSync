@@ -26,7 +26,7 @@ pub struct PolicyDraft {
     pub source_settings: SourceSettings,
 }
 
-fn router_id(name: &str) -> String {
+pub(crate) fn router_id(name: &str) -> String {
     node_id("router", name, "")
 }
 

@@ -11,6 +11,7 @@ pub mod observation;
 pub mod rates;
 pub mod reader;
 pub mod resolver;
+pub mod wan;
 pub use resolver::rebalance;
 pub mod admission;
 pub mod migration;
