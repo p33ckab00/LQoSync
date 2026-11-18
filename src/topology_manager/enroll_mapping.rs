@@ -124,6 +124,7 @@ pub fn propose(
     legacy_rows: &[CsvRow],
     legacy_network: &Value,
     previous: Option<&MappingFile>,
+    static_comment: &str,
 ) -> anyhow::Result<MappingFile> {
     let accounts = current_by_account(pair);
     let kept: ById<_, _> = previous
@@ -133,9 +134,17 @@ pub fn propose(
         .iter()
         .map(|row| {
             let legacy = identity(row);
-            let decision = kept
-                .get(&legacy)
-                .map_or_else(|| suggest(row, &accounts), |d| (*d).clone());
+            // A configured static row keeps its legacy row as protected static input.
+            let decision = kept.get(&legacy).map_or_else(
+                || {
+                    if row.comment.eq_ignore_ascii_case(static_comment) {
+                        RowDecision::Protect
+                    } else {
+                        suggest(row, &accounts)
+                    }
+                },
+                |d| (*d).clone(),
+            );
             RowEntry {
                 legacy,
                 legacy_circuit_name: row.circuit_name.clone(),

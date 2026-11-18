@@ -1,5 +1,5 @@
 use super::*;
-use crate::topology_manager::policy_draft::tests::{candidate, legacy, scenario};
+use crate::topology_manager::policy_draft::tests::{candidate, legacy, legacy_with, scenario};
 
 fn confirm_all(file: &mut MappingFile) {
     for row in &mut file.rows {
@@ -17,7 +17,7 @@ async fn ppp_row_is_suggested_by_circuit_name_and_dhcp_row_by_mac() {
     let (cfg, snap) = scenario();
     let old = legacy(&cfg, &snap);
     let pair = candidate(&cfg, &snap).await;
-    let file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     let g1 = file
         .rows
         .iter()
@@ -56,7 +56,7 @@ async fn ip_match_alone_is_never_suggested() {
     row.circuit_name = "renamed".into();
     row.mac = "02:00:00:00:99:99".into();
     let pair = candidate(&cfg, &snap).await;
-    let file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     let entry = file
         .rows
         .iter()
@@ -71,7 +71,7 @@ async fn equal_node_ids_are_suggested_unconfirmed() {
     let (cfg, snap) = scenario();
     let old = legacy(&cfg, &snap);
     let pair = candidate(&cfg, &snap).await;
-    let file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     let gold = file
         .nodes
         .iter()
@@ -86,14 +86,14 @@ async fn previous_confirmed_decision_carries_over_for_the_same_legacy_row() {
     let (cfg, snap) = scenario();
     let old = legacy(&cfg, &snap);
     let pair = candidate(&cfg, &snap).await;
-    let mut first = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let mut first = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     let i = first
         .rows
         .iter()
         .position(|r| r.legacy_circuit_name == "s1")
         .unwrap();
     first.rows[i].decision = RowDecision::Drop;
-    let again = propose(&pair, &old.rows, &old.network, Some(&first)).unwrap();
+    let again = propose(&pair, &old.rows, &old.network, Some(&first), "static").unwrap();
     assert_eq!(
         again
             .rows
@@ -110,7 +110,7 @@ async fn unconfirmed_or_undecided_entry_is_drift() {
     let (cfg, snap) = scenario();
     let old = legacy(&cfg, &snap);
     let pair = candidate(&cfg, &snap).await;
-    let file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     let drift = build_manifest(&pair, &old.rows, &old.network, &file).unwrap_err();
     assert!(
         drift.issues.iter().any(|i| i.contains("unconfirmed")),
@@ -124,7 +124,7 @@ async fn candidate_row_without_legacy_row_is_drift() {
     let mut old = legacy(&cfg, &snap);
     old.rows.retain(|r| r.circuit_name != "g1");
     let pair = candidate(&cfg, &snap).await;
-    let mut file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let mut file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     confirm_all(&mut file);
     let drift = build_manifest(&pair, &old.rows, &old.network, &file).unwrap_err();
     assert!(
@@ -138,7 +138,7 @@ async fn reconnect_with_new_ip_is_drift_and_names_the_row() {
     let (cfg, snap) = scenario();
     let mut old = legacy(&cfg, &snap);
     let pair = candidate(&cfg, &snap).await;
-    let mut file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let mut file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     confirm_all(&mut file);
     old.rows
         .iter_mut()
@@ -154,7 +154,7 @@ async fn confirmed_file_builds_a_manifest_that_adoption_accepts() {
     let (cfg, snap) = scenario();
     let old = legacy(&cfg, &snap);
     let pair = candidate(&cfg, &snap).await;
-    let mut file = propose(&pair, &old.rows, &old.network, None).unwrap();
+    let mut file = propose(&pair, &old.rows, &old.network, None, "static").unwrap();
     confirm_all(&mut file);
     let (manifest, roots, attachments) =
         build_manifest(&pair, &old.rows, &old.network, &file).unwrap_or_else(|d| panic!("{d}"));
@@ -168,4 +168,56 @@ async fn confirmed_file_builds_a_manifest_that_adoption_accepts() {
         &attachments,
     )
     .unwrap();
+}
+
+#[tokio::test(start_paused = true)]
+async fn static_row_is_suggested_protect_and_a_top_level_static_row_is_named_in_drift() {
+    let (cfg, snap) = scenario();
+    let statics = vec![CsvRow {
+        circuit_id: "S0001".into(),
+        circuit_name: "fixed-ap".into(),
+        device_id: "S0002".into(),
+        device_name: "fixed-ap".into(),
+        mac: "02:00:00:00:ff:01".into(),
+        ipv4: "100.64.9.1".into(),
+        download_min: "1".into(),
+        upload_min: "1".into(),
+        download_max: "10".into(),
+        upload_max: "10".into(),
+        comment: "Static".into(),
+        ..Default::default()
+    }];
+    let old = legacy_with(&cfg, &snap, &statics);
+    assert!(old.rows.iter().any(|r| r.circuit_name == "fixed-ap"));
+    let pair = candidate(&cfg, &snap).await;
+    let mut file = propose(
+        &pair,
+        &old.rows,
+        &old.network,
+        None,
+        &cfg.runtime.static_comment,
+    )
+    .unwrap();
+    let entry = file
+        .rows
+        .iter()
+        .find(|r| r.legacy_circuit_name == "fixed-ap")
+        .unwrap();
+    assert_eq!(entry.decision, RowDecision::Protect);
+    assert!(
+        !file
+            .rows
+            .iter()
+            .any(|r| r.decision == RowDecision::Undecided)
+    );
+    confirm_all(&mut file);
+    // A protected row needs a static source root node. A top-level static row has none.
+    let drift = build_manifest(&pair, &old.rows, &old.network, &file).unwrap_err();
+    assert!(
+        drift
+            .issues
+            .iter()
+            .any(|i| i.contains("static source root")),
+        "{drift}"
+    );
 }

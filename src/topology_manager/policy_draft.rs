@@ -233,9 +233,28 @@ pub fn propose(cfg: &Config, current: &[CurrentRouter]) -> anyhow::Result<Policy
                 router.dhcp.clients.is_empty(),
                 "the first policy proposal does not convert DHCP client overrides; bind them explicitly"
             );
-            for server in &router.dhcp.servers {
+            // With discover, the legacy loop also shapes current servers that are not listed.
+            let mut names: Vec<String> =
+                router.dhcp.servers.iter().map(|s| s.name.clone()).collect();
+            if router.dhcp.discover {
+                let now = current
+                    .iter()
+                    .find(|c| c.router_id() == rid)
+                    .context("current DHCP servers are missing for a configured router")?;
+                let mut found: Vec<String> = now
+                    .services()
+                    .map_err(|e| anyhow::anyhow!("cannot read current DHCP servers: {e:?}"))?
+                    .iter()
+                    .filter(|s| s.kind == SourceKind::Dhcp && !names.contains(&s.name))
+                    .map(|s| s.name.clone())
+                    .collect();
+                found.sort_unstable();
+                names.extend(found);
+            }
+            for name in &names {
+                let server = router.dhcp.server(name);
                 ensure!(
-                    router.dhcp.server(&server.name).mode == DhcpMode::PerSite,
+                    server.mode == DhcpMode::PerSite,
                     "the first policy proposal supports only per-site DHCP servers"
                 );
                 let selection = SourceSelection {

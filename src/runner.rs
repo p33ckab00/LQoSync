@@ -543,8 +543,13 @@ where
             Err(e) => out.prepare_error = Some(format!("{e:#}")),
             Ok(pair) => {
                 use crate::topology_manager::enroll_mapping::RowDecision;
-                let file =
-                    crate::topology_manager::enroll_mapping::propose(&pair, &rows, &network, None)?;
+                let file = crate::topology_manager::enroll_mapping::propose(
+                    &pair,
+                    &rows,
+                    &network,
+                    None,
+                    &self.cfg.runtime.static_comment,
+                )?;
                 for row in &file.rows {
                     match row.decision {
                         RowDecision::Map { .. } => out.suggested += 1,
@@ -608,7 +613,13 @@ where
     ) -> anyhow::Result<crate::topology_manager::enroll_mapping::MappingFile> {
         let pair = self.prepare_topology(max_age).await?;
         let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
-        crate::topology_manager::enroll_mapping::propose(&pair, &rows, &network, previous)
+        crate::topology_manager::enroll_mapping::propose(
+            &pair,
+            &rows,
+            &network,
+            previous,
+            &self.cfg.runtime.static_comment,
+        )
     }
 
     /// Build the manifest from a confirmed mapping file. Install it only when `install` is true.

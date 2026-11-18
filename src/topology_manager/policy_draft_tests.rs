@@ -50,6 +50,14 @@ pub(crate) fn scenario() -> (Config, RouterSnapshot) {
 }
 
 pub(crate) fn legacy(cfg: &Config, snap: &RouterSnapshot) -> CycleOutput {
+    legacy_with(cfg, snap, &[])
+}
+
+pub(crate) fn legacy_with(
+    cfg: &Config,
+    snap: &RouterSnapshot,
+    statics: &[crate::model::CsvRow],
+) -> CycleOutput {
     let mut n = 0;
     let mut ids = || {
         n += 1;
@@ -58,7 +66,7 @@ pub(crate) fn legacy(cfg: &Config, snap: &RouterSnapshot) -> CycleOutput {
     let input = CycleInput {
         config: cfg,
         state: &State::default(),
-        static_rows: &[],
+        static_rows: statics,
         routers: vec![("Hub-1".into(), RouterResult::Online(snap.clone()))],
         current_network: None,
         v3: true,
@@ -218,4 +226,33 @@ async fn proposed_policy_round_trips_through_json() {
     let draft = propose(&cfg, &[current(&cfg, &snap).await]).unwrap();
     let text = serde_json::to_string_pretty(&draft).unwrap();
     assert_eq!(serde_json::from_str::<PolicyDraft>(&text).unwrap(), draft);
+}
+
+#[tokio::test(start_paused = true)]
+async fn discovered_dhcp_server_is_selected_when_discover_is_on() {
+    let (cfg, mut snap) = scenario();
+    let mut server = snap.dhcp_server[0].clone();
+    server.insert("name".into(), "GUEST".into());
+    snap.dhcp_server.push(server);
+    let mut lease = snap.dhcp_lease[0].clone();
+    for (k, v) in [
+        ("server", "GUEST"),
+        ("address", "100.66.9.9"),
+        ("mac-address", "02:00:00:00:09:09"),
+        ("host-name", "guest-1"),
+    ] {
+        lease.insert(k.into(), v.into());
+    }
+    snap.dhcp_lease.push(lease);
+    let old = legacy(&cfg, &snap);
+    assert!(old.rows.iter().any(|r| r.mac == "02:00:00:00:09:09"));
+    let pair = candidate(&cfg, &snap).await;
+    let quantized = crate::topology_manager::parity::quantized_network(
+        &old.network,
+        pair.node_export_adjustments(),
+        str::to_string,
+    )
+    .unwrap();
+    assert_eq!(unaliased(pair.network()), quantized);
+    assert_eq!(pair.rows().len(), old.rows.len());
 }
