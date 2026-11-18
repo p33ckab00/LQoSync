@@ -276,7 +276,8 @@ fn current_source_membership_limits_pool_scope_even_with_shared_destinations() {
         s.policy.assignment = Some("group1".into());
     }
     let result = rebalance(collect(&r, accounts()), request(&r)).unwrap();
-    assert_eq!(result.proposed_moves.len(), 30);
+    // The pool splits its own demand 1:2 over the capacity ratio: 10 stay, 20 move.
+    assert_eq!(result.proposed_moves.len(), 20);
     let after = result.evaluation.candidate.unwrap();
     for before in r.subscribers.iter().skip(30) {
         assert_eq!(
@@ -672,4 +673,116 @@ fn sparse_score_deltas_match_full_world_comparison_and_shared_ancestor_loads() {
             );
         }
     }
+}
+
+fn equal_wans() -> RegistryDocument {
+    let mut r = registry();
+    r.catalog.as_mut().unwrap().nodes[1].capacity = CapacityPolicy::Fixed {
+        base: rate(310_000_000, 100_000_000),
+        factors: FactorChoice::Inherit,
+    };
+    r
+}
+
+fn pair(result: &RebalanceResult, a: &str, b: &str) -> (usize, usize) {
+    (count(result, a), count(result, b))
+}
+
+#[test]
+fn equal_wans_split_one_group_five_and_five() {
+    let r = seeded(&equal_wans(), 10, "group1");
+    assert_eq!(pair(&run(&r, 10), "group1", "group2"), (5, 5));
+}
+
+#[test]
+fn a_two_to_one_capacity_splits_two_to_one_within_one_subscriber() {
+    let r = seeded(&registry(), 9, "group1");
+    assert_eq!(pair(&run(&r, 9), "group1", "group2"), (3, 6));
+}
+
+#[test]
+fn a_balanced_group_does_not_move() {
+    let mut r = seeded(&equal_wans(), 10, "group1");
+    for s in r.subscribers.iter_mut().take(5) {
+        s.policy.assignment = Some("group2".into());
+    }
+    assert!(run(&r, 10).proposed_moves.is_empty());
+}
+
+#[test]
+fn pins_stay_and_count_in_their_instance_share() {
+    let mut r = seeded(&registry(), 9, "group2");
+    for s in r.subscribers.iter_mut().take(6) {
+        s.policy.pin = Some("group2".into());
+    }
+    let result = run(&r, 9);
+    assert_eq!(pair(&result, "group1", "group2"), (3, 6));
+    assert_eq!(result.proposed_moves.len(), 3);
+}
+
+#[test]
+fn two_groups_each_split_by_capacity_and_wan_totals_follow() {
+    let mut r = registry();
+    let c = r.catalog.as_mut().unwrap();
+    let mut other = c.sources[2].clone();
+    other.id = "other-source".into();
+    other.targets = vec!["group3".into(), "group4".into()];
+    if let SourceOrigin::Subscribers {
+        profile_ref, group, ..
+    } = &mut other.origin
+    {
+        *profile_ref = Some("other-profile".into());
+        group.factors = Factors {
+            down: frac(1, 1),
+            up: frac(1, 1),
+        };
+    }
+    c.sources.push(other);
+    for (id, parent) in [("group3", "wan1"), ("group4", "wan2")] {
+        let mut n = c.nodes[2].clone();
+        n.id = id.into();
+        n.parent = Some(parent.into());
+        n.source_id = Some("other-source".into());
+        c.nodes.push(n);
+    }
+    let accounts = || {
+        (0..60)
+            .map(|i| {
+                let mut a = observed(i);
+                if i >= 30 {
+                    a.policy.profile = ProfileObservation::Known(Some("other-profile".into()));
+                }
+                a
+            })
+            .collect::<Vec<_>>()
+    };
+    let mut r = collect(&r, accounts()).registry;
+    for (i, s) in r.subscribers.iter_mut().enumerate() {
+        s.policy.assignment = Some(if i < 30 { "group1" } else { "group3" }.into());
+    }
+    let first = rebalance(collect(&r, accounts()), request(&r)).unwrap();
+    let r = first.evaluation.candidate.unwrap();
+    let second = rebalance(
+        collect(&r, accounts()),
+        RebalanceRequest {
+            expected_revision: r.revision,
+            scope: RebalanceScope::SourcePool("other-source".into()),
+        },
+    )
+    .unwrap();
+    assert_eq!(pair(&second, "group1", "group2"), (10, 20));
+    assert_eq!(pair(&second, "group3", "group4"), (10, 20));
+}
+
+#[test]
+fn instance_weights_use_the_nearest_independent_ancestor() {
+    let r = registry();
+    let weights = instance_weights(r.catalog.as_ref().unwrap(), "profile-source").unwrap();
+    assert_eq!(
+        weights,
+        vec![
+            ("group1".to_string(), rate(310_000_000, 100_000_000)),
+            ("group2".to_string(), rate(620_000_000, 200_000_000)),
+        ]
+    );
 }

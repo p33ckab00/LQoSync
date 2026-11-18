@@ -254,6 +254,58 @@ fn member(source: &SourceOrigin, active: &ActiveSubscriber) -> bool {
     }
 }
 
+/// Group demand relative to the capacity above an instance, in the worse direction.
+// shortcut: f64 scores, exact enough for whole-bps loads; use exact ratios if ties misbehave.
+fn utilization(load: RateBps, weight: RateBps) -> f64 {
+    (load.down as f64 / weight.down.max(1) as f64).max(load.up as f64 / weight.up.max(1) as f64)
+}
+
+/// The share objective: move a subscriber when it lowers the worse utilization of the two
+/// instances. Ties keep the current destination.
+fn share_move(
+    index: &Index<'_>,
+    group: &[RateBps],
+    from: usize,
+    eligible: &[usize],
+    base: RateBps,
+) -> anyhow::Result<usize> {
+    let w = |t: usize| weight(index, &index.targets[t]);
+    let left = subtract(group[from], base)?;
+    let mut best = (utilization(group[from], w(from)), from);
+    for &to in eligible.iter().filter(|&&t| t != from) {
+        let before = utilization(group[from], w(from)).max(utilization(group[to], w(to)));
+        let after = utilization(left, w(from)).max(utilization(add(group[to], base)?, w(to)));
+        if after < before && after < best.0 {
+            best = (after, to);
+        }
+    }
+    Ok(best.1)
+}
+
+/// Each instance of a source with the capacity above it: the nearest node with an independent
+/// capacity on its path. An instance without such a node gets a weight of one in each direction.
+#[cfg_attr(not(test), expect(dead_code, reason = "Task 2 edits use it"))]
+pub(crate) fn instance_weights(
+    catalog: &TopologyCatalog,
+    source_id: &str,
+) -> anyhow::Result<Vec<(String, RateBps)>> {
+    let index = Index::new(catalog)?;
+    Ok(index
+        .targets
+        .iter()
+        .filter(|t| catalog.nodes[t.node].source_id.as_deref() == Some(source_id))
+        .map(|t| (catalog.nodes[t.node].id.clone(), weight(&index, t)))
+        .collect())
+}
+
+fn weight(index: &Index<'_>, target: &Target) -> RateBps {
+    target
+        .independent_path
+        .first()
+        .and_then(|&n| index.capacities[n])
+        .unwrap_or(RateBps { down: 1, up: 1 })
+}
+
 /// Perform one explicit sweep. Equal scores retain the current destination; pins never enter the sweep.
 pub fn rebalance(
     collection: Reconciliation,
@@ -306,6 +358,7 @@ pub fn rebalance(
                 .collect(),
         };
         let mut pending = Vec::new();
+        let mut group = vec![ZERO; index.targets.len()];
         for (position, placement) in baseline.placements.iter().enumerate() {
             let target = index.target_ids[placement.target_id.as_str()];
             loads.targets[target] = add(loads.targets[target], placement.base)?;
@@ -314,7 +367,7 @@ pub fn rebalance(
             }
             let record = registry_index.by_id[placement.subscriber_id.as_str()];
             let subscriber = &candidate.subscribers[record];
-            if subscriber.policy.pin.is_some() || !scope.targets.contains(&target) {
+            if !scope.targets.contains(&target) {
                 continue;
             }
             let current = active[placement.subscriber_id.as_str()];
@@ -322,6 +375,11 @@ pub fn rebalance(
                 .source
                 .is_some_and(|s| !member(&catalog.sources[s].origin, current))
             {
+                continue;
+            }
+            // Pins count in the group share but never move.
+            group[target] = add(group[target], placement.base)?;
+            if subscriber.policy.pin.is_some() {
                 continue;
             }
             let prepared = index
@@ -346,19 +404,26 @@ pub fn rebalance(
         let mut updates = Vec::new();
         for (position, record, from, eligible) in pending {
             let placement = &baseline.placements[position];
-            let mut best = (Delta::default(), from);
-            for to in eligible {
-                if to == from {
-                    continue;
+            let dest = if scope.source.is_some() {
+                share_move(&index, &group, from, &eligible, placement.base)?
+            } else {
+                let mut best = (Delta::default(), from);
+                for to in eligible {
+                    if to == from {
+                        continue;
+                    }
+                    let (delta, improves) = loads.trial(&index, from, to, placement.base)?;
+                    if improves && delta.compare(&best.0) == Ordering::Less {
+                        best = (delta, to);
+                    }
                 }
-                let (delta, improves) = loads.trial(&index, from, to, placement.base)?;
-                if improves && delta.compare(&best.0) == Ordering::Less {
-                    best = (delta, to);
-                }
-            }
-            if best.1 != from {
-                loads.apply(from, best.1, placement.base)?;
-                let to = catalog.nodes[index.targets[best.1].node].id.clone();
+                best.1
+            };
+            if dest != from {
+                loads.apply(from, dest, placement.base)?;
+                group[from] = subtract(group[from], placement.base)?;
+                group[dest] = add(group[dest], placement.base)?;
+                let to = catalog.nodes[index.targets[dest].node].id.clone();
                 proposed_moves.push(ProposedMove {
                     subscriber_id: placement.subscriber_id.clone(),
                     from_target_id: placement.target_id.clone(),
