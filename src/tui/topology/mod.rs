@@ -47,12 +47,22 @@ pub struct TopologyView {
     preview: Option<Value>,
     policies: Option<Value>,
     error: Option<String>,
+    /// The result of the last edit. A status or preview answer does not clear it.
+    notice: Option<String>,
     picker: Option<picker::Picker>,
     form: Option<plan_form::PlanForm>,
     /// The plan that waits for a y/n answer before delete.
     confirm_delete: Option<(String, String)>,
     plan_selected: usize,
     pub screen: Screen,
+}
+
+/// The first identity of a preview subscriber, or its ID when it has no identity list.
+fn subscriber_key(s: &Value) -> Value {
+    match &s["identities"][0] {
+        Value::Null => s["id"].clone(),
+        identity => identity.clone(),
+    }
 }
 
 /// The service answers a stale revision with an error text that starts with this code.
@@ -112,6 +122,7 @@ impl TopologyView {
             return;
         };
         args["expected_revision"] = json!(revision);
+        self.notice = None;
         self.outbox.push((op.to_string(), args));
         self.pending += 1;
     }
@@ -157,16 +168,17 @@ impl TopologyView {
             KeyCode::Up => picker.selected = picker.selected.saturating_sub(1),
             KeyCode::Down => picker.selected = (picker.selected + 1).min(count - 1),
             KeyCode::Esc => self.picker = None,
+            // A new account needs a preview of the current revision, so wait for the refresh.
+            KeyCode::Enter if self.refreshing => {
+                self.notice = Some("wait for the preview refresh, then try again".into());
+            }
             KeyCode::Enter => {
                 let selected = picker.selected;
+                let identity = Some(picker.identity.clone()).filter(|i| !i.is_null());
                 self.picker = None;
                 let plan_id = picker::entries(self.policies.as_ref())
                     .swap_remove(selected)
                     .0;
-                let identity = self
-                    .selected_subscriber()
-                    .map(|s| s["identities"][0].clone())
-                    .filter(|i| !i.is_null());
                 match identity {
                     Some(identity) => self.send_edit(
                         "subscriber.plan",
@@ -233,10 +245,8 @@ impl TopologyView {
             .selected_node()
             .and_then(|n| n["id"].as_str())
             .map(str::to_string);
-        let subscriber = self
-            .selected_subscriber()
-            .and_then(|s| s["id"].as_str())
-            .map(str::to_string);
+        // A temporary ID can move to another account after an edit. The identity does not.
+        let subscriber = self.selected_subscriber().map(subscriber_key);
         let old_row = self.sub_selected;
         self.preview = Some(v);
         self.tree = builder::index(self.nodes());
@@ -250,10 +260,10 @@ impl TopologyView {
             .min(self.tree.len().saturating_sub(1));
         // Keep the same subscriber, or the nearest row when it is gone.
         self.sub_selected = subscriber
-            .and_then(|id| {
+            .and_then(|k| {
                 self.subscribers()
                     .iter()
-                    .position(|s| s["id"].as_str() == Some(id.as_str()))
+                    .position(|s| subscriber_key(s) == k)
             })
             .unwrap_or(old_row)
             .min(self.subscribers().len().saturating_sub(1));
@@ -323,14 +333,20 @@ impl TopologyView {
                 self.policies = Some(v);
                 self.plan_selected = self.plan_selected.min(self.plans().len().saturating_sub(1));
             }
-            ("subscriber.plan" | "plan.create" | "plan.update" | "plan.delete", Ok(_)) => {
+            ("subscriber.plan" | "plan.create" | "plan.update" | "plan.delete", Ok(v)) => {
                 self.error = None;
+                // The next edit uses the new revision before the status answer arrives.
+                if let (Some(status), Some(revision)) =
+                    (self.status.as_mut(), v["revision"].as_u64())
+                {
+                    status["registry_revision"] = json!(revision);
+                }
                 self.reload();
             }
             ("subscriber.plan" | "plan.create" | "plan.update" | "plan.delete", Err(e))
                 if is_conflict(&e) =>
             {
-                self.error = Some("changed by another operator, try again".into());
+                self.notice = Some("changed by another operator, try again".into());
                 self.reload();
             }
             (_, Err(e)) => self.error = Some(e),
@@ -348,7 +364,13 @@ impl TopologyView {
             KeyCode::Enter
                 if self.screen == Screen::Assignments && self.selected_subscriber().is_some() =>
             {
-                self.picker = Some(picker::Picker::default());
+                let identity = self
+                    .selected_subscriber()
+                    .map_or(Value::Null, |s| s["identities"][0].clone());
+                self.picker = Some(picker::Picker {
+                    selected: 0,
+                    identity,
+                });
                 if self.policies.is_none() {
                     self.send("topology.policies");
                 }
@@ -457,6 +479,9 @@ impl TopologyView {
         if let Some(e) = &self.error {
             second.push(e.clone());
         }
+        if let Some(n) = &self.notice {
+            second.push(n.clone());
+        }
         lines.push(Line::from(second.join("  |  ")));
         lines
     }
@@ -466,7 +491,7 @@ impl TopologyView {
             Layout::vertical([Constraint::Length(2), Constraint::Min(0)]).areas(area);
         let mut lines = self.strip();
         if let Some(second) = lines.pop() {
-            let style = if self.error.is_some() {
+            let style = if self.error.is_some() || self.notice.is_some() {
                 Role::Error
             } else {
                 Role::Secondary

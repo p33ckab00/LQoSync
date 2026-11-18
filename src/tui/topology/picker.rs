@@ -8,9 +8,11 @@ use ratatui::text::Line;
 use ratatui::widgets::{Clear, Paragraph};
 use serde_json::Value;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(super) struct Picker {
     pub(super) selected: usize,
+    /// The first identity of the subscriber that was selected when the picker opened.
+    pub(super) identity: Value,
 }
 
 /// "source default" first, then each plan with its rate, in the service order.
@@ -198,5 +200,87 @@ mod tests {
         for want in ["source default", "100M", "7M", "Enter", "Esc"] {
             assert!(text.contains(want), "{want}: {text}");
         }
+    }
+
+    fn preview(subs: Vec<Value>) -> ApiAnswer {
+        ok(
+            "topology.preview.refresh",
+            json!({"collected_at": 0, "state": "ok", "conflicts": [], "rounded": [], "inventory": [],
+                   "nodes": [], "subscribers": subs}),
+        )
+    }
+    fn with_id(mut s: Value, id: &str) -> Value {
+        s["id"] = json!(id);
+        s
+    }
+
+    #[test]
+    fn an_edit_answer_updates_the_revision_for_the_next_edit() {
+        let mut v = view();
+        v.on_answer(ok(
+            "subscriber.plan",
+            json!({"revision": 3, "subscriber_id": "tm-sub-0"}),
+        ));
+        v.on_answer(preview(vec![sub(0), sub(1)]));
+        v.take_outbox();
+        v.on_key(KeyCode::Enter);
+        v.on_key(KeyCode::Enter);
+        assert_eq!(v.take_outbox()[0].1["expected_revision"], json!(3));
+    }
+
+    #[test]
+    fn subscriber_plan_waits_for_a_running_preview_refresh() {
+        let mut v = view();
+        v.on_key(KeyCode::Char('r'));
+        v.take_outbox();
+        v.on_key(KeyCode::Enter);
+        v.on_key(KeyCode::Enter);
+        assert!(v.take_outbox().is_empty());
+        assert!(render(&v, 120, 30).contains("wait for the preview refresh"));
+    }
+
+    #[test]
+    fn selection_follows_the_identity_when_temporary_ids_shift() {
+        let mut v = view();
+        v.on_answer(preview(vec![
+            with_id(sub(0), "tm-sub-5"),
+            with_id(sub(1), "tm-sub-6"),
+        ]));
+        v.on_key(KeyCode::Down);
+        // The record for sub(0) takes ID 5 and sub(1) moves to the temporary ID 6 -> 7, and so on.
+        v.on_answer(preview(vec![
+            with_id(sub(1), "tm-sub-5"),
+            with_id(sub(0), "tm-sub-6"),
+        ]));
+        assert_eq!(
+            v.selected_subscriber().unwrap()["account_ref"],
+            sub(1)["account_ref"]
+        );
+    }
+
+    #[test]
+    fn the_picker_keeps_the_identity_from_when_it_opened() {
+        let mut v = view();
+        v.on_key(KeyCode::Down);
+        v.on_key(KeyCode::Enter);
+        // A preview answer arrives while the picker is open, and sub(1) is gone.
+        v.on_answer(preview(vec![sub(0)]));
+        v.on_key(KeyCode::Enter);
+        assert_eq!(v.take_outbox()[0].1["identity"], sub(1)["identities"][0]);
+    }
+
+    #[test]
+    fn the_conflict_message_stays_after_the_status_answer() {
+        let mut v = view();
+        v.on_answer(ApiAnswer {
+            op: "subscriber.plan".into(),
+            result: Err("Conflict: subscriber registry revision conflict".into()),
+        });
+        v.on_answer(ok(
+            "status",
+            json!({"registry_revision": 3, "enrolled": true}),
+        ));
+        v.on_answer(preview(vec![sub(0), sub(1)]));
+        assert!(render(&v, 120, 30).contains("changed by another operator, try again"));
     }
 }

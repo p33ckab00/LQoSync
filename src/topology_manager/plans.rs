@@ -488,4 +488,33 @@ mod tests {
                 .any(|s| s.account_ref == "dhcp-mac/v1/02:00:00:00:02:01")
         );
     }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_renamed_ppp_secret_is_a_new_identity_without_the_plan() {
+        let (_, mut snap) = draft::scenario();
+        let mut renamed = 0;
+        for row in snap.ppp_secret.iter_mut().chain(snap.ppp_active.iter_mut()) {
+            if row.get("name").map(String::as_str) == Some("g1") {
+                row.insert("name".into(), "g1-renamed".into());
+                renamed += 1;
+            }
+        }
+        assert_eq!(renamed, 2, "one secret and one active session");
+        let v = view_with(
+            |d| with_plan(d, "ppp-name/v1/g1", SourceKind::Ppp, "ppp"),
+            &snap,
+        )
+        .await;
+        let new = v
+            .subscribers
+            .iter()
+            .find(|s| s.account_ref == "ppp-name/v1/g1-renamed")
+            .unwrap();
+        assert_ne!(new.profile.as_deref(), Some("plan-1"));
+        assert!(
+            !v.subscribers
+                .iter()
+                .any(|s| s.account_ref == "ppp-name/v1/g1")
+        );
+    }
 }
