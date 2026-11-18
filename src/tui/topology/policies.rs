@@ -20,6 +20,24 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
         Some(Value::Null) => lines.push(Line::from("no installed topology policy")),
         Some(policies) => {
             lines.push(
+                Line::from("Plans  [n] new  [e] edit  [d] delete").style(p.role(Role::Secondary)),
+            );
+            let plans = policies["plans"].as_array().map_or(&[][..], Vec::as_slice);
+            if plans.is_empty() {
+                lines.push(Line::from("  no plans"));
+            }
+            for (i, plan) in plans.iter().enumerate() {
+                let marker = if i == v.plan_selected { "> " } else { "  " };
+                lines.push(Line::from(format!(
+                    "{marker}{:<24} {}/{} Mbps  {} subscribers",
+                    plan["name"].as_str().unwrap_or_default(),
+                    plan["down_mbps"],
+                    plan["up_mbps"],
+                    plan["subscribers"]
+                )));
+            }
+            lines.push(Line::from(""));
+            lines.push(
                 Line::from("Subscriber Speed Policy defaults").style(p.role(Role::Secondary)),
             );
             if let Some(defaults) = policies["defaults"].as_object() {
@@ -29,7 +47,14 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
             }
             lines.push(Line::from(""));
             lines.push(Line::from("Profiles").style(p.role(Role::Secondary)));
-            for prof in policies["profiles"].as_array().into_iter().flatten() {
+            // A plan is a profile too. The Plans section above shows it.
+            let is_plan = |id: &Value| plans.iter().any(|plan| plan["id"] == *id);
+            for prof in policies["profiles"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|prof| !is_plan(&prof["id"]))
+            {
                 let name = prof["name"].as_str().unwrap_or_default();
                 let text = if prof["base"] == "source_read" {
                     format!("  {name}  base from router  min/max from router")

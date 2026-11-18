@@ -48,6 +48,10 @@ pub struct TopologyView {
     policies: Option<Value>,
     error: Option<String>,
     picker: Option<picker::Picker>,
+    form: Option<plan_form::PlanForm>,
+    /// The plan that waits for a y/n answer before delete.
+    confirm_delete: Option<(String, String)>,
+    plan_selected: usize,
     pub screen: Screen,
 }
 
@@ -87,7 +91,61 @@ impl TopologyView {
 
     /// True while a dialog of this route has all keys.
     pub fn capturing(&self) -> bool {
-        self.picker.is_some()
+        self.picker.is_some() || self.form.is_some() || self.confirm_delete.is_some()
+    }
+
+    fn plans(&self) -> &[Value] {
+        self.policies
+            .as_ref()
+            .and_then(|p| p["plans"].as_array())
+            .map_or(&[], Vec::as_slice)
+    }
+
+    fn selected_plan(&self) -> Option<&Value> {
+        self.plans().get(self.plan_selected)
+    }
+
+    /// Queue an edit with the revision from the last status.
+    fn send_edit(&mut self, op: &str, mut args: Value) {
+        let Some(revision) = self.revision() else {
+            self.error = Some("the registry revision is unknown, press r".into());
+            return;
+        };
+        args["expected_revision"] = json!(revision);
+        self.outbox.push((op.to_string(), args));
+        self.pending += 1;
+    }
+
+    fn dialog_key(&mut self, code: KeyCode) {
+        if let Some((id, _)) = &self.confirm_delete {
+            match code {
+                KeyCode::Char('y') => {
+                    let args = json!({"plan_id": id});
+                    self.confirm_delete = None;
+                    self.send_edit("plan.delete", args);
+                }
+                KeyCode::Char('n') | KeyCode::Esc => self.confirm_delete = None,
+                _ => {}
+            }
+            return;
+        }
+        if let Some(form) = self.form.as_mut() {
+            let plans = self
+                .policies
+                .as_ref()
+                .and_then(|p| p["plans"].as_array())
+                .map_or(&[][..], Vec::as_slice);
+            match form.key(code, plans) {
+                plan_form::Step::Stay => {}
+                plan_form::Step::Cancel => self.form = None,
+                plan_form::Step::Send(op, args) => {
+                    self.form = None;
+                    self.send_edit(op, args);
+                }
+            }
+            return;
+        }
+        self.picker_key(code);
     }
 
     fn picker_key(&mut self, code: KeyCode) {
@@ -109,15 +167,12 @@ impl TopologyView {
                     .selected_subscriber()
                     .map(|s| s["identities"][0].clone())
                     .filter(|i| !i.is_null());
-                match (self.revision(), identity) {
-                    (Some(revision), Some(identity)) => {
-                        self.outbox.push((
-                            "subscriber.plan".into(),
-                            json!({"expected_revision": revision, "identity": identity, "plan_id": plan_id}),
-                        ));
-                        self.pending += 1;
-                    }
-                    _ => self.error = Some("the subscriber has no identity to edit".into()),
+                match identity {
+                    Some(identity) => self.send_edit(
+                        "subscriber.plan",
+                        json!({"identity": identity, "plan_id": plan_id}),
+                    ),
+                    None => self.error = Some("the subscriber has no identity to edit".into()),
                 }
             }
             _ => {}
@@ -264,12 +319,17 @@ impl TopologyView {
                     Err(e) => self.error = Some(e),
                 }
             }
-            ("topology.policies", Ok(v)) => self.policies = Some(v),
-            ("subscriber.plan", Ok(_)) => {
+            ("topology.policies", Ok(v)) => {
+                self.policies = Some(v);
+                self.plan_selected = self.plan_selected.min(self.plans().len().saturating_sub(1));
+            }
+            ("subscriber.plan" | "plan.create" | "plan.update" | "plan.delete", Ok(_)) => {
                 self.error = None;
                 self.reload();
             }
-            ("subscriber.plan", Err(e)) if is_conflict(&e) => {
+            ("subscriber.plan" | "plan.create" | "plan.update" | "plan.delete", Err(e))
+                if is_conflict(&e) =>
+            {
                 self.error = Some("changed by another operator, try again".into());
                 self.reload();
             }
@@ -281,7 +341,7 @@ impl TopologyView {
     /// Route keys. True when the key belongs to this route.
     pub fn on_key(&mut self, code: KeyCode) -> bool {
         if self.capturing() {
-            self.picker_key(code);
+            self.dialog_key(code);
             return true;
         }
         match code {
@@ -303,6 +363,28 @@ impl TopologyView {
                 }
             }
             KeyCode::Char('c') => self.screen = Screen::Changes,
+            KeyCode::Char('n') if self.screen == Screen::Policies && self.policies.is_some() => {
+                self.form = Some(plan_form::PlanForm::default());
+            }
+            KeyCode::Char('e') if self.screen == Screen::Policies => {
+                if let Some(plan) = self.selected_plan() {
+                    self.form = Some(plan_form::PlanForm::edit(plan));
+                }
+            }
+            KeyCode::Char('d') if self.screen == Screen::Policies => {
+                if let Some(plan) = self.selected_plan() {
+                    let id = plan["id"].as_str().unwrap_or_default().to_string();
+                    let name = plan["name"].as_str().unwrap_or_default().to_string();
+                    self.confirm_delete = Some((id, name));
+                }
+            }
+            KeyCode::Up if self.screen == Screen::Policies => {
+                self.plan_selected = self.plan_selected.saturating_sub(1);
+            }
+            KeyCode::Down if self.screen == Screen::Policies => {
+                self.plan_selected =
+                    (self.plan_selected + 1).min(self.plans().len().saturating_sub(1));
+            }
             KeyCode::Up if self.screen == Screen::Assignments => {
                 self.sub_selected = self.sub_selected.saturating_sub(1);
             }
@@ -420,6 +502,13 @@ impl TopologyView {
         }
         if let Some(picker) = &self.picker {
             picker::draw(self, picker, f, body, p);
+        }
+        if let Some(form) = &self.form {
+            form.draw(f, body, p);
+        }
+        if let Some((_, name)) = &self.confirm_delete {
+            let lines = vec![Line::from(format!("Delete plan {name}? [y/n]"))];
+            plan_form::popup(f, body, lines, "Delete plan", p);
         }
     }
 }
@@ -618,4 +707,5 @@ mod assignments;
 
 mod changes;
 mod picker;
+mod plan_form;
 mod policies;
