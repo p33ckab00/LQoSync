@@ -34,7 +34,8 @@ pub fn compare_legacy(
     rows: &[CsvRow],
     network: &Value,
 ) -> anyhow::Result<Vec<ParityIssue>> {
-    compare_snapshots(pair.rows(), pair.network(), rows, network)
+    let network = quantized_network(network, pair.node_export_adjustments(), str::to_string)?;
+    compare_snapshots(pair.rows(), pair.network(), rows, &network)
 }
 
 pub(super) fn compare_snapshots(
@@ -88,6 +89,8 @@ fn indexed<'a>(
     let mut devices = HashSet::new();
     for row in rows {
         let mut normalized = row.clone();
+        // LibreQoS does not use the Comment column for shaping. Legacy and manager texts differ.
+        normalized.comment.clear();
         for (down, up) in [
             (&mut normalized.download_min, &mut normalized.upload_min),
             (&mut normalized.download_max, &mut normalized.upload_max),
@@ -142,10 +145,10 @@ mod tests;
 /// Replace each legacy node capacity that equals a calculated manager ceiling with its whole-Mbps export.
 /// Any other legacy value stays unchanged, so a real policy difference still fails parity.
 /// `id_of` maps an adjustment node ID to the node ID used in `network`.
-pub fn quantized_network<'a>(
+pub fn quantized_network(
     network: &Value,
-    adjustments: &'a [super::publication::NodeExportAdjustment],
-    id_of: impl Fn(&'a str) -> &'a str,
+    adjustments: &[super::publication::NodeExportAdjustment],
+    id_of: impl Fn(&str) -> String,
 ) -> anyhow::Result<Value> {
     let by_id: std::collections::HashMap<_, _> =
         adjustments.iter().map(|a| (id_of(&a.node_id), a)).collect();
@@ -159,7 +162,7 @@ pub fn quantized_network<'a>(
             if let Some(adjustment) = node
                 .get("id")
                 .and_then(Value::as_str)
-                .and_then(|id| by_id.get(id))
+                .and_then(|id| by_id.get(id).copied())
             {
                 let legacy = super::rates::RateBps::try_from(crate::speed::Rate {
                     down: node["downloadBandwidthMbps"].as_f64().unwrap_or(f64::NAN),

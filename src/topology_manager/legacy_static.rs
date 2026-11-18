@@ -293,8 +293,12 @@ pub fn adopt(
         &mut aliased_rows,
         &mut aliased_network,
     )?;
+    let quantized =
+        super::parity::quantized_network(network, pair.node_export_adjustments(), |id| {
+            node_aliases.get(id).map_or(id, |a| a.0).to_string()
+        })?;
     ensure!(
-        super::parity::compare_snapshots(&aliased_rows, &aliased_network, rows, network)?
+        super::parity::compare_snapshots(&aliased_rows, &aliased_network, rows, &quantized)?
             .is_empty(),
         "shared adoption changes the complete legacy snapshot"
     );

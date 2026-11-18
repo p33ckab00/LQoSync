@@ -50,3 +50,5 @@ pub mod staging;
 pub(crate) mod enrollment;
 
 pub mod policy_draft;
+
+pub mod enroll_mapping;

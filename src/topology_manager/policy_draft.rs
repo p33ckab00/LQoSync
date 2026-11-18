@@ -291,4 +291,4 @@ pub fn document(draft: &PolicyDraft) -> anyhow::Result<RegistryDocument> {
 
 #[cfg(test)]
 #[path = "policy_draft_tests.rs"]
-mod tests;
+pub(crate) mod tests;

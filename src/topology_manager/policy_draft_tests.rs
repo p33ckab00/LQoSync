@@ -36,7 +36,7 @@ impl RouterSession for Session {
     }
 }
 
-fn scenario() -> (Config, RouterSnapshot) {
+pub(crate) fn scenario() -> (Config, RouterSnapshot) {
     // The manager reads only bound leases. Enrollment needs require_bound = true (a runbook step).
     let cfg = Config::from_toml_str(&CONFIG.replace(
         "[routers.dhcp]\nenabled = true",
@@ -49,7 +49,7 @@ fn scenario() -> (Config, RouterSnapshot) {
     (cfg, snap)
 }
 
-fn legacy(cfg: &Config, snap: &RouterSnapshot) -> CycleOutput {
+pub(crate) fn legacy(cfg: &Config, snap: &RouterSnapshot) -> CycleOutput {
     let mut n = 0;
     let mut ids = || {
         n += 1;
@@ -112,7 +112,7 @@ fn tables(snap: &RouterSnapshot) -> BTreeMap<Table, Vec<RosRow>> {
     ])
 }
 
-async fn current(cfg: &Config, snap: &RouterSnapshot) -> CurrentRouter {
+pub(crate) async fn current(cfg: &Config, snap: &RouterSnapshot) -> CurrentRouter {
     let catalog = read_catalog(cfg);
     let plan = ReadPlan::for_router(&catalog, &catalog.routers[0].id).unwrap();
     let evidence = ReadGuard::new(catalog.routers[0].id.clone())
@@ -137,7 +137,7 @@ async fn proposed_policy_has_no_legacy_issues() {
     assert_eq!(legacy_issues(&cfg, &doc).unwrap(), vec![]);
 }
 
-async fn candidate(
+pub(crate) async fn candidate(
     cfg: &Config,
     snap: &RouterSnapshot,
 ) -> crate::topology_manager::publication::PreparedPair {
@@ -152,7 +152,7 @@ async fn candidate(
 }
 
 /// Remove the " [id]" label suffix. Adoption node aliases restore the legacy labels.
-fn unaliased(network: &serde_json::Value) -> serde_json::Value {
+pub(crate) fn unaliased(network: &serde_json::Value) -> serde_json::Value {
     let mut out = serde_json::Map::new();
     for (k, v) in network.as_object().unwrap() {
         let id = v["id"].as_str().unwrap();
@@ -172,7 +172,7 @@ async fn proposed_policy_reproduces_root_promotion_network() {
     let quantized = crate::topology_manager::parity::quantized_network(
         &legacy.network,
         pair.node_export_adjustments(),
-        |id| id,
+        str::to_string,
     )
     .unwrap();
     assert_eq!(unaliased(pair.network()), quantized);
@@ -189,7 +189,7 @@ async fn changed_fractional_capacity_is_not_hidden_by_quantization() {
     let quantized = crate::topology_manager::parity::quantized_network(
         &legacy,
         pair.node_export_adjustments(),
-        |id| id,
+        str::to_string,
     )
     .unwrap();
     assert_eq!(
