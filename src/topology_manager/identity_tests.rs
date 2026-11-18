@@ -1166,3 +1166,27 @@ async fn lease_without_mac_is_missing_reference() {
         .collect();
     assert_eq!(issues, vec![("*l0", IdentityIssue::MissingReference)]);
 }
+
+#[tokio::test(start_paused = true)]
+async fn identity_conflicts_reach_the_caller_as_data() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Dhcp,
+        ReferenceAuthority::DhcpClientMac,
+    );
+    let rows = dhcp_macs(&[Some("aa:bb:cc:00:11:22"), Some("aa:bb:cc:00:11:22")]);
+    let input = current("router-a", 1, rows, &[RouterRole::Dhcp]).await;
+    let registry = RegistryDocument::default();
+    let auth = authorize(&registry, 0, 1, vec![input], &[sel]).unwrap();
+    let Err(e) = auth.reconcile(&mut ObservationGate::default()) else {
+        panic!("duplicate MACs must not reconcile");
+    };
+    let c = e
+        .downcast_ref::<crate::topology_manager::conflicts::PreparationConflicts>()
+        .expect("typed conflicts");
+    assert_eq!(c.0.len(), 2);
+    assert!(
+        c.0.iter()
+            .all(|v| v.kind == "identity" && v.detail.contains("DuplicateReference"))
+    );
+}

@@ -196,10 +196,19 @@ pub fn prepare_with_static(
         "source evidence expired before pair preparation"
     );
     let evaluation = aggregate::evaluate(resolver::resolve(input.reconciliation)?)?;
-    ensure!(
-        evaluation.conflicts.is_empty(),
-        "critical aggregate conflicts block publication"
-    );
+    if !evaluation.conflicts.is_empty() {
+        anyhow::bail!(super::conflicts::PreparationConflicts(
+            evaluation
+                .conflicts
+                .iter()
+                .map(|c| super::conflicts::ConflictView {
+                    kind: "aggregate",
+                    subject: c.node_id.clone(),
+                    detail: format!("{:?}", c.reason),
+                })
+                .collect()
+        ));
+    }
     let candidate = evaluation
         .candidate
         .context("publication requires a valid candidate")?;

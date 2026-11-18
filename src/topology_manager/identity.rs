@@ -79,9 +79,18 @@ impl Authorization<'_> {
             Instant::now() < self.expires,
             "identity evidence expired before acceptance"
         );
-        let reads = self
-            .reads
-            .context("critical subscriber identity conflicts remain")?;
+        let Some(reads) = self.reads else {
+            anyhow::bail!(super::conflicts::PreparationConflicts(
+                self.conflicts
+                    .iter()
+                    .map(|c| super::conflicts::ConflictView {
+                        kind: "identity",
+                        subject: format!("{}/{}", c.scope.source_id, c.row_ref),
+                        detail: format!("{:?}", c.issue),
+                    })
+                    .collect()
+            ));
+        };
         let snapshot = gate.accept(self.generation, &self.required, reads)?;
         ensure!(
             Instant::now() < self.expires,

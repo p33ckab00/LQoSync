@@ -138,10 +138,18 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
         conflicts,
         candidate,
     } = input;
-    ensure!(
-        conflicts.is_empty(),
-        "aggregate evaluation requires resolved placements"
-    );
+    if !conflicts.is_empty() {
+        anyhow::bail!(super::conflicts::PreparationConflicts(
+            conflicts
+                .iter()
+                .map(|c| super::conflicts::ConflictView {
+                    kind: "placement",
+                    subject: c.subscriber_id.clone(),
+                    detail: format!("{:?}", c.reason),
+                })
+                .collect()
+        ));
+    }
     let candidate = candidate.context("aggregate evaluation requires a placement candidate")?;
     let registry_index = candidate.index()?;
     let catalog = candidate

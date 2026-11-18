@@ -515,3 +515,26 @@ fn old_manifest_without_dropped_rows_still_decodes() {
     let manifest: MigrationManifest = serde_json::from_str(text).unwrap();
     assert!(manifest.dropped_rows.is_empty());
 }
+
+#[tokio::test(start_paused = true)]
+async fn aggregate_conflicts_reach_the_caller_as_data() {
+    let mut observed = input(1);
+    observed.reconciliation.registry.subscribers[0].policy.pin = Some("group1".into());
+    observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .nodes[0]
+        .minimum
+        .down = Some(100_000_000_000);
+    let Err(e) = prepare(observed) else {
+        panic!("a minimum above the ceiling must not prepare");
+    };
+    let c = e
+        .chain()
+        .find_map(|c| c.downcast_ref::<crate::topology_manager::conflicts::PreparationConflicts>())
+        .unwrap_or_else(|| panic!("typed conflicts: {e:#}"));
+    assert!(c.0.iter().any(|v| v.kind == "aggregate"), "{c:?}");
+}
