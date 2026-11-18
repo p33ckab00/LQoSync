@@ -147,3 +147,29 @@ mod operations {
         assert_eq!(v["error"]["code"], json!("internal"));
     }
 }
+
+#[tokio::test]
+async fn client_against_a_served_runner_gets_status() {
+    let e = env();
+    let mut r = runner(&e, cfg(&e, "shadow", ""));
+    r.lock().unwrap();
+    let (listener, _guard) = r.api_bind().unwrap();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<crate::api::server::Job>(16);
+    crate::api::server::spawn(listener, tx);
+    tokio::spawn(async move {
+        while let Some(job) = rx.recv().await {
+            let line = crate::api::dispatch::handle(&mut r, &job.request).unwrap_or_else(|l| l.0);
+            let _ = job.reply.send(line);
+        }
+    });
+    let v = crate::api::client::request(
+        &e.state,
+        "status",
+        serde_json::json!({}),
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .unwrap();
+    assert_eq!(v["mode"], serde_json::json!("shadow"));
+    assert_eq!(v["registry_revision"], serde_json::Value::Null);
+}

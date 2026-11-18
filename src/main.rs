@@ -301,6 +301,19 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        Command::Api(cli::ApiCommand::Status) => {
+            match lqosync3::api::client::request(
+                Path::new(&cfg.runtime.state_dir),
+                "status",
+                serde_json::json!({}),
+                lqosync3::api::client::DEFAULT_TIMEOUT,
+            )
+            .await
+            {
+                Ok(v) => println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default()),
+                Err(e) => exit_with(e.into()),
+            }
+        }
         Command::Topology(t) => {
             let mut runner = Runner::new(
                 cfg,

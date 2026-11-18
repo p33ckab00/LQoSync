@@ -8,10 +8,11 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] | enroll --mapping <file> [--yes]> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] | enroll --mapping <file> [--yes]> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    Api(ApiCommand),
     Topology(TopologyCommand),
     Check,
     Once { force: bool },
@@ -21,6 +22,12 @@ pub enum Command {
     Detect,
     Tui,
     Version,
+}
+
+/// Service API commands for operators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiCommand {
+    Status,
 }
 
 /// Topology Manager enrollment commands. Each one reads or writes only the files it names.
@@ -105,11 +112,13 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let mut force = false;
     let mut config = PathBuf::from(DEFAULT_CONFIG);
     let mut it = args.iter().skip(1);
+    let mut api = false;
     let (mut topology, mut words, mut flags, mut yes) =
         (false, vec![], std::collections::BTreeMap::new(), false);
     while let Some(a) = it.next() {
         match a.as_str() {
-            "topology" if command.is_none() && !topology => topology = true,
+            "topology" if command.is_none() && !topology && !api => topology = true,
+            "api" if command.is_none() && !topology && !api => api = true,
             "--config" => match it.next() {
                 Some(p) => config = PathBuf::from(p),
                 None => bail!("--config needs a path\n{USAGE}"),
@@ -120,7 +129,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
                 Some(_) => bail!("{a} is given twice\n{USAGE}"),
                 None => bail!("{a} needs a path\n{USAGE}"),
             },
-            w if topology && !w.starts_with('-') => words.push(a.clone()),
+            w if (topology || api) && !w.starts_with('-') => words.push(a.clone()),
             "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults" | "version"
                 if command.is_none() =>
             {
@@ -130,6 +139,20 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
             "--force" if !topology => force = true,
             other => bail!("unknown argument \"{other}\"\n{USAGE}"),
         }
+    }
+    if api {
+        return match words
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .as_slice()
+        {
+            ["status"] => Ok(Args {
+                command: Command::Api(ApiCommand::Status),
+                config,
+            }),
+            _ => bail!("unknown api command\n{USAGE}"),
+        };
     }
     if topology {
         return Ok(Args {
@@ -359,6 +382,16 @@ mod tests {
 
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn api_status_parses() {
+        assert_eq!(
+            parse(&s(&["l", "api", "status"])).unwrap().command,
+            Command::Api(ApiCommand::Status)
+        );
+        assert!(parse(&s(&["l", "api"])).is_err());
+        assert!(parse(&s(&["l", "api", "stop"])).is_err());
     }
 
     #[test]
