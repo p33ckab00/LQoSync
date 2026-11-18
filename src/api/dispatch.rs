@@ -101,6 +101,7 @@ where
         "topology.preview.refresh" => runner.api_preview_refresh().await.map_err(fail),
         "topology.preview.get" => runner.api_preview_get().map_err(fail),
         "topology.policies" => runner.api_policies().map_err(fail),
+        "wan.discover" => runner.api_wan_discover().await.map_err(fail),
         "plan.create" => {
             let a: PlanCreateArgs = parse(request)?;
             runner

@@ -625,3 +625,93 @@ mod plans {
         assert_eq!(v["error"]["code"], json!("bad_request"), "{v}");
     }
 }
+mod wan {
+    use super::*;
+    use crate::api::dispatch::{LostLock, handle};
+    use crate::api::protocol::Request;
+    use serde_json::{Value, json};
+
+    fn with_core(e: &Env) -> Runner<FakeConnector> {
+        let mut c = cfg(e, "shadow", "");
+        c.routers.extend(
+            Config::from_toml_str(
+                "[[routers]]\nname=\"Core\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+            )
+            .unwrap()
+            .routers,
+        );
+        e.fake.rows.lock().unwrap().insert(
+            "R1".into(),
+            BTreeMap::from([(
+                "/interface".to_string(),
+                vec![
+                    row(&[("name", "ether1"), ("type", "ether"), ("running", "true")]),
+                    row(&[
+                        ("name", "pppoe-out1"),
+                        ("type", "pppoe-out"),
+                        ("running", "true"),
+                    ]),
+                ],
+            )]),
+        );
+        let mut r = runner(e, c);
+        r.lock().unwrap();
+        r
+    }
+
+    #[tokio::test]
+    async fn wan_discover_lists_candidates_and_marks_failed_routers() {
+        let e = env();
+        let mut r = with_core(&e);
+        e.fake.failing.lock().unwrap().insert("Core".into());
+        let v = r.api_wan_discover().await.unwrap();
+        let (r1, core) = (&v["routers"][0], &v["routers"][1]);
+        assert_eq!((&r1["name"], &r1["state"]), (&json!("R1"), &json!("ok")));
+        assert_eq!(r1["candidates"][0]["name"], json!("pppoe-out1"));
+        assert_eq!(r1["candidates"][0]["suggested"], json!(true));
+        assert_eq!(
+            (&core["name"], &core["state"]),
+            (&json!("Core"), &json!("failed"))
+        );
+        assert!(core["error"].as_str().unwrap().contains("down"), "{core}");
+    }
+
+    #[tokio::test]
+    async fn wan_discover_changes_no_registry() {
+        let e = env();
+        let mut r = with_core(&e);
+        r.api_wan_discover().await.unwrap();
+        assert!(!e.state.join("topology-manager").exists());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_stalled_router_fails_alone_within_the_limit() {
+        let e = env();
+        let mut r = with_core(&e);
+        e.fake.stalling.lock().unwrap().insert("Core".into());
+        let started = tokio::time::Instant::now();
+        let v = r.api_wan_discover().await.unwrap();
+        assert!(started.elapsed() <= std::time::Duration::from_secs(31));
+        assert_eq!(v["routers"][0]["state"], json!("ok"));
+        assert_eq!(v["routers"][1]["state"], json!("failed"));
+        assert_eq!(v["routers"][1]["error"], json!("read expired"));
+    }
+
+    #[tokio::test]
+    async fn wan_discover_is_dispatched() {
+        let e = env();
+        let mut r = with_core(&e);
+        let req = Request {
+            v: 1,
+            id: "t".into(),
+            op: "wan.discover".into(),
+            args: json!({}),
+        };
+        let line = handle(&mut r, &req)
+            .await
+            .unwrap_or_else(|LostLock(l)| panic!("lost lock: {l}"));
+        let v: Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert_eq!(v["ok"], json!(true), "{v}");
+        assert_eq!(v["result"]["routers"].as_array().unwrap().len(), 2);
+    }
+}

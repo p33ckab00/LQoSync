@@ -577,6 +577,25 @@ where
 
     /// API `topology.preview.refresh`: read routers, prepare a candidate without the writer-only
     /// checks, and cache the view. A conflict preview is cached too. Other errors keep the cache.
+    /// Read the interfaces of every configured router as WAN candidates. No registry change.
+    pub async fn api_wan_discover(&mut self) -> anyhow::Result<serde_json::Value> {
+        let catalog = self.api_document()?.and_then(|d| d.catalog);
+        let collected_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let reads = crate::topology_manager::wan::read_all(
+            self.connector.clone(),
+            &self.cfg,
+            Duration::from_secs(30),
+        )
+        .await;
+        Ok(crate::topology_manager::wan::answer(
+            &reads,
+            catalog.as_ref(),
+            collected_at,
+        ))
+    }
+
     pub async fn api_preview_refresh(&mut self) -> anyhow::Result<serde_json::Value> {
         use crate::topology_manager::conflicts::PreparationConflicts;
         let doc = self
@@ -1584,6 +1603,8 @@ mod tests {
         rows: Mutex<BTreeMap<String, BTreeMap<String, Vec<RosRow>>>>,
         failing: Mutex<HashSet<String>>,
         panicking: Mutex<HashSet<String>>,
+        /// A router in `stalling` never finishes its connection.
+        stalling: Mutex<HashSet<String>>,
         reads: std::sync::atomic::AtomicUsize,
     }
     struct FakeSession {
@@ -1605,8 +1626,12 @@ mod tests {
                 fake: self.0.clone(),
             };
             let boom = self.0.panicking.lock().unwrap().contains(&r.name);
+            let stall = self.0.stalling.lock().unwrap().contains(&r.name);
             async move {
                 assert!(!boom, "test panic in a router task");
+                if stall {
+                    tokio::time::sleep(Duration::from_secs(3600)).await;
+                }
                 Ok(s)
             }
         }

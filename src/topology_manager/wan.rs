@@ -1,15 +1,70 @@
 //! WAN discovery. Interfaces are candidates for the operator to confirm, not proof of an Internet WAN.
 
 use super::catalog::{SourceOrigin, TopologyCatalog};
+use super::policy_draft::router_id;
+use super::reader::Table;
+use crate::config::Config;
 use crate::model::RosRow;
+use crate::routeros::{Connector, RouterSession};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::task::JoinSet;
+use tokio::time::{Instant, timeout_at};
 
 /// The `/interface` read of one configured router.
 pub struct RouterInterfaces {
     pub router_id: String,
     pub name: String,
     pub read: Result<Vec<RosRow>, String>,
+}
+
+/// Read `/interface` once from every configured router at the same time, with one deadline.
+/// A router that is not done at the deadline gets "read expired".
+pub async fn read_all<C: Connector + 'static>(
+    connector: Arc<C>,
+    cfg: &Config,
+    limit: Duration,
+) -> Vec<RouterInterfaces>
+where
+    C::Session: 'static,
+{
+    let now = Instant::now();
+    let deadline = now.checked_add(limit).unwrap_or(now);
+    let (path, fields) = Table::Interfaces.command();
+    let mut tasks = JoinSet::new();
+    for (i, router) in cfg.routers.iter().cloned().enumerate() {
+        let (connector, access) = (connector.clone(), cfg.router_access.clone());
+        tasks.spawn(async move {
+            let read = async {
+                let mut session = connector
+                    .connect(&router, &access)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                session.print(path, fields).await.map_err(|e| e.to_string())
+            };
+            let out = timeout_at(deadline, read)
+                .await
+                .unwrap_or_else(|_| Err("read expired".into()));
+            (i, out)
+        });
+    }
+    let mut out: Vec<_> = cfg
+        .routers
+        .iter()
+        .map(|r| RouterInterfaces {
+            router_id: router_id(&r.name),
+            name: r.name.clone(),
+            read: Err("the read task stopped".into()),
+        })
+        .collect();
+    while let Some(done) = tasks.join_next().await {
+        if let Ok((i, read)) = done {
+            out[i].read = read;
+        }
+    }
+    out
 }
 
 /// A catalog WAN source with the configured router name of its catalog router.
