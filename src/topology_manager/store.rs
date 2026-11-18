@@ -8,6 +8,26 @@ use std::io::{Read, Write};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
+/// The expected registry revision is not the current revision. Read the registry again.
+#[derive(Debug)]
+pub struct RevisionConflict;
+impl std::fmt::Display for RevisionConflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("subscriber registry revision conflict")
+    }
+}
+impl std::error::Error for RevisionConflict {}
+
+/// A candidate registry fails a policy or validation rule. The message names the rule.
+#[derive(Debug)]
+pub struct InvalidPolicy(pub String);
+impl std::fmt::Display for InvalidPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for InvalidPolicy {}
+
 #[derive(Debug)]
 pub struct RegistryStore {
     _lock: std::sync::Arc<crate::files::InstanceLock>,
@@ -237,14 +257,9 @@ impl RegistryStore {
     ) -> anyhow::Result<CommitOutcome> {
         self._lock.check(self._lock.directory())?;
         let current = self.document()?;
-        ensure!(
-            expected_revision == current.revision,
-            "subscriber registry revision conflict"
-        );
-        ensure!(
-            candidate.revision == expected_revision,
-            "candidate registry revision conflict"
-        );
+        if expected_revision != current.revision || candidate.revision != expected_revision {
+            anyhow::bail!(RevisionConflict);
+        }
         let disk_matches = load(&self.path).map(|disk| {
             disk.as_ref().is_some_and(|loaded| {
                 loaded.document == *current && loaded.disk_schema == self.disk_schema
@@ -259,7 +274,9 @@ impl RegistryStore {
             }
         }
 
-        let candidate = self.preview(expected_revision, candidate)?;
+        let candidate = self
+            .preview(expected_revision, candidate)
+            .map_err(|e| anyhow::Error::new(InvalidPolicy(format!("{e:#}"))))?;
         if candidate.revision == expected_revision {
             return Ok(CommitOutcome {
                 revision: expected_revision,
@@ -561,6 +578,37 @@ mod tests {
 
     fn path(root: &Path) -> PathBuf {
         root.join("topology-manager/registry.json")
+    }
+
+    #[test]
+    fn commit_with_a_stale_revision_downcasts_to_revision_conflict() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = RegistryStore::open(dir.path()).unwrap();
+        store.commit(0, candidate()).unwrap();
+        let e = store.commit(0, candidate()).unwrap_err();
+        assert!(e.downcast_ref::<RevisionConflict>().is_some(), "{e:#}");
+    }
+
+    #[test]
+    fn commit_with_an_invalid_candidate_downcasts_to_invalid_policy() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = RegistryStore::open(dir.path()).unwrap();
+        store.commit(0, candidate()).unwrap();
+        let mut bad = store.document().unwrap().clone();
+        bad.next_id = 0;
+        let e = store.commit(1, bad).unwrap_err();
+        assert!(e.downcast_ref::<InvalidPolicy>().is_some(), "{e:#}");
+    }
+
+    #[test]
+    fn the_store_still_commits_after_a_conflict() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = RegistryStore::open(dir.path()).unwrap();
+        store.commit(0, candidate()).unwrap();
+        assert!(store.commit(0, candidate()).is_err());
+        let mut next = store.document().unwrap().clone();
+        next.next_id += 1;
+        assert_eq!(store.commit(1, next).unwrap().revision, 2);
     }
 
     #[test]
