@@ -4,6 +4,7 @@
 /// names the source.
 pub const VERSION: &str = env!("LQOSYNC_VERSION");
 
+pub mod api;
 pub mod apply_evidence;
 pub mod bridge;
 pub mod circuit_queue;
