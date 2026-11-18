@@ -250,6 +250,46 @@ where
             })
             .transpose()?;
         let source_filters = super::preflight::source_filter_digest(cfg, registry)?;
+        let authorized = self
+            .authorized(cfg, registry, minimum_generation, deadline)
+            .await?;
+        let mut pair = prepare_with_static(authorized, static_source.as_ref().map(|s| s.input()))?;
+        pair.static_source = static_source.map(|s| s.binding);
+        pair.check_fresh()?;
+        pair.source_filters = source_filters;
+        Ok(pair)
+    }
+
+    /// Read the selected sources of `registry` and reconcile them, without publication.
+    pub(crate) async fn reconcile_for(
+        &mut self,
+        cfg: &Config,
+        registry: &RegistryDocument,
+        minimum_generation: u64,
+        max_age: Duration,
+    ) -> anyhow::Result<super::observation::Reconciliation> {
+        ensure!(!max_age.is_zero(), "source age limit must be positive");
+        let deadline = Instant::now()
+            .checked_add(max_age)
+            .context("source age limit exceeds clock range")?;
+        let issues = super::preflight::source_issues(cfg, registry)?;
+        ensure!(
+            issues.is_empty(),
+            "unsupported configured source policies: {issues:?}"
+        );
+        Ok(self
+            .authorized(cfg, registry, minimum_generation, deadline)
+            .await?
+            .reconciliation)
+    }
+
+    async fn authorized(
+        &mut self,
+        cfg: &Config,
+        registry: &RegistryDocument,
+        minimum_generation: u64,
+        deadline: Instant,
+    ) -> anyhow::Result<super::identity::AuthorizedReconciliation> {
         let catalog = registry
             .catalog
             .as_ref()
@@ -273,13 +313,8 @@ where
             Instant::now() < deadline,
             "source batch expired before authorization"
         );
-        let authorized = authorize_configured(registry, registry.revision, generation, current)?
-            .reconcile(&mut self.gate)?;
-        let mut pair = prepare_with_static(authorized, static_source.as_ref().map(|s| s.input()))?;
-        pair.static_source = static_source.map(|s| s.binding);
-        pair.check_fresh()?;
-        pair.source_filters = source_filters;
-        Ok(pair)
+        authorize_configured(registry, registry.revision, generation, current)?
+            .reconcile(&mut self.gate)
     }
 }
 #[cfg(test)]

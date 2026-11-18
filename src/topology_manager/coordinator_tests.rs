@@ -1203,3 +1203,15 @@ async fn a_router_without_roles_is_not_read_for_a_proposal_or_preparation() {
     assert_eq!(current.len(), 1);
     assert_eq!(fake.connects.load(Ordering::SeqCst), 2);
 }
+
+#[tokio::test(start_paused = true)]
+async fn reconcile_for_reads_the_candidate_sources_without_publication() {
+    let (cfg, registry, fake, mut coordinator) = fixture();
+    let reconciliation = coordinator
+        .reconcile_for(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert_eq!(reconciliation.active.len(), 1);
+    assert_eq!(reconciliation.registry.catalog, registry.catalog);
+    assert_eq!(fake.connects.load(Ordering::SeqCst), 1);
+}

@@ -715,3 +715,411 @@ mod wan {
         assert_eq!(v["result"]["routers"].as_array().unwrap().len(), 2);
     }
 }
+mod edits {
+    use super::super::enrollment::cli_flow::{AGE, confirm, setup};
+    use super::*;
+    use crate::api::dispatch::{LostLock, handle};
+    use crate::api::protocol::Request;
+    use crate::topology_manager::edits::Edit;
+    use crate::topology_manager::store::InvalidPolicy;
+    use serde_json::{Value, json};
+
+    async fn enrolled(e: &Env) -> Runner<FakeConnector> {
+        let mut r = runner(e, setup(e, None));
+        let d = r.propose_policy(AGE).await.unwrap();
+        r.install_topology_policy(&d).unwrap();
+        let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+        confirm(&mut file);
+        r.enroll_with_mapping(&file, AGE, true).await.unwrap();
+        r.lock().unwrap();
+        r
+    }
+
+    fn rule(e: &anyhow::Error) -> String {
+        e.chain()
+            .find_map(|c| c.downcast_ref::<InvalidPolicy>())
+            .map_or_else(|| format!("not a rule error: {e:#}"), |i| i.0.clone())
+    }
+
+    fn edit(v: Value) -> Edit {
+        serde_json::from_value(v).unwrap()
+    }
+
+    fn revision(r: &mut Runner<FakeConnector>) -> u64 {
+        r.api_registry().unwrap().unwrap().revision
+    }
+
+    /// Discover two `pppoe-out` WANs on Hub-1 and commit them as WAN1 and WAN2.
+    async fn two_wans(e: &Env, r: &mut Runner<FakeConnector>) -> (String, String) {
+        e.fake
+            .rows
+            .lock()
+            .unwrap()
+            .get_mut("Hub-1")
+            .unwrap()
+            .insert(
+                "/interface".into(),
+                vec![
+                    row(&[
+                        ("name", "pppoe-out1"),
+                        ("type", "pppoe-out"),
+                        ("running", "true"),
+                    ]),
+                    row(&[
+                        ("name", "pppoe-out2"),
+                        ("type", "pppoe-out"),
+                        ("running", "true"),
+                    ]),
+                ],
+            );
+        let discovery = r.api_wan_discover().await.unwrap();
+        let router_id = discovery["routers"][0]["router_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut ids = Vec::new();
+        for (i, endpoint) in ["pppoe-out1", "pppoe-out2"].into_iter().enumerate() {
+            let rev = revision(r);
+            let before: Vec<String> = tree_ids(r);
+            let p = r
+                .api_edit_propose(
+                    rev,
+                    edit(json!({"kind": "wan.create", "router_id": router_id, "endpoint_ref": endpoint,
+                                "name": format!("WAN{}", i + 1), "down_mbps": 1000, "up_mbps": 1000})),
+                )
+                .await
+                .unwrap();
+            r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+                .unwrap();
+            ids.push(
+                tree_ids(r)
+                    .into_iter()
+                    .find(|id| !before.contains(id))
+                    .unwrap(),
+            );
+        }
+        (ids[0].clone(), ids[1].clone())
+    }
+
+    fn tree_ids(r: &mut Runner<FakeConnector>) -> Vec<String> {
+        r.api_tree().unwrap()["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["id"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    /// The group node and source with the most registry subscribers.
+    fn biggest_group(r: &mut Runner<FakeConnector>) -> (String, String) {
+        let doc = r.api_registry().unwrap().unwrap();
+        let tree = r.api_tree().unwrap();
+        let count = |id: &str| {
+            doc.subscribers
+                .iter()
+                .filter(|s| s.policy.assignment.as_deref() == Some(id))
+                .count()
+        };
+        let node = tree["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|n| n["kind"] == "group")
+            .max_by_key(|n| count(n["id"].as_str().unwrap()))
+            .unwrap();
+        (
+            node["id"].as_str().unwrap().to_string(),
+            node["source_id"].as_str().unwrap().to_string(),
+        )
+    }
+
+    async fn propose(r: &mut Runner<FakeConnector>, v: Value) -> anyhow::Result<Value> {
+        let rev = revision(r);
+        r.api_edit_propose(rev, edit(v)).await
+    }
+
+    async fn commit(r: &mut Runner<FakeConnector>, v: Value) -> Value {
+        let p = propose(r, v).await.unwrap();
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        p
+    }
+
+    /// WAN1 and WAN2 with the biggest group below WAN1 and a second instance below WAN2.
+    async fn split(e: &Env, r: &mut Runner<FakeConnector>) -> (String, String, Value) {
+        let (wan1, wan2) = two_wans(e, r).await;
+        let (group, source) = biggest_group(r);
+        commit(
+            r,
+            json!({"kind": "node.move", "node_id": group, "parent": wan1}),
+        )
+        .await;
+        let before = tree_ids(r);
+        let p = commit(
+            r,
+            json!({"kind": "instance.add", "source_id": source, "parent": wan2}),
+        )
+        .await;
+        let second = tree_ids(r)
+            .into_iter()
+            .find(|id| !before.contains(id))
+            .unwrap();
+        (group, second, p)
+    }
+
+    #[tokio::test]
+    async fn propose_then_confirm_commits_the_kept_candidate() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let rev = revision(&mut r);
+        let p = propose(
+            &mut r,
+            json!({"kind": "node.create", "name": "Tower", "parent": null, "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}}),
+        )
+        .await
+        .unwrap();
+        assert_eq!(revision(&mut r), rev, "propose commits nothing");
+        assert!(
+            p["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|n| n["name"] == "Tower")
+        );
+        assert_eq!(p["moves"], json!([]));
+        let v = r
+            .api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(v, json!({"revision": rev + 1}));
+        let doc = r.api_registry().unwrap().unwrap();
+        let catalog = doc.catalog.unwrap();
+        assert!(catalog.nodes.iter().any(|n| n.name == "Tower"));
+        let again = r
+            .api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap_err();
+        assert!(format!("{again:#}").contains("the proposal is stale, propose again"));
+    }
+
+    #[tokio::test]
+    async fn an_instance_below_a_second_wan_moves_half_of_the_group() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, p) = split(&e, &mut r).await;
+        assert!(!p["moves"].as_array().unwrap().is_empty(), "{p}");
+        let doc = r.api_registry().unwrap().unwrap();
+        let on = |id: &str| {
+            doc.subscribers
+                .iter()
+                .filter(|s| s.policy.assignment.as_deref() == Some(id))
+                .count()
+        };
+        let (a, b) = (on(&first), on(&second));
+        assert!(a > 0 && b > 0 && a.abs_diff(b) <= 1, "{a} and {b}");
+    }
+
+    #[tokio::test]
+    async fn a_remove_moves_online_members_and_clears_offline_ones() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, _) = split(&e, &mut r).await;
+        // One more record assigned to the second instance that is offline now.
+        let mut doc = r.api_registry().unwrap().unwrap();
+        let mut offline = doc
+            .subscribers
+            .iter()
+            .find(|s| s.policy.assignment.as_deref() == Some(first.as_str()))
+            .unwrap()
+            .clone();
+        offline.id = "tm-sub-00000000000fffff".into();
+        offline.identities[0].account_ref = "offline-account".into();
+        offline.policy.assignment = Some(second.clone());
+        offline.policy.pin = None;
+        doc.subscribers.push(offline);
+        doc.next_id = doc.next_id.max(0x10_0000);
+        r.test_commit(doc).unwrap();
+        let p = commit(&mut r, json!({"kind": "node.remove", "node_id": second})).await;
+        assert_eq!(p["cleared"], json!(["tm-sub-00000000000fffff"]));
+        let doc = r.api_registry().unwrap().unwrap();
+        assert!(
+            doc.subscribers
+                .iter()
+                .all(|s| s.policy.assignment.as_deref() != Some(second.as_str()))
+        );
+        assert!(
+            doc.subscribers
+                .iter()
+                .any(|s| s.policy.assignment.as_deref() == Some(first.as_str()))
+        );
+        let offline = doc
+            .subscribers
+            .iter()
+            .find(|s| s.id == "tm-sub-00000000000fffff")
+            .unwrap();
+        assert_eq!(offline.policy.assignment, None);
+    }
+
+    #[tokio::test]
+    async fn confirm_after_another_commit_gives_conflict_and_commits_nothing() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let a = propose(
+            &mut r,
+            json!({"kind": "node.create", "name": "A", "parent": null, "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}}),
+        )
+        .await
+        .unwrap();
+        // Operator B commits through another operation.
+        let rev = revision(&mut r);
+        r.api_plan_create(rev, "100M", 100, 100).unwrap();
+        let err = r
+            .api_edit_confirm(a["proposal_id"].as_str().unwrap())
+            .unwrap_err();
+        assert!(
+            err.chain()
+                .any(|c| c.is::<crate::topology_manager::store::RevisionConflict>())
+        );
+        let doc = r.api_registry().unwrap().unwrap();
+        assert!(doc.catalog.unwrap().nodes.iter().all(|n| n.name != "A"));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn confirm_after_expiry_gives_conflict() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let p = propose(
+            &mut r,
+            json!({"kind": "node.create", "name": "A", "parent": null, "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}}),
+        )
+        .await
+        .unwrap();
+        tokio::time::advance(std::time::Duration::from_secs(121)).await;
+        let err = r
+            .api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap_err();
+        assert!(
+            err.chain()
+                .any(|c| c.is::<crate::topology_manager::store::RevisionConflict>())
+        );
+    }
+
+    #[tokio::test]
+    async fn a_new_propose_replaces_the_old_one_and_cancel_drops_it() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let node = |name: &str| json!({"kind": "node.create", "name": name, "parent": null, "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}});
+        let a = propose(&mut r, node("A")).await.unwrap();
+        let b = propose(&mut r, node("B")).await.unwrap();
+        assert!(
+            r.api_edit_confirm(a["proposal_id"].as_str().unwrap())
+                .is_err()
+        );
+        r.api_edit_confirm(b["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let b = propose(&mut r, node("C")).await.unwrap();
+        assert_eq!(
+            r.api_edit_cancel(b["proposal_id"].as_str().unwrap())
+                .unwrap(),
+            json!({})
+        );
+        assert!(
+            r.api_edit_confirm(b["proposal_id"].as_str().unwrap())
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn minimums_above_a_wan_ceiling_give_invalid_and_keep_no_proposal() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (wan1, _) = two_wans(&e, &mut r).await;
+        let (group, _) = biggest_group(&mut r);
+        // A WAN of 1 Mbps cannot hold the group minimum and plans.
+        commit(
+            &mut r,
+            json!({"kind": "node.update", "node_id": wan1, "capacity": {"mode": "fixed", "down_mbps": 1, "up_mbps": 1}}),
+        )
+        .await;
+        let mut doc = r.api_registry().unwrap().unwrap();
+        let node = doc
+            .catalog
+            .as_mut()
+            .unwrap()
+            .nodes
+            .iter_mut()
+            .find(|n| n.id == group)
+            .unwrap();
+        node.minimum.down = Some(50_000_000);
+        r.test_commit(doc).unwrap();
+        let err = propose(
+            &mut r,
+            json!({"kind": "node.move", "node_id": group, "parent": wan1}),
+        )
+        .await
+        .unwrap_err();
+        assert!(rule(&err).contains("Minimum"), "{}", rule(&err));
+        assert!(r.api_edit_confirm("any").is_err());
+    }
+
+    #[tokio::test]
+    async fn a_down_distro_blocks_only_edits_with_affected_sources() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (wan1, _) = two_wans(&e, &mut r).await;
+        let (group, _) = biggest_group(&mut r);
+        e.fake.failing.lock().unwrap().insert("Hub-1".into());
+        assert!(
+            propose(
+                &mut r,
+                json!({"kind": "node.create", "name": "T", "parent": null, "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}}),
+            )
+            .await
+            .is_ok()
+        );
+        assert!(
+            propose(
+                &mut r,
+                json!({"kind": "node.move", "node_id": group, "parent": wan1})
+            )
+            .await
+            .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn tree_and_edit_operations_are_dispatched() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let mut call = async |op: &str, args: Value| {
+            let req = Request {
+                v: 1,
+                id: "t".into(),
+                op: op.into(),
+                args,
+            };
+            let line = handle(&mut r, &req)
+                .await
+                .unwrap_or_else(|LostLock(l)| panic!("lost lock: {l}"));
+            serde_json::from_str::<Value>(line.trim_end()).unwrap()
+        };
+        let tree = call("topology.tree", json!({})).await;
+        assert_eq!(tree["ok"], json!(true), "{tree}");
+        let rev = tree["result"]["revision"].clone();
+        let p = call(
+            "topology.edit.propose",
+            json!({"expected_revision": rev, "edit": {"kind": "node.create", "name": "T", "parent": null, "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}}}),
+        )
+        .await;
+        assert_eq!(p["ok"], json!(true), "{p}");
+        let id = p["result"]["proposal_id"].clone();
+        let c = call("topology.edit.cancel", json!({"proposal_id": id})).await;
+        assert_eq!(c["ok"], json!(true), "{c}");
+        let c = call("topology.edit.confirm", json!({"proposal_id": id})).await;
+        assert_eq!(c["error"]["code"], json!("conflict"), "{c}");
+        let bad = call(
+            "topology.edit.propose",
+            json!({"expected_revision": rev, "edit": {"kind": "nope"}}),
+        )
+        .await;
+        assert_eq!(bad["error"]["code"], json!("bad_request"), "{bad}");
+    }
+}

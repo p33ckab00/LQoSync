@@ -108,7 +108,32 @@ pub struct Runner<C: Connector + 'static> {
     last_cycle_started: Option<u64>,
     /// The latest on-demand preview. It is for display only.
     last_preview: Option<serde_json::Value>,
+    /// The last `wan.discover` answer. `wan.create` checks candidates against it.
+    wan_discovery: Option<serde_json::Value>,
+    /// The one kept Builder edit proposal.
+    edit_proposal: Option<EditProposal>,
+    edit_sequence: u64,
     topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
+}
+
+/// A Builder edit result that `topology.edit.confirm` commits as it is.
+struct EditProposal {
+    id: String,
+    base_revision: u64,
+    candidate: crate::topology_manager::model::RegistryDocument,
+    expires: tokio::time::Instant,
+}
+
+/// A proposal stays for this time after `topology.edit.propose`.
+const PROPOSAL_LIFETIME: Duration = Duration::from_secs(120);
+
+fn stale_proposal() -> anyhow::Error {
+    anyhow::Error::new(crate::topology_manager::store::RevisionConflict)
+        .context("the proposal is stale, propose again")
+}
+
+fn rule(message: String) -> anyhow::Error {
+    anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(message))
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -204,6 +229,9 @@ where
             last_topology_generation: 0,
             last_cycle_started: None,
             last_preview: None,
+            wan_discovery: None,
+            edit_proposal: None,
+            edit_sequence: 0,
         }
     }
 
@@ -575,8 +603,6 @@ where
         }
     }
 
-    /// API `topology.preview.refresh`: read routers, prepare a candidate without the writer-only
-    /// checks, and cache the view. A conflict preview is cached too. Other errors keep the cache.
     /// Read the interfaces of every configured router as WAN candidates. No registry change.
     pub async fn api_wan_discover(&mut self) -> anyhow::Result<serde_json::Value> {
         let catalog = self.api_document()?.and_then(|d| d.catalog);
@@ -589,13 +615,191 @@ where
             Duration::from_secs(30),
         )
         .await;
-        Ok(crate::topology_manager::wan::answer(
-            &reads,
-            catalog.as_ref(),
-            collected_at,
-        ))
+        let answer = crate::topology_manager::wan::answer(&reads, catalog.as_ref(), collected_at);
+        self.wan_discovery = Some(answer.clone());
+        Ok(answer)
     }
 
+    /// API `topology.tree`: every catalog node, without a router read.
+    pub fn api_tree(&mut self) -> anyhow::Result<serde_json::Value> {
+        let doc = self.api_document()?.unwrap_or_default();
+        Ok(crate::topology_manager::edits::tree(&doc))
+    }
+
+    /// API `topology.edit.propose`: apply one Builder edit to a copy, rebalance each affected
+    /// source pool on a fresh read, and keep the result for `topology.edit.confirm`.
+    pub async fn api_edit_propose(
+        &mut self,
+        expected_revision: u64,
+        edit: crate::topology_manager::edits::Edit,
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::observation::Reconciliation;
+        use crate::topology_manager::resolver::rebalance::{
+            RebalanceRequest, RebalanceScope, rebalance,
+        };
+        self.edit_proposal = None;
+        let doc = self
+            .api_document()?
+            .ok_or_else(|| rule("enroll first: the registry has no export ownership".into()))?;
+        if doc.revision != expected_revision {
+            return Err(anyhow::Error::new(
+                crate::topology_manager::store::RevisionConflict,
+            ));
+        }
+        let applied = crate::topology_manager::edits::apply(
+            &doc,
+            &edit,
+            self.wan_discovery.as_ref(),
+            &self.cfg,
+        )?;
+        let mut candidate = applied.candidate;
+        let mut online = std::collections::HashSet::new();
+        if !applied.affected.is_empty() {
+            let mut current = self
+                .topology_sources
+                .reconcile_for(
+                    &self.cfg,
+                    &candidate,
+                    self.last_topology_generation,
+                    Duration::from_secs(30),
+                )
+                .await?;
+            online.extend(current.active.iter().map(|a| a.subscriber_id.clone()));
+            for source in &applied.affected {
+                let generation = current.generation;
+                let request = RebalanceRequest {
+                    expected_revision: current.registry.revision,
+                    scope: RebalanceScope::SourcePool(source.clone()),
+                };
+                let result = rebalance(current, request).map_err(|e| {
+                    if format!("{e:#}").contains("rebalance requires resolved placements") {
+                        rule("resolve the placement conflicts first".into())
+                    } else {
+                        rule(format!("{e:#}"))
+                    }
+                })?;
+                let evaluation = result.evaluation;
+                if !evaluation.conflicts.is_empty() {
+                    return Err(rule(format!("{:?}", evaluation.conflicts)));
+                }
+                current = Reconciliation {
+                    generation,
+                    registry: evaluation
+                        .candidate
+                        .context("the rebalance gave no candidate")?,
+                    active: evaluation.active,
+                };
+            }
+            candidate = current.registry;
+        }
+        let before: std::collections::HashMap<_, _> = doc
+            .subscribers
+            .iter()
+            .map(|s| (s.id.as_str(), s.policy.assignment.as_deref()))
+            .collect();
+        let labels: std::collections::HashMap<String, String> = self
+            .last_preview
+            .as_ref()
+            .and_then(|p| p["subscribers"].as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|s| Some((s["id"].as_str()?.into(), s["label"].as_str()?.into())))
+            .collect();
+        let mut moves = Vec::new();
+        let mut assigned = 0;
+        for s in candidate
+            .subscribers
+            .iter()
+            .filter(|s| online.contains(&s.id))
+        {
+            let after = s.policy.assignment.as_deref();
+            match before.get(s.id.as_str()).copied().flatten() {
+                Some(from) if Some(from) != after => moves.push(serde_json::json!({
+                    "subscriber_id": s.id, "label": labels.get(&s.id),
+                    "from": from, "to": after,
+                })),
+                None if after.is_some() => assigned += 1,
+                _ => {}
+            }
+        }
+        let cleared: Vec<&String> = applied
+            .cleared
+            .iter()
+            .filter(|id| !online.contains(*id))
+            .collect();
+        let new_records = candidate
+            .subscribers
+            .len()
+            .saturating_sub(doc.subscribers.len());
+        self.edit_sequence += 1;
+        let id = format!("edit-{}-{}", doc.revision, self.edit_sequence);
+        let answer = serde_json::json!({
+            "proposal_id": id,
+            "expires_at": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs())
+                + PROPOSAL_LIFETIME.as_secs(),
+            "edit": edit,
+            "nodes": crate::topology_manager::edits::tree(&candidate)["nodes"],
+            "moves": moves,
+            "cleared": cleared,
+            "assigned": assigned,
+            "new_records": new_records,
+            "sources": applied.affected,
+        });
+        self.edit_proposal = Some(EditProposal {
+            id,
+            base_revision: doc.revision,
+            candidate,
+            expires: tokio::time::Instant::now() + PROPOSAL_LIFETIME,
+        });
+        Ok(answer)
+    }
+
+    /// API `topology.edit.confirm`: commit the kept proposal when it is still current.
+    pub fn api_edit_confirm(&mut self, proposal_id: &str) -> anyhow::Result<serde_json::Value> {
+        // A wrong ID keeps the current proposal; an expired one is dropped.
+        if self
+            .edit_proposal
+            .as_ref()
+            .is_none_or(|p| p.id != proposal_id)
+        {
+            return Err(stale_proposal());
+        }
+        let proposal = self.edit_proposal.take().ok_or_else(stale_proposal)?;
+        if tokio::time::Instant::now() >= proposal.expires {
+            return Err(stale_proposal());
+        }
+        let (revision, ()) =
+            self.api_edit(proposal.base_revision, |_, _| Ok((proposal.candidate, ())))?;
+        self.last_preview = None;
+        Ok(serde_json::json!({"revision": revision}))
+    }
+
+    /// API `topology.edit.cancel`: drop the kept proposal.
+    pub fn api_edit_cancel(&mut self, proposal_id: &str) -> anyhow::Result<serde_json::Value> {
+        if self
+            .edit_proposal
+            .as_ref()
+            .is_some_and(|p| p.id == proposal_id)
+        {
+            self.edit_proposal = None;
+        }
+        Ok(serde_json::json!({}))
+    }
+
+    /// Test only: commit a registry document as the next revision.
+    #[cfg(test)]
+    pub(crate) fn test_commit(
+        &mut self,
+        doc: crate::topology_manager::model::RegistryDocument,
+    ) -> anyhow::Result<u64> {
+        let revision = doc.revision;
+        Ok(self.api_edit(revision, |_, _| Ok((doc, ())))?.0)
+    }
+
+    /// API `topology.preview.refresh`: read routers, prepare a candidate without the writer-only
+    /// checks, and cache the view. A conflict preview is cached too. Other errors keep the cache.
     pub async fn api_preview_refresh(&mut self) -> anyhow::Result<serde_json::Value> {
         use crate::topology_manager::conflicts::PreparationConflicts;
         let doc = self

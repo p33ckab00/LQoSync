@@ -21,6 +21,19 @@ struct CommitArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct EditProposeArgs {
+    expected_revision: u64,
+    edit: crate::topology_manager::edits::Edit,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProposalArgs {
+    proposal_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct PlanCreateArgs {
     expected_revision: u64,
     name: String,
@@ -102,6 +115,22 @@ where
         "topology.preview.get" => runner.api_preview_get().map_err(fail),
         "topology.policies" => runner.api_policies().map_err(fail),
         "wan.discover" => runner.api_wan_discover().await.map_err(fail),
+        "topology.tree" => runner.api_tree().map_err(fail),
+        "topology.edit.propose" => {
+            let a: EditProposeArgs = parse(request)?;
+            runner
+                .api_edit_propose(a.expected_revision, a.edit)
+                .await
+                .map_err(fail)
+        }
+        "topology.edit.confirm" => {
+            let a: ProposalArgs = parse(request)?;
+            runner.api_edit_confirm(&a.proposal_id).map_err(fail)
+        }
+        "topology.edit.cancel" => {
+            let a: ProposalArgs = parse(request)?;
+            runner.api_edit_cancel(&a.proposal_id).map_err(fail)
+        }
         "plan.create" => {
             let a: PlanCreateArgs = parse(request)?;
             runner
