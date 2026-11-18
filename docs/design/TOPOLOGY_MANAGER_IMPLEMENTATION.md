@@ -1407,3 +1407,15 @@ New API operations: `topology.preview.refresh` (router read, 30 s age limit, no 
 API handlers are async. A preview refresh can start the next cycle late by its read time.
 Views: Builder (Inventory, Tree, Details; one focused panel below 120 columns), Assignments, Policies, and Changes. A strip shows the preview age, the registry revision, the enrollment state, the legacy writer, and errors.
 The views are read-only. Phase 2b-2 adds per-subscriber plan, pin, and rebalance edits.
+
+## Subscriber plans
+
+Phase 2b-2 adds LQoSync speed plans. See [the design](../superpowers/specs/2026-11-18-topology-subscriber-plans-design.md).
+A plan is a profile with the ID `plan-<n>` and a `Local` base rate. Profiles that enrollment made are not plans.
+New API operations: `plan.create`, `plan.update`, `plan.delete`, and `subscriber.plan`. Each operation needs export ownership and an expected revision.
+`subscriber.plan` sets `profile_id` on the record of one identity. `null` detaches the plan, and the source default applies again.
+An account without a record must be in the cached preview of the current revision. The new record gets its ID from `next_id`. A stale preview gives `conflict`.
+A DHCP client override binding blocks `subscriber.plan`. A plan in use cannot be deleted.
+`topology.policies` lists the plans with their use count. Preview identities carry `router_id`, `source_id`, `kind`, and `account_ref`.
+TUI: `Enter` in Assignments opens the plan picker. `n`, `e`, and `d` in Policies create, edit, and delete a plan. The strip shows "edits apply after activation".
+Pin and scoped rebalance move after Phase 2b-3 (Builder edits).
