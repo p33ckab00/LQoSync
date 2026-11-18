@@ -48,3 +48,5 @@ pub mod legacy_static;
 pub mod staging;
 
 pub(crate) mod enrollment;
+
+pub mod policy_draft;

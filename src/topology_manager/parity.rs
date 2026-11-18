@@ -138,3 +138,43 @@ fn numeric_network(mut value: Value) -> Value {
 #[cfg(test)]
 #[path = "parity_tests.rs"]
 mod tests;
+
+/// Replace each legacy node capacity that equals a calculated manager ceiling with its whole-Mbps export.
+/// Any other legacy value stays unchanged, so a real policy difference still fails parity.
+/// `id_of` maps an adjustment node ID to the node ID used in `network`.
+pub fn quantized_network<'a>(
+    network: &Value,
+    adjustments: &'a [super::publication::NodeExportAdjustment],
+    id_of: impl Fn(&'a str) -> &'a str,
+) -> anyhow::Result<Value> {
+    let by_id: std::collections::HashMap<_, _> =
+        adjustments.iter().map(|a| (id_of(&a.node_id), a)).collect();
+    let mut out = network.clone();
+    let mut work = vec![&mut out];
+    while let Some(tree) = work.pop() {
+        let Some(map) = tree.as_object_mut() else {
+            continue;
+        };
+        for node in map.values_mut() {
+            if let Some(adjustment) = node
+                .get("id")
+                .and_then(Value::as_str)
+                .and_then(|id| by_id.get(id))
+            {
+                let legacy = super::rates::RateBps::try_from(crate::speed::Rate {
+                    down: node["downloadBandwidthMbps"].as_f64().unwrap_or(f64::NAN),
+                    up: node["uploadBandwidthMbps"].as_f64().unwrap_or(f64::NAN),
+                });
+                if legacy.is_ok_and(|l| l == adjustment.calculated_ceiling) {
+                    let rate = crate::speed::Rate::try_from(adjustment.exported_ceiling)?;
+                    node["downloadBandwidthMbps"] = rate.down.into();
+                    node["uploadBandwidthMbps"] = rate.up.into();
+                }
+            }
+            if let Some(children) = node.get_mut("children") {
+                work.push(children);
+            }
+        }
+    }
+    Ok(out)
+}

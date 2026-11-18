@@ -258,14 +258,14 @@ pub(super) fn source_filter_digest(
     })
 }
 
-struct Expected<'a> {
-    priority: LegacyPriority,
-    factors: (f64, f64),
-    cap: &'a crate::config::BackstopCap,
-    node: &'a crate::config::NodeTemplate,
-    count: bool,
+pub(super) struct Expected<'a> {
+    pub(super) priority: LegacyPriority,
+    pub(super) factors: (f64, f64),
+    pub(super) cap: &'a crate::config::BackstopCap,
+    pub(super) node: &'a crate::config::NodeTemplate,
+    pub(super) count: bool,
 }
-fn expected<'a>(
+pub(super) fn expected<'a>(
     cfg: &'a Config,
     router: &RouterCfg,
     selection: &SourceSelection,
@@ -470,7 +470,13 @@ pub fn legacy_issues(
                 );
             }
             let formula_ok = match group.formula {
-                GroupFormula::PlanSum => !expected.count,
+                // A per-site DHCP member always uses the server rate (config forbids lease comments for
+                // per-site servers). Without client overrides, the plan sum equals count times that rate.
+                GroupFormula::PlanSum => {
+                    !expected.count
+                        || selection.scope.kind == SourceKind::Dhcp
+                            && router.dhcp.clients.is_empty()
+                }
                 GroupFormula::CountTimesUnit(unit) => {
                     expected.count
                         && constant(&expected.priority)
