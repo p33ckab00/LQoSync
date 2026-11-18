@@ -73,7 +73,13 @@ fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
                 text(&r["error"])
             ));
         }
-        for c in r["candidates"].as_array().into_iter().flatten() {
+        // Only likely WANs and used interfaces get a line, so every router fits the panel.
+        let (likely, other): (Vec<&Value>, Vec<&Value>) = r["candidates"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .partition(|c| c["suggested"] == true || !c["source_id"].is_null());
+        for c in likely {
             let mut line = format!(
                 "  {}  {}  {}",
                 text(&c["name"]),
@@ -91,6 +97,9 @@ fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
                 line.push_str(&format!("  used by {used}"));
             }
             out.push(line);
+        }
+        if !other.is_empty() {
+            out.push(format!("  {} other interfaces", other.len()));
         }
         for m in r["missing"].as_array().into_iter().flatten() {
             out.push(format!("  {}  missing", text(&m["endpoint_ref"])));
@@ -380,7 +389,7 @@ pub(super) mod tests {
         for want in [
             "Core  ok",
             "pppoe-out1  pppoe-out  up  WAN?  used by 2",
-            "ether5  ether  down  disabled",
+            "1 other interfaces",
             "pppoe-out2  missing",
             "Distro  failed: login refused",
             "pppoe-out9  router r-old not configured",
@@ -394,5 +403,27 @@ pub(super) mod tests {
         let text = render(&discovered(), 80, 30);
         assert!(text.contains("pppoe-out1  pppoe-out  up  WAN?"), "{text}");
         assert!(text.contains("Distro  failed: login refused"), "{text}");
+    }
+
+    #[test]
+    fn the_core_wans_stay_visible_after_a_router_with_many_interfaces() {
+        let mut v = sample();
+        v.focus = Panel::Inventory;
+        let ports: Vec<_> = (0..40)
+            .map(|i| json!({"name": format!("vlan{i}"), "type": "vlan", "running": true, "disabled": false,
+                "comment": null, "suggested": false, "source_id": null, "used_by": []}))
+            .collect();
+        v.on_answer(ApiAnswer {
+            op: "wan.discover".into(),
+            result: Ok(json!({"collected_at": 0, "unconfigured": [], "routers": [
+                {"router_id": "d", "name": "Distro", "state": "ok", "error": null, "candidates": ports, "missing": []},
+                {"router_id": "c", "name": "Core", "state": "ok", "error": null, "missing": [], "candidates": [
+                    {"name": "pppoe-out1", "type": "pppoe-out", "running": true, "disabled": false,
+                     "comment": null, "suggested": true, "source_id": null, "used_by": []}]}
+            ]})),
+        });
+        let text = render(&v, 80, 24);
+        assert!(text.contains("40 other interfaces"), "{text}");
+        assert!(text.contains("pppoe-out1  pppoe-out  up  WAN?"), "{text}");
     }
 }

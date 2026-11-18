@@ -59,9 +59,11 @@ pub fn snapshot_routers(text: &str) -> anyhow::Result<(u64, HashMap<String, Rout
 }
 
 /// The routers of `cfg` in its order. A router with no snapshot keeps its subscribers (failed).
+/// A router without a subscriber protocol is left out, as the cycle leaves it out.
 fn routers_for(cfg: &Config, snap: &HashMap<String, RouterResult>) -> Vec<(String, RouterResult)> {
     cfg.routers
         .iter()
+        .filter(|r| r.reads_subscribers())
         .map(|r| {
             (
                 r.name.clone(),
@@ -183,7 +185,7 @@ fn run(
         }
     };
     if snapshot.is_some() {
-        for r in &new.routers {
+        for r in new.routers.iter().filter(|r| r.reads_subscribers()) {
             if !snap.contains_key(&r.name) {
                 warnings.push(format!(
                     "effect of router {} is not known (no snapshot)",
@@ -401,6 +403,16 @@ mod tests {
             "{:?}",
             r.warnings
         );
+    }
+
+    #[test]
+    fn a_wan_only_router_gives_no_warning_and_no_change() {
+        let e = env();
+        let core = "[[routers]]\nname = \"Core\"\naddress = \"192.0.2.9\"\nusername = \"u\"\npassword_file = \"/x\"\n";
+        let c = cfg(&e, "", &format!("{ROUTER}{core}"));
+        let r = ran(preview(&c, &c, Some(&snap(1_000, ALICE)), 1_000, 300));
+        assert_eq!(r.counts, [0; 6], "{}", r.text);
+        assert!(r.warnings.is_empty(), "{:?}", r.warnings);
     }
 
     #[test]
