@@ -103,16 +103,16 @@ pub fn draw(f: &mut Frame, area: Rect, app: &App) -> Shell {
     line(f, 2, "TERMINAL CONSOLE", base.fg(dim));
     for (row, text) in [
         (6, "OPERATIONS"),
-        (12, "MANAGEMENT"),
-        (16, "ROADMAP"),
-        (17, "Profiles   planned"),
-        (18, "WAN plans  planned"),
+        (13, "MANAGEMENT"),
+        (17, "ROADMAP"),
+        (18, "Profiles   planned"),
+        (19, "WAN plans  planned"),
     ] {
         line(f, row, text, base.fg(dim));
     }
     for (i, (route, row)) in Tab::ALL
         .into_iter()
-        .zip([4, 7, 8, 9, 10, 13, 14])
+        .zip([4, 7, 8, 9, 10, 11, 14, 15])
         .enumerate()
     {
         let rect = Rect::new(sidebar.x + 1, sidebar.y + row, width - 2, 1);

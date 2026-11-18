@@ -17,6 +17,7 @@ mod routers;
 pub mod settings;
 mod shell;
 pub mod theme;
+pub mod topology;
 mod traffic_chart;
 pub mod workers;
 
@@ -134,6 +135,9 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
 
     let (tx, rx) = mpsc::channel();
     let mut loader = Some(data::spawn_loader(&cfg, config.to_path_buf(), tx)?);
+    app.topology = topology::TopologyView::with_link(api::ApiLink::spawn(
+        std::path::PathBuf::from(&cfg.runtime.state_dir),
+    ));
 
     let tick = Duration::from_secs(1);
     let mut last_tick = Instant::now();
@@ -154,6 +158,9 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                     break;
                 }
             }
+        }
+        if app.topology.tick(app.tab == app::Tab::Topology, unix_now()) {
+            dirty = true;
         }
         // The journal starts at the first open of its tab, and then keeps its lines.
         if app.tab == app::Tab::Journal && journal_child.is_none() {

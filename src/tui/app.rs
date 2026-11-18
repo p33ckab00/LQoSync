@@ -28,14 +28,16 @@ pub enum Tab {
     Dashboard,
     Workers,
     Routers,
+    Topology,
     LibreQoS,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 7] = [
+    pub const ALL: [Tab; 8] = [
         Tab::Dashboard,
         Tab::Devices,
         Tab::Routers,
+        Tab::Topology,
         Tab::LibreQoS,
         Tab::Workers,
         Tab::Settings,
@@ -55,6 +57,7 @@ impl Tab {
             Tab::Dashboard => "Dashboard",
             Tab::Workers => "Workers",
             Tab::Routers => "Routers",
+            Tab::Topology => "Topology",
             Tab::LibreQoS => "LibreQoS",
         }
     }
@@ -97,6 +100,7 @@ pub fn split_main(area: Rect) -> (Rect, Rect) {
 }
 
 pub struct App {
+    pub topology: super::topology::TopologyView,
     pub palette: Palette,
     pub tab: Tab,
     pub read_only: bool,
@@ -134,6 +138,7 @@ impl App {
     pub fn new(read_only: bool, config_text: String, config_error: Option<String>) -> Self {
         let settings = SettingsView::new(std::path::PathBuf::new(), &config_text, read_only);
         App {
+            topology: super::topology::TopologyView::default(),
             palette: Palette::new(crate::config::Theme::Dark),
             tab: Tab::Dashboard,
             read_only,
@@ -265,7 +270,7 @@ impl App {
             return self.tab_key(k);
         }
         match k.code {
-            KeyCode::Char(c @ '1'..='7') => self.tab = Tab::ALL[c as usize - '1' as usize],
+            KeyCode::Char(c @ '1'..='8') => self.tab = Tab::ALL[c as usize - '1' as usize],
             KeyCode::Tab
                 if matches!(
                     self.tab,
@@ -399,6 +404,9 @@ impl App {
         }
         if self.tab == Tab::Dashboard {
             self.overview.key(k.code, &self.data);
+        }
+        if self.tab == Tab::Topology && self.topology.on_key(k.code) {
+            return Action::None;
         }
         if self.tab == Tab::Routers {
             let action = self.routers.on_key(k);
@@ -699,6 +707,7 @@ impl App {
             );
         }
         match self.tab {
+            Tab::Topology => self.topology.draw(f, main, &self.palette),
             Tab::Routers => self
                 .routers
                 .draw(f, main, &self.data, self.now, &self.palette),
@@ -788,19 +797,20 @@ impl App {
             return self.settings.hint();
         }
         match self.tab {
+            Tab::Topology => "[q] quit  [r] refresh  [b] builder  [a] assignments  [p] policies  [c] changes  [1-8] pages",
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [d] queues  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-7] tabs  [S] sync  [R] reload",
+            Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [d] queues  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-8] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Network => "[q] quit  [Esc] subscribers  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-7] tabs",
+            Tab::Network => "[q] quit  [Esc] subscribers  [Space] open/close  [e] expand all  [c] collapse all  [/] search  [1-8] tabs",
             Tab::Journal if self.journal.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Journal => "[q] quit  [Tab] focus  [l] level  [/] search  [x] clear  [f] follow  [e] details  [y/c] copy  [s] terminal select  [Shift+arrows] select  [Left/Right] columns",
             Tab::Settings => "[q] quit  [arrows] move  [Enter/Space] edit  [r] reset  [u] undo  [P] secret  [+] add  [-] remove  [v] preview  [A] apply",
             Tab::Routers if self.routers.editing => "[Enter] done  [Esc] clear  type to search",
-            Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-7] pages",
-            Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-7] pages",
-            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [v] focus source  [a] show all  [A/M/U] toggle  [j/k] health  [Up/Down] scroll  [S] sync  [R] reload  [1-7] pages",
+            Tab::Routers => "[q] quit  [/] search  [t] state  [x] clear  [Tab] focus  [d] details  [s] subscribers  [e] Settings  [c] copy  [Left/Right] columns  [1-8] pages",
+            Tab::LibreQoS => "[q] quit  [p] preview/back  [s] sync  [Tab] file  [i] issues  [Up/Down/PgUp/PgDn] select/scroll  [Left/Right] columns  [1-8] pages",
+            Tab::Dashboard => "[q] quit  [r] refresh  [w] window  [v] focus source  [a] show all  [A/M/U] toggle  [j/k] health  [Up/Down] scroll  [S] sync  [R] reload  [1-8] pages",
             Tab::Workers if self.workers.editing() => "[Enter] done  [Esc] clear  type to search",
-            Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select/scroll  [1-7] pages",
+            Tab::Workers => "[q] quit  [/] worker search  [t] sample  [x] clear  [Tab] focus  [e/Enter] details  [c] copy  [Up/Down/PgUp/PgDn] select/scroll  [1-8] pages",
         }.into()
     }
 
@@ -1258,10 +1268,11 @@ mod tests {
             ('1', "Dashboard"),
             ('2', "Subscribers"),
             ('3', "Routers"),
-            ('4', "LibreQoS"),
-            ('5', "Workers"),
-            ('6', "Settings"),
-            ('7', "Journal"),
+            ('4', "Topology"),
+            ('5', "LibreQoS"),
+            ('6', "Workers"),
+            ('7', "Settings"),
+            ('8', "Journal"),
         ] {
             a.on_key(key(KeyCode::Char(key_char)));
             assert_eq!(a.tab.title(), label);
@@ -1316,7 +1327,7 @@ mod tests {
     #[test]
     fn sidebar_clicks_and_theme_use_the_current_draw_and_preserve_editor_input() {
         let mut a = app(false);
-        for index in 0..7 {
+        for index in 0..8 {
             draw(&mut a, 200, 40);
             let r = a.tab_rects[index];
             a.on_mouse(MouseEvent {
@@ -1331,6 +1342,7 @@ mod tests {
                     "Dashboard",
                     "Subscribers",
                     "Routers",
+                    "Topology",
                     "LibreQoS",
                     "Workers",
                     "Settings",
@@ -1383,7 +1395,7 @@ mod tests {
     fn keys_1_to_7_select_the_tabs_and_q_quits() {
         let mut a = app(false);
         assert_eq!(a.tab, Tab::Dashboard);
-        for (c, t) in ['1', '2', '3', '4', '5', '6', '7']
+        for (c, t) in ['1', '2', '3', '4', '5', '6', '7', '8']
             .into_iter()
             .zip(Tab::ALL)
         {
@@ -1536,7 +1548,7 @@ mod tests {
     fn a_click_on_a_tab_title_selects_it() {
         let mut a = app(false);
         draw(&mut a, 120, 30);
-        let r = a.tab_rects[6];
+        let r = a.tab_rects[7];
         let click = MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
             column: r.x + 1,
@@ -1562,10 +1574,11 @@ mod tests {
             "1Dash",
             "2Subs",
             "3Routers",
-            "4LibreQoS",
-            "5Workers",
-            "6Settings",
-            "7Journal",
+            "4Topology",
+            "5LibreQoS",
+            "6Workers",
+            "7Settings",
+            "8Journal",
         ] {
             assert!(row.contains(want), "{want}: {row}");
         }
@@ -1738,7 +1751,7 @@ mod tests {
                 .map(|l| JournalMsg::Line(l.to_string()))
                 .collect(),
         );
-        a.on_key(key(KeyCode::Char('7')));
+        a.on_key(key(KeyCode::Char('8')));
         a
     }
 
@@ -1851,7 +1864,7 @@ mod tests {
     #[test]
     fn settings_tab_shows_the_editor() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         let screen = draw(&mut a, 140, 30);
         assert!(screen.contains("Draft: 0 changes"), "{screen}");
         assert!(
@@ -1863,7 +1876,7 @@ mod tests {
     #[test]
     fn settings_messages_show_in_the_footer() {
         let mut a = app(true);
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         let s = draw(&mut a, 140, 30);
@@ -1886,7 +1899,7 @@ mod tests {
         a.on_key(key(KeyCode::Char('S')));
         draw(&mut a, 200, 40);
         assert_eq!(a.on_mouse(click(a.dialog_buttons[0])), Action::SyncNow);
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         a.on_key(key(KeyCode::Char('q')));
@@ -1909,7 +1922,7 @@ mod tests {
         assert_eq!(a.modal, Some(Modal::ConfirmSync));
         assert_eq!(a.on_key(key(KeyCode::Esc)), Action::None);
         assert!(a.modal.is_none());
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         a.on_key(key(KeyCode::Char('q')));
@@ -1923,7 +1936,7 @@ mod tests {
     #[test]
     fn quit_with_changes_asks_first() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         assert!(a.settings.select("safety.enabled"));
         a.on_key(key(KeyCode::Char(' ')));
         assert!(a.settings.dirty());
@@ -1938,7 +1951,7 @@ mod tests {
     #[test]
     fn an_open_field_takes_q_and_digits() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         assert!(a.settings.select("runtime.id_length"));
         a.on_key(key(KeyCode::Enter));
         assert!(a.settings.capturing());
@@ -1952,7 +1965,7 @@ mod tests {
     #[test]
     fn settings_preview_and_apply_become_actions() {
         let mut a = app(false);
-        a.on_key(key(KeyCode::Char('6')));
+        a.on_key(key(KeyCode::Char('7')));
         a.settings.select("safety.enabled");
         a.on_key(key(KeyCode::Char(' ')));
         assert!(matches!(
