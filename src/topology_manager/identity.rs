@@ -17,6 +17,10 @@ pub enum ReferenceAuthority {
     Unconfigured,
     /// The operator assigns independent references and never reuses them for another subscriber.
     OperatorManagedComment,
+    /// The operator asserts that a PPP secret name is never reused for another subscriber.
+    PppSecretName,
+    /// The operator asserts that each client on the selected DHCP scope keeps one stable MAC.
+    DhcpClientMac,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -324,12 +328,8 @@ pub fn authorize<'a>(
                 ));
                 continue;
             }
-            let comment = match &account.authority {
-                AuthorityEvidence::LocalAccount { comment, .. }
-                | AuthorityEvidence::EndpointOnly { comment, .. } => comment,
-            };
-            let reference = match reference(comment.as_deref()) {
-                Ok(reference) => reference,
+            let account_ref = match account_ref(selection.authority, account) {
+                Ok(account_ref) => account_ref,
                 Err(issue) => {
                     conflicts.push(conflict(selection, &account.row_ref, issue));
                     continue;
@@ -337,7 +337,7 @@ pub fn authorize<'a>(
             };
             let identity = IdentityRef {
                 scope: selection.scope.clone(),
-                account_ref: format!("operator-comment/v1/{reference}"),
+                account_ref,
             };
             if let Some(previous) = claimed.insert(identity.clone(), account.row_ref.as_str()) {
                 conflicts.push(conflict(
@@ -448,6 +448,49 @@ fn conflict(selection: &SourceSelection, row_ref: &str, issue: IdentityIssue) ->
         row_ref: row_ref.into(),
         issue,
     }
+}
+
+fn account_ref(
+    authority: ReferenceAuthority,
+    account: &super::normalize::CurrentAccount,
+) -> Result<String, IdentityIssue> {
+    match authority {
+        ReferenceAuthority::Unconfigured => Err(IdentityIssue::UnconfiguredAuthority),
+        ReferenceAuthority::OperatorManagedComment => {
+            let comment = match &account.authority {
+                AuthorityEvidence::LocalAccount { comment, .. }
+                | AuthorityEvidence::EndpointOnly { comment, .. } => comment,
+            };
+            reference(comment.as_deref()).map(|r| format!("operator-comment/v1/{r}"))
+        }
+        ReferenceAuthority::PppSecretName => match &account.authority {
+            AuthorityEvidence::LocalAccount { name, .. } if !name.is_empty() => {
+                Ok(format!("ppp-name/v1/{}", encode_name(name)))
+            }
+            _ => Err(IdentityIssue::MissingReference),
+        },
+        ReferenceAuthority::DhcpClientMac => {
+            let macs: BTreeSet<_> = account.endpoints.iter().map(|e| e.mac.as_deref()).collect();
+            match macs.into_iter().collect::<Vec<_>>()[..] {
+                [Some(mac)] => Ok(format!("dhcp-mac/v1/{mac}")),
+                [] | [None] => Err(IdentityIssue::MissingReference),
+                _ => Err(IdentityIssue::InvalidReference),
+            }
+        }
+    }
+}
+
+/// Encode a source name for an identity reference. `%` is encoded, so distinct names stay distinct.
+pub(crate) fn encode_name(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    for b in name.bytes() {
+        if b.is_ascii_alphanumeric() || b"._-".contains(&b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
 }
 
 fn reference(comment: Option<&str>) -> Result<&str, IdentityIssue> {

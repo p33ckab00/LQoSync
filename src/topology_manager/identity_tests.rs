@@ -929,3 +929,216 @@ async fn hotspot_service_names_resolve_against_fresh_inventory_before_endpoint_s
         assert_eq!(result.reconciliation.active.len(), 1);
     }
 }
+
+fn rule(router: &str, kind: SourceKind, authority: ReferenceAuthority) -> SourceSelection {
+    SourceSelection {
+        authority,
+        ..selection(router, kind)
+    }
+}
+fn ppp_named(names: &[&str]) -> Rows {
+    let mut rows = ppp(None);
+    let secret = rows[&Table::PppSecrets][0].clone();
+    let active = rows[&Table::PppActive][0].clone();
+    rows.insert(Table::PppSecrets, vec![]);
+    rows.insert(Table::PppActive, vec![]);
+    for (i, name) in names.iter().enumerate() {
+        let mut s = secret.clone();
+        s.insert(".id".into(), format!("*s{i}"));
+        s.insert("name".into(), (*name).into());
+        let mut a = active.clone();
+        a.insert(".id".into(), format!("*a{i}"));
+        a.insert("name".into(), (*name).into());
+        a.insert("address".into(), format!("192.0.2.{}", 10 + i));
+        rows.get_mut(&Table::PppSecrets).unwrap().push(s);
+        rows.get_mut(&Table::PppActive).unwrap().push(a);
+    }
+    rows
+}
+fn dhcp_macs(macs: &[Option<&str>]) -> Rows {
+    let mut rows = dhcp(None);
+    let lease = rows[&Table::DhcpLeases][0].clone();
+    rows.insert(Table::DhcpLeases, vec![]);
+    for (i, mac) in macs.iter().enumerate() {
+        let mut l = lease.clone();
+        l.insert(".id".into(), format!("*l{i}"));
+        l.insert("active-address".into(), format!("192.0.2.{}", 20 + i));
+        match mac {
+            Some(m) => l.insert("active-mac-address".into(), (*m).into()),
+            None => l.remove("active-mac-address"),
+        };
+        rows.get_mut(&Table::DhcpLeases).unwrap().push(l);
+    }
+    rows
+}
+async fn refs(
+    router: &str,
+    rows: Rows,
+    roles: &[RouterRole],
+    selection: SourceSelection,
+) -> (Vec<String>, Vec<IdentityIssue>) {
+    let input = current(router, 1, rows, roles).await;
+    let registry = RegistryDocument::default();
+    let auth = authorize(&registry, 0, 1, vec![input], &[selection]).unwrap();
+    let issues = auth.conflicts().iter().map(|c| c.issue).collect();
+    if !auth.is_ready() {
+        return (vec![], issues);
+    }
+    let result = auth.reconcile(&mut ObservationGate::default()).unwrap();
+    let mut refs: Vec<String> = result
+        .reconciliation
+        .registry
+        .subscribers
+        .iter()
+        .flat_map(|s| s.identities.iter().map(|i| i.account_ref.clone()))
+        .collect();
+    refs.sort();
+    (refs, issues)
+}
+
+#[tokio::test(start_paused = true)]
+async fn ppp_secret_name_authorizes_by_name() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Ppp,
+        ReferenceAuthority::PppSecretName,
+    );
+    let (refs, issues) = refs(
+        "router-a",
+        ppp_named(&["juan dela cruz"]),
+        &[RouterRole::Ppp],
+        sel,
+    )
+    .await;
+    assert!(issues.is_empty(), "{issues:?}");
+    assert_eq!(refs, vec!["ppp-name/v1/juan%20dela%20cruz"]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn ppp_names_that_differ_only_by_encoding_do_not_collide() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Ppp,
+        ReferenceAuthority::PppSecretName,
+    );
+    let (refs, issues) = refs(
+        "router-a",
+        ppp_named(&["a b", "a%20b"]),
+        &[RouterRole::Ppp],
+        sel,
+    )
+    .await;
+    assert!(issues.is_empty(), "{issues:?}");
+    assert_eq!(refs, vec!["ppp-name/v1/a%20b", "ppp-name/v1/a%2520b"]);
+}
+
+#[test]
+fn encode_name_keeps_reference_characters_and_escapes_the_rest() {
+    assert_eq!(encode_name("Ab9._-"), "Ab9._-");
+    assert_eq!(encode_name("u@x"), "u%40x");
+    assert_eq!(encode_name("ñ"), "%C3%B1");
+}
+
+#[tokio::test(start_paused = true)]
+async fn same_name_on_two_routers_stays_distinct() {
+    let a = current("router-a", 1, ppp_named(&["alice"]), &[RouterRole::Ppp]).await;
+    let mut rows_b = ppp_named(&["alice"]);
+    rows_b.get_mut(&Table::PppActive).unwrap()[0].insert("address".into(), "192.0.2.200".into());
+    let b = current("router-b", 1, rows_b, &[RouterRole::Ppp]).await;
+    let sels = [
+        rule(
+            "router-a",
+            SourceKind::Ppp,
+            ReferenceAuthority::PppSecretName,
+        ),
+        rule(
+            "router-b",
+            SourceKind::Ppp,
+            ReferenceAuthority::PppSecretName,
+        ),
+    ];
+    let registry = RegistryDocument::default();
+    let auth = authorize(&registry, 0, 1, vec![a, b], &sels).unwrap();
+    assert!(auth.conflicts().is_empty());
+    let result = auth.reconcile(&mut ObservationGate::default()).unwrap();
+    assert_eq!(result.reconciliation.registry.subscribers.len(), 2);
+}
+
+#[tokio::test(start_paused = true)]
+async fn dhcp_client_mac_authorizes_by_lease_mac() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Dhcp,
+        ReferenceAuthority::DhcpClientMac,
+    );
+    let (refs, issues) = refs(
+        "router-a",
+        dhcp_macs(&[Some("aa-bb-cc-00-11-22")]),
+        &[RouterRole::Dhcp],
+        sel,
+    )
+    .await;
+    assert!(issues.is_empty(), "{issues:?}");
+    assert_eq!(refs, vec!["dhcp-mac/v1/AA:BB:CC:00:11:22"]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn duplicate_mac_on_one_dhcp_server_is_critical() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Dhcp,
+        ReferenceAuthority::DhcpClientMac,
+    );
+    let rows = dhcp_macs(&[Some("aa:bb:cc:00:11:22"), Some("aa:bb:cc:00:11:22")]);
+    let (_, issues) = refs("router-a", rows, &[RouterRole::Dhcp], sel).await;
+    assert_eq!(
+        issues
+            .iter()
+            .filter(|i| **i == IdentityIssue::DuplicateReference)
+            .count(),
+        2
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn comment_marker_is_ignored_by_name_and_mac_rules() {
+    let sel = rule(
+        "router-a",
+        SourceKind::Dhcp,
+        ReferenceAuthority::DhcpClientMac,
+    );
+    let (refs, _) = refs("router-a", dhcp(Some("other")), &[RouterRole::Dhcp], sel).await;
+    assert_eq!(refs, vec!["dhcp-mac/v1/AA:BB:CC:DD:EE:02"]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn duplicate_ppp_name_in_one_scope_fails_normalization() {
+    let mut rows = ppp_named(&["alice"]);
+    let mut twin = rows[&Table::PppSecrets][0].clone();
+    twin.insert(".id".into(), "*twin".into());
+    rows.get_mut(&Table::PppSecrets).unwrap().push(twin);
+    let catalog = TopologyCatalog {
+        routers: vec![CatalogRouter {
+            id: "router-a".into(),
+            name: "Router".into(),
+            roles: vec![RouterRole::Ppp],
+        }],
+        ..Default::default()
+    };
+    let plan = ReadPlan::for_router(&catalog, "router-a").unwrap();
+    let evidence = ReadGuard::new("router-a".into())
+        .unwrap()
+        .read(
+            &mut Some(Session(rows)),
+            &plan,
+            1,
+            Duration::from_secs(1),
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+    let Err(e) = normalize(&evidence) else {
+        panic!("duplicate secret names must fail normalization");
+    };
+    assert!(format!("{e:?}").contains("DuplicateName"), "{e:?}");
+}

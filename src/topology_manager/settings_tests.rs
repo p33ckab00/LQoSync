@@ -180,3 +180,24 @@ fn ten_thousand_profile_bindings_validate_and_canonicalize_independent_of_order(
     reversed.canonicalize();
     assert_eq!(original, reversed);
 }
+
+#[test]
+fn ppp_secret_name_requires_ppp_scope() {
+    let mut s = settings();
+    assert_eq!(
+        s.selections[0].scope.kind,
+        crate::topology_manager::model::SourceKind::Ppp
+    );
+    s.selections[0].authority = ReferenceAuthority::PppSecretName;
+    s.validate(&catalog()).unwrap();
+    s.selections[0].authority = ReferenceAuthority::DhcpClientMac;
+    assert!(s.validate(&catalog()).is_err());
+}
+
+#[test]
+fn dhcp_client_mac_requires_dhcp_scope() {
+    let mut s = settings();
+    s.selections[0].authority = ReferenceAuthority::DhcpClientMac;
+    let e = s.validate(&catalog()).unwrap_err();
+    assert!(format!("{e:#}").contains("DHCP"), "{e:#}");
+}

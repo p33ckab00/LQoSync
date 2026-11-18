@@ -27,6 +27,17 @@ impl SourceSettings {
                 "duplicate configured source scope"
             );
             selection.policy.validate(selection.scope.kind)?;
+            match selection.authority {
+                ReferenceAuthority::PppSecretName => ensure!(
+                    selection.scope.kind == SourceKind::Ppp,
+                    "the PPP secret name rule requires a PPP source scope"
+                ),
+                ReferenceAuthority::DhcpClientMac => ensure!(
+                    selection.scope.kind == SourceKind::Dhcp,
+                    "the DHCP client MAC rule requires a DHCP source scope"
+                ),
+                _ => {}
+            }
             by_scope.insert(
                 &selection.scope,
                 selection
