@@ -50,6 +50,8 @@ pub struct IdentityConflict {
     pub scope: SourceScope,
     pub row_ref: String,
     pub issue: IdentityIssue,
+    /// The identity reference when it is known, for example for a duplicate.
+    pub account: Option<String>,
 }
 
 pub struct Authorization<'a> {
@@ -85,7 +87,10 @@ impl Authorization<'_> {
                     .iter()
                     .map(|c| super::conflicts::ConflictView {
                         kind: "identity",
-                        subject: format!("{}/{}", c.scope.source_id, c.row_ref),
+                        subject: match &c.account {
+                            Some(a) => format!("{} ({}/{})", a, c.scope.source_id, c.row_ref),
+                            None => format!("{}/{}", c.scope.source_id, c.row_ref),
+                        },
                         detail: format!("{:?}", c.issue),
                     })
                     .collect()
@@ -349,16 +354,11 @@ pub fn authorize<'a>(
                 account_ref,
             };
             if let Some(previous) = claimed.insert(identity.clone(), account.row_ref.as_str()) {
-                conflicts.push(conflict(
-                    selection,
-                    previous,
-                    IdentityIssue::DuplicateReference,
-                ));
-                conflicts.push(conflict(
-                    selection,
-                    &account.row_ref,
-                    IdentityIssue::DuplicateReference,
-                ));
+                for row in [previous, account.row_ref.as_str()] {
+                    let mut c = conflict(selection, row, IdentityIssue::DuplicateReference);
+                    c.account = Some(identity.account_ref.clone());
+                    conflicts.push(c);
+                }
                 continue;
             }
             let policy =
@@ -456,6 +456,7 @@ fn conflict(selection: &SourceSelection, row_ref: &str, issue: IdentityIssue) ->
         scope: selection.scope.clone(),
         row_ref: row_ref.into(),
         issue,
+        account: None,
     }
 }
 

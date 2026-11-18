@@ -67,6 +67,8 @@ impl TopologyView {
         if !self.refreshing {
             self.refreshing = true;
             self.send("topology.preview.refresh");
+            // An enrollment or a service restart can change the state at any time.
+            self.send("status");
         }
     }
 
@@ -154,6 +156,10 @@ impl TopologyView {
     pub fn tick(&mut self, active: bool, now: u64) -> bool {
         self.now = now;
         let mut changed = false;
+        if !active {
+            // Opening the route again asks for a fresh status and preview age.
+            self.opened = false;
+        }
         if active && !self.opened {
             self.opened = true;
             self.send("status");
@@ -282,6 +288,12 @@ impl TopologyView {
         if self.enrollment() == Some(false) {
             first.push("policy installed, not enrolled".into());
         }
+        if let Some(p) = &self.preview
+            && p["state"] == "conflicts"
+        {
+            let n = p["conflicts"].as_array().map_or(0, Vec::len);
+            first.push(format!("{n} conflicts, see [c] Changes"));
+        }
         first.push("legacy loop writes shaping".into());
         let mut lines = vec![Line::from(first.join("  |  "))];
         let mut second = Vec::new();
@@ -409,7 +421,7 @@ mod tests {
             "topology.preview.get",
             json!({"collected_at": 500, "state": "ok"}),
         ));
-        assert_eq!(ops(&mut v), vec!["topology.preview.refresh"]);
+        assert_eq!(ops(&mut v), vec!["topology.preview.refresh", "status"]);
         v.on_answer(ok(
             "topology.preview.get",
             json!({"collected_at": 500, "state": "ok"}),
@@ -464,7 +476,7 @@ mod tests {
         let text = render(&v, 120, 30);
         assert!(text.contains("does not answer"), "{text}");
         assert!(v.on_key(ratatui::crossterm::event::KeyCode::Char('r')));
-        assert_eq!(ops(&mut v), vec!["topology.preview.refresh"]);
+        assert_eq!(ops(&mut v), vec!["topology.preview.refresh", "status"]);
     }
 
     #[test]
@@ -496,6 +508,32 @@ mod tests {
             assert!(v.on_key(ratatui::crossterm::event::KeyCode::Char(c)));
             assert_eq!(v.screen, s);
         }
+    }
+
+    #[test]
+    fn reopening_the_route_asks_again_and_refresh_also_asks_status() {
+        let mut v = TopologyView::default();
+        v.tick(true, 1_000);
+        v.take_outbox();
+        v.tick(false, 1_100);
+        v.tick(true, 1_200);
+        assert_eq!(ops(&mut v), vec!["status", "topology.preview.get"]);
+    }
+
+    #[test]
+    fn a_conflict_preview_shows_a_strip_hint() {
+        let mut v = TopologyView::default();
+        v.on_answer(ok(
+            "status",
+            json!({"registry_revision": 2, "enrolled": true}),
+        ));
+        v.on_answer(ok(
+            "topology.preview.refresh",
+            json!({"collected_at": 0, "state": "conflicts", "nodes": [], "subscribers": [], "inventory": [],
+                   "rounded": [], "conflicts": [{"kind": "identity", "subject": "a", "detail": "x"},
+                                                {"kind": "identity", "subject": "b", "detail": "x"}]}),
+        ));
+        assert!(render(&v, 120, 30).contains("2 conflicts, see [c] Changes"));
     }
 }
 

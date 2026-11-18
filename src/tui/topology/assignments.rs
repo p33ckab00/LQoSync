@@ -20,7 +20,57 @@ fn join(v: &Value) -> String {
         .unwrap_or_default()
 }
 
+fn cut(text: &str, width: usize) -> String {
+    let mut out: String = text.chars().take(width).collect();
+    while out.chars().count() < width {
+        out.push(' ');
+    }
+    out
+}
+
+/// Below the wide width, keep identity, node, plan, and pin, and show the selected endpoints below.
+fn draw_narrow(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
+    let height = area.height.saturating_sub(5) as usize;
+    let subs = v.subscribers();
+    let start = v.sub_selected.saturating_sub(height.saturating_sub(1));
+    let mut lines = vec![
+        Line::from(format!(
+            "  {} {} {} pin",
+            cut("identity", 30),
+            cut("node", 20),
+            cut("plan", 12)
+        ))
+        .style(p.role(Role::Secondary)),
+    ];
+    for (row, s) in subs.iter().enumerate().skip(start).take(height) {
+        let marker = if row == v.sub_selected { "> " } else { "  " };
+        lines.push(Line::from(format!(
+            "{marker}{} {} {} {}",
+            cut(s["account_ref"].as_str().unwrap_or_default(), 30),
+            cut(&v.node_label(s["node"].as_str().unwrap_or_default()), 20),
+            cut(s["profile"].as_str().unwrap_or("none"), 12),
+            if s["pin"].is_null() { "" } else { "pinned" },
+        )));
+    }
+    if let Some(s) = v.selected_subscriber() {
+        lines.push(Line::from(format!("IPs: {}", join(&s["ips"]))).style(p.role(Role::Secondary)));
+        lines.push(Line::from(format!("MAC: {}", join(&s["macs"]))).style(p.role(Role::Secondary)));
+    }
+    f.render_widget(
+        Paragraph::new(lines)
+            .style(p.role(Role::Base))
+            .block(crate::tui::design::panel(
+                format!("Assignments ({})", subs.len()),
+                p,
+            )),
+        area,
+    );
+}
+
 pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
+    if area.width < super::builder::WIDE {
+        return draw_narrow(v, f, area, p);
+    }
     let height = area.height.saturating_sub(3) as usize;
     let subs = v.subscribers();
     let start = v.sub_selected.saturating_sub(height.saturating_sub(1));
@@ -140,5 +190,22 @@ mod tests {
         assert!(text.contains("acct-0500"), "{text}");
         assert!(!text.contains("acct-0000"), "{text}");
         assert!(text.matches("ppp-name/v1/").count() <= 20);
+    }
+
+    #[test]
+    fn narrow_rows_keep_node_plan_and_pin_and_show_endpoints_of_the_selected_row() {
+        let mut v = view(vec![sub(0), sub(1)]);
+        v.on_key(KeyCode::Down);
+        let text = render(&v, 80, 20);
+        for want in [
+            "acct-0001",
+            "Gold-Hub-1",
+            "profile-g",
+            "pinned",
+            "IPs: 100.64.0.2",
+            "MAC: 02:00:00:00:00:11",
+        ] {
+            assert!(text.contains(want), "{want}: {text}");
+        }
     }
 }
