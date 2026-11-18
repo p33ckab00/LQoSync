@@ -79,6 +79,14 @@ impl TopologyView {
         self.preview.as_ref()
     }
 
+    fn policies(&self) -> Option<&Value> {
+        self.policies.as_ref()
+    }
+
+    fn revision(&self) -> Option<u64> {
+        self.status.as_ref()?["registry_revision"].as_u64()
+    }
+
     fn nodes(&self) -> &[Value] {
         self.preview
             .as_ref()
@@ -321,20 +329,11 @@ impl TopologyView {
             return;
         }
         match self.screen {
-            Screen::Builder => return builder::draw(self, f, body, p),
-            Screen::Assignments => return assignments::draw(self, f, body, p),
-            _ => {}
+            Screen::Builder => builder::draw(self, f, body, p),
+            Screen::Assignments => assignments::draw(self, f, body, p),
+            Screen::Policies => policies::draw(self, f, body, p),
+            Screen::Changes => changes::draw(self, f, body, p),
         }
-        let title = match self.screen {
-            Screen::Builder => "Builder",
-            Screen::Assignments => "Assignments",
-            Screen::Policies => "Policies",
-            Screen::Changes => "Changes",
-        };
-        f.render_widget(
-            Paragraph::new(title).block(crate::tui::design::panel(title, p)),
-            body,
-        );
     }
 }
 
@@ -503,3 +502,6 @@ mod tests {
 mod builder;
 
 mod assignments;
+
+mod changes;
+mod policies;
