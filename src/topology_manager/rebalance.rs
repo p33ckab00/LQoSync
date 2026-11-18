@@ -284,7 +284,6 @@ fn share_move(
 
 /// Each instance of a source with the capacity above it: the nearest node with an independent
 /// capacity on its path. An instance without such a node gets a weight of one in each direction.
-#[cfg_attr(not(test), expect(dead_code, reason = "Task 2 edits use it"))]
 pub(crate) fn instance_weights(
     catalog: &TopologyCatalog,
     source_id: &str,

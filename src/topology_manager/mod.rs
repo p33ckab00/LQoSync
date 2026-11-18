@@ -2,6 +2,7 @@
 
 pub mod aggregate;
 pub mod catalog;
+pub mod edits;
 pub mod identity;
 pub mod ids;
 pub mod layout;

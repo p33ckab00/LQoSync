@@ -123,7 +123,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
     }
 }
 
-fn subscriber(target: &str) -> SubscriberRecord {
+pub(crate) fn subscriber(target: &str) -> SubscriberRecord {
     SubscriberRecord {
         id: "subscriber-id".into(),
         identities: vec![IdentityRef {
