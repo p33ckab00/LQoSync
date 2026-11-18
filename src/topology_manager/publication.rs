@@ -28,6 +28,7 @@ pub struct PreparedPair {
     csv: String,
     network_text: String,
     node_adjustments: Vec<NodeExportAdjustment>,
+    view: super::preview::PreviewView,
 }
 pub struct PublishRequest<'a> {
     pub directory: &'a std::path::Path,
@@ -148,6 +149,10 @@ impl PreparedPair {
     /// Current identity of each candidate device ID.
     pub(crate) fn device_identities(&self) -> &HashMap<String, super::model::IdentityRef> {
         &self.device_identities
+    }
+    /// Read-only view models for a preview.
+    pub fn view(&self) -> &super::preview::PreviewView {
+        &self.view
     }
     pub fn node_export_adjustments(&self) -> &[NodeExportAdjustment] {
         &self.node_adjustments
@@ -443,7 +448,15 @@ pub fn prepare_with_static(
         "source evidence expired during pair preparation"
     );
     node_adjustments.sort_unstable_by(|a, b| a.node_id.cmp(&b.node_id));
+    let view = super::preview::build(
+        &evaluation.nodes,
+        &evaluation.placements,
+        &evaluation.active,
+        &candidate,
+        &keys,
+    )?;
     Ok(PreparedPair {
+        view,
         node_adjustments,
         compiler: None,
         source_filters: None,
