@@ -1,5 +1,6 @@
 //! `lqosync3 tui`: a terminal view of the service. The draw code reads only memory.
 
+pub mod api;
 pub mod app;
 pub mod dashboard;
 pub mod data;
