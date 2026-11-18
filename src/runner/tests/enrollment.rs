@@ -358,7 +358,7 @@ mod cli_flow {
     const AGE: Duration = Duration::from_secs(60);
 
     /// The v3_root_promotion scenario as live legacy files and current router rows.
-    fn setup(e: &Env, drop_legacy: Option<&str>) -> Config {
+    pub(super) fn setup(e: &Env, drop_legacy: Option<&str>) -> Config {
         let (mut config, snap) = scenario::scenario();
         let mut old = scenario::legacy(&config, &snap);
         if let Some(name) = drop_legacy {
@@ -414,7 +414,7 @@ mod cli_flow {
         out
     }
 
-    fn confirm(file: &mut MappingFile) {
+    pub(super) fn confirm(file: &mut MappingFile) {
         for row in &mut file.rows {
             if let RowDecision::Map { confirmed, .. } = &mut row.decision {
                 *confirmed = true;
@@ -508,5 +508,138 @@ mod cli_flow {
         let e2 = r.enroll_with_mapping(&file, AGE, true).await.unwrap_err();
         assert!(format!("{e2:#}").contains("unconfirmed"), "{e2:#}");
         assert_eq!(files(&e.state), before);
+    }
+}
+
+mod cli_commands {
+    use super::cli_flow::{confirm, setup};
+    use super::*;
+    use crate::cli::TopologyCommand as T;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[tokio::test]
+    async fn cli_commands_run_the_enrollment_flow() {
+        let e = env();
+        let c = setup(&e, None);
+        let dir = e.lqos.parent().unwrap().to_path_buf();
+        let (policy, mapping) = (dir.join("policy.json"), dir.join("mapping.json"));
+        let mut r = runner(&e, c);
+        let (_, code) = crate::topology_cli::run(
+            &mut r,
+            &T::PolicyPropose {
+                out: policy.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(code, 0);
+        assert_eq!(
+            std::fs::metadata(&policy).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert!(
+            crate::topology_cli::run(
+                &mut r,
+                &T::PolicyPropose {
+                    out: policy.clone()
+                }
+            )
+            .await
+            .is_err()
+        );
+        let (text, code) = crate::topology_cli::run(
+            &mut r,
+            &T::Check {
+                policy: policy.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(code, 0, "{text}");
+        let (text, code) = crate::topology_cli::run(
+            &mut r,
+            &T::PolicyInstall {
+                policy: policy.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(code == 0 && text.contains("revision 1"), "{text}");
+        let (_, code) = crate::topology_cli::run(
+            &mut r,
+            &T::Propose {
+                out: mapping.clone(),
+                previous: None,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(code, 0);
+        let mut file: crate::topology_manager::enroll_mapping::MappingFile =
+            serde_json::from_slice(&std::fs::read(&mapping).unwrap()).unwrap();
+        confirm(&mut file);
+        std::fs::write(&mapping, serde_json::to_vec_pretty(&file).unwrap()).unwrap();
+        let (text, code) = crate::topology_cli::run(
+            &mut r,
+            &T::Enroll {
+                mapping: mapping.clone(),
+                yes: false,
+            },
+        )
+        .await
+        .unwrap();
+        assert!(code == 2 && text.contains("--yes"), "{text}");
+        let (text, code) = crate::topology_cli::run(&mut r, &T::Enroll { mapping, yes: true })
+            .await
+            .unwrap();
+        assert!(
+            code == 0 && text.contains("installed registry revision 2"),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn check_exits_2_and_names_a_scope_that_enters_after_activation() {
+        let e = env();
+        let c = setup(&e, Some("DHCP-020000000301"));
+        let policy = e.lqos.parent().unwrap().join("policy.json");
+        let mut r = runner(&e, c);
+        crate::topology_cli::run(
+            &mut r,
+            &T::PolicyPropose {
+                out: policy.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        let (text, code) = crate::topology_cli::run(&mut r, &T::Check { policy })
+            .await
+            .unwrap();
+        assert!(code == 2 && text.contains("dhcp-IOT"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn a_locked_state_directory_names_the_service() {
+        let e = env();
+        let c = setup(&e, None);
+        let policy = e.lqos.parent().unwrap().join("policy.json");
+        let mut r = runner(&e, c.clone());
+        crate::topology_cli::run(
+            &mut r,
+            &T::PolicyPropose {
+                out: policy.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        let _held = crate::files::InstanceLock::acquire(&e.state).unwrap();
+        let mut other = runner(&e, c);
+        let err = crate::topology_cli::run(&mut other, &T::PolicyInstall { policy })
+            .await
+            .unwrap_err();
+        assert!(
+            format!("{err:#}").contains("stop lqosync3.service"),
+            "{err:#}"
+        );
     }
 }

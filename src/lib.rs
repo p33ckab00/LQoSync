@@ -31,6 +31,7 @@ pub mod status;
 pub mod subscriber_stats;
 pub mod system_health;
 pub mod topology;
+pub mod topology_cli;
 pub mod topology_manager;
 pub mod tui;
 pub mod validate;

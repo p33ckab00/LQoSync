@@ -8,10 +8,11 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] | enroll --mapping <file> [--yes]> [--config <path>]";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    Topology(TopologyCommand),
     Check,
     Once { force: bool },
     Run,
@@ -20,6 +21,76 @@ pub enum Command {
     Detect,
     Tui,
     Version,
+}
+
+/// Topology Manager enrollment commands. Each one reads or writes only the files it names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TopologyCommand {
+    PolicyPropose {
+        out: PathBuf,
+    },
+    Check {
+        policy: PathBuf,
+    },
+    PolicyInstall {
+        policy: PathBuf,
+    },
+    Propose {
+        out: PathBuf,
+        previous: Option<PathBuf>,
+    },
+    Enroll {
+        mapping: PathBuf,
+        yes: bool,
+    },
+}
+
+fn parse_topology(
+    words: &[String],
+    flags: &std::collections::BTreeMap<String, String>,
+    yes: bool,
+) -> anyhow::Result<TopologyCommand> {
+    let file = |name: &str| -> anyhow::Result<PathBuf> {
+        flags
+            .get(name)
+            .map(PathBuf::from)
+            .with_context(|| format!("{name} needs a path\n{USAGE}"))
+    };
+    let words: Vec<_> = words.iter().map(String::as_str).collect();
+    let allowed: &[&str] = match words.as_slice() {
+        ["policy", "propose"] | ["propose"] => &["--out", "--previous"],
+        ["check"] | ["policy", "install"] => &["--policy"],
+        ["enroll"] => &["--mapping"],
+        _ => bail!("unknown topology command\n{USAGE}"),
+    };
+    if let Some(extra) = flags.keys().find(|k| !allowed.contains(&k.as_str())) {
+        bail!("unknown argument \"{extra}\"\n{USAGE}");
+    }
+    if yes && words != ["enroll"] {
+        bail!("--yes is only for topology enroll\n{USAGE}");
+    }
+    Ok(match words.as_slice() {
+        ["policy", "propose"] if !flags.contains_key("--previous") => {
+            TopologyCommand::PolicyPropose {
+                out: file("--out")?,
+            }
+        }
+        ["propose"] => TopologyCommand::Propose {
+            out: file("--out")?,
+            previous: flags.get("--previous").map(PathBuf::from),
+        },
+        ["check"] => TopologyCommand::Check {
+            policy: file("--policy")?,
+        },
+        ["policy", "install"] => TopologyCommand::PolicyInstall {
+            policy: file("--policy")?,
+        },
+        ["enroll"] => TopologyCommand::Enroll {
+            mapping: file("--mapping")?,
+            yes,
+        },
+        _ => bail!("unknown argument \"--previous\"\n{USAGE}"),
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,21 +105,37 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let mut force = false;
     let mut config = PathBuf::from(DEFAULT_CONFIG);
     let mut it = args.iter().skip(1);
+    let (mut topology, mut words, mut flags, mut yes) =
+        (false, vec![], std::collections::BTreeMap::new(), false);
     while let Some(a) = it.next() {
         match a.as_str() {
+            "topology" if command.is_none() && !topology => topology = true,
+            "--config" => match it.next() {
+                Some(p) => config = PathBuf::from(p),
+                None => bail!("--config needs a path\n{USAGE}"),
+            },
+            "--yes" if topology => yes = true,
+            "--out" | "--previous" | "--policy" | "--mapping" if topology => match it.next() {
+                Some(p) if flags.insert(a.clone(), p.clone()).is_none() => {}
+                Some(_) => bail!("{a} is given twice\n{USAGE}"),
+                None => bail!("{a} needs a path\n{USAGE}"),
+            },
+            w if topology && !w.starts_with('-') => words.push(a.clone()),
             "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults" | "version"
                 if command.is_none() =>
             {
                 command = Some(a.clone())
             }
             "--version" if command.is_none() => command = Some("version".into()),
-            "--force" => force = true,
-            "--config" => match it.next() {
-                Some(p) => config = PathBuf::from(p),
-                None => bail!("--config needs a path\n{USAGE}"),
-            },
+            "--force" if !topology => force = true,
             other => bail!("unknown argument \"{other}\"\n{USAGE}"),
         }
+    }
+    if topology {
+        return Ok(Args {
+            command: Command::Topology(parse_topology(&words, &flags, yes)?),
+            config,
+        });
     }
     let command = match command.as_deref() {
         Some("check") => Command::Check,
@@ -272,6 +359,85 @@ mod tests {
 
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn topology_commands_parse() {
+        use TopologyCommand as T;
+        let cmd = |v: &[&str]| parse(&s(v)).unwrap().command;
+        assert_eq!(
+            cmd(&["l", "topology", "policy", "propose", "--out", "p.json"]),
+            Command::Topology(T::PolicyPropose {
+                out: "p.json".into()
+            })
+        );
+        assert_eq!(
+            cmd(&["l", "topology", "check", "--policy", "p.json"]),
+            Command::Topology(T::Check {
+                policy: "p.json".into()
+            })
+        );
+        assert_eq!(
+            cmd(&["l", "topology", "policy", "install", "--policy", "p.json"]),
+            Command::Topology(T::PolicyInstall {
+                policy: "p.json".into()
+            })
+        );
+        assert_eq!(
+            cmd(&[
+                "l",
+                "topology",
+                "propose",
+                "--out",
+                "m.json",
+                "--previous",
+                "old.json"
+            ]),
+            Command::Topology(T::Propose {
+                out: "m.json".into(),
+                previous: Some("old.json".into())
+            })
+        );
+        assert_eq!(
+            cmd(&["l", "topology", "enroll", "--mapping", "m.json", "--yes"]),
+            Command::Topology(T::Enroll {
+                mapping: "m.json".into(),
+                yes: true
+            })
+        );
+        let a = parse(&s(&[
+            "l",
+            "--config",
+            "c.toml",
+            "topology",
+            "enroll",
+            "--mapping",
+            "m.json",
+        ]))
+        .unwrap();
+        assert_eq!(a.config, PathBuf::from("c.toml"));
+        assert_eq!(
+            a.command,
+            Command::Topology(T::Enroll {
+                mapping: "m.json".into(),
+                yes: false
+            })
+        );
+    }
+
+    #[test]
+    fn topology_commands_need_their_files() {
+        for v in [
+            &["l", "topology"][..],
+            &["l", "topology", "check"],
+            &["l", "topology", "policy", "propose"],
+            &["l", "topology", "policy", "remove", "--policy", "p"],
+            &["l", "topology", "propose"],
+            &["l", "topology", "enroll", "--yes"],
+            &["l", "topology", "enroll", "--mapping", "m", "--force"],
+        ] {
+            assert!(parse(&s(v)).is_err(), "{v:?}");
+        }
     }
 
     #[test]

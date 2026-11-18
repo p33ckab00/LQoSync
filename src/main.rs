@@ -291,6 +291,23 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        Command::Topology(t) => {
+            let mut runner = Runner::new(
+                cfg,
+                Arc::new(MikrotikConnector {
+                    owner_uid: SECRET_OWNER_UID,
+                }),
+            );
+            match lqosync3::topology_cli::run(&mut runner, &t).await {
+                Ok((text, code)) => {
+                    print!("{text}");
+                    if code != 0 {
+                        std::process::exit(code);
+                    }
+                }
+                Err(e) => exit_with(e),
+            }
+        }
         Command::Detect => match lqosync3::detect::resolve(&cfg.libreqos) {
             Ok(d) => println!("target={} ({})", cli::target_name(d.target), d.reason),
             Err(e) => exit_with(e),
