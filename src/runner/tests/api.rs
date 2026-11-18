@@ -518,6 +518,34 @@ mod plans {
         assert_eq!(r.api_registry().unwrap().unwrap().revision, 1);
     }
 
+    #[tokio::test]
+    async fn policies_list_plans_with_their_use_count() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        assert_eq!(r.api_policies().unwrap()["plans"], json!([]));
+        r.api_plan_create(2, "100M", 100, 50).unwrap();
+        r.api_plan_create(3, "7M", 7, 7).unwrap();
+        let identity = registry_identity(&mut r);
+        r.api_subscriber_plan(4, identity, Some("plan-2".into()))
+            .unwrap();
+        let v = r.api_policies().unwrap();
+        assert_eq!(
+            v["plans"],
+            json!([
+                {"id": "plan-1", "name": "100M", "down_mbps": 100, "up_mbps": 50, "subscribers": 0},
+                {"id": "plan-2", "name": "7M", "down_mbps": 7, "up_mbps": 7, "subscribers": 1},
+            ])
+        );
+        // A plan is a profile too, so the profile list shows its resolved rates.
+        assert!(
+            v["profiles"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["id"] == json!("plan-1"))
+        );
+    }
+
     async fn call(r: &mut Runner<FakeConnector>, op: &str, args: Value) -> Value {
         let req = crate::api::protocol::Request {
             v: 1,

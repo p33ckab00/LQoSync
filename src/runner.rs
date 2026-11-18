@@ -656,7 +656,10 @@ where
     /// base rate, so its resolved rates are `null`.
     pub fn api_policies(&mut self) -> anyhow::Result<serde_json::Value> {
         use crate::topology_manager::catalog::BaseRateAuthority;
-        let Some(catalog) = self.api_document()?.and_then(|d| d.catalog) else {
+        let Some(doc) = self.api_document()? else {
+            return Ok(serde_json::Value::Null);
+        };
+        let Some(catalog) = doc.catalog.as_ref() else {
             return Ok(serde_json::Value::Null);
         };
         let mut profiles = Vec::new();
@@ -690,7 +693,26 @@ where
                 "max_mbps": max,
             }));
         }
-        Ok(serde_json::json!({"defaults": catalog.defaults, "profiles": profiles}))
+        let plans: Vec<_> = catalog
+            .profiles
+            .iter()
+            .filter(|p| crate::topology_manager::plans::is_plan(p))
+            .filter_map(|p| match p.base {
+                BaseRateAuthority::Local(rate) => Some(serde_json::json!({
+                    "id": p.id,
+                    "name": p.name,
+                    "down_mbps": rate.down / 1_000_000,
+                    "up_mbps": rate.up / 1_000_000,
+                    "subscribers": doc
+                        .subscribers
+                        .iter()
+                        .filter(|s| s.policy.profile_id.as_deref() == Some(p.id.as_str()))
+                        .count(),
+                })),
+                BaseRateAuthority::SourceRead => None,
+            })
+            .collect();
+        Ok(serde_json::json!({"defaults": catalog.defaults, "profiles": profiles, "plans": plans}))
     }
 
     /// Apply one registry edit under the lock and a revision check, then commit it.
