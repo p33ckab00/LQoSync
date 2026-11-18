@@ -56,8 +56,28 @@ pub struct TopologyView {
     plan_selected: usize,
     /// The last `wan.discover` answer.
     wan: Option<Value>,
+    /// The last `topology.tree` answer: every catalog node.
+    tree_data: Option<Value>,
+    inventory_selected: usize,
+    /// The kept edit proposal that waits for Enter or Esc.
+    proposal: Option<Value>,
     discovering: bool,
     pub screen: Screen,
+}
+
+/// A selectable Builder Inventory line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum InventoryItem {
+    Source(String),
+    Wan {
+        router_id: String,
+        endpoint_ref: String,
+    },
+}
+
+/// A WAN candidate that gets its own Inventory line.
+pub(crate) fn likely_wan(c: &Value) -> bool {
+    c["suggested"] == true || !c["source_id"].is_null()
 }
 
 /// The first identity of a preview subscriber, or its ID when it has no identity list.
@@ -82,7 +102,11 @@ impl TopologyView {
     }
 
     fn send(&mut self, op: &str) {
-        self.outbox.push((op.to_string(), json!({})));
+        self.send_args(op, json!({}));
+    }
+
+    fn send_args(&mut self, op: &str, args: Value) {
+        self.outbox.push((op.to_string(), args));
         self.pending += 1;
     }
 
@@ -100,11 +124,15 @@ impl TopologyView {
         self.refreshing = false;
         self.refresh();
         self.send("topology.policies");
+        self.send("topology.tree");
     }
 
     /// True while a dialog of this route has all keys.
     pub fn capturing(&self) -> bool {
-        self.picker.is_some() || self.form.is_some() || self.confirm_delete.is_some()
+        self.picker.is_some()
+            || self.form.is_some()
+            || self.confirm_delete.is_some()
+            || self.proposal.is_some()
     }
 
     fn plans(&self) -> &[Value] {
@@ -131,6 +159,22 @@ impl TopologyView {
     }
 
     fn dialog_key(&mut self, code: KeyCode) {
+        if let Some(p) = &self.proposal {
+            let args = json!({"proposal_id": p["proposal_id"]});
+            match code {
+                KeyCode::Enter => {
+                    self.proposal = None;
+                    self.notice = None;
+                    self.send_args("topology.edit.confirm", args);
+                }
+                KeyCode::Esc => {
+                    self.proposal = None;
+                    self.send_args("topology.edit.cancel", args);
+                }
+                _ => {}
+            }
+            return;
+        }
         if let Some((id, _)) = &self.confirm_delete {
             match code {
                 KeyCode::Char('y') => {
@@ -238,29 +282,80 @@ impl TopologyView {
             .to_string()
     }
 
-    fn selected_node(&self) -> Option<&Value> {
-        let &(_, i) = self.tree.get(self.node_selected)?;
-        self.nodes().get(i)
+    /// The Tree rows: catalog nodes when the tree answer is present, else preview nodes.
+    fn tree_nodes(&self) -> &[Value] {
+        match self.tree_data.as_ref().and_then(|t| t["nodes"].as_array()) {
+            Some(nodes) => nodes,
+            None => self.nodes(),
+        }
     }
 
-    fn set_preview(&mut self, v: Value) {
-        let selected = self
-            .selected_node()
-            .and_then(|n| n["id"].as_str())
-            .map(str::to_string);
-        // A temporary ID can move to another account after an edit. The identity does not.
-        let subscriber = self.selected_subscriber().map(subscriber_key);
-        let old_row = self.sub_selected;
-        self.preview = Some(v);
-        self.tree = builder::index(self.nodes());
+    /// The preview row of a node, when the preview has one.
+    pub(crate) fn preview_node(&self, id: &str) -> Option<&Value> {
+        self.nodes().iter().find(|n| n["id"].as_str() == Some(id))
+    }
+
+    fn selected_node(&self) -> Option<&Value> {
+        let &(_, i) = self.tree.get(self.node_selected)?;
+        self.tree_nodes().get(i)
+    }
+
+    /// Rebuild the Tree order and keep the selected node when it still exists.
+    fn rebuild_tree(&mut self, selected: Option<String>) {
+        self.tree = builder::index(self.tree_nodes());
         self.node_selected = selected
             .and_then(|id| {
                 self.tree
                     .iter()
-                    .position(|&(_, i)| self.nodes()[i]["id"].as_str() == Some(id.as_str()))
+                    .position(|&(_, i)| self.tree_nodes()[i]["id"].as_str() == Some(id.as_str()))
             })
             .unwrap_or(0)
             .min(self.tree.len().saturating_sub(1));
+    }
+
+    fn selected_node_id(&self) -> Option<String> {
+        self.selected_node()
+            .and_then(|n| n["id"].as_str())
+            .map(str::to_string)
+    }
+
+    pub(crate) fn inventory_items(&self) -> Vec<InventoryItem> {
+        let mut items: Vec<InventoryItem> = self
+            .preview()
+            .and_then(|p| p["inventory"].as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|s| s["id"].as_str().map(|id| InventoryItem::Source(id.into())))
+            .collect();
+        let routers = self.wan.as_ref().and_then(|w| w["routers"].as_array());
+        for r in routers.into_iter().flatten().filter(|r| r["state"] == "ok") {
+            for c in r["candidates"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|c| likely_wan(c))
+            {
+                items.push(InventoryItem::Wan {
+                    router_id: r["router_id"].as_str().unwrap_or_default().into(),
+                    endpoint_ref: c["name"].as_str().unwrap_or_default().into(),
+                });
+            }
+        }
+        items
+    }
+
+    #[cfg_attr(not(test), expect(dead_code, reason = "Task 5 actions use it"))]
+    pub(crate) fn inventory_item(&self) -> Option<InventoryItem> {
+        self.inventory_items().get(self.inventory_selected).cloned()
+    }
+
+    fn set_preview(&mut self, v: Value) {
+        let selected = self.selected_node_id();
+        // A temporary ID can move to another account after an edit. The identity does not.
+        let subscriber = self.selected_subscriber().map(subscriber_key);
+        let old_row = self.sub_selected;
+        self.preview = Some(v);
+        self.rebuild_tree(selected);
         // Keep the same subscriber, or the nearest row when it is gone.
         self.sub_selected = subscriber
             .and_then(|k| {
@@ -284,6 +379,7 @@ impl TopologyView {
             self.opened = true;
             self.send("status");
             self.send("topology.preview.get");
+            self.send("topology.tree");
             changed = true;
         }
         let Some(link) = self.link.take() else {
@@ -352,6 +448,29 @@ impl TopologyView {
                 self.notice = Some("changed by another operator, try again".into());
                 self.reload();
             }
+            ("topology.tree", Ok(v)) => {
+                let selected = self.selected_node_id();
+                self.tree_data = Some(v);
+                self.rebuild_tree(selected);
+            }
+            ("topology.edit.propose", Ok(v)) => {
+                self.error = None;
+                self.proposal = Some(v);
+            }
+            ("topology.edit.confirm", Ok(v)) => {
+                self.error = None;
+                if let (Some(status), Some(revision)) =
+                    (self.status.as_mut(), v["revision"].as_u64())
+                {
+                    status["registry_revision"] = json!(revision);
+                }
+                self.reload();
+            }
+            ("topology.edit.propose" | "topology.edit.confirm", Err(e)) if is_conflict(&e) => {
+                self.notice = Some("changed by another operator, try again".into());
+                self.reload();
+            }
+            ("topology.edit.cancel", _) => {}
             ("wan.discover", result) => {
                 self.discovering = false;
                 match result {
@@ -429,6 +548,13 @@ impl TopologyView {
             KeyCode::Down if self.screen == Screen::Assignments => {
                 self.sub_selected =
                     (self.sub_selected + 1).min(self.subscribers().len().saturating_sub(1));
+            }
+            KeyCode::Up if self.screen == Screen::Builder && self.focus == Panel::Inventory => {
+                self.inventory_selected = self.inventory_selected.saturating_sub(1);
+            }
+            KeyCode::Down if self.screen == Screen::Builder && self.focus == Panel::Inventory => {
+                self.inventory_selected = (self.inventory_selected + 1)
+                    .min(self.inventory_items().len().saturating_sub(1));
             }
             KeyCode::Up if self.screen == Screen::Builder => {
                 self.node_selected = self.node_selected.saturating_sub(1);
@@ -547,6 +673,9 @@ impl TopologyView {
         if let Some(form) = &self.form {
             form.draw(f, body, p);
         }
+        if let Some(proposal) = &self.proposal {
+            proposal::draw(proposal, f, body, p);
+        }
         if let Some((_, name)) = &self.confirm_delete {
             let lines = vec![Line::from(format!("Delete plan {name}? [y/n]"))];
             plan_form::popup(f, body, lines, "Delete plan", p);
@@ -590,7 +719,10 @@ mod tests {
     fn opening_asks_for_status_and_the_cached_preview() {
         let mut v = TopologyView::default();
         v.tick(true, 1_000);
-        assert_eq!(ops(&mut v), vec!["status", "topology.preview.get"]);
+        assert_eq!(
+            ops(&mut v),
+            vec!["status", "topology.preview.get", "topology.tree"]
+        );
         v.tick(true, 1_001);
         assert!(ops(&mut v).is_empty(), "open only once");
     }
@@ -722,7 +854,10 @@ mod tests {
         v.take_outbox();
         v.tick(false, 1_100);
         v.tick(true, 1_200);
-        assert_eq!(ops(&mut v), vec!["status", "topology.preview.get"]);
+        assert_eq!(
+            ops(&mut v),
+            vec!["status", "topology.preview.get", "topology.tree"]
+        );
     }
 
     #[test]
@@ -750,3 +885,4 @@ mod changes;
 mod picker;
 mod plan_form;
 mod policies;
+mod proposal;

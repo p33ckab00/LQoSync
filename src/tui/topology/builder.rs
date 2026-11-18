@@ -1,6 +1,6 @@
 //! The read-only Builder view: Discovery Inventory, Topology Tree, and Details.
 
-use super::{Panel, TopologyView};
+use super::{Panel, TopologyView, likely_wan};
 use crate::tui::theme::{Palette, Role};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -59,6 +59,10 @@ fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
         out.push("[w] discover WANs".into());
     }
     let wan = v.wan.as_ref();
+    let mut item = v
+        .preview()
+        .and_then(|p| p["inventory"].as_array())
+        .map_or(0, Vec::len);
     for r in wan
         .and_then(|w| w["routers"].as_array())
         .into_iter()
@@ -78,10 +82,13 @@ fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
             .as_array()
             .into_iter()
             .flatten()
-            .partition(|c| c["suggested"] == true || !c["source_id"].is_null());
+            .partition(|c| likely_wan(c));
         for c in likely {
+            let selectable = r["state"] == "ok";
+            let marker = if selectable { mark(v, item) } else { "  " };
+            item += usize::from(selectable);
             let mut line = format!(
-                "  {}  {}  {}",
+                "{marker}{}  {}  {}",
                 text(&c["name"]),
                 text(&c["type"]),
                 if c["running"] == true { "up" } else { "down" }
@@ -119,17 +126,37 @@ fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
     out.into_iter().map(Line::from).collect()
 }
 
+/// A short capacity text for a catalog node.
+fn capacity(c: &Value) -> String {
+    match c["mode"].as_str().unwrap_or_default() {
+        "fixed" => format!("fixed {}/{}", c["down_mbps"], c["up_mbps"]),
+        "wan_percent" => format!("wan {}%/{}%", c["down_percent"], c["up_percent"]),
+        mode => mode.to_string(),
+    }
+}
+
+/// The selection marker of Inventory item `item`.
+fn mark(v: &TopologyView, item: usize) -> &'static str {
+    if v.focus == Panel::Inventory && v.inventory_selected == item {
+        "> "
+    } else {
+        "  "
+    }
+}
+
 fn panel_lines(v: &TopologyView, panel: Panel, height: usize) -> Vec<Line<'static>> {
-    let nodes = v.nodes();
+    let nodes = v.tree_nodes();
     match panel {
         Panel::Inventory => v
             .preview()
             .and_then(|p| p["inventory"].as_array())
             .into_iter()
             .flatten()
-            .map(|s| {
+            .enumerate()
+            .map(|(i, s)| {
                 Line::from(format!(
-                    "{}  {}  {} members",
+                    "{}{}  {}  {} members",
+                    mark(v, i),
                     s["label"].as_str().unwrap_or_default(),
                     s["kind"].as_str().unwrap_or_default(),
                     s["members"]
@@ -147,32 +174,54 @@ fn panel_lines(v: &TopologyView, panel: Panel, height: usize) -> Vec<Line<'stati
                 .map(|(row, &(depth, i))| {
                     let n = &nodes[i];
                     let marker = if row == v.node_selected { "> " } else { "  " };
-                    Line::from(format!(
-                        "{marker}{}{}  {} Mbps  calc {}  {} subs",
-                        "  ".repeat(depth),
-                        n["label"].as_str().unwrap_or_default(),
-                        pair(&n["exported_mbps"]),
-                        pair(&n["calculated_mbps"]),
-                        n["subscribers"]
-                    ))
+                    let indent = "  ".repeat(depth);
+                    match v.preview_node(n["id"].as_str().unwrap_or_default()) {
+                        Some(pv) => Line::from(format!(
+                            "{marker}{indent}{}  {} Mbps  calc {}  {} subs",
+                            pv["label"].as_str().unwrap_or_default(),
+                            pair(&pv["exported_mbps"]),
+                            pair(&pv["calculated_mbps"]),
+                            pv["subscribers"]
+                        )),
+                        None => Line::from(format!(
+                            "{marker}{indent}{}  {}  {}  no preview",
+                            n["name"].as_str().unwrap_or_default(),
+                            n["kind"].as_str().unwrap_or_default(),
+                            capacity(&n["capacity"])
+                        )),
+                    }
                 })
                 .collect()
         }
         Panel::Details => match v.selected_node() {
             None => vec![Line::from("no node selected")],
-            Some(n) => [
-                format!("id: {}", n["id"].as_str().unwrap_or_default()),
-                format!("label: {}", n["label"].as_str().unwrap_or_default()),
-                format!("parent: {}", n["parent"].as_str().unwrap_or("none")),
-                format!("kind: {}", n["kind"].as_str().unwrap_or_default()),
-                format!("source: {}", n["source"].as_str().unwrap_or("none")),
-                format!("exported: {} Mbps", pair(&n["exported_mbps"])),
-                format!("calculated: {} Mbps", pair(&n["calculated_mbps"])),
-                format!("subscribers: {}", n["subscribers"]),
-            ]
-            .into_iter()
-            .map(Line::from)
-            .collect(),
+            Some(n) => {
+                let id = n["id"].as_str().unwrap_or_default();
+                let pv = v.preview_node(id);
+                let label = pv
+                    .and_then(|p| p["label"].as_str())
+                    .or(n["name"].as_str())
+                    .unwrap_or_default();
+                let mut out = vec![
+                    format!("id: {id}"),
+                    format!("label: {label}"),
+                    format!("parent: {}", n["parent"].as_str().unwrap_or("none")),
+                    format!("kind: {}", n["kind"].as_str().unwrap_or_default()),
+                ];
+                if !n["capacity"].is_null() {
+                    out.push(format!("capacity: {}", capacity(&n["capacity"])));
+                }
+                match pv {
+                    Some(p) => out.extend([
+                        format!("source: {}", p["source"].as_str().unwrap_or("none")),
+                        format!("exported: {} Mbps", pair(&p["exported_mbps"])),
+                        format!("calculated: {} Mbps", pair(&p["calculated_mbps"])),
+                        format!("subscribers: {}", p["subscribers"]),
+                    ]),
+                    None => out.push("no preview for this node".into()),
+                }
+                out.into_iter().map(Line::from).collect()
+            }
         },
     }
 }
@@ -425,5 +474,82 @@ pub(super) mod tests {
         let text = render(&v, 80, 24);
         assert!(text.contains("40 other interfaces"), "{text}");
         assert!(text.contains("pppoe-out1  pppoe-out  up  WAN?"), "{text}");
+    }
+
+    fn with_tree(mut v: TopologyView) -> TopologyView {
+        v.on_answer(ApiAnswer {
+            op: "topology.tree".into(),
+            result: Ok(json!({"revision": 2, "sources": [], "nodes": [
+                {"id": "wan1", "name": "WAN1", "parent": null, "kind": "wan", "source_id": "w1",
+                 "capacity": {"mode": "fixed", "down_mbps": 500, "up_mbps": 500, "factor_percent": null}, "alias": false},
+                {"id": "g", "name": "Gold", "parent": "wan1", "kind": "group", "source_id": "src-g",
+                 "capacity": {"mode": "automatic"}, "alias": true},
+                {"id": "g2", "name": "Gold WAN2", "parent": "wan1", "kind": "group", "source_id": "src-g",
+                 "capacity": {"mode": "automatic"}, "alias": false}
+            ]})),
+        });
+        v
+    }
+
+    #[test]
+    fn the_tree_shows_catalog_nodes_without_a_preview() {
+        let mut v = TopologyView::default();
+        v.on_answer(ApiAnswer {
+            op: "status".into(),
+            result: Ok(json!({"registry_revision": 2, "enrolled": true})),
+        });
+        let v = with_tree(v);
+        let text = render(&v, 160, 30);
+        assert!(text.contains("WAN1  wan  fixed 500/500"), "{text}");
+        assert!(
+            text.contains("Gold  group  automatic  no preview"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn an_empty_instance_stays_visible() {
+        let text = render(&with_tree(sample()), 160, 30);
+        // `g` joins its preview row; `g2` has none.
+        assert!(text.contains("Gold-Hub-1 [g]"), "{text}");
+        assert!(
+            text.contains("Gold WAN2  group  automatic  no preview"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn up_and_down_select_inventory_sources_and_wan_candidates() {
+        let mut v = discovered();
+        assert_eq!(
+            v.inventory_item(),
+            Some(InventoryItem::Source("src-g".into()))
+        );
+        v.on_key(ratatui::crossterm::event::KeyCode::Down);
+        assert_eq!(
+            v.inventory_item(),
+            Some(InventoryItem::Source("src-s".into()))
+        );
+        v.on_key(ratatui::crossterm::event::KeyCode::Down);
+        assert_eq!(
+            v.inventory_item(),
+            Some(InventoryItem::Wan {
+                router_id: "r-core".into(),
+                endpoint_ref: "pppoe-out1".into(),
+            })
+        );
+        v.on_key(ratatui::crossterm::event::KeyCode::Down);
+        assert_eq!(
+            v.inventory_item(),
+            Some(InventoryItem::Wan {
+                router_id: "r-core".into(),
+                endpoint_ref: "pppoe-out1".into(),
+            }),
+            "the last item stays selected"
+        );
+        assert!(
+            render(&v, 160, 30).contains("> "),
+            "a marker shows the selection"
+        );
     }
 }
