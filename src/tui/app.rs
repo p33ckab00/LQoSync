@@ -333,6 +333,7 @@ impl App {
             || (self.tab == Tab::Journal && self.journal.editing)
             || (self.tab == Tab::Routers && self.routers.editing)
             || (self.tab == Tab::Workers && self.workers.editing())
+            || (self.tab == Tab::Topology && self.topology.capturing())
     }
 
     fn router_action(&mut self, action: super::routers::RouterAction) -> Action {
@@ -797,7 +798,8 @@ impl App {
             return self.settings.hint();
         }
         match self.tab {
-            Tab::Topology => "[q] quit  [r] refresh  [b] builder  [a] assignments  [p] policies  [c] changes  [1-8] pages",
+            Tab::Topology if self.topology.capturing() => "[Up/Down] choose  [Enter] attach  [Esc] cancel",
+            Tab::Topology => "[q] quit  [r] refresh  [b] builder  [a] assignments  [Enter] plan  [p] policies  [c] changes  [1-8] pages",
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [d] queues  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-8] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",
@@ -984,6 +986,28 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn an_open_plan_picker_keeps_page_and_quit_keys_in_the_topology_route() {
+        use crate::tui::api::ApiAnswer;
+        let mut a = app(true);
+        a.tab = Tab::Topology;
+        a.topology.on_answer(ApiAnswer {
+            op: "topology.preview.refresh".into(),
+            result: Ok(
+                serde_json::json!({"collected_at": 0, "state": "ok", "nodes": [],
+                "subscribers": [{"id": "s", "account_ref": "x", "identities": []}]}),
+            ),
+        });
+        a.topology.on_key(KeyCode::Char('a'));
+        a.on_key(key(KeyCode::Enter));
+        assert!(a.topology.capturing());
+        assert!(matches!(a.on_key(key(KeyCode::Char('q'))), Action::None));
+        a.on_key(key(KeyCode::Char('1')));
+        assert_eq!(a.tab, Tab::Topology);
+        a.on_key(key(KeyCode::Esc));
+        assert!(!a.topology.capturing());
     }
 
     #[test]

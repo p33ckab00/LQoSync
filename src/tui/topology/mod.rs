@@ -47,7 +47,13 @@ pub struct TopologyView {
     preview: Option<Value>,
     policies: Option<Value>,
     error: Option<String>,
+    picker: Option<picker::Picker>,
     pub screen: Screen,
+}
+
+/// The service answers a stale revision with an error text that starts with this code.
+fn is_conflict(error: &str) -> bool {
+    error.starts_with("Conflict:")
 }
 
 impl TopologyView {
@@ -69,6 +75,52 @@ impl TopologyView {
             self.send("topology.preview.refresh");
             // An enrollment or a service restart can change the state at any time.
             self.send("status");
+        }
+    }
+
+    /// After an edit or a conflict: ask again for status, preview, and policies.
+    fn reload(&mut self) {
+        self.refreshing = false;
+        self.refresh();
+        self.send("topology.policies");
+    }
+
+    /// True while a dialog of this route has all keys.
+    pub fn capturing(&self) -> bool {
+        self.picker.is_some()
+    }
+
+    fn picker_key(&mut self, code: KeyCode) {
+        let Some(picker) = self.picker.as_mut() else {
+            return;
+        };
+        let count = picker::entries(self.policies.as_ref()).len();
+        match code {
+            KeyCode::Up => picker.selected = picker.selected.saturating_sub(1),
+            KeyCode::Down => picker.selected = (picker.selected + 1).min(count - 1),
+            KeyCode::Esc => self.picker = None,
+            KeyCode::Enter => {
+                let selected = picker.selected;
+                self.picker = None;
+                let plan_id = picker::entries(self.policies.as_ref())
+                    .swap_remove(selected)
+                    .0;
+                let identity = self
+                    .selected_subscriber()
+                    .map(|s| s["identities"][0].clone())
+                    .filter(|i| !i.is_null());
+                match (self.revision(), identity) {
+                    (Some(revision), Some(identity)) => {
+                        self.outbox.push((
+                            "subscriber.plan".into(),
+                            json!({"expected_revision": revision, "identity": identity, "plan_id": plan_id}),
+                        ));
+                        self.pending += 1;
+                    }
+                    _ => self.error = Some("the subscriber has no identity to edit".into()),
+                }
+            }
+            _ => {}
         }
     }
 
@@ -213,6 +265,14 @@ impl TopologyView {
                 }
             }
             ("topology.policies", Ok(v)) => self.policies = Some(v),
+            ("subscriber.plan", Ok(_)) => {
+                self.error = None;
+                self.reload();
+            }
+            ("subscriber.plan", Err(e)) if is_conflict(&e) => {
+                self.error = Some("changed by another operator, try again".into());
+                self.reload();
+            }
             (_, Err(e)) => self.error = Some(e),
             _ => {}
         }
@@ -220,7 +280,19 @@ impl TopologyView {
 
     /// Route keys. True when the key belongs to this route.
     pub fn on_key(&mut self, code: KeyCode) -> bool {
+        if self.capturing() {
+            self.picker_key(code);
+            return true;
+        }
         match code {
+            KeyCode::Enter
+                if self.screen == Screen::Assignments && self.selected_subscriber().is_some() =>
+            {
+                self.picker = Some(picker::Picker::default());
+                if self.policies.is_none() {
+                    self.send("topology.policies");
+                }
+            }
             KeyCode::Char('r') => self.refresh(),
             KeyCode::Char('b') => self.screen = Screen::Builder,
             KeyCode::Char('a') => self.screen = Screen::Assignments,
@@ -296,7 +368,7 @@ impl TopologyView {
         }
         first.push("legacy loop writes shaping".into());
         let mut lines = vec![Line::from(first.join("  |  "))];
-        let mut second = Vec::new();
+        let mut second = vec!["edits apply after activation".to_string()];
         if self.pending > 0 {
             second.push("waiting for the service".to_string());
         }
@@ -345,6 +417,9 @@ impl TopologyView {
             Screen::Assignments => assignments::draw(self, f, body, p),
             Screen::Policies => policies::draw(self, f, body, p),
             Screen::Changes => changes::draw(self, f, body, p),
+        }
+        if let Some(picker) = &self.picker {
+            picker::draw(self, picker, f, body, p);
         }
     }
 }
@@ -542,4 +617,5 @@ mod builder;
 mod assignments;
 
 mod changes;
+mod picker;
 mod policies;
