@@ -64,10 +64,35 @@ pub(crate) fn bind(
 pub fn spawn(listener: UnixListener, jobs: mpsc::Sender<Job>) -> tokio::task::JoinHandle<()> {
     let euid = std::fs::metadata("/proc/self").map_or(0, |m| m.uid());
     tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            tokio::spawn(connection(stream, jobs.clone(), euid));
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    tokio::spawn(connection(stream, jobs.clone(), euid));
+                }
+                Err(e) if accept_error_is_transient(&e) => {
+                    eprintln!("api: accept failed, retrying: {e}");
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+                Err(e) => {
+                    eprintln!("error: api: accept stopped: {e}");
+                    return;
+                }
+            }
         }
     })
+}
+
+/// Errors that a later accept can survive: descriptor or memory limits, aborted or interrupted connections.
+pub fn accept_error_is_transient(e: &std::io::Error) -> bool {
+    use std::io::ErrorKind::{
+        ConnectionAborted, ConnectionReset, Interrupted, OutOfMemory, WouldBlock,
+    };
+    // EMFILE, ENFILE, ENOBUFS, ENOMEM.
+    matches!(e.raw_os_error(), Some(24 | 23 | 105 | 12))
+        || matches!(
+            e.kind(),
+            ConnectionAborted | ConnectionReset | Interrupted | OutOfMemory | WouldBlock
+        )
 }
 
 async fn connection(stream: UnixStream, jobs: mpsc::Sender<Job>, euid: u32) {
@@ -138,6 +163,16 @@ mod tests {
         let mut out = String::new();
         BufReader::new(s).read_line(&mut out).await.unwrap();
         serde_json::from_str(&out).unwrap()
+    }
+
+    #[test]
+    fn resource_and_abort_errors_on_accept_are_transient() {
+        for code in [24, 23, 103, 4, 105, 12] {
+            let e = std::io::Error::from_raw_os_error(code);
+            assert!(accept_error_is_transient(&e), "errno {code}");
+        }
+        let fatal = std::io::Error::from_raw_os_error(9);
+        assert!(!accept_error_is_transient(&fatal), "EBADF stops the loop");
     }
 
     #[test]
