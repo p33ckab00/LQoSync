@@ -1419,3 +1419,15 @@ A DHCP client override binding blocks `subscriber.plan`. A plan in use cannot be
 `topology.policies` lists the plans with their use count. Preview identities carry `router_id`, `source_id`, `kind`, and `account_ref`.
 TUI: `Enter` in Assignments opens the plan picker. `n`, `e`, and `d` in Policies create, edit, and delete a plan. The strip shows "edits apply after activation".
 Pin and scoped rebalance move after Phase 2b-3 (Builder edits).
+
+## WAN discovery
+
+Phase 2b-3a adds WAN discovery. See [the design](../superpowers/specs/2026-11-19-topology-wan-discovery-design.md).
+The core router is a `[[routers]]` entry with PPP, DHCP, and Hotspot disabled. No configuration key is new.
+The legacy cycle skips a router without a subscriber protocol. It does not connect to it, and the router has no status, alert, or notification. The owner reviews this again when the Topology Manager is complete.
+New API operation: `wan.discover`. It reads `/interface` once from each configured router, at the same time, with one 30 s limit. It changes no registry and needs no enrollment.
+Candidates leave out `-in` types (server-side sessions). `pppoe-out` interfaces come first with `suggested`. Each candidate shows its catalog WAN source and the nodes that use it. Absent WAN interfaces show as `missing`, and WAN sources on routers without a `[[routers]]` entry show as `unconfigured`.
+Catalog routers match configured routers by name.
+TUI: `w` in the Builder starts discovery. The Inventory panel shows the WAN candidates section.
+Phase 4 runbook item: add the core `[[routers]]` entry together with the deployment of the tested build. The current production build has no API socket.
+Known limit: until the routing feature writes the core address-lists, the owner script decides the real WAN of a subscriber.

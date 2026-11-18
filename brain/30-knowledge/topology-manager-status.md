@@ -86,6 +86,14 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Edits need an enrolled registry. They do not change live shaping before Phase 4 activation.
 - Next: Phase 2b-3, Builder node edits. Then pin and scoped rebalance, then 2b-4 profiles and speed defaults.
 
+## Phase 2b-3a WAN discovery (2026-11-19)
+
+- Production has two WANs: `pppoe-out` interfaces on a MikroTik core. PBR on the core uses per-IP address-lists from an owner script.
+- LQoSync will decide the WAN of each subscriber by load balancing. Writing the core address-lists is a later feature.
+- API: `wan.discover` reads `/interface` of each configured router and lists WAN candidates. TUI: `w` in the Builder.
+- The legacy cycle skips routers without a subscriber protocol. The owner reviews this again when the Topology Manager is complete.
+- Next: Phase 2b-3b, Builder edits (WAN node from a candidate, intermediate nodes, instances under several parents, move, remove, capacity). Then 2b-3c pin and scoped rebalance.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
