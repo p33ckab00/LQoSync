@@ -414,7 +414,7 @@ pub(crate) mod cli_flow {
         out
     }
 
-    pub(super) fn confirm(file: &mut MappingFile) {
+    pub(crate) fn confirm(file: &mut MappingFile) {
         for row in &mut file.rows {
             if let RowDecision::Map { confirmed, .. } = &mut row.decision {
                 *confirmed = true;

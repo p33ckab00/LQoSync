@@ -27,7 +27,7 @@ pub struct NodeView {
 pub struct IdentityView {
     pub router_id: String,
     pub source_id: String,
-    pub kind: String,
+    pub kind: super::model::SourceKind,
     pub account_ref: String,
 }
 
@@ -152,7 +152,7 @@ pub(super) fn build(
             .map(|e| IdentityView {
                 router_id: e.identity.scope.router_id.clone(),
                 source_id: e.identity.scope.source_id.clone(),
-                kind: format!("{:?}", e.identity.scope.kind),
+                kind: e.identity.scope.kind,
                 account_ref: e.identity.account_ref.clone(),
             })
             .collect();
@@ -263,12 +263,12 @@ mod tests {
         assert_eq!(g1.identities.len(), 1);
         let id = &g1.identities[0];
         assert_eq!(
+            (id.kind, id.source_id.as_str(), id.account_ref.as_str()),
             (
-                id.kind.as_str(),
-                id.source_id.as_str(),
-                id.account_ref.as_str()
-            ),
-            ("Ppp", "ppp", "ppp-name/v1/g1")
+                crate::topology_manager::model::SourceKind::Ppp,
+                "ppp",
+                "ppp-name/v1/g1"
+            )
         );
         assert!(id.router_id.starts_with("lq3-"));
     }

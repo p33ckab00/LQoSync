@@ -308,3 +308,292 @@ mod preview {
         );
     }
 }
+
+mod plans {
+    use super::super::enrollment::cli_flow::{AGE, confirm, setup};
+    use super::*;
+    use crate::topology_manager::model::IdentityRef;
+    use crate::topology_manager::store::{InvalidPolicy, RevisionConflict};
+    use serde_json::{Value, json};
+
+    async fn enrolled(e: &Env) -> Runner<FakeConnector> {
+        let mut r = runner(e, setup(e, None));
+        let d = r.propose_policy(AGE).await.unwrap();
+        r.install_topology_policy(&d).unwrap();
+        let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+        confirm(&mut file);
+        assert_eq!(
+            r.enroll_with_mapping(&file, AGE, true)
+                .await
+                .unwrap()
+                .revision,
+            Some(2)
+        );
+        r.lock().unwrap();
+        r
+    }
+
+    fn rule(e: &anyhow::Error) -> String {
+        e.chain()
+            .find_map(|c| c.downcast_ref::<InvalidPolicy>())
+            .map_or_else(|| format!("not a rule error: {e:#}"), |i| i.0.clone())
+    }
+
+    fn registry_identity(r: &mut Runner<FakeConnector>) -> IdentityRef {
+        r.api_registry().unwrap().unwrap().subscribers[0].identities[0].clone()
+    }
+
+    /// A new bound lease with a MAC and an address that no record has.
+    fn add_lease(e: &Env) -> String {
+        let mac = "02:00:00:00:09:99";
+        let mut rows = e.fake.rows.lock().unwrap();
+        let leases = rows
+            .get_mut("Hub-1")
+            .unwrap()
+            .get_mut("/ip/dhcp-server/lease")
+            .unwrap();
+        let mut lease = leases[0].clone();
+        lease.insert(".id".into(), "*l99".into());
+        for (k, v) in lease.iter_mut() {
+            if k.ends_with("mac-address") {
+                *v = mac.into();
+            } else if k.ends_with("address") {
+                let (net, _) = v.rsplit_once('.').unwrap();
+                *v = format!("{net}.199");
+            }
+        }
+        leases.push(lease);
+        format!("dhcp-mac/v1/{mac}")
+    }
+
+    fn preview_identity(preview: &Value, account_ref: &str) -> Value {
+        preview["subscribers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|s| s["identities"].as_array().unwrap().iter())
+            .find(|i| i["account_ref"] == json!(account_ref))
+            .unwrap_or_else(|| panic!("{account_ref} not in the preview: {preview}"))
+            .clone()
+    }
+
+    #[tokio::test]
+    async fn plan_operations_commit_and_return_the_new_revision() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let v = r.api_plan_create(2, "100M", 100, 100).unwrap();
+        assert_eq!(v, json!({"revision": 3, "plan_id": "plan-1"}));
+        let v = r
+            .api_plan_update(3, "plan-1", Some("120M"), Some(120), None)
+            .unwrap();
+        assert_eq!(v, json!({"revision": 4}));
+        let identity = registry_identity(&mut r);
+        let v = r
+            .api_subscriber_plan(4, identity.clone(), Some("plan-1".into()))
+            .unwrap();
+        assert_eq!(v["revision"], json!(5));
+        let doc = r.api_registry().unwrap().unwrap();
+        assert_eq!(v["subscriber_id"], json!(doc.subscribers[0].id));
+        assert_eq!(
+            doc.subscribers[0].policy.profile_id.as_deref(),
+            Some("plan-1")
+        );
+        let e2 = r.api_plan_delete(5, "plan-1").unwrap_err();
+        assert_eq!(rule(&e2), "the plan is in use");
+        r.api_subscriber_plan(5, identity, None).unwrap();
+        assert_eq!(
+            r.api_plan_delete(6, "plan-1").unwrap(),
+            json!({"revision": 7})
+        );
+    }
+
+    #[tokio::test]
+    async fn a_stale_revision_gives_conflict() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        r.api_plan_create(2, "100M", 100, 100).unwrap();
+        r.api_plan_create(3, "50M", 50, 50).unwrap();
+        let identity = registry_identity(&mut r);
+        // Two operators read revision 4 and attach different plans.
+        r.api_subscriber_plan(4, identity.clone(), Some("plan-1".into()))
+            .unwrap();
+        let e2 = r
+            .api_subscriber_plan(4, identity, Some("plan-2".into()))
+            .unwrap_err();
+        assert!(e2.chain().any(|c| c.is::<RevisionConflict>()), "{e2:#}");
+        let doc = r.api_registry().unwrap().unwrap();
+        assert_eq!(doc.revision, 5);
+        assert_eq!(
+            doc.subscribers[0].policy.profile_id.as_deref(),
+            Some("plan-1")
+        );
+        let e3 = r.api_plan_create(4, "10M", 10, 10).unwrap_err();
+        assert!(e3.chain().any(|c| c.is::<RevisionConflict>()), "{e3:#}");
+    }
+
+    #[tokio::test]
+    async fn subscriber_plan_creates_a_record_for_a_new_account_seen_in_the_preview() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        r.api_plan_create(2, "100M", 100, 100).unwrap();
+        let account = add_lease(&e);
+        let preview = r.api_preview_refresh().await.unwrap();
+        assert_eq!(preview["state"], json!("ok"), "{preview}");
+        let identity: IdentityRef = {
+            let i = preview_identity(&preview, &account);
+            serde_json::from_value(json!({
+                "scope": {"router_id": i["router_id"], "source_id": i["source_id"], "kind": i["kind"]},
+                "account_ref": i["account_ref"],
+            }))
+            .unwrap()
+        };
+        let before = r.api_registry().unwrap().unwrap();
+        assert!(
+            !before
+                .subscribers
+                .iter()
+                .any(|s| s.identities.contains(&identity))
+        );
+        let v = r
+            .api_subscriber_plan(3, identity.clone(), Some("plan-1".into()))
+            .unwrap();
+        assert_eq!(
+            v,
+            json!({"revision": 4, "subscriber_id": format!("tm-sub-{:016x}", before.next_id)})
+        );
+        let after = r.api_registry().unwrap().unwrap();
+        assert_eq!(after.next_id, before.next_id + 1);
+        let record = after
+            .subscribers
+            .iter()
+            .find(|s| s.identities == vec![identity.clone()])
+            .unwrap();
+        assert_eq!(record.policy.profile_id.as_deref(), Some("plan-1"));
+        assert_eq!(
+            (
+                record.policy.pin.as_ref(),
+                record.policy.assignment.as_ref()
+            ),
+            (None, None)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_stale_preview_gives_conflict_for_a_new_account() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let account = add_lease(&e);
+        let preview = r.api_preview_refresh().await.unwrap();
+        let i = preview_identity(&preview, &account);
+        let identity: IdentityRef = serde_json::from_value(json!({
+            "scope": {"router_id": i["router_id"], "source_id": i["source_id"], "kind": i["kind"]},
+            "account_ref": i["account_ref"],
+        }))
+        .unwrap();
+        r.api_plan_create(2, "100M", 100, 100).unwrap();
+        let e2 = r
+            .api_subscriber_plan(3, identity.clone(), Some("plan-1".into()))
+            .unwrap_err();
+        assert!(e2.chain().any(|c| c.is::<RevisionConflict>()), "{e2:#}");
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 3);
+        // A fresh preview at revision 3 makes the same request work.
+        r.api_preview_refresh().await.unwrap();
+        r.api_subscriber_plan(3, identity, Some("plan-1".into()))
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn edits_before_enrollment_give_invalid() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let d = r.propose_policy(AGE).await.unwrap();
+        r.api_policy_commit(0, d.catalog, d.source_settings)
+            .unwrap();
+        let e2 = r.api_plan_create(1, "100M", 100, 100).unwrap_err();
+        assert_eq!(
+            rule(&e2),
+            "enroll first: the registry has no export ownership"
+        );
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 1);
+    }
+
+    async fn call(r: &mut Runner<FakeConnector>, op: &str, args: Value) -> Value {
+        let req = crate::api::protocol::Request {
+            v: 1,
+            id: "p".into(),
+            op: op.into(),
+            args,
+        };
+        let line = crate::api::dispatch::handle(r, &req).await.unwrap();
+        serde_json::from_str::<Value>(line.trim_end()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn plan_operations_are_dispatched() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let v = call(
+            &mut r,
+            "plan.create",
+            json!({"expected_revision": 2, "name": "100M", "down_mbps": 100, "up_mbps": 100}),
+        )
+        .await;
+        assert_eq!(
+            v["result"],
+            json!({"revision": 3, "plan_id": "plan-1"}),
+            "{v}"
+        );
+        let v = call(
+            &mut r,
+            "plan.update",
+            json!({"expected_revision": 3, "plan_id": "plan-1", "up_mbps": 50}),
+        )
+        .await;
+        assert_eq!(v["result"], json!({"revision": 4}), "{v}");
+        let preview = r.api_preview_refresh().await.unwrap();
+        let identity = preview["subscribers"][0]["identities"][0].clone();
+        let v = call(
+            &mut r,
+            "subscriber.plan",
+            json!({"expected_revision": 4, "identity": identity, "plan_id": "plan-1"}),
+        )
+        .await;
+        assert_eq!(v["result"]["revision"], json!(5), "{v}");
+        let v = call(
+            &mut r,
+            "plan.delete",
+            json!({"expected_revision": 5, "plan_id": "plan-1"}),
+        )
+        .await;
+        assert_eq!(v["error"]["code"], json!("invalid"), "{v}");
+        let v = call(
+            &mut r,
+            "subscriber.plan",
+            json!({"expected_revision": 5, "identity": identity, "plan_id": null}),
+        )
+        .await;
+        assert_eq!(v["result"]["revision"], json!(6), "{v}");
+        let v = call(
+            &mut r,
+            "plan.delete",
+            json!({"expected_revision": 6, "plan_id": "plan-1"}),
+        )
+        .await;
+        assert_eq!(v["result"], json!({"revision": 7}), "{v}");
+        let v = call(
+            &mut r,
+            "plan.create",
+            json!({"expected_revision": 7, "name": "x", "down_mbps": 1, "up_mbps": 1, "extra": 1}),
+        )
+        .await;
+        assert_eq!(v["error"]["code"], json!("bad_request"), "{v}");
+        let v = call(
+            &mut r,
+            "plan.create",
+            json!({"expected_revision": 7, "name": "x", "down_mbps": 1.5, "up_mbps": 1}),
+        )
+        .await;
+        assert_eq!(v["error"]["code"], json!("bad_request"), "{v}");
+    }
+}

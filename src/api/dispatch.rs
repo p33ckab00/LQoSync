@@ -19,6 +19,54 @@ struct CommitArgs {
     source_settings: crate::topology_manager::settings::SourceSettings,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlanCreateArgs {
+    expected_revision: u64,
+    name: String,
+    down_mbps: u64,
+    up_mbps: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlanUpdateArgs {
+    expected_revision: u64,
+    plan_id: String,
+    name: Option<String>,
+    down_mbps: Option<u64>,
+    up_mbps: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlanDeleteArgs {
+    expected_revision: u64,
+    plan_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IdentityArgs {
+    router_id: String,
+    source_id: String,
+    kind: crate::topology_manager::model::SourceKind,
+    account_ref: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SubscriberPlanArgs {
+    expected_revision: u64,
+    identity: IdentityArgs,
+    plan_id: Option<String>,
+}
+
+fn parse<T: serde::de::DeserializeOwned>(request: &Request) -> Result<T, ApiError> {
+    serde_json::from_value(request.args.clone())
+        .map_err(|e| ApiError::new(ErrorCode::BadRequest, format!("invalid arguments: {e}")))
+}
+
 fn code_of(e: &anyhow::Error) -> ErrorCode {
     if e.chain().any(|c| c.is::<RevisionConflict>()) {
         ErrorCode::Conflict
@@ -53,6 +101,44 @@ where
         "topology.preview.refresh" => runner.api_preview_refresh().await.map_err(fail),
         "topology.preview.get" => runner.api_preview_get().map_err(fail),
         "topology.policies" => runner.api_policies().map_err(fail),
+        "plan.create" => {
+            let a: PlanCreateArgs = parse(request)?;
+            runner
+                .api_plan_create(a.expected_revision, &a.name, a.down_mbps, a.up_mbps)
+                .map_err(fail)
+        }
+        "plan.update" => {
+            let a: PlanUpdateArgs = parse(request)?;
+            runner
+                .api_plan_update(
+                    a.expected_revision,
+                    &a.plan_id,
+                    a.name.as_deref(),
+                    a.down_mbps,
+                    a.up_mbps,
+                )
+                .map_err(fail)
+        }
+        "plan.delete" => {
+            let a: PlanDeleteArgs = parse(request)?;
+            runner
+                .api_plan_delete(a.expected_revision, &a.plan_id)
+                .map_err(fail)
+        }
+        "subscriber.plan" => {
+            let a: SubscriberPlanArgs = parse(request)?;
+            let identity = crate::topology_manager::model::IdentityRef {
+                scope: crate::topology_manager::model::SourceScope {
+                    router_id: a.identity.router_id,
+                    source_id: a.identity.source_id,
+                    kind: a.identity.kind,
+                },
+                account_ref: a.identity.account_ref,
+            };
+            runner
+                .api_subscriber_plan(a.expected_revision, identity, a.plan_id)
+                .map_err(fail)
+        }
         other => Err(ApiError::new(
             ErrorCode::UnknownOp,
             format!("unknown operation \"{other}\""),

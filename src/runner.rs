@@ -693,6 +693,123 @@ where
         Ok(serde_json::json!({"defaults": catalog.defaults, "profiles": profiles}))
     }
 
+    /// Apply one registry edit under the lock and a revision check, then commit it.
+    /// A failed commit drops the cached store, and the next request opens it again.
+    fn api_edit<T>(
+        &mut self,
+        expected_revision: u64,
+        edit: impl FnOnce(
+            &crate::topology_manager::model::RegistryDocument,
+            Option<&serde_json::Value>,
+        )
+            -> anyhow::Result<(crate::topology_manager::model::RegistryDocument, T)>,
+    ) -> anyhow::Result<(u64, T)> {
+        self.lock()?;
+        self.open_topology_store()?;
+        let store = self
+            .topology_store
+            .as_mut()
+            .context("registry owner is missing")?;
+        let doc = store.document()?.clone();
+        if doc.revision != expected_revision {
+            return Err(anyhow::Error::new(
+                crate::topology_manager::store::RevisionConflict,
+            ));
+        }
+        let (candidate, out) = edit(&doc, self.last_preview.as_ref())?;
+        match store.commit(expected_revision, candidate) {
+            Ok(outcome) => Ok((outcome.revision, out)),
+            Err(e) => {
+                self.topology_store = None;
+                Err(e)
+            }
+        }
+    }
+
+    /// API `plan.create`.
+    pub fn api_plan_create(
+        &mut self,
+        expected_revision: u64,
+        name: &str,
+        down_mbps: u64,
+        up_mbps: u64,
+    ) -> anyhow::Result<serde_json::Value> {
+        let (revision, plan_id) = self.api_edit(expected_revision, |doc, _| {
+            crate::topology_manager::plans::create(doc, name, down_mbps, up_mbps)
+        })?;
+        Ok(serde_json::json!({"revision": revision, "plan_id": plan_id}))
+    }
+
+    /// API `plan.update`. A field that is `None` keeps its value.
+    pub fn api_plan_update(
+        &mut self,
+        expected_revision: u64,
+        plan_id: &str,
+        name: Option<&str>,
+        down_mbps: Option<u64>,
+        up_mbps: Option<u64>,
+    ) -> anyhow::Result<serde_json::Value> {
+        let (revision, ()) = self.api_edit(expected_revision, |doc, _| {
+            crate::topology_manager::plans::update(doc, plan_id, name, down_mbps, up_mbps)
+                .map(|d| (d, ()))
+        })?;
+        Ok(serde_json::json!({"revision": revision}))
+    }
+
+    /// API `plan.delete`. A plan that a subscriber uses stays.
+    pub fn api_plan_delete(
+        &mut self,
+        expected_revision: u64,
+        plan_id: &str,
+    ) -> anyhow::Result<serde_json::Value> {
+        let (revision, ()) = self.api_edit(expected_revision, |doc, _| {
+            crate::topology_manager::plans::delete(doc, plan_id).map(|d| (d, ()))
+        })?;
+        Ok(serde_json::json!({"revision": revision}))
+    }
+
+    /// API `subscriber.plan`: attach a plan, or detach with `None`. An account without a record
+    /// must be in the cached preview of the current revision. A stale preview gives a conflict.
+    pub fn api_subscriber_plan(
+        &mut self,
+        expected_revision: u64,
+        identity: crate::topology_manager::model::IdentityRef,
+        plan_id: Option<String>,
+    ) -> anyhow::Result<serde_json::Value> {
+        let (revision, subscriber_id) = self.api_edit(expected_revision, |doc, preview| {
+            let has_record = doc
+                .subscribers
+                .iter()
+                .any(|s| s.identities.contains(&identity));
+            let preview = preview.filter(|p| p["state"] == "ok");
+            if !has_record
+                && preview
+                    .is_some_and(|p| p["registry_revision"] != serde_json::json!(doc.revision))
+            {
+                return Err(anyhow::Error::new(
+                    crate::topology_manager::store::RevisionConflict,
+                ));
+            }
+            let wanted = serde_json::json!({
+                "router_id": identity.scope.router_id,
+                "source_id": identity.scope.source_id,
+                "kind": identity.scope.kind,
+                "account_ref": identity.account_ref,
+            });
+            let in_preview = preview.is_some_and(|p| {
+                p["subscribers"].as_array().is_some_and(|subs| {
+                    subs.iter().any(|s| {
+                        s["identities"]
+                            .as_array()
+                            .is_some_and(|ids| ids.contains(&wanted))
+                    })
+                })
+            });
+            crate::topology_manager::plans::attach(doc, &identity, plan_id.as_deref(), in_preview)
+        })?;
+        Ok(serde_json::json!({"revision": revision, "subscriber_id": subscriber_id}))
+    }
+
     /// Bind the service API socket. The held instance lock proves socket ownership.
     pub fn api_bind(
         &self,
