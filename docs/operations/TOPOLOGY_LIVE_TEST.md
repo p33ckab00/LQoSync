@@ -115,6 +115,7 @@ sudo tail -f $LOG
 - Use a new log path for each run, as for the report.
 - `tail -f` shows the output while the command runs. When the last line is `exit status N`, the command has ended. Stop `tail` with Ctrl-C. This stops only `tail`, not the command.
 - To read the result later, run `sudo cat $LOG`. The last line gives the exit status.
+- The acknowledgement passes when the bridge applied each identity of the pair. The command checks every circuit and node of the pair.
 - `--import-timeout` is the wait for each LibreQoS import, in seconds. The default is 120. The range is 1 to 3600.
 - The command writes `live test backup: <dir>` to the log before it writes the manager pair. Keep this path. Backups are in `<state_dir>/topology-manager/live-test/<unix time>/`.
 - The command writes the report for each run that gets to the compile step, also when the test fails. It writes the step results, the number of differences and warnings, and the report path to the log.
@@ -211,7 +212,7 @@ Never repeat `live-test` in the same window after a failure. Find the cause firs
 |---|---|
 | `import timeout` | LibreQoS did not import the pair and become `ready` in the time limit. The test restores the legacy pair. Ask the owner before you try again with a longer `--import-timeout`. |
 | `LibreQoS gives the same source generation ... for the new pair` | LibreQoS did not show a new `source_generation`, so the test cannot confirm the import. The test restores the legacy pair. |
-| `native acknowledgement unavailable` | The lqosd native acknowledgement read failed. Check that `lqosd` runs. The test restores the legacy pair. |
+| `waiting to take effect: ...` | LibreQoS imported the pair, but the bridge did not apply the listed identities. The test restores the legacy pair. Read `/run/libreqos/seam_state.json`. See the [dataplane settings document](LIBREQOS_V3_DATAPLANE_SETTINGS.md). |
 | `baseline: LibreQoS did not import the legacy pair on disk` | LibreQoS did not import the legacy pair on disk before the test. The test wrote no pair. Go to step 6 and tell the owner. |
 | `the legacy state before the test differs from the legacy model` | The LibreQoS rule model does not match the state that LibreQoS applied for the legacy pair. The test wrote no pair. The report field `baseline` lists the differences. Go to step 6 and tell the owner. |
 | `restore read-back differs from the baseline: ...` | After the restore, these circuits and nodes differ from the state before the test. Do step 5. |

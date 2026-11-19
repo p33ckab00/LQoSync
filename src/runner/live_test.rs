@@ -74,11 +74,16 @@ impl LiveIo for NativeIo {
         written: &[(PathBuf, Vec<u8>)],
         started: u64,
     ) -> anyhow::Result<()> {
-        use crate::apply_evidence::Proof;
-        match crate::apply_evidence::acknowledged(cfg, written, started).await? {
-            Proof::Verified(_) => Ok(()),
-            Proof::Waiting(w) => Err(anyhow::anyhow!("waiting to take effect: {w}")),
-        }
+        proof_result(crate::apply_evidence::acknowledged(cfg, written, started).await?)
+    }
+}
+
+/// Map the per-identity proof to the acknowledgement result. A waiting identity is an error.
+pub(crate) fn proof_result(proof: crate::apply_evidence::Proof) -> anyhow::Result<()> {
+    use crate::apply_evidence::Proof;
+    match proof {
+        Proof::Verified(_) => Ok(()),
+        Proof::Waiting(w) => Err(anyhow::anyhow!("waiting to take effect: {w}")),
     }
 }
 

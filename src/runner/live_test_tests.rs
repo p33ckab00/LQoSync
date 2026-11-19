@@ -2,7 +2,8 @@
 //! stand in for LibreQoS. No test touches a live system.
 use super::enrollment::cli_flow::{AGE, confirm, setup};
 use super::*;
-use crate::runner::live_test::{LiveIo, restore_backup, restore_pair};
+use crate::apply_evidence::{Kind, Proof, TakeEffect, Waiting};
+use crate::runner::live_test::{LiveIo, proof_result, restore_backup, restore_pair};
 use crate::topology_manager::live_check;
 use crate::topology_manager::publication::PreparedPair;
 use serde_json::{Value, json};
@@ -665,4 +666,20 @@ async fn live_test_restore_waits_for_the_legacy_import() {
     assert!(error.contains("import timeout"), "{error}");
     assert!(error.contains("files are restored"), "{error}");
     assert_eq!(pair(&e), legacy);
+}
+
+#[test]
+fn a_waiting_proof_gives_the_waiting_identities_in_the_error() {
+    let waiting = TakeEffect {
+        applied: 0,
+        waiting: vec![Waiting {
+            kind: Kind::Circuit,
+            identity: "C1".into(),
+            fields: vec!["download".into()],
+        }],
+        waiting_removal: vec![],
+    };
+    let text = format!("{}", proof_result(Proof::Waiting(waiting)).unwrap_err());
+    assert!(text.contains("waiting to take effect"), "{text}");
+    assert!(text.contains("C1"), "{text}");
 }
