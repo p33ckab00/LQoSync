@@ -55,14 +55,14 @@ pub enum TopologyCommand {
         report: PathBuf,
         import_timeout: u64,
     },
-    /// Put the backup pair back and request an import.
+    /// Put the backup pair back, request an import, and wait for it.
     LiveTestRestore {
         backup: PathBuf,
     },
 }
 
 /// Default and maximum wait, in seconds, for one LibreQoS import in the live test.
-const DEFAULT_IMPORT_TIMEOUT: u64 = 120;
+pub const DEFAULT_IMPORT_TIMEOUT: u64 = 120;
 const MAX_IMPORT_TIMEOUT: u64 = 3600;
 
 fn parse_topology(

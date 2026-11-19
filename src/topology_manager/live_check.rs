@@ -92,26 +92,26 @@ fn collect(
     Ok(())
 }
 
+/// One circuit: id, parent id, raw minimum in Mbps, maximum in kbps.
+type Circuit = (String, String, [f64; 2], [u64; 2]);
+
 /// Commitment of a node in one direction: explicit, else the floored sum of its children.
-fn commit(
-    id: &str,
-    dir: usize,
-    nodes: &BTreeMap<String, RawNode>,
-    circuits: &[(String, String, [u64; 2], [u64; 2])],
-) -> u64 {
+/// LibreQoS adds the raw circuit minimums (not the rounded ones) and floors the sum once.
+fn commit(id: &str, dir: usize, nodes: &BTreeMap<String, RawNode>, circuits: &[Circuit]) -> u64 {
     if let Some(v) = nodes[id].explicit[dir] {
         return v;
     }
     let children = nodes.iter().filter(|(_, n)| n.parent == id);
-    let sum: u64 = children
-        .map(|(c, _)| commit(c, dir, nodes, circuits))
-        .sum::<u64>()
+    let sum_mbps: f64 = children
+        .map(|(c, _)| commit(c, dir, nodes, circuits) as f64 / 1000.0)
+        .sum::<f64>()
         + circuits
             .iter()
             .filter(|c| c.1 == id)
-            .map(|c| c.2[dir])
-            .sum::<u64>();
-    sum / 1000 * 1000
+            .map(|c| c.2[dir].max(0.0))
+            .sum::<f64>();
+    // The epsilon stops a float error such as 5.999999 from losing a whole Mbps.
+    ((sum_mbps + 1e-9).floor() as u64) * 1000
 }
 
 /// Build the rates that LibreQoS must plan from the CSV rows and `network.json`.
@@ -127,8 +127,8 @@ pub fn expected(rows: &[CsvRow], network: &Value) -> anyhow::Result<Expected> {
         .iter()
         .map(|(i, n)| (n.name.as_str(), i.as_str()))
         .collect();
-    // (circuit id, parent id, minimum kbps, maximum kbps), one entry per circuit.
-    let mut circuits: Vec<(String, String, [u64; 2], [u64; 2])> = Vec::new();
+    // One entry per circuit.
+    let mut circuits: Vec<Circuit> = Vec::new();
     for r in rows {
         let id = r.circuit_id.trim();
         if circuits.iter().any(|c| c.0 == id) {
@@ -144,7 +144,7 @@ pub fn expected(rows: &[CsvRow], network: &Value) -> anyhow::Result<Expected> {
                 .to_string()
         };
         let m = |s: &str| text_mbps(s).map(up_kbps);
-        let min = [m(&r.download_min)?, m(&r.upload_min)?];
+        let min = [text_mbps(&r.download_min)?, text_mbps(&r.upload_min)?];
         let max = [m(&r.download_max)?, m(&r.upload_max)?];
         circuits.push((id.to_string(), parent, min, max));
     }
@@ -179,7 +179,7 @@ pub fn expected(rows: &[CsvRow], network: &Value) -> anyhow::Result<Expected> {
         }
         let r = |d| Rates {
             ceil_kbps: ceil[d],
-            commit_kbps: min[d],
+            commit_kbps: up_kbps(min[d]),
         };
         out.circuits.insert(
             id.clone(),

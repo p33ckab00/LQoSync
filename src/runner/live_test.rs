@@ -11,6 +11,7 @@ use crate::topology_manager::live_check::{self, Diff, Expected, Observed};
 use crate::topology_manager::publication::PreparedPair;
 use anyhow::{Context, ensure};
 use serde::Serialize;
+use std::collections::{BTreeMap, BTreeSet};
 use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -238,6 +239,19 @@ fn runtime_status(lqos_state: &Path) -> Option<(bool, String)> {
     Some((settled, status["source_generation"].to_string()))
 }
 
+/// The keys whose values differ between two maps, or that only one map has.
+fn changed_keys<T: PartialEq>(
+    what: &str,
+    a: &BTreeMap<String, T>,
+    b: &BTreeMap<String, T>,
+) -> Vec<String> {
+    let keys: BTreeSet<&String> = a.keys().chain(b.keys()).collect();
+    keys.into_iter()
+        .filter(|k| a.get(*k) != b.get(*k))
+        .map(|k| format!("{what} {k}"))
+        .collect()
+}
+
 /// A deadline that cannot overflow. A very large timeout becomes one day.
 fn deadline(timeout: Duration) -> Instant {
     let now = Instant::now();
@@ -279,6 +293,7 @@ impl Live<'_> {
 
     /// Wait until LibreQoS imported the pair and is ready with a source generation other than
     /// `before`. LibreQoS makes the generation from the content, so `accept` is also good.
+    /// An empty `before` accepts each generation.
     async fn wait(
         &self,
         io: &mut impl LiveIo,
@@ -390,9 +405,13 @@ impl Live<'_> {
         let t = Instant::now();
         let observed = live_check::read_observed(&self.lqos_state).and_then(|o| {
             report.restore = Some(live_check::compare(want, &o));
+            let mut changed = changed_keys("circuit", &baseline.circuits, &o.circuits);
+            changed.extend(changed_keys("node", &baseline.nodes, &o.nodes));
+            ensure!(o.ready, "restore read-back: LibreQoS is not ready");
             ensure!(
-                o.ready && o.circuits == baseline.circuits && o.nodes == baseline.nodes,
-                "restore read-back differs from the baseline"
+                changed.is_empty(),
+                "restore read-back differs from the baseline: {}",
+                changed.join(", ")
             );
             Ok(())
         });
@@ -400,6 +419,39 @@ impl Live<'_> {
         let t = Instant::now();
         report.record("byte check", t, same_bytes(dir, &self.lqos_dir))
     }
+}
+
+/// `live-test-restore`: write the backup pair, request its import, and wait for it.
+/// The caller holds the instance lock.
+pub async fn restore_backup(
+    cfg: &Config,
+    io: &mut impl LiveIo,
+    backup: &Path,
+    timeout: Duration,
+) -> anyhow::Result<()> {
+    let live = Live {
+        cfg,
+        lqos_dir: PathBuf::from(&cfg.libreqos.directory),
+        lqos_state: PathBuf::from(&cfg.libreqos.state_directory),
+        timeout,
+    };
+    let before = source_generation(&live.lqos_state);
+    restore_pair(backup, &live.lqos_dir)?;
+    let text = |n: &str| -> anyhow::Result<String> {
+        String::from_utf8(std::fs::read(backup.join(n))?).context("backup is not UTF-8")
+    };
+    let csv = text(PAIR[1])?;
+    let legacy = Pair {
+        rows: crate::state::read_csv(&csv)?,
+        network: text(PAIR[0])?,
+        csv,
+    };
+    live.request(io)?;
+    // The legacy pair gives the generation of the backup status again.
+    let baseline = source_generation(&backup.join("libreqos-state"));
+    live.wait(io, &legacy, &before, Some(&baseline))
+        .await
+        .context("the pair files are restored and equal the backup, but LibreQoS did not confirm their import")
 }
 
 impl<C> Runner<C>
@@ -531,15 +583,30 @@ where
                 return Ok(report);
             }
         };
+        // The baseline gate. LibreQoS scans for changes every 20 s, so a pair written just
+        // before the service stopped can still wait for its import. A failure writes no pair.
         let t = Instant::now();
+        let waited = live
+            .wait(io, &legacy, "", None)
+            .await
+            .context("baseline: LibreQoS did not import the legacy pair on disk");
         let baseline_generation = runtime_status(&live.lqos_state);
-        let baseline = live_check::read_observed(&live.lqos_state).and_then(|o| {
-            ensure!(
-                o.ready && baseline_generation.as_ref().is_some_and(|s| s.0),
-                "LibreQoS is not ready before the test"
-            );
-            Ok(o)
-        });
+        let baseline = waited
+            .and_then(|()| live_check::read_observed(&live.lqos_state))
+            .and_then(|o| {
+                ensure!(
+                    o.ready && baseline_generation.as_ref().is_some_and(|s| s.0),
+                    "LibreQoS is not ready before the test"
+                );
+                let diff = live_check::compare(&legacy_want, &o);
+                report.baseline = Some(diff.clone());
+                ensure!(
+                    diff.differences.is_empty(),
+                    "the legacy state before the test differs from the legacy model: {}",
+                    diff.differences.join("; ")
+                );
+                Ok(o)
+            });
         let baseline = match report.record("baseline read-back", t, baseline) {
             Ok(o) => o,
             Err(e) => {
@@ -547,7 +614,6 @@ where
                 return Ok(report);
             }
         };
-        report.baseline = Some(live_check::compare(&legacy_want, &baseline));
         report.legacy_to_manager = live_check::compare(&want, &baseline).differences;
         let baseline_generation = baseline_generation.map(|s| s.1).unwrap_or_default();
         // An operator who stops the run needs this path for `live-test-restore`.

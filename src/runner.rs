@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod live_test;
-pub use live_test::{LiveIo, LiveTestReport, NativeIo, restore_pair};
+pub use live_test::{LiveIo, LiveTestReport, NativeIo, restore_backup, restore_pair};
 
 /// The time that LibreQoS v3 can take to import a new `shaped_devices` pair. Its scheduler
 /// imports the pair at start, on a reload request, and every 30 minutes.

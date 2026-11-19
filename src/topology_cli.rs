@@ -37,6 +37,33 @@ fn read<T: serde::de::DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
     serde_json::from_slice(&bytes).with_context(|| format!("cannot decode {}", path.display()))
 }
 
+/// Add the summary to `out`, then write the report. Return the exit status.
+/// The summary comes first, so a failed report write cannot hide a "RESTORE FAILED".
+fn live_test_output(
+    out: &mut String,
+    result: &crate::runner::LiveTestReport,
+    report: &Path,
+) -> anyhow::Result<i32> {
+    out.push_str(&result.summary());
+    let diffs = [&result.baseline, &result.manager, &result.restore];
+    let diffs = diffs.into_iter().flatten();
+    let differences = result.admission.len()
+        + result.parity.len()
+        + result.legacy_to_manager.len()
+        + diffs.clone().map(|d| d.differences.len()).sum::<usize>();
+    let warnings = result.warnings.len() + diffs.map(|d| d.warnings.len()).sum::<usize>();
+    let _ = writeln!(out, "differences: {differences}, warnings: {warnings}");
+    // Write the report also when the test failed.
+    let mut json = serde_json::to_vec_pretty(result)?;
+    json.push(b'\n');
+    if let Err(e) = crate::files::write_if_changed(report, &json) {
+        let _ = writeln!(out, "error: cannot write {}: {e:#}", report.display());
+        return Ok(1);
+    }
+    let _ = writeln!(out, "report: {}", report.display());
+    Ok(i32::from(!result.passed))
+}
+
 /// Name the service when the instance lock is held by another process.
 fn locked(e: anyhow::Error) -> anyhow::Error {
     if format!("{e:#}").contains("another lqosync3 is running") {
@@ -178,44 +205,51 @@ where
                 .live_test(Duration::from_secs(*import_timeout))
                 .await
                 .map_err(locked)?;
-            // Write the report also when the test failed.
-            let mut json = serde_json::to_vec_pretty(&result)?;
-            json.push(b'\n');
-            crate::files::write_if_changed(report, &json)
-                .with_context(|| format!("cannot write {}", report.display()))?;
-            out.push_str(&result.summary());
-            let diffs = [&result.baseline, &result.manager, &result.restore];
-            let diffs = diffs.into_iter().flatten();
-            let differences = result.admission.len()
-                + result.parity.len()
-                + result.legacy_to_manager.len()
-                + diffs.clone().map(|d| d.differences.len()).sum::<usize>();
-            let warnings = result.warnings.len() + diffs.map(|d| d.warnings.len()).sum::<usize>();
-            let _ = writeln!(out, "differences: {differences}, warnings: {warnings}");
-            let _ = writeln!(out, "report: {}", report.display());
-            i32::from(!result.passed)
+            live_test_output(&mut out, &result, report)?
         }
         TopologyCommand::LiveTestRestore { backup } => {
             let state = Path::new(&runner.cfg.runtime.state_dir);
             // Hold the instance lock, so this cannot race a running service.
             let _lock = crate::files::InstanceLock::acquire(state).map_err(locked)?;
-            let lqos = &runner.cfg.libreqos;
-            crate::runner::restore_pair(backup, Path::new(&lqos.directory))?;
-            crate::files::request_v3_import(
-                Path::new(&lqos.state_directory),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)?
-                    .as_secs(),
-                &crate::runner::random_id(24),
-            )?;
+            let timeout = Duration::from_secs(crate::cli::DEFAULT_IMPORT_TIMEOUT);
+            crate::runner::restore_backup(
+                &runner.cfg,
+                &mut crate::runner::NativeIo,
+                backup,
+                timeout,
+            )
+            .await?;
             let _ = writeln!(
                 out,
-                "restored the pair from {} to {}; requested a LibreQoS import",
+                "restored the pair from {} to {}; LibreQoS imported it and is ready",
                 backup.display(),
-                lqos.directory
+                runner.cfg.libreqos.directory
             );
             0
         }
     };
     Ok((out, code))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_report_write_still_shows_the_summary() {
+        let dir = tempfile::tempdir().unwrap();
+        // A file in place of the folder makes the write fail.
+        std::fs::write(dir.path().join("file"), "").unwrap();
+        let report = dir.path().join("file/report.json");
+        let result = crate::runner::LiveTestReport {
+            error: Some("RESTORE FAILED: test".into()),
+            ..Default::default()
+        };
+        let mut out = String::new();
+        let code = live_test_output(&mut out, &result, &report).unwrap();
+        assert_ne!(code, 0);
+        let summary = out.find("RESTORE FAILED").expect(&out);
+        let error = out.find("cannot write").expect(&out);
+        assert!(summary < error, "{out}");
+    }
 }

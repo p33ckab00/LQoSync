@@ -2,7 +2,7 @@
 //! stand in for LibreQoS. No test touches a live system.
 use super::enrollment::cli_flow::{AGE, confirm, setup};
 use super::*;
-use crate::runner::live_test::{LiveIo, restore_pair};
+use crate::runner::live_test::{LiveIo, restore_backup, restore_pair};
 use crate::topology_manager::live_check;
 use crate::topology_manager::publication::PreparedPair;
 use serde_json::{Value, json};
@@ -507,4 +507,162 @@ async fn the_test_needs_the_instance_lock() {
     assert_eq!(pair(&e), legacy);
     assert!(!backups(&e).exists());
     assert_eq!((fake.imports, fake.acks.len()), (0, 0));
+}
+
+/// Change one LibreQoS state file in place.
+fn edit_state(e: &Env, rel: &str, f: impl FnOnce(&mut Value)) {
+    let path = e.lqos.join("lqstate").join(rel);
+    let mut v: Value = serde_json::from_str(&read(&path)).unwrap();
+    f(&mut v);
+    std::fs::write(path, v.to_string()).unwrap();
+}
+
+/// Nothing reached LibreQoS: the pair is the legacy pair and no import was requested.
+fn nothing_written(e: &Env, fake: &FakeLqos, legacy: &(String, String)) {
+    assert_eq!(&pair(e), legacy);
+    assert!(
+        !e.lqos
+            .join("lqstate/scheduler/reload_request.json")
+            .exists()
+    );
+    assert_eq!((fake.imports, fake.acks.len()), (0, 0));
+}
+
+#[tokio::test]
+async fn a_baseline_difference_stops_before_the_manager_write() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    edit_state(&e, "shaping/dataplane_transaction.json", |v| {
+        v["leaf_ops"][0]["download"]["ceil_kbps"] = json!(1);
+    });
+    let legacy = pair(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.passed);
+    let error = report.error.clone().unwrap();
+    assert!(error.contains("legacy model"), "{error}");
+    assert!(error.contains("changed"), "{error}");
+    assert!(!report.baseline.as_ref().unwrap().differences.is_empty());
+    nothing_written(&e, &fake, &legacy);
+}
+
+#[tokio::test]
+async fn a_baseline_that_is_not_the_imported_legacy_pair_stops_before_the_write() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    // LibreQoS imported an older pair: one device less than the pair on disk.
+    edit_state(&e, "topology/topology_import.json", |v| {
+        v["imported"]["shaped_devices"]
+            .as_array_mut()
+            .unwrap()
+            .pop();
+    });
+    let legacy = pair(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.passed);
+    let error = report.error.clone().unwrap();
+    assert!(error.contains("import timeout"), "{error}");
+    assert!(error.contains("baseline"), "{error}");
+    nothing_written(&e, &fake, &legacy);
+}
+
+#[tokio::test]
+async fn a_manager_pair_that_loses_a_circuit_writes_nothing() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut rows = crate::state::read_csv(&read(&e.lqos.join("ShapedDevices.csv"))).unwrap();
+    let mut lost = rows[0].clone();
+    lost.circuit_id = "lost-circuit".into();
+    lost.device_id = "lost-device".into();
+    rows.push(lost);
+    std::fs::write(
+        e.lqos.join("ShapedDevices.csv"),
+        render_csv(&rows, Columns::V3),
+    )
+    .unwrap();
+    let legacy = pair(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.passed);
+    assert!(
+        report
+            .parity
+            .iter()
+            .any(|p| p.contains("MissingRow") && p.contains("lost-circuit")),
+        "{:?}",
+        report.parity
+    );
+    assert_eq!(report.backup_dir, None);
+    assert!(!backups(&e).exists());
+    nothing_written(&e, &fake, &legacy);
+}
+
+#[tokio::test]
+async fn a_restore_mismatch_names_the_changed_circuit() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    fake.skew = Some(1);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.restored);
+    let error = report.error.unwrap();
+    assert!(error.contains("RESTORE FAILED"), "{error}");
+    let changed = &report.restore.as_ref().unwrap().differences[0];
+    let id = changed
+        .strip_prefix("circuit ")
+        .and_then(|s| s.strip_suffix(" changed"))
+        .unwrap();
+    assert!(
+        error.contains(&format!("differs from the baseline: circuit {id}")),
+        "{error}"
+    );
+}
+
+/// A backup folder as the live test makes it: the legacy pair and the LibreQoS status.
+fn manual_backup(e: &Env) -> PathBuf {
+    let dir = backups(e).join("1");
+    std::fs::create_dir_all(dir.join("libreqos-state/topology")).unwrap();
+    for n in ["network.json", "ShapedDevices.csv"] {
+        std::fs::copy(e.lqos.join(n), dir.join(n)).unwrap();
+    }
+    let status = "topology/topology_runtime_status.json";
+    std::fs::copy(
+        e.lqos.join("lqstate").join(status),
+        dir.join("libreqos-state").join(status),
+    )
+    .unwrap();
+    dir
+}
+
+/// Put the manager pair in place and let the fake LibreQoS apply it, as after an interruption.
+async fn apply_manager(e: &Env, c: &Config, fake: &FakeLqos) {
+    let mut r = runner(e, c.clone());
+    let manager = r.prepare_topology(AGE).await.unwrap();
+    drop(r);
+    std::fs::write(e.lqos.join("network.json"), manager.network_text()).unwrap();
+    std::fs::write(e.lqos.join("ShapedDevices.csv"), manager.csv()).unwrap();
+    fake.simulate(None);
+}
+
+#[tokio::test]
+async fn live_test_restore_waits_for_the_legacy_import() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let legacy = pair(&e);
+    let dir = manual_backup(&e);
+    apply_manager(&e, &c, &fake).await;
+    restore_backup(&c, &mut fake, &dir, SHORT).await.unwrap();
+    assert_eq!(pair(&e), legacy);
+    assert_eq!(fake.imports, 1);
+    // LibreQoS does not import the restored pair: the files are back, but the command fails.
+    apply_manager(&e, &c, &fake).await;
+    fake.stall = Some(1);
+    let error = restore_backup(&c, &mut fake, &dir, SHORT)
+        .await
+        .unwrap_err();
+    let error = format!("{error:#}");
+    assert!(error.contains("import timeout"), "{error}");
+    assert!(error.contains("files are restored"), "{error}");
+    assert_eq!(pair(&e), legacy);
 }
