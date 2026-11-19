@@ -1495,3 +1495,5 @@ Rulings:
 - The test does not use the write receipt tracker, the runtime claim, the registry, or notifications. The production service is an older build and a new receipt could break its restart.
 - The restore writes the backup bytes back and checks that they are equal.
 Live acceptance is pending: the owner starts the window with "go".
+Node locations (2026-11-19): the production enrollment dry run failed with `ChangedNetwork`. All rates were equal. The legacy writer puts the router `latitude` and `longitude` from `config.toml` on each node that it makes for that router, and the manager export wrote no location. See [the design](../superpowers/specs/2026-11-19-topology-node-locations-design.md).
+Fix: the manager export writes the router location on each node whose source (`Subscribers` scope or `Wan`) belongs to a configured router with both values. A node without a source gets no location. `Coordinator::prepare` puts the map on `AuthorizedReconciliation.router_locations`, so the live test, the enrollment, and publication use one path. The registry schema does not change. Admission does not compare the location fields.

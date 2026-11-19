@@ -130,6 +130,13 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Rollback: clear the fallback before a rollback to an older build (`deny_unknown_fields`).
 - Next: the Phase 3 live window, then Phase 4.
 
+## Phase 3 node locations fix (2026-11-19)
+
+- The production enrollment dry run failed with `ChangedNetwork`: the legacy pair has router locations on its nodes, the manager pair had none.
+- Owner decision: the manager writes the router `latitude` and `longitude` from `config.toml` on each node from that router. A node without a source gets none.
+- Parity, admission, and the LibreQoS Site Map now see the same locations. No registry schema change.
+- Next: run the enrollment dry run again, then the Phase 3 live window.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
