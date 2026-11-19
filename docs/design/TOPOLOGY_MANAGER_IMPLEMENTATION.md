@@ -1463,3 +1463,11 @@ Both edits read the sources once, resolve placements and evaluate aggregates for
 `topology.policies` lists `groups` with factor, formula, backstop, and floor.
 TUI: Policies shows the speed rules and the groups. `s` opens the speed form, `f` opens the factor form of the selected group.
 Phase 4 note: after these edits the registry differs from the legacy `config.toml`. Activation must treat the registry as the authority and must not re-run `preflight::legacy_issues` against `config.toml`.
+
+## Settings fields that the Topology Manager owns
+
+Phase 2c-1 marks the Settings fields under `nodes.`, `bandwidth_defaults.`, and `backstop_caps.`. See [the design](../superpowers/specs/2026-11-19-settings-managed-fields-design.md).
+`status` reports `writer`: `"topology"` when `topology-manager/runtime-owner.json` names the Topology Manager, `"legacy"` without the file, and `"unknown"` for a bad file.
+Enrolled with a legacy or unknown writer: the fields stay editable and show "the legacy loop uses this now; after activation the Topology Manager owns it (Topology > Policies or Builder)".
+Topology writer: the fields are read-only and show "managed by the Topology Manager: edit it in Topology > Policies or Builder".
+The TUI asks for `status` when the Settings tab opens. Without an answer, Settings works as before. `config.toml` and the legacy loop do not change.

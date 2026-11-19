@@ -116,6 +116,12 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Phase 4 must treat the registry as the authority, not the legacy `config.toml` values.
 - Next: Phase 2c, Settings migration.
 
+## Phase 2c-1 Settings managed fields (2026-11-19)
+
+- `status` reports `writer` (`legacy`, `topology`, or `unknown`) from the runtime owner file.
+- Settings notes the `nodes.`, `bandwidth_defaults.`, and `backstop_caps.` fields after enrollment and locks them once the Topology Manager writes shaping.
+- Next: Phase 2c-2, new subscriber sources from the Builder.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
