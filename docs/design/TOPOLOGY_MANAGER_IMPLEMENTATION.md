@@ -1471,3 +1471,13 @@ Phase 2c-1 marks the Settings fields under `nodes.`, `bandwidth_defaults.`, and 
 Enrolled with a legacy or unknown writer: the fields stay editable and show "the legacy loop uses this now; after activation the Topology Manager owns it (Topology > Policies or Builder)".
 Topology writer: the fields are read-only and show "managed by the Topology Manager: edit it in Topology > Policies or Builder".
 The TUI asks for `status` when the Settings tab opens. Without an answer, Settings works as before. `config.toml` and the legacy loop do not change.
+
+## Fallback group and new sources
+
+Phase 2c-2 adds a fallback for subscribers whose source the registry does not know. See [the design](../superpowers/specs/2026-11-19-topology-fallback-and-new-sources-design.md).
+`catalog.fallback` (optional) names group nodes without a source and a default plan. A registry without it serializes unchanged. A registry with it cannot load in an older build: clear the fallback (`fallback.clear`) before a rollback.
+With a fallback, the source policy observes an unbound PPP profile as `unbound:<name>` with only its router `rate-limit`. The resolver places a subscriber that no source matches on the fallback nodes, with that plan or the default plan; an attached LQoSync plan wins.
+Owner decision: an ineligible saved assignment without a pin is dropped and the subscriber is placed again (its real group, or the fallback). An ineligible pin still gives `InvalidPin`. Without a fallback, an unmatched subscriber still holds publication (Decision 10).
+New edits: `node.create` with `node_kind: "group"`, `fallback.set`, `fallback.clear` (refused while an online subscriber is in a fallback node), and `source.add`, which copies one source of a fresh enrollment draft (`topology.sources.candidates` lists them) with its profile, binding, and first instance.
+TUI: `F` sets the fallback on a group without a source, `i` loads new sources in the Builder Inventory, the strip counts fallback subscribers, and Assignments shows "fallback: <node>".
+Hotspot candidates are a later slice: the enrollment draft does not support Hotspot sources yet.

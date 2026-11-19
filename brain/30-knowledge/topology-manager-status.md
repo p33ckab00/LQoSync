@@ -122,6 +122,14 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Settings notes the `nodes.`, `bandwidth_defaults.`, and `backstop_caps.` fields after enrollment and locks them once the Topology Manager writes shaping.
 - Next: Phase 2c-2, new subscriber sources from the Builder.
 
+## Phase 2c-2 fallback group and new sources (2026-11-19)
+
+- An operator-set fallback group catches subscribers whose source the registry does not know, so shaping continues. Speed: router rate-limit, else the fallback default plan.
+- An unpinned subscriber whose saved assignment is no longer eligible is placed again. Pins stay strict.
+- `source.add` adds a new router source from a fresh enrollment draft; its fallback subscribers move to the new group.
+- Rollback: clear the fallback before a rollback to an older build (`deny_unknown_fields`).
+- Next: Phase 3, the planner and the DPDK proof.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
