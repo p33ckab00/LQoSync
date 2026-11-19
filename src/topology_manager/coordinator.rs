@@ -250,9 +250,10 @@ where
             })
             .transpose()?;
         let source_filters = super::preflight::source_filter_digest(cfg, registry)?;
-        let authorized = self
+        let mut authorized = self
             .authorized(cfg, registry, minimum_generation, deadline)
             .await?;
+        authorized.router_locations = super::publication::router_locations(cfg);
         let mut pair = prepare_with_static(authorized, static_source.as_ref().map(|s| s.input()))?;
         pair.static_source = static_source.map(|s| s.binding);
         pair.check_fresh()?;

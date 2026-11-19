@@ -189,6 +189,13 @@ impl PreparedPair {
         &self.network_text
     }
 }
+/// Router name to (latitude, longitude) for each configured router with a location.
+pub(crate) fn router_locations(cfg: &crate::config::Config) -> HashMap<String, (f64, f64)> {
+    cfg.routers
+        .iter()
+        .filter_map(|r| Some((r.name.clone(), r.latitude.zip(r.longitude)?)))
+        .collect()
+}
 pub fn prepare(input: AuthorizedReconciliation) -> anyhow::Result<PreparedPair> {
     prepare_with_static(input, None)
 }
@@ -326,6 +333,21 @@ pub fn prepare_with_static(
             if let Some(minimum) = minimum {
                 exported_node[key] = (minimum / 1_000_000).into();
             }
+        }
+        // Same rule as the legacy writer: each node from a router gets the router location.
+        let location = definition
+            .source_id
+            .as_deref()
+            .and_then(|id| sources.get(id))
+            .map(|source| match &source.origin {
+                super::catalog::SourceOrigin::Wan { router_id, .. } => router_id,
+                super::catalog::SourceOrigin::Subscribers { scope, .. } => &scope.router_id,
+            })
+            .and_then(|id| catalog.routers.iter().find(|r| &r.id == id))
+            .and_then(|router| input.router_locations.get(&router.name));
+        if let Some(&(latitude, longitude)) = location {
+            exported_node["latitude"] = latitude.into();
+            exported_node["longitude"] = longitude.into();
         }
         built[i] = Some(exported_node);
     }

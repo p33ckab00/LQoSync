@@ -67,6 +67,8 @@ pub struct AuthorizedReconciliation {
     pub reconciliation: Reconciliation,
     /// Keep this deadline through later placement and publication checks.
     pub expires: Instant,
+    /// Router name to (latitude, longitude) from `config.toml`. Empty when no router has a location.
+    pub router_locations: HashMap<String, (f64, f64)>,
 }
 
 impl Authorization<'_> {
@@ -109,6 +111,7 @@ impl Authorization<'_> {
         Ok(AuthorizedReconciliation {
             reconciliation,
             expires: self.expires,
+            router_locations: HashMap::new(),
         })
     }
 }

@@ -42,6 +42,7 @@ pub(crate) fn input(count: u32) -> AuthorizedReconciliation {
     AuthorizedReconciliation {
         reconciliation: reconcile(&registry, snapshot).unwrap(),
         expires: Instant::now() + Duration::from_secs(10),
+        router_locations: HashMap::new(),
     }
 }
 
@@ -645,4 +646,52 @@ async fn unbound_static_preview_cannot_publish_or_commit_registry_intent() {
     assert_eq!(store.document().unwrap().revision, before);
     assert!(tracker.current().is_none());
     assert!(!root.path().join("live/network.json").exists());
+}
+
+#[tokio::test(start_paused = true)]
+async fn router_location_goes_only_on_the_nodes_from_that_router() {
+    let mut observed = input(2);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    catalog.nodes.push(catalog::CatalogNode {
+        minimum: Default::default(),
+        id: "manual".into(),
+        name: "manual".into(),
+        parent: Some("wan1".into()),
+        source_id: None,
+        kind: crate::topology_manager::layout::NodeKind::Intermediate,
+        capacity: catalog::CapacityPolicy::Inherit,
+    });
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == "group1")
+        .unwrap()
+        .parent = Some("manual".into());
+    // Distro has a location. Core (the WAN router) has none.
+    observed.router_locations = [("Distro".to_string(), (14.5995, 120.9842))].into();
+    let pair = prepare(observed).unwrap();
+    let mut nodes = HashMap::new();
+    let mut work: Vec<&Value> = pair.network().as_object().unwrap().values().collect();
+    while let Some(node) = work.pop() {
+        nodes.insert(node["id"].as_str().unwrap().to_string(), node.clone());
+        work.extend(node["children"].as_object().unwrap().values());
+    }
+    for id in ["group1", "group2"] {
+        assert_eq!(
+            (
+                nodes[id]["latitude"].as_f64(),
+                nodes[id]["longitude"].as_f64()
+            ),
+            (Some(14.5995), Some(120.9842)),
+            "{id}"
+        );
+    }
+    for id in ["wan1", "wan2", "manual"] {
+        assert!(
+            nodes[id].get("latitude").is_none() && nodes[id].get("longitude").is_none(),
+            "{id}"
+        );
+    }
+    // The controlled compiler admission accepts a pair whose nodes carry a location.
+    admitted(pair);
 }
