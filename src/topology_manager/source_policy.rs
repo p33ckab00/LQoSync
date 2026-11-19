@@ -101,8 +101,17 @@ impl<'a> SourceIndex<'a> {
     }
 }
 
+/// The rate format for an unbound profile when the scope has no legacy priority format.
+pub(super) const UNKNOWN_FORMAT: RateFormat = RateFormat {
+    order: crate::config::RateLimitOrder::RouterosRxTx,
+    unitless: crate::config::UnitlessUnit::Bps,
+};
+
 pub(super) struct CompiledPolicy<'a, 'b> {
     index: &'b SourceIndex<'a>,
+    /// Set when the catalog has a fallback: an unbound profile is observed, not refused.
+    accept_unknown: bool,
+    unknown_format: RateFormat,
     priority: Option<super::legacy_rate::CompiledPriority>,
     profiles: HashMap<String, Result<ObservedPolicy, SourcePolicyIssue>>,
     references: HashSet<String>,
@@ -183,6 +192,11 @@ impl SourcePolicy {
         }
         Ok(CompiledPolicy {
             index,
+            accept_unknown: false,
+            unknown_format: self
+                .legacy_priority
+                .as_ref()
+                .map_or(UNKNOWN_FORMAT, |p| p.format),
             priority: self
                 .legacy_priority
                 .as_ref()
@@ -200,6 +214,29 @@ impl SourcePolicy {
     }
 }
 impl CompiledPolicy<'_, '_> {
+    /// Observe accounts on unbound profiles for the fallback instead of refusing them.
+    pub(super) fn accept_unknown(mut self) -> Self {
+        self.accept_unknown = true;
+        self
+    }
+
+    /// An unbound profile: its name and only its router `rate-limit` (absent or unreadable: none).
+    fn unknown(&self, account: &CurrentAccount, reference: &str) -> ObservedPolicy {
+        let profile = self.index.profiles_by_ref.get(&(account.kind, reference));
+        ObservedPolicy {
+            profile: ProfileObservation::Known(Some(format!(
+                "unbound:{}",
+                profile.map_or(reference, |p| p.name.as_str())
+            ))),
+            plan: parse_rate_limit(
+                profile.and_then(|p| p.rate_limit.as_deref()),
+                self.unknown_format,
+            )
+            .ok()
+            .flatten(),
+        }
+    }
+
     pub(super) fn has_reference(&self, reference: &str) -> bool {
         self.references.contains(reference)
     }
@@ -221,10 +258,12 @@ impl CompiledPolicy<'_, '_> {
         account: &CurrentAccount,
     ) -> Result<ObservedPolicy, SourcePolicyIssue> {
         let mut observed = if let Some(reference) = &account.profile_ref {
-            self.profiles
-                .get(reference)
-                .cloned()
-                .unwrap_or(Err(SourcePolicyIssue::MissingProfileMapping))?
+            match self.profiles.get(reference) {
+                Some(observed) => observed.clone()?,
+                // The legacy priority chain does not apply to a fallback subscriber.
+                None if self.accept_unknown => return Ok(self.unknown(account, reference)),
+                None => return Err(SourcePolicyIssue::MissingProfileMapping),
+            }
         } else {
             ObservedPolicy {
                 profile: ProfileObservation::Known(None),

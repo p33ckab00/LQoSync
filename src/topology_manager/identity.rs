@@ -264,9 +264,16 @@ pub fn authorize<'a>(
         let mut policies = HashMap::new();
         for &position in &by_router[router.router_id()] {
             let selection = &selections[position];
-            let policy = selection
+            let mut policy = selection
                 .policy
                 .compile(selection.scope.kind, profile_index)?;
+            if registry
+                .catalog
+                .as_ref()
+                .is_some_and(|c| c.fallback.is_some())
+            {
+                policy = policy.accept_unknown();
+            }
             if let Some(references) = required_profiles.get(&selection.scope) {
                 ensure!(
                     references

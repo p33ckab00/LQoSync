@@ -337,3 +337,84 @@ fn authorized_override_precedes_source_rate_parsing_and_never_matches_a_locator(
         Err(SourcePolicyIssue::InvalidSourceRate)
     );
 }
+
+fn unknown_setup() -> Vec<CurrentProfile> {
+    vec![
+        profile("*gold", "gold", Some("2M/50M")),
+        profile("*silver", "silver", Some("5M/10M")),
+        profile("*bronze", "bronze", None),
+    ]
+}
+
+fn bound() -> SourcePolicy {
+    SourcePolicy {
+        profiles: vec![binding("gold", "stable-gold", RateRead::Disabled)],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn an_unknown_profile_with_a_fallback_reads_its_rate_limit() {
+    let profiles = unknown_setup();
+    let source_index = index(&profiles);
+    let compiled = bound()
+        .compile(SourceKind::Ppp, &source_index)
+        .unwrap()
+        .accept_unknown();
+    let observed = compiled.observe(&account(Some("*silver"), None)).unwrap();
+    assert_eq!(
+        observed.profile,
+        ProfileObservation::Known(Some("unbound:silver".into()))
+    );
+    let expected =
+        super::super::source_rate::parse_rate_limit(Some("5M/10M"), UNKNOWN_FORMAT).unwrap();
+    assert_eq!(observed.plan, expected);
+    assert!(observed.plan.is_some());
+}
+
+#[test]
+fn an_unknown_profile_without_rate_limit_gives_no_plan() {
+    let profiles = unknown_setup();
+    let source_index = index(&profiles);
+    let compiled = bound()
+        .compile(SourceKind::Ppp, &source_index)
+        .unwrap()
+        .accept_unknown();
+    assert_eq!(
+        compiled
+            .observe(&account(Some("*bronze"), None))
+            .unwrap()
+            .plan,
+        None
+    );
+}
+
+#[test]
+fn an_unknown_profile_without_a_fallback_is_still_missing() {
+    let profiles = unknown_setup();
+    let source_index = index(&profiles);
+    let compiled = bound().compile(SourceKind::Ppp, &source_index).unwrap();
+    assert_eq!(
+        compiled
+            .observe(&account(Some("*silver"), None))
+            .unwrap_err(),
+        SourcePolicyIssue::MissingProfileMapping
+    );
+}
+
+#[test]
+fn known_profiles_are_unchanged() {
+    let profiles = unknown_setup();
+    let source_index = index(&profiles);
+    let compiled = bound()
+        .compile(SourceKind::Ppp, &source_index)
+        .unwrap()
+        .accept_unknown();
+    assert_eq!(
+        compiled
+            .observe(&account(Some("*gold"), None))
+            .unwrap()
+            .profile,
+        ProfileObservation::Known(Some("stable-gold".into()))
+    );
+}
