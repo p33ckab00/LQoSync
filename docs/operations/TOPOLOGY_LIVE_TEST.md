@@ -19,7 +19,15 @@ Enrollment commands: [enrollment runbook](TOPOLOGY_ENROLLMENT.md).
 ## Before the window
 
 1. Make sure that the enrollment configuration changes are in place (`require_bound = true` and the temporary `ipoevlan10` exclusion). See the enrollment runbook. Without them, `check` reports a `CRITICAL` line.
-2. Build the new binary: `cargo build --release`. Set `LQ=/home/pi/lqosync3-live/target/release/lqosync3`.
+2. Build the new binary on the shaper with one build job and a low priority:
+
+   ```bash
+   cd /home/pi/lqosync3-live
+   CARGO_BUILD_JOBS=1 nice -n 19 cargo build --release --locked
+   LQ=/home/pi/lqosync3-live/target/release/lqosync3
+   ```
+
+   WARNING: The shaper has little free memory. Do not build while free memory is low (`free -m`). A build that uses too much memory can stop processes on the shaper.
 3. Choose a fresh path for the report, for example `/var/backups/lqosync3/live-test/report-2026-11-19.json`. Use a new path for each run. An old report at a reused path stays when a run fails early.
 
 ## Procedure
@@ -57,7 +65,7 @@ sudo systemctl stop lqosync3
 
 ### Step 3: Enrollment with the new binary
 
-WARNING: If a command in step 3 fails, the window ends. Go to step 6.
+WARNING: If a command in step 3 fails unexpectedly, the window ends. Go to step 6. The exit status 2 of the dry run in item 4 is expected and is not a failure.
 
 1. Make the policy and run the check:
 
@@ -95,15 +103,23 @@ WARNING: If a command in step 3 fails, the window ends. Go to step 6.
 
 WARNING: Do not stop the command while it runs. The manager pair is applied until the restore step ends.
 
+With the default import timeout, the command can run for up to about 10 minutes: the prepare (up to 120 s) and four waits of up to 120 s each (baseline import, manager import, acknowledgement, restore import).
+A closed terminal or a tool time limit must not stop the command. Thus run it detached from the terminal, with its output in a log file:
+
 ```bash
-sudo $LQ topology live-test \
-  --report /var/backups/lqosync3/live-test/report-2026-11-19.json \
-  --import-timeout 120 --config /etc/lqosync3/lqosync3.toml
+LOG=/var/backups/lqosync3/live-test/run-2026-11-19.log
+sudo setsid -f sh -c "$LQ topology live-test --report /var/backups/lqosync3/live-test/report-2026-11-19.json --import-timeout 120 --config /etc/lqosync3/lqosync3.toml < /dev/null > $LOG 2>&1; echo \"exit status \$?\" >> $LOG"
+sudo tail -f $LOG
 ```
 
+- Use a new log path for each run, as for the report.
+- `tail -f` shows the output while the command runs. When the last line is `exit status N`, the command has ended. Stop `tail` with Ctrl-C. This stops only `tail`, not the command.
+- To read the result later, run `sudo cat $LOG`. The last line gives the exit status.
 - `--import-timeout` is the wait for each LibreQoS import, in seconds. The default is 120. The range is 1 to 3600.
-- The command prints `live test backup: <dir>` to stderr before it writes the manager pair. Keep this path. Backups are in `<state_dir>/topology-manager/live-test/<unix time>/`.
-- The command writes the report also when the test fails. It prints the step results, the number of differences and warnings, and the report path.
+- The command writes `live test backup: <dir>` to the log before it writes the manager pair. Keep this path. Backups are in `<state_dir>/topology-manager/live-test/<unix time>/`.
+- The command writes the report for each run that gets to the compile step, also when the test fails. It writes the step results, the number of differences and warnings, and the report path to the log.
+- When the instance lock, a precondition (enrollment, apply mode, v3 pair), or the prepare step fails, the command writes only the error, gives exit status 1, and writes no report.
+- If the command cannot write the report, it writes the summary first and then the error, and gives exit status 1.
 - Exit status 0 means `passed`. Exit status 1 means the test failed. The report field `error` holds the first failure.
 
 The command refuses before any write when:
@@ -113,9 +129,11 @@ The command refuses before any write when:
 - the installation is not an apply-mode v3 pair,
 - planner admission refuses the pair (the report names the nodes),
 - parity with the legacy pair differs,
-- the manager bytes equal the legacy bytes.
+- the manager bytes equal the legacy bytes,
+- LibreQoS did not import the legacy pair on disk in the import timeout (baseline),
+- the legacy state of LibreQoS differs from the legacy model (baseline).
 
-A refusal changes no file. Go to step 6.
+A refusal writes no pair and requests no import. A baseline refusal keeps the backup folder. Go to step 6.
 
 The command restores the legacy pair by itself, also after a failure.
 
@@ -130,25 +148,46 @@ Do this step if the output contains `RESTORE FAILED`, or if the command stopped 
 sudo $LQ topology live-test-restore --backup /var/lib/lqosync3/topology-manager/live-test/<unix time> --config /etc/lqosync3/lqosync3.toml
 ```
 
-The command writes the backup pair byte for byte and requests a LibreQoS import. It holds the instance lock.
+The command writes the backup pair byte for byte, requests a LibreQoS import, and waits up to 120 s for that import. It holds the instance lock.
+Exit status 0 means that LibreQoS imported the legacy pair and is `ready`. Exit status 1 means that the restore failed or LibreQoS did not confirm the import. The error tells which.
+
+Confirm that LibreQoS imported the legacy pair: `topology_runtime_status.json` shows `ready` and the baseline `source_generation` from the report.
 If the restore passes, go to step 6.
 If the restore fails, also go to step 6. The legacy service writes the legacy pair at its first cycle, so the start is itself a restore path. In step 6, confirm the pair and report the failure to the owner.
-Confirm that LibreQoS imported the legacy pair: `topology_runtime_status.json` shows `ready` and the baseline `source_generation` from the report.
 
 ### Step 6: Start the service and check one cycle
 
+The installed service build (`e8da230`) has no `api` command and no API socket. Read its state from `/var/lib/lqosync3/status.json` and from the journal.
+
 ```bash
 sudo systemctl start lqosync3
+systemctl is-active lqosync3
 sleep 60   # wait for the first cycle; repeat the next commands until one cycle shows
 sudo journalctl -u lqosync3 -n 50 --no-pager
-sudo lqosync3 api status
+sudo grep -E '^  "(updated|files_changed|reload|error|cycle_seq|trigger|program_version)":' /var/lib/lqosync3/status.json
 grep -E '"ready"|source_generation' /opt/libreqos/state/topology/topology_runtime_status.json
-cmp /opt/libreqos/src/ShapedDevices.csv /var/lib/lqosync3/topology-manager/live-test/<unix time>/ShapedDevices.csv
+sudo grep -oE '^\{"schema_version":[0-9]+,"revision":[0-9]+' /var/lib/lqosync3/topology-manager/registry.json
 ```
 
-Wait for one good legacy cycle. A good cycle shows the pair written (or `files changed: false`), and LibreQoS `ready`.
-`lqosync3 api status` shows the new `registry_revision` and `"enrolled": true` after an enrollment.
+Wait for one good legacy cycle. In `status.json`, a good cycle shows a new `updated` time, `cycle_seq` 1 or more, `error` `null`, and `reload` `ok` or `skipped`. `files_changed` is `true` when the cycle wrote the pair. LibreQoS shows `ready`.
+The registry line shows the `revision` from `installed registry revision N` in step 3. The installed build does not read the registry.
+
+If the step 4 output has a `live test backup: <dir>` line, compare the pair with that backup:
+
+```bash
+sudo cmp /opt/libreqos/src/ShapedDevices.csv <dir>/ShapedDevices.csv
+sudo cmp /opt/libreqos/src/network.json <dir>/network.json
+```
+
+Use the `<dir>` from that line. If the output has no such line, the test wrote no pair, so no restore and no `cmp` are necessary.
 The `cmp` check applies only if the service did not write a new pair yet. A new legacy cycle can change the pair.
+
+If the service does not start, or it stays `failed`:
+
+1. Read the cause in `sudo journalctl -u lqosync3 -n 100 --no-pager`.
+2. Do the rollback below with the tar backup from step 1. It puts back the state directory from before the window.
+3. Start the service again: `sudo systemctl start lqosync3`. Check it as above.
+4. Tell the owner at once, also when the second start passes.
 
 ### Step 7: Report to the owner
 
@@ -173,6 +212,9 @@ Never repeat `live-test` in the same window after a failure. Find the cause firs
 | `import timeout` | LibreQoS did not import the pair and become `ready` in the time limit. The test restores the legacy pair. Ask the owner before you try again with a longer `--import-timeout`. |
 | `LibreQoS gives the same source generation ... for the new pair` | LibreQoS did not show a new `source_generation`, so the test cannot confirm the import. The test restores the legacy pair. |
 | `native acknowledgement unavailable` | The lqosd native acknowledgement read failed. Check that `lqosd` runs. The test restores the legacy pair. |
+| `baseline: LibreQoS did not import the legacy pair on disk` | LibreQoS did not import the legacy pair on disk before the test. The test wrote no pair. Go to step 6 and tell the owner. |
+| `the legacy state before the test differs from the legacy model` | The LibreQoS rule model does not match the state that LibreQoS applied for the legacy pair. The test wrote no pair. The report field `baseline` lists the differences. Go to step 6 and tell the owner. |
+| `restore read-back differs from the baseline: ...` | After the restore, these circuits and nodes differ from the state before the test. Do step 5. |
 | `RESTORE FAILED ...` | The restore did not finish. Do step 5 with the backup path in the message. |
 
 After an import timeout of the manager pair, the restore can pass at once. A few minutes later, confirm that `topology_runtime_status.json` shows the baseline `source_generation` from the report.
@@ -184,8 +226,10 @@ The restore writes the backup pair byte for byte, so the old service receipt sta
 
 ## Rollback
 
-WARNING: A registry with `catalog.fallback` does not load in an older build. Clear the fallback (`fallback.clear`) before a rollback to an older build.
 The enrollment in this window writes the registry under `/var/lib/lqosync3/topology-manager/`.
+The installed build (`e8da230`) does not read the registry, so the registry has no effect on it.
+
+NOTE: The next note does not apply to the installed `e8da230`. Keep it for a later rollback from a newer build to an older build that reads the registry: a registry with `catalog.fallback` does not load in that older build. Clear the fallback (`fallback.clear`) before such a rollback.
 
 WARNING: The next steps replace the whole state directory with the backup from step 1.
 
