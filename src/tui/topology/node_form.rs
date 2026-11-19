@@ -341,6 +341,8 @@ pub(super) enum FallbackStep {
 #[derive(Debug)]
 pub(super) struct FallbackForm {
     node_ids: Vec<String>,
+    /// The selected node is in the fallback already: Enter removes it.
+    remove: Option<String>,
     values: [String; 2],
     errors: [Option<&'static str>; 2],
     focus: usize,
@@ -348,11 +350,16 @@ pub(super) struct FallbackForm {
 
 impl FallbackForm {
     pub(super) fn new(mut existing: Vec<String>, selected: &str, default: [u64; 2]) -> Self {
-        if !existing.iter().any(|n| n == selected) {
+        let remove = existing
+            .iter()
+            .any(|n| n == selected)
+            .then(|| selected.to_string());
+        if remove.is_none() {
             existing.push(selected.into());
         }
         Self {
             node_ids: existing,
+            remove,
             values: default.map(|v| v.to_string()),
             errors: [None; 2],
             focus: 0,
@@ -376,7 +383,18 @@ impl FallbackForm {
                         .is_none()
                         .then_some("use a whole number from 1 to 1000000");
                 }
-                if let [Some(down), Some(up)] = v[..] {
+                if let Some(gone) = &self.remove {
+                    let rest: Vec<&String> = self.node_ids.iter().filter(|n| *n != gone).collect();
+                    if rest.is_empty() {
+                        return FallbackStep::Send(json!({"kind": "fallback.clear"}));
+                    }
+                    if let [Some(down), Some(up)] = v[..] {
+                        return FallbackStep::Send(json!({
+                            "kind": "fallback.set", "node_ids": rest,
+                            "default_down_mbps": down, "default_up_mbps": up,
+                        }));
+                    }
+                } else if let [Some(down), Some(up)] = v[..] {
                     return FallbackStep::Send(json!({
                         "kind": "fallback.set", "node_ids": self.node_ids,
                         "default_down_mbps": down, "default_up_mbps": up,
@@ -389,10 +407,10 @@ impl FallbackForm {
     }
 
     pub(super) fn draw(&self, f: &mut Frame, area: Rect, p: &Palette) {
-        let mut lines = vec![Line::from(format!(
-            "Fallback nodes: {}",
-            self.node_ids.len()
-        ))];
+        let mut lines = vec![Line::from(match &self.remove {
+            Some(_) => "Enter removes the selected node from the fallback".to_string(),
+            None => format!("Fallback nodes: {}", self.node_ids.len()),
+        })];
         for (i, label) in ["Default down Mbps", "Default up Mbps"].iter().enumerate() {
             let marker = if i == self.focus { "> " } else { "  " };
             lines.push(Line::from(format!(
@@ -499,6 +517,20 @@ mod tests {
         let mut f = FallbackForm::new(vec![], "fb", [10, 10]);
         f.values[0] = "0".into();
         assert!(matches!(f.key(KeyCode::Enter), FallbackStep::Stay));
+    }
+
+    #[test]
+    fn the_fallback_form_removes_a_listed_node_or_clears_the_last_one() {
+        let mut f = FallbackForm::new(vec!["fb1".into(), "fb2".into()], "fb2", [10, 10]);
+        match f.key(KeyCode::Enter) {
+            FallbackStep::Send(v) => assert_eq!(v["node_ids"], json!(["fb1"])),
+            _ => panic!("no edit"),
+        }
+        let mut f = FallbackForm::new(vec!["fb1".into()], "fb1", [10, 10]);
+        match f.key(KeyCode::Enter) {
+            FallbackStep::Send(v) => assert_eq!(v, json!({"kind": "fallback.clear"})),
+            _ => panic!("no edit"),
+        }
     }
 
     #[test]

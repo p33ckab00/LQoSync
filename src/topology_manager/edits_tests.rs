@@ -1047,3 +1047,195 @@ fn tree_shows_the_fallback() {
         json!({"node_ids": [fb], "default_mbps": [10, 5]})
     );
 }
+
+mod fallback_fixes {
+    use super::*;
+    use crate::topology_manager::catalog::{CatalogRouter, FallbackPolicy};
+    use crate::topology_manager::identity::{ReferenceAuthority, SourceSelection};
+    use crate::topology_manager::model::{SourceKind, SourceScope};
+    use crate::topology_manager::policy_draft::PolicyDraft;
+    use crate::topology_manager::settings::SourceSettings;
+    use crate::topology_manager::source_policy::{ProfileBinding, RateRead, SourcePolicy};
+
+    fn ppp_scope() -> SourceScope {
+        SourceScope {
+            router_id: "distro".into(),
+            source_id: "ppp-service".into(),
+            kind: SourceKind::Ppp,
+        }
+    }
+
+    fn selection(
+        scope: SourceScope,
+        bindings: &[(&str, &str)],
+        authority: ReferenceAuthority,
+    ) -> SourceSelection {
+        SourceSelection {
+            scope,
+            service_names: vec![],
+            authority,
+            policy: SourcePolicy {
+                profiles: bindings
+                    .iter()
+                    .map(|(r, n)| ProfileBinding {
+                        source_ref: (*r).into(),
+                        current_name: (*n).into(),
+                        rate: RateRead::Disabled,
+                    })
+                    .collect(),
+                ..Default::default()
+            },
+        }
+    }
+
+    fn settled() -> RegistryDocument {
+        let mut d = doc();
+        d.source_settings = Some(SourceSettings {
+            selections: vec![selection(
+                ppp_scope(),
+                &[("provider-profile-id", "gold")],
+                ReferenceAuthority::PppSecretName,
+            )],
+        });
+        d.validate().unwrap();
+        d
+    }
+
+    fn draft_of(d: &RegistryDocument) -> PolicyDraft {
+        PolicyDraft {
+            catalog: d.catalog.clone().unwrap(),
+            source_settings: d.source_settings.clone().unwrap(),
+        }
+    }
+
+    fn with_fallback(mut d: RegistryDocument) -> (RegistryDocument, String) {
+        let a = run(
+            &d,
+            json!({"kind": "node.create", "name": "Fallback", "parent": "wan1", "node_kind": "group", "capacity": {"mode": "automatic"}}),
+        )
+        .unwrap();
+        let fb = new_node(&d, &a.candidate).id.clone();
+        d = a.candidate;
+        d.catalog.as_mut().unwrap().fallback = Some(FallbackPolicy {
+            node_ids: vec![fb.clone()],
+            default_plan: RateBps {
+                down: 10_000_000,
+                up: 10_000_000,
+            },
+        });
+        (d, fb)
+    }
+
+    #[test]
+    fn fallback_clear_drops_assignments_to_the_fallback_nodes() {
+        let (mut d, fb) = with_fallback(doc());
+        d.subscribers = vec![record("s1", Some(&fb), None)];
+        let a = run(&d, json!({"kind": "fallback.clear"})).unwrap();
+        assert_eq!(a.cleared, vec!["s1".to_string()]);
+        assert_eq!(a.candidate.subscribers[0].policy.assignment, None);
+        let mut pinned = d.clone();
+        pinned.subscribers = vec![record("s1", Some(&fb), Some(&fb))];
+        assert!(
+            refused(&pinned, json!({"kind": "fallback.clear"}))
+                .starts_with("unpin the subscribers first")
+        );
+    }
+
+    #[test]
+    fn fallback_set_drops_assignments_to_a_node_that_leaves() {
+        let (mut d, fb) = with_fallback(doc());
+        let a = run(
+            &d,
+            json!({"kind": "node.create", "name": "Fallback2", "parent": "wan2", "node_kind": "group", "capacity": {"mode": "automatic"}}),
+        )
+        .unwrap();
+        let fb2 = new_node(&d, &a.candidate).id.clone();
+        d = a.candidate;
+        d.subscribers = vec![record("s1", Some(&fb), None)];
+        let a = run(&d, json!({"kind": "fallback.set", "node_ids": [fb2], "default_down_mbps": 10, "default_up_mbps": 10})).unwrap();
+        assert_eq!(a.cleared, vec!["s1".to_string()]);
+    }
+
+    #[test]
+    fn source_add_adds_the_router_and_its_role() {
+        let mut d = settled();
+        d.catalog
+            .as_mut()
+            .unwrap()
+            .routers
+            .retain(|r| r.id != "edge");
+        let mut draft = draft_of(&d);
+        let edge = SourceScope {
+            router_id: "edge".into(),
+            source_id: "lan".into(),
+            kind: SourceKind::Dhcp,
+        };
+        draft.catalog.routers.push(CatalogRouter {
+            id: "edge".into(),
+            name: "Edge".into(),
+            roles: vec![catalog::RouterRole::Dhcp],
+        });
+        let mut source = draft
+            .catalog
+            .sources
+            .iter()
+            .find(|s| s.id == "profile-source")
+            .unwrap()
+            .clone();
+        source.id = "edge-lan".into();
+        source.targets.clear();
+        source.profile_id = Some("local-plan".into());
+        if let SourceOrigin::Subscribers {
+            scope, profile_ref, ..
+        } = &mut source.origin
+        {
+            *scope = edge.clone();
+            *profile_ref = None;
+        }
+        draft.catalog.sources.push(source);
+        let mut node = draft
+            .catalog
+            .nodes
+            .iter()
+            .find(|n| n.id == "group1")
+            .unwrap()
+            .clone();
+        node.id = "edge-lan-node".into();
+        node.source_id = Some("edge-lan".into());
+        draft.catalog.nodes.push(node);
+        draft.source_settings.selections.push(selection(
+            edge,
+            &[],
+            ReferenceAuthority::DhcpClientMac,
+        ));
+        let a = add_source(&d, &draft, "edge-lan", Some("wan2")).unwrap();
+        let c = a.candidate.catalog.as_ref().unwrap();
+        let router = c.routers.iter().find(|r| r.id == "edge").unwrap();
+        assert!(router.roles.contains(&catalog::RouterRole::Dhcp));
+    }
+
+    #[test]
+    fn a_renamed_profile_is_a_rebind_candidate() {
+        let d = settled();
+        let mut draft = draft_of(&d);
+        draft.source_settings.selections[0].policy.profiles[0].current_name = "gold-2026".into();
+        let list = candidates(&d, &draft);
+        let rebind = list
+            .iter()
+            .find(|c| c["rebind"] == true)
+            .unwrap_or_else(|| panic!("{list:?}"));
+        assert_eq!(rebind["key"], json!("profile-source"));
+        assert!(
+            rebind["name"]
+                .as_str()
+                .unwrap()
+                .contains("gold -> gold-2026")
+        );
+        let a = add_source(&d, &draft, "profile-source", None).unwrap();
+        let b = &a.candidate.source_settings.as_ref().unwrap().selections[0]
+            .policy
+            .profiles[0];
+        assert_eq!(b.current_name, "gold-2026");
+        assert_eq!(a.affected, vec!["profile-source".to_string()]);
+    }
+}

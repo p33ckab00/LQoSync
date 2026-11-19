@@ -781,6 +781,45 @@ fn subscriber_pin(
     Ok((id, Some(group)))
 }
 
+fn fallback_nodes(d: &RegistryDocument) -> Vec<String> {
+    d.catalog
+        .as_ref()
+        .and_then(|c| c.fallback.as_ref())
+        .map(|f| f.node_ids.clone())
+        .unwrap_or_default()
+}
+
+/// Records assigned to nodes that leave the fallback lose that assignment; pins refuse.
+fn drop_fallback_assignments(
+    d: &mut RegistryDocument,
+    leaving: &[String],
+    cleared: &mut Vec<String>,
+) -> anyhow::Result<()> {
+    let pinned: Vec<&str> = d
+        .subscribers
+        .iter()
+        .filter(|s| s.policy.pin.as_ref().is_some_and(|p| leaving.contains(p)))
+        .map(|s| s.id.as_str())
+        .collect();
+    if !pinned.is_empty() {
+        return Err(invalid(format!(
+            "unpin the subscribers first: {}",
+            pinned.join(", ")
+        )));
+    }
+    for s in &mut d.subscribers {
+        if s.policy
+            .assignment
+            .as_ref()
+            .is_some_and(|a| leaving.contains(a))
+        {
+            s.policy.assignment = None;
+            cleared.push(s.id.clone());
+        }
+    }
+    Ok(())
+}
+
 /// The origin of a subscriber source: its scope and profile reference.
 fn origin_key(s: &CatalogSource) -> Option<(&super::model::SourceScope, Option<&str>)> {
     match &s.origin {
@@ -799,7 +838,7 @@ pub fn candidates(doc: &RegistryDocument, draft: &super::policy_draft::PolicyDra
         .flat_map(|c| &c.sources)
         .filter_map(origin_key)
         .collect();
-    draft
+    let mut out: Vec<Value> = draft
         .catalog
         .sources
         .iter()
@@ -807,10 +846,60 @@ pub fn candidates(doc: &RegistryDocument, draft: &super::policy_draft::PolicyDra
             let key = origin_key(s)?;
             (!known.contains(&key)).then(|| {
                 json!({"key": s.id, "kind": key.0.kind, "router": key.0.router_id,
-                       "name": s.name, "subscribers": Value::Null})
+                       "name": s.name, "subscribers": Value::Null, "rebind": false})
             })
         })
-        .collect()
+        .collect();
+    out.extend(rebinds(doc, draft).into_iter().map(|r| {
+        json!({"key": r.source_id, "kind": r.scope.kind, "router": r.scope.router_id,
+               "name": format!("{} ({} -> {})", r.source_name, r.old, r.new),
+               "subscribers": Value::Null, "rebind": true})
+    }));
+    out
+}
+
+/// A router profile renamed after enrollment: same row reference, a new name.
+struct Rebind {
+    source_id: String,
+    source_name: String,
+    scope: super::model::SourceScope,
+    source_ref: String,
+    old: String,
+    new: String,
+}
+
+fn rebinds(doc: &RegistryDocument, draft: &super::policy_draft::PolicyDraft) -> Vec<Rebind> {
+    let (Some(c), Some(settings)) = (doc.catalog.as_ref(), doc.source_settings.as_ref()) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for fresh in &draft.source_settings.selections {
+        let Some(current) = settings.selections.iter().find(|s| s.scope == fresh.scope) else {
+            continue;
+        };
+        for binding in &fresh.policy.profiles {
+            let Some(old) = current.policy.profiles.iter().find(|b| {
+                b.source_ref == binding.source_ref && b.current_name != binding.current_name
+            }) else {
+                continue;
+            };
+            if let Some(source) = c
+                .sources
+                .iter()
+                .find(|s| origin_key(s) == Some((&fresh.scope, Some(binding.source_ref.as_str()))))
+            {
+                out.push(Rebind {
+                    source_id: source.id.clone(),
+                    source_name: source.name.clone(),
+                    scope: fresh.scope.clone(),
+                    source_ref: binding.source_ref.clone(),
+                    old: old.current_name.clone(),
+                    new: binding.current_name.clone(),
+                });
+            }
+        }
+    }
+    out
 }
 
 /// Copy one draft source into the registry, as enrollment builds it, with its first instance.
@@ -833,6 +922,33 @@ pub fn add_source(
     if !fresh.iter().any(|k| k == key) {
         return Err(gone());
     }
+    if let Some(r) = rebinds(doc, draft).into_iter().find(|r| r.source_id == key) {
+        let mut d = doc.clone();
+        let settings = d.source_settings.as_mut().ok_or_else(gone)?;
+        let binding = settings
+            .selections
+            .iter_mut()
+            .find(|s| s.scope == r.scope)
+            .and_then(|s| {
+                s.policy
+                    .profiles
+                    .iter_mut()
+                    .find(|b| b.source_ref == r.source_ref)
+            })
+            .ok_or_else(gone)?;
+        binding.current_name = r.new;
+        d.validate().map_err(|e| invalid(format!("{e:#}")))?;
+        return Ok(Applied {
+            candidate: d,
+            affected: vec![key.to_string()],
+            cleared: Vec::new(),
+            require_online: Vec::new(),
+            clear_offline: false,
+            check_only: false,
+            legacy_replaced: 0,
+            clear_fallback: false,
+        });
+    }
     let source = draft
         .catalog
         .sources
@@ -843,6 +959,29 @@ pub fn add_source(
     let mut d = doc.clone();
     let c = d.catalog.as_mut().expect("enrolled");
     check_parent(c, parent)?;
+    // A protocol or a router enabled after enrollment: give the catalog router its read role.
+    let role = match scope.kind {
+        super::model::SourceKind::Ppp => RouterRole::Ppp,
+        super::model::SourceKind::Dhcp => RouterRole::Dhcp,
+        super::model::SourceKind::Hotspot => RouterRole::Hotspot,
+    };
+    match c.routers.iter_mut().find(|r| r.id == scope.router_id) {
+        Some(r) if !r.roles.contains(&role) => r.roles.push(role),
+        Some(_) => {}
+        None => {
+            let r = draft
+                .catalog
+                .routers
+                .iter()
+                .find(|r| r.id == scope.router_id)
+                .ok_or_else(gone)?;
+            c.routers.push(CatalogRouter {
+                id: r.id.clone(),
+                name: r.name.clone(),
+                roles: vec![role],
+            });
+        }
+    }
     let mut added = source.clone();
     added.targets.clear();
     c.sources.push(added);
@@ -1050,6 +1189,11 @@ pub fn apply(
             default_up_mbps,
         } => {
             let default_plan = mbps(*default_down_mbps, *default_up_mbps)?;
+            let leaving: Vec<String> = fallback_nodes(&d)
+                .into_iter()
+                .filter(|n| !node_ids.contains(n))
+                .collect();
+            drop_fallback_assignments(&mut d, &leaving, &mut cleared)?;
             let c = d.catalog.as_mut().expect("enrolled");
             for id in node_ids {
                 if !c.nodes.iter().any(|n| {
@@ -1064,6 +1208,8 @@ pub fn apply(
             });
         }
         Edit::FallbackClear => {
+            let leaving = fallback_nodes(&d);
+            drop_fallback_assignments(&mut d, &leaving, &mut cleared)?;
             d.catalog.as_mut().expect("enrolled").fallback = None;
             clear_fallback = true;
         }
