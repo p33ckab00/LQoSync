@@ -1598,4 +1598,170 @@ mod edits {
             rule(&err)
         );
     }
+
+    /// A new router plan "Bronze" with one connected customer.
+    fn add_bronze(e: &Env) {
+        let mut rows = e.fake.rows.lock().unwrap();
+        let hub = rows.get_mut("Hub-1").unwrap();
+        let set = |row: &mut RosRow, k: &str, v: &str| {
+            if row.contains_key(k) {
+                row.insert(k.into(), v.into());
+            }
+        };
+        let mut profile = hub["/ppp/profile"][0].clone();
+        set(&mut profile, ".id", "*pB");
+        set(&mut profile, "name", "Bronze");
+        set(&mut profile, "rate-limit", "8M/8M");
+        set(&mut profile, "comment", "");
+        hub.get_mut("/ppp/profile").unwrap().push(profile);
+        let mut secret = hub["/ppp/secret"][0].clone();
+        set(&mut secret, ".id", "*sB");
+        set(&mut secret, "name", "bronze-user");
+        set(&mut secret, "profile", "Bronze");
+        set(&mut secret, "comment", "");
+        hub.get_mut("/ppp/secret").unwrap().push(secret);
+        let mut active = hub["/ppp/active"][0].clone();
+        set(&mut active, ".id", "*aB");
+        set(&mut active, "name", "bronze-user");
+        set(&mut active, "address", "100.64.9.99");
+        set(&mut active, "caller-id", "02:00:00:00:0b:0b");
+        set(&mut active, "comment", "");
+        hub.get_mut("/ppp/active").unwrap().push(active);
+    }
+
+    async fn fallback_root(r: &mut Runner<FakeConnector>) -> String {
+        let before = tree_ids(r);
+        commit(
+            r,
+            json!({"kind": "node.create", "name": "Fallback", "parent": null, "node_kind": "group",
+                   "capacity": {"mode": "fixed", "down_mbps": 100, "up_mbps": 100}}),
+        )
+        .await;
+        let fb = tree_ids(r)
+            .into_iter()
+            .find(|id| !before.contains(id))
+            .unwrap();
+        commit(
+            r,
+            json!({"kind": "fallback.set", "node_ids": [fb], "default_down_mbps": 10, "default_up_mbps": 10}),
+        )
+        .await;
+        fb
+    }
+
+    #[tokio::test]
+    async fn candidates_list_a_new_ppp_profile_and_leave_out_known_sources() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        add_bronze(&e);
+        let v = r.api_source_candidates().await.unwrap();
+        let names: Vec<&str> = v["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|c| c["name"].as_str())
+            .collect();
+        assert!(names.iter().any(|n| n.contains("Bronze")), "{v}");
+        assert!(!names.iter().any(|n| n.contains("Gold")), "{v}");
+    }
+
+    #[tokio::test]
+    async fn source_add_moves_the_fallback_subscribers_to_the_new_group() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let fb = fallback_root(&mut r).await;
+        add_bronze(&e);
+        let pv = r.api_preview_refresh().await.unwrap();
+        let bronze = pv["subscribers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["fallback"] == true)
+            .unwrap_or_else(|| panic!("no fallback subscriber: {pv}"))
+            .clone();
+        assert_eq!(bronze["node"], json!(fb));
+        let key = r.api_source_candidates().await.unwrap()["candidates"][0]["key"].clone();
+        let p = commit(
+            &mut r,
+            json!({"kind": "source.add", "key": key, "parent": null}),
+        )
+        .await;
+        assert_eq!(p["sources"].as_array().unwrap().len(), 1, "{p}");
+        let doc = r.api_registry().unwrap().unwrap();
+        let c = doc.catalog.as_ref().unwrap();
+        let source = c
+            .sources
+            .iter()
+            .find(|s| s.id == key.as_str().unwrap())
+            .unwrap();
+        let node = c
+            .nodes
+            .iter()
+            .find(|n| n.source_id.as_deref() == Some(source.id.as_str()))
+            .unwrap();
+        let pv = r.api_preview_refresh().await.unwrap();
+        let moved = pv["subscribers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["id"] == bronze["id"])
+            .unwrap()
+            .clone();
+        assert_eq!(
+            (moved["node"].as_str(), &moved["fallback"]),
+            (Some(node.id.as_str()), &json!(false)),
+            "{pv}"
+        );
+        let settings = doc.source_settings.as_ref().unwrap();
+        assert!(
+            settings.selections.iter().any(|s| s
+                .policy
+                .profiles
+                .iter()
+                .any(|b| b.current_name == "Bronze"))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_vanished_candidate_is_refused() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let err = propose(
+            &mut r,
+            json!({"kind": "source.add", "key": "nope", "parent": null}),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(rule(&err), "the source is no longer on the router");
+    }
+
+    #[tokio::test]
+    async fn fallback_clear_is_refused_with_online_fallback_subscribers() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        fallback_root(&mut r).await;
+        add_bronze(&e);
+        let err = propose(&mut r, json!({"kind": "fallback.clear"}))
+            .await
+            .unwrap_err();
+        assert_eq!(rule(&err), "move the fallback subscribers first");
+    }
+
+    #[tokio::test]
+    async fn candidates_and_source_add_are_dispatched() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let req = Request {
+            v: 1,
+            id: "t".into(),
+            op: "topology.sources.candidates".into(),
+            args: json!({}),
+        };
+        let line = handle(&mut r, &req)
+            .await
+            .unwrap_or_else(|LostLock(l)| panic!("lost lock: {l}"));
+        let v: Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert_eq!(v["ok"], json!(true), "{v}");
+        assert!(v["result"]["candidates"].is_array());
+    }
 }

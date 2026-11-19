@@ -116,6 +116,7 @@ where
         "topology.policies" => runner.api_policies().map_err(fail),
         "wan.discover" => runner.api_wan_discover().await.map_err(fail),
         "topology.tree" => runner.api_tree().map_err(fail),
+        "topology.sources.candidates" => runner.api_source_candidates().await.map_err(fail),
         "topology.edit.propose" => {
             let a: EditProposeArgs = parse(request)?;
             runner

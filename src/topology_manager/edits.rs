@@ -45,6 +45,13 @@ pub enum Edit {
     },
     #[serde(rename = "fallback.clear")]
     FallbackClear,
+    /// Add one source of a fresh enrollment draft. The runner reads the routers for it.
+    #[serde(rename = "source.add")]
+    SourceAdd {
+        key: String,
+        #[serde(default)]
+        parent: Option<String>,
+    },
     #[serde(rename = "instance.add")]
     InstanceAdd {
         source_id: String,
@@ -774,6 +781,137 @@ fn subscriber_pin(
     Ok((id, Some(group)))
 }
 
+/// The origin of a subscriber source: its scope and profile reference.
+fn origin_key(s: &CatalogSource) -> Option<(&super::model::SourceScope, Option<&str>)> {
+    match &s.origin {
+        SourceOrigin::Subscribers {
+            scope, profile_ref, ..
+        } => Some((scope, profile_ref.as_deref())),
+        SourceOrigin::Wan { .. } => None,
+    }
+}
+
+/// Draft sources whose origin the registry catalog does not have.
+pub fn candidates(doc: &RegistryDocument, draft: &super::policy_draft::PolicyDraft) -> Vec<Value> {
+    let known: BTreeSet<_> = doc
+        .catalog
+        .iter()
+        .flat_map(|c| &c.sources)
+        .filter_map(origin_key)
+        .collect();
+    draft
+        .catalog
+        .sources
+        .iter()
+        .filter_map(|s| {
+            let key = origin_key(s)?;
+            (!known.contains(&key)).then(|| {
+                json!({"key": s.id, "kind": key.0.kind, "router": key.0.router_id,
+                       "name": s.name, "subscribers": Value::Null})
+            })
+        })
+        .collect()
+}
+
+/// Copy one draft source into the registry, as enrollment builds it, with its first instance.
+pub fn add_source(
+    doc: &RegistryDocument,
+    draft: &super::policy_draft::PolicyDraft,
+    key: &str,
+    parent: Option<&str>,
+) -> anyhow::Result<Applied> {
+    if doc.export_ownership.is_none() || doc.catalog.is_none() {
+        return Err(invalid(
+            "enroll first: the registry has no export ownership",
+        ));
+    }
+    let gone = || invalid("the source is no longer on the router");
+    let fresh: Vec<String> = candidates(doc, draft)
+        .iter()
+        .filter_map(|c| c["key"].as_str().map(str::to_string))
+        .collect();
+    if !fresh.iter().any(|k| k == key) {
+        return Err(gone());
+    }
+    let source = draft
+        .catalog
+        .sources
+        .iter()
+        .find(|s| s.id == key)
+        .ok_or_else(gone)?;
+    let (scope, profile_ref) = origin_key(source).ok_or_else(gone)?;
+    let mut d = doc.clone();
+    let c = d.catalog.as_mut().expect("enrolled");
+    check_parent(c, parent)?;
+    let mut added = source.clone();
+    added.targets.clear();
+    c.sources.push(added);
+    if let Some(pid) = source.profile_id.as_deref()
+        && !c.profiles.iter().any(|p| p.id == pid)
+        && let Some(p) = draft.catalog.profiles.iter().find(|p| p.id == pid)
+    {
+        c.profiles.push(p.clone());
+    }
+    let mut node = draft
+        .catalog
+        .nodes
+        .iter()
+        .find(|n| n.source_id.as_deref() == Some(key))
+        .cloned()
+        .ok_or_else(gone)?;
+    if c.nodes.iter().any(|n| n.id == node.id) {
+        return Err(invalid("the source node exists already"));
+    }
+    node.parent = parent.map(Into::into);
+    c.nodes.push(node);
+    let draft_selection = draft
+        .source_settings
+        .selections
+        .iter()
+        .find(|s| s.scope == *scope)
+        .ok_or_else(gone)?;
+    let settings = d
+        .source_settings
+        .as_mut()
+        .ok_or_else(|| invalid("enroll first: the registry has no source settings"))?;
+    match settings.selections.iter_mut().find(|s| s.scope == *scope) {
+        Some(selection) => {
+            for name in &draft_selection.service_names {
+                if !selection.service_names.contains(name) {
+                    selection.service_names.push(name.clone());
+                }
+            }
+            for binding in &draft_selection.policy.profiles {
+                let wanted = profile_ref.is_none_or(|r| r == binding.source_ref);
+                if wanted
+                    && !selection
+                        .policy
+                        .profiles
+                        .iter()
+                        .any(|b| b.source_ref == binding.source_ref)
+                {
+                    selection.policy.profiles.push(binding.clone());
+                }
+            }
+        }
+        None => settings.selections.push(draft_selection.clone()),
+    }
+    let c = d.catalog.as_mut().expect("enrolled");
+    split_minimum(c, key).map_err(|e| invalid(format!("{e:#}")))?;
+    c.canonicalize();
+    d.validate().map_err(|e| invalid(format!("{e:#}")))?;
+    Ok(Applied {
+        candidate: d,
+        affected: vec![key.to_string()],
+        cleared: Vec::new(),
+        require_online: Vec::new(),
+        clear_offline: false,
+        check_only: false,
+        legacy_replaced: 0,
+        clear_fallback: false,
+    })
+}
+
 /// Apply one edit to a copy of an enrolled registry.
 pub fn apply(
     doc: &RegistryDocument,
@@ -928,6 +1066,9 @@ pub fn apply(
         Edit::FallbackClear => {
             d.catalog.as_mut().expect("enrolled").fallback = None;
             clear_fallback = true;
+        }
+        Edit::SourceAdd { .. } => {
+            return Err(invalid("source.add needs a fresh source read"));
         }
         Edit::SpeedDefaults {
             down_min,

@@ -681,12 +681,24 @@ where
                 crate::topology_manager::store::RevisionConflict,
             ));
         }
-        let applied = crate::topology_manager::edits::apply(
-            &doc,
-            &edit,
-            self.wan_discovery.as_ref(),
-            &self.cfg,
-        )?;
+        let mut applied = match &edit {
+            crate::topology_manager::edits::Edit::SourceAdd { key, parent } => {
+                let draft = self
+                    .propose_policy(Duration::from_secs(30))
+                    .await
+                    .map_err(|e| rule(format!("{e:#}")))?;
+                crate::topology_manager::edits::add_source(&doc, &draft, key, parent.as_deref())?
+            }
+            _ => crate::topology_manager::edits::apply(
+                &doc,
+                &edit,
+                self.wan_discovery.as_ref(),
+                &self.cfg,
+            )?,
+        };
+        if applied.clear_fallback {
+            self.check_fallback_clear(&doc, &mut applied).await?;
+        }
         if applied.check_only {
             return self.propose_check_only(&doc, edit, applied).await;
         }
@@ -819,6 +831,70 @@ where
             expires: tokio::time::Instant::now() + PROPOSAL_LIFETIME,
         });
         Ok(answer)
+    }
+
+    /// `fallback.clear`: refuse while an online subscriber is placed in a fallback node, and
+    /// clear the saved assignments of offline records to those nodes.
+    async fn check_fallback_clear(
+        &mut self,
+        doc: &crate::topology_manager::model::RegistryDocument,
+        applied: &mut crate::topology_manager::edits::Applied,
+    ) -> anyhow::Result<()> {
+        let nodes: Vec<String> = doc
+            .catalog
+            .as_ref()
+            .and_then(|c| c.fallback.as_ref())
+            .map(|f| f.node_ids.clone())
+            .unwrap_or_default();
+        let read = self
+            .topology_sources
+            .reconcile_for(
+                &self.cfg,
+                doc,
+                self.last_topology_generation,
+                Duration::from_secs(30),
+            )
+            .await?;
+        let online: std::collections::HashSet<String> = read
+            .active
+            .iter()
+            .map(|a| a.subscriber_id.clone())
+            .collect();
+        let placed = crate::topology_manager::resolver::resolve(read)?;
+        if placed
+            .placements
+            .iter()
+            .any(|p| nodes.contains(&p.target_id))
+        {
+            return Err(rule("move the fallback subscribers first".into()));
+        }
+        for s in &mut applied.candidate.subscribers {
+            if !online.contains(&s.id)
+                && s.policy
+                    .assignment
+                    .as_ref()
+                    .is_some_and(|a| nodes.contains(a))
+            {
+                s.policy.assignment = None;
+                applied.cleared.push(s.id.clone());
+            }
+        }
+        Ok(())
+    }
+
+    /// API `topology.sources.candidates`: draft sources that the registry does not know.
+    pub async fn api_source_candidates(&mut self) -> anyhow::Result<serde_json::Value> {
+        let doc = self
+            .api_document()?
+            .filter(|d| d.export_ownership.is_some())
+            .ok_or_else(|| rule("enroll first: the registry has no export ownership".into()))?;
+        let draft = self
+            .propose_policy(Duration::from_secs(30))
+            .await
+            .map_err(|e| rule(format!("{e:#}")))?;
+        Ok(serde_json::json!({
+            "candidates": crate::topology_manager::edits::candidates(&doc, &draft),
+        }))
     }
 
     /// A speed or factor edit: one source read, placement and aggregate checks for the current
