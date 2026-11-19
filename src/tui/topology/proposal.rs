@@ -9,8 +9,43 @@ use serde_json::Value;
 /// The most moves that the popup lists.
 const LISTED: usize = 8;
 
-pub(super) fn lines(p: &Value) -> Vec<Line<'static>> {
+/// The node name for `id` from the proposal tree, then the current tree, else the ID.
+fn namer<'a>(p: &'a Value, current: &'a [Value]) -> impl Fn(&Value) -> String + 'a {
+    move |id: &Value| {
+        let Some(id) = id.as_str() else {
+            return "root".into();
+        };
+        p["nodes"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .chain(current)
+            .find(|n| n["id"].as_str() == Some(id))
+            .and_then(|n| n["name"].as_str())
+            .unwrap_or(id)
+            .to_string()
+    }
+}
+
+/// One line that says what the edit changes in the tree.
+fn change(e: &Value, name: &dyn Fn(&Value) -> String) -> String {
     let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    match e["kind"].as_str().unwrap_or_default() {
+        "node.remove" => format!("remove {}", name(&e["node_id"])),
+        "node.move" => format!("move {} below {}", name(&e["node_id"]), name(&e["parent"])),
+        "node.update" => format!("edit {}", name(&e["node_id"])),
+        "instance.add" => format!(
+            "new instance of {} below {}",
+            text(&e["source_id"]),
+            name(&e["parent"])
+        ),
+        _ => format!("create {}", text(&e["name"])),
+    }
+}
+
+pub(super) fn lines(p: &Value, current: &[Value]) -> Vec<Line<'static>> {
+    let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let name = namer(p, current);
     let moves = p["moves"].as_array().map_or(&[][..], Vec::as_slice);
     let count = |k: &str| {
         p[k].as_array()
@@ -18,6 +53,7 @@ pub(super) fn lines(p: &Value) -> Vec<Line<'static>> {
     };
     let mut out = vec![
         format!("edit: {}", text(&p["edit"]["kind"])),
+        change(&p["edit"], &name),
         format!("{} moves", moves.len()),
     ];
     for m in moves.iter().take(LISTED) {
@@ -26,8 +62,8 @@ pub(super) fn lines(p: &Value) -> Vec<Line<'static>> {
             .map_or_else(|| text(&m["subscriber_id"]), str::to_string);
         out.push(format!(
             "  {who}  {} -> {}",
-            text(&m["from"]),
-            text(&m["to"])
+            name(&m["from"]),
+            name(&m["to"])
         ));
     }
     if moves.len() > LISTED {
@@ -44,8 +80,8 @@ pub(super) fn lines(p: &Value) -> Vec<Line<'static>> {
     out.into_iter().map(Line::from).collect()
 }
 
-pub(super) fn draw(p: &Value, f: &mut Frame, area: Rect, palette: &Palette) {
-    super::plan_form::popup(f, area, lines(p), "Edit proposal", palette);
+pub(super) fn draw(p: &Value, current: &[Value], f: &mut Frame, area: Rect, palette: &Palette) {
+    super::plan_form::popup(f, area, lines(p, current), "Edit proposal", palette);
 }
 
 #[cfg(test)]
@@ -148,6 +184,32 @@ mod tests {
         assert!(render(&v, 120, 30).contains("changed by another operator, try again"));
         let sent: Vec<String> = ops(&mut v).into_iter().map(|(op, _)| op).collect();
         assert!(sent.contains(&"topology.tree".to_string()), "{sent:?}");
+    }
+
+    #[test]
+    fn the_popup_names_nodes_and_the_tree_change() {
+        let mut v = super::super::builder::tests::sample();
+        v.on_answer(ApiAnswer {
+            op: "topology.edit.propose".into(),
+            result: Ok(json!({
+                "proposal_id": "p", "edit": {"kind": "node.remove", "node_id": "lq3-aaaaaaaaaaaaaaaa"},
+                "nodes": [{"id": "lq3-bbbbbbbbbbbbbbbb", "name": "Gold WAN1"}],
+                "moves": [{"subscriber_id": "a", "label": "alice",
+                           "from": "lq3-aaaaaaaaaaaaaaaa", "to": "lq3-bbbbbbbbbbbbbbbb"}],
+                "cleared": [], "assigned": 0, "new_records": 0, "sources": []
+            })),
+        });
+        // The removed node is not in the candidate tree; the current tree names it.
+        v.on_answer(ApiAnswer {
+            op: "topology.tree".into(),
+            result: Ok(json!({"revision": 2, "sources": [], "nodes": [
+                {"id": "lq3-aaaaaaaaaaaaaaaa", "name": "Gold WAN2", "parent": null, "kind": "group"},
+                {"id": "lq3-bbbbbbbbbbbbbbbb", "name": "Gold WAN1", "parent": null, "kind": "group"}
+            ]})),
+        });
+        let text = render(&v, 80, 24);
+        assert!(text.contains("remove Gold WAN2"), "{text}");
+        assert!(text.contains("alice  Gold WAN2 -> Gold WAN1"), "{text}");
     }
 
     #[test]

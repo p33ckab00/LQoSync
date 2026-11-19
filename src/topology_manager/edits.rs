@@ -487,6 +487,22 @@ fn node_remove(
         }
     }
     let c = d.catalog.as_mut().expect("enrolled");
+    // The removed share of the group minimum goes to another instance; the split runs later.
+    if let Some(s) = source
+        .as_ref()
+        .filter(|s| matches!(s.origin, SourceOrigin::Subscribers { .. }))
+        && let Some(other) = c
+            .nodes
+            .iter_mut()
+            .find(|n| n.id != node_id && n.source_id.as_deref() == Some(s.id.as_str()))
+    {
+        let add = |a: Option<u64>, b: Option<u64>| match (a, b) {
+            (None, None) => None,
+            (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
+        };
+        other.minimum.down = add(other.minimum.down, node.minimum.down);
+        other.minimum.up = add(other.minimum.up, node.minimum.up);
+    }
     c.nodes.retain(|n| n.id != node_id);
     for s in &mut c.sources {
         s.targets.retain(|t| t != node_id);

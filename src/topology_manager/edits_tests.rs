@@ -555,3 +555,29 @@ fn tree_lists_every_catalog_node_with_capacity_and_alias() {
             .any(|s| s["id"] == "profile-source" && s["kind"] == "subscribers")
     );
 }
+
+#[test]
+fn remove_keeps_the_group_minimum_total() {
+    let mut d = doc();
+    for (id, m) in [("group1", 15), ("group2", 15)] {
+        d.catalog
+            .as_mut()
+            .unwrap()
+            .nodes
+            .iter_mut()
+            .find(|n| n.id == id)
+            .unwrap()
+            .minimum = NodeMinimum {
+            down: mbps(m),
+            up: None,
+        };
+    }
+    let a = run(&d, json!({"kind": "node.remove", "node_id": "group2"})).unwrap();
+    assert_eq!(
+        node(&a.candidate, "group1").minimum,
+        NodeMinimum {
+            down: mbps(30),
+            up: None
+        }
+    );
+}

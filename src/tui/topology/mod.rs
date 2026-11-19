@@ -784,7 +784,7 @@ impl TopologyView {
             form.draw(f, body, p);
         }
         if let Some(proposal) = &self.proposal {
-            proposal::draw(proposal, f, body, p);
+            proposal::draw(proposal, self.tree_nodes(), f, body, p);
         }
         if let Some(form) = &self.node_form {
             form.draw(f, body, p);
