@@ -1491,7 +1491,7 @@ Command: `lqosync3 topology live-test --report <file> [--import-timeout <s>]` (d
 The test takes the instance lock, backs up the legacy pair and the LibreQoS artifacts, writes the manager pair, waits for the import, reads back the LibreQoS artifacts and the native acknowledgement, restores the legacy pair, and writes the report. The backup path goes to stderr before the manager write.
 Rulings:
 - Generations are content hashes. LibreQoS gives the same `source_generation` for the same content, so the test refuses a manager pair equal to the legacy pair.
-- Settle: the test waits for three consecutive equal generations before it reads back.
+- Settle: the test waits until the runtime status, the shaping inputs, and the dataplane transaction show the same generation, before it reads back.
 - The test does not use the write receipt tracker, the runtime claim, the registry, or notifications. The production service is an older build and a new receipt could break its restart.
 - The restore writes the backup bytes back and checks that they are equal.
 Live acceptance is pending: the owner starts the window with "go".

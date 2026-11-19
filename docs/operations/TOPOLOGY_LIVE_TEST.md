@@ -57,7 +57,7 @@ sudo systemctl stop lqosync3
 
 ### Step 3: Enrollment with the new binary
 
-WARNING: A failed `check` ends the window. Go to step 6.
+WARNING: If a command in step 3 fails, the window ends. Go to step 6.
 
 1. Make the policy and run the check:
 
@@ -119,6 +119,9 @@ A refusal changes no file. Go to step 6.
 
 The command restores the legacy pair by itself, also after a failure.
 
+If the exit status is 1 and the output has no `RESTORE FAILED`, go to step 6.
+If the output has `RESTORE FAILED`, or the command stopped early, do step 5.
+
 ### Step 5: Restore by hand, only when needed
 
 Do this step if the output contains `RESTORE FAILED`, or if the command stopped before it ended. Use the backup path from `live test backup:`.
@@ -128,13 +131,16 @@ sudo $LQ topology live-test-restore --backup /var/lib/lqosync3/topology-manager/
 ```
 
 The command writes the backup pair byte for byte and requests a LibreQoS import. It holds the instance lock.
-Then confirm that LibreQoS imported the legacy pair: `topology_runtime_status.json` shows `ready` and the baseline `source_generation` from the report.
+If the restore passes, go to step 6.
+If the restore fails, also go to step 6. The legacy service writes the legacy pair at its first cycle, so the start is itself a restore path. In step 6, confirm the pair and report the failure to the owner.
+Confirm that LibreQoS imported the legacy pair: `topology_runtime_status.json` shows `ready` and the baseline `source_generation` from the report.
 
 ### Step 6: Start the service and check one cycle
 
 ```bash
 sudo systemctl start lqosync3
-sudo journalctl -u lqosync3 -f
+sleep 60   # wait for the first cycle; repeat the next commands until one cycle shows
+sudo journalctl -u lqosync3 -n 50 --no-pager
 sudo lqosync3 api status
 grep -E '"ready"|source_generation' /opt/libreqos/state/topology/topology_runtime_status.json
 cmp /opt/libreqos/src/ShapedDevices.csv /var/lib/lqosync3/topology-manager/live-test/<unix time>/ShapedDevices.csv

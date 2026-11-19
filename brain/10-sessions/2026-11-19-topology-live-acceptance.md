@@ -20,7 +20,7 @@ LQoSync must prove that LibreQoS accepts the manager pair before Phase 4. The ow
 ## Rulings
 
 - Generations are content hashes. A manager pair equal to the legacy pair gives the same generation, so the test refuses it.
-- The test waits for three equal generations (settle) before it reads back.
+- The test waits until the runtime status, the shaping inputs, and the dataplane transaction show the same generation (settle), before it reads back.
 - No write receipt tracker, runtime claim, registry commit, or notification. The production service is an older build.
 - The restore writes the backup bytes and checks them.
 
