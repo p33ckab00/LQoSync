@@ -227,11 +227,17 @@ impl TopologyCatalog {
                         "subscriber destination violates its profile restriction"
                     );
                 }
+                // A fallback node takes subscribers of any scope.
+                let fallback = self
+                    .fallback
+                    .as_ref()
+                    .is_some_and(|f| f.node_ids.iter().any(|n| n == target));
                 ensure!(
-                    subscriber.identities.iter().any(|identity| index
-                        .scope_targets
-                        .get(&identity.scope)
-                        .is_some_and(|targets| targets.contains(target.as_str()))),
+                    fallback
+                        || subscriber.identities.iter().any(|identity| index
+                            .scope_targets
+                            .get(&identity.scope)
+                            .is_some_and(|targets| targets.contains(target.as_str()))),
                     "subscriber destination is outside configured source targets"
                 );
             }

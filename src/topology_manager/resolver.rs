@@ -73,6 +73,8 @@ struct Index<'a> {
     target_ids: HashMap<&'a str, usize>,
     profiles: HashMap<&'a str, usize>,
     capacities: Vec<Option<RateBps>>,
+    /// Targets for subscribers whose source the catalog does not know.
+    fallback_targets: BTreeSet<usize>,
 }
 
 impl<'a> Index<'a> {
@@ -205,6 +207,12 @@ impl<'a> Index<'a> {
             targets.sort_unstable();
             targets.dedup();
         }
+        let fallback_targets = catalog
+            .fallback
+            .iter()
+            .flat_map(|f| &f.node_ids)
+            .filter_map(|id| target_ids.get(id.as_str()).copied())
+            .collect();
         Ok(Self {
             catalog,
             selectors,
@@ -212,6 +220,7 @@ impl<'a> Index<'a> {
             targets,
             target_ids,
             capacities,
+            fallback_targets,
             profiles: catalog
                 .profiles
                 .iter()
@@ -228,6 +237,7 @@ impl<'a> Index<'a> {
     ) -> Result<Prepared, PlacementConflictReason> {
         let mut eligible: Option<BTreeSet<usize>> = None;
         let mut defaults = BTreeSet::new();
+        let mut any_matched = false;
         for account in &active.accounts {
             let mut matched = HashSet::new();
             if let Some(selectors) = self.selectors.get(&account.identity.scope) {
@@ -244,6 +254,7 @@ impl<'a> Index<'a> {
                     _ => {}
                 }
             }
+            any_matched |= !matched.is_empty();
             let mut allowed = BTreeSet::new();
             for source in &matched {
                 if let Some(profile) = self.catalog.sources[*source].profile_id.as_deref() {
@@ -265,6 +276,11 @@ impl<'a> Index<'a> {
             }
         }
         let mut eligible = eligible.unwrap_or_default();
+        // No source knows this subscriber: the fallback nodes take it.
+        let fallback = !any_matched && !self.fallback_targets.is_empty();
+        if fallback {
+            eligible = self.fallback_targets.clone();
+        }
         let profile_id = match record.policy.profile_id.as_deref() {
             Some(profile) => Some(profile),
             None if defaults.len() > 1 => return Err(PlacementConflictReason::ConflictingProfiles),
@@ -287,20 +303,36 @@ impl<'a> Index<'a> {
                     .ok_or_else(|| PlacementConflictReason::InvalidPin(pin.clone()))?,
             )
         } else if let Some(assignment) = &record.policy.assignment {
-            Some(
-                *self
-                    .target_ids
-                    .get(assignment.as_str())
-                    .filter(|t| eligible.contains(t))
-                    .ok_or_else(|| {
-                        PlacementConflictReason::InvalidAssignment(assignment.clone())
-                    })?,
-            )
+            // Owner decision: an assignment that is no longer eligible is dropped, and the
+            // subscriber is placed again. A pin above stays strict.
+            self.target_ids
+                .get(assignment.as_str())
+                .filter(|t| eligible.contains(t))
+                .copied()
         } else {
             None
         };
         if eligible.is_empty() {
             return Err(PlacementConflictReason::NoEligibleTarget);
+        }
+        if fallback {
+            let plan = active.accounts.iter().find_map(|a| a.policy.plan);
+            let base = match profile.map(|p| p.base) {
+                Some(BaseRateAuthority::Local(rate)) => rate,
+                _ => plan
+                    .or(self.catalog.fallback.as_ref().map(|f| f.default_plan))
+                    .ok_or(PlacementConflictReason::MissingPlan)?,
+            };
+            let speed = profile.map(|p| p.speed).unwrap_or_default();
+            let rates = resolve_subscriber(base, &self.catalog.defaults, &speed)
+                .map_err(|error| PlacementConflictReason::InvalidRates(error.to_string()))?;
+            return Ok(Prepared {
+                eligible,
+                fixed,
+                base,
+                rates,
+                profile_id: profile_id.map(str::to_owned),
+            });
         }
         let profile = profile.ok_or(PlacementConflictReason::MissingRateAuthority)?;
         let base = match profile.base {

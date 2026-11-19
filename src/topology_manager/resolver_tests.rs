@@ -405,9 +405,11 @@ fn invalid_saved_assignment_blocks_automatic_fallback() {
     let mut a = observed(0);
     a.policy.profile = ProfileObservation::Known(None);
     let result = resolve(collect(&r, vec![a])).unwrap();
+    // Owner decision (2c-2): the ineligible assignment is dropped; without a fallback the
+    // subscriber has no eligible node and still holds the candidate.
     assert!(matches!(
         result.conflicts[0].reason,
-        PlacementConflictReason::InvalidAssignment(_)
+        PlacementConflictReason::NoEligibleTarget
     ));
     assert!(result.candidate.is_none());
     // Intent remains intact while the candidate is held.
@@ -551,4 +553,102 @@ fn missing_rate_authority_does_not_implicitly_select_source_read() {
         result.conflicts[0].reason,
         PlacementConflictReason::MissingRateAuthority
     );
+}
+
+fn fallback_registry(two: bool) -> RegistryDocument {
+    let mut c = catalog::tests::with_fallback_node();
+    let mut ids = vec!["fb".to_string()];
+    if two {
+        let mut n = c.nodes.iter().find(|n| n.id == "fb").unwrap().clone();
+        n.id = "fb2".into();
+        n.parent = Some("wan2".into());
+        c.nodes.push(n);
+        ids.push("fb2".into());
+    }
+    c.fallback = Some(catalog::FallbackPolicy {
+        node_ids: ids,
+        default_plan: rate(10_000_000, 10_000_000),
+    });
+    RegistryDocument {
+        catalog: Some(c),
+        ..Default::default()
+    }
+}
+
+fn unbound(number: u32, plan: Option<RateBps>) -> AccountObservation {
+    let mut a = observed(number);
+    a.policy.profile = ProfileObservation::Known(Some("unbound:new-plan".into()));
+    a.policy.plan = plan;
+    a
+}
+
+#[test]
+fn an_unmatched_subscriber_goes_to_a_fallback_node_with_the_router_plan() {
+    let r = fallback_registry(false);
+    let result = resolve(collect(
+        &r,
+        vec![unbound(0, Some(rate(20_000_000, 5_000_000)))],
+    ))
+    .unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!(result.placements[0].target_id, "fb");
+    assert_eq!(result.placements[0].base, rate(20_000_000, 5_000_000));
+}
+
+#[test]
+fn without_a_router_plan_the_default_plan_applies() {
+    let r = fallback_registry(false);
+    let result = resolve(collect(&r, vec![unbound(0, None)])).unwrap();
+    assert_eq!(result.placements[0].base, rate(10_000_000, 10_000_000));
+}
+
+#[test]
+fn an_attached_plan_wins_in_the_fallback() {
+    let r = fallback_registry(false);
+    let mut r = collect(&r, vec![unbound(0, None)]).registry;
+    r.subscribers[0].policy.profile_id = Some("local-plan".into());
+    let result = resolve(collect(&r, vec![unbound(0, None)])).unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!(result.placements[0].base, rate(50_000_000, 10_000_000));
+}
+
+#[test]
+fn a_moved_customer_is_placed_again_instead_of_invalid_assignment() {
+    let r = fallback_registry(false);
+    let r = run(&r, 1).candidate.unwrap();
+    assert!(r.subscribers[0].policy.assignment.as_deref() != Some("fb"));
+    let result = resolve(collect(
+        &r,
+        vec![unbound(0, Some(rate(20_000_000, 5_000_000)))],
+    ))
+    .unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!(result.placements[0].target_id, "fb");
+}
+
+#[test]
+fn an_ineligible_pin_still_conflicts() {
+    let r = fallback_registry(false);
+    let mut r = run(&r, 1).candidate.unwrap();
+    let target = r.subscribers[0].policy.assignment.clone();
+    r.subscribers[0].policy.pin = target;
+    let result = resolve(collect(&r, vec![unbound(0, None)])).unwrap();
+    assert!(matches!(
+        result.conflicts[0].reason,
+        PlacementConflictReason::InvalidPin(_)
+    ));
+}
+
+#[test]
+fn the_fallback_balances_across_its_instances() {
+    let r = fallback_registry(true);
+    let result = resolve(collect(
+        &r,
+        (0..9)
+            .map(|i| unbound(i, Some(rate(50_000_000, 10_000_000))))
+            .collect(),
+    ))
+    .unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!((count(&result, "fb"), count(&result, "fb2")), (3, 6));
 }

@@ -514,7 +514,7 @@ fn node_minimums_require_positive_exact_whole_mbps_and_keep_absent_policy_compat
     }
 }
 
-fn with_fallback_node() -> TopologyCatalog {
+pub(crate) fn with_fallback_node() -> TopologyCatalog {
     let mut c = catalog();
     c.nodes.push(CatalogNode {
         minimum: Default::default(),

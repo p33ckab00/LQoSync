@@ -44,6 +44,8 @@ pub struct SubscriberView {
     pub profile: Option<String>,
     pub min_mbps: (f64, f64),
     pub max_mbps: (f64, f64),
+    /// True when the subscriber is in a fallback node because no source knows it.
+    pub fallback: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -124,6 +126,12 @@ pub(super) fn build(
         .iter()
         .map(|s| (s.id.as_str(), s.policy.pin.clone()))
         .collect();
+    let fallback: Vec<&str> = candidate
+        .catalog
+        .as_ref()
+        .and_then(|c| c.fallback.as_ref())
+        .map(|f| f.node_ids.iter().map(String::as_str).collect())
+        .unwrap_or_default();
     let mut subscribers = Vec::with_capacity(active_subscribers.len());
     for active in active_subscribers {
         let placement = placements
@@ -170,6 +178,7 @@ pub(super) fn build(
             profile: placement.profile_id.clone(),
             min_mbps: mbps(placement.rates.min)?,
             max_mbps: mbps(placement.rates.max)?,
+            fallback: fallback.contains(&placement.target_id.as_str()),
         });
     }
     subscribers.sort_by(|a, b| a.account_ref.cmp(&b.account_ref));
