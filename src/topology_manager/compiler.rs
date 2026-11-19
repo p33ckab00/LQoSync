@@ -287,10 +287,10 @@ impl ControlledCompiler {
             "lqos_directory".into(),
             self.native_config["lqos_directory"].clone(),
         );
-        effective.insert(
-            "state_directory".into(),
-            self.native_config["state_directory"].clone(),
-        );
+        match self.native_config.get("state_directory") {
+            Some(state) => effective.insert("state_directory".into(), state.clone()),
+            None => effective.remove("state_directory"),
+        };
         let mut binding = self.binding.clone();
         binding.effective_config_digest =
             crate::write_receipt::sha256(toml::to_string(&effective)?.as_bytes());
@@ -350,10 +350,25 @@ fn check_directories(config: &toml::Table, cfg: &crate::config::Libreqos) -> any
         .get("lqos_directory")
         .and_then(toml::Value::as_str)
         .context("native source directory is missing")?;
-    let state = config
-        .get("state_directory")
-        .and_then(toml::Value::as_str)
-        .context("native state directory is missing")?;
+    // LibreQoS (lqos_config resolved_state_directory): without the key, the state directory is
+    // <parent>/state for an lqos_directory named "src", otherwise <lqos_directory>/state.
+    let state = match config.get("state_directory") {
+        None => {
+            let base = Path::new(source);
+            match base.parent() {
+                Some(parent) if base.file_name().is_some_and(|n| n == "src") => {
+                    parent.join("state")
+                }
+                _ => base.join("state"),
+            }
+        }
+        Some(value) => value
+            .as_str()
+            .filter(|s| !s.trim().is_empty())
+            .map(Path::new)
+            .context("native state directory is invalid")?
+            .to_path_buf(),
+    };
     ensure!(
         std::fs::canonicalize(source)? == std::fs::canonicalize(&cfg.directory)?,
         "native source directory differs from the writer directory"

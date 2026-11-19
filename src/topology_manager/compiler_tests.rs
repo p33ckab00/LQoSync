@@ -215,6 +215,40 @@ async fn workspace_paths_do_not_change_effective_identity_and_expired_permits_fa
     tokio::time::advance(Duration::from_secs(11)).await;
     assert!(second.check().is_err());
 }
+#[tokio::test]
+async fn a_native_config_without_state_directory_uses_the_libreqos_default() {
+    // Production lqos.conf omits state_directory; LibreQoS then uses <parent of src>/state.
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("src");
+    let state = root.path().join("state");
+    std::fs::create_dir(&source).unwrap();
+    std::fs::create_dir(&state).unwrap();
+    std::fs::write(source.join("liblqos_python.so"), b"binding-v1").unwrap();
+    let conf = root.path().join("native.conf");
+    std::fs::write(
+        &conf,
+        format!(
+            "lqos_directory={:?}\n[topology]\nsource=\"shaped_devices\"\ncompile_mode=\"full\"\n",
+            source
+        ),
+    )
+    .unwrap();
+    let mut cfg = crate::config::Libreqos {
+        directory: source.to_string_lossy().into_owned(),
+        state_directory: state.to_string_lossy().into_owned(),
+        v3_config: conf.to_string_lossy().into_owned(),
+        ..Default::default()
+    };
+    let mut compiler = ControlledCompiler::open(&cfg, &root.path().join("scratch")).unwrap();
+    compiler.check_config(&cfg).unwrap();
+    let opened = compiler.binding.effective_config_digest.clone();
+    let bound = compiled(&mut compiler, prepare(input(1)).unwrap()).await;
+    assert_eq!(bound.binding().effective_config_digest, opened);
+    let other = root.path().join("other-state");
+    std::fs::create_dir(&other).unwrap();
+    cfg.state_directory = other.to_string_lossy().into_owned();
+    assert!(compiler.check_config(&cfg).is_err());
+}
 #[test]
 fn regular_file_bounds_and_active_state_directory_are_enforced() {
     let (root, mut cfg, compiler) = fixture();
