@@ -6,7 +6,7 @@ use super::catalog::{
 };
 use super::ids::{IdKind, reserve_ids};
 use super::layout::NodeKind;
-use super::model::RegistryDocument;
+use super::model::{IdentityRef, RegistryDocument, SourceKind, SourceScope};
 use super::rates::{Fraction, RateBps};
 use super::store::InvalidPolicy;
 use crate::config::Config;
@@ -56,6 +56,39 @@ pub enum Edit {
     },
     #[serde(rename = "node.remove")]
     NodeRemove { node_id: String },
+    #[serde(rename = "rebalance")]
+    Rebalance { source_id: Option<String> },
+    #[serde(rename = "subscriber.pin")]
+    SubscriberPin {
+        #[serde(default)]
+        identity: Option<IdentityInput>,
+        #[serde(default)]
+        subscriber_id: Option<String>,
+        wan_node_id: Option<String>,
+    },
+}
+
+/// A subscriber identity on the wire, as `subscriber.plan` takes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IdentityInput {
+    pub router_id: String,
+    pub source_id: String,
+    pub kind: SourceKind,
+    pub account_ref: String,
+}
+
+impl IdentityInput {
+    fn reference(&self) -> IdentityRef {
+        IdentityRef {
+            scope: SourceScope {
+                router_id: self.router_id.clone(),
+                source_id: self.source_id.clone(),
+                kind: self.kind,
+            },
+            account_ref: self.account_ref.clone(),
+        }
+    }
 }
 
 /// Node capacity on the wire.
@@ -83,6 +116,10 @@ pub struct Applied {
     pub candidate: RegistryDocument,
     pub affected: Vec<String>,
     pub cleared: Vec<String>,
+    /// Subscriber IDs that the source read must contain (a new pin).
+    pub require_online: Vec<String>,
+    /// Clear the saved assignments of offline, unpinned records in the affected groups.
+    pub clear_offline: bool,
 }
 
 fn invalid(message: impl Into<String>) -> anyhow::Error {
@@ -513,6 +550,109 @@ fn node_remove(
     Ok(())
 }
 
+fn instances(c: &TopologyCatalog, source_id: &str) -> usize {
+    c.nodes
+        .iter()
+        .filter(|n| n.source_id.as_deref() == Some(source_id))
+        .count()
+}
+
+fn rebalance(c: &TopologyCatalog, source_id: Option<&str>) -> anyhow::Result<BTreeSet<String>> {
+    match source_id {
+        Some(id) => {
+            if !c
+                .sources
+                .iter()
+                .any(|s| s.id == id && matches!(s.origin, SourceOrigin::Subscribers { .. }))
+            {
+                return Err(invalid("the source does not exist"));
+            }
+            if instances(c, id) < 2 {
+                return Err(invalid("the group has only one instance"));
+            }
+            Ok(BTreeSet::from([id.to_string()]))
+        }
+        None => {
+            let all: BTreeSet<String> = c
+                .sources
+                .iter()
+                .filter(|s| matches!(s.origin, SourceOrigin::Subscribers { .. }))
+                .filter(|s| instances(c, &s.id) >= 2)
+                .map(|s| s.id.clone())
+                .collect();
+            if all.is_empty() {
+                return Err(invalid("no group has two or more instances"));
+            }
+            Ok(all)
+        }
+    }
+}
+
+/// Set or clear a pin. Returns the subscriber ID and the group to rebalance after a new pin.
+fn subscriber_pin(
+    d: &mut RegistryDocument,
+    identity: Option<&IdentityInput>,
+    subscriber_id: Option<&str>,
+    wan_node_id: Option<&str>,
+) -> anyhow::Result<(String, Option<String>)> {
+    let record = match (identity, subscriber_id, wan_node_id) {
+        (Some(i), None, _) => {
+            let reference = i.reference();
+            d.subscribers
+                .iter()
+                .position(|s| s.identities.contains(&reference))
+        }
+        (None, Some(id), None) => d.subscribers.iter().position(|s| s.id == id),
+        _ => return Err(invalid("give identity or subscriber_id")),
+    }
+    .ok_or_else(|| invalid("confirm an edit or rebalance first, so the account gets a record"))?;
+    let id = d.subscribers[record].id.clone();
+    let Some(wan) = wan_node_id else {
+        let policy = &mut d.subscribers[record].policy;
+        if policy.pin.take().is_none() {
+            return Err(invalid("the subscriber has no pin"));
+        }
+        return Ok((id, None));
+    };
+    let c = d.catalog.as_ref().expect("enrolled");
+    let assignment = d.subscribers[record]
+        .policy
+        .assignment
+        .as_deref()
+        .and_then(|a| c.nodes.iter().find(|n| n.id == a))
+        .ok_or_else(|| invalid("the subscriber has no placement yet"))?;
+    let group = assignment
+        .source_id
+        .clone()
+        .ok_or_else(|| invalid("the subscriber has no placement yet"))?;
+    if c.nodes
+        .iter()
+        .find(|n| n.id == wan)
+        .is_none_or(|n| n.kind != NodeKind::Wan)
+    {
+        return Err(invalid("the node is not a WAN"));
+    }
+    let below: Vec<String> = c
+        .nodes
+        .iter()
+        .filter(|n| n.source_id.as_deref() == Some(group.as_str()) && is_below(c, &n.id, wan))
+        .map(|n| n.id.clone())
+        .collect();
+    let instance = match below.as_slice() {
+        [one] => one.clone(),
+        [] => return Err(invalid("the group has no instance below this WAN")),
+        _ => {
+            return Err(invalid(
+                "the group has more than one instance below this WAN",
+            ));
+        }
+    };
+    let policy = &mut d.subscribers[record].policy;
+    policy.pin = Some(instance.clone());
+    policy.assignment = Some(instance);
+    Ok((id, Some(group)))
+}
+
 /// Apply one edit to a copy of an enrolled registry.
 pub fn apply(
     doc: &RegistryDocument,
@@ -528,6 +668,8 @@ pub fn apply(
     let mut d = doc.clone();
     let mut affected = BTreeSet::new();
     let mut cleared = Vec::new();
+    let mut require_online = Vec::new();
+    let mut clear_offline = false;
     match edit {
         Edit::WanCreate {
             router_id,
@@ -634,6 +776,26 @@ pub fn apply(
         Edit::NodeRemove { node_id } => {
             node_remove(doc, &mut d, node_id, &mut affected, &mut cleared)?;
         }
+        Edit::Rebalance { source_id } => {
+            affected = rebalance(d.catalog.as_ref().expect("enrolled"), source_id.as_deref())?;
+            clear_offline = true;
+        }
+        Edit::SubscriberPin {
+            identity,
+            subscriber_id,
+            wan_node_id,
+        } => {
+            let (id, group) = subscriber_pin(
+                &mut d,
+                identity.as_ref(),
+                subscriber_id.as_deref(),
+                wan_node_id.as_deref(),
+            )?;
+            if let Some(group) = group {
+                require_online.push(id);
+                affected.insert(group);
+            }
+        }
     }
     let c = d.catalog.as_mut().expect("enrolled");
     for source in &affected {
@@ -646,6 +808,8 @@ pub fn apply(
         candidate: d,
         affected: affected.into_iter().collect(),
         cleared,
+        require_online,
+        clear_offline,
     })
 }
 
@@ -679,7 +843,7 @@ fn kind_out(kind: NodeKind) -> &'static str {
 /// The `topology.tree` answer: every catalog node, without a router read.
 pub fn tree(doc: &RegistryDocument) -> Value {
     let Some(c) = doc.catalog.as_ref() else {
-        return json!({"revision": doc.revision, "nodes": [], "sources": []});
+        return json!({"revision": doc.revision, "nodes": [], "sources": [], "pins": []});
     };
     let nodes: Vec<Value> = c
         .nodes
@@ -703,7 +867,17 @@ pub fn tree(doc: &RegistryDocument) -> Value {
             json!({"id": s.id, "name": s.name, "kind": kind})
         })
         .collect();
-    json!({"revision": doc.revision, "nodes": nodes, "sources": sources})
+    let pins: Vec<Value> = doc
+        .subscribers
+        .iter()
+        .filter_map(|s| {
+            s.policy
+                .pin
+                .as_ref()
+                .map(|p| json!({"subscriber_id": s.id, "node_id": p}))
+        })
+        .collect();
+    json!({"revision": doc.revision, "nodes": nodes, "sources": sources, "pins": pins})
 }
 
 #[cfg(test)]

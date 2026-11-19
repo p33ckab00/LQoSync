@@ -581,3 +581,205 @@ fn remove_keeps_the_group_minimum_total() {
         }
     );
 }
+
+fn identity(id: &str) -> Value {
+    json!({"router_id": "distro", "source_id": "ppp-service", "kind": "ppp", "account_ref": format!("acct-{id}")})
+}
+
+fn with_records(records: Vec<SubscriberRecord>) -> RegistryDocument {
+    let mut d = doc();
+    d.subscribers = records;
+    d
+}
+
+/// Three WANs with the group below WAN1 and WAN2 only, and a single-instance source.
+fn single_and_double() -> RegistryDocument {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    let mut other = c
+        .sources
+        .iter()
+        .find(|s| s.id == "profile-source")
+        .unwrap()
+        .clone();
+    other.id = "solo-source".into();
+    other.targets = vec!["solo".into()];
+    if let SourceOrigin::Subscribers { profile_ref, .. } = &mut other.origin {
+        *profile_ref = Some("solo-profile".into());
+    }
+    c.sources.push(other);
+    let mut solo = c.nodes.iter().find(|n| n.id == "group1").unwrap().clone();
+    solo.id = "solo".into();
+    solo.source_id = Some("solo-source".into());
+    solo.parent = Some("wan2".into());
+    c.nodes.push(solo);
+    d
+}
+
+#[test]
+fn rebalance_one_group_marks_it_and_refuses_a_single_instance() {
+    let d = single_and_double();
+    let a = run(
+        &d,
+        json!({"kind": "rebalance", "source_id": "profile-source"}),
+    )
+    .unwrap();
+    assert_eq!(a.affected, vec!["profile-source".to_string()]);
+    assert!(a.clear_offline);
+    assert_eq!(
+        a.candidate.catalog,
+        d.catalog.as_ref().map(|c| {
+            let mut c = c.clone();
+            c.canonicalize();
+            c
+        })
+    );
+    assert_eq!(
+        refused(&d, json!({"kind": "rebalance", "source_id": "solo-source"})),
+        "the group has only one instance"
+    );
+}
+
+#[test]
+fn rebalance_all_skips_single_instance_groups_and_refuses_when_none_is_left() {
+    let d = single_and_double();
+    let a = run(&d, json!({"kind": "rebalance", "source_id": null})).unwrap();
+    assert_eq!(a.affected, vec!["profile-source".to_string()]);
+    let mut lone = d.clone();
+    let c = lone.catalog.as_mut().unwrap();
+    c.nodes.retain(|n| n.id != "group2");
+    c.sources
+        .iter_mut()
+        .find(|s| s.id == "profile-source")
+        .unwrap()
+        .targets = vec!["group1".into()];
+    assert_eq!(
+        refused(&lone, json!({"kind": "rebalance", "source_id": null})),
+        "no group has two or more instances"
+    );
+}
+
+#[test]
+fn pin_sets_pin_and_assignment_to_the_group_instance_below_the_wan() {
+    let d = with_records(vec![record("s1", Some("group1"), None)]);
+    let a = run(
+        &d,
+        json!({"kind": "subscriber.pin", "identity": identity("s1"), "wan_node_id": "wan2"}),
+    )
+    .unwrap();
+    let s = &a.candidate.subscribers[0];
+    assert_eq!(
+        (s.policy.pin.as_deref(), s.policy.assignment.as_deref()),
+        (Some("group2"), Some("group2"))
+    );
+    assert_eq!(a.require_online, vec!["s1".to_string()]);
+    assert_eq!(a.affected, vec!["profile-source".to_string()]);
+    assert!(!a.clear_offline);
+}
+
+#[test]
+fn a_repin_moves_the_pin_to_the_other_wan() {
+    let d = with_records(vec![record("s1", Some("group1"), Some("group1"))]);
+    let a = run(
+        &d,
+        json!({"kind": "subscriber.pin", "identity": identity("s1"), "wan_node_id": "wan2"}),
+    )
+    .unwrap();
+    assert_eq!(
+        a.candidate.subscribers[0].policy.pin.as_deref(),
+        Some("group2")
+    );
+}
+
+#[test]
+fn pin_refusals_follow_the_spec() {
+    let pin = |id: &str, wan: &str| json!({"kind": "subscriber.pin", "identity": identity(id), "wan_node_id": wan});
+    let d = with_records(vec![
+        record("s1", Some("group1"), None),
+        record("s2", None, None),
+    ]);
+    assert_eq!(
+        refused(&d, pin("nobody", "wan2")),
+        "confirm an edit or rebalance first, so the account gets a record"
+    );
+    assert_eq!(
+        refused(&d, pin("s2", "wan2")),
+        "the subscriber has no placement yet"
+    );
+    assert_eq!(refused(&d, pin("s1", "group2")), "the node is not a WAN");
+    let mut no_instance = d.clone();
+    let c = no_instance.catalog.as_mut().unwrap();
+    c.nodes.retain(|n| n.id != "group2");
+    c.sources
+        .iter_mut()
+        .find(|s| s.id == "profile-source")
+        .unwrap()
+        .targets = vec!["group1".into()];
+    assert_eq!(
+        refused(&no_instance, pin("s1", "wan2")),
+        "the group has no instance below this WAN"
+    );
+    let mut two = d.clone();
+    let tower = run(
+        &two,
+        json!({"kind": "node.create", "name": "T", "parent": "wan2", "capacity": {"mode": "inherit"}}),
+    )
+    .unwrap()
+    .candidate;
+    let tower_id = new_node(&two, &tower).id.clone();
+    two = run(
+        &tower,
+        json!({"kind": "instance.add", "source_id": "profile-source", "parent": tower_id}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(
+        refused(&two, pin("s1", "wan2")),
+        "the group has more than one instance below this WAN"
+    );
+}
+
+#[test]
+fn unpin_by_identity_or_subscriber_id_keeps_the_assignment_and_marks_no_source() {
+    let d = with_records(vec![record("s1", Some("group2"), Some("group2"))]);
+    for edit in [
+        json!({"kind": "subscriber.pin", "identity": identity("s1"), "wan_node_id": null}),
+        json!({"kind": "subscriber.pin", "subscriber_id": "s1", "wan_node_id": null}),
+    ] {
+        let a = run(&d, edit).unwrap();
+        let s = &a.candidate.subscribers[0];
+        assert_eq!(
+            (s.policy.pin.as_deref(), s.policy.assignment.as_deref()),
+            (None, Some("group2"))
+        );
+        assert!(a.affected.is_empty() && a.require_online.is_empty());
+    }
+    assert_eq!(
+        refused(&d, json!({"kind": "subscriber.pin", "wan_node_id": null})),
+        "give identity or subscriber_id"
+    );
+}
+
+#[test]
+fn unpin_without_a_pin_is_refused() {
+    let d = with_records(vec![record("s1", Some("group1"), None)]);
+    assert_eq!(
+        refused(
+            &d,
+            json!({"kind": "subscriber.pin", "subscriber_id": "s1", "wan_node_id": null})
+        ),
+        "the subscriber has no pin"
+    );
+}
+
+#[test]
+fn tree_lists_pins() {
+    let d = with_records(vec![
+        record("s1", Some("group1"), Some("group1")),
+        record("s2", Some("group2"), None),
+    ]);
+    assert_eq!(
+        tree(&d)["pins"],
+        json!([{"subscriber_id": "s1", "node_id": "group1"}])
+    );
+}
