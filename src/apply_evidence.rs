@@ -7,7 +7,9 @@ use anyhow::{Context, ensure};
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::Path;
-pub use verify::{Acceptance, Prepared, Verified, prepare, verify_prepared, verify_receipt};
+pub use verify::{
+    Acceptance, Prepared, Verified, acknowledged, prepare, verify_prepared, verify_receipt,
+};
 
 #[derive(Debug, Deserialize)]
 enum State {

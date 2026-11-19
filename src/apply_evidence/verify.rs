@@ -277,6 +277,40 @@ pub async fn verify_receipt(cfg: &Config, receipt: &Receipt) -> anyhow::Result<V
     verify_prepared(cfg, receipt, &prepared).await
 }
 
+/// Check the native acknowledgement of a pair that the live test just wrote.
+/// The receipt is only in memory: it never reaches the disk or the write tracker.
+pub async fn acknowledged(
+    cfg: &Config,
+    written: &[(PathBuf, Vec<u8>)],
+    started: u64,
+) -> anyhow::Result<Verified> {
+    let receipt = Receipt {
+        version: 1,
+        write_id: crate::runner::random_id(24),
+        phase: crate::system_health::Phase::Pending,
+        started,
+        updated: started,
+        meta: crate::write_receipt::Meta {
+            topology: None,
+            cycle_seq: 0,
+            config_digest: String::new(),
+            notice: None,
+        },
+        files: written
+            .iter()
+            .map(|(path, bytes)| crate::write_receipt::FileReceipt {
+                path: path.clone(),
+                sha256: sha256(bytes),
+                outcome: FileOutcome::Written,
+            })
+            .collect(),
+        error: None,
+        acceptance: None,
+        superseded_by: None,
+    };
+    verify_receipt(cfg, &receipt).await
+}
+
 pub async fn verify_prepared(
     cfg: &Config,
     receipt: &Receipt,
@@ -380,6 +414,133 @@ mod tests {
         write_receipt::{Meta, Tracker},
     };
     use serde_json::json;
+    /// A fake lqosd that answers every state request with one canned reply.
+    fn serve(path: PathBuf, reply: Value) {
+        use nix::sys::socket::{ControlMessage, MsgFlags, sendmsg};
+        use std::{io::IoSlice, io::Write, os::fd::AsRawFd};
+        let listener = std::os::unix::net::UnixListener::bind(path).unwrap();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut socket = stream.unwrap();
+                let mut head = [0; 4];
+                socket.read_exact(&mut head).unwrap();
+                let mut request = vec![0; u32::from_be_bytes(head) as usize];
+                socket.read_exact(&mut request).unwrap();
+                let mut bytes = Vec::new();
+                ciborium::into_writer(&reply, &mut bytes).unwrap();
+                let mut file = tempfile::tempfile().unwrap();
+                file.write_all(&bytes).unwrap();
+                let mut head = Vec::new();
+                ciborium::into_writer(
+                    &json!({"kind":"state","snapshot_len":bytes.len()}),
+                    &mut head,
+                )
+                .unwrap();
+                let size = (head.len() as u32).to_be_bytes();
+                let fds = [file.as_raw_fd()];
+                sendmsg::<()>(
+                    socket.as_raw_fd(),
+                    &[IoSlice::new(&size)],
+                    &[ControlMessage::ScmRights(&fds)],
+                    MsgFlags::empty(),
+                    None,
+                )
+                .unwrap();
+                socket.write_all(&head).unwrap();
+            }
+        });
+    }
+    fn state(generation: &str, desired: &Value) -> Value {
+        let mut native = desired.clone();
+        native.as_object_mut().unwrap().remove("circuit_capacity");
+        native["generation"] = json!(generation);
+        let mut transaction = Vec::new();
+        ciborium::into_writer(&native, &mut transaction).unwrap();
+        json!({"Report":{"generation":generation,"report_schema":1,"transaction":transaction,
+            "applied_circuit_capacity":1000}})
+    }
+    /// A complete fake LibreQoS tree. Returns the config and the written pair.
+    fn live(
+        reply: impl Fn(&Value) -> Value,
+    ) -> (tempfile::TempDir, Config, Vec<(PathBuf, Vec<u8>)>) {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let (lq, st) = (root.join("lq"), root.join("state"));
+        for d in ["lq", "state/topology", "state/shaping"] {
+            std::fs::create_dir_all(root.join(d)).unwrap();
+        }
+        let csv = "Circuit ID,Device ID,Circuit Name,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps\nC1,D1,Client,Device,P,,100.64.0.1,,1,1,20,10\n";
+        let written = vec![
+            (lq.join("network.json"), b"{}".to_vec()),
+            (lq.join("ShapedDevices.csv"), csv.as_bytes().to_vec()),
+        ];
+        for (p, b) in &written {
+            std::fs::write(p, b).unwrap();
+        }
+        let inputs = st.join("shaping/shaping_inputs.json");
+        let write = |p: PathBuf, v: Value| std::fs::write(p, v.to_string()).unwrap();
+        write(
+            st.join("topology/topology_import.json"),
+            json!({"imported":{"compatibility_network_json":{},"shaped_devices":[{
+            "circuit_id":"C1","device_id":"D1","circuit_name":"Client","device_name":"Device","parent_node":"P","mac":"",
+            "ipv4":[["100.64.0.1",32]],"ipv6":[],"download_min_mbps":1,"upload_min_mbps":1,"download_max_mbps":20,"upload_max_mbps":10}]}}),
+        );
+        write(
+            st.join("topology/topology_runtime_status.json"),
+            json!({"schema_version":1,"ready":true,
+            "source_generation":"a".repeat(64),"shaping_generation":"g1","shaping_inputs_path":inputs}),
+        );
+        let desired = json!({"schema_version":6,"generation":"g1","apply_mode":"incremental","circuit_capacity":1000,
+            "inner_ops":[],"leaf_ops":[],"mapping_ops":[],"lpm_delta":[],"steering_vlans":[]});
+        write(
+            st.join("shaping/dataplane_transaction.json"),
+            desired.clone(),
+        );
+        write(
+            inputs.clone(),
+            json!({"schema_version":1,"shaping_generation":"g1"}),
+        );
+        std::fs::write(root.join("lqos.conf"), "").unwrap();
+        std::fs::write(
+            lq.join("liblqos_python.py"),
+            format!(
+                "def validated_runtime_shaping_inputs_path():\n    return {:?}\n",
+                inputs.to_str().unwrap()
+            ),
+        )
+        .unwrap();
+        serve(root.join("lqosd.sock"), reply(&desired));
+        let mut cfg = Config::default();
+        cfg.runtime.mode = RuntimeMode::Apply;
+        cfg.libreqos.target = Target::V3Pair;
+        cfg.libreqos.directory = lq.to_str().unwrap().into();
+        cfg.libreqos.state_directory = st.to_str().unwrap().into();
+        cfg.libreqos.v3_config = root.join("lqos.conf").to_str().unwrap().into();
+        cfg.libreqos.v3_analytics_socket = root.join("lqosd.sock").to_str().unwrap().into();
+        (dir, cfg, written)
+    }
+    #[tokio::test]
+    async fn an_acknowledgement_for_the_pair_passes() {
+        let (_dir, cfg, written) = live(|d| state("g1", d));
+        let proof = acknowledged(&cfg, &written, 5).await.unwrap();
+        assert_eq!(proof.acceptance().desired_circuit_capacity, 1000);
+    }
+    #[tokio::test]
+    async fn an_acknowledgement_for_another_world_fails() {
+        let (_dir, cfg, written) = live(|d| {
+            let mut other = d.clone();
+            other["leaf_ops"] = json!([{"op":"upsert","circuit_id":"X"}]);
+            state("g1", &other)
+        });
+        let error = acknowledged(&cfg, &written, 5).await.unwrap_err();
+        assert_eq!(error.to_string(), "native applied world differs");
+    }
+    #[tokio::test]
+    async fn an_unavailable_acknowledgement_fails() {
+        let (_dir, cfg, written) = live(|_| json!({"Unavailable":"x"}));
+        let error = acknowledged(&cfg, &written, 5).await.unwrap_err();
+        assert_eq!(error.to_string(), "native acknowledgement unavailable");
+    }
     fn fixture() -> (
         tempfile::TempDir,
         Tracker,
