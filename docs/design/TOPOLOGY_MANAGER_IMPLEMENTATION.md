@@ -1453,3 +1453,13 @@ A pin needs an online subscriber with a record and a saved assignment. Pins neve
 `topology.tree` lists `pins` with an `online` flag from the cached preview.
 TUI: `g` rebalances the selected Inventory group, `G` rebalances all groups. `P` in Assignments opens the WAN picker. Offline pinned records show after the online rows, with unpin only. The pin column shows the node name.
 Application pinning with DPI is a later feature. It needs routing on the core.
+
+## Speed policy and group factors
+
+Phase 2b-4 adds two edit kinds to `topology.edit.propose`. See [the design](../superpowers/specs/2026-11-19-topology-speed-policy-design.md).
+`speed.defaults` sets the global Subscriber Speed Policy (down and up minimum and maximum, each a percent of the plan or fixed Mbps) and resets the speed override of every profile, so one policy applies to all subscribers. It replaces the legacy rounded rules that enrollment put on the imported profiles, and the proposal warns about that.
+`group.factor` sets the down or up factor of one subscriber source as a decimal with up to six decimals, for example `0.215`. Node factor overrides stay.
+Both edits read the sources once, resolve placements and evaluate aggregates for the current and the edited catalog over the same subscribers, and commit only the catalog edit. Only a conflict that the current registry does not have refuses the edit. A fixed minimum above a subscriber maximum gives "the minimum is above the maximum for: <IDs>".
+`topology.policies` lists `groups` with factor, formula, backstop, and floor.
+TUI: Policies shows the speed rules and the groups. `s` opens the speed form, `f` opens the factor form of the selected group.
+Phase 4 note: after these edits the registry differs from the legacy `config.toml`. Activation must treat the registry as the authority and must not re-run `preflight::legacy_issues` against `config.toml`.

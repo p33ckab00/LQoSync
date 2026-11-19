@@ -108,6 +108,14 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - The owner plans application pinning with DPI later. It needs core routing and is not a subscriber pin.
 - Next: Phase 2b-4, profiles and speed defaults. Then 2c Settings migration.
 
+## Phase 2b-4 speed policy and group factors (2026-11-19)
+
+- One global Subscriber Speed Policy for every subscriber. Plans have no minimum of their own. The edit replaces the legacy rounded rules of the imported profiles.
+- The group factor (PPP `0.215`, DHCP `0.5` in production) is editable for each source.
+- A group node capacity is plan sum times factor, limited by the WAN ceiling.
+- Phase 4 must treat the registry as the authority, not the legacy `config.toml` values.
+- Next: Phase 2c, Settings migration.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
