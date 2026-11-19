@@ -623,7 +623,35 @@ where
     /// API `topology.tree`: every catalog node, without a router read.
     pub fn api_tree(&mut self) -> anyhow::Result<serde_json::Value> {
         let doc = self.api_document()?.unwrap_or_default();
-        Ok(crate::topology_manager::edits::tree(&doc))
+        let mut tree = crate::topology_manager::edits::tree(&doc);
+        // A pin is online when one identity of its record is in the cached preview.
+        let seen: Vec<&serde_json::Value> = self
+            .last_preview
+            .as_ref()
+            .and_then(|p| p["subscribers"].as_array())
+            .into_iter()
+            .flatten()
+            .flat_map(|s| s["identities"].as_array().into_iter().flatten())
+            .collect();
+        if let Some(pins) = tree["pins"].as_array_mut() {
+            for pin in pins {
+                let record = doc
+                    .subscribers
+                    .iter()
+                    .find(|s| pin["subscriber_id"] == s.id.as_str());
+                let online = record.is_some_and(|r| {
+                    r.identities.iter().any(|i| {
+                        let wire = serde_json::json!({
+                            "router_id": i.scope.router_id, "source_id": i.scope.source_id,
+                            "kind": i.scope.kind, "account_ref": i.account_ref,
+                        });
+                        seen.contains(&&wire)
+                    })
+                });
+                pin["online"] = serde_json::json!(online);
+            }
+        }
+        Ok(tree)
     }
 
     /// API `topology.edit.propose`: apply one Builder edit to a copy, rebalance each affected
@@ -654,6 +682,7 @@ where
         )?;
         let mut candidate = applied.candidate;
         let mut online = std::collections::HashSet::new();
+        let mut cleared_extra = Vec::new();
         if !applied.affected.is_empty() {
             let mut current = self
                 .topology_sources
@@ -665,6 +694,29 @@ where
                 )
                 .await?;
             online.extend(current.active.iter().map(|a| a.subscriber_id.clone()));
+            if applied.require_online.iter().any(|id| !online.contains(id)) {
+                return Err(rule("the subscriber must be online to pin".into()));
+            }
+            if applied.clear_offline {
+                let catalog = current.registry.catalog.clone().unwrap_or_default();
+                let in_group = |node: &str| {
+                    catalog
+                        .nodes
+                        .iter()
+                        .find(|n| n.id == node)
+                        .and_then(|n| n.source_id.as_ref())
+                        .is_some_and(|s| applied.affected.contains(s))
+                };
+                for s in &mut current.registry.subscribers {
+                    if !online.contains(&s.id)
+                        && s.policy.pin.is_none()
+                        && s.policy.assignment.as_deref().is_some_and(in_group)
+                    {
+                        s.policy.assignment = None;
+                        cleared_extra.push(s.id.clone());
+                    }
+                }
+            }
             for source in &applied.affected {
                 let generation = current.generation;
                 let request = RebalanceRequest {
@@ -722,11 +774,14 @@ where
                 _ => {}
             }
         }
-        let cleared: Vec<&String> = applied
+        let mut cleared: Vec<&String> = applied
             .cleared
             .iter()
+            .chain(&cleared_extra)
             .filter(|id| !online.contains(*id))
             .collect();
+        cleared.sort();
+        cleared.dedup();
         let new_records = candidate
             .subscribers
             .len()

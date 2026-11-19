@@ -1122,4 +1122,231 @@ mod edits {
         .await;
         assert_eq!(bad["error"]["code"], json!("bad_request"), "{bad}");
     }
+
+    fn on(r: &mut Runner<FakeConnector>, id: &str) -> usize {
+        r.api_registry()
+            .unwrap()
+            .unwrap()
+            .subscribers
+            .iter()
+            .filter(|s| s.policy.assignment.as_deref() == Some(id))
+            .count()
+    }
+
+    fn identity_of(s: &crate::topology_manager::model::SubscriberRecord) -> Value {
+        let i = &s.identities[0];
+        json!({"router_id": i.scope.router_id, "source_id": i.scope.source_id,
+               "kind": i.scope.kind, "account_ref": i.account_ref})
+    }
+
+    /// An offline record of the group, assigned to `node`, optionally pinned there.
+    fn add_offline(r: &mut Runner<FakeConnector>, like: &str, node: &str, pinned: bool) -> String {
+        let mut doc = r.api_registry().unwrap().unwrap();
+        let mut offline = doc
+            .subscribers
+            .iter()
+            .find(|s| s.policy.assignment.as_deref() == Some(like))
+            .unwrap()
+            .clone();
+        offline.id = "tm-sub-00000000000fffff".into();
+        offline.identities[0].account_ref = "offline-account".into();
+        offline.policy.assignment = Some(node.into());
+        offline.policy.pin = pinned.then(|| node.to_string());
+        doc.subscribers.push(offline);
+        doc.next_id = doc.next_id.max(0x10_0000);
+        r.test_commit(doc).unwrap();
+        "tm-sub-00000000000fffff".into()
+    }
+
+    #[tokio::test]
+    async fn rebalance_returns_a_drifted_group_to_the_capacity_split() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, _) = split(&e, &mut r).await;
+        let mut doc = r.api_registry().unwrap().unwrap();
+        for s in &mut doc.subscribers {
+            if s.policy.assignment.as_deref() == Some(second.as_str()) {
+                s.policy.assignment = Some(first.clone());
+            }
+        }
+        r.test_commit(doc).unwrap();
+        assert_eq!(on(&mut r, &second), 0, "the group drifted to one WAN");
+        let (_, source) = biggest_group(&mut r);
+        let p = commit(&mut r, json!({"kind": "rebalance", "source_id": source})).await;
+        assert!(!p["moves"].as_array().unwrap().is_empty(), "{p}");
+        let (a, b) = (on(&mut r, &first), on(&mut r, &second));
+        assert!(a > 0 && b > 0 && a.abs_diff(b) <= 1, "{a} and {b}");
+    }
+
+    #[tokio::test]
+    async fn rebalance_clears_offline_unpinned_assignments_of_the_group() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, _) = split(&e, &mut r).await;
+        let offline = add_offline(&mut r, &first, &second, false);
+        let p = commit(&mut r, json!({"kind": "rebalance", "source_id": null})).await;
+        assert_eq!(p["cleared"], json!([offline]));
+        let doc = r.api_registry().unwrap().unwrap();
+        let s = doc.subscribers.iter().find(|s| s.id == offline).unwrap();
+        assert_eq!(s.policy.assignment, None);
+    }
+
+    #[tokio::test]
+    async fn a_pinned_subscriber_does_not_move_and_its_demand_counts() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, _) = split(&e, &mut r).await;
+        let (wan1, wan2) = {
+            let tree = r.api_tree().unwrap();
+            let parent = |id: &str| {
+                tree["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|n| n["id"] == id)
+                    .unwrap()["parent"]
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            };
+            (parent(&first), parent(&second))
+        };
+        let doc = r.api_registry().unwrap().unwrap();
+        let target = doc
+            .subscribers
+            .iter()
+            .find(|s| s.policy.assignment.as_deref() == Some(first.as_str()))
+            .unwrap()
+            .clone();
+        commit(&mut r, json!({"kind": "subscriber.pin", "identity": identity_of(&target), "wan_node_id": wan2})).await;
+        let pinned = |r: &mut Runner<FakeConnector>| {
+            r.api_registry()
+                .unwrap()
+                .unwrap()
+                .subscribers
+                .into_iter()
+                .find(|s| s.id == target.id)
+                .unwrap()
+        };
+        assert_eq!(pinned(&mut r).policy.pin.as_deref(), Some(second.as_str()));
+        commit(&mut r, json!({"kind": "rebalance", "source_id": null})).await;
+        let after = pinned(&mut r);
+        assert_eq!(
+            (
+                after.policy.pin.as_deref(),
+                after.policy.assignment.as_deref()
+            ),
+            (Some(second.as_str()), Some(second.as_str()))
+        );
+        assert!(
+            on(&mut r, &first) > 0,
+            "the pin demand counts, so WAN1 keeps members"
+        );
+        let _ = wan1;
+    }
+
+    #[tokio::test]
+    async fn a_pin_of_an_offline_subscriber_is_refused() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, _) = split(&e, &mut r).await;
+        let offline = add_offline(&mut r, &first, &first, false);
+        let doc = r.api_registry().unwrap().unwrap();
+        let record = doc
+            .subscribers
+            .iter()
+            .find(|s| s.id == offline)
+            .unwrap()
+            .clone();
+        let wan2 = r.api_tree().unwrap()["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["id"] == second.as_str())
+            .unwrap()["parent"]
+            .clone();
+        let err = propose(&mut r, json!({"kind": "subscriber.pin", "identity": identity_of(&record), "wan_node_id": wan2}))
+            .await
+            .unwrap_err();
+        assert_eq!(rule(&err), "the subscriber must be online to pin");
+    }
+
+    #[tokio::test]
+    async fn unpin_reads_no_router_and_moves_nothing() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, _, _) = split(&e, &mut r).await;
+        let offline = add_offline(&mut r, &first, &first, true);
+        e.fake.failing.lock().unwrap().insert("Hub-1".into());
+        let p = propose(
+            &mut r,
+            json!({"kind": "subscriber.pin", "subscriber_id": offline, "wan_node_id": null}),
+        )
+        .await
+        .unwrap();
+        assert_eq!(p["moves"], json!([]));
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let doc = r.api_registry().unwrap().unwrap();
+        let s = doc.subscribers.iter().find(|s| s.id == offline).unwrap();
+        assert_eq!(
+            (s.policy.pin.as_deref(), s.policy.assignment.as_deref()),
+            (None, Some(first.as_str()))
+        );
+    }
+
+    #[tokio::test]
+    async fn an_offline_pin_that_blocks_remove_is_cleared_by_subscriber_id() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, second, _) = split(&e, &mut r).await;
+        let offline = add_offline(&mut r, &first, &second, true);
+        let err = propose(&mut r, json!({"kind": "node.remove", "node_id": second}))
+            .await
+            .unwrap_err();
+        assert!(
+            rule(&err).starts_with("unpin the subscribers first"),
+            "{}",
+            rule(&err)
+        );
+        commit(
+            &mut r,
+            json!({"kind": "subscriber.pin", "subscriber_id": offline, "wan_node_id": null}),
+        )
+        .await;
+        commit(&mut r, json!({"kind": "node.remove", "node_id": second})).await;
+        assert!(!tree_ids(&mut r).contains(&second));
+    }
+
+    #[tokio::test]
+    async fn tree_pins_carry_the_online_state() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (first, _, _) = split(&e, &mut r).await;
+        let offline = add_offline(&mut r, &first, &first, true);
+        let doc = r.api_registry().unwrap().unwrap();
+        let mut online_pin = doc.clone();
+        let target = online_pin
+            .subscribers
+            .iter_mut()
+            .find(|s| s.policy.assignment.as_deref() == Some(first.as_str()) && s.id != offline)
+            .unwrap();
+        target.policy.pin = Some(first.clone());
+        let online_id = target.id.clone();
+        r.test_commit(online_pin).unwrap();
+        r.api_preview_refresh().await.unwrap();
+        let pins = r.api_tree().unwrap()["pins"].clone();
+        let state = |id: &str| {
+            pins.as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["subscriber_id"] == id)
+                .unwrap()["online"]
+                .clone()
+        };
+        assert_eq!(
+            (state(&online_id), state(&offline)),
+            (json!(true), json!(false))
+        );
+    }
 }
