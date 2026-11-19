@@ -532,7 +532,14 @@ Local checks passed 700 tests, Clippy, formatting, and seven-screen terminal smo
 An isolated debug test published a 283,359-byte cache 50 times per path.
 Process I/O counters recorded zero block write bytes for steady tmpfs publication and 14,336,000 bytes for disk publication.
 This is a cache-specific measurement. It is not a measured production-wide reduction or a CPU speedup.
-After deployment, repeat the production observation to measure the total service write rate.
+Production verification completed on 2026-11-16 for `3.0.182+ge8da230`.
+The five-minute observation passed two sync cycles without errors, stale caches, or automatic restarts.
+Service disk writes averaged 3.92 KiB/s, versus 197.94 KiB/s in the preceding baseline.
+The new process had shorter histories after restart, and the baseline had stale subscriber telemetry.
+These sequential windows do not establish a sustained reduction or CPU speedup.
+All six telemetry sources and seven installed TUI routes passed.
+The deferred native capacity mismatch remains visible as DEGRADED.
+Observe again after the one-hour histories fill to measure the sustained service write rate.
 
 The first frame establishes the producer timestamp. An advancing timestamp enables the live display.
 Snapshot worker/traffic values expire after six seconds. A snapshot error marks their last-good values stale.
