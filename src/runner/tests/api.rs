@@ -1349,4 +1349,161 @@ mod edits {
             (json!(true), json!(false))
         );
     }
+
+    fn speed(min: Value, max: Value) -> Value {
+        json!({"kind": "speed.defaults", "down_min": min, "up_min": min, "down_max": max, "up_max": max})
+    }
+
+    #[tokio::test]
+    async fn a_minimum_change_lists_changed_rates_and_the_legacy_warning() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let p = propose(
+            &mut r,
+            speed(json!({"percent": 20}), json!({"percent": 100})),
+        )
+        .await
+        .unwrap();
+        assert!(p["rates_changed"].as_u64().unwrap() > 0, "{p}");
+        let sample = &p["rates"][0];
+        assert_ne!(
+            sample["before"]["min_mbps"], sample["after"]["min_mbps"],
+            "{p}"
+        );
+        assert!(
+            p["warnings"][0]
+                .as_str()
+                .unwrap()
+                .contains("legacy rounded rules"),
+            "{p}"
+        );
+        assert_eq!(p["new_records"], json!(0));
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_factor_change_lists_changed_group_capacities() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (group, source) = biggest_group(&mut r);
+        let p = propose(
+            &mut r,
+            json!({"kind": "group.factor", "source_id": source, "down": "0.1", "up": "0.1"}),
+        )
+        .await
+        .unwrap();
+        let caps = p["capacities"].as_array().unwrap();
+        assert!(caps.iter().any(|c| c["node_id"] == group.as_str()), "{p}");
+        assert_eq!(p["rates_changed"], json!(0));
+    }
+
+    #[tokio::test]
+    async fn a_fixed_minimum_above_a_plan_is_refused_with_the_subscribers() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let err = propose(&mut r, speed(json!({"mbps": 999}), json!({"percent": 100})))
+            .await
+            .unwrap_err();
+        assert!(
+            rule(&err).starts_with("the minimum is above the maximum for: tm-sub-"),
+            "{}",
+            rule(&err)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_minimum_above_a_wan_ceiling_is_refused_and_keeps_no_proposal() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (wan1, _) = two_wans(&e, &mut r).await;
+        let (group, _) = biggest_group(&mut r);
+        commit(
+            &mut r,
+            json!({"kind": "node.move", "node_id": group, "parent": wan1}),
+        )
+        .await;
+        let err = propose(&mut r, speed(json!({"mbps": 500}), json!({"mbps": 1000})))
+            .await
+            .unwrap_err();
+        assert!(
+            rule(&err).contains("MinimumExceedsCeiling"),
+            "{}",
+            rule(&err)
+        );
+        assert!(r.api_edit_confirm("any").is_err());
+    }
+
+    #[tokio::test]
+    async fn a_lower_minimum_can_fix_an_existing_minimum_conflict() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (wan1, _) = two_wans(&e, &mut r).await;
+        let (group, _) = biggest_group(&mut r);
+        commit(
+            &mut r,
+            json!({"kind": "node.move", "node_id": group, "parent": wan1}),
+        )
+        .await;
+        // Seed a registry that already breaks the WAN ceiling: high minimums, a small WAN.
+        let mut doc = r.api_registry().unwrap().unwrap();
+        let c = doc.catalog.as_mut().unwrap();
+        c.defaults.down_min = crate::topology_manager::rates::RateRule::FixedBps(400_000_000);
+        c.defaults.up_min = crate::topology_manager::rates::RateRule::FixedBps(400_000_000);
+        c.defaults.down_max = crate::topology_manager::rates::RateRule::FixedBps(900_000_000);
+        c.defaults.up_max = crate::topology_manager::rates::RateRule::FixedBps(900_000_000);
+        for p in &mut c.profiles {
+            p.speed = Default::default();
+        }
+        r.test_commit(doc).unwrap();
+        let pv = r.api_preview_refresh().await.unwrap();
+        assert_eq!(
+            pv["state"],
+            json!("conflicts"),
+            "the seeded registry must already conflict: {pv}"
+        );
+        let fix = propose(
+            &mut r,
+            speed(json!({"percent": 1}), json!({"percent": 100})),
+        )
+        .await;
+        assert!(fix.is_ok(), "{:#}", fix.unwrap_err());
+    }
+
+    #[tokio::test]
+    async fn a_down_distro_refuses_a_speed_edit() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        e.fake.failing.lock().unwrap().insert("Hub-1".into());
+        assert!(
+            propose(
+                &mut r,
+                speed(json!({"percent": 20}), json!({"percent": 100}))
+            )
+            .await
+            .is_err()
+        );
+        assert!(r.api_edit_confirm("any").is_err());
+    }
+
+    #[tokio::test]
+    async fn policies_list_groups_with_factor_backstop_and_floor() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let v = r.api_policies().unwrap();
+        let groups = v["groups"].as_array().unwrap();
+        assert!(!groups.is_empty(), "{v}");
+        let g = &groups[0];
+        for key in [
+            "source_id",
+            "name",
+            "factor",
+            "formula",
+            "backstop_mbps",
+            "floor_mbps",
+        ] {
+            assert!(g.get(key).is_some(), "{key}: {g}");
+        }
+        assert!(g["factor"][0].is_string(), "{g}");
+    }
 }

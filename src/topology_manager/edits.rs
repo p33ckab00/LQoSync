@@ -145,7 +145,6 @@ fn parse_factor(text: &str) -> anyhow::Result<Fraction> {
 }
 
 /// A factor as a short decimal: `0.215`, `0.5`, `1`.
-#[cfg_attr(not(test), expect(dead_code, reason = "Task 2 policies use it"))]
 pub(crate) fn factor_text(f: Fraction) -> String {
     let d = u128::from(f.denominator.max(1));
     let micro = u128::from(f.numerator) * 1_000_000;

@@ -20,7 +20,7 @@ pub struct ObservedPolicy {
     pub plan: Option<super::rates::RateBps>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActiveAccount {
     pub identity: IdentityRef,
     pub policy: ObservedPolicy,
@@ -66,13 +66,13 @@ pub struct ObservationGate {
     last_generation: u64,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActiveEndpoint {
     pub identity: IdentityRef,
     pub endpoint: Endpoint,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActiveSubscriber {
     pub subscriber_id: String,
     pub endpoints: Vec<ActiveEndpoint>,

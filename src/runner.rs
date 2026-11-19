@@ -680,6 +680,9 @@ where
             self.wan_discovery.as_ref(),
             &self.cfg,
         )?;
+        if applied.check_only {
+            return self.propose_check_only(&doc, edit, applied).await;
+        }
         let mut candidate = applied.candidate;
         let mut online = std::collections::HashSet::new();
         let mut cleared_extra = Vec::new();
@@ -801,6 +804,173 @@ where
             "assigned": assigned,
             "new_records": new_records,
             "sources": applied.affected,
+        });
+        self.edit_proposal = Some(EditProposal {
+            id,
+            base_revision: doc.revision,
+            candidate,
+            expires: tokio::time::Instant::now() + PROPOSAL_LIFETIME,
+        });
+        Ok(answer)
+    }
+
+    /// A speed or factor edit: one source read, placement and aggregate checks for the current
+    /// and the edited catalog over the same subscribers, and no rebalance. Only a conflict that
+    /// the current registry does not have refuses the edit.
+    async fn propose_check_only(
+        &mut self,
+        doc: &crate::topology_manager::model::RegistryDocument,
+        edit: crate::topology_manager::edits::Edit,
+        applied: crate::topology_manager::edits::Applied,
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::aggregate::evaluate;
+        use crate::topology_manager::observation::Reconciliation;
+        use crate::topology_manager::resolver::{PlacementConflictReason, resolve};
+        let read = self
+            .topology_sources
+            .reconcile_for(
+                &self.cfg,
+                &applied.candidate,
+                self.last_topology_generation,
+                Duration::from_secs(30),
+            )
+            .await?;
+        let mut current = read.registry.clone();
+        current.catalog = doc.catalog.clone();
+        let side = |registry| {
+            resolve(Reconciliation {
+                generation: read.generation,
+                registry,
+                active: read.active.clone(),
+            })
+        };
+        let (before, after) = (side(current)?, side(read.registry.clone())?);
+        // A conflict is the same when its subject and its kind are the same.
+        let kind = |d: String| {
+            d.split(['(', ' ', '{'])
+                .next()
+                .unwrap_or_default()
+                .to_string()
+        };
+        let placement = |r: &crate::topology_manager::resolver::PlacementResolution| {
+            r.conflicts
+                .iter()
+                .map(|c| (c.subscriber_id.clone(), kind(format!("{:?}", c.reason))))
+                .collect::<std::collections::HashSet<_>>()
+        };
+        let old = placement(&before);
+        let new: Vec<_> = after
+            .conflicts
+            .iter()
+            .filter(|c| !old.contains(&(c.subscriber_id.clone(), kind(format!("{:?}", c.reason)))))
+            .collect();
+        let rates_bad: Vec<&str> = new
+            .iter()
+            .filter(|c| matches!(c.reason, PlacementConflictReason::InvalidRates(_)))
+            .map(|c| c.subscriber_id.as_str())
+            .collect();
+        if !rates_bad.is_empty() {
+            return Err(rule(format!(
+                "the minimum is above the maximum for: {}",
+                rates_bad.join(", ")
+            )));
+        }
+        if !new.is_empty() {
+            return Err(rule("resolve the placement conflicts first".into()));
+        }
+        let mbps = |r: crate::topology_manager::rates::RateBps| {
+            crate::speed::Rate::try_from(r).map(|r| serde_json::json!([r.down, r.up]))
+        };
+        let labels: std::collections::HashMap<String, String> = self
+            .last_preview
+            .as_ref()
+            .and_then(|p| p["subscribers"].as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|s| Some((s["id"].as_str()?.into(), s["label"].as_str()?.into())))
+            .collect();
+        let earlier: std::collections::HashMap<_, _> = before
+            .placements
+            .iter()
+            .map(|p| (p.subscriber_id.as_str(), p.rates))
+            .collect();
+        let mut rates = Vec::new();
+        for p in &after.placements {
+            if let Some(old) = earlier.get(p.subscriber_id.as_str())
+                && (old.min != p.rates.min || old.max != p.rates.max)
+            {
+                rates.push(serde_json::json!({
+                    "subscriber_id": p.subscriber_id, "label": labels.get(&p.subscriber_id),
+                    "before": {"min_mbps": mbps(old.min)?, "max_mbps": mbps(old.max)?},
+                    "after": {"min_mbps": mbps(p.rates.min)?, "max_mbps": mbps(p.rates.max)?},
+                }));
+            }
+        }
+        let rates_changed = rates.len();
+        rates.truncate(8);
+        // Aggregates need placements without conflicts; a side with old conflicts has none.
+        let aggregates = |r| {
+            if placement(&r).is_empty() {
+                evaluate(r).ok()
+            } else {
+                None
+            }
+        };
+        let (before, after) = (aggregates(before), aggregates(after));
+        let mut capacities = Vec::new();
+        if let Some(after) = &after {
+            let old: std::collections::HashSet<_> = before
+                .iter()
+                .flat_map(|b| &b.conflicts)
+                .map(|c| (c.node_id.clone(), kind(format!("{:?}", c.reason))))
+                .collect();
+            let fresh: Vec<_> = after
+                .conflicts
+                .iter()
+                .filter(|c| !old.contains(&(c.node_id.clone(), kind(format!("{:?}", c.reason)))))
+                .collect();
+            if !fresh.is_empty() {
+                return Err(rule(format!("{fresh:?}")));
+            }
+            let ceilings: std::collections::HashMap<_, _> = before
+                .iter()
+                .flat_map(|b| &b.nodes)
+                .map(|n| (n.node_id.as_str(), n.rates.ceiling))
+                .collect();
+            for n in &after.nodes {
+                if let Some(old) = ceilings.get(n.node_id.as_str())
+                    && *old != n.rates.ceiling
+                {
+                    capacities.push(serde_json::json!({
+                        "node_id": n.node_id, "before_mbps": mbps(*old)?,
+                        "after_mbps": mbps(n.rates.ceiling)?,
+                    }));
+                }
+            }
+        }
+        let warnings: Vec<String> = (applied.legacy_replaced > 0)
+            .then(|| {
+                format!(
+                    "the legacy rounded rules of {} profiles are replaced; the output no longer matches the legacy loop exactly",
+                    applied.legacy_replaced
+                )
+            })
+            .into_iter()
+            .collect();
+        self.edit_sequence += 1;
+        let id = format!("edit-{}-{}", doc.revision, self.edit_sequence);
+        let candidate = applied.candidate;
+        let answer = serde_json::json!({
+            "proposal_id": id,
+            "expires_at": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs())
+                + PROPOSAL_LIFETIME.as_secs(),
+            "edit": edit,
+            "nodes": crate::topology_manager::edits::tree(&candidate)["nodes"],
+            "moves": [], "cleared": [], "assigned": 0, "new_records": 0, "sources": [],
+            "rates": rates, "rates_changed": rates_changed,
+            "capacities": capacities, "warnings": warnings,
         });
         self.edit_proposal = Some(EditProposal {
             id,
@@ -990,7 +1160,27 @@ where
                 BaseRateAuthority::SourceRead => None,
             })
             .collect();
-        Ok(serde_json::json!({"defaults": catalog.defaults, "profiles": profiles, "plans": plans}))
+        let mbps = |r: crate::topology_manager::rates::RateBps| {
+            crate::speed::Rate::try_from(r).map(|r| serde_json::json!([r.down, r.up]))
+        };
+        let mut groups = Vec::new();
+        for source in &catalog.sources {
+            if let crate::topology_manager::catalog::SourceOrigin::Subscribers { group, .. } =
+                &source.origin
+            {
+                let text = crate::topology_manager::edits::factor_text;
+                groups.push(serde_json::json!({
+                    "source_id": source.id, "name": source.name,
+                    "factor": [text(group.factors.down), text(group.factors.up)],
+                    "formula": group.formula,
+                    "backstop_mbps": group.backstop.map(|b| mbps(b.base)).transpose()?,
+                    "floor_mbps": group.floor.map(mbps).transpose()?,
+                }));
+            }
+        }
+        Ok(
+            serde_json::json!({"defaults": catalog.defaults, "profiles": profiles, "plans": plans, "groups": groups}),
+        )
     }
 
     /// Apply one registry edit under the lock and a revision check, then commit it.
