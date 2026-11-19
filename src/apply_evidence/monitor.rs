@@ -30,6 +30,8 @@ fn stamp(path: &Path) -> Option<Stamp> {
         m.ctime_nsec(),
     ))
 }
+/// A timed-out receipt is checked this often. Each check starts Python and reads the bridge.
+const LATE_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -55,6 +57,15 @@ pub struct Monitor {
 }
 impl Monitor {
     pub fn start(cfg: &Config, digest: &str, tracker: Arc<Mutex<Tracker>>, hub: Hub) -> Self {
+        Self::start_with(cfg, digest, tracker, hub, LATE_CHECK_INTERVAL)
+    }
+    fn start_with(
+        cfg: &Config,
+        digest: &str,
+        tracker: Arc<Mutex<Tracker>>,
+        hub: Hub,
+        late_interval: Duration,
+    ) -> Self {
         let (settings, mut changes) = watch::channel(Settings {
             cfg: cfg.clone(),
             digest: digest.into(),
@@ -63,6 +74,7 @@ impl Monitor {
             let mut current = changes.borrow().clone();
             let mut cached: Option<(String, Prepared)> = None;
             let mut imported: Option<(Stamp, bool)> = None;
+            let mut late_check: Option<(String, std::time::Instant)> = None;
             let mut tick = tokio::time::interval(Duration::from_secs(2));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
@@ -81,6 +93,10 @@ impl Monitor {
                                     if let Some(recovered)=t.current() {receipt=recovered.clone();}
                                 }
                         if !matches!(receipt.phase,Phase::Pending|Phase::ImportConfirmed|Phase::VerifyTimeout){timeout(&tracker,&receipt,&hub);continue}
+                        if receipt.phase==Phase::VerifyTimeout {
+                            if late_check.as_ref().is_some_and(|(id,at)|*id==receipt.write_id && at.elapsed()<late_interval) {continue}
+                            late_check=Some((receipt.write_id.clone(),std::time::Instant::now()));
+                        }
                         if cached.as_ref().is_none_or(|(id,_)|*id!=receipt.write_id) {
                             let pending=receipt.clone();
                             match tokio::task::spawn_blocking(move||prepare(&pending)).await {
@@ -201,6 +217,40 @@ mod tests {
         assert_eq!(
             tracker.lock().unwrap().current().unwrap().phase,
             Phase::ImportConfirmed
+        );
+    }
+    #[tokio::test]
+    async fn a_timed_out_receipt_is_checked_only_once_per_interval() {
+        let (dir, cfg, written) = live(|d| state("old", d));
+        // The import file is missing at the first check and is restored after it.
+        let import = dir.path().join("state/topology/topology_import.json");
+        let saved = std::fs::read(&import).unwrap();
+        std::fs::remove_file(&import).unwrap();
+        let hub = Hub::default();
+        let (_t, tracker) = tracked(&cfg, &written, &hub);
+        tracker
+            .lock()
+            .unwrap()
+            .transition(Phase::VerifyTimeout, now(), &hub)
+            .unwrap();
+        let _monitor = Monitor::start_with(
+            &cfg,
+            "d",
+            tracker.clone(),
+            hub.clone(),
+            Duration::from_secs(5),
+        );
+        // The first check runs at once and sees the old world.
+        tokio::time::sleep(Duration::from_millis(700)).await;
+        std::fs::write(&import, saved).unwrap();
+        tokio::time::sleep(Duration::from_millis(3800)).await;
+        assert_eq!(
+            tracker.lock().unwrap().current().unwrap().phase,
+            Phase::VerifyTimeout
+        );
+        assert_eq!(
+            until(&tracker, |p| p == Phase::Applied).await,
+            Phase::Applied
         );
     }
     #[tokio::test]
