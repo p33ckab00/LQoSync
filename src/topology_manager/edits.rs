@@ -7,7 +7,7 @@ use super::catalog::{
 use super::ids::{IdKind, reserve_ids};
 use super::layout::NodeKind;
 use super::model::{IdentityRef, RegistryDocument, SourceKind, SourceScope};
-use super::rates::{Fraction, RateBps};
+use super::rates::{Fraction, RateBps, RateRule, RuleValue, SpeedOverrides, SpeedPolicy};
 use super::store::InvalidPolicy;
 use crate::config::Config;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
 /// One Builder edit, as the service API receives it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum Edit {
     #[serde(rename = "wan.create")]
@@ -56,6 +56,21 @@ pub enum Edit {
     },
     #[serde(rename = "node.remove")]
     NodeRemove { node_id: String },
+    #[serde(rename = "speed.defaults")]
+    SpeedDefaults {
+        down_min: RuleInput,
+        up_min: RuleInput,
+        down_max: RuleInput,
+        up_max: RuleInput,
+    },
+    #[serde(rename = "group.factor")]
+    GroupFactor {
+        source_id: String,
+        #[serde(default)]
+        down: Option<String>,
+        #[serde(default)]
+        up: Option<String>,
+    },
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
     #[serde(rename = "subscriber.pin")]
@@ -66,6 +81,90 @@ pub enum Edit {
         subscriber_id: Option<String>,
         wan_node_id: Option<String>,
     },
+}
+
+/// One subscriber speed rule on the wire: a percent of the plan or a fixed rate.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum RuleInput {
+    Percent(f64),
+    Mbps(u64),
+}
+
+const RULE_TEXT: &str = "a speed rule must be a minimum percent from 0.1 to 100, a maximum percent from 1 to 1000 with one decimal, or a whole number of Mbps from 1 to 1000000";
+
+impl RuleInput {
+    fn rule(self, minimum: bool) -> anyhow::Result<RateRule> {
+        match self {
+            Self::Percent(p) => {
+                let tenths = (p * 10.0).round();
+                let range = if minimum {
+                    1.0..=1000.0
+                } else {
+                    10.0..=10000.0
+                };
+                if (p * 10.0 - tenths).abs() > 1e-9 || !range.contains(&tenths) {
+                    return Err(invalid(RULE_TEXT));
+                }
+                Ok(RateRule::BaseFraction(Fraction {
+                    numerator: tenths as u64,
+                    denominator: 1000,
+                }))
+            }
+            Self::Mbps(n) if (1..=1_000_000).contains(&n) => Ok(RateRule::FixedBps(n * 1_000_000)),
+            Self::Mbps(_) => Err(invalid(RULE_TEXT)),
+        }
+    }
+}
+
+const FACTOR_TEXT: &str =
+    "a group factor must be a decimal from 0.001 to 1 with up to six decimals";
+
+/// Parse a factor such as `0.215` into millionths.
+fn parse_factor(text: &str) -> anyhow::Result<Fraction> {
+    let (int, frac) = text.split_once('.').unwrap_or((text, ""));
+    let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
+    if int.is_empty() || !digits(int) || !digits(frac) || frac.len() > 6 {
+        return Err(invalid(FACTOR_TEXT));
+    }
+    let whole: u64 = int.parse().map_err(|_| invalid(FACTOR_TEXT))?;
+    let part: u64 = format!("{frac:0<6}")
+        .parse()
+        .map_err(|_| invalid(FACTOR_TEXT))?;
+    let numerator = whole
+        .checked_mul(1_000_000)
+        .and_then(|w| w.checked_add(part))
+        .ok_or_else(|| invalid(FACTOR_TEXT))?;
+    if !(1_000..=1_000_000).contains(&numerator) {
+        return Err(invalid(FACTOR_TEXT));
+    }
+    Ok(Fraction {
+        numerator,
+        denominator: 1_000_000,
+    })
+}
+
+/// A factor as a short decimal: `0.215`, `0.5`, `1`.
+#[cfg_attr(not(test), expect(dead_code, reason = "Task 2 policies use it"))]
+pub(crate) fn factor_text(f: Fraction) -> String {
+    let d = u128::from(f.denominator.max(1));
+    let micro = u128::from(f.numerator) * 1_000_000;
+    let value = if micro % d == 0 {
+        let m = micro / d;
+        format!("{}.{:06}", m / 1_000_000, m % 1_000_000)
+    } else {
+        format!("{:.6}", f.numerator as f64 / f.denominator.max(1) as f64)
+    };
+    value
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+}
+
+fn is_legacy(o: &SpeedOverrides) -> bool {
+    [o.down_min, o.up_min, o.down_max, o.up_max]
+        .iter()
+        .any(|v| matches!(v, RuleValue::Override(RateRule::LegacyRoundedBase { .. })))
 }
 
 /// A subscriber identity on the wire, as `subscriber.plan` takes it.
@@ -120,6 +219,10 @@ pub struct Applied {
     pub require_online: Vec<String>,
     /// Clear the saved assignments of offline, unpinned records in the affected groups.
     pub clear_offline: bool,
+    /// Check placements and aggregates without a rebalance (speed and factor edits).
+    pub check_only: bool,
+    /// Profiles whose legacy rounded speed rules the edit replaced.
+    pub legacy_replaced: usize,
 }
 
 fn invalid(message: impl Into<String>) -> anyhow::Error {
@@ -670,6 +773,8 @@ pub fn apply(
     let mut cleared = Vec::new();
     let mut require_online = Vec::new();
     let mut clear_offline = false;
+    let mut check_only = false;
+    let mut legacy_replaced = 0;
     match edit {
         Edit::WanCreate {
             router_id,
@@ -776,6 +881,52 @@ pub fn apply(
         Edit::NodeRemove { node_id } => {
             node_remove(doc, &mut d, node_id, &mut affected, &mut cleared)?;
         }
+        Edit::SpeedDefaults {
+            down_min,
+            up_min,
+            down_max,
+            up_max,
+        } => {
+            let defaults = SpeedPolicy {
+                down_min: down_min.rule(true)?,
+                up_min: up_min.rule(true)?,
+                down_max: down_max.rule(false)?,
+                up_max: up_max.rule(false)?,
+            };
+            let c = d.catalog.as_mut().expect("enrolled");
+            c.defaults = defaults;
+            // One global policy: every profile inherits it.
+            for p in &mut c.profiles {
+                legacy_replaced += usize::from(is_legacy(&p.speed));
+                p.speed = SpeedOverrides::default();
+            }
+            check_only = true;
+        }
+        Edit::GroupFactor {
+            source_id,
+            down,
+            up,
+        } => {
+            let down = down.as_deref().map(parse_factor).transpose()?;
+            let up = up.as_deref().map(parse_factor).transpose()?;
+            let c = d.catalog.as_mut().expect("enrolled");
+            let group = c
+                .sources
+                .iter_mut()
+                .find(|s| s.id == *source_id)
+                .and_then(|s| match &mut s.origin {
+                    SourceOrigin::Subscribers { group, .. } => Some(group),
+                    SourceOrigin::Wan { .. } => None,
+                })
+                .ok_or_else(|| invalid("the source does not exist"))?;
+            if let Some(f) = down {
+                group.factors.down = f;
+            }
+            if let Some(f) = up {
+                group.factors.up = f;
+            }
+            check_only = true;
+        }
         Edit::Rebalance { source_id } => {
             affected = rebalance(d.catalog.as_ref().expect("enrolled"), source_id.as_deref())?;
             clear_offline = true;
@@ -810,6 +961,8 @@ pub fn apply(
         cleared,
         require_online,
         clear_offline,
+        check_only,
+        legacy_replaced,
     })
 }
 

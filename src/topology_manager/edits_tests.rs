@@ -783,3 +783,177 @@ fn tree_lists_pins() {
         json!([{"subscriber_id": "s1", "node_id": "group1"}])
     );
 }
+
+fn speed(min: Value, max: Value) -> Value {
+    json!({"kind": "speed.defaults", "down_min": min, "up_min": min, "down_max": max, "up_max": max})
+}
+
+fn legacy_profile_doc() -> RegistryDocument {
+    use crate::topology_manager::rates::{Fraction, RateRule, RuleValue, SpeedOverrides};
+    let mut d = doc();
+    let rule = RuleValue::Override(RateRule::LegacyRoundedBase {
+        factor: Fraction {
+            numerator: 1,
+            denominator: 10,
+        },
+        floor_bps: 1_000_000,
+    });
+    d.catalog.as_mut().unwrap().profiles[0].speed = SpeedOverrides {
+        down_min: rule,
+        up_min: rule,
+        down_max: RuleValue::Inherit,
+        up_max: RuleValue::Inherit,
+    };
+    d
+}
+
+#[test]
+fn speed_defaults_set_the_defaults_and_reset_every_profile_override() {
+    use crate::topology_manager::rates::{Fraction, RateRule, SpeedOverrides};
+    let d = legacy_profile_doc();
+    let a = run(&d, speed(json!({"percent": 10}), json!({"percent": 100}))).unwrap();
+    let c = a.candidate.catalog.as_ref().unwrap();
+    assert_eq!(
+        c.defaults.down_min,
+        RateRule::BaseFraction(Fraction {
+            numerator: 100,
+            denominator: 1000
+        })
+    );
+    assert_eq!(
+        c.defaults.up_max,
+        RateRule::BaseFraction(Fraction {
+            numerator: 1000,
+            denominator: 1000
+        })
+    );
+    assert!(
+        c.profiles
+            .iter()
+            .all(|p| p.speed == SpeedOverrides::default())
+    );
+    assert_eq!(a.legacy_replaced, 1);
+    assert!(a.check_only && a.affected.is_empty());
+}
+
+#[test]
+fn speed_default_ranges_and_decimals() {
+    let d = doc();
+    let text = "a speed rule must be a minimum percent from 0.1 to 100, a maximum percent from 1 to 1000 with one decimal, or a whole number of Mbps from 1 to 1000000";
+    for (min, max) in [
+        (json!({"percent": 0.05}), json!({"percent": 100})),
+        (json!({"percent": 100.5}), json!({"percent": 100})),
+        (json!({"percent": 0.15}), json!({"percent": 100})),
+        (json!({"percent": 10}), json!({"percent": 1001})),
+        (json!({"mbps": 0}), json!({"percent": 100})),
+    ] {
+        assert_eq!(refused(&d, speed(min, max)), text);
+    }
+    for (min, max) in [
+        (json!({"percent": 0.1}), json!({"percent": 1000})),
+        (json!({"percent": 12.5}), json!({"mbps": 500})),
+    ] {
+        assert!(run(&d, speed(min, max)).is_ok());
+    }
+}
+
+#[test]
+fn a_minimum_above_the_maximum_for_a_local_plan_is_refused() {
+    // The fixture plan is 50/10 Mbps: a 20 Mbps minimum is above a 100% upload maximum.
+    let e = run(&doc(), speed(json!({"mbps": 20}), json!({"percent": 100})))
+        .map(|_| ())
+        .unwrap_err();
+    assert!(e.chain().any(|c| c.is::<InvalidPolicy>()), "{e:#}");
+}
+
+#[test]
+fn group_factor_round_trips_the_legacy_value_and_keeps_an_absent_direction() {
+    use crate::topology_manager::rates::Fraction;
+    let d = doc();
+    let a = run(
+        &d,
+        json!({"kind": "group.factor", "source_id": "profile-source", "down": "0.215"}),
+    )
+    .unwrap();
+    let c = a.candidate.catalog.as_ref().unwrap();
+    let s = c.sources.iter().find(|s| s.id == "profile-source").unwrap();
+    let SourceOrigin::Subscribers { group, .. } = &s.origin else {
+        panic!()
+    };
+    assert_eq!(
+        group.factors.down,
+        Fraction {
+            numerator: 215_000,
+            denominator: 1_000_000
+        }
+    );
+    // The fixture up factor is 1/2 and stays.
+    assert_eq!(
+        group.factors.up,
+        Fraction {
+            numerator: 1,
+            denominator: 2
+        }
+    );
+    assert_eq!(factor_text(group.factors.down), "0.215");
+    assert_eq!(factor_text(group.factors.up), "0.5");
+    assert_eq!(
+        factor_text(Fraction {
+            numerator: 1,
+            denominator: 1
+        }),
+        "1"
+    );
+    assert!(a.check_only);
+}
+
+#[test]
+fn group_factor_ranges_and_unknown_source() {
+    let d = doc();
+    let f = |v: &str| json!({"kind": "group.factor", "source_id": "profile-source", "up": v});
+    for bad in ["0", "1.5", "0.0000001", "abc", "-0.5"] {
+        assert_eq!(
+            refused(&d, f(bad)),
+            "a group factor must be a decimal from 0.001 to 1 with up to six decimals"
+        );
+    }
+    assert_eq!(
+        refused(
+            &d,
+            json!({"kind": "group.factor", "source_id": "nope", "up": "0.5"})
+        ),
+        "the source does not exist"
+    );
+}
+
+#[test]
+fn instance_factor_overrides_are_kept() {
+    use crate::topology_manager::catalog::Factors;
+    use crate::topology_manager::rates::Fraction;
+    let mut d = doc();
+    let half = Fraction {
+        numerator: 1,
+        denominator: 2,
+    };
+    let over = FactorChoice::Override(Factors {
+        down: half,
+        up: half,
+    });
+    d.catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .capacity = CapacityPolicy::Automatic { factors: over };
+    let a = run(
+        &d,
+        json!({"kind": "group.factor", "source_id": "profile-source", "down": "0.9"}),
+    )
+    .unwrap();
+    assert_eq!(
+        node(&a.candidate, "group1").capacity,
+        CapacityPolicy::Automatic { factors: over }
+    );
+}
