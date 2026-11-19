@@ -91,7 +91,7 @@ The two bridge reads must stay equal (existing `before == after` check). The inp
 
 ### Where the check runs
 
-- **Live test, `acknowledgement` step:** the step passes when the pair took effect. It tries again until the import timeout. On a timeout, the step error and the report give the waiting identities (at most 20 in the error text, all in the report).
+- **Live test, `acknowledgement` step:** the step passes when the pair took effect. It tries again until the import timeout. On a timeout, the step error in the report gives the count and at most 20 waiting identities.
 - **Service health, `apply_evidence::Monitor`:** after `ImportConfirmed`, the receipt goes to `Applied` when the pair took effect. While identities wait, the health reason shows the count of waiting identities and the time since the write. After `IMPORT_LIMIT_SECS`, the receipt goes to `VerifyTimeout` as today.
 - **Late apply (designer call):** LibreQoS can apply a held change hours later, for example in its maintenance window. The monitor continues to check a `VerifyTimeout` receipt of the current write. When the pair took effect, the receipt goes to `Applied` and the health becomes healthy. No new notification.
 
