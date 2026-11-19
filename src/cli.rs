@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] | enroll --mapping <file> [--yes]> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] | enroll --mapping <file> [--yes] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -50,7 +50,20 @@ pub enum TopologyCommand {
         mapping: PathBuf,
         yes: bool,
     },
+    /// One live acceptance test on production. The service must be stopped.
+    LiveTest {
+        report: PathBuf,
+        import_timeout: u64,
+    },
+    /// Put the backup pair back and request an import.
+    LiveTestRestore {
+        backup: PathBuf,
+    },
 }
+
+/// Default and maximum wait, in seconds, for one LibreQoS import in the live test.
+const DEFAULT_IMPORT_TIMEOUT: u64 = 120;
+const MAX_IMPORT_TIMEOUT: u64 = 3600;
 
 fn parse_topology(
     words: &[String],
@@ -68,6 +81,8 @@ fn parse_topology(
         ["policy", "propose"] | ["propose"] => &["--out", "--previous"],
         ["check"] | ["policy", "install"] => &["--policy"],
         ["enroll"] => &["--mapping"],
+        ["live-test"] => &["--report", "--import-timeout"],
+        ["live-test-restore"] => &["--backup"],
         _ => bail!("unknown topology command\n{USAGE}"),
     };
     if let Some(extra) = flags.keys().find(|k| !allowed.contains(&k.as_str())) {
@@ -95,6 +110,21 @@ fn parse_topology(
         ["enroll"] => TopologyCommand::Enroll {
             mapping: file("--mapping")?,
             yes,
+        },
+        ["live-test"] => TopologyCommand::LiveTest {
+            report: file("--report")?,
+            import_timeout: match flags.get("--import-timeout") {
+                None => DEFAULT_IMPORT_TIMEOUT,
+                Some(v) => match v.parse::<u64>() {
+                    Ok(n) if (1..=MAX_IMPORT_TIMEOUT).contains(&n) => n,
+                    _ => bail!(
+                        "--import-timeout must be a whole number from 1 to {MAX_IMPORT_TIMEOUT} seconds\n{USAGE}"
+                    ),
+                },
+            },
+        },
+        ["live-test-restore"] => TopologyCommand::LiveTestRestore {
+            backup: file("--backup")?,
         },
         _ => bail!("unknown argument \"--previous\"\n{USAGE}"),
     })
@@ -124,11 +154,16 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
                 None => bail!("--config needs a path\n{USAGE}"),
             },
             "--yes" if topology => yes = true,
-            "--out" | "--previous" | "--policy" | "--mapping" if topology => match it.next() {
-                Some(p) if flags.insert(a.clone(), p.clone()).is_none() => {}
-                Some(_) => bail!("{a} is given twice\n{USAGE}"),
-                None => bail!("{a} needs a path\n{USAGE}"),
-            },
+            "--out" | "--previous" | "--policy" | "--mapping" | "--report" | "--backup"
+            | "--import-timeout"
+                if topology =>
+            {
+                match it.next() {
+                    Some(p) if flags.insert(a.clone(), p.clone()).is_none() => {}
+                    Some(_) => bail!("{a} is given twice\n{USAGE}"),
+                    None => bail!("{a} needs a path\n{USAGE}"),
+                }
+            }
             w if (topology || api) && !w.starts_with('-') => words.push(a.clone()),
             "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults" | "version"
                 if command.is_none() =>
@@ -468,6 +503,116 @@ mod tests {
             &["l", "topology", "propose"],
             &["l", "topology", "enroll", "--yes"],
             &["l", "topology", "enroll", "--mapping", "m", "--force"],
+        ] {
+            assert!(parse(&s(v)).is_err(), "{v:?}");
+        }
+    }
+
+    #[test]
+    fn live_test_flags_parse_with_the_default_timeout() {
+        use TopologyCommand as T;
+        let cmd = |v: &[&str]| parse(&s(v)).unwrap().command;
+        assert_eq!(
+            cmd(&["l", "topology", "live-test", "--report", "r.json"]),
+            Command::Topology(T::LiveTest {
+                report: "r.json".into(),
+                import_timeout: 120
+            })
+        );
+        assert_eq!(
+            cmd(&[
+                "l",
+                "topology",
+                "live-test",
+                "--report",
+                "r.json",
+                "--import-timeout",
+                "3600"
+            ]),
+            Command::Topology(T::LiveTest {
+                report: "r.json".into(),
+                import_timeout: 3600
+            })
+        );
+        for bad in ["0", "3601", "-1", "x", "18446744073709551616"] {
+            assert!(
+                parse(&s(&[
+                    "l",
+                    "topology",
+                    "live-test",
+                    "--report",
+                    "r",
+                    "--import-timeout",
+                    bad
+                ]))
+                .is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn live_test_restore_needs_a_backup() {
+        use TopologyCommand as T;
+        assert!(parse(&s(&["l", "topology", "live-test-restore"])).is_err());
+        assert!(parse(&s(&["l", "topology", "live-test"])).is_err());
+        assert_eq!(
+            parse(&s(&["l", "topology", "live-test-restore", "--backup", "b"]))
+                .unwrap()
+                .command,
+            Command::Topology(T::LiveTestRestore { backup: "b".into() })
+        );
+    }
+
+    #[test]
+    fn unknown_live_test_flags_are_refused() {
+        for v in [
+            &["l", "topology", "live-test", "--report", "r", "--yes"][..],
+            &[
+                "l",
+                "topology",
+                "live-test",
+                "--report",
+                "r",
+                "--backup",
+                "b",
+            ],
+            &["l", "topology", "live-test", "--report", "r", "--force"],
+            &[
+                "l",
+                "topology",
+                "live-test-restore",
+                "--backup",
+                "b",
+                "--yes",
+            ],
+            &[
+                "l",
+                "topology",
+                "live-test-restore",
+                "--backup",
+                "b",
+                "--report",
+                "r",
+            ],
+            &[
+                "l",
+                "topology",
+                "live-test-restore",
+                "--backup",
+                "b",
+                "--import-timeout",
+                "5",
+            ],
+            &[
+                "l",
+                "topology",
+                "enroll",
+                "--mapping",
+                "m",
+                "--import-timeout",
+                "5",
+            ],
         ] {
             assert!(parse(&s(v)).is_err(), "{v:?}");
         }
