@@ -2,7 +2,7 @@
 use super::{Prepared, Proof, prepare, verify_prepared};
 use crate::{
     config::Config,
-    system_health::{Hub, Phase},
+    system_health::{Domain, Hub, Observation, Phase, State},
     write_receipt::{Receipt, Tracker},
 };
 use std::{
@@ -73,14 +73,14 @@ impl Monitor {
                     }
                     _=tick.tick()=>{
                         let receipt=tracker.try_lock().ok().and_then(|t|t.current().cloned());
-                        let Some(mut receipt)=receipt.filter(|r|r.phase.pending()) else {cached=None;imported=None;continue};
+                        let Some(mut receipt)=receipt.filter(|r|r.phase.pending()||r.phase==Phase::VerifyTimeout) else {cached=None;imported=None;continue};
                         if matches!(receipt.phase,Phase::Intent|Phase::Interrupted)
                             && let Ok(mut t)=tracker.try_lock()
                                 && t.current().is_some_and(|r|r.write_id==receipt.write_id) {
                                     if let Err(error)=t.reconcile(now(),&hub) {eprintln!("write reconciliation: {error}");}
                                     if let Some(recovered)=t.current() {receipt=recovered.clone();}
                                 }
-                        if !matches!(receipt.phase,Phase::Pending|Phase::ImportConfirmed){timeout(&tracker,&receipt,&hub);continue}
+                        if !matches!(receipt.phase,Phase::Pending|Phase::ImportConfirmed|Phase::VerifyTimeout){timeout(&tracker,&receipt,&hub);continue}
                         if cached.as_ref().is_none_or(|(id,_)|*id!=receipt.write_id) {
                             let pending=receipt.clone();
                             match tokio::task::spawn_blocking(move||prepare(&pending)).await {
@@ -108,10 +108,19 @@ impl Monitor {
                         match proof {
                             Ok(Proof::Verified(proof))=>{
                                 if let Ok(mut t)=tracker.try_lock()
-                                    && t.current().is_some_and(|r|r.write_id==receipt.write_id && r.phase.pending())
+                                    && t.current().is_some_and(|r|r.write_id==receipt.write_id )
                                         && let Err(error)=t.accept(&proof,now(),&hub) {eprintln!("apply verification receipt: {error}");}
                             }
-                            Ok(Proof::Waiting(_))|Err(_)=>timeout(&tracker,&receipt,&hub),
+                            Ok(Proof::Waiting(w))=>{
+                                if let Ok(t)=tracker.try_lock()
+                                    && t.current().is_some_and(|r|r.write_id==receipt.write_id && r.phase!=Phase::Applied) {
+                                    let _=hub.observe(Observation{domain:Domain::Apply,component:"take_effect".into(),state:State::Updating,
+                                        reason:format!("waiting_to_take_effect:{}",w.waiting.len()+w.waiting_removal.len()),
+                                        observed_at:now(),max_age:crate::runner::IMPORT_LIMIT_SECS,source_epoch:receipt.write_id.clone(),last_success:None});
+                                }
+                                timeout(&tracker,&receipt,&hub)
+                            }
+                            Err(_)=>timeout(&tracker,&receipt,&hub),
                         }
                     }
                 }
@@ -129,5 +138,85 @@ impl Monitor {
 impl Drop for Monitor {
     fn drop(&mut self) {
         self.task.abort();
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        apply_evidence::verify::tests::{live, state},
+        write_receipt::Meta,
+    };
+    use serde_json::json;
+    /// A tracker with one receipt for the pair that `live` wrote.
+    fn tracked(
+        cfg: &Config,
+        written: &[(std::path::PathBuf, Vec<u8>)],
+        hub: &Hub,
+    ) -> (tempfile::TempDir, Arc<Mutex<Tracker>>) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut tracker = Tracker::load(dir.path()).unwrap();
+        let files: Vec<_> = written
+            .iter()
+            .map(|(p, b)| (p.clone(), String::from_utf8(b.clone()).unwrap()))
+            .collect();
+        let meta = Meta {
+            topology: None,
+            cycle_seq: 1,
+            config_digest: "cfg".into(),
+            notice: None,
+        };
+        tracker.write(&files, meta, now(), hub);
+        let _ = cfg;
+        (dir, Arc::new(Mutex::new(tracker)))
+    }
+    async fn until(tracker: &Mutex<Tracker>, want: impl Fn(Phase) -> bool) -> Phase {
+        for _ in 0..40 {
+            let phase = tracker.lock().unwrap().current().unwrap().phase;
+            if want(phase) {
+                return phase;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+        tracker.lock().unwrap().current().unwrap().phase
+    }
+    #[tokio::test]
+    async fn a_waiting_world_reports_its_count_and_keeps_the_receipt_pending() {
+        let (_d, cfg, written) = live(|d| {
+            let mut other = d.clone();
+            other["leaf_ops"][0]["download"]["ceil_kbps"] = json!(1);
+            state("old", &other)
+        });
+        let hub = Hub::default();
+        let (_t, tracker) = tracked(&cfg, &written, &hub);
+        let _monitor = Monitor::start(&cfg, "d", tracker.clone(), hub.clone());
+        assert_eq!(
+            until(&tracker, |p| p == Phase::ImportConfirmed).await,
+            Phase::ImportConfirmed
+        );
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let c = hub.snapshot(now(), None).components;
+        let t = c.iter().find(|c| c.component == "take_effect").unwrap();
+        assert_eq!(t.reason, "waiting_to_take_effect:1");
+        assert_eq!(
+            tracker.lock().unwrap().current().unwrap().phase,
+            Phase::ImportConfirmed
+        );
+    }
+    #[tokio::test]
+    async fn a_late_native_apply_recovers_a_timed_out_receipt() {
+        let (_d, cfg, written) = live(|d| state("g1", d));
+        let hub = Hub::default();
+        let (_t, tracker) = tracked(&cfg, &written, &hub);
+        tracker
+            .lock()
+            .unwrap()
+            .transition(Phase::VerifyTimeout, now(), &hub)
+            .unwrap();
+        let _monitor = Monitor::start(&cfg, "d", tracker.clone(), hub.clone());
+        assert_eq!(
+            until(&tracker, |p| p == Phase::Applied).await,
+            Phase::Applied
+        );
     }
 }

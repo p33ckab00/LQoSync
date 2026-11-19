@@ -205,7 +205,9 @@ fn validate(
     ensure!(
         matches!(
             receipt.phase,
-            crate::system_health::Phase::Pending | crate::system_health::Phase::ImportConfirmed
+            crate::system_health::Phase::Pending
+                | crate::system_health::Phase::ImportConfirmed
+                | crate::system_health::Phase::VerifyTimeout
         ) && receipt.files.iter().all(|f| matches!(
             f.outcome,
             FileOutcome::Written | FileOutcome::Unchanged | FileOutcome::Reconciled
@@ -415,7 +417,7 @@ fn check_compiler(receipt: &Receipt) -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{
         model::{Columns, CsvRow},
@@ -424,7 +426,7 @@ mod tests {
     };
     use serde_json::json;
     /// A fake lqosd that answers every state request with one canned reply.
-    fn serve(path: PathBuf, reply: Value) {
+    pub(crate) fn serve(path: PathBuf, reply: Value) {
         use nix::sys::socket::{ControlMessage, MsgFlags, sendmsg};
         use std::{io::IoSlice, io::Write, os::fd::AsRawFd};
         let listener = std::os::unix::net::UnixListener::bind(path).unwrap();
@@ -459,7 +461,7 @@ mod tests {
             }
         });
     }
-    fn desired() -> Value {
+    pub(crate) fn desired() -> Value {
         let rate = json!({"ceil_kbps":20000,"commit_kbps":1000});
         json!({"schema_version":6,"generation":"g1","apply_mode":"incremental","circuit_capacity":1000,
             "inner_ops":[{"op":"upsert","node_id":"n-p","parent_node_id":"root","download":rate,"upload":rate}],
@@ -474,7 +476,7 @@ mod tests {
             Proof::Waiting(w) => panic!("still waiting: {w}"),
         }
     }
-    fn state(generation: &str, desired: &Value) -> Value {
+    pub(crate) fn state(generation: &str, desired: &Value) -> Value {
         let mut native = desired.clone();
         native.as_object_mut().unwrap().remove("circuit_capacity");
         native["generation"] = json!(generation);
@@ -484,7 +486,7 @@ mod tests {
             "applied_circuit_capacity":1000}})
     }
     /// A complete fake LibreQoS tree. Returns the config and the written pair.
-    fn live(
+    pub(crate) fn live(
         reply: impl Fn(&Value) -> Value,
     ) -> (tempfile::TempDir, Config, Vec<(PathBuf, Vec<u8>)>) {
         let dir = tempfile::tempdir().unwrap();
@@ -713,6 +715,56 @@ mod tests {
         }
         assert!(sent.contains("WRITTEN / PENDING"));
         assert!(sent.contains("<b>lqosync3 APPLIED</b>"));
+    }
+    fn timed_out_fixture() -> (tempfile::TempDir, Tracker, Verified, Artifacts) {
+        let (dir, mut tracker, prepared, artifacts, applied, path) = fixture();
+        let proof = verified(validate(
+            tracker.current().unwrap(),
+            &prepared,
+            &artifacts,
+            &applied,
+            &applied,
+            &path,
+            &path,
+        ));
+        tracker
+            .transition(Phase::VerifyTimeout, 11, &Hub::default())
+            .unwrap();
+        (dir, tracker, proof, artifacts)
+    }
+    #[test]
+    fn accept_moves_a_timed_out_current_receipt_to_applied() {
+        let (_dir, mut tracker, proof, _) = timed_out_fixture();
+        let hub = Hub::default();
+        tracker.accept(&proof, 12, &hub).unwrap();
+        assert_eq!(tracker.current().unwrap().phase, Phase::Applied);
+        let c = hub.snapshot(12, None).components;
+        let t = c.iter().find(|c| c.component == "take_effect").unwrap();
+        assert_eq!(t.reason, "took_effect");
+        // Nothing else leaves VerifyTimeout.
+        let (_d, mut tracker, _, _) = timed_out_fixture();
+        assert!(tracker.transition(Phase::Pending, 12, &hub).is_err());
+    }
+    #[test]
+    fn accept_refuses_a_timed_out_receipt_of_another_write() {
+        let (dir, mut tracker, proof, artifacts) = timed_out_fixture();
+        let mut files: Vec<_> = artifacts.paths[..2]
+            .iter()
+            .zip(&artifacts.bytes)
+            .map(|(p, b)| (p.clone(), String::from_utf8(b.clone()).unwrap()))
+            .collect();
+        files[0].1 = r#"{"P":{"id":"n-p"},"Q":{"id":"n-q"}}"#.into();
+        let hub = Hub::default();
+        let meta = Meta {
+            topology: None,
+            cycle_seq: 2,
+            config_digest: "cfg".into(),
+            notice: None,
+        };
+        tracker.write(&files, meta, 20, &hub);
+        tracker.transition(Phase::VerifyTimeout, 21, &hub).unwrap();
+        assert!(tracker.accept(&proof, 22, &hub).is_err());
+        drop(dir);
     }
     #[test]
     fn policy_acceptance_keeps_allocation_mismatch_degraded() {

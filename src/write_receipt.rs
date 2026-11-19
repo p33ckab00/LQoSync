@@ -272,7 +272,8 @@ impl Tracker {
     ) -> anyhow::Result<()> {
         let receipt = self.current.as_mut().context("no pending write")?;
         ensure!(
-            receipt.phase.pending() && proof.matches(receipt),
+            (receipt.phase.pending() || receipt.phase == Phase::VerifyTimeout)
+                && proof.matches(receipt),
             "acceptance operation mismatch"
         );
         receipt.acceptance = Some(proof.acceptance().clone());
@@ -302,8 +303,10 @@ impl Tracker {
                 "write reconciliation required before import confirmation"
             );
         }
+        // A timed-out receipt can still move to Applied (late apply). Nothing else leaves it.
         ensure!(
-            receipt.phase.pending(),
+            receipt.phase.pending()
+                || (receipt.phase == Phase::VerifyTimeout && phase == Phase::Applied),
             "cannot change a terminal write receipt"
         );
         receipt.phase = phase;
@@ -377,6 +380,21 @@ impl Tracker {
             });
         } else {
             hub.remove(Domain::Apply, "allocation_capacity");
+        }
+        // The monitor reports the waiting count while the receipt is ImportConfirmed or timed out.
+        if receipt.phase == Phase::Applied && receipt.acceptance.is_some() {
+            let _ = hub.observe(Observation {
+                domain: Domain::Apply,
+                component: "take_effect".into(),
+                state: State::Healthy,
+                reason: "took_effect".into(),
+                observed_at: now,
+                max_age: u64::MAX,
+                source_epoch: receipt.write_id.clone(),
+                last_success: None,
+            });
+        } else if !matches!(receipt.phase, Phase::ImportConfirmed | Phase::VerifyTimeout) {
+            hub.remove(Domain::Apply, "take_effect");
         }
         let state = match receipt.phase {
             Phase::ApplyFailed | Phase::VerifyTimeout => State::Degraded,
