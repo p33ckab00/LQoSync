@@ -184,17 +184,22 @@ fn same_bytes(backup: &Path, lqos_dir: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Copy the legacy pair and the LibreQoS state folders into a new private folder.
-fn backup(dir: &Path, lqos_dir: &Path, lqos_state: &Path) -> anyhow::Result<()> {
-    let private = |d: &Path, recursive: bool| {
-        std::fs::DirBuilder::new()
-            .recursive(recursive)
-            .mode(0o700)
-            .create(d)
-            .with_context(|| format!("cannot make {}", d.display()))
-    };
+fn private(d: &Path, recursive: bool) -> anyhow::Result<()> {
+    std::fs::DirBuilder::new()
+        .recursive(recursive)
+        .mode(0o700)
+        .create(d)
+        .with_context(|| format!("cannot make {}", d.display()))
+}
+
+/// Make a new private backup folder. It fails when the folder exists.
+fn backup_folder(dir: &Path) -> anyhow::Result<()> {
     private(dir.parent().context("backup folder has no parent")?, true)?;
-    private(dir, false)?;
+    private(dir, false)
+}
+
+/// Copy the legacy pair and the LibreQoS state folders into the backup folder.
+fn backup(dir: &Path, lqos_dir: &Path, lqos_state: &Path) -> anyhow::Result<()> {
     for name in PAIR {
         std::fs::copy(lqos_dir.join(name), dir.join(name))
             .with_context(|| format!("cannot back up {name}"))?;
@@ -218,11 +223,26 @@ fn backup(dir: &Path, lqos_dir: &Path, lqos_state: &Path) -> anyhow::Result<()> 
     Ok(())
 }
 
-/// The readiness and the source generation of the LibreQoS runtime.
+/// The readiness and the source generation of the LibreQoS runtime. The runtime is ready only
+/// when its shaping generation equals the generation of the shaping inputs and of the transaction.
 fn runtime_status(lqos_state: &Path) -> Option<(bool, String)> {
-    let path = lqos_state.join("topology/topology_runtime_status.json");
-    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
-    Some((v["ready"] == true, v["source_generation"].to_string()))
+    let read = |rel: &str| -> Option<serde_json::Value> {
+        serde_json::from_slice(&std::fs::read(lqos_state.join(rel)).ok()?).ok()
+    };
+    let status = read("topology/topology_runtime_status.json")?;
+    let shaping = &status["shaping_generation"];
+    let settled = status["ready"] == true
+        && !shaping.is_null()
+        && read("shaping/shaping_inputs.json").is_some_and(|v| v["shaping_generation"] == *shaping)
+        && read("shaping/dataplane_transaction.json").is_some_and(|v| v["generation"] == *shaping);
+    Some((settled, status["source_generation"].to_string()))
+}
+
+/// A deadline that cannot overflow. A very large timeout becomes one day.
+fn deadline(timeout: Duration) -> Instant {
+    let now = Instant::now();
+    now.checked_add(timeout)
+        .unwrap_or(now + Duration::from_secs(86_400))
 }
 
 fn source_generation(lqos_state: &Path) -> String {
@@ -257,20 +277,35 @@ impl Live<'_> {
         Ok(started)
     }
 
-    /// Wait until LibreQoS imported the pair and is ready with a source generation after `before`.
-    async fn wait(&self, io: &mut impl LiveIo, pair: &Pair, before: &str) -> anyhow::Result<()> {
-        let end = Instant::now() + self.timeout;
+    /// Wait until LibreQoS imported the pair and is ready with a source generation other than
+    /// `before`. LibreQoS makes the generation from the content, so `accept` is also good.
+    async fn wait(
+        &self,
+        io: &mut impl LiveIo,
+        pair: &Pair,
+        before: &str,
+        accept: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let end = deadline(self.timeout);
         loop {
-            if files::imported(&self.lqos_state, &pair.network, &pair.rows)
-                && runtime_status(&self.lqos_state).is_some_and(|(ready, g)| ready && g != before)
+            let imported = files::imported(&self.lqos_state, &pair.network, &pair.rows);
+            let status = runtime_status(&self.lqos_state);
+            if imported
+                && let Some((true, g)) = &status
+                && (g != before || accept == Some(g.as_str()))
             {
                 return Ok(());
             }
-            ensure!(
-                Instant::now() < end,
-                "import timeout: LibreQoS did not import the pair and become ready in {:?}",
-                self.timeout
-            );
+            if Instant::now() >= end {
+                ensure!(
+                    !(imported && status.is_some_and(|(ready, g)| ready && g == before)),
+                    "LibreQoS gives the same source generation {before} for the new pair, so the test cannot confirm its import"
+                );
+                anyhow::bail!(
+                    "import timeout: LibreQoS did not import the pair and become ready in {:?}",
+                    self.timeout
+                );
+            }
             io.pause().await;
         }
     }
@@ -291,7 +326,7 @@ impl Live<'_> {
             self.write(io, pair.network.as_bytes(), pair.csv.as_bytes()),
         )?;
         let t = Instant::now();
-        let waited = self.wait(io, pair, &before).await;
+        let waited = self.wait(io, pair, &before, None).await;
         report.record("manager import", t, waited)?;
         let t = Instant::now();
         let observed = live_check::read_observed(&self.lqos_state).map(|o| {
@@ -320,7 +355,7 @@ impl Live<'_> {
             ),
             (self.lqos_dir.join(PAIR[1]), pair.csv.clone().into_bytes()),
         ];
-        let end = Instant::now() + self.timeout;
+        let end = deadline(self.timeout);
         let ack = loop {
             match io.acknowledge(self.cfg, &written, started).await {
                 Ok(()) => break Ok(()),
@@ -341,14 +376,16 @@ impl Live<'_> {
         dir: &Path,
         legacy: &Pair,
         want: &Expected,
-        baseline: &Observed,
+        (baseline, baseline_generation): (&Observed, &str),
     ) -> anyhow::Result<()> {
         let t = Instant::now();
         let before = source_generation(&self.lqos_state);
         let written = restore_pair(dir, &self.lqos_dir).and_then(|()| self.request(io).map(drop));
         report.record("restore write", t, written)?;
         let t = Instant::now();
-        let waited = self.wait(io, legacy, &before).await;
+        let waited = self
+            .wait(io, legacy, &before, Some(baseline_generation))
+            .await;
         report.record("restore import", t, waited)?;
         let t = Instant::now();
         let observed = live_check::read_observed(&self.lqos_state).and_then(|o| {
@@ -452,6 +489,14 @@ where
             Err(anyhow::anyhow!(
                 "the manager pair differs from the legacy pair"
             ))
+        } else if PAIR
+            .iter()
+            .zip([&manager.network, &manager.csv])
+            .all(|(n, m)| std::fs::read(live.lqos_dir.join(n)).is_ok_and(|b| b == m.as_bytes()))
+        {
+            Err(anyhow::anyhow!(
+                "the manager pair equals the legacy pair byte for byte; LibreQoS would not import it again, so the test has nothing to prove"
+            ))
         } else {
             Ok(())
         };
@@ -464,6 +509,11 @@ where
         let dir = state
             .join("topology-manager/live-test")
             .join(io.now().to_string());
+        if let Err(e) = report.record("backup folder", t, backup_folder(&dir)) {
+            report.fail(&e);
+            return Ok(report);
+        }
+        report.backup_dir = Some(dir.clone());
         let saved = backup(&dir, &live.lqos_dir, &live.lqos_state).and_then(|()| {
             let text = |n: &str| {
                 String::from_utf8(std::fs::read(dir.join(n))?).context("backup is not UTF-8")
@@ -481,10 +531,13 @@ where
                 return Ok(report);
             }
         };
-        report.backup_dir = Some(dir.clone());
         let t = Instant::now();
+        let baseline_generation = runtime_status(&live.lqos_state);
         let baseline = live_check::read_observed(&live.lqos_state).and_then(|o| {
-            ensure!(o.ready, "LibreQoS is not ready before the test");
+            ensure!(
+                o.ready && baseline_generation.as_ref().is_some_and(|s| s.0),
+                "LibreQoS is not ready before the test"
+            );
             Ok(o)
         });
         let baseline = match report.record("baseline read-back", t, baseline) {
@@ -496,17 +549,36 @@ where
         };
         report.baseline = Some(live_check::compare(&legacy_want, &baseline));
         report.legacy_to_manager = live_check::compare(&want, &baseline).differences;
+        let baseline_generation = baseline_generation.map(|s| s.1).unwrap_or_default();
+        // An operator who stops the run needs this path for `live-test-restore`.
+        eprintln!("live test backup: {}", dir.display());
         // Steps 5 to 7. Every result of the manager steps goes to the restore.
         if let Err(e) = live.manager(io, &mut report, &manager, &want).await {
             report.fail(&e);
         }
         let restored = live
-            .restore(io, &mut report, &dir, &legacy, &legacy_want, &baseline)
+            .restore(
+                io,
+                &mut report,
+                &dir,
+                &legacy,
+                &legacy_want,
+                (&baseline, &baseline_generation),
+            )
             .await;
         report.restored = restored.is_ok();
         if let Err(e) = restored {
+            let files_restored = report
+                .steps
+                .last()
+                .is_some_and(|s| !["restore write", "byte check"].contains(&s.name));
+            let state = if files_restored {
+                "the legacy files are restored and equal the backup, but LibreQoS did not confirm their import; check LibreQoS"
+            } else {
+                "the legacy files are not restored and the manager pair can still be applied"
+            };
             let loud = format!(
-                "RESTORE FAILED: {e:#}; the manager pair can still be applied; run `lqosync3 topology live-test-restore --backup {}`",
+                "RESTORE FAILED: {e:#}; {state}; run `lqosync3 topology live-test-restore --backup {}`",
                 dir.display()
             );
             report.error = Some(match report.error.take() {

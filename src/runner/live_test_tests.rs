@@ -19,6 +19,10 @@ struct FakeLqos {
     stall: Option<usize>,
     /// The import with this index gets a changed circuit ceiling.
     skew: Option<usize>,
+    /// The import with this index keeps the old shaping inputs and transaction.
+    stale: Option<usize>,
+    /// The import with this index keeps the old source generation.
+    keep_source: Option<usize>,
     ack: bool,
     acks: Vec<Vec<(PathBuf, Vec<u8>)>>,
 }
@@ -32,17 +36,35 @@ impl FakeLqos {
             imports: 0,
             stall: None,
             skew: None,
+            stale: None,
+            keep_source: None,
             ack: true,
             acks: vec![],
         }
     }
 
     /// Write the five fresh state files for the pair on disk, as LibreQoS does.
-    fn simulate(&self, skew: bool, n: usize) {
-        let rows = crate::state::read_csv(&read(&self.lqos.join("ShapedDevices.csv"))).unwrap();
-        let network: Value = serde_json::from_str(&read(&self.lqos.join("network.json"))).unwrap();
+    /// The generations are content hashes: the same pair gives the same generations.
+    /// `index` is the import number that the knobs refer to. The baseline has no index.
+    fn simulate(&self, index: Option<usize>) {
+        let knob = |k: Option<usize>| index.is_some() && k == index;
+        let (csv, network_text) = (
+            read(&self.lqos.join("ShapedDevices.csv")),
+            read(&self.lqos.join("network.json")),
+        );
+        let rows = crate::state::read_csv(&csv).unwrap();
+        let network: Value = serde_json::from_str(&network_text).unwrap();
+        let hash = crate::write_receipt::sha256(format!("{network_text}\n{csv}").as_bytes());
+        let mut source = format!("src-{}", &hash[..12]);
+        if knob(self.keep_source) {
+            let old: Value = serde_json::from_str(&read(
+                &self.state.join("topology/topology_runtime_status.json"),
+            ))
+            .unwrap();
+            source = old["source_generation"].as_str().unwrap().to_string();
+        }
         let mut x = live_check::expected(&rows, &network).unwrap();
-        if skew {
+        if knob(self.skew) {
             x.circuits.values_mut().next().unwrap().download.ceil_kbps += 1000;
         }
         let rate = |s: &str| s.trim().parse::<f32>().unwrap_or(0.0);
@@ -72,7 +94,7 @@ impl FakeLqos {
             .collect();
         let rates =
             |r: &live_check::Rates| json!({"ceil_kbps": r.ceil_kbps, "commit_kbps": r.commit_kbps});
-        let generation = format!("gen-{n}");
+        let generation = format!("gen-{}", &hash[..12]);
         let files = [
             (
                 "topology/topology_import.json",
@@ -80,7 +102,8 @@ impl FakeLqos {
             ),
             (
                 "topology/topology_runtime_status.json",
-                json!({"ready": true, "source_generation": format!("src-{n}")}),
+                json!({"ready": true, "source_generation": source,
+                    "shaping_generation": generation}),
             ),
             (
                 "shaping/topology_compiled_shaping.json",
@@ -101,6 +124,12 @@ impl FakeLqos {
             ),
         ];
         for (rel, v) in files {
+            if knob(self.stale)
+                && rel.starts_with("shaping/")
+                && rel != "shaping/topology_compiled_shaping.json"
+            {
+                continue;
+            }
             let path = self.state.join(rel);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(path, v.to_string()).unwrap();
@@ -125,7 +154,7 @@ impl LiveIo for FakeLqos {
             let n = self.imports;
             self.imports += 1;
             if self.stall != Some(n) {
-                self.simulate(self.skew == Some(n), n + 2);
+                self.simulate(Some(n));
             }
         }
         tokio::time::sleep(Duration::from_millis(5)).await;
@@ -153,7 +182,7 @@ async fn enrolled(e: &Env) -> (Config, FakeLqos) {
     r.enroll_with_mapping(&file, AGE, true).await.unwrap();
     drop(r);
     let fake = FakeLqos::new(&c);
-    fake.simulate(false, 1);
+    fake.simulate(None);
     (c, fake)
 }
 
@@ -287,6 +316,106 @@ async fn an_import_timeout_restores_and_reports() {
     assert_eq!(pair(&e), legacy);
     assert!(fake.acks.is_empty());
     assert!(report.backup_dir.is_some());
+}
+
+fn source_generation(e: &Env) -> Value {
+    let status = read(&e.lqos.join("lqstate/topology/topology_runtime_status.json"));
+    serde_json::from_str::<Value>(&status).unwrap()["source_generation"].clone()
+}
+
+#[tokio::test]
+async fn a_manager_stall_then_a_restore_with_the_baseline_generation_passes_the_restore() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    fake.stall = Some(0);
+    let baseline = source_generation(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    // The restored legacy pair gives the baseline generation again, as on production.
+    assert_eq!(source_generation(&e), baseline);
+    // The legacy state with the baseline generation is good at once, with or without a new import.
+    assert!(fake.imports >= 1);
+    assert!(report.restored, "{}", report.summary());
+    assert!(!report.error.unwrap().contains("RESTORE FAILED"));
+}
+
+#[tokio::test]
+async fn a_manager_pair_equal_to_the_legacy_bytes_writes_nothing() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c.clone());
+    let manager = r.prepare_topology(AGE).await.unwrap();
+    drop(r);
+    std::fs::write(e.lqos.join("network.json"), manager.network_text()).unwrap();
+    std::fs::write(e.lqos.join("ShapedDevices.csv"), manager.csv()).unwrap();
+    fake.simulate(None);
+    let legacy = pair(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.passed);
+    let error = report.error.unwrap();
+    assert!(error.contains("byte for byte"), "{error}");
+    assert_eq!(report.backup_dir, None);
+    assert_eq!(pair(&e), legacy);
+    assert!(!backups(&e).exists());
+    assert!(
+        !e.lqos
+            .join("lqstate/scheduler/reload_request.json")
+            .exists()
+    );
+}
+
+#[tokio::test]
+async fn a_stale_transaction_generation_does_not_pass() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    fake.stale = Some(0);
+    let legacy = pair(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.passed, "{}", report.summary());
+    let error = report.error.clone().unwrap();
+    assert!(error.contains("import timeout"), "{error}");
+    assert!(report.restored, "{}", report.summary());
+    assert_eq!(pair(&e), legacy);
+}
+
+#[tokio::test]
+async fn the_same_source_generation_for_the_manager_pair_is_reported() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    fake.keep_source = Some(0);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.passed);
+    let error = report.error.clone().unwrap();
+    assert!(error.contains("same source generation"), "{error}");
+    assert!(report.restored, "{}", report.summary());
+}
+
+#[tokio::test]
+async fn a_huge_import_timeout_does_not_panic() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, Duration::MAX).await.unwrap();
+    assert!(report.passed, "{}", report.summary());
+}
+
+#[tokio::test]
+async fn a_stalled_restore_import_says_the_files_are_restored() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    fake.stall = Some(1);
+    let legacy = pair(&e);
+    let mut r = runner(&e, c);
+    let report = r.live_test_with(&mut fake, SHORT).await.unwrap();
+    assert!(!report.restored);
+    let error = report.error.unwrap();
+    assert!(error.contains("RESTORE FAILED"), "{error}");
+    assert!(error.contains("files are restored"), "{error}");
+    assert!(!error.contains("can still be applied"), "{error}");
+    assert_eq!(pair(&e), legacy);
 }
 
 #[tokio::test]
