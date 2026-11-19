@@ -340,15 +340,37 @@ impl TopologyView {
             .map_or(&[], Vec::as_slice)
     }
 
-    /// Pinned records that the last tree answer marks offline. Assignments lists them last.
+    /// Pinned records without a row in the current preview. Assignments lists them last.
+    /// The current preview decides, so a stale tree `online` flag cannot hide a pin.
     pub(crate) fn offline_pins(&self) -> Vec<&Value> {
+        let rows: Vec<&str> = self
+            .subscribers()
+            .iter()
+            .filter_map(|s| s["id"].as_str())
+            .collect();
         self.tree_data
             .as_ref()
             .and_then(|t| t["pins"].as_array())
             .into_iter()
             .flatten()
-            .filter(|p| p["online"] == false)
+            .filter(|p| {
+                p["subscriber_id"]
+                    .as_str()
+                    .is_none_or(|id| !rows.contains(&id))
+            })
             .collect()
+    }
+
+    fn selected_record_id(&self) -> Option<String> {
+        let online = self.subscribers().len();
+        let id = if self.sub_selected < online {
+            self.subscribers()[self.sub_selected]["id"].as_str()
+        } else {
+            self.offline_pins()
+                .get(self.sub_selected - online)
+                .and_then(|p| p["subscriber_id"].as_str())
+        };
+        id.map(str::to_string)
     }
 
     /// A node name from the tree, else the preview label, else the ID.
@@ -551,18 +573,28 @@ impl TopologyView {
         let selected = self.selected_node_id();
         // A temporary ID can move to another account after an edit. The identity does not.
         let subscriber = self.selected_subscriber().map(subscriber_key);
+        // The record ID of the selected row, online or offline, to find it as an offline row.
+        let record = self.selected_record_id();
         let old_row = self.sub_selected;
         self.preview = Some(v);
         self.rebuild_tree(selected);
         // Keep the same subscriber, or the nearest row when it is gone.
+        let online = self.subscribers().len();
         self.sub_selected = subscriber
             .and_then(|k| {
                 self.subscribers()
                     .iter()
                     .position(|s| subscriber_key(s) == k)
             })
+            .or_else(|| {
+                let id = record?;
+                self.offline_pins()
+                    .iter()
+                    .position(|p| p["subscriber_id"].as_str() == Some(id.as_str()))
+                    .map(|i| online + i)
+            })
             .unwrap_or(old_row)
-            .min(self.subscribers().len().saturating_sub(1));
+            .min(self.assignment_rows().saturating_sub(1));
     }
 
     /// Open the route once, send queued requests, and apply ready answers. True when the view changed.

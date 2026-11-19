@@ -70,17 +70,23 @@ fn draw_narrow(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
         ))
         .style(p.role(Role::Secondary)),
     ];
-    for (row, s) in subs.iter().enumerate().skip(start).take(height) {
+    let online = subs.iter().enumerate().map(|(row, s)| {
         let marker = if row == v.sub_selected { "> " } else { "  " };
-        lines.push(Line::from(format!(
+        Line::from(format!(
             "{marker}{} {} {} {}",
             cut(s["account_ref"].as_str().unwrap_or_default(), 30),
             cut(&v.node_label(s["node"].as_str().unwrap_or_default()), 20),
             cut(s["profile"].as_str().unwrap_or("none"), 12),
             pin_name(v, s),
-        )));
-    }
-    lines.extend(offline_lines(v, subs.len()));
+        ))
+    });
+    // Online and offline rows share one window, so the endpoint lines stay visible.
+    lines.extend(
+        online
+            .chain(offline_lines(v, subs.len()))
+            .skip(start)
+            .take(height),
+    );
     if let Some(s) = v.selected_subscriber() {
         lines.push(Line::from(format!("IPs: {}", join(&s["ips"]))).style(p.role(Role::Secondary)));
         lines.push(Line::from(format!("MAC: {}", join(&s["macs"]))).style(p.role(Role::Secondary)));
@@ -110,10 +116,10 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
         ))
         .style(p.role(Role::Secondary)),
     ];
-    for (row, s) in subs.iter().enumerate().skip(start).take(height) {
+    let online = subs.iter().enumerate().map(|(row, s)| {
         let marker = if row == v.sub_selected { "> " } else { "  " };
         let node = s["node"].as_str().unwrap_or_default();
-        lines.push(Line::from(format!(
+        Line::from(format!(
             "{marker}{:<34} {:<16} {:<18} {:<22} {:<14} {:<7} {}/{} / {}/{}",
             s["account_ref"].as_str().unwrap_or_default(),
             join(&s["ips"]),
@@ -125,9 +131,14 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
             mbps(&s["min_mbps"][1]),
             mbps(&s["max_mbps"][0]),
             mbps(&s["max_mbps"][1]),
-        )));
-    }
-    lines.extend(offline_lines(v, subs.len()));
+        ))
+    });
+    lines.extend(
+        online
+            .chain(offline_lines(v, subs.len()))
+            .skip(start)
+            .take(height),
+    );
     f.render_widget(
         Paragraph::new(lines)
             .style(p.role(Role::Base))
@@ -336,5 +347,39 @@ mod tests {
             text.contains("unpin") && text.contains("Enter: propose"),
             "{text}"
         );
+    }
+
+    #[test]
+    fn a_preview_refresh_that_drops_a_pinned_row_shows_it_offline() {
+        // The tree marked tm-sub-1 online; the next preview has no row for it.
+        let pins = json!([{"subscriber_id": "tm-sub-1", "node_id": "g", "online": true}]);
+        let mut v = with_tree(view(vec![identified(0), identified(1)]), pins);
+        v.on_answer(preview(vec![identified(0)]));
+        assert!(render(&v, 160, 20).contains("tm-sub-1  offline  pinned Gold WAN1"));
+    }
+
+    #[test]
+    fn an_offline_row_keeps_its_selection_after_a_refresh() {
+        let pins = json!([{"subscriber_id": "tm-sub-off", "node_id": "g", "online": false}]);
+        let mut v = with_tree(view(vec![identified(0), identified(1)]), pins);
+        v.on_key(KeyCode::Down);
+        v.on_key(KeyCode::Down);
+        v.on_answer(preview(vec![identified(0), identified(1)]));
+        assert!(
+            render(&v, 160, 20).contains("> tm-sub-off"),
+            "{}",
+            render(&v, 160, 20)
+        );
+    }
+
+    #[test]
+    fn narrow_view_keeps_endpoint_lines_with_offline_pins() {
+        let pins: Value = (0..6)
+            .map(|i| json!({"subscriber_id": format!("tm-sub-off{i}"), "node_id": "g", "online": false}))
+            .collect();
+        let subs: Vec<Value> = (0..40).map(identified).collect();
+        let v = with_tree(view(subs), pins);
+        let text = render(&v, 80, 20);
+        assert!(text.contains("IPs: 100.64.0.1"), "{text}");
     }
 }
