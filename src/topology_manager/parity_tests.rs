@@ -60,7 +60,7 @@ async fn legacy_router_locations_equal_the_manager_node_locations() {
         "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n\
          latitude=14.5995\nlongitude=120.9842\n\
          [[routers]]\nname='Distro'\naddress='192.0.2.2'\nusername='u'\npassword_file='/x'\n\
-         latitude=-33.8688\nlongitude=151.2093\n",
+         latitude=-33.8688\nlongitude=-111.97804110201159\n",
     )
     .unwrap();
     let mut observed = input(1);
@@ -99,6 +99,9 @@ async fn legacy_router_locations_equal_the_manager_node_locations() {
         }
     }
     crate::topology::add_locations(&mut legacy, &stored, &cfg.routers);
-    assert!(legacy.to_string().contains("-33.8688"), "{legacy}");
+    let text = legacy.to_string();
+    assert!(text.contains("-111.97804110201159"), "{text}");
+    // Enrollment reads the legacy network from disk: compare after a real text round trip.
+    let legacy: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(compare_legacy(&pair, pair.rows(), &legacy).unwrap(), []);
 }

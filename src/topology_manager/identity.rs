@@ -68,6 +68,7 @@ pub struct AuthorizedReconciliation {
     /// Keep this deadline through later placement and publication checks.
     pub expires: Instant,
     /// Router name to (latitude, longitude) from `config.toml`. Empty when no router has a location.
+    /// `Coordinator::prepare` fills it. A prepare path that skips the coordinator gets no locations.
     pub router_locations: HashMap<String, (f64, f64)>,
 }
 
