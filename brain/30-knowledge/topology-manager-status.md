@@ -52,8 +52,8 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 | Settings TUI migration | Pending. Node capacity, factor, and subscriber policy controls still need the approved topology interface |
 | Speed scheduler | Planned. Subscriber policies and WAN/group capacities remain the approved scope |
 | Scheduler profiles and timezone | Planned day/time rules and Mbps/percentage selectors. Configurable timezone defaults to `Asia/Manila` |
-| Native planner admission | Pending proof of native implicit commitments and planner transformations |
-| Live DPDK acceptance | Pending production acceptance proof. Scratch compilation does not establish live acceptance |
+| Native planner admission | Tooling ready; live window pending. Rule model and admission check done in Phase 3 |
+| Live DPDK acceptance | Tooling ready; live window pending. `topology live-test` and its [runbook](../../docs/operations/TOPOLOGY_LIVE_TEST.md) exist. Scratch compilation does not establish live acceptance |
 | Manager service activation | Gated. The existing service loop retains legacy behavior until a separate activation action |
 | Additional migration paths | Existing-source replacement, active-owner migration, and direct schema-2 circuit/device-ID migration remain separate work |
 
@@ -128,7 +128,7 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - An unpinned subscriber whose saved assignment is no longer eligible is placed again. Pins stay strict.
 - `source.add` adds a new router source from a fresh enrollment draft; its fallback subscribers move to the new group.
 - Rollback: clear the fallback before a rollback to an older build (`deny_unknown_fields`).
-- Next: Phase 3, the planner and the DPDK proof.
+- Next: the Phase 3 live window, then Phase 4.
 
 ## Recorded verification
 

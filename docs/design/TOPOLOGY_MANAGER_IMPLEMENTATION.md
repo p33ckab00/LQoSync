@@ -1481,3 +1481,17 @@ Owner decision: an ineligible saved assignment without a pin is dropped and the 
 New edits: `node.create` with `node_kind: "group"`, `fallback.set`, `fallback.clear` (refused while an online subscriber is in a fallback node), and `source.add`, which copies one source of a fresh enrollment draft (`topology.sources.candidates` lists them) with its profile, binding, and first instance.
 TUI: `F` sets the fallback on a group without a source, `i` loads new sources in the Builder Inventory, the strip counts fallback subscribers, and Assignments shows "fallback: <node>".
 Hotspot candidates are a later slice: the enrollment draft does not support Hotspot sources yet.
+
+## Planner admission and live acceptance
+
+Phase 3 adds an offline model of the LibreQoS planner rules and one live test on production. See [the design](../superpowers/specs/2026-11-19-topology-live-acceptance-design.md) and [the runbook](../operations/TOPOLOGY_LIVE_TEST.md).
+Planner rule model: a node with no minimum gets a commitment of floor(sum of its child commitments). A circuit minimum rounds up to whole Mbps. A node ceiling rounds up to whole Mbps. A circuit ceiling above its parent ceiling is clamped to the parent ceiling and listed as a warning.
+Planner admission: the sum of the sibling commitments must not exceed the parent ceiling. A pair that does not fit is refused, and the refusal names the nodes. The check runs before any write, together with the compiler admission and the parity gate against the live legacy pair.
+Command: `lqosync3 topology live-test --report <file> [--import-timeout <s>]` (default 120, range 1 to 3600) and `lqosync3 topology live-test-restore --backup <dir>`. Exit status 0 means passed.
+The test takes the instance lock, backs up the legacy pair and the LibreQoS artifacts, writes the manager pair, waits for the import, reads back the LibreQoS artifacts and the native acknowledgement, restores the legacy pair, and writes the report. The backup path goes to stderr before the manager write.
+Rulings:
+- Generations are content hashes. LibreQoS gives the same `source_generation` for the same content, so the test refuses a manager pair equal to the legacy pair.
+- Settle: the test waits for three consecutive equal generations before it reads back.
+- The test does not use the write receipt tracker, the runtime claim, the registry, or notifications. The production service is an older build and a new receipt could break its restart.
+- The restore writes the backup bytes back and checks that they are equal.
+Live acceptance is pending: the owner starts the window with "go".
