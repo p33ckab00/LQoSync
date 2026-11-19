@@ -1,0 +1,1 @@
+{"schema_version":1,"shaping_generation":"gen-1","circuits":[{"circuit_id":"c1","download_min_mbps":3.5,"download_max_mbps":20.0,"upload_min_mbps":3.5,"upload_max_mbps":20.0},{"circuit_id":"c2","download_min_mbps":5.0,"download_max_mbps":200.0,"upload_min_mbps":5.0,"upload_max_mbps":200.0}]}

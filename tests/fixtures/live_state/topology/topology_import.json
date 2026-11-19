@@ -1,0 +1,1 @@
+{"schema_version":1,"imported":{"compatibility_network_json":{"Site-A":{"id":"n-a","type":"site","downloadBandwidthMbps":100.0,"uploadBandwidthMbps":100.0,"children":{}},"Site-B":{"id":"n-b","type":"site","downloadBandwidthMbps":225.75,"uploadBandwidthMbps":225.75,"children":{}}},"shaped_devices":[{"circuit_id":"c1","device_id":"d1"},{"circuit_id":"c2","device_id":"d2"}]}}
