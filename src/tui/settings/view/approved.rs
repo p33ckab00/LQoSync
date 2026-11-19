@@ -775,6 +775,9 @@ impl SettingsView {
                 {
                     draft = format!("{buf}_");
                 }
+                if self.locked(meta) {
+                    draft.push_str("  (read-only)");
+                }
                 let unit = if at.contains("mbps") {
                     "Mbps"
                 } else if at.ends_with("_ms") {
@@ -827,11 +830,17 @@ impl SettingsView {
         let text = self
             .current()
             .map(|(path, m)| {
-                format!(
-                    "{}\n{}\nEnter edit | Space toggle | r Reset | u Undo",
-                    path_text(path),
-                    m.help
-                )
+                // The ownership note comes first, so the 3-line help area always shows it.
+                let note = self
+                    .managed_note(&m.path)
+                    .map(|n| format!("{n}\n"))
+                    .unwrap_or_default();
+                let keys = if self.locked(m) {
+                    "read-only here"
+                } else {
+                    "Enter edit | Space toggle | r Reset | u Undo"
+                };
+                format!("{}\n{note}{}\n{keys}", path_text(path), m.help)
             })
             .unwrap_or_else(|| "Select a value or router record".into());
         let help_area = Rect::new(help.x, help.y, help.width, help.height.saturating_sub(1));
@@ -1351,6 +1360,25 @@ mod tests {
             .map(|c| c.symbol())
             .collect()
     }
+    #[test]
+    fn approved_help_shows_the_enrolled_note() {
+        let mut v = SettingsView::new(PathBuf::from("/tmp/x.toml"), "", false);
+        v.set_topology_state(true, "legacy");
+        assert!(v.select("bandwidth_defaults.min_rate_percentage"));
+        assert!(draw(&mut v).contains("the legacy loop uses this now"));
+    }
+
+    #[test]
+    fn approved_locked_rows_and_help_show_read_only() {
+        let mut v = SettingsView::new(PathBuf::from("/tmp/x.toml"), "", false);
+        v.set_topology_state(true, "topology");
+        assert!(v.select("bandwidth_defaults.min_rate_percentage"));
+        let text = draw(&mut v);
+        assert!(text.contains("managed by the Topology Manager"), "{text}");
+        assert!(text.contains("(read-only)"), "{text}");
+        assert!(!text.contains("Enter edit | Space toggle"), "{text}");
+    }
+
     #[test]
     fn full_router_form_validates_before_draft_and_keeps_secrets_in_memory() {
         let dir = tempfile::tempdir().unwrap();

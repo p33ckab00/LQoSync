@@ -348,6 +348,11 @@ impl SettingsView {
             })
     }
 
+    /// True when this field cannot be edited here: a read-only meta or a managed lock.
+    fn locked(&self, m: &KeyMeta) -> bool {
+        m.read_only || self.managed_lock(&m.path)
+    }
+
     /// True when the Topology Manager writes shaping and owns this field.
     pub fn managed_lock(&self, path: &str) -> bool {
         self.managed_note(path) == Some(MANAGED_NOTE)
@@ -1980,10 +1985,10 @@ impl SettingsView {
                         } else {
                             String::new()
                         };
-                        let ro = if m.read_only { "  (read-only)" } else { "" };
+                        let ro = if self.locked(m) { "  (read-only)" } else { "" };
                         let selected = self.focus == 1 && index == self.key;
                         let is_changed = changed.contains(path_text(p).as_str());
-                        let readonly = m.read_only || self.read_only;
+                        let readonly = self.locked(m) || self.read_only;
                         let style = |role| {
                             if selected {
                                 palette.selection()
@@ -2208,10 +2213,10 @@ impl SettingsView {
             Kind::List(_) => "list (Enter: a add, d delete, K/J move)".into(),
         };
         out.push(Line::from(format!("type: {kind}")));
-        if m.optional {
+        if m.optional && !self.locked(m) {
             out.push(Line::from("optional: r removes it"));
         }
-        if m.read_only {
+        if self.locked(m) {
             out.push(Line::styled(
                 "read-only here",
                 Style::new().fg(palette.color(Color::Yellow)),
