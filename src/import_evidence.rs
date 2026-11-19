@@ -147,7 +147,10 @@ impl ExpectedImport {
     }
 }
 
-fn addresses<T: std::str::FromStr>(text: &str, width: u8) -> anyhow::Result<Vec<(T, u8)>> {
+pub(crate) fn addresses<T: std::str::FromStr>(
+    text: &str,
+    width: u8,
+) -> anyhow::Result<Vec<(T, u8)>> {
     text.split(',')
         .map(str::trim)
         .filter(|s| !s.is_empty())

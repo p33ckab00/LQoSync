@@ -1,12 +1,16 @@
 //! Read-only native acknowledgement observations. No generation is used as a fence.
 mod monitor;
 pub use monitor::Monitor;
+// verify.rs will call identities, coverage and compare.
+#[allow(dead_code)]
+mod take_effect;
 mod transaction;
 mod verify;
 use anyhow::{Context, ensure};
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::Path;
+pub use take_effect::{Kind, TakeEffect, Waiting};
 pub use verify::{
     Acceptance, Prepared, Verified, acknowledged, prepare, verify_prepared, verify_receipt,
 };
