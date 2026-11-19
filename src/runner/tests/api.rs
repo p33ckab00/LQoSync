@@ -34,6 +34,47 @@ mod operations {
         serde_json::to_value(r.propose_policy(AGE).await.unwrap()).unwrap()
     }
 
+    fn owner_file(e: &Env, bytes: &[u8]) {
+        drop(crate::topology_manager::store::RegistryStore::open(&e.state).unwrap());
+        crate::files::write_secret(&e.state.join("topology-manager/runtime-owner.json"), bytes)
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn status_reports_the_legacy_writer_without_an_owner_file() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        assert_eq!(
+            call(&mut r, "status", json!({})).await["result"]["writer"],
+            json!("legacy")
+        );
+    }
+
+    #[tokio::test]
+    async fn status_reports_the_topology_writer_with_the_owner_file() {
+        let e = env();
+        owner_file(&e, br#"{"schema_version":1,"writer":"topology"}"#);
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        assert_eq!(
+            call(&mut r, "status", json!({})).await["result"]["writer"],
+            json!("topology")
+        );
+    }
+
+    #[tokio::test]
+    async fn status_reports_an_unknown_writer_for_a_bad_owner_file() {
+        let e = env();
+        owner_file(&e, b"not json");
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        assert_eq!(
+            call(&mut r, "status", json!({})).await["result"]["writer"],
+            json!("unknown")
+        );
+    }
+
     #[tokio::test]
     async fn status_without_a_registry_reports_null_and_creates_nothing() {
         let e = env();

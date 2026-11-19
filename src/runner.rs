@@ -567,6 +567,13 @@ where
             "registry_revision": doc.as_ref().map(|d| d.revision),
             "enrolled": doc.as_ref().is_some_and(|d| d.export_ownership.is_some()),
             "last_cycle_started": self.last_cycle_started,
+            "writer": match crate::topology_manager::runtime::topology_owns(Path::new(
+                &self.cfg.runtime.state_dir,
+            )) {
+                Ok(true) => "topology",
+                Ok(false) => "legacy",
+                Err(_) => "unknown",
+            },
         }))
     }
 
