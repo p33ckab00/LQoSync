@@ -64,6 +64,8 @@ pub struct TopologyView {
     node_form: Option<node_form::NodeForm>,
     parent_picker: Option<parent_picker::ParentPicker>,
     wan_picker: Option<wan_picker::WanPicker>,
+    speed_form: Option<speed_form::SpeedForm>,
+    factor_form: Option<speed_form::FactorForm>,
     discovering: bool,
     pub screen: Screen,
 }
@@ -139,6 +141,8 @@ impl TopologyView {
             || self.node_form.is_some()
             || self.parent_picker.is_some()
             || self.wan_picker.is_some()
+            || self.speed_form.is_some()
+            || self.factor_form.is_some()
     }
 
     fn plans(&self) -> &[Value] {
@@ -150,6 +154,34 @@ impl TopologyView {
 
     fn selected_plan(&self) -> Option<&Value> {
         self.plans().get(self.plan_selected)
+    }
+
+    pub(crate) fn groups(&self) -> &[Value] {
+        self.policies
+            .as_ref()
+            .and_then(|p| p["groups"].as_array())
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// The rule each field shows: the first profile override that is not a plan, else the default.
+    pub(crate) fn shown_rules(&self) -> Value {
+        let Some(p) = self.policies.as_ref() else {
+            return Value::Null;
+        };
+        let plans: Vec<&Value> = self.plans().iter().map(|plan| &plan["id"]).collect();
+        let mut out = p["defaults"].clone();
+        for field in ["down_min", "up_min", "down_max", "up_max"] {
+            let override_rule = p["profiles"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|prof| !plans.contains(&&prof["id"]))
+                .find_map(|prof| prof["speed"][field].get("Override"));
+            if let Some(rule) = override_rule {
+                out[field] = rule.clone();
+            }
+        }
+        out
     }
 
     /// Queue an edit with the revision from the last status.
@@ -175,6 +207,23 @@ impl TopologyView {
                 node_form::Step::Cancel => self.node_form = None,
                 node_form::Step::Send(edit) => {
                     self.node_form = None;
+                    self.propose(edit);
+                }
+            }
+            return;
+        }
+        let speed_step = self.speed_form.as_mut().map(|f| f.key(code));
+        let factor_step = self.factor_form.as_mut().map(|f| f.key(code));
+        if let Some(step) = speed_step.or(factor_step) {
+            match step {
+                speed_form::Step::Stay => {}
+                speed_form::Step::Cancel => {
+                    self.speed_form = None;
+                    self.factor_form = None;
+                }
+                speed_form::Step::Send(edit) => {
+                    self.speed_form = None;
+                    self.factor_form = None;
                     self.propose(edit);
                 }
             }
@@ -772,8 +821,25 @@ impl TopologyView {
                 self.plan_selected = self.plan_selected.saturating_sub(1);
             }
             KeyCode::Down if self.screen == Screen::Policies => {
-                self.plan_selected =
-                    (self.plan_selected + 1).min(self.plans().len().saturating_sub(1));
+                self.plan_selected = (self.plan_selected + 1)
+                    .min((self.plans().len() + self.groups().len()).saturating_sub(1));
+            }
+            KeyCode::Char('s') if self.screen == Screen::Policies && self.policies.is_some() => {
+                self.speed_form = Some(speed_form::SpeedForm::new(&self.shown_rules()));
+            }
+            KeyCode::Char('f') if self.screen == Screen::Policies => {
+                let i = self.plan_selected.checked_sub(self.plans().len());
+                match i.and_then(|i| self.groups().get(i)) {
+                    Some(g) => {
+                        let text = |k: usize| g["factor"][k].as_str().unwrap_or_default();
+                        self.factor_form = Some(speed_form::FactorForm::new(
+                            g["source_id"].as_str().unwrap_or_default(),
+                            g["name"].as_str().unwrap_or_default(),
+                            [text(0), text(1)],
+                        ));
+                    }
+                    None => self.notice = Some("select a group first".into()),
+                }
             }
             KeyCode::Up if self.screen == Screen::Assignments => {
                 self.sub_selected = self.sub_selected.saturating_sub(1);
@@ -924,6 +990,12 @@ impl TopologyView {
         }
         if let Some(picker) = &self.wan_picker {
             picker.draw(f, body, p);
+        }
+        if let Some(form) = &self.speed_form {
+            form.draw(f, body, p);
+        }
+        if let Some(form) = &self.factor_form {
+            form.draw(f, body, p);
         }
         if let Some((_, name)) = &self.confirm_delete {
             let lines = vec![Line::from(format!("Delete plan {name}? [y/n]"))];
@@ -1137,4 +1209,5 @@ mod picker;
 mod plan_form;
 mod policies;
 mod proposal;
+mod speed_form;
 mod wan_picker;

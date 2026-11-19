@@ -38,12 +38,39 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
             }
             lines.push(Line::from(""));
             lines.push(
-                Line::from("Subscriber Speed Policy defaults").style(p.role(Role::Secondary)),
+                Line::from("Subscriber Speed Policy  [s] edit").style(p.role(Role::Secondary)),
             );
-            if let Some(defaults) = policies["defaults"].as_object() {
-                for (k, rule) in defaults {
-                    lines.push(Line::from(format!("  {k}: {rule}")));
+            let rules = v.shown_rules();
+            for field in ["down_min", "up_min", "down_max", "up_max"] {
+                lines.push(Line::from(format!(
+                    "  {field}: {}",
+                    super::speed_form::rule_text(&rules[field])
+                )));
+            }
+            lines.push(Line::from(""));
+            lines.push(Line::from("Groups  [f] factor").style(p.role(Role::Secondary)));
+            let pair_or_none = |v: &Value| {
+                if v.is_null() {
+                    "none".to_string()
+                } else {
+                    pair(v)
                 }
+            };
+            for (i, g) in v.groups().iter().enumerate() {
+                let marker = if v.plan_selected == plans.len() + i {
+                    "> "
+                } else {
+                    "  "
+                };
+                lines.push(Line::from(format!(
+                    "{marker}{}  factor {}/{}  {}  backstop {}  floor {}",
+                    g["name"].as_str().unwrap_or_default(),
+                    g["factor"][0].as_str().unwrap_or_default(),
+                    g["factor"][1].as_str().unwrap_or_default(),
+                    g["formula"].as_str().unwrap_or_default(),
+                    pair_or_none(&g["backstop_mbps"]),
+                    pair_or_none(&g["floor_mbps"]),
+                )));
             }
             lines.push(Line::from(""));
             lines.push(Line::from("Profiles").style(p.role(Role::Secondary)));
@@ -79,7 +106,7 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::super::tests::render;
     use super::super::*;
     use crate::tui::api::ApiAnswer;
@@ -116,5 +143,66 @@ mod tests {
         ] {
             assert!(text.contains(want), "{want}: {text}");
         }
+    }
+
+    pub(crate) fn speed_view() -> TopologyView {
+        let mut v = TopologyView::default();
+        v.on_answer(ApiAnswer {
+            op: "status".into(),
+            result: Ok(json!({"registry_revision": 2, "enrolled": true})),
+        });
+        v.on_key(KeyCode::Char('p'));
+        let legacy = json!({"Override": {"LegacyRoundedBase": {"factor": {"numerator": 1, "denominator": 10}, "floor_bps": 1000000}}});
+        v.on_answer(ApiAnswer {
+            op: "topology.policies".into(),
+            result: Ok(json!({
+                "defaults": {"down_min": {"FixedBps": 1000000}, "up_min": {"FixedBps": 1000000},
+                             "down_max": {"BaseFraction": {"numerator": 1, "denominator": 1}},
+                             "up_max": {"FixedBps": 500000000}},
+                "profiles": [{"id": "p-g", "name": "Gold", "base": "source_read",
+                              "speed": {"down_min": legacy, "up_min": legacy, "down_max": "Inherit", "up_max": "Inherit"},
+                              "min_mbps": null, "max_mbps": null}],
+                "plans": [{"id": "plan-1", "name": "100M", "down_mbps": 100, "up_mbps": 100, "subscribers": 0}],
+                "groups": [{"source_id": "src-g", "name": "Gold", "factor": ["0.215", "0.5"], "formula": "PlanSum",
+                            "backstop_mbps": [620.0, 620.0], "floor_mbps": null}]
+            })),
+        });
+        v
+    }
+
+    #[test]
+    fn policies_show_speed_rules_and_groups() {
+        let text = render(&speed_view(), 160, 30);
+        for want in [
+            "down_min: legacy 10% rounded",
+            "down_max: 100% of plan",
+            "up_max: 500 Mbps",
+            "Groups  [f] factor",
+            "Gold  factor 0.215/0.5  PlanSum  backstop 620/620  floor none",
+            "Subscriber Speed Policy  [s] edit",
+        ] {
+            assert!(text.contains(want), "{want}: {text}");
+        }
+    }
+
+    #[test]
+    fn the_factor_form_sends_only_filled_directions() {
+        let mut v = speed_view();
+        v.take_outbox();
+        v.on_key(KeyCode::Down);
+        v.on_key(KeyCode::Char('f'));
+        for c in "0.3".chars() {
+            v.on_key(KeyCode::Char(c));
+        }
+        v.on_key(KeyCode::Enter);
+        let sent: Vec<_> = v
+            .take_outbox()
+            .into_iter()
+            .filter(|(op, _)| op == "topology.edit.propose")
+            .collect();
+        assert_eq!(
+            sent[0].1,
+            json!({"expected_revision": 2, "edit": {"kind": "group.factor", "source_id": "src-g", "down": "0.3"}})
+        );
     }
 }

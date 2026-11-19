@@ -43,6 +43,8 @@ fn change(e: &Value, name: &dyn Fn(&Value) -> String, sources: &[Value]) -> Stri
             .map_or_else(|| text(&e["subscriber_id"]), str::to_string)
     };
     match e["kind"].as_str().unwrap_or_default() {
+        "speed.defaults" => "speed defaults".into(),
+        "group.factor" => format!("factor of {}", source(&e["source_id"])),
         "rebalance" if e["source_id"].is_null() => "rebalance all groups".into(),
         "rebalance" => format!("rebalance {}", source(&e["source_id"])),
         "subscriber.pin" if e["wan_node_id"].is_null() => format!("unpin {}", who()),
@@ -91,6 +93,43 @@ pub(super) fn lines(p: &Value, current: &[Value], sources: &[Value]) -> Vec<Line
         count("assigned"),
         count("new_records")
     ));
+    let pair = |v: &Value| {
+        let n = |x: &Value| {
+            let f = x.as_f64().unwrap_or(0.0);
+            if f.fract() == 0.0 {
+                format!("{f:.0}")
+            } else {
+                format!("{f}")
+            }
+        };
+        format!("{}/{}", n(&v[0]), n(&v[1]))
+    };
+    if let Some(changed) = p["rates_changed"].as_u64().filter(|&n| n > 0) {
+        out.push(format!("{changed} subscribers change"));
+        for r in p["rates"].as_array().into_iter().flatten() {
+            let who = r["label"]
+                .as_str()
+                .map_or_else(|| text(&r["subscriber_id"]), str::to_string);
+            out.push(format!(
+                "  {who}  min {} -> {}  max {} -> {}",
+                pair(&r["before"]["min_mbps"]),
+                pair(&r["after"]["min_mbps"]),
+                pair(&r["before"]["max_mbps"]),
+                pair(&r["after"]["max_mbps"])
+            ));
+        }
+    }
+    for c in p["capacities"].as_array().into_iter().flatten() {
+        out.push(format!(
+            "  {}  {} -> {} Mbps",
+            name(&c["node_id"]),
+            pair(&c["before_mbps"]),
+            pair(&c["after_mbps"])
+        ));
+    }
+    for w in p["warnings"].as_array().into_iter().flatten() {
+        out.push(format!("! {}", text(w)));
+    }
     out.push(String::new());
     out.push("[Enter] confirm  [Esc] cancel".into());
     out.into_iter().map(Line::from).collect()
@@ -265,6 +304,39 @@ mod tests {
                 json!({"kind": "subscriber.pin", "subscriber_id": "tm-sub-9", "wan_node_id": null})
             )
             .contains("unpin tm-sub-9")
+        );
+    }
+
+    #[test]
+    fn popup_lines_show_rates_capacities_and_warnings() {
+        let nodes = vec![json!({"id": "g", "name": "Gold WAN1"})];
+        let sources = vec![json!({"id": "src-g", "name": "Gold"})];
+        let p = json!({"edit": {"kind": "group.factor", "source_id": "src-g", "down": "0.3"},
+            "moves": [], "nodes": [], "rates_changed": 1,
+            "rates": [{"subscriber_id": "a", "label": "alice",
+                       "before": {"min_mbps": [5.0, 1.0], "max_mbps": [50.0, 10.0]},
+                       "after": {"min_mbps": [10.0, 2.0], "max_mbps": [50.0, 10.0]}}],
+            "capacities": [{"node_id": "g", "before_mbps": [107.5, 5.0], "after_mbps": [150.0, 5.0]}],
+            "warnings": ["the legacy rounded rules of 2 profiles are replaced"]});
+        let text = super::lines(&p, &nodes, &sources)
+            .iter()
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for want in [
+            "factor of Gold",
+            "1 subscribers change",
+            "alice  min 5/1 -> 10/2  max 50/10 -> 50/10",
+            "Gold WAN1  107.5/5 -> 150/5 Mbps",
+            "the legacy rounded rules of 2 profiles are replaced",
+        ] {
+            assert!(text.contains(want), "{want}: {text}");
+        }
+        let speed = json!({"edit": {"kind": "speed.defaults"}, "moves": [], "nodes": []});
+        assert!(
+            super::lines(&speed, &nodes, &sources)
+                .iter()
+                .any(|l| l.to_string() == "speed defaults")
         );
     }
 
