@@ -101,6 +101,13 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Each edit that changes the destinations of a source rebalances that source pool in the same revision: each group splits in the capacity ratio of its WANs. Group minimums split in the same ratio.
 - Next: Phase 2b-3c, explicit pin and scoped rebalance from the TUI. Then 2b-4 profiles and speed defaults.
 
+## Phase 2b-3c explicit rebalance and pins (2026-11-19)
+
+- `rebalance` (one group or all) and `subscriber.pin` (pin by WAN, unpin) are edit kinds with the propose and confirm flow.
+- Pins need an online subscriber. Offline pins can be removed by `subscriber_id`. A rebalance clears offline, unpinned assignments in the group.
+- The owner plans application pinning with DPI later. It needs core routing and is not a subscriber pin.
+- Next: Phase 2b-4, profiles and speed defaults. Then 2c Settings migration.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.

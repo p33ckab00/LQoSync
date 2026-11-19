@@ -1443,3 +1443,13 @@ The minimum of a group is split across its instances in the same capacity ratio,
 Remove refuses a node with children, a pinned node, the last instance of a source, and an enrolled node with a legacy export name. Records assigned to a removed instance lose that assignment, and the rebalance or the balancer places them again.
 `wan.create` needs a candidate from the last `wan.discover` answer that no WAN source uses.
 TUI: the Builder Tree uses `topology.tree`, so empty instances stay visible. Inventory lines are selectable. Keys: `n` new node, `e` edit, `m` move, `<` promote, `>` demote, `x` remove, and `Enter` on a source or a WAN candidate. Every edit shows a proposal popup with the moves before `Enter` confirms it.
+
+## Explicit rebalance and subscriber pins
+
+Phase 2b-3c adds two edit kinds to `topology.edit.propose`. See [the design](../superpowers/specs/2026-11-19-topology-rebalance-and-pins-design.md).
+`rebalance` splits one group, or every group with two or more instances, in the capacity ratio of its WANs. It also clears the saved assignment of offline, unpinned records in those groups, so the balancer places them again when they return.
+`subscriber.pin` pins an online subscriber to the instance of its group below one WAN. The pin also sets the assignment, and the group rebalances around it. Unpin takes an identity or a `subscriber_id`, keeps the assignment, and reads no router.
+A pin needs an online subscriber with a record and a saved assignment. Pins never move in a rebalance; their demand counts in the split.
+`topology.tree` lists `pins` with an `online` flag from the cached preview.
+TUI: `g` rebalances the selected Inventory group, `G` rebalances all groups. `P` in Assignments opens the WAN picker. Offline pinned records show after the online rows, with unpin only. The pin column shows the node name.
+Application pinning with DPI is a later feature. It needs routing on the core.
