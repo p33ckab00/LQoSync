@@ -22,9 +22,9 @@ Enrollment commands: [enrollment runbook](TOPOLOGY_ENROLLMENT.md).
 2. Build the new binary on the shaper with one build job and a low priority:
 
    ```bash
-   cd /home/pi/lqosync3-live
+   cd /home/pi/LQoSync3.0
    CARGO_BUILD_JOBS=1 nice -n 19 cargo build --release --locked
-   LQ=/home/pi/lqosync3-live/target/release/lqosync3
+   LQ=/home/pi/LQoSync3.0/target/release/lqosync3
    ```
 
    WARNING: The shaper has little free memory. Do not build while free memory is low (`free -m`). A build that uses too much memory can stop processes on the shaper.
@@ -169,7 +169,7 @@ grep -E '"ready"|source_generation' /opt/libreqos/state/topology/topology_runtim
 sudo grep -oE '^\{"schema_version":[0-9]+,"revision":[0-9]+' /var/lib/lqosync3/topology-manager/registry.json
 ```
 
-Wait for one good legacy cycle. In `status.json`, a good cycle shows a new `updated` time, `cycle_seq` 1 or more, `error` `null`, and `reload` `ok` or `skipped`. `files_changed` is `true` when the cycle wrote the pair. LibreQoS shows `ready`.
+Wait for one good legacy cycle. In `status.json`, a good cycle shows a new `updated` time, `cycle_seq` 1 or more, `error` `null`, and one of these `reload` values: `no change`, `waiting for the LibreQoS import (N s)`, or `imported by LibreQoS`. Any other `reload` text is an error. `files_changed` is `true` when the cycle wrote the pair. LibreQoS shows `ready`.
 The registry line shows the `revision` from `installed registry revision N` in step 3. The installed build does not read the registry.
 
 If the step 4 output has a `live test backup: <dir>` line, compare the pair with that backup:
