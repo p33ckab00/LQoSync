@@ -315,7 +315,7 @@ pub fn read_observed(state: &Path) -> anyhow::Result<Observed> {
     Ok(o)
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct Diff {
     pub differences: Vec<String>,
     pub warnings: Vec<String>,

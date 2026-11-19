@@ -17,6 +17,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod live_test;
+pub use live_test::{LiveIo, LiveTestReport, NativeIo, restore_pair};
+
 /// The time that LibreQoS v3 can take to import a new `shaped_devices` pair. Its scheduler
 /// imports the pair at start, on a reload request, and every 30 minutes.
 pub const IMPORT_LIMIT_SECS: u64 = 40 * 60;
@@ -3703,4 +3706,6 @@ mod tests {
     }
     mod api;
     mod enrollment;
+    #[path = "../live_test_tests.rs"]
+    mod live_test;
 }
