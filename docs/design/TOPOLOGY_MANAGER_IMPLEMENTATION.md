@@ -1431,3 +1431,15 @@ Catalog routers match configured routers by name.
 TUI: `w` in the Builder starts discovery. The Inventory panel shows the WAN candidates section.
 Phase 4 runbook item: add the core `[[routers]]` entry together with the deployment of the tested build. The current production build has no API socket.
 Known limit: until the routing feature writes the core address-lists, the owner script decides the real WAN of a subscriber.
+
+## Builder edits
+
+Phase 2b-3b adds Builder edits. See [the design](../superpowers/specs/2026-11-19-topology-builder-edits-design.md).
+New API operations: `topology.edit.propose`, `topology.edit.confirm`, `topology.edit.cancel`, and `topology.tree`.
+Edit kinds: `wan.create`, `node.create`, `instance.add`, `node.move`, `node.update`, and `node.remove`. Rules are in `src/topology_manager/edits.rs`.
+`propose` applies the edit to a registry copy. When the edit changes the destinations of a subscriber source, it reads the sources and rebalances each affected source pool. The service keeps one proposal for 120 s. `confirm` commits that proposal when the revision did not change.
+The `SourcePool` rebalance now splits the demand of each group across its instances in the capacity ratio above each instance. It moves a subscriber when the move lowers the worse utilization of the two instances. Pins stay. The `Branch` scope did not change.
+The minimum of a group is split across its instances in the same capacity ratio, in whole Mbps. The total does not change.
+Remove refuses a node with children, a pinned node, the last instance of a source, and an enrolled node with a legacy export name. Records assigned to a removed instance lose that assignment, and the rebalance or the balancer places them again.
+`wan.create` needs a candidate from the last `wan.discover` answer that no WAN source uses.
+TUI: the Builder Tree uses `topology.tree`, so empty instances stay visible. Inventory lines are selectable. Keys: `n` new node, `e` edit, `m` move, `<` promote, `>` demote, `x` remove, and `Enter` on a source or a WAN candidate. Every edit shows a proposal popup with the moves before `Enter` confirms it.

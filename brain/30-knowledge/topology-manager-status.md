@@ -94,6 +94,13 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - The legacy cycle skips routers without a subscriber protocol. The owner reviews this again when the Topology Manager is complete.
 - Next: Phase 2b-3b, Builder edits (WAN node from a candidate, intermediate nodes, instances under several parents, move, remove, capacity). Then 2b-3c pin and scoped rebalance.
 
+## Phase 2b-3b Builder edits (2026-11-19)
+
+- The operator builds WAN, intermediate, and group instance nodes, moves and removes them, and edits names and capacities.
+- API: `topology.edit.propose`, `topology.edit.confirm`, `topology.edit.cancel`, `topology.tree`. One kept proposal, 120 s.
+- Each edit that changes the destinations of a source rebalances that source pool in the same revision: each group splits in the capacity ratio of its WANs. Group minimums split in the same ratio.
+- Next: Phase 2b-3c, explicit pin and scoped rebalance from the TUI. Then 2b-4 profiles and speed defaults.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
