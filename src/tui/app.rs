@@ -101,6 +101,8 @@ pub fn split_main(area: Rect) -> (Rect, Rect) {
 
 pub struct App {
     pub topology: super::topology::TopologyView,
+    /// True after the Settings tab asked the service for `status` in this visit.
+    settings_asked: bool,
     pub palette: Palette,
     pub tab: Tab,
     pub read_only: bool,
@@ -135,10 +137,28 @@ pub struct App {
 }
 
 impl App {
+    /// Ask for `status` when the Settings tab opens, and give Settings the Topology Manager state.
+    pub fn sync_topology_state(&mut self) {
+        if self.tab == Tab::Settings {
+            if !self.settings_asked {
+                self.settings_asked = true;
+                self.topology.request_status();
+            }
+        } else {
+            self.settings_asked = false;
+        }
+        if let Some(st) = self.topology.status() {
+            let enrolled = st["enrolled"] == true;
+            let writer = st["writer"].as_str().unwrap_or("legacy").to_string();
+            self.settings.set_topology_state(enrolled, &writer);
+        }
+    }
+
     pub fn new(read_only: bool, config_text: String, config_error: Option<String>) -> Self {
         let settings = SettingsView::new(std::path::PathBuf::new(), &config_text, read_only);
         App {
             topology: super::topology::TopologyView::default(),
+            settings_asked: false,
             palette: Palette::new(crate::config::Theme::Dark),
             tab: Tab::Dashboard,
             read_only,
@@ -986,6 +1006,32 @@ mod tests {
 
     fn app(read_only: bool) -> App {
         App::new(read_only, "[runtime]\nmode = \"apply\"\n".into(), None)
+    }
+
+    #[test]
+    fn opening_settings_asks_for_status_and_forwards_the_answer() {
+        use crate::tui::api::ApiAnswer;
+        let mut a = app(true);
+        a.tab = Tab::Settings;
+        a.sync_topology_state();
+        let ops: Vec<String> = a
+            .topology
+            .take_outbox()
+            .into_iter()
+            .map(|(op, _)| op)
+            .collect();
+        assert_eq!(ops, ["status"]);
+        a.sync_topology_state();
+        assert!(
+            a.topology.take_outbox().is_empty(),
+            "one request while the tab stays open"
+        );
+        a.topology.on_answer(ApiAnswer {
+            op: "status".into(),
+            result: Ok(serde_json::json!({"enrolled": true, "writer": "topology"})),
+        });
+        a.sync_topology_state();
+        assert!(a.settings.managed_lock("nodes.ppp.type"));
     }
 
     #[test]

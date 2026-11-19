@@ -159,6 +159,7 @@ pub fn run(config: &Path) -> anyhow::Result<()> {
                 }
             }
         }
+        app.sync_topology_state();
         if app.topology.tick(app.tab == app::Tab::Topology, unix_now()) {
             dirty = true;
         }

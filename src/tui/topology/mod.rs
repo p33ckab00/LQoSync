@@ -330,6 +330,16 @@ impl TopologyView {
         }
     }
 
+    /// The last `status` answer of the service.
+    pub fn status(&self) -> Option<&Value> {
+        self.status.as_ref()
+    }
+
+    /// Queue one `status` request, for views outside this route.
+    pub fn request_status(&mut self) {
+        self.send("status");
+    }
+
     /// Requests that wait for the API link. Tests read them directly.
     pub fn take_outbox(&mut self) -> Vec<(String, Value)> {
         std::mem::take(&mut self.outbox)

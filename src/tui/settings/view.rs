@@ -29,6 +29,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use toml_edit::Value;
 
+/// Settings sections that the Topology Manager owns after enrollment.
+const MANAGED_PREFIXES: [&str; 3] = ["nodes.", "bandwidth_defaults.", "backstop_caps."];
+const ENROLLED_NOTE: &str = "the legacy loop uses this now; after activation the Topology Manager owns it (Topology > Policies or Builder)";
+const MANAGED_NOTE: &str =
+    "managed by the Topology Manager: edit it in Topology > Policies or Builder";
+
 /// What the main loop must do for the Settings tab.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SAction {
@@ -41,6 +47,7 @@ pub enum SAction {
 
 /// The input of the preview worker.
 #[derive(Debug, Clone, PartialEq, Eq)]
+
 pub struct PreviewJob {
     pub id: u64,
     /// The file text at the start of the edit, and the new text.
@@ -215,6 +222,8 @@ pub struct SettingsView {
     load_error: Option<String>,
     raw: String,
     pub read_only: bool,
+    /// `Some(writer)` once the service reports an enrolled registry.
+    topology_state: Option<String>,
     groups: Vec<Group>,
     group: usize,
     key: usize,
@@ -321,6 +330,29 @@ fn key_path(text: &str) -> KeyPath {
 }
 
 impl SettingsView {
+    /// The Topology Manager state from the last service `status`: `(enrolled, writer)`.
+    pub fn set_topology_state(&mut self, enrolled: bool, writer: &str) {
+        self.topology_state = enrolled.then(|| writer.to_string());
+    }
+
+    /// The note of a field that the Topology Manager owns after enrollment, if any.
+    fn managed_note(&self, path: &str) -> Option<&'static str> {
+        let writer = self.topology_state.as_deref()?;
+        MANAGED_PREFIXES
+            .iter()
+            .any(|p| path.starts_with(p))
+            .then_some(if writer == "topology" {
+                MANAGED_NOTE
+            } else {
+                ENROLLED_NOTE
+            })
+    }
+
+    /// True when the Topology Manager writes shaping and owns this field.
+    pub fn managed_lock(&self, path: &str) -> bool {
+        self.managed_note(path) == Some(MANAGED_NOTE)
+    }
+
     pub fn new(path: PathBuf, text: &str, read_only: bool) -> Self {
         let (draft, load_error) = match Draft::new(text) {
             Ok(d) => (Some(d), None),
@@ -333,6 +365,7 @@ impl SettingsView {
             load_error,
             raw: text.to_string(),
             read_only,
+            topology_state: None,
             groups: Vec::new(),
             group: 0,
             key: 0,
@@ -963,6 +996,10 @@ impl SettingsView {
             self.message = Some(format!("{}: {}", m.path, m.help.replace('\n', " ")));
             return;
         }
+        if self.managed_lock(&m.path) {
+            self.message = Some(format!("{}: {MANAGED_NOTE}", m.path));
+            return;
+        }
         if self.blocked() {
             return;
         }
@@ -1014,6 +1051,10 @@ impl SettingsView {
         let Some((p, m)) = self.current().cloned() else {
             return;
         };
+        if self.managed_lock(&m.path) {
+            self.message = Some(format!("{}: {MANAGED_NOTE}", m.path));
+            return;
+        }
         if m.read_only || self.blocked() {
             if m.read_only {
                 self.message = Some(format!("{}: read-only here", m.path));
@@ -2149,6 +2190,9 @@ impl SettingsView {
             };
         };
         let mut out: Vec<Line> = m.help.lines().map(|l| Line::from(l.to_string())).collect();
+        if let Some(note) = self.managed_note(&m.path) {
+            out.push(Line::from(note));
+        }
         out.push(Line::from(""));
         out.push(Line::from(format!("key: {}", path_text(p))));
         out.push(Line::from(format!(
@@ -3342,5 +3386,91 @@ mod tests {
                 );
             }
         }
+    }
+
+    const ENROLLED: &str = "the legacy loop uses this now; after activation the Topology Manager owns it (Topology > Policies or Builder)";
+    const MANAGED: &str =
+        "managed by the Topology Manager: edit it in Topology > Policies or Builder";
+
+    fn at(v: &mut SettingsView, path: &str) -> String {
+        assert!(v.select(path), "{path} is not a key");
+        screen(v, 200, 60)
+    }
+
+    #[test]
+    fn managed_fields_have_no_note_before_enrollment_or_without_status() {
+        let mut v = view(false);
+        assert!(
+            !at(&mut v, "bandwidth_defaults.min_rate_percentage")
+                .contains("the legacy loop uses this now")
+        );
+        v.set_topology_state(false, "legacy");
+        assert!(
+            !at(&mut v, "bandwidth_defaults.min_rate_percentage")
+                .contains("the legacy loop uses this now")
+        );
+    }
+
+    #[test]
+    fn an_enrolled_legacy_writer_adds_the_note_and_keeps_fields_editable() {
+        let mut v = view(false);
+        v.set_topology_state(true, "legacy");
+        assert!(
+            at(&mut v, "bandwidth_defaults.min_rate_percentage")
+                .contains("the legacy loop uses this now")
+        );
+        assert!(!v.managed_lock("bandwidth_defaults.min_rate_percentage"));
+    }
+
+    #[test]
+    fn an_unknown_writer_adds_the_note_without_a_lock() {
+        let mut v = view(false);
+        v.set_topology_state(true, "unknown");
+        assert!(
+            at(&mut v, "backstop_caps.pppoe.multiplier").contains("the legacy loop uses this now")
+        );
+        assert!(!v.managed_lock("backstop_caps.pppoe.multiplier"));
+    }
+
+    #[test]
+    fn a_topology_writer_locks_managed_fields_and_reset_and_edit_change_nothing() {
+        let mut v = view(false);
+        v.set_topology_state(true, "topology");
+        for path in [
+            "bandwidth_defaults.min_rate_percentage",
+            "nodes.ppp.type",
+            "backstop_caps.pppoe.multiplier",
+        ] {
+            assert!(v.managed_lock(path), "{path}");
+            assert!(
+                at(&mut v, path).contains("managed by the Topology Manager"),
+                "{path}"
+            );
+            v.on_key(key(KeyCode::Enter));
+            assert!(
+                v.message.as_deref().unwrap_or_default().contains(MANAGED),
+                "{path}"
+            );
+            v.on_key(key(KeyCode::Char('r')));
+            assert!(!v.dirty(), "{path}");
+        }
+        let _ = ENROLLED;
+    }
+
+    #[test]
+    fn fields_outside_the_managed_sections_are_not_affected() {
+        let mut v = view(false);
+        v.set_topology_state(true, "topology");
+        assert!(!v.managed_lock("runtime.mode"));
+        assert!(!at(&mut v, "runtime.mode").contains("Topology Manager"));
+    }
+
+    #[test]
+    fn a_new_status_answer_locks_an_open_view() {
+        let mut v = view(false);
+        v.set_topology_state(true, "legacy");
+        assert!(!v.managed_lock("nodes.ppp.type"));
+        v.set_topology_state(true, "topology");
+        assert!(v.managed_lock("nodes.ppp.type"));
     }
 }
