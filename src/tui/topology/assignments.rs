@@ -28,6 +28,16 @@ fn cut(text: &str, width: usize) -> String {
     out
 }
 
+/// The node label; a fallback placement says so.
+fn node_text(v: &TopologyView, s: &Value) -> String {
+    let label = v.node_label(s["node"].as_str().unwrap_or_default());
+    if s["fallback"] == true {
+        format!("fallback: {label}")
+    } else {
+        label
+    }
+}
+
 /// The pinned node name, or nothing.
 fn pin_name(v: &TopologyView, s: &Value) -> String {
     s["pin"]
@@ -75,7 +85,7 @@ fn draw_narrow(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
         Line::from(format!(
             "{marker}{} {} {} {}",
             cut(s["account_ref"].as_str().unwrap_or_default(), 30),
-            cut(&v.node_label(s["node"].as_str().unwrap_or_default()), 20),
+            cut(&node_text(v, s), 20),
             cut(s["profile"].as_str().unwrap_or("none"), 12),
             pin_name(v, s),
         ))
@@ -118,13 +128,12 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
     ];
     let online = subs.iter().enumerate().map(|(row, s)| {
         let marker = if row == v.sub_selected { "> " } else { "  " };
-        let node = s["node"].as_str().unwrap_or_default();
         Line::from(format!(
             "{marker}{:<34} {:<16} {:<18} {:<22} {:<14} {:<7} {}/{} / {}/{}",
             s["account_ref"].as_str().unwrap_or_default(),
             join(&s["ips"]),
             join(&s["macs"]),
-            v.node_label(node),
+            node_text(v, s),
             s["profile"].as_str().unwrap_or("none"),
             pin_name(v, s),
             mbps(&s["min_mbps"][0]),
@@ -381,5 +390,17 @@ mod tests {
         let v = with_tree(view(subs), pins);
         let text = render(&v, 80, 20);
         assert!(text.contains("IPs: 100.64.0.1"), "{text}");
+    }
+
+    #[test]
+    fn assignments_show_the_fallback_reason() {
+        let mut s = sub(0);
+        s["fallback"] = json!(true);
+        let v = view(vec![s]);
+        assert!(
+            render(&v, 160, 20).contains("fallback: Gold-Hub-1"),
+            "{}",
+            render(&v, 160, 20)
+        );
     }
 }

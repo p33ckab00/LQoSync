@@ -65,6 +65,9 @@ pub struct TopologyView {
     parent_picker: Option<parent_picker::ParentPicker>,
     wan_picker: Option<wan_picker::WanPicker>,
     speed_form: Option<speed_form::SpeedForm>,
+    fallback_form: Option<node_form::FallbackForm>,
+    /// The last `topology.sources.candidates` answer.
+    candidates: Option<Value>,
     factor_form: Option<speed_form::FactorForm>,
     discovering: bool,
     pub screen: Screen,
@@ -74,6 +77,8 @@ pub struct TopologyView {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum InventoryItem {
     Source(String),
+    /// A draft source that the registry does not know.
+    Candidate(String),
     Wan {
         router_id: String,
         endpoint_ref: String,
@@ -142,6 +147,7 @@ impl TopologyView {
             || self.parent_picker.is_some()
             || self.wan_picker.is_some()
             || self.speed_form.is_some()
+            || self.fallback_form.is_some()
             || self.factor_form.is_some()
     }
 
@@ -207,6 +213,17 @@ impl TopologyView {
                 node_form::Step::Cancel => self.node_form = None,
                 node_form::Step::Send(edit) => {
                     self.node_form = None;
+                    self.propose(edit);
+                }
+            }
+            return;
+        }
+        if let Some(form) = self.fallback_form.as_mut() {
+            match form.key(code) {
+                node_form::FallbackStep::Stay => {}
+                node_form::FallbackStep::Cancel => self.fallback_form = None,
+                node_form::FallbackStep::Send(edit) => {
+                    self.fallback_form = None;
                     self.propose(edit);
                 }
             }
@@ -516,6 +533,11 @@ impl TopologyView {
             .flatten()
             .filter_map(|s| s["id"].as_str().map(|id| InventoryItem::Source(id.into())))
             .collect();
+        items.extend(self.candidate_list().iter().filter_map(|c| {
+            c["key"]
+                .as_str()
+                .map(|k| InventoryItem::Candidate(k.into()))
+        }));
         let routers = self.wan.as_ref().and_then(|w| w["routers"].as_array());
         for r in routers.into_iter().flatten().filter(|r| r["state"] == "ok") {
             for c in r["candidates"]
@@ -531,6 +553,13 @@ impl TopologyView {
             }
         }
         items
+    }
+
+    pub(crate) fn candidate_list(&self) -> &[Value] {
+        self.candidates
+            .as_ref()
+            .and_then(|c| c["candidates"].as_array())
+            .map_or(&[], Vec::as_slice)
     }
 
     pub(crate) fn inventory_item(&self) -> Option<InventoryItem> {
@@ -563,6 +592,10 @@ impl TopologyView {
 
     /// Builder edit keys. True when the key started an action.
     fn builder_key(&mut self, code: KeyCode) -> bool {
+        if code == KeyCode::Char('i') {
+            self.send("topology.sources.candidates");
+            return true;
+        }
         if code == KeyCode::Char('G') {
             self.propose(json!({"kind": "rebalance", "source_id": null}));
             return true;
@@ -589,12 +622,19 @@ impl TopologyView {
                     router_id,
                     endpoint_ref,
                 }) => self.node_form = Some(node_form::NodeForm::wan(&router_id, &endpoint_ref)),
+                Some(InventoryItem::Candidate(key)) => {
+                    if self.tree_data.is_some() {
+                        self.pick(parent_picker::Purpose::NewSource(key));
+                    } else {
+                        self.error = Some("the tree is not loaded, press r".into());
+                    }
+                }
                 None => {}
             }
             return true;
         }
         let action = match code {
-            KeyCode::Char(c @ ('n' | 'e' | 'm' | '<' | '>' | 'x')) => c,
+            KeyCode::Char(c @ ('n' | 'e' | 'm' | '<' | '>' | 'x' | 'F')) => c,
             _ => return false,
         };
         let Some(node) = self.selected_catalog_node() else {
@@ -623,6 +663,26 @@ impl TopologyView {
                 }
             },
             '>' => self.pick(parent_picker::Purpose::Demote(id)),
+            'F' if node["kind"] == "group" && node["source_id"].is_null() => {
+                let f = self
+                    .tree_data
+                    .as_ref()
+                    .map(|t| t["fallback"].clone())
+                    .unwrap_or_default();
+                let existing = f["node_ids"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect();
+                let mbps = |i: usize| f["default_mbps"][i].as_u64().unwrap_or(10);
+                self.fallback_form = Some(node_form::FallbackForm::new(
+                    existing,
+                    &id,
+                    [mbps(0), mbps(1)],
+                ));
+            }
+            'F' => self.notice = Some("select a group without a source".into()),
             _ => self.propose(json!({"kind": "node.remove", "node_id": id})),
         }
         true
@@ -760,6 +820,7 @@ impl TopologyView {
                 self.reload();
             }
             ("topology.edit.cancel", _) => {}
+            ("topology.sources.candidates", Ok(v)) => self.candidates = Some(v),
             ("wan.discover", result) => {
                 self.discovering = false;
                 match result {
@@ -922,6 +983,14 @@ impl TopologyView {
             let n = p["conflicts"].as_array().map_or(0, Vec::len);
             first.push(format!("{n} conflicts, see [c] Changes"));
         }
+        let fallback = self
+            .subscribers()
+            .iter()
+            .filter(|s| s["fallback"] == true)
+            .count();
+        if fallback > 0 {
+            first.push(format!("{fallback} subscribers in fallback"));
+        }
         first.push("legacy loop writes shaping".into());
         let mut lines = vec![Line::from(first.join("  |  "))];
         let mut second = vec!["edits apply after activation".to_string()];
@@ -1002,6 +1071,9 @@ impl TopologyView {
             picker.draw(f, body, p);
         }
         if let Some(form) = &self.speed_form {
+            form.draw(f, body, p);
+        }
+        if let Some(form) = &self.fallback_form {
             form.draw(f, body, p);
         }
         if let Some(form) = &self.factor_form {

@@ -13,6 +13,7 @@ pub(super) enum Purpose {
     Move(String),
     Demote(String),
     Instance(String),
+    NewSource(String),
 }
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ impl ParentPicker {
             let keep = match &purpose {
                 Purpose::Move(node) => !is_below(all, id, node),
                 Purpose::Demote(node) => id != node && parent_of(all, id) == parent_of(all, node),
-                Purpose::Instance(_) => true,
+                Purpose::Instance(_) | Purpose::NewSource(_) => true,
             };
             if keep {
                 entries.push((
@@ -101,6 +102,9 @@ impl ParentPicker {
                     Purpose::Instance(source) => {
                         json!({"kind": "instance.add", "source_id": source, "parent": parent})
                     }
+                    Purpose::NewSource(key) => {
+                        json!({"kind": "source.add", "key": key, "parent": parent})
+                    }
                 });
             }
             _ => {}
@@ -127,6 +131,7 @@ impl ParentPicker {
             Purpose::Move(_) => "Move to",
             Purpose::Demote(_) => "Demote below",
             Purpose::Instance(_) => "New instance below",
+            Purpose::NewSource(_) => "New source below",
         };
         popup(f, area, lines, title, p);
     }

@@ -819,7 +819,7 @@ impl App {
         }
         match self.tab {
             Tab::Topology if self.topology.capturing() => "[Enter] confirm  [Esc] cancel  see the dialog for keys",
-            Tab::Topology => "[q] quit  [r] refresh  [b] builder  [w] WANs  [n/e/m/</>/x] tree  [g/G] rebalance  [a] assignments  [P] pin  [Enter] plan  [p] policies  [n/e/d] plans  [s] speed  [f] factor  [c] changes  [1-8] pages",
+            Tab::Topology => "[q] quit  [r] refresh  [b] builder  [w] WANs  [n/e/m/</>/x] tree  [g/G] rebalance  [F] fallback  [i] new sources  [a] assignments  [P] pin  [Enter] plan  [p] policies  [n/e/d] plans  [s] speed  [f] factor  [c] changes  [1-8] pages",
             Tab::Devices if self.devices.editing => "[Enter] done  [Esc] clear  type to search",
             Tab::Devices => "[q] quit  [/] search  [o] sort  [i] reverse  [Enter] edit/focus  [e] details  [n] parent  [d] queues  [c] copy  [s/r/t] filters  [Left/Right] columns  [1-8] tabs  [S] sync  [R] reload",
             Tab::Network if self.network.editing => "[Enter] done  [Esc] clear  type to search",

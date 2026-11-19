@@ -49,6 +49,24 @@ fn pair(v: &Value) -> String {
     format!("{}/{}", mbps(&v[0]), mbps(&v[1]))
 }
 
+/// The New sources section: draft sources that the registry does not know.
+fn candidate_lines(v: &TopologyView) -> Vec<Line<'static>> {
+    let first = v
+        .preview()
+        .and_then(|p| p["inventory"].as_array())
+        .map_or(0, Vec::len);
+    let mut out = vec![Line::from(""), Line::from("New sources  [i] load")];
+    for (i, c) in v.candidate_list().iter().enumerate() {
+        out.push(Line::from(format!(
+            "{}{}  {}",
+            mark(v, first + i),
+            c["name"].as_str().unwrap_or_default(),
+            c["kind"].as_str().unwrap_or_default()
+        )));
+    }
+    out
+}
+
 /// The WAN candidates section of the Inventory panel.
 fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
     let text = |x: &Value| x.as_str().unwrap_or_default().to_string();
@@ -62,7 +80,8 @@ fn wan_lines(v: &TopologyView) -> Vec<Line<'static>> {
     let mut item = v
         .preview()
         .and_then(|p| p["inventory"].as_array())
-        .map_or(0, Vec::len);
+        .map_or(0, Vec::len)
+        + v.candidate_list().len();
     for r in wan
         .and_then(|w| w["routers"].as_array())
         .into_iter()
@@ -162,6 +181,7 @@ fn panel_lines(v: &TopologyView, panel: Panel, height: usize) -> Vec<Line<'stati
                     s["members"]
                 ))
             })
+            .chain(candidate_lines(v))
             .chain(wan_lines(v))
             .collect(),
         Panel::Tree => {
@@ -650,6 +670,78 @@ pub(super) mod tests {
                 json!({"expected_revision": 2, "edit": {"kind": "rebalance", "source_id": "src-g"}}),
                 json!({"expected_revision": 2, "edit": {"kind": "rebalance", "source_id": null}}),
             ]
+        );
+    }
+
+    fn with_candidates(mut v: TopologyView) -> TopologyView {
+        v.on_answer(ApiAnswer {
+            op: "topology.sources.candidates".into(),
+            result: Ok(json!({"candidates": [
+                {"key": "src-bronze", "kind": "ppp", "router": "r", "name": "Bronze-Hub-1", "subscribers": null}
+            ]})),
+        });
+        v
+    }
+
+    #[test]
+    fn new_sources_list_and_enter_proposes_source_add() {
+        let mut v = with_candidates(with_tree(sample()));
+        v.focus = Panel::Inventory;
+        let text = render(&v, 160, 30);
+        assert!(text.contains("New sources"), "{text}");
+        assert!(text.contains("Bronze-Hub-1  ppp"), "{text}");
+        v.take_outbox();
+        // Inventory items: two preview sources, then the candidate.
+        v.inventory_selected = 2;
+        press(&mut v, K::Enter);
+        assert!(v.capturing());
+        press(&mut v, K::Enter);
+        assert_eq!(
+            edits(&mut v),
+            vec![
+                json!({"expected_revision": 2, "edit": {"kind": "source.add", "key": "src-bronze", "parent": null}})
+            ]
+        );
+    }
+
+    #[test]
+    fn i_loads_the_new_sources() {
+        let mut v = with_tree(sample());
+        v.take_outbox();
+        press(&mut v, K::Char('i'));
+        let ops: Vec<String> = v.take_outbox().into_iter().map(|(op, _)| op).collect();
+        assert_eq!(ops, ["topology.sources.candidates"]);
+    }
+
+    #[test]
+    fn the_strip_counts_fallback_subscribers() {
+        let mut v = sample();
+        v.on_answer(ApiAnswer {
+            op: "topology.preview.refresh".into(),
+            result: Ok(
+                json!({"collected_at": 0, "state": "ok", "nodes": [], "inventory": [],
+                "subscribers": [{"id": "a", "fallback": true}, {"id": "b", "fallback": false}]}),
+            ),
+        });
+        assert!(render(&v, 160, 30).contains("1 subscribers in fallback"));
+    }
+
+    #[test]
+    fn fallback_dialogs_fit_80_columns() {
+        let mut v = sample();
+        v.on_answer(ApiAnswer {
+            op: "topology.tree".into(),
+            result: Ok(json!({"revision": 2, "sources": [], "pins": [], "fallback": null, "nodes": [
+                {"id": "fb", "name": "Fallback", "parent": null, "kind": "group", "source_id": null,
+                 "capacity": {"mode": "automatic"}, "alias": false}
+            ]})),
+        });
+        select(&mut v, "fb");
+        press(&mut v, K::Char('F'));
+        assert!(
+            render(&v, 80, 24).contains("Default down Mbps"),
+            "{}",
+            render(&v, 80, 24)
         );
     }
 }

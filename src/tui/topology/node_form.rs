@@ -28,6 +28,8 @@ pub(super) enum Target {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Row {
     Name,
+    /// Intermediate node or subscriber group, for a new node only.
+    Kind,
     Mode,
     Value(usize),
 }
@@ -42,6 +44,8 @@ pub(super) struct NodeForm {
     values: [String; 4],
     errors: Vec<(Row, &'static str)>,
     focus: usize,
+    /// A new node is a subscriber group without a source (a fallback candidate).
+    group: bool,
 }
 
 /// What a key in the form does.
@@ -77,6 +81,7 @@ impl NodeForm {
             values: [String::new(), String::new(), "100".into(), "100".into()],
             errors: Vec::new(),
             focus: 0,
+            group: false,
         }
     }
 
@@ -89,6 +94,7 @@ impl NodeForm {
             values: Default::default(),
             errors: Vec::new(),
             focus: 0,
+            group: false,
         }
     }
 
@@ -136,6 +142,7 @@ impl NodeForm {
             values,
             errors: Vec::new(),
             focus: 0,
+            group: false,
         }
     }
 
@@ -152,7 +159,11 @@ impl NodeForm {
     }
 
     fn rows(&self) -> Vec<(Row, &'static str)> {
-        let mut rows = vec![(Row::Name, "Name"), (Row::Mode, "Mode")];
+        let mut rows = vec![(Row::Name, "Name")];
+        if matches!(self.target, Target::Intermediate { .. }) {
+            rows.push((Row::Kind, "Kind"));
+        }
+        rows.push((Row::Mode, "Mode"));
         match self.mode() {
             "fixed" => {
                 rows.push((Row::Value(0), "Down Mbps"));
@@ -222,10 +233,16 @@ impl NodeForm {
                 e.as_object_mut().expect("object").remove("mode");
                 e
             }
-            Target::Intermediate { parent } => json!({
-                "kind": "node.create", "name": self.name, "parent": parent,
-                "capacity": self.capacity(),
-            }),
+            Target::Intermediate { parent } => {
+                let mut e = json!({
+                    "kind": "node.create", "name": self.name, "parent": parent,
+                    "capacity": self.capacity(),
+                });
+                if self.group {
+                    e["node_kind"] = json!("group");
+                }
+                e
+            }
             Target::Update { node_id, name, .. } => {
                 let mut e =
                     json!({"kind": "node.update", "node_id": node_id, "capacity": self.capacity()});
@@ -247,6 +264,11 @@ impl NodeForm {
             KeyCode::BackTab | KeyCode::Up => {
                 self.focus = (self.focus + rows.len() - 1) % rows.len();
             }
+            KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if row == Row::Kind => {
+                self.group = !self.group;
+                self.modes = modes(if self.group { "group" } else { "intermediate" });
+                self.mode = 0;
+            }
             KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if row == Row::Mode => {
                 let n = self.modes.len();
                 self.mode = if code == KeyCode::Left {
@@ -262,7 +284,7 @@ impl NodeForm {
                 Row::Value(i) => {
                     self.values[i].pop();
                 }
-                Row::Mode => {}
+                Row::Mode | Row::Kind => {}
             },
             KeyCode::Char(c) => match row {
                 Row::Name if self.name.chars().count() < 64 => self.name.push(c),
@@ -279,7 +301,7 @@ impl NodeForm {
         let mut lines = Vec::new();
         for (i, (row, label)) in self.rows().into_iter().enumerate() {
             let marker = if i == self.focus { "> " } else { "  " };
-            let cursor = if i == self.focus && row != Row::Mode {
+            let cursor = if i == self.focus && row != Row::Mode && row != Row::Kind {
                 "_"
             } else {
                 ""
@@ -287,6 +309,7 @@ impl NodeForm {
             let value = match row {
                 Row::Name => self.name.clone(),
                 Row::Mode => format!("< {} >", self.mode()),
+                Row::Kind => format!("< {} >", if self.group { "group" } else { "intermediate" }),
                 Row::Value(v) => self.values[v].clone(),
             };
             lines.push(Line::from(format!("{marker}{label:<14} {value}{cursor}")));
@@ -305,6 +328,89 @@ impl NodeForm {
             Target::Update { .. } => "Edit node",
         };
         popup(f, area, lines, title, p);
+    }
+}
+
+pub(super) enum FallbackStep {
+    Stay,
+    Cancel,
+    Send(Value),
+}
+
+/// Add a group node to the fallback and set the default plan of fallback subscribers.
+#[derive(Debug)]
+pub(super) struct FallbackForm {
+    node_ids: Vec<String>,
+    values: [String; 2],
+    errors: [Option<&'static str>; 2],
+    focus: usize,
+}
+
+impl FallbackForm {
+    pub(super) fn new(mut existing: Vec<String>, selected: &str, default: [u64; 2]) -> Self {
+        if !existing.iter().any(|n| n == selected) {
+            existing.push(selected.into());
+        }
+        Self {
+            node_ids: existing,
+            values: default.map(|v| v.to_string()),
+            errors: [None; 2],
+            focus: 0,
+        }
+    }
+
+    pub(super) fn key(&mut self, code: KeyCode) -> FallbackStep {
+        match code {
+            KeyCode::Esc => return FallbackStep::Cancel,
+            KeyCode::Tab | KeyCode::Down | KeyCode::BackTab | KeyCode::Up => self.focus ^= 1,
+            KeyCode::Backspace => {
+                self.values[self.focus].pop();
+            }
+            KeyCode::Char(c) if self.values[self.focus].len() < 8 => {
+                self.values[self.focus].push(c)
+            }
+            KeyCode::Enter => {
+                let v: Vec<Option<u64>> = self.values.iter().map(|t| whole(t, 1_000_000)).collect();
+                for (i, value) in v.iter().enumerate() {
+                    self.errors[i] = value
+                        .is_none()
+                        .then_some("use a whole number from 1 to 1000000");
+                }
+                if let [Some(down), Some(up)] = v[..] {
+                    return FallbackStep::Send(json!({
+                        "kind": "fallback.set", "node_ids": self.node_ids,
+                        "default_down_mbps": down, "default_up_mbps": up,
+                    }));
+                }
+            }
+            _ => {}
+        }
+        FallbackStep::Stay
+    }
+
+    pub(super) fn draw(&self, f: &mut Frame, area: Rect, p: &Palette) {
+        let mut lines = vec![Line::from(format!(
+            "Fallback nodes: {}",
+            self.node_ids.len()
+        ))];
+        for (i, label) in ["Default down Mbps", "Default up Mbps"].iter().enumerate() {
+            let marker = if i == self.focus { "> " } else { "  " };
+            lines.push(Line::from(format!(
+                "{marker}{label:<18} {}_",
+                self.values[i]
+            )));
+            if let Some(e) = self.errors[i] {
+                lines.push(
+                    Line::from(format!("                     {e}")).style(p.role(Role::Error)),
+                );
+            }
+        }
+        lines.push(Line::from(""));
+        lines.push(
+            Line::from("The default plan applies without a router rate-limit. Enter: propose")
+                .style(p.role(Role::Secondary)),
+        );
+        popup(f, area, lines, "Fallback group", p);
     }
 }
 
@@ -362,6 +468,37 @@ mod tests {
                 Row::Value(3)
             ]
         );
+    }
+
+    #[test]
+    fn the_node_form_creates_a_group_node() {
+        let mut f = NodeForm::intermediate(Some("wan1".into()));
+        f.name = "Fallback".into();
+        focus(&mut f, "Kind");
+        f.key(KeyCode::Right);
+        assert_eq!(f.mode(), "automatic");
+        assert_eq!(
+            send(&mut f).unwrap(),
+            json!({"kind": "node.create", "name": "Fallback", "parent": "wan1",
+                   "node_kind": "group", "capacity": {"mode": "automatic"}})
+        );
+    }
+
+    #[test]
+    fn the_fallback_form_proposes_fallback_set() {
+        let mut f = FallbackForm::new(vec!["fb1".into()], "fb2", [10, 10]);
+        assert!(matches!(f.key(KeyCode::Enter), FallbackStep::Send(_)));
+        let mut f = FallbackForm::new(vec!["fb1".into()], "fb2", [10, 10]);
+        match f.key(KeyCode::Enter) {
+            FallbackStep::Send(v) => assert_eq!(
+                v,
+                json!({"kind": "fallback.set", "node_ids": ["fb1", "fb2"], "default_down_mbps": 10, "default_up_mbps": 10})
+            ),
+            _ => panic!("no edit"),
+        }
+        let mut f = FallbackForm::new(vec![], "fb", [10, 10]);
+        f.values[0] = "0".into();
+        assert!(matches!(f.key(KeyCode::Enter), FallbackStep::Stay));
     }
 
     #[test]
