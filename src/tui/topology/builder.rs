@@ -636,4 +636,20 @@ pub(super) mod tests {
         press(&mut v, K::Char('n'));
         assert!(render(&v, 100, 30).contains("New node"));
     }
+
+    #[test]
+    fn g_and_shift_g_propose_one_group_and_all_groups() {
+        let mut v = with_tree(sample());
+        v.focus = Panel::Inventory;
+        v.take_outbox();
+        press(&mut v, K::Char('g'));
+        press(&mut v, K::Char('G'));
+        assert_eq!(
+            edits(&mut v),
+            vec![
+                json!({"expected_revision": 2, "edit": {"kind": "rebalance", "source_id": "src-g"}}),
+                json!({"expected_revision": 2, "edit": {"kind": "rebalance", "source_id": null}}),
+            ]
+        );
+    }
 }

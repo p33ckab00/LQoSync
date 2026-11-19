@@ -63,6 +63,7 @@ pub struct TopologyView {
     proposal: Option<Value>,
     node_form: Option<node_form::NodeForm>,
     parent_picker: Option<parent_picker::ParentPicker>,
+    wan_picker: Option<wan_picker::WanPicker>,
     discovering: bool,
     pub screen: Screen,
 }
@@ -137,6 +138,7 @@ impl TopologyView {
             || self.proposal.is_some()
             || self.node_form.is_some()
             || self.parent_picker.is_some()
+            || self.wan_picker.is_some()
     }
 
     fn plans(&self) -> &[Value] {
@@ -173,6 +175,17 @@ impl TopologyView {
                 node_form::Step::Cancel => self.node_form = None,
                 node_form::Step::Send(edit) => {
                     self.node_form = None;
+                    self.propose(edit);
+                }
+            }
+            return;
+        }
+        if let Some(picker) = self.wan_picker.as_mut() {
+            match picker.key(code) {
+                wan_picker::Step::Stay => {}
+                wan_picker::Step::Cancel => self.wan_picker = None,
+                wan_picker::Step::Send(edit) => {
+                    self.wan_picker = None;
                     self.propose(edit);
                 }
             }
@@ -320,6 +333,71 @@ impl TopologyView {
         }
     }
 
+    fn tree_sources(&self) -> &[Value] {
+        self.tree_data
+            .as_ref()
+            .and_then(|t| t["sources"].as_array())
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Pinned records that the last tree answer marks offline. Assignments lists them last.
+    pub(crate) fn offline_pins(&self) -> Vec<&Value> {
+        self.tree_data
+            .as_ref()
+            .and_then(|t| t["pins"].as_array())
+            .into_iter()
+            .flatten()
+            .filter(|p| p["online"] == false)
+            .collect()
+    }
+
+    /// A node name from the tree, else the preview label, else the ID.
+    pub(crate) fn node_name(&self, id: &str) -> String {
+        self.tree_nodes()
+            .iter()
+            .find(|n| n["id"].as_str() == Some(id))
+            .and_then(|n| n["name"].as_str())
+            .map_or_else(|| self.node_label(id), str::to_string)
+    }
+
+    fn assignment_rows(&self) -> usize {
+        self.subscribers().len() + self.offline_pins().len()
+    }
+
+    /// Open the WAN picker for the selected Assignments row.
+    fn open_wan_picker(&mut self) {
+        let online = self.subscribers().len();
+        let wans: Vec<&Value> = self
+            .tree
+            .iter()
+            .map(|&(_, i)| &self.tree_nodes()[i])
+            .filter(|n| n["kind"] == "wan")
+            .collect();
+        let picker = if self.sub_selected < online {
+            let s = &self.subscribers()[self.sub_selected];
+            let identity = s["identities"][0].clone();
+            if identity.is_null() {
+                self.error = Some("the subscriber has no identity to edit".into());
+                return;
+            }
+            wan_picker::WanPicker::new(
+                wan_picker::Who::Identity(identity),
+                &wans,
+                !s["pin"].is_null(),
+            )
+        } else {
+            let Some(pin) = self.offline_pins().get(self.sub_selected - online).copied() else {
+                return;
+            };
+            let id = pin["subscriber_id"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string();
+            wan_picker::WanPicker::new(wan_picker::Who::Record(id), &wans, true)
+        };
+        self.wan_picker = Some(picker);
+    }
+
     /// The preview row of a node, when the preview has one.
     pub(crate) fn preview_node(&self, id: &str) -> Option<&Value> {
         self.nodes().iter().find(|n| n["id"].as_str() == Some(id))
@@ -404,6 +482,19 @@ impl TopologyView {
 
     /// Builder edit keys. True when the key started an action.
     fn builder_key(&mut self, code: KeyCode) -> bool {
+        if code == KeyCode::Char('G') {
+            self.propose(json!({"kind": "rebalance", "source_id": null}));
+            return true;
+        }
+        if code == KeyCode::Char('g') && self.focus == Panel::Inventory {
+            match self.inventory_item() {
+                Some(InventoryItem::Source(id)) => {
+                    self.propose(json!({"kind": "rebalance", "source_id": id}));
+                }
+                _ => self.notice = Some("select a group in the Inventory first".into()),
+            }
+            return true;
+        }
         if code == KeyCode::Enter && self.focus == Panel::Inventory {
             match self.inventory_item() {
                 Some(InventoryItem::Source(id)) => {
@@ -657,8 +748,9 @@ impl TopologyView {
             }
             KeyCode::Down if self.screen == Screen::Assignments => {
                 self.sub_selected =
-                    (self.sub_selected + 1).min(self.subscribers().len().saturating_sub(1));
+                    (self.sub_selected + 1).min(self.assignment_rows().saturating_sub(1));
             }
+            KeyCode::Char('P') if self.screen == Screen::Assignments => self.open_wan_picker(),
             KeyCode::Up if self.screen == Screen::Builder && self.focus == Panel::Inventory => {
                 self.inventory_selected = self.inventory_selected.saturating_sub(1);
             }
@@ -784,12 +876,21 @@ impl TopologyView {
             form.draw(f, body, p);
         }
         if let Some(proposal) = &self.proposal {
-            proposal::draw(proposal, self.tree_nodes(), f, body, p);
+            proposal::draw(
+                proposal,
+                (self.tree_nodes(), self.tree_sources()),
+                f,
+                body,
+                p,
+            );
         }
         if let Some(form) = &self.node_form {
             form.draw(f, body, p);
         }
         if let Some(picker) = &self.parent_picker {
+            picker.draw(f, body, p);
+        }
+        if let Some(picker) = &self.wan_picker {
             picker.draw(f, body, p);
         }
         if let Some((_, name)) = &self.confirm_delete {
@@ -1004,3 +1105,4 @@ mod picker;
 mod plan_form;
 mod policies;
 mod proposal;
+mod wan_picker;

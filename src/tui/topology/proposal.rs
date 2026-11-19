@@ -28,9 +28,25 @@ fn namer<'a>(p: &'a Value, current: &'a [Value]) -> impl Fn(&Value) -> String + 
 }
 
 /// One line that says what the edit changes in the tree.
-fn change(e: &Value, name: &dyn Fn(&Value) -> String) -> String {
+fn change(e: &Value, name: &dyn Fn(&Value) -> String, sources: &[Value]) -> String {
     let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let source = |id: &Value| {
+        sources
+            .iter()
+            .find(|s| s["id"] == *id)
+            .and_then(|s| s["name"].as_str())
+            .map_or_else(|| text(id), str::to_string)
+    };
+    let who = || {
+        e["identity"]["account_ref"]
+            .as_str()
+            .map_or_else(|| text(&e["subscriber_id"]), str::to_string)
+    };
     match e["kind"].as_str().unwrap_or_default() {
+        "rebalance" if e["source_id"].is_null() => "rebalance all groups".into(),
+        "rebalance" => format!("rebalance {}", source(&e["source_id"])),
+        "subscriber.pin" if e["wan_node_id"].is_null() => format!("unpin {}", who()),
+        "subscriber.pin" => format!("pin {} to {}", who(), name(&e["wan_node_id"])),
         "node.remove" => format!("remove {}", name(&e["node_id"])),
         "node.move" => format!("move {} below {}", name(&e["node_id"]), name(&e["parent"])),
         "node.update" => format!("edit {}", name(&e["node_id"])),
@@ -43,7 +59,7 @@ fn change(e: &Value, name: &dyn Fn(&Value) -> String) -> String {
     }
 }
 
-pub(super) fn lines(p: &Value, current: &[Value]) -> Vec<Line<'static>> {
+pub(super) fn lines(p: &Value, current: &[Value], sources: &[Value]) -> Vec<Line<'static>> {
     let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
     let name = namer(p, current);
     let moves = p["moves"].as_array().map_or(&[][..], Vec::as_slice);
@@ -53,7 +69,7 @@ pub(super) fn lines(p: &Value, current: &[Value]) -> Vec<Line<'static>> {
     };
     let mut out = vec![
         format!("edit: {}", text(&p["edit"]["kind"])),
-        change(&p["edit"], &name),
+        change(&p["edit"], &name, sources),
         format!("{} moves", moves.len()),
     ];
     for m in moves.iter().take(LISTED) {
@@ -80,8 +96,15 @@ pub(super) fn lines(p: &Value, current: &[Value]) -> Vec<Line<'static>> {
     out.into_iter().map(Line::from).collect()
 }
 
-pub(super) fn draw(p: &Value, current: &[Value], f: &mut Frame, area: Rect, palette: &Palette) {
-    super::plan_form::popup(f, area, lines(p, current), "Edit proposal", palette);
+pub(super) fn draw(
+    p: &Value,
+    (current, sources): (&[Value], &[Value]),
+    f: &mut Frame,
+    area: Rect,
+    palette: &Palette,
+) {
+    let lines = lines(p, current, sources);
+    super::plan_form::popup(f, area, lines, "Edit proposal", palette);
 }
 
 #[cfg(test)]
@@ -210,6 +233,39 @@ mod tests {
         let text = render(&v, 80, 24);
         assert!(text.contains("remove Gold WAN2"), "{text}");
         assert!(text.contains("alice  Gold WAN2 -> Gold WAN1"), "{text}");
+    }
+
+    #[test]
+    fn popup_lines_name_rebalance_and_pin_changes() {
+        let nodes = vec![json!({"id": "wan2", "name": "WAN2"})];
+        let sources = vec![json!({"id": "src-g", "name": "Gold"})];
+        let text = |edit: Value| {
+            super::lines(
+                &json!({"edit": edit, "moves": [], "nodes": []}),
+                &nodes,
+                &sources,
+            )
+            .iter()
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+        };
+        assert!(
+            text(json!({"kind": "rebalance", "source_id": "src-g"})).contains("rebalance Gold")
+        );
+        assert!(
+            text(json!({"kind": "rebalance", "source_id": null})).contains("rebalance all groups")
+        );
+        assert!(
+            text(json!({"kind": "subscriber.pin", "identity": {"account_ref": "acct-1"}, "wan_node_id": "wan2"}))
+                .contains("pin acct-1 to WAN2")
+        );
+        assert!(
+            text(
+                json!({"kind": "subscriber.pin", "subscriber_id": "tm-sub-9", "wan_node_id": null})
+            )
+            .contains("unpin tm-sub-9")
+        );
     }
 
     #[test]

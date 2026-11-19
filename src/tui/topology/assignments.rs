@@ -28,6 +28,34 @@ fn cut(text: &str, width: usize) -> String {
     out
 }
 
+/// The pinned node name, or nothing.
+fn pin_name(v: &TopologyView, s: &Value) -> String {
+    s["pin"]
+        .as_str()
+        .map(|id| v.node_name(id))
+        .unwrap_or_default()
+}
+
+/// Offline pinned records after the online rows; `first` is the row index of the first one.
+fn offline_lines(v: &TopologyView, first: usize) -> Vec<Line<'static>> {
+    v.offline_pins()
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let marker = if first + i == v.sub_selected {
+                "> "
+            } else {
+                "  "
+            };
+            Line::from(format!(
+                "{marker}{}  offline  pinned {}",
+                p["subscriber_id"].as_str().unwrap_or_default(),
+                v.node_name(p["node_id"].as_str().unwrap_or_default())
+            ))
+        })
+        .collect()
+}
+
 /// Below the wide width, keep identity, node, plan, and pin, and show the selected endpoints below.
 fn draw_narrow(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
     let height = area.height.saturating_sub(5) as usize;
@@ -49,9 +77,10 @@ fn draw_narrow(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
             cut(s["account_ref"].as_str().unwrap_or_default(), 30),
             cut(&v.node_label(s["node"].as_str().unwrap_or_default()), 20),
             cut(s["profile"].as_str().unwrap_or("none"), 12),
-            if s["pin"].is_null() { "" } else { "pinned" },
+            pin_name(v, s),
         )));
     }
+    lines.extend(offline_lines(v, subs.len()));
     if let Some(s) = v.selected_subscriber() {
         lines.push(Line::from(format!("IPs: {}", join(&s["ips"]))).style(p.role(Role::Secondary)));
         lines.push(Line::from(format!("MAC: {}", join(&s["macs"]))).style(p.role(Role::Secondary)));
@@ -91,13 +120,14 @@ pub(super) fn draw(v: &TopologyView, f: &mut Frame, area: Rect, p: &Palette) {
             join(&s["macs"]),
             v.node_label(node),
             s["profile"].as_str().unwrap_or("none"),
-            if s["pin"].is_null() { "" } else { "pinned" },
+            pin_name(v, s),
             mbps(&s["min_mbps"][0]),
             mbps(&s["min_mbps"][1]),
             mbps(&s["max_mbps"][0]),
             mbps(&s["max_mbps"][1]),
         )));
     }
+    lines.extend(offline_lines(v, subs.len()));
     f.render_widget(
         Paragraph::new(lines)
             .style(p.role(Role::Base))
@@ -154,7 +184,6 @@ mod tests {
             "02:00:00:00:00:11",
             "Gold-Hub-1",
             "profile-g",
-            "pinned",
             "50/50",
         ] {
             assert!(text.contains(want), "{want}: {text}");
@@ -201,11 +230,111 @@ mod tests {
             "acct-0001",
             "Gold-Hub-1",
             "profile-g",
-            "pinned",
             "IPs: 100.64.0.2",
             "MAC: 02:00:00:00:00:11",
         ] {
             assert!(text.contains(want), "{want}: {text}");
         }
+    }
+
+    fn with_tree(mut v: TopologyView, pins: Value) -> TopologyView {
+        v.on_answer(ApiAnswer {
+            op: "topology.tree".into(),
+            result: Ok(
+                json!({"revision": 2, "sources": [], "pins": pins, "nodes": [
+                    {"id": "wan1", "name": "WAN1", "parent": null, "kind": "wan"},
+                    {"id": "wan2", "name": "WAN2", "parent": null, "kind": "wan"},
+                    {"id": "g", "name": "Gold WAN1", "parent": "wan1", "kind": "group"}
+                ]}),
+            ),
+        });
+        v
+    }
+
+    fn identified(i: usize) -> Value {
+        let mut s = sub(i);
+        s["identities"] = json!([{"router_id": "r", "source_id": "ppp", "kind": "ppp",
+                                  "account_ref": format!("ppp-name/v1/acct-{i:04}")}]);
+        s
+    }
+
+    fn edits(v: &mut TopologyView) -> Vec<Value> {
+        v.take_outbox()
+            .into_iter()
+            .filter(|(op, _)| op == "topology.edit.propose")
+            .map(|(_, a)| a)
+            .collect()
+    }
+
+    #[test]
+    fn the_wan_picker_lists_wans_and_unpin_only_for_a_pinned_row() {
+        let mut v = with_tree(view(vec![identified(0), identified(1)]), json!([]));
+        v.on_key(KeyCode::Char('P'));
+        let text = render(&v, 100, 24);
+        assert!(text.contains("WAN1") && text.contains("WAN2"), "{text}");
+        assert!(!text.contains("unpin"), "{text}");
+        v.on_key(KeyCode::Esc);
+        v.on_key(KeyCode::Down);
+        v.on_key(KeyCode::Char('P'));
+        assert!(render(&v, 100, 24).contains("unpin"));
+    }
+
+    #[test]
+    fn enter_in_the_wan_picker_proposes_subscriber_pin_with_the_first_identity() {
+        let mut v = with_tree(view(vec![identified(0)]), json!([]));
+        v.take_outbox();
+        v.on_key(KeyCode::Char('P'));
+        v.on_key(KeyCode::Down);
+        v.on_key(KeyCode::Enter);
+        assert_eq!(
+            edits(&mut v),
+            vec![
+                json!({"expected_revision": 2, "edit": {"kind": "subscriber.pin",
+                "identity": identified(0)["identities"][0], "wan_node_id": "wan2"}})
+            ]
+        );
+    }
+
+    #[test]
+    fn offline_pinned_records_show_after_online_rows_and_offer_only_unpin() {
+        let pins = json!([{"subscriber_id": "tm-sub-off", "node_id": "g", "online": false},
+                          {"subscriber_id": "tm-sub-1", "node_id": "g", "online": true}]);
+        let mut v = with_tree(view(vec![identified(0)]), pins);
+        v.take_outbox();
+        let text = render(&v, 160, 20);
+        assert!(
+            text.contains("tm-sub-off  offline  pinned Gold WAN1"),
+            "{text}"
+        );
+        v.on_key(KeyCode::Down);
+        v.on_key(KeyCode::Char('P'));
+        let text = render(&v, 100, 24);
+        assert!(text.contains("unpin") && !text.contains("WAN2"), "{text}");
+        v.on_key(KeyCode::Enter);
+        assert_eq!(
+            edits(&mut v),
+            vec![
+                json!({"expected_revision": 2, "edit": {"kind": "subscriber.pin",
+                "subscriber_id": "tm-sub-off", "wan_node_id": null}})
+            ]
+        );
+    }
+
+    #[test]
+    fn the_pin_column_shows_the_node_name() {
+        let v = with_tree(view(vec![sub(0), sub(1)]), json!([]));
+        assert!(render(&v, 160, 20).contains("Gold WAN1"));
+        assert!(render(&v, 80, 20).contains("Gold WAN1"));
+    }
+
+    #[test]
+    fn the_wan_picker_fits_80_columns() {
+        let mut v = with_tree(view(vec![identified(1)]), json!([]));
+        v.on_key(KeyCode::Char('P'));
+        let text = render(&v, 80, 24);
+        assert!(
+            text.contains("unpin") && text.contains("Enter: propose"),
+            "{text}"
+        );
     }
 }
