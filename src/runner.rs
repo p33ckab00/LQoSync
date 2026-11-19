@@ -908,15 +908,31 @@ where
         }
         let rates_changed = rates.len();
         rates.truncate(8);
-        // Aggregates need placements without conflicts; a side with old conflicts has none.
-        let aggregates = |r| {
-            if placement(&r).is_empty() {
-                evaluate(r).ok()
-            } else {
-                None
-            }
+        // Aggregates need placements without conflicts. Leave out each subscriber with an old
+        // placement conflict on either side, so one stray subscriber cannot hide a new
+        // aggregate conflict, then evaluate both sides over the same subscribers.
+        let stray: std::collections::HashSet<String> = before
+            .conflicts
+            .iter()
+            .chain(&after.conflicts)
+            .map(|c| c.subscriber_id.clone())
+            .collect();
+        let clean = |registry| {
+            resolve(Reconciliation {
+                generation: read.generation,
+                registry,
+                active: read
+                    .active
+                    .iter()
+                    .filter(|a| !stray.contains(&a.subscriber_id))
+                    .cloned()
+                    .collect(),
+            })
+            .and_then(evaluate)
         };
-        let (before, after) = (aggregates(before), aggregates(after));
+        let mut current = read.registry.clone();
+        current.catalog = doc.catalog.clone();
+        let (before, after) = (Some(clean(current)?), Some(clean(read.registry.clone())?));
         let mut capacities = Vec::new();
         if let Some(after) = &after {
             let old: std::collections::HashSet<_> = before

@@ -1506,4 +1506,55 @@ mod edits {
         }
         assert!(g["factor"][0].is_string(), "{g}");
     }
+
+    #[tokio::test]
+    async fn an_old_placement_conflict_does_not_hide_a_new_aggregate_conflict() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (wan1, _) = two_wans(&e, &mut r).await;
+        let (group, _) = biggest_group(&mut r);
+        commit(
+            &mut r,
+            json!({"kind": "node.move", "node_id": group, "parent": wan1}),
+        )
+        .await;
+        // One subscriber pinned to a node of another group: an old placement conflict.
+        let mut doc = r.api_registry().unwrap().unwrap();
+        let other = doc
+            .catalog
+            .as_ref()
+            .unwrap()
+            .nodes
+            .iter()
+            .find(|n| {
+                n.source_id.is_some()
+                    && n.id != group
+                    && n.kind == crate::topology_manager::layout::NodeKind::SubscriberGroup
+            })
+            .unwrap()
+            .id
+            .clone();
+        let stray = doc
+            .subscribers
+            .iter_mut()
+            .find(|s| s.policy.assignment.as_deref() == Some(group.as_str()))
+            .unwrap();
+        stray.policy.pin = Some(other.clone());
+        stray.policy.assignment = Some(other);
+        r.test_commit(doc).unwrap();
+        let pv = r.api_preview_refresh().await.unwrap();
+        assert_eq!(
+            pv["state"],
+            json!("conflicts"),
+            "the stray pin must conflict: {pv}"
+        );
+        let err = propose(&mut r, speed(json!({"mbps": 500}), json!({"mbps": 1000})))
+            .await
+            .unwrap_err();
+        assert!(
+            rule(&err).contains("MinimumExceedsCeiling"),
+            "{}",
+            rule(&err)
+        );
+    }
 }
