@@ -513,3 +513,51 @@ fn node_minimums_require_positive_exact_whole_mbps_and_keep_absent_policy_compat
         assert!(c.validate().is_err(), "{value}");
     }
 }
+
+fn with_fallback_node() -> TopologyCatalog {
+    let mut c = catalog();
+    c.nodes.push(CatalogNode {
+        minimum: Default::default(),
+        id: "fb".into(),
+        name: "Fallback".into(),
+        parent: Some("wan1".into()),
+        source_id: None,
+        kind: NodeKind::SubscriberGroup,
+        capacity: automatic(),
+    });
+    c
+}
+
+#[test]
+fn a_registry_without_fallback_round_trips_unchanged() {
+    let c = catalog();
+    let text = serde_json::to_string(&c).unwrap();
+    assert!(!text.contains("fallback"), "{text}");
+    let back: TopologyCatalog = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, c);
+    assert_eq!(serde_json::to_string(&back).unwrap(), text);
+}
+
+#[test]
+fn fallback_validation_rules() {
+    let policy = |ids: &[&str], plan: RateBps| FallbackPolicy {
+        node_ids: ids.iter().map(|s| s.to_string()).collect(),
+        default_plan: plan,
+    };
+    let ten = rate(10_000_000, 10_000_000);
+    let mut c = with_fallback_node();
+    c.fallback = Some(policy(&["fb"], ten));
+    c.validate().unwrap();
+    for bad in [
+        policy(&[], ten),
+        policy(&["nope"], ten),
+        policy(&["group1"], ten),
+        policy(&["wan1"], ten),
+        policy(&["fb", "fb"], ten),
+        policy(&["fb"], rate(0, 10_000_000)),
+    ] {
+        let mut c = with_fallback_node();
+        c.fallback = Some(bad.clone());
+        assert!(c.validate().is_err(), "{bad:?}");
+    }
+}

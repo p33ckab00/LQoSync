@@ -33,7 +33,18 @@ pub enum Edit {
         name: String,
         parent: Option<String>,
         capacity: CapacityInput,
+        /// `"intermediate"` (default) or `"group"`: a subscriber group without a source.
+        #[serde(default)]
+        node_kind: Option<String>,
     },
+    #[serde(rename = "fallback.set")]
+    FallbackSet {
+        node_ids: Vec<String>,
+        default_down_mbps: u64,
+        default_up_mbps: u64,
+    },
+    #[serde(rename = "fallback.clear")]
+    FallbackClear,
     #[serde(rename = "instance.add")]
     InstanceAdd {
         source_id: String,
@@ -222,6 +233,8 @@ pub struct Applied {
     pub check_only: bool,
     /// Profiles whose legacy rounded speed rules the edit replaced.
     pub legacy_replaced: usize,
+    /// The edit removes the fallback policy; the runner checks online fallback subscribers.
+    pub clear_fallback: bool,
 }
 
 fn invalid(message: impl Into<String>) -> anyhow::Error {
@@ -584,6 +597,12 @@ fn node_remove(
     if aliased(doc, node_id) {
         return Err(invalid("an enrolled node keeps its legacy export name"));
     }
+    if c.fallback
+        .as_ref()
+        .is_some_and(|f| f.node_ids.iter().any(|n| n == node_id))
+    {
+        return Err(invalid("remove it from the fallback first"));
+    }
     let pinned: Vec<&str> = d
         .subscribers
         .iter()
@@ -774,6 +793,7 @@ pub fn apply(
     let mut clear_offline = false;
     let mut check_only = false;
     let mut legacy_replaced = 0;
+    let mut clear_fallback = false;
     match edit {
         Edit::WanCreate {
             router_id,
@@ -802,9 +822,15 @@ pub fn apply(
             name,
             parent,
             capacity,
+            node_kind,
         } => {
             check_name(name)?;
-            let capacity = capacity.policy(NodeKind::Intermediate)?;
+            let kind = match node_kind.as_deref() {
+                None | Some("intermediate") => NodeKind::Intermediate,
+                Some("group") => NodeKind::SubscriberGroup,
+                Some(_) => return Err(invalid("a node kind is intermediate or group")),
+            };
+            let capacity = capacity.policy(kind)?;
             check_parent(d.catalog.as_ref().expect("enrolled"), parent.as_deref())?;
             let ids = reserve_ids(&mut d, doc.revision, &[IdKind::Node])?;
             d.catalog
@@ -817,7 +843,7 @@ pub fn apply(
                     name: name.clone(),
                     parent: parent.clone(),
                     source_id: None,
-                    kind: NodeKind::Intermediate,
+                    kind,
                     capacity,
                 });
         }
@@ -879,6 +905,29 @@ pub fn apply(
         }
         Edit::NodeRemove { node_id } => {
             node_remove(doc, &mut d, node_id, &mut affected, &mut cleared)?;
+        }
+        Edit::FallbackSet {
+            node_ids,
+            default_down_mbps,
+            default_up_mbps,
+        } => {
+            let default_plan = mbps(*default_down_mbps, *default_up_mbps)?;
+            let c = d.catalog.as_mut().expect("enrolled");
+            for id in node_ids {
+                if !c.nodes.iter().any(|n| {
+                    n.id == *id && n.kind == NodeKind::SubscriberGroup && n.source_id.is_none()
+                }) {
+                    return Err(invalid("a fallback node must be a group without a source"));
+                }
+            }
+            c.fallback = Some(super::catalog::FallbackPolicy {
+                node_ids: node_ids.clone(),
+                default_plan,
+            });
+        }
+        Edit::FallbackClear => {
+            d.catalog.as_mut().expect("enrolled").fallback = None;
+            clear_fallback = true;
         }
         Edit::SpeedDefaults {
             down_min,
@@ -962,6 +1011,7 @@ pub fn apply(
         clear_offline,
         check_only,
         legacy_replaced,
+        clear_fallback,
     })
 }
 
@@ -1029,7 +1079,11 @@ pub fn tree(doc: &RegistryDocument) -> Value {
                 .map(|p| json!({"subscriber_id": s.id, "node_id": p}))
         })
         .collect();
-    json!({"revision": doc.revision, "nodes": nodes, "sources": sources, "pins": pins})
+    let fallback = c.fallback.as_ref().map(|f| {
+        json!({"node_ids": f.node_ids,
+               "default_mbps": [f.default_plan.down / 1_000_000, f.default_plan.up / 1_000_000]})
+    });
+    json!({"revision": doc.revision, "nodes": nodes, "sources": sources, "pins": pins, "fallback": fallback})
 }
 
 #[cfg(test)]

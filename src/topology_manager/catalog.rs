@@ -142,6 +142,15 @@ pub struct CatalogNode {
     pub capacity: CapacityPolicy,
 }
 
+/// Group nodes that take subscribers whose source the catalog does not know.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FallbackPolicy {
+    pub node_ids: Vec<String>,
+    /// The plan of a fallback subscriber without a readable router rate-limit.
+    pub default_plan: RateBps,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TopologyCatalog {
@@ -151,6 +160,9 @@ pub struct TopologyCatalog {
     pub profiles: Vec<SubscriberProfile>,
     pub defaults: SpeedPolicy,
     pub nodes: Vec<CatalogNode>,
+    /// Absent in registries written before Phase 2c-2; such files serialize unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback: Option<FallbackPolicy>,
 }
 
 impl Default for TopologyCatalog {
@@ -162,6 +174,7 @@ impl Default for TopologyCatalog {
             profiles: Vec::new(),
             defaults: new_policy_defaults(),
             nodes: Vec::new(),
+            fallback: None,
         }
     }
 }
@@ -486,6 +499,23 @@ impl TopologyCatalog {
                 profile_targets.insert(
                     profile.id.as_str(),
                     targets.iter().map(String::as_str).collect::<HashSet<_>>(),
+                );
+            }
+        }
+        if let Some(fallback) = &self.fallback {
+            ensure!(!fallback.node_ids.is_empty(), "the fallback needs a node");
+            ensure!(
+                fallback.default_plan.down > 0 && fallback.default_plan.up > 0,
+                "the fallback default plan must be positive"
+            );
+            let mut seen = HashSet::new();
+            for id in &fallback.node_ids {
+                ensure!(seen.insert(id.as_str()), "duplicate fallback node");
+                ensure!(
+                    self.nodes.iter().any(|n| n.id == *id
+                        && n.kind == NodeKind::SubscriberGroup
+                        && n.source_id.is_none()),
+                    "a fallback node must be a group without a source"
                 );
             }
         }

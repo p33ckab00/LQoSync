@@ -957,3 +957,93 @@ fn instance_factor_overrides_are_kept() {
         CapacityPolicy::Automatic { factors: over }
     );
 }
+
+#[test]
+fn node_create_makes_a_group_without_a_source() {
+    let d = doc();
+    let a = run(
+        &d,
+        json!({"kind": "node.create", "name": "Fallback", "parent": "wan1", "node_kind": "group", "capacity": {"mode": "automatic"}}),
+    )
+    .unwrap();
+    let n = new_node(&d, &a.candidate);
+    assert_eq!(
+        (n.kind, n.source_id.as_deref()),
+        (NodeKind::SubscriberGroup, None)
+    );
+    assert_eq!(
+        refused(
+            &d,
+            json!({"kind": "node.create", "name": "X", "parent": "wan1", "node_kind": "group", "capacity": {"mode": "inherit"}})
+        ),
+        "a subscriber group uses automatic or fixed"
+    );
+}
+
+fn with_fallback_group() -> (RegistryDocument, String) {
+    let d = doc();
+    let a = run(
+        &d,
+        json!({"kind": "node.create", "name": "Fallback", "parent": "wan1", "node_kind": "group", "capacity": {"mode": "automatic"}}),
+    )
+    .unwrap();
+    let id = new_node(&d, &a.candidate).id.clone();
+    (a.candidate, id)
+}
+
+#[test]
+fn fallback_set_and_clear_edits() {
+    let (d, fb) = with_fallback_group();
+    let a = run(&d, json!({"kind": "fallback.set", "node_ids": [fb], "default_down_mbps": 10, "default_up_mbps": 5})).unwrap();
+    let f = a
+        .candidate
+        .catalog
+        .as_ref()
+        .unwrap()
+        .fallback
+        .clone()
+        .unwrap();
+    assert_eq!(f.node_ids, vec![fb.clone()]);
+    assert_eq!(
+        f.default_plan,
+        RateBps {
+            down: 10_000_000,
+            up: 5_000_000
+        }
+    );
+    assert_eq!(
+        refused(
+            &d,
+            json!({"kind": "fallback.set", "node_ids": ["group1"], "default_down_mbps": 10, "default_up_mbps": 5})
+        ),
+        "a fallback node must be a group without a source"
+    );
+    let c = run(&a.candidate, json!({"kind": "fallback.clear"})).unwrap();
+    assert!(c.candidate.catalog.as_ref().unwrap().fallback.is_none());
+    assert!(c.clear_fallback);
+}
+
+#[test]
+fn a_fallback_node_cannot_be_removed() {
+    let (d, fb) = with_fallback_group();
+    let d = run(&d, json!({"kind": "fallback.set", "node_ids": [fb], "default_down_mbps": 10, "default_up_mbps": 5}))
+        .unwrap()
+        .candidate;
+    assert_eq!(
+        refused(&d, json!({"kind": "node.remove", "node_id": fb})),
+        "remove it from the fallback first"
+    );
+}
+
+#[test]
+fn tree_shows_the_fallback() {
+    let (d, fb) = with_fallback_group();
+    assert_eq!(tree(&d)["fallback"], Value::Null);
+    let d = run(&d, json!({"kind": "fallback.set", "node_ids": [fb], "default_down_mbps": 10, "default_up_mbps": 5}))
+        .unwrap()
+        .candidate;
+    assert_eq!(
+        tree(&d)["fallback"],
+        json!({"node_ids": [fb], "default_mbps": [10, 5]})
+    );
+}
