@@ -74,9 +74,11 @@ impl LiveIo for NativeIo {
         written: &[(PathBuf, Vec<u8>)],
         started: u64,
     ) -> anyhow::Result<()> {
-        crate::apply_evidence::acknowledged(cfg, written, started)
-            .await
-            .map(drop)
+        use crate::apply_evidence::Proof;
+        match crate::apply_evidence::acknowledged(cfg, written, started).await? {
+            Proof::Verified(_) => Ok(()),
+            Proof::Waiting(w) => Err(anyhow::anyhow!("waiting to take effect: {w}")),
+        }
     }
 }
 

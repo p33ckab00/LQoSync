@@ -1,5 +1,8 @@
 //! Correlate current imported inputs, the producer's read-only source check, and native ACK.
-use super::{Applied, read_applied, transaction};
+use super::{
+    Applied, TakeEffect, read_applied,
+    take_effect::{Identities, compare, coverage, identities},
+};
 use crate::{
     config::{Config, RuntimeMode, Target},
     import_evidence::ExpectedImport,
@@ -49,6 +52,14 @@ impl Verified {
                     .collect::<Vec<_>>()
     }
 }
+/// The result of one verification: the world took effect, or it still waits.
+#[derive(Debug)]
+// One short-lived value per check: boxing would only add noise.
+#[allow(clippy::large_enum_variant)]
+pub enum Proof {
+    Verified(Verified),
+    Waiting(TakeEffect),
+}
 /// One normalization per pending operation; acceptance still checks fresh input hashes.
 #[derive(Clone)]
 pub struct Prepared {
@@ -56,6 +67,7 @@ pub struct Prepared {
     write_id: String,
     file_hashes: Vec<String>,
     expected: std::sync::Arc<ExpectedImport>,
+    identities: std::sync::Arc<Identities>,
 }
 impl Prepared {
     pub(crate) fn import_matches(&self, path: &Path) -> anyhow::Result<bool> {
@@ -90,6 +102,7 @@ pub fn prepare(receipt: &Receipt) -> anyhow::Result<Prepared> {
             std::str::from_utf8(&bytes[network])?,
             &rows,
         )?),
+        identities: std::sync::Arc::new(identities(std::str::from_utf8(&bytes[network])?, &rows)?),
     })
 }
 struct Artifacts {
@@ -187,7 +200,7 @@ fn validate(
     after: &Applied,
     first_path: &Path,
     last_path: &Path,
-) -> anyhow::Result<Verified> {
+) -> anyhow::Result<Proof> {
     check_compiler(receipt)?;
     ensure!(
         matches!(
@@ -236,8 +249,7 @@ fn validate(
         .as_str()
         .context("shaping generation missing")?;
     ensure!(
-        generation == before.generation
-            && artifacts.inputs["shaping_generation"] == generation
+        artifacts.inputs["shaping_generation"] == generation
             && artifacts.generated["generation"] == generation,
         "runtime/native generation mismatch"
     );
@@ -250,11 +262,12 @@ fn validate(
             && first_path == artifacts.paths[5],
         "producer validation path mismatch"
     );
-    ensure!(
-        transaction::matches(&artifacts.generated, &before.transaction),
-        "native applied world differs"
-    );
-    Ok(Verified {
+    coverage(&prepared.identities, &artifacts.generated)?;
+    let effect = compare(&artifacts.generated, &before.transaction)?;
+    if !effect.took_effect() {
+        return Ok(Proof::Waiting(effect));
+    }
+    Ok(Proof::Verified(Verified {
         topology: receipt.meta.topology.clone(),
         write_id: receipt.write_id.clone(),
         config_digest: receipt.meta.config_digest.clone(),
@@ -269,10 +282,10 @@ fn validate(
                 .and_then(|v| v.try_into().ok())
                 .context("invalid desired capacity")?,
         },
-    })
+    }))
 }
 
-pub async fn verify_receipt(cfg: &Config, receipt: &Receipt) -> anyhow::Result<Verified> {
+pub async fn verify_receipt(cfg: &Config, receipt: &Receipt) -> anyhow::Result<Proof> {
     let prepared = prepare(receipt)?;
     verify_prepared(cfg, receipt, &prepared).await
 }
@@ -283,7 +296,7 @@ pub async fn acknowledged(
     cfg: &Config,
     written: &[(PathBuf, Vec<u8>)],
     started: u64,
-) -> anyhow::Result<Verified> {
+) -> anyhow::Result<Proof> {
     let receipt = Receipt {
         version: 1,
         write_id: crate::runner::random_id(24),
@@ -315,7 +328,7 @@ pub async fn verify_prepared(
     cfg: &Config,
     receipt: &Receipt,
     prepared: &Prepared,
-) -> anyhow::Result<Verified> {
+) -> anyhow::Result<Proof> {
     ensure!(
         cfg.runtime.mode == RuntimeMode::Apply
             && crate::detect::resolve(&cfg.libreqos)?.target == Target::V3Pair,
@@ -352,10 +365,6 @@ pub async fn verify_prepared(
     let runtime: Value = serde_json::from_slice(&runtime_bytes)?;
     ensure!(runtime["ready"] == true, "runtime is not ready");
     let first = read_applied(Path::new(&cfg.libreqos.v3_analytics_socket)).await?;
-    ensure!(
-        runtime["shaping_generation"].as_str() == Some(first.generation.as_str()),
-        "native generation still pending"
-    );
     let config = cfg.clone();
     let pending = receipt.clone();
     let expected = prepared.clone();
@@ -450,6 +459,21 @@ mod tests {
             }
         });
     }
+    fn desired() -> Value {
+        let rate = json!({"ceil_kbps":20000,"commit_kbps":1000});
+        json!({"schema_version":6,"generation":"g1","apply_mode":"incremental","circuit_capacity":1000,
+            "inner_ops":[{"op":"upsert","node_id":"n-p","parent_node_id":"root","download":rate,"upload":rate}],
+            "leaf_ops":[{"op":"upsert","circuit_id":"C1","parent_node_id":"n-p","download":rate,"upload":rate}],
+            "mapping_ops":[{"op":"map","circuit_id":"C1","device_id":"D1","ip":"100.64.0.1","prefix_len":32}],
+            "lpm_delta":[],"steering_vlans":[]})
+    }
+    /// Unwrap a proof that must be verified.
+    fn verified(proof: anyhow::Result<Proof>) -> Verified {
+        match proof.unwrap() {
+            Proof::Verified(v) => v,
+            Proof::Waiting(w) => panic!("still waiting: {w}"),
+        }
+    }
     fn state(generation: &str, desired: &Value) -> Value {
         let mut native = desired.clone();
         native.as_object_mut().unwrap().remove("circuit_capacity");
@@ -471,7 +495,7 @@ mod tests {
         }
         let csv = "Circuit ID,Device ID,Circuit Name,Device Name,Parent Node,MAC,IPv4,IPv6,Download Min Mbps,Upload Min Mbps,Download Max Mbps,Upload Max Mbps\nC1,D1,Client,Device,P,,100.64.0.1,,1,1,20,10\n";
         let written = vec![
-            (lq.join("network.json"), b"{}".to_vec()),
+            (lq.join("network.json"), br#"{"P":{"id":"n-p"}}"#.to_vec()),
             (lq.join("ShapedDevices.csv"), csv.as_bytes().to_vec()),
         ];
         for (p, b) in &written {
@@ -481,7 +505,7 @@ mod tests {
         let write = |p: PathBuf, v: Value| std::fs::write(p, v.to_string()).unwrap();
         write(
             st.join("topology/topology_import.json"),
-            json!({"imported":{"compatibility_network_json":{},"shaped_devices":[{
+            json!({"imported":{"compatibility_network_json":{"P":{"id":"n-p"}},"shaped_devices":[{
             "circuit_id":"C1","device_id":"D1","circuit_name":"Client","device_name":"Device","parent_node":"P","mac":"",
             "ipv4":[["100.64.0.1",32]],"ipv6":[],"download_min_mbps":1,"upload_min_mbps":1,"download_max_mbps":20,"upload_max_mbps":10}]}}),
         );
@@ -490,8 +514,7 @@ mod tests {
             json!({"schema_version":1,"ready":true,
             "source_generation":"a".repeat(64),"shaping_generation":"g1","shaping_inputs_path":inputs}),
         );
-        let desired = json!({"schema_version":6,"generation":"g1","apply_mode":"incremental","circuit_capacity":1000,
-            "inner_ops":[],"leaf_ops":[],"mapping_ops":[],"lpm_delta":[],"steering_vlans":[]});
+        let desired = desired();
         write(
             st.join("shaping/dataplane_transaction.json"),
             desired.clone(),
@@ -522,18 +545,36 @@ mod tests {
     #[tokio::test]
     async fn an_acknowledgement_for_the_pair_passes() {
         let (_dir, cfg, written) = live(|d| state("g1", d));
-        let proof = acknowledged(&cfg, &written, 5).await.unwrap();
+        let proof = verified(acknowledged(&cfg, &written, 5).await);
         assert_eq!(proof.acceptance().desired_circuit_capacity, 1000);
     }
     #[tokio::test]
-    async fn an_acknowledgement_for_another_world_fails() {
+    async fn an_old_native_generation_with_the_current_world_is_verified() {
+        let (_dir, cfg, written) = live(|d| state("old", d));
+        let proof = verified(acknowledged(&cfg, &written, 5).await);
+        assert_eq!(proof.acceptance().shaping_generation, "g1");
+    }
+    #[tokio::test]
+    async fn a_different_native_world_is_waiting_with_its_identities() {
         let (_dir, cfg, written) = live(|d| {
             let mut other = d.clone();
-            other["leaf_ops"] = json!([{"op":"upsert","circuit_id":"X"}]);
-            state("g1", &other)
+            other["leaf_ops"][0]["download"]["ceil_kbps"] = json!(1);
+            state("old", &other)
         });
-        let error = acknowledged(&cfg, &written, 5).await.unwrap_err();
-        assert_eq!(error.to_string(), "native applied world differs");
+        let Proof::Waiting(w) = acknowledged(&cfg, &written, 5).await.unwrap() else {
+            panic!("must wait");
+        };
+        assert_eq!(w.waiting[0].identity, "C1");
+        assert_eq!(w.waiting[0].fields, ["download"]);
+    }
+    #[tokio::test]
+    async fn a_generated_world_of_another_pair_is_an_error() {
+        let (dir, cfg, written) = live(|d| state("g1", d));
+        let path = dir.path().join("state/shaping/dataplane_transaction.json");
+        let mut generated = desired();
+        generated["leaf_ops"][0]["circuit_id"] = json!("X");
+        std::fs::write(path, generated.to_string()).unwrap();
+        assert!(acknowledged(&cfg, &written, 5).await.is_err());
     }
     #[tokio::test]
     async fn an_unavailable_acknowledgement_fails() {
@@ -564,7 +605,10 @@ mod tests {
             ..Default::default()
         };
         let files = vec![
-            (dir.path().join("network.json"), "{}".into()),
+            (
+                dir.path().join("network.json"),
+                r#"{"P":{"id":"n-p"}}"#.into(),
+            ),
             (
                 dir.path().join("ShapedDevices.csv"),
                 crate::writer::pair::render_csv(&[row], Columns::V3),
@@ -592,11 +636,10 @@ mod tests {
         let receipt = tracker.current().unwrap();
         let prepared = prepare(receipt).unwrap();
         let path = dir.path().join("shaping/shaping_inputs.json");
-        let imported = json!({"imported":{"compatibility_network_json":{},"shaped_devices":[{
+        let imported = json!({"imported":{"compatibility_network_json":{"P":{"id":"n-p"}},"shaped_devices":[{
             "circuit_id":"C1","device_id":"D1","circuit_name":"Client","device_name":"Device","parent_node":"P","mac":"",
             "ipv4":[["100.64.0.1",32]],"ipv6":[],"download_min_mbps":1,"upload_min_mbps":1,"download_max_mbps":20,"upload_max_mbps":10}]}});
-        let generated = json!({"schema_version":6,"generation":"g1","apply_mode":"incremental","circuit_capacity":1000,
-            "inner_ops":[],"leaf_ops":[],"mapping_ops":[],"lpm_delta":[],"steering_vlans":[]});
+        let generated = desired();
         let mut native = generated.clone();
         native.as_object_mut().unwrap().remove("circuit_capacity");
         let applied = Applied {
@@ -627,7 +670,7 @@ mod tests {
     #[tokio::test]
     async fn only_correlated_evidence_can_accept_the_same_operation() {
         let (_dir, mut tracker, prepared, artifacts, applied, path) = fixture();
-        let proof = validate(
+        let proof = verified(validate(
             tracker.current().unwrap(),
             &prepared,
             &artifacts,
@@ -635,8 +678,7 @@ mod tests {
             &applied,
             &path,
             &path,
-        )
-        .unwrap();
+        ));
         let hub = Hub::default();
         tracker.accept(&proof, 11, &hub).unwrap();
         assert_eq!(tracker.current().unwrap().phase, Phase::Applied);
@@ -676,7 +718,7 @@ mod tests {
     fn policy_acceptance_keeps_allocation_mismatch_degraded() {
         let (_dir, mut tracker, prepared, artifacts, mut applied, path) = fixture();
         applied.applied_circuit_capacity = Some(64);
-        let proof = validate(
+        let proof = verified(validate(
             tracker.current().unwrap(),
             &prepared,
             &artifacts,
@@ -684,8 +726,7 @@ mod tests {
             &applied,
             &path,
             &path,
-        )
-        .unwrap();
+        ));
         let hub = Hub::default();
         tracker.accept(&proof, 11, &hub).unwrap();
         assert_eq!(tracker.current().unwrap().phase, Phase::Applied);
@@ -701,46 +742,17 @@ mod tests {
     }
     #[test]
     fn boot_restored_partial_world_cannot_accept_a_newer_import() {
-        let (_dir, mut tracker, prepared, mut artifacts, mut applied, path) = fixture();
-        artifacts.generated["leaf_ops"] = json!(
-            (0..28)
-                .map(|i| { json!({"op":"upsert","circuit_id":format!("fixture-{i}")}) })
-                .collect::<Vec<_>>()
-        );
-        artifacts.generated["mapping_ops"] = json!((0..28).map(|i| {
-            json!({"op":"map","circuit_id":format!("fixture-{i}"),"ip":format!("192.0.2.{}",i+1),"prefix_len":32})
-        }).collect::<Vec<_>>());
-        applied.transaction = artifacts.generated.clone();
-        applied
-            .transaction
-            .as_object_mut()
-            .unwrap()
-            .remove("circuit_capacity");
-        applied.transaction["leaf_ops"]
-            .as_array_mut()
-            .unwrap()
-            .pop();
-        applied.transaction["mapping_ops"]
-            .as_array_mut()
-            .unwrap()
-            .pop();
+        let (_dir, mut tracker, prepared, artifacts, mut applied, path) = fixture();
         applied.generation = "boot-world".into();
-        applied.transaction["generation"] = json!("boot-world");
-        applied.desired_world_content_key.clear();
+        applied.transaction["leaf_ops"] = json!([]);
         let receipt = tracker.current().unwrap();
         let check = |native: &Applied| {
             validate(receipt, &prepared, &artifacts, native, native, &path, &path)
         };
-        let Err(error) = check(&applied) else {
-            panic!("old generation must fail");
+        let Ok(Proof::Waiting(w)) = check(&applied) else {
+            panic!("partial policy must wait");
         };
-        assert_eq!(error.to_string(), "runtime/native generation mismatch");
-        applied.generation = "g1".into();
-        applied.transaction["generation"] = json!("g1");
-        let Err(error) = check(&applied) else {
-            panic!("partial policy must fail");
-        };
-        assert_eq!(error.to_string(), "native applied world differs");
+        assert_eq!(w.waiting[0].identity, "C1");
         assert_eq!(tracker.current().unwrap().phase, Phase::Pending);
         assert!(tracker.current().unwrap().acceptance.is_none());
         applied.transaction = artifacts.generated.clone();
@@ -749,7 +761,7 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .remove("circuit_capacity");
-        let proof = check(&applied).unwrap();
+        let proof = verified(check(&applied));
         tracker.accept(&proof, 11, &Hub::default()).unwrap();
         assert_eq!(tracker.current().unwrap().phase, Phase::Applied);
     }
@@ -816,10 +828,9 @@ mod tests {
             registry_digest: "b".repeat(64),
         });
         let prepared = prepare(&receipt).unwrap();
-        let proof = validate(
+        let proof = verified(validate(
             &receipt, &prepared, &artifacts, &applied, &applied, &path, &path,
-        )
-        .unwrap();
+        ));
         assert!(proof.matches(&receipt));
         for field in 0..6 {
             let mut changed = receipt.clone();
@@ -848,10 +859,9 @@ mod tests {
     fn topology_context_changes_cannot_reuse_prepared_or_verified_evidence() {
         let (_dir, tracker, prepared, artifacts, applied, path) = fixture();
         let receipt = tracker.current().unwrap();
-        let proof = validate(
+        let proof = verified(validate(
             receipt, &prepared, &artifacts, &applied, &applied, &path, &path,
-        )
-        .unwrap();
+        ));
         let mut value = serde_json::to_value(receipt).unwrap();
         value["meta"]["topology"] = serde_json::json!({"policy_revision": 7, "observation_generation": 3, "registry_digest": "a".repeat(64)});
         let changed: Receipt = serde_json::from_value(value).unwrap();
@@ -867,7 +877,7 @@ mod tests {
     #[test]
     fn superseded_operation_cannot_consume_an_older_proof() {
         let (dir, mut tracker, prepared, artifacts, applied, path) = fixture();
-        let proof = validate(
+        let proof = verified(validate(
             tracker.current().unwrap(),
             &prepared,
             &artifacts,
@@ -875,8 +885,7 @@ mod tests {
             &applied,
             &path,
             &path,
-        )
-        .unwrap();
+        ));
         let outputs = vec![
             (dir.path().join("network.json"), "{\"new\":true}".into()),
             (
@@ -910,10 +919,9 @@ mod tests {
             compiler: Some(crate::topology_manager::compiler::tests::binding(&compiler)),
         });
         let prepared = prepare(&receipt).unwrap();
-        let proof = validate(
+        let proof = verified(validate(
             &receipt, &prepared, &artifacts, &applied, &applied, &path, &path,
-        )
-        .unwrap();
+        ));
         assert!(proof.matches(&receipt));
         std::fs::write(cfg.v3_config, b"changed native configuration").unwrap();
         assert!(prepare(&receipt).is_err());

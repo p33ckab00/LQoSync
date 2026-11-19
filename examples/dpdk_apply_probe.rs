@@ -149,6 +149,9 @@ async fn main() -> anyhow::Result<()> {
                 return Err(error);
             }
         };
+        let lqosync3::apply_evidence::Proof::Verified(proof) = proof else {
+            anyhow::bail!("the native world is still waiting to take effect");
+        };
         println!(
             "{}",
             json!({"read_only_acceptance_verified":true,"evidence":proof.acceptance(),"managed_files_written":false})

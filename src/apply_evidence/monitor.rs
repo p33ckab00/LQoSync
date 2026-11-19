@@ -1,5 +1,5 @@
 //! One background checker. No RouterOS collection; file parsing runs outside the async executor.
-use super::{Prepared, prepare, verify_prepared};
+use super::{Prepared, Proof, prepare, verify_prepared};
 use crate::{
     config::Config,
     system_health::{Hub, Phase},
@@ -106,12 +106,12 @@ impl Monitor {
                         let proof=verify_prepared(&current.cfg,&receipt,&cached.as_ref().expect("prepared write").1).await;
                         if changes.borrow().digest!=current.digest {continue}
                         match proof {
-                            Ok(proof)=>{
+                            Ok(Proof::Verified(proof))=>{
                                 if let Ok(mut t)=tracker.try_lock()
                                     && t.current().is_some_and(|r|r.write_id==receipt.write_id && r.phase.pending())
                                         && let Err(error)=t.accept(&proof,now(),&hub) {eprintln!("apply verification receipt: {error}");}
                             }
-                            Err(_)=>timeout(&tracker,&receipt,&hub),
+                            Ok(Proof::Waiting(_))|Err(_)=>timeout(&tracker,&receipt,&hub),
                         }
                     }
                 }
