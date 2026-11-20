@@ -86,8 +86,34 @@ fn Chart(points: Vec<web_contract::Point>, stale: bool) -> impl IntoView {
     };
     let down = line(true);
     let up = line(false);
+    let down_area = format!("{down} L900,230 L0,230 Z");
+    let up_area = format!("{up} L900,230 L0,230 Z");
+    // Keep paint-server IDs unique when the chart refreshes or another chart mounts.
+    static NEXT_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let down_gradient = format!("traffic-download-{id}");
+    let up_gradient = format!("traffic-upload-{id}");
+    let down_fill = format!("url(#{down_gradient})");
+    let up_fill = format!("url(#{up_gradient})");
+    // A value binding keeps stops as direct children; static SVG fragments add a group.
+    let stop_color = "currentColor";
     let last = points.last().unwrap();
-    view!{<div class="traffic-values"><span class="down">"Download "<b>{format!("{:.1} Mbps",last.down_mbps)}</b></span><span class="up">"Upload "<b>{format!("{:.1} Mbps",last.up_mbps)}</b></span><span class="sample-note">{if stale{"Last known samples"}else{"Recent samples"}}</span></div><div class="plot"><span class="axis-label">{format!("{max:.0} Mbps")}</span><svg viewBox="0 0 900 250" role="img" aria-label="Recent download and upload traffic"><g class="grid"><path d="M0 20H900M0 90H900M0 160H900M0 230H900"/></g><path class="download-line" d=down/><path class="upload-line" d=up/></svg><div class="plot-caption"><span>"Earlier"</span><span>"Latest published sample"</span></div></div>}.into_any()
+    view!{<div class="traffic-values"><span class="down">"Download "<b>{format!("{:.1} Mbps",last.down_mbps)}</b></span><span class="up">"Upload "<b>{format!("{:.1} Mbps",last.up_mbps)}</b></span><span class="sample-note">{if stale{"Last known samples"}else{"Recent samples"}}</span></div><div class="plot"><span class="axis-label">{format!("{max:.0} Mbps")}</span><svg viewBox="0 0 900 250" role="img" aria-label="Recent download and upload traffic"><defs>
+      <linearGradient id=down_gradient class="traffic-gradient download-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color=stop_color stop-opacity="0.52"/>
+        <stop offset="60%" stop-color=stop_color stop-opacity="0.16"/>
+        <stop offset="100%" stop-color=stop_color stop-opacity="0.01"/>
+      </linearGradient>
+      <linearGradient id=up_gradient class="traffic-gradient upload-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color=stop_color stop-opacity="0.52"/>
+        <stop offset="60%" stop-color=stop_color stop-opacity="0.16"/>
+        <stop offset="100%" stop-color=stop_color stop-opacity="0.01"/>
+      </linearGradient>
+    </defs>
+    <path class="traffic-area" d=down_area fill=down_fill aria-hidden="true"/>
+    <path class="traffic-area" d=up_area fill=up_fill aria-hidden="true"/>
+    <g class="grid"><path d="M0 20H900M0 90H900M0 160H900M0 230H900"/></g>
+    <path class="download-line" d=down/><path class="upload-line" d=up/></svg><div class="plot-caption"><span>"Earlier"</span><span>"Latest published sample"</span></div></div>}.into_any()
 }
 #[component]
 fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {

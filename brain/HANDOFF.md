@@ -8,6 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T19:23:23+08:00 (Asia/Shanghai) — Traffic chart gradient
+
+- Owner requested gradient areas that match the Dashboard mockup, with Vercel and Google frontend guidance.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `0b4abff`.
+- Changed: `crates/web-ui/src/app.rs`, `crates/web-ui/style.css`, frontend index, and `docs/frontend/evidence/traffic-gradient`.
+- Added blue and green fades with unique SVG gradient IDs. Keep line geometry, counts, polling, and stale states.
+- Leptos static SVG fragments wrap stops in groups. A bound stop color keeps six direct stops and fixes rendering.
+- Checks: release Wasm build, Rust 1.89 check, formatting, browser smoke, Light/Dark screenshots, 320px layout, refresh references, and high-contrast mode passed.
+- Runtime update: the operator installed the first slice. Both web units are active. The local Traefik hostname route returns HTTP 200 after the indentation correction.
+- Unfinished: install the rebuilt gradient assets with `sudo tools/frontend/install.sh`. This session has not changed installed assets. Public HTTPS was not checked.
+- Next: operator installs the prepared update, then checks the live Dashboard. Keep unrelated untracked notes outside the commit.
+
 ## 2026-11-20T19:00:50+08:00 (Asia/Shanghai) — Web sign-in and Dashboard
 
 - Goal: deliver the first Rust web slice on port `9581` for `lqosync.fsehub.qzz.io`.

@@ -1,7 +1,7 @@
 # LQoSync3 Rust web frontend
 
 Status: sign-in and Dashboard implementation. Live deployment is pending.
-See [first slice](FIRST_SLICE.md) and [deployment](DEPLOYMENT.md).
+See [first slice](FIRST_SLICE.md), [traffic gradient update](evidence/traffic-gradient/README.md), and [deployment](DEPLOYMENT.md).
 Date: 2026-11-20 (Asia/Shanghai). Backend baseline: `9a465e7`, branch `lqosync3`.
 
 The web frontend will use the existing LQoSync3 service.
