@@ -46,7 +46,7 @@ Full static diagnostics remain available under View diagnostics below the main p
 
 4. Add a bounded activity buffer with duplicate suppression and timed expiry.
 
-5. Keep the animation track stable. Hide the duplicate group from assistive technology.
+5. Move one measured item at a time. Append activity at the tail. Hide the moving copy from assistive technology.
 
 6. Test baseline behavior, state changes, repeated snapshots, expiry, and the eight-entry bound.
 
@@ -55,9 +55,33 @@ Full static diagnostics remain available under View diagnostics below the main p
 8. Build, save evidence, document, commit, and push.
 
 A small local timer expires old entries. The Dashboard disposes the timer on exit.
-The change adds no network request, backend operation, or JavaScript animation loop.
+The change adds no network request or backend operation.
+CSS moves each item at 32 pixels per second.
+Rust measures the next item once at each handoff with one animation-frame callback.
+There is no per-frame application loop.
 Only `prefers-reduced-motion: no-preference` enables movement.
-The static view wraps all current entries and hides the duplicate group.
+The static view wraps all current entries and hides the moving copy.
+
+## Continuous movement
+
+The previous track used a percentage of its total width.
+Activity changed both that width and the animation duration.
+A browser regression test measured an 83-pixel jump during insertion.
+
+The new track uses a fixed pixel distance for the current item.
+New activity goes to the tail. It does not change the active distance or duration.
+Two sets of permanent fields keep the viewport covered.
+The moving queue holds at most 18 items: ten status items and eight activity items.
+
+After an item leaves the left edge, the track moves it to the tail.
+A status item receives the latest source value at this point.
+Visible text keeps its width until it leaves the viewport.
+The accessible status list and static diagnostics receive source changes immediately.
+
+The activity feed still expires entries after 120 seconds.
+Expired waiting entries leave the queue beyond the right edge.
+An expired visible entry finishes its pass before removal.
+The strip does not remove text in the middle of a pass.
 
 ## Backend scope and gap
 
@@ -73,7 +97,7 @@ Five native chart/activity tests, Wasm release build, Clippy, and Rust 1.89 chec
 Browser checks cover top placement, five permanent fields, conditional activity, duplicates, expiry, continuous motion, absent controls, and stale evidence.
 They also cover Light/Dark themes, reduced motion, and 768/320px widths.
 The existing sign-in and Dashboard smoke check passed.
-See [current browser evidence](evidence/diagnostics-strip/README.md).
+See [current browser evidence](evidence/diagnostics-continuous/README.md).
 
 Install the prepared web build:
 

@@ -133,7 +133,7 @@
 :root[data-theme=dark] .app-shell{--traffic-red:#ef4444;--traffic-orange:#f97316;--traffic-yellow:#eab308;--traffic-green:#22c55e;--traffic-cyan:#06b6d4;--traffic-blue:#3b82f6;--traffic-violet:#8b5cf6}
 @media(prefers-color-scheme:dark){:root[data-theme=system] .app-shell{--traffic-red:#ef4444;--traffic-orange:#f97316;--traffic-yellow:#eab308;--traffic-green:#22c55e;--traffic-cyan:#06b6d4;--traffic-blue:#3b82f6;--traffic-violet:#8b5cf6}}
 
-/* Stock-ticker motion uses one stable transform track, independent of source refresh. */
+/* Move one measured item at a time. Tail changes never alter the active distance. */
 .diagnostics-ticker{overflow:hidden;border-block:1px solid var(--border);background:transparent}
 .ticker-track{display:flex;inline-size:auto}
 .ticker-group{display:flex;flex-wrap:wrap;gap:12px 0;padding:14px 0;min-inline-size:0;align-items:center}
@@ -141,12 +141,16 @@
 .ticker-item{display:inline-flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-inline-size:0;max-inline-size:100%;overflow-wrap:anywhere;padding-inline:18px;border-inline-end:1px solid var(--border);font-size:14px;white-space:normal}
 .ticker-item>span{color:var(--muted)}
 .ticker-item strong{font-weight:600;font-variant-numeric:tabular-nums}
-@keyframes diagnostics-scroll{to{transform:translateX(-50%)}}
+@keyframes diagnostics-scroll{to{transform:translateX(calc(-1 * var(--ticker-step)))}}
+@keyframes diagnostics-scroll-next{to{transform:translateX(calc(-1 * var(--ticker-step)))}}
 @media(prefers-reduced-motion:no-preference){
-  .ticker-track{inline-size:max-content;animation:diagnostics-scroll var(--ticker-duration,55s) linear infinite}
-  .ticker-group{flex-wrap:nowrap;flex-shrink:0;padding-block:12px}
+  .ticker-track{inline-size:max-content;transform:translateX(0)}
+  .ticker-track.moving{animation:diagnostics-scroll var(--ticker-duration) linear forwards}
+  .ticker-track.moving.alternate{animation-name:diagnostics-scroll-next}
+  .ticker-static{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);padding:0}
+  .ticker-track{padding-block:12px}
   .ticker-clone{display:flex}
-  .ticker-item{flex-wrap:nowrap;max-inline-size:none;white-space:nowrap}
+  .ticker-track .ticker-item{flex-wrap:nowrap;flex-shrink:0;min-inline-size:max(180px,20vw);max-inline-size:none;white-space:nowrap}
 }
 .status-banner{margin-block-end:22px}
 .ticker-activity{border-inline-start:2px solid var(--accent)}

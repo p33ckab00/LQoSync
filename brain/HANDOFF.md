@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T21:36:04+08:00 (Asia/Shanghai) — Continuous ticker updates
+
+- Goal: keep the ticker moving without a reset when activity arrives.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `02eaebb`.
+- Cause: total width and duration changed during a lap. A browser test reproduced an 83-pixel jump.
+- Changed: Rust moving queue, CSS pixel distance, browser continuity checks, frontend documentation/evidence, and brain notes.
+- Behavior: append activity at the tail; refresh status text after it exits; remove expired waiting entries offscreen; keep visible text through its pass.
+- Bound: ten status items and at most eight activity items. CSS motion uses one Rust measurement per handoff.
+- Checks: insertion regression, repeated handoffs/coverage, existing ticker checks and smoke, Wasm release, Clippy, Rust 1.89, formatting, and whitespace passed.
+- Evidence: `docs/frontend/evidence/diagnostics-continuous`. Design: `docs/frontend/DIAGNOSTICS_TICKER.md`.
+- Next runtime step: operator runs `sudo tools/frontend/install.sh`. Production assets and services were not changed.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T21:26:16+08:00 (Asia/Shanghai) — Rolling diagnostics strip
 
 - Goal: show only a rolling banner. Remove the card, heading, subtitle, and pause control.

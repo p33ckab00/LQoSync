@@ -1,5 +1,7 @@
 # Rolling diagnostics strip
 
+Historical checkpoint. See the [continuous ticker](../diagnostics-continuous/README.md).
+
 Date: 2026-11-20 (Asia/Shanghai). Branch: `lqosync3`. Previous commit: `8bfdd26`.
 See [design and scope](../../DIAGNOSTICS_TICKER.md).
 

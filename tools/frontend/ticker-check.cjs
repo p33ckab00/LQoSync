@@ -38,6 +38,55 @@ const fs=require('node:fs');
   await section.hover();
   assert.equal(await track.evaluate(n=>getComputedStyle(n).animationPlayState),'running');
   await page.mouse.move(0,0);
+  // A new activity entry must not rebase the position of the visible track.
+  await page.evaluate(()=>{
+    const source=window.testStreams.at(-1);source.close();
+    const track=document.querySelector('.ticker-track');
+    const animation=track.getAnimations()[0];
+    animation.currentTime=Number(animation.effect.getTiming().duration)*0.4;
+  });
+  const jump=await page.evaluate(async()=>{
+    const track=document.querySelector('.ticker-track');
+    const before=track.getBoundingClientRect().x;
+    const view=await(await fetch('/api/v1/overview')).json();
+    view.components.push({name:'continuity_probe',state:'HEALTHY',observed_at:1});
+    window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    return Math.abs(track.getBoundingClientRect().x-before);
+  });
+  assert.ok(jump<12,`activity insertion moved the track by ${jump}px`);
+  assert.equal(await track.locator('.ticker-activity').count(),1,'new activity enters the moving queue once');
+  assert.match(await track.locator('.ticker-item').last().innerText(),/continuity probe: HEALTHY/);
+
+  const seam=await page.evaluate(async()=>{
+    const track=document.querySelector('.ticker-track');
+    const animation=track.getAnimations()[0];
+    animation.currentTime=Number(animation.effect.getTiming().duration)-20;
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    const anchor=track.children[1];
+    const before=anchor.getBoundingClientRect().x;
+    await new Promise(resolve=>setTimeout(resolve,160));
+    return {shift:Math.abs(anchor.getBoundingClientRect().x-before),same:anchor===track.firstElementChild};
+  });
+  assert.ok(seam.same,'only the outgoing item moves to the tail');
+  assert.ok(seam.shift<12,`item handoff jumped by ${seam.shift}px`);
+  for(let cycle=0;cycle<14;cycle++){
+    const coverage=await page.evaluate(async()=>{
+      const track=document.querySelector('.ticker-track');
+      const animation=track.getAnimations()[0];
+      animation.currentTime=Number(animation.effect.getTiming().duration)-10;
+      await new Promise(resolve=>setTimeout(resolve,70));
+      const viewport=track.parentElement.getBoundingClientRect();
+      const first=track.firstElementChild.getBoundingClientRect();
+      const last=track.lastElementChild.getBoundingClientRect();
+      return first.left<=viewport.left+2 && last.right>=viewport.right-2;
+    });
+    assert.ok(coverage,'the handoff must leave no blank tail');
+  }
+  // Expire the probe so later activity assertions start with an empty feed.
+  await page.evaluate(()=>{window.testOriginalNow=Date.now;Date.now=()=>window.testOriginalNow()+121000;});
+  await page.waitForFunction(()=>document.querySelectorAll('.ticker-static .ticker-activity').length===0,{},{timeout:3000});
+  await page.evaluate(()=>{Date.now=window.testOriginalNow;});
   const out=process.env.TICKER_EVIDENCE_DIR || '/tmp/lqosync-ticker-evidence';fs.mkdirSync(out,{recursive:true});
   await page.getByLabel('Color theme').selectOption('dark');
   await page.evaluate(()=>{document.activeElement.blur();window.scrollTo(0,0);});
@@ -82,5 +131,5 @@ const fs=require('node:fs');
   await list.getByText('UNKNOWN',{exact:true}).first().waitFor();
   assert.deepEqual(errors,[]);
   await browser.close();
-  console.log('PASS: top placement, five permanent statuses, activity-only component changes, deduplication, expiry, ticker motion, stable nodes during live refresh, compact strip without card/title/buttons, continuous rolling, hidden clone, reduced motion, static details, stale status, Light/Dark, 768/320px.');
+  console.log('PASS: top placement, five permanent statuses, activity-only component changes, deduplication, expiry, ticker motion, stable nodes during live refresh, insertion continuity, repeated handoffs without blank tails, compact strip without card/title/buttons, continuous rolling, hidden clone, reduced motion, static details, stale status, Light/Dark, 768/320px.');
 })().catch(e=>{console.error(e);process.exit(1);});
