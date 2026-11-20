@@ -263,7 +263,7 @@
 @media(forced-colors:active){.nic-bezel,.nic-socket{fill:Canvas;stroke:CanvasText}.nic-contacts{stroke:CanvasText}.nic-link-led{fill:CanvasText}.nic-activity-led{border:1px solid CanvasText}.nic-activity-led.pulsing,.nic-activity-led[data-active=true]{background:Highlight}}
 
 /* NIC identity belongs with the service summaries, before traffic and diagnostics. */
-.nic-summary{padding:20px;min-inline-size:0}
+.nic-summary{padding:16px 18px;min-inline-size:0}
 .nic-summary h2{font-size:14px;margin:0}
 @media(max-width:1599px){.app-shell .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1200px){.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.nic-summary{grid-column:1/-1}}
@@ -298,11 +298,10 @@
 
 /* Dataplane group: LibreQoS publication, physical NIC ports, and the worker ring share one row. */
 .app-shell .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
-.dataplane-group{grid-column:1/-1;display:grid;grid-template-columns:minmax(250px,1fr) minmax(320px,1.7fr);grid-template-rows:auto 1fr;gap:16px;min-inline-size:0}
-.dataplane-group>.worker-ring-card{grid-column:2;grid-row:1/span 2}
+.dataplane-group{grid-column:1/-1;display:grid;grid-template-columns:minmax(150px,.5fr) minmax(250px,.85fr) minmax(0,2.3fr);align-items:start;gap:16px;min-inline-size:0}
 .dataplane-group>.nic-summary{grid-column:auto}
-@media(max-width:1200px){.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:960px){.dataplane-group{grid-template-columns:1fr;grid-template-rows:none;gap:12px}.dataplane-group>.metric,.dataplane-group>.worker-ring-card{grid-column:auto;grid-row:auto}}
+@media(max-width:1200px){.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dataplane-group{grid-template-columns:minmax(0,.6fr) minmax(0,1fr)}.dataplane-group>.worker-ring-card{grid-column:1/-1}}
+@media(max-width:760px){.dataplane-group{grid-template-columns:1fr;gap:12px}.dataplane-group>.metric,.dataplane-group>.worker-ring-card{grid-column:auto}}
 .dpdk-grid{grid-template-columns:1fr}
 
 /* The link count stands beside the last port (LAN), level with its label. */
@@ -315,7 +314,7 @@
 .worker-picker{display:flex;flex-wrap:wrap;gap:6px}
 .worker-picker button{font:inherit;font-size:13px;color:var(--text);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 9px;min-block-size:28px;cursor:pointer}
 .worker-picker button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.worker-ring{display:block;inline-size:100%;block-size:auto;max-block-size:330px;overflow:visible;touch-action:manipulation}
+.worker-ring{display:block;inline-size:100%;block-size:auto;max-block-size:340px;overflow:visible;touch-action:manipulation}
 .worker-ring-guide{fill:none;stroke:var(--border);stroke-width:1;stroke-dasharray:3 8}
 .worker-ring-sectors{transform-origin:260px 196px;transition:transform .32s ease}
 .worker-ring.active .worker-ring-sectors{transform:scale(1.025)}
@@ -324,25 +323,62 @@
 .worker-sector.dimmed{opacity:.55}
 .worker-ring.stale .worker-sector{opacity:.45}
 .phase-0{--phase:#1ba8f2}.phase-1{--phase:#18c7c3}.phase-2{--phase:#a17bff}.phase-3{--phase:#f5b844}.phase-4{--phase:#34d49a}.phase-5{--phase:#72baff}.phase-6{--phase:#fb7584}.phase-7{--phase:#8e9cb5}.phase-8{--phase:#c08afa}
-.worker-chip-well{fill:var(--surface);stroke:var(--border);stroke-width:2}
-.worker-chip-die{fill:var(--bg);stroke:var(--accent);stroke-width:2}
-.worker-chip-core{fill:var(--surface);stroke:var(--border);stroke-width:1}
-.worker-chip text{text-anchor:middle;fill:var(--text)}
-.worker-chip-id{font-size:22px;font-weight:800}
-.worker-chip-busy{font-size:24px;font-weight:800;fill:var(--accent)!important}
-.worker-chip-phase{font-size:14px;font-weight:700}
-.worker-chip-cycles{font-size:21px;font-weight:800;fill:var(--accent)!important}
-.worker-chip-note{font-size:10px;letter-spacing:.08em;fill:var(--muted)!important}
+.worker-chip-well{fill:#081625;stroke:#3b5d78;stroke-width:2}
+.worker-busy-track{fill:none;stroke:#34485a;stroke-width:5}
+.worker-busy-arc{fill:none;stroke:#29c2f8;stroke-width:5;stroke-linecap:round}
+.worker-chip-pin{fill:#8aacc4;stroke:#c7e6f6;stroke-width:.6}
+.worker-chip-package{stroke:#7dd6ff;stroke-width:2.5;filter:drop-shadow(0 0 4px #7dd6ff80)}
+.worker-chip-core{fill:#0b1c2e;stroke:#507d9b;stroke-width:1.5}
+.worker-chip-dot{fill:#90b5cd}
+.worker-chip-traces{fill:none;stroke:#2b85b4;stroke-width:1;opacity:.8}
+.worker-chip-die{fill:#0c283f;stroke:#278fc4;stroke-width:1}
+.worker-chip text{text-anchor:middle;fill:#e9f3ff}
+.worker-chip-id{font-size:20px;font-weight:800}
+.worker-chip-busy{font-size:22px;font-weight:800;fill:#3bcafa!important}
+.worker-chip-phase{font-size:12px;font-weight:700}
+.worker-chip-cycles{font-size:20px;font-weight:800;fill:#3bcafa!important}
+.worker-chip-note{font-size:10px;letter-spacing:.08em;fill:#91a8bd!important}
 .worker-callouts{opacity:0;transition:opacity .22s ease;pointer-events:none}
 .worker-ring.active .worker-callouts{opacity:1}
 .worker-callout polyline{fill:none;stroke:var(--phase);stroke-width:1.4}
 .worker-callout circle{fill:var(--phase)}
 .worker-callout.dimmed{opacity:.35}
-.worker-callout-name{font-size:13px;font-weight:700;fill:var(--text)}
-.worker-callout-num{font-size:11px;fill:var(--muted)}
+.worker-callout-name{font-size:16px;font-weight:700;fill:var(--text)}
+.worker-callout-num{font-size:14px;fill:var(--muted)}
 .worker-focus{font-size:13px;color:var(--muted);min-block-size:3em;margin:0;overflow-wrap:anywhere}
-.worker-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px 14px;margin:0;border-block-start:1px solid var(--border);padding-block-start:10px}
-.worker-stats dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.worker-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin:0}
+.worker-stats dt{font-size:13px;color:var(--muted)}
 .worker-stats dd{margin:0;font-size:15px;font-weight:600;overflow-wrap:anywhere}
 @media(max-width:760px){.worker-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.worker-ring-card{padding:16px}}
 @media(forced-colors:active){.worker-sector{stroke:CanvasText}.worker-sector.selected,.worker-sector:focus-visible{stroke:Highlight;filter:none}.worker-callout polyline{stroke:CanvasText}.worker-callout circle{fill:CanvasText}}
+
+.worker-ring-body{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(180px,1fr);gap:18px;align-items:center}
+.worker-ring-side{display:flex;flex-direction:column;gap:12px;min-inline-size:0}
+@media(max-width:760px){.worker-ring-body{grid-template-columns:1fr}}
+
+/* Traffic card: one legend strip with values, and a sample popover on the chart. */
+.traffic-source-controls{display:flex;flex-wrap:wrap;gap:6px 8px;margin-block:10px}
+.traffic-source-controls button{flex-direction:row;flex-wrap:nowrap;align-items:center;gap:8px;min-block-size:36px;padding:6px 10px;white-space:nowrap}
+.traffic-source-controls .legend-rate{color:var(--text);font-variant-numeric:tabular-nums}
+.traffic-source-controls small{flex-basis:auto}
+.chart-data{position:relative}
+.traffic-inspector{position:absolute;inset-block-start:8px;z-index:5;min-inline-size:230px;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);box-shadow:0 12px 32px #0005;transform:translateX(14px);opacity:0;pointer-events:none;transition:opacity .15s ease-out}
+.traffic-inspector.open{opacity:1}
+.traffic-inspector.flip{transform:translateX(calc(-100% - 14px))}
+.traffic-inspector th,.traffic-inspector td,.traffic-inspector .table-scroll th,.traffic-inspector .table-scroll td{padding:4px 6px;font-size:13px}
+.traffic-inspector .table-scroll{overflow:visible}
+.traffic-panel .capacity-note{font-size:13px;color:var(--muted);margin:0}
+.traffic-panel .sample-table summary{font-size:13px;color:var(--muted);cursor:pointer}
+@media(forced-colors:active){.traffic-inspector{border-color:CanvasText}}
+.nic-faceplate{flex-wrap:nowrap}
+.traffic-inspector td{white-space:nowrap}
+.traffic-inspector th small{font-size:13px}
+.traffic-inspector{inline-size:max-content}
+.traffic-source-controls{gap:4px 14px}
+.traffic-source-controls button{border-color:transparent;background:none;padding:4px 6px;min-block-size:40px;gap:7px}
+.traffic-source-controls button:hover{border-color:var(--border)}
+.traffic-source-controls button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.traffic-inspector .table-scroll{container-type:normal;max-inline-size:none;max-block-size:none}
+/* A closed popover takes no space, so it cannot widen the page. */
+.traffic-inspector:not(.open){display:none}
+@media(max-width:480px){.traffic-source-controls button{white-space:normal;flex-wrap:wrap}.nic-faceplate{flex-wrap:wrap}.traffic-inspector{max-inline-size:calc(100vw - 48px)}}

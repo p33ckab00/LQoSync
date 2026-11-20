@@ -40,6 +40,8 @@ const fs=require('node:fs');
   assert.equal(await card.locator('.mapped.download-line').getAttribute('d'),'');
   await mapped.click();
   const chart=card.locator('svg');
+  // The dataplane group sits above this card, so bring the chart into view first.
+  await chart.scrollIntoViewIfNeeded();
   const bounds=await chart.boundingBox();
   await page.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/4);
   await page.waitForFunction(()=>document.querySelector('.traffic-inspector>p')?.textContent.startsWith('Inspect'));
@@ -96,14 +98,15 @@ const fs=require('node:fs');
   });
   await page.waitForFunction(()=>Number(document.querySelector('.chart-frame linearGradient')?.getAttribute('y1'))>0);
   assert.match(await card.locator('.capacity-note').innerText(),/110.0%/);
-  await unmapped.getByText('Stale / gap',{exact:true}).waitFor();
+  // A source state that is not normal shows in the legend strip.
+  await card.getByRole('button',{name:/^Unmapped/}).getByText('Stale / gap',{exact:true}).waitFor();
   await page.evaluate(()=>{
     const view=window.aggregateView;view.wan_capacity=null;view.classification=null;
     window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
   });
-  await card.getByText('WAN capacity unavailable.',{exact:false}).waitFor();
+  await card.getByText('WAN capacity unavailable',{exact:false}).waitFor();
   assert.equal(await card.locator('.chart-frame.rainbow').count(),0);
-  await unmapped.getByText('Unavailable',{exact:true}).waitFor();
+  await card.getByRole('button',{name:/^Unmapped/}).getByText('Unavailable',{exact:true}).waitFor();
   await page.emulateMedia({forcedColors:'active'});
   assert.equal(await card.locator('.traffic-area').first().evaluate(n=>getComputedStyle(n).display),'none');
   await page.emulateMedia({forcedColors:'none',reducedMotion:'reduce'});

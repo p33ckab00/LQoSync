@@ -39,7 +39,17 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
                 .unwrap_or_default()
         })
     });
-    let toggle = move |i: usize| pinned.update(|p| *p = if *p == Some(i) { None } else { Some(i) });
+    // A second click on the pinned phase resets the view. Hover stays muted on it until the pointer leaves.
+    let muted = RwSignal::new(None::<usize>);
+    let toggle = move |i: usize| {
+        if pinned.get_untracked() == Some(i) {
+            pinned.set(None);
+            hovered.set(None);
+            muted.set(Some(i));
+        } else {
+            pinned.set(Some(i));
+        }
+    };
     let name = move || {
         worker.with(|w| {
             w.as_ref()
@@ -61,6 +71,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
             }).collect_view()}
           </div>
         </Show>
+        <div class="worker-ring-body">
         <svg class="worker-ring" class:active=move||over.get()||focus.with(Option::is_some) class:stale=move||!live.get()
           viewBox="0 0 520 392" role="group" aria-label=move||format!("Worker {} execution phases",name())
           on:pointerenter=move|_|over.set(true) on:pointerleave=move|_|{over.set(false);hovered.set(None);}
@@ -80,15 +91,25 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
                 class:selected=move||focus.get()==Some(i) class:dimmed=move||focus.get().is_some_and(|f|f!=i)
                 tabindex="0" role="button" aria-pressed=move||(pinned.get()==Some(i)).to_string()
                 aria-label=move||ring.with(|r|format!("{}: {} cycles. {}",r[i].label,value(r[i].cycles),r[i].description))
-                on:pointerenter=move|_|hovered.set(Some(i)) on:pointerleave=move|_|hovered.set(None)
-                on:focus=move|_|hovered.set(Some(i)) on:click=move|_|toggle(i)
+                on:pointerenter=move|_|{if muted.get_untracked()!=Some(i){hovered.set(Some(i));}}
+                on:pointerleave=move|_|{hovered.set(None);muted.set(None);}
+                on:focus=move|_|{if muted.get_untracked()!=Some(i){hovered.set(Some(i));}} on:click=move|_|toggle(i)
                 on:keydown=move|ev|{if ev.key()=="Enter"||ev.key()==" "{ev.prevent_default();toggle(i);}}/>}
             }/>
           </g>
           <g class="worker-chip" aria-hidden="true">
+            <defs><linearGradient id="worker-chip-metal" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#466d8b"/><stop offset=".48" stop-color="#162b40"/><stop offset="1" stop-color="#071523"/></linearGradient></defs>
             <circle cx=CX cy=CY r=RADIUS-24.0 class="worker-chip-well"/>
-            <rect x=CX-56.0 y=CY-56.0 width="112" height="112" rx="10" class="worker-chip-die"/>
-            <rect x=CX-46.0 y=CY-46.0 width="92" height="92" rx="6" class="worker-chip-core"/>
+            <circle cx=CX cy=CY r=RADIUS-31.0 class="worker-busy-track"/>
+            <circle cx=CX cy=CY r=RADIUS-31.0 class="worker-busy-arc" transform=format!("rotate(-90 {CX} {CY})")
+              stroke-dasharray=move||worker.with(|w|{let c=2.0*std::f64::consts::PI*(RADIUS-31.0);let f=w.as_ref().map(|w|w.busy_ppm.min(1_000_000) as f64/1_000_000.0).unwrap_or(0.0);format!("{:.1} {:.1}",c*f,c)})/>
+            {(0..6).flat_map(|k|{let c=-42.5+17.0*k as f64;[(CX+c-4.0,CY-72.0,8.0,16.0),(CX+c-4.0,CY+56.0,8.0,16.0),(CX-72.0,CY+c-4.0,16.0,8.0),(CX+56.0,CY+c-4.0,16.0,8.0)]})
+              .map(|(x,y,w,h)|view!{<rect class="worker-chip-pin" x=x y=y width=w height=h rx="2"/>}).collect_view()}
+            <rect x=CX-58.0 y=CY-58.0 width="116" height="116" rx="10" class="worker-chip-package" fill="url(#worker-chip-metal)"/>
+            <rect x=CX-50.0 y=CY-50.0 width="100" height="100" rx="5" class="worker-chip-core"/>
+            {[(-44.0,-44.0),(44.0,-44.0),(-44.0,44.0),(44.0,44.0)].into_iter().map(|(dx,dy)|view!{<circle class="worker-chip-dot" cx=CX+dx cy=CY+dy r="2.2"/>}).collect_view()}
+            <path class="worker-chip-traces" d=format!("M{a} {t}h10m56 0h10M{a} {u}h10m56 0h10M{a} {v}h10m56 0h10M{a} {w}h10m56 0h10",a=CX-43.0,t=CY-36.0,u=CY-28.0,v=CY+28.0,w=CY+36.0)/>
+            <rect x=CX-33.0 y=CY-38.0 width="66" height="78" rx="5" class="worker-chip-die"/>
             {move||match focus.get() {
               None=>view!{
                 <text x=CX y=CY-12.0 class="worker-chip-id">{name()}</text>
@@ -116,6 +137,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
             }/>
           </g>
         </svg>
+        <div class="worker-ring-side">
         <p class="worker-focus" aria-live="polite">{move||match focus.get() {
           Some(i)=>ring.with(|r|format!("{} · {} cumulative cycles · {}",r[i].label,value(r[i].cycles),r[i].description)),
           None=>"Hover or focus a phase · click to pin · Esc to clear".into(),
@@ -127,6 +149,8 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
           <div><dt>"Mean backlog"</dt><dd>{move||worker.with(|w|w.as_ref().and_then(|w|w.backlog_mean).map(|v|format!("{} pkts",grouped(v))).unwrap_or("—".into()))}</dd></div>
         </dl>
         <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
+        </div>
+        </div>
       </article>
     }
 }
