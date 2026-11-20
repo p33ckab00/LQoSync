@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
             }).collect::<Vec<_>>()});
             let mut workers = workers;
             workers["workers"] = serde_json::json!([
-                {"queue_id":0,"busy_ppm":250000,"idle_ppm":750000,"backlog_mean":0,"laps_per_s":12000,"busy_laps":3000,"cycles_per_busy_lap":42,"phase_cycles":[1,2,3,4,5,6,7,8,9,10]},
+                {"queue_id":0,"busy_ppm":250000,"idle_ppm":750000,"backlog_mean":0,"laps_per_s":12000,"busy_laps":3000,"cycles_per_busy_lap":2841956,"phase_cycles":[1512653783663u64,534643071037u64,580037740886u64,0,568981494214u64,123589123462u64,2127463624023u64,10857240998207u64,0,4200000000000u64]},
                 {"queue_id":1,"busy_ppm":750000,"idle_ppm":250000,"backlog_mean":3,"laps_per_s":16000}
             ]);
             workers["pressure"] = serde_json::json!({"diagnostics":{"pool_free_mbufs":800,"pool_total_mbufs":1000,"ring_count":2,"ring_capacity":200,"ring_used":40,"rings_over_75":0},"rx_nombuf_delta":0,"pool_drop_delta":0});

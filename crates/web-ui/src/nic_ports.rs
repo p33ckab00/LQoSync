@@ -242,13 +242,15 @@ pub(crate) fn NicPorts(snapshot: Memo<Option<Dpdk>>, clock: Memo<u64>) -> impl I
       <div class="dpdk-nic">
         // This fragment is reviewed repository artwork, never API or user input.
         <svg class="nic-art-defs" width="0" height="0" aria-hidden="true" focusable="false" inner_html=include_str!("nic_art.svg")/>
-        <div class="nic-faceplate-heading"><h2>"NIC ports"</h2><span>{move||snapshot.with(|d|{
-        let Some(d)=d else {return "Unavailable".into();};
-        if !d.nic.live(clock.get(),15){return "Link unknown · stale".into();}
-        format!("{} / {} UP",d.ports.iter().filter(|p|p.state.eq_ignore_ascii_case("up")).count(),d.ports.len())
-      })}</span></div>
+        <div class="nic-faceplate-heading"><h2>"NIC ports"</h2></div>
         <div class="nic-faceplate" role="group" aria-label="Physical NIC ports">
           <For each=move||snapshot.with(|d|d.as_ref().map(|d|d.ports.clone()).unwrap_or_default()) key=|p| (p.id,p.name.clone(),p.physical.pci.clone()) children=move |p:Port|view!{<PortTile id=p.id snapshot clock active_port/>}/>
+          // The link count sits beside the last port (LAN), at the top, to save a row.
+          <span class="nic-up-count">{move||snapshot.with(|d|{
+            let Some(d)=d else {return "Unavailable".into();};
+            if !d.nic.live(clock.get(),15){return "Link unknown · stale".into();}
+            format!("{} / {} UP",d.ports.iter().filter(|p|p.state.eq_ignore_ascii_case("up")).count(),d.ports.len())
+          })}</span>
         </div>
         <Show when=move||snapshot.with(|d|d.as_ref().is_none_or(|d|d.ports.is_empty()))><p class="panel-note">"NIC telemetry unavailable."</p></Show>
         <p class="sr-only nic-cadence">"LED pulses show activity in each completed NIC sample, not individual packets."</p>

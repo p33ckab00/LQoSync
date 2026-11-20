@@ -2,7 +2,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 use std::{collections::HashSet, path::Path};
-use web_contract::dpdk::{Dpdk, Gauge, Port, Reading, Source, Worker};
+use web_contract::dpdk::{Dpdk, Gauge, Phase, Port, Reading, Source, Worker};
 
 #[derive(Default, Deserialize)]
 pub(crate) struct Analytics {
@@ -153,6 +153,7 @@ pub(crate) fn project(
                         ("cycles_per_busy_lap", "Cycles/busy lap"),
                     ],
                 );
+                let mut phase_rows = Vec::new();
                 if let Some(phases) = w["phase_cycles"]
                     .as_array()
                     .filter(|p| p.len() == 10 && p.iter().all(|v| v.as_u64().is_some()))
@@ -172,10 +173,10 @@ pub(crate) fn project(
                     .iter()
                     .zip(phases)
                     {
-                        details.push(reading(
-                            &format!("{phase} cycles (total)"),
-                            n.as_u64().unwrap(),
-                        ));
+                        phase_rows.push(Phase {
+                            name: (*phase).into(),
+                            cycles: n.as_u64().unwrap(),
+                        });
                     }
                 }
                 Worker {
@@ -183,6 +184,9 @@ pub(crate) fn project(
                     busy_ppm: busy,
                     backlog_mean: w["backlog_mean"].as_u64(),
                     details,
+                    phases: phase_rows,
+                    laps_per_s: w["laps_per_s"].as_u64(),
+                    cycles_per_busy_lap: w["cycles_per_busy_lap"].as_u64(),
                 }
             })
             .collect();
@@ -529,7 +533,17 @@ pub(crate) fn bound(d: &mut Dpdk) {
             rows.truncate(keep);
         }
         if removed == 0 {
-            break;
+            // Then drop phase cycles, from the least busy worker first. The busiest worker keeps them.
+            match d
+                .workers
+                .iter_mut()
+                .skip(1)
+                .rev()
+                .find(|w| !w.phases.is_empty())
+            {
+                Some(w) => w.phases.clear(),
+                None => break,
+            }
         }
     }
 }

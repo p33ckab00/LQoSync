@@ -158,8 +158,12 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <Metric data kind="ppp_online" title="PPPoE Online" icon="wifi" note="Currently online users"/>
         <Metric data kind="ppp_offline" title="PPPoE Offline" icon="wifi-off" note="Configured users offline"/>
         <Metric data kind="routers" title="Routers" icon="router" note="Managed routers"/>
-        <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
-        <article class="panel nic-summary" aria-label="NIC ports"><crate::nic_ports::NicPorts snapshot clock=server_clock/></article>
+        // One group for the shaping path: publication, physical ports, and the worker.
+        <div class="dataplane-group" role="group" aria-label="Dataplane status">
+          <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
+          <article class="panel nic-summary" aria-label="NIC ports"><crate::nic_ports::NicPorts snapshot clock=server_clock/></article>
+          <crate::worker_ring::WorkerRing snapshot server_clock/>
+        </div>
       </section>
       <div class="overview-grid">
         <crate::traffic_chart::TrafficChart data/>

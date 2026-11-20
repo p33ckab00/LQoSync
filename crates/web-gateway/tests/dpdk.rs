@@ -288,3 +288,44 @@ fn physical_identity_and_activity_do_not_guess_from_speed_or_order() {
             .is_none()
     );
 }
+#[test]
+fn worker_phases_are_typed_in_producer_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut a = analytics();
+    a["workers"][1]["phase_cycles"] = json!([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    a["workers"][1]["laps_per_s"] = json!(12000);
+    a["workers"][1]["cycles_per_busy_lap"] = json!(42);
+    save(dir.path(), "worker-utilization.json", &a);
+    let d = project(dir.path(), 1000).dpdk.unwrap();
+    let w = d.workers.iter().find(|w| w.id == 1).unwrap();
+    let names: Vec<_> = w.phases.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "RX",
+            "Dissect",
+            "Select",
+            "Charge",
+            "Leaf",
+            "TX",
+            "Begin cycle",
+            "Drop overdue",
+            "Handoff",
+            "Empty RX"
+        ]
+    );
+    assert_eq!(w.phases[7].cycles, 8);
+    assert_eq!(
+        (w.laps_per_s, w.cycles_per_busy_lap),
+        (Some(12000), Some(42))
+    );
+    // A malformed phase list gives no phases, and a missing list stays empty.
+    assert!(
+        d.workers
+            .iter()
+            .find(|w| w.id == 0)
+            .unwrap()
+            .phases
+            .is_empty()
+    );
+}

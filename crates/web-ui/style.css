@@ -295,3 +295,54 @@
 .nic-link-outline{fill:none;stroke:var(--muted);stroke-width:1.5}
 .link-up .nic-link-outline{stroke:var(--good)}.link-down .nic-link-outline{stroke:var(--bad)}
 @media(forced-colors:active){.nic-kit-shape{fill:Canvas;stroke:CanvasText}.nic-link-outline{stroke:CanvasText}}
+
+/* Dataplane group: LibreQoS publication, physical NIC ports, and the worker ring share one row. */
+.app-shell .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.dataplane-group{grid-column:1/-1;display:grid;grid-template-columns:minmax(250px,1fr) minmax(320px,1.7fr);grid-template-rows:auto 1fr;gap:16px;min-inline-size:0}
+.dataplane-group>.worker-ring-card{grid-column:2;grid-row:1/span 2}
+.dataplane-group>.nic-summary{grid-column:auto}
+@media(max-width:1200px){.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:960px){.dataplane-group{grid-template-columns:1fr;grid-template-rows:none;gap:12px}.dataplane-group>.metric,.dataplane-group>.worker-ring-card{grid-column:auto;grid-row:auto}}
+.dpdk-grid{grid-template-columns:1fr}
+
+/* The link count stands beside the last port (LAN), level with its label. */
+.nic-up-count{align-self:flex-start;font-size:13px;color:var(--muted);white-space:nowrap;padding-block-start:2px}
+
+/* Worker ring after worker-radial-profiler-v3.svg. Equal-angle phases; hover keeps the view radial. */
+.worker-ring-card{padding:20px;display:flex;flex-direction:column;gap:8px;min-inline-size:0}
+.worker-ring-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.worker-ring-head h2{font-size:14px;margin:0}
+.worker-picker{display:flex;flex-wrap:wrap;gap:6px}
+.worker-picker button{font:inherit;font-size:13px;color:var(--text);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 9px;min-block-size:28px;cursor:pointer}
+.worker-picker button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.worker-ring{display:block;inline-size:100%;block-size:auto;max-block-size:330px;overflow:visible;touch-action:manipulation}
+.worker-ring-guide{fill:none;stroke:var(--border);stroke-width:1;stroke-dasharray:3 8}
+.worker-ring-sectors{transform-origin:260px 196px;transition:transform .32s ease}
+.worker-ring.active .worker-ring-sectors{transform:scale(1.025)}
+.worker-sector{fill:none;stroke:var(--phase);stroke-width:18;stroke-linecap:round;cursor:pointer;outline:none;transition:stroke-width .26s ease,opacity .2s ease,filter .26s ease}
+.worker-sector.selected,.worker-sector:focus-visible{stroke-width:28;filter:drop-shadow(0 0 5px var(--phase))}
+.worker-sector.dimmed{opacity:.55}
+.worker-ring.stale .worker-sector{opacity:.45}
+.phase-0{--phase:#1ba8f2}.phase-1{--phase:#18c7c3}.phase-2{--phase:#a17bff}.phase-3{--phase:#f5b844}.phase-4{--phase:#34d49a}.phase-5{--phase:#72baff}.phase-6{--phase:#fb7584}.phase-7{--phase:#8e9cb5}.phase-8{--phase:#c08afa}
+.worker-chip-well{fill:var(--surface);stroke:var(--border);stroke-width:2}
+.worker-chip-die{fill:var(--bg);stroke:var(--accent);stroke-width:2}
+.worker-chip-core{fill:var(--surface);stroke:var(--border);stroke-width:1}
+.worker-chip text{text-anchor:middle;fill:var(--text)}
+.worker-chip-id{font-size:22px;font-weight:800}
+.worker-chip-busy{font-size:24px;font-weight:800;fill:var(--accent)!important}
+.worker-chip-phase{font-size:14px;font-weight:700}
+.worker-chip-cycles{font-size:21px;font-weight:800;fill:var(--accent)!important}
+.worker-chip-note{font-size:10px;letter-spacing:.08em;fill:var(--muted)!important}
+.worker-callouts{opacity:0;transition:opacity .22s ease;pointer-events:none}
+.worker-ring.active .worker-callouts{opacity:1}
+.worker-callout polyline{fill:none;stroke:var(--phase);stroke-width:1.4}
+.worker-callout circle{fill:var(--phase)}
+.worker-callout.dimmed{opacity:.35}
+.worker-callout-name{font-size:13px;font-weight:700;fill:var(--text)}
+.worker-callout-num{font-size:11px;fill:var(--muted)}
+.worker-focus{font-size:13px;color:var(--muted);min-block-size:3em;margin:0;overflow-wrap:anywhere}
+.worker-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px 14px;margin:0;border-block-start:1px solid var(--border);padding-block-start:10px}
+.worker-stats dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.worker-stats dd{margin:0;font-size:15px;font-weight:600;overflow-wrap:anywhere}
+@media(max-width:760px){.worker-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.worker-ring-card{padding:16px}}
+@media(forced-colors:active){.worker-sector{stroke:CanvasText}.worker-sector.selected,.worker-sector:focus-visible{stroke:Highlight;filter:none}.worker-callout polyline{stroke:CanvasText}.worker-callout circle{fill:CanvasText}}

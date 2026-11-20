@@ -94,7 +94,7 @@ const fs=require('node:fs');
     view.traffic.at(-1).down_mbps=220;
     window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
   });
-  await page.waitForFunction(()=>Number(document.querySelector('linearGradient')?.getAttribute('y1'))>0);
+  await page.waitForFunction(()=>Number(document.querySelector('.chart-frame linearGradient')?.getAttribute('y1'))>0);
   assert.match(await card.locator('.capacity-note').innerText(),/110.0%/);
   await unmapped.getByText('Stale / gap',{exact:true}).waitFor();
   await page.evaluate(()=>{

@@ -99,17 +99,7 @@ pub(crate) fn DpdkCard(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) ->
           <span><b>{label}</b>{move||snapshot.with(|d|d.as_ref().map(|d|stamp(&source(d,kind),server_clock.get(),age)).unwrap_or("Unavailable".into()))}</span>
         }).collect_view()}</div>
         <div class="dpdk-grid">
-          <div class="dpdk-workers"><h3>"Worker utilization"</h3>
-            <p class="dpdk-value">{move||snapshot.with(|d|pct(d.as_ref().and_then(|d|d.mean_busy_ppm)))}<span>" mean busy"</span></p>
-            <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · showing {} busiest · busy excludes empty polling",d.worker_count,d.workers.len().min(8))).unwrap_or("Worker telemetry unavailable".into()))}</p>
-            <div class="dpdk-bars">{move||snapshot.with(|d|d.as_ref().map(|d|d.workers.iter().take(8).map(|w|view!{
-              <div class="dpdk-worker"><span>{format!("Worker {}",w.id)}</span>
-                <meter min="0" max="100" value=w.busy_ppm as f64/10000.0 aria-label=format!("Worker {} busy percent",w.id)></meter>
-                <b>{pct(Some(w.busy_ppm))}</b>
-              </div>
-            }).collect_view()))}</div>
-            <p class="panel-note">"Idle = 100% − busy. Values are last known when the worker source is stale."</p>
-          </div>
+          // Per-worker utilization moved to the Worker ring in the dataplane group.
           <div class="dpdk-pressure"><h3>"Buffers & queues"</h3>
             {move||snapshot.with(|d|d.as_ref().map(|d|d.pressure.iter().map(|g|{
               let percent=(u128::from(g.used)*1_000_000/u128::from(g.total.max(1))) as u64;
@@ -148,7 +138,11 @@ pub(crate) fn DpdkCard(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) ->
           <label class="dpdk-worker-select">"Worker details"<select aria-label="DPDK worker details" on:change=move|ev|selected.set(event_target_value(&ev).parse().ok())>
             {move||snapshot.with(|d|d.as_ref().map(|d|d.workers.iter().map(|w|{let id=w.id;view!{<option value=id.to_string() selected=move||selected.get()==Some(id)>{format!("Worker {id}")}</option>}}).collect_view()))}
           </select></label>
-          {move||snapshot.with(|d|d.as_ref().and_then(|d|selected.get().and_then(|id|d.workers.iter().find(|w|w.id==id)).or_else(||d.workers.first())).map(|w|rows(w.details.clone())))}
+          {move||snapshot.with(|d|d.as_ref().and_then(|d|selected.get().and_then(|id|d.workers.iter().find(|w|w.id==id)).or_else(||d.workers.first())).map(|w|{
+            let mut all=w.details.clone();
+            all.extend(w.phases.iter().map(|p|web_contract::dpdk::Reading{label:format!("{} cycles (total)",p.name),value:p.cycles.to_string()}));
+            rows(all)
+          }))}
           <h3>"NIC counters"</h3>
           {move||snapshot.with(|d|d.as_ref().map(|d|d.ports.iter().map(|p|view!{<div><h4>{format!("Port {} · {}",p.id,p.name)}</h4>{rows(p.details.clone())}</div>}).collect_view()))}
           <h3>"Worker chart samples"</h3>

@@ -41,6 +41,18 @@ pub struct Worker {
     pub busy_ppm: u64,
     pub backlog_mean: Option<u64>,
     pub details: Vec<Reading>,
+    /// Cumulative cycles per execution phase, in producer order. Empty when the source has none.
+    #[serde(default)]
+    pub phases: Vec<Phase>,
+    #[serde(default)]
+    pub laps_per_s: Option<u64>,
+    #[serde(default)]
+    pub cycles_per_busy_lap: Option<u64>,
+}
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Phase {
+    pub name: String,
+    pub cycles: u64,
 }
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Gauge {

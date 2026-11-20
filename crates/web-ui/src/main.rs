@@ -30,3 +30,8 @@ mod nic_ports;
 mod nic_diagnostics;
 #[cfg(target_arch = "wasm32")]
 mod nic_hud;
+
+#[cfg(target_arch = "wasm32")]
+mod worker_ring;
+#[cfg(any(target_arch = "wasm32", test))]
+mod worker_ring_model;
