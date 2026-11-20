@@ -1,6 +1,8 @@
 # Mirrored traffic and queue research
 
-Status: proposal. Research date: 2026-11-20 (Asia/Shanghai).
+Status: research reference. Research date: 2026-11-20 (Asia/Shanghai).
+The owner later approved the traffic consolidation. See [the implementation](AGGREGATE_TRAFFIC.md).
+The subscriber queue views and remaining layout changes are still proposals.
 This document does not change the application or approve a new screen layout.
 
 ## Goal

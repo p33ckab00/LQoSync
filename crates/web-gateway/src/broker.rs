@@ -162,6 +162,7 @@ pub async fn serve(
                 }
                 let mut body = serde_json::to_vec(&reply)?;
                 body.push(b'\n');
+                ensure!(body.len() <= 65536, "broker response too large");
                 write.write_all(&body).await?;
                 Ok::<(), anyhow::Error>(())
             })

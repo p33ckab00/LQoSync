@@ -8,6 +8,10 @@ pub(crate) fn mark_stale(data: RwSignal<Option<Overview>>) {
         if let Some(view) = current {
             view.stale = true;
             view.traffic_stale = true;
+            if let Some(c) = &mut view.classification {
+                c.mapped.stale = true;
+                c.unmapped.stale = true;
+            }
             view.wan_capacity = None;
             view.health = "UNKNOWN".into();
             if let Some(dpdk) = &mut view.dpdk {

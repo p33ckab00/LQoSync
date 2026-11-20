@@ -142,6 +142,10 @@ fn worker_and_detail_bounds_fit_the_broker_envelope() {
             .map(|at| json!({"at":at,"down_mbps":1.0e308,"up_mbps":1.0e308}))
             .collect::<Vec<_>>()
     );
+    for key in ["mapped", "unmapped"] {
+        a["classification"][key] =
+            json!({"bytes":{"download_bytes":1,"upload_bytes":1},"history":a["traffic"]});
+    }
     save(dir.path(), "worker-utilization.json", &a);
     let mut n = nic();
     n["ports"]=json!((0..8).map(|id|json!({"id":id,"name":"a".repeat(128),"status":"up","speed_mbps":10000,
@@ -159,7 +163,16 @@ fn worker_and_detail_bounds_fit_the_broker_envelope() {
     assert_eq!(d.workers.len(), 16);
     assert!(d.details_capped);
     assert!(serde_json::to_vec(d).unwrap().len() <= 16 * 1024);
-    assert!(serde_json::to_vec(&view).unwrap().len() < 60000);
+    assert!(serde_json::to_vec(&view).unwrap().len() <= 60 * 1024);
+    assert!(
+        !view
+            .classification
+            .as_ref()
+            .unwrap()
+            .mapped
+            .points
+            .is_empty()
+    );
 }
 #[test]
 fn reset_does_not_become_a_new_error_delta_and_unknown_keys_do_not_leak() {

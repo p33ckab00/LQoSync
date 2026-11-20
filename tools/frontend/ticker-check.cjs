@@ -67,6 +67,7 @@ const fs=require('node:fs');
     const before=track.getBoundingClientRect().x;
     const view=await(await fetch('/api/v1/overview')).json();
     view.components.push({name:'continuity_probe',state:'HEALTHY',observed_at:1});
+    window.testActivityView=view;
     window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     return Math.abs(track.getBoundingClientRect().x-before);
@@ -101,6 +102,11 @@ const fs=require('node:fs');
     assert.ok(coverage,'the handoff must leave no blank tail');
   }
   // Expire the probe so later activity assertions start with an empty feed.
+  // Keep fallback polling on the same snapshot during the synthetic clock jump.
+  // A fresh fixture snapshot would create new activity instead of testing expiry.
+  await page.route('**/api/v1/overview',async route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify(await page.evaluate(()=>window.testActivityView))
+  }));
   await page.evaluate(()=>{window.testOriginalNow=Date.now;Date.now=()=>window.testOriginalNow()+121000;});
   await page.waitForFunction(()=>document.querySelectorAll('.ticker-static .ticker-activity').length===0,{},{timeout:3000});
   await page.evaluate(()=>{Date.now=window.testOriginalNow;});

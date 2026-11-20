@@ -42,7 +42,17 @@ async fn main() -> anyhow::Result<()> {
             workers["pressure"] = serde_json::json!({"diagnostics":{"pool_free_mbufs":800,"pool_total_mbufs":1000,"ring_count":2,"ring_capacity":200,"ring_used":40,"rings_over_75":0},"rx_nombuf_delta":0,"pool_drop_delta":0});
             workers["queue"] = serde_json::json!({"totals":{"drop_pkts":10,"aqm_marks":20,"backlog_bytes":2048},"drop_delta":0,"aqm_delta":1});
             workers["health"] = serde_json::json!({"updated":now,"stale":false,"summary":{"status":"ok","version":"fixture-bridge","uptime_ms":(now-at+1)*1000,"worker_count":2,"missing_rollups":0,"max_rollup_age_ms":100,"aqm_degraded_workers":0,"topology_tier":"pair","classification_empty":false,"degraded_subsystems":[]}});
-            workers["classification"] = serde_json::json!({"mapped":{"bytes":{"download_bytes":1000000,"upload_bytes":100000},"history":[{"at":now,"down_mbps":20.0,"up_mbps":2.0}]}});
+            workers["classification"] = serde_json::json!({
+                "mapped":{"bytes":{"download_bytes":1000000,"upload_bytes":100000},"history":(0..60).map(|i| {
+                    let at=now-59+i;
+                    serde_json::json!({"at":at,"down_mbps":90.0+(at as f64/3.0).sin()*18.0,"up_mbps":18.0+(at as f64/4.0).cos()*4.0})
+                }).collect::<Vec<_>>()},
+                "unmapped":{"bytes":{"download_bytes":10000,"upload_bytes":1000},"history":(0..60).map(|i| {
+                    let at=now-59+i;
+                    if i==25 {serde_json::json!({"at":at,"down_mbps":null,"up_mbps":null})}
+                    else {serde_json::json!({"at":at,"down_mbps":5.0+(at as f64/2.0).sin()*3.0,"up_mbps":1.0+(at as f64/3.0).cos()*0.5})}
+                }).collect::<Vec<_>>()}
+            });
             let nic = serde_json::json!({"version":1,"updated":now,"stale":false,"dpdk_version":"fixture-dpdk","interval_ms":10000,"ports_capped":false,"ports":[
               {"id":0,"name":"fixture-port0","status":"up","speed_mbps":10000,"duplex":"full","reset":false,"stats":{"ipackets":1000,"opackets":900,"ibytes":1000000,"obytes":900000,"ierrors":0,"oerrors":0,"imissed":0,"rx_nombuf":0},"deltas":{"ipackets":10,"opackets":9,"ierrors":0},"xstats":{"fixture_xstat":7}},
               {"id":1,"name":"fixture-port1","status":"up","speed_mbps":10000,"duplex":"full","reset":false,"stats":{"ipackets":900,"opackets":1000,"ierrors":0}}

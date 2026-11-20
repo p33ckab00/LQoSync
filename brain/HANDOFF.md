@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T23:15:08+08:00 (Asia/Shanghai) — Aggregate traffic consolidation
+
+- Goal: consolidate Actual/Mapped/Unmapped in the current aggregate chart.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Base HEAD: `6c2cc0d`.
+- Changed: web contract/projection, reply size guard, mirrored SVG geometry/component/CSS, stale handling, browser fixtures/checks, design/deployment/evidence, and brain notes.
+- Sources: Actual delivered history and classification enqueue histories in `worker-utilization.json`. Do not sum or stack them.
+- Behavior: independent mirrored direction scales, capacity-anchored gradients, shared timestamp inspector, persistent source toggles/pins, and accessible samples.
+- Bounds: at most 300 points per source before a 60-KiB full overview budget. The broker reply guard enforces 64 KiB.
+- Checks: native tests, native/Wasm releases, native/Wasm Clippy, Rust 1.89, formatting, whitespace, and browser evidence. See `docs/frontend/evidence/aggregate-traffic/README.md` for results.
+- Next runtime action: operator runs `sudo tools/frontend/install.sh`, then refreshes the browser and compares the same timestamps with the TUI.
+- Remaining scope: longer window API and subscriber Queue Dynamics/Stats/Tree contracts.
+- No production files, services, collectors, TUI, or CLI account policy changed. Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T22:48:47+08:00 (Asia/Shanghai) — Mirrored traffic research
 
 - Goal: research Actual/Mapped/Unmapped comparison, compact DPDK figures, and LibreQoS subscriber queue charts.

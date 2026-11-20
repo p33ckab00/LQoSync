@@ -137,3 +137,20 @@ The synchronization service and TUI continue independently.
 The current coding session cannot run passwordless sudo.
 The code, build output, installer, and proxy examples are prepared for operator review.
 Live installation, first-account creation, and public-route validation require the operator's root session.
+
+
+## Aggregate traffic comparison update
+
+The [aggregate comparison](AGGREGATE_TRAFFIC.md) adds Mapped and Unmapped to the existing Actual plot.
+It updates the web broker contract and Rust browser assets.
+Build from the repository root, then install both together:
+
+```sh
+tools/frontend/build.sh
+sudo tools/frontend/install.sh
+systemctl status lqosync3-web-broker lqosync3-web
+```
+
+This update does not require a replacement of the core `lqosync3` binary.
+Refresh the browser after installation.
+Compare source figures with the TUI at the same published timestamps.

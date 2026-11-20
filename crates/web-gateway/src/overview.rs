@@ -186,6 +186,7 @@ pub fn project(root: &Path, now: u64) -> Overview {
     ));
     crate::dpdk::project_nic(&root, now, view.dpdk.as_mut().unwrap());
     crate::dpdk::bound(view.dpdk.as_mut().unwrap());
+    bound_traffic(&mut view);
     view
 }
 
@@ -221,6 +222,7 @@ pub fn refresh_traffic(root: &Path, now: u64, view: &mut Overview) {
     }
     crate::dpdk::bound(&mut dpdk);
     view.dpdk = Some(dpdk);
+    bound_traffic(view);
 }
 
 // Decode the selected telemetry fields. Unrelated cache fields stay outside the browser contract.
@@ -237,7 +239,16 @@ struct WorkerTraffic {
 
 fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview) {
     view.traffic_stale = true;
+    if let Some(c) = &mut view.classification {
+        c.mapped.stale = true;
+        c.unmapped.stale = true;
+    }
     if workers.version == Some(1) {
+        view.classification = Some(crate::dpdk::classification(
+            &workers.dpdk_fields,
+            workers.stale == Some(false) && fresh(workers.updated.unwrap_or(0), now, 6),
+            now,
+        ));
         let items = &workers.traffic;
         let mut samples = items
             .iter()
@@ -274,5 +285,35 @@ fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview) {
         view.traffic_stale = workers.stale != Some(false)
             || !fresh(workers.updated.unwrap_or(0), now, 30)
             || !view.traffic.last().is_some_and(|p| fresh(p.at, now, 30));
+    }
+}
+
+/// Reserve space for the IPC reply envelope. Remove only the oldest observations.
+fn bound_traffic(view: &mut Overview) {
+    const BUDGET: usize = 60 * 1024;
+    while serde_json::to_vec(view).map_or(usize::MAX, |v| v.len()) > BUDGET {
+        let oldest = view
+            .traffic
+            .first()
+            .map(|p| p.at)
+            .into_iter()
+            .chain(
+                view.classification
+                    .iter()
+                    .flat_map(|c| [&c.mapped.points, &c.unmapped.points])
+                    .filter_map(|p| p.first().map(|p| p.at)),
+            )
+            .min();
+        let Some(oldest) = oldest else {
+            break;
+        };
+        // Batch removal keeps projection work bounded for high precision histories.
+        let cutoff = oldest.saturating_add(15);
+        view.traffic.retain(|p| p.at > cutoff);
+        if let Some(c) = &mut view.classification {
+            c.mapped.points.retain(|p| p.at > cutoff);
+            c.unmapped.points.retain(|p| p.at > cutoff);
+            c.history_capped = true;
+        }
     }
 }

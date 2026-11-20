@@ -12,6 +12,8 @@ mod dpdk;
 mod dpdk_history;
 #[cfg(target_arch = "wasm32")]
 mod live;
+#[cfg(target_arch = "wasm32")]
+mod traffic_chart;
 #[cfg(any(target_arch = "wasm32", test))]
 mod traffic_plot;
 fn main() {

@@ -19,6 +19,7 @@ Use the Vercel and Google frontend skills for each frontend change.
 See [current Dashboard evidence](evidence/live-traffic/README.md) for implementation checks and known backend gaps.
 See [live traffic](LIVE_TRAFFIC.md) for the one-second stream and WAN capacity color rules.
 See the [DPDK Dashboard card](DPDK_DASHBOARD.md) for worker charts, bridge health, NIC counters, and source-age rules.
+See the [aggregate traffic comparison](AGGREGATE_TRAFFIC.md) for Actual/Mapped/Unmapped, mirrored scales, and shared inspection.
 See the [mirrored traffic and queue research](MIRRORED_TRAFFIC_RESEARCH.md) for the proposed comparison chart, compact figures, and backend gaps.
 See the [diagnostics banner](DIAGNOSTICS_TICKER.md) for live status motion, pause controls, and reduced motion.
 

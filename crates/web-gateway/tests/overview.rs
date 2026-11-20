@@ -150,3 +150,73 @@ fn full_hour_cache_keeps_the_live_payload_bounded() {
     assert!(!view.traffic_stale);
     assert!(bytes < 65536);
 }
+
+#[test]
+fn classification_preserves_zeros_gaps_and_independent_availability() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("worker-utilization.json");
+    let mut workers = serde_json::json!({"version":1,"updated":1000,"stale":false,
+        "classification":{"mapped":{"bytes":{"download_bytes":0,"upload_bytes":0},"history":[
+            {"at":998,"down_mbps":0.0,"up_mbps":0.0},
+            {"at":999,"down_mbps":null,"up_mbps":null},
+            {"at":1000,"down_mbps":12.0,"up_mbps":3.0},
+            {"at":1001,"down_mbps":90.0,"up_mbps":90.0}]}}});
+    std::fs::write(&path, serde_json::to_vec(&workers).unwrap()).unwrap();
+    let view = project(dir.path(), 1000);
+    let c = view.classification.unwrap();
+    assert!(c.mapped.available);
+    assert!(!c.mapped.stale);
+    assert_eq!(c.mapped.points.len(), 2);
+    assert_eq!(c.mapped.points[0].down_mbps, 0.0);
+    assert!(c.mapped.points[1].gap_before);
+    assert!(!c.unmapped.available);
+    assert!(c.unmapped.points.is_empty());
+    workers["classification"]["mapped"]["history"][2]["down_mbps"] = serde_json::Value::Null;
+    std::fs::write(&path, serde_json::to_vec(&workers).unwrap()).unwrap();
+    assert!(
+        project(dir.path(), 1000)
+            .classification
+            .unwrap()
+            .mapped
+            .stale
+    );
+    std::fs::remove_file(path).unwrap();
+    let mut old = web_contract::Overview {
+        classification: Some(c),
+        ..Default::default()
+    };
+    web_gateway::overview::refresh_traffic(dir.path(), 1000, &mut old);
+    let c = old.classification.unwrap();
+    assert!(c.mapped.stale);
+    assert_eq!(c.mapped.points.len(), 2);
+}
+
+#[test]
+fn precision_histories_fit_the_complete_broker_envelope() {
+    let dir = tempfile::tempdir().unwrap();
+    let points = (9701..=10000)
+        .map(|at| {
+            serde_json::json!({"at":at,
+        "down_mbps":123.12345678912345,"up_mbps":12.12345678912345})
+        })
+        .collect::<Vec<_>>();
+    let series =
+        serde_json::json!({"bytes":{"download_bytes":1,"upload_bytes":1},"history":points});
+    let workers = serde_json::json!({"version":1,"updated":10000,"stale":false,"traffic":points,
+        "classification":{"mapped":series,"unmapped":series}});
+    std::fs::write(
+        dir.path().join("worker-utilization.json"),
+        serde_json::to_vec(&workers).unwrap(),
+    )
+    .unwrap();
+    let view = project(dir.path(), 10000);
+    let c = view.classification.as_ref().unwrap();
+    assert!(!c.mapped.points.is_empty());
+    assert_eq!(c.mapped.points.last().unwrap().at, 10000);
+    let reply = web_gateway::broker::Reply {
+        ok: true,
+        account: None,
+        overview: Some(view),
+    };
+    assert!(serde_json::to_vec(&reply).unwrap().len() + 1 < 65536);
+}

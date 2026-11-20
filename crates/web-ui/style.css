@@ -208,3 +208,30 @@
 .dpdk-panel meter::-webkit-meter-bar{background:var(--border);border:0;border-radius:4px}
 .dpdk-panel meter::-webkit-meter-optimum-value{background:var(--accent);border-radius:4px}
 .dpdk-panel meter::-moz-meter-bar{background:var(--accent)}
+
+/* One aggregate comparison: source styles carry meaning in every theme. */
+.traffic-source-controls{display:flex;flex-wrap:wrap;gap:8px;margin-block:12px}
+.traffic-source-controls button,.traffic-live{min-block-size:40px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px}
+.traffic-source-controls button{display:flex;align-items:center;gap:8px}
+.traffic-source-controls small{color:var(--muted);font-size:13px}
+.traffic-source-controls [aria-pressed=false]{opacity:.5}
+.traffic-source-controls .source-key{inline-size:22px;border-block-start:3px solid var(--accent)}
+.traffic-source-controls .mapped .source-key{border-color:var(--warn);border-block-start-style:dashed}
+.traffic-source-controls .unmapped .source-key{border-color:var(--traffic-violet);border-block-start-style:dotted}
+.mirrored-chart .chart-data svg,.mirrored-chart .y-axis{block-size:270px}
+.mirrored-chart .chart-data svg{touch-action:pan-y;cursor:crosshair}
+.app-shell .mirrored-chart .traffic-line{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.app-shell .mirrored-chart .traffic-line.actual{stroke:var(--accent);stroke-dasharray:none}
+.app-shell .mirrored-chart .traffic-line.mapped{stroke:var(--warn);stroke-dasharray:7 4}
+.app-shell .mirrored-chart .traffic-line.unmapped{stroke:var(--traffic-violet);stroke-dasharray:2 5}
+.traffic-zero{stroke:var(--muted);stroke-width:1;vector-effect:non-scaling-stroke}
+.traffic-cursor{stroke:var(--text);stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke;pointer-events:none}
+.mirrored-directions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-block-start:12px}
+.traffic-inspector{margin-block-start:12px;border-block-start:1px solid var(--border);padding-block-start:12px}
+.traffic-inspector>p{font-size:13px;color:var(--muted);margin-block-end:6px}
+.traffic-inspector th small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+@media(max-width:760px){.mirrored-chart .chart-data svg,.mirrored-chart .y-axis{block-size:230px}.traffic-inspector th,.traffic-inspector td{padding:8px 5px}}
+@media(forced-colors:active){.app-shell .mirrored-chart .traffic-line{stroke:CanvasText!important}.traffic-zero,.traffic-cursor{stroke:CanvasText}.source-key{border-color:CanvasText!important}}
+.traffic-inspector .table-scroll th,.traffic-inspector .table-scroll td{padding-block:7px}
+@media(min-width:761px){.traffic-inspector th small{display:inline;margin-inline-start:8px}}
+@media(max-width:760px){.traffic-source-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.traffic-source-controls button{min-block-size:44px;flex-direction:column;flex-wrap:nowrap;min-inline-size:0;justify-content:center;gap:4px;padding:8px 4px;overflow-wrap:anywhere}.traffic-source-controls small{flex-basis:auto;text-align:center}.traffic-source-controls .source-key{inline-size:22px}}

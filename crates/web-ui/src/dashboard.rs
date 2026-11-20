@@ -1,7 +1,6 @@
 //! Dashboard composition follows the approved picture and its written corrections.
-use crate::traffic_plot;
 use leptos::prelude::*;
-use web_contract::{Overview, Point, WanCapacity};
+use web_contract::Overview;
 
 pub(crate) fn local_time(at: u64) -> String {
     if at == 0 {
@@ -18,16 +17,20 @@ pub(crate) fn local_time(at: u64) -> String {
 fn number(value: Option<u64>) -> String {
     value.map(|v| v.to_string()).unwrap_or("—".into())
 }
-fn rate(value: f64) -> String {
+pub(crate) fn rate(value: f64) -> String {
     if value == 0.0 {
         "0 bps".into()
+    } else if value < 0.001 {
+        format!("{:.1} bps", value * 1_000_000.0)
+    } else if value < 1.0 {
+        format!("{:.1} kbps", value * 1000.0)
     } else if value >= 1000.0 {
         format!("{:.2} Gbps", value / 1000.0)
     } else {
         format!("{value:.1} Mbps")
     }
 }
-fn axis_rate(value: f64) -> String {
+pub(crate) fn axis_rate(value: f64) -> String {
     if (10.0..1000.0).contains(&value) {
         format!("{value:.0} Mbps")
     } else {
@@ -124,78 +127,6 @@ fn Metric(
     }
 }
 #[component]
-fn Chart(points: Vec<Point>, stale: bool, capacity: Option<WanCapacity>) -> impl IntoView {
-    if points.len() < 2 {
-        return view!{<div class="chart-empty">"No traffic samples available."<span>"Waiting for published traffic observations."</span></div>}.into_any();
-    }
-    let max = traffic_plot::maximum(&points, capacity.as_ref());
-    let first = points.first().unwrap().at;
-    let last = points.last().unwrap();
-    let duration = last.at.saturating_sub(first).max(1) as f64;
-    let down = traffic_plot::path(&points, true, max, false);
-    let up = traffic_plot::path(&points, false, max, false);
-    let down_area = traffic_plot::path(&points, true, max, true);
-    let up_area = traffic_plot::path(&points, false, max, true);
-    let rainbow = capacity.is_some();
-    let down_ceiling = capacity
-        .as_ref()
-        .map(|c| traffic_plot::y(c.down_bps as f64 / 1_000_000.0, max))
-        .unwrap_or(0.0);
-    let up_ceiling = capacity
-        .as_ref()
-        .map(|c| traffic_plot::y(c.up_bps as f64 / 1_000_000.0, max))
-        .unwrap_or(0.0);
-    let capacity_note = capacity.as_ref().map(|c| format!(
-        "Configured WAN capacity ({}): ↓ {} / ↑ {}. Utilization: ↓ {:.1}% / ↑ {:.1}%.",
-        c.wan_count, rate(c.down_bps as f64 / 1_000_000.0), rate(c.up_bps as f64 / 1_000_000.0),
-        last.down_mbps * 100_000_000.0 / c.down_bps as f64,
-        last.up_mbps * 100_000_000.0 / c.up_bps as f64,
-    )).unwrap_or_else(|| "WAN capacity unavailable. The rate axis uses observed samples; colors do not indicate utilization.".into());
-    let stops = [
-        ("0%", "var(--traffic-red)"),
-        ("18%", "var(--traffic-orange)"),
-        ("35%", "var(--traffic-yellow)"),
-        ("52%", "var(--traffic-green)"),
-        ("70%", "var(--traffic-cyan)"),
-        ("85%", "var(--traffic-blue)"),
-        ("100%", "var(--traffic-violet)"),
-    ];
-    static NEXT_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-    let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let down_gradient = format!("traffic-download-{id}");
-    let up_gradient = format!("traffic-upload-{id}");
-    let down_fill = format!("url(#{down_gradient})");
-    let up_fill = format!("url(#{up_gradient})");
-    // Keep stops as direct gradient children; static SVG fragments add a group.
-
-    let ticks = (0..5)
-        .map(|i| local_time(first + (duration * i as f64 / 4.0) as u64))
-        .collect::<Vec<_>>();
-    view!{
-      <Show when=move||stale><p class="sample-note">"Last known samples"</p></Show>
-      <p class="capacity-note">{capacity_note}</p>
-      <div class="chart-frame" class:rainbow=rainbow>
-        <div class="y-axis" aria-hidden="true">{(0..5).map(|i|view!{<span>{axis_rate(max*(4-i) as f64/4.0)}</span>}).collect_view()}</div>
-        <div class="chart-data"><svg viewBox="0 0 900 240" preserveAspectRatio="none" role="img" aria-label="Recent download and upload traffic. Times use the browser's local timezone.">
-          <defs>
-            <linearGradient id=down_gradient class="download-gradient" gradientUnits="userSpaceOnUse" x1="0" y1=down_ceiling.to_string() x2="0" y2="240">
-              {stops.into_iter().map(|(offset,color)| view!{<stop offset=offset stop-color=if rainbow {color} else {"currentColor"}/>}).collect_view()}
-            </linearGradient>
-            <linearGradient id=up_gradient class="upload-gradient" gradientUnits="userSpaceOnUse" x1="0" y1=up_ceiling.to_string() x2="0" y2="240">
-              {stops.into_iter().map(|(offset,color)| view!{<stop offset=offset stop-color=if rainbow {color} else {"currentColor"}/>}).collect_view()}
-            </linearGradient>
-          </defs>
-          <path class="traffic-area" d=down_area fill=down_fill.clone() aria-hidden="true"/><path class="traffic-area" d=up_area fill=up_fill.clone() aria-hidden="true"/>
-          <g class="grid"><path d="M0 0H900M0 60H900M0 120H900M0 180H900M0 240H900M0 0V240M225 0V240M450 0V240M675 0V240M900 0V240"/></g>
-          <Show when=move||rainbow><g class="capacity-lines" aria-hidden="true"><path d=format!("M0,{down_ceiling:.1}H900")/><path d=format!("M0,{up_ceiling:.1}H900")/></g></Show>
-          <path class="download-line" d=down style=if rainbow{format!("stroke:{down_fill}")}else{String::new()}/><path class="upload-line" d=up style=if rainbow{format!("stroke:{up_fill}")}else{String::new()}/>
-        </svg><div class="x-axis" aria-label="Sample times in local time">{ticks.into_iter().map(|t|view!{<span>{t}</span>}).collect_view()}</div></div>
-      </div>
-      <div class="chart-legend"><span class="down">"━ Down (RX)"</span><span class="up">"┄ Up (TX)"</span><span class="capacity-key">{if rainbow{"Red = 100% of direction capacity"}else{"Capacity unknown"}}</span></div>
-
-    }.into_any()
-}
-#[component]
 fn WanDistribution() -> impl IntoView {
     view! {
       <section class="panel wan-panel" aria-labelledby="wan-distribution-title">
@@ -229,12 +160,7 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
       </section>
       <div class="overview-grid">
-        <section class="panel traffic-panel"><div class="panel-title"><h2>"Traffic (Aggregate)"</h2><span class="chip neutral">{move||data.with(|d|if d.as_ref().is_none_or(|v|v.traffic_stale){"Stale"}else{"Observed"})}</span></div>
-          <div class="traffic-toolbar"><div class="range-options" role="group" aria-label="Traffic window"><span class="range-selected">"Recent"</span>{["1h","6h","24h"].into_iter().map(|label|view!{<button disabled title="This history window is not available">{label}</button>}).collect_view()}</div><div class="traffic-values"><span class="down"><i></i>"Down (RX) "<b>{move||data.with(|d|d.as_ref().and_then(|v|v.traffic.last()).map(|p|rate(p.down_mbps)).unwrap_or("—".into()))}</b></span><span class="up"><i></i>"Up (TX) "<b>{move||data.with(|d|d.as_ref().and_then(|v|v.traffic.last()).map(|p|rate(p.up_mbps)).unwrap_or("—".into()))}</b></span></div></div>
-          {move||data.with(|d|d.as_ref().map(|v|view!{<Chart points=v.traffic.clone() stale=v.traffic_stale capacity=v.wan_capacity.clone()/>}))}
-          <details class="sample-table"><summary>"Traffic samples"</summary><div class="table-scroll" role="region" aria-label="Traffic samples" tabindex="0"><table><caption>"Published samples in local time"</caption><thead><tr><th scope="col">"Time"</th><th scope="col">"Down (RX)"</th><th scope="col">"Up (TX)"</th></tr></thead><tbody>{move||data.with(|d|d.as_ref().map(|v|v.traffic.iter().map(|p|view!{<tr><th scope="row">{local_time(p.at)}</th><td>{rate(p.down_mbps)}</td><td>{rate(p.up_mbps)}</td></tr>}).collect_view()))}</tbody></table></div></details>
-          <p class="panel-note">"Recent worker samples. Longer windows and per-WAN attribution are unavailable."</p>
-        </section>
+        <crate::traffic_chart::TrafficChart data/>
         <WanDistribution/>
       </div>
       <crate::dpdk::DpdkCard data/>

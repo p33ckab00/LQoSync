@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-aggregate-traffic]] — Actual/Mapped/Unmapped in one mirrored chart, capacity gradients, and shared inspection
+
 - [[2026-11-20-mirrored-traffic-research]] — Traffic comparison, compact DPDK figures, and LibreQoS queue interactions; proposal only
 
 - [[2026-11-20-dpdk-dashboard]] — DPDK worker charts, pressure, bridge health, and NIC diagnostics from TUI sources

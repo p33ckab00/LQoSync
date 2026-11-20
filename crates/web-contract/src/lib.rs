@@ -21,6 +21,8 @@ pub struct Overview {
     pub traffic: Vec<Point>,
     pub traffic_stale: bool,
     #[serde(default)]
+    pub classification: Option<ClassificationTraffic>,
+    #[serde(default)]
     pub wan_capacity: Option<WanCapacity>,
     #[serde(default)]
     pub dpdk: Option<dpdk::Dpdk>,
@@ -50,4 +52,18 @@ pub struct Point {
 pub struct Principal {
     pub username: String,
     pub csrf: String,
+}
+
+/// Histories share the worker cache, but retain independent source availability.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ClassificationTraffic {
+    pub mapped: TrafficSeries,
+    pub unmapped: TrafficSeries,
+    pub history_capped: bool,
+}
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TrafficSeries {
+    pub points: Vec<Point>,
+    pub available: bool,
+    pub stale: bool,
 }

@@ -20,13 +20,13 @@ const fs = require('node:fs');
   await page.getByLabel('Color theme').selectOption('dark');
   assert.match(await page.locator('.capacity-note').innerText(),/200.0 Mbps.*80.0 Mbps/);
   const geometry=await page.locator('linearGradient').evaluateAll(nodes=>nodes.map(n=>({units:n.getAttribute('gradientUnits'),y:n.getAttribute('y1'),stops:n.querySelectorAll(':scope > stop').length,red:getComputedStyle(n.querySelector('stop')).stopColor})));
-  assert.deepEqual(geometry.map(g=>g.y),['0','144']);
+  assert.deepEqual(geometry.map(g=>g.y),['0','240']);
   assert.ok(geometry.every(g=>g.units==='userSpaceOnUse'&&g.stops===7&&g.red==='rgb(239, 68, 68)'));
-  let id=await page.locator('linearGradient').first().getAttribute('id');
+  let path=await page.locator('.actual.download-line').getAttribute('d');
   const started=Date.now();
   for(let i=0;i<3;i++){
-    await page.waitForFunction(id=>document.querySelector('linearGradient')?.id!==id,id,{timeout:3500});
-    id=await page.locator('linearGradient').first().getAttribute('id');
+    await page.waitForFunction(path=>document.querySelector('.actual.download-line')?.getAttribute('d')!==path,path,{timeout:3500});
+    path=await page.locator('.actual.download-line').getAttribute('d');
   }
   assert.ok(Date.now()-started<5000,'three live updates must arrive without five-second polling');
   const out=process.env.PULSE_EVIDENCE_DIR || '/tmp/lqosync-pulse-evidence';

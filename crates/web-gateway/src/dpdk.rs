@@ -496,3 +496,60 @@ pub(crate) fn bound(d: &mut Dpdk) {
         }
     }
 }
+
+/// Keep classification numeric. Human-readable diagnostic rows are not chart inputs.
+pub(crate) fn classification(
+    a: &Analytics,
+    live: bool,
+    now: u64,
+) -> web_contract::ClassificationTraffic {
+    let series = |s: &Series| {
+        let mut samples = s
+            .history
+            .iter()
+            .rev()
+            .take(300)
+            .filter(|p| p.at > 0 && p.at <= now)
+            .collect::<Vec<_>>();
+        samples.sort_by_key(|p| p.at);
+        samples.dedup_by_key(|p| p.at);
+        let mut gap = false;
+        let points = samples
+            .into_iter()
+            .filter_map(|p| {
+                let valid = |v: Option<f64>| v.filter(|v| v.is_finite() && *v >= 0.0);
+                match (valid(p.down_mbps), valid(p.up_mbps)) {
+                    (Some(down_mbps), Some(up_mbps)) => {
+                        let point = web_contract::Point {
+                            at: p.at,
+                            down_mbps,
+                            up_mbps,
+                            gap_before: gap,
+                        };
+                        gap = false;
+                        Some(point)
+                    }
+                    _ => {
+                        gap = true;
+                        None
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+        // The last raw sample can be a gap even when an older numeric point exists.
+        let stale = !live
+            || s.bytes.is_none()
+            || gap
+            || !points.last().is_some_and(|p| now.saturating_sub(p.at) <= 6);
+        web_contract::TrafficSeries {
+            points,
+            available: s.bytes.is_some(),
+            stale,
+        }
+    };
+    web_contract::ClassificationTraffic {
+        mapped: series(&a.classification.mapped),
+        unmapped: series(&a.classification.unmapped),
+        history_capped: false,
+    }
+}
