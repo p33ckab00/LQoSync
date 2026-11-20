@@ -73,7 +73,7 @@ Run it in a window with the service stopped. Without `--yes` it is a dry run (ex
 2. The adoption is fresh: the command prepares the pair with `replace = true` and compares it with the live legacy pair. If a legacy row has no alias, the command stops and names it. The operator then runs `propose --replace` and `enroll --replace` first.
 3. The manager pair is equal to the live legacy pair, except the expected node rounding (`node_export_adjustments`). `ChangedRow`, `ChangedNetwork`, `AddedRow`, and `MissingRow` must be empty.
 4. LibreQoS is `ready`, and the controlled compiler opens and compiles the pair.
-5. A live test passed at the current registry revision. Add `registry_revision` to the live-test report. `activate` requires `--report <path>` with `passed: true` and a `registry_revision` equal to the current one. The activation window therefore runs `topology live-test` again just before `activate` (designer call).
+5. A live test passed at the current registry revision. Add `registry_revision` to the live-test report. `activate` requires `--report <path>` with `passed: true` and a `registry_revision` equal to the current one. Thus the activation window runs `topology live-test` again just before `activate` (designer call).
 
 With `--yes`, the command writes `runtime-owner.json` atomically and prints `activated: the Topology Manager is the writer`.
 
@@ -81,7 +81,7 @@ With `--yes`, the command writes `runtime-owner.json` atomically and prints `act
 
 When `topology_owns` is `Ok(true)`, the cycle does these steps:
 
-1. It runs the parts of the cycle that do not write the pair, as today: the native probe, the bridge statistics, the router status lines, the collection report, the Settings snapshot, and the report summary (designer call: split only the write step).
+1. It runs the parts of the cycle that do not write the pair, as today (designer call: split only the write step). These parts are the native probe, the bridge statistics, the router status lines, the collection report, the Settings snapshot, and the report summary.
 2. It runs the manager write (`sync_topology`). The legacy write step does not run.
 3. If the manager write succeeds, `writer = "topology"`, `manager_failed = false`. The per-change Telegram notice continues: the manager write gets the same `Frozen` change notice as a legacy write.
 4. If the manager write fails before it writes the pair, the pair on disk stays (the last good pair). `writer = "topology"`, `manager_failed = true`, `manager_error = <{e:#} text>`, `manager_failed_since = <first failed cycle>`.
@@ -106,7 +106,7 @@ With `--yes`, it does these steps:
 2. It writes each row into the legacy `state.json` `circuits`, under the legacy key that the legacy writer computes from the router data for that account. It updates the node entries the same way. This keeps the manager IDs, also `tm-sub-...` IDs, for the legacy writer (designer call: one-time seed at deactivation, not a copy in each cycle).
 3. It removes `runtime-owner.json` atomically.
 
-Known limit (designer call): a manager subscriber with more than one identity or device (for example a shared `[lqosync-id:..]` comment reference) has no single legacy key. The seed skips it, and the legacy writer gives it its own IDs. `deactivate` and `activate` print the count of such subscribers.
+Known limit (designer call): a manager subscriber with more than one identity or device has no single legacy key. An example is a shared `[lqosync-id:..]` comment reference. The seed skips it, and the legacy writer gives it its own IDs. `deactivate` and `activate` print the count of such subscribers.
 
 ### 4. Status, health, and notifications
 
@@ -115,7 +115,7 @@ Known limit (designer call): a manager subscriber with more than one identity or
 - TUI: one line on the status screen with the writer and, during a failure, the error and its age.
 - Health: a `Domain::Apply` component `writer`. `Healthy` with reason `topology` or `legacy`. `Degraded` with reason `manager_failed` while the manager fails.
 - Notifications: one notice when the manager starts to fail, and one when it works again. Use the existing Telegram outbox and its rate rules. No notice on each failed cycle.
-- Restart (designer call): at start, the service reads `manager_failed`, `manager_failed_since`, and `writer` from the previous `status.json`, so a restart during a failure sends no second notice.
+- Restart (designer call): at start, the service reads `manager_failed`, `manager_failed_since`, and `writer` from the previous `status.json`. Thus a restart during a failure sends no second notice.
 
 ### 5. Default `[network] mode` for a new installation
 
