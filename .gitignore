@@ -3,3 +3,6 @@
 /brain/.obsidian/workspace*.json
 /.superpowers/
 __pycache__/
+
+/crates/web-ui/dist/
+/crates/web-ui/.stage/

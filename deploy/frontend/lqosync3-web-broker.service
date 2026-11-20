@@ -1,0 +1,28 @@
+[Unit]
+Description=LQoSync web account and monitoring broker
+After=lqosync3.service
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/lqosync3-web/broker.env
+ExecStart=/usr/local/libexec/lqosync3-web-broker
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=lqosync3-web
+RuntimeDirectoryMode=0711
+StateDirectory=lqosync3-web-accounts
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_READ_SEARCH
+ReadWritePaths=/var/lib/lqosync3-web-accounts /run/lqosync3-web
+
+[Install]
+WantedBy=multi-user.target

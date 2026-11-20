@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-frontend-first-slice]] — Rust sign-in and Dashboard, port 9581; root deployment pending
+
 - [[2026-11-20-frontend-documentation-plan]] — 11 pictures, Rust feature design, backend gaps, and atomic implementation plan
 
 - [[2026-11-20-frontend-blueprint-research]] — LQoSync4 visual blueprint for the current LQoSync3 backend; research only

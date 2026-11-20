@@ -1,0 +1,28 @@
+[Unit]
+Description=LQoSync Rust web gateway
+Requires=lqosync3-web-broker.service
+After=network.target lqosync3-web-broker.service
+
+[Service]
+Type=simple
+User=lqosync-web
+Group=lqosync-web
+EnvironmentFile=/etc/lqosync3-web/gateway.env
+ExecStart=/usr/local/libexec/lqosync3-web
+Restart=on-failure
+RestartSec=3
+StateDirectory=lqosync3-web
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/lqosync3-web
+
+[Install]
+WantedBy=multi-user.target

@@ -2,7 +2,7 @@
 
 Status: owner direction, 2026-11-20. Implementation tasks: F04 and F14.
 This policy supersedes the Users picture and the earlier viewer/operator/admin proposal.
-The application has not implemented these commands yet.
+The first implementation slice provides these CLI commands. See [scope and evidence](FIRST_SLICE.md).
 
 ## Ownership and web boundary
 
@@ -22,7 +22,7 @@ Keep the generated Users image only as a withdrawn historical concept.
 The sign-in response can identify the current account without exposing other accounts.
 Operational audit reads must not become an account directory or expose authentication secrets.
 
-## Proposed CLI commands
+## CLI commands
 
 The binary name follows the existing planned local bootstrap tool.
 

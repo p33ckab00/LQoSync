@@ -1,0 +1,12 @@
+# Merge these entries into the existing file provider. Preserve other entries.
+http:
+  routers:
+    lqosync:
+      rule: Host(`lqosync.fsehub.qzz.io`)
+      entryPoints: [web]
+      service: lqosync
+  services:
+    lqosync:
+      loadBalancer:
+        servers:
+          - url: http://172.18.0.1:9581

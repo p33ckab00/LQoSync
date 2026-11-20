@@ -13,6 +13,9 @@ F00 selects compatible stable dependency versions and a reviewed password hash i
 
 **Spec:** [DESIGN.md](DESIGN.md), [CONTRACTS.md](CONTRACTS.md), [BACKEND_MAP.md](BACKEND_MAP.md), and [QUALITY.md](QUALITY.md).
 
+The first implementation slice covers parts of F00–F06. See [scope and remaining work](FIRST_SLICE.md).
+The task cards below retain their full acceptance conditions. Partial delivery does not close a card.
+
 ## Global constraints
 
 - Keep Rust application logic in both browser and server. Allow HTML, CSS, and generated Wasm binding glue.

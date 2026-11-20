@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T19:00:50+08:00 (Asia/Shanghai) — Web sign-in and Dashboard
+
+- Goal: deliver the first Rust web slice on port `9581` for `lqosync.fsehub.qzz.io`.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `df5738d`.
+- Changed: workspace manifest/lock, `crates/web-contract`, `crates/web-gateway`, `crates/web-ui`, `tools/frontend`, `deploy/frontend`, frontend documentation, screenshots, and this session's brain notes.
+- Runtime: unprivileged gateway, root broker, private account database, root-only account CLI. No web signup or account CRUD.
+- Source reads: bounded public cache projection. No core service or TUI source changes. Domain configuration actions remain planned.
+- Checks: core tests 1,571 passed with 12 ignored; nine web tests passed. Gateway Clippy, formatting, native/Wasm release builds, and Rust 1.89 checks passed.
+- Browser: sign-in, password visibility, themes, System changes, 320px layout, session persistence, and logout passed. See `docs/frontend/evidence/FIRST_SLICE.md` for the final gzip check and screenshots.
+- Blocker: passwordless sudo is unavailable. Live web services, the first real account, Traefik merge, and public-route validation remain pending.
+- Next: run the reviewed installer as root, create an account interactively, merge the Traefik router/service, and verify the HTTPS route. See `docs/frontend/DEPLOYMENT.md`.
+- Preserve unrelated untracked November 16 notes and the dataplane operations report. They are outside this commit.
+
 ## 2026-11-20T16:58:02+08:00 (Asia/Shanghai) — Global company branding
 
 - Owner requested company name/logo in global Settings alongside LQoSync branding, then commit/push.
