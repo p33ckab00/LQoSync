@@ -1,5 +1,5 @@
-//! Values, tones, and detail text for the DPDK health console. Pure functions, so native tests cover them.
-use crate::worker_ring_model::grouped;
+//! Values, tones, and detail text for the DPDK health band of the worker ring. Pure functions, so native tests cover them.
+use crate::worker_ring_model::{compact, grouped};
 use web_contract::dpdk::Console;
 
 /// A console topic. Hover or focus on any instrument of a topic highlights the whole topic.
@@ -93,6 +93,135 @@ pub(crate) fn status_tone(c: &Console) -> Tone {
         Some(_) => Tone::Warn,
         None => Tone::Neutral,
     }
+}
+/// One band of the outer health ring.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Segment {
+    /// Short text on the band.
+    pub label: &'static str,
+    /// Full name for the chip, the focus text, and assistive technology.
+    pub name: &'static str,
+    pub value: String,
+    pub tone: Tone,
+    pub topic: Topic,
+}
+fn seg(
+    label: &'static str,
+    name: &'static str,
+    value: String,
+    tone: Tone,
+    topic: Topic,
+) -> Segment {
+    Segment {
+        label,
+        name,
+        value,
+        tone,
+        topic,
+    }
+}
+/// The nine health bands, clockwise from the top: bridge health first, then analytics and classification.
+pub(crate) fn segments(c: &Console) -> [Segment; 9] {
+    let rollup_tone = match (c.missing_rollups, c.oldest_rollup_ms) {
+        (Some(m), _) if m > 0 => Tone::Warn,
+        (_, Some(_)) => Tone::Violet,
+        _ => Tone::Neutral,
+    };
+    let rings_tone = match ring_pct(c) {
+        Some(p) if p >= 75.0 => Tone::Warn,
+        Some(_) => Tone::Info,
+        None => Tone::Neutral,
+    };
+    let class_tone = match c.classification_empty {
+        Some(false) => Tone::Good,
+        Some(true) => Tone::Warn,
+        None => Tone::Neutral,
+    };
+    [
+        seg(
+            "BRIDGE",
+            "Bridge status",
+            c.status
+                .as_deref()
+                .unwrap_or("unknown")
+                .to_ascii_lowercase(),
+            status_tone(c),
+            Topic::Bridge,
+        ),
+        seg(
+            "ROLLUP",
+            "Oldest rollup",
+            c.oldest_rollup_ms
+                .map(|m| format!("{} ms", grouped(m)))
+                .unwrap_or("—".into()),
+            rollup_tone,
+            Topic::Rollup,
+        ),
+        seg(
+            "CLASSIFY",
+            "Classification",
+            match c.classification_empty {
+                Some(false) => "populated",
+                Some(true) => "empty",
+                None => "—",
+            }
+            .into(),
+            class_tone,
+            Topic::Bridge,
+        ),
+        seg(
+            "PRESSURE",
+            "Buffer and ring pressure",
+            c.pressure.clone().unwrap_or("UNKNOWN".into()),
+            pressure_tone(c),
+            Topic::Buffer,
+        ),
+        seg(
+            "POOL",
+            "Buffer pool free",
+            pool_free_pct(c)
+                .map(|p| format!("{p:.2}%"))
+                .unwrap_or("—".into()),
+            pool_tone(c),
+            Topic::Buffer,
+        ),
+        seg(
+            "RINGS",
+            "Handoff ring occupancy",
+            ring_pct(c)
+                .map(|p| format!("{p:.1}%"))
+                .unwrap_or("N/A".into()),
+            rings_tone,
+            Topic::Rings,
+        ),
+        seg(
+            "BACKLOG",
+            "Queue backlog",
+            c.backlog_bytes
+                .map(|b| format!("{}B", compact(b)))
+                .unwrap_or("—".into()),
+            if c.backlog_bytes.is_some() {
+                Tone::Info
+            } else {
+                Tone::Neutral
+            },
+            Topic::Queue,
+        ),
+        seg(
+            "DROPS",
+            "Queue drops per sample",
+            count(c.queue_drops_per_sample),
+            per_sample_tone(c.queue_drops_per_sample),
+            Topic::Queue,
+        ),
+        seg(
+            "AQM",
+            "AQM marks per sample",
+            count(c.aqm_marks_per_sample),
+            per_sample_tone(c.aqm_marks_per_sample),
+            Topic::Queue,
+        ),
+    ]
 }
 fn age(n: Option<u64>) -> String {
     n.map(|n| format!("{n}s")).unwrap_or("unknown".into())
@@ -279,6 +408,40 @@ mod tests {
                 "Rollup freshness",
                 "Bridge health"
             ]
+        );
+    }
+    #[test]
+    fn segments_show_the_reference_values_and_keep_unknown_neutral() {
+        let mut c = console();
+        c.backlog_bytes = Some(221_224);
+        c.oldest_rollup_ms = Some(735);
+        c.missing_rollups = Some(0);
+        c.classification_empty = Some(false);
+        let s = segments(&c);
+        let values: Vec<_> = s.iter().map(|s| s.value.as_str()).collect();
+        assert_eq!(
+            values,
+            [
+                "healthy",
+                "735 ms",
+                "populated",
+                "CLEAR",
+                "98.97%",
+                "N/A",
+                "221KB",
+                "25",
+                "—"
+            ]
+        );
+        assert_eq!(s[5].tone, Tone::Neutral, "N/A is not 0 %");
+        assert_eq!(s[7].tone, Tone::Warn);
+        assert_eq!(s[8].tone, Tone::Neutral);
+        c.missing_rollups = Some(1);
+        assert_eq!(segments(&c)[1].tone, Tone::Warn);
+        assert!(
+            segments(&Console::default())
+                .iter()
+                .all(|s| s.tone == Tone::Neutral)
         );
     }
     #[test]

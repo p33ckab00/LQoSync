@@ -169,7 +169,6 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <crate::traffic_chart::TrafficChart data/>
         <WanDistribution/>
       </div>
-      <crate::dpdk_console::DpdkConsole snapshot server_clock/>
       <crate::dpdk::DpdkCard snapshot server_clock/>
       <Upstream/>
       <section class="panel service-diagnostics-details" aria-label="Service diagnostics details">

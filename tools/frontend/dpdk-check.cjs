@@ -24,6 +24,14 @@ const fs=require('node:fs');
   assert.match(await ring.locator('.worker-chip-busy').textContent(),/75.0%/);
   assert.match(await ring.locator('.panel-note').innerText(),/mean busy 50.0%/);
   assert.equal(await ring.locator('.worker-sector').count(),9);
+  // The DPDK health band: nine typed bands around the phase ring, and the old console card is gone.
+  assert.equal(await ring.locator('h2').innerText(),'DPDK Health');
+  assert.equal(await ring.locator('.health-band').count(),9);
+  assert.equal(await page.locator('.console-card').count(),0);
+  // Keyboard focus: the bounding-box centre of an arc is not on its stroke, so a pointer hover would miss it.
+  await ring.locator('#health-band-4').focus();
+  assert.match(await ring.locator('.worker-focus').innerText(),/^Buffer pool · Free /);
+  await page.keyboard.press('Escape');await ring.locator('#health-band-4').blur();
   assert.equal(await card.locator('.panel-title .chip').innerText(),'ok');
   await card.getByRole('img',{name:'Mean worker busy percent during this browser session',exact:true}).waitFor();
   const details=card.locator('details');

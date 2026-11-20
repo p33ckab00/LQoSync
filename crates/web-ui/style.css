@@ -310,9 +310,9 @@
 .worker-picker{display:flex;flex-wrap:wrap;gap:6px}
 .worker-picker button{font:inherit;font-size:13px;color:var(--text);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 9px;min-block-size:28px;cursor:pointer}
 .worker-picker button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.worker-ring{display:block;inline-size:100%;block-size:auto;max-block-size:340px;overflow:visible;touch-action:manipulation}
+.worker-ring{display:block;inline-size:100%;block-size:auto;max-block-size:380px;overflow:visible;touch-action:manipulation}
 .worker-ring-guide{fill:none;stroke:var(--border);stroke-width:1;stroke-dasharray:3 8}
-.worker-ring-sectors{transform-origin:260px 196px;transition:transform .32s ease}
+.worker-ring-sectors{transform-box:fill-box;transform-origin:center;transition:transform .32s ease}
 .worker-ring.active .worker-ring-sectors{transform:scale(1.025)}
 .worker-sector{fill:none;stroke:var(--phase);stroke-width:18;stroke-linecap:round;cursor:pointer;outline:none;transition:stroke-width .26s ease,opacity .2s ease,filter .26s ease}
 .worker-sector.selected,.worker-sector:focus-visible{stroke-width:28;filter:drop-shadow(0 0 5px var(--phase))}
@@ -383,58 +383,23 @@
 .range-options button{cursor:pointer}
 .range-options button.range-selected{background:var(--accent);color:var(--on-accent)}
 .range-options button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-/* DPDK health console: follows dpdk-radial-console.svg. The reference palette is dark in every theme, like the worker chip. */
-.console-card{--c-bg:radial-gradient(circle at 50% 35%,#182b40,#091321);--c-tile:#12283b;--c-line:#38556b;--c-hi:#65d9f7;--c-text:#e7f3ff;--c-small:#a6bdd0;--c-tiny:#8da5b9;--c-track:#274056;background:var(--c-bg)!important;border-color:#1f3a52!important;color:var(--c-text);padding:18px 20px!important;border-radius:18px!important;display:flex;flex-direction:column;gap:10px;min-inline-size:0}
-.console-card .tone-good{--tone:#3bd9ae}.console-card .tone-warn{--tone:#f1b45b}.console-card .tone-info{--tone:#62baf4}.console-card .tone-violet{--tone:#b4a0ff}.console-card .tone-neutral{--tone:#a5b5c6}
-.console-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.console-head h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#e6f4ff}
-.console-status{display:inline-flex;align-items:center;gap:7px;font-size:12px;text-transform:uppercase;color:var(--tone)}
-.console-status i{inline-size:10px;block-size:10px;border-radius:50%;background:var(--tone)}
-.console-sub{margin:-4px 0 4px;font-size:11px;color:var(--c-tiny)}
-.console-core{display:grid;grid-template-columns:minmax(0,245px) minmax(0,1fr) minmax(0,245px);align-items:center;gap:16px}
-.console-side{display:flex;flex-direction:column;gap:22px}
-.console-center{position:relative;display:flex;justify-content:center;min-inline-size:0}
-.console-rings{inline-size:100%;max-inline-size:320px;block-size:auto;overflow:visible}
-.console-guide{fill:none;stroke:var(--c-track);stroke-width:3;stroke-dasharray:3 9}
-.console-track{fill:none;stroke:var(--c-track);stroke-width:9}
-.console-arc{fill:none;stroke:var(--tone);stroke-width:10;opacity:.88;cursor:pointer;transition:opacity .2s,stroke-width .2s}
-.console-arc:hover,.console-arc.active{stroke-width:18;opacity:1}
-.console-dots{fill:none;stroke:#6d8297;stroke-width:4;stroke-dasharray:2 8;opacity:.6}
-.console-pin{fill:#8ea5b8}
-.console-package{stroke:#8cb4c8;stroke-width:2}
-.console-die{fill:#0b1b2a;stroke:#436b81}
-.console-traces{fill:none;stroke:#2c526a;stroke-width:1}
-.console-chip text{text-anchor:middle;font-family:inherit}
-.console-chip-label{font-size:11px;fill:var(--c-small)}
-.console-chip-status{font-size:17px;font-weight:700;fill:var(--tone)}
-.console-chip-workers{font-size:12px;fill:#c5d6e5}
-.console-chip-version{font-size:10px;fill:var(--c-tiny)}
-.console-detail{position:absolute;inset-block-start:0;inset-inline:0;margin-inline:auto;inline-size:min(395px,100%);box-sizing:border-box;padding:10px 15px;border-radius:12px;background:#20384df7;border:1.5px solid #75cbe8;display:flex;flex-direction:column;gap:3px;font-size:12px;color:#a9c7da;opacity:0;pointer-events:none;transition:opacity .18s;z-index:2}
-.console-detail.show{opacity:1}
-.console-detail b{font-size:15px;color:#eaf8ff;text-transform:uppercase}
-.console-row-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-block-start:6px}
-.console-row-head h3{margin:0;font-size:12px;font-weight:700;text-transform:uppercase;color:#e3edf8}
-.console-row-head span{font-size:10px;color:var(--c-tiny)}
-.console-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
-.console-grid.six{grid-template-columns:repeat(6,minmax(0,1fr))}
-.console-tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-inline-size:0;text-align:start;font:inherit;color:var(--c-text);background:var(--c-tile);border:1.1px solid var(--c-line);border-radius:10px;padding:10px 12px 10px 20px;cursor:pointer;transition:border-color .15s,opacity .15s}
-.console-tile::before{content:"";position:absolute;inset-inline-start:8px;inset-block:11px;inline-size:3px;border-radius:1px;background:var(--tone);opacity:.7}
-.console-tile:hover,.console-tile:focus-visible,.console-tile.selected{border-color:var(--c-hi);box-shadow:inset 0 0 0 1px var(--c-hi);outline:none}
-.console-tile:hover::before,.console-tile.selected::before{opacity:1}
-.console-tile.dimmed{opacity:.55}
-.tile-label{font-size:11px;text-transform:uppercase;color:var(--c-small);overflow-wrap:anywhere}
-.tile-value{font-size:19px;font-weight:700;color:var(--tone);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.tile-note{font-size:10px;color:var(--c-tiny);overflow-wrap:anywhere}
-.console-tile.side{min-block-size:94px;justify-content:center}
-.console-tile.fact{padding:9px 12px;border-radius:8px}
-.console-tile.fact::before{inset-block:auto;inset-block-start:13px;inset-inline-start:12px;inline-size:8px;block-size:8px;border-radius:50%;opacity:1}
-.console-tile.fact .tile-label{font-size:10px;padding-inline-start:13px}
-.console-tile.fact .tile-value{font-size:15px;color:#e2f0fc}
-.console-tile.counter{padding:8px 10px;border-radius:7px}
-.console-tile.counter::before{display:none}
-.console-tile.counter .tile-label{font-size:10px;color:var(--c-tiny)}
-.console-tile.counter .tile-value{font-size:14px;color:#dcecf9}
-.console-tile.fact .tile-note,.console-tile.counter .tile-note{display:none}
-@media(max-width:1100px){.console-core{grid-template-columns:1fr 1fr}.console-center{grid-column:1/-1;grid-row:1}.console-grid,.console-grid.six{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:560px){.console-core{grid-template-columns:1fr}.console-grid,.console-grid.six{grid-template-columns:repeat(2,minmax(0,1fr))}.console-detail{position:static;opacity:1;display:none}.console-detail.show{display:flex}}
-@media(prefers-reduced-motion:reduce){.console-arc,.console-tile,.console-detail{transition:none}}
+/* DPDK health band around the worker ring. A new value pulses the band and shows on it briefly. */
+.worker-ring .tone-good{--tone:#3bd9ae}.worker-ring .tone-warn{--tone:#f1b45b}.worker-ring .tone-info{--tone:#62baf4}.worker-ring .tone-violet{--tone:#b4a0ff}.worker-ring .tone-neutral{--tone:#8fa3b6}
+.health-band{fill:none;stroke:var(--tone);stroke-width:16;opacity:.82;cursor:pointer;transition:stroke-width .2s,opacity .2s}
+.health-band:hover,.health-band.selected,.health-band:focus-visible{stroke-width:22;opacity:1;outline:none;filter:drop-shadow(0 0 6px var(--tone))}
+.health-band:focus{outline:none}
+.health-band.dimmed{opacity:.35}
+.worker-ring.stale .health-band{opacity:.45}
+.health-tick{pointer-events:none}
+.health-pulse{fill:none;stroke:var(--tone);stroke-width:16;opacity:0;animation:health-pulse 1.1s ease-out}
+.health-tick text{font-size:9px;font-weight:800;letter-spacing:.06em;fill:#06131f;dominant-baseline:central;text-anchor:middle}
+.health-label{animation:health-label 2.8s ease-in-out}
+.health-value{opacity:0;animation:health-value 2.8s ease-in-out}
+.health-tick.show .health-value{opacity:1;animation:none}
+.health-tick.show .health-label{opacity:0;animation:none}
+@keyframes health-pulse{0%{opacity:.8;stroke-width:16}100%{opacity:0;stroke-width:34}}
+@keyframes health-value{0%{opacity:0}15%,62%{opacity:1}100%{opacity:0}}
+@keyframes health-label{0%{opacity:1}12%,66%{opacity:0}100%{opacity:1}}
+.health-line{margin:0;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.health-pulse,.health-label,.health-value{animation:none}}
+@media(forced-colors:active){.health-band{stroke:CanvasText}.health-band.selected,.health-band:focus-visible{stroke:Highlight;filter:none}.health-tick text{fill:Canvas}.health-pulse{display:none}}

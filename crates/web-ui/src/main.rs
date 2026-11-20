@@ -36,7 +36,5 @@ mod worker_ring;
 #[cfg(any(target_arch = "wasm32", test))]
 mod worker_ring_model;
 
-#[cfg(target_arch = "wasm32")]
-mod dpdk_console;
 #[cfg(any(target_arch = "wasm32", test))]
 mod dpdk_console_model;

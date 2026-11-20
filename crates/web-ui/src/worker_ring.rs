@@ -1,8 +1,17 @@
-//! Worker execution ring after the reviewed `worker-radial-profiler-v3.svg` reference.
-//! Hover or focus keeps the view radial: the sector grows on the ring and the chip shows its counter.
-use crate::worker_ring_model::{CX, CY, RADIUS, Sector, compact, grouped, pick, sectors};
+//! DPDK health ring: the worker execution ring after `worker-radial-profiler-v3.svg`, with an outer
+//! band for analytics, classification, and bridge health. Hover or focus keeps the view radial:
+//! the sector or band grows and the chip shows its value. A new band value pulses and shows briefly.
+use crate::dpdk_console_model::{Segment, count, details, segments, uptime};
+use crate::worker_ring_model::{CX, CY, RADIUS, Sector, band, compact, grouped, pick, sectors};
 use leptos::prelude::*;
-use web_contract::dpdk::Dpdk;
+use web_contract::dpdk::{Console, Dpdk};
+
+/// The focused instrument: a phase sector or a health band.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Target {
+    Phase(usize),
+    Health(usize),
+}
 
 fn pct(n: Option<u64>) -> String {
     n.map(|n| format!("{:.1}%", n as f64 / 10000.0))
@@ -15,8 +24,8 @@ fn value(n: Option<u64>) -> String {
 #[component]
 pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) -> impl IntoView {
     let selected = RwSignal::new(None::<u16>);
-    let hovered = RwSignal::new(None::<usize>);
-    let pinned = RwSignal::new(None::<usize>);
+    let hovered = RwSignal::new(None::<Target>);
+    let pinned = RwSignal::new(None::<Target>);
     let over = RwSignal::new(false);
     let focus = Memo::new(move |_| pinned.get().or(hovered.get()));
     let live = Memo::new(move |_| {
@@ -39,9 +48,39 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
                 .unwrap_or_default()
         })
     });
-    // A second click on the pinned phase resets the view. Hover stays muted on it until the pointer leaves.
-    let muted = RwSignal::new(None::<usize>);
-    let toggle = move |i: usize| {
+    let health = Memo::new(move |_| {
+        let empty = Console::default();
+        snapshot.with(|d| segments(d.as_ref().map_or(&empty, |d| &d.console)))
+    });
+    let ages = Memo::new(move |_| {
+        let now = server_clock.get();
+        snapshot.with(|d| {
+            d.as_ref()
+                .map(|d| {
+                    (
+                        d.analytics.updated.and_then(|t| now.checked_sub(t)),
+                        d.health.updated.and_then(|t| now.checked_sub(t)),
+                    )
+                })
+                .unwrap_or_default()
+        })
+    });
+    let ticks = move || {
+        health
+            .get()
+            .into_iter()
+            .enumerate()
+            .collect::<Vec<(usize, Segment)>>()
+    };
+    let tick_key = |(k, s): &(usize, Segment)| (*k, s.value.clone());
+    // A second click on the pinned instrument resets the view. Hover stays muted on it until the pointer leaves.
+    let muted = RwSignal::new(None::<Target>);
+    let enter = move |t: Target| {
+        if muted.get_untracked() != Some(t) {
+            hovered.set(Some(t));
+        }
+    };
+    let toggle = move |i: Target| {
         if pinned.get_untracked() == Some(i) {
             pinned.set(None);
             hovered.set(None);
@@ -60,7 +99,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
     view! {
       <article class="panel worker-ring-card" aria-labelledby="worker-ring-title">
         <div class="worker-ring-head">
-          <h2 id="worker-ring-title">"Worker"</h2>
+          <h2 id="worker-ring-title">"DPDK Health"</h2>
           <span class=move||format!("chip {}",if live.get(){"good"}else{"neutral"})>{move||if live.get(){"Live"}else if snapshot.with(|d|d.is_none()){"Unavailable"}else{"Stale · last known"}}</span>
         </div>
         <Show when=move||ids.with(|v|v.len()>1)>
@@ -73,7 +112,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
         </Show>
         <div class="worker-ring-body">
         <svg class="worker-ring" class:active=move||over.get()||focus.with(Option::is_some) class:stale=move||!live.get()
-          viewBox="0 0 520 392" role="group" aria-label=move||format!("Worker {} execution phases",name())
+          viewBox="-28 0 576 400" role="group" aria-label=move||format!("DPDK health: worker {} execution phases and bridge instruments",name())
           on:pointerenter=move|_|over.set(true) on:pointerleave=move|_|{over.set(false);hovered.set(None);}
           on:focusin=move|_|over.set(true)
           on:focusout=move|ev|{
@@ -83,18 +122,39 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
               if !inside {over.set(false);hovered.set(None);}
           }
           on:keydown=move|ev|{if ev.key()=="Escape"{pinned.set(None);hovered.set(None);}}>
-          <circle class="worker-ring-guide" cx=CX cy=CY r=RADIUS+34.0/>
+          <circle class="worker-ring-guide" cx=CX cy=CY r=RADIUS+22.0/>
+          <g class="health-ring">
+            {(0..9).map(|k|{let t=Target::Health(k);let s=move||health.with(|h|h[k].clone());view!{
+              <path id=format!("health-band-{k}") d=band(k) class=move||format!("health-band {}",s().tone.class())
+                class:selected=move||focus.get()==Some(t) class:dimmed=move||focus.get().is_some_and(|f|f!=t)
+                tabindex="0" role="button" aria-pressed=move||(pinned.get()==Some(t)).to_string()
+                aria-label=move||{let s=s();format!("{}: {}",s.name,s.value)}
+                on:pointerenter=move|_|enter(t) on:pointerleave=move|_|{hovered.set(None);muted.set(None);}
+                on:focus=move|_|enter(t) on:click=move|_|toggle(t)
+                on:keydown=move|ev|{if ev.key()=="Enter"||ev.key()==" "{ev.prevent_default();toggle(t);}}/>
+            }}).collect_view()}
+            // Keyed by value: a new value recreates the group, so the pulse and the value flash run again.
+            <For each=ticks key=tick_key
+              children=move|(k,s):(usize,Segment)|view!{
+                <g class=format!("health-tick {}",s.tone.class()) class:show=move||focus.get()==Some(Target::Health(k)) aria-hidden="true">
+                  <path class="health-pulse" d=band(k)/>
+                  <text class="health-label"><textPath href=format!("#health-band-{k}") startOffset="50%">{s.label}</textPath></text>
+                  <text class="health-value"><textPath href=format!("#health-band-{k}") startOffset="50%">{s.value}</textPath></text>
+                </g>
+              }/>
+          </g>
           <g class="worker-ring-sectors">
             <For each=move||ring.get() key=|s:&Sector|s.index children=move|s:Sector|{
               let i=s.index;
+              let t=Target::Phase(i);
               view!{<path class=format!("worker-sector phase-{i}") d=s.arc.clone()
-                class:selected=move||focus.get()==Some(i) class:dimmed=move||focus.get().is_some_and(|f|f!=i)
-                tabindex="0" role="button" aria-pressed=move||(pinned.get()==Some(i)).to_string()
+                class:selected=move||focus.get()==Some(t) class:dimmed=move||focus.get().is_some_and(|f|f!=t)
+                tabindex="0" role="button" aria-pressed=move||(pinned.get()==Some(t)).to_string()
                 aria-label=move||ring.with(|r|format!("{}: {} cycles. {}",r[i].label,value(r[i].cycles),r[i].description))
-                on:pointerenter=move|_|{if muted.get_untracked()!=Some(i){hovered.set(Some(i));}}
+                on:pointerenter=move|_|enter(t)
                 on:pointerleave=move|_|{hovered.set(None);muted.set(None);}
-                on:focus=move|_|{if muted.get_untracked()!=Some(i){hovered.set(Some(i));}} on:click=move|_|toggle(i)
-                on:keydown=move|ev|{if ev.key()=="Enter"||ev.key()==" "{ev.prevent_default();toggle(i);}}/>}
+                on:focus=move|_|enter(t) on:click=move|_|toggle(t)
+                on:keydown=move|ev|{if ev.key()=="Enter"||ev.key()==" "{ev.prevent_default();toggle(t);}}/>}
             }/>
           </g>
           <g class="worker-chip" aria-hidden="true">
@@ -116,7 +176,12 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
                 <text x=CX y=CY+20.0 class="worker-chip-busy">{move||worker.with(|w|pct(w.as_ref().map(|w|w.busy_ppm)))}</text>
                 <text x=CX y=CY+38.0 class="worker-chip-note">"BUSY"</text>
               }.into_any(),
-              Some(i)=>view!{
+              Some(Target::Health(k))=>view!{
+                <text x=CX y=CY-14.0 class="worker-chip-phase">{move||health.with(|h|h[k].label)}</text>
+                <text x=CX y=CY+8.0 class="worker-chip-cycles">{move||health.with(|h|h[k].value.clone())}</text>
+                <text x=CX y=CY+26.0 class="worker-chip-note">"HEALTH"</text>
+              }.into_any(),
+              Some(Target::Phase(i))=>view!{
                 <text x=CX y=CY-14.0 class="worker-chip-phase">{move||ring.with(|r|r[i].label)}</text>
                 <text x=CX y=CY+8.0 class="worker-chip-cycles">{move||ring.with(|r|r[i].cycles.map(compact).unwrap_or("—".into()))}</text>
                 <text x=CX y=CY+26.0 class="worker-chip-note">"CYCLES"</text>
@@ -128,7 +193,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
               let i=s.index;
               let points=format!("{},{} {},{} {},{}",s.anchor.0,s.anchor.1,s.elbow.0,s.elbow.1,s.end.0,s.end.1);
               let (tx,anchor)=if s.left {(s.end.0-6.0,"end")} else {(s.end.0+6.0,"start")};
-              view!{<g class=format!("worker-callout phase-{i}") class:dimmed=move||focus.get().is_some_and(|f|f!=i)>
+              view!{<g class=format!("worker-callout phase-{i}") class:dimmed=move||focus.get().is_some_and(|f|f!=Target::Phase(i))>
                 <polyline points=points/>
                 <circle cx=s.anchor.0 cy=s.anchor.1 r="3"/>
                 <text x=tx y=s.end.1-3.0 text-anchor=anchor class="worker-callout-name">{s.label}</text>
@@ -139,8 +204,9 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
         </svg>
         <div class="worker-ring-side">
         <p class="worker-focus" aria-live="polite">{move||match focus.get() {
-          Some(i)=>ring.with(|r|format!("{} · {} cumulative cycles · {}",r[i].label,value(r[i].cycles),r[i].description)),
-          None=>"Hover or focus a phase · click to pin · Esc to clear".into(),
+          Some(Target::Phase(i))=>ring.with(|r|format!("{} · {} cumulative cycles · {}",r[i].label,value(r[i].cycles),r[i].description)),
+          Some(Target::Health(k))=>{let (a,b)=ages.get();let t=health.with(|h|h[k].topic);snapshot.with(|d|{let empty=Console::default();details(t,d.as_ref().map_or(&empty,|d|&d.console),a,b).join(" · ")})}
+          None=>"Hover or focus a phase or a health band · click to pin · Esc to clear".into(),
         }}</p>
         <dl class="worker-stats">
           <div><dt>"Idle (derived)"</dt><dd>{move||worker.with(|w|pct(w.as_ref().map(|w|1_000_000-w.busy_ppm.min(1_000_000))))}</dd></div>
@@ -148,6 +214,9 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
           <div><dt>"Cycles/busy lap"</dt><dd>{move||worker.with(|w|value(w.as_ref().and_then(|w|w.cycles_per_busy_lap)))}</dd></div>
           <div><dt>"Mean backlog"</dt><dd>{move||worker.with(|w|w.as_ref().and_then(|w|w.backlog_mean).map(|v|format!("{} pkts",grouped(v))).unwrap_or("—".into()))}</dd></div>
         </dl>
+        <p class="health-line">{move||{let (a,b)=ages.get();snapshot.with(|d|d.as_ref().map(|d|{let c=&d.console;format!("Bridge {}{} · up {} · {} rollups missing · analytics {} · bridge {}",
+          c.status.as_deref().unwrap_or("unknown"),c.version.as_deref().map(|v|format!(" {v}")).unwrap_or_default(),uptime(c.uptime_ms),count(c.missing_rollups),
+          a.map(|a|format!("{a}s")).unwrap_or("—".into()),b.map(|b|format!("{b}s")).unwrap_or("—".into()))}).unwrap_or("Bridge health unavailable".into()))}}</p>
         <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
         </div>
         </div>

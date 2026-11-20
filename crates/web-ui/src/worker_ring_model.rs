@@ -18,6 +18,9 @@ pub(crate) const CX: f64 = 260.0;
 pub(crate) const CY: f64 = 196.0;
 pub(crate) const RADIUS: f64 = 112.0;
 const GAP_DEG: f64 = 4.0;
+/// Radius of the outer DPDK health band.
+pub(crate) const R_OUT: f64 = 152.0;
+const GAP_OUT_DEG: f64 = 5.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Sector {
@@ -58,6 +61,31 @@ pub(crate) fn arc(i: usize) -> String {
     )
 }
 
+/// Outer health band `k`. Each band is centred on a phase boundary, so the phase callouts pass
+/// through the band gaps. The lower half runs counter-clockwise, so text on the path stays upright.
+pub(crate) fn band(k: usize) -> String {
+    let step = 360.0 / RING.len() as f64;
+    let mid = step * k as f64;
+    let (a, b) = (
+        mid - step / 2.0 + GAP_OUT_DEG / 2.0,
+        mid + step / 2.0 - GAP_OUT_DEG / 2.0,
+    );
+    let (from, to, sweep) = if mid > 90.0 && mid < 270.0 {
+        (b, a, 0)
+    } else {
+        (a, b, 1)
+    };
+    let (x1, y1) = point(from, R_OUT);
+    let (x2, y2) = point(to, R_OUT);
+    format!(
+        "M{} {} A{R_OUT} {R_OUT} 0 0 {sweep} {} {}",
+        round(x1),
+        round(y1),
+        round(x2),
+        round(y2)
+    )
+}
+
 pub(crate) fn sectors(w: Option<&Worker>) -> Vec<Sector> {
     let find = |name: &str| -> Option<u64> {
         w.and_then(|w| w.phases.iter().find(|p: &&Phase| p.name == name))
@@ -69,7 +97,8 @@ pub(crate) fn sectors(w: Option<&Worker>) -> Vec<Sector> {
         .map(|(i, (source, label, description))| {
             let mid = step * (i as f64 + 0.5);
             let anchor = point(mid, RADIUS + 22.0);
-            let elbow = point(mid, RADIUS + 44.0);
+            // The elbow is outside the health band. The line passes through a band gap.
+            let elbow = point(mid, R_OUT + 30.0);
             let left = mid > 180.0;
             let end = (if left { 70.0 } else { 450.0 }, elbow.1);
             Sector {
@@ -187,6 +216,18 @@ mod tests {
         let s = sectors(None);
         assert!(!s[0].left && s[8].left);
         assert!(s.iter().filter(|s| s.left).all(|s| s.end.0 < CX));
+    }
+    #[test]
+    fn health_bands_sit_on_phase_boundaries_and_keep_text_upright() {
+        // Band 0 is centred on the top, between Handoff and RX.
+        assert_eq!(band(0), "M214.29 51.04 A152 152 0 0 1 305.71 51.04");
+        let lower: Vec<_> = (0..9).filter(|k| band(*k).contains(" 0 0 0 ")).collect();
+        assert_eq!(lower, [3, 4, 5, 6]);
+        // Each callout runs along a phase mid angle, which is a band gap.
+        for s in sectors(None) {
+            let r = ((s.elbow.0 - CX).powi(2) + (s.elbow.1 - CY).powi(2)).sqrt();
+            assert!(r > R_OUT + 20.0, "{r}");
+        }
     }
     #[test]
     fn counts_are_exact_when_focused_and_short_in_callouts() {
