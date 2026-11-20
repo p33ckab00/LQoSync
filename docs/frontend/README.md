@@ -16,7 +16,8 @@ The Rust service remains the execution authority and continues without a browser
 
 The [Dashboard alignment contract](DASHBOARD_ALIGNMENT.md) makes the approved picture and written corrections the acceptance criteria.
 Use the Vercel and Google frontend skills for each frontend change.
-See [current Dashboard evidence](evidence/dashboard-alignment/README.md) for implementation checks and known backend gaps.
+See [current Dashboard evidence](evidence/live-traffic/README.md) for implementation checks and known backend gaps.
+See [live traffic](LIVE_TRAFFIC.md) for the one-second stream and WAN capacity color rules.
 
 ## Read order
 

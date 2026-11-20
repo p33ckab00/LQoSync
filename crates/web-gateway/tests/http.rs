@@ -56,6 +56,94 @@ fn req(method: &str, path: &str, cookie: &str, origin: &str, body: &str) -> Requ
         .unwrap()
 }
 #[tokio::test]
+async fn live_stream_authenticates_emits_each_second_and_stops_after_revocation() {
+    let (_dir, app, accounts, job) = fixture().await;
+    assert_eq!(
+        app.clone()
+            .oneshot(req("GET", "/api/v1/overview/live", "", "", ""))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let signed = app
+        .clone()
+        .oneshot(req(
+            "POST",
+            "/api/v1/session",
+            "",
+            "https://lqosync.test",
+            r#"{"username":"operator-a","password":"test-password-only-123"}"#,
+        ))
+        .await
+        .unwrap();
+    let cookie = signed.headers()["set-cookie"].to_str().unwrap().to_owned();
+    let response = app
+        .clone()
+        .oneshot(req("GET", "/api/v1/overview/live", &cookie, "", ""))
+        .await
+        .unwrap();
+    assert_eq!(response.headers()["content-type"], "text/event-stream");
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    assert_eq!(response.headers()["x-accel-buffering"], "no");
+    let mut body = response.into_body();
+    for _ in 0..2 {
+        let frame = tokio::time::timeout(std::time::Duration::from_secs(2), body.frame())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let text = String::from_utf8(frame.into_data().unwrap().to_vec()).unwrap();
+        assert!(text.contains("data: {") && text.contains("traffic_stale"));
+    }
+    accounts.disable("operator-a", true).unwrap();
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), body.frame())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert!(
+        String::from_utf8(frame.into_data().unwrap().to_vec())
+            .unwrap()
+            .contains("data: unauthorized")
+    );
+    assert!(body.frame().await.is_none());
+    accounts.disable("operator-a", false).unwrap();
+    // A broker outage must terminate the stream, rather than replay current claims.
+    let signed = app
+        .clone()
+        .oneshot(req(
+            "POST",
+            "/api/v1/session",
+            "",
+            "https://lqosync.test",
+            r#"{"username":"operator-a","password":"test-password-only-123"}"#,
+        ))
+        .await
+        .unwrap();
+    let cookie = signed.headers()["set-cookie"].to_str().unwrap().to_owned();
+    let response = app
+        .clone()
+        .oneshot(req("GET", "/api/v1/overview/live", &cookie, "", ""))
+        .await
+        .unwrap();
+    let mut body = response.into_body();
+    assert!(body.frame().await.is_some());
+    job.abort();
+    tokio::task::yield_now().await;
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(2), body.frame())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert!(
+        String::from_utf8(frame.into_data().unwrap().to_vec())
+            .unwrap()
+            .contains("data: unavailable")
+    );
+    assert!(body.frame().await.is_none());
+}
+#[tokio::test]
 async fn sign_in_dashboard_revocation_and_no_account_routes() {
     let (_dir, app, accounts, job) = fixture().await;
     assert_eq!(

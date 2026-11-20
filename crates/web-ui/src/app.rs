@@ -55,11 +55,14 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
     let data = RwSignal::new(None::<Overview>);
     let error = RwSignal::new(String::new());
     let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let received = crate::live::attach(session, data, error);
     let stop = alive.clone();
     on_cleanup(move || stop.store(false, std::sync::atomic::Ordering::Relaxed));
     leptos::task::spawn_local(async move {
         while alive.load(std::sync::atomic::Ordering::Relaxed) {
-            if !web_sys::window().unwrap().document().unwrap().hidden() {
+            if !web_sys::window().unwrap().document().unwrap().hidden()
+                && js_sys::Date::now() - received.get_untracked() > 2500.0
+            {
                 let expected = session.get_untracked().map(|p| p.csrf);
                 let (signal, _timer) = deadline();
                 let response = Request::get("/api/v1/overview")
@@ -87,16 +90,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
                         ),
                     }
                     if !error.get_untracked().is_empty() {
-                        data.update(|current| {
-                            if let Some(view) = current {
-                                view.stale = true;
-                                view.traffic_stale = true;
-                                view.health = "UNKNOWN".into();
-                                for component in &mut view.components {
-                                    component.state = "UNKNOWN".into();
-                                }
-                            }
-                        });
+                        crate::live::mark_stale(data);
                     }
                 }
             }

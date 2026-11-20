@@ -11,6 +11,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-uti
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 rusqlite = { version = "=0.37.0", features = ["bundled"] }
 argon2 = "=0.5.3"
 rand = "=0.8.5"

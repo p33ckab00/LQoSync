@@ -5,6 +5,43 @@ use crate::model::{CsvRow, State};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
+/// True configured WAN base rates. This is not a live link or shaping claim.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct WanCapacity {
+    pub down_bps: u64,
+    pub up_bps: u64,
+    pub wan_count: u64,
+    pub registry_revision: u64,
+}
+
+impl WanCapacity {
+    pub fn from_catalog(
+        catalog: &crate::topology_manager::catalog::TopologyCatalog,
+        registry_revision: u64,
+    ) -> Option<Self> {
+        use crate::topology_manager::{catalog::CapacityPolicy, layout::NodeKind};
+        catalog.validate().ok()?;
+        let mut sum = Self {
+            down_bps: 0,
+            up_bps: 0,
+            wan_count: 0,
+            registry_revision,
+        };
+        for node in catalog.nodes.iter().filter(|n| n.kind == NodeKind::Wan) {
+            let CapacityPolicy::Fixed { base, .. } = node.capacity else {
+                return None;
+            };
+            if base.down == 0 || base.up == 0 {
+                return None;
+            }
+            sum.down_bps = sum.down_bps.checked_add(base.down)?;
+            sum.up_bps = sum.up_bps.checked_add(base.up)?;
+            sum.wan_count += 1;
+        }
+        (sum.wan_count > 0).then_some(sum)
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct RouterStatus {
     pub name: String,
@@ -120,6 +157,7 @@ pub enum Trigger {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Status {
     pub version: u32,
+    pub wan_capacity: Option<WanCapacity>,
     pub updated: u64,
     pub mode: String,
     pub target: String,

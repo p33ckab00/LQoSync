@@ -75,14 +75,27 @@ pub async fn serve(
     }));
     let cache = cached.clone();
     tokio::spawn(async move {
+        let mut tick = tokio::time::interval(Duration::from_secs(1));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut cycle = 0u8;
         loop {
+            tick.tick().await;
             let path = state_dir.clone();
-            if let Ok(v) =
-                tokio::task::spawn_blocking(move || crate::overview::project(&path, now())).await
+            let mut previous = cache.read().await.clone();
+            let full = cycle == 0;
+            cycle = (cycle + 1) % 5;
+            if let Ok(v) = tokio::task::spawn_blocking(move || {
+                if full {
+                    crate::overview::project(&path, now())
+                } else {
+                    crate::overview::refresh_traffic(&path, now(), &mut previous);
+                    previous
+                }
+            })
+            .await
             {
                 *cache.write().await = v;
             }
-            tokio::time::sleep(Duration::from_secs(5)).await;
         }
     });
     let connections = Arc::new(Semaphore::new(16));

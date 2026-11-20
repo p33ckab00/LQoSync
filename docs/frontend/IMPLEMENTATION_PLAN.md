@@ -279,6 +279,10 @@ Browser or fixture check: execute tests/frontend/shell.md.
 ## F06: Connect Dashboard and bounded traffic
 
 Dependencies: F03, F05. Status: partial. See [Dashboard evidence](evidence/dashboard-alignment/README.md).
+
+Live monitor milestone: one-second source samples, authenticated stream, and capacity-scaled rainbow chart.
+See the [atomic live traffic plan](LIVE_TRAFFIC.md) and [browser evidence](evidence/live-traffic/README.md).
+Per-WAN attribution, longer browser windows, and the broader performance gates remain open.
 WAN attribution, wider history, and the complete performance gates remain open.
 
 **Files:** `crates/web-contract/src/overview.rs`, `crates/web-gateway/src/routes/overview.rs`, `crates/web-gateway/src/read/traffic.rs`, `crates/web-ui/src/pages/dashboard.rs`, `crates/web-gateway/tests/overview.rs`, `tests/frontend/dashboard.md`.

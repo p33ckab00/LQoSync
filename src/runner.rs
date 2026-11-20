@@ -298,6 +298,15 @@ where
     }
 
     fn write_status(&mut self, mut s: Status) {
+        s.wan_capacity = self
+            .topology_store
+            .as_ref()
+            .and_then(|store| store.document().ok())
+            .and_then(|doc| {
+                doc.catalog.as_ref().and_then(|catalog| {
+                    crate::status::WanCapacity::from_catalog(catalog, doc.revision)
+                })
+            });
         self.record_health(&s);
         s.health = Some(
             self.health.snapshot(

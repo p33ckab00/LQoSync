@@ -1,4 +1,36 @@
 use super::*;
+
+#[test]
+fn web_capacity_uses_true_wan_bases_and_checks_overflow() {
+    use crate::status::WanCapacity;
+    let mut c = catalog();
+    let sum = WanCapacity::from_catalog(&c, 9).unwrap();
+    let mut down = 0;
+    let mut up = 0;
+    for node in c.nodes.iter_mut().filter(|n| n.kind == NodeKind::Wan) {
+        if let CapacityPolicy::Fixed { base, factors } = &mut node.capacity {
+            down += base.down;
+            up += base.up;
+            *factors = FactorChoice::Override(Factors {
+                down: fraction(1, 2),
+                up: fraction(1, 2),
+            });
+        }
+    }
+    assert_eq!(sum.down_bps, down);
+    assert_eq!(sum.up_bps, up);
+    assert_eq!(sum.wan_count, 2);
+    assert_eq!(sum.registry_revision, 9);
+    assert_eq!(WanCapacity::from_catalog(&c, 9), Some(sum));
+    assert!(WanCapacity::from_catalog(&TopologyCatalog::default(), 0).is_none());
+    for node in c.nodes.iter_mut().filter(|n| n.kind == NodeKind::Wan) {
+        node.capacity = CapacityPolicy::Fixed {
+            base: rate(u64::MAX, u64::MAX),
+            factors: FactorChoice::Inherit,
+        };
+    }
+    assert!(WanCapacity::from_catalog(&c, 10).is_none());
+}
 use crate::topology_manager::model::{IdentityRef, SourceKind, SubscriberPolicy};
 use crate::topology_manager::rates::{AggregateRule, RateRule, RuleValue, resolve_aggregate};
 

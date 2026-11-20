@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
-pub const MAX_POINTS: usize = 1801;
+pub const MAX_POINTS: usize = 3601;
 
 /// Format observed rates without changing the stored Mbps value.
 pub fn format_rate(n: Option<f64>, precise: bool) -> String {
@@ -107,6 +107,27 @@ impl History {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn one_second_samples_keep_a_full_hour() {
+        let mut history = History::default();
+        let mut points = VecDeque::new();
+        for now in 1..=4000 {
+            history.record(
+                &mut points,
+                Some((
+                    now * 1000,
+                    Counters {
+                        download_bytes: now * 1_000_000,
+                        upload_bytes: now * 100_000,
+                    },
+                )),
+                now,
+            );
+        }
+        assert_eq!(points.len(), 3601);
+        assert_eq!(points.front().unwrap().at, 400);
+        assert_eq!(points.back().unwrap().at, 4000);
+    }
     #[test]
     fn wall_clock_regression_during_read_failure_resets_history() {
         let mut h = History::default();

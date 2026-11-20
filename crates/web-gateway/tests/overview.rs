@@ -1,5 +1,23 @@
 use web_gateway::overview::project;
 #[test]
+fn capacity_requires_current_status_and_valid_direction_rates() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("status.json");
+    let mut status = serde_json::json!({"version":3,"updated":990,"wan_capacity":{
+        "down_bps":1_500_000_000u64,"up_bps":300_000_000,"wan_count":2,"registry_revision":7}});
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    let capacity = project(dir.path(), 1000).wan_capacity.unwrap();
+    assert_eq!(capacity.down_bps, 1_500_000_000);
+    assert_eq!(capacity.up_bps, 300_000_000);
+    assert!(project(dir.path(), 2000).wan_capacity.is_none());
+    status["wan_capacity"]["up_bps"] = serde_json::json!(0);
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    assert!(project(dir.path(), 1000).wan_capacity.is_none());
+    status["wan_capacity"]["up_bps"] = serde_json::json!(1u64 << 53);
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    assert!(project(dir.path(), 1000).wan_capacity.is_none());
+}
+#[test]
 fn missing_sources_are_unknown_not_zero() {
     let dir = tempfile::tempdir().unwrap();
     let view = project(dir.path(), 1000);
@@ -87,4 +105,48 @@ fn traffic_is_bounded_ordered_and_marks_old_samples_stale() {
     workers["traffic"] = serde_json::json!([{"at":100,"down_mbps":1.0,"up_mbps":0.0}]);
     std::fs::write(&path, serde_json::to_vec(&workers).unwrap()).unwrap();
     assert!(project(dir.path(), 1000).traffic_stale);
+}
+
+#[test]
+fn a_missing_rate_marks_the_next_point_as_a_gap() {
+    let dir = tempfile::tempdir().unwrap();
+    let workers = serde_json::json!({"version":1,"updated":1000,"stale":false,"traffic":[
+        {"at":998,"down_mbps":1.0,"up_mbps":0.5},
+        {"at":999,"down_mbps":null,"up_mbps":null},
+        {"at":1000,"down_mbps":2.0,"up_mbps":1.0}]});
+    std::fs::write(
+        dir.path().join("worker-utilization.json"),
+        serde_json::to_vec(&workers).unwrap(),
+    )
+    .unwrap();
+    let view = project(dir.path(), 1000);
+    assert_eq!(view.traffic.len(), 2);
+    assert!(!view.traffic[0].gap_before);
+    assert!(view.traffic[1].gap_before);
+}
+
+#[test]
+fn full_hour_cache_keeps_the_live_payload_bounded() {
+    let dir = tempfile::tempdir().unwrap();
+    let points = (6400..=10000)
+        .map(|at| serde_json::json!({"at":at,"down_mbps":100.0,"up_mbps":20.0}))
+        .collect::<Vec<_>>();
+    let workers = serde_json::json!({"version":1,"updated":10000,"stale":false,
+        "traffic":points,"classification":{"mapped":{"history":points},"unmapped":{"history":points}},
+        "workers":(0..4096).map(|id|serde_json::json!({"queue_id":id,"busy_ppm":500000})).collect::<Vec<_>>()});
+    std::fs::write(
+        dir.path().join("worker-utilization.json"),
+        serde_json::to_vec(&workers).unwrap(),
+    )
+    .unwrap();
+    let started = std::time::Instant::now();
+    let view = project(dir.path(), 10000);
+    let bytes = serde_json::to_vec(&view).unwrap().len();
+    println!(
+        "One-hour source projection: {:?}; {bytes} browser bytes",
+        started.elapsed()
+    );
+    assert_eq!(view.traffic.len(), 300);
+    assert!(!view.traffic_stale);
+    assert!(bytes < 65536);
 }

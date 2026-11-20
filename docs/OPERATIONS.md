@@ -508,12 +508,14 @@ The runtime directory must be visible to the service and its TUI readers.
 New directories have mode 0755. The service rejects foreign ownership, symlink directories, and group/other write access.
 An existing directory must already permit public reads. The service does not broaden its permissions.
 The publisher checks for tmpfs before it uses the directory.
-The cache file retains mode 0644 and its existing 1 MiB limit.
+The cache file retains mode 0644. Its limit is 2 MiB for one-second traffic samples.
 Atomic publication needs temporary space for another cache copy.
 Tmpfs can use swap if the host permits it.
 
-The source poll, public refresh, freshness rules, and all three histories remain unchanged.
-The service retains up to 1801 points per history, within its existing one-hour time limit.
+The native snapshot poll and public worker-cache refresh run once per second.
+Health probes keep their separate cadence. Freshness rules remain unchanged.
+The service retains up to 3601 points per history, within its existing one-hour time limit.
+The TUI screens and controls remain unchanged. See [web live traffic](frontend/LIVE_TRAFFIC.md).
 A reboot removes volatile runtime data. Until the service publishes again, the TUI shows unavailable or stale data.
 A service restart starts a new in-memory history, as before.
 Runtime files can remain until reboot after a state-directory change or rollback.
@@ -634,7 +636,7 @@ Stale views retain labeled last-known totals and historical points but hide curr
 
 Old caches and sources without class fields remain readable. Their class measurements show unavailable.
 A corrupt class history is discarded without hiding valid worker metrics or the other class.
-The cache keeps its 1 MiB read limit. Rendering reads cached data and draws only the selected chart history.
+The cache keeps a 2 MiB read limit. Rendering reads cached data and draws only the selected chart history.
 No subscriber identity or flow record enters this cache.
 
 Build `cargo build --locked --example dpdk_mapping_probe` for read-only source verification.
@@ -660,7 +662,7 @@ Missing fields stay unknown. Invalid idle or phase length does not hide valid ba
 Stale values retain a last-known label. Freshness describes the complete snapshot.
 
 The implementation reuses one snapshot poll. It adds no dependency or runtime configuration key.
-If extended values exceed the 1 MiB public-cache budget, publication omits them with an explicit reason.
+If extended values exceed the 2 MiB public-cache budget, publication omits them with an explicit reason.
 Basic workers and all three histories remain available. The source report stays intact in memory.
 A later smaller report restores extended fields. An oversized basic report cannot replace the previous cache.
 

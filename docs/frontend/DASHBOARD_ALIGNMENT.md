@@ -45,7 +45,8 @@ The shared header retains Light, Dark, and System plus account and sign-out cont
 | Traffic | Use bounded aggregate worker samples. The source does not prove per-WAN routing. |
 | 1h / 6h / 24h controls | Unavailable until history retention covers each window. Keep Recent available. |
 | WAN allocation distribution | No safe published per-WAN traffic projection exists. Show unavailable, never invented shares. |
-| Upstream capacity and health | No safe published WAN overview exists. Do not read private config or infer routes. |
+| Aggregate capacity | Use the service's safe WAN base-rate summary. See [live traffic](LIVE_TRAFFIC.md). |
+| Per-WAN capacity and health | The table adapter remains unavailable. Do not infer link health or routes from aggregate capacity. |
 | Navigation | Keep Dashboard active. Mark future destinations unavailable. Omit web account administration. |
 
 The WAN adapter remains a backend gap under F06 and D03.

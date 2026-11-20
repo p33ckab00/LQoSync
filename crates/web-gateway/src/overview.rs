@@ -1,8 +1,9 @@
 //! Allowlisted projection of published caches. No collector, config, or private snapshot access.
+use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 use std::{io::Read, path::Path};
-use web_contract::{Component, Overview, Point};
-fn read(root: &Path, name: &str) -> Option<Value> {
+use web_contract::{Component, Overview, Point, WanCapacity};
+fn read<T: DeserializeOwned>(root: &Path, name: &str) -> Option<T> {
     let path = root.join(name);
     let canonical = path.canonicalize().ok()?;
     // The worker cache uses the existing root-owned RAM-cache symlink.
@@ -42,10 +43,10 @@ fn fresh(at: u64, now: u64, age: u64) -> bool {
 }
 pub fn project(root: &Path, now: u64) -> Overview {
     let root = root.canonicalize().unwrap_or_else(|_| root.into());
-    let status = read(&root, "status.json").unwrap_or_default();
-    let collection = read(&root, "collection.json").unwrap_or_default();
-    let health = read(&root, "system-health.json").unwrap_or_default();
-    let workers = read(&root, "worker-utilization.json").unwrap_or_default();
+    let status: Value = read(&root, "status.json").unwrap_or_default();
+    let collection: Value = read(&root, "collection.json").unwrap_or_default();
+    let health: Value = read(&root, "system-health.json").unwrap_or_default();
+    let workers: WorkerTraffic = read(&root, "worker-utilization.json").unwrap_or_default();
     let updated = status["updated"].as_u64();
     let current = status["version"] == 3 && updated.is_some_and(|at| fresh(at, now, 120));
     let coherent = current
@@ -80,6 +81,17 @@ pub fn project(root: &Path, now: u64) -> Overview {
         traffic_stale: true,
         ..Default::default()
     };
+    if current {
+        view.wan_capacity = serde_json::from_value::<WanCapacity>(status["wan_capacity"].clone())
+            .ok()
+            .filter(|v| {
+                v.down_bps > 0
+                    && v.up_bps > 0
+                    && v.wan_count > 0
+                    && v.down_bps < (1u64 << 53)
+                    && v.up_bps < (1u64 << 53)
+            });
+    }
     if coherent && let Some(routers) = collection["routers"].as_array() {
         view.routers = Some(routers.len() as u64);
         view.routers_online =
@@ -164,29 +176,65 @@ pub fn project(root: &Path, now: u64) -> Overview {
             })
             .collect();
     }
-    if workers["version"] == 1
-        && let Some(items) = workers["traffic"].as_array()
-    {
-        view.traffic = items
+    project_traffic(&workers, now, &mut view);
+    view
+}
+
+/// Refresh the small telemetry cache without decoding subscriber collections each second.
+pub fn refresh_traffic(root: &Path, now: u64, view: &mut Overview) {
+    let root = root.canonicalize().unwrap_or_else(|_| root.into());
+    let workers: WorkerTraffic = read(&root, "worker-utilization.json").unwrap_or_default();
+    project_traffic(&workers, now, view);
+}
+
+// Skip worker rows and other histories without allocating their JSON trees.
+#[derive(Default, Deserialize)]
+struct WorkerTraffic {
+    version: Option<u64>,
+    updated: Option<u64>,
+    stale: Option<bool>,
+    #[serde(default)]
+    traffic: Vec<Value>,
+}
+
+fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview) {
+    view.traffic_stale = true;
+    if workers.version == Some(1) {
+        let items = &workers.traffic;
+        let mut samples = items
             .iter()
             .rev()
             .take(300)
             .filter_map(|v| {
-                let p: Point = serde_json::from_value(v.clone()).ok()?;
-                (p.at > 0
-                    && p.at <= now
-                    && p.down_mbps.is_finite()
-                    && p.up_mbps.is_finite()
-                    && p.down_mbps >= 0.0
-                    && p.up_mbps >= 0.0)
-                    .then_some(p)
+                let at = v["at"].as_u64().filter(|at| *at > 0 && *at <= now)?;
+                let point = serde_json::from_value::<Point>(v.clone()).ok().filter(|p| {
+                    p.down_mbps.is_finite()
+                        && p.up_mbps.is_finite()
+                        && p.down_mbps >= 0.0
+                        && p.up_mbps >= 0.0
+                });
+                Some((at, point))
+            })
+            .collect::<Vec<_>>();
+        samples.sort_by_key(|(at, _)| *at);
+        samples.dedup_by_key(|(at, _)| *at);
+        let mut gap = false;
+        view.traffic = samples
+            .into_iter()
+            .filter_map(|(_, p)| match p {
+                Some(mut p) => {
+                    p.gap_before |= gap;
+                    gap = false;
+                    Some(p)
+                }
+                None => {
+                    gap = true;
+                    None
+                }
             })
             .collect();
-        view.traffic.sort_by_key(|p| p.at);
-        view.traffic.dedup_by_key(|p| p.at);
-        view.traffic_stale = workers["stale"] != false
-            || !fresh(workers["updated"].as_u64().unwrap_or(0), now, 30)
+        view.traffic_stale = workers.stale != Some(false)
+            || !fresh(workers.updated.unwrap_or(0), now, 30)
             || !view.traffic.last().is_some_and(|p| fresh(p.at, now, 30));
     }
-    view
 }

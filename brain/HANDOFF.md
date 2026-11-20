@@ -8,6 +8,22 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T20:43:13+08:00 (Asia/Shanghai) — Live traffic and WAN capacity
+
+- Goal: adapt LibreQoS live cadence and implement a rainbow chart with configured WAN capacity limits.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `61b1dc9`.
+- Changed: core status/runner and telemetry cadence/history bound; web contract, projection, broker, authenticated stream, Rust browser lifecycle, chart geometry/styles, fixture/tests, Nginx example, frontend docs/evidence, operations guide, and brain notes.
+- Source: LibreQoS revision `15be4ca69d07691813260ed620498fb1f6c9aae6`; one-second ticker and timestamped ring buffer. No upstream code copied.
+- Capacity: sum true validated WAN bases separately for download/upload. Do not infer routing, live link health, or applied shaping.
+- Stream: authenticated SSE, 16-connection bound, account/session checks per event, no slow-client queue, hidden-page cleanup, and fallback reads.
+- TUI screens and controls stay unchanged. One-second telemetry keeps one hour with 3601 points and a 2 MiB public cache bound.
+- Checks: 1590 passed, 0 failed, 12 existing ignored tests. Native core/web and Wasm release builds passed. Gateway/Wasm Clippy and Rust 1.89 checks passed. Browser smoke/pulse, themes, 320/768px layouts, forced colors, stream lifecycle, overflow, and unknown capacity passed.
+- Performance evidence: full-hour fixture gives 300 browser points and 19,511 bytes. One debug projection took approximately 27 ms. No production latency claim.
+- Evidence: `docs/frontend/evidence/live-traffic`. Plan/source details: `docs/frontend/LIVE_TRAFFIC.md`. Session: `brain/10-sessions/2026-11-20-live-traffic-capacity.md`.
+- Unfinished runtime step: install the prepared core binary and web services. No production binary or service changed in this session. Passwordless sudo is unavailable. Follow `docs/frontend/DEPLOYMENT.md`, Live traffic update.
+- Remaining F06 scope: per-WAN attribution/health, longer browser windows, and broader performance gates.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T20:03:19+08:00 (Asia/Shanghai) — Dashboard reference alignment
 
 - Owner direction: use the approved Dashboard picture and frontend documents as acceptance criteria. Always use Vercel and Google frontend skills.

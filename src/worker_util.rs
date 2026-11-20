@@ -21,7 +21,7 @@ use tokio::sync::watch;
 pub const CACHE: &str = "worker-utilization.json";
 pub const MAX_AGE: u64 = 6;
 const MAX_WORKERS: usize = 4096;
-const MAX_CACHE_BYTES: u64 = 1024 * 1024;
+const MAX_CACHE_BYTES: u64 = 2 * 1024 * 1024;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct WorkerRow {
@@ -289,7 +289,7 @@ fn publish(dir: &Path, report: &Telemetry) -> anyhow::Result<()> {
         for worker in &mut basic.workers {
             worker.clear_extended();
         }
-        let notice = "Extended worker metrics omitted: 1 MiB cache budget";
+        let notice = "Extended worker metrics omitted: 2 MiB cache budget";
         basic.reason = Some(match &report.reason {
             Some(reason) => format!("{reason}; {notice}"),
             None => notice.into(),
@@ -483,7 +483,7 @@ impl Monitor {
             let mut publisher = crate::system_health::Publisher::default();
             let mut health_epoch = 0u64;
             let mut last_uptime = None;
-            let mut tick = tokio::time::interval(Duration::from_secs(2));
+            let mut tick = tokio::time::interval(Duration::from_secs(1));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 tokio::select! {

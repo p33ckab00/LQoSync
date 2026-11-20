@@ -31,6 +31,47 @@ It does not create an account or edit the current Traefik file.
 For an update, stop the two web services before the installer replaces their binaries.
 Start the two web services after installation. Keep the existing private databases.
 
+## Live traffic update
+
+The [live traffic update](LIVE_TRAFFIC.md) also changes the core telemetry sampler and status summary.
+The web installer only installs the web services. It does not install the core binary.
+An older core cannot publish the new WAN capacity summary.
+The chart shows capacity as unavailable until the updated core publishes current status.
+
+Build as user `pi`, from `/home/pi/LQoSync3.0`:
+
+```bash
+cd /home/pi/LQoSync3.0
+CARGO_BUILD_JOBS=2 cargo build --release --locked -p lqosync3
+TRUNK=/tmp/lqosync-web-tools/trunk tools/frontend/build.sh
+```
+
+Use `tools/frontend/build.sh` without `TRUNK` if Trunk is on your PATH.
+The temporary Trunk path above applies to this host and can disappear after cleanup.
+
+Install during an approved service maintenance window:
+
+```bash
+sudo systemctl stop lqosync3
+sudo install -m 0755 target/release/lqosync3 /usr/local/bin/lqosync3
+sudo systemctl start lqosync3
+sudo tools/frontend/install.sh
+systemctl status lqosync3 lqosync3-web-broker lqosync3-web
+```
+
+The core restart interrupts collection briefly. It does not request a mode or topology change.
+Keep the existing configuration and private databases.
+Check the current WAN nodes and their true base rates in the existing topology workflow.
+The sum excludes intermediate nodes and subscriber plans.
+No configured WAN nodes means no configured capacity claim.
+
+The browser uses `/api/v1/overview/live` for server-sent events.
+Keep the response unbuffered and uncached through each proxy.
+The gateway sends `text/event-stream`, `Cache-Control: no-store`, and `X-Accel-Buffering: no`.
+Traefik forwards this stream through the existing service route. No separate WebSocket route is needed.
+The Nginx example disables proxy buffering and caching.
+The browser retains a five-second fallback poll if the stream fails.
+
 ## Current Traefik layout
 
 The current Traefik container uses the file provider at `/etc/traefik/dynamic.yml`.

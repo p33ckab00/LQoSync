@@ -8,7 +8,10 @@ use axum::{
     extract::{DefaultBodyLimit, Request, State},
     http::{HeaderMap, StatusCode, header},
     middleware::{self, Next},
-    response::{Html, IntoResponse, Response},
+    response::{
+        Html, IntoResponse, Response, Sse,
+        sse::{Event, KeepAlive},
+    },
     routing::get,
 };
 use serde::Deserialize;
@@ -136,6 +139,46 @@ async fn overview(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     let view = reply.overview.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(view).into_response())
 }
+async fn live(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
+    principal(&s, &h).await?;
+    // Slow clients own at most one snapshot; there is no per-client event queue.
+    static STREAMS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(16);
+    let permit = STREAMS
+        .try_acquire()
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let mut tick = tokio::time::interval(std::time::Duration::from_secs(1));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let stream = futures_util::stream::unfold(
+        (s, h, tick, permit, false),
+        |(s, h, mut tick, permit, ended)| async move {
+            if ended {
+                return None;
+            }
+            tick.tick().await;
+            let payload = match principal(&s, &h).await {
+                Err(StatusCode::UNAUTHORIZED) => "unauthorized".to_owned(),
+                Err(_) => "unavailable".to_owned(),
+                Ok(_) => match exchange(&s.broker, &BrokerRequest::Overview).await {
+                    Ok(reply) => reply
+                        .overview
+                        .and_then(|v| serde_json::to_string(&v).ok())
+                        .unwrap_or_else(|| "unavailable".into()),
+                    Err(_) => "unavailable".into(),
+                },
+            };
+            let ended = matches!(payload.as_str(), "unauthorized" | "unavailable");
+            Some((
+                Ok::<_, std::convert::Infallible>(Event::default().data(payload)),
+                (s, h, tick, permit, ended),
+            ))
+        },
+    );
+    Ok((
+        [("x-accel-buffering", "no")],
+        Sse::new(stream).keep_alive(KeepAlive::default()),
+    )
+        .into_response())
+}
 async fn index(State(s): State<WebState>, h: HeaderMap) -> Html<String> {
     let theme = h
         .get(header::COOKIE)
@@ -185,6 +228,7 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/", get(index))
         .route("/api/v1/session", get(current).post(login).delete(logout))
         .route("/api/v1/overview", get(overview))
+        .route("/api/v1/overview/live", get(live))
         .route(
             "/api/{*path}",
             get(|| async { StatusCode::NOT_FOUND })

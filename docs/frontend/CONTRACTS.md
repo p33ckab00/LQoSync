@@ -3,6 +3,31 @@
 Status: proposed contract for tasks F00–F16. No HTTP endpoint below exists at this baseline.
 Names are exact planning interfaces. F00 records final dependency versions without changing these domain boundaries.
 
+Implementation checkpoint: session and overview routes now exist. Most domain routes below remain proposed.
+See [first slice](FIRST_SLICE.md) and [live traffic](LIVE_TRAFFIC.md) for the implemented subset.
+
+## Implemented live monitor
+
+`GET /api/v1/overview/live` requires the current session cookie.
+It sends one `Overview` JSON document per second as a default server-sent message.
+It reads the shared broker cache. Client connections do not trigger native source reads.
+The gateway permits at most 16 simultaneous streams. Further connections receive HTTP 503.
+Slow clients keep at most one snapshot. The stream has no event replay queue.
+
+Before each event, the gateway checks session expiry and the account epoch.
+On revocation, it sends `unauthorized` and closes the stream.
+On a broker failure, it sends `unavailable` and closes the stream.
+These two control messages are plain text. Other messages contain typed `Overview` JSON.
+The browser closes the stream on sign-out or page concealment.
+It reconnects on return and uses the existing overview read as a fallback.
+
+`Overview.wan_capacity` is optional. It contains `down_bps`, `up_bps`, `wan_count`, and `registry_revision`.
+The service publishes this safe summary in `status.json`.
+Only current status evidence permits a capacity claim.
+The rates are true configured WAN bases, before shaping factors.
+They do not prove link health or traffic distribution.
+Traffic rates remain observed Mbps. `Point.gap_before` prevents a line across an unavailable observation.
+
 ## Common Rust types
 
 Place serializable types in `crates/web-contract/src/`.
