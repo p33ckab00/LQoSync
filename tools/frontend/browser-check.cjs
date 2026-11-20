@@ -59,13 +59,12 @@ const assert = require('node:assert/strict');
   await page.getByLabel('Color theme').selectOption('light');
   await page.screenshot({path:'/tmp/lqosync-dashboard-light.png',fullPage:true});
   const diagnostics=page.locator('details.diagnostics');
-  const samples=page.locator('details.sample-table');
+  // The Traffic card has no sample table: the legend and the chart popover show the same figures.
+  assert.equal(await page.locator('details.sample-table').count(),0);
   await diagnostics.locator('summary').click();
-  await samples.locator('summary').click();
   const path=await page.locator('.actual.download-line').getAttribute('d');
   await page.waitForFunction(path=>document.querySelector('.actual.download-line')?.getAttribute('d')!==path,path,{timeout:12000});
   assert.equal(await diagnostics.getAttribute('open'),'');
-  assert.equal(await samples.getAttribute('open'),'');
   expectedUnavailable=true;
   await page.evaluate(() => window.testStreams.forEach(source => {source.close(); source.dispatchEvent(new Event('error'));}));
   await page.route('**/api/v1/overview',route=>route.fulfill({status:503,body:''}));

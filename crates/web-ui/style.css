@@ -70,8 +70,6 @@
 .x-axis{display:flex;justify-content:space-between;gap:8px;margin-block-start:10px;font-size:13px;color:var(--muted)}
 .chart-legend{display:flex;justify-content:center;gap:24px;font-size:13px;margin-block-start:16px}
 .panel-note{font-size:13px;color:var(--muted);margin-block-start:18px;line-height:1.6}
-.sample-table{margin-block-start:14px;font-size:13px}
-.sample-table summary{cursor:pointer;color:var(--muted);min-block-size:32px;padding-block:6px}
 .wan-panel{container:wan-panel / inline-size}
 .wan-distribution{display:grid;grid-template-columns:minmax(130px,.85fr) minmax(0,1.15fr);align-items:center;gap:16px;min-block-size:245px}
 .wan-ring{position:relative;inline-size:100%;max-inline-size:190px;aspect-ratio:1;margin-inline:auto}
@@ -116,8 +114,6 @@
 .chart-data svg,.y-axis{block-size:180px}
 .y-axis{white-space:nowrap}
 .chart-legend{margin-block-start:12px}
-.sample-table{margin-block-start:8px}
-.sample-table summary{min-block-size:24px;padding-block:3px}
 .traffic-panel>.panel-note{margin-block-start:10px}
 @media(max-width:760px){.traffic-toolbar{align-items:flex-start}.traffic-toolbar .traffic-values{inline-size:100%;justify-content:space-between}.traffic-toolbar .traffic-values b{font-size:17px}.wan-distribution{grid-template-columns:1fr;min-block-size:0}.wan-ring{max-inline-size:160px}.chart-data svg,.y-axis{block-size:170px}}
 
@@ -368,7 +364,6 @@
 .traffic-inspector th,.traffic-inspector td,.traffic-inspector .table-scroll th,.traffic-inspector .table-scroll td{padding:4px 6px;font-size:13px}
 .traffic-inspector .table-scroll{overflow:visible}
 .traffic-panel .capacity-note{font-size:13px;color:var(--muted);margin:0}
-.traffic-panel .sample-table summary{font-size:13px;color:var(--muted);cursor:pointer}
 @media(forced-colors:active){.traffic-inspector{border-color:CanvasText}}
 .nic-faceplate{flex-wrap:nowrap}
 .traffic-inspector td{white-space:nowrap}

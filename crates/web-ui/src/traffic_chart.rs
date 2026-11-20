@@ -132,7 +132,6 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
     let enabled = RwSignal::new([true; 3]);
     let selected = RwSignal::new(None::<u64>);
     let pinned = RwSignal::new(false);
-    let table_open = RwSignal::new(false);
     let svg = NodeRef::<leptos::svg::Svg>::new();
     let geometry = Memo::new(move |_| {
         model.with(|m| {
@@ -293,12 +292,6 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
           </div>
         </Show>
         <p id="traffic-inspector-help" class="sr-only">"Download above zero, upload below. Hover to inspect. Tap to pin. Use Left/Right on the chart; Escape or Live clears selection."</p>
-        <details class="sample-table" on:toggle=move |ev|{let target=event_target::<web_sys::Element>(&ev);table_open.set(target.has_attribute("open"));}>
-          <summary>"Sample table"</summary>
-          <Show when=move||table_open.get()><div class="table-scroll" role="region" aria-label="Traffic samples" tabindex="0"><table><caption>"Published samples in local time"</caption><thead><tr><th scope="col">"Time"</th><th scope="col">"Source"</th><th scope="col">"Down"</th><th scope="col">"Up"</th></tr></thead><tbody>
-            {move||model.with(|m|(0..3).flat_map(|i|m.series[i].iter().map(move |p|(i,p))).map(|(i,p)|view!{<tr><th scope="row">{local_time(p.at)}</th><td>{NAMES[i]}</td><td>{rate(p.down_mbps)}</td><td>{rate(p.up_mbps)}</td></tr>}).collect_view())}
-          </tbody></table></div></Show>
-        </details>
         <p class="panel-note">"↓ download · ↑ upload · Actual is delivered; Mapped and Unmapped are enqueued, so rates are not additive. Hover or tap the chart for samples."</p>
         <Show when=move||model.with(|m|m.capped)><p class="panel-note">"Older samples were omitted to keep the live response bounded."</p></Show>
       </section>
