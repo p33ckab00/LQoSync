@@ -14,6 +14,10 @@ The current TUI stays as is and remains independently available.
 The Rust service remains the execution authority and continues without a browser.
 [Account administration](CLI_ACCOUNT_POLICY.md) is CLI-only. The web supports sign-in/sign-out and has no signup or user-management screen.
 
+The [Dashboard alignment contract](DASHBOARD_ALIGNMENT.md) makes the approved picture and written corrections the acceptance criteria.
+Use the Vercel and Google frontend skills for each frontend change.
+See [current Dashboard evidence](evidence/dashboard-alignment/README.md) for implementation checks and known backend gaps.
+
 ## Read order
 
 1. [Feature design](DESIGN.md): scope, ownership, layouts, and behavior.

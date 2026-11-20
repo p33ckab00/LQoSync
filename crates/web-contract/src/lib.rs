@@ -7,6 +7,8 @@ pub struct Overview {
     pub mode: String,
     pub target: String,
     pub subscribers: Option<u64>,
+    #[serde(default)]
+    pub ipoe_active: Option<u64>,
     pub ppp_online: Option<u64>,
     pub ppp_offline: Option<u64>,
     pub routers: Option<u64>,

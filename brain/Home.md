@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-dashboard-reference-alignment]] — Dashboard follows the approved picture and written corrections; Vercel and Google skills are required
+
 - [[2026-11-20-frontend-first-slice]] — Rust sign-in and Dashboard, port 9581; root deployment pending
 
 - [[2026-11-20-frontend-documentation-plan]] — 11 pictures, Rust feature design, backend gaps, and atomic implementation plan

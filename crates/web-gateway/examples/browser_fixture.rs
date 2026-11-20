@@ -14,7 +14,7 @@ async fn main() -> anyhow::Result<()> {
     accounts.create("browser-test", &std::env::var("BROWSER_TEST_PASSWORD")?)?;
     let at = broker::now();
     let status = serde_json::json!({"version":3,"updated":at,"pid":1,"cycle_seq":1,"mode":"shadow","target":"v3_pair","cycle_ms":482});
-    let collection = serde_json::json!({"version":1,"updated":at,"pid":1,"cycle_seq":1,"fresh_for":300,"routers":[{"state":"online","observed_at":at,"sources":{"ppp":{"enabled":true,"online":2,"offline":1}},"subscribers":[{},{},{}]}]});
+    let collection = serde_json::json!({"version":1,"updated":at,"pid":1,"cycle_seq":1,"fresh_for":300,"routers":[{"state":"online","observed_at":at,"sources":{"ppp":{"enabled":true,"online":2,"offline":1},"dhcp":{"enabled":true}},"subscribers":[{"source":"dhcp","state":"bound"},{"source":"ppp","state":"online"},{"source":"ppp","state":"offline"}]}]});
     let health = serde_json::json!({"version":1,"updated":at,"overall":"HEALTHY","update":{"phase":"Applied"},"components":[{"component":"collector","state":"HEALTHY","observed_at":at,"max_age":300},{"component":"import","state":"HEALTHY","observed_at":at,"max_age":300}]});
     let workers = serde_json::json!({"version":1,"updated":at,"stale":false,"traffic":(0..60).map(|i|serde_json::json!({"at":at-60+i,"down_mbps":100.0+(i as f64/3.0).sin()*20.0,"up_mbps":20.0+(i as f64/4.0).cos()*5.0})).collect::<Vec<_>>()});
     for (name, value) in [

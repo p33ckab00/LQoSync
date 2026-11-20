@@ -278,7 +278,8 @@ Browser or fixture check: execute tests/frontend/shell.md.
 
 ## F06: Connect Dashboard and bounded traffic
 
-Dependencies: F03, F05. Status: not started.
+Dependencies: F03, F05. Status: partial. See [Dashboard evidence](evidence/dashboard-alignment/README.md).
+WAN attribution, wider history, and the complete performance gates remain open.
 
 **Files:** `crates/web-contract/src/overview.rs`, `crates/web-gateway/src/routes/overview.rs`, `crates/web-gateway/src/read/traffic.rs`, `crates/web-ui/src/pages/dashboard.rs`, `crates/web-gateway/tests/overview.rs`, `tests/frontend/dashboard.md`.
 

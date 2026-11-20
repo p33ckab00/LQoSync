@@ -104,6 +104,41 @@ pub fn project(root: &Path, now: u64) -> Overview {
                     .map(|r| r["sources"]["ppp"][key].as_u64())
                     .try_fold(0u64, |sum, v| sum.checked_add(v?))
             };
+            view.ipoe_active = if routers.is_empty() {
+                None
+            } else {
+                routers
+                    .iter()
+                    .map(
+                        |router| match router["sources"]["dhcp"]["enabled"].as_bool()? {
+                            false => Some(0u64),
+                            true => {
+                                let rows = router["subscribers"].as_array()?;
+                                if rows.iter().any(|r| {
+                                    r["source"] == "dhcp"
+                                        && !matches!(
+                                            r["state"].as_str(),
+                                            Some(
+                                                "bound"
+                                                    | "unbound"
+                                                    | "disabled"
+                                                    | "unknown"
+                                                    | "stale"
+                                            )
+                                        )
+                                }) {
+                                    return None;
+                                }
+                                Some(
+                                    rows.iter()
+                                        .filter(|r| r["source"] == "dhcp" && r["state"] == "bound")
+                                        .count() as u64,
+                                )
+                            }
+                        },
+                    )
+                    .try_fold(0u64, |total, n| total.checked_add(n?))
+            };
             view.ppp_online = sum("online");
             view.ppp_offline = sum("offline");
         } else {
@@ -138,16 +173,20 @@ pub fn project(root: &Path, now: u64) -> Overview {
             .take(300)
             .filter_map(|v| {
                 let p: Point = serde_json::from_value(v.clone()).ok()?;
-                (p.down_mbps.is_finite()
+                (p.at > 0
+                    && p.at <= now
+                    && p.down_mbps.is_finite()
                     && p.up_mbps.is_finite()
                     && p.down_mbps >= 0.0
                     && p.up_mbps >= 0.0)
                     .then_some(p)
             })
             .collect();
-        view.traffic.reverse();
-        view.traffic_stale =
-            workers["stale"] != false || !fresh(workers["updated"].as_u64().unwrap_or(0), now, 30);
+        view.traffic.sort_by_key(|p| p.at);
+        view.traffic.dedup_by_key(|p| p.at);
+        view.traffic_stale = workers["stale"] != false
+            || !fresh(workers["updated"].as_u64().unwrap_or(0), now, 30)
+            || !view.traffic.last().is_some_and(|p| fresh(p.at, now, 30));
     }
     view
 }

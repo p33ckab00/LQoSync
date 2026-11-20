@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T20:03:19+08:00 (Asia/Shanghai) — Dashboard reference alignment
+
+- Owner direction: use the approved Dashboard picture and frontend documents as acceptance criteria. Always use Vercel and Google frontend skills.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `06f0536`.
+- Changed: web contracts, cache projection and tests, browser fixture, app shell, new `crates/web-ui/src/dashboard.rs`, CSS, browser checks, alignment documentation, screenshots, and this session's brain notes.
+- Implemented: five icon cards with a bound-DHCP IPoE count, documented dark palette, timestamp-based gradient traffic, scale/time labels, unavailable history states, WAN distribution and upstream table states, and service diagnostics below the main panels.
+- Reliability: keep details open during polling. Mark retained data stale and health unknown on a request failure. Reject invalid traffic timestamps and check sample age.
+- Checks: 11 web tests passed. Native/Wasm release builds, Rust 1.89 checks, gateway/UI Clippy with warnings denied, formatting, browser failure/recovery, reference sections, and 320px checks passed.
+- Limits: no safe WAN attribution/capacity/health overview exists. Longer history needs retention. These panels explicitly state unavailable. F06 remains partial.
+- Runtime: current installed web services and local Traefik route work. This update is built locally and has not replaced the installed files. Core service and TUI source files are unchanged.
+- Next: operator runs `sudo tools/frontend/install.sh`, then reviews the live Dashboard. Read `docs/frontend/DASHBOARD_ALIGNMENT.md` for future work.
+- Preserve unrelated untracked November 16 notes and the dataplane operations report.
+
 ## 2026-11-20T19:23:23+08:00 (Asia/Shanghai) — Traffic chart gradient
 
 - Owner requested gradient areas that match the Dashboard mockup, with Vercel and Google frontend guidance.

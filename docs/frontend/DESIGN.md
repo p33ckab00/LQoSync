@@ -1,6 +1,7 @@
 # Frontend feature design
 
-Status: implementation design baseline. All new modules and HTTP routes below are proposed.
+Status: implementation design baseline. The release plan tracks delivered and proposed modules and routes.
+The current Dashboard follows [DASHBOARD_ALIGNMENT](DASHBOARD_ALIGNMENT.md).
 Owner direction: Rust application logic, existing LQoSync3 backend, documented gaps, and atomic delivery.
 
 ## Product and ownership
@@ -165,6 +166,6 @@ Those operations keep their existing maintenance and authorization requirements.
 
 ## Delivery boundary
 
-This change delivers documents and pictures only.
-The [implementation plan](IMPLEMENTATION_PLAN.md) delivers connected vertical slices later.
+The [implementation plan](IMPLEMENTATION_PLAN.md) delivers connected vertical slices.
+See [Dashboard evidence](evidence/dashboard-alignment/README.md) for the current implementation and gaps.
 Deferred domain tasks have explicit completion gates in the [backend map](BACKEND_MAP.md).
