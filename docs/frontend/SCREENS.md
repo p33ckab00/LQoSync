@@ -48,7 +48,12 @@ Purpose: Filter router inventory by role and collection state. Open safe details
 
 Backend and delivery: see [backend map](BACKEND_MAP.md) and tasks F08, F15, D04 in the [implementation plan](IMPLEMENTATION_PLAN.md).
 
-Required correction: Initial view is read-only. Add/test/sync controls need typed service operations. Keep credential values out of DTOs and drawers.
+Current router scope: see [the router design](ROUTERS_DESIGN.md) and [its atomic plan](ROUTERS_IMPLEMENTATION_PLAN.md).
+The owner now requires add/edit, disable/enable without deletion, a complete disabled-router I/O barrier, and reviewed active-shaping removal.
+WAN pinning through address lists targets the core WAN router, with subscriber IPs and future DPI application-IP evidence.
+Show its future UI with explicit unavailable capabilities until the writer and evidence backend exist.
+The first connected read surface remains read-only until the corresponding service operations pass their gates.
+Keep credential values out of DTOs and drawers.
 
 States to check: loading, empty, stale, partial, unavailable, forbidden, and current data.
 

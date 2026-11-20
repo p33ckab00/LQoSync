@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T05:01:37+08:00 (Asia/Shanghai) — Routers planning only
+
+- Goal: design Routers before coding. The owner reserved Dashboard work for Claude Code.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Inspected HEAD: `c324203`.
+- Owned files: new router design/atomic plan, the Routers section of SCREENS, and this task's brain notes.
+- Preserve all Dashboard/DPDK/NIC/worker changes, browser-check changes, and the other worker's staged deletion of `crates/web-ui/src/dpdk_history.rs`.
+- Owner decisions: add/edit, disable/enable, no router deletion, no MikroTik I/O while disabled, and shaping-removal impact in disable review.
+- WAN writes: address-list pinning on the core WAN router. Inputs: subscriber IPs and future DPI application IPs. No PPPoE/profile writer scope.
+- Gaps: administrative state/gate, narrow config/job APIs, reviewable disable/publication transaction, DPI evidence, and WAN writer/readback.
+- Plans: `docs/frontend/ROUTERS_DESIGN.md` and `docs/frontend/ROUTERS_IMPLEMENTATION_PLAN.md`. R00–R07 are the first delivery slice. R08–R09 are future backend packages.
+- Checks: source/reference research, documentation links, whitespace, and manual decision review. STE checks are heuristic. No implementation tests or runtime changes occurred.
+- Next action: review the plans before coding. Coordinate shell integration with the Dashboard owner before R06.
+- Keep unrelated November 16 notes and the dataplane report out of this task's commit.
+
 ## 2026-11-21T00:42:58+08:00 (Asia/Shanghai) — Supplied NIC artwork
 
 - Goal: replace the physical-port artwork with the owner-supplied SVG kit.
