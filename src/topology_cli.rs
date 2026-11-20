@@ -144,10 +144,11 @@ where
         TopologyCommand::Propose {
             out: path,
             previous,
+            replace,
         } => {
             let previous = previous.as_deref().map(read).transpose()?;
             let file = runner
-                .propose_enrollment(previous.as_ref(), MAX_AGE)
+                .propose_enrollment(previous.as_ref(), MAX_AGE, *replace)
                 .await
                 .map_err(locked)?;
             write_new(path, &file)?;
@@ -160,9 +161,13 @@ where
             );
             0
         }
-        TopologyCommand::Enroll { mapping, yes } => {
+        TopologyCommand::Enroll {
+            mapping,
+            yes,
+            replace,
+        } => {
             let outcome = runner
-                .enroll_with_mapping(&read(mapping)?, MAX_AGE, *yes)
+                .enroll_with_mapping(&read(mapping)?, MAX_AGE, *yes, *replace)
                 .await
                 .map_err(locked)?;
             let _ = writeln!(

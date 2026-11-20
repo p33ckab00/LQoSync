@@ -1515,8 +1515,9 @@ where
         &mut self,
         previous: Option<&crate::topology_manager::enroll_mapping::MappingFile>,
         max_age: Duration,
+        replace: bool,
     ) -> anyhow::Result<crate::topology_manager::enroll_mapping::MappingFile> {
-        let pair = self.prepare_topology(max_age).await?;
+        let pair = self.prepare_topology_for(max_age, replace).await?;
         let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
         crate::topology_manager::enroll_mapping::propose(
             &pair,
@@ -1533,8 +1534,9 @@ where
         file: &crate::topology_manager::enroll_mapping::MappingFile,
         max_age: Duration,
         install: bool,
+        replace: bool,
     ) -> anyhow::Result<EnrollOutcome> {
-        let pair = self.prepare_topology(max_age).await?;
+        let pair = self.prepare_topology_for(max_age, replace).await?;
         let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
         let (manifest, roots, attachments) =
             crate::topology_manager::enroll_mapping::build_manifest(&pair, &rows, &network, file)
@@ -1584,8 +1586,38 @@ where
         &mut self,
         max_age: Duration,
     ) -> anyhow::Result<crate::topology_manager::publication::PreparedPair> {
+        self.prepare_topology_for(max_age, false).await
+    }
+
+    /// As `prepare_topology`. With `replace`, prepare from the registry without its legacy
+    /// ownership, so that enrollment can run again before activation.
+    pub async fn prepare_topology_for(
+        &mut self,
+        max_age: Duration,
+        replace: bool,
+    ) -> anyhow::Result<crate::topology_manager::publication::PreparedPair> {
         self.topology_preflight()?;
         self.open_topology_store()?;
+        let mut document = self
+            .topology_store
+            .as_ref()
+            .context("registry owner is missing")?
+            .document()?
+            .clone();
+        if replace {
+            anyhow::ensure!(
+                !crate::topology_manager::runtime::topology_owns(Path::new(
+                    &self.cfg.runtime.state_dir
+                ))
+                .unwrap_or(true),
+                "the Topology Manager is active; re-enrollment is not allowed"
+            );
+            anyhow::ensure!(
+                document.export_ownership.is_some(),
+                "the topology registry is not enrolled; use enroll without --replace"
+            );
+            document.export_ownership = None;
+        }
         let receipt_generation = self
             .write_tracker
             .as_ref()
@@ -1598,10 +1630,7 @@ where
         self.topology_sources
             .prepare(
                 &self.cfg,
-                self.topology_store
-                    .as_ref()
-                    .context("registry owner is missing")?
-                    .document()?,
+                &document,
                 self.last_topology_generation.max(receipt_generation),
                 max_age,
             )

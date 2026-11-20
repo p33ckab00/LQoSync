@@ -361,10 +361,10 @@ mod plans {
         let mut r = runner(e, setup(e, None));
         let d = r.propose_policy(AGE).await.unwrap();
         r.install_topology_policy(&d).unwrap();
-        let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+        let mut file = r.propose_enrollment(None, AGE, false).await.unwrap();
         confirm(&mut file);
         assert_eq!(
-            r.enroll_with_mapping(&file, AGE, true)
+            r.enroll_with_mapping(&file, AGE, true, false)
                 .await
                 .unwrap()
                 .revision,
@@ -769,9 +769,11 @@ mod edits {
         let mut r = runner(e, setup(e, None));
         let d = r.propose_policy(AGE).await.unwrap();
         r.install_topology_policy(&d).unwrap();
-        let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+        let mut file = r.propose_enrollment(None, AGE, false).await.unwrap();
         confirm(&mut file);
-        r.enroll_with_mapping(&file, AGE, true).await.unwrap();
+        r.enroll_with_mapping(&file, AGE, true, false)
+            .await
+            .unwrap();
         r.lock().unwrap();
         r
     }

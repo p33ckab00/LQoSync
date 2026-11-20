@@ -477,13 +477,19 @@ pub(crate) mod cli_flow {
         let mut r = runner(&e, c);
         let draft = r.propose_policy(AGE).await.unwrap();
         assert_eq!(r.install_topology_policy(&draft).unwrap(), 1);
-        let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+        let mut file = r.propose_enrollment(None, AGE, false).await.unwrap();
         confirm(&mut file);
-        let dry = r.enroll_with_mapping(&file, AGE, false).await.unwrap();
+        let dry = r
+            .enroll_with_mapping(&file, AGE, false, false)
+            .await
+            .unwrap();
         assert_eq!(dry.revision, None);
         assert_eq!(dry.mapped, 7);
         assert!(!dry.rounded.is_empty());
-        let done = r.enroll_with_mapping(&file, AGE, true).await.unwrap();
+        let done = r
+            .enroll_with_mapping(&file, AGE, true, false)
+            .await
+            .unwrap();
         assert_eq!(done.revision, Some(2));
         assert_eq!(
             (
@@ -503,9 +509,12 @@ pub(crate) mod cli_flow {
         let mut r = runner(&e, c);
         let draft = r.propose_policy(AGE).await.unwrap();
         r.install_topology_policy(&draft).unwrap();
-        let file = r.propose_enrollment(None, AGE).await.unwrap();
+        let file = r.propose_enrollment(None, AGE, false).await.unwrap();
         let before = files(&e.state);
-        let e2 = r.enroll_with_mapping(&file, AGE, true).await.unwrap_err();
+        let e2 = r
+            .enroll_with_mapping(&file, AGE, true, false)
+            .await
+            .unwrap_err();
         assert!(format!("{e2:#}").contains("unconfirmed"), "{e2:#}");
         assert_eq!(files(&e.state), before);
     }
@@ -570,6 +579,7 @@ mod cli_commands {
             &T::Propose {
                 out: mapping.clone(),
                 previous: None,
+                replace: false,
             },
         )
         .await
@@ -584,14 +594,22 @@ mod cli_commands {
             &T::Enroll {
                 mapping: mapping.clone(),
                 yes: false,
+                replace: false,
             },
         )
         .await
         .unwrap();
         assert!(code == 2 && text.contains("--yes"), "{text}");
-        let (text, code) = crate::topology_cli::run(&mut r, &T::Enroll { mapping, yes: true })
-            .await
-            .unwrap();
+        let (text, code) = crate::topology_cli::run(
+            &mut r,
+            &T::Enroll {
+                mapping,
+                yes: true,
+                replace: false,
+            },
+        )
+        .await
+        .unwrap();
         assert!(
             code == 0 && text.contains("installed registry revision 2"),
             "{text}"
@@ -641,5 +659,145 @@ mod cli_commands {
             format!("{err:#}").contains("stop lqosync3.service"),
             "{err:#}"
         );
+    }
+}
+
+mod reenroll {
+    use super::cli_flow::{AGE, confirm, setup};
+    use super::*;
+
+    async fn enrolled(e: &Env) -> Runner<FakeConnector> {
+        let mut r = runner(e, setup(e, None));
+        let draft = r.propose_policy(AGE).await.unwrap();
+        r.install_topology_policy(&draft).unwrap();
+        let mut file = r.propose_enrollment(None, AGE, false).await.unwrap();
+        confirm(&mut file);
+        let done = r.enroll_with_mapping(&file, AGE, true, false).await;
+        assert_eq!(done.unwrap().revision, Some(2));
+        r
+    }
+
+    /// Give the first legacy circuit a new ID. Return the old and the new ID.
+    fn change_circuit_id(e: &Env) -> (String, String) {
+        let path = e.lqos.join("ShapedDevices.csv");
+        let text = read(&path);
+        let old = text
+            .lines()
+            .nth(1)
+            .and_then(|l| l.split(',').next())
+            .unwrap()
+            .to_string();
+        let new = format!("{old}-new");
+        let rewritten: Vec<_> = text
+            .lines()
+            .map(|l| match l.strip_prefix(&format!("{old},")) {
+                Some(rest) => format!("{new},{rest}"),
+                None => l.to_string(),
+            })
+            .collect();
+        std::fs::write(&path, rewritten.join("\n") + "\n").unwrap();
+        (old, new)
+    }
+
+    fn revision(r: &Runner<FakeConnector>) -> u64 {
+        r.topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .revision
+    }
+
+    async fn replace_flow(r: &mut Runner<FakeConnector>, install: bool) -> anyhow::Result<u64> {
+        let mut file = r.propose_enrollment(None, AGE, true).await?;
+        confirm(&mut file);
+        let out = r.enroll_with_mapping(&file, AGE, install, true).await?;
+        Ok(out.revision.unwrap_or(0))
+    }
+
+    #[tokio::test]
+    async fn a_second_enrollment_without_replace_is_refused() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let mut file = r.propose_enrollment(None, AGE, false).await.unwrap();
+        confirm(&mut file);
+        let err = r
+            .enroll_with_mapping(&file, AGE, true, false)
+            .await
+            .unwrap_err();
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("legacy ownership is already configured"),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn replace_enrolls_a_changed_legacy_circuit_id() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let (old, new) = change_circuit_id(&e);
+        assert_eq!(replace_flow(&mut r, true).await.unwrap(), 3);
+        let doc = r.topology_store.as_ref().unwrap().document().unwrap();
+        let circuits = &doc.export_ownership.as_ref().unwrap().circuits;
+        assert!(circuits.iter().any(|c| c.id == new));
+        assert!(circuits.iter().all(|c| c.id != old));
+        assert_eq!(doc.revision, 3);
+    }
+
+    #[tokio::test]
+    async fn replace_keeps_registry_edits() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        r.lock().unwrap();
+        // A plan outside the legacy configuration. Legacy parity does not cover an unused plan.
+        r.api_plan_create(2, "50M", 50, 50).unwrap();
+        change_circuit_id(&e);
+        assert_eq!(replace_flow(&mut r, true).await.unwrap(), 4);
+        let doc = r.api_registry().unwrap().unwrap();
+        let catalog = doc.catalog.as_ref().unwrap();
+        assert!(catalog.profiles.iter().any(|p| p.id == "plan-1"));
+    }
+
+    #[tokio::test]
+    async fn replace_refuses_an_active_manager() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        crate::files::write_secret(
+            &e.state.join("topology-manager/runtime-owner.json"),
+            br#"{"schema_version":1,"writer":"topology"}"#,
+        )
+        .unwrap();
+        change_circuit_id(&e);
+        let err = replace_flow(&mut r, true).await.unwrap_err();
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("the Topology Manager is active; re-enrollment is not allowed"),
+            "{text}"
+        );
+        assert_eq!(revision(&r), 2);
+    }
+
+    #[tokio::test]
+    async fn replace_refuses_a_registry_that_is_not_enrolled() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let draft = r.propose_policy(AGE).await.unwrap();
+        r.install_topology_policy(&draft).unwrap();
+        let err = r.propose_enrollment(None, AGE, true).await.unwrap_err();
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("the topology registry is not enrolled; use enroll without --replace"),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn replace_without_yes_installs_nothing() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        change_circuit_id(&e);
+        replace_flow(&mut r, false).await.unwrap();
+        assert_eq!(revision(&r), 2);
     }
 }

@@ -178,9 +178,11 @@ async fn enrolled(e: &Env) -> (Config, FakeLqos) {
     let mut r = runner(e, c.clone());
     let draft = r.propose_policy(AGE).await.unwrap();
     r.install_topology_policy(&draft).unwrap();
-    let mut file = r.propose_enrollment(None, AGE).await.unwrap();
+    let mut file = r.propose_enrollment(None, AGE, false).await.unwrap();
     confirm(&mut file);
-    r.enroll_with_mapping(&file, AGE, true).await.unwrap();
+    r.enroll_with_mapping(&file, AGE, true, false)
+        .await
+        .unwrap();
     drop(r);
     let fake = FakeLqos::new(&c);
     fake.simulate(None);

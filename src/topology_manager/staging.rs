@@ -109,12 +109,18 @@ pub fn stage(store: &mut RegistryStore, proposal: &StaticAdoption) -> anyhow::Re
     proposal.check_seal()?;
     check_ready(store.owner_directory())?;
     let dir = directory(store);
+    let base = store.document()?.clone();
+    let source = proposal.source_document(1)?;
+    let installed = dir.join("static-input.json");
+    // An enrolled registry may enroll again before activation, if the static source is the same.
+    let same_source = base.export_ownership.is_some()
+        && !absent(&installed)?
+        && super::static_input::read(&installed)? == source;
     ensure!(
-        absent(&dir.join(OWNER))? && absent(&dir.join("static-input.json"))?,
+        absent(&dir.join(OWNER))? && (absent(&installed)? || same_source),
         "first adoption requires an absent runtime owner and static source"
     );
-    let base = store.document()?.clone();
-    let target = store.preview(base.revision, proposal.registry.clone())?;
+    let target = store.preview(base.revision, proposal.registry.clone(), true)?;
     ensure!(
         target.revision != base.revision,
         "migration does not change registry policy"
@@ -123,7 +129,7 @@ pub fn stage(store: &mut RegistryStore, proposal: &StaticAdoption) -> anyhow::Re
         owner_directory: store.owner_directory().to_owned(),
         base,
         target,
-        source: String::from_utf8(proposal.source_document(1)?)?,
+        source: String::from_utf8(source)?,
     };
     ensure!(
         payload.source.len() <= super::admission::MAX_PAIR_BYTES,
@@ -169,11 +175,15 @@ fn recover_inner(
     store.backup_current()?;
     if *store.document()? == p.base {
         ensure!(
-            store.preview(p.base.revision, {
-                let mut candidate = p.target.clone();
-                candidate.revision = p.base.revision;
-                candidate
-            })? == p.target,
+            store.preview(
+                p.base.revision,
+                {
+                    let mut candidate = p.target.clone();
+                    candidate.revision = p.base.revision;
+                    candidate
+                },
+                true
+            )? == p.target,
             "migration target fails current store invariants"
         );
     }

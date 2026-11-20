@@ -238,7 +238,7 @@ impl RegistryStore {
         write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
     ) -> anyhow::Result<CommitOutcome> {
         super::staging::check_ready(self.owner_directory())?;
-        self.commit_staged_inner(expected_revision, candidate, write)
+        self.commit_staged_inner(expected_revision, candidate, write, false)
     }
 
     pub(super) fn commit_staged(
@@ -246,7 +246,12 @@ impl RegistryStore {
         expected_revision: u64,
         candidate: RegistryDocument,
     ) -> anyhow::Result<CommitOutcome> {
-        self.commit_staged_inner(expected_revision, candidate, crate::files::write_secret)
+        self.commit_staged_inner(
+            expected_revision,
+            candidate,
+            crate::files::write_secret,
+            true,
+        )
     }
 
     fn commit_staged_inner(
@@ -254,6 +259,7 @@ impl RegistryStore {
         expected_revision: u64,
         candidate: RegistryDocument,
         write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
+        staged: bool,
     ) -> anyhow::Result<CommitOutcome> {
         self._lock.check(self._lock.directory())?;
         let current = self.document()?;
@@ -275,7 +281,7 @@ impl RegistryStore {
         }
 
         let candidate = self
-            .preview(expected_revision, candidate)
+            .preview(expected_revision, candidate, staged)
             .map_err(|e| anyhow::Error::new(InvalidPolicy(format!("{e:#}"))))?;
         if candidate.revision == expected_revision {
             return Ok(CommitOutcome {
@@ -300,6 +306,8 @@ impl RegistryStore {
         &self,
         expected_revision: u64,
         mut candidate: RegistryDocument,
+        // A staged enrollment may replace the aliases of an earlier enrollment before activation.
+        staged: bool,
     ) -> anyhow::Result<RegistryDocument> {
         ensure!(
             self.document()?.revision == expected_revision
@@ -311,7 +319,7 @@ impl RegistryStore {
             current.source_settings.is_none() || candidate.source_settings.is_some(),
             "ordinary edit cannot remove configured source settings"
         );
-        if let Some(old) = &current.export_ownership {
+        if let Some(old) = current.export_ownership.as_ref().filter(|_| !staged) {
             candidate
                 .export_ownership
                 .as_ref()

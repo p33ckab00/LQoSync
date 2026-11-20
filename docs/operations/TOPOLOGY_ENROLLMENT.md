@@ -122,6 +122,48 @@ The legacy files have no rows for that server, so live shaping does not change. 
 
    `lqosync3 api status` must show the new `registry_revision` and `"enrolled": true`.
 
+## Enroll again before activation
+
+Use this procedure when a legacy Circuit ID changed after the enrollment and before activation.
+For example, a client got a new random Circuit ID.
+The new ID has no alias, so a normal `enroll` fails with "legacy ownership is already configured".
+
+The `--replace` option makes a new mapping and replaces the aliases. The registry keeps all subscribers, plans, and pins. It also keeps the catalog and the source settings.
+The static source must be the same as at the first enrollment. The command refuses if it changed.
+
+1. Stop the service, as for the first enrollment:
+
+   ```bash
+   sudo systemctl stop lqosync3
+   ```
+
+2. Make a new mapping file:
+
+   ```bash
+   sudo lqosync3 topology propose --replace --out /root/topology-mapping-3.json
+   ```
+
+3. Review the file and set each decision, as in step 6 of the procedure. Then do a dry run:
+
+   ```bash
+   sudo lqosync3 topology enroll --replace --mapping /root/topology-mapping-3.json
+   ```
+
+   Exit status 2 with "dry run" is correct.
+
+4. Install the new enrollment. The registry revision increases by one:
+
+   ```bash
+   sudo lqosync3 topology enroll --replace --mapping /root/topology-mapping-3.json --yes
+   ```
+
+5. Start the service, as in step 8 of the procedure.
+
+A plan that a subscriber uses can cause a parity conflict. Remove the plan from that subscriber before you enroll again.
+
+> **NOTE:** After activation, the manager keeps stable IDs. Then `--replace` fails with the error text "the Topology Manager is active; re-enrollment is not allowed".
+> `--replace` also fails on a registry that is not enrolled.
+
 ## Effects after Phase 4 activation
 
 These effects do not occur at enrollment. They occur when the manager writer is activated:

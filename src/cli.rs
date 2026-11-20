@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] | enroll --mapping <file> [--yes] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -45,10 +45,12 @@ pub enum TopologyCommand {
     Propose {
         out: PathBuf,
         previous: Option<PathBuf>,
+        replace: bool,
     },
     Enroll {
         mapping: PathBuf,
         yes: bool,
+        replace: bool,
     },
     /// One live acceptance test on production. The service must be stopped.
     LiveTest {
@@ -69,6 +71,7 @@ fn parse_topology(
     words: &[String],
     flags: &std::collections::BTreeMap<String, String>,
     yes: bool,
+    replace: bool,
 ) -> anyhow::Result<TopologyCommand> {
     let file = |name: &str| -> anyhow::Result<PathBuf> {
         flags
@@ -91,6 +94,9 @@ fn parse_topology(
     if yes && words != ["enroll"] {
         bail!("--yes is only for topology enroll\n{USAGE}");
     }
+    if replace && words != ["enroll"] && words != ["propose"] {
+        bail!("--replace is only for topology propose and enroll\n{USAGE}");
+    }
     Ok(match words.as_slice() {
         ["policy", "propose"] if !flags.contains_key("--previous") => {
             TopologyCommand::PolicyPropose {
@@ -100,6 +106,7 @@ fn parse_topology(
         ["propose"] => TopologyCommand::Propose {
             out: file("--out")?,
             previous: flags.get("--previous").map(PathBuf::from),
+            replace,
         },
         ["check"] => TopologyCommand::Check {
             policy: file("--policy")?,
@@ -110,6 +117,7 @@ fn parse_topology(
         ["enroll"] => TopologyCommand::Enroll {
             mapping: file("--mapping")?,
             yes,
+            replace,
         },
         ["live-test"] => TopologyCommand::LiveTest {
             report: file("--report")?,
@@ -143,8 +151,13 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let mut config = PathBuf::from(DEFAULT_CONFIG);
     let mut it = args.iter().skip(1);
     let mut api = false;
-    let (mut topology, mut words, mut flags, mut yes) =
-        (false, vec![], std::collections::BTreeMap::new(), false);
+    let (mut topology, mut words, mut flags, mut yes, mut replace) = (
+        false,
+        vec![],
+        std::collections::BTreeMap::new(),
+        false,
+        false,
+    );
     while let Some(a) = it.next() {
         match a.as_str() {
             "topology" if command.is_none() && !topology && !api => topology = true,
@@ -154,6 +167,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
                 None => bail!("--config needs a path\n{USAGE}"),
             },
             "--yes" if topology => yes = true,
+            "--replace" if topology => replace = true,
             "--out" | "--previous" | "--policy" | "--mapping" | "--report" | "--backup"
             | "--import-timeout"
                 if topology =>
@@ -191,7 +205,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     }
     if topology {
         return Ok(Args {
-            command: Command::Topology(parse_topology(&words, &flags, yes)?),
+            command: Command::Topology(parse_topology(&words, &flags, yes, replace)?),
             config,
         });
     }
@@ -463,15 +477,43 @@ mod tests {
             ]),
             Command::Topology(T::Propose {
                 out: "m.json".into(),
-                previous: Some("old.json".into())
+                previous: Some("old.json".into()),
+                replace: false
             })
         );
         assert_eq!(
             cmd(&["l", "topology", "enroll", "--mapping", "m.json", "--yes"]),
             Command::Topology(T::Enroll {
                 mapping: "m.json".into(),
-                yes: true
+                yes: true,
+                replace: false
             })
+        );
+        assert_eq!(
+            cmd(&[
+                "l",
+                "topology",
+                "enroll",
+                "--mapping",
+                "m.json",
+                "--replace"
+            ]),
+            Command::Topology(T::Enroll {
+                mapping: "m.json".into(),
+                yes: false,
+                replace: true
+            })
+        );
+        assert!(
+            parse(&s(&[
+                "l",
+                "topology",
+                "check",
+                "--policy",
+                "p",
+                "--replace"
+            ]))
+            .is_err()
         );
         let a = parse(&s(&[
             "l",
@@ -488,7 +530,8 @@ mod tests {
             a.command,
             Command::Topology(T::Enroll {
                 mapping: "m.json".into(),
-                yes: false
+                yes: false,
+                replace: false
             })
         );
     }
