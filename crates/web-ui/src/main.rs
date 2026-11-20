@@ -8,8 +8,6 @@ mod diagnostics_activity;
 mod diagnostics_ticker;
 #[cfg(target_arch = "wasm32")]
 mod dpdk;
-#[cfg(any(target_arch = "wasm32", test))]
-mod dpdk_history;
 #[cfg(target_arch = "wasm32")]
 mod live;
 #[cfg(target_arch = "wasm32")]

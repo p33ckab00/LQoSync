@@ -158,25 +158,14 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <Metric data kind="ppp_online" title="PPPoE Online" icon="wifi" note="Currently online users"/>
         <Metric data kind="ppp_offline" title="PPPoE Offline" icon="wifi-off" note="Configured users offline"/>
         <Metric data kind="routers" title="Routers" icon="router" note="Managed routers"/>
-        // One group for the shaping path: publication, physical ports, and the worker.
-        <div class="dataplane-group" role="group" aria-label="Dataplane status">
-          <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
-          <article class="panel nic-summary" aria-label="NIC ports"><crate::nic_ports::NicPorts snapshot clock=server_clock/></article>
-          <crate::worker_ring::WorkerRing snapshot server_clock/>
-        </div>
+        <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
+        // The DPDK Health card has its own full row: worker ring, health band, telemetry, and NIC ports.
+        <crate::worker_ring::WorkerRing snapshot server_clock/>
       </section>
       <div class="overview-grid">
         <crate::traffic_chart::TrafficChart data/>
         <WanDistribution/>
       </div>
-      <crate::dpdk::DpdkCard snapshot server_clock/>
       <Upstream/>
-      <section class="panel service-diagnostics-details" aria-label="Service diagnostics details">
-      <details class="diagnostics"><summary>"View diagnostics"<span>"Static status details"</span></summary>
-        <dl><dt>"Service health"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.health.clone()))}</dd><dt>"Runtime mode"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.mode.clone()))}</dd><dt>"Output target"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.target.clone()))}</dd><dt>"Publication phase"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.publication.clone()))}</dd><dt>"Last cycle"</dt><dd>{move||data.with(|d|d.as_ref().and_then(|v|v.cycle_ms).map(|v|format!("{v} ms")).unwrap_or("Unknown".into()))}</dd></dl>
-        <p class="panel-note">"A written input or confirmed import does not prove dataplane application."</p>
-        <h2>"System health"</h2><div class="health-grid">{move||data.with(|d|d.as_ref().map(|v|v.components.iter().map(|c|view!{<div class="health-item"><span>{c.name.replace('_'," ")}</span><span class=format!("chip {}",badge(&c.state))>{c.state.replace('_'," ")}</span></div>}).collect_view()))}</div>
-      </details>
-      </section>
     }
 }

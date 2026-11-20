@@ -2,7 +2,9 @@
 //! band for analytics, classification, and bridge health. Hover or focus keeps the view radial:
 //! the sector or band grows and the chip shows its value. A new band value pulses and shows briefly.
 use crate::dpdk_console_model::{Segment, count, details, segments, uptime};
-use crate::worker_ring_model::{CX, CY, RADIUS, Sector, band, compact, grouped, pick, sectors};
+use crate::worker_ring_model::{
+    CX, CY, RADIUS, Sector, band, compact, grouped, pick, sector_text, sectors,
+};
 use leptos::prelude::*;
 use web_contract::dpdk::{Console, Dpdk};
 
@@ -46,6 +48,13 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
             d.as_ref()
                 .map(|d| d.workers.iter().map(|w| w.id).collect::<Vec<_>>())
                 .unwrap_or_default()
+        })
+    });
+    // Bridge status, rollups, and classification come from the health source; the TUI marks it stale after 15 s.
+    let health_live = Memo::new(move |_| {
+        snapshot.with(|d| {
+            d.as_ref()
+                .is_some_and(|d| d.health.live(server_clock.get(), 15))
         })
     });
     let health = Memo::new(move |_| {
@@ -126,7 +135,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
           <g class="health-ring">
             {(0..9).map(|k|{let t=Target::Health(k);let s=move||health.with(|h|h[k].clone());view!{
               <path id=format!("health-band-{k}") d=band(k) class=move||format!("health-band {}",s().tone.class())
-                class:selected=move||focus.get()==Some(t) class:dimmed=move||focus.get().is_some_and(|f|f!=t)
+                class:stale=move||k<3&&!health_live.get() class:selected=move||focus.get()==Some(t) class:dimmed=move||focus.get().is_some_and(|f|f!=t)
                 tabindex="0" role="button" aria-pressed=move||(pinned.get()==Some(t)).to_string()
                 aria-label=move||{let s=s();format!("{}: {}",s.name,s.value)}
                 on:pointerenter=move|_|enter(t) on:pointerleave=move|_|{hovered.set(None);muted.set(None);}
@@ -143,6 +152,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
                 </g>
               }/>
           </g>
+          <defs>{(0..9).map(|i|view!{<path id=format!("phase-text-{i}") d=sector_text(i)/>}).collect_view()}</defs>
           <g class="worker-ring-sectors">
             <For each=move||ring.get() key=|s:&Sector|s.index children=move|s:Sector|{
               let i=s.index;
@@ -155,6 +165,14 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
                 on:pointerleave=move|_|{hovered.set(None);muted.set(None);}
                 on:focus=move|_|enter(t) on:click=move|_|toggle(t)
                 on:keydown=move|ev|{if ev.key()=="Enter"||ev.key()==" "{ev.prevent_default();toggle(t);}}/>}
+            }/>
+            // Keyed by cycles: a new sample recreates the group, so the pulse and the value flash run again.
+            <For each=move||ring.get() key=|s:&Sector|(s.index,s.cycles) children=move|s:Sector|{
+              let i=s.index;
+              view!{<g class=format!("phase-tick phase-{i}") class:show=move||focus.get()==Some(Target::Phase(i)) aria-hidden="true">
+                <path class="phase-pulse" d=s.arc.clone()/>
+                <text class="phase-value"><textPath href=format!("#phase-text-{i}") startOffset="50%">{s.cycles.map(compact).unwrap_or_default()}</textPath></text>
+              </g>}
             }/>
           </g>
           <g class="worker-chip" aria-hidden="true">
@@ -203,21 +221,25 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
           </g>
         </svg>
         <div class="worker-ring-side">
-        <p class="worker-focus" aria-live="polite">{move||match focus.get() {
-          Some(Target::Phase(i))=>ring.with(|r|format!("{} · {} cumulative cycles · {}",r[i].label,value(r[i].cycles),r[i].description)),
-          Some(Target::Health(k))=>{let (a,b)=ages.get();let t=health.with(|h|h[k].topic);snapshot.with(|d|{let empty=Console::default();details(t,d.as_ref().map_or(&empty,|d|&d.console),a,b).join(" · ")})}
-          None=>"Hover or focus a phase or a health band · click to pin · Esc to clear".into(),
-        }}</p>
-        <dl class="worker-stats">
-          <div><dt>"Idle (derived)"</dt><dd>{move||worker.with(|w|pct(w.as_ref().map(|w|1_000_000-w.busy_ppm.min(1_000_000))))}</dd></div>
-          <div><dt>"Laps/s"</dt><dd>{move||worker.with(|w|value(w.as_ref().and_then(|w|w.laps_per_s)))}</dd></div>
-          <div><dt>"Cycles/busy lap"</dt><dd>{move||worker.with(|w|value(w.as_ref().and_then(|w|w.cycles_per_busy_lap)))}</dd></div>
-          <div><dt>"Mean backlog"</dt><dd>{move||worker.with(|w|w.as_ref().and_then(|w|w.backlog_mean).map(|v|format!("{} pkts",grouped(v))).unwrap_or("—".into()))}</dd></div>
-        </dl>
-        <p class="health-line">{move||{let (a,b)=ages.get();snapshot.with(|d|d.as_ref().map(|d|{let c=&d.console;format!("Bridge {}{} · up {} · {} rollups missing · analytics {} · bridge {}",
-          c.status.as_deref().unwrap_or("unknown"),c.version.as_deref().map(|v|format!(" {v}")).unwrap_or_default(),uptime(c.uptime_ms),count(c.missing_rollups),
-          a.map(|a|format!("{a}s")).unwrap_or("—".into()),b.map(|b|format!("{b}s")).unwrap_or("—".into()))}).unwrap_or("Bridge health unavailable".into()))}}</p>
-        <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
+          <h3>"Worker telemetry"</h3>
+          <dl class="worker-stats">
+            <div><dt>"Idle (derived)"</dt><dd>{move||worker.with(|w|pct(w.as_ref().map(|w|1_000_000-w.busy_ppm.min(1_000_000))))}</dd></div>
+            <div><dt>"Laps/s"</dt><dd>{move||worker.with(|w|value(w.as_ref().and_then(|w|w.laps_per_s)))}</dd></div>
+            <div><dt>"Cycles/busy lap"</dt><dd>{move||worker.with(|w|value(w.as_ref().and_then(|w|w.cycles_per_busy_lap)))}</dd></div>
+            <div><dt>"Mean backlog"</dt><dd>{move||worker.with(|w|w.as_ref().and_then(|w|w.backlog_mean).map(|v|format!("{} pkts",grouped(v))).unwrap_or("—".into()))}</dd></div>
+          </dl>
+          <p class="worker-focus" aria-live="polite">{move||match focus.get() {
+            Some(Target::Phase(i))=>ring.with(|r|format!("{} · {} cumulative cycles · {}",r[i].label,value(r[i].cycles),r[i].description)),
+            Some(Target::Health(k))=>{let (a,b)=ages.get();let t=health.with(|h|h[k].topic);snapshot.with(|d|{let empty=Console::default();details(t,d.as_ref().map_or(&empty,|d|&d.console),a,b).join(" · ")})}
+            None=>"Hover or focus a phase or a health band · click to pin · Esc to clear".into(),
+          }}</p>
+          <section class="nic-summary" aria-label="NIC ports"><crate::nic_ports::NicPorts snapshot clock=server_clock/></section>
+          <p class="health-line">{move||{let (a,b)=ages.get();snapshot.with(|d|d.as_ref().map(|d|{let c=&d.console;
+            let status=if health_live.get(){format!("Bridge {}",c.status.as_deref().unwrap_or("unknown"))}else{format!("Unknown health · last known {}",c.status.as_deref().unwrap_or("none"))};
+            format!("{status}{} · uptime {} · rollups missing {} · analytics {} · bridge {}",
+            c.version.as_deref().map(|v|format!(" · {v}")).unwrap_or_default(),uptime(c.uptime_ms),count(c.missing_rollups),
+            a.map(|a|format!("{a}s")).unwrap_or("—".into()),b.map(|b|format!("{b}s")).unwrap_or("—".into()))}).unwrap_or("Bridge health unavailable".into()))}}</p>
+          <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
         </div>
         </div>
       </article>

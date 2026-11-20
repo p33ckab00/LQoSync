@@ -45,44 +45,52 @@ fn round(v: f64) -> f64 {
     (v * 100.0).round() / 100.0
 }
 
-/// The SVG arc of sector `i`: equal angles, a small gap, clockwise from the top.
-pub(crate) fn arc(i: usize) -> String {
-    let step = 360.0 / RING.len() as f64;
-    let start = step * i as f64 + GAP_DEG / 2.0;
-    let end = step * (i + 1) as f64 - GAP_DEG / 2.0;
-    let (x1, y1) = point(start, RADIUS);
-    let (x2, y2) = point(end, RADIUS);
+/// An arc on radius `r` from `a` to `b` degrees. With `upright`, an arc in the lower half runs
+/// counter-clockwise, so text on the path reads upright.
+fn arc_path(a: f64, b: f64, r: f64, upright: bool) -> String {
+    let mid = (a + b) / 2.0;
+    let (from, to, sweep) = if upright && mid > 90.0 && mid < 270.0 {
+        (b, a, 0)
+    } else {
+        (a, b, 1)
+    };
+    let (x1, y1) = point(from, r);
+    let (x2, y2) = point(to, r);
     format!(
-        "M{} {} A{RADIUS} {RADIUS} 0 0 1 {} {}",
+        "M{} {} A{r} {r} 0 0 {sweep} {} {}",
         round(x1),
         round(y1),
         round(x2),
         round(y2)
     )
 }
-
+fn span(i: usize) -> (f64, f64) {
+    let step = 360.0 / RING.len() as f64;
+    (
+        step * i as f64 + GAP_DEG / 2.0,
+        step * (i + 1) as f64 - GAP_DEG / 2.0,
+    )
+}
+/// The SVG arc of sector `i`: equal angles, a small gap, clockwise from the top.
+pub(crate) fn arc(i: usize) -> String {
+    let (a, b) = span(i);
+    arc_path(a, b, RADIUS, false)
+}
+/// The same sector as a text path that reads upright, for the value flash.
+pub(crate) fn sector_text(i: usize) -> String {
+    let (a, b) = span(i);
+    arc_path(a, b, RADIUS, true)
+}
 /// Outer health band `k`. Each band is centred on a phase boundary, so the phase callouts pass
-/// through the band gaps. The lower half runs counter-clockwise, so text on the path stays upright.
+/// through the band gaps. Text on the band reads upright.
 pub(crate) fn band(k: usize) -> String {
     let step = 360.0 / RING.len() as f64;
     let mid = step * k as f64;
-    let (a, b) = (
+    arc_path(
         mid - step / 2.0 + GAP_OUT_DEG / 2.0,
         mid + step / 2.0 - GAP_OUT_DEG / 2.0,
-    );
-    let (from, to, sweep) = if mid > 90.0 && mid < 270.0 {
-        (b, a, 0)
-    } else {
-        (a, b, 1)
-    };
-    let (x1, y1) = point(from, R_OUT);
-    let (x2, y2) = point(to, R_OUT);
-    format!(
-        "M{} {} A{R_OUT} {R_OUT} 0 0 {sweep} {} {}",
-        round(x1),
-        round(y1),
-        round(x2),
-        round(y2)
+        R_OUT,
+        true,
     )
 }
 
@@ -223,6 +231,12 @@ mod tests {
         assert_eq!(band(0), "M214.29 51.04 A152 152 0 0 1 305.71 51.04");
         let lower: Vec<_> = (0..9).filter(|k| band(*k).contains(" 0 0 0 ")).collect();
         assert_eq!(lower, [3, 4, 5, 6]);
+        // Sector text paths reverse in the lower half. The sector arcs themselves stay clockwise.
+        let lower: Vec<_> = (0..9)
+            .filter(|i| sector_text(*i).contains(" 0 0 0 "))
+            .collect();
+        assert_eq!(lower, [2, 3, 4, 5, 6]);
+        assert_eq!(sector_text(0), arc(0));
         // Each callout runs along a phase mid angle, which is a band gap.
         for s in sectors(None) {
             let r = ((s.elbow.0 - CX).powi(2) + (s.elbow.1 - CY).powi(2)).sqrt();

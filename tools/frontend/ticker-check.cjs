@@ -127,8 +127,6 @@ const fs=require('node:fs');
     await page.evaluate(()=>{document.activeElement.blur();window.scrollTo(0,0);});
     if(width===320)await page.screenshot({path:`${out}/mobile-static.png`,fullPage:true});
   }
-  await page.locator('details.diagnostics summary').click();
-  await page.locator('.service-diagnostics-details').getByText('Publication phase',{exact:true}).waitFor();
   await page.evaluate(async()=>{
     const view=await(await fetch('/api/v1/overview')).json();
     const source=window.testStreams.at(-1);source.close();

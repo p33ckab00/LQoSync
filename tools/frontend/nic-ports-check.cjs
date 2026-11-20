@@ -69,7 +69,13 @@ const fs=require('node:fs');
    const boxes=await ports.evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().toJSON()));
    assert.equal(boxes[0].y,boxes[1].y,`ports must stay adjacent at ${width}px`);
    if(width===1920){await page.getByLabel('Color theme').selectOption('dark');await summary.screenshot({path:`${out}/wide.png`});}
-   if(width>=1600){const cards=await summary.locator(':scope > article').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().top));assert.ok(cards.every(y=>y===cards[0]),'all summary cards share one row on wide screens');}
+   if(width>=1600){
+     // Five metric cards share one row. The DPDK Health card, with the NIC ports, fills the next row.
+     const cards=await summary.locator(':scope > article.metric').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().toJSON()));
+     assert.equal(cards.length,5);assert.ok(cards.every(c=>c.top===cards[0].top),'the five metric cards share one row on wide screens');
+     const health=await summary.locator(':scope > .worker-ring-card').evaluate(n=>n.getBoundingClientRect().toJSON());const row=await summary.evaluate(n=>n.getBoundingClientRect().toJSON());
+     assert.ok(health.top>=cards[0].bottom && Math.abs(health.width-row.width)<1,'the DPDK Health card fills the row below the metric cards');
+   }
   }
   // Unknown source metadata must keep a generic connector and an explicit unknown role.
   await page.evaluate(()=>{const v=window.nicView;v.dpdk.ports[0].physical={};window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(v)}));});

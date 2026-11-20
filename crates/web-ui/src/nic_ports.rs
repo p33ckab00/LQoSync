@@ -242,7 +242,7 @@ pub(crate) fn NicPorts(snapshot: Memo<Option<Dpdk>>, clock: Memo<u64>) -> impl I
       <div class="dpdk-nic">
         // This fragment is reviewed repository artwork, never API or user input.
         <svg class="nic-art-defs" width="0" height="0" aria-hidden="true" focusable="false" inner_html=include_str!("nic_art.svg")/>
-        <div class="nic-faceplate-heading"><h2>"NIC ports"</h2>
+        <div class="nic-faceplate-heading"><h3>"Physical NIC ports"</h3>
           // Same line as the title, at the end of the port row: above the last port (LAN).
           <span class="nic-up-count">{move||snapshot.with(|d|{
             let Some(d)=d else {return "Unavailable".into();};
