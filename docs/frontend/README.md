@@ -1,0 +1,50 @@
+# LQoSync3 Rust web frontend
+
+Status: design and implementation plan. Application implementation has not started.
+Date: 2026-11-20 (Asia/Shanghai). Backend baseline: `9a465e7`, branch `lqosync3`.
+
+The web frontend will use the existing LQoSync3 service.
+The browser application will use Rust, Leptos, and WebAssembly, as selected in the LQoSync4 documents.
+CSS, HTML assets, and generated Wasm bindings remain necessary.
+
+Do not add hand-written JavaScript or TypeScript application logic.
+The current TUI remains available.
+
+## Read order
+
+1. [Feature design](DESIGN.md): scope, ownership, layouts, and behavior.
+2. [Screen catalog](SCREENS.md): all 11 pictures, intended features, and corrections.
+3. [Backend map and gaps](BACKEND_MAP.md): current code, missing functions, and task owners.
+
+4. [API contracts](CONTRACTS.md): proposed reads, actions, identity, and failure rules.
+5. [Quality requirements](QUALITY.md): performance, reliability, integrity, and browser checks.
+6. [Atomic implementation plan](IMPLEMENTATION_PLAN.md): dependencies, files, interfaces, and checks.
+
+7. [Sources](SOURCES.md): evidence, skill references, and image provenance.
+
+## Scope and evidence
+
+The pictures illustrate the LQoSync4 blueprint. They contain sample data and proposed controls.
+They are not screenshots of an implemented application.
+The written design takes precedence over generated text, counts, dates, and graphs.
+
+The backend map separates reusable code from missing web integration and deferred domain features.
+No plan task is complete merely because its picture exists.
+
+The first release supplies authenticated monitoring and supported topology edits.
+RouterOS authorization, subscriber disable, router profile writes, and automatic routing changes remain separate domain projects.
+Recurring schedules need their own backend rules before the web editor can save them.
+
+The roadmap keeps these gaps visible without presenting nonfunctional controls.
+
+## Delivery rules
+
+Implement one task at a time in dependency order.
+Connect every released screen to a tested backend read or action.
+Never ship fixture records through production endpoints.
+
+Keep source ownership, saved policy, published input, imported state, and dataplane evidence distinct.
+Read the relevant source again before implementation because this baseline can change.
+
+The documents use short technical English under the ASD-STE100 skill.
+The STE checker is heuristic. Its output does not establish certified compliance.

@@ -8,6 +8,30 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T16:11:44+08:00 (Asia/Shanghai) — Frontend design and atomic plan
+
+- Goal: document all pictures and plan a Rust frontend connected to LQoSync3. The owner requested commit and push to `lqosync3`.
+- Agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Source baseline: `9a465e7`.
+- Files: `docs/frontend/`, root README, the frontend research/session notes, Home, and this handoff.
+- Deliverables: 11 PNG copies with hashes, prompt record, screen catalog, feature design, backend gaps, API contracts, quality requirements, and 19 atomic task cards.
+- Checks: image hashes, local links, task dependencies, STE heuristic/manual review, and whitespace. See `docs/frontend/VALIDATION.md`.
+- Application implementation has not started. No build, browser benchmark, service, router, live shaping input, or deployment changed.
+- Preserve unrelated untracked operational notes. The graph remains the older index.
+- Next: execute F00 for compatible dependency selection and measured baseline, then the listed task order. Production deployment is outside this request.
+- Session: [[2026-11-20-frontend-documentation-plan]]. Documentation entry: `docs/frontend/README.md`.
+
+## 2026-11-20T15:26:39+08:00 (Asia/Shanghai) — Frontend blueprint research
+
+- Goal: adapt LQoSync4 frontend ideas to the current LQoSync3 backend.
+- Agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Baseline: `9a465e7`.
+- Read remote planning documents through the GitHub connector. No LQoSync4 branch or directory was created.
+- Changed files: this handoff, Home, and [[2026-11-20-frontend-blueprint-research]]. Research recommendations remain proposals.
+- Checks: current navigation, TUI data inputs, socket dispatch, peer checks, dependencies, graph leads, and remote roadmap reviewed.
+- No application tests or browser checks occurred. No source, service, or production data changed. Preserve existing untracked operational notes.
+- Google skill resolved: GoogleChrome `modern-web-guidance`. Read the skill and retrieved table, drawer, and dialog guides.
+- Unfinished: agree on navigation, first screens, and frontend stack.
+- Next: discuss the proposed shell and Dashboard. The research note records source links, capability gaps, and three approaches.
+
 ## 2026-11-17T22:06:29+08:00 (Asia/Shanghai) — Runner enrollment and recovery complete locally
 
 - Agent: Codex `/root`. Worktree: `/home/pi/LQoSync3.0`. Branch: `lqosync3`. Base and pushed checkpoint: `c9890b2`.

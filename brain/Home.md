@@ -11,6 +11,10 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-frontend-documentation-plan]] — 11 pictures, Rust feature design, backend gaps, and atomic implementation plan
+
+- [[2026-11-20-frontend-blueprint-research]] — LQoSync4 visual blueprint for the current LQoSync3 backend; research only
+
 - [[2026-11-17-graphify-topology-status]]
 
 - [[2026-11-17-topology-enrollment]]

@@ -28,6 +28,7 @@ The default target is `auto`. The tool reads the installed LibreQoS version and 
 
 ## Documents
 
+- [Rust web frontend plan](docs/frontend/README.md): 11 picture mockups, feature design, backend gaps, API contracts, quality requirements, and atomic implementation tasks.
 - [TUI visual contract](docs/design/tui/README.md): approved Dashboard, Subscribers, Routers, LibreQoS, Workers, and Settings mockups, the Journal proposal, functional Settings requirements, and a transition assessment.
 - [Architecture](docs/ARCHITECTURE.md): parts, data flow, and performance rules.
 - [Configuration](docs/CONFIGURATION.md): the TOML reference and the map from `config.json`.
