@@ -8,6 +8,16 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T16:58:02+08:00 (Asia/Shanghai) — Global company branding
+
+- Owner requested company name/logo in global Settings alongside LQoSync branding, then commit/push.
+- Added COMPANY_BRANDING.md and F19. Updated design, contracts, settings ownership, theme rules, screen catalog, and quality requirements.
+- Keep product logo and superscript v3. Company identity applies to sign-in and the shared main header across themes.
+- Presentation-only gateway storage and safe public branding reads. No core config write or service reload.
+- Checks: links, 20-task order, 14 image hashes, STE review, and whitespace. Documentation only.
+- Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Baseline: `aa75133`. Agent: Codex `/root`.
+- Next: execute F00 and dependencies; F19 implements company branding. CLI-only accounts, primary web control, and unchanged TUI remain requirements.
+
 ## 2026-11-20T16:53:01+08:00 (Asia/Shanghai) — Screen-owned settings
 
 - Owner direction: Light/Dark/System is available on sign-in and the shared main header. Each feature owns its configuration forms.

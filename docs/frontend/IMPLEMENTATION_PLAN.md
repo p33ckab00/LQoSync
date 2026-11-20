@@ -84,14 +84,15 @@ F03 + F05 + F17 -> F12 -> F13
 F04 + F17 -> F14
 F02 + F17 -> F18
 F05 + F07 + F08 + F09 + F11 + F12 + F13 + F14 + F18 -> F15
-F06..F15 + F17 + F18 -> F16
+F05 + F15 + F17 -> F19
+F06..F15 + F17 + F18 + F19 -> F16
 ```
 
-Execute in this order: F00, F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F17, F11, F12, F13, F14, F18, F15, F16.
+Execute in this order: F00, F01, F02, F03, F04, F05, F06, F07, F08, F09, F10, F17, F11, F12, F13, F14, F18, F15, F19, F16.
 IDs stay stable even when a dependency executes earlier than its numerical position.
 
 Read-only release: F00–F10 with authentication and no domain mutation controls.
-Editing release: F17, F11–F14, F18, F15, then F16 proof.
+Editing release: F17, F11–F14, F18, F15, F19, then F16 proof.
 D01–D04 remain separate domain projects in the backend gap register.
 
 An isolated read-only release still needs the applicable F16 packaging and browser checks.
@@ -621,6 +622,39 @@ Browser or fixture check: owner-screen settings cases, global-field exclusions, 
 - [ ] Review the diff and record evidence, limitations, and the next dependency. Commit as `feat(web): connect safe settings`.
 
 **Stop condition:** The deliverable passes its focused checks and preserves this boundary: Feature settings remain on their owner screens. No activation/deactivation or implicit service restart. Router connection test jobs remain D04.
+
+## F19: Add company name and logo in global Settings
+
+Dependencies: F05, F15, F17. Status: not started.
+
+**Files:** `crates/web-contract/src/branding.rs`, `crates/web-gateway/src/branding/{mod,store,assets}.rs`, `crates/web-gateway/src/routes/branding.rs`, `crates/web-ui/src/components/brand_identity.rs`, `crates/web-ui/src/pages/{settings,login}.rs`, `crates/web-ui/src/components/shell.rs`, `crates/web-gateway/tests/branding.rs`, `tests/frontend/branding.md`.
+
+**Interfaces:** `BrandingView`, `WebBranding`, a safe public branding read, authenticated logo drafts, and revision-checked branding saves.
+Use the exact boundaries and paths in [COMPANY_BRANDING.md](COMPANY_BRANDING.md).
+Keep company identity separate from core service configuration and account management.
+
+- [ ] Add tests for name-only, logo/name, clearing, missing assets, stale revisions, and safe public DTOs.
+
+- [ ] Add image rejection tests for invalid content, SVG, oversized files, decoded dimensions, and pixel/memory limits.
+
+- [ ] Add access, CSRF, foreign draft, escaping, restart, disk-full, interrupted asset/metadata commit, and draft cleanup cases.
+
+- [ ] Run these cases before implementation and record the missing capability.
+
+- [ ] Select a reviewed Rust image decoder compatible with the frozen toolchain. Bound upload work and preserve the previous valid identity on failures.
+
+- [ ] Add Company branding to global Settings with preview, explicit save, replace, remove, and conflict feedback.
+
+- [ ] Show company name/logo beside the accepted LQoSync logo and superscript v3 on sign-in and the shared header.
+
+- [ ] Check Light, Dark, System, narrow layouts, long names, missing logos, and accessible labels.
+
+- [ ] Run `cargo test -p web-gateway --test branding`. Run the Wasm build and `tests/frontend/branding.md` browser cases separately.
+
+- [ ] Prove branding saves never call the privileged broker or sync service. Record results and commit as `feat(web): add company branding`.
+
+**Stop condition:** Company identity is configurable through global Settings and visible alongside the preserved product identity.
+The public branding response contains no operational or account data. Service configuration and the unchanged TUI remain unaffected.
 
 ## F16: Check and package the connected releases
 

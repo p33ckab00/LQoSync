@@ -63,3 +63,11 @@ Checkpoint: 2026-11-20T16:53:01+08:00 (Asia/Shanghai).
 Updated shared header theme placement and feature-local configuration ownership.
 Document links, 19-task dependency order, 14 image hashes, STE review, and whitespace checks pass.
 Scoped endpoint rejection, cross-screen conflicts, and theme behavior remain future implementation tests.
+
+
+## Company branding follow-up
+
+Checkpoint: 2026-11-20T16:58:02+08:00 (Asia/Shanghai).
+Added global company name/logo requirements and F19. The plan now has 20 task cards.
+Local links, task dependencies, 14 existing image hashes, STE review, and whitespace checks pass.
+Upload security, public DTO redaction, theme rendering, and asset recovery require future implementation tests.

@@ -66,7 +66,7 @@ Audit queries identify the source store and use stable IDs. Do not assume one cr
 
 ## Initial reads
 
-All domain paths use `/api/v1`. Every read requires an authenticated session.
+All domain paths use `/api/v1`. Every domain read requires an authenticated session. The safe public branding read is defined separately below.
 
 | Method and path | Result | Adapter source | Task |
 |---|---|---|---|
@@ -142,6 +142,18 @@ All configuration scopes share the service transaction and conflict boundary whe
 
 These adapters remain future work in F18/F15. Do not imply that distinct source screens create distinct configuration authorities.
 The shared header theme preference does not use these operational endpoints or start a backend job.
+
+## Company identity contract
+
+Apply [COMPANY_BRANDING.md](COMPANY_BRANDING.md). `WebBranding` is gateway-owned presentation state with a separate `branding_revision`.
+`BrandingView` contains only the saved company name, optional generated asset reference, and branding revision.
+
+`GET /api/v1/branding` is public so sign-in can show company identity without exposing the private settings response.
+Logo drafts and `PATCH /api/v1/settings/branding` require superadmin authentication, CSRF protection, and expected branding revision.
+The upload path is `POST /api/v1/settings/branding/logo-drafts`. Its 2 MiB limit is separate from the ordinary 64 KiB JSON mutation ceiling.
+
+The gateway validates, decodes, and bounds image work. It does not forward logo data to the privileged broker or sync service.
+An explicit branding save commits the validated name/logo reference. It does not claim a config reload or native apply.
 
 ## Mutation durability and conflicts
 

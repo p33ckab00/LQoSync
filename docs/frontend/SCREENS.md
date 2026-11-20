@@ -159,6 +159,7 @@ Purpose: edit application-wide configuration only, with digest checks, validatio
 Backend and delivery: see [backend map](BACKEND_MAP.md) and tasks F15, F18 in the [implementation plan](IMPLEMENTATION_PLAN.md).
 
 Required correction: move the pictured RouterOS connection fields to Router detail and LibreQoS fields to LibreQoS.
+Add company name/logo controls here under [COMPANY_BRANDING.md](COMPANY_BRANDING.md), with preview, explicit save, replace, and remove.
 Keep only application-wide fields here. The pictured interval limit, security fields, and credential controls are proposals. Current domain validation defines allowed values. Secrets remain write-only.
 
 States to check: loading, empty, stale, partial, unavailable, forbidden, and current data.

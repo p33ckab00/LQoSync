@@ -38,13 +38,16 @@ Shared plans remain shared domain records. Their placement does not require dupl
 | Journal | Journal view controls | Level, search, follow, and bounded view preferences; fixed service-unit permissions remain backend-owned |
 | Schedules | Owning plan/node > Schedules, after D01 | Target-specific schedule rules; backend implementation remains a gate |
 | Integrations | Integration detail in its owning feature | RouterOS connections under Routers; LibreQoS integration under LibreQoS |
-| Global Settings | Application-wide settings only | Supported deployment identity, application defaults, and cross-application notification configuration |
+| Global Settings | Application-wide settings only | Company name/logo beside LQoSync, supported deployment identity, application defaults, and application-wide notifications |
 | Account administration | Root CLI only | Username/password CRUD and account access state never move into web Settings |
 
 These categories define screen ownership, not new supported backend fields.
 Expose only fields that exist in the reviewed config/domain schema and have safe service operations.
 Keep managed fields read-only in their owner screen, with an explanation.
 If a backend function is missing, record its gap and task. Do not add a decorative Save button.
+
+Company identity is an application-wide exception to feature-local settings. See [COMPANY_BRANDING.md](COMPANY_BRANDING.md).
+Keep the product logo and LQoSync superscript v3 while adding the company identity alongside them.
 
 ## PPPoE example
 

@@ -80,6 +80,9 @@ Keep the TUI unchanged. Do not automate its keypresses or instantiate its views 
 | G14 | Routing allocation, health-triggered failover | Real routing observation and approved writer contract; logical shaping assignment is insufficient | D02 |
 | G15 | Remote LibreQoS control and destination intelligence | Explicit source, identity, retention, privacy and ownership contracts | D03 |
 
+Company branding is another missing web capability. F19 adds gateway-owned name/logo storage and a safe public branding DTO.
+It must not add company fields to the current core config or registry merely for presentation.
+
 ## Important corrections to the images
 
 - Local plans replace the proposed PPPoE router-profile sync workflow.

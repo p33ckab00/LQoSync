@@ -131,6 +131,13 @@ Direct global or source-scoped patches with foreign fields must fail before any 
 Concurrent changes from different screens must share the backend digest/revision conflict boundary.
 Do not split persistent configuration authority by screen.
 
+## Company branding checks
+
+Follow [COMPANY_BRANDING.md](COMPANY_BRANDING.md) and F19 for global company name/logo controls.
+Check safe public branding reads, authenticated writes, escaped names, image bounds, content types, draft ownership, and failed-save recovery.
+Check the company identity beside LQoSync on sign-in and shared headers in every theme and narrow layout.
+Branding changes must not write core config, start service jobs, or change the TUI.
+
 ## Release evidence
 
 Record implemented, compiled, tested, measured, and production-verified status separately for each feature.

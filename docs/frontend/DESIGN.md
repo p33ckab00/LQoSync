@@ -98,6 +98,9 @@ PPPoE settings stay in the PPPoE view, DHCP settings in IPoE/DHCP, and LibreQoS 
 Use owner-local Settings tabs or panels. Global Settings contains application-wide fields only.
 Keep the theme selector in the shared header and on sign-in, with one preference across all screens.
 
+Global Settings also owns [company branding](COMPANY_BRANDING.md): company name and logo alongside LQoSync on sign-in and the shared header.
+This web presentation setting does not change the core config or require a service reload.
+
 ## Visual system
 
 Apply [THEMING.md](THEMING.md) across the web application. System is the default, with explicit Light and Dark overrides.

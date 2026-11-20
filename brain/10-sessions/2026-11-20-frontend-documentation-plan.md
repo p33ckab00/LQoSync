@@ -79,3 +79,14 @@ Updated design, contracts, mockup corrections, theme direction, quality checks, 
 Scoped forms share the backend transaction and digest conflict boundary. No duplicate configuration authority was introduced.
 Checks: document links, 19-task dependency order, 14 image hashes, STE review, and whitespace.
 No implementation, application tests, or runtime changes occurred. Account CRUD remains CLI-only. The TUI stays as is.
+
+
+## 2026-11-20T16:58:02+08:00 — Company branding in global Settings
+
+The owner requested company name/logo configuration beside LQoSync branding, with commit and push.
+Added `docs/frontend/COMPANY_BRANDING.md` and F19. The plan now contains 20 atomic task cards.
+Company identity supplements the accepted LQoSync logo and superscript v3 on sign-in and the shared main header.
+Branding stays in gateway-owned presentation storage, separate from core service config.
+Updated global field ownership, safe public branding DTOs, upload bounds, preview/save, asset recovery, and theme checks.
+Checks: links, 20-task dependency order, 14 image hashes, STE review, and whitespace.
+No image, application code, live configuration, or runtime behavior changed.

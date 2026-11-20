@@ -14,6 +14,9 @@ Keep text, input fields, focus rings, and buttons legible in both themes.
 Use an opaque surface when blur is unavailable, reduced transparency is preferred, or contrast requires it.
 Do not animate blur or apply large blur layers to every operational table.
 
+Company name/logo can appear alongside the preserved product identity under [COMPANY_BRANDING.md](COMPANY_BRANDING.md).
+Check both identities in Light, Dark, and System modes.
+
 ## Picture references
 
 | Image | Status |
