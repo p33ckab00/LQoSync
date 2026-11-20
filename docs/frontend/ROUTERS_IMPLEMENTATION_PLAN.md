@@ -1,6 +1,7 @@
 # Routers screen implementation plan
 
 Date: 2026-11-21 (Asia/Shanghai). Status: planning only. No task below has started.
+The [review](ROUTERS_REVIEW.md) replaces the R00 to R07 order with slices S1 to S6. Use the R tasks below as the detailed checklist for each slice.
 
 **Goal:** Deliver router registration, a complete disable barrier, reviewed shaping removal, cached router screens, and a visible future WAN pinning surface.
 

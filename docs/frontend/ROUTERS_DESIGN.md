@@ -1,6 +1,7 @@
 # Routers screen design
 
-Date: 2026-11-21 (Asia/Shanghai). Status: proposed design, not implemented.
+Date: 2026-11-21 (Asia/Shanghai). Status: proposed design, not implemented. Reviewed on 2026-11-21.
+Read the [review](ROUTERS_REVIEW.md) first. Its backend gaps, scope changes, and decisions take priority over this document.
 Companion: [atomic implementation plan](ROUTERS_IMPLEMENTATION_PLAN.md).
 
 ## Owner decisions
