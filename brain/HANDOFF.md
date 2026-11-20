@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T16:31:35+08:00 (Asia/Shanghai) — Primary web frontend clarification
+
+- Owner direction: the web UI is the primary frontend and operator workflow surface. The TUI stays as is.
+- Keep backend execution and synchronization independent of browser, gateway, and TUI processes.
+- Updated frontend design, plan, backend map, quality requirements, and session note on `lqosync3`.
+- Removed mandatory TUI edits from planned web tasks. Web settings writes need proof of safe coexistence with the unchanged TUI.
+- Account CRUD remains root CLI-only. No application implementation or runtime change occurred.
+
+
 ## 2026-11-20T16:24:46+08:00 (Asia/Shanghai) — CLI-only frontend accounts
 
 - Owner direction: root CLI manages usernames and passwords. Allow multiple superadmins. Web access has sign-in/sign-out only.

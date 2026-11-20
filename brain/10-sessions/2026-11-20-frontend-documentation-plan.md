@@ -40,6 +40,13 @@ No application code, runtime state, or dependency changed. No Rust or browser te
 The graph remains the earlier index. Current source and the backend map take precedence.
 The [validation report](../../docs/frontend/VALIDATION.md) records the scope of proof.
 
+## Primary frontend clarification
+
+The owner selected the web UI as the primary frontend and operator workflow surface.
+The TUI stays as is. Web delivery does not require a TUI process, redesign, or migration.
+The Rust service retains execution authority. CLI-only account administration remains unchanged.
+Updated the feature design, implementation constraints, backend map, and independence checks.
+
 ## Next action
 
 Follow-up owner direction: manage all usernames and passwords through root CLI only.

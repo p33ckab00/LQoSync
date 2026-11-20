@@ -11,13 +11,13 @@ Paths below refer to this repository. New paths in the implementation plan do no
 | Local transport | [client](../../src/api/client.rs), [server](../../src/api/server.rs), [protocol](../../src/api/protocol.rs) | JSON lines, socket `0600`, root/service UID, bounded messages; not HTTP | F02 |
 | Service dispatch | [dispatch](../../src/api/dispatch.rs), [Runner](../../src/runner.rs) | Single service owner; current operations below | F02, F11–F13 |
 | Router observations | [collection](../../src/collection.rs), [RouterOS](../../src/routeros.rs) | Sanitized observations, source states, cycle sequence; collection remains service-owned | F03, F08 |
-| Subscriber identity and presence | [model](../../src/topology_manager/model.rs), [presence](../../src/tui/presence.rs) | Stable identities, source kind, freshness rules; extract shared projection, not terminal drawing | F03, F07 |
+| Subscriber identity and presence | [model](../../src/topology_manager/model.rs), [presence](../../src/tui/presence.rs) | Stable identities, source kind, freshness rules; use a backend projection; keep terminal code unchanged | F03, F07 |
 | Health and status | [health](../../src/system_health.rs), [status](../../src/status.rs), [TUI data](../../src/tui/data.rs) | Multiple source reports; build bounded browser projection | F03, F06 |
 | Plans and speeds | [catalog](../../src/topology_manager/catalog.rs), [rates](../../src/topology_manager/rates.rs) | Local plans, inheritance, limits, factors; not complete RouterOS profile management | F11 |
 | Topology edits | [edits](../../src/topology_manager/edits.rs), [TUI topology](../../src/tui/topology/mod.rs) | Builder, pin, rebalance, proposal confirmation; preserve service validation | F12, F13 |
 | Write and native evidence | [receipts](../../src/write_receipt.rs), [import](../../src/import_evidence.rs), [apply](../../src/apply_evidence.rs), [take effect](../../src/apply_evidence/take_effect.rs) | Reuse per-identity waiting results; add typed read projection and bounded issue details | F09 |
 | Traffic and workers | [workers](../../src/worker_util.rs), [subscriber metrics](../../src/subscriber_stats.rs), [NICs](../../src/nic_stats.rs) | Existing samples and caches; no assumed long-term history or per-WAN attribution | F06, F10 |
-| Settings | [draft](../../src/tui/settings/draft.rs), [validate](../../src/tui/settings/validate.rs), [apply](../../src/tui/settings/apply.rs) | Existing terminal workflow writes config; extract neutral logic before web reuse | F15 |
+| Settings | [draft](../../src/tui/settings/draft.rs), [validate](../../src/tui/settings/validate.rs), [apply](../../src/tui/settings/apply.rs) | Existing TUI writes config; add a backend boundary and prove coexistence without changing the TUI | F15 |
 | Journal | [journal](../../src/tui/journal.rs) | Terminal reader and view; needs safe, bounded service adapter | F10 |
 
 ## Current service operations
@@ -56,6 +56,9 @@ These are transport ceilings, not browser payload targets.
 The web adapter must validate response protocol version, request ID, and result shape.
 
 The current client does not explicitly check response version and ID. F02 adds that proof before reuse.
+
+The web is the primary workflow surface. TUI paths above are evidence references, not web runtime dependencies.
+Keep the TUI unchanged. Do not automate its keypresses or instantiate its views from the gateway.
 
 ## Gap register
 

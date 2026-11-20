@@ -19,7 +19,11 @@ F00 selects compatible stable dependency versions and a reviewed password hash i
 
 - Keep the core Rust 1.89 contract. Record compatible web dependencies before implementation.
 
-- Preserve the TUI, CLI, instance lock, current registry, and automatic publication semantics.
+- Deliver the web UI as the primary operator frontend and workflow surface.
+
+- Keep the TUI as is. Do not make web delivery depend on a TUI redesign, migration, or process.
+
+- Preserve the CLI, instance lock, current registry, and automatic publication semantics.
 
 - Do not add a second Runner, collector, or shaping writer.
 
@@ -178,13 +182,13 @@ Run: `cargo test -p lqosync3 api::client`.
 
 Dependencies: F02. Status: not started.
 
-**Files:** `crates/web-gateway/src/read/{mod,snapshot,paging,subscribers}.rs`, `crates/web-gateway/tests/snapshots.rs`, `src/tui/presence.rs`, `proposed src/subscriber_view.rs`, `src/lib.rs`.
+**Files:** `crates/web-gateway/src/read/{mod,snapshot,paging,subscribers}.rs`, `crates/web-gateway/tests/snapshots.rs`, `proposed src/subscriber_view.rs`, `src/lib.rs`.
 
-**Interfaces:** Produces SnapshotStore::capture() -> Arc<ReadSnapshot> and query(snapshot_id, PageQuery) -> Page<T>. Extracts shared identity/freshness projection without terminal drawing.
+**Interfaces:** Produces SnapshotStore::capture() -> Arc<ReadSnapshot> and query(snapshot_id, PageQuery) -> Page<T>. Uses a backend identity/freshness projection without changing terminal code.
 
 - [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
 
-- [ ] Add tests: Test mixed cycles, PID restart, missing/corrupt reports, duplicate IPs, identity change, stable paging, expired cursor, and memory ceilings. Bracket projection extraction with existing presence tests.
+- [ ] Add tests: Test mixed cycles, PID restart, missing/corrupt reports, duplicate IPs, identity change, stable paging, expired cursor, and memory ceilings. Use unchanged TUI presence behavior as a regression reference.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 
@@ -550,7 +554,7 @@ Operational audit reads remain redacted and separate from account enumeration.
 
 Dependencies: F02, F17. Status: not started.
 
-**Files:** `src/settings_service.rs`, `src/lib.rs`, `src/api/dispatch.rs`, `src/runner.rs`, `src/tui/settings/{apply,validate,preview}.rs`, `src/runner/tests/api.rs`, `tests/settings_service.rs`.
+**Files:** `src/settings_service.rs`, `src/lib.rs`, `src/api/dispatch.rs`, `src/runner.rs`, `src/runner/tests/api.rs`, `tests/settings_service.rs`.
 
 **Interfaces:** Produces typed settings.get, settings.preview, settings.commit service operations with expected digest and redacted result. Extend the broker allowlist only for these types.
 
@@ -560,7 +564,7 @@ Dependencies: F02, F17. Status: not started.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 
-- [ ] Implement the smallest connected change: Bracket extraction with existing tests. Move reusable validation/transaction logic out of terminal code. Serialize commits with service ownership, backups, secret writes, and reload acknowledgement.
+- [ ] Implement the smallest connected change: Build a backend settings boundary from existing domain helpers without changing TUI code. Prove safe coexistence with unchanged TUI writes, backups, secrets, and reload acknowledgement.
 
 - [ ] Run the checks below. Record each result separately.
 
@@ -572,7 +576,7 @@ Run: `cargo test -p lqosync3 runner::tests::api`.
 
 - [ ] Review the diff and record evidence, limitations, and the next dependency. Commit as `feat(api): add typed settings transactions`.
 
-**Stop condition:** The deliverable passes its focused checks and preserves this boundary: No browser filesystem paths or arbitrary TOML replacement. Preserve current TUI behavior and rollback boundaries.
+**Stop condition:** The deliverable passes its focused checks and preserves this boundary: No browser filesystem paths or arbitrary TOML replacement. Keep the TUI unchanged. If concurrent config writes cannot preserve integrity, block web settings mutations and document the unresolved backend gate.
 
 ## F15: Connect settings and safe router configuration
 
@@ -608,7 +612,8 @@ Dependencies: Applicable release dependency set above. Status: not started.
 
 **Files:** `systemd/lqosync3-web.service`, `systemd/lqosync3-web-broker.service`, `tools/frontend/check.sh`, `.github/workflows/ci.yml`, `docs/frontend/DEPLOYMENT.md`, `docs/frontend/evidence/F16.md`.
 
-**Interfaces:** Produces reproducible native/Wasm artifacts, isolated installation instructions, rollback procedure, and feature evidence matrix.
+**Interfaces:** Produces reproducible artifacts, isolated installation instructions, rollback, and a feature evidence matrix.
+Prove primary web workflows without any TUI process, and prove service continuity after web shutdown.
 
 - [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
 

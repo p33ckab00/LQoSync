@@ -17,7 +17,14 @@ Current LQoSync3 contracts control operational behavior.
 The newer local plan and topology workflow supersedes the pictures' RouterOS profile sync controls.
 
 A shaping WAN parent does not prove a packet route.
-Keep the TUI and all supported CLI operations.
+The web UI is the primary operator frontend and workflow orchestration surface.
+Operators use it for routine monitoring, supported edits, action tracking, and result review.
+Keep the TUI as is. Do not redesign, remove, or require changes to the TUI for web delivery.
+
+Web workflows call typed backend operations. They do not drive the TUI or require a TUI process.
+The Rust service remains the execution authority for validation, collection, policy, and publication.
+Synchronization continues when browsers close or the web gateway stops.
+Account administration remains CLI-only under the account policy.
 
 ## Rust architecture
 

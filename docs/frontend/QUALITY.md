@@ -56,13 +56,15 @@ Do not describe unmeasured code as optimized.
 | REL-05 | Never retry an uncertain mutation blindly | Timeout after service commit; reconcile action evidence |
 | REL-06 | Recover sessions and audit state safely | Restart, disk-full, corruption, failed transaction, revocation tests |
 | REL-07 | Detect incompatible server and browser versions | Old cached UI receives an explicit recovery message |
-| REL-08 | Keep TUI and CLI behavior | Existing core suite and terminal settings/topology regression checks |
+| REL-08 | Keep the TUI as is and preserve CLI behavior | Existing core suite and unchanged terminal regression checks |
+| REL-09 | Web is the independent primary operator frontend | Complete supported workflows without a TUI process; synchronization continues after web shutdown |
 
 Keep intent records and results atomic within each store transaction.
 SQLite and the service registry do not share a transaction. Preserve an explicit unknown state at that boundary.
 Do not rewrite shaping files, signal processes, or activate the manager from a read path.
 
 Stop the web services for rollback without stopping synchronization.
+A web outage must not require a TUI process to keep synchronization active.
 Back up web state before migrations. A failed migration must not change the core registry.
 
 ## Integrity and access

@@ -8,7 +8,9 @@ The browser application will use Rust, Leptos, and WebAssembly, as selected in t
 CSS, HTML assets, and generated Wasm bindings remain necessary.
 
 Do not add hand-written JavaScript or TypeScript application logic.
-The current TUI remains available.
+The web UI is the primary frontend and operator workflow surface.
+The current TUI stays as is and remains independently available.
+The Rust service remains the execution authority and continues without a browser.
 [Account administration](CLI_ACCOUNT_POLICY.md) is CLI-only. The web supports sign-in/sign-out and has no signup or user-management screen.
 
 ## Read order
