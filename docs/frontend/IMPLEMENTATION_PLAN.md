@@ -278,6 +278,8 @@ Browser or fixture check: execute tests/frontend/shell.md.
 
 ## F06: Connect Dashboard and bounded traffic
 
+DPDK milestone: the [Dashboard card plan](DPDK_DASHBOARD.md) adds bounded worker, pressure, bridge-health, and NIC views.
+
 Dependencies: F03, F05. Status: partial. See [Dashboard evidence](evidence/dashboard-alignment/README.md).
 
 Live monitor milestone: one-second source samples, authenticated stream, and capacity-scaled rainbow chart.
@@ -397,7 +399,8 @@ Browser or fixture check: LibreQoS browser cases.
 
 ## F10: Connect Workers and Journal diagnostics
 
-Dependencies: F03, F05. Status: not started.
+Dependencies: F03, F05. Status: partial. The [DPDK Dashboard summary](DPDK_DASHBOARD.md) uses the existing telemetry sources.
+The dedicated Workers screen, full paged inspector, and Journal screen remain open.
 
 **Files:** `crates/web-gateway/src/read/diagnostics.rs`, `crates/web-gateway/src/routes/diagnostics.rs`, `crates/web-ui/src/pages/{workers,journal}.rs`, `crates/web-gateway/tests/diagnostics.rs`, `tests/frontend/diagnostics.md`.
 

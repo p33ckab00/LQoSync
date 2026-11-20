@@ -28,6 +28,26 @@ The rates are true configured WAN bases, before shaping factors.
 They do not prove link health or traffic distribution.
 Traffic rates remain observed Mbps. `Point.gap_before` prevents a line across an unavailable observation.
 
+## DPDK monitoring projection
+
+`Overview.dpdk` is optional. Older responses can omit it.
+The view contains a server timestamp, independent source stamps, worker summaries, pressure gauges, and bounded NIC diagnostics.
+The broker reads `worker-utilization.json` and `nic-telemetry.json`.
+It does not open a DPDK socket or start a collector.
+
+Worker analytics use a six-second freshness limit.
+Bridge health and NIC telemetry use separate fifteen-second limits.
+The browser anchors source ages to `sampled_at` and elapsed time after receipt.
+A different device clock must not create stale health.
+
+All validated workers contribute to the mean and total.
+The response includes at most sixteen busiest workers and eight ports.
+It includes at most sixteen NIC xstats per port.
+Optional details have a sixteen-KiB budget; `details_capped` reports trimming.
+Counters cross the browser boundary as decimal text to preserve large integer values.
+Reported zero, missing data, counter reset, and stale evidence remain distinct.
+See the [DPDK design and implementation plan](DPDK_DASHBOARD.md).
+
 ## Common Rust types
 
 Place serializable types in `crates/web-contract/src/`.

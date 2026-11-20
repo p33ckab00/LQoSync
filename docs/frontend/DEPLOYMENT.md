@@ -31,6 +31,32 @@ It does not create an account or edit the current Traefik file.
 For an update, stop the two web services before the installer replaces their binaries.
 Start the two web services after installation. Keep the existing private databases.
 
+## DPDK Dashboard update
+
+The [DPDK card](DPDK_DASHBOARD.md) updates the web broker, gateway, and browser assets.
+It uses the worker and NIC caches already published by the core service.
+
+Build from the repository as user `pi`:
+
+```bash
+cd /home/pi/LQoSync3.0
+TRUNK=/tmp/lqosync-web-tools/trunk tools/frontend/build.sh
+```
+
+Use `tools/frontend/build.sh` without `TRUNK` if Trunk is on your PATH.
+
+Install the prepared web build:
+
+```bash
+sudo tools/frontend/install.sh
+systemctl status lqosync3-web-broker lqosync3-web
+```
+
+The installer restarts the web units.
+Open the HTTPS origin and refresh the page.
+Compare worker count, bridge health, port state, and source age with the TUI.
+The browser chart starts a new session history after a page reload.
+
 ## Live traffic update
 
 The [live traffic update](LIVE_TRAFFIC.md) also changes the core telemetry sampler and status summary.

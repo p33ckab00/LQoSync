@@ -1,5 +1,6 @@
 //! Browser-safe views. No configuration or credential records cross this boundary.
 use serde::{Deserialize, Serialize};
+pub mod dpdk;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Overview {
     pub observed_at: Option<u64>,
@@ -21,6 +22,8 @@ pub struct Overview {
     pub traffic_stale: bool,
     #[serde(default)]
     pub wan_capacity: Option<WanCapacity>,
+    #[serde(default)]
+    pub dpdk: Option<dpdk::Dpdk>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WanCapacity {

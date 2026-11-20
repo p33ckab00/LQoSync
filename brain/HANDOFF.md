@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T22:25:18+08:00 (Asia/Shanghai) — DPDK Dashboard card
+
+- Goal: add DPDK stats/health with the same telemetry sources as the TUI, with planned charts and updates.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `ca9065e`.
+- Changed: typed DPDK contract, cache projection, overview integration, browser stale handling, Dashboard card/history/CSS, fixtures/tests, frontend plan/deployment/evidence, and brain notes.
+- Sources: `worker-utilization.json` and `nic-telemetry.json`. No collector or DPDK socket access from the web services.
+- Bounds: all-worker summary; sixteen detailed workers; eight visible bars; eight ports; sixteen xstats per port; sixteen-KiB optional row details; sixty session samples.
+- Freshness: workers six seconds; bridge health and NIC fifteen seconds. Browser age uses server time and elapsed receipt time.
+- Backend gaps: persisted worker history and a full paged Workers inspector contract. F06/F10 remain partial.
+- Checks: eight projection tests, six native UI tests, existing gateway tests, DPDK browser checks, existing smoke and ticker regressions, native/Wasm release, Clippy, Rust 1.89, formatting, and whitespace passed.
+- Read-only runtime probe: one worker and two ports; live worker/NIC data and healthy bridge at that check. Approximate debug projection: 24 ms; no production latency claim.
+- Plan: `docs/frontend/DPDK_DASHBOARD.md`. Evidence: `docs/frontend/evidence/dpdk-dashboard`.
+- Next runtime step: operator runs `sudo tools/frontend/install.sh`, then compares source values with the TUI. Prepared web binaries/assets are ready.
+- Production files/services, core collectors, and TUI code were not changed. Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T21:42:13+08:00 (Asia/Shanghai) — Ticker startup values
 
 - Goal: correct all-Unknown moving values after sign-in.

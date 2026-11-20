@@ -7,6 +7,10 @@ mod diagnostics_activity;
 #[cfg(target_arch = "wasm32")]
 mod diagnostics_ticker;
 #[cfg(target_arch = "wasm32")]
+mod dpdk;
+#[cfg(any(target_arch = "wasm32", test))]
+mod dpdk_history;
+#[cfg(target_arch = "wasm32")]
 mod live;
 #[cfg(any(target_arch = "wasm32", test))]
 mod traffic_plot;

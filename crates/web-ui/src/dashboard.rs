@@ -237,6 +237,7 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         </section>
         <WanDistribution/>
       </div>
+      <crate::dpdk::DpdkCard data/>
       <Upstream/>
       <section class="panel service-diagnostics-details" aria-label="Service diagnostics details">
       <details class="diagnostics"><summary>"View diagnostics"<span>"Static status details"</span></summary>

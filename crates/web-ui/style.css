@@ -158,3 +158,53 @@
 
 .diagnostics-ticker:not(.ready) .ticker-static,.diagnostics-ticker:not(.ready) .ticker-clone{display:none}
 .ticker-loading{margin:0;padding-block:12px;color:var(--muted);font-size:14px}
+
+.dpdk-panel{margin-block-end:22px}
+.dpdk-panel .panel-title{align-items:flex-start;margin-block-end:16px}
+.dpdk-panel h3{font-size:16px;margin-block:0 12px}
+.dpdk-panel h4{font-size:14px;margin-block:18px 8px;overflow-wrap:anywhere}
+.dpdk-panel .panel-note{font-size:13px;color:var(--muted);line-height:1.6}
+.dpdk-panel .panel-title .panel-note{margin-block-start:6px}
+.dpdk-sources{display:flex;flex-wrap:wrap;gap:10px 24px;padding-block:12px;border-block:1px solid var(--border);margin-block-end:22px;font-size:13px;color:var(--muted)}
+.dpdk-sources>span{display:flex;flex-wrap:wrap;gap:8px}
+.dpdk-sources b{color:var(--text);font-weight:500}
+.dpdk-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:24px}
+.dpdk-grid>div{min-inline-size:0}
+.dpdk-value{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;margin-block:0 8px}
+.dpdk-value>span{font-size:13px;font-weight:400;color:var(--muted)}
+.dpdk-bars{margin-block:14px}
+.dpdk-worker{display:grid;grid-template-columns:72px minmax(0,1fr) 52px;align-items:center;gap:10px;margin-block:10px;font-size:13px}
+.dpdk-worker b{text-align:end;font-variant-numeric:tabular-nums}
+.dpdk-panel meter{inline-size:100%;block-size:16px;accent-color:var(--accent)}
+.dpdk-gauge{margin-block-end:18px}
+.dpdk-gauge>div,.dpdk-port>div{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.dpdk-gauge meter{margin-block:6px}
+.dpdk-gauge b{font-variant-numeric:tabular-nums}
+.dpdk-port{padding-block:12px;border-block-end:1px solid var(--border);font-size:13px;overflow-wrap:anywhere}
+.dpdk-port>div{flex-wrap:wrap}
+.dpdk-port>p{margin-block-start:6px;color:var(--muted)}
+.dpdk-readings{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:8px 14px;margin-block:14px;font-size:13px}
+.dpdk-readings dt{color:var(--muted);overflow-wrap:anywhere}
+.dpdk-readings dd{margin:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.dpdk-trend{border-block-start:1px solid var(--border);margin-block-start:22px;padding-block-start:20px}
+.dpdk-trend>div:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+.dpdk-trend-frame{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;margin-block-start:10px}
+.dpdk-trend-axis{display:flex;flex-direction:column;justify-content:space-between;font-size:13px;color:var(--muted)}
+.dpdk-trend svg{inline-size:100%;block-size:100px;overflow:visible}
+.dpdk-chart-grid{stroke:var(--border);fill:none;vector-effect:non-scaling-stroke}
+.dpdk-busy-line{stroke:var(--accent);stroke-width:2;fill:none;vector-effect:non-scaling-stroke}
+.dpdk-trend-times{display:flex;justify-content:space-between;margin:8px 0 0 58px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dpdk-wait{padding-block:30px;color:var(--muted);font-size:14px}
+.dpdk-details{border-block-start:1px solid var(--border);margin-block-start:20px;padding-block-start:10px}
+.dpdk-details summary{cursor:pointer;min-block-size:44px;display:list-item;align-content:center;font-size:14px;font-weight:600}
+.dpdk-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-block:20px}
+.dpdk-details>h3{margin-block-start:22px}
+.dpdk-details .table-scroll{margin-block:14px}
+.dpdk-worker-select{display:flex;align-items:center;gap:14px;margin-block:16px;font-size:14px}
+.dpdk-worker-select select{min-block-size:44px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding-inline:10px}
+@media(max-width:1100px){.dpdk-grid{grid-template-columns:1fr 1fr}.dpdk-nic{grid-column:1/-1}.dpdk-detail-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.dpdk-grid{grid-template-columns:1fr}.dpdk-nic{grid-column:auto}.dpdk-panel .panel-title{flex-wrap:wrap}.dpdk-readings{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.dpdk-worker-select{align-items:flex-start;flex-direction:column}.dpdk-details summary{padding-block:10px}}
+@media(forced-colors:active){.dpdk-busy-line{stroke:CanvasText}.dpdk-chart-grid{stroke:GrayText}}
+.dpdk-panel meter::-webkit-meter-bar{background:var(--border);border:0;border-radius:4px}
+.dpdk-panel meter::-webkit-meter-optimum-value{background:var(--accent);border-radius:4px}
+.dpdk-panel meter::-moz-meter-bar{background:var(--accent)}

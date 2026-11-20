@@ -3,7 +3,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 use std::{io::Read, path::Path};
 use web_contract::{Component, Overview, Point, WanCapacity};
-fn read<T: DeserializeOwned>(root: &Path, name: &str) -> Option<T> {
+pub(crate) fn read<T: DeserializeOwned>(root: &Path, name: &str) -> Option<T> {
     let path = root.join(name);
     let canonical = path.canonicalize().ok()?;
     // The worker cache uses the existing root-owned RAM-cache symlink.
@@ -177,17 +177,53 @@ pub fn project(root: &Path, now: u64) -> Overview {
             .collect();
     }
     project_traffic(&workers, now, &mut view);
+    view.dpdk = Some(crate::dpdk::project(
+        &workers.dpdk_fields,
+        workers.version,
+        workers.updated,
+        workers.stale,
+        now,
+    ));
+    crate::dpdk::project_nic(&root, now, view.dpdk.as_mut().unwrap());
+    crate::dpdk::bound(view.dpdk.as_mut().unwrap());
     view
 }
 
-/// Refresh the small telemetry cache without decoding subscriber collections each second.
+/// Refresh traffic and worker analytics without decoding subscriber collections each second.
 pub fn refresh_traffic(root: &Path, now: u64, view: &mut Overview) {
     let root = root.canonicalize().unwrap_or_else(|_| root.into());
     let workers: WorkerTraffic = read(&root, "worker-utilization.json").unwrap_or_default();
     project_traffic(&workers, now, view);
+    let nic = view
+        .dpdk
+        .as_ref()
+        .map(|d| (d.nic.clone(), d.ports.clone(), d.details_capped));
+    let mut dpdk = crate::dpdk::project(
+        &workers.dpdk_fields,
+        workers.version,
+        workers.updated,
+        workers.stale,
+        now,
+    );
+    if let Some((mut source, ports, capped)) = nic {
+        if !source.live(now, 15) {
+            source.stale = true;
+            source.state = if source.updated.is_some() {
+                "STALE"
+            } else {
+                "UNAVAILABLE"
+            }
+            .into();
+        }
+        dpdk.nic = source;
+        dpdk.ports = ports;
+        dpdk.details_capped |= capped;
+    }
+    crate::dpdk::bound(&mut dpdk);
+    view.dpdk = Some(dpdk);
 }
 
-// Skip worker rows and other histories without allocating their JSON trees.
+// Decode the selected telemetry fields. Unrelated cache fields stay outside the browser contract.
 #[derive(Default, Deserialize)]
 struct WorkerTraffic {
     version: Option<u64>,
@@ -195,6 +231,8 @@ struct WorkerTraffic {
     stale: Option<bool>,
     #[serde(default)]
     traffic: Vec<Value>,
+    #[serde(flatten)]
+    dpdk_fields: crate::dpdk::Analytics,
 }
 
 fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview) {

@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-dpdk-dashboard]] — DPDK worker charts, pressure, bridge health, and NIC diagnostics from TUI sources
+
 - [[2026-11-20-ticker-startup-unknown]] — Wait for a source snapshot before starting the moving queue
 
 - [[2026-11-20-continuous-diagnostics-ticker]] — Stable movement while activity appends at the tail

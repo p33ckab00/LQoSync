@@ -10,6 +10,11 @@ pub(crate) fn mark_stale(data: RwSignal<Option<Overview>>) {
             view.traffic_stale = true;
             view.wan_capacity = None;
             view.health = "UNKNOWN".into();
+            if let Some(dpdk) = &mut view.dpdk {
+                dpdk.analytics.stale = true;
+                dpdk.health.stale = true;
+                dpdk.nic.stale = true;
+            }
             for component in &mut view.components {
                 component.state = "UNKNOWN".into();
             }
