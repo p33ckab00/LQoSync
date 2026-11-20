@@ -37,6 +37,8 @@ F00 selects compatible stable dependency versions and a reviewed password hash i
 
 - Do not deploy to production as part of these implementation tasks without deployment authorization.
 
+- Keep account CRUD CLI-only, allow multiple superadmins, and expose sign-in/sign-out only on the web.
+
 - Use STE for persisted technical prose. Use the requested Google and Vercel skills for UI work.
 
 ## File ownership and interfaces
@@ -51,7 +53,7 @@ Existing root modules remain the domain implementation.
 | `crates/web-gateway/src/bin/lqosync3-web-broker.rs` | Local privileged entry point; no TCP listener |
 | `crates/web-gateway/src/broker/` | Peer checks, typed allowlist, bounded reads, service adapter |
 | `crates/web-gateway/src/read/` | Immutable projections and safe queries |
-| `crates/web-gateway/src/auth/` | Local accounts, sessions, role checks, CSRF |
+| `crates/web-gateway/src/auth/` | CLI account client, web sessions, superadmin checks, CSRF |
 | `crates/web-gateway/src/actions/` | Durable intent, dispatch, audit, and recovery |
 | `crates/web-ui/src/` | Leptos shell, routes, components, forms, request state |
 | `src/settings_service.rs` | Proposed framework-neutral settings transaction owned by the service |
@@ -71,7 +73,7 @@ F03 + F05 -> F06, F07, F08, F09, F10
 F02 + F04 -> F17
 F07 + F17 -> F11
 F03 + F05 + F17 -> F12 -> F13
-F04 + F05 + F17 -> F14
+F04 + F17 -> F14
 F02 + F17 -> F18 -> F15
 F06..F15 + F17 + F18 -> F16
 ```
@@ -202,17 +204,20 @@ Run: `cargo test -p lqosync3 tui::presence`.
 
 Dependencies: F01. Status: not started.
 
-**Files:** `crates/web-gateway/src/main.rs`, `crates/web-gateway/src/auth/{mod,store,session,csrf}.rs`, `crates/web-gateway/src/bin/lqosync3-web-admin.rs`, `crates/web-gateway/tests/auth.rs`.
+**Files:** `crates/web-gateway/src/main.rs`, `crates/web-gateway/src/auth/{mod,store,session,csrf,accounts}.rs`, `crates/web-gateway/src/bin/lqosync3-web-admin.rs`, `crates/web-gateway/tests/auth.rs`.
 
-**Interfaces:** Produces SessionPrincipal, authorize(principal, Capability), local admin bootstrap, and authenticated /api/v1 routing middleware.
+**Interfaces:** Produces SessionPrincipal, superadmin authorization, CLI bootstrap, broker credential verification, and authenticated /api/v1 middleware.
+The CLI owns account writes. The gateway owns sessions and reads account state through the broker.
 
 - [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
 
-- [ ] Add tests: Test role matrix, forged cookie, foreign origin, missing CSRF, disabled user, restart, migration failure, and no default/public bootstrap account.
+- [ ] Add tests: Test superadmin permissions, forged cookies, foreign origin, CSRF, disabled accounts, restart, and missing public bootstrap/account routes.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 
 - [ ] Add the unprivileged HTTP entry point and SQLite migrations.
+
+- [ ] Separate root-owned account records from gateway-owned sessions. Add private broker credential and account-version checks.
 
 - [ ] Add reviewed password hashing, session cookies, CSRF/Origin checks, revocation, login limits, and loopback defaults.
 
@@ -220,7 +225,7 @@ Dependencies: F01. Status: not started.
 
 Run: `cargo test -p web-gateway --test auth`.
 
-- [ ] Review the diff and record evidence, limitations, and the next dependency. Commit as `feat(web): add local sessions and roles`.
+- [ ] Review the diff and record evidence, limitations, and the next dependency. Commit as `feat(web): add superadmin sign-in sessions`.
 
 **Stop condition:** The deliverable passes its focused checks and preserves this boundary: Create crates/web-gateway/src/main.rs in this task. No domain route is public. Do not log passwords, CSRF values, or session tokens.
 
@@ -510,33 +515,36 @@ Browser or fixture check: assignment browser cases.
 
 **Stop condition:** The deliverable passes its focused checks and preserves this boundary: Logical shaping assignment never becomes a routing-success badge without D02 observations.
 
-## F14: Connect local user administration and audit
+## F14: Complete CLI-only superadmin account administration
 
-Dependencies: F04, F05, F17. Status: not started.
+Dependencies: F04, F17. Status: not started.
 
-**Files:** `crates/web-gateway/src/routes/users.rs`, `crates/web-gateway/src/auth/admin.rs`, `crates/web-ui/src/pages/users.rs`, `crates/web-gateway/tests/users.rs`, `tests/frontend/users.md`.
+**Files:** `crates/web-gateway/src/bin/lqosync3-web-admin.rs`, `crates/web-gateway/src/auth/accounts.rs`, `crates/web-gateway/src/broker/auth.rs`, `crates/web-gateway/tests/accounts_cli.rs`, `crates/web-gateway/tests/account_routes.rs`.
 
-**Interfaces:** Produces local user CRUD, role changes, session revocation, and paged redacted audit reads.
+**Interfaces:** Use the exact proposed commands in [CLI_ACCOUNT_POLICY.md](CLI_ACCOUNT_POLICY.md).
+All accounts use the `superadmin` role. The CLI requires root and has no fixed superadmin count.
+No account mutation function has an HTTP route.
 
-- [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
+- [ ] Test create, list, show, rename, password change, disable, enable, and delete through the CLI.
 
-- [ ] Add tests: Test direct unauthorized calls, role escalation, last-admin protection, session revocation, concurrent changes, and audit secret exclusion.
+- [ ] Test multiple superadmins, duplicate names, hidden password entry, and rejection of account writes by a non-root process.
 
-- [ ] Run that case before implementation and record the expected failure or missing capability.
+- [ ] Test final-active-account protection, concurrent changes, failed transactions, restart, and audit secret exclusion.
 
-- [ ] Implement the smallest connected change: Implement administrator-only account creation and disable/role changes. Invalidate affected sessions and prevent removal of the final active administrator.
+- [ ] Test immediate session rejection after credential/account changes and account-version verification failures.
 
-- [ ] Run the checks below. Record each result separately.
+- [ ] Run these cases before implementation and record the missing capability.
 
-Run: `cargo test -p web-gateway --test users`.
+- [ ] Add transactional account CRUD, credential epochs, safe terminal prompts, and root-owned storage without changing file ownership during updates.
 
-Browser or fixture check: Wasm build.
+- [ ] Keep the browser limited to sign-in/sign-out. Do not create Users navigation, signup, invitation, password-reset, or account CRUD routes.
 
-Browser or fixture check: user administration browser cases.
+- [ ] Run `cargo test -p web-gateway --test accounts_cli` and `cargo test -p web-gateway --test account_routes` separately.
 
-- [ ] Review the diff and record evidence, limitations, and the next dependency. Commit as `feat(web): connect local user administration`.
+- [ ] Review the diff and evidence. Commit as `feat(web): manage superadmins through CLI`.
 
-**Stop condition:** The deliverable passes its focused checks and preserves this boundary: No email invitation or MFA claim. Add those only through a separate verified task.
+**Stop condition:** Root CLI manages multiple superadmins. The HTTP surface cannot create, edit, list, or delete accounts.
+Operational audit reads remain redacted and separate from account enumeration.
 
 ## F18: Extract service-owned settings transactions
 
@@ -604,7 +612,7 @@ Dependencies: Applicable release dependency set above. Status: not started.
 
 - [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
 
-- [ ] Add tests: Run role/CSRF, crash recovery, redaction, read-only connector counters, 1k/10k load, cycle interference, and cross-browser/accessibility cases. Inspect actual screenshots.
+- [ ] Add tests: Run superadmin/CSRF and absent-account-route checks, crash recovery, redaction, read-only connector counters, 1k/10k load, cycle interference, and cross-browser/accessibility cases. Inspect actual screenshots.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 

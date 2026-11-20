@@ -52,10 +52,14 @@ Use `GET /api/v1/session` for the safe current-principal view.
 Login has Origin checks, strict content type, rate limits, and no cacheable response.
 Session creation rotates credentials. Logout revokes the server-side session.
 
-The gateway owns `web-auth.db` for accounts and sessions.
+The local CLI and broker own a root-only `web-accounts.db` for account records.
+The gateway owns `web-auth.db` for sessions, but cannot write account records.
+The broker verifies credentials and current account version through typed private IPC.
+
+Every protected request checks current account state/version before authorization.
 The broker owns `web-actions.db` for privileged action admission and results.
 The gateway reads broker actions through typed messages, not direct access to the privileged database.
-User administration audit belongs to the gateway store.
+CLI account administration audit belongs to the root-owned account store.
 
 Domain mutation audit belongs to the broker store.
 Audit queries identify the source store and use stable IDs. Do not assume one cross-store transaction.
@@ -83,7 +87,7 @@ All domain paths use `/api/v1`. Every read requires an authenticated session.
 | `GET /journal` | `Page<JournalEntry>` | Fixed unit allowlist and redaction | F10 |
 | `GET /actions/{id}` | `ActionRecord` | Durable actor-authorized action ledger | F17 |
 | `GET /settings` | `SettingsView` | Typed allowlisted fields and capability flags | F15 |
-| `GET /users`, `GET /audit` | Paged admin records | Web identity and audit store | F14 |
+| `GET /audit` | Paged redacted operational audit records | Authorized audit projection; no account CRUD | F14 |
 
 Use `source_kind=ppp|dhcp|hotspot` for Subscriber filters.
 Expose only supported windows and targets through capabilities.
@@ -91,8 +95,11 @@ Keep raw configuration, arbitrary paths, secret references, and internal debug m
 
 ## Actions
 
-Operators can edit supported local plans and topology. Administrators can also manage users and supported settings.
-Viewers have read access only. UI visibility never replaces authorization on the server.
+All initial authenticated accounts have the `superadmin` role.
+Superadmins can perform supported operational actions, subject to domain validation.
+Account creation, rename, password change, disable, enable, and deletion require the privileged local CLI.
+No HTTP method exposes account CRUD, even to a signed-in superadmin.
+UI visibility never replaces authorization on the server.
 
 | HTTP action | Service operation or missing boundary | Result |
 |---|---|---|
@@ -104,7 +111,7 @@ Viewers have read access only. UI visibility never replaces authorization on the
 | `POST /topology/refresh-jobs` | `topology.preview.refresh` | Bounded job, no implicit browser-page scan |
 | `POST /topology/discovery-jobs` | `wan.discover` or `topology.sources.candidates` | Explicit allowlisted job and observations |
 | `PATCH /settings` | New typed service-owned settings operation | Digest conflict or saved/reloaded result |
-| `POST /users`, `PATCH /users/{id}` | Web identity store | Audited local administration; no email invitation assumption |
+| Local `lqosync3-web-admin user ...` commands | Root-owned account store; no HTTP adapter | Audited account CRUD and credential-version update |
 
 Pin and rebalance actions are typed variants of a topology proposal, not arbitrary operation strings.
 Do not expose `policy.commit`, filesystem writes, CLI commands, or systemd commands through a generic proxy.

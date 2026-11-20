@@ -63,7 +63,7 @@ The current client does not explicitly check response version and ID. F02 adds t
 |---|---|---|---|
 | G01 | Browser HTTP server and shared Rust DTOs | Leptos CSR plus typed Axum reads; no native dependencies in Wasm | F00–F01, F05 |
 | G02 | Unprivileged access to root-owned service data | Narrow broker, peer checks, fixed paths, bounded requests | F02 |
-| G03 | Web users, sessions, roles, CSRF, revocation | Authenticated viewer/operator/admin routes and no public bootstrap credentials | F04, F14 |
+| G03 | CLI accounts, sessions, CSRF, revocation | Multiple superadmins managed only by local CLI; sign-in/sign-out only on web | F04, F14 |
 | G04 | Stable browser snapshots and paged queries | Immutable snapshot IDs, source age, consistent cursors, safe fields | F03 |
 | G05 | Durable web action and audit records | Known dispatch state, duplicate protection, restart reconciliation | F17 |
 | G06 | Browser access to existing plans and topology | Revision-checked narrow adapters and observed result panels | F11–F13 |
@@ -87,7 +87,7 @@ The current client does not explicitly check response version and ID. F02 adds t
 
 - Do not use generated fixture counts, customer names, dates, rates, or utilization formulas in production.
 
-- The initial Users screen implements local roles. MFA and invitation delivery remain unavailable until separately implemented.
+- The Users mockup is withdrawn from the delivery scope. All account CRUD uses the local CLI. No signup or account-management HTTP route exists.
 
 - A saved setting or file write is not proof of a successful reload or dataplane change.
 

@@ -8,6 +8,16 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T16:24:46+08:00 (Asia/Shanghai) — CLI-only frontend accounts
+
+- Owner direction: root CLI manages usernames and passwords. Allow multiple superadmins. Web access has sign-in/sign-out only.
+- Agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Baseline: `4305ed8`.
+- Updated `docs/frontend/` and the frontend session note. Added `CLI_ACCOUNT_POLICY.md`; replaced web account tasks with CLI tasks.
+- Account storage is root-owned and separate from gateway sessions. Credential changes invalidate existing sessions.
+- The Users picture remains a withdrawn concept. No signup, invitations, Users navigation, or account CRUD HTTP routes are planned.
+- Checks: relative links, task dependencies, STE review, and whitespace. No application code or runtime state changed.
+- Next: implement F00, then the updated F04/F14 account contracts in dependency order. Preserve unrelated operational notes.
+
 ## 2026-11-20T16:11:44+08:00 (Asia/Shanghai) — Frontend design and atomic plan
 
 - Goal: document all pictures and plan a Rust frontend connected to LQoSync3. The owner requested commit and push to `lqosync3`.

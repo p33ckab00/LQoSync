@@ -19,7 +19,7 @@ The images are desktop concepts. They do not establish mobile, keyboard, or scre
 | [07](images/07-libreqos.png) | LibreQoS | `/libreqos` | UI-07 | F09 |
 | [08](images/08-load-balancer-allocations.png) | Load Balancer: Allocations | `/topology?tab=builder` | UI-06, UI-12 | F12, D02 |
 | [09](images/09-load-balancer-assignments.png) | Load Balancer: Assignments | `/topology?tab=assignments` | UI-06, UI-12 | F13, D02 |
-| [10](images/10-users.png) | Users | `/users` | UI-09 | F04, F14 |
+| [10](images/10-users.png) | Users — withdrawn concept | No web route; CLI only | UI-09 | F04, F14 |
 | [11](images/11-settings.png) | Settings | `/settings` | UI-10 | F15, F18 |
 
 ## 01. Dashboard
@@ -130,15 +130,17 @@ Required correction: Current/desired routing columns must become shaping-placeme
 
 States to check: loading, empty, stale, partial, unavailable, forbidden, and current data.
 
-## 10. Users
+## 10. Users — withdrawn concept
 
 ![Users: generated desktop concept with sample data](images/10-users.png)
 
-Purpose: List local accounts, roles, access state, session revocation, and safe audit events.
+Historical purpose: illustrate local user administration. The owner replaced this workflow with CLI-only account administration.
 
 Backend and delivery: see [backend map](BACKEND_MAP.md) and tasks F04, F14 in the [implementation plan](IMPLEMENTATION_PLAN.md).
 
-Required correction: MFA and email invitations are not implemented. Initial administration creates local accounts. Do not display enabled MFA without a verified implementation.
+Required correction: do not implement this screen, its invite controls, or any account CRUD route.
+Keep the image as a historical artifact. The browser supplies sign-in/sign-out only.
+Account usernames and passwords are managed by privileged CLI commands. Multiple superadmins are allowed.
 
 States to check: loading, empty, stale, partial, unavailable, forbidden, and current data.
 
@@ -160,5 +162,6 @@ Topology needs a Builder tree, Policies, and a publication strip beyond the pict
 Workers and Journal preserve existing diagnostics through browser-specific read adapters.
 Load Balancer Discovery and History are tab labels in the pictures. Their separate bodies were not generated.
 
-Mobile variants, login, bootstrap, conflict dialogs, and action recovery also need browser designs during their implementation tasks.
+Mobile variants, login, conflict dialogs, and action recovery need browser designs during their implementation tasks.
+Bootstrap and account administration remain CLI-only. Users links visible in old mockups must not enter the actual navigation.
 Do not invent completed mockups or working code for those views.

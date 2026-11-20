@@ -42,5 +42,10 @@ The [validation report](../../docs/frontend/VALIDATION.md) records the scope of 
 
 ## Next action
 
+Follow-up owner direction: manage all usernames and passwords through root CLI only.
+Allow multiple superadmins. The browser supplies sign-in/sign-out, with no signup or account CRUD routes.
+Updated `docs/frontend/CLI_ACCOUNT_POLICY.md` and the connected design, contract, and task documents.
+The Users mockup remains a withdrawn concept. The actual navigation excludes Users.
+
 Execute F00 when implementation starts. Record compatible dependencies and a measured baseline before feature code.
 This request authorizes documentation and its GitHub publication, not production deployment.

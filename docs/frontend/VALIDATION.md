@@ -26,6 +26,10 @@ No certified ASD-STE100 compliance is claimed.
 
 ## Limits
 
+Follow-up owner direction replaces web account administration with CLI-only superadmin CRUD.
+The account policy, feature design, contracts, screen corrections, and F04/F14 tasks now reflect this direction.
+The original Users image remains unchanged as a withdrawn concept.
+
 This change contains documents and images only. It does not implement or benchmark the frontend.
 Rust application tests, Wasm builds, browser tests, and production deployment checks were not run.
 The implementation plan lists those checks for future execution.

@@ -73,7 +73,7 @@ Back up web state before migrations. A failed migration must not change the core
 | INT-02 | Stable identity and reviewed revision bind every edit | IP/name change, concurrent edit, deleted target, expired proposal tests |
 | INT-03 | Browser models contain no secret values | Canary secrets never appear in responses, URLs, logs, audit, or Wasm |
 | INT-04 | Broker accepts only the configured gateway UID | Foreign UID, forged operation, arbitrary path, symlink, oversized-message tests |
-| INT-05 | Authorize every route and mutation | Role matrix, direct HTTP calls, missing CSRF, foreign origin, expired session tests |
+| INT-05 | Authorize every route and mutation | Superadmin permissions, absent account CRUD routes, missing CSRF, foreign origin, expired session tests |
 | INT-06 | Distinguish saved, written, imported, waiting, and applied | Held import, identity mismatch, waiting removal, late apply, stale evidence fixtures |
 | INT-07 | Reject unknown versions and mismatched response IDs | Service-client protocol tests before adapter reuse |
 | INT-08 | Protect persistent web state | Permission, backup/restore, lock contention, disk-full checks |
@@ -84,9 +84,12 @@ Require CSRF tokens and Origin validation for state-changing requests.
 
 Disable broad CORS. Bind the gateway to loopback behind the approved HTTPS proxy by default.
 Use a reviewed memory-hard password hash with per-password salts.
-Bootstrap the first administrator locally. Do not ship a default password or public bootstrap route.
+Create the first superadmin through the privileged local CLI. Do not ship a default password or public bootstrap route.
 
-Revoke sessions when an account is disabled or its permissions change.
+Reject existing sessions after password change, rename, disable, deletion, or credential-version change.
+The broker checks account state/version for every protected request. Fail closed if that check is unavailable.
+Test several simultaneous superadmins and reject removal or disable of the final active account.
+Test that every account-management HTTP method is absent, including direct calls from an authenticated superadmin.
 Restrict authentication retries and use safe, bounded audit records.
 
 ## Browser and design checks

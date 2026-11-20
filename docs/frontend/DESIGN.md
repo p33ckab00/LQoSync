@@ -40,9 +40,12 @@ Keep browser DTOs independent of server configuration, secrets, and the main cra
 
 Do not compile the collector or native socket modules into Wasm.
 
-Use SQLite on local disk for web users, sessions, audit records, and durable action records.
+Use SQLite on local disk for local accounts, web sessions, audit records, and durable action records.
+The account policy is [CLI-only account administration](CLI_ACCOUNT_POLICY.md).
+
 Do not copy topology policy into SQLite as a second authority.
 Use a reviewed password hashing crate. Do not implement cryptography.
+All initial web accounts have the `superadmin` role. Do not impose a fixed superadmin count.
 
 Task F00 selects compatible dependency versions and records licenses and build evidence.
 Preserve the core Rust 1.89 contract. Do not raise its minimum version silently.
@@ -59,7 +62,7 @@ Preserve the core Rust 1.89 contract. Do not raise its minimum version silently.
 | UI-06 | Topology | Builder, assignments, policies, publication strip | Existing topology API |
 | UI-07 | LibreQoS | Candidate, written, imported, waiting, applied, issues | Receipts and apply evidence |
 | UI-08 | Workers and Journal | Read-only diagnostics with bounded output | Existing telemetry and journal adapter |
-| UI-09 | Users | Local accounts, roles, revocation, audit | New web identity store |
+| UI-09 | CLI accounts | CLI-only username/password CRUD; multiple superadmins; web sign-in only | Root-owned account store and session checks |
 | UI-10 | Settings | Safe fields, reviewed changes, reload result | New service-owned settings boundary |
 | UI-11 | Schedules | Later: local plans and node capacities | Schedule model and resolver missing |
 | UI-12 | Routing controls | Later: actual upstream changes | Router writer and readback missing |
@@ -67,7 +70,8 @@ Preserve the core Rust 1.89 contract. Do not raise its minimum version silently.
 ## Navigation and layout
 
 Use Dashboard, Subscribers, Routers, Topology, LibreQoS, Workers, Settings, and Journal as the initial navigation.
-Show Users only to administrators. Place local Profiles under Topology > Policies with links from Subscribers.
+Do not show Users, signup, invitations, or account editing in the browser.
+Place local Profiles under Topology > Policies with links from Subscribers.
 Use source filters for PPPoE, DHCP, and Hotspot instead of duplicate data models.
 
 Keep deep links for the IPoE and PPPoE views shown in the pictures.

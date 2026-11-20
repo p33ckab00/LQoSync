@@ -9,6 +9,7 @@ CSS, HTML assets, and generated Wasm bindings remain necessary.
 
 Do not add hand-written JavaScript or TypeScript application logic.
 The current TUI remains available.
+[Account administration](CLI_ACCOUNT_POLICY.md) is CLI-only. The web supports sign-in/sign-out and has no signup or user-management screen.
 
 ## Read order
 
@@ -21,6 +22,8 @@ The current TUI remains available.
 6. [Atomic implementation plan](IMPLEMENTATION_PLAN.md): dependencies, files, interfaces, and checks.
 
 7. [Sources](SOURCES.md): evidence, skill references, and image provenance.
+
+8. [CLI account policy](CLI_ACCOUNT_POLICY.md): username/password CRUD and multiple superadmins, with web sign-in only.
 
 ## Scope and evidence
 
