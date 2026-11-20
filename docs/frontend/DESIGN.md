@@ -70,7 +70,7 @@ Preserve the core Rust 1.89 contract. Do not raise its minimum version silently.
 | UI-07 | LibreQoS | Candidate, written, imported, waiting, applied, issues | Receipts and apply evidence |
 | UI-08 | Workers and Journal | Read-only diagnostics with bounded output | Existing telemetry and journal adapter |
 | UI-09 | CLI accounts | CLI-only username/password CRUD; multiple superadmins; web sign-in only | Root-owned account store and session checks |
-| UI-10 | Settings | Safe fields, reviewed changes, reload result | New service-owned settings boundary |
+| UI-10 | Screen-owned settings | Feature-local forms; global Settings has application-wide fields only | Typed scoped service settings boundary |
 | UI-11 | Schedules | Later: local plans and node capacities | Schedule model and resolver missing |
 | UI-12 | Routing controls | Later: actual upstream changes | Router writer and readback missing |
 
@@ -90,6 +90,13 @@ Use linked panels for overview, tables for comparisons, and drawers for selected
 
 The topology view uses a tree, node details, and a keyboard-accessible parent picker.
 Do not make drag gestures necessary for any operation.
+
+## Configuration ownership
+
+Apply [SCREEN_SETTINGS.md](SCREEN_SETTINGS.md): each feature owns its settings and configuration workflow.
+PPPoE settings stay in the PPPoE view, DHCP settings in IPoE/DHCP, and LibreQoS settings in LibreQoS.
+Use owner-local Settings tabs or panels. Global Settings contains application-wide fields only.
+Keep the theme selector in the shared header and on sign-in, with one preference across all screens.
 
 ## Visual system
 

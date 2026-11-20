@@ -41,6 +41,10 @@ F00 selects compatible stable dependency versions and a reviewed password hash i
 
 - Do not deploy to production as part of these implementation tasks without deployment authorization.
 
+- Put feature settings on their owner screens. Keep only application-wide fields in global Settings.
+
+- Show Light / Dark / System on sign-in and the shared main header across every screen.
+
 - Keep account CRUD CLI-only, allow multiple superadmins, and expose sign-in/sign-out only on the web.
 
 - Use STE for persisted technical prose. Use the requested Google and Vercel skills for UI work.
@@ -78,7 +82,8 @@ F02 + F04 -> F17
 F07 + F17 -> F11
 F03 + F05 + F17 -> F12 -> F13
 F04 + F17 -> F14
-F02 + F17 -> F18 -> F15
+F02 + F17 -> F18
+F05 + F07 + F08 + F09 + F11 + F12 + F13 + F14 + F18 -> F15
 F06..F15 + F17 + F18 -> F16
 ```
 
@@ -249,7 +254,7 @@ Dependencies: F01, F04. Status: not started.
 
 - [ ] Build the login page and Leptos CSR shell with native controls and local fonts. Follow the approved sign-in references in THEMING.md.
 
-- [ ] Add application-wide Light, Dark, and System modes with System as default. Preserve the logo mark and use superscript v3.
+- [ ] Add Light / Dark / System selectors on sign-in and the shared main header. Keep System as the default across all routes. Preserve the logo mark and use superscript v3.
 
 - [ ] Test system changes, manual overrides, cold paint, storage failure, native controls, contrast, and glass fallback before declaring the shell complete.
 
@@ -560,11 +565,12 @@ Dependencies: F02, F17. Status: not started.
 
 **Files:** `src/settings_service.rs`, `src/lib.rs`, `src/api/dispatch.rs`, `src/runner.rs`, `src/runner/tests/api.rs`, `tests/settings_service.rs`.
 
-**Interfaces:** Produces typed settings.get, settings.preview, settings.commit service operations with expected digest and redacted result. Extend the broker allowlist only for these types.
+**Interfaces:** Produces typed settings.get, settings.preview, and settings.commit operations with SettingsScope, an expected digest, and a redacted result. Extend the broker allowlist only for these types.
+Define SettingsScope and field allowlists for application, router connection, source, and LibreQoS scopes. Reject out-of-scope fields before dispatch.
 
 - [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
 
-- [ ] Add tests: Test concurrent TUI/web edit, changed digest, managed-field ownership, invalid config, secret rollback, interrupted write, failed reload, and output ownership preservation.
+- [ ] Add tests: Test concurrent TUI/web edits, stale digests, field scope, managed-field ownership, invalid config, secret rollback, interrupted writes, and failed reloads.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 
@@ -582,21 +588,27 @@ Run: `cargo test -p lqosync3 runner::tests::api`.
 
 **Stop condition:** The deliverable passes its focused checks and preserves this boundary: No browser filesystem paths or arbitrary TOML replacement. Keep the TUI unchanged. If concurrent config writes cannot preserve integrity, block web settings mutations and document the unresolved backend gate.
 
-## F15: Connect settings and safe router configuration
+## F15: Connect screen-owned settings and safe configuration
 
-Dependencies: F05, F14, F18. Status: not started.
+Dependencies: F05, F07, F08, F09, F11, F12, F13, F14, F18. Status: not started.
 
-**Files:** `crates/web-gateway/src/routes/settings.rs`, `crates/web-ui/src/pages/settings.rs`, `crates/web-ui/src/components/settings_review.rs`, `crates/web-gateway/tests/settings.rs`, `tests/frontend/settings.md`.
+**Files:** `crates/web-gateway/src/routes/settings.rs`, `crates/web-ui/src/pages/{settings,subscribers,routers,libreqos,profiles,topology,assignments}.rs`, `crates/web-ui/src/components/{scoped_settings,settings_review}.rs`, `crates/web-gateway/tests/settings.rs`, `tests/frontend/settings.md`.
 
-**Interfaces:** Consumes SettingsView, expected config digest, typed SettingPatch, and reload evidence from F18.
+**Interfaces:** Consumes GlobalSettingsView, SourceSettingsView, RouterSettingsView, LibreQosSettingsView, scoped patches, expected config digest, and reload evidence from F18.
 
 - [ ] Read the listed existing callers and linked specification. Record the execution baseline and owned files.
 
-- [ ] Add tests: Test managed-field read-only state, invalid field, canary secret, stale digest, dirty navigation, failed reload, and unsupported integration capability.
+- [ ] Add tests: Test out-of-scope patches, global/domain separation, read-only fields, secret redaction, cross-screen digest conflicts, dirty navigation, and failed reload.
+
+- [ ] Test theme changes with unsaved feature settings. Keep form values, focus, and validation state.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 
-- [ ] Implement the smallest connected change: Add allowlisted forms, router connection fields where supported, write-only credential updates, diff review, and saved/reload result separation.
+- [ ] Implement the smallest connected change: Connect scoped forms inside their owner screens under SCREEN_SETTINGS.md. Keep only application-wide fields on global Settings.
+
+- [ ] Add source-local PPPoE/DHCP/Hotspot settings, router connection fields, and LibreQoS settings through supported scoped adapters.
+
+- [ ] Reuse plan/topology editors at their owning feature. Keep credentials write-only, with diff review and distinct saved/reload results.
 
 - [ ] Run the checks below. Record each result separately.
 
@@ -604,11 +616,11 @@ Run: `cargo test -p web-gateway --test settings`.
 
 Browser or fixture check: Wasm build.
 
-Browser or fixture check: settings browser cases.
+Browser or fixture check: owner-screen settings cases, global-field exclusions, theme selector availability, and cross-screen conflict cases.
 
 - [ ] Review the diff and record evidence, limitations, and the next dependency. Commit as `feat(web): connect safe settings`.
 
-**Stop condition:** The deliverable passes its focused checks and preserves this boundary: No activation/deactivation or implicit service restart. Router connection test jobs remain D04.
+**Stop condition:** The deliverable passes its focused checks and preserves this boundary: Feature settings remain on their owner screens. No activation/deactivation or implicit service restart. Router connection test jobs remain D04.
 
 ## F16: Check and package the connected releases
 

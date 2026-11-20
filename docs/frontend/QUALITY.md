@@ -120,6 +120,17 @@ Make sure chart legends and textual summaries convey data without color alone.
 
 Run browser inspection and record screenshots. A successful Rust build is not browser proof.
 
+## Screen ownership acceptance
+
+Follow [SCREEN_SETTINGS.md](SCREEN_SETTINGS.md) for every feature.
+Check the shared main-header theme selector on Dashboard and each feature route, also on phones.
+Keep a feature form's draft, focus, and validation when the theme changes.
+
+Check that PPPoE, DHCP, Hotspot, plan, topology, router connection, and LibreQoS fields do not appear as global editable settings.
+Direct global or source-scoped patches with foreign fields must fail before any write.
+Concurrent changes from different screens must share the backend digest/revision conflict boundary.
+Do not split persistent configuration authority by screen.
+
 ## Release evidence
 
 Record implemented, compiled, tested, measured, and production-verified status separately for each feature.

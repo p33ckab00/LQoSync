@@ -67,3 +67,15 @@ The image set now has 14 PNG files with matching SHA-256 hashes.
 Updated THEMING, design, screen catalog, prompts, quality requirements, sources, and F05 theme tasks.
 System is the default and follows the client environment. Manual overrides remain explicit.
 Checks: 14 hashes, relative links, STE review, and whitespace. No frontend implementation or browser proof occurred.
+
+
+## 2026-11-20T16:53:01+08:00 — Feature-local settings and shared theme selector
+
+Owner direction: show Light / Dark / System on sign-in and the main screens.
+Each feature owns its configuration/settings screen. PPPoE settings stay in PPPoE, with the same rule for other features.
+Global Settings contains application-wide fields only.
+Added `docs/frontend/SCREEN_SETTINGS.md` with screen ownership, scoped API requirements, task mapping, and acceptance checks.
+Updated design, contracts, mockup corrections, theme direction, quality checks, and F05/F15/F18.
+Scoped forms share the backend transaction and digest conflict boundary. No duplicate configuration authority was introduced.
+Checks: document links, 19-task dependency order, 14 image hashes, STE review, and whitespace.
+No implementation, application tests, or runtime changes occurred. Account CRUD remains CLI-only. The TUI stays as is.

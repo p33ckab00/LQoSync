@@ -36,7 +36,9 @@ No signup, password reset, or account-management control belongs on this screen.
 
 Apply the selected theme to sign-in, navigation, forms, tables, charts, dialogs, and native browser controls.
 Use the client's environment, not the server's theme or timezone, to resolve System.
-Allow the selector before sign-in and within the application.
+Show the Light / Dark / System selector on sign-in and in the shared main application header.
+Keep it visible and reachable on Dashboard and every feature screen, including phone layouts.
+Do not hide it exclusively inside global Settings.
 Theme selection is a local presentation preference, not an account or operational configuration mutation.
 
 Persist only the non-sensitive override for this site. Returning to System removes the override.

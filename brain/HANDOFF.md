@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T16:53:01+08:00 (Asia/Shanghai) — Screen-owned settings
+
+- Owner direction: Light/Dark/System is available on sign-in and the shared main header. Each feature owns its configuration forms.
+- Added `docs/frontend/SCREEN_SETTINGS.md`. Updated feature design, contracts, theme rules, screen catalog, quality checks, and F05/F15/F18.
+- Global Settings contains application-wide fields only. Typed scoped patches reject foreign fields and share the backend digest/transaction boundary.
+- Checks: document links, task order, 14 image hashes, STE/manual review, and whitespace. Documentation only.
+- Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Agent: Codex `/root`. Baseline: `9e73725`.
+- Next: execute F00 and follow the updated task dependencies. CLI-only accounts, primary web control, and unchanged TUI remain requirements.
+
 ## 2026-11-20T16:47:12+08:00 (Asia/Shanghai) — Sign-in and theme direction
 
 - Owner accepted original sign-in composition and logo. Requested glass effect, superscript v3, and Light/Dark/System themes across the web frontend.

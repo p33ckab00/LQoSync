@@ -27,6 +27,8 @@ The Rust service remains the execution authority and continues without a browser
 
 8. [CLI account policy](CLI_ACCOUNT_POLICY.md): username/password CRUD and multiple superadmins, with web sign-in only.
 
+9. [Screen-owned settings](SCREEN_SETTINGS.md): feature configuration placement and shared header theme control.
+
 ## Scope and evidence
 
 The [sign-in and theme direction](THEMING.md) preserves the accepted logo/layout, adds superscript `v3`, and requires Light, Dark, and System modes.

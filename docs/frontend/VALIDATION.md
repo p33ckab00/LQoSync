@@ -55,3 +55,11 @@ Checkpoint: 2026-11-20T16:47:12+08:00 (Asia/Shanghai).
 The image set now contains 14 PNG files. All hashes in SHA256SUMS match.
 Relative document links pass. The original sign-in and two glass variants remain picture previews.
 System/Light/Dark behavior, blur performance, accessibility, and browser rendering still require implementation and tests.
+
+
+## Screen-owned settings follow-up
+
+Checkpoint: 2026-11-20T16:53:01+08:00 (Asia/Shanghai).
+Updated shared header theme placement and feature-local configuration ownership.
+Document links, 19-task dependency order, 14 image hashes, STE review, and whitespace checks pass.
+Scoped endpoint rejection, cross-screen conflicts, and theme behavior remain future implementation tests.

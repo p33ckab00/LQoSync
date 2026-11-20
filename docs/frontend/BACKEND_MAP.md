@@ -70,7 +70,7 @@ Keep the TUI unchanged. Do not automate its keypresses or instantiate its views 
 | G04 | Stable browser snapshots and paged queries | Immutable snapshot IDs, source age, consistent cursors, safe fields | F03 |
 | G05 | Durable web action and audit records | Known dispatch state, duplicate protection, restart reconciliation | F17 |
 | G06 | Browser access to existing plans and topology | Revision-checked narrow adapters and observed result panels | F11–F13 |
-| G07 | Safe settings mutation outside terminal code | Typed fields, digest checks, secret handling, service-owned transaction, reload evidence | F18, F15 |
+| G07 | Safe settings mutation outside terminal code | Typed scoped fields, ownership allowlists, digest checks, secret handling, service transaction, reload evidence | F18, F15 |
 | G08 | Typed native issues and waiting details | Counts, bounded pages, receipt correlation, no fabricated acceptance | F09 |
 | G09 | Historical and attributed traffic | Bounded chart samples and source labels; retention and WAN attribution proof before wider claims | F06, D03 |
 | G10 | Web journal and worker reads | Fixed units, redaction, bounded pages, no arbitrary command | F10 |
@@ -107,3 +107,11 @@ Keep the TUI unchanged. Do not automate its keypresses or instantiate its views 
 
 Each deferred package needs a focused design and its own atomic implementation plan.
 Its interface is not frozen by a picture. Initial release controls must reflect actual capabilities.
+
+
+## Screen ownership clarification
+
+[SCREEN_SETTINGS.md](SCREEN_SETTINGS.md) assigns each configuration field to its feature screen.
+F18 must expose scoped typed settings adapters. F15 connects them inside the owner screens.
+Global Settings must not provide a generic editor for domain configuration.
+This screen separation preserves the single backend config authority and the unchanged TUI.

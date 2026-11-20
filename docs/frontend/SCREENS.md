@@ -6,6 +6,12 @@ The written design and backend contracts override generated labels and arithmeti
 
 The images are desktop concepts. They do not establish mobile, keyboard, or screen-reader behavior.
 
+## Owner direction after the initial pictures
+
+Apply [SCREEN_SETTINGS.md](SCREEN_SETTINGS.md) and [THEMING.md](THEMING.md) to all screens.
+The main header includes Light / Dark / System on every route, as does the sign-in screen.
+Each feature has its own Settings tab or panel. The global Settings picture does not authorize a central feature editor.
+
 ## Inventory
 
 | Picture | Screen | Target route | Feature | Tasks |
@@ -148,11 +154,12 @@ States to check: loading, empty, stale, partial, unavailable, forbidden, and cur
 
 ![Settings: generated desktop concept with sample data](images/11-settings.png)
 
-Purpose: Edit allowlisted configuration with current digest, field validation, review, save result, and reload evidence.
+Purpose: edit application-wide configuration only, with digest checks, validation, review, and reload evidence. Feature configuration belongs on its owner screen.
 
 Backend and delivery: see [backend map](BACKEND_MAP.md) and tasks F15, F18 in the [implementation plan](IMPLEMENTATION_PLAN.md).
 
-Required correction: The pictured interval limit, security fields, and credential controls are proposals. Current domain validation defines allowed values. Secrets remain write-only.
+Required correction: move the pictured RouterOS connection fields to Router detail and LibreQoS fields to LibreQoS.
+Keep only application-wide fields here. The pictured interval limit, security fields, and credential controls are proposals. Current domain validation defines allowed values. Secrets remain write-only.
 
 States to check: loading, empty, stale, partial, unavailable, forbidden, and current data.
 

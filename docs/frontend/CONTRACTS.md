@@ -86,7 +86,7 @@ All domain paths use `/api/v1`. Every read requires an authenticated session.
 | `GET /workers` | `WorkerView` | Existing telemetry caches | F10 |
 | `GET /journal` | `Page<JournalEntry>` | Fixed unit allowlist and redaction | F10 |
 | `GET /actions/{id}` | `ActionRecord` | Durable actor-authorized action ledger | F17 |
-| `GET /settings` | `SettingsView` | Typed allowlisted fields and capability flags | F15 |
+| `GET /settings` | `GlobalSettingsView` | Application-wide fields only | F15 |
 | `GET /audit` | Paged redacted operational audit records | Authorized audit projection; no account CRUD | F14 |
 
 Use `source_kind=ppp|dhcp|hotspot` for Subscriber filters.
@@ -110,12 +110,38 @@ UI visibility never replaces authorization on the server.
 | `DELETE /topology/proposals/{id}` | `topology.edit.cancel` | Action plus cancellation result |
 | `POST /topology/refresh-jobs` | `topology.preview.refresh` | Bounded job, no implicit browser-page scan |
 | `POST /topology/discovery-jobs` | `wan.discover` or `topology.sources.candidates` | Explicit allowlisted job and observations |
-| `PATCH /settings` | New typed service-owned settings operation | Digest conflict or saved/reloaded result |
+| `PATCH /settings` | Typed application-wide settings patch only | Digest conflict or saved/reloaded result |
 | Local `lqosync3-web-admin user ...` commands | Root-owned account store; no HTTP adapter | Audited account CRUD and credential-version update |
 
 Pin and rebalance actions are typed variants of a topology proposal, not arbitrary operation strings.
 Do not expose `policy.commit`, filesystem writes, CLI commands, or systemd commands through a generic proxy.
 Do not implement the pictures' router-write or Sync-all buttons by invoking undocumented commands.
+
+## Screen-owned settings contracts
+
+Apply [SCREEN_SETTINGS.md](SCREEN_SETTINGS.md) to all configuration reads and writes.
+Global `/settings` excludes PPPoE, DHCP, Hotspot, router connection, plan, topology, and LibreQoS fields.
+Reject out-of-scope fields on the server. Do not silently discard them or write them through a global patch.
+
+Proposed scoped reads and patches use these exact API paths under `/api/v1`:
+
+| Scope | Read and patch path | Result or existing domain boundary |
+|---|---|---|
+| PPPoE/DHCP/Hotspot source | `/routers/{id}/sources/{source_kind}/settings` | `SourceSettingsView` / `SourceSettingsPatch`; source_kind is `ppp`, `dhcp`, or `hotspot` |
+| Router connection | `/routers/{id}/settings` | `RouterSettingsView` / `RouterSettingsPatch`; credentials remain write-only |
+| LibreQoS | `/libreqos/settings` | `LibreQosSettingsView` / `LibreQosSettingsPatch` |
+| Application-wide | `/settings` | `GlobalSettingsView` / `GlobalSettingsPatch` |
+| Local plans | Existing `/plans` paths | Existing typed plan operations and expected revision |
+| Topology/WAN | Existing topology proposal paths | Existing typed edits and proposal confirmation rules |
+
+Use GET for safe scoped reads and PATCH for scoped configuration changes.
+Configuration patches carry `expected_config_digest` and enter the durable action path.
+Read models include the reviewed digest, editable capabilities, safe values, and read-only reasons.
+Scope IDs map to configured source identities on the server, not arbitrary file paths.
+All configuration scopes share the service transaction and conflict boundary when they use one physical file.
+
+These adapters remain future work in F18/F15. Do not imply that distinct source screens create distinct configuration authorities.
+The shared header theme preference does not use these operational endpoints or start a backend job.
 
 ## Mutation durability and conflicts
 
