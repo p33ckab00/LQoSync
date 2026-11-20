@@ -1,5 +1,7 @@
 # Top status ticker evidence
 
+Historical checkpoint. See the [current strip](../diagnostics-strip/README.md).
+
 Date: 2026-11-20 (Asia/Shanghai). Branch: `lqosync3`. Previous commit: `9c2e06b`.
 See [design and backend scope](../../DIAGNOSTICS_TICKER.md).
 

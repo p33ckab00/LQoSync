@@ -32,6 +32,7 @@ The next row has a wide traffic panel and a WAN distribution panel.
 
 The upstream health and allocation table spans the next row.
 The [diagnostics banner](DIAGNOSTICS_TICKER.md) appears above the Dashboard heading.
+It is a thin rolling strip without a card, title, subtitle, or pause control.
 It keeps five permanent status fields and adds recent observed changes temporarily.
 Full static diagnostics follow below the upstream table.
 The shared header retains Light, Dark, and System plus account and sign-out controls.

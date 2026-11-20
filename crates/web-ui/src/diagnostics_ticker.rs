@@ -29,7 +29,6 @@ fn Items(data: RwSignal<Option<Overview>>, activity: RwSignal<Feed>) -> impl Int
 
 #[component]
 pub(crate) fn DiagnosticsTicker(data: RwSignal<Option<Overview>>) -> impl IntoView {
-    let paused = RwSignal::new(false);
     let activity = RwSignal::new(Feed::default());
     Effect::new(move |_| {
         data.with(|view| {
@@ -53,14 +52,7 @@ pub(crate) fn DiagnosticsTicker(data: RwSignal<Option<Overview>>) -> impl IntoVi
         timer.try_update_value(|timer| *timer = None);
     });
     view! {
-      <div class="diagnostics-heading">
-        <div><h2 id="service-diagnostics-title">"Service diagnostics"</h2><p>"Live service status and recent observed updates"</p></div>
-        <button type="button" class="quiet ticker-toggle" aria-controls="diagnostics-ticker"
-          on:click=move|_|paused.update(|v|*v = !*v)>
-          {move||if paused.get(){"Resume banner"}else{"Pause banner"}}
-        </button>
-      </div>
-      <div id="diagnostics-ticker" class="diagnostics-ticker" class:paused=move||paused.get()
+      <div id="diagnostics-ticker" class="diagnostics-ticker"
         role="group" aria-label="Live service status banner">
         <div class="ticker-track" style=move||format!("--ticker-duration:{}s",activity.with(|f|45+f.events.len()*5))>
           <div class="ticker-group" role="list" aria-label="Service and component status"><Items data activity/></div>

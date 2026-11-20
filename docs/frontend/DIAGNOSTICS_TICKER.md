@@ -5,8 +5,10 @@ Status: implemented. Runtime installation is pending.
 ## Design
 
 Show the ticker above the Dashboard heading, below the shared application header.
-Use the existing Plex font, tabular numbers, theme colors, and panel borders.
-Keep Pause/Resume, hover/focus pause, and the static reduced-motion view.
+Use a thin strip with the existing Plex font, tabular numbers, and theme colors.
+Do not add a card, title, subtitle, or pause control.
+Roll continuously from right to left. Hover does not stop movement.
+Use a static view when the device requests reduced motion.
 
 The following five fields always remain in the ticker:
 
@@ -31,7 +33,7 @@ This entry does not prove that a job completed.
 Keep at most eight recent entries. Each entry expires after 120 seconds, even without another source update.
 Expiry removes activity entries only. The five status fields remain.
 
-Pause stops movement. Live values and activity expiry continue.
+Live values and activity expiry continue in both motion modes.
 Full static diagnostics remain available under View diagnostics below the main panels.
 
 ## Atomic plan and result
@@ -48,7 +50,7 @@ Full static diagnostics remain available under View diagnostics below the main p
 
 6. Test baseline behavior, state changes, repeated snapshots, expiry, and the eight-entry bound.
 
-7. Check placement, live updates, pause controls, themes, reduced motion, and mobile layout in a browser.
+7. Check placement, compact height, absent controls, continuous motion, themes, reduced motion, and mobile layout in a browser.
 
 8. Build, save evidence, document, commit, and push.
 
@@ -68,10 +70,10 @@ Do not infer them from traffic, cycle duration, or an unchanged publication phas
 ## Checks and deployment
 
 Five native chart/activity tests, Wasm release build, Clippy, and Rust 1.89 checks passed.
-Browser checks cover top placement, five permanent fields, conditional activity, duplicates, expiry, pause, and stale evidence.
+Browser checks cover top placement, five permanent fields, conditional activity, duplicates, expiry, continuous motion, absent controls, and stale evidence.
 They also cover Light/Dark themes, reduced motion, and 768/320px widths.
 The existing sign-in and Dashboard smoke check passed.
-See [current browser evidence](evidence/diagnostics-ticker-top/README.md).
+See [current browser evidence](evidence/diagnostics-strip/README.md).
 
 Install the prepared web build:
 
@@ -83,5 +85,8 @@ sudo tools/frontend/install.sh
 ## Skills
 
 Vercel frontend-design keeps the existing product design and the requested ticker behavior.
+
 Google modern-web-guidance `motion` says: "Provide a pause mechanism".
-The implementation keeps the visible keyboard control, transform animation, and static reduced-motion view.
+The owner explicitly requested no pause control. This requirement overrides that guidance for this strip.
+The strip retains transform animation and the static reduced-motion view.
+Reduced motion does not replace a pause control for WCAG 2.2.2. This strip does not meet that criterion.

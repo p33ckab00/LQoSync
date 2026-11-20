@@ -133,7 +133,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             </div>
           </header>
           <main class="dashboard" id="main">
-            <section class="panel service-diagnostics status-banner" aria-labelledby="service-diagnostics-title">
+            <section class="service-diagnostics status-banner" aria-label="Service diagnostics">
               <crate::diagnostics_ticker::DiagnosticsTicker data/>
             </section>
             <div class="page-heading">

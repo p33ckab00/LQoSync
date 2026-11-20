@@ -8,6 +8,17 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T21:26:16+08:00 (Asia/Shanghai) — Rolling diagnostics strip
+
+- Goal: show only a rolling banner. Remove the card, heading, subtitle, and pause control.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `8bfdd26`.
+- Changed: Rust ticker markup, app wrapper, CSS, browser check, design/evidence documents, and brain notes.
+- Behavior: continuous movement, no hover pause, five permanent fields, and existing bounded temporary activity. Reduced motion stays static.
+- Checks: Wasm release, Clippy, Rust 1.89, formatting, whitespace, focused browser checks, and existing sign-in/Dashboard smoke passed.
+- Evidence: `docs/frontend/evidence/diagnostics-strip`. Design: `docs/frontend/DIAGNOSTICS_TICKER.md`.
+- Next runtime step: operator runs `sudo tools/frontend/install.sh`. Production assets and services were not changed.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T21:16:53+08:00 (Asia/Shanghai) — Top ticker and conditional activity
 
 - Goal: move diagnostics above the Dashboard heading and keep exactly five permanent status fields.

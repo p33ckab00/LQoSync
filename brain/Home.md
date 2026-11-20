@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-diagnostics-strip]] — Rolling banner without a card, title, or pause control
+
 - [[2026-11-20-diagnostics-ticker-top]] — Top ticker with five permanent statuses and expiring activity only on changes
 
 - [[2026-11-20-diagnostics-ticker]] — Live service banner with Pause/Resume and static reduced motion

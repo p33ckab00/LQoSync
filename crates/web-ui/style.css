@@ -134,26 +134,20 @@
 @media(prefers-color-scheme:dark){:root[data-theme=system] .app-shell{--traffic-red:#ef4444;--traffic-orange:#f97316;--traffic-yellow:#eab308;--traffic-green:#22c55e;--traffic-cyan:#06b6d4;--traffic-blue:#3b82f6;--traffic-violet:#8b5cf6}}
 
 /* Stock-ticker motion uses one stable transform track, independent of source refresh. */
-.diagnostics-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-block-end:16px}
-.diagnostics-heading p{font-size:13px;color:var(--muted);margin-block-start:4px}
-.ticker-toggle{min-block-size:44px;padding:8px 14px;white-space:nowrap;flex-shrink:0}
-.diagnostics-ticker{overflow:hidden;border-block:1px solid var(--border);background:var(--bg)}
+.diagnostics-ticker{overflow:hidden;border-block:1px solid var(--border);background:transparent}
 .ticker-track{display:flex;inline-size:auto}
 .ticker-group{display:flex;flex-wrap:wrap;gap:12px 0;padding:14px 0;min-inline-size:0;align-items:center}
 .ticker-clone{display:none}
 .ticker-item{display:inline-flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-inline-size:0;max-inline-size:100%;overflow-wrap:anywhere;padding-inline:18px;border-inline-end:1px solid var(--border);font-size:14px;white-space:normal}
 .ticker-item>span{color:var(--muted)}
 .ticker-item strong{font-weight:600;font-variant-numeric:tabular-nums}
-.service-diagnostics .diagnostics{margin-block-start:12px}
 @keyframes diagnostics-scroll{to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:no-preference){
   .ticker-track{inline-size:max-content;animation:diagnostics-scroll var(--ticker-duration,55s) linear infinite}
-  .ticker-group{flex-wrap:nowrap;flex-shrink:0;padding-block:16px}
+  .ticker-group{flex-wrap:nowrap;flex-shrink:0;padding-block:12px}
   .ticker-clone{display:flex}
   .ticker-item{flex-wrap:nowrap;max-inline-size:none;white-space:nowrap}
-  .diagnostics-ticker.paused .ticker-track,.service-diagnostics:hover .ticker-track,.service-diagnostics:focus-within .ticker-track{animation-play-state:paused}
 }
-@media(max-width:500px){.diagnostics-heading{align-items:flex-start;flex-wrap:wrap}.ticker-item{padding-inline:12px;font-size:13px}}
 .status-banner{margin-block-end:22px}
-.status-banner .diagnostics-heading{margin-block-end:10px}
 .ticker-activity{border-inline-start:2px solid var(--accent)}
+@media(max-width:500px){.ticker-item{padding-inline:12px;font-size:13px}}
