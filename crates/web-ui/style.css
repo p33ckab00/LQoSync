@@ -41,7 +41,7 @@
 .nav-planned:disabled{cursor:default;opacity:.7}
 .nav-planned small{font-size:13px;margin-inline-start:auto}
 .app-shell .sidebar-bottom{padding-block-start:18px}
-.app-shell .metrics{gap:16px;margin-block-end:20px;grid-template-columns:repeat(5,minmax(0,1fr))}
+.app-shell .metrics{gap:16px;margin-block-end:20px;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(264px,1.5fr)}
 .app-shell .metric h2{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;color:var(--text)}
 .accent{color:var(--accent)}
 .app-shell .metric strong{font-size:clamp(28px,2.8vw,40px);margin:15px 0 7px;letter-spacing:-.02em}
@@ -103,9 +103,9 @@
 .diagnostics dd{margin:0;overflow-wrap:anywhere}
 .diagnostics h2{margin-block:24px 12px}
 @container wan-panel (inline-size < 340px){.wan-distribution{grid-template-columns:1fr}.wan-ring{max-inline-size:150px}}
-@media(max-width:1200px){.header-time,.header-update{display:none}.app-shell .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.app-shell .overview-grid{grid-template-columns:1fr 1fr}.app-shell .metric strong{font-size:34px}}
+@media(max-width:1200px){.header-time,.header-update{display:none}.app-shell .overview-grid{grid-template-columns:1fr 1fr}.app-shell .metric strong{font-size:34px}}
 @media(max-width:1000px){.app-shell .overview-grid{grid-template-columns:1fr}.wan-distribution{grid-template-columns:minmax(130px,.6fr) minmax(0,1.4fr)}.app-shell .top-context{display:none}.app-shell .top-actions{margin-inline-start:auto}}
-@media(max-width:760px){.app-shell .sidebar{overflow:visible;padding:12px 16px}.dashboard-nav{margin:0}.dashboard-nav .nav-group{display:none}.app-shell .dashboard{padding:20px 16px}.app-shell .main-top{padding:12px 16px}.app-shell .top-actions{margin:0;inline-size:100%;justify-content:space-between;gap:8px}.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.app-shell .metric:last-child{grid-column:1/-1}.app-shell .metric h2{font-size:14px;gap:7px}.app-shell .metric h2 .ui-icon{inline-size:21px;block-size:21px}.app-shell .metric strong{font-size:32px}.app-shell .panel{padding:16px}.app-shell .overview-grid{gap:16px}.app-shell .page-heading{display:block}.app-shell .freshness{margin-block-start:12px}.app-shell .metric p{font-size:13px}.app-shell .traffic-values{gap:16px}.app-shell .sample-note{inline-size:100%}.chart-frame{grid-template-columns:58px minmax(0,1fr);gap:8px}.chart-data svg,.y-axis{block-size:180px}.x-axis>span:nth-child(2),.x-axis>span:nth-child(4){display:none}.upstream-statuses{gap:8px}.upstream-statuses>span{padding:8px 10px;gap:12px}.diagnostics summary>span{display:block;margin:6px 0 0}.diagnostics dl{grid-template-columns:1fr;gap:6px}.diagnostics dd{margin-block-end:8px}}
+@media(max-width:760px){.app-shell .sidebar{overflow:visible;padding:12px 16px}.dashboard-nav{margin:0}.dashboard-nav .nav-group{display:none}.app-shell .dashboard{padding:20px 16px}.app-shell .main-top{padding:12px 16px}.app-shell .top-actions{margin:0;inline-size:100%;justify-content:space-between;gap:8px}.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.app-shell .metric:nth-child(5){grid-column:1/-1}.app-shell .metric h2{font-size:14px;gap:7px}.app-shell .metric h2 .ui-icon{inline-size:21px;block-size:21px}.app-shell .metric strong{font-size:32px}.app-shell .panel{padding:16px}.app-shell .overview-grid{gap:16px}.app-shell .page-heading{display:block}.app-shell .freshness{margin-block-start:12px}.app-shell .metric p{font-size:13px}.app-shell .traffic-values{gap:16px}.app-shell .sample-note{inline-size:100%}.chart-frame{grid-template-columns:58px minmax(0,1fr);gap:8px}.chart-data svg,.y-axis{block-size:180px}.x-axis>span:nth-child(2),.x-axis>span:nth-child(4){display:none}.upstream-statuses{gap:8px}.upstream-statuses>span{padding:8px 10px;gap:12px}.diagnostics summary>span{display:block;margin:6px 0 0}.diagnostics dl{grid-template-columns:1fr;gap:6px}.diagnostics dd{margin-block-end:8px}}
 
 .app-shell .service-dot.current{background:var(--good)}
 .app-shell .metric strong{margin-block:10px 6px}
@@ -168,7 +168,7 @@
 .dpdk-sources{display:flex;flex-wrap:wrap;gap:10px 24px;padding-block:12px;border-block:1px solid var(--border);margin-block-end:22px;font-size:13px;color:var(--muted)}
 .dpdk-sources>span{display:flex;flex-wrap:wrap;gap:8px}
 .dpdk-sources b{color:var(--text);font-weight:500}
-.dpdk-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:24px}
+.dpdk-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:24px}
 .dpdk-grid>div{min-inline-size:0}
 .dpdk-value{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;margin-block:0 8px}
 .dpdk-value>span{font-size:13px;font-weight:400;color:var(--muted)}
@@ -202,8 +202,8 @@
 .dpdk-details .table-scroll{margin-block:14px}
 .dpdk-worker-select{display:flex;align-items:center;gap:14px;margin-block:16px;font-size:14px}
 .dpdk-worker-select select{min-block-size:44px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding-inline:10px}
-@media(max-width:1100px){.dpdk-grid{grid-template-columns:1fr 1fr}.dpdk-nic{grid-column:1/-1}.dpdk-detail-grid{grid-template-columns:1fr}}
-@media(max-width:600px){.dpdk-grid{grid-template-columns:1fr}.dpdk-nic{grid-column:auto}.dpdk-panel .panel-title{flex-wrap:wrap}.dpdk-readings{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.dpdk-worker-select{align-items:flex-start;flex-direction:column}.dpdk-details summary{padding-block:10px}}
+@media(max-width:1100px){.dpdk-grid{grid-template-columns:1fr 1fr}.dpdk-detail-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.dpdk-grid{grid-template-columns:1fr}.dpdk-panel .panel-title{flex-wrap:wrap}.dpdk-readings{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.dpdk-worker-select{align-items:flex-start;flex-direction:column}.dpdk-details summary{padding-block:10px}}
 @media(forced-colors:active){.dpdk-busy-line{stroke:CanvasText}.dpdk-chart-grid{stroke:GrayText}}
 .dpdk-panel meter::-webkit-meter-bar{background:var(--border);border:0;border-radius:4px}
 .dpdk-panel meter::-webkit-meter-optimum-value{background:var(--accent);border-radius:4px}
@@ -261,3 +261,10 @@
 .nic-cadence{max-inline-size:48ch}
 @media(prefers-reduced-motion:reduce){.nic-activity-led{animation:none!important}.nic-activity-led[data-active=true]{background:var(--nic-activity-color)}}
 @media(forced-colors:active){.nic-bezel,.nic-socket{fill:Canvas;stroke:CanvasText}.nic-contacts{stroke:CanvasText}.nic-link-led{fill:CanvasText}.nic-activity-led{border:1px solid CanvasText}.nic-activity-led.pulsing,.nic-activity-led[data-active=true]{background:Highlight}}
+
+/* NIC identity belongs with the service summaries, before traffic and diagnostics. */
+.nic-summary{padding:20px;min-inline-size:0}
+.nic-summary h2{font-size:14px;margin:0}
+@media(max-width:1599px){.app-shell .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1200px){.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.nic-summary{grid-column:1/-1}}
+@media(max-width:760px){.nic-summary{padding:16px}}

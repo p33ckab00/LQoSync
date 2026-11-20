@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-21-nic-summary-placement]] — NIC faceplate beside PPPoE and LibreQoS in the Dashboard summary
+
 - [[2026-11-20-nic-faceplate]] — Physical NIC SVGs, explicit roles, confidence, and independent link/activity LEDs
 
 - [[2026-11-20-aggregate-traffic]] — Actual/Mapped/Unmapped in one mirrored chart, capacity gradients, and shared inspection

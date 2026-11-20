@@ -150,6 +150,7 @@ fn Upstream() -> impl IntoView {
 }
 #[component]
 pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
+    let (snapshot, server_clock) = crate::dpdk::monitoring(data);
     view! {
       <Show when=move||data.with(|d|d.as_ref().is_some_and(|v|v.stale))><div class="notice">"Some source evidence is stale or unavailable. Unknown counts are shown as —."</div></Show>
       <section class="metrics" aria-label="Service summary">
@@ -158,12 +159,13 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <Metric data kind="ppp_offline" title="PPPoE Offline" icon="wifi-off" note="Configured users offline"/>
         <Metric data kind="routers" title="Routers" icon="router" note="Managed routers"/>
         <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
+        <article class="panel nic-summary" aria-label="NIC ports"><crate::nic_ports::NicPorts snapshot clock=server_clock/></article>
       </section>
       <div class="overview-grid">
         <crate::traffic_chart::TrafficChart data/>
         <WanDistribution/>
       </div>
-      <crate::dpdk::DpdkCard data/>
+      <crate::dpdk::DpdkCard snapshot server_clock/>
       <Upstream/>
       <section class="panel service-diagnostics-details" aria-label="Service diagnostics details">
       <details class="diagnostics"><summary>"View diagnostics"<span>"Static status details"</span></summary>

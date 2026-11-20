@@ -5,7 +5,12 @@ Status: implementation. The owner supplied the layout reference.
 
 ## Layout
 
-The NIC section contains adjacent physical port SVGs without individual card borders.
+The NIC ports card belongs to the Dashboard service summary, beside PPPoE and LibreQoS.
+It appears before the traffic charts. DPDK diagnostics keep the raw counters.
+Wide screens show all six summary cards in one row.
+
+Smaller screens use three or two columns. The NIC card spans both columns below 1201px.
+The ports remain adjacent without individual card borders.
 Each port uses this order:
 
 1. WAN, LAN, WAN/LAN, or Role unknown.
@@ -96,11 +101,13 @@ Stale, down, and reset states suppress activity in both motion modes.
 
 ## Validation and deployment
 
-See [evidence and screenshots](evidence/nic-faceplate/README.md).
+See [hardware evidence](evidence/nic-faceplate/README.md) and [summary placement evidence](evidence/nic-summary/README.md).
 See [the atomic plan](plans/2026-11-20-nic-faceplate.md).
 The design uses the current Vercel frontend-design and Google modern-web-guidance workflows.
 
-This change needs the updated core collector and web packages.
+Full hardware detection needs the updated core collector and web packages.
+The summary placement update changes only the web UI.
+It shares the existing snapshot and server-time clock with DPDK diagnostics.
 See [deployment](DEPLOYMENT.md#nic-faceplate-update) for the install sequence.
 An older collector still supplies link, speed, PCI-name fallback, and existing activity counters.
 Its absent hardware metadata remains unknown until the core update.

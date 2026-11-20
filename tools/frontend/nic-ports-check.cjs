@@ -13,6 +13,12 @@ const fs=require('node:fs');
   await page.getByLabel('Password',{exact:true}).fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   const nic=page.locator('.dpdk-nic');await nic.getByText('2 / 2 UP',{exact:true}).waitFor();
+  const summary=page.getByRole('region',{name:'Service summary',exact:true});
+  assert.equal(await summary.locator('.dpdk-nic').count(),1,'NIC belongs with the service summary cards');
+  assert.equal(await page.locator('.dpdk-panel .dpdk-nic').count(),0,'diagnostics must not duplicate the faceplate');
+  assert.equal(await summary.getByRole('heading',{name:'LibreQoS',exact:true}).count(),1);
+  const summaryBox=await summary.boundingBox();const chartBox=await page.locator('.overview-grid').boundingBox();
+  assert.ok(summaryBox.y+summaryBox.height<=chartBox.y,'NIC summary must precede the traffic charts');
   const ports=nic.locator('.nic-physical-port');assert.equal(await ports.count(),2);
   assert.deepEqual(await ports.locator('figcaption strong').allTextContents(),['WAN','LAN']);
   assert.deepEqual(await ports.locator('svg').evaluateAll(ns=>ns.map(n=>n.dataset.connector)),['sfp','rj45']);
@@ -52,8 +58,16 @@ const fs=require('node:fs');
   assert.equal(await ports.first().locator('.rx .nic-activity-led').getAttribute('data-active'),'true');
   assert.equal(await ports.first().locator('.rx .nic-activity-led').evaluate(n=>getComputedStyle(n).animationName),'none');
   const out=process.env.NIC_EVIDENCE_DIR||'/tmp/lqosync-nic-evidence';fs.mkdirSync(out,{recursive:true});
-  for(const theme of ['dark','light']){await page.getByLabel('Color theme').selectOption(theme);await nic.screenshot({path:`${out}/${theme}.png`});}
-  await page.setViewportSize({width:320,height:1200});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await nic.screenshot({path:`${out}/mobile.png`});
+  for(const theme of ['dark','light']){await page.getByLabel('Color theme').selectOption(theme);await summary.screenshot({path:`${out}/${theme}.png`});}
+  await page.setViewportSize({width:320,height:1200});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await summary.screenshot({path:`${out}/mobile.png`});
+  for(const width of [768,1024,1280,1600,1920]){
+   await page.setViewportSize({width,height:1200});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`dashboard must fit ${width}px`);
+   const boxes=await ports.evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().toJSON()));
+   assert.equal(boxes[0].y,boxes[1].y,`ports must stay adjacent at ${width}px`);
+   if(width===1920){await page.getByLabel('Color theme').selectOption('dark');await summary.screenshot({path:`${out}/wide.png`});}
+   if(width>=1600){const cards=await summary.locator(':scope > article').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().top));assert.ok(cards.every(y=>y===cards[0]),'all summary cards share one row on wide screens');}
+  }
   // Unknown source metadata must keep a generic connector and an explicit unknown role.
   await page.evaluate(()=>{const v=window.nicView;v.dpdk.ports[0].physical={};window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(v)}));});
   await ports.first().getByText('Role unknown',{exact:true}).waitFor();assert.equal(await ports.first().locator('svg').getAttribute('data-connector'),'unknown');

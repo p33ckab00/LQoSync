@@ -8,6 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T00:12:08+08:00 (Asia/Shanghai) — NIC summary placement
+
+- Goal: move the NIC SVG faceplate beside PPPoE and LibreQoS in the service summary.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Base HEAD: `fb720af`.
+- Changed: Dashboard/DPDK composition, shared snapshot and server clock, NIC heading, responsive CSS, browser checks, evidence, and documentation.
+- One faceplate appears before traffic. Raw NIC counters remain in DPDK diagnostics.
+- Checks: NIC/DPDK, sign-in/Dashboard, and aggregate browser checks; web release build; Wasm Clippy; Rust 1.89; formatting and whitespace.
+- Evidence: `docs/frontend/evidence/nic-summary/README.md`. Synthetic data only.
+- Next action: install the web artifacts with `sudo tools/frontend/install.sh`, then refresh the browser.
+- Full connector detection still needs the previous core update if absent. This placement change needs only web artifacts.
+- Production services did not change. Preserve the unrelated November 16 notes and report.
+
 ## 2026-11-20T23:56:24+08:00 (Asia/Shanghai) — Physical NIC faceplate
 
 - Goal: show adjacent hardware-specific NIC SVGs with explicit roles, speed/port number, PCI identity, and independent RX/TX LEDs.

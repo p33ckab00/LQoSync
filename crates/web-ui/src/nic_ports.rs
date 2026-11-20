@@ -138,7 +138,7 @@ fn PortTile(id: u16, snapshot: Memo<Option<Dpdk>>, clock: Memo<u64>) -> impl Int
 #[component]
 pub(crate) fn NicPorts(snapshot: Memo<Option<Dpdk>>, clock: Memo<u64>) -> impl IntoView {
     view! {
-      <div class="dpdk-nic"><div class="nic-faceplate-heading"><h3>"NIC ports"</h3><span>{move||snapshot.with(|d|{
+      <div class="dpdk-nic"><div class="nic-faceplate-heading"><h2>"NIC ports"</h2><span>{move||snapshot.with(|d|{
         let Some(d)=d else {return "Unavailable".into();};
         if !d.nic.live(clock.get(),15){return "Link unknown · stale".into();}
         format!("{} / {} UP",d.ports.iter().filter(|p|p.state.eq_ignore_ascii_case("up")).count(),d.ports.len())
@@ -147,7 +147,7 @@ pub(crate) fn NicPorts(snapshot: Memo<Option<Dpdk>>, clock: Memo<u64>) -> impl I
           <For each=move||snapshot.with(|d|d.as_ref().map(|d|d.ports.clone()).unwrap_or_default()) key=|p| (p.id,p.name.clone(),p.physical.pci.clone()) children=move |p:Port|view!{<PortTile id=p.id snapshot clock/>}/>
         </div>
         <Show when=move||snapshot.with(|d|d.as_ref().is_none_or(|d|d.ports.is_empty()))><p class="panel-note">"NIC telemetry unavailable."</p></Show>
-        <p class="panel-note nic-cadence">"LED pulses show activity in each completed NIC sample, not individual packets."</p>
+        <p class="sr-only nic-cadence">"LED pulses show activity in each completed NIC sample, not individual packets."</p>
       </div>
     }
 }

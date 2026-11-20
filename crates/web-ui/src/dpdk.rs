@@ -49,8 +49,8 @@ fn source(d: &Dpdk, kind: &str) -> Source {
         _ => d.analytics.clone(),
     }
 }
-#[component]
-pub(crate) fn DpdkCard(data: RwSignal<Option<Overview>>) -> impl IntoView {
+// Share one snapshot and server-time clock between the summary and diagnostics.
+pub(crate) fn monitoring(data: RwSignal<Option<Overview>>) -> (Memo<Option<Dpdk>>, Memo<u64>) {
     let snapshot = Memo::new(move |_| data.with(|v| v.as_ref().and_then(|v| v.dpdk.clone())));
     let clock = RwSignal::new(now());
     let anchor = RwSignal::new((0_u64, now()));
@@ -70,8 +70,6 @@ pub(crate) fn DpdkCard(data: RwSignal<Option<Overview>>) -> impl IntoView {
             server.saturating_add(clock.get().saturating_sub(received))
         }
     });
-    let history = RwSignal::new(History::default());
-    let selected = RwSignal::new(None::<u16>);
     let timer = StoredValue::new_local(Some(gloo_timers::callback::Interval::new(
         1000,
         move || clock.set(now()),
@@ -79,6 +77,12 @@ pub(crate) fn DpdkCard(data: RwSignal<Option<Overview>>) -> impl IntoView {
     on_cleanup(move || {
         timer.try_update_value(|t| *t = None);
     });
+    (snapshot, server_clock)
+}
+#[component]
+pub(crate) fn DpdkCard(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) -> impl IntoView {
+    let history = RwSignal::new(History::default());
+    let selected = RwSignal::new(None::<u16>);
     Effect::new(move |_| {
         let at = server_clock.get();
         snapshot.with(|d| history.update(|h| h.observe(d.as_ref(), at)));
@@ -117,7 +121,6 @@ pub(crate) fn DpdkCard(data: RwSignal<Option<Overview>>) -> impl IntoView {
             <p class="panel-note">{move||snapshot.with(|d|d.as_ref().filter(|d|!d.pressure.is_empty()).map(|_|"Pressure values use the worker source age.").unwrap_or("Buffer/ring diagnostics unavailable."))}</p>
             {move||snapshot.with(|d|d.as_ref().map(|d|rows(d.analytics.details.iter().filter(|r|matches!(r.label.as_str(),"Buffer/ring pressure"|"Queue drops/sample"|"AQM marks/sample"|"Queue backlog (bytes)")).cloned().collect())))}
           </div>
-          <crate::nic_ports::NicPorts snapshot clock=server_clock/>
         </div>
         <div class="dpdk-trend"><div><h3>"Recent mean worker busy"</h3><span class="panel-note">"Browser session · up to 60 distinct samples · fixed 0–100%"</span></div>
           <Show when=move||history.with(|h|h.points.len()>=2) fallback=||view!{<p class="dpdk-wait">"Waiting for two fresh worker samples."</p>}>
