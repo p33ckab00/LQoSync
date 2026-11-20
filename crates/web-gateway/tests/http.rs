@@ -31,7 +31,7 @@ async fn fixture() -> (
     let a = accounts.clone();
     let state = temp.path().to_path_buf();
     let job = tokio::spawn(async move {
-        let _ = broker::serve(listener, unsafe { libc::geteuid() }, a, state).await;
+        let _ = broker::serve(listener, unsafe { libc::geteuid() }, a, state, None).await;
     });
     let app = router(
         WebState {
@@ -196,6 +196,32 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
         .unwrap();
     assert_eq!(dashboard.status(), StatusCode::OK);
     assert_eq!(dashboard.headers()["cache-control"], "no-store");
+    // History windows: authenticated, and only the three bounded windows exist.
+    let status = |path: &'static str, cookie: String| {
+        let app = app.clone();
+        async move {
+            app.oneshot(req("GET", path, &cookie, "", ""))
+                .await
+                .unwrap()
+        }
+    };
+    assert_eq!(
+        status("/api/v1/traffic?window=1h", String::new())
+            .await
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        status("/api/v1/traffic?window=7d", cookie.clone())
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    let window = status("/api/v1/traffic?window=24h", cookie.clone()).await;
+    assert_eq!(window.status(), StatusCode::OK);
+    let window: web_contract::TrafficWindow =
+        serde_json::from_slice(&window.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!((window.window.as_str(), window.bucket_secs), ("24h", 360));
     for route in ["/api/v1/users", "/api/v1/signup", "/api/v1/reset-password"] {
         for method in ["GET", "POST", "PATCH", "DELETE"] {
             assert_eq!(

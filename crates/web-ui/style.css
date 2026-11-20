@@ -382,3 +382,9 @@
 /* A closed popover takes no space, so it cannot widen the page. */
 .traffic-inspector:not(.open){display:none}
 @media(max-width:480px){.traffic-source-controls button{white-space:normal;flex-wrap:wrap}.nic-faceplate{flex-wrap:wrap}.traffic-inspector{max-inline-size:calc(100vw - 48px)}}
+/* The heading is as wide as the port row, so the link count stands above the last port. */
+.dpdk-nic{inline-size:max-content;max-inline-size:100%}
+.nic-faceplate-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.range-options button{cursor:pointer}
+.range-options button.range-selected{background:var(--accent);color:var(--on-accent)}
+.range-options button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

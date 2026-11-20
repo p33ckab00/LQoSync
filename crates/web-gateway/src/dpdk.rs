@@ -553,13 +553,14 @@ pub(crate) fn classification(
     a: &Analytics,
     live: bool,
     now: u64,
+    limit: usize,
 ) -> web_contract::ClassificationTraffic {
     let series = |s: &Series| {
         let mut samples = s
             .history
             .iter()
             .rev()
-            .take(300)
+            .take(limit)
             .filter(|p| p.at > 0 && p.at <= now)
             .collect::<Vec<_>>();
         samples.sort_by_key(|p| p.at);

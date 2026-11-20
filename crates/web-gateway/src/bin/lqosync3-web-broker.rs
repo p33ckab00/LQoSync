@@ -29,11 +29,14 @@ async fn main() -> Result<()> {
         unsafe { libc::chown(c.as_ptr(), uid, u32::MAX) } == 0,
         "socket ownership failed"
     );
-    let accounts = Accounts::new(
-        std::env::var("WEB_ACCOUNTS")
-            .unwrap_or("/var/lib/lqosync3-web-accounts/web-accounts.db".into())
-            .into(),
-    )?;
+    let accounts_path: std::path::PathBuf = std::env::var("WEB_ACCOUNTS")
+        .unwrap_or("/var/lib/lqosync3-web-accounts/web-accounts.db".into())
+        .into();
+    // The traffic history lives in the broker's private state directory, next to the accounts.
+    let history = accounts_path
+        .parent()
+        .map(|d| d.join("traffic-history.json"));
+    let accounts = Accounts::new(accounts_path)?;
     broker::serve(
         listener,
         uid,
@@ -41,6 +44,7 @@ async fn main() -> Result<()> {
         std::env::var("LQOSYNC_STATE")
             .unwrap_or("/var/lib/lqosync3".into())
             .into(),
+        history,
     )
     .await
 }

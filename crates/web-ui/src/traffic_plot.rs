@@ -33,11 +33,19 @@ pub fn y(rate: f64, maximum: f64, down: bool) -> f64 {
 pub fn x(at: u64, domain: (u64, u64)) -> f64 {
     at.saturating_sub(domain.0) as f64 / domain.1.saturating_sub(domain.0).max(1) as f64 * 900.0
 }
-pub fn path(points: &[Point], down: bool, maximum: f64, area: bool, domain: (u64, u64)) -> String {
+/// `step` is the largest sample spacing, in seconds, that still joins two points.
+pub fn path(
+    points: &[Point],
+    down: bool,
+    maximum: f64,
+    area: bool,
+    domain: (u64, u64),
+    step: u64,
+) -> String {
     let mut result = String::new();
     let mut start_x = 0.0;
     for (i, point) in points.iter().enumerate() {
-        let split = i == 0 || point.gap_before || point.at.saturating_sub(points[i - 1].at) > 3;
+        let split = i == 0 || point.gap_before || point.at.saturating_sub(points[i - 1].at) > step;
         if split && area && i > 0 {
             result.push_str(&format!(
                 " L{:.1},120 L{start_x:.1},120 Z",
@@ -101,7 +109,7 @@ mod tests {
         let mapped = vec![p(15, 0.5, 0.1), p(20, 0.5, 0.1)];
         let domain = domain(&[&actual, &mapped]).unwrap();
         assert_eq!(domain, (10, 20));
-        assert!(path(&mapped, true, 1.0, false, domain).starts_with(" M450.0"));
+        assert!(path(&mapped, true, 1.0, false, domain, 3).starts_with(" M450.0"));
         assert!(sample(&mapped, 16).is_none());
     }
     #[test]
@@ -113,9 +121,39 @@ mod tests {
             p(21, 1.0, 0.5),
         ];
         let d = (10, 21);
-        assert_eq!(path(&points, true, 10.0, false, d).matches('M').count(), 2);
-        assert_eq!(path(&points, false, 10.0, true, d).matches('Z').count(), 2);
+        assert_eq!(
+            path(&points, true, 10.0, false, d, 3).matches('M').count(),
+            2
+        );
+        assert_eq!(
+            path(&points, false, 10.0, true, d, 3).matches('Z').count(),
+            2
+        );
         points[1].gap_before = true;
-        assert_eq!(path(&points, true, 10.0, false, d).matches('M').count(), 3);
+        assert_eq!(
+            path(&points, true, 10.0, false, d, 3).matches('M').count(),
+            3
+        );
+        // History buckets join across their own spacing. A marked gap still splits them.
+        let mut buckets = vec![p(0, 1.0, 0.1), p(90, 2.0, 0.2), p(180, 3.0, 0.3)];
+        assert_eq!(
+            path(&buckets, true, 10.0, false, (0, 180), 3)
+                .matches('M')
+                .count(),
+            3
+        );
+        assert_eq!(
+            path(&buckets, true, 10.0, false, (0, 180), 180)
+                .matches('M')
+                .count(),
+            1
+        );
+        buckets[2].gap_before = true;
+        assert_eq!(
+            path(&buckets, true, 10.0, false, (0, 180), 180)
+                .matches('M')
+                .count(),
+            2
+        );
     }
 }

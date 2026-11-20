@@ -5,7 +5,7 @@ use crate::{
 };
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Request, State},
+    extract::{DefaultBodyLimit, Query, Request, State},
     http::{HeaderMap, StatusCode, header},
     middleware::{self, Next},
     response::{
@@ -139,6 +139,29 @@ async fn overview(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     let view = reply.overview.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(view).into_response())
 }
+#[derive(serde::Deserialize)]
+struct WindowQuery {
+    window: String,
+}
+/// One bucketed history window for the traffic chart. Only `1h`, `6h`, and `24h` exist.
+async fn traffic(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Query(q): Query<WindowQuery>,
+) -> ApiResult {
+    principal(&s, &h).await?;
+    if !crate::history::WINDOWS
+        .iter()
+        .any(|(name, _)| *name == q.window)
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let reply = exchange(&s.broker, &BrokerRequest::Traffic { window: q.window })
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let window = reply.traffic.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(window).into_response())
+}
 async fn live(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     principal(&s, &h).await?;
     // Slow clients own at most one snapshot; there is no per-client event queue.
@@ -229,6 +252,7 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/session", get(current).post(login).delete(logout))
         .route("/api/v1/overview", get(overview))
         .route("/api/v1/overview/live", get(live))
+        .route("/api/v1/traffic", get(traffic))
         .route(
             "/api/{*path}",
             get(|| async { StatusCode::NOT_FOUND })

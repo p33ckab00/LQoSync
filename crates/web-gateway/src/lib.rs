@@ -2,6 +2,7 @@
 pub mod accounts;
 pub mod broker;
 mod dpdk;
+pub mod history;
 pub mod http;
 pub mod overview;
 pub mod sessions;

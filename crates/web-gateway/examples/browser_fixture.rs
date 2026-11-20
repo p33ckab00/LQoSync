@@ -71,7 +71,14 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::UnixListener::bind(&socket)?;
     let state_dir = dir.path().to_owned();
     tokio::spawn(async move {
-        let _ = broker::serve(listener, unsafe { libc::geteuid() }, accounts, state_dir).await;
+        let _ = broker::serve(
+            listener,
+            unsafe { libc::geteuid() },
+            accounts,
+            state_dir,
+            None,
+        )
+        .await;
     });
     let dist = std::path::PathBuf::from("crates/web-ui/dist");
     let state = WebState {

@@ -9,7 +9,14 @@ async fn wrong_peer_uid_cannot_read_broker_data() {
     let listener = tokio::net::UnixListener::bind(&socket).unwrap();
     let state = dir.path().to_owned();
     let job = tokio::spawn(async move {
-        let _ = broker::serve(listener, unsafe { libc::geteuid() } + 1, accounts, state).await;
+        let _ = broker::serve(
+            listener,
+            unsafe { libc::geteuid() } + 1,
+            accounts,
+            state,
+            None,
+        )
+        .await;
     });
     assert!(
         broker::exchange(&socket, &broker::Request::Overview)

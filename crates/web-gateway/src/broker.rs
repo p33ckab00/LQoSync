@@ -1,5 +1,6 @@
 //! Fixed private IPC: credential checks and cached overview only, never arbitrary operations.
 use crate::accounts::{Account, Accounts};
+use crate::history::History;
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -13,7 +14,7 @@ use tokio::{
     net::{UnixListener, UnixStream},
     sync::{Mutex, RwLock, Semaphore},
 };
-use web_contract::Overview;
+use web_contract::{Overview, TrafficWindow};
 pub fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -23,15 +24,27 @@ pub fn now() -> u64 {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "op", deny_unknown_fields)]
 pub enum Request {
-    Login { username: String, password: String },
-    Active { id: i64, epoch: i64 },
+    Login {
+        username: String,
+        password: String,
+    },
+    Active {
+        id: i64,
+        epoch: i64,
+    },
     Overview,
+    /// One bucketed chart window: `1h`, `6h`, or `24h`.
+    Traffic {
+        window: String,
+    },
 }
 #[derive(Serialize, Deserialize)]
 pub struct Reply {
     pub ok: bool,
     pub account: Option<Account>,
     pub overview: Option<Overview>,
+    #[serde(default)]
+    pub traffic: Option<TrafficWindow>,
 }
 impl Reply {
     fn no() -> Self {
@@ -39,6 +52,7 @@ impl Reply {
             ok: false,
             account: None,
             overview: None,
+            traffic: None,
         }
     }
 }
@@ -67,17 +81,37 @@ pub async fn serve(
     uid: u32,
     accounts: Accounts,
     state_dir: PathBuf,
+    history_path: Option<PathBuf>,
 ) -> Result<()> {
     let cached = Arc::new(RwLock::new(Overview {
         stale: true,
         traffic_stale: true,
         ..Default::default()
     }));
+    let history = Arc::new(RwLock::new(
+        history_path
+            .as_deref()
+            .map(History::load)
+            .unwrap_or_default(),
+    ));
     let cache = cached.clone();
+    let recorder = history.clone();
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(1));
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut cycle = 0u8;
+        let mut seconds = 0u32;
+        // Seed once from the full core history (about one hour), so the 1h window starts filled.
+        let path = state_dir.clone();
+        if let Ok(seed) =
+            tokio::task::spawn_blocking(move || crate::overview::history_samples(&path, now()))
+                .await
+        {
+            let mut h = recorder.write().await;
+            for (source, points) in seed.iter().enumerate() {
+                h.observe(source, points);
+            }
+        }
         loop {
             tick.tick().await;
             let path = state_dir.clone();
@@ -94,7 +128,23 @@ pub async fn serve(
             })
             .await
             {
+                {
+                    let mut h = recorder.write().await;
+                    h.observe(0, &v.traffic);
+                    if let Some(c) = &v.classification {
+                        h.observe(1, &c.mapped.points);
+                        h.observe(2, &c.unmapped.points);
+                    }
+                }
                 *cache.write().await = v;
+            }
+            seconds = seconds.wrapping_add(1);
+            if seconds.is_multiple_of(60)
+                && let Some(path) = history_path.clone()
+            {
+                let snapshot = recorder.read().await.clone();
+                // A failed save keeps the history in memory. The next save tries again.
+                let _ = tokio::task::spawn_blocking(move || snapshot.save(&path)).await;
             }
         }
     });
@@ -111,6 +161,7 @@ pub async fn serve(
         };
         let accounts = accounts.clone();
         let cache = cached.clone();
+        let history = history.clone();
         let hashes = hashes.clone();
         let limits = limits.clone();
         tokio::spawn(async move {
@@ -129,6 +180,11 @@ pub async fn serve(
                     Request::Overview => {
                         reply.ok = true;
                         reply.overview = Some(cache.read().await.clone());
+                    }
+                    Request::Traffic { window } => {
+                        ensure!(window.len() <= 8, "invalid input");
+                        reply.traffic = history.read().await.window(&window, now());
+                        reply.ok = reply.traffic.is_some();
                     }
                     Request::Active { id, epoch } => {
                         reply.ok = tokio::task::spawn_blocking(move || accounts.active(id, epoch))

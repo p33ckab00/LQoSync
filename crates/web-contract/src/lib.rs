@@ -67,3 +67,12 @@ pub struct TrafficSeries {
     pub available: bool,
     pub stale: bool,
 }
+/// Bucketed history for one chart window. Buckets hold mean rates; a missing bucket sets `gap_before`.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TrafficWindow {
+    pub window: String,
+    pub bucket_secs: u64,
+    pub actual: Vec<Point>,
+    pub mapped: Vec<Point>,
+    pub unmapped: Vec<Point>,
+}

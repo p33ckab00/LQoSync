@@ -75,8 +75,14 @@ No chart engine or handwritten JavaScript application code was added.
 
 ## Scope limits
 
-Only the Recent window is available in this release.
-Longer ranges need a bounded window contract.
+Recent shows the live one-second samples.
+The 1h, 6h, and 24h windows come from `GET /api/v1/traffic?window=1h|6h|24h`.
+The web broker keeps 240 buckets per window: 15 s for 1h, 90 s for 6h, and 360 s for 24h.
+Each bucket holds the mean rate of its samples. A missing bucket shows as a gap.
+At start, the broker reads the last hour from the core cache, so the 1h window starts filled.
+The 6h and 24h windows fill while the web broker runs.
+The broker saves the history every minute to `traffic-history.json` in its private state directory.
+The browser reads the selected window every 15 seconds while the page is visible.
 This change does not implement per-WAN attribution or per-subscriber queue screens.
 Queue Dynamics, Queue Stats, and live Queue Tree remain separate tasks.
 

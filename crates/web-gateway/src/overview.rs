@@ -176,7 +176,7 @@ pub fn project(root: &Path, now: u64) -> Overview {
             })
             .collect();
     }
-    project_traffic(&workers, now, &mut view);
+    project_traffic(&workers, now, &mut view, 300);
     view.dpdk = Some(crate::dpdk::project(
         &workers.dpdk_fields,
         workers.version,
@@ -190,11 +190,25 @@ pub fn project(root: &Path, now: u64) -> Overview {
     view
 }
 
+/// Every retained traffic sample of the three sources (Actual, Mapped, Unmapped), for the history seed.
+/// The core keeps about one hour of one-second samples. The result is not bounded for IPC.
+pub fn history_samples(root: &Path, now: u64) -> [Vec<Point>; 3] {
+    let root = root.canonicalize().unwrap_or_else(|_| root.into());
+    let workers: WorkerTraffic = read(&root, "worker-utilization.json").unwrap_or_default();
+    let mut view = Overview::default();
+    project_traffic(&workers, now, &mut view, usize::MAX);
+    let (mapped, unmapped) = view
+        .classification
+        .map(|c| (c.mapped.points, c.unmapped.points))
+        .unwrap_or_default();
+    [view.traffic, mapped, unmapped]
+}
+
 /// Refresh traffic and worker analytics without decoding subscriber collections each second.
 pub fn refresh_traffic(root: &Path, now: u64, view: &mut Overview) {
     let root = root.canonicalize().unwrap_or_else(|_| root.into());
     let workers: WorkerTraffic = read(&root, "worker-utilization.json").unwrap_or_default();
-    project_traffic(&workers, now, view);
+    project_traffic(&workers, now, view, 300);
     let mut dpdk = crate::dpdk::project(
         &workers.dpdk_fields,
         workers.version,
@@ -220,7 +234,7 @@ struct WorkerTraffic {
     dpdk_fields: crate::dpdk::Analytics,
 }
 
-fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview) {
+fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview, limit: usize) {
     view.traffic_stale = true;
     if let Some(c) = &mut view.classification {
         c.mapped.stale = true;
@@ -231,12 +245,13 @@ fn project_traffic(workers: &WorkerTraffic, now: u64, view: &mut Overview) {
             &workers.dpdk_fields,
             workers.stale == Some(false) && fresh(workers.updated.unwrap_or(0), now, 6),
             now,
+            limit,
         ));
         let items = &workers.traffic;
         let mut samples = items
             .iter()
             .rev()
-            .take(300)
+            .take(limit)
             .filter_map(|v| {
                 let at = v["at"].as_u64().filter(|at| *at > 0 && *at <= now)?;
                 let point = serde_json::from_value::<Point>(v.clone()).ok().filter(|p| {

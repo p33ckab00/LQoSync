@@ -4,7 +4,7 @@ use crate::{
     traffic_plot as plot,
 };
 use leptos::prelude::*;
-use web_contract::{Overview, Point, WanCapacity};
+use web_contract::{Overview, Point, TrafficWindow, WanCapacity};
 
 const NAMES: [&str; 3] = ["Actual", "Mapped", "Unmapped"];
 const CLASSES: [&str; 3] = ["actual", "mapped", "unmapped"];
@@ -15,6 +15,8 @@ struct Model {
     capacity: Option<WanCapacity>,
     capped: bool,
     times: Vec<u64>,
+    /// The largest spacing that still joins two samples: 3 s live, two buckets in a history window.
+    step: u64,
 }
 impl Model {
     fn read(view: Option<&Overview>) -> Self {
@@ -31,6 +33,7 @@ impl Model {
             capacity: v.wan_capacity.clone(),
             capped: false,
             times: Vec::new(),
+            step: 3,
         };
         if let Some(c) = &v.classification {
             for (i, s) in [(1, &c.mapped), (2, &c.unmapped)] {
@@ -45,11 +48,36 @@ impl Model {
             }
             model.capped = c.history_capped;
         }
-        model.times = model.series.iter().flatten().map(|p| p.at).collect();
-        model.times.sort_unstable();
-        model.times.dedup();
+        model.index();
         model
     }
+    /// Use a bucketed history window in place of the live samples. Source states stay live.
+    fn with_window(mut self, w: Option<&TrafficWindow>) -> Self {
+        self.series = w
+            .map(|w| [w.actual.clone(), w.mapped.clone(), w.unmapped.clone()])
+            .unwrap_or_default();
+        self.capped = false;
+        self.step = w.map_or(3, |w| w.bucket_secs.saturating_mul(2));
+        self.index();
+        self
+    }
+    fn index(&mut self) {
+        self.times = self.series.iter().flatten().map(|p| p.at).collect();
+        self.times.sort_unstable();
+        self.times.dedup();
+    }
+}
+const RANGES: [&str; 4] = ["Recent", "1h", "6h", "24h"];
+/// Read one history window. A failed read keeps the previous window and its time.
+async fn fetch_window(window: &'static str) -> Option<TrafficWindow> {
+    let response = gloo_net::http::Request::get(&format!("/api/v1/traffic?window={window}"))
+        .send()
+        .await
+        .ok()?;
+    if !response.ok() {
+        return None;
+    }
+    response.json::<TrafficWindow>().await.ok()
 }
 #[derive(Clone, Default, PartialEq)]
 struct Geometry {
@@ -62,7 +90,45 @@ struct Geometry {
 
 #[component]
 pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
-    let model = Memo::new(move |_| data.with(|d| Model::read(d.as_ref())));
+    let range = RwSignal::new("Recent");
+    let history = RwSignal::new(None::<TrafficWindow>);
+    let model = Memo::new(move |_| {
+        let live = data.with(|d| Model::read(d.as_ref()));
+        if range.get() == "Recent" {
+            live
+        } else {
+            history.with(|w| live.with_window(w.as_ref()))
+        }
+    });
+    // History windows refresh every 15 s while the page is visible. A newer selection wins.
+    let generation = StoredValue::new(0u32);
+    let load = move |window: &'static str| {
+        generation.update_value(|g| *g = g.wrapping_add(1));
+        let mine = generation.get_value();
+        leptos::task::spawn_local(async move {
+            if let Some(w) = fetch_window(window).await
+                && generation.get_value() == mine
+                && range.get_untracked() == window
+            {
+                history.set(Some(w));
+            }
+        });
+    };
+    let refresh = StoredValue::new_local(Some(gloo_timers::callback::Interval::new(
+        15_000,
+        move || {
+            let window = range.get_untracked();
+            let hidden = web_sys::window()
+                .and_then(|w| w.document())
+                .is_some_and(|d| d.hidden());
+            if window != "Recent" && !hidden {
+                load(window);
+            }
+        },
+    )));
+    on_cleanup(move || {
+        refresh.try_update_value(|t| *t = None);
+    });
     let enabled = RwSignal::new([true; 3]);
     let selected = RwSignal::new(None::<u64>);
     let pinned = RwSignal::new(false);
@@ -98,7 +164,7 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
                 paths: std::array::from_fn(|i| {
                     std::array::from_fn(|d| {
                         if visible[i] {
-                            plot::path(&m.series[i], d == 0, max[d], false, domain)
+                            plot::path(&m.series[i], d == 0, max[d], false, domain, m.step)
                         } else {
                             String::new()
                         }
@@ -106,7 +172,7 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
                 }),
                 areas: std::array::from_fn(|d| {
                     if visible[0] {
-                        plot::path(&m.series[0], d == 0, max[d], true, domain)
+                        plot::path(&m.series[0], d == 0, max[d], true, domain, m.step)
                     } else {
                         String::new()
                     }
@@ -134,7 +200,10 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
       <section class="panel traffic-panel" aria-labelledby="aggregate-traffic-title">
         <div class="panel-title"><h2 id="aggregate-traffic-title">"Traffic (Aggregate)"</h2><span class="chip neutral">{move||model.with(|m|m.states[0])}</span></div>
         <Show when=move||model.with(|m|m.states[0]=="Stale" && !m.series[0].is_empty())><p class="sample-note">"Last known samples"</p></Show>
-        <div class="traffic-toolbar"><div class="range-options" role="group" aria-label="Traffic window"><span class="range-selected">"Recent"</span>{["1h","6h","24h"].into_iter().map(|label|view!{<button disabled title="This history window is not available">{label}</button>}).collect_view()}</div>
+        <div class="traffic-toolbar"><div class="range-options" role="group" aria-label="Traffic window">{RANGES.into_iter().map(|label|view!{
+            <button type="button" class:range-selected=move||range.get()==label aria-pressed=move||(range.get()==label).to_string()
+              on:click=move|_|{if range.get_untracked()!=label{selected.set(None);pinned.set(false);history.set(None);range.set(label);if label!="Recent"{load(label);}}}>{label}</button>
+          }).collect_view()}</div>
           <button class="traffic-live" on:click=move |_|{selected.set(None);pinned.set(false);} aria-pressed=move||(!pinned.get()).to_string()>"Live"</button>
         </div>
         <div class="traffic-source-controls" role="group" aria-label="Traffic sources">
@@ -156,7 +225,7 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
             },
             None=>"WAN capacity unavailable · axes use observed samples.".into()
         })}</p>
-        <Show when=move||model.with(|m|m.series.iter().any(|s|!s.is_empty())) fallback=||view!{<div class="chart-empty">"No traffic samples available."<span>"Waiting for published traffic observations."</span></div>}>
+        <Show when=move||model.with(|m|m.series.iter().any(|s|!s.is_empty())) fallback=move||if range.get()=="Recent"{view!{<div class="chart-empty">"No traffic samples available."<span>"Waiting for published traffic observations."</span></div>}.into_any()}else{view!{<div class="chart-empty">{move||format!("No {} history yet.",range.get())}<span>"The web service collects this history while it runs. It starts with the last hour from the core."</span></div>}.into_any()}>
           <div class="chart-frame mirrored-chart" class:rainbow=move||model.with(|m|m.capacity.is_some())>
             <div class="y-axis" aria-hidden="true">{move||geometry.with(|g|view!{<span>{format!("↓ {}",axis_rate(g.max[0]))}</span><span>{axis_rate(g.max[0]/2.0)}</span><span>"0"</span><span>{axis_rate(g.max[1]/2.0)}</span><span>{format!("↑ {}",axis_rate(g.max[1]))}</span>})}</div>
             <div class="chart-data">

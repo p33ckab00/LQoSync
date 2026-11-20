@@ -47,7 +47,7 @@ const assert = require('node:assert/strict');
   assert.equal(await ipoe.locator('strong').innerText(),'1');
   assert.equal(await page.getByRole('heading',{name:'WAN Allocation Distribution',exact:true}).count(),1);
   assert.equal(await page.getByRole('heading',{name:'Upstream Health & Allocation',exact:true}).count(),1);
-  assert.equal(await page.getByRole('button',{name:'24h',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'24h',exact:true}).isDisabled(),false);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:'/tmp/lqosync-dashboard-mobile.png',fullPage:true});
   const cookies = await page.context().cookies();
