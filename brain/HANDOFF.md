@@ -8,6 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T21:02:39+08:00 (Asia/Shanghai) — Diagnostics ticker
+
+- Goal: show synchronization and component health as a stock-exchange-style banner.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `45dad14`.
+- Changed: Rust diagnostics banner, Dashboard wrapper, CSS, focused browser test, frontend docs/screenshots, and brain notes.
+- Behavior: stable transform track, live values, visible keyboard Pause/Resume, hover/focus pause, static reduced motion, and full static details. Hide the duplicate from assistive technology.
+- Checks: release Wasm, Clippy with warnings denied, Rust 1.89, formatting, whitespace, focused browser checks, and existing sign-in/Dashboard smoke passed. Browser checks include duplicate names, long labels, stale evidence, themes, and 768/320px widths.
+- Core, gateway, and TUI code did not change. The core test suite was not repeated.
+- Evidence: `docs/frontend/evidence/diagnostics-ticker`. Design/atomic plan: `docs/frontend/DIAGNOSTICS_TICKER.md`.
+- Next runtime step: operator runs `sudo tools/frontend/install.sh`. This session does not replace installed files or restart production services.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T20:43:13+08:00 (Asia/Shanghai) — Live traffic and WAN capacity
 
 - Goal: adapt LibreQoS live cadence and implement a rainbow chart with configured WAN capacity limits.

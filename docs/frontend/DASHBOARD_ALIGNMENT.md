@@ -32,6 +32,7 @@ The next row has a wide traffic panel and a WAN distribution panel.
 
 The upstream health and allocation table spans the next row.
 Service diagnostics follow below this table.
+The [diagnostics banner](DIAGNOSTICS_TICKER.md) scrolls live states and retains full static details.
 The shared header retains Light, Dark, and System plus account and sign-out controls.
 
 ## Backend boundaries

@@ -18,6 +18,7 @@ The [Dashboard alignment contract](DASHBOARD_ALIGNMENT.md) makes the approved pi
 Use the Vercel and Google frontend skills for each frontend change.
 See [current Dashboard evidence](evidence/live-traffic/README.md) for implementation checks and known backend gaps.
 See [live traffic](LIVE_TRAFFIC.md) for the one-second stream and WAN capacity color rules.
+See the [diagnostics banner](DIAGNOSTICS_TICKER.md) for live status motion, pause controls, and reduced motion.
 
 ## Read order
 

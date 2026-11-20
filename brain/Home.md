@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-diagnostics-ticker]] — Live service banner with Pause/Resume and static reduced motion
+
 - [[2026-11-20-live-traffic-capacity]] — One-second Rust stream and rainbow chart with configured WAN capacity limits
 
 - [[2026-11-20-dashboard-reference-alignment]] — Dashboard follows the approved picture and written corrections; Vercel and Google skills are required

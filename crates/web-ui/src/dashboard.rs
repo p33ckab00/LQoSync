@@ -34,7 +34,7 @@ fn axis_rate(value: f64) -> String {
         rate(value)
     }
 }
-fn phase(value: &str) -> String {
+pub(crate) fn phase(value: &str) -> String {
     match value {
         "IMPORT_CONFIRMED" => "Imported".into(),
         "Applied" | "APPLIED" => "Applied".into(),
@@ -42,7 +42,7 @@ fn phase(value: &str) -> String {
         _ => value.replace('_', " "),
     }
 }
-fn badge(state: &str) -> &'static str {
+pub(crate) fn badge(state: &str) -> &'static str {
     match state.to_ascii_lowercase().as_str() {
         "healthy" | "applied" | "import_confirmed" => "good",
         "failed" | "applyfailed" | "writefailed" => "bad",
@@ -238,10 +238,13 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <WanDistribution/>
       </div>
       <Upstream/>
-      <details class="panel diagnostics"><summary>"Service diagnostics"<span>"Synchronization and component health"</span></summary>
+      <section class="panel service-diagnostics" aria-labelledby="service-diagnostics-title">
+      <crate::diagnostics_ticker::DiagnosticsTicker data/>
+      <details class="diagnostics"><summary>"View diagnostics"<span>"Static status details"</span></summary>
         <dl><dt>"Service health"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.health.clone()))}</dd><dt>"Runtime mode"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.mode.clone()))}</dd><dt>"Output target"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.target.clone()))}</dd><dt>"Publication phase"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.publication.clone()))}</dd><dt>"Last cycle"</dt><dd>{move||data.with(|d|d.as_ref().and_then(|v|v.cycle_ms).map(|v|format!("{v} ms")).unwrap_or("Unknown".into()))}</dd></dl>
         <p class="panel-note">"A written input or confirmed import does not prove dataplane application."</p>
         <h2>"System health"</h2><div class="health-grid">{move||data.with(|d|d.as_ref().map(|v|v.components.iter().map(|c|view!{<div class="health-item"><span>{c.name.replace('_'," ")}</span><span class=format!("chip {}",badge(&c.state))>{c.state.replace('_'," ")}</span></div>}).collect_view()))}</div>
       </details>
+      </section>
     }
 }
