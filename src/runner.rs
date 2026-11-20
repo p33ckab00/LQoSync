@@ -510,7 +510,7 @@ where
 
     /// Install configured migration policy. Keep runtime activation as a separate action.
     /// The current live pair must still match the fresh manifest. No shaping output is written.
-    pub fn enroll_topology(
+    pub(crate) fn enroll_topology(
         &mut self,
         pair: &crate::topology_manager::publication::PreparedPair,
         manifest: &crate::topology_manager::migration::MigrationManifest,

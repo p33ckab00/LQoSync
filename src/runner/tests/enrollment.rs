@@ -752,11 +752,34 @@ mod reenroll {
         r.lock().unwrap();
         // A plan outside the legacy configuration. Legacy parity does not cover an unused plan.
         r.api_plan_create(2, "50M", 50, 50).unwrap();
+        let before = r.api_registry().unwrap().unwrap();
         change_circuit_id(&e);
         assert_eq!(replace_flow(&mut r, true).await.unwrap(), 4);
         let doc = r.api_registry().unwrap().unwrap();
         let catalog = doc.catalog.as_ref().unwrap();
         assert!(catalog.profiles.iter().any(|p| p.id == "plan-1"));
+        assert_eq!(doc.subscribers, before.subscribers);
+        assert_eq!(doc.source_settings, before.source_settings);
+        assert!(doc.next_id >= before.next_id);
+    }
+
+    #[tokio::test]
+    async fn replace_refuses_a_changed_static_source() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        crate::files::write_secret(
+            &e.state.join("topology-manager/static-input.json"),
+            b"changed",
+        )
+        .unwrap();
+        change_circuit_id(&e);
+        let err = replace_flow(&mut r, true).await.unwrap_err();
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("re-enrollment requires the same static source as the first enrollment"),
+            "{text}"
+        );
+        assert_eq!(revision(&r), 2);
     }
 
     #[tokio::test]

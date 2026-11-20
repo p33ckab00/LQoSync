@@ -128,7 +128,7 @@ Use this procedure when a legacy Circuit ID changed after the enrollment and bef
 For example, a client got a new random Circuit ID.
 The new ID has no alias, so a normal `enroll` fails with "legacy ownership is already configured".
 
-The `--replace` option makes a new mapping and replaces the aliases. The registry keeps all subscribers, plans, and pins. It also keeps the catalog and the source settings.
+The `--replace` option makes a new mapping and replaces the aliases. The registry keeps the subscribers, the catalog, and the source settings.
 The static source must be the same as at the first enrollment. The command refuses if it changed.
 
 1. Stop the service, as for the first enrollment:
@@ -159,7 +159,14 @@ The static source must be the same as at the first enrollment. The command refus
 
 5. Start the service, as in step 8 of the procedure.
 
-A plan that a subscriber uses can cause a parity conflict. Remove the plan from that subscriber before you enroll again.
+Any edit that changes the output compared with the legacy pair blocks `--replace`. Examples are a plan or a pin that you set on a subscriber.
+The command then prints a parity error, for example `legacy managed policy parity conflict`, `ChangedRow`, `ChangedNetwork`, `BaseAuthority`, or `SubscriberBounds`.
+If you see one of these errors, do these steps:
+
+1. Write down each plan and pin assignment.
+2. Remove the assignments.
+3. Enroll again with `--replace`.
+4. Set the assignments again.
 
 > **NOTE:** After activation, the manager keeps stable IDs. Then `--replace` fails with the error text "the Topology Manager is active; re-enrollment is not allowed".
 > `--replace` also fails on a registry that is not enrolled.

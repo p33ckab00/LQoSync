@@ -117,6 +117,10 @@ pub fn stage(store: &mut RegistryStore, proposal: &StaticAdoption) -> anyhow::Re
         && !absent(&installed)?
         && super::static_input::read(&installed)? == source;
     ensure!(
+        base.export_ownership.is_none() || absent(&installed)? || same_source,
+        "re-enrollment requires the same static source as the first enrollment"
+    );
+    ensure!(
         absent(&dir.join(OWNER))? && (absent(&installed)? || same_source),
         "first adoption requires an absent runtime owner and static source"
     );
