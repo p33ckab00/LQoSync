@@ -34,6 +34,36 @@ pub struct Dpdk {
     pub pressure: Vec<Gauge>,
     pub ports: Vec<Port>,
     pub details_capped: bool,
+    /// Typed instruments for the DPDK health console. Every field is unknown until the source has it.
+    #[serde(default)]
+    pub console: Console,
+}
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Console {
+    pub pool_free: Option<u64>,
+    pub pool_total: Option<u64>,
+    pub ring_count: Option<u64>,
+    pub ring_used: Option<u64>,
+    pub ring_capacity: Option<u64>,
+    pub rings_over_75: Option<u64>,
+    pub rx_nombuf_per_sample: Option<u64>,
+    pub pool_drops_per_sample: Option<u64>,
+    /// `CLEAR`, `ALERT`, or `UNKNOWN`.
+    pub pressure: Option<String>,
+    pub queue_drops_total: Option<u64>,
+    pub aqm_marks_total: Option<u64>,
+    pub backlog_bytes: Option<u64>,
+    pub queue_drops_per_sample: Option<u64>,
+    pub aqm_marks_per_sample: Option<u64>,
+    pub status: Option<String>,
+    pub version: Option<String>,
+    pub uptime_ms: Option<u64>,
+    pub workers: Option<u64>,
+    pub missing_rollups: Option<u64>,
+    pub oldest_rollup_ms: Option<u64>,
+    pub aqm_degraded_workers: Option<u64>,
+    pub classification_empty: Option<bool>,
+    pub degraded: Vec<String>,
 }
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Worker {

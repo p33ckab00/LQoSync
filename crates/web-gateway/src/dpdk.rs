@@ -2,7 +2,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 use std::{collections::HashSet, path::Path};
-use web_contract::dpdk::{Dpdk, Gauge, Phase, Port, Reading, Source, Worker};
+use web_contract::dpdk::{Console, Dpdk, Gauge, Phase, Port, Reading, Source, Worker};
 
 #[derive(Default, Deserialize)]
 pub(crate) struct Analytics {
@@ -193,7 +193,7 @@ pub(crate) fn project(
     }
     if version == Some(1) {
         project_pressure(a, &mut d);
-        project_health(&a.health, now, &mut d.health);
+        project_health(&a.health, now, &mut d.health, &mut d.console);
         counters(
             &mut d.analytics.details,
             &a.queue["totals"],
@@ -203,6 +203,10 @@ pub(crate) fn project(
                 ("backlog_bytes", "Queue backlog (bytes)"),
             ],
         );
+        let totals = &a.queue["totals"];
+        d.console.queue_drops_total = totals["drop_pkts"].as_u64();
+        d.console.aqm_marks_total = totals["aqm_marks"].as_u64();
+        d.console.backlog_bytes = totals["backlog_bytes"].as_u64();
         for (key, total, label) in [
             ("drop_delta", "drop_pkts", "Queue drops/sample"),
             ("aqm_delta", "aqm_marks", "AQM marks/sample"),
@@ -213,6 +217,11 @@ pub(crate) fn project(
                     .is_some_and(|total| *n <= total)
             }) {
                 d.analytics.details.push(reading(label, delta));
+                if key == "drop_delta" {
+                    d.console.queue_drops_per_sample = Some(delta);
+                } else {
+                    d.console.aqm_marks_per_sample = Some(delta);
+                }
             }
         }
         for (name, series) in [
@@ -261,6 +270,7 @@ fn project_pressure(a: &Analytics, d: &mut Dpdk) {
         d.analytics
             .details
             .push(reading("Buffer/ring pressure", "UNKNOWN"));
+        d.console.pressure = Some("UNKNOWN".into());
         return;
     }
 
@@ -298,6 +308,16 @@ fn project_pressure(a: &Analytics, d: &mut Dpdk) {
             ("ring_capacity", "Ring capacity"),
         ],
     );
+    if let Some((total, free)) = pool {
+        d.console.pool_total = Some(total);
+        d.console.pool_free = Some(free);
+    }
+    d.console.ring_count = diag["ring_count"].as_u64();
+    d.console.ring_used = diag["ring_used"].as_u64();
+    d.console.ring_capacity = diag["ring_capacity"].as_u64();
+    d.console.rings_over_75 = diag["rings_over_75"].as_u64();
+    d.console.rx_nombuf_per_sample = p["rx_nombuf_delta"].as_u64();
+    d.console.pool_drops_per_sample = p["pool_drop_delta"].as_u64();
     counters(
         &mut d.analytics.details,
         p,
@@ -322,20 +342,21 @@ fn project_pressure(a: &Analytics, d: &mut Dpdk) {
         && diag["rings_over_75"].as_u64().is_some()
         && p["rx_nombuf_delta"].as_u64().is_some()
         && p["pool_drop_delta"].as_u64().is_some();
-    d.analytics.details.push(reading(
-        "Buffer/ring pressure",
-        if d.analytics.stale {
-            "UNKNOWN"
-        } else if alert {
-            "ALERT"
-        } else if complete {
-            "CLEAR"
-        } else {
-            "UNKNOWN"
-        },
-    ));
+    let verdict = if d.analytics.stale {
+        "UNKNOWN"
+    } else if alert {
+        "ALERT"
+    } else if complete {
+        "CLEAR"
+    } else {
+        "UNKNOWN"
+    };
+    d.console.pressure = Some(verdict.into());
+    d.analytics
+        .details
+        .push(reading("Buffer/ring pressure", verdict));
 }
-fn project_health(v: &Value, now: u64, out: &mut Source) {
+fn project_health(v: &Value, now: u64, out: &mut Source, console: &mut Console) {
     let s = &v["summary"];
     let workers = s["worker_count"].as_u64().filter(|n| *n <= 4096);
     let valid = text(&s["status"], 32).is_some()
@@ -351,6 +372,14 @@ fn project_health(v: &Value, now: u64, out: &mut Source) {
         out.state = "UNKNOWN".into();
         return;
     }
+    console.status = text(&s["status"], 32);
+    console.version = text(&s["version"], 128);
+    console.uptime_ms = s["uptime_ms"].as_u64();
+    console.workers = workers;
+    console.missing_rollups = s["missing_rollups"].as_u64();
+    console.oldest_rollup_ms = s["max_rollup_age_ms"].as_u64();
+    console.aqm_degraded_workers = s["aqm_degraded_workers"].as_u64();
+    console.classification_empty = s["classification_empty"].as_bool();
     out.state = if out.live(now, 15) {
         text(&s["status"], 32).unwrap()
     } else {
@@ -388,6 +417,7 @@ fn project_health(v: &Value, now: u64, out: &mut Source) {
             .collect::<Option<Vec<_>>>()
     {
         for name in names {
+            console.degraded.push(name.clone());
             out.details.push(reading("Degraded subsystem", name));
         }
     }

@@ -98,20 +98,6 @@ pub(crate) fn DpdkCard(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) ->
         <div class="dpdk-sources">{[("analytics","Workers",6),("health","Bridge health",15),("nic","NIC telemetry",15)].into_iter().map(|(kind,label,age)|view!{
           <span><b>{label}</b>{move||snapshot.with(|d|d.as_ref().map(|d|stamp(&source(d,kind),server_clock.get(),age)).unwrap_or("Unavailable".into()))}</span>
         }).collect_view()}</div>
-        <div class="dpdk-grid">
-          // Per-worker utilization moved to the Worker ring in the dataplane group.
-          <div class="dpdk-pressure"><h3>"Buffers & queues"</h3>
-            {move||snapshot.with(|d|d.as_ref().map(|d|d.pressure.iter().map(|g|{
-              let percent=(u128::from(g.used)*1_000_000/u128::from(g.total.max(1))) as u64;
-              view!{<div class="dpdk-gauge"><div><span>{g.label.clone()}</span><b>{pct(Some(percent))}</b></div>
-                <meter min="0" max="100" value=percent as f64/10000.0 aria-label=format!("{} percent",g.label)></meter>
-                <p class="panel-note">{format!("{} / {}",g.used,g.total)}</p>
-              </div>}
-            }).collect_view()))}
-            <p class="panel-note">{move||snapshot.with(|d|d.as_ref().filter(|d|!d.pressure.is_empty()).map(|_|"Pressure values use the worker source age.").unwrap_or("Buffer/ring diagnostics unavailable."))}</p>
-            {move||snapshot.with(|d|d.as_ref().map(|d|rows(d.analytics.details.iter().filter(|r|matches!(r.label.as_str(),"Buffer/ring pressure"|"Queue drops/sample"|"AQM marks/sample"|"Queue backlog (bytes)")).cloned().collect())))}
-          </div>
-        </div>
         <div class="dpdk-trend"><div><h3>"Recent mean worker busy"</h3><span class="panel-note">"Browser session · up to 60 distinct samples · fixed 0–100%"</span></div>
           <Show when=move||history.with(|h|h.points.len()>=2) fallback=||view!{<p class="dpdk-wait">"Waiting for two fresh worker samples."</p>}>
             <div class="dpdk-trend-frame"><div class="dpdk-trend-axis"><span>"100%"</span><span>"50%"</span><span>"0%"</span></div>

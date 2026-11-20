@@ -329,3 +329,49 @@ fn worker_phases_are_typed_in_producer_order() {
             .is_empty()
     );
 }
+#[test]
+fn the_console_carries_typed_buffer_queue_and_bridge_instruments() {
+    let dir = tempfile::tempdir().unwrap();
+    save(dir.path(), "worker-utilization.json", &analytics());
+    let c = project(dir.path(), 1000).dpdk.unwrap().console;
+    assert_eq!((c.pool_free, c.pool_total), (Some(50), Some(100)));
+    assert_eq!(
+        (c.ring_used, c.ring_capacity, c.ring_count, c.rings_over_75),
+        (Some(75), Some(100), Some(1), Some(1))
+    );
+    assert_eq!(
+        (c.rx_nombuf_per_sample, c.pool_drops_per_sample),
+        (Some(0), Some(0))
+    );
+    // One ring above 75 % is an alert.
+    assert_eq!(c.pressure.as_deref(), Some("ALERT"));
+    assert_eq!(
+        (c.queue_drops_total, c.aqm_marks_total, c.backlog_bytes),
+        (Some(0), Some(10), Some(2048))
+    );
+    assert_eq!(
+        (c.queue_drops_per_sample, c.aqm_marks_per_sample),
+        (Some(0), Some(2))
+    );
+    assert_eq!(
+        (c.status.as_deref(), c.version.as_deref()),
+        (Some("degraded"), Some("fixture"))
+    );
+    assert_eq!(
+        (
+            c.uptime_ms,
+            c.workers,
+            c.missing_rollups,
+            c.aqm_degraded_workers
+        ),
+        (Some(10000), Some(2), Some(0), Some(1))
+    );
+    assert_eq!(c.classification_empty, Some(false));
+    assert_eq!(c.degraded, ["aqm"]);
+    // Without a cache, every instrument stays unknown.
+    let empty = tempfile::tempdir().unwrap();
+    assert_eq!(
+        project(empty.path(), 1000).dpdk.unwrap().console,
+        Default::default()
+    );
+}
