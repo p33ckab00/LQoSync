@@ -94,6 +94,9 @@ fn ports(value: Value) -> anyhow::Result<Vec<u16>> {
     Ok(all)
 }
 pub async fn sample(path: &Path) -> anyhow::Result<Snapshot> {
+    sample_with_identity(path, true).await
+}
+pub(super) async fn sample_with_identity(path: &Path, identity: bool) -> anyhow::Result<Snapshot> {
     let started = std::time::Instant::now();
     tokio::time::timeout(std::time::Duration::from_secs(3), async {
         let fd = socket::socket(
@@ -175,7 +178,13 @@ pub async fn sample(path: &Path) -> anyhow::Result<Snapshot> {
                 );
             }
         }
-        if available.iter().any(|s| s == "/ethdev/module_eeprom") {
+        let captured_at_millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            .try_into()
+            .unwrap_or(u64::MAX);
+        if identity && available.iter().any(|s| s == "/ethdev/module_eeprom") {
             let remaining = std::time::Duration::from_secs(3)
                 .saturating_sub(started.elapsed() + std::time::Duration::from_millis(50));
             let deadline =
@@ -200,6 +209,7 @@ pub async fn sample(path: &Path) -> anyhow::Result<Snapshot> {
             }
         }
         Ok(Snapshot {
+            captured_at_millis,
             pid: peer.pid() as u32,
             version,
             ports: result,

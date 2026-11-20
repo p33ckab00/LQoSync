@@ -171,8 +171,11 @@ systemctl status lqosync3 lqosync3-web-broker lqosync3-web
 ```
 
 The implementation session prepares the binaries and assets. It does not execute these production changes.
-Allow one NIC sample and the next full web projection after the restart.
-The normal NIC cadence is ten seconds. The full web projection cadence is five seconds.
+Allow one NIC baseline and the next counter sample after the restart.
+NIC counters and web traffic updates now target one second.
+The full service summary still refreshes every five seconds.
+Hardware identity refreshes every thirty seconds. Failed NIC reads retry after ten seconds.
+The [live NIC diagnostics panel](NIC_LIVE_DIAGNOSTICS.md) needs this core update for the faster counter cadence.
 Unknown hardware remains generic when the driver cannot supply connector evidence.
 Roles remain unknown when no explicit LibreQoS interface mapping matches.
 The core can use `/usr/sbin/ethtool` for optional kernel module/media evidence.

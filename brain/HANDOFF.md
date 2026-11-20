@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T00:33:04+08:00 (Asia/Shanghai) — Live NIC diagnostics
+
+- Goal: align NIC activity with traffic updates and add the approved glass diagnostics panel.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Base HEAD: `8680531`.
+- Changed: core cadence, optional identity cache/probes, counter timestamps, broker NIC refresh, Rust diagnostics/interaction, fixtures/checks, docs, and evidence.
+- Counter cadence: one-second target. Identity refresh: thirty seconds. Failure retry: ten seconds. Independent producer timestamps remain explicit.
+- Panel: hover/keyboard/tap, measured rates and bounded trends, health totals/deltas, optional composition, and bounded published counters.
+- Fixes from checks: Escape without focus, a trend clock-anchor race, and counter timing before optional hardware probes.
+- Checks: eighteen core NIC tests, nine UI tests, web integration tests, five browser suites, core/web releases, Wasm Clippy, Rust 1.89, formatting, whitespace, and screenshots.
+- Evidence: `docs/frontend/evidence/nic-live-hud/README.md`. Plan: `docs/frontend/plans/2026-11-21-nic-live-hud.md`.
+- Next action: install core and web artifacts with `docs/frontend/DEPLOYMENT.md#nic-faceplate-update`, then refresh the browser.
+- Production services did not change. Actual host connector verification remains an operator check after installation.
+- Preserve the unrelated November 16 notes and report.
+
 ## 2026-11-21T00:12:08+08:00 (Asia/Shanghai) — NIC summary placement
 
 - Goal: move the NIC SVG faceplate beside PPPoE and LibreQoS in the service summary.

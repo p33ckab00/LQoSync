@@ -22,7 +22,9 @@ Each port uses this order:
 RJ45, SFP-family, QSFP-family, and unknown connectors have separate artwork.
 SFP/SFP+/SFP28 share their cage geometry. QSFP/QSFP+/QSFP28 share their cage geometry.
 The accessible description retains the exact reported type and confidence.
-Hover exposes the native identity tooltip. Keyboard focus supplies the same accessible label.
+Hover opens the glass diagnostics panel after 180 ms.
+Enter, Space, or tap opens a persistent panel. Escape or Close dismisses it.
+The panel shows identity and confidence. The port retains an accessible identity label.
 
 The current diagnostics keep raw NIC counters.
 
@@ -91,8 +93,9 @@ The sample tracker waits for the server-time freshness check before it consumes 
 This prevents a clock-anchor update from suppressing a valid pulse.
 A replacement port gets a new component identity.
 
-The NIC collector still polls every ten seconds.
-The broker projects NIC evidence during its five-second full overview cycle.
+The NIC collector targets one counter sample each second.
+The broker reads NIC evidence during the same one-second refresh as aggregate and classification traffic.
+Hardware identity refreshes every thirty seconds. Failed counter reads retry after ten seconds.
 The LEDs therefore report sampled interval activity, not individual packets or subsecond traffic timing.
 Do not use an endless animation to imply continuous traffic.
 Reduced Motion uses a static color for activity in the latest valid interval.
@@ -102,7 +105,8 @@ Stale, down, and reset states suppress activity in both motion modes.
 ## Validation and deployment
 
 See [hardware evidence](evidence/nic-faceplate/README.md) and [summary placement evidence](evidence/nic-summary/README.md).
-See [the atomic plan](plans/2026-11-20-nic-faceplate.md).
+See [the original atomic plan](plans/2026-11-20-nic-faceplate.md) and [the live HUD plan](plans/2026-11-21-nic-live-hud.md).
+See [live diagnostics](NIC_LIVE_DIAGNOSTICS.md) for the current panel and cadence contract.
 The design uses the current Vercel frontend-design and Google modern-web-guidance workflows.
 
 Full hardware detection needs the updated core collector and web packages.

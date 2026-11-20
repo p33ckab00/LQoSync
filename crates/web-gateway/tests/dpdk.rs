@@ -116,12 +116,35 @@ fn worker_refresh_does_not_replace_independent_nic_evidence() {
     assert_eq!(d.nic.updated, Some(990));
     assert_eq!(d.ports.len(), 1);
     let mut v = project(dir.path(), 1000);
-    v.dpdk.as_mut().unwrap().details_capped = true;
+    // Cap evidence belongs to the current source, not a previous projection.
+    let mut capped = nic();
+    capped["ports_capped"] = json!(true);
+    save(dir.path(), "nic-telemetry.json", &capped);
     refresh_traffic(dir.path(), 1006, &mut v);
     let d = v.dpdk.unwrap();
     assert!(d.nic.stale);
     assert_eq!(d.nic.state, "STALE");
     assert!(d.details_capped);
+}
+#[test]
+fn one_second_refresh_reads_new_nic_counters_with_traffic() {
+    let dir = tempfile::tempdir().unwrap();
+    save(dir.path(), "worker-utilization.json", &analytics());
+    save(dir.path(), "nic-telemetry.json", &nic());
+    let mut view = project(dir.path(), 1000);
+    let mut n = nic();
+    n["updated"] = json!(1001);
+    n["interval_ms"] = json!(1000);
+    n["ports"][0]["stats"]["ipackets"] = json!(42);
+    n["ports"][0]["deltas"]["ipackets"] = json!(7);
+    save(dir.path(), "nic-telemetry.json", &n);
+    refresh_traffic(dir.path(), 1001, &mut view);
+    let d = view.dpdk.unwrap();
+    assert_eq!(d.sampled_at, 1001);
+    assert_eq!(d.nic.updated, Some(1001));
+    assert_eq!(d.ports[0].activity.rx_packets, Some(7));
+    assert_eq!(d.ports[0].activity.interval_ms, Some(1000));
+    assert!(d.nic.live(1001, 15));
 }
 #[test]
 fn worker_and_detail_bounds_fit_the_broker_envelope() {

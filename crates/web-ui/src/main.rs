@@ -25,3 +25,8 @@ fn main() {
 mod nic_activity;
 #[cfg(target_arch = "wasm32")]
 mod nic_ports;
+
+#[cfg(any(target_arch = "wasm32", test))]
+mod nic_diagnostics;
+#[cfg(target_arch = "wasm32")]
+mod nic_hud;

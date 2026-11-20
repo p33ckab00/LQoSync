@@ -1,6 +1,7 @@
 use super::*;
 fn source(pid: u32, count: u64) -> Snapshot {
     Snapshot {
+        captured_at_millis: 0,
         pid,
         version: "DPDK fixture".into(),
         ports_capped: false,
@@ -469,4 +470,53 @@ async fn optional_module_identity_keeps_serials_private_and_counters_available()
             "/ethdev/module_eeprom,0"
         );
     }
+}
+
+#[tokio::test]
+async fn fast_counter_sample_skips_optional_module_queries() {
+    let (dir, thread) = server(|command| {
+        let mut value = response(command);
+        if command == "/" {
+            value
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!("/ethdev/module_eeprom"));
+        }
+        assert!(!command.starts_with("/ethdev/module_eeprom"));
+        value
+    });
+    let snapshot = ipc::sample_with_identity(&dir.path().join("telemetry"), false)
+        .await
+        .unwrap();
+    assert!(!snapshot.ports[0].stats.is_empty());
+    assert!(snapshot.ports[0].identity.connector.is_none());
+    assert!(
+        !thread
+            .join()
+            .unwrap()
+            .iter()
+            .any(|c| c.starts_with("/ethdev/module_eeprom"))
+    );
+}
+#[test]
+fn one_second_samples_use_the_measured_interval() {
+    let mut tracker = Tracker::default();
+    tracker.record(Ok(source(1, 100)), 100_000);
+    tracker.record(Ok(source(1, 110)), 101_000);
+    assert_eq!(POLL_SECS, 1);
+    assert_eq!(tracker.report.interval_ms, Some(1000));
+    assert_eq!(tracker.report.ports[0].deltas["opackets"], 20);
+}
+
+#[test]
+fn hardware_probe_delays_do_not_distort_counter_rates() {
+    let mut t = Tracker::default();
+    let mut first = source(1, 10);
+    first.captured_at_millis = 100_000;
+    t.record(Ok(first), 105_000);
+    let mut second = source(1, 20);
+    second.captured_at_millis = 101_000;
+    t.record(Ok(second), 108_000);
+    assert_eq!(t.report.updated, 101);
+    assert_eq!(t.report.interval_ms, Some(1000));
 }

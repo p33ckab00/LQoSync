@@ -195,10 +195,6 @@ pub fn refresh_traffic(root: &Path, now: u64, view: &mut Overview) {
     let root = root.canonicalize().unwrap_or_else(|_| root.into());
     let workers: WorkerTraffic = read(&root, "worker-utilization.json").unwrap_or_default();
     project_traffic(&workers, now, view);
-    let nic = view
-        .dpdk
-        .as_ref()
-        .map(|d| (d.nic.clone(), d.ports.clone(), d.details_capped));
     let mut dpdk = crate::dpdk::project(
         &workers.dpdk_fields,
         workers.version,
@@ -206,20 +202,7 @@ pub fn refresh_traffic(root: &Path, now: u64, view: &mut Overview) {
         workers.stale,
         now,
     );
-    if let Some((mut source, ports, capped)) = nic {
-        if !source.live(now, 15) {
-            source.stale = true;
-            source.state = if source.updated.is_some() {
-                "STALE"
-            } else {
-                "UNAVAILABLE"
-            }
-            .into();
-        }
-        dpdk.nic = source;
-        dpdk.ports = ports;
-        dpdk.details_capped |= capped;
-    }
+    crate::dpdk::project_nic(&root, now, &mut dpdk);
     crate::dpdk::bound(&mut dpdk);
     view.dpdk = Some(dpdk);
     bound_traffic(view);

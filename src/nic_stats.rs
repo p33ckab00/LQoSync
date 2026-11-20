@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 
 pub const CACHE: &str = "nic-telemetry.json";
-pub const POLL_SECS: u64 = 10;
+pub const POLL_SECS: u64 = 1;
+const RETRY_SECS: u64 = 10;
+const IDENTITY_SECS: u64 = 30;
 pub const MAX_AGE: u64 = 15;
 const MAX_BYTES: u64 = 1024 * 1024;
 pub const BASIC: [&str; 8] = [
@@ -37,6 +39,7 @@ pub struct Port {
 }
 #[derive(Debug)]
 pub struct Snapshot {
+    pub captured_at_millis: u64,
     pub pid: u32,
     pub version: String,
     pub ports: Vec<Port>,
@@ -239,6 +242,12 @@ impl Tracker {
                 return;
             }
         };
+        // Optional hardware probes must not change the counter interval.
+        let now_ms = if snapshot.captured_at_millis > 0 {
+            snapshot.captured_at_millis
+        } else {
+            now_ms
+        };
         let mut ports = snapshot.ports;
         let previous = self.previous.as_ref().filter(|(pid, at, _)| {
             *pid == snapshot.pid
@@ -394,13 +403,34 @@ pub(crate) fn start(
         let mut current = changes.borrow().clone();
         let mut tracker = Tracker::default();
         let mut warned = false;
+        let mut identities: Option<(u32, Vec<Port>)> = None;
+        let mut identity_due = tokio::time::Instant::now();
+        let mut retry_due = tokio::time::Instant::now();
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(POLL_SECS));
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
-                changed=changes.changed()=>{if changed.is_err(){break;}let next=changes.borrow_and_update().clone();if !current.same_nic(&next){tracker=Tracker::default();tick.reset_immediately();}current=next;}
-                _=tick.tick()=>{if !current.v3{continue;}let mut result=sample(Path::new(&current.nic_socket)).await;
-                    if let Ok(snapshot)=&mut result { let _=tokio::time::timeout(std::time::Duration::from_secs(2),identity::enrich(&mut snapshot.ports,Path::new(&current.nic_config))).await; }
+                changed=changes.changed()=>{if changed.is_err(){break;}let next=changes.borrow_and_update().clone();if !current.same_nic(&next){tracker=Tracker::default();identities=None;identity_due=tokio::time::Instant::now();retry_due=identity_due;tick.reset_immediately();}current=next;}
+                _=tick.tick()=>{if !current.v3 || tokio::time::Instant::now()<retry_due {continue;}
+                    let refresh_identity=tokio::time::Instant::now()>=identity_due;
+                    let mut result=ipc::sample_with_identity(Path::new(&current.nic_socket),refresh_identity).await;
+                    if let Ok(snapshot)=&mut result {
+                        if refresh_identity {
+                            let _=tokio::time::timeout(std::time::Duration::from_secs(2),identity::enrich(&mut snapshot.ports,Path::new(&current.nic_config))).await;
+                            identities=Some((snapshot.pid,snapshot.ports.clone()));
+                            identity_due=tokio::time::Instant::now()+std::time::Duration::from_secs(IDENTITY_SECS);
+                        } else {
+                            for port in &mut snapshot.ports {
+                                if let Some(old)=identities.as_ref().filter(|(pid,_)|*pid==snapshot.pid).and_then(|(_,ports)|ports.iter().find(|old|old.id==port.id && old.name==port.name && old.status==port.status)) {
+                                    port.identity=old.identity.clone();
+                                } else {identity_due=tokio::time::Instant::now();}
+                            }
+                        }
+                    } else {
+                        retry_due=tokio::time::Instant::now()+std::time::Duration::from_secs(RETRY_SECS);
+                        identities=None;
+                        identity_due=retry_due;
+                    }
                     if !changes.borrow().same_nic(&current){continue;}
                     let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().try_into().unwrap_or(u64::MAX);
                     tracker.record(result,now);
