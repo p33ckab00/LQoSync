@@ -144,6 +144,14 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - The service checks a `VerifyTimeout` receipt again once each 60 s. The receipt moves to `Applied` after a late apply.
 - Next: run the live test again after the LibreQoS bridge applies the desired generation. See `docs/operations/LIBREQOS_V3_DATAPLANE_HOLD_REPORT.md`.
 
+## Phase 3 live acceptance passed (2026-11-20)
+
+- LibreQoS was upgraded to `3.0.7.202611192341` with the beta-to-beta procedure. The bridge then applied the desired world, and the dataplane hold stopped.
+- A returning DHCP client got a new legacy Circuit ID, so the parity check refused the first run. `topology enroll --replace` enrolled the registry again (revision 4).
+- `topology live-test` passed. The acknowledgement took 3.3 s, and the manager and restore read-backs had 0 differences. Report: `/var/backups/lqosync3/live-test/report-2026-11-20-5.json`.
+- The one expected change from the legacy to the manager world is node `lq3-f270781791bd2d0a` (225.75 to 225 Mbps).
+- Next: Phase 4, the deploy of the new binary with a backup and a rollback, then the activation design. The activation must refresh the adoption before it claims the writer.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.
