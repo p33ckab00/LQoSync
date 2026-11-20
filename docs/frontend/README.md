@@ -16,7 +16,7 @@ The Rust service remains the execution authority and continues without a browser
 ## Read order
 
 1. [Feature design](DESIGN.md): scope, ownership, layouts, and behavior.
-2. [Screen catalog](SCREENS.md): all 11 pictures, intended features, and corrections.
+2. [Screen catalog](SCREENS.md): 11 initial screen concepts plus three sign-in references, intended features, and corrections.
 3. [Backend map and gaps](BACKEND_MAP.md): current code, missing functions, and task owners.
 
 4. [API contracts](CONTRACTS.md): proposed reads, actions, identity, and failure rules.
@@ -28,6 +28,8 @@ The Rust service remains the execution authority and continues without a browser
 8. [CLI account policy](CLI_ACCOUNT_POLICY.md): username/password CRUD and multiple superadmins, with web sign-in only.
 
 ## Scope and evidence
+
+The [sign-in and theme direction](THEMING.md) preserves the accepted logo/layout, adds superscript `v3`, and requires Light, Dark, and System modes.
 
 The pictures illustrate the LQoSync4 blueprint. They contain sample data and proposed controls.
 They are not screenshots of an implemented application.

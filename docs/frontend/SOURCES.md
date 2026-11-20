@@ -74,3 +74,11 @@ The [hash manifest](images/SHA256SUMS) records exact SHA-256 hashes.
 The [screen catalog](SCREENS.md) describes every image.
 The [prompt record](IMAGE_PROMPTS.md) preserves the generation inputs.
 Do not use picture data as a production fixture or acceptance oracle.
+
+
+## Sign-in and theme additions
+
+Three sign-in images extend the initial set to 14 PNG files.
+The original sign-in was generated from text. The dark and light glass variants edit that original image.
+The owner accepted its composition and requested the glass treatment, superscript version, and three theme modes.
+See [THEMING.md](THEMING.md) for the visual references and required behavior.

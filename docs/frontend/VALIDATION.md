@@ -47,3 +47,11 @@ sha256sum --check SHA256SUMS
 
 Run the bundled STE checker on each Markdown file separately.
 Review its findings manually because the checker is heuristic.
+
+
+## Sign-in theme follow-up
+
+Checkpoint: 2026-11-20T16:47:12+08:00 (Asia/Shanghai).
+The image set now contains 14 PNG files. All hashes in SHA256SUMS match.
+Relative document links pass. The original sign-in and two glass variants remain picture previews.
+System/Light/Dark behavior, blur performance, accessibility, and browser rendering still require implementation and tests.

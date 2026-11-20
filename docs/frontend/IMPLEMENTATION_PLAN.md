@@ -237,7 +237,7 @@ Run: `cargo test -p web-gateway --test auth`.
 
 Dependencies: F01, F04. Status: not started.
 
-**Files:** `crates/web-ui/{Cargo.toml,Trunk.toml,index.html}`, `crates/web-ui/src/{main,app,api}.rs`, `crates/web-ui/src/pages/login.rs`, `crates/web-ui/src/components/{shell,status,dialog}.rs`, `crates/web-ui/style/{tokens,layout}.css`, `tests/frontend/shell.md`.
+**Files:** `crates/web-ui/{Cargo.toml,Trunk.toml,index.html}`, `crates/web-ui/src/{main,app,api}.rs`, `crates/web-ui/src/pages/login.rs`, `crates/web-ui/src/components/{shell,status,dialog,theme}.rs`, `crates/web-ui/style/{tokens,layout}.css`, `tests/frontend/shell.md`.
 
 **Interfaces:** Consumes SessionPrincipalView, SnapshotMeta, and ApiError. Produces AppShell, route outlet, safe request cancellation, and loading/error components.
 
@@ -247,7 +247,11 @@ Dependencies: F01, F04. Status: not started.
 
 - [ ] Run that case before implementation and record the expected failure or missing capability.
 
-- [ ] Build the login page and Leptos CSR shell with native controls and local fonts.
+- [ ] Build the login page and Leptos CSR shell with native controls and local fonts. Follow the approved sign-in references in THEMING.md.
+
+- [ ] Add application-wide Light, Dark, and System modes with System as default. Preserve the logo mark and use superscript v3.
+
+- [ ] Test system changes, manual overrides, cold paint, storage failure, native controls, contrast, and glass fallback before declaring the shell complete.
 
 - [ ] Add routes, session expiry, responsive navigation, and shared state components.
 

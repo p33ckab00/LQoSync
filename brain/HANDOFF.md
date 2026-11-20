@@ -8,6 +8,14 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T16:47:12+08:00 (Asia/Shanghai) — Sign-in and theme direction
+
+- Owner accepted original sign-in composition and logo. Requested glass effect, superscript v3, and Light/Dark/System themes across the web frontend.
+- Saved original sign-in plus dark/light glass variants. There are now 14 PNG files under `docs/frontend/images/`.
+- Added THEMING.md and updated F05, design, quality, catalog, prompt record, sources, and session note. The two glass variants remain review concepts.
+- Checks: image hashes, document links, STE review, whitespace. No application or runtime changes.
+- Next: retain the accepted composition and implement the F05 theme contract after its dependencies. CLI-only accounts and unchanged TUI remain requirements.
+
 ## 2026-11-20T16:31:35+08:00 (Asia/Shanghai) — Primary web frontend clarification
 
 - Owner direction: the web UI is the primary frontend and operator workflow surface. The TUI stays as is.

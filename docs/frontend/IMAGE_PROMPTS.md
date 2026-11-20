@@ -1,5 +1,16 @@
 # Image generation record
 
+## Sign-in additions
+
+The original sign-in used the following prompt. Two edits preserved its layout and logo mark, added superscript `v3`, and added a System theme selector.
+The dark edit requested restrained frosted glass on the original dark surface.
+The light edit requested the same composition with pale glass, dark text, and a blue action button.
+See [THEMING.md](THEMING.md) for the image references and requested changes.
+
+```text
+Use case: ui-mockup. Generate ONE polished desktop SIGN IN SCREEN picture for LQoSync, the Rust-based ISP network configuration and orchestration web control panel. Landscape 1536x1024. Straight-on flat screen screenshot, no device mockup, no browser chrome. Match the established dark LQoSync operational design: canvas #0b0c0e, charcoal panel #17191b, thin borders #2b2e32, white #f1f3f5, secondary #b2b8bf, restrained blue #80aaff action accent. Deliberate refined industrial network-console identity per Vercel frontend-design: precise typography, confident whitespace, controlled density, no purple gradients, no decorative SaaS cards, no stock illustrations or glowing cyberpunk. IBM Plex Sans-like type with excellent readability. Composition: centered two-part login surface, restrained abstract network topology line drawing on the left taking 40% with LQoSync wordmark above it and short sentence 'Network configuration and orchestration'; quietly balanced right side with 400px-width sign-in form. Very subtle technical topology motif, no metrics or confidential operational data visible before authentication. Right form: brand small 'LQoSync', heading EXACT 'Sign in', helper 'Use your administrator account.' Visible persistent labels EXACT 'Username' and 'Password'. Username field EMPTY with understated placeholder 'Enter your username'. Password field EMPTY, placeholder 'Enter your password', eye icon and small visible 'Show' control. Clear full-width blue 'Sign in' button below. Generous 44px minimum controls; high contrast, clean alignment, no overlaps or tiny text. Small neutral assistance beneath: 'Contact your system administrator for account access.' Small footer 'LQoSync · Web control panel'. Optional top right tiny 'Design preview' label only. Inspired by Google Modern Web Guidance autofill-sign-in-form: simple visible labels, password visibility control, unambiguous submit, password-manager-friendly concept. No invented verification claims. CRITICAL: NO signup, create account, invite, forgot password, reset password, change password, social login, SSO, passkeys, role selector, superadmin count, remember me checkbox, CLI commands, or code snippets anywhere. Accounts and credentials are managed exclusively through local privileged CLI, but keep those implementation details out of the product sign-in screen. NO application sidebar before sign-in. Render a beautiful coherent single screen, not a collage and not a mobile/desktop pair. This is an image-only concept, not working HTML.
+```
+
 Date: 2026-11-20. Tool: built-in imagegen. Purpose: picture-only owner review.
 The tool generated each screen independently. No reference image was used.
 The prompts describe concepts, not current backend capabilities.

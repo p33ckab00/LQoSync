@@ -96,6 +96,10 @@ Restrict authentication retries and use safe, bounded audit records.
 
 ## Browser and design checks
 
+Apply [THEMING.md](THEMING.md) to every route. Test Light, Dark, System, live environment changes, and persistent manual overrides.
+Keep initial paint, native controls, chart colors, and focus states consistent with the selected theme.
+Measure glass blur cost and provide a legible opaque fallback.
+
 Use the requested Vercel skills for presentation and interaction review.
 Use Google Modern Web Guidance before selecting HTML/CSS and browser API patterns.
 Retrieve relevant current guides at implementation time and apply their browser fallbacks.

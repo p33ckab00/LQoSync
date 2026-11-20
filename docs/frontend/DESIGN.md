@@ -93,6 +93,10 @@ Do not make drag gestures necessary for any operation.
 
 ## Visual system
 
+Apply [THEMING.md](THEMING.md) across the web application. System is the default, with explicit Light and Dark overrides.
+The dark values below have corresponding semantic light-theme tokens. Do not hardcode dark surfaces into individual pages.
+Keep the accepted logo mark and add a superscript `v3` to the wordmark.
+
 | Token | Initial value or rule |
 |---|---|
 | Canvas / sidebar / surface | `#0b0c0e` / `#141517` / `#17191b` |

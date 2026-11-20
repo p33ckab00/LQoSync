@@ -158,10 +158,13 @@ States to check: loading, empty, stale, partial, unavailable, forbidden, and cur
 
 ## More views without a generated picture
 
+Sign-in now has [original, glass-dark, and glass-light references](THEMING.md).
+The following list describes the remaining views without a generated picture.
+
 Topology needs a Builder tree, Policies, and a publication strip beyond the pictured WAN cards.
 Workers and Journal preserve existing diagnostics through browser-specific read adapters.
 Load Balancer Discovery and History are tab labels in the pictures. Their separate bodies were not generated.
 
-Mobile variants, login, conflict dialogs, and action recovery need browser designs during their implementation tasks.
+Mobile variants, conflict dialogs, and action recovery need browser designs during their implementation tasks.
 Bootstrap and account administration remain CLI-only. Users links visible in old mockups must not enter the actual navigation.
 Do not invent completed mockups or working code for those views.

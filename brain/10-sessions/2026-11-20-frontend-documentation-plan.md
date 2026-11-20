@@ -56,3 +56,14 @@ The Users mockup remains a withdrawn concept. The actual navigation excludes Use
 
 Execute F00 when implementation starts. Record compatible dependencies and a measured baseline before feature code.
 This request authorizes documentation and its GitHub publication, not production deployment.
+
+
+## 2026-11-20T16:47:12+08:00 — Sign-in approval and theme direction
+
+The owner accepted the original sign-in layout and logo mark.
+Requested changes: restrained glass effect, superscript v3, and application-wide Light/Dark/System modes.
+Generated dark and light variants from the original. Saved all three sign-in images under `docs/frontend/images/`.
+The image set now has 14 PNG files with matching SHA-256 hashes.
+Updated THEMING, design, screen catalog, prompts, quality requirements, sources, and F05 theme tasks.
+System is the default and follows the client environment. Manual overrides remain explicit.
+Checks: 14 hashes, relative links, STE review, and whitespace. No frontend implementation or browser proof occurred.
