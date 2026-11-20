@@ -51,6 +51,13 @@ fn timeout(tracker: &Mutex<Tracker>, receipt: &Receipt, hub: &Hub) {
         eprintln!("apply verification receipt: {error}");
     }
 }
+/// Log the first error of one write once. The monitor must not repeat it on every tick.
+fn report_once(logged: &mut Option<String>, write_id: &str, error: &anyhow::Error) {
+    if logged.as_deref() != Some(write_id) {
+        eprintln!("apply verification {write_id}: {error:#}");
+        *logged = Some(write_id.to_owned());
+    }
+}
 pub struct Monitor {
     settings: watch::Sender<Settings>,
     task: tokio::task::JoinHandle<()>,
@@ -74,6 +81,7 @@ impl Monitor {
             let mut current = changes.borrow().clone();
             let mut cached: Option<(String, Prepared)> = None;
             let mut imported: Option<(Stamp, bool)> = None;
+            let mut logged: Option<String> = None;
             let mut late_check: Option<(String, std::time::Instant)> = None;
             let mut tick = tokio::time::interval(Duration::from_secs(2));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -101,6 +109,7 @@ impl Monitor {
                             let pending=receipt.clone();
                             match tokio::task::spawn_blocking(move||prepare(&pending)).await {
                                 Ok(Ok(value))=>{cached=Some((receipt.write_id.clone(),value));imported=None;}
+                                Ok(Err(e))=>{report_once(&mut logged,&receipt.write_id,&e);timeout(&tracker,&receipt,&hub);continue}
                                 _=>{timeout(&tracker,&receipt,&hub);continue}
                             }
                         }
@@ -136,7 +145,7 @@ impl Monitor {
                                 }
                                 timeout(&tracker,&receipt,&hub)
                             }
-                            Err(_)=>timeout(&tracker,&receipt,&hub),
+                            Err(e)=>{report_once(&mut logged,&receipt.write_id,&e);timeout(&tracker,&receipt,&hub)}
                         }
                     }
                 }
@@ -166,7 +175,6 @@ mod tests {
     use serde_json::json;
     /// A tracker with one receipt for the pair that `live` wrote.
     fn tracked(
-        cfg: &Config,
         written: &[(std::path::PathBuf, Vec<u8>)],
         hub: &Hub,
     ) -> (tempfile::TempDir, Arc<Mutex<Tracker>>) {
@@ -183,7 +191,6 @@ mod tests {
             notice: None,
         };
         tracker.write(&files, meta, now(), hub);
-        let _ = cfg;
         (dir, Arc::new(Mutex::new(tracker)))
     }
     async fn until(tracker: &Mutex<Tracker>, want: impl Fn(Phase) -> bool) -> Phase {
@@ -204,15 +211,22 @@ mod tests {
             state("old", &other)
         });
         let hub = Hub::default();
-        let (_t, tracker) = tracked(&cfg, &written, &hub);
+        let (_t, tracker) = tracked(&written, &hub);
         let _monitor = Monitor::start(&cfg, "d", tracker.clone(), hub.clone());
         assert_eq!(
             until(&tracker, |p| p == Phase::ImportConfirmed).await,
             Phase::ImportConfirmed
         );
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        let c = hub.snapshot(now(), None).components;
-        let t = c.iter().find(|c| c.component == "take_effect").unwrap();
+        let mut found = None;
+        for _ in 0..40 {
+            let c = hub.snapshot(now(), None).components;
+            found = c.into_iter().find(|c| c.component == "take_effect");
+            if found.is_some() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+        let t = found.expect("take_effect component");
         assert_eq!(t.reason, "waiting_to_take_effect:1");
         assert_eq!(
             tracker.lock().unwrap().current().unwrap().phase,
@@ -227,7 +241,7 @@ mod tests {
         let saved = std::fs::read(&import).unwrap();
         std::fs::remove_file(&import).unwrap();
         let hub = Hub::default();
-        let (_t, tracker) = tracked(&cfg, &written, &hub);
+        let (_t, tracker) = tracked(&written, &hub);
         tracker
             .lock()
             .unwrap()
@@ -257,7 +271,7 @@ mod tests {
     async fn a_late_native_apply_recovers_a_timed_out_receipt() {
         let (_d, cfg, written) = live(|d| state("g1", d));
         let hub = Hub::default();
-        let (_t, tracker) = tracked(&cfg, &written, &hub);
+        let (_t, tracker) = tracked(&written, &hub);
         tracker
             .lock()
             .unwrap()

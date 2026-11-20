@@ -45,10 +45,13 @@ impl fmt::Display for TakeEffect {
             self.waiting.len(),
             self.waiting_removal.len()
         )?;
-        for w in self.waiting.iter().take(20) {
+        // One limit of 20 identities in all, so the message stays short.
+        let mut room = 20;
+        for w in self.waiting.iter().take(room) {
             write!(f, "; {:?} {} [{}]", w.kind, w.identity, w.fields.join(","))?;
+            room -= 1;
         }
-        for (k, id) in self.waiting_removal.iter().take(20) {
+        for (k, id) in self.waiting_removal.iter().take(room) {
             write!(f, "; remove {k:?} {id}")?;
         }
         Ok(())
@@ -233,7 +236,51 @@ fn differing(a: &Value, b: &Value) -> Vec<String> {
         .collect()
 }
 
+/// The top-level keys of one world, as seen in production on 2026-11-20.
+const WORLD_KEYS: [&str; 8] = [
+    "apply_mode",
+    "generation",
+    "inner_ops",
+    "leaf_ops",
+    "lpm_delta",
+    "mapping_ops",
+    "schema_version",
+    "steering_vlans",
+];
+
+/// Fail closed on the schema of one world. The values that depend on the generation are not compared.
+fn schema(world: &Value, side: &str, generated: bool) -> Result<()> {
+    let object = world
+        .as_object()
+        .with_context(|| format!("{side} world is not an object"))?;
+    ensure!(
+        object.get("schema_version").and_then(Value::as_u64) == Some(6),
+        "{side} world has an unsupported schema_version"
+    );
+    if let Some(key) = object.keys().find(|k| {
+        !WORLD_KEYS.contains(&k.as_str()) && !(generated && k.as_str() == "circuit_capacity")
+    }) {
+        bail!("{side} world has an unknown key: {key}");
+    }
+    for key in WORLD_KEYS
+        .into_iter()
+        .chain(generated.then_some("circuit_capacity"))
+    {
+        ensure!(
+            object.contains_key(key),
+            "{side} world lacks the key: {key}"
+        );
+    }
+    ensure!(
+        !generated || object["circuit_capacity"].as_u64().is_some_and(|c| c > 0),
+        "generated circuit_capacity is not positive"
+    );
+    Ok(())
+}
+
 pub(crate) fn compare(generated: &Value, applied: &Value) -> Result<TakeEffect> {
+    schema(generated, "generated", true)?;
+    schema(applied, "applied", false)?;
     let (want, got) = (world(generated)?, world(applied)?);
     let mut out = TakeEffect {
         applied: 0,
@@ -319,7 +366,16 @@ mod tests {
             "inner_ops": [
                 {"op":"upsert","node_id":"n-a","parent_node_id":"root","download":rate(100),"upload":rate(100)},
                 {"op":"upsert","node_id":"n-b","parent_node_id":"n-a","download":rate(50),"upload":rate(50)}],
+            "schema_version": 6, "generation": "g1", "apply_mode": "incremental",
+            "circuit_capacity": 1000, "lpm_delta": [], "steering_vlans": [],
         })
+    }
+
+    /// The bridge side of `generated()`: the same world without `circuit_capacity`.
+    fn applied() -> Value {
+        let mut a = generated();
+        a.as_object_mut().unwrap().remove("circuit_capacity");
+        a
     }
 
     fn waiting(kind: Kind, id: &str, fields: &[&str]) -> Waiting {
@@ -350,8 +406,7 @@ mod tests {
 
     #[test]
     fn equal_worlds_took_effect() -> Result<()> {
-        let g = generated();
-        let t = compare(&g, &g)?;
+        let t = compare(&generated(), &applied())?;
         assert!(t.took_effect());
         assert_eq!(t.applied, 6);
         Ok(())
@@ -359,7 +414,7 @@ mod tests {
 
     #[test]
     fn a_changed_leaf_rate_waits() -> Result<()> {
-        let mut a = generated();
+        let mut a = applied();
         a["leaf_ops"][0]["download"]["ceil_kbps"] = json!(11);
         let t = compare(&generated(), &a)?;
         assert_eq!(t.waiting, [waiting(Kind::Circuit, "C1", &["download"])]);
@@ -369,7 +424,7 @@ mod tests {
 
     #[test]
     fn a_missing_address_waits() -> Result<()> {
-        let mut a = generated();
+        let mut a = applied();
         a["mapping_ops"].as_array_mut().unwrap().remove(0);
         let t = compare(&generated(), &a)?;
         assert_eq!(
@@ -381,7 +436,7 @@ mod tests {
 
     #[test]
     fn an_old_circuit_in_the_bridge_waits_for_removal() -> Result<()> {
-        let mut a = generated();
+        let mut a = applied();
         a["leaf_ops"]
             .as_array_mut()
             .unwrap()
@@ -394,7 +449,7 @@ mod tests {
 
     #[test]
     fn a_changed_node_rate_waits() -> Result<()> {
-        let mut a = generated();
+        let mut a = applied();
         a["inner_ops"][0]["upload"] = rate(7);
         let t = compare(&generated(), &a)?;
         assert_eq!(t.waiting, [waiting(Kind::Node, "n-a", &["upload"])]);
@@ -403,7 +458,7 @@ mod tests {
 
     #[test]
     fn an_unknown_bridge_field_waits() -> Result<()> {
-        let mut a = generated();
+        let mut a = applied();
         a["leaf_ops"][1]["shard"] = json!(3);
         let t = compare(&generated(), &a)?;
         assert_eq!(t.waiting, [waiting(Kind::Circuit, "C2", &["shard"])]);
@@ -412,17 +467,77 @@ mod tests {
 
     #[test]
     fn an_unknown_op_tag_or_duplicate_identity_is_an_error() {
-        let mut a = generated();
+        let mut a = applied();
         a["leaf_ops"][0]["op"] = json!("remove");
         assert!(compare(&generated(), &a).is_err());
-        let mut d = generated();
+        let mut d = applied();
         d["leaf_ops"]
             .as_array_mut()
             .unwrap()
             .push(leaf("C1", "n-b"));
         assert!(compare(&generated(), &d).is_err());
-        let mut n = generated();
+        let mut n = applied();
         n["leaf_ops"][0] = json!(5);
         assert!(compare(&generated(), &n).is_err());
+    }
+
+    #[test]
+    fn an_unknown_top_level_key_or_a_missing_one_is_an_error() {
+        let mut a = applied();
+        a["extra"] = json!(1);
+        assert!(
+            compare(&generated(), &a)
+                .unwrap_err()
+                .to_string()
+                .contains("extra")
+        );
+        let mut g = generated();
+        g["extra"] = json!(1);
+        assert!(compare(&g, &applied()).is_err());
+        let mut m = applied();
+        m.as_object_mut().unwrap().remove("lpm_delta");
+        assert!(
+            compare(&generated(), &m)
+                .unwrap_err()
+                .to_string()
+                .contains("lpm_delta")
+        );
+        let mut c = applied();
+        c["circuit_capacity"] = json!(1000);
+        assert!(compare(&generated(), &c).is_err());
+    }
+
+    #[test]
+    fn another_schema_version_is_an_error_on_either_side() {
+        let mut a = applied();
+        a["schema_version"] = json!(7);
+        assert!(compare(&generated(), &a).is_err());
+        let mut g = generated();
+        g["schema_version"] = json!(7);
+        assert!(compare(&g, &applied()).is_err());
+    }
+
+    #[test]
+    fn a_zero_circuit_capacity_is_an_error_even_when_waiting() {
+        let mut g = generated();
+        g["circuit_capacity"] = json!(0);
+        assert!(compare(&g, &applied()).is_err());
+        let mut a = applied();
+        a["leaf_ops"] = json!([]);
+        assert!(compare(&g, &a).is_err());
+    }
+
+    #[test]
+    fn the_display_lists_at_most_20_identities_in_all() {
+        let t = TakeEffect {
+            applied: 0,
+            waiting: (0..15)
+                .map(|i| waiting(Kind::Circuit, &format!("w{i}"), &["x"]))
+                .collect(),
+            waiting_removal: (0..15).map(|i| (Kind::Node, format!("r{i}"))).collect(),
+        };
+        let text = t.to_string();
+        assert!(text.starts_with("0 applied, 15 waiting, 15 waiting for removal"));
+        assert_eq!(text.matches("; ").count(), 20);
     }
 }

@@ -149,8 +149,11 @@ async fn main() -> anyhow::Result<()> {
                 return Err(error);
             }
         };
-        let lqosync3::apply_evidence::Proof::Verified(proof) = proof else {
-            anyhow::bail!("the native world is still waiting to take effect");
+        let proof = match proof {
+            lqosync3::apply_evidence::Proof::Verified(proof) => proof,
+            lqosync3::apply_evidence::Proof::Waiting(w) => {
+                anyhow::bail!("the native world is still waiting to take effect: {w}")
+            }
         };
         println!(
             "{}",
