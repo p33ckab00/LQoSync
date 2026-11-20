@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T22:48:47+08:00 (Asia/Shanghai) — Mirrored traffic research
+
+- Goal: research Actual/Mapped/Unmapped comparison, compact DPDK figures, and LibreQoS subscriber queue charts.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Base HEAD: `6c96a71`.
+- Changed: `docs/frontend/MIRRORED_TRAFFIC_RESEARCH.md`, the research session note, Home, and this handoff.
+- Evidence: installed LibreQoS `3.0.7.202611192341`, embedded source map, pinned upstream sources, and current core/TUI/web contracts.
+- Key constraint: Actual is delivered; Mapped/Unmapped are enqueued. Do not sum or stack them.
+- Proposal: one mirrored traffic panel, a capacity gradient, shared time inspection, and compact DPDK figures with detail access.
+- Gaps: typed browser classification history, bounded time windows, circuit queue web contract, and verified live ancestor metrics.
+- Checks: documentation checks only. No application change needs a build or runtime test.
+- Next action: review this proposal, then implement its bounded traffic contract before the chart changes.
+- Production services, installed LibreQoS, core collectors, TUI, and dependencies were not changed.
+- Preserve the unrelated November 16 notes and dataplane report.
+
 ## 2026-11-20T22:25:18+08:00 (Asia/Shanghai) — DPDK Dashboard card
 
 - Goal: add DPDK stats/health with the same telemetry sources as the TUI, with planned charts and updates.

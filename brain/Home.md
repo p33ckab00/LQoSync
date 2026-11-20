@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-mirrored-traffic-research]] — Traffic comparison, compact DPDK figures, and LibreQoS queue interactions; proposal only
+
 - [[2026-11-20-dpdk-dashboard]] — DPDK worker charts, pressure, bridge health, and NIC diagnostics from TUI sources
 
 - [[2026-11-20-ticker-startup-unknown]] — Wait for a source snapshot before starting the moving queue
