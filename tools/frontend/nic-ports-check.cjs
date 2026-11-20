@@ -23,6 +23,9 @@ const fs=require('node:fs');
   assert.deepEqual(await ports.locator('figcaption strong').allTextContents(),['WAN','LAN']);
   assert.deepEqual(await ports.locator('svg').evaluateAll(ns=>ns.map(n=>n.dataset.connector)),['sfp','rj45']);
   assert.deepEqual(await ports.locator('.nic-pci').allTextContents(),['0000:01:00.0','0000:01:00.1']);
+  assert.equal(await page.locator('#lqosync-nic-sfp').count(),1,'sprite IDs must be unique');
+  assert.equal(await ports.first().locator('use').getAttribute('href'),'#lqosync-nic-sfp');
+  assert.equal(await ports.nth(1).locator('use').getAttribute('href'),'#lqosync-nic-rj45');
   assert.ok((await ports.first().getAttribute('aria-label')).includes('confirmed'));
   assert.ok((await ports.nth(1).getAttribute('aria-label')).includes('inferred'));
   assert.equal(await ports.first().evaluate(n=>getComputedStyle(n).borderTopWidth),'0px');
@@ -75,8 +78,11 @@ const fs=require('node:fs');
    await page.evaluate(connector=>{const v=window.nicView;v.dpdk.ports[0].physical.connector=connector;window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(v)}));},connector);
    assert.equal(await ports.first().locator('svg').getAttribute('data-connector'),connector.startsWith('qsfp')?'qsfp':connector.startsWith('sfp')?'sfp':'rj45');
   }
+  await page.evaluate(()=>{window.nicView.dpdk.ports[0].physical.connector='unknown';window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(window.nicView)}));});
+  await ports.first().locator('.nic-contacts').waitFor({state:'attached'});
   await ports.first().focus();assert.equal(await ports.first().evaluate(n=>n===document.activeElement),true);
   await page.emulateMedia({forcedColors:'active'});assert.notEqual(await ports.first().locator('.nic-contacts').evaluate(n=>getComputedStyle(n).stroke),'none');
+  assert.equal(await page.locator('#lqosync-nic-sfp .nic-kit-shape').first().evaluate(n=>getComputedStyle(n).stroke),await ports.first().locator('.nic-contacts').evaluate(n=>getComputedStyle(n).stroke));
   assert.deepEqual(errors,[]);
   console.log('PASS: adjacent physical ports, role/PCI/confidence, SVG families, LEDs below artwork, independent sample pulses, no replay/idle/down/reset/stale pulses, stable DOM, reduced motion, keyboard, Light/Dark, 320px, generic fallback, forced colors.');
  }finally{await browser.close();}

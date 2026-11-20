@@ -244,7 +244,7 @@
 .nic-physical-port figcaption{display:flex;flex-direction:column;gap:1px}
 .nic-physical-port figcaption strong{font-size:14px;font-weight:600;color:var(--text)}
 .nic-physical-port figcaption>span,.nic-pci{font-size:13px;color:var(--muted)}
-.nic-port-art{display:block;inline-size:90px;block-size:70px;margin-inline:auto;color:var(--muted)}
+.nic-port-art{display:block;inline-size:100px;block-size:88px;margin-inline:auto;color:var(--muted)}
 .nic-bezel{fill:#384350;stroke:#8996a5;stroke-width:2}.nic-socket{fill:#101b24;stroke:#9ba8b5;stroke-width:2}
 .nic-contacts{fill:none;stroke:#91a8b7;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .nic-link-led{fill:var(--muted)}
@@ -290,3 +290,8 @@
 .nic-hud-raw summary{cursor:pointer;padding-block:10px}.nic-hud-raw dl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);font-size:13px;gap:7px 12px}.nic-hud-raw dd{margin:0;overflow-wrap:anywhere}.nic-hud-raw dt{color:var(--muted);overflow-wrap:anywhere}
 @media(max-width:600px){.nic-hud{padding:14px}.nic-hud-health{grid-template-columns:repeat(2,minmax(0,1fr))}.nic-hud header{flex-wrap:wrap}.nic-hud-traffic>div{padding:10px}}
 @media(forced-colors:active){.nic-hud-position,.nic-hud{background:Canvas}.nic-hud-traffic path{stroke:CanvasText}.nic-composition span{border:1px solid CanvasText}}
+
+.nic-art-defs{position:absolute;inline-size:0;block-size:0;overflow:hidden;pointer-events:none}
+.nic-link-outline{fill:none;stroke:var(--muted);stroke-width:1.5}
+.link-up .nic-link-outline{stroke:var(--good)}.link-down .nic-link-outline{stroke:var(--bad)}
+@media(forced-colors:active){.nic-kit-shape{fill:Canvas;stroke:CanvasText}.nic-link-outline{stroke:CanvasText}}

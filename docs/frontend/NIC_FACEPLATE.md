@@ -19,7 +19,8 @@ Each port uses this order:
 4. Independent RX and TX activity LEDs directly below the SVG.
 5. PCI address, or the reported device name when PCI identity is unavailable.
 
-RJ45, SFP-family, QSFP-family, and unknown connectors have separate artwork.
+RJ45, SFP-family, and QSFP-family ports use the [owner-supplied SVG kit](evidence/nic-svg-kit/README.md).
+The artwork retains the supplied metallic gradients. Unknown connectors keep the generic fallback.
 SFP/SFP+/SFP28 share their cage geometry. QSFP/QSFP+/QSFP28 share their cage geometry.
 The accessible description retains the exact reported type and confidence.
 Hover opens the glass diagnostics panel after 180 ms.

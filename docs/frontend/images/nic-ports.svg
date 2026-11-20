@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 148" role="img" aria-label="NIC port vector kit: RJ45, SFP and QSFP">
+<defs>
+ <linearGradient id="steel" x2="0" y2="1"><stop stop-color="#d5e0e7"/><stop offset=".22" stop-color="#8195a4"/><stop offset=".48" stop-color="#d3dde2"/><stop offset=".8" stop-color="#536575"/><stop offset="1" stop-color="#a9bac4"/></linearGradient>
+ <linearGradient id="inside" x2="0" y2="1"><stop stop-color="#050b12"/><stop offset="1" stop-color="#213747"/></linearGradient>
+ <linearGradient id="lip" x2="0" y2="1"><stop stop-color="#f3f7fa"/><stop offset=".5" stop-color="#8395a2"/><stop offset="1" stop-color="#374c5b"/></linearGradient>
+ <linearGradient id="gold" x2="0" y2="1"><stop stop-color="#fce79a"/><stop offset="1" stop-color="#9c631f"/></linearGradient>
+ <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2"/></filter>
+ <symbol id="rj45" viewBox="0 0 100 88">
+  <rect x="3" y="6" width="94" height="67" rx="9" fill="#263746" stroke="#536879" stroke-width="2"/>
+  <rect x="7" y="9" width="86" height="61" rx="7" fill="url(#steel)" stroke="#e0e8ed" stroke-width="1.2"/>
+  <path d="M19 19 H81 V28 H75 V37 H69 V58 H31 V37 H25 V28 H19Z" fill="url(#inside)" stroke="#182735" stroke-width="3"/>
+  <path d="M31 55H69" stroke="#758a96" stroke-width="2"/>
+  <g fill="url(#gold)"><rect x="33" y="43" width="3.5" height="14" rx="1"/><rect x="38" y="43" width="3.5" height="14" rx="1"/><rect x="43" y="43" width="3.5" height="14" rx="1"/><rect x="48" y="43" width="3.5" height="14" rx="1"/><rect x="53" y="43" width="3.5" height="14" rx="1"/><rect x="58" y="43" width="3.5" height="14" rx="1"/><rect x="63" y="43" width="3.5" height="14" rx="1"/><rect x="68" y="43" width="3.5" height="14" rx="1"/></g>
+  <path d="M13 14 H87 M13 64H87" stroke="#f4f8fa" stroke-opacity=".65"/>
+ </symbol>
+ <symbol id="sfp" viewBox="0 0 100 88">
+  <rect x="3" y="6" width="94" height="67" rx="8" fill="#233441" stroke="#60798a" stroke-width="2"/>
+  <rect x="7" y="9" width="86" height="61" rx="5" fill="url(#steel)" stroke="#e7edf1" stroke-width="1.4"/>
+  <g fill="#344956" stroke="#d2dde4" stroke-width=".6"><rect x="19" y="13" width="11" height="3" rx="1"/><rect x="36" y="13" width="11" height="3" rx="1"/><rect x="53" y="13" width="11" height="3" rx="1"/><rect x="70" y="13" width="11" height="3" rx="1"/></g>
+  <rect x="15" y="21" width="70" height="40" rx="3" fill="#101b26" stroke="url(#lip)" stroke-width="4"/>
+  <rect x="21" y="27" width="58" height="28" rx="2" fill="url(#inside)" stroke="#536878"/>
+  <rect x="20" y="20" width="60" height="6" rx="2" fill="#147cc4" stroke="#78d7ff" stroke-width="1"/>
+  <circle cx="36" cy="42" r="9" fill="#07111b" stroke="#536c7d" stroke-width="2"/><circle cx="64" cy="42" r="9" fill="#07111b" stroke="#536c7d" stroke-width="2"/>
+  <circle cx="36" cy="42" r="4" fill="#183b50" stroke="#80b6d5" stroke-width=".8"/><circle cx="64" cy="42" r="4" fill="#183b50" stroke="#80b6d5" stroke-width=".8"/>
+  <path d="M19 62H81" stroke="#e2e9ee" stroke-width="2"/><path d="M25 65H75" stroke="#4d6473" stroke-width="2"/>
+ </symbol>
+ <symbol id="qsfp" viewBox="0 0 100 88">
+  <rect x="2" y="6" width="96" height="67" rx="7" fill="#263642" stroke="#627889" stroke-width="2"/>
+  <rect x="6" y="9" width="88" height="61" rx="5" fill="url(#steel)" stroke="#e2edf2" stroke-width="1.4"/>
+  <g fill="#344955"><rect x="18" y="13" width="12" height="3" rx="1"/><rect x="36" y="13" width="12" height="3" rx="1"/><rect x="54" y="13" width="12" height="3" rx="1"/><rect x="72" y="13" width="12" height="3" rx="1"/></g>
+  <rect x="13" y="22" width="74" height="39" rx="3" fill="#0a121b" stroke="url(#lip)" stroke-width="3"/>
+  <rect x="17" y="27" width="66" height="29" rx="2" fill="url(#inside)"/>
+  <path d="M33 28V55 M50 28V55 M67 28V55" stroke="#607786" stroke-width="2"/>
+  <path d="M20 22H80" stroke="#a67cf5" stroke-width="6" stroke-linecap="round"/>
+  <path d="M16 62H84" stroke="#d7e2e9" stroke-width="2"/>
+  <circle cx="11" cy="48" r="2" fill="#293b49" stroke="#d1dae0"/><circle cx="89" cy="48" r="2" fill="#293b49" stroke="#d1dae0"/>
+ </symbol>
+</defs>
+<style>
+ .caption{fill:#cbd5e1;font:600 11px system-ui,sans-serif;text-anchor:middle}.sub{fill:#94a3b8;font:9px system-ui,sans-serif;text-anchor:middle}
+ .led{transition:fill .2s,opacity .2s}.link{fill:#22c55e}.rx{fill:#38bdf8}.tx{fill:#f59e0b}
+ .port[data-link="down"] .link{fill:#ef4444}.port[data-link="unknown"] .link{fill:#64748b}
+ .port[data-rx="idle"] .rx,.port[data-tx="idle"] .tx,.port[data-link="down"] .rx,.port[data-link="down"] .tx{fill:#344454;animation:none}
+ .port[data-rx="active"] .rx{animation:pulse .55s ease-in-out infinite alternate}.port[data-tx="active"] .tx{animation:pulse .7s ease-in-out infinite alternate}
+ @keyframes pulse{from{opacity:.35}to{opacity:1}}@media(prefers-reduced-motion:reduce){.rx,.tx{animation:none!important}}
+</style>
+<rect width="330" height="148" rx="12" fill="#0b1622"/>
+<g class="port" data-link="up" data-rx="active" data-tx="active" transform="translate(7 10)"><use href="#rj45" width="100" height="88"/><circle class="link led" cx="23" cy="96" r="3"/><circle class="rx led" cx="48" cy="96" r="3"/><circle class="tx led" cx="73" cy="96" r="3"/><text class="caption" x="50" y="119">RJ45</text><text class="sub" x="50" y="133">LINK  RX  TX</text></g>
+<g class="port" data-link="up" data-rx="active" data-tx="idle" transform="translate(115 10)"><use href="#sfp" width="100" height="88"/><circle class="link led" cx="23" cy="96" r="3"/><circle class="rx led" cx="48" cy="96" r="3"/><circle class="tx led" cx="73" cy="96" r="3"/><text class="caption" x="50" y="119">SFP+ / SFP28</text><text class="sub" x="50" y="133">LINK  RX  TX</text></g>
+<g class="port" data-link="down" data-rx="idle" data-tx="idle" transform="translate(223 10)"><use href="#qsfp" width="100" height="88"/><circle class="link led" cx="23" cy="96" r="3"/><circle class="rx led" cx="48" cy="96" r="3"/><circle class="tx led" cx="73" cy="96" r="3"/><text class="caption" x="50" y="119">QSFP+ / QSFP28</text><text class="sub" x="50" y="133">LINK  RX  TX</text></g>
+</svg>

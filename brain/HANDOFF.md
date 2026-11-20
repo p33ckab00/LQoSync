@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T00:42:58+08:00 (Asia/Shanghai) — Supplied NIC artwork
+
+- Goal: replace the physical-port artwork with the owner-supplied SVG kit.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Base HEAD: `59a65fb`.
+- Changed: shared SVG fragment, symbol selection and dimensions, forced-color styles, browser checks, source assets, docs, and screenshots.
+- The original SVG and ZIP remain unchanged. Their SVG content matches byte for byte.
+- The fragment preserves all connector geometry/colors and excludes demo styles/instances/background and the unused filter.
+- Current telemetry continues to control link status and finite activity pulses. Unknown hardware keeps the generic fallback.
+- Checks: connector geometry comparison, NIC/HUD browser checks, web release, Wasm Clippy, Rust 1.89, formatting, and whitespace.
+- Evidence: `docs/frontend/evidence/nic-svg-kit/README.md`.
+- Next action: install the prepared web artifacts with `sudo tools/frontend/install.sh`, then refresh the browser.
+- This artwork update does not need a core replacement. The earlier core update remains necessary for one-second NIC sampling.
+- Production services did not change. Preserve the unrelated November 16 notes and report.
+
 ## 2026-11-21T00:33:04+08:00 (Asia/Shanghai) — Live NIC diagnostics
 
 - Goal: align NIC activity with traffic updates and add the approved glass diagnostics panel.

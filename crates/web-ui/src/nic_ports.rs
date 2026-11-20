@@ -10,24 +10,12 @@ fn speed(value: Option<u64>) -> String {
         None => "—".into(),
     }
 }
-fn artwork(connector: &str) -> (&'static str, &'static str) {
+fn artwork(connector: &str) -> &'static str {
     match connector {
-        "rj45" => (
-            "rj45",
-            "M23 17H67V24H74V52H16V24H23Z M26 22V41M33 22V41M40 22V41M47 22V41M54 22V41M61 22V41",
-        ),
-        "sfp" | "sfp+" | "sfp28" => (
-            "sfp",
-            "M18 19H72V51H18Z M24 23H43V45H24ZM47 23H66V45H47Z M15 15H75M20 55H70",
-        ),
-        "qsfp" | "qsfp+" | "qsfp28" => (
-            "qsfp",
-            "M13 19H77V49H13Z M20 24V44M30 24V44M40 24V44M50 24V44M60 24V44M70 24V44 M16 54H74 M35 54V58H55V54",
-        ),
-        _ => (
-            "unknown",
-            "M18 19H72V51H18Z M37 28C37 21 54 21 54 30C54 35 45 35 45 40 M45 44V46",
-        ),
+        "rj45" => "rj45",
+        "sfp" | "sfp+" | "sfp28" => "sfp",
+        "qsfp" | "qsfp+" | "qsfp28" => "qsfp",
+        _ => "unknown",
     }
 }
 #[component]
@@ -217,12 +205,15 @@ fn PortTile(
 
             <figcaption><strong>{move||port.with(|p|p.physical.role.clone().unwrap_or("Role unknown".into()))}</strong><span>{move||port.with(|p|format!("{} · P{}",if live.get(){speed(p.speed_mbps)}else{"—".into()},p.id))}</span></figcaption>
             {move||port.with(|p|{
-                let (kind,path)=artwork(p.physical.connector.as_deref().unwrap_or("unknown"));
-                view!{<svg class="nic-port-art" data-connector=kind viewBox="0 0 90 70" role="img" aria-label=format!("{} physical port, link {}",p.physical.connector.as_deref().unwrap_or("Unknown"),state.get())>
-                  <rect class="nic-bezel" x="5" y="7" width="80" height="56" rx="6"/>
-                  <rect class="nic-socket" x="12" y="14" width="66" height="42" rx="2"/>
-                  <path class="nic-contacts" d=path/>
-                  <circle class="nic-link-led" cx="11" cy="59" r="3"/>
+                let kind=artwork(p.physical.connector.as_deref().unwrap_or("unknown"));
+                view!{<svg class="nic-port-art" data-connector=kind viewBox="0 0 100 88" role="img" aria-label=format!("{} physical port, link {}",p.physical.connector.as_deref().unwrap_or("Unknown"),state.get())>
+                  {if kind=="unknown" {
+                    view!{<g><rect class="nic-bezel" x="3" y="6" width="94" height="67" rx="9"/><rect class="nic-socket" x="12" y="16" width="76" height="46" rx="3"/><path class="nic-contacts" d="M40 30C40 22 58 22 58 32C58 38 49 38 49 44M49 49V51"/></g>}.into_any()
+                  } else {
+                    view!{<use href=format!("#lqosync-nic-{kind}")/>}.into_any()
+                  }}
+                  <rect class="nic-link-outline" x="1" y="5" width="98" height="69" rx="9"/>
+                  <circle class="nic-link-led" cx="11" cy="80" r="3"/>
                 </svg>}
             })}
             <div class="nic-activity-leds" aria-label="Traffic activity in last counter interval">
@@ -248,7 +239,10 @@ fn PortTile(
 pub(crate) fn NicPorts(snapshot: Memo<Option<Dpdk>>, clock: Memo<u64>) -> impl IntoView {
     let active_port = RwSignal::new(None::<u16>);
     view! {
-      <div class="dpdk-nic"><div class="nic-faceplate-heading"><h2>"NIC ports"</h2><span>{move||snapshot.with(|d|{
+      <div class="dpdk-nic">
+        // This fragment is reviewed repository artwork, never API or user input.
+        <svg class="nic-art-defs" width="0" height="0" aria-hidden="true" focusable="false" inner_html=include_str!("nic_art.svg")/>
+        <div class="nic-faceplate-heading"><h2>"NIC ports"</h2><span>{move||snapshot.with(|d|{
         let Some(d)=d else {return "Unavailable".into();};
         if !d.nic.live(clock.get(),15){return "Link unknown · stale".into();}
         format!("{} / {} UP",d.ports.iter().filter(|p|p.state.eq_ignore_ascii_case("up")).count(),d.ports.len())

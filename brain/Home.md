@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-21-nic-supplied-artwork]] — Owner-supplied metallic NIC symbols with existing live diagnostics
+
 - [[2026-11-21-nic-live-diagnostics]] — One-second NIC/traffic updates and a glass diagnostics panel
 
 - [[2026-11-21-nic-summary-placement]] — NIC faceplate beside PPPoE and LibreQoS in the Dashboard summary
