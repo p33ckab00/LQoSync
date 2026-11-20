@@ -54,8 +54,8 @@ async fn main() -> anyhow::Result<()> {
                 }).collect::<Vec<_>>()}
             });
             let nic = serde_json::json!({"version":1,"updated":now,"stale":false,"dpdk_version":"fixture-dpdk","interval_ms":10000,"ports_capped":false,"ports":[
-              {"id":0,"name":"fixture-port0","status":"up","speed_mbps":10000,"duplex":"full","reset":false,"stats":{"ipackets":1000,"opackets":900,"ibytes":1000000,"obytes":900000,"ierrors":0,"oerrors":0,"imissed":0,"rx_nombuf":0},"deltas":{"ipackets":10,"opackets":9,"ierrors":0},"xstats":{"fixture_xstat":7}},
-              {"id":1,"name":"fixture-port1","status":"up","speed_mbps":10000,"duplex":"full","reset":false,"stats":{"ipackets":900,"opackets":1000,"ierrors":0}}
+              {"id":0,"identity":{"pci":"0000:01:00.0","netdev":"fixture-wan0","role":"WAN","connector":"sfp+","confidence":"confirmed","evidence":"Synthetic module identifier"},"name":"fixture-port0","status":"up","speed_mbps":10000,"duplex":"full","reset":false,"stats":{"ipackets":1000,"opackets":900,"ibytes":1000000,"obytes":900000,"ierrors":0,"oerrors":0,"imissed":0,"rx_nombuf":0},"deltas":{"ipackets":10,"opackets":9,"ierrors":0},"xstats":{"fixture_xstat":7}},
+              {"id":1,"identity":{"pci":"0000:01:00.1","netdev":"fixture-lan0","role":"LAN","connector":"rj45","confidence":"inferred","evidence":"Synthetic driver media"},"name":"fixture-port1","status":"up","speed_mbps":10000,"duplex":"full","reset":false,"stats":{"ipackets":900,"opackets":1000,"ierrors":0}}
             ]});
             let nic_temporary = cache_dir.join("nic.next");
             if std::fs::write(&nic_temporary, serde_json::to_vec(&nic).unwrap()).is_ok() {

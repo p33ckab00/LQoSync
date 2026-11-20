@@ -465,7 +465,44 @@ pub(crate) fn project_nic(root: &Path, now: u64, d: &mut Dpdk) {
                     details.push(reading(&format!("NIC {key}"), n.as_u64().unwrap()));
                 }
             }
+            let identity = &p["identity"];
+            let allow = |key: &str, values: &[&str]| {
+                text(&identity[key], 128).filter(|s| values.contains(&s.as_str()))
+            };
+            let confidence = allow("confidence", &["confirmed", "inferred"]);
+            let physical = web_contract::dpdk::PhysicalPort {
+                pci: text(&identity["pci"], 12)
+                    .filter(|v| valid_pci(v))
+                    .or_else(|| text(&p["name"], 12).filter(|v| valid_pci(v))),
+                netdev: text(&identity["netdev"], 15),
+                role: allow("role", &["WAN", "LAN", "WAN/LAN"]),
+                connector: allow(
+                    "connector",
+                    &["rj45", "sfp", "sfp+", "sfp28", "qsfp", "qsfp+", "qsfp28"],
+                )
+                .filter(|_| confidence.is_some()),
+                confidence,
+                evidence: text(&identity["evidence"], 128),
+            };
+            let interval = v["interval_ms"].as_u64().filter(|n| *n > 0 && *n <= 15000);
+            let delta = |key: &str| {
+                p["deltas"][key].as_u64().filter(|n| {
+                    p["reset"] != true
+                        && interval.is_some()
+                        && p["stats"][key].as_u64().is_some_and(|total| *n <= total)
+                })
+            };
+            let activity = web_contract::dpdk::PortActivity {
+                sampled_at: v["updated"].as_u64().filter(|at| *at > 0),
+                interval_ms: interval,
+                rx_packets: delta("ipackets"),
+                tx_packets: delta("opackets"),
+                rx_bytes: delta("ibytes"),
+                tx_bytes: delta("obytes"),
+            };
             Port {
+                physical,
+                activity,
                 id: p["id"].as_u64().unwrap() as u16,
                 name: text(&p["name"], 128).unwrap_or("Unknown".into()),
                 state: text(&p["status"], 32).unwrap_or("Unknown".into()),
@@ -552,4 +589,14 @@ pub(crate) fn classification(
         unmapped: series(&a.classification.unmapped),
         history_capped: false,
     }
+}
+
+fn valid_pci(value: &str) -> bool {
+    value.len() == 12
+        && value.bytes().enumerate().all(|(i, b)| match i {
+            4 | 7 => b == b':',
+            10 => b == b'.',
+            11 => matches!(b, b'0'..=b'7'),
+            _ => b.is_ascii_hexdigit(),
+        })
 }

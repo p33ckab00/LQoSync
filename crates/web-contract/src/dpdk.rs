@@ -55,5 +55,30 @@ pub struct Port {
     pub state: String,
     pub speed_mbps: Option<u64>,
     pub reset: bool,
+    #[serde(default)]
+    pub physical: PhysicalPort,
+    #[serde(default)]
+    pub activity: PortActivity,
     pub details: Vec<Reading>,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PhysicalPort {
+    pub pci: Option<String>,
+    pub netdev: Option<String>,
+    pub role: Option<String>,
+    pub connector: Option<String>,
+    pub confidence: Option<String>,
+    pub evidence: Option<String>,
+}
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PortActivity {
+    pub sampled_at: Option<u64>,
+    pub interval_ms: Option<u64>,
+    pub rx_packets: Option<u64>,
+    pub tx_packets: Option<u64>,
+    pub rx_bytes: Option<u64>,
+    pub tx_bytes: Option<u64>,
 }

@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T23:56:24+08:00 (Asia/Shanghai) — Physical NIC faceplate
+
+- Goal: show adjacent hardware-specific NIC SVGs with explicit roles, speed/port number, PCI identity, and independent RX/TX LEDs.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Base HEAD: `f3249cd`.
+- Changed: core NIC identity/enrichment and settings handoff, typed web identity/activity projection, keyed faceplate and pulse tracker, fixtures/checks, design/deployment/evidence, and brain notes.
+- Sources: DPDK link/counters and optional module identifiers; PCI/netdev sysfs mapping; explicit LibreQoS bridge interface configuration; bounded optional kernel queries.
+- Unknown connector/role remains explicit. Speed alone never establishes a connector type. Module serials and full config stay private.
+- Activity: one 180-ms RX/TX pulse per distinct fresh completed interval, after an initial baseline. No duplicate/idle/down/reset/stale replay. Reduced Motion stays static.
+- Cadence: NIC ten seconds; full web projection five seconds. This is sampled activity, not packet timing.
+- Checks: fifteen NIC tests, 65 worker tests with one existing ignored test, web/native UI checks, all browser regressions, release builds, Clippy, Rust 1.89, formatting, and whitespace. Evidence: `docs/frontend/evidence/nic-faceplate/README.md`.
+- Next runtime action: follow `docs/frontend/DEPLOYMENT.md#nic-faceplate-update` to install the core and web artifacts together.
+- Production files/services and NIC bindings did not change. TUI presentation and CLI accounts remain unchanged.
+- A privileged live module probe needed a sudo password, so actual host connector identity remains unverified until the installed collector reads it.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T23:15:08+08:00 (Asia/Shanghai) — Aggregate traffic consolidation
 
 - Goal: consolidate Actual/Mapped/Unmapped in the current aggregate chart.

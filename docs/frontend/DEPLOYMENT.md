@@ -154,3 +154,26 @@ systemctl status lqosync3-web-broker lqosync3-web
 This update does not require a replacement of the core `lqosync3` binary.
 Refresh the browser after installation.
 Compare source figures with the TUI at the same published timestamps.
+
+
+## NIC faceplate update
+
+The [physical NIC faceplate](NIC_FACEPLATE.md) needs the updated core collector for hardware identity and interface roles.
+Update the core and the web packages together.
+Run these commands from `/home/pi/LQoSync3.0` after the builds pass:
+
+```sh
+sudo systemctl stop lqosync3
+sudo install -m 0755 target/release/lqosync3 /usr/local/bin/lqosync3
+sudo systemctl start lqosync3
+sudo tools/frontend/install.sh
+systemctl status lqosync3 lqosync3-web-broker lqosync3-web
+```
+
+The implementation session prepares the binaries and assets. It does not execute these production changes.
+Allow one NIC sample and the next full web projection after the restart.
+The normal NIC cadence is ten seconds. The full web projection cadence is five seconds.
+Unknown hardware remains generic when the driver cannot supply connector evidence.
+Roles remain unknown when no explicit LibreQoS interface mapping matches.
+The core can use `/usr/sbin/ethtool` for optional kernel module/media evidence.
+Missing utility access does not block NIC counters or link telemetry.

@@ -1,4 +1,5 @@
 //! Native DPDK NIC counters. Port RX/TX stays separate from subscriber traffic and shaper drops.
+pub mod identity;
 mod ipc;
 use anyhow::ensure;
 pub use ipc::sample;
@@ -21,6 +22,8 @@ pub const BASIC: [&str; 8] = [
 ];
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Port {
+    #[serde(default)]
+    pub identity: identity::Identity,
     pub id: u16,
     pub name: Option<String>,
     pub status: Option<String>,
@@ -66,6 +69,7 @@ impl Report {
             && self.dpdk_version.as_ref().is_none_or(|v| text(v))
             && self.ports.iter().all(|p| {
                 ids.insert(p.id)
+                    && p.identity.valid()
                     && p.name.as_ref().is_none_or(|v| text(v))
                     && p.status.as_ref().is_none_or(|v| text(v))
                     && p.duplex.as_ref().is_none_or(|v| text(v))
@@ -395,7 +399,9 @@ pub(crate) fn start(
         loop {
             tokio::select! {
                 changed=changes.changed()=>{if changed.is_err(){break;}let next=changes.borrow_and_update().clone();if !current.same_nic(&next){tracker=Tracker::default();tick.reset_immediately();}current=next;}
-                _=tick.tick()=>{if !current.v3{continue;}let result=sample(Path::new(&current.nic_socket)).await;if !changes.borrow().same_nic(&current){continue;}
+                _=tick.tick()=>{if !current.v3{continue;}let mut result=sample(Path::new(&current.nic_socket)).await;
+                    if let Ok(snapshot)=&mut result { let _=tokio::time::timeout(std::time::Duration::from_secs(2),identity::enrich(&mut snapshot.ports,Path::new(&current.nic_config))).await; }
+                    if !changes.borrow().same_nic(&current){continue;}
                     let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().try_into().unwrap_or(u64::MAX);
                     tracker.record(result,now);
                     record_system_health(&hub,&tracker.report,now/1000,&current.nic_socket);

@@ -94,6 +94,7 @@ fn ports(value: Value) -> anyhow::Result<Vec<u16>> {
     Ok(all)
 }
 pub async fn sample(path: &Path) -> anyhow::Result<Snapshot> {
+    let started = std::time::Instant::now();
     tokio::time::timeout(std::time::Duration::from_secs(3), async {
         let fd = socket::socket(
             AddressFamily::Unix,
@@ -172,6 +173,30 @@ pub async fn sample(path: &Path) -> anyhow::Result<Snapshot> {
                     )? == p.name,
                     "DPDK port identity changed during read"
                 );
+            }
+        }
+        if available.iter().any(|s| s == "/ethdev/module_eeprom") {
+            let remaining = std::time::Duration::from_secs(3)
+                .saturating_sub(started.elapsed() + std::time::Duration::from_millis(50));
+            let deadline =
+                tokio::time::Instant::now() + remaining.min(std::time::Duration::from_millis(300));
+            for p in &mut result {
+                let Ok(Ok(value)) = tokio::time::timeout_at(
+                    deadline,
+                    connection.ask(&format!("/ethdev/module_eeprom,{}", p.id)),
+                )
+                .await
+                else {
+                    break;
+                };
+                if let Some((connector, confidence)) = value["Identifier"]
+                    .as_str()
+                    .and_then(super::identity::module)
+                {
+                    p.identity.connector = Some(connector.into());
+                    p.identity.confidence = Some(confidence.into());
+                    p.identity.evidence = Some("DPDK module identifier".into());
+                }
             }
         }
         Ok(Snapshot {

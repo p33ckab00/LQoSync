@@ -229,3 +229,39 @@ fn corrupt_worker_cache_does_not_hide_independent_nic_data() {
     assert!(d.nic.live(1000, 15));
     assert_eq!(d.ports.len(), 1);
 }
+
+#[test]
+fn physical_identity_and_activity_do_not_guess_from_speed_or_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut n = nic();
+    n["ports"][0]["name"] = json!("0000:01:00.0");
+    n["ports"][0]["identity"] = json!({"role":"LAN","connector":"qsfp28","confidence":"confirmed","evidence":"fixture module identifier"});
+    n["interval_ms"] = json!(10000);
+    n["ports"][0]["stats"]["ipackets"] = json!(100);
+    n["ports"][0]["deltas"]["ipackets"] = json!(9);
+    save(dir.path(), "nic-telemetry.json", &n);
+    let p = project(dir.path(), 1000).dpdk.unwrap().ports.remove(0);
+    assert_eq!(p.physical.role.as_deref(), Some("LAN"));
+    assert_eq!(p.physical.pci.as_deref(), Some("0000:01:00.0"));
+    assert_eq!(p.physical.connector.as_deref(), Some("qsfp28"));
+    assert_eq!(p.activity.rx_packets, Some(9));
+    n["ports"][0]["identity"] =
+        json!({"role":"internet-maybe","connector":"rj45","confidence":"certain"});
+    n["ports"][0]["reset"] = json!(true);
+    save(dir.path(), "nic-telemetry.json", &n);
+    let p = project(dir.path(), 1000).dpdk.unwrap().ports.remove(0);
+    assert!(
+        p.physical.role.is_none()
+            && p.physical.connector.is_none()
+            && p.activity.rx_packets.is_none()
+    );
+    n["ports"][0]["reset"] = json!(false);
+    n["interval_ms"] = json!(0);
+    save(dir.path(), "nic-telemetry.json", &n);
+    assert!(
+        project(dir.path(), 1000).dpdk.unwrap().ports[0]
+            .activity
+            .rx_packets
+            .is_none()
+    );
+}

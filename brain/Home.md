@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-nic-faceplate]] — Physical NIC SVGs, explicit roles, confidence, and independent link/activity LEDs
+
 - [[2026-11-20-aggregate-traffic]] — Actual/Mapped/Unmapped in one mirrored chart, capacity gradients, and shared inspection
 
 - [[2026-11-20-mirrored-traffic-research]] — Traffic comparison, compact DPDK figures, and LibreQoS queue interactions; proposal only

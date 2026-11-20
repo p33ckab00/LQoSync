@@ -117,19 +117,7 @@ pub(crate) fn DpdkCard(data: RwSignal<Option<Overview>>) -> impl IntoView {
             <p class="panel-note">{move||snapshot.with(|d|d.as_ref().filter(|d|!d.pressure.is_empty()).map(|_|"Pressure values use the worker source age.").unwrap_or("Buffer/ring diagnostics unavailable."))}</p>
             {move||snapshot.with(|d|d.as_ref().map(|d|rows(d.analytics.details.iter().filter(|r|matches!(r.label.as_str(),"Buffer/ring pressure"|"Queue drops/sample"|"AQM marks/sample"|"Queue backlog (bytes)")).cloned().collect())))}
           </div>
-          <div class="dpdk-nic"><h3>"NIC ports"</h3>
-            <p class="panel-note">"Port RX/TX is separate from subscriber traffic."</p>
-            {move||snapshot.with(|d|d.as_ref().map(|d|d.ports.iter().map(|p|{
-              let live=d.nic.live(server_clock.get(),15);
-              let state=if live{p.state.clone()}else{"Unknown".into()};
-              let state_color=color(&state);
-              view!{<div class="dpdk-port"><div><strong>{format!("Port {} · {}",p.id,p.name)}</strong><span class=state_color>{state}</span></div>
-                <p>{if live{p.speed_mbps.map(|n|format!("{n} Mbps")).unwrap_or("Speed unknown".into())}else{"Last-known counters; link state unavailable".into()}}</p>
-                {p.reset.then(||view!{<p class="warn">"Counter reset · sample deltas unavailable"</p>})}
-              </div>}
-            }).collect_view()))}
-            <Show when=move||snapshot.with(|d|d.as_ref().is_none_or(|d|d.ports.is_empty()))><p class="panel-note">"NIC telemetry unavailable."</p></Show>
-          </div>
+          <crate::nic_ports::NicPorts snapshot clock=server_clock/>
         </div>
         <div class="dpdk-trend"><div><h3>"Recent mean worker busy"</h3><span class="panel-note">"Browser session · up to 60 distinct samples · fixed 0–100%"</span></div>
           <Show when=move||history.with(|h|h.points.len()>=2) fallback=||view!{<p class="dpdk-wait">"Waiting for two fresh worker samples."</p>}>

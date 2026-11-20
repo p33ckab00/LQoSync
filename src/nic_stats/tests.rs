@@ -275,6 +275,7 @@ async fn failure_polling_is_bounded_to_ten_seconds_and_abort_stops_publication()
     let settings = crate::worker_util::Settings {
         v3: true,
         socket: "unused".into(),
+        nic_config: "missing-fixture-config".into(),
         nic_socket: dir.path().join("missing").display().to_string(),
         state: dir.path().display().to_string(),
     };
@@ -319,6 +320,7 @@ async fn superseded_nic_read_cannot_publish_after_settings_reload() {
     let mut settings = crate::worker_util::Settings {
         v3: true,
         socket: "unused".into(),
+        nic_config: "missing-fixture-config".into(),
         nic_socket: socket.path().join("telemetry").display().to_string(),
         state: first.path().display().to_string(),
     };
@@ -432,4 +434,39 @@ fn unified_health_separates_fresh_nic_data_from_link_failure() {
             .state,
         crate::system_health::State::Healthy
     );
+}
+
+#[tokio::test]
+async fn optional_module_identity_keeps_serials_private_and_counters_available() {
+    for supported in [true, false] {
+        let (dir, thread) = server(move |command| match command {
+            "/" => {
+                let mut list = response("/");
+                list.as_array_mut()
+                    .unwrap()
+                    .push(serde_json::json!("/ethdev/module_eeprom"));
+                list
+            }
+            "/ethdev/module_eeprom,0" if supported => {
+                serde_json::json!({"Identifier":"0x11 (QSFP28)","Vendor SN":"private fixture serial"})
+            }
+            "/ethdev/module_eeprom,0" => serde_json::Value::Null,
+            _ => response(command),
+        });
+        let s = sample(&dir.path().join("telemetry")).await.unwrap();
+        assert!(!s.ports[0].stats.is_empty());
+        assert_eq!(
+            s.ports[0].identity.connector.as_deref(),
+            supported.then_some("qsfp28")
+        );
+        assert!(
+            !serde_json::to_string(&s.ports[0])
+                .unwrap()
+                .contains("private fixture serial")
+        );
+        assert_eq!(
+            thread.join().unwrap().last().unwrap(),
+            "/ethdev/module_eeprom,0"
+        );
+    }
 }

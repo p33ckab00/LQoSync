@@ -20,3 +20,8 @@ fn main() {
     #[cfg(target_arch = "wasm32")]
     leptos::mount::mount_to_body(app::App);
 }
+
+#[cfg(any(target_arch = "wasm32", test))]
+mod nic_activity;
+#[cfg(target_arch = "wasm32")]
+mod nic_ports;

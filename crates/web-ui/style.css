@@ -235,3 +235,29 @@
 .traffic-inspector .table-scroll th,.traffic-inspector .table-scroll td{padding-block:7px}
 @media(min-width:761px){.traffic-inspector th small{display:inline;margin-inline-start:8px}}
 @media(max-width:760px){.traffic-source-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.traffic-source-controls button{min-block-size:44px;flex-direction:column;flex-wrap:nowrap;min-inline-size:0;justify-content:center;gap:4px;padding:8px 4px;overflow-wrap:anywhere}.traffic-source-controls small{flex-basis:auto;text-align:center}.traffic-source-controls .source-key{inline-size:22px}}
+
+/* Physical NIC faceplate: adjacent connectors, without individual cards. */
+.nic-faceplate-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nic-faceplate-heading>span{font-size:13px;color:var(--muted)}
+.nic-faceplate{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;margin-block-start:14px}
+.nic-physical-port{margin:0;inline-size:112px;text-align:center;min-inline-size:0}
+.nic-physical-port figcaption{display:flex;flex-direction:column;gap:1px}
+.nic-physical-port figcaption strong{font-size:14px;font-weight:600;color:var(--text)}
+.nic-physical-port figcaption>span,.nic-pci{font-size:13px;color:var(--muted)}
+.nic-port-art{display:block;inline-size:90px;block-size:70px;margin-inline:auto;color:var(--muted)}
+.nic-bezel{fill:#384350;stroke:#8996a5;stroke-width:2}.nic-socket{fill:#101b24;stroke:#9ba8b5;stroke-width:2}
+.nic-contacts{fill:none;stroke:#91a8b7;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nic-link-led{fill:var(--muted)}
+.link-up .nic-bezel{stroke:var(--good)}.link-up .nic-link-led{fill:var(--good)}
+.link-down .nic-bezel{stroke:var(--bad)}.link-down .nic-link-led{fill:var(--bad)}
+.link-unknown .nic-port-art{opacity:.65}
+.nic-activity-leds{display:flex;justify-content:center;gap:12px;margin-block-start:1px}
+.nic-activity{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.nic-activity-led{display:block;inline-size:7px;block-size:7px;border-radius:50%;background:var(--border)}
+.nic-activity.rx{--nic-activity-color:#20baf5}.nic-activity.tx{--nic-activity-color:#d98b00}
+.nic-activity-led.pulsing{background:var(--nic-activity-color);animation:nic-activity-pulse 180ms ease-out}
+@keyframes nic-activity-pulse{0%,100%{opacity:.3}45%{opacity:1}}
+.nic-pci{display:block;overflow-wrap:anywhere;margin-block-start:3px}
+.nic-cadence{max-inline-size:48ch}
+@media(prefers-reduced-motion:reduce){.nic-activity-led{animation:none!important}.nic-activity-led[data-active=true]{background:var(--nic-activity-color)}}
+@media(forced-colors:active){.nic-bezel,.nic-socket{fill:Canvas;stroke:CanvasText}.nic-contacts{stroke:CanvasText}.nic-link-led{fill:CanvasText}.nic-activity-led{border:1px solid CanvasText}.nic-activity-led.pulsing,.nic-activity-led[data-active=true]{background:Highlight}}

@@ -318,6 +318,7 @@ pub(crate) struct Settings {
     pub(crate) v3: bool,
     pub(crate) socket: String,
     pub(crate) nic_socket: String,
+    pub(crate) nic_config: String,
     pub(crate) state: String,
 }
 
@@ -326,7 +327,10 @@ impl Settings {
         self.v3 == other.v3 && self.socket == other.socket && self.state == other.state
     }
     pub(crate) fn same_nic(&self, other: &Self) -> bool {
-        self.v3 == other.v3 && self.nic_socket == other.nic_socket && self.state == other.state
+        self.v3 == other.v3
+            && self.nic_socket == other.nic_socket
+            && self.nic_config == other.nic_config
+            && self.state == other.state
     }
     fn from_config(cfg: &crate::config::Config) -> Self {
         Self {
@@ -334,6 +338,7 @@ impl Settings {
                 .is_ok_and(|d| d.target != crate::config::Target::V2Pair),
             socket: cfg.libreqos.v3_analytics_socket.clone(),
             nic_socket: cfg.libreqos.v3_dpdk_telemetry_socket.clone(),
+            nic_config: cfg.libreqos.v3_config.clone(),
             state: cfg.runtime.state_dir.clone(),
         }
     }
