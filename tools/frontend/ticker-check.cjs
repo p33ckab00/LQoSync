@@ -10,12 +10,22 @@ const fs=require('node:fs');
     const Native=window.EventSource;window.testStreams=[];
     window.EventSource=class extends Native{constructor(...args){super(...args);window.testStreams.push(this);}};
   });
+  let releaseStartup;
+  const startup=new Promise(resolve=>{releaseStartup=resolve;});
+  for(const path of ['**/api/v1/overview','**/api/v1/overview/live']){
+    await page.route(path,async route=>{await startup;await route.continue();});
+  }
   await page.goto('http://127.0.0.1:19581');
   await page.getByLabel('Username',{exact:true}).fill('browser-test');
   await page.getByLabel('Password',{exact:true}).fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   const section=page.locator('.service-diagnostics');
   await section.waitFor();
+  await section.getByText('Waiting for service status…',{exact:true}).waitFor();
+  assert.equal(await page.locator('.ticker-track .ticker-item').count(),0,
+    'do not start a moving queue before the first timestamped snapshot');
+  releaseStartup();
+
   assert.equal(await section.getByRole('heading').count(),0,'banner has no title');
   assert.equal(await section.getByRole('button').count(),0,'banner has no controls');
   assert.equal(await section.evaluate(n=>n.classList.contains('panel')),false,'banner has no card wrapper');
@@ -23,6 +33,13 @@ const fs=require('node:fs');
   await list.getByText('HEALTHY',{exact:true}).first().waitFor();
   assert.equal(await list.getByRole('listitem').count(),5);
   assert.equal(await list.locator('.ticker-activity').count(),0);
+  // Inspect the visible moving copy, not only the accessible static list.
+  await page.waitForFunction(()=>document.querySelector('.ticker-track')?.getAnimations().length>0);
+  const initialValues=await page.locator('.ticker-track strong').allTextContents();
+  assert.deepEqual(initialValues,['HEALTHY','shadow','v3_pair','Applied','482 ms',
+    'HEALTHY','shadow','v3_pair','Applied','482 ms'],
+    'the first moving queue must use the first source snapshot, not loading placeholders');
+
   for(const label of ['Service health','Runtime mode','Output target','Publication phase','Last cycle']) assert.equal(await list.getByText(label,{exact:true}).count(),1);
   const bannerBox=await section.boundingBox();
   const titleBox=await page.getByRole('heading',{name:'Dashboard',exact:true}).boundingBox();
@@ -131,5 +148,5 @@ const fs=require('node:fs');
   await list.getByText('UNKNOWN',{exact:true}).first().waitFor();
   assert.deepEqual(errors,[]);
   await browser.close();
-  console.log('PASS: top placement, five permanent statuses, activity-only component changes, deduplication, expiry, ticker motion, stable nodes during live refresh, insertion continuity, repeated handoffs without blank tails, compact strip without card/title/buttons, continuous rolling, hidden clone, reduced motion, static details, stale status, Light/Dark, 768/320px.');
+  console.log('PASS: delayed first snapshot, no cached Unknown placeholders, top placement, five permanent statuses, activity-only component changes, deduplication, expiry, ticker motion, stable nodes during live refresh, insertion continuity, repeated handoffs without blank tails, compact strip without card/title/buttons, continuous rolling, hidden clone, reduced motion, static details, stale status, Light/Dark, 768/320px.');
 })().catch(e=>{console.error(e);process.exit(1);});

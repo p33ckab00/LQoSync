@@ -62,6 +62,14 @@ There is no per-frame application loop.
 Only `prefers-reduced-motion: no-preference` enables movement.
 The static view wraps all current entries and hides the moving copy.
 
+## First status response
+
+Do not create the moving queue from loading placeholders.
+Show “Waiting for service status…” until a source snapshot has an observation timestamp.
+Initialize both status sets from that snapshot before starting movement.
+A genuine source value of `UNKNOWN` remains `UNKNOWN`.
+This rule does not replace missing or degraded health with a healthy value.
+
 ## Continuous movement
 
 The previous track used a percentage of its total width.
@@ -97,7 +105,7 @@ Five native chart/activity tests, Wasm release build, Clippy, and Rust 1.89 chec
 Browser checks cover top placement, five permanent fields, conditional activity, duplicates, expiry, continuous motion, absent controls, and stale evidence.
 They also cover Light/Dark themes, reduced motion, and 768/320px widths.
 The existing sign-in and Dashboard smoke check passed.
-See [current browser evidence](evidence/diagnostics-continuous/README.md).
+See [continuity evidence](evidence/diagnostics-continuous/README.md) and [startup regression evidence](evidence/diagnostics-warmup/README.md).
 
 Install the prepared web build:
 

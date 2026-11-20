@@ -155,3 +155,6 @@
 .status-banner{margin-block-end:22px}
 .ticker-activity{border-inline-start:2px solid var(--accent)}
 @media(max-width:500px){.ticker-item{padding-inline:12px;font-size:13px}}
+
+.diagnostics-ticker:not(.ready) .ticker-static,.diagnostics-ticker:not(.ready) .ticker-clone{display:none}
+.ticker-loading{margin:0;padding-block:12px;color:var(--muted);font-size:14px}

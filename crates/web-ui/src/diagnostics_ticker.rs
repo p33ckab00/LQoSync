@@ -82,6 +82,7 @@ pub(crate) fn DiagnosticsTicker(data: RwSignal<Option<Overview>>) -> impl IntoVi
     });
 
     let queue = RwSignal::new(Vec::<MovingItem>::new());
+    let ready = RwSignal::new(false);
     let seen = StoredValue::new(0_u64);
     let next_id = StoredValue::new(10_u64);
     // Keep two sets of permanent fields. Append new activity only at the tail.
@@ -89,11 +90,18 @@ pub(crate) fn DiagnosticsTicker(data: RwSignal<Option<Overview>>) -> impl IntoVi
         let events = activity.with(|f| f.events.clone());
         let length = queue.with(Vec::len);
         if length == 0 {
-            queue.set(data.with_untracked(|v| {
-                (0..10)
-                    .map(|id| status_item(id, id as usize % 5, v.as_ref()))
-                    .collect()
-            }));
+            // Do not cache loading placeholders for an entire lap.
+            let initial = data.with(|v| {
+                v.as_ref().filter(|v| v.observed_at.is_some()).map(|v| {
+                    (0..10)
+                        .map(|id| status_item(id, id as usize % 5, Some(v)))
+                        .collect()
+                })
+            });
+            if let Some(initial) = initial {
+                queue.set(initial);
+                ready.set(true);
+            }
         }
         let available = 18_usize.saturating_sub(queue.with_untracked(Vec::len));
         let pending = events
@@ -168,7 +176,7 @@ pub(crate) fn DiagnosticsTicker(data: RwSignal<Option<Overview>>) -> impl IntoVi
     };
     Effect::new(move |_| {
         let _ = alternate.get();
-        if track.get().is_none() {
+        if !ready.get() || track.get().is_none() {
             return;
         }
         leptos::leptos_dom::helpers::request_animation_frame(move || {
@@ -187,8 +195,9 @@ pub(crate) fn DiagnosticsTicker(data: RwSignal<Option<Overview>>) -> impl IntoVi
         });
     });
     view! {
-      <div id="diagnostics-ticker" class="diagnostics-ticker"
+      <div id="diagnostics-ticker" class="diagnostics-ticker" class:ready=move||ready.get()
         role="group" aria-label="Live service status banner">
+        <p class="ticker-loading" hidden=move||ready.get()>"Waiting for service status…"</p>
         <div class="ticker-group ticker-static" role="list" aria-label="Service and component status"><Items data activity/></div>
         <div class="ticker-track ticker-clone" aria-hidden="true" node_ref=track
           class:moving=move||moving.get() class:alternate=move||alternate.get()

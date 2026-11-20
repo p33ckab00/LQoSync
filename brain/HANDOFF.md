@@ -8,6 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T21:42:13+08:00 (Asia/Shanghai) — Ticker startup values
+
+- Goal: correct all-Unknown moving values after sign-in.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `b83eb63`.
+- Cause: the queue captured ten placeholders before the first response. A browser test reproduced the failure.
+- Runtime check: core, broker, and gateway active; status cache has mode, target, and cycle duration. Preserve real degraded/unknown health.
+- Changed: Rust initialization/readiness, waiting-state CSS, browser regression, frontend docs/evidence, and brain notes.
+- Checks: delayed-response startup, actual moving values, existing continuity/activity checks and smoke, Wasm release, Clippy, Rust 1.89, formatting, and whitespace passed.
+- Evidence: `docs/frontend/evidence/diagnostics-warmup`.
+- Next runtime step: operator runs `sudo tools/frontend/install.sh`. Production files and services were not changed.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T21:36:04+08:00 (Asia/Shanghai) — Continuous ticker updates
 
 - Goal: keep the ticker moving without a reset when activity arrives.
