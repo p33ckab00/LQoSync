@@ -154,3 +154,6 @@
   .diagnostics-ticker.paused .ticker-track,.service-diagnostics:hover .ticker-track,.service-diagnostics:focus-within .ticker-track{animation-play-state:paused}
 }
 @media(max-width:500px){.diagnostics-heading{align-items:flex-start;flex-wrap:wrap}.ticker-item{padding-inline:12px;font-size:13px}}
+.status-banner{margin-block-end:22px}
+.status-banner .diagnostics-heading{margin-block-end:10px}
+.ticker-activity{border-inline-start:2px solid var(--accent)}

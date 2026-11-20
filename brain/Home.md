@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-20-diagnostics-ticker-top]] — Top ticker with five permanent statuses and expiring activity only on changes
+
 - [[2026-11-20-diagnostics-ticker]] — Live service banner with Pause/Resume and static reduced motion
 
 - [[2026-11-20-live-traffic-capacity]] — One-second Rust stream and rainbow chart with configured WAN capacity limits

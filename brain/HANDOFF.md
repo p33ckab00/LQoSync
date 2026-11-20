@@ -8,6 +8,19 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-20T21:16:53+08:00 (Asia/Shanghai) — Top ticker and conditional activity
+
+- Goal: move diagnostics above the Dashboard heading and keep exactly five permanent status fields.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Previous HEAD: `9c2e06b`.
+- Changed: app placement, static details wrapper, Rust activity tracker/ticker, CSS, browser checks, docs/screenshots, and brain notes.
+- Permanent fields: Service health, Runtime mode, Output target, Publication phase, Last cycle. Preserve raw publication values.
+- Activity: baseline first snapshot, suppress duplicates and traffic-only changes, keep eight entries for 120 seconds, expire without another source update.
+- Backend gap: observed browser changes only. A full job-progress/activity feed needs an authenticated backend event projection.
+- Checks: five native chart/activity tests, release Wasm, Clippy, Rust 1.89, focused browser and existing sign-in/Dashboard smoke passed. Browser verifies placement, permanent fields, activity, duplicate suppression, expiry, motion, themes, and 768/320px layouts.
+- Evidence: `docs/frontend/evidence/diagnostics-ticker-top`. Current design: `docs/frontend/DIAGNOSTICS_TICKER.md`.
+- Next runtime step: operator runs `sudo tools/frontend/install.sh`. Production files/services were not changed in this session.
+- Preserve unrelated November 16 notes and the dataplane report.
+
 ## 2026-11-20T21:02:39+08:00 (Asia/Shanghai) — Diagnostics ticker
 
 - Goal: show synchronization and component health as a stock-exchange-style banner.

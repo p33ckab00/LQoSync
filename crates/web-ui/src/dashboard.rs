@@ -238,8 +238,7 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <WanDistribution/>
       </div>
       <Upstream/>
-      <section class="panel service-diagnostics" aria-labelledby="service-diagnostics-title">
-      <crate::diagnostics_ticker::DiagnosticsTicker data/>
+      <section class="panel service-diagnostics-details" aria-label="Service diagnostics details">
       <details class="diagnostics"><summary>"View diagnostics"<span>"Static status details"</span></summary>
         <dl><dt>"Service health"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.health.clone()))}</dd><dt>"Runtime mode"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.mode.clone()))}</dd><dt>"Output target"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.target.clone()))}</dd><dt>"Publication phase"</dt><dd>{move||data.with(|d|d.as_ref().map(|v|v.publication.clone()))}</dd><dt>"Last cycle"</dt><dd>{move||data.with(|d|d.as_ref().and_then(|v|v.cycle_ms).map(|v|format!("{v} ms")).unwrap_or("Unknown".into()))}</dd></dl>
         <p class="panel-note">"A written input or confirmed import does not prove dataplane application."</p>

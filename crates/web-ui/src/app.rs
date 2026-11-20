@@ -133,6 +133,9 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             </div>
           </header>
           <main class="dashboard" id="main">
+            <section class="panel service-diagnostics status-banner" aria-labelledby="service-diagnostics-title">
+              <crate::diagnostics_ticker::DiagnosticsTicker data/>
+            </section>
             <div class="page-heading">
               <div><h1>"Dashboard"</h1><p>"Network, subscriber, and traffic overview."</p></div>
               <div class="freshness">{move||data.with(|d|match d {Some(v) if v.stale=>"Stale or partial data",Some(_)=>"Current data",None=>"Loading monitoring data…"})}</div>

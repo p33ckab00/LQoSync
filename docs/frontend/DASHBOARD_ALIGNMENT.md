@@ -31,8 +31,9 @@ The main content has five summary cards.
 The next row has a wide traffic panel and a WAN distribution panel.
 
 The upstream health and allocation table spans the next row.
-Service diagnostics follow below this table.
-The [diagnostics banner](DIAGNOSTICS_TICKER.md) scrolls live states and retains full static details.
+The [diagnostics banner](DIAGNOSTICS_TICKER.md) appears above the Dashboard heading.
+It keeps five permanent status fields and adds recent observed changes temporarily.
+Full static diagnostics follow below the upstream table.
 The shared header retains Light, Dark, and System plus account and sign-out controls.
 
 ## Backend boundaries

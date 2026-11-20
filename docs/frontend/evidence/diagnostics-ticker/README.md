@@ -1,5 +1,7 @@
 # Diagnostics banner evidence
 
+This is the earlier bottom-panel checkpoint. See [current top ticker evidence](../diagnostics-ticker-top/README.md).
+
 Date: 2026-11-20 (Asia/Shanghai). Branch: `lqosync3`. Previous commit: `45dad14`.
 See the [design and atomic plan](../../DIAGNOSTICS_TICKER.md).
 

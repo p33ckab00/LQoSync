@@ -4,56 +4,76 @@ Status: implemented. Runtime installation is pending.
 
 ## Design
 
-Show synchronization and component health as a stock-exchange-style banner.
-Keep it below the upstream table, in the Service diagnostics panel.
+Show the ticker above the Dashboard heading, below the shared application header.
 Use the existing Plex font, tabular numbers, theme colors, and panel borders.
-Separate entries with thin rules. Do not invent market prices, trends, or movement arrows.
+Keep Pause/Resume, hover/focus pause, and the static reduced-motion view.
 
-Show evidence freshness, service health, publication phase, runtime mode, output target, and cycle duration.
-Then show each published component and its health state.
-Keep the current source semantics. A confirmed import does not prove applied shaping.
-Use text and status colors together. Runtime context values do not show a warning.
+The following five fields always remain in the ticker:
+
+- Service health.
+- Runtime mode.
+- Output target.
+- Publication phase.
+- Last cycle.
+
+Show the source publication value, such as `IMPORT_CONFIRMED`, without changing its meaning.
+Do not replace a confirmed import with an applied-shaping claim.
+Show the current cycle duration in milliseconds.
+
+Component states do not form a permanent ticker list.
+Show an activity entry only when the browser observes a new status or component change.
+The initial snapshot establishes a baseline. It does not replay existing component states as activity.
+Identical snapshots and traffic-only updates do not add entries.
+
+A later status timestamp produces a status-snapshot update entry.
+This entry does not prove that a job completed.
+
+Keep at most eight recent entries. Each entry expires after 120 seconds, even without another source update.
+Expiry removes activity entries only. The five status fields remain.
+
+Pause stops movement. Live values and activity expiry continue.
+Full static diagnostics remain available under View diagnostics below the main panels.
 
 ## Atomic plan and result
 
-1. Reuse the existing overview signal. Add no source query or backend operation.
+1. Move the banner above the Dashboard heading. Keep static diagnostics independently available.
 
-2. Add a stable Rust banner component. Update values without replacement of its animation track.
+2. Keep the five permanent fields and their source values.
 
-3. Use a CSS transform for a continuous right-to-left loop.
+3. Compare only status metadata and component states. Do not copy traffic history into the activity tracker.
 
-4. Add a visible keyboard Pause/Resume control. Pause motion on hover and focus.
+4. Add a bounded activity buffer with duplicate suppression and timed expiry.
 
-5. Use a static wrapped list when the browser requests reduced motion.
+5. Keep the animation track stable. Hide the duplicate group from assistive technology.
 
-6. Keep the full static diagnostics under View diagnostics.
+6. Test baseline behavior, state changes, repeated snapshots, expiry, and the eight-entry bound.
 
-7. Check live changes, stale evidence, repeated names, long labels, themes, and mobile widths.
+7. Check placement, live updates, pause controls, themes, reduced motion, and mobile layout in a browser.
 
-8. Save browser evidence, build, document, commit, and push.
+8. Build, save evidence, document, commit, and push.
 
-The pause control stops motion. Source values continue to update.
-Each loop has two identical groups. The second group is hidden from assistive technology.
-No `aria-live` region repeatedly announces the banner.
-Component keys include position and name, so repeated source labels remain separate.
-
-The track uses the compositor-friendly `transform` property.
-It adds no JavaScript animation loop, timer, package, or extra network request.
+A small local timer expires old entries. The Dashboard disposes the timer on exit.
+The change adds no network request, backend operation, or JavaScript animation loop.
 Only `prefers-reduced-motion: no-preference` enables movement.
-The reduced-motion view wraps all entries and hides the duplicate group.
+The static view wraps all current entries and hides the duplicate group.
+
+## Backend scope and gap
+
+Activity entries are observations from this browser session, derived from the current overview.
+They are not a durable service event history or a complete job-progress feed.
+The current browser contract does not provide detailed orchestration activity events.
+That feature needs an authenticated backend event projection before the UI can show those events.
+Do not infer them from traffic, cycle duration, or an unchanged publication phase.
 
 ## Checks and deployment
 
-Wasm release build, Wasm Clippy with warnings denied, and Rust 1.89 check passed.
-The focused browser check covers motion, stable nodes, keyboard controls, hover, reduced motion, and stale states.
-It also checks repeated component names, long labels, Light/Dark themes, and 768/320px widths.
-The existing sign-in and Dashboard browser smoke check passed.
+Five native chart/activity tests, Wasm release build, Clippy, and Rust 1.89 checks passed.
+Browser checks cover top placement, five permanent fields, conditional activity, duplicates, expiry, pause, and stale evidence.
+They also cover Light/Dark themes, reduced motion, and 768/320px widths.
+The existing sign-in and Dashboard smoke check passed.
+See [current browser evidence](evidence/diagnostics-ticker-top/README.md).
 
-See [browser pictures and evidence](evidence/diagnostics-ticker/README.md).
-The optional design-taste inspector is unavailable. Playwright supplies browser checks.
-Core, gateway, and TUI code did not change in this update.
-
-Install the prepared web build from the repository:
+Install the prepared web build:
 
 ```bash
 cd /home/pi/LQoSync3.0
@@ -62,6 +82,6 @@ sudo tools/frontend/install.sh
 
 ## Skills
 
-Vercel frontend-design keeps the existing product design and limits motion to the requested banner.
+Vercel frontend-design keeps the existing product design and the requested ticker behavior.
 Google modern-web-guidance `motion` says: "Provide a pause mechanism".
-The implementation uses a visible keyboard control, transform animation, and a static reduced-motion view.
+The implementation keeps the visible keyboard control, transform animation, and static reduced-motion view.
