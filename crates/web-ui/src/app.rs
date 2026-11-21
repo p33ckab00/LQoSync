@@ -4,7 +4,7 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use web_contract::{Overview, Principal};
 // Drop the timer when a request completes. Abort a stalled browser request after 15 seconds.
-fn deadline() -> (web_sys::AbortSignal, gloo_timers::callback::Timeout) {
+pub(crate) fn deadline() -> (web_sys::AbortSignal, gloo_timers::callback::Timeout) {
     let controller = web_sys::AbortController::new().expect("browser AbortController");
     let signal = controller.signal();
     let timer = gloo_timers::callback::Timeout::new(15_000, move || controller.abort());
@@ -52,6 +52,14 @@ fn SignIn(session: RwSignal<Option<Principal>>) -> impl IntoView {
 }
 #[component]
 fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
+    let page = crate::route::provide();
+    // Kept here, so Back from a router detail restores the inventory filters.
+    let filter = RwSignal::new(crate::routers_model::Filter::default());
+    let section = Memo::new(move |_| match page.get() {
+        crate::route_model::Page::Dashboard => 0,
+        crate::route_model::Page::Routers | crate::route_model::Page::Router { .. } => 1,
+        crate::route_model::Page::Unknown => 2,
+    });
     let data = RwSignal::new(None::<Overview>);
     let error = RwSignal::new(String::new());
     let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -136,14 +144,23 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             <section class="service-diagnostics status-banner" aria-label="Service diagnostics">
               <crate::diagnostics_ticker::DiagnosticsTicker data/>
             </section>
-            <div class="page-heading">
-              <div><h1>"Dashboard"</h1><p>"Network, subscriber, and traffic overview."</p></div>
-              <div class="freshness">{move||data.with(|d|match d {Some(v) if v.stale=>"Stale or partial data",Some(_)=>"Current data",None=>"Loading monitoring data…"})}</div>
-            </div>
-            <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
-            <Show when=move||data.with(Option::is_some) fallback=||view!{<div class="panel loading" role="status">"Loading service evidence…"</div>}>
-              <DashboardBody data/>
-            </Show>
+            {move||match section.get() {
+              0=>view!{
+                <div class="page-heading">
+                  <div><h1 tabindex="-1">"Dashboard"</h1><p>"Network, subscriber, and traffic overview."</p></div>
+                  <div class="freshness">{move||data.with(|d|match d {Some(v) if v.stale=>"Stale or partial data",Some(_)=>"Current data",None=>"Loading monitoring data…"})}</div>
+                </div>
+                <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
+                <Show when=move||data.with(Option::is_some) fallback=||view!{<div class="panel loading" role="status">"Loading service evidence…"</div>}>
+                  <DashboardBody data/>
+                </Show>
+              }.into_any(),
+              1=>view!{<crate::routers::RoutersPage data session filter/>}.into_any(),
+              _=>view!{
+                <div class="page-heading"><div><h1 tabindex="-1">"Page not found"</h1><p>"This address is not a page of LQoSync."</p></div></div>
+                <p><crate::route::Link href="/".to_string()>"Go to the Dashboard"</crate::route::Link></p>
+              }.into_any(),
+            }}
           </main>
         </div>
       </div>

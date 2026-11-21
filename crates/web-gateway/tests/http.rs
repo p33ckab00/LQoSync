@@ -222,6 +222,43 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
     let window: web_contract::TrafficWindow =
         serde_json::from_slice(&window.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!((window.window.as_str(), window.bucket_secs), ("24h", 360));
+    // The router inventory: authenticated, read from the service cache, no router I/O.
+    assert_eq!(
+        status("/api/v1/routers", String::new()).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        status("/api/v1/routers", cookie.clone()).await.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "no cache yet"
+    );
+    let inventory = web_contract::routers::RouterInventory {
+        version: web_contract::routers::VERSION,
+        updated: 990,
+        fresh_for: 300,
+        routers: vec![web_contract::routers::RouterSummary {
+            id: "router-core".into(),
+            name: "Core".into(),
+            ..Default::default()
+        }],
+        truncated: false,
+    };
+    std::fs::write(
+        _dir.path().join("routers.json"),
+        serde_json::to_vec(&inventory).unwrap(),
+    )
+    .unwrap();
+    let listed = status("/api/v1/routers", cookie.clone()).await;
+    assert_eq!(listed.status(), StatusCode::OK);
+    assert_eq!(listed.headers()["cache-control"], "no-store");
+    let listed: web_contract::routers::RouterInventory =
+        serde_json::from_slice(&listed.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(listed, inventory);
+    // Deep links load the page shell; the page reads data through the API.
+    for path in ["/routers", "/routers/router-core"] {
+        let page = status(path, String::new()).await;
+        assert_eq!(page.status(), StatusCode::OK, "{path}");
+    }
     for route in ["/api/v1/users", "/api/v1/signup", "/api/v1/reset-password"] {
         for method in ["GET", "POST", "PATCH", "DELETE"] {
             assert_eq!(

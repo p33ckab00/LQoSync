@@ -16,10 +16,23 @@ async fn main() -> anyhow::Result<()> {
     let status = serde_json::json!({"version":3,"updated":at,"pid":1,"cycle_seq":1,"mode":"shadow","target":"v3_pair","cycle_ms":482,"wan_capacity":{"down_bps":200_000_000,"up_bps":80_000_000,"wan_count":2,"registry_revision":7}});
     let collection = serde_json::json!({"version":1,"updated":at,"pid":1,"cycle_seq":1,"fresh_for":300,"routers":[{"state":"online","observed_at":at,"sources":{"ppp":{"enabled":true,"online":2,"offline":1},"dhcp":{"enabled":true}},"subscribers":[{"source":"dhcp","state":"bound"},{"source":"ppp","state":"online"},{"source":"ppp","state":"offline"}]}]});
     let health = serde_json::json!({"version":1,"updated":at,"overall":"HEALTHY","update":{"phase":"Applied"},"components":[{"component":"collector","state":"HEALTHY","observed_at":at,"max_age":300},{"component":"import","state":"HEALTHY","observed_at":at,"max_age":300}]});
+    // Synthetic router inventory: a WAN-only core, an online access router, and a failing one.
+    let routers = serde_json::json!({"version":1,"updated":at,"fresh_for":300,"routers":[
+      {"id":"lq3-00000000000000c1","name":"Core-01","address":"192.0.2.1","port":8729,"tls":true,"tls_verify":true,"tls_ca":true,"username":"lqosync","credential":true,
+       "roles":["wan"],"wans":["ether1","ether2"],"collection":null,"sources":[{"kind":"ppp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
+       "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":false,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}},
+      {"id":"lq3-00000000000000a1","name":"Access-01","address":"192.0.2.11","port":8728,"tls":false,"tls_verify":false,"tls_ca":false,"username":"lqosync","credential":true,
+       "roles":["ppp","dhcp"],"wans":[],"collection":{"state":"online","observed_at":at,"subscribers":3},"sources":[{"kind":"ppp","enabled":true,"records":3,"online":2,"offline":1},{"kind":"dhcp","enabled":true,"records":1,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
+       "location":[14.5995,120.9842],"options":{"ppp_per_plan_node":true,"hotspot_include_mac":false,"dhcp_require_bound":true,"dhcp_discover":true,"dhcp_shape_unassigned":false,"dhcp_servers":2,"dhcp_clients":1,"exclusions":3}},
+      {"id":"lq3-00000000000000a2","name":"Access-02","address":"192.0.2.12","port":8729,"tls":true,"tls_verify":false,"tls_ca":false,"username":"lqosync","credential":false,
+       "roles":["hotspot"],"wans":[],"collection":{"state":"unreachable","observed_at":0,"subscribers":0},"sources":[{"kind":"ppp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":true,"records":null,"online":null,"offline":null}],
+       "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":true,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}}
+    ]});
     for (name, value) in [
         ("status.json", status),
         ("collection.json", collection),
         ("system-health.json", health),
+        ("routers.json", routers),
     ] {
         std::fs::write(dir.path().join(name), serde_json::to_vec(&value)?)?;
     }

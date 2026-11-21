@@ -25,6 +25,7 @@ ratatui = { version = "0.30.2", features = ["unstable-rendered-line-info"] }
 libc = "0.2"
 ciborium = "0.2.2"
 nix = { version = "0.31.3", features = ["socket", "uio"] }
+web-contract = { path = "crates/web-contract" }
 
 [profile.release]
 # Keep panic = "unwind": the runner catches a panic in a router task.

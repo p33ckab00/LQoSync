@@ -162,6 +162,15 @@ async fn traffic(
     let window = reply.traffic.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(window).into_response())
 }
+/// The cached router inventory. The service writes it each cycle; this read starts no router I/O.
+async fn routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
+    principal(&s, &h).await?;
+    let reply = exchange(&s.broker, &BrokerRequest::Routers)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let inventory = reply.routers.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(inventory).into_response())
+}
 async fn live(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     principal(&s, &h).await?;
     // Slow clients own at most one snapshot; there is no per-client event queue.
@@ -253,6 +262,10 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/overview", get(overview))
         .route("/api/v1/overview/live", get(live))
         .route("/api/v1/traffic", get(traffic))
+        .route("/api/v1/routers", get(routers))
+        // Browser routes of the single-page UI. The page itself loads data through the API.
+        .route("/routers", get(index))
+        .route("/routers/{*rest}", get(index))
         .route(
             "/api/{*path}",
             get(|| async { StatusCode::NOT_FOUND })

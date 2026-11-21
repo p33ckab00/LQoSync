@@ -52,19 +52,29 @@ These rules come from the ui-ux floor (WCAG 2.2 AA) and the Fluent interaction g
 - Use tabular figures for counts and ages. Use 13 px as the smallest readable text.
 - Mark a router that has `tls_verify = false` with the text "Certificate not checked".
 
-## Decisions for the owner
+## Owner decisions (2026-11-21)
 
-- D1: Allow a CA certificate upload from the browser to the managed CA store (B9)?
-- D2: Ask for the current password again before a disable and before a credential replacement?
-- D3: The earlier rule says that LQoSync does not write to routers. R09 plans address-list writes. Slices S1 to S6 below do not write to routers. R09 needs a separate approval before work starts.
+- D1, approved: the browser can upload a CA certificate (PEM, up to 16 KiB) to the managed CA store (B9). The browser sees only "CA configured".
+- D2, approved: the web asks for the current password again before a disable and before a credential replacement.
+- D3, clarified: the no-read and no-write rule applies to a disabled router. An enabled core router can receive the approved R09 address-list writes after lab evidence.
+
+## Change from the review: the inventory is a published cache
+
+The service answers `api.sock` requests only between cycles (`src/main.rs`, `serve_until`). An inventory read through the API waits for the current cycle.
+S1 therefore uses the existing cache pattern. At the end of each cycle, the service writes `routers.json` (mode 0600) in the state directory.
+The broker reads that file, the same as `collection.json`. Mutations (S3 and later) use `api.sock`.
+The file uses the `web-contract` router types, so the core and the gateway share one schema.
 
 ## Revised slice order
+
+Status: S1 is implemented. The service writes `routers.json` each cycle. `GET /api/v1/routers` and the `/routers` page read it.
+`tools/frontend/routers-check.cjs` holds the browser evidence. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
 
 Each slice ends with tests, browser evidence, a commit, and a release build.
 
 | Slice | Content | Router I/O |
 | --- | --- | --- |
-| S1 | Read-only inventory and detail: `routers.list` and `router.get` core operations (B1), broker and HTTP GET, deep links (B11), inventory table, detail drawer, Overview, Connection, and Sources tabs as read-only. Correct the Dashboard Routers count. | None |
+| S1 | Read-only inventory and detail: a `routers.json` cache from each cycle (B1), broker and HTTP GET, deep links (B11), inventory table, detail drawer, Overview, Connection, and Sources tabs as read-only. Correct the Dashboard Routers count. | None |
 | S2 | Router-wide `enabled` gate (B3, B6): legacy cycle, WAN discovery, coordinator, TUI display, and compatibility tests. | None (it removes I/O) |
 | S3 | Local create and update (B2, B8, B9): core operations, secrets, managed CA store, audit log, Add router form, Connection and Sources editors, Activity tab. New routers are disabled. | None |
 | S4 | Disable and enable with a preview (B4, B5): legacy writer first, removal guard stage, two result tracks, disable dialog. | None (it stops I/O) |

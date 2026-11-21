@@ -93,6 +93,7 @@ pub fn project(root: &Path, now: u64) -> Overview {
             });
     }
     if coherent && let Some(routers) = collection["routers"].as_array() {
+        // The collection lists only routers with a subscriber role; the inventory below lists all.
         view.routers = Some(routers.len() as u64);
         view.routers_online =
             Some(routers.iter().filter(|r| r["state"] == "online").count() as u64);
@@ -187,6 +188,10 @@ pub fn project(root: &Path, now: u64) -> Overview {
     crate::dpdk::project_nic(&root, now, view.dpdk.as_mut().unwrap());
     crate::dpdk::bound(view.dpdk.as_mut().unwrap());
     bound_traffic(&mut view);
+    // Managed routers: every configured router, including a WAN-only core that the cycle does not read.
+    if coherent && let Some(inventory) = crate::routers::load(&root) {
+        view.routers = Some(inventory.routers.len() as u64);
+    }
     view
 }
 

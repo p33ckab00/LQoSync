@@ -1970,6 +1970,13 @@ where
         if let Err(error) = crate::collection::publish(state_dir, &collection) {
             eprintln!("warning: cannot write collection.json: {error:#}");
         }
+        // The web router inventory: config, catalog WAN roles, and this collection. No router I/O.
+        let catalog = self.api_document().ok().flatten().and_then(|d| d.catalog);
+        let inventory =
+            crate::router_view::project(&self.cfg, catalog.as_ref(), Some(&collection), now);
+        if let Err(error) = crate::router_view::publish(state_dir, &inventory) {
+            eprintln!("warning: cannot write routers.json: {error:#}");
+        }
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
@@ -2518,6 +2525,33 @@ mod tests {
         let st: serde_json::Value =
             serde_json::from_str(&read(&e.state.join("status.json"))).unwrap();
         assert!(!st.to_string().contains("Core"), "{st}");
+    }
+
+    #[tokio::test]
+    async fn each_cycle_publishes_the_router_inventory_without_reading_a_wan_only_router() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(
+            &e,
+            "shadow",
+            "[router_access]\nread_retries=0\nretry_delay=0\n",
+        );
+        let core = Config::from_toml_str(
+            "[[routers]]\nname=\"Core\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        )
+        .unwrap()
+        .routers
+        .remove(0);
+        c.routers.push(core);
+        e.fake.panicking.lock().unwrap().insert("Core".into());
+        runner(&e, c).cycle(1_000, false).await;
+        let inv: web_contract::routers::RouterInventory =
+            serde_json::from_str(&read(&e.state.join("routers.json"))).unwrap();
+        let names: Vec<_> = inv.routers.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, ["R1", "Core"], "every configured router is listed");
+        assert_eq!(inv.routers[0].collection.as_ref().unwrap().state, "online");
+        assert_eq!(inv.routers[1].collection, None);
+        assert!(!read(&e.state.join("routers.json")).contains("password_file"));
     }
 
     #[test]

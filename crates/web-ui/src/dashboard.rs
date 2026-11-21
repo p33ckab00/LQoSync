@@ -1,4 +1,5 @@
 //! Dashboard composition follows the approved picture and its written corrections.
+use crate::route_model::Page;
 use leptos::prelude::*;
 use web_contract::Overview;
 
@@ -72,10 +73,28 @@ fn Icon(name: &'static str) -> impl IntoView {
     };
     view! {<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d=path/></svg>}
 }
+/// A main navigation link. A plain click changes the page without a reload.
+#[component]
+fn NavLink(
+    href: &'static str,
+    label: &'static str,
+    icon: &'static str,
+    active: Signal<bool>,
+) -> impl IntoView {
+    view! {
+      <a href=href class:nav-active=move||active.get() aria-current=move||active.get().then_some("page")
+        on:click=move|ev: web_sys::MouseEvent|{
+          if ev.button()==0 && !(ev.ctrl_key()||ev.meta_key()||ev.shift_key()||ev.alt_key()) {
+            ev.prevent_default();
+            crate::route::go(href);
+          }
+        }><Icon name=icon/>{label}</a>
+    }
+}
 #[component]
 pub(crate) fn Navigation() -> impl IntoView {
+    let page = crate::route::page();
     let groups = [
-        ("Network", vec![("Routers", "router")]),
         (
             "IPoE",
             vec![("Subscribers", "people"), ("Profiles", "layers")],
@@ -94,7 +113,10 @@ pub(crate) fn Navigation() -> impl IntoView {
     ];
     view! {
       <nav class="dashboard-nav" aria-label="Main navigation">
-        <a class="nav-active" href="/" aria-current="page"><Icon name="dashboard"/>"Dashboard"</a>
+        <NavLink href="/" label="Dashboard" icon="dashboard" active=Signal::derive(move||page.get()==Page::Dashboard)/>
+        <div class="nav-group"><p>"Network"</p>
+          <NavLink href="/routers" label="Routers" icon="router" active=Signal::derive(move||matches!(page.get(),Page::Routers|Page::Router{..}))/>
+        </div>
         {groups.into_iter().map(|(group,items)|view!{
           <div class="nav-group"><p>{group}</p>{items.into_iter().map(|(label,icon)|view!{
             <button class="nav-planned" disabled title="This screen is not available yet"><Icon name=icon/><span>{label}</span><small>"Soon"</small></button>

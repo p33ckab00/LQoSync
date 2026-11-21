@@ -37,6 +37,8 @@ pub enum Request {
     Traffic {
         window: String,
     },
+    /// The cached router inventory. No router I/O.
+    Routers,
 }
 #[derive(Serialize, Deserialize)]
 pub struct Reply {
@@ -45,6 +47,8 @@ pub struct Reply {
     pub overview: Option<Overview>,
     #[serde(default)]
     pub traffic: Option<TrafficWindow>,
+    #[serde(default)]
+    pub routers: Option<web_contract::routers::RouterInventory>,
 }
 impl Reply {
     fn no() -> Self {
@@ -53,6 +57,7 @@ impl Reply {
             account: None,
             overview: None,
             traffic: None,
+            routers: None,
         }
     }
 }
@@ -96,6 +101,7 @@ pub async fn serve(
     ));
     let cache = cached.clone();
     let recorder = history.clone();
+    let inventory_root = state_dir.clone();
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(1));
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -164,6 +170,7 @@ pub async fn serve(
         let history = history.clone();
         let hashes = hashes.clone();
         let limits = limits.clone();
+        let root = inventory_root.clone();
         tokio::spawn(async move {
             let _permit = permit;
             let result = tokio::time::timeout(Duration::from_secs(12), async {
@@ -185,6 +192,12 @@ pub async fn serve(
                         ensure!(window.len() <= 8, "invalid input");
                         reply.traffic = history.read().await.window(&window, now());
                         reply.ok = reply.traffic.is_some();
+                    }
+                    Request::Routers => {
+                        reply.routers =
+                            tokio::task::spawn_blocking(move || crate::routers::load(&root))
+                                .await?;
+                        reply.ok = reply.routers.is_some();
                     }
                     Request::Active { id, epoch } => {
                         reply.ok = tokio::task::spawn_blocking(move || accounts.active(id, epoch))

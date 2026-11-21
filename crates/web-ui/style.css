@@ -355,3 +355,47 @@
 @keyframes phase-value{0%{opacity:0}20%,65%{opacity:1}100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.phase-pulse,.phase-value{animation:none}}
 @media(forced-colors:active){.phase-pulse{display:none}.phase-value{fill:Canvas}}
+/* Routers screen: one inventory table and a read-only detail. Semantic tokens only; state is text first. */
+.routers-panel,.router-section{padding:20px}
+.router-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px;margin-block-end:12px}
+.router-filters label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.router-filters input,.router-filters select{block-size:40px;min-height:0;margin:0;box-sizing:border-box;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding-inline:12px}
+.router-filters input:focus-visible,.router-filters select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.router-search{flex:1 1 240px}
+.router-count{margin-inline-start:auto;align-self:center;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.router-table{inline-size:100%;border-collapse:collapse;font-size:14px}
+.router-table th,.router-table td{padding:12px;text-align:start;vertical-align:top;border-block-end:1px solid var(--border)}
+.router-table thead th{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.router-table tbody th{font-weight:400}
+.router-table tbody tr:last-child>*{border-block-end:0}
+.router-table small{display:block;margin-block-start:4px;font-size:13px;color:var(--muted)}
+.router-table .num,.router-facts .num{text-align:end;font-variant-numeric:tabular-nums}
+.router-facts .num{text-align:start}
+.router-name{font-weight:600;color:var(--text);text-decoration:none}
+.router-name:hover{text-decoration:underline}
+.router-state{display:inline-flex;align-items:center;gap:8px;font-weight:500;white-space:nowrap}
+.router-state i{inline-size:8px;block-size:8px;border-radius:50%;background:var(--muted);flex:none}
+.router-state.good i{background:var(--good)}.router-state.warn i{background:var(--warn)}.router-state.bad i{background:var(--bad)}
+.router-state.bad{color:var(--bad)}
+.router-state.big{font-size:14px;padding:6px 12px;border:1px solid var(--border);border-radius:999px}
+.router-roles{display:flex;flex-wrap:wrap;gap:6px}
+.router-role{font-size:13px;line-height:1.5;padding:1px 8px;border:1px solid var(--border);border-radius:6px;white-space:nowrap}
+.router-role.wan{border-color:var(--accent);color:var(--accent)}
+.router-role.none{color:var(--muted)}
+.router-transport.warn,.router-warn{color:var(--warn)}
+.router-empty{padding-block:24px;color:var(--muted)}
+.router-empty button{margin-block-start:8px}
+.breadcrumb{display:flex;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted);margin-block-end:8px}
+.breadcrumb a{color:var(--accent)}
+.router-tabs{display:flex;gap:4px;border-block-end:1px solid var(--border);margin-block-end:16px;overflow-x:auto}
+.router-tabs a{display:inline-flex;align-items:center;min-block-size:44px;padding-inline:14px;color:var(--muted);text-decoration:none;border-block-end:2px solid transparent;white-space:nowrap}
+.router-tabs a:hover{color:var(--text)}
+.router-tabs a[aria-current=page]{color:var(--text);font-weight:600;border-color:var(--accent)}
+.router-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 24px;margin:0 0 16px}
+.router-facts dt{font-size:13px;color:var(--muted)}
+.router-facts dd{margin:4px 0 0;font-size:15px;overflow-wrap:anywhere}
+.router-facts code{font-size:13px}
+.router-section .table-scroll{margin-block-end:20px}
+/* Narrow screens keep the name and the read state; the other columns stay in the detail page. */
+@media(max-width:600px){.routers-panel,.router-section{padding:16px}.router-table:not(.compact) :is(th,td):is(:nth-child(2),:nth-child(n+4)){display:none}.router-count{margin-inline-start:0}}
+@media(forced-colors:active){.router-state i{forced-color-adjust:none;background:CanvasText}.router-tabs a[aria-current=page]{border-color:Highlight}}

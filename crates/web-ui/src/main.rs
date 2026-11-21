@@ -36,3 +36,12 @@ mod worker_ring_model;
 
 #[cfg(any(target_arch = "wasm32", test))]
 mod dpdk_console_model;
+
+#[cfg(target_arch = "wasm32")]
+mod route;
+#[cfg(any(target_arch = "wasm32", test))]
+mod route_model;
+#[cfg(target_arch = "wasm32")]
+mod routers;
+#[cfg(any(target_arch = "wasm32", test))]
+mod routers_model;
