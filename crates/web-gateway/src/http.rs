@@ -314,6 +314,59 @@ async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read)
         },
     )
 }
+/// Queue one topology change. `202` with the operation; the page reads its state by key.
+async fn topology_mutate(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Json(body): Json<web_contract::topology::MutationRequest>,
+) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    let request = BrokerRequest::TopologyMutate {
+        actor: p.username,
+        key: body.key,
+        command: body.command,
+    };
+    let reply = exchange(&s.broker, &request)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    match (reply.operation, reply.refused.as_deref()) {
+        (Some(op), _) => {
+            let location = format!("/api/v1/topology/operations/{}", op.key);
+            let mut r = (StatusCode::ACCEPTED, Json(op)).into_response();
+            if let Ok(v) = axum::http::HeaderValue::from_str(&location) {
+                r.headers_mut().insert(header::LOCATION, v);
+            }
+            Ok(r)
+        }
+        (None, Some("key_reused")) => Err(StatusCode::CONFLICT),
+        (None, Some("busy")) => Err(StatusCode::TOO_MANY_REQUESTS),
+        (None, Some("invalid")) => Err(StatusCode::BAD_REQUEST),
+        _ => Err(StatusCode::SERVICE_UNAVAILABLE),
+    }
+}
+/// The state of one topology change of this account.
+async fn topology_operation(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(key): Path<String>,
+) -> ApiResult {
+    let p = principal(&s, &h).await?;
+    if key.len() > 64 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let request = BrokerRequest::TopologyOperation {
+        actor: p.username,
+        key,
+    };
+    let reply = exchange(&s.broker, &request)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let op = reply.operation.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    if op.state == "not_found" {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(Json(op).into_response())
+}
 async fn topology(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     topology_read(&s, &h, crate::topology::Read::Summary).await
 }
@@ -477,6 +530,8 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/routers/{id}/test", post(test_router))
         .route("/api/v1/routers/sync", post(sync_routers))
         .route("/api/v1/topology", get(topology))
+        .route("/api/v1/topology/mutations", post(topology_mutate))
+        .route("/api/v1/topology/operations/{key}", get(topology_operation))
         .route("/api/v1/topology/assignments", get(topology_assignments))
         .route("/api/v1/topology/observations", get(topology_observations))
         .route(

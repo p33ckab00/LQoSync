@@ -83,6 +83,17 @@ pub enum Request {
     Topology {
         read: crate::topology::Read,
     },
+    /// Queue one web mutation. The gateway sets `actor` from the session, never from the browser.
+    TopologyMutate {
+        actor: String,
+        key: String,
+        command: web_contract::topology::WebCommand,
+    },
+    /// The state of one web mutation of this actor.
+    TopologyOperation {
+        actor: String,
+        key: String,
+    },
 }
 #[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
@@ -105,6 +116,11 @@ pub struct Reply {
     pub journal: Option<web_contract::journal::JournalPage>,
     #[serde(default)]
     pub topology: Option<web_contract::topology::TopologyReply>,
+    #[serde(default)]
+    pub operation: Option<web_contract::topology::Operation>,
+    /// Why a mutation was not queued: `invalid`, `key_reused`, or `busy`.
+    #[serde(default)]
+    pub refused: Option<String>,
 }
 impl Reply {
     fn no() -> Self {
@@ -120,6 +136,8 @@ impl Reply {
             router: None,
             journal: None,
             topology: None,
+            operation: None,
+            refused: None,
         }
     }
 }
@@ -229,6 +247,8 @@ pub async fn serve(
     // One connection test at a time; the service runs it between cycles.
     let tests = Arc::new(Semaphore::new(1));
     let editor = editor.map(Arc::new);
+    // One mutation lane to the service. The service receipts are the durable record.
+    let jobs = crate::topology_jobs::Jobs::new(inventory_root.clone());
     loop {
         let (stream, _) = listener.accept().await?;
         if stream.peer_cred()?.uid() != uid {
@@ -246,6 +266,7 @@ pub async fn serve(
         let edits = edits.clone();
         let tests = tests.clone();
         let editor = editor.clone();
+        let jobs = jobs.clone();
         tokio::spawn(async move {
             let _permit = permit;
             // A connection test waits for the current cycle, then for its own router timeouts.
@@ -280,6 +301,32 @@ pub async fn serve(
                         })
                         .await?;
                         reply.ok = reply.topology.is_some();
+                    }
+                    Request::TopologyMutate {
+                        actor,
+                        key,
+                        command,
+                    } => {
+                        use crate::topology_jobs::Refused;
+                        match jobs.submit(&actor, &key, command).await {
+                            Ok(operation) => reply.operation = Some(operation),
+                            Err(refused) => {
+                                reply.refused = Some(
+                                    match refused {
+                                        Refused::Invalid => "invalid",
+                                        Refused::KeyReused => "key_reused",
+                                        Refused::Busy => "busy",
+                                    }
+                                    .into(),
+                                )
+                            }
+                        }
+                        reply.ok = reply.operation.is_some();
+                    }
+                    Request::TopologyOperation { actor, key } => {
+                        ensure!(actor.len() <= 64 && key.len() <= 64, "invalid input");
+                        reply.operation = Some(jobs.status(&actor, &key).await);
+                        reply.ok = true;
                     }
                     Request::Routers => {
                         reply.routers =

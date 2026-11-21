@@ -318,3 +318,22 @@ pub struct WebReceipt {
     /// A safe reason for `failed`.
     pub error: Option<String>,
 }
+
+/// `POST /api/v1/topology/mutations`. The browser makes the key once per user action and sends it
+/// again on a retry; the service runs one command once per key.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MutationRequest {
+    pub key: String,
+    pub command: WebCommand,
+}
+
+/// The state of one web mutation for its actor.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Operation {
+    pub key: String,
+    /// `queued`, `running`, `saved`, `failed`, `not_committed`, `outcome_unknown`, or `not_found`.
+    pub state: String,
+    /// The service receipt once the service answered or recovery decided.
+    pub receipt: Option<WebReceipt>,
+}

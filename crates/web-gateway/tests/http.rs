@@ -45,6 +45,12 @@ async fn fixture() -> (
     );
     (temp, app, accounts, job)
 }
+async fn status_owned(app: &axum::Router, path: &str, cookie: &str) -> axum::response::Response {
+    app.clone()
+        .oneshot(req("GET", path, cookie, "", ""))
+        .await
+        .unwrap()
+}
 fn req(method: &str, path: &str, cookie: &str, origin: &str, body: &str) -> Request<Body> {
     Request::builder()
         .method(method)
@@ -303,6 +309,54 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
     ] {
         assert_eq!(status(path, cookie.clone()).await.status(), code, "{path}");
     }
+    // A topology change: same origin and CSRF, then 202 and an operation URL.
+    let key = "0f8b5a3c-1d2e-4f60-9a7b-000000000001";
+    let change = serde_json::json!({"key": key, "command": {"command": "plan_create",
+        "expected_revision": 1, "name": "Gold", "down_mbps": 100, "up_mbps": 50}})
+    .to_string();
+    let no_csrf = app
+        .clone()
+        .oneshot(req(
+            "POST",
+            "/api/v1/topology/mutations",
+            &cookie,
+            "https://lqosync.test",
+            &change,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(no_csrf.status(), StatusCode::FORBIDDEN);
+    let mut mutate = req(
+        "POST",
+        "/api/v1/topology/mutations",
+        &cookie,
+        "https://lqosync.test",
+        &change,
+    );
+    mutate.headers_mut().insert(
+        "x-csrf-token",
+        json["csrf"].as_str().unwrap().parse().unwrap(),
+    );
+    let queued = app.clone().oneshot(mutate).await.unwrap();
+    assert_eq!(queued.status(), StatusCode::ACCEPTED);
+    assert_eq!(
+        queued.headers()["location"],
+        format!("/api/v1/topology/operations/{key}")
+    );
+    // No service socket in this fixture: the change fails without a write.
+    let mut state = String::new();
+    for _ in 0..50 {
+        let op = status_owned(&app, &format!("/api/v1/topology/operations/{key}"), &cookie).await;
+        assert_eq!(op.status(), StatusCode::OK);
+        let op: web_contract::topology::Operation =
+            serde_json::from_slice(&op.into_body().collect().await.unwrap().to_bytes()).unwrap();
+        state = op.state;
+        if state != "queued" && state != "running" {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert_eq!(state, "failed");
     let posted = app
         .clone()
         .oneshot(req(
