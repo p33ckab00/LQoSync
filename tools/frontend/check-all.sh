@@ -45,7 +45,8 @@ stop_fixture() {
 start_fixture() {
     stop_fixture
     setsid -f target/debug/examples/browser_fixture >"$LOGS/fixture-$1.log" 2>&1
-    for _ in $(seq 1 100); do ss -ltnH "sport = :$PORT" | grep -q . && return 0; sleep 0.1; done
+    # A cold start after a build can take more than 10 s on this host.
+    for _ in $(seq 1 300); do ss -ltnH "sport = :$PORT" | grep -q . && return 0; sleep 0.1; done
     return 1
 }
 

@@ -36,9 +36,9 @@ const fs=require('node:fs');
   const left=boxes[0].x-area.x,right=area.right-boxes[1].right;
   assert.ok(boxes[1].x>boxes[0].right && Math.abs(left-right)<=2,'ports spread evenly in their area');
   for(const tile of await ports.all()){
-   // The frame holds the artwork; the activity LEDs sit directly below the frame.
-   const art=await tile.locator('.nic-port-frame').boundingBox();const leds=await tile.locator('.nic-activity-leds').boundingBox();
-   assert.ok(leds.y>=art.y+art.height && leds.y-art.y-art.height<=4,'LEDs must sit directly below the port frame');
+   // The link line is on the port artwork; the activity LEDs sit directly below it.
+   const art=await tile.locator('.nic-port-art').boundingBox();const leds=await tile.locator('.nic-activity-leds').boundingBox();
+   assert.ok(leds.y>=art.y+art.height && leds.y-art.y-art.height<=4,'LEDs must sit directly below the port');
   }
   await page.evaluate(async()=>{window.nicView=await(await fetch('/api/v1/overview')).json();window.testStreams.forEach(s=>s.close());window.nicEpoch=window.nicView.dpdk.nic.updated;});
   await page.route('**/api/v1/overview',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(await page.evaluate(()=>window.nicView))}));
@@ -56,12 +56,13 @@ const fs=require('node:fs');
   await page.waitForTimeout(220);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,0]);
   await sample(0,9);await page.waitForTimeout(240);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
   await sample(0,0);await page.waitForTimeout(220);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
-  // The port frame shows the link: solid with a glow when up, dashed when down (not color alone).
-  const frame=ports.first().locator('.nic-port-frame');
-  assert.equal(await frame.evaluate(n=>getComputedStyle(n).borderTopStyle),'solid');
-  assert.notEqual(await frame.evaluate(n=>getComputedStyle(n).boxShadow),'none');
+  // The link line is on the port bezel itself: solid with an outer glow when up, dashed when down (not color alone).
+  const line=ports.first().locator('svg.nic-port-art rect.nic-link-outline');
+  assert.equal(await line.evaluate(n=>getComputedStyle(n).strokeDasharray),'none');
+  assert.match(await ports.first().locator('.nic-port-art').evaluate(n=>getComputedStyle(n).filter),/drop-shadow/);
+  assert.equal(await nic.locator('.nic-port-frame').count(),0,'no separate frame with a gap around the port');
   await sample(8,8,{state:'DOWN'});await page.waitForTimeout(220);assert.equal(await ports.first().evaluate(n=>n.classList.contains('link-down')),true);
-  assert.equal(await frame.evaluate(n=>getComputedStyle(n).borderTopStyle),'dashed');assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
+  assert.notEqual(await line.evaluate(n=>getComputedStyle(n).strokeDasharray),'none');assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
   await sample(8,8,{reset:true});await page.waitForTimeout(220);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
   await page.evaluate(()=>{const v=window.nicView;v.dpdk.nic.stale=true;window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(v)}));});
   await nic.getByText('Link unknown · stale',{exact:true}).waitFor();

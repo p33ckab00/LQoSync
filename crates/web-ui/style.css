@@ -185,7 +185,7 @@
 .nic-physical-port figcaption{display:flex;flex-direction:column;gap:1px}
 .nic-physical-port figcaption strong{font-size:14px;font-weight:600;color:var(--text)}
 .nic-physical-port figcaption>span,.nic-pci{font-size:13px;color:var(--muted)}
-.nic-port-art{display:block;inline-size:100px;block-size:88px;margin-inline:auto;color:var(--muted)}
+.nic-port-art{display:block;inline-size:100px;block-size:73px;margin-inline:auto;color:var(--muted)}
 .nic-bezel{fill:#384350;stroke:#8996a5;stroke-width:2}.nic-socket{fill:#101b24;stroke:#9ba8b5;stroke-width:2}
 .nic-contacts{fill:none;stroke:#91a8b7;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .nic-link-led{fill:var(--muted)}
@@ -231,9 +231,7 @@
 @media(forced-colors:active){.nic-hud-position,.nic-hud{background:Canvas}.nic-hud-traffic path{stroke:CanvasText}.nic-composition span{border:1px solid CanvasText}}
 
 .nic-art-defs{position:absolute;inline-size:0;block-size:0;overflow:hidden;pointer-events:none}
-.nic-link-outline{fill:none;stroke:var(--muted);stroke-width:1.5}
-.link-up .nic-link-outline{stroke:var(--good)}.link-down .nic-link-outline{stroke:var(--bad)}
-@media(forced-colors:active){.nic-kit-shape{fill:Canvas;stroke:CanvasText}.nic-link-outline{stroke:CanvasText}}
+@media(forced-colors:active){.nic-kit-shape{fill:Canvas;stroke:CanvasText}}
 
 /* Service summary: five metric cards in one row, then the DPDK Health card on its own full row. */
 .app-shell .metrics{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -574,15 +572,18 @@ dialog.add-router-dialog{box-sizing:border-box;inline-size:min(760px,calc(100vw 
 .noc-footer .noc-bridge b{text-transform:uppercase;letter-spacing:.03em}
 .noc-footer .tone-good b{color:var(--good)}.noc-footer .tone-warn b{color:var(--warn)}.noc-footer .tone-neutral b{color:var(--muted)}
 .noc-deck .nic-faceplate{justify-content:space-around}
-/* NIC port frame: the link state as a rounded line around the port. Up: solid with an outer glow; down: dashed; unknown: dotted. */
-.nic-port-frame{display:block;inline-size:max-content;margin:4px auto 2px;padding:4px;border:2px dotted var(--muted);border-radius:12px;transition:box-shadow .2s ease,border-color .2s ease}
-.link-up .nic-port-frame{border-style:solid;border-color:var(--good);box-shadow:0 0 0 1px color-mix(in srgb,var(--good) 30%,transparent),0 0 12px color-mix(in srgb,var(--good) 45%,transparent)}
-.link-down .nic-port-frame{border-style:dashed;border-color:var(--bad);box-shadow:0 0 10px color-mix(in srgb,var(--bad) 35%,transparent)}
-.nic-port-control:hover .link-up .nic-port-frame,.nic-physical-port.link-up:focus-visible .nic-port-frame{box-shadow:0 0 0 1px var(--good),0 0 18px color-mix(in srgb,var(--good) 60%,transparent)}
-.nic-port-frame .nic-port-art{inline-size:100px;block-size:73px}
+/* NIC link line: drawn on the port bezel itself, so it touches the port. Up: solid with an outer glow; down: dashed; unknown: dotted. */
+.nic-link-outline{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-dasharray:1 4;stroke-linecap:round;transition:stroke .2s ease}
+.link-up .nic-link-outline{stroke:var(--good);stroke-dasharray:none}
+.link-down .nic-link-outline{stroke:var(--bad);stroke-dasharray:7 4;stroke-linecap:butt}
+.nic-port-art{margin-block:4px 2px;transition:filter .2s ease}
+/* The artwork is opaque, so the shadow shows only outside the port. */
+.link-up .nic-port-art{filter:drop-shadow(0 0 4px color-mix(in srgb,var(--good) 55%,transparent))}
+.link-down .nic-port-art{filter:drop-shadow(0 0 3px color-mix(in srgb,var(--bad) 40%,transparent))}
+.nic-port-control:hover .link-up .nic-port-art,.nic-physical-port.link-up:focus-visible .nic-port-art{filter:drop-shadow(0 0 7px color-mix(in srgb,var(--good) 75%,transparent))}
 @media(max-width:1200px){.noc-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.noc-status{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.app-shell .noc-status .metric{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "value" "note"}.app-shell .noc-status .metric strong{text-align:start}.noc-status h3{grid-column:1/-1}.noc-grid>.noc-status{padding-inline:0;padding-block-end:16px;border-block-end:1px dashed var(--border)}.noc-grid>.noc-radial{border-inline-start:0;padding-inline-start:0;padding-block-start:16px}.noc-grid>.worker-ring-side{padding-block-start:16px}}
 @media(max-width:900px){.noc-grid{grid-template-columns:minmax(0,1fr)}.noc-grid>*{padding-inline:0;border-inline-start:0!important}.noc-grid .worker-ring-side{padding-inline-start:0;padding-block-start:16px;border-block-start:1px dashed var(--border)}}
-@media(prefers-reduced-motion:reduce){.nic-port-frame{transition:none}}
-@media(forced-colors:active){.nic-port-frame{border-color:CanvasText;box-shadow:none}.link-up .nic-port-frame{border-color:Highlight}}
+@media(prefers-reduced-motion:reduce){.nic-port-art,.nic-link-outline{transition:none}}
+@media(forced-colors:active){.nic-port-art{filter:none!important}.nic-link-outline{stroke:CanvasText}.link-up .nic-link-outline{stroke:Highlight}}
 @media(max-width:900px){.noc-status{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.noc-status{grid-template-columns:minmax(0,1fr)}.app-shell .noc-status .metric{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title value" "note value"}.app-shell .noc-status .metric strong{text-align:end}}

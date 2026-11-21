@@ -204,19 +204,19 @@ fn PortTile(
             on:keydown=move|ev|{if ev.key()=="Enter" || ev.key()==" "{ev.prevent_default();hover.set_value(None);place();pinned.set(true);set_open(true);}}>
 
             <figcaption><strong>{move||port.with(|p|p.physical.role.clone().unwrap_or("Role unknown".into()))}</strong><span>{move||port.with(|p|format!("{} · P{}",if live.get(){speed(p.speed_mbps)}else{"—".into()},p.id))}</span></figcaption>
-            // The frame around the port shows the link: solid with a glow when up, dashed when down.
-            <span class="nic-port-frame">
             {move||port.with(|p|{
                 let kind=artwork(p.physical.connector.as_deref().unwrap_or("unknown"));
+                // The link line sits on the bezel edge of each artwork, so it touches the port: no gap.
+                let (x,w,rx)=match kind {"qsfp"=>("2","96","7"),"sfp"=>("3","94","8"),_=>("3","94","9")};
                 view!{<svg class="nic-port-art" data-connector=kind viewBox="0 3 100 73" role="img" aria-label=format!("{} physical port, link {}",p.physical.connector.as_deref().unwrap_or("Unknown"),state.get())>
                   {if kind=="unknown" {
                     view!{<g><rect class="nic-bezel" x="3" y="6" width="94" height="67" rx="9"/><rect class="nic-socket" x="12" y="16" width="76" height="46" rx="3"/><path class="nic-contacts" d="M40 30C40 22 58 22 58 32C58 38 49 38 49 44M49 49V51"/></g>}.into_any()
                   } else {
-                    view!{<use href=format!("#lqosync-nic-{kind}")/>}.into_any()
+                    view!{<use href=format!("#lqosync-nic-{kind}") width="100" height="88"/>}.into_any()
                   }}
+                  <rect class="nic-link-outline" x=x y="6" width=w height="67" rx=rx/>
                 </svg>}
             })}
-            </span>
             <div class="nic-activity-leds" aria-label="Traffic activity in last counter interval">
               {["RX","TX"].into_iter().enumerate().map(|(i,label)|view!{
                 <span class=if i==0{"nic-activity rx"}else{"nic-activity tx"} title=move||port.with(|p|{
