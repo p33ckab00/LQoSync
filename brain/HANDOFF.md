@@ -8,6 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T21:08:28+08:00 (Asia/Manila) — DPDK traffic chart design reference
+
+- Goal: prepare research, an executable mock, SVG samples, and a plan for a later Dashboard improvement.
+- Owner clarification: measure whole-bridge DPDK traffic activity only. LibreQoS subscriber Queue Dynamics supplies only the design and interactions.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: `docs/frontend/TRAFFIC_QUEUE_DYNAMICS.md`, the v5 HTML prototype, three v5 SVGs, screenshots, evidence, the traffic queue plan, and `tools/frontend/traffic-queue-mock-check.cjs`. The supplied v4 SVG remains a reference.
+- Checks: local Playwright passed for DPDK-only scope, themes, inspection, streaming, keyboard/touch, source states, contrast, and four widths. XML and whitespace checks passed.
+- Evidence: `docs/frontend/evidence/traffic-queue-v5/README.md`. All mock data are synthetic.
+- Unfinished work: production DPDK integration. Subscriber mode and subscriber metrics are outside this task.
+- Next action: use tasks 2–3 in `docs/frontend/plans/2026-11-21-traffic-queue-dynamics.md` for the later improvement.
+- Preserve other agents' files. This task changed no production application file or running service.
+
 ## 2026-11-21T12:50:00+08:00 (Asia/Shanghai) — Work split: Journal and Workers screens
 
 - Goal: build the Journal and Workers screens in parallel with the Topology work, with no shared files in flight.
