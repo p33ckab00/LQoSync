@@ -8,3 +8,4 @@ pub mod journal;
 pub mod overview;
 pub mod routers;
 pub mod sessions;
+pub mod topology;

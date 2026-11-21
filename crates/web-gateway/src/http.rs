@@ -293,6 +293,51 @@ async fn journal(
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(reply.journal.ok_or(StatusCode::SERVICE_UNAVAILABLE)?).into_response())
 }
+/// A topology read from the service cache. It starts no router I/O and no mutation.
+async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read) -> ApiResult {
+    use web_contract::topology::TopologyReply;
+    principal(s, h).await?;
+    if !read.valid() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let reply = exchange(&s.broker, &BrokerRequest::Topology { read })
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(
+        match reply.topology.ok_or(StatusCode::SERVICE_UNAVAILABLE)? {
+            TopologyReply::Summary(v) => Json(v).into_response(),
+            TopologyReply::Assignments(v) => Json(v).into_response(),
+            TopologyReply::Observations(v) => Json(v).into_response(),
+            TopologyReply::Subscriber(v) => Json(v).into_response(),
+            TopologyReply::Expired => return Err(StatusCode::CONFLICT),
+            TopologyReply::NotFound => return Err(StatusCode::NOT_FOUND),
+        },
+    )
+}
+async fn topology(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
+    topology_read(&s, &h, crate::topology::Read::Summary).await
+}
+async fn topology_assignments(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Query(q): Query<web_contract::topology::PageQuery>,
+) -> ApiResult {
+    topology_read(&s, &h, crate::topology::Read::Assignments(q)).await
+}
+async fn topology_observations(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Query(q): Query<web_contract::topology::PageQuery>,
+) -> ApiResult {
+    topology_read(&s, &h, crate::topology::Read::Observations(q)).await
+}
+async fn topology_subscriber(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult {
+    topology_read(&s, &h, crate::topology::Read::Subscriber(id)).await
+}
 /// One router with its lists, from the service cache.
 async fn router_detail(
     State(s): State<WebState>,
@@ -431,6 +476,13 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/routers/{id}/activity", get(router_activity))
         .route("/api/v1/routers/{id}/test", post(test_router))
         .route("/api/v1/routers/sync", post(sync_routers))
+        .route("/api/v1/topology", get(topology))
+        .route("/api/v1/topology/assignments", get(topology_assignments))
+        .route("/api/v1/topology/observations", get(topology_observations))
+        .route(
+            "/api/v1/topology/subscribers/{id}",
+            get(topology_subscriber),
+        )
         // Browser routes of the single-page UI. The page itself loads data through the API.
         .route("/routers", get(index))
         .route("/routers/{*rest}", get(index))

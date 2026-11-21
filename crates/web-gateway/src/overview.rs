@@ -4,6 +4,10 @@ use serde_json::Value;
 use std::{io::Read, path::Path};
 use web_contract::{Component, Overview, Point, WanCapacity};
 pub(crate) fn read<T: DeserializeOwned>(root: &Path, name: &str) -> Option<T> {
+    read_within(root, name, 2 * 1024 * 1024)
+}
+/// `read` with another size limit, for a cache that grows with the subscriber count.
+pub(crate) fn read_within<T: DeserializeOwned>(root: &Path, name: &str, max: u64) -> Option<T> {
     let path = root.join(name);
     let canonical = path.canonicalize().ok()?;
     // The worker cache uses the existing root-owned RAM-cache symlink.
@@ -14,16 +18,13 @@ pub(crate) fn read<T: DeserializeOwned>(root: &Path, name: &str) -> Option<T> {
     }
     let mut f = std::fs::File::open(&canonical).ok()?;
     let before = f.metadata().ok()?;
-    if !before.is_file() || before.len() > 2 * 1024 * 1024 {
+    if !before.is_file() || before.len() > max {
         return None;
     }
     let mut bytes = Vec::new();
-    f.by_ref()
-        .take(2 * 1024 * 1024 + 1)
-        .read_to_end(&mut bytes)
-        .ok()?;
+    f.by_ref().take(max + 1).read_to_end(&mut bytes).ok()?;
     let after = f.metadata().ok()?;
-    if bytes.len() > 2 * 1024 * 1024
+    if bytes.len() as u64 > max
         || before.len() != after.len()
         || before.modified().ok() != after.modified().ok()
     {

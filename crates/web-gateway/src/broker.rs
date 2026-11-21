@@ -79,8 +79,12 @@ pub enum Request {
     },
     /// Start a cycle now for all enabled routers.
     SyncNow,
+    /// A read of the cached topology view. No router I/O.
+    Topology {
+        read: crate::topology::Read,
+    },
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
     pub ok: bool,
     pub account: Option<Account>,
@@ -99,6 +103,8 @@ pub struct Reply {
     pub router: Option<web_contract::routers::RouterSummary>,
     #[serde(default)]
     pub journal: Option<web_contract::journal::JournalPage>,
+    #[serde(default)]
+    pub topology: Option<web_contract::topology::TopologyReply>,
 }
 impl Reply {
     fn no() -> Self {
@@ -113,6 +119,7 @@ impl Reply {
             test: None,
             router: None,
             journal: None,
+            topology: None,
         }
     }
 }
@@ -264,6 +271,15 @@ pub async fn serve(
                         ensure!(window.len() <= 8, "invalid input");
                         reply.traffic = history.read().await.window(&window, now());
                         reply.ok = reply.traffic.is_some();
+                    }
+                    Request::Topology { read } => {
+                        ensure!(read.valid(), "invalid input");
+                        reply.topology = tokio::task::spawn_blocking(move || {
+                            crate::topology::load(&root)
+                                .map(|view| crate::topology::answer(&view, &read))
+                        })
+                        .await?;
+                        reply.ok = reply.topology.is_some();
                     }
                     Request::Routers => {
                         reply.routers =

@@ -256,6 +256,65 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
     let listed: web_contract::routers::RouterInventory =
         serde_json::from_slice(&listed.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(listed, inventory);
+    // Topology: authenticated reads of the service cache. No router I/O, no write route.
+    assert_eq!(
+        status("/api/v1/topology", String::new()).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        status("/api/v1/topology", cookie.clone()).await.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "no cache yet"
+    );
+    let view = web_contract::topology::TopologyView {
+        version: web_contract::topology::VERSION,
+        updated: 990,
+        fresh_for: 300,
+        snapshot_id: "r1-c1".into(),
+        subscribers: vec![web_contract::topology::Subscriber {
+            id: "sub-1".into(),
+            identities: Vec::new(),
+            plan_id: None,
+            pin: None,
+            assignment: None,
+            active: None,
+        }],
+        ..Default::default()
+    };
+    std::fs::write(
+        _dir.path().join(web_contract::topology::CACHE),
+        serde_json::to_vec(&view).unwrap(),
+    )
+    .unwrap();
+    let summary = status("/api/v1/topology", cookie.clone()).await;
+    assert_eq!(summary.status(), StatusCode::OK);
+    let summary: web_contract::topology::TopologySummary =
+        serde_json::from_slice(&summary.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(summary.subscribers_total, 1);
+    for (path, code) in [
+        ("/api/v1/topology/assignments?state=offline", StatusCode::OK),
+        ("/api/v1/topology/observations?kind=ppp", StatusCode::OK),
+        ("/api/v1/topology/subscribers/sub-1", StatusCode::OK),
+        ("/api/v1/topology/subscribers/sub-2", StatusCode::NOT_FOUND),
+        (
+            "/api/v1/topology/assignments?cursor=old~0~0",
+            StatusCode::CONFLICT,
+        ),
+    ] {
+        assert_eq!(status(path, cookie.clone()).await.status(), code, "{path}");
+    }
+    let posted = app
+        .clone()
+        .oneshot(req(
+            "POST",
+            "/api/v1/topology",
+            &cookie,
+            "https://lqosync.test",
+            "{}",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(posted.status(), StatusCode::METHOD_NOT_ALLOWED);
     // Deep links load the page shell; the page reads data through the API.
     for path in ["/routers", "/routers/router-core"] {
         let page = status(path, String::new()).await;

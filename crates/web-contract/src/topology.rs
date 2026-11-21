@@ -183,3 +183,81 @@ pub struct Conflict {
     pub subject: String,
     pub detail: String,
 }
+
+/// Rows per page. The broker reply limit (64 KiB) can end a page earlier; `next_cursor` continues it.
+pub const MAX_PAGE: usize = 200;
+
+/// `GET /api/v1/topology`: the envelope, the tree, and the policy lists, without subscriber rows.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TopologySummary {
+    pub updated: u64,
+    pub fresh_for: u64,
+    pub snapshot_id: String,
+    pub registry_revision: Option<String>,
+    pub mode: String,
+    pub writer: String,
+    pub enrolled: bool,
+    pub observed: Option<Observed>,
+    pub nodes: Vec<Node>,
+    /// The reply limit cut the node list.
+    pub nodes_truncated: bool,
+    pub sources: Vec<Source>,
+    pub fallback: Option<Fallback>,
+    pub plans: Vec<Plan>,
+    pub collection: Vec<CollectionRouter>,
+    /// The first conflicts. `conflicts_total` counts all of them.
+    pub conflicts: Vec<Conflict>,
+    pub conflicts_total: u64,
+    pub subscribers_total: u64,
+    pub subscribers_active: u64,
+    pub ppp_total: u64,
+    pub dhcp_total: u64,
+}
+
+/// One page of a filtered list. The cursor binds the snapshot and the filter.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Page<T> {
+    pub snapshot_id: String,
+    /// Rows that match the filter, in all pages.
+    pub total: u64,
+    pub items: Vec<T>,
+    pub next_cursor: Option<String>,
+}
+
+/// Filters of the Assignments and source pages. Every field is optional.
+#[derive(Clone, Default, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PageQuery {
+    /// `ppp` or `dhcp`. Observation pages only.
+    pub kind: Option<String>,
+    pub router_id: Option<String>,
+    /// An observation state, or `active` / `offline` for subscribers.
+    pub state: Option<String>,
+    /// `verified`, `none`, or `unknown`. Observation pages only.
+    pub link: Option<String>,
+    pub plan_id: Option<String>,
+    /// Text in a name, an account reference, or a subscriber ID.
+    pub q: Option<String>,
+    pub cursor: Option<String>,
+}
+
+/// One saved subscriber and the observation rows that link to it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SubscriberDetail {
+    pub subscriber: Subscriber,
+    pub observations: Vec<Observation>,
+}
+
+/// The broker answer to a topology read.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TopologyReply {
+    Summary(Box<TopologySummary>),
+    Assignments(Page<Subscriber>),
+    Observations(Page<Observation>),
+    Subscriber(Box<SubscriberDetail>),
+    /// The cursor belongs to another snapshot or filter. Load the first page again.
+    Expired,
+    /// No such subscriber in this snapshot.
+    NotFound,
+}
