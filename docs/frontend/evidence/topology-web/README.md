@@ -158,3 +158,25 @@ A legacy write says that it publishes no topology revision.
 Changes shows the latest write and the web change history.
 The history lists only changes saved from the web page. TUI and CLI changes are not in it.
 A Builder save shows as "Reviewed change", because the receipt keeps only the private proposal token.
+
+# Release gates (T11)
+
+Date: 2026-11-21, Asia/Manila. Host: Intel i5-9500, 6 cores.
+
+| Gate | Result |
+|---|---|
+| `tools/frontend/check-all.sh` | 22 gates passed. `pulse-check` is a known failure from before this work. |
+| Rust tests | 1721 passed |
+| Scale: 50,000 subscribers and 5,000 nodes (`release_scale_reads_stay_bounded`) | Each answer takes less than 8 ms and is less than 60 KiB. The 31 MB cache read takes 260 ms. |
+| Keyboard only | Tab and Enter open the change dialog. Focus starts on the first field. Escape returns focus. |
+| 200 percent zoom (720 px), forced colors, reduced motion | No horizontal page scroll. The controls stay visible. |
+| Themes | Dark and light |
+| Narrow layouts | 320 px and 390 px |
+
+Not done on this host:
+
+- Firefox and WebKit. Only Chromium is installed.
+- A screen reader. The check verifies roles, names, and focus only.
+- A browser test with 50,000 rows. The gateway pages bound each reply.
+
+![Forced colors at 200 percent zoom](topology-forced-colors.png)

@@ -260,3 +260,50 @@ fn a_missing_cache_or_wrong_version_is_unavailable() {
     std::fs::write(dir.path().join(CACHE), serde_json::to_vec(&big).unwrap()).unwrap();
     assert_eq!(load(dir.path()).unwrap().subscribers.len(), 20_000);
 }
+
+/// Release gate: 50,000 subscribers and 5,000 nodes through the real file read. Run with
+/// `cargo test --release -p web-gateway --test topology -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn release_scale_reads_stay_bounded() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut big = view(50_000);
+    big.nodes = (0..5_000)
+        .map(|i| Node {
+            id: format!("node-{i}"),
+            name: format!("Node {i}"),
+            parent: (i > 0).then(|| format!("node-{}", (i - 1) / 4)),
+            kind: "group".into(),
+            source_id: None,
+            capacity: Capacity::Automatic,
+            alias: false,
+            calculated_mbps: None,
+            exported_mbps: None,
+            members: Some(10),
+        })
+        .collect();
+    let bytes = serde_json::to_vec(&big).unwrap();
+    std::fs::write(dir.path().join(CACHE), &bytes).unwrap();
+    let started = std::time::Instant::now();
+    let loaded = load(dir.path()).unwrap();
+    let read = started.elapsed();
+    let reads = [
+        Read::Summary,
+        Read::Assignments(PageQuery::default()),
+        Read::Observations(PageQuery {
+            kind: Some("dhcp".into()),
+            q: Some("user-49".into()),
+            ..Default::default()
+        }),
+        Read::Subscriber("sub-49999".into()),
+    ];
+    for r in &reads {
+        let started = std::time::Instant::now();
+        let reply = answer(&loaded, r);
+        let took = started.elapsed();
+        let size = serde_json::to_vec(&reply).unwrap().len();
+        eprintln!("{r:?}: {took:?}, {size} bytes");
+        assert!(size <= BUDGET);
+    }
+    eprintln!("cache {} bytes, load {read:?}", bytes.len());
+}

@@ -705,7 +705,7 @@ fn Reads(
     };
     let busy = move |job: ReadJob| running.get() == Some(job);
     view! {
-      <h3>"Router reads"</h3>
+      <h3>"Read the routers now"</h3>
       <p class="panel-note">"Each button reads every enabled router now. Opening this page reads none."</p>
       <div class="form-actions node-actions">
         <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Refresh)>

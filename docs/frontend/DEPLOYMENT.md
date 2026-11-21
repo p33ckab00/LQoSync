@@ -180,3 +180,57 @@ Unknown hardware remains generic when the driver cannot supply connector evidenc
 Roles remain unknown when no explicit LibreQoS interface mapping matches.
 The core can use `/usr/sbin/ethtool` for optional kernel module/media evidence.
 Missing utility access does not block NIC counters or link telemetry.
+
+## Topology Manager update
+
+The Topology, PPPoE, and IPoE / DHCP screens need the new core service and the new web packages together.
+The core writes `topology.json` and keeps web change receipts in `topology-manager/web-receipts/`.
+The core creates both at the first cycle. No configuration change is necessary.
+
+Before the update, record the running versions:
+
+```sh
+sha256sum /usr/local/bin/lqosync3
+systemctl status lqosync3 lqosync3-web-broker lqosync3-web
+```
+
+Run these commands from `/home/pi/LQoSync3.0` after the release gates pass:
+
+```sh
+bash tools/frontend/build.sh
+cargo build --locked --release -p lqosync3
+sudo install -m 0755 /usr/local/bin/lqosync3 /usr/local/bin/lqosync3.before-topology
+sudo systemctl stop lqosync3
+sudo install -m 0755 target/release/lqosync3 /usr/local/bin/lqosync3
+sudo systemctl start lqosync3
+sudo tools/frontend/install.sh
+systemctl status lqosync3 lqosync3-web-broker lqosync3-web
+```
+
+The implementation session prepares the binaries and assets. It does not execute these production changes.
+
+After the next cycle, do these checks:
+
+1. Open **Topology**. The evidence strip shows **View** with an age of seconds.
+2. Open **PPPoE** and **IPoE / DHCP**. Each source shows its router state.
+3. Do not save a change until the strip shows a known writer.
+
+Opening a page reads no router. Only **Refresh observations**, **Discover WAN interfaces**, and **Discover sources** read routers.
+Every change goes through **Review change**. Nothing changes until **Save change**.
+
+### Rollback
+
+1. Stop the service: `sudo systemctl stop lqosync3`.
+2. Put back the previous binary: `sudo install -m 0755 /usr/local/bin/lqosync3.before-topology /usr/local/bin/lqosync3`.
+3. Start the service: `sudo systemctl start lqosync3`.
+4. Install the previous web build with the normal frontend workflow.
+
+The previous binary ignores `topology.json` and the receipt directory. They can stay.
+Policy revisions that the web saved stay in the registry. The previous binary reads them as before.
+
+### Limits of this release
+
+- The broker reads the whole `topology.json` for each request. At 50,000 subscribers and 5,000 nodes, the file is 31 MB.
+  Each read takes about 260 ms on an Intel i5-9500. The answer itself takes less than 10 ms.
+- The browser checks ran in Chromium only. Firefox and WebKit are not installed on this host.
+- The web change history lists only web changes. TUI and CLI changes do not show.

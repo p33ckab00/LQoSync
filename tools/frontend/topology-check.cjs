@@ -109,6 +109,25 @@ const fs=require('node:fs');
       await page.waitForTimeout(300);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${path} fits ${w}px`);
     }
+    // 200 percent zoom of a 1440px window is a 720px layout; forced colors and reduced motion
+    // keep the controls visible. Keyboard only: Tab reaches Create node, Enter opens the dialog.
+    if(scheme==='dark'){
+      await page.setViewportSize({width:720,height:900});
+      await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});
+      await page.goto('http://127.0.0.1:19581/topology');
+      await page.getByRole('list',{name:'Topology nodes'}).waitFor();
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'200% zoom fits');
+      const create=page.getByRole('button',{name:'Create node'});
+      await create.focus();
+      await page.keyboard.press('Enter');
+      const kd=page.getByRole('dialog',{name:'Create node'});
+      await kd.waitFor();
+      assert.equal(await page.evaluate(()=>document.activeElement?.id),'change-name','focus starts on the name');
+      await page.keyboard.press('Escape');
+      await kd.waitFor({state:'hidden'});
+      await page.screenshot({path:`${out}/topology-forced-colors.png`});
+      await page.emulateMedia({forcedColors:'none',reducedMotion:'no-preference'});
+    }
     assert.deepEqual(writes,[],'no topology request other than GET');
 
     // A Builder change: draft, service review, save. Writes happen only after explicit clicks.
