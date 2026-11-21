@@ -13,6 +13,7 @@ use crate::config::Config;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use web_contract::topology::{GeoType, Location, NodeGeo};
 
 /// One Builder edit, as the service API receives it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -76,6 +77,13 @@ pub enum Edit {
     },
     #[serde(rename = "node.remove")]
     NodeRemove { node_id: String },
+    /// Set or clear the map type and location of one node. Both coordinates change together.
+    #[serde(rename = "node.location")]
+    NodeLocation {
+        node_id: String,
+        geo_type: Option<GeoType>,
+        location: Option<Location>,
+    },
     #[serde(rename = "speed.defaults")]
     SpeedDefaults {
         down_min: RuleInput,
@@ -554,6 +562,7 @@ fn wan_create(
         targets: Vec::new(),
     });
     c.nodes.push(CatalogNode {
+        geo: None,
         minimum: Default::default(),
         id: ids[1].clone(),
         name: name.into(),
@@ -611,6 +620,7 @@ fn instance_add(
         source.targets.push(ids[0].clone());
     }
     c.nodes.push(CatalogNode {
+        geo: None,
         minimum: Default::default(),
         id: ids[0].clone(),
         name,
@@ -1145,6 +1155,7 @@ pub fn apply(
             | Edit::NodeMove { .. }
             | Edit::NodeUpdate { .. }
             | Edit::NodeRemove { .. }
+            | Edit::NodeLocation { .. }
             | Edit::SourceAdd { .. }
     );
     if doc.catalog.is_none()
@@ -1207,6 +1218,7 @@ pub fn apply(
                 .expect("enrolled")
                 .nodes
                 .push(CatalogNode {
+                    geo: None,
                     minimum: Default::default(),
                     id: ids[0].clone(),
                     name: name.clone(),
@@ -1274,6 +1286,25 @@ pub fn apply(
         }
         Edit::NodeRemove { node_id } => {
             node_remove(doc, &mut d, node_id, &mut affected, &mut cleared)?;
+        }
+        Edit::NodeLocation {
+            node_id,
+            geo_type,
+            location,
+        } => {
+            let i = position(d.catalog.as_ref().expect("enrolled"), node_id)?;
+            if let Some(location) = location {
+                location.validate().map_err(invalid)?;
+            }
+            let geo = match (geo_type, location) {
+                (None, Some(_)) => return Err(invalid("a location needs a Site or AP type")),
+                (None, None) => None,
+                (Some(geo_type), location) => Some(NodeGeo {
+                    geo_type: *geo_type,
+                    location: location.clone(),
+                }),
+            };
+            d.catalog.as_mut().expect("enrolled").nodes[i].geo = geo;
         }
         Edit::FallbackSet {
             node_ids,
@@ -1473,7 +1504,7 @@ pub fn tree(doc: &RegistryDocument) -> Value {
             json!({
                 "id": n.id, "name": n.name, "parent": n.parent, "kind": kind_out(n.kind),
                 "source_id": n.source_id, "capacity": capacity_out(&n.capacity),
-                "alias": aliased(doc, &n.id),
+                "alias": aliased(doc, &n.id), "geo": n.geo,
             })
         })
         .collect();

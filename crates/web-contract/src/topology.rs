@@ -50,6 +50,9 @@ pub struct TopologyView {
     /// Recent web changes, newest first. Changes from the TUI or the CLI are not recorded here.
     #[serde(default)]
     pub history: Vec<WebChange>,
+    /// Decimal string. The canvas layout revision, independent of `registry_revision`.
+    #[serde(default)]
+    pub layout_revision: Option<String>,
 }
 
 /// The latest shaping write and its evidence. Saved policy, files, import, and native
@@ -163,6 +166,88 @@ pub struct Node {
     pub calculated_mbps: Option<[f64; 2]>,
     pub exported_mbps: Option<[f64; 2]>,
     pub members: Option<u64>,
+    /// The LibreQoS map type and location. Independent of `kind`.
+    #[serde(default)]
+    pub geo: Option<NodeGeo>,
+    /// Canvas `[x, y]`. Layout only; it never changes shaping or `location`.
+    #[serde(default)]
+    pub position: Option<[f64; 2]>,
+}
+
+/// The `type` of a node in `network.json`. Separate from the policy role.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GeoType {
+    Site,
+    Ap,
+}
+
+/// A Site or AP node. A location without a type cannot exist.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NodeGeo {
+    #[serde(rename = "type")]
+    pub geo_type: GeoType,
+    #[serde(default)]
+    pub location: Option<Location>,
+}
+
+/// A node location as the operator entered it. The text keeps every decimal place.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Location {
+    pub latitude: String,
+    pub longitude: String,
+}
+
+/// Longest accepted coordinate text. Google Maps copies about 18 characters.
+pub const MAX_COORDINATE: usize = 32;
+
+impl Location {
+    /// Parse a Google Maps `latitude, longitude` paste. The order is never swapped.
+    pub fn parse_pair(text: &str) -> Result<Self, String> {
+        let mut parts = text.split(',');
+        let (Some(lat), Some(lon), None) = (parts.next(), parts.next(), parts.next()) else {
+            return Err("paste a latitude and a longitude, separated by a comma".into());
+        };
+        let location = Self {
+            latitude: lat.trim().into(),
+            longitude: lon.trim().into(),
+        };
+        location.validate()?;
+        Ok(location)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        let lat = coordinate(&self.latitude, "latitude")?;
+        let lon = coordinate(&self.longitude, "longitude")?;
+        if !(-90.0..=90.0).contains(&lat) {
+            return Err("latitude must be from -90 to 90".into());
+        }
+        if !(-180.0..=180.0).contains(&lon) {
+            return Err("longitude must be from -180 to 180".into());
+        }
+        Ok(())
+    }
+
+    /// Numeric values for export. Call only on a validated location.
+    pub fn numeric(&self) -> (f64, f64) {
+        (
+            self.latitude.parse().unwrap_or(f64::NAN),
+            self.longitude.parse().unwrap_or(f64::NAN),
+        )
+    }
+}
+
+/// Plain decimal text only: an optional `-`, digits, and optional `.digits`.
+fn coordinate(text: &str, name: &str) -> Result<f64, String> {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    let (whole, fraction) = digits.split_once('.').unwrap_or((digits, "0"));
+    let plain = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    if text.len() > MAX_COORDINATE || !plain(whole) || !plain(fraction) {
+        return Err(format!("{name} must be a decimal number such as 12.2361"));
+    }
+    text.parse().map_err(|_| format!("{name} is not a number"))
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -690,4 +775,61 @@ pub struct NodeChange {
     pub name: String,
     /// `added`, `removed`, `moved`, or `changed`.
     pub change: String,
+}
+
+#[cfg(test)]
+mod canvas_tests {
+    use super::*;
+
+    #[test]
+    fn a_google_maps_pair_keeps_the_full_decimal_text() {
+        let l = Location::parse_pair("12.236199459585354, 122.02419129509887").unwrap();
+        assert_eq!(l.latitude, "12.236199459585354");
+        assert_eq!(l.longitude, "122.02419129509887");
+        assert_eq!(l.numeric(), (12.236199459585354, 122.02419129509887));
+    }
+
+    #[test]
+    fn a_pair_accepts_spaces_and_negative_values() {
+        let l = Location::parse_pair("  -33.86881 ,  -151.2093 ").unwrap();
+        assert_eq!(
+            (l.latitude.as_str(), l.longitude.as_str()),
+            ("-33.86881", "-151.2093")
+        );
+        assert!(Location::parse_pair("-90, 180").is_ok());
+    }
+
+    #[test]
+    fn a_location_rejects_out_of_range_or_non_decimal_text() {
+        let bad = |lat: &str, lon: &str| {
+            Location {
+                latitude: lat.into(),
+                longitude: lon.into(),
+            }
+            .validate()
+            .is_err()
+        };
+        assert!(bad("90.0001", "0"));
+        assert!(bad("0", "-180.5"));
+        assert!(bad("1e2", "0"));
+        assert!(bad("NaN", "0"));
+        assert!(bad("inf", "0"));
+        assert!(bad("", "0"));
+        assert!(bad("+1", "0"));
+        assert!(bad("1.", "0"));
+        assert!(bad(&format!("1.{}", "1".repeat(40)), "0"));
+        assert!(Location::parse_pair("12.5").is_err());
+        assert!(Location::parse_pair("1, 2, 3").is_err());
+    }
+
+    #[test]
+    fn an_old_node_without_canvas_fields_still_decodes() {
+        let n: Node = serde_json::from_value(serde_json::json!({
+            "id": "n1", "name": "A", "parent": null, "kind": "group", "source_id": null,
+            "capacity": {"mode": "inherit"}, "alias": false, "calculated_mbps": null,
+            "exported_mbps": null, "members": null
+        }))
+        .unwrap();
+        assert_eq!((n.geo, n.position), (None, None));
+    }
 }

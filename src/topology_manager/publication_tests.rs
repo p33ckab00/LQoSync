@@ -331,6 +331,7 @@ async fn excessive_hierarchy_depth_is_a_conflict_before_recursive_json_work() {
     for i in 0..64 {
         let id = format!("manual-{i}");
         catalog.nodes.push(catalog::CatalogNode {
+            geo: None,
             minimum: Default::default(),
             id: id.clone(),
             name: id.clone(),
@@ -653,6 +654,7 @@ async fn router_location_goes_only_on_the_nodes_from_that_router() {
     let mut observed = input(2);
     let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
     catalog.nodes.push(catalog::CatalogNode {
+        geo: None,
         minimum: Default::default(),
         id: "manual".into(),
         name: "manual".into(),

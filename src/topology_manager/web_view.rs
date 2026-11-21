@@ -28,6 +28,8 @@ pub struct Input<'a> {
     pub publication: Option<&'a crate::write_receipt::Receipt>,
     /// Web change receipts, in any order.
     pub history: &'a [crate::topology_manager::web_receipts::Record],
+    /// Canvas card positions. Layout only.
+    pub layout: Option<&'a crate::topology_manager::canvas::CanvasLayout>,
 }
 
 /// Web changes kept in the view, newest first.
@@ -68,6 +70,9 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         .collect();
     let mut nodes: Vec<Node> = serde_json::from_value(field("nodes")).unwrap_or_default();
     for node in &mut nodes {
+        node.position = input
+            .layout
+            .and_then(|l| l.positions.get(&node.id).copied());
         if let Some(p) = preview_nodes.get(&node.id) {
             node.calculated_mbps = serde_json::from_value(p["calculated_mbps"].clone()).ok();
             node.exported_mbps = serde_json::from_value(p["exported_mbps"].clone()).ok();
@@ -212,6 +217,7 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                 })
                 .collect()
         },
+        layout_revision: input.layout.map(|l| l.revision.to_string()),
     }
 }
 

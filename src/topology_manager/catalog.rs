@@ -140,6 +140,9 @@ pub struct CatalogNode {
     pub source_id: Option<String>,
     pub kind: NodeKind,
     pub capacity: CapacityPolicy,
+    /// The `network.json` type and location. Added in registry schema 5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub geo: Option<web_contract::topology::NodeGeo>,
 }
 
 /// Group nodes that take subscribers whose source the catalog does not know.
@@ -298,6 +301,14 @@ impl TopologyCatalog {
         let profiles =
             named_index(&self.profiles, |p| (&p.id, &p.name)).context("profile catalog")?;
         let nodes = named_index(&self.nodes, |n| (&n.id, &n.name)).context("node catalog")?;
+        for node in &self.nodes {
+            if let Some(location) = node.geo.as_ref().and_then(|g| g.location.as_ref()) {
+                location
+                    .validate()
+                    .map_err(anyhow::Error::msg)
+                    .with_context(|| format!("node {} location", node.id))?;
+            }
+        }
         for router in &self.routers {
             ensure!(
                 router.roles.iter().collect::<HashSet<_>>().len() == router.roles.len(),

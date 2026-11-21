@@ -63,10 +63,13 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+/// The current registry schema. Schema 5 adds node `geo` (type and location).
+pub const SCHEMA: u32 = 5;
+
 impl Default for RegistryDocument {
     fn default() -> Self {
         Self {
-            schema_version: 4,
+            schema_version: SCHEMA,
             revision: 0,
             next_id: 1,
             subscribers: Vec::new(),
@@ -85,7 +88,7 @@ impl RegistryDocument {
 
     pub(super) fn index(&self) -> anyhow::Result<RegistryIndex<'_>> {
         ensure!(
-            self.schema_version == 4,
+            self.schema_version == SCHEMA,
             "unsupported subscriber registry schema"
         );
         ensure!(self.next_id > 0, "subscriber ID counter must be positive");
@@ -369,7 +372,7 @@ mod tests {
 
     #[test]
     fn current_schema_checks_catalog_references_without_guessing_legacy_bindings() {
-        assert_eq!(RegistryDocument::default().schema_version, 4);
+        assert_eq!(RegistryDocument::default().schema_version, SCHEMA);
         let mut doc = registry();
         doc.catalog = Some(super::super::catalog::tests::catalog());
         assert!(doc.validate().is_err());

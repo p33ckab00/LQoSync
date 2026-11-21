@@ -79,6 +79,8 @@ fn view(n: usize) -> TopologyView {
                 calculated_mbps: None,
                 exported_mbps: None,
                 members: None,
+                geo: None,
+                position: None,
             })
             .collect(),
         ..Default::default()
@@ -280,6 +282,8 @@ fn release_scale_reads_stay_bounded() {
             calculated_mbps: None,
             exported_mbps: None,
             members: Some(10),
+            geo: None,
+            position: None,
         })
         .collect();
     let bytes = serde_json::to_vec(&big).unwrap();

@@ -73,6 +73,7 @@ fn fixed(base: RateBps) -> CapacityPolicy {
 
 pub(crate) fn catalog() -> TopologyCatalog {
     let wan = |id: &str, source: &str, base| CatalogNode {
+        geo: None,
         minimum: Default::default(),
         id: id.into(),
         name: id.into(),
@@ -82,6 +83,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
         capacity: fixed(base),
     };
     let group = |id: &str, parent: &str| CatalogNode {
+        geo: None,
         minimum: Default::default(),
         id: id.into(),
         name: "Shared label".into(),
@@ -194,6 +196,7 @@ fn one_profile_supports_multiple_wans_with_distinct_instances_and_equal_labels()
 fn profile_only_and_wan_only_topologies_keep_their_explicit_structure() {
     let mut c = catalog();
     c.nodes = vec![CatalogNode {
+        geo: None,
         minimum: Default::default(),
         parent: None,
         ..c.nodes[2].clone()
@@ -433,6 +436,7 @@ fn a_large_catalog_uses_iterative_validation() {
     let mut c = TopologyCatalog {
         nodes: (0..10_000)
             .map(|i| CatalogNode {
+                geo: None,
                 minimum: Default::default(),
                 id: format!("group-{i}"),
                 name: "Same label".into(),
@@ -558,6 +562,7 @@ fn node_minimums_require_positive_exact_whole_mbps_and_keep_absent_policy_compat
 pub(crate) fn with_fallback_node() -> TopologyCatalog {
     let mut c = catalog();
     c.nodes.push(CatalogNode {
+        geo: None,
         minimum: Default::default(),
         id: "fb".into(),
         name: "Fallback".into(),

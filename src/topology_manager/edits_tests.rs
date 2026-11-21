@@ -1452,3 +1452,51 @@ fn frontend_initialization_rejects_any_existing_intent_and_preserves_old_encodin
         assert!(run(&d, json!({"kind":"topology.initialize"})).is_err());
     }
 }
+
+#[test]
+fn node_location_sets_the_type_and_both_coordinates_in_one_edit() {
+    let d = doc();
+    let a = run(
+        &d,
+        json!({"kind": "node.location", "node_id": "group1", "geo_type": "ap",
+        "location": {"latitude": "-12.236199459585354", "longitude": "122.02419129509887"}}),
+    )
+    .unwrap();
+    let geo = node(&a.candidate, "group1").geo.as_ref().unwrap();
+    assert_eq!(geo.geo_type, web_contract::topology::GeoType::Ap);
+    let l = geo.location.as_ref().unwrap();
+    assert_eq!(
+        (l.latitude.as_str(), l.longitude.as_str()),
+        ("-12.236199459585354", "122.02419129509887")
+    );
+    let typed = run(
+        &a.candidate,
+        json!({"kind": "node.location", "node_id": "group1",
+        "geo_type": "site", "location": null}),
+    )
+    .unwrap();
+    let geo = node(&typed.candidate, "group1").geo.as_ref().unwrap();
+    assert_eq!(
+        (geo.geo_type, geo.location.as_ref()),
+        (web_contract::topology::GeoType::Site, None)
+    );
+    let cleared = run(
+        &a.candidate,
+        json!({"kind": "node.location", "node_id": "group1",
+        "geo_type": null, "location": null}),
+    )
+    .unwrap();
+    assert_eq!(node(&cleared.candidate, "group1").geo, None);
+}
+
+#[test]
+fn node_location_refuses_bad_input_without_a_partial_change() {
+    let d = doc();
+    let edit = |node: &str, geo: Value, lat: &str, lon: &str| {
+        json!({"kind": "node.location", "node_id": node, "geo_type": geo,
+               "location": {"latitude": lat, "longitude": lon}})
+    };
+    assert!(refused(&d, edit("group1", json!("site"), "95", "1")).contains("latitude"));
+    assert!(refused(&d, edit("group1", json!(null), "1", "1")).contains("Site or AP"));
+    assert!(refused(&d, edit("nope", json!("site"), "1", "1")).contains("node"));
+}

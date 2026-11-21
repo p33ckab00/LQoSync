@@ -189,6 +189,7 @@ fn input<'a>(
         fresh_for: 60,
         publication: None,
         history: &[],
+        layout: None,
     }
 }
 
@@ -543,5 +544,45 @@ fn web_history_is_newest_first_and_named() {
     assert!(
         !serde_json::to_string(&v).unwrap().contains("edit-6-1"),
         "no service token"
+    );
+}
+
+#[test]
+fn node_geo_and_canvas_positions_reach_the_view() {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes.iter_mut().find(|n| n.id == "wan1").unwrap().geo =
+        Some(web_contract::topology::NodeGeo {
+            geo_type: web_contract::topology::GeoType::Site,
+            location: Some(web_contract::topology::Location {
+                latitude: "12.236199459585354".into(),
+                longitude: "122.02419129509887".into(),
+            }),
+        });
+    let layout = crate::topology_manager::canvas::CanvasLayout {
+        schema_version: 1,
+        revision: 3,
+        positions: [
+            ("wan1".to_string(), [40.0, -8.5]),
+            ("gone".to_string(), [1.0, 1.0]),
+        ]
+        .into(),
+    };
+    let mut i = input(Some(&d), None, None);
+    i.layout = Some(&layout);
+    let v = project(&i);
+    assert_eq!(v.layout_revision.as_deref(), Some("3"));
+    let wan = v.nodes.iter().find(|n| n.id == "wan1").unwrap();
+    let geo = wan.geo.as_ref().unwrap();
+    assert_eq!(
+        geo.location.as_ref().unwrap().longitude,
+        "122.02419129509887"
+    );
+    assert_eq!(wan.position, Some([40.0, -8.5]));
+    assert!(
+        v.nodes
+            .iter()
+            .filter(|n| n.id != "wan1")
+            .all(|n| n.position.is_none() && n.geo.is_none())
     );
 }

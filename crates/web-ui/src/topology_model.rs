@@ -1051,6 +1051,8 @@ mod tests {
             calculated_mbps: None,
             exported_mbps: None,
             members: None,
+            geo: None,
+            position: None,
         }
     }
 

@@ -1,6 +1,6 @@
 //! One owner for durable registry edits. No shaping files are written here.
 
-use super::model::{RegistryDocument, SubscriberRecord};
+use super::model::{RegistryDocument, SCHEMA, SubscriberRecord};
 use anyhow::{Context, ensure};
 use serde::Deserialize;
 use std::fs::File;
@@ -76,7 +76,7 @@ impl RegistryStore {
                 LoadedDocument {
                     bytes: std::fs::read(&path)?,
                     document: empty,
-                    disk_schema: 4,
+                    disk_schema: SCHEMA,
                 }
             }
             None => anyhow::bail!(
@@ -160,7 +160,7 @@ impl RegistryStore {
                 continue;
             };
             let Some(number) = name
-                .strip_prefix("registry-v4-r")
+                .strip_prefix(&*format!("registry-v{SCHEMA}-r"))
                 .and_then(|s| s.strip_suffix(".json"))
             else {
                 continue;
@@ -168,7 +168,7 @@ impl RegistryStore {
             let Ok(number) = number.parse::<u64>() else {
                 continue;
             };
-            if number <= revision && name == format!("registry-v4-r{number}.json") {
+            if number <= revision && name == format!("registry-v{SCHEMA}-r{number}.json") {
                 history.push((number, entry.path()));
             }
         }
@@ -177,7 +177,7 @@ impl RegistryStore {
         for (revision, path) in history.into_iter().take(obsolete) {
             let loaded = load(&path)?.context("registry history entry is missing")?;
             ensure!(
-                loaded.disk_schema == 4 && loaded.document.revision == revision,
+                loaded.disk_schema == SCHEMA && loaded.document.revision == revision,
                 "registry history metadata conflict"
             );
             std::fs::remove_file(path)?;
@@ -217,7 +217,7 @@ impl RegistryStore {
 
     fn backup_path(&self, backup: BackupId) -> anyhow::Result<PathBuf> {
         ensure!(
-            (1..=4).contains(&backup.schema_version),
+            (1..=SCHEMA).contains(&backup.schema_version),
             "unsupported registry backup schema"
         );
         Ok(self.path.with_file_name(format!(
@@ -331,7 +331,7 @@ impl RegistryStore {
         self.document = None;
         write(&self.path, &bytes)?;
         self.document = Some(candidate);
-        self.disk_schema = 4;
+        self.disk_schema = SCHEMA;
         Ok(CommitOutcome {
             revision,
             changed: true,
@@ -414,7 +414,7 @@ impl RegistryStore {
                 );
             }
         }
-        if candidate == *current && self.disk_schema == 4 {
+        if candidate == *current && self.disk_schema == SCHEMA {
             return Ok(candidate);
         }
         candidate.revision = current
@@ -548,7 +548,7 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 "registry schema changed during load"
             );
             RegistryDocument {
-                schema_version: 4,
+                schema_version: SCHEMA,
                 revision: legacy.revision,
                 next_id: legacy.next_id,
                 subscribers: legacy.subscribers,
@@ -566,7 +566,7 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 "registry schema changed during load"
             );
             RegistryDocument {
-                schema_version: 4,
+                schema_version: SCHEMA,
                 revision: legacy.revision,
                 next_id: legacy.next_id,
                 subscribers: legacy.subscribers,
@@ -584,7 +584,7 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 "registry schema changed during load"
             );
             RegistryDocument {
-                schema_version: 4,
+                schema_version: SCHEMA,
                 revision: old.revision,
                 next_id: old.next_id,
                 subscribers: old.subscribers,
@@ -594,7 +594,24 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 frontend_initialized: false,
             }
         }
-        4 => serde_json::from_slice(&bytes).context("cannot decode schema-4 registry")?,
+        4 => {
+            let mut old: RegistryDocument =
+                serde_json::from_slice(&bytes).context("cannot decode schema-4 registry")?;
+            ensure!(
+                old.schema_version == 4,
+                "registry schema changed during load"
+            );
+            ensure!(
+                old.catalog
+                    .iter()
+                    .flat_map(|c| &c.nodes)
+                    .all(|n| n.geo.is_none()),
+                "a schema-4 registry cannot contain node locations"
+            );
+            old.schema_version = SCHEMA;
+            old
+        }
+        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-5 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     document.validate()?;
@@ -791,7 +808,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":5,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":6,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -991,7 +1008,7 @@ mod tests {
         crate::files::write_secret(&path(dir.path()), &serde_json::to_vec(&json).unwrap()).unwrap();
         let before = std::fs::read(path(dir.path())).unwrap();
         let mut store = RegistryStore::open(dir.path()).unwrap();
-        assert_eq!(store.document().unwrap().schema_version, 4);
+        assert_eq!(store.document().unwrap().schema_version, SCHEMA);
         assert_eq!(store.document().unwrap().subscribers, legacy.subscribers);
         assert_eq!(store.document().unwrap().next_id, 100);
         assert_eq!(store.document().unwrap().revision, 7);
@@ -1010,7 +1027,7 @@ mod tests {
         let reopened = RegistryStore::open(dir.path()).unwrap();
         assert_eq!(reopened.document().unwrap().revision, 8);
         assert_eq!(reopened.document().unwrap().subscribers, legacy.subscribers);
-        assert_eq!(reopened.document().unwrap().schema_version, 4);
+        assert_eq!(reopened.document().unwrap().schema_version, SCHEMA);
     }
 
     #[test]
@@ -1044,7 +1061,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":5,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":6,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());

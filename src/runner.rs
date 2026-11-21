@@ -621,6 +621,10 @@ where
             .as_ref()
             .and_then(|r| r.recent().ok())
             .unwrap_or_default();
+        let layout = crate::topology_manager::canvas::load(
+            &Path::new(&self.cfg.runtime.state_dir).join("topology-manager"),
+        )
+        .ok();
         let view =
             crate::topology_manager::web_view::project(&crate::topology_manager::web_view::Input {
                 doc: doc.as_ref(),
@@ -633,6 +637,7 @@ where
                 fresh_for: self.collection.as_ref().map_or(300, |c| c.fresh_for),
                 publication: publication.as_ref(),
                 history: &history,
+                layout: layout.as_ref(),
             });
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {

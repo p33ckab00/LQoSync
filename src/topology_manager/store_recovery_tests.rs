@@ -19,7 +19,7 @@ fn schema_two_migrates_without_inventing_authority_or_rewriting_disk() {
     let before = std::fs::read(primary(root.path())).unwrap();
     let mut store = RegistryStore::open(root.path()).unwrap();
     let value = serde_json::to_value(store.document().unwrap()).unwrap();
-    assert_eq!(value["schema_version"], 4);
+    assert_eq!(value["schema_version"], SCHEMA);
     assert!(value["source_settings"].is_null());
     assert_eq!(value["next_id"], 90);
     assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
@@ -39,7 +39,7 @@ fn changed_commit_preserves_exact_previous_bytes_in_a_private_backup() {
     let mut next = store.document().unwrap().clone();
     next.next_id = 20;
     store.commit(0, next).unwrap();
-    let backup = backup_path(root.path(), 4, 0);
+    let backup = backup_path(root.path(), SCHEMA, 0);
     assert_eq!(std::fs::read(&backup).unwrap(), before);
     assert_eq!(
         std::fs::metadata(backup).unwrap().permissions().mode() & 0o777,
@@ -53,7 +53,7 @@ fn conflicting_or_linked_backup_blocks_commit_without_primary_changes() {
         let root = tempfile::tempdir().unwrap();
         let mut store = RegistryStore::open(root.path()).unwrap();
         let before = std::fs::read(primary(root.path())).unwrap();
-        let backup = backup_path(root.path(), 4, 0);
+        let backup = backup_path(root.path(), SCHEMA, 0);
         if linked {
             symlink(primary(root.path()), &backup).unwrap();
         } else {
@@ -114,18 +114,18 @@ fn saved_settings_survive_restart_and_order_only_edits_do_not_advance_revision()
         .service_names
         .reverse();
     assert!(!store.commit(1, doc).unwrap().changed);
-    assert!(!backup_path(root.path(), 4, 1).exists());
+    assert!(!backup_path(root.path(), SCHEMA, 1).exists());
     assert_eq!(
         store.backup_current().unwrap(),
         BackupId {
-            schema_version: 4,
+            schema_version: SCHEMA,
             revision: 1
         }
     );
-    let first = std::fs::read(backup_path(root.path(), 4, 1)).unwrap();
+    let first = std::fs::read(backup_path(root.path(), SCHEMA, 1)).unwrap();
     store.backup_current().unwrap();
     assert_eq!(
-        std::fs::read(backup_path(root.path(), 4, 1)).unwrap(),
+        std::fs::read(backup_path(root.path(), SCHEMA, 1)).unwrap(),
         first
     );
 }
@@ -198,12 +198,12 @@ fn recovery_rejects_stale_revisions_wrong_metadata_and_incompatible_current_pins
     assert!(store.restore_policy(1, old).is_err());
     assert!(store.restore_policy(2, old).is_err());
     let bad = BackupId {
-        schema_version: 4,
+        schema_version: SCHEMA,
         revision: 2,
     };
     crate::files::write_secret(
-        &backup_path(root.path(), 4, 2),
-        &std::fs::read(backup_path(root.path(), 4, 1)).unwrap(),
+        &backup_path(root.path(), SCHEMA, 2),
+        &std::fs::read(backup_path(root.path(), SCHEMA, 1)).unwrap(),
     )
     .unwrap();
     assert!(store.restore_policy(2, bad).is_err());
@@ -235,7 +235,7 @@ fn invalid_settings_or_removal_do_not_replace_the_confirmed_registry() {
     next.source_settings = None;
     assert!(store.commit(1, next).is_err());
     assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
-    assert!(!backup_path(root.path(), 4, 1).exists());
+    assert!(!backup_path(root.path(), SCHEMA, 1).exists());
 }
 
 #[test]
@@ -284,12 +284,12 @@ fn normal_history_is_bounded_and_the_migration_backup_remains_available() {
     let history: Vec<_> = std::fs::read_dir(root.path().join("topology-manager"))
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("registry-v4-"))
+        .filter(|name| name.starts_with(&format!("registry-v{SCHEMA}-")))
         .collect();
     assert_eq!(history.len(), 16);
     assert_eq!(std::fs::read(backup_path(root.path(), 2, 7)).unwrap(), old);
-    assert!(backup_path(root.path(), 4, 26).exists());
-    assert!(!backup_path(root.path(), 4, 8).exists());
+    assert!(backup_path(root.path(), SCHEMA, 26).exists());
+    assert!(!backup_path(root.path(), SCHEMA, 8).exists());
 }
 
 #[test]
@@ -302,14 +302,14 @@ fn optional_history_cleanup_failure_does_not_hide_a_confirmed_commit() {
         store.commit(revision, next).unwrap();
     }
     assert!(!store.history_cleanup_pending());
-    let corrupt_old = backup_path(root.path(), 4, 0);
+    let corrupt_old = backup_path(root.path(), SCHEMA, 0);
     crate::files::write_secret(&corrupt_old, b"corrupt old history").unwrap();
     let mut next = store.document().unwrap().clone();
     next.next_id += 1;
     assert_eq!(store.commit(17, next).unwrap().revision, 18);
     assert!(store.history_cleanup_pending());
     assert_eq!(store.document().unwrap().revision, 18);
-    assert!(backup_path(root.path(), 4, 17).exists());
+    assert!(backup_path(root.path(), SCHEMA, 17).exists());
     drop(store);
     let reopened = RegistryStore::open(root.path()).unwrap();
     assert_eq!(reopened.document().unwrap().revision, 18);
@@ -324,7 +324,7 @@ fn schema_three_upgrade_keeps_exact_backup_and_adds_no_ownership() {
     crate::files::write_secret(&primary(root.path()), old).unwrap();
     let before = std::fs::read(primary(root.path())).unwrap();
     let mut store = RegistryStore::open(root.path()).unwrap();
-    assert_eq!(store.document().unwrap().schema_version, 4);
+    assert_eq!(store.document().unwrap().schema_version, SCHEMA);
     assert!(store.document().unwrap().export_ownership.is_none());
     assert_eq!(std::fs::read(primary(root.path())).unwrap(), before);
     assert_eq!(
@@ -390,4 +390,98 @@ fn export_ownership_survives_restart_and_cannot_transfer_or_disappear() {
     let mut renamed = original;
     renamed.export_ownership.as_mut().unwrap().circuits[0].name = "Alice new label".into();
     store.commit(1, renamed).unwrap();
+}
+
+fn located_catalog() -> crate::topology_manager::catalog::TopologyCatalog {
+    let mut c = crate::topology_manager::catalog::tests::catalog();
+    let g = c.nodes.iter_mut().find(|n| n.id == "group1").unwrap();
+    g.geo = Some(web_contract::topology::NodeGeo {
+        geo_type: web_contract::topology::GeoType::Site,
+        location: Some(web_contract::topology::Location {
+            latitude: "12.236199459585354".into(),
+            longitude: "122.02419129509887".into(),
+        }),
+    });
+    c
+}
+
+#[test]
+fn schema_four_migrates_to_five_and_keeps_the_schema_four_backup() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let mut old = serde_json::to_value(RegistryDocument {
+        catalog: Some(crate::topology_manager::catalog::tests::catalog()),
+        ..RegistryDocument::default()
+    })
+    .unwrap();
+    old["schema_version"] = 4.into();
+    old["revision"] = 3.into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let mut doc = store.document().unwrap().clone();
+    assert_eq!(doc.schema_version, 5);
+    let ids: std::collections::BTreeSet<_> = doc
+        .catalog
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .map(|n| n.id.clone())
+        .collect();
+    doc.catalog = Some(located_catalog());
+    assert_eq!(store.commit(3, doc).unwrap().revision, 4);
+    assert_eq!(
+        std::fs::read(backup_path(root.path(), 4, 3)).unwrap(),
+        before
+    );
+    drop(store);
+    let store = RegistryStore::open(root.path()).unwrap();
+    let saved = store.document().unwrap();
+    let disk: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(primary(root.path())).unwrap()).unwrap();
+    assert_eq!(disk["schema_version"], 5);
+    let nodes = &saved.catalog.as_ref().unwrap().nodes;
+    assert_eq!(
+        nodes
+            .iter()
+            .map(|n| n.id.clone())
+            .collect::<std::collections::BTreeSet<_>>(),
+        ids
+    );
+    let g = nodes.iter().find(|n| n.id == "group1").unwrap();
+    let geo = g.geo.as_ref().unwrap();
+    assert_eq!(
+        geo.location.as_ref().unwrap().latitude,
+        "12.236199459585354"
+    );
+    assert_eq!(geo.geo_type, web_contract::topology::GeoType::Site);
+}
+
+#[test]
+fn a_future_schema_or_a_schema_four_file_with_canvas_fields_is_refused() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let mut doc = serde_json::to_value(RegistryDocument {
+        catalog: Some(located_catalog()),
+        ..RegistryDocument::default()
+    })
+    .unwrap();
+    for schema in [4, 6] {
+        doc["schema_version"] = schema.into();
+        crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&doc).unwrap())
+            .unwrap();
+        assert!(RegistryStore::open(root.path()).is_err(), "schema {schema}");
+    }
+}
+
+#[test]
+fn a_location_outside_the_valid_range_is_not_a_valid_registry() {
+    let mut c = located_catalog();
+    let g = c.nodes.iter_mut().find(|n| n.id == "group1").unwrap();
+    g.geo.as_mut().unwrap().location = Some(web_contract::topology::Location {
+        latitude: "91".into(),
+        longitude: "0".into(),
+    });
+    assert!(c.validate().is_err());
 }

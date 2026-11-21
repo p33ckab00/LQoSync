@@ -151,6 +151,7 @@ impl Builder<'_> {
             targets: vec![],
         });
         self.catalog.nodes.push(CatalogNode {
+            geo: None,
             minimum,
             id,
             name,
