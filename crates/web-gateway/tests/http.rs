@@ -31,7 +31,7 @@ async fn fixture() -> (
     let a = accounts.clone();
     let state = temp.path().to_path_buf();
     let job = tokio::spawn(async move {
-        let _ = broker::serve(listener, unsafe { libc::geteuid() }, a, state, None).await;
+        let _ = broker::serve(listener, unsafe { libc::geteuid() }, a, state, None, None).await;
     });
     let app = router(
         WebState {
@@ -241,6 +241,7 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
             name: "Core".into(),
             ..Default::default()
         }],
+        config_digest: String::new(),
         truncated: false,
     };
     std::fs::write(

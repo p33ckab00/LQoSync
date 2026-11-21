@@ -102,6 +102,7 @@ pub fn project(
     cfg: &Config,
     catalog: Option<&TopologyCatalog>,
     report: Option<&collection::Report>,
+    config_digest: &str,
     now: u64,
 ) -> RouterInventory {
     RouterInventory {
@@ -114,6 +115,7 @@ pub fn project(
             .iter()
             .map(|r| summary(r, catalog, report))
             .collect(),
+        config_digest: config_digest.into(),
         truncated: false,
     }
 }
@@ -209,6 +211,7 @@ mod tests {
             &config(dir.path()),
             Some(&catalog()),
             Some(&report()),
+            "d",
             1_000,
         );
         assert_eq!(
@@ -237,7 +240,7 @@ mod tests {
     #[test]
     fn an_access_router_carries_its_collection_sources_and_options() {
         let dir = tempfile::tempdir().unwrap();
-        let inv = project(&config(dir.path()), None, Some(&report()), 1_000);
+        let inv = project(&config(dir.path()), None, Some(&report()), "d", 1_000);
         let access = &inv.routers[1];
         assert_eq!(access.roles, ["ppp"]);
         assert!(access.credential);
@@ -258,7 +261,11 @@ mod tests {
     fn the_cache_has_no_secret_or_path_and_is_root_only() {
         let dir = tempfile::tempdir().unwrap();
         let cfg = config(dir.path());
-        publish(dir.path(), &project(&cfg, Some(&catalog()), None, 1_000)).unwrap();
+        publish(
+            dir.path(),
+            &project(&cfg, Some(&catalog()), None, "d", 1_000),
+        )
+        .unwrap();
         let path = dir.path().join(CACHE);
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(!text.contains("not-a-real-secret"), "{text}");

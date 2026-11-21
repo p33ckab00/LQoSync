@@ -1972,8 +1972,13 @@ where
         }
         // The web router inventory: config, catalog WAN roles, and this collection. No router I/O.
         let catalog = self.api_document().ok().flatten().and_then(|d| d.catalog);
-        let inventory =
-            crate::router_view::project(&self.cfg, catalog.as_ref(), Some(&collection), now);
+        let inventory = crate::router_view::project(
+            &self.cfg,
+            catalog.as_ref(),
+            Some(&collection),
+            &self.config_digest,
+            now,
+        );
         if let Err(error) = crate::router_view::publish(state_dir, &inventory) {
             eprintln!("warning: cannot write routers.json: {error:#}");
         }

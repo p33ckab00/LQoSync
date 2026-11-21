@@ -45,6 +45,15 @@ async fn main() -> Result<()> {
             .unwrap_or("/var/lib/lqosync3".into())
             .into(),
         history,
+        // Router edits run the core binary with the service config, as root.
+        Some(broker::Editor {
+            bin: std::env::var("LQOSYNC_BIN")
+                .unwrap_or("/usr/local/bin/lqosync3".into())
+                .into(),
+            config: std::env::var("LQOSYNC_CONFIG")
+                .unwrap_or("/etc/lqosync3/lqosync3.toml".into())
+                .into(),
+        }),
     )
     .await
 }

@@ -15,6 +15,7 @@ async fn wrong_peer_uid_cannot_read_broker_data() {
             accounts,
             state,
             None,
+            None,
         )
         .await;
     });

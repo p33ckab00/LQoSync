@@ -1,23 +1,24 @@
 //! Same-origin HTTP surface. Accounts never have CRUD routes.
 use crate::{
-    broker::{Request as BrokerRequest, exchange},
+    broker::{Request as BrokerRequest, exchange, exchange_within},
     sessions::{Session, Sessions},
 };
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Query, Request, State},
+    extract::{DefaultBodyLimit, Path, Query, Request, State},
     http::{HeaderMap, StatusCode, header},
     middleware::{self, Next},
     response::{
         Html, IntoResponse, Response, Sse,
         sse::{Event, KeepAlive},
     },
-    routing::get,
+    routing::{get, patch},
 };
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
 use tower_http::services::ServeDir;
 use web_contract::Principal;
+use web_contract::routers::{RouterEditForm, RouterEditOutcome};
 #[derive(Clone)]
 pub struct WebState {
     pub broker: PathBuf,
@@ -171,6 +172,82 @@ async fn routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     let inventory = reply.routers.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(inventory).into_response())
 }
+/// A state-changing request: same origin, a current session, and its CSRF token.
+async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
+    if !same_origin(s, h) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let p = principal(s, h).await?;
+    if h.get("x-csrf-token").and_then(|v| v.to_str().ok()) != Some(&p.csrf) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(p)
+}
+/// A router ID from the inventory: `lq3-` and hex digits.
+fn router_id(id: &str) -> bool {
+    id.len() <= 64 && id.starts_with("lq3-") && id[4..].bytes().all(|b| b.is_ascii_hexdigit())
+}
+/// Save a local router change. The core command checks and writes it; no router I/O.
+async fn edit_router(
+    s: &WebState,
+    h: &HeaderMap,
+    router_id: Option<String>,
+    form: RouterEditForm,
+) -> ApiResult {
+    let p = writer(s, h).await?;
+    let request = BrokerRequest::RouterEdit {
+        actor: p.username,
+        router_id,
+        form: Box::new(form),
+    };
+    let reply = exchange_within(&s.broker, &request, std::time::Duration::from_secs(28))
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let outcome: RouterEditOutcome = reply.edit.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let status = match outcome.code.as_str() {
+        "ok" => StatusCode::OK,
+        "conflict" => StatusCode::CONFLICT,
+        "invalid" => StatusCode::UNPROCESSABLE_ENTITY,
+        "not_found" => StatusCode::NOT_FOUND,
+        // The body code tells the page to ask for the password; 401 would end the session.
+        "reauth" => StatusCode::FORBIDDEN,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
+    };
+    Ok((status, Json(outcome)).into_response())
+}
+async fn create_router(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Json(form): Json<RouterEditForm>,
+) -> ApiResult {
+    edit_router(&s, &h, None, form).await
+}
+async fn update_router(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+    Json(form): Json<RouterEditForm>,
+) -> ApiResult {
+    if !router_id(&id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    edit_router(&s, &h, Some(id), form).await
+}
+async fn router_activity(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult {
+    principal(&s, &h).await?;
+    if !router_id(&id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let reply = exchange(&s.broker, &BrokerRequest::RouterActivity { router_id: id })
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let activity = reply.activity.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(activity).into_response())
+}
 async fn live(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     principal(&s, &h).await?;
     // Slow clients own at most one snapshot; there is no per-client event queue.
@@ -262,7 +339,18 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/overview", get(overview))
         .route("/api/v1/overview/live", get(live))
         .route("/api/v1/traffic", get(traffic))
-        .route("/api/v1/routers", get(routers))
+        // A router edit can carry a CA certificate, so its body limit is larger.
+        .route(
+            "/api/v1/routers",
+            get(routers)
+                .post(create_router)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/routers/{id}",
+            patch(update_router).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route("/api/v1/routers/{id}/activity", get(router_activity))
         // Browser routes of the single-page UI. The page itself loads data through the API.
         .route("/routers", get(index))
         .route("/routers/{*rest}", get(index))

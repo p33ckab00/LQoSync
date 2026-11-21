@@ -14,7 +14,18 @@ use tokio::{
     net::{UnixListener, UnixStream},
     sync::{Mutex, RwLock, Semaphore},
 };
+use web_contract::routers::{RouterActivity, RouterEditForm, RouterEditOutcome, RouterEditRequest};
 use web_contract::{Overview, TrafficWindow};
+
+/// The request line limit. A router edit can carry a CA certificate of up to 16 KiB.
+const MAX_REQUEST: usize = 32 * 1024;
+
+/// The core command that saves router edits: `<bin> router-edit --config <config>`.
+#[derive(Clone, Debug)]
+pub struct Editor {
+    pub bin: PathBuf,
+    pub config: PathBuf,
+}
 pub fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -39,6 +50,16 @@ pub enum Request {
     },
     /// The cached router inventory. No router I/O.
     Routers,
+    /// One local router change. The gateway sets `actor` from the session, never from the browser.
+    RouterEdit {
+        actor: String,
+        router_id: Option<String>,
+        form: Box<RouterEditForm>,
+    },
+    /// The audit events of one router.
+    RouterActivity {
+        router_id: String,
+    },
 }
 #[derive(Serialize, Deserialize)]
 pub struct Reply {
@@ -49,6 +70,10 @@ pub struct Reply {
     pub traffic: Option<TrafficWindow>,
     #[serde(default)]
     pub routers: Option<web_contract::routers::RouterInventory>,
+    #[serde(default)]
+    pub edit: Option<RouterEditOutcome>,
+    #[serde(default)]
+    pub activity: Option<RouterActivity>,
 }
 impl Reply {
     fn no() -> Self {
@@ -58,15 +83,21 @@ impl Reply {
             overview: None,
             traffic: None,
             routers: None,
+            edit: None,
+            activity: None,
         }
     }
 }
 pub async fn exchange(path: &Path, request: &Request) -> Result<Reply> {
-    tokio::time::timeout(Duration::from_secs(10), async {
+    exchange_within(path, request, Duration::from_secs(10)).await
+}
+/// A router edit runs the core command, so it gets a longer limit than a cache read.
+pub async fn exchange_within(path: &Path, request: &Request, limit: Duration) -> Result<Reply> {
+    tokio::time::timeout(limit, async {
         let mut stream = UnixStream::connect(path).await?;
         let mut body = serde_json::to_vec(request)?;
         body.push(b'\n');
-        ensure!(body.len() <= 4096, "request too large");
+        ensure!(body.len() <= MAX_REQUEST, "request too large");
         stream.write_all(&body).await?;
         let mut line = String::new();
         BufReader::new(stream)
@@ -87,6 +118,7 @@ pub async fn serve(
     accounts: Accounts,
     state_dir: PathBuf,
     history_path: Option<PathBuf>,
+    editor: Option<Editor>,
 ) -> Result<()> {
     let cached = Arc::new(RwLock::new(Overview {
         stale: true,
@@ -157,6 +189,9 @@ pub async fn serve(
     let connections = Arc::new(Semaphore::new(16));
     let hashes = Arc::new(Semaphore::new(2));
     let limits = Arc::new(Mutex::new(HashMap::<String, (u64, u32)>::new()));
+    // One config writer at a time: router edits are serialized.
+    let edits = Arc::new(Semaphore::new(1));
+    let editor = editor.map(Arc::new);
     loop {
         let (stream, _) = listener.accept().await?;
         if stream.peer_cred()?.uid() != uid {
@@ -171,14 +206,19 @@ pub async fn serve(
         let hashes = hashes.clone();
         let limits = limits.clone();
         let root = inventory_root.clone();
+        let edits = edits.clone();
+        let editor = editor.clone();
         tokio::spawn(async move {
             let _permit = permit;
-            let result = tokio::time::timeout(Duration::from_secs(12), async {
+            let result = tokio::time::timeout(Duration::from_secs(30), async {
                 let (read, mut write) = stream.into_split();
                 let mut line = String::new();
-                BufReader::new(read).take(4097).read_line(&mut line).await?;
+                BufReader::new(read)
+                    .take(MAX_REQUEST as u64 + 1)
+                    .read_line(&mut line)
+                    .await?;
                 ensure!(
-                    line.len() <= 4096 && line.ends_with('\n'),
+                    line.len() <= MAX_REQUEST && line.ends_with('\n'),
                     "invalid request"
                 );
                 let request: Request = serde_json::from_str(&line)?;
@@ -198,6 +238,71 @@ pub async fn serve(
                             tokio::task::spawn_blocking(move || crate::routers::load(&root))
                                 .await?;
                         reply.ok = reply.routers.is_some();
+                    }
+                    Request::RouterActivity { router_id } => {
+                        ensure!(router_id.len() <= 64, "invalid input");
+                        reply.activity = tokio::task::spawn_blocking(move || {
+                            crate::routers::activity(&root, &router_id)
+                        })
+                        .await
+                        .ok();
+                        reply.ok = reply.activity.is_some();
+                    }
+                    Request::RouterEdit {
+                        actor,
+                        router_id,
+                        form,
+                    } => {
+                        ensure!(
+                            actor.len() <= 64 && router_id.as_ref().is_none_or(|r| r.len() <= 64),
+                            "invalid input"
+                        );
+                        let Some(editor) = editor.as_deref() else {
+                            anyhow::bail!("no router editor");
+                        };
+                        // A credential replacement needs the operator password again (owner decision D2).
+                        let replaces = router_id.is_some() && form.edit.password.is_some();
+                        let confirmed = if replaces {
+                            let allowed = {
+                                let mut map = limits.lock().await;
+                                map.retain(|_, (at, _)| now().saturating_sub(*at) < 60);
+                                let counter = map.entry(actor.clone()).or_insert((now(), 0));
+                                counter.1 += 1;
+                                counter.1 <= 5
+                            };
+                            match (
+                                allowed,
+                                form.current_password.clone(),
+                                hashes.try_acquire_owned(),
+                            ) {
+                                (true, Some(password), Ok(_hash)) if password.len() <= 256 => {
+                                    let (a, user) = (accounts.clone(), actor.clone());
+                                    tokio::task::spawn_blocking(move || a.verify(&user, &password))
+                                        .await?
+                                        .is_ok()
+                                }
+                                _ => false,
+                            }
+                        } else {
+                            true
+                        };
+                        reply.edit = Some(if confirmed {
+                            let _one = edits.acquire().await?;
+                            let request = RouterEditRequest {
+                                actor,
+                                router_id,
+                                edit: form.edit,
+                            };
+                            crate::routers::run_editor(editor, &request).await
+                        } else {
+                            RouterEditOutcome {
+                                code: "reauth".into(),
+                                message: "Enter your current password to replace the credential."
+                                    .into(),
+                                reply: None,
+                            }
+                        });
+                        reply.ok = true;
                     }
                     Request::Active { id, epoch } => {
                         reply.ok = tokio::task::spawn_blocking(move || accounts.active(id, epoch))

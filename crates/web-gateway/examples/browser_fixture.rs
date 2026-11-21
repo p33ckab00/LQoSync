@@ -6,8 +6,172 @@ use web_gateway::{
     http::{WebState, router},
     sessions::Sessions,
 };
+/// The fixture as a fake `router-edit` command: it changes the synthetic inventory, never a config file.
+fn fake_router_edit(config: &std::path::Path) -> anyhow::Result<()> {
+    use web_contract::routers::*;
+    let dir = config.parent().unwrap();
+    let mut input = String::new();
+    std::io::Read::read_to_string(&mut std::io::stdin(), &mut input)?;
+    let req: RouterEditRequest = serde_json::from_str(&input)?;
+    let path = dir.join(CACHE);
+    let mut inv: RouterInventory = serde_json::from_slice(&std::fs::read(&path)?)?;
+    let e = &req.edit;
+    let answer = |code: &str, message: &str, reply: Option<RouterEditReply>| {
+        println!(
+            "{}",
+            serde_json::to_string(&RouterEditOutcome {
+                code: code.into(),
+                message: message.into(),
+                reply
+            })
+            .unwrap()
+        );
+        Ok(())
+    };
+    if e.expected_digest != inv.config_digest {
+        return answer(
+            "conflict",
+            "The configuration changed after this page loaded. Load the page again, then repeat the change.",
+            None,
+        );
+    }
+    if e.address.as_deref().is_some_and(|a| a.contains(' ')) {
+        return answer("invalid", "Check the address.", None);
+    }
+    let (i, action) = match &req.router_id {
+        None => {
+            let name = e.name.clone().unwrap_or_default();
+            if inv.routers.iter().any(|r| r.name == name) {
+                return answer(
+                    "invalid",
+                    &format!("A router named {name} exists already."),
+                    None,
+                );
+            }
+            let id = format!(
+                "lq3-{:016x}",
+                name.bytes()
+                    .fold(0xcbf29ce484222325u64, |h, b| (h ^ u64::from(b))
+                        .wrapping_mul(0x100000001b3))
+            );
+            inv.routers.push(RouterSummary {
+                id,
+                name,
+                enabled: false,
+                credential: true,
+                port: 8729,
+                tls: true,
+                tls_verify: true,
+                ..Default::default()
+            });
+            (inv.routers.len() - 1, "create")
+        }
+        Some(id) => match inv.routers.iter().position(|r| r.id == *id) {
+            Some(i) => (i, "update"),
+            None => {
+                return answer(
+                    "not_found",
+                    "This router is not in the configuration.",
+                    None,
+                );
+            }
+        },
+    };
+    let r = &mut inv.routers[i];
+    if let Some(v) = &e.address {
+        r.address = v.clone();
+    }
+    if let Some(v) = &e.username {
+        r.username = v.clone();
+    }
+    if let Some(v) = e.port {
+        r.port = v;
+    }
+    if let Some(v) = e.tls {
+        r.tls = v;
+    }
+    if let Some(v) = e.tls_verify {
+        r.tls_verify = v;
+    }
+    if e.ca_pem.is_some() {
+        r.tls_ca = true;
+    }
+    if e.clear_ca {
+        r.tls_ca = false;
+    }
+    for (flag, kind) in [(e.pppoe, "ppp"), (e.dhcp, "dhcp"), (e.hotspot, "hotspot")] {
+        let Some(on) = flag else { continue };
+        r.roles.retain(|x| x != kind);
+        if on {
+            r.roles.push(kind.into());
+        }
+        match r.sources.iter_mut().find(|s| s.kind == kind) {
+            Some(s) => s.enabled = on,
+            None => r.sources.push(RouterSource {
+                kind: kind.into(),
+                enabled: on,
+                ..Default::default()
+            }),
+        }
+    }
+    if let Some(v) = e.ppp_per_plan_node {
+        r.options.ppp_per_plan_node = v;
+    }
+    if let Some(v) = e.dhcp_require_bound {
+        r.options.dhcp_require_bound = v;
+    }
+    if let Some(v) = e.location {
+        r.location = Some(v);
+    }
+    if e.clear_location {
+        r.location = None;
+    }
+    let event = RouterEvent {
+        at: broker::now(),
+        actor: req.actor.clone(),
+        router_id: r.id.clone(),
+        router: r.name.clone(),
+        action: action.into(),
+        changes: vec!["fixture".into()],
+        digest: String::new(),
+    };
+    let id = r.id.clone();
+    let digest = format!(
+        "{:016x}",
+        u64::from_str_radix(&inv.config_digest, 16).unwrap_or(0) + 1
+    );
+    inv.config_digest = digest.clone();
+    let mut line = serde_json::to_vec(&RouterEvent {
+        digest: digest.clone(),
+        ..event
+    })?;
+    line.push(b'\n');
+    std::io::Write::write_all(
+        &mut std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(dir.join("router-audit.jsonl"))?,
+        &line,
+    )?;
+    std::fs::write(&path, serde_json::to_vec(&inv)?)?;
+    answer(
+        "ok",
+        "",
+        Some(RouterEditReply {
+            router_id: id,
+            digest,
+            reload: "sent".into(),
+            warnings: vec![],
+        }),
+    )
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("router-edit") {
+        return fake_router_edit(std::path::Path::new(&args[3]));
+    }
     let dir = tempfile::tempdir()?;
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700))?;
     let accounts = Accounts::new(dir.path().join("accounts.db"))?;
@@ -17,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
     let collection = serde_json::json!({"version":1,"updated":at,"pid":1,"cycle_seq":1,"fresh_for":300,"routers":[{"state":"online","observed_at":at,"sources":{"ppp":{"enabled":true,"online":2,"offline":1},"dhcp":{"enabled":true}},"subscribers":[{"source":"dhcp","state":"bound"},{"source":"ppp","state":"online"},{"source":"ppp","state":"offline"}]}]});
     let health = serde_json::json!({"version":1,"updated":at,"overall":"HEALTHY","update":{"phase":"Applied"},"components":[{"component":"collector","state":"HEALTHY","observed_at":at,"max_age":300},{"component":"import","state":"HEALTHY","observed_at":at,"max_age":300}]});
     // Synthetic router inventory: a WAN-only core, an online access router, and a failing one.
-    let routers = serde_json::json!({"version":1,"updated":at,"fresh_for":300,"routers":[
+    let routers = serde_json::json!({"version":1,"updated":at,"fresh_for":300,"config_digest":"0000000000000001","routers":[
       {"id":"lq3-00000000000000c1","name":"Core-01","address":"192.0.2.1","port":8729,"tls":true,"tls_verify":true,"tls_ca":true,"username":"lqosync","credential":true,
        "roles":["wan"],"wans":["ether1","ether2"],"collection":null,"sources":[{"kind":"ppp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
        "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":false,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}},
@@ -91,8 +255,13 @@ async fn main() -> anyhow::Result<()> {
             listener,
             unsafe { libc::geteuid() },
             accounts,
-            state_dir,
+            state_dir.clone(),
             None,
+            // The fixture answers router edits itself, on its synthetic inventory.
+            Some(broker::Editor {
+                bin: std::env::current_exe().expect("fixture path"),
+                config: state_dir.join("fixture.toml"),
+            }),
         )
         .await;
     });

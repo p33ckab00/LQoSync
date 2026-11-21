@@ -21,6 +21,7 @@ pub mod model;
 pub mod nic_stats;
 pub mod notify;
 pub mod probe;
+pub mod router_edit;
 pub mod router_view;
 pub mod routeros;
 pub mod routerstate;

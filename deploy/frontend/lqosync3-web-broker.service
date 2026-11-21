@@ -22,7 +22,9 @@ ProtectKernelTunables=yes
 ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX
 CapabilityBoundingSet=CAP_CHOWN CAP_DAC_READ_SEARCH
-ReadWritePaths=/var/lib/lqosync3-web-accounts /run/lqosync3-web
+# Router edits run `lqosync3 router-edit` as a child: it writes the config, its secrets and CA files,
+# its backups, and the router audit log. Nothing else becomes writable.
+ReadWritePaths=/var/lib/lqosync3-web-accounts /run/lqosync3-web /etc/lqosync3 /var/lib/lqosync3
 
 [Install]
 WantedBy=multi-user.target

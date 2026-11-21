@@ -258,6 +258,15 @@ async fn main() {
         println!("lqosync3 {}", lqosync3::VERSION);
         return;
     }
+    // The web broker sends one request. The answer is JSON also for a bad config file.
+    if parsed.command == Command::RouterEdit {
+        use std::io::Read;
+        let mut input = String::new();
+        let _ = std::io::stdin().take(64 * 1024).read_to_string(&mut input);
+        let out = lqosync3::router_edit::run(&parsed.config, &input, now());
+        println!("{}", serde_json::to_string(&out).unwrap_or_default());
+        return;
+    }
     // The TUI starts also with a bad config file: it shows the error.
     if parsed.command == Command::Tui {
         lqosync3::tui::run(&parsed.config).unwrap_or_else(|e| exit_with(e));
@@ -337,6 +346,8 @@ async fn main() {
         Command::Run => run(&parsed.config, cfg, digest)
             .await
             .unwrap_or_else(|e| exit_with(e)),
-        Command::Defaults | Command::Tui | Command::Version => unreachable!("handled above"),
+        Command::Defaults | Command::Tui | Command::Version | Command::RouterEdit => {
+            unreachable!("handled above")
+        }
     }
 }
