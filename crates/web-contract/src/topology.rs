@@ -36,6 +36,39 @@ pub struct TopologyView {
     pub collection: Vec<CollectionRouter>,
     /// Preview conflicts. Never truncated.
     pub conflicts: Vec<Conflict>,
+    /// Global subscriber speed rules. `None` without a catalog.
+    #[serde(default)]
+    pub speed: Option<SpeedDefaults>,
+    /// The group factor of each subscriber source.
+    #[serde(default)]
+    pub factors: Vec<SourceFactor>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpeedDefaults {
+    pub down_min: SpeedRule,
+    pub up_min: SpeedRule,
+    pub down_max: SpeedRule,
+    pub up_max: SpeedRule,
+    /// Profiles with their own speed rules. A defaults edit resets them.
+    pub overrides: u64,
+}
+
+/// One rule as exact decimal text, for display and for a form start value.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpeedRule {
+    /// `percent` of the plan, fixed `mbps`, or `legacy` (an imported rounded rule).
+    pub unit: String,
+    pub value: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceFactor {
+    pub source_id: String,
+    pub name: String,
+    /// Exact decimal factors, for example `0.5`.
+    pub down: String,
+    pub up: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -220,6 +253,10 @@ pub struct TopologySummary {
     pub subscribers_active: u64,
     pub ppp_total: u64,
     pub dhcp_total: u64,
+    #[serde(default)]
+    pub speed: Option<SpeedDefaults>,
+    #[serde(default)]
+    pub factors: Vec<SourceFactor>,
 }
 
 /// One page of a filtered list. The cursor binds the snapshot and the filter.
@@ -484,6 +521,38 @@ pub enum BuilderEdit {
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
+    /// The four global speed rules. It resets profile rules; the review says how many.
+    #[serde(rename = "speed.defaults")]
+    SpeedDefaults {
+        down_min: RuleInput,
+        up_min: RuleInput,
+        down_max: RuleInput,
+        up_max: RuleInput,
+    },
+    /// Exact decimal factors of one subscriber source. `None` keeps a direction.
+    #[serde(rename = "group.factor")]
+    GroupFactor {
+        source_id: String,
+        down: Option<String>,
+        up: Option<String>,
+    },
+    #[serde(rename = "fallback.set")]
+    FallbackSet {
+        node_ids: Vec<String>,
+        default_down_mbps: u64,
+        default_up_mbps: u64,
+    },
+    #[serde(rename = "fallback.clear")]
+    FallbackClear,
+}
+
+/// A speed rule as typed: a percent of the plan (one decimal) or whole Mbps. The service checks
+/// the precision and the range.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum RuleInput {
+    Percent(f64),
+    Mbps(u64),
 }
 
 /// `POST /api/v1/topology/proposals`. `key` names the proposal for its actor only.

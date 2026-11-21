@@ -1,12 +1,14 @@
 //! The Topology Manager read view for the web (`topology.json`). No router I/O and no mutation:
 //! it projects the registry, the cached preview, and the cycle collection into one snapshot.
 use crate::collection::{self, Report};
-use crate::topology_manager::catalog::BaseRateAuthority;
+use crate::topology_manager::catalog::{BaseRateAuthority, SourceOrigin};
+use crate::topology_manager::edits::factor_text;
 use crate::topology_manager::identity::{
     ReferenceAuthority, SourceSelection, dhcp_mac_reference, ppp_name_reference,
 };
 use crate::topology_manager::model::{IdentityRef, RegistryDocument, SourceKind};
 use crate::topology_manager::policy_draft::router_id;
+use crate::topology_manager::rates::RateRule;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -157,6 +159,71 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         observations,
         collection,
         conflicts: serde_json::from_value(Value::Array(list("conflicts"))).unwrap_or_default(),
+        speed: doc.and_then(|d| d.catalog.as_ref()).map(|c| SpeedDefaults {
+            down_min: rule(&c.defaults.down_min),
+            up_min: rule(&c.defaults.up_min),
+            down_max: rule(&c.defaults.down_max),
+            up_max: rule(&c.defaults.up_max),
+            overrides: c
+                .profiles
+                .iter()
+                .filter(|p| p.speed != Default::default())
+                .count() as u64,
+        }),
+        factors: doc
+            .and_then(|d| d.catalog.as_ref())
+            .map_or(&[][..], |c| &c.sources[..])
+            .iter()
+            .filter_map(|s| match &s.origin {
+                SourceOrigin::Subscribers { group, .. } => Some(SourceFactor {
+                    source_id: s.id.clone(),
+                    name: s.name.clone(),
+                    down: factor_text(group.factors.down),
+                    up: factor_text(group.factors.up),
+                }),
+                SourceOrigin::Wan { .. } => None,
+            })
+            .collect(),
+    }
+}
+
+/// `num / den` as exact decimal text with up to `places` decimals, or rounded when not exact.
+fn decimal(num: u128, den: u128, places: u32) -> String {
+    let scale = 10u128.pow(places);
+    let den = den.max(1);
+    let scaled = if (num * scale).is_multiple_of(den) {
+        num * scale / den
+    } else {
+        (num * scale + den / 2) / den
+    };
+    let text = format!(
+        "{}.{:0width$}",
+        scaled / scale,
+        scaled % scale,
+        width = places as usize
+    );
+    text.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+fn rule(r: &RateRule) -> SpeedRule {
+    let (unit, value) = match *r {
+        RateRule::FixedBps(bps) => ("mbps", decimal(u128::from(bps), 1_000_000, 3)),
+        RateRule::BaseFraction(f) => (
+            "percent",
+            decimal(u128::from(f.numerator) * 100, u128::from(f.denominator), 1),
+        ),
+        RateRule::LegacyRoundedBase { factor, .. } => (
+            "legacy",
+            decimal(
+                u128::from(factor.numerator) * 100,
+                u128::from(factor.denominator),
+                1,
+            ),
+        ),
+    };
+    SpeedRule {
+        unit: unit.into(),
+        value,
     }
 }
 

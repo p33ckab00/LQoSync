@@ -1,5 +1,7 @@
 //! Pure helpers of the Topology, PPPoE, and IPoE screens, so native tests cover them.
-use web_contract::topology::{BuilderEdit, Capacity, Node, PageQuery, Plan};
+use web_contract::topology::{
+    BuilderEdit, Capacity, Fallback, Node, PageQuery, Plan, RuleInput, SourceFactor, SpeedDefaults,
+};
 
 /// Nodes in tree order with their depth. A node whose parent is absent is a root.
 /// A parent cycle cannot loop: each node appears once.
@@ -198,7 +200,21 @@ pub(crate) enum Change {
     SubscriberPin(String, Option<String>),
     /// One source ID and its label, or all sources with `None`.
     Rebalance(Option<String>, String),
+    SpeedDefaults(SpeedDefaults),
+    GroupFactor(SourceFactor),
+    /// The current fallback, if any.
+    SetFallback(Option<Fallback>),
+    ClearFallback,
 }
+
+/// The four speed rules in form order: download minimum, upload minimum, download maximum,
+/// upload maximum.
+pub(crate) const RULES: [&str; 4] = [
+    "Download minimum",
+    "Upload minimum",
+    "Download maximum",
+    "Upload maximum",
+];
 
 /// The form values as typed. The browser checks shape; the service decides every rule.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -212,6 +228,10 @@ pub(crate) struct Draft {
     pub mode: String,
     pub down: String,
     pub up: String,
+    /// Speed rules in `RULES` order: unit (`percent` or `mbps`) and value.
+    pub rules: [(String, String); 4],
+    /// Fallback node IDs.
+    pub nodes: Vec<String>,
 }
 
 impl Draft {
@@ -242,6 +262,44 @@ impl Draft {
                     ..Self::default()
                 };
             }
+            Change::SpeedDefaults(sd) => {
+                let r = |x: &web_contract::topology::SpeedRule| {
+                    // A legacy rule is offered again as its percent; the review warns.
+                    let unit = if x.unit == "mbps" { "mbps" } else { "percent" };
+                    (unit.to_string(), x.value.clone())
+                };
+                return Self {
+                    rules: [
+                        r(&sd.down_min),
+                        r(&sd.up_min),
+                        r(&sd.down_max),
+                        r(&sd.up_max),
+                    ],
+                    ..Self::default()
+                };
+            }
+            Change::GroupFactor(f) => {
+                return Self {
+                    down: f.down.clone(),
+                    up: f.up.clone(),
+                    ..Self::default()
+                };
+            }
+            Change::SetFallback(f) => {
+                return Self {
+                    nodes: f.as_ref().map(|f| f.node_ids.clone()).unwrap_or_default(),
+                    down: f
+                        .as_ref()
+                        .map(|f| f.default_mbps[0].to_string())
+                        .unwrap_or_default(),
+                    up: f
+                        .as_ref()
+                        .map(|f| f.default_mbps[1].to_string())
+                        .unwrap_or_default(),
+                    ..Self::default()
+                };
+            }
+            Change::ClearFallback => return Self::default(),
             Change::SubscriberPlan(_, current) | Change::SubscriberPin(_, current) => {
                 return Self {
                     parent: current.clone().unwrap_or_default(),
@@ -272,6 +330,7 @@ impl Draft {
             mode: mode.into(),
             down,
             up,
+            ..Self::default()
         }
     }
 }
@@ -442,6 +501,70 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
         Change::Rebalance(source, _) => BuilderEdit::Rebalance {
             source_id: source.clone(),
         },
+        Change::SpeedDefaults(_) => {
+            let mut out = [RuleInput::Mbps(0); 4];
+            for (i, (unit, value)) in d.rules.iter().enumerate() {
+                let value = value.trim();
+                out[i] = match unit.as_str() {
+                    "mbps" => match value.parse::<u64>() {
+                        Ok(n) if n > 0 => RuleInput::Mbps(n),
+                        _ => return Err("Enter fixed rates as whole Mbps above 0."),
+                    },
+                    _ => match value.parse::<f64>() {
+                        Ok(p) if p.is_finite() && p > 0.0 => RuleInput::Percent(p),
+                        _ => {
+                            return Err(
+                                "Enter percents as numbers above 0, with one decimal at most.",
+                            );
+                        }
+                    },
+                };
+            }
+            BuilderEdit::SpeedDefaults {
+                down_min: out[0],
+                up_min: out[1],
+                down_max: out[2],
+                up_max: out[3],
+            }
+        }
+        Change::GroupFactor(f) => {
+            let changed = |new: &str, old: &str| {
+                let new = new.trim();
+                (new != old).then(|| new.to_string())
+            };
+            let (down, up) = (changed(&d.down, &f.down), changed(&d.up, &f.up));
+            if down.is_none() && up.is_none() {
+                return Err("Change a factor first.");
+            }
+            BuilderEdit::GroupFactor {
+                source_id: f.source_id.clone(),
+                down,
+                up,
+            }
+        }
+        Change::SetFallback(_) => {
+            if d.nodes.is_empty() {
+                return Err("Select at least one fallback node.");
+            }
+            let Capacity::Fixed {
+                down_mbps, up_mbps, ..
+            } = capacity(
+                &Draft {
+                    mode: "fixed".into(),
+                    ..d.clone()
+                },
+                None,
+            )?
+            else {
+                return Err("Enter download and upload as whole Mbps above 0.");
+            };
+            BuilderEdit::FallbackSet {
+                node_ids: d.nodes.clone(),
+                default_down_mbps: down_mbps,
+                default_up_mbps: up_mbps,
+            }
+        }
+        Change::ClearFallback => BuilderEdit::FallbackClear,
     })
 }
 
@@ -610,6 +733,72 @@ mod tests {
                 &Draft::default()
             ),
             Ok(BuilderEdit::Rebalance { source_id: None })
+        );
+        // Speed rules keep each unit; a bad value stays in the form.
+        let rule = |unit: &str, value: &str| web_contract::topology::SpeedRule {
+            unit: unit.into(),
+            value: value.into(),
+        };
+        let speed = Change::SpeedDefaults(SpeedDefaults {
+            down_min: rule("percent", "20.5"),
+            up_min: rule("mbps", "5"),
+            down_max: rule("legacy", "100"),
+            up_max: rule("percent", "100"),
+            overrides: 2,
+        });
+        let mut d = Draft::of(&speed);
+        // The form rows follow RULES order; row 2 is the download maximum.
+        assert_eq!(RULES[2], "Download maximum");
+        assert_eq!(d.rules[2], ("percent".to_string(), "100".to_string()));
+        assert_eq!(
+            build_edit(&speed, &d),
+            Ok(BuilderEdit::SpeedDefaults {
+                down_min: RuleInput::Percent(20.5),
+                up_min: RuleInput::Mbps(5),
+                down_max: RuleInput::Percent(100.0),
+                up_max: RuleInput::Percent(100.0),
+            })
+        );
+        d.rules[1].1 = "five".into();
+        assert!(build_edit(&speed, &d).is_err());
+        d.rules[0].1 = "NaN".into();
+        assert!(build_edit(&speed, &d).is_err());
+        // A factor edit sends only the changed direction.
+        let factor = Change::GroupFactor(SourceFactor {
+            source_id: "src".into(),
+            name: "PPPoE".into(),
+            down: "1".into(),
+            up: "1".into(),
+        });
+        let mut d = Draft::of(&factor);
+        assert_eq!(build_edit(&factor, &d), Err("Change a factor first."));
+        d.down = "0.5".into();
+        assert_eq!(
+            build_edit(&factor, &d),
+            Ok(BuilderEdit::GroupFactor {
+                source_id: "src".into(),
+                down: Some("0.5".into()),
+                up: None
+            })
+        );
+        // Fallback needs nodes and rates.
+        let set = Change::SetFallback(None);
+        let mut d = Draft::of(&set);
+        d.down = "10".into();
+        d.up = "5".into();
+        assert!(build_edit(&set, &d).is_err());
+        d.nodes = vec!["g1".into()];
+        assert_eq!(
+            build_edit(&set, &d),
+            Ok(BuilderEdit::FallbackSet {
+                node_ids: vec!["g1".into()],
+                default_down_mbps: 10,
+                default_up_mbps: 5
+            })
+        );
+        assert_eq!(
+            build_edit(&Change::ClearFallback, &Draft::default()),
+            Ok(BuilderEdit::FallbackClear)
         );
         assert_eq!(
             build_edit(&Change::Remove(g), &Draft::default()),

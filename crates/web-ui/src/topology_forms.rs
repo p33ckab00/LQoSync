@@ -91,6 +91,10 @@ fn title(action: &Change) -> String {
         Change::SubscriberPlan(id, _) => format!("Change plan of {id}"),
         Change::SubscriberPin(id, _) => format!("Pin {id} to a WAN"),
         Change::Rebalance(_, label) => format!("Rebalance {label}"),
+        Change::SpeedDefaults(_) => "Edit speed rules".into(),
+        Change::GroupFactor(f) => format!("Edit factor of {}", f.name),
+        Change::SetFallback(_) => "Set fallback".into(),
+        Change::ClearFallback => "Clear fallback".into(),
     }
 }
 
@@ -458,6 +462,58 @@ fn fields(
         }
         Change::Rebalance(_, label) => view! {
           <p>{format!("Place the subscribers of {label} again across their nodes. The service reads the routers for the review.")}</p>
+        }
+        .into_any(),
+        Change::SpeedDefaults(sd) => view! {
+          <p>{format!("These rules apply to every subscriber. Saving resets the own rules of {} profiles to them and replaces imported legacy rules. The review lists the subscribers whose rates change.", sd.overrides)}</p>
+          {RULES.iter().enumerate().map(|(i,label)|{
+            let id=format!("rule-{i}");
+            view!{<div class="field-row">
+              <div class="field"><label for=id.clone()>{*label}</label>
+                <input id=id type="text" inputmode="decimal" required autocomplete="off"
+                  prop:value=move||draft.with(|d|d.rules[i].1.clone()) on:input=move|ev|draft.update(|d|d.rules[i].1=event_target_value(&ev))/></div>
+              <div class="field"><label for=format!("rule-unit-{i}")>{format!("{label} unit")}</label>
+                <select id=format!("rule-unit-{i}") on:change=move|ev|draft.update(|d|d.rules[i].0=event_target_value(&ev))>
+                  <option value="percent" selected=move||draft.with(|d|d.rules[i].0!="mbps")>"Percent of the plan"</option>
+                  <option value="mbps" selected=move||draft.with(|d|d.rules[i].0=="mbps")>"Fixed Mbps"</option>
+                </select></div>
+            </div>}
+          }).collect_view()}
+          <p class="field-help">"Minimums: 0.1 to 100 percent. Maximums: 1 to 1000 percent. One decimal at most."</p>
+        }
+        .into_any(),
+        Change::GroupFactor(f) => view! {
+          <p>{format!("The factor multiplies the plan rates of {} when the service sizes its group. Node factor overrides stay.", f.name)}</p>
+          <div class="field-row">
+            <div class="field"><label for="change-down">"Download factor"</label>
+              <input id="change-down" type="text" inputmode="decimal" required autocomplete="off" prop:value=text(|d|d.down.clone()) on:input=set(|d,v|d.down=v)/></div>
+            <div class="field"><label for="change-up">"Upload factor"</label>
+              <input id="change-up" type="text" inputmode="decimal" required autocomplete="off" prop:value=text(|d|d.up.clone()) on:input=set(|d,v|d.up=v)/></div>
+          </div>
+        }
+        .into_any(),
+        Change::SetFallback(_) => {
+          let groups: Vec<(String, String)> = data.with(|d| d.as_ref().map(|s| s.nodes.iter().filter(|n| n.kind == "group").map(|n| (n.id.clone(), n.name.clone())).collect()).unwrap_or_default());
+          view! {
+            <p>"Subscribers that no source knows go to these groups at the default rate."</p>
+            <fieldset class="field"><legend>"Fallback groups"</legend>
+              {groups.into_iter().map(|(id,label)|{
+                let (check,key)=(id.clone(),id.clone());
+                view!{<label class="check"><input type="checkbox" prop:checked=move||draft.with(|d|d.nodes.contains(&check))
+                  on:change=move|ev|{let on=event_target_checked(&ev);let key=key.clone();draft.update(|d|{d.nodes.retain(|n|*n!=key);if on{d.nodes.push(key);}})}/>{label}</label>}
+              }).collect_view()}
+            </fieldset>
+            <div class="field-row">
+              <div class="field"><label for="change-down">"Default download, Mbps"</label>
+                <input id="change-down" type="number" inputmode="numeric" min="1" step="1" required prop:value=text(|d|d.down.clone()) on:input=set(|d,v|d.down=v)/></div>
+              <div class="field"><label for="change-up">"Default upload, Mbps"</label>
+                <input id="change-up" type="number" inputmode="numeric" min="1" step="1" required prop:value=text(|d|d.up.clone()) on:input=set(|d,v|d.up=v)/></div>
+            </div>
+          }
+          .into_any()
+        }
+        Change::ClearFallback => view! {
+          <p>"Clear the fallback. The service refuses this while subscribers use a fallback group."</p>
         }
         .into_any(),
     }

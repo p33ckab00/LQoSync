@@ -414,3 +414,36 @@ fn fifty_thousand_subscribers_project_with_every_link() {
     assert_eq!(v.plans[0].subscribers, 50_002);
     assert!(bytes < crate::collection::MAX_BYTES as usize);
 }
+
+#[test]
+fn speed_rules_and_source_factors_are_exact_text() {
+    use crate::topology_manager::rates::{Fraction, RateRule};
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.defaults.down_min = RateRule::BaseFraction(Fraction {
+        numerator: 205,
+        denominator: 1000,
+    });
+    c.defaults.up_min = RateRule::FixedBps(12_500_000);
+    let v = project(&input(Some(&d), None, None));
+    let speed = v.speed.unwrap();
+    assert_eq!(
+        (speed.down_min.unit.as_str(), speed.down_min.value.as_str()),
+        ("percent", "20.5")
+    );
+    assert_eq!(
+        (speed.up_min.unit.as_str(), speed.up_min.value.as_str()),
+        ("mbps", "12.5")
+    );
+    let f = v
+        .factors
+        .iter()
+        .find(|f| f.source_id == "profile-source")
+        .unwrap();
+    assert!(!f.down.is_empty() && !f.up.is_empty());
+    assert!(
+        v.factors.iter().all(|f| f.source_id != "wan-source-1"),
+        "WAN sources have no factor"
+    );
+    assert_eq!(project(&input(None, None, None)).speed, None);
+}

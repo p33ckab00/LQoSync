@@ -1321,6 +1321,23 @@ fn every_web_builder_edit_is_a_service_edit() {
             wan_node_id: Some("wan1".into()),
         },
         B::Rebalance { source_id: None },
+        B::SpeedDefaults {
+            down_min: web_contract::topology::RuleInput::Percent(20.5),
+            up_min: web_contract::topology::RuleInput::Mbps(5),
+            down_max: web_contract::topology::RuleInput::Percent(100.0),
+            up_max: web_contract::topology::RuleInput::Percent(100.0),
+        },
+        B::GroupFactor {
+            source_id: "profile-source".into(),
+            down: Some("0.5".into()),
+            up: None,
+        },
+        B::FallbackSet {
+            node_ids: vec!["group1".into()],
+            default_down_mbps: 10,
+            default_up_mbps: 5,
+        },
+        B::FallbackClear,
     ];
     for edit in edits {
         let wire = serde_json::to_value(&edit).unwrap();

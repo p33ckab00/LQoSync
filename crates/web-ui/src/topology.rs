@@ -488,13 +488,60 @@ fn Policies(
         <PlansTable data kind=None action/>
       </section>
       <crate::topology_forms::ChangeDialog session data action reload/>
+      <section class="panel" aria-labelledby="speed-title">
+        <div class="panel-title">
+          <h2 id="speed-title">"Speed rules"</h2>
+          <button type="button" class="quiet" disabled=move||locked()||data.with(|d|d.as_ref().is_none_or(|s|s.speed.is_none()))
+            on:click=move|_|if let Some(sd)=data.with_untracked(|d|d.as_ref().and_then(|s|s.speed.clone())){action.set(Some(Change::SpeedDefaults(sd)));}>"Edit speed rules"</button>
+        </div>
+        {move||data.with(|d|d.as_ref().and_then(|s|s.speed.clone())).map(|sd|{
+          let show=|r:&web_contract::topology::SpeedRule|match r.unit.as_str() {
+            "mbps"=>format!("{} Mbps",r.value),
+            "legacy"=>format!("{} percent, imported rounded rule",r.value),
+            _=>format!("{} percent of the plan",r.value),
+          };
+          view!{
+            <dl class="router-facts">
+              <div><dt>{RULES[0]}</dt><dd>{show(&sd.down_min)}</dd></div>
+              <div><dt>{RULES[1]}</dt><dd>{show(&sd.up_min)}</dd></div>
+              <div><dt>{RULES[2]}</dt><dd>{show(&sd.down_max)}</dd></div>
+              <div><dt>{RULES[3]}</dt><dd>{show(&sd.up_max)}</dd></div>
+            </dl>
+            {(sd.overrides>0).then(||view!{<p class="panel-note">{format!("{} profiles have their own rules. Editing the speed rules resets them.",sd.overrides)}</p>})}
+          }
+        })}
+      </section>
+      <section class="panel" aria-labelledby="factor-title">
+        <h2 id="factor-title">"Source factors"</h2>
+        <p class="panel-note">"A factor multiplies plan rates when the service sizes a source group. Node factor overrides stay as they are."</p>
+        <div class="table-scroll" role="region" aria-label="Source factors" tabindex="0">
+          <table class="router-table">
+            <thead><tr><th scope="col">"Source"</th><th scope="col" class="num">"Download"</th><th scope="col" class="num">"Upload"</th><th scope="col">"Actions"</th></tr></thead>
+            <tbody>
+              {move||data.with(|d|d.as_ref().map(|s|s.factors.clone()).unwrap_or_default()).into_iter().map(|f|{
+                let (label,change)=(format!("Edit factor of {}",f.name),Change::GroupFactor(f.clone()));
+                view!{<tr><th scope="row">{f.name.clone()}</th><td class="num">{f.down.clone()}</td><td class="num">{f.up.clone()}</td>
+                  <td><button type="button" class="quiet" disabled=locked aria-label=label on:click=move|_|action.set(Some(change.clone()))>"Edit"</button></td></tr>}
+              }).collect_view()}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <section class="panel" aria-labelledby="fallback-title">
-        <h2 id="fallback-title">"Fallback"</h2>
+        <div class="panel-title">
+          <h2 id="fallback-title">"Fallback"</h2>
+          <div class="node-actions form-actions">
+            <button type="button" class="quiet" disabled=locked
+              on:click=move|_|action.set(Some(Change::SetFallback(data.with_untracked(|d|d.as_ref().and_then(|s|s.fallback.clone())))))>"Set fallback"</button>
+            <button type="button" class="quiet danger" disabled=move||locked()||data.with(|d|d.as_ref().is_none_or(|s|s.fallback.is_none()))
+              on:click=move|_|action.set(Some(Change::ClearFallback))>"Clear fallback"</button>
+          </div>
+        </div>
         <p>{move||data.with(|d|match d.as_ref().and_then(|s|s.fallback.as_ref()) {
-          Some(f)=>format!("Fallback nodes: {} · default {} / {} Mbps",f.node_ids.join(", "),f.default_mbps[0],f.default_mbps[1]),
+          Some(f)=>format!("Fallback groups: {}. Default rate {} / {} Mbps.",f.node_ids.iter().map(|id|node_name(data,id)).collect::<Vec<_>>().join(", "),f.default_mbps[0],f.default_mbps[1]),
           None=>"No fallback group.".into(),
         })}</p>
-        <p class="panel-note">"Speed defaults, source factors, and fallback changes arrive in a later release. Schedules and profile formulas are not supported."</p>
+        <p class="panel-note">"Schedules, per-profile overrides, backstops, and formulas are not supported here."</p>
       </section>
     }
 }

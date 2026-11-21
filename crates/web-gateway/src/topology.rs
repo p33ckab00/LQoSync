@@ -113,6 +113,8 @@ fn summary(v: &TopologyView) -> TopologySummary {
         subscribers_active: v.subscribers.iter().filter(|s| s.active.is_some()).count() as u64,
         ppp_total: count("ppp"),
         dhcp_total: count("dhcp"),
+        speed: v.speed.clone(),
+        factors: v.factors.clone(),
     };
     // Envelope: `{"summary":{...}}`.
     let mut used = size(&s) + 16;

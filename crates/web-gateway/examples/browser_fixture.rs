@@ -332,7 +332,11 @@ async fn main() -> anyhow::Result<()> {
       ],
       "collection":[{"router_id":"lq3-00000000000000a1","name":"Access-01","state":"online","observed_at":at,
         "sources":[{"kind":"ppp","enabled":true,"records":4,"online":2,"offline":1},{"kind":"dhcp","enabled":true,"records":3,"online":3,"offline":null}]}],
-      "conflicts":[]
+      "conflicts":[],
+      "speed":{"down_min":{"unit":"percent","value":"20"},"up_min":{"unit":"percent","value":"20"},
+               "down_max":{"unit":"percent","value":"100"},"up_max":{"unit":"legacy","value":"100"},"overrides":1},
+      "factors":[{"source_id":"access-ppp","name":"PPPoE access","down":"0.5","up":"0.5"},
+                 {"source_id":"access-dhcp","name":"DHCP service","down":"1","up":"1"}]
     });
     for (name, value) in [
         ("topology.json", topology),
