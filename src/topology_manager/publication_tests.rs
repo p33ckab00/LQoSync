@@ -697,3 +697,57 @@ async fn router_location_goes_only_on_the_nodes_from_that_router() {
     // The controlled compiler admission accepts a pair whose nodes carry a location.
     admitted(pair);
 }
+
+#[tokio::test(start_paused = true)]
+async fn explicit_node_type_and_full_coordinates_win_over_the_router_location() {
+    use web_contract::topology::{GeoType, Location, NodeGeo};
+    let mut observed = input(2);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    let geo = |geo_type, lat: &str, lon: &str| {
+        Some(NodeGeo {
+            geo_type,
+            location: Some(Location {
+                latitude: lat.into(),
+                longitude: lon.into(),
+            }),
+        })
+    };
+    fn node<'a>(c: &'a mut catalog::TopologyCatalog, id: &str) -> &'a mut Option<NodeGeo> {
+        &mut c.nodes.iter_mut().find(|n| n.id == id).unwrap().geo
+    }
+    *node(catalog, "group1") = geo(GeoType::Ap, "12.236199459585354", "122.02419129509887");
+    *node(catalog, "wan1") = geo(GeoType::Site, "-33.8688197", "151.20929550000002");
+    // A type without a location keeps the router fallback location.
+    *node(catalog, "group2") = Some(NodeGeo {
+        geo_type: GeoType::Ap,
+        location: None,
+    });
+    observed.router_locations = [("Distro".to_string(), (14.5995, 120.9842))].into();
+    let pair = prepare(observed).unwrap();
+    let text = pair.network_text();
+    assert!(
+        text.contains("12.236199459585354") && text.contains("122.02419129509887"),
+        "{text}"
+    );
+    assert!(text.contains("151.20929550000002"), "{text}");
+    let mut nodes = HashMap::new();
+    let mut work: Vec<&Value> = pair.network().as_object().unwrap().values().collect();
+    while let Some(node) = work.pop() {
+        nodes.insert(node["id"].as_str().unwrap().to_string(), node.clone());
+        work.extend(node["children"].as_object().unwrap().values());
+    }
+    assert_eq!(nodes["group1"]["type"], "ap");
+    assert_eq!(
+        nodes["group1"]["latitude"].as_f64(),
+        Some(12.236199459585354)
+    );
+    assert_eq!(nodes["wan1"]["type"], "site");
+    assert_eq!(
+        nodes["wan1"]["longitude"].as_f64(),
+        Some(151.20929550000002)
+    );
+    assert_eq!(nodes["group2"]["type"], "ap");
+    assert_eq!(nodes["group2"]["latitude"].as_f64(), Some(14.5995));
+    assert_eq!(nodes["wan2"]["type"], "site");
+    admitted(pair);
+}

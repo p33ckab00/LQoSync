@@ -345,9 +345,22 @@ pub fn prepare_with_static(
             })
             .and_then(|id| catalog.routers.iter().find(|r| &r.id == id))
             .and_then(|router| input.router_locations.get(&router.name));
-        if let Some(&(latitude, longitude)) = location {
+        // An explicit node location wins over the router location. The text was validated on save.
+        let explicit = definition
+            .geo
+            .as_ref()
+            .and_then(|g| g.location.as_ref())
+            .map(|l| l.numeric());
+        if let Some((latitude, longitude)) = explicit.or(location.copied()) {
             exported_node["latitude"] = latitude.into();
             exported_node["longitude"] = longitude.into();
+        }
+        if let Some(geo) = &definition.geo {
+            exported_node["type"] = match geo.geo_type {
+                web_contract::topology::GeoType::Site => "site",
+                web_contract::topology::GeoType::Ap => "ap",
+            }
+            .into();
         }
         built[i] = Some(exported_node);
     }
