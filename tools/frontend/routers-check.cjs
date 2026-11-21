@@ -85,6 +85,19 @@ const fs=require('node:fs');
   await page.goto('http://127.0.0.1:19581/routers/lq3-ffffffffffffffff');
   await page.getByRole('heading',{name:'Router not found',level:1}).waitFor();
 
+  // WAN pinning: prerequisites from current data and a text outline; never an input or an action.
+  await page.goto('http://127.0.0.1:19581/routers/lq3-00000000000000c1?tab=wan-pinning');
+  await page.getByRole('heading',{name:'Core-01',level:1}).waitFor();
+  const pin=page.locator('.pinning');
+  assert.match(await pin.innerText(),/Not available yet\./);
+  assert.match(await pin.innerText(),/Met\s*Core WAN target\s*WAN links in the topology catalog: ether1, ether2\./);
+  assert.match(await pin.innerText(),/Not available\s*Address-list writer/);
+  assert.equal(await page.locator('.router-section').locator('input, select, textarea, button').count(),0,'no input or action');
+  await pin.screenshot({path:`${out}/pinning-core.png`});
+  await page.goto('http://127.0.0.1:19581/routers/lq3-00000000000000a1?tab=wan-pinning');
+  await page.getByText(/no WAN link in the topology catalog/).waitFor();
+  assert.match(await pin.innerText(),/Not met\s*Core WAN target/);
+
   // Narrow screens: no horizontal page scroll; the name and state stay visible.
   await page.goto('http://127.0.0.1:19581/routers');
   await table.locator('tbody tr').first().waitFor();
@@ -97,5 +110,5 @@ const fs=require('node:fs');
   assert.deepEqual(writes,[],'the Routers screen sends no write request');
   assert.deepEqual(errors,[]);
   await browser.close();
-  console.log('PASS: Dashboard router count, disabled state and filter, navigation and aria-current, inventory states and transport labels, combined filters, detail tabs as links, heading focus, Back keeps filters, deep links, unknown router, no file paths, no write requests, Light/Dark, and 768/320px layouts.');
+  console.log('PASS: Dashboard router count, disabled state and filter, WAN pinning prerequisites without inputs, navigation and aria-current, inventory states and transport labels, combined filters, detail tabs as links, heading focus, Back keeps filters, deep links, unknown router, no file paths, no write requests, Light/Dark, and 768/320px layouts.');
 })().catch(e=>{console.error(e);process.exit(1);});

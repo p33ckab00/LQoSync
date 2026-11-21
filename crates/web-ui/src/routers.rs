@@ -4,10 +4,12 @@ use crate::dashboard::local_time;
 use crate::route::{Link, page};
 use crate::route_model::{Page, Tab, router_href};
 use crate::router_form::{
-    ActivityTab, AdminAction, Ctx, EditableSection, NewRouter, SavedNotice, SyncNow, TestConnection,
+    ActivityTab, AdminAction, Ctx, EditableSection, NewRouter, SavedNotice, SyncNow,
 };
 use crate::router_form_model::Section;
-use crate::routers_model::{Filter, matches, read_state, role_label, state, transport};
+use crate::routers_model::{
+    Filter, matches, pinning_prerequisites, read_state, role_label, state, transport,
+};
 use gloo_net::http::Request;
 use leptos::prelude::*;
 use web_contract::routers::{RouterInventory, RouterSummary};
@@ -84,11 +86,13 @@ pub(crate) fn RoutersPage(
     });
     let route = Memo::new(move |_| page().get());
     view! {
-      {move||match route.get() {
-        Page::Router{id,tab}=>view!{<Detail id tab inventory loaded error/>}.into_any(),
-        Page::NewRouter=>view!{<NewRouter/>}.into_any(),
-        _=>view!{<Inventory inventory loaded error filter data/>}.into_any(),
-      }}
+      <Show when=move||matches!(route.get(),Page::Router{..}) fallback=move||view!{<Inventory inventory loaded error filter data/>}>
+        {move||match route.get() {
+          Page::Router{id,tab}=>view!{<Detail id tab inventory loaded error/>}.into_any(),
+          _=>().into_any(),
+        }}
+      </Show>
+      <Show when=move||route.get()==Page::NewRouter><NewRouter/></Show>
     }
 }
 
@@ -100,6 +104,7 @@ fn Inventory(
     filter: RwSignal<Filter>,
     data: RwSignal<Option<Overview>>,
 ) -> impl IntoView {
+    let sync_message = RwSignal::new(None::<(&'static str, &'static str)>);
     let rows = Memo::new(move |_| {
         let f = filter.get();
         inventory.with(|i| {
@@ -120,11 +125,14 @@ fn Inventory(
         filter.update(|x| f(x, v));
     };
     view! {
-      <div class="page-heading">
+      <div class="page-heading router-heading">
         <div><h1 tabindex="-1">"Routers"</h1><p>"MikroTik routers in the configuration, their roles, and the latest read."</p></div>
         <div class="router-actions">
-          <SyncNow/>
-          <Link href="/routers/new".to_string() class="button primary">"Add router"</Link>
+          <SyncNow message=sync_message/>
+          <button id="add-router" type="button" class="router-icon primary" aria-label="Add router" title="Add router" aria-haspopup="dialog"
+            on:click=move|_|crate::route::go("/routers/new")>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
         </div>
         <div class="freshness">{move||inventory.with(|i|match i {
           Some(i) if data.with(|d|d.as_ref().is_some_and(|v|v.stale))=>format!("Service evidence stale · inventory from {}",local_time(i.updated)),
@@ -132,6 +140,7 @@ fn Inventory(
           None=>"Loading router inventory…".into(),
         })}</div>
       </div>
+      <div class="sync-message" role="status">{move||sync_message.get().map(|(text,tone)|view!{<p class=format!("router-state {tone}")>{text}</p>})}</div>
       <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
       <section class="panel routers-panel" aria-labelledby="routers-title">
         <h2 id="routers-title" class="sr-only">"Router inventory"</h2>
@@ -254,8 +263,9 @@ fn Detail(
             <section class="panel router-section" aria-label=tab.label()>
               {match tab {
                 Tab::Overview=>overview(&r).into_any(),
-                Tab::Connection=>view!{<TestConnection router=r.clone()/><EditableSection router=r.clone() section=Section::Connection/>}.into_any(),
+                Tab::Connection=>view!{<EditableSection router=r.clone() section=Section::Connection/>}.into_any(),
                 Tab::Sources=>view!{<EditableSection router=r.clone() section=Section::Sources/>}.into_any(),
+                Tab::Pinning=>pinning(&r).into_any(),
                 Tab::Activity=>view!{<ActivityTab router_id=r.id.clone()/>}.into_any(),
               }}
               <p class="panel-note">"A save changes the configuration only. It does not connect to the router."</p>
@@ -287,5 +297,50 @@ fn overview(r: &RouterSummary) -> impl IntoView {
         <div><dt>"Location"</dt><dd>{r.location.map(|[a,b]|format!("{a:.5}, {b:.5}")).unwrap_or("Not set".into())}</dd></div>
         <div><dt>"Router ID"</dt><dd><code>{r.id.clone()}</code></dd></div>
       </dl>
+    }
+}
+
+/// The future WAN pinning surface: the prerequisites and the planned form, as text. There is no
+/// input and no action, so nothing here can look operational (review P6, owner decision D3).
+fn pinning(r: &RouterSummary) -> impl IntoView {
+    let outline = [
+        (
+            "Target",
+            "This core router, one of its WAN links, and the routing rule that sends marked traffic to that WAN.",
+        ),
+        (
+            "Inputs",
+            "Subscriber IPs as a source match, application IPs from DPI as a destination match, or both. With both, both must match.",
+        ),
+        (
+            "Address lists",
+            "Lists that LQoSync owns and names. LQoSync never changes other lists or rules.",
+        ),
+        (
+            "Review",
+            "Additions, removals, conflicts, stale evidence, and the matched traffic, before any write.",
+        ),
+        (
+            "Result",
+            "The write receipt, a list readback, and a separate routing check.",
+        ),
+    ];
+    view! {
+      <div class="pinning">
+        <p class="pinning-status"><b>"Not available yet. "</b>
+          "WAN pinning will put chosen subscriber or application addresses in an address list on the core router, so their traffic uses a chosen WAN. Nothing on this tab changes the router or the shaping."</p>
+        <h3>"Prerequisites"</h3>
+        <ul class="prereqs">
+          {pinning_prerequisites(r).into_iter().map(|p|{
+            let (mark,tone)=match p.met {Some(true)=>("Met","good"),Some(false)=>("Not met","warn"),None=>("Not available","neutral")};
+            view!{<li><span class=format!("router-state {tone}")><i aria-hidden="true"></i>{mark}</span>
+              <div><b>{p.label}</b><p>{p.note}</p></div></li>}
+          }).collect_view()}
+        </ul>
+        <h3>"Planned form"</h3>
+        <dl class="router-facts outline">
+          {outline.into_iter().map(|(k,v)|view!{<div><dt>{k}</dt><dd>{v}</dd></div>}).collect_view()}
+        </dl>
+      </div>
     }
 }

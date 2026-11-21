@@ -78,7 +78,15 @@ S4 is implemented for the legacy writer. The inventory carries the circuit count
 The disable review shows the impact first, needs an acknowledgement when circuits leave, and needs the operator password (D2). The result has two tracks: router connections and the shaping removal.
 Enable removes the `enabled` key and needs no password. The Topology Manager path waits for activation; a batch that selects a disabled router fails before any connection (S2).
 S5 is implemented. The service runs the connection test (`router.test` on `api.sock`): TCP, TLS, sign-in, and one identity read, with its own session and the router time limits. The answer is a class only (B10), and the audit log gets one line.
-The broker keeps `RestrictAddressFamilies=AF_UNIX`: it never connects to a router. Sync now runs `lqosync3 sync-now` (SIGUSR1) for all enabled routers; a per-router source read stays future work. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
+The broker keeps `RestrictAddressFamilies=AF_UNIX`: it never connects to a router. Sync now runs `lqosync3 sync-now` (SIGUSR1) for all enabled routers; a per-router source read stays future work.
+S6 is implemented. The WAN pinning tab shows two checks on current data (a catalog WAN link and the enabled state), four future packages as "Not available" with their reasons, and the planned form as text. It has no input and no action.
+
+The first Routers slice (S1 to S6) is complete. Open work:
+
+- R08 address evidence and R09 address-list writer. R09 needs lab evidence and owner approval (D3).
+- The Topology Manager disable path, after activation.
+- List editors for exclusions, DHCP server settings, and DHCP client overrides (in the TUI now).
+- A per-router source read (Sync now reads all routers). The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
 
 Each slice ends with tests, browser evidence, a commit, and a release build.
 

@@ -15,15 +15,23 @@ pub(crate) enum Tab {
     Overview,
     Connection,
     Sources,
+    Pinning,
     Activity,
 }
 impl Tab {
-    pub(crate) const ALL: [Tab; 4] = [Tab::Overview, Tab::Connection, Tab::Sources, Tab::Activity];
+    pub(crate) const ALL: [Tab; 5] = [
+        Tab::Overview,
+        Tab::Connection,
+        Tab::Sources,
+        Tab::Pinning,
+        Tab::Activity,
+    ];
     pub(crate) fn key(self) -> &'static str {
         match self {
             Tab::Overview => "overview",
             Tab::Connection => "connection",
             Tab::Sources => "sources",
+            Tab::Pinning => "wan-pinning",
             Tab::Activity => "activity",
         }
     }
@@ -32,6 +40,7 @@ impl Tab {
             Tab::Overview => "Overview",
             Tab::Connection => "Connection",
             Tab::Sources => "Sources",
+            Tab::Pinning => "WAN pinning",
             Tab::Activity => "Activity",
         }
     }

@@ -1,7 +1,7 @@
 //! Router registration and local edits. A save changes the configuration only: it makes no router I/O.
 //! The page shows two stages: saved by the core, then loaded by the service (the inventory digest).
 use crate::dashboard::local_time;
-use crate::route::{Link, go_to};
+use crate::route::go_to;
 use crate::route_model::{Tab, router_href};
 use crate::router_form_model::{Form, Section, changes, check, create, removes_a_source, update};
 use crate::routers_model::{impact, role_label, tracks, transport};
@@ -365,6 +365,12 @@ const STEPS: [&str; 3] = ["Connection", "Sources", "Review"];
 /// Add router: three steps. The router is saved disabled; it gets no connection until an enable.
 #[component]
 pub(crate) fn NewRouter() -> impl IntoView {
+    let dialog = NodeRef::<leptos::html::Dialog>::new();
+    Effect::new(move |_| {
+        if let Some(d) = dialog.get() {
+            let _ = d.show_modal();
+        }
+    });
     let c = ctx();
     let nav = crate::route::page();
     let form = RwSignal::new(Form::new_router());
@@ -438,9 +444,27 @@ pub(crate) fn NewRouter() -> impl IntoView {
         });
     };
     view! {
-      <nav class="breadcrumb" aria-label="Breadcrumb"><Link href="/routers".to_string()>"Routers"</Link><span aria-hidden="true">"/"</span><span aria-current="page">"Add router"</span></nav>
-      <div class="page-heading"><div><h1 tabindex="-1">"Add router"</h1>
-        <p>"The router is saved disabled. LQoSync makes no connection to it until you enable it."</p></div></div>
+      <dialog node_ref=dialog class="add-router-dialog" aria-labelledby="add-router-title" aria-describedby="add-router-help"
+        on:cancel=move|ev: web_sys::Event|{if busy.get_untracked(){ev.prevent_default();}}
+        on:close=move|_|{
+          if nav.get_untracked()==crate::route_model::Page::NewRouter {
+            go_to(nav,"/routers");
+            request_animation_frame(|| {
+              if let Some(button)=web_sys::window().and_then(|w|w.document()).and_then(|d|d.get_element_by_id("add-router")) {
+                use wasm_bindgen::JsCast;
+                if let Ok(button)=button.dyn_into::<web_sys::HtmlElement>() {let _=button.focus();}
+              }
+            });
+          }
+        }>
+      <header class="add-router-heading">
+        <div><h2 id="add-router-title" tabindex="-1" autofocus>"Add router"</h2>
+          <p id="add-router-help">"The router is saved disabled. LQoSync makes no connection to it until you enable it."</p></div>
+        <button type="button" class="router-icon quiet" aria-label="Close Add router" title="Close" disabled=move||busy.get()
+          on:click=move|_|{if let Some(d)=dialog.get(){d.close();}}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
       <Show when=move||digest.with(String::is_empty)>
         <div class="notice" role="status">"Router editing needs the updated LQoSync service. Install the new lqosync3 binary, then load this page again."</div>
       </Show>
@@ -472,12 +496,13 @@ pub(crate) fn NewRouter() -> impl IntoView {
         <Show when=move||!failure.get().is_empty()><p class="form-failure" role="alert">{move||failure.get()}</p></Show>
         <div class="form-actions">
           <Show when=move||{step.get()>0}><button type="button" class="quiet" on:click=move|_|{errors.set(Vec::new());step.update(|s|*s-=1);}>"Back"</button></Show>
-          <Link href="/routers".to_string() class="quiet-link">"Cancel"</Link>
+          <button type="button" class="quiet" disabled=move||busy.get() on:click=move|_|{if let Some(d)=dialog.get(){d.close();}}>"Cancel"</button>
           <button type="submit" class="primary" disabled=move||busy.get()||digest.with(String::is_empty)>
             {move||match (step.get(),busy.get()) {(2,true)=>"Adding…",(2,false)=>"Add router",_=>"Next"}}
           </button>
         </div>
       </form>
+      </dialog>
     }
 }
 
@@ -516,6 +541,26 @@ fn Reauth(
           </div>
         </form>
       </dialog>
+    }
+}
+
+/// A visible hint repeats the icon's accessible name. Escape dismisses it without moving focus.
+#[component]
+fn ActionHint(label: &'static str, children: Children) -> impl IntoView {
+    let dismissed = RwSignal::new(false);
+    let escape = window_event_listener(leptos::ev::keydown, move |ev| {
+        if ev.key() == "Escape" {
+            dismissed.set(true);
+        }
+    });
+    on_cleanup(move || escape.remove());
+    view! {
+      <span class="action-hint" class:hint-dismissed=move||dismissed.get()
+        on:mouseenter=move|_|dismissed.set(false)
+        on:focusin=move|_|dismissed.set(false)>
+        {children()}
+        <span class="action-tooltip" aria-hidden="true">{label}</span>
+      </span>
     }
 }
 
@@ -605,13 +650,30 @@ pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl I
         Section::Connection => "Edit connection",
         Section::Sources => "Edit sources",
     };
+    let edit_button = move || {
+        view! {
+          <button type="button" class=if section==Section::Connection{"router-icon secondary"}else{"secondary"}
+            aria-label=label disabled=move||c.inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty()))
+            on:click=move|_|{form.set(Form::from(&r.get_value()));errors.set(Vec::new());failure.set(String::new());digest.set(loaded_digest(c));editing.set(true);}>
+            {if section==Section::Connection {
+              view!{<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6ZM14 5l5 5"/></svg>}.into_any()
+            }else{label.into_any()}}
+          </button>
+        }
+    };
     view! {
       <Show when=move||editing.get() fallback=move||view!{
-        {match section {Section::Connection=>connection_facts(&r.get_value()).into_any(),Section::Sources=>sources_facts(&r.get_value()).into_any()}}
-        <div class="form-actions start">
-          <button type="button" class="secondary" disabled=move||c.inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty()))
-            on:click=move|_|{form.set(Form::from(&r.get_value()));errors.set(Vec::new());failure.set(String::new());digest.set(loaded_digest(c));editing.set(true);}>{label}</button>
-        </div>
+        {if section==Section::Connection {
+          view!{
+            <TestConnection router=r.get_value()><ActionHint label="Edit connection">{edit_button()}</ActionHint></TestConnection>
+            {connection_facts(&r.get_value()).into_any()}
+          }.into_any()
+        }else{
+          view!{
+            {sources_facts(&r.get_value()).into_any()}
+            <div class="form-actions start">{edit_button()}</div>
+          }.into_any()
+        }}
       }>
         <form class="router-form inline" novalidate on:submit=move|ev|{ev.prevent_default();submit();}>
           {match section {
@@ -905,7 +967,7 @@ async fn post(c: Ctx, url: &str, limit_ms: u32) -> Result<gloo_net::http::Respon
 /// Test connection: the service connects, signs in, and reads the identity of this router only.
 /// A disabled router has no test: LQoSync makes no connection to it.
 #[component]
-pub(crate) fn TestConnection(router: RouterSummary) -> impl IntoView {
+fn TestConnection(router: RouterSummary, children: Children) -> impl IntoView {
     let c = ctx();
     let result = RwSignal::new(None::<(String, &'static str, String)>);
     let busy = RwSignal::new(false);
@@ -945,12 +1007,18 @@ pub(crate) fn TestConnection(router: RouterSummary) -> impl IntoView {
     };
     view! {
       <div class="test-connection">
-        <div class="form-actions start">
-          <button type="button" class="secondary" disabled=move||busy.get()||!enabled on:click=run>
-            {move||if busy.get(){"Testing…"}else{"Test connection"}}
-          </button>
-          <span class="field-help">{if enabled {"Connects, signs in, and reads the router identity. It changes nothing."} else {"Enable the router to test it: LQoSync makes no connection to a disabled router."}}</span>
+        <div class="connection-actions" role="group" aria-label="Connection actions">
+          <ActionHint label="Test connection">
+            <button type="button" class="router-icon secondary" aria-label="Test connection" aria-describedby="connection-test-help"
+              aria-busy=move||busy.get().to_string() disabled=move||busy.get()||!enabled on:click=run>
+              <svg class:connection-testing=move||busy.get() viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0ZM12 16v5"/>
+              </svg>
+            </button>
+          </ActionHint>
+          {children()}
         </div>
+        <p class="field-help" id="connection-test-help">{move||if busy.get(){"Testing connection…"}else if enabled {"Connects, signs in, and reads the router identity. It changes nothing."} else {"Enable the router to test it: LQoSync makes no connection to a disabled router."}}</p>
         <div aria-live="polite">
           {move||result.get().map(|(text,tone,when)|view!{
             <div class=format!("test-result {tone}")><p><b>{text}</b></p><p class="field-help">{when}</p></div>
@@ -962,9 +1030,8 @@ pub(crate) fn TestConnection(router: RouterSummary) -> impl IntoView {
 
 /// Sync now: a cycle starts now for all enabled routers. The table updates after the cycle.
 #[component]
-pub(crate) fn SyncNow() -> impl IntoView {
+pub(crate) fn SyncNow(message: RwSignal<Option<(&'static str, &'static str)>>) -> impl IntoView {
     let c = ctx();
-    let message = RwSignal::new(None::<(&'static str, &'static str)>);
     let busy = RwSignal::new(false);
     let run = move |_| {
         if busy.get_untracked() {
@@ -988,7 +1055,11 @@ pub(crate) fn SyncNow() -> impl IntoView {
         });
     };
     view! {
-      <button type="button" class="secondary" disabled=move||busy.get() on:click=run>{move||if busy.get(){"Starting…"}else{"Sync now"}}</button>
-      <div class="sync-message" aria-live="polite">{move||message.get().map(|(text,tone)|view!{<p class=format!("router-state {tone}")>{text}</p>})}</div>
+      <button type="button" class="router-icon secondary" aria-label=move||if busy.get(){"Starting sync"}else{"Sync now"}
+        title="Sync now" aria-busy=move||busy.get().to_string() disabled=move||busy.get() on:click=run>
+        <svg class:sync-pending=move||busy.get() viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/>
+        </svg>
+      </button>
     }
 }

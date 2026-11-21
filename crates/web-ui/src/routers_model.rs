@@ -165,6 +165,61 @@ pub(crate) fn test_message(t: &RouterTestResult, r: &RouterSummary) -> (String, 
     }
 }
 
+/// One prerequisite of WAN pinning. `met`: `Some` for a check on current data, `None` for a
+/// package that does not exist yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Prerequisite {
+    pub label: &'static str,
+    pub met: Option<bool>,
+    pub note: String,
+}
+
+/// The WAN pinning prerequisites of one router. Only the first two read current data; the others
+/// are future packages, so the surface can never show pinning as operational.
+pub(crate) fn pinning_prerequisites(r: &RouterSummary) -> Vec<Prerequisite> {
+    let wan = !r.wans.is_empty();
+    vec![
+        Prerequisite {
+            label: "Core WAN target",
+            met: Some(wan),
+            note: if wan {
+                format!("WAN links in the topology catalog: {}.", r.wans.join(", "))
+            } else {
+                "This router has no WAN link in the topology catalog. Pinning targets the core router that owns the WAN.".into()
+            },
+        },
+        Prerequisite {
+            label: "Router enabled",
+            met: Some(r.enabled),
+            note: if r.enabled {
+                "LQoSync can connect to this router.".into()
+            } else {
+                "A disabled router gets no reads or writes.".into()
+            },
+        },
+        Prerequisite {
+            label: "Address-list writer",
+            met: None,
+            note: "Not built yet. It needs a lab test and your approval before any live write.".into(),
+        },
+        Prerequisite {
+            label: "Subscriber address evidence",
+            met: None,
+            note: "Not built yet. It needs fresh subscriber IPs as the core router sees them, after NAT.".into(),
+        },
+        Prerequisite {
+            label: "Application addresses from DPI",
+            met: None,
+            note: "Not available. It needs a DPI provider with provenance, freshness, and confidence.".into(),
+        },
+        Prerequisite {
+            label: "Routing policy check",
+            met: None,
+            note: "Not built yet. An address list alone does not route traffic to a WAN; the mangle and routing rules need a check.".into(),
+        },
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -294,6 +349,25 @@ mod tests {
             assert!(text.ends_with('.') && !tone.is_empty(), "{class}");
         }
         assert_eq!(test_message(&t("service"), &r).1, "bad");
+    }
+
+    #[test]
+    fn pinning_is_never_ready_and_checks_only_current_data() {
+        let mut core = router("Core", &["wan"], None);
+        core.enabled = true;
+        core.wans = vec!["ether1".into()];
+        let p = pinning_prerequisites(&core);
+        assert_eq!(p.len(), 6);
+        assert_eq!((p[0].met, p[1].met), (Some(true), Some(true)));
+        assert!(p[0].note.contains("ether1"));
+        assert!(
+            p[2..].iter().all(|x| x.met.is_none()),
+            "future packages are never met"
+        );
+        let access = router("Access", &["ppp"], Some("online"));
+        let p = pinning_prerequisites(&access);
+        assert_eq!(p[0].met, Some(false));
+        assert!(p[0].note.contains("no WAN link"));
     }
 
     #[test]

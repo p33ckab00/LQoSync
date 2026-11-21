@@ -470,5 +470,50 @@ dialog.reauth .field-error{color:var(--bad)}
 .test-result{margin-block-start:12px;padding:10px 14px;border:1px solid var(--border);border-inline-start:4px solid var(--muted);border-radius:8px}
 .test-result.good{border-inline-start-color:var(--good)}.test-result.warn{border-inline-start-color:var(--warn)}.test-result.bad{border-inline-start-color:var(--bad)}
 .test-result p{margin:0;font-size:14px}
-.sync-message{flex-basis:100%;text-align:end}
+.sync-message{margin-block-end:16px}
+.sync-message:empty{display:none}
 .sync-message p{margin:0;font-size:13px;white-space:normal}
+
+/* Compact router toolbar and native registration modal. */
+.app-shell .router-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 24px;align-items:start}
+.router-heading .router-actions{flex-wrap:nowrap;gap:8px}
+.router-heading .freshness{grid-column:1/-1;text-align:start;margin:0;font-size:13px}
+button.router-icon{display:inline-grid;place-items:center;inline-size:44px;block-size:44px;min-height:44px;padding:0;flex:none;border-radius:10px}
+button.router-icon.secondary{border-color:var(--border);color:var(--text);background:var(--surface)}
+.router-icon svg{inline-size:20px;block-size:20px;pointer-events:none}
+.router-icon:hover:not(:disabled){filter:brightness(1.15)}
+.router-icon:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.sync-pending{animation:router-sync 1s linear infinite}
+@keyframes router-sync{to{transform:rotate(360deg)}}
+dialog.add-router-dialog{box-sizing:border-box;inline-size:min(760px,calc(100vw - 32px));max-inline-size:none;max-block-size:calc(100dvh - 32px);padding:24px;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);overscroll-behavior:contain}
+.add-router-dialog::backdrop{background:#0009;overflow:hidden;overscroll-behavior:contain}
+.add-router-heading{display:flex;align-items:flex-start;gap:24px;margin-block-end:24px}
+.add-router-heading>div{flex:1;min-inline-size:0}
+.add-router-heading h2{margin:0 0 8px;font-size:24px;letter-spacing:-.4px}
+.add-router-heading p{margin:0;max-inline-size:60ch;color:var(--muted);font-size:14px;line-height:1.5}
+.add-router-dialog .router-form{max-inline-size:none;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
+.add-router-dialog .steps{padding-block-end:20px;margin-block-end:20px;border-block-end:1px solid var(--border)}
+.add-router-dialog .form-actions{position:sticky;inset-block-end:-24px;padding-block:16px 0;border-block-start:1px solid var(--border);background:var(--surface)}
+@media(max-width:600px){.app-shell .router-heading{gap:12px}.router-heading h1{font-size:28px}.router-heading>div:first-child p{font-size:14px}.add-router-dialog{padding:20px;inline-size:calc(100vw - 24px);max-block-size:calc(100dvh - 24px)}.add-router-heading{gap:12px}.add-router-dialog .steps{gap:8px 16px}.add-router-dialog .form-actions{inset-block-end:-20px}.add-router-dialog .field-row>.field{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){.sync-pending{animation:none}}
+
+/* Connection actions share one compact row; hints also support keyboard focus. */
+.connection-actions{display:flex;align-items:center;gap:8px;margin-block-end:10px}
+.action-hint{position:relative;display:inline-flex}
+.action-tooltip{position:absolute;z-index:10;inset-block-start:calc(100% + 6px);inset-inline-start:0;inline-size:max-content;max-inline-size:calc(100vw - 48px);padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;line-height:1.5;visibility:hidden;opacity:0;pointer-events:none}
+.action-tooltip::before{content:"";position:absolute;inset-block-end:100%;inset-inline:0;block-size:8px}
+.action-hint:not(.hint-dismissed):is(:hover,:focus-within) .action-tooltip{visibility:visible;opacity:1;pointer-events:auto}
+.connection-testing{animation:connection-testing 1s ease-in-out infinite alternate}
+@keyframes connection-testing{to{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.connection-testing{animation:none}}
+/* WAN pinning: a prerequisite list and a text outline; no inputs. */
+.pinning h3{font-size:15px;margin:20px 0 10px}
+.pinning-status{margin:0;padding:12px 16px;border:1px solid var(--border);border-inline-start:4px solid var(--muted);border-radius:8px;font-size:14px;line-height:1.5}
+.prereqs{list-style:none;margin:0;padding:0}
+.prereqs li{display:grid;grid-template-columns:130px minmax(0,1fr);gap:4px 16px;padding-block:10px;border-block-end:1px solid var(--border)}
+.prereqs li:last-child{border-block-end:0}
+.prereqs b{font-size:14px}
+.prereqs p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.router-facts.outline{grid-template-columns:1fr}
+.router-facts.outline dd{font-size:14px}
+@media(max-width:600px){.prereqs li{grid-template-columns:1fr}}
