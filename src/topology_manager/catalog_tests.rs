@@ -20,6 +20,15 @@ fn web_capacity_uses_true_wan_bases_and_checks_overflow() {
     assert_eq!(sum.down_bps, down);
     assert_eq!(sum.up_bps, up);
     assert_eq!(sum.wan_count, 2);
+    assert_eq!(sum.wans.len(), 2);
+    assert_eq!(sum.wans.iter().map(|w| w.down_bps).sum::<u64>(), down);
+    assert_eq!(sum.wans.iter().map(|w| w.up_bps).sum::<u64>(), up);
+    let names = c
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::Wan)
+        .map(|n| n.name.as_str());
+    assert!(sum.wans.iter().map(|w| w.name.as_str()).eq(names));
     assert_eq!(sum.registry_revision, 9);
     assert_eq!(WanCapacity::from_catalog(&c, 9), Some(sum));
     assert!(WanCapacity::from_catalog(&TopologyCatalog::default(), 0).is_none());

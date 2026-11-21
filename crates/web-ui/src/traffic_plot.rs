@@ -1,5 +1,5 @@
-//! Mirrored geometry uses one time domain and independent direction capacity scales.
-use web_contract::Point;
+//! Mirrored geometry uses one time domain and independent observed direction scales.
+use web_contract::{Point, WanCapacity};
 
 pub fn domain(series: &[&[Point]]) -> Option<(u64, u64)> {
     let first = series
@@ -9,23 +9,34 @@ pub fn domain(series: &[&[Point]]) -> Option<(u64, u64)> {
     let last = series.iter().filter_map(|s| s.last().map(|p| p.at)).max()?;
     Some((first, last.max(first + 1)))
 }
-pub fn maximum(series: &[&[Point]], down: bool, capacity_bps: Option<u64>) -> f64 {
-    let peak = series
+pub fn peak(series: &[&[Point]], down: bool) -> f64 {
+    series
         .iter()
         .flat_map(|s| s.iter())
         .map(|p| if down { p.down_mbps } else { p.up_mbps })
-        .fold(0.0_f64, f64::max);
-    match capacity_bps.filter(|c| *c > 0) {
-        Some(c) => {
-            let limit = c as f64 / 1_000_000.0;
-            if peak > limit {
-                (peak * 1.05).min(f64::MAX)
-            } else {
-                limit
-            }
-        }
-        None => (peak.max(0.001) * 1.15).min(f64::MAX),
-    }
+        .fold(0.0_f64, f64::max)
+}
+/// The ceiling follows the visible Actual, Mapped, and Unmapped peak, not WAN capacity.
+pub fn maximum(series: &[&[Point]], down: bool) -> f64 {
+    (peak(series, down).max(0.001) * 1.15).min(f64::MAX)
+}
+/// Labeled capacity references in Mbps, `[down, up]`. Traffic may exceed them.
+pub fn references(c: &WanCapacity) -> Vec<(String, [f64; 2])> {
+    let mbps = |d: u64, u: u64| [d as f64 / 1_000_000.0, u as f64 / 1_000_000.0];
+    let combined =
+        (c.wans.len() != 1).then(|| ("Combined WAN".to_string(), mbps(c.down_bps, c.up_bps)));
+    combined
+        .into_iter()
+        .chain(
+            c.wans
+                .iter()
+                .map(|w| (w.name.clone(), mbps(w.down_bps, w.up_bps))),
+        )
+        .collect()
+}
+/// The plot y of a reference, or `None` when it is above the observed scale.
+pub fn placed(mbps: f64, maximum: f64, down: bool) -> Option<f64> {
+    (mbps <= maximum).then(|| y(mbps, maximum, down))
 }
 pub fn y(rate: f64, maximum: f64, down: bool) -> f64 {
     120.0 + if down { -1.0 } else { 1.0 } * rate / maximum * 120.0
@@ -91,17 +102,47 @@ mod tests {
         }
     }
     #[test]
-    fn independent_scales_mirror_and_preserve_capacity_on_overflow() {
-        let points = vec![p(10, 100.0, 25.0)];
-        let series = [points.as_slice()];
-        assert_eq!(maximum(&series, true, Some(1_000_000_000)), 1000.0);
-        assert_eq!(maximum(&series, false, Some(250_000_000)), 250.0);
+    fn references_label_combined_and_each_wan_and_flag_off_scale() {
+        let link = |name: &str, d, u| web_contract::WanLink {
+            name: name.into(),
+            down_bps: d,
+            up_bps: u,
+        };
+        let mut c = web_contract::WanCapacity {
+            down_bps: 300_000_000,
+            up_bps: 60_000_000,
+            wan_count: 2,
+            registry_revision: 1,
+            wans: vec![
+                link("WAN-A", 200_000_000, 40_000_000),
+                link("WAN-B", 100_000_000, 20_000_000),
+            ],
+        };
+        let r = references(&c);
+        let labels: Vec<_> = r.iter().map(|r| r.0.as_str()).collect();
+        assert_eq!(labels, ["Combined WAN", "WAN-A", "WAN-B"]);
+        assert_eq!(r[0].1, [300.0, 60.0]);
+        // One WAN is its own combined total, so it draws once.
+        c.wans.truncate(1);
+        assert_eq!(references(&c).len(), 1);
+        // Older core builds send totals only.
+        c.wans.clear();
+        assert_eq!(references(&c)[0].0, "Combined WAN");
+        assert_eq!(placed(150.0, 100.0, true), None);
+        assert_eq!(placed(50.0, 100.0, true), Some(60.0));
+        assert_eq!(placed(50.0, 100.0, false), Some(180.0));
+    }
+    #[test]
+    fn independent_scales_follow_the_peak_of_every_visible_series() {
+        let actual = vec![p(10, 100.0, 25.0)];
+        let mapped = vec![p(10, 80.0, 40.0)];
+        let series = [actual.as_slice(), mapped.as_slice()];
+        // Download peak comes from Actual, upload peak from Mapped. Capacity plays no part.
+        assert!((maximum(&series, true) - 115.0).abs() < 1e-9);
+        assert!((maximum(&series, false) - 46.0).abs() < 1e-9);
+        assert_eq!(maximum(&[], true), 0.001 * 1.15);
         assert_eq!(y(25.0, 250.0, false), 132.0);
         assert_eq!(y(100.0, 1000.0, true), 108.0);
-        let overflow = vec![p(10, 1200.0, 300.0)];
-        let max = maximum(&[&overflow], true, Some(1_000_000_000));
-        assert!(max > 1200.0);
-        assert!(y(1000.0, max, true) > 0.0);
     }
     #[test]
     fn shared_domain_does_not_stretch_shorter_classification_history() {

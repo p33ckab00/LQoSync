@@ -91,6 +91,15 @@ pub fn project(root: &Path, now: u64) -> Overview {
                     && v.wan_count > 0
                     && v.down_bps < (1u64 << 53)
                     && v.up_bps < (1u64 << 53)
+            })
+            .map(|mut v| {
+                // Bound the per-WAN labels so they cannot crowd the chart or the overview budget.
+                let rate = |r: u64| r > 0 && r < (1u64 << 53);
+                v.wans.retain(|w| {
+                    rate(w.down_bps) && rate(w.up_bps) && !w.name.is_empty() && w.name.len() <= 64
+                });
+                v.wans.truncate(16);
+                v
             });
     }
     if coherent && let Some(routers) = collection["routers"].as_array() {

@@ -18,6 +18,52 @@ fn capacity_requires_current_status_and_valid_direction_rates() {
     assert!(project(dir.path(), 1000).wan_capacity.is_none());
 }
 #[test]
+fn per_wan_capacity_keeps_valid_bounded_links_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("status.json");
+    let mut status = serde_json::json!({"version":3,"updated":990,"wan_capacity":{
+        "down_bps":1_500_000_000u64,"up_bps":300_000_000,"wan_count":2,"registry_revision":7,
+        "wans":[{"name":"WAN-A","down_bps":1_000_000_000u64,"up_bps":200_000_000},
+                {"name":"WAN-B","down_bps":500_000_000,"up_bps":0}]}});
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    let wans = project(dir.path(), 1000).wan_capacity.unwrap().wans;
+    assert_eq!(wans.len(), 1);
+    assert_eq!(wans[0].name, "WAN-A");
+    assert_eq!(wans[0].down_bps, 1_000_000_000);
+    let many: Vec<_> = (0..40)
+        .map(|i| serde_json::json!({"name":format!("W{i}"),"down_bps":1,"up_bps":1}))
+        .collect();
+    status["wan_capacity"]["wans"] = serde_json::json!(many);
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    assert_eq!(
+        project(dir.path(), 1000).wan_capacity.unwrap().wans.len(),
+        16
+    );
+    status["wan_capacity"]["wans"] =
+        serde_json::json!([{"name":"x".repeat(65),"down_bps":1,"up_bps":1}]);
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    assert!(
+        project(dir.path(), 1000)
+            .wan_capacity
+            .unwrap()
+            .wans
+            .is_empty()
+    );
+    // Older core builds omit the list. The totals still project.
+    status["wan_capacity"]
+        .as_object_mut()
+        .unwrap()
+        .remove("wans");
+    std::fs::write(&path, serde_json::to_vec(&status).unwrap()).unwrap();
+    assert!(
+        project(dir.path(), 1000)
+            .wan_capacity
+            .unwrap()
+            .wans
+            .is_empty()
+    );
+}
+#[test]
 fn missing_sources_are_unknown_not_zero() {
     let dir = tempfile::tempdir().unwrap();
     let view = project(dir.path(), 1000);

@@ -83,7 +83,11 @@ async fn fetch_window(window: &'static str) -> Option<TrafficWindow> {
 struct Geometry {
     domain: (u64, u64),
     max: [f64; 2],
-    ceiling: [f64; 2],
+    /// Visible peak in Mbps and its plot y. Red marks this peak.
+    peak: [f64; 2],
+    peak_y: [f64; 2],
+    /// Capacity references: label, Mbps, and plot y, or `None` above the observed scale.
+    marks: [Vec<(String, f64, Option<f64>)>; 2],
     paths: [[String; 2]; 3],
     areas: [String; 2],
 }
@@ -144,22 +148,23 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
                 .filter(|(i, _)| visible[*i])
                 .map(|(_, p)| *p)
                 .collect::<Vec<_>>();
-            let capacities = [
-                m.capacity.as_ref().map(|c| c.down_bps),
-                m.capacity.as_ref().map(|c| c.up_bps),
-            ];
-            let max = std::array::from_fn(|d| plot::maximum(&active, d == 0, capacities[d]));
-            let ceiling = std::array::from_fn(|d| {
-                plot::y(
-                    capacities[d].unwrap_or(0) as f64 / 1_000_000.0,
-                    max[d],
-                    d == 0,
-                )
-            });
+            let max: [f64; 2] = std::array::from_fn(|d| plot::maximum(&active, d == 0));
+            let peak: [f64; 2] = std::array::from_fn(|d| plot::peak(&active, d == 0));
+            let refs = m
+                .capacity
+                .as_ref()
+                .map(plot::references)
+                .unwrap_or_default();
             Geometry {
                 domain,
                 max,
-                ceiling,
+                peak,
+                peak_y: std::array::from_fn(|d| plot::y(peak[d], max[d], d == 0)),
+                marks: std::array::from_fn(|d| {
+                    refs.iter()
+                        .map(|(label, r)| (label.clone(), r[d], plot::placed(r[d], max[d], d == 0)))
+                        .collect()
+                }),
                 paths: std::array::from_fn(|i| {
                     std::array::from_fn(|d| {
                         if visible[i] {
@@ -220,14 +225,16 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
         <p class="capacity-note">{move||model.with(|m|match &m.capacity {
             Some(c)=>{
                 let utilization=m.series[0].last().filter(|_| c.down_bps>0 && c.up_bps>0).map(|p|format!(" Actual ↓ {:.1}% ↑ {:.1}%.",p.down_mbps/(c.down_bps as f64/1_000_000.0)*100.0,p.up_mbps/(c.up_bps as f64/1_000_000.0)*100.0)).unwrap_or_default();
-                format!("Capacity ({} WAN): ↓ {} ↑ {} · red line = 100%.{}",c.wan_count,rate(c.down_bps as f64/1_000_000.0),rate(c.up_bps as f64/1_000_000.0),utilization)
+                let each=if c.wans.len()>1{format!(" ({})",c.wans.iter().map(|w|format!("{} ↓ {} ↑ {}",w.name,rate(w.down_bps as f64/1_000_000.0),rate(w.up_bps as f64/1_000_000.0))).collect::<Vec<_>>().join(", "))}else{String::new()};
+                format!("Capacity ({} WAN): ↓ {} ↑ {}{each} · red = current peak, dashed = WAN capacity.{}",c.wan_count,rate(c.down_bps as f64/1_000_000.0),rate(c.up_bps as f64/1_000_000.0),utilization)
             },
-            None=>"WAN capacity unavailable · axes use observed samples.".into()
+            None=>"WAN capacity unavailable. Red = current peak.".into()
         })}</p>
         <Show when=move||model.with(|m|m.series.iter().any(|s|!s.is_empty())) fallback=move||if range.get()=="Recent"{view!{<div class="chart-empty">"No traffic samples available."<span>"Waiting for published traffic observations."</span></div>}.into_any()}else{view!{<div class="chart-empty">{move||format!("No {} history yet.",range.get())}<span>"The web service collects this history while it runs. It starts with the last hour from the core."</span></div>}.into_any()}>
-          <div class="chart-frame mirrored-chart" class:rainbow=move||model.with(|m|m.capacity.is_some())>
+          <div class="chart-frame mirrored-chart rainbow">
             <div class="y-axis" aria-hidden="true">{move||geometry.with(|g|view!{<span>{format!("↓ {}",axis_rate(g.max[0]))}</span><span>{axis_rate(g.max[0]/2.0)}</span><span>"0"</span><span>{axis_rate(g.max[1]/2.0)}</span><span>{format!("↑ {}",axis_rate(g.max[1]))}</span>})}</div>
             <div class="chart-data">
+              <div class="plot-box">
               <svg node_ref=svg viewBox="0 0 900 240" preserveAspectRatio="none" role="img" tabindex="0" aria-label="Mirrored Actual, Mapped, and Unmapped traffic. Download above zero, upload below. Use Left and Right to inspect samples, Escape for Live." aria-describedby="traffic-inspector-help"
                 on:pointermove=move |ev|{if !pinned.get_untracked() && ev.pointer_type()=="mouse" {pointer(ev);}}
                 on:pointerdown=move |ev|{pointer(ev);pinned.set(true);}
@@ -248,27 +255,37 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
                     }
                 }>
                 {move||geometry.with(|g|{
-                    let rainbow=model.with(|m|m.capacity.is_some());
-                    let ceiling=g.ceiling;
                     let stops=[("0%","var(--traffic-red)"),("18%","var(--traffic-orange)"),("35%","var(--traffic-yellow)"),("52%","var(--traffic-green)"),("70%","var(--traffic-cyan)"),("85%","var(--traffic-blue)"),("100%","var(--traffic-violet)")];
                     view!{
                       <defs>{(0..2).map(|d|view!{
-                        <linearGradient id=if d==0{"aggregate-download"}else{"aggregate-upload"} class=if d==0{"download-gradient"}else{"upload-gradient"} gradientUnits="userSpaceOnUse" x1="0" y1=g.ceiling[d].to_string() x2="0" y2="120">
-                          {stops.into_iter().map(|(offset,color)|view!{<stop offset=offset stop-color=if rainbow{color}else{"currentColor"}/>}).collect_view()}
+                        <linearGradient id=if d==0{"aggregate-download"}else{"aggregate-upload"} class=if d==0{"download-gradient"}else{"upload-gradient"} gradientUnits="userSpaceOnUse" x1="0" y1=format!("{:.1}",g.peak_y[d]) x2="0" y2="120">
+                          {stops.into_iter().map(|(offset,color)|view!{<stop offset=offset stop-color=color/>}).collect_view()}
                         </linearGradient>
                       }).collect_view()}</defs>
                       {(0..2).map(|d|view!{<path class="traffic-area" d=g.areas[d].clone() fill=if d==0{"url(#aggregate-download)"}else{"url(#aggregate-upload)"} aria-hidden="true"/>}).collect_view()}
                       <g class="grid"><path d="M0 0H900M0 60H900M0 180H900M0 240H900M0 0V240M225 0V240M450 0V240M675 0V240M900 0V240"/></g>
                       <path class="traffic-zero" d="M0 120H900"/>
-                      <Show when=move||rainbow><g class="capacity-lines" aria-hidden="true">{ceiling.into_iter().map(|y|view!{<path d=format!("M0,{y:.1}H900")/>}).collect_view()}</g></Show>
+                      <g class="capacity-lines" aria-hidden="true">{g.marks.iter().flatten().filter_map(|m|m.2).map(|y|view!{<path d=format!("M0,{y:.1}H900")/>}).collect_view()}</g>
+                      <g class="peak-lines" aria-hidden="true">{(0..2).filter(|d|g.peak[*d]>0.0).map(|d|view!{<path d=format!("M0,{:.1}H900",g.peak_y[d])/>}).collect_view()}</g>
                       {(0..3).flat_map(|i|(0..2).map(move |d|(i,d))).map(|(i,d)|view!{
                         <path class=format!("traffic-line {} {}",CLASSES[i],if d==0{"download-line"}else{"upload-line"}) d=g.paths[i][d].clone()
-                          style=if i==0 && rainbow {format!("stroke:url(#aggregate-{})",if d==0{"download"}else{"upload"})}else{String::new()}/>
+                          style=if i==0 {format!("stroke:url(#aggregate-{})",if d==0{"download"}else{"upload"})}else{String::new()}/>
                       }).collect_view()}
                     }
                 })}
                 {move||selected.get().and_then(|at|geometry.with(|g|(at>=g.domain.0 && at<=g.domain.1).then(||view!{<path class="traffic-cursor" d=format!("M{:.1} 0V240",plot::x(at,g.domain))/>})))}
               </svg>
+              // shortcut: labels at close values can overlap; offset them if operators report it.
+              <div class="chart-marks" aria-hidden="true">{move||geometry.with(|g|(0..2).map(|d|{
+                  let (arrow,side)=if d==0{("↓","down")}else{("↑","up")};
+                  let above=g.marks[d].iter().filter(|m|m.2.is_none()).map(|m|format!("{} {arrow} {}",m.0,rate(m.1))).collect::<Vec<_>>();
+                  view!{
+                    {(g.peak[d]>0.0).then(||view!{<span class=format!("mark peak {side}") style=format!("top:{:.2}%",g.peak_y[d]/2.4)>{format!("Peak {arrow} {}",rate(g.peak[d]))}</span>})}
+                    {g.marks[d].iter().filter_map(|m|m.2.map(|y|view!{<span class=format!("mark capacity {side}") style=format!("top:{:.2}%",y/2.4)>{format!("{} {arrow} {}",m.0,rate(m.1))}</span>})).collect_view()}
+                    {(!above.is_empty()).then(||view!{<span class=format!("mark edge {side}")>{format!("{} {} above scale",if d==0{"▲"}else{"▼"},above.join(" · "))}</span>})}
+                  }
+              }).collect_view())}</div>
+              </div>
                     <div class="traffic-inspector" aria-label="Traffic figures at selected timestamp" class:open=move||selected.get().is_some()
                       class:flip=move||selected.get().is_some_and(|at|geometry.with(|g|plot::x(at,g.domain)>540.0))
                       style=move||selected.get().map(|at|geometry.with(|g|format!("left:{:.2}%",plot::x(at,g.domain)/9.0))).unwrap_or_default()>

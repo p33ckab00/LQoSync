@@ -19,7 +19,14 @@ const fs=require('node:fs');
   assert.equal(await card.locator('svg').count(),1);
   assert.equal(await card.locator('.traffic-line').count(),6);
   const geometry=await card.locator('linearGradient').evaluateAll(nodes=>nodes.map(n=>({y:Number(n.getAttribute('y1')),units:n.getAttribute('gradientUnits'),stops:n.querySelectorAll(':scope > stop').length})));
-  assert.deepEqual(geometry.map(g=>g.y),[0,240]);
+  // Red sits at the visible peak, inside each half of the mirrored plot.
+  assert.ok(geometry[0].y>0&&geometry[0].y<120&&geometry[1].y>120&&geometry[1].y<240,JSON.stringify(geometry));
+  assert.equal(await card.locator('.peak-lines path').count(),2);
+  assert.match(await card.locator('.chart-marks .peak.down').innerText(),/^Peak ↓ /);
+  // Every WAN reference is labeled, on the plot or as an above-scale tag.
+  const marks=(await card.locator('.chart-marks').innerText());
+  for(const label of ['Combined WAN','WAN-Fiber','WAN-LTE'])assert.ok(marks.includes(label),marks);
+  assert.match(await card.locator('.capacity-note').innerText(),/WAN-Fiber ↓ 150.0 Mbps/);
   assert.ok(geometry.every(g=>g.units==='userSpaceOnUse'&&g.stops===7));
   for(const direction of ['download','upload']){
     const path=await card.locator(`.traffic-line.actual.${direction}-line`).getAttribute('d');
@@ -98,6 +105,9 @@ const fs=require('node:fs');
   });
   await page.waitForFunction(()=>Number(document.querySelector('.chart-frame linearGradient')?.getAttribute('y1'))>0);
   assert.match(await card.locator('.capacity-note').innerText(),/110.0%/);
+  // Traffic may pass combined capacity. The combined line then sits inside the scale, below the peak.
+  await card.locator('.chart-marks .capacity.down',{hasText:'Combined WAN ↓ 200.0 Mbps'}).waitFor();
+  assert.match(await card.locator('.chart-marks .peak.down').innerText(),/220.0 Mbps/);
   // A source state that is not normal shows in the legend strip.
   await card.getByRole('button',{name:/^Unmapped/}).getByText('Stale / gap',{exact:true}).waitFor();
   await page.evaluate(()=>{
@@ -105,7 +115,9 @@ const fs=require('node:fs');
     window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
   });
   await card.getByText('WAN capacity unavailable',{exact:false}).waitFor();
-  assert.equal(await card.locator('.chart-frame.rainbow').count(),0);
+  assert.equal(await card.locator('.capacity-lines path').count(),0);
+  assert.equal(await card.locator('.chart-marks .capacity, .chart-marks .edge').count(),0);
+  assert.equal(await card.locator('.peak-lines path').count(),2);
   await card.getByRole('button',{name:/^Unmapped/}).getByText('Unavailable',{exact:true}).waitFor();
   await page.emulateMedia({forcedColors:'active'});
   assert.equal(await card.locator('.traffic-area').first().evaluate(n=>getComputedStyle(n).display),'none');

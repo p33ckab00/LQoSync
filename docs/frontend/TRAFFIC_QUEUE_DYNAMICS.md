@@ -46,7 +46,7 @@ It does not require React, Next.js, Vercel hosting, or a new chart dependency.
 | Actual | Whole-bridge delivered rate | Solid line, rainbow area |
 | Mapped | Whole-bridge mapped enqueue rate | Dashed line |
 | Unmapped | Whole-bridge unmapped enqueue rate | Dotted line, optional independent lane |
-| Capacity | Configured WAN totals for the DPDK bridge | Labeled neutral dashed lines |
+| Capacity | Combined and per-WAN configured rates for the DPDK bridge | Labeled neutral dashed lines or edge tags |
 | Backlog | Gauge in bytes, with explicit queue scope | Separate lane in kB |
 | Drops / marks | Counter deltas for a valid interval and generation | Labeled events and inspector |
 
@@ -81,8 +81,10 @@ Keep stale values with age and state labels. Counter resets produce an unavailab
 Use actual elapsed time for counter rates. Do not label each delta as per second without that interval.
 
 Keep independent download and upload scales. Keep the source rates positive in storage.
-Anchor the red area boundary to capacity. Extend the axis for excess traffic.
-If capacity is unknown, show an observed scale and a capacity-unavailable label.
+Set each axis ceiling from the visible Actual, Mapped, and Unmapped peak. Do not use WAN capacity as the ceiling.
+Red marks the visible peak. Show Combined WAN and per-WAN capacity as labeled dashed references.
+Traffic can go above them. A reference above the scale shows as an edge tag.
+If capacity is unknown, show a capacity-unavailable label.
 Do not add subscriber RTT bands or thresholds to the DPDK traffic chart.
 
 Keep path calculation outside pointer handlers. Inspection must not issue requests.

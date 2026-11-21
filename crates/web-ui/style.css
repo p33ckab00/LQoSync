@@ -115,9 +115,19 @@
 .app-shell .traffic-area{opacity:.28}
 .app-shell .upload-line{stroke-dasharray:6 4}
 .capacity-note{font-size:13px;line-height:1.6;color:var(--muted);margin:0 0 12px;overflow-wrap:anywhere}
-.capacity-lines path{stroke:var(--bad);stroke-width:1;stroke-dasharray:3 5;fill:none;vector-effect:non-scaling-stroke;opacity:.75}
+.capacity-lines path{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 5;fill:none;vector-effect:non-scaling-stroke;opacity:.75}
 .capacity-key{color:var(--muted);margin-left:auto}
-@media(forced-colors:active){.app-shell .download-line,.app-shell .upload-line{stroke:CanvasText!important}.capacity-lines path{stroke:CanvasText}}
+/* Red marks the visible peak. Dashed neutral lines mark WAN capacity, which traffic may exceed. */
+.plot-box{position:relative}
+.peak-lines path{stroke:var(--traffic-red);stroke-width:1.5;fill:none;vector-effect:non-scaling-stroke}
+.chart-marks{position:absolute;inset:0;pointer-events:none;font-size:12px;line-height:1.3;font-variant-numeric:tabular-nums}
+.chart-marks .mark{position:absolute;max-inline-size:60%;padding:1px 5px;border-radius:4px;background:var(--surface);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-marks .mark.down{transform:translateY(-100%)}
+.chart-marks .peak{inset-inline-start:4px;color:var(--traffic-red);font-weight:600}
+.chart-marks .capacity,.chart-marks .edge{inset-inline-end:4px;color:var(--muted)}
+.chart-marks .edge.down{inset-block-start:0;transform:none}
+.chart-marks .edge.up{inset-block-end:0}
+@media(forced-colors:active){.app-shell .download-line,.app-shell .upload-line{stroke:CanvasText!important}.capacity-lines path,.peak-lines path{stroke:CanvasText}}
 
 .app-shell{--traffic-red:#dc2626;--traffic-orange:#c2410c;--traffic-yellow:#a16207;--traffic-green:#15803d;--traffic-cyan:#0e7490;--traffic-blue:#2563eb;--traffic-violet:#7c3aed}
 :root[data-theme=dark] .app-shell{--traffic-red:#ef4444;--traffic-orange:#f97316;--traffic-yellow:#eab308;--traffic-green:#22c55e;--traffic-cyan:#06b6d4;--traffic-blue:#3b82f6;--traffic-violet:#8b5cf6}

@@ -22,11 +22,13 @@ The chart does not add these rates or infer them from subscriber rows.
 Download appears above zero. Upload appears below zero.
 The data contract keeps both rates positive.
 All series use one time domain.
-Each direction has its own rate scale and configured capacity anchor.
+Each direction has its own rate scale. The visible Actual, Mapped, and Unmapped peak sets it.
 
-Red shows that direction's combined configured WAN capacity.
-If a sample exceeds capacity, the axis extends and the capacity line remains visible.
-If capacity is unavailable, the chart uses observed scales and an explicit label.
+Red shows the current visible peak in that direction. The gradient and the red line start at the peak.
+Dashed neutral lines show the configured WAN capacity: one Combined WAN line and one line for each WAN.
+A single WAN shows one line. Traffic can go above a capacity line.
+A capacity value above the observed scale shows as a labeled tag at the edge of the chart.
+If capacity is unavailable, the chart shows an explicit label and keeps the peak line.
 
 ## Inspection
 

@@ -36,6 +36,15 @@ pub struct WanCapacity {
     pub up_bps: u64,
     pub wan_count: u64,
     pub registry_revision: u64,
+    /// Per-WAN base rates. Older core builds omit them.
+    #[serde(default)]
+    pub wans: Vec<WanLink>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WanLink {
+    pub name: String,
+    pub down_bps: u64,
+    pub up_bps: u64,
 }
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Component {

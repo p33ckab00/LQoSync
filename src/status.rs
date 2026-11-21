@@ -12,6 +12,15 @@ pub struct WanCapacity {
     pub up_bps: u64,
     pub wan_count: u64,
     pub registry_revision: u64,
+    /// Per-WAN base rates in catalog order. Their sums are the totals above.
+    pub wans: Vec<WanLink>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct WanLink {
+    pub name: String,
+    pub down_bps: u64,
+    pub up_bps: u64,
 }
 
 impl WanCapacity {
@@ -26,6 +35,7 @@ impl WanCapacity {
             up_bps: 0,
             wan_count: 0,
             registry_revision,
+            wans: Vec::new(),
         };
         for node in catalog.nodes.iter().filter(|n| n.kind == NodeKind::Wan) {
             let CapacityPolicy::Fixed { base, .. } = node.capacity else {
@@ -37,6 +47,11 @@ impl WanCapacity {
             sum.down_bps = sum.down_bps.checked_add(base.down)?;
             sum.up_bps = sum.up_bps.checked_add(base.up)?;
             sum.wan_count += 1;
+            sum.wans.push(WanLink {
+                name: node.name.clone(),
+                down_bps: base.down,
+                up_bps: base.up,
+            });
         }
         (sum.wan_count > 0).then_some(sum)
     }
