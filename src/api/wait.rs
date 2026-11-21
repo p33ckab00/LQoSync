@@ -4,7 +4,7 @@ use super::dispatch::LostLock;
 use super::protocol::Request;
 use super::server::Job;
 use tokio::sync::mpsc::Receiver;
-use tokio::time::{Instant, sleep_until};
+use tokio::time::{Duration, Instant, sleep_until};
 
 /// Answers one API request on the task that owns the service state.
 pub trait Handler {
@@ -12,7 +12,15 @@ pub trait Handler {
         &mut self,
         request: &Request,
     ) -> impl std::future::Future<Output = Result<String, LostLock>>;
+
+    /// True once after a job saved a policy edit that the next cycle must reconcile.
+    fn reconcile_requested(&mut self) -> bool {
+        false
+    }
 }
+
+/// After a saved edit, the cycle starts this much later. Edits in this window share one cycle.
+pub const SETTLE: Duration = Duration::from_secs(2);
 
 impl<C> Handler for crate::runner::Runner<C>
 where
@@ -21,6 +29,10 @@ where
 {
     async fn handle(&mut self, request: &Request) -> Result<String, LostLock> {
         super::dispatch::handle(self, request).await
+    }
+
+    fn reconcile_requested(&mut self) -> bool {
+        std::mem::take(&mut self.reconcile_requested)
     }
 }
 
@@ -32,6 +44,7 @@ pub async fn serve_until(
     jobs: &mut Receiver<Job>,
     handler: &mut impl Handler,
 ) -> Result<(), LostLock> {
+    let mut deadline = deadline;
     loop {
         tokio::select! {
             () = sleep_until(deadline) => return Ok(()),
@@ -44,6 +57,9 @@ pub async fn serve_until(
                 match handler.handle(&job.request).await {
                     Ok(line) => {
                         let _ = job.reply.send(line);
+                        if handler.reconcile_requested() {
+                            deadline = deadline.min(Instant::now() + SETTLE);
+                        }
                     }
                     Err(LostLock(line)) => {
                         let _ = job.reply.send(line.clone());
@@ -159,5 +175,38 @@ mod tests {
         };
         serve_until(deadline, &mut rx, &mut slow).await.unwrap();
         assert_eq!(Instant::now() - start, Duration::from_secs(35));
+    }
+
+    /// A handler whose jobs save a policy edit.
+    struct Saving(Fake);
+    impl Handler for Saving {
+        async fn handle(&mut self, r: &Request) -> Result<String, LostLock> {
+            self.0.handle(r).await
+        }
+        fn reconcile_requested(&mut self) -> bool {
+            true
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_saved_edit_brings_the_cycle_forward_after_a_short_settle_window() {
+        let (tx, mut rx) = mpsc::channel(16);
+        let start = Instant::now();
+        let deadline = start + Duration::from_secs(300);
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            let (j, answer) = job("topology.web.mutate");
+            tx.send(j).await.unwrap();
+            answer.await.unwrap();
+            // A second edit inside the window does not move the cycle again.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let (j, answer) = job("topology.web.mutate");
+            tx.send(j).await.unwrap();
+            answer.await.unwrap();
+        });
+        serve_until(deadline, &mut rx, &mut Saving(quick()))
+            .await
+            .unwrap();
+        assert_eq!(Instant::now() - start, Duration::from_secs(5) + SETTLE);
     }
 }

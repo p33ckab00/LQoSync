@@ -268,6 +268,10 @@ fn change_label(c: &WebCommand) -> String {
         }
         // The Builder review names the edit; the receipt keeps only the private token.
         WebCommand::EditConfirm { .. } => "Reviewed change".into(),
+        WebCommand::Edit { edit, .. } => serde_json::to_value(edit)
+            .ok()
+            .and_then(|v| v["kind"].as_str().map(|k| format!("Edit {k}")))
+            .unwrap_or_else(|| "Edit".into()),
     }
 }
 

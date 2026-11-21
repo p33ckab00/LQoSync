@@ -41,6 +41,140 @@ mod operations {
     }
 
     #[tokio::test]
+    async fn an_automatic_edit_saves_in_one_call_and_a_replay_commits_nothing() {
+        use web_contract::topology::{BuilderEdit, Capacity, WebCommand};
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let init = WebCommand::Edit {
+            expected_revision: 0,
+            edit: BuilderEdit::Initialize,
+        };
+        let saved = r
+            .api_web_mutate("automatic-edit-0001", "operator", init)
+            .await
+            .unwrap();
+        assert_eq!(
+            (saved["state"].as_str(), saved["revision"].as_str()),
+            (Some("saved"), Some("1"))
+        );
+        let create = WebCommand::Edit {
+            expected_revision: 1,
+            edit: BuilderEdit::NodeCreate {
+                name: "Distribution".into(),
+                parent: None,
+                capacity: Capacity::Fixed {
+                    down_mbps: 100,
+                    up_mbps: 50,
+                    factor_percent: None,
+                },
+                node_kind: None,
+            },
+        };
+        let first = r
+            .api_web_mutate("automatic-edit-0002", "operator", create.clone())
+            .await
+            .unwrap();
+        let replay = r
+            .api_web_mutate("automatic-edit-0002", "operator", create)
+            .await
+            .unwrap();
+        assert_eq!(first, replay);
+        let doc = r.api_registry().unwrap().unwrap();
+        assert_eq!(
+            (doc.revision, doc.catalog.as_ref().unwrap().nodes.len()),
+            (2, 1)
+        );
+        let node_id = doc.catalog.unwrap().nodes[0].id.clone();
+        // The same key with another payload is refused; nothing runs.
+        let other = WebCommand::Edit {
+            expected_revision: 2,
+            edit: BuilderEdit::NodeRemove {
+                node_id: node_id.clone(),
+            },
+        };
+        assert!(
+            r.api_web_mutate("automatic-edit-0002", "operator", other)
+                .await
+                .is_err()
+        );
+        // A stale revision fails before any commit.
+        let stale = WebCommand::Edit {
+            expected_revision: 1,
+            edit: BuilderEdit::NodeRemove { node_id },
+        };
+        let failed = r
+            .api_web_mutate("automatic-edit-0003", "operator", stale)
+            .await
+            .unwrap();
+        assert_eq!(failed["state"], "failed");
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 2);
+        assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn an_automatic_location_edit_keeps_the_full_decimal_text() {
+        use web_contract::topology::{BuilderEdit, Capacity, GeoType, Location, WebCommand};
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let edit = |rev, edit| WebCommand::Edit {
+            expected_revision: rev,
+            edit,
+        };
+        r.api_web_mutate(
+            "automatic-loc-00001",
+            "operator",
+            edit(0, BuilderEdit::Initialize),
+        )
+        .await
+        .unwrap();
+        r.api_web_mutate(
+            "automatic-loc-00002",
+            "operator",
+            edit(
+                1,
+                BuilderEdit::NodeCreate {
+                    name: "Tower".into(),
+                    parent: None,
+                    capacity: Capacity::Fixed {
+                        down_mbps: 100,
+                        up_mbps: 50,
+                        factor_percent: None,
+                    },
+                    node_kind: None,
+                },
+            ),
+        )
+        .await
+        .unwrap();
+        let id = r.api_registry().unwrap().unwrap().catalog.unwrap().nodes[0]
+            .id
+            .clone();
+        let location = Location {
+            latitude: "12.236199459585354".into(),
+            longitude: "122.02419129509887".into(),
+        };
+        let saved = r
+            .api_web_mutate(
+                "automatic-loc-00003",
+                "operator",
+                edit(
+                    2,
+                    BuilderEdit::NodeLocation {
+                        node_id: id,
+                        geo_type: Some(GeoType::Site),
+                        location: Some(location.clone()),
+                    },
+                ),
+            )
+            .await
+            .unwrap();
+        assert_eq!(saved["state"], "saved");
+        let doc = r.api_registry().unwrap().unwrap();
+        let geo = doc.catalog.unwrap().nodes[0].geo.clone().unwrap();
+        assert_eq!(geo.location, Some(location));
+    }
+
+    #[tokio::test]
     async fn frontend_initialize_requires_confirmation_and_builds_without_live_io() {
         use crate::topology_manager::edits::{CapacityInput, Edit};
         let e = env();
@@ -61,9 +195,11 @@ mod operations {
         };
         let receipt = r
             .api_web_mutate("frontend-init-0001", "operator", command.clone())
+            .await
             .unwrap();
         let repeated = r
             .api_web_mutate("frontend-init-0001", "operator", command)
+            .await
             .unwrap();
         assert_eq!(receipt, repeated);
         let doc = r.api_registry().unwrap().unwrap();

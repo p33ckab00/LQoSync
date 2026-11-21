@@ -209,6 +209,7 @@ where
             }
             runner
                 .api_web_mutate(&a.key, &a.actor, a.command)
+                .await
                 .map_err(fail)
         }
         "topology.web.operation" => {

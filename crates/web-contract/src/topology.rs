@@ -450,7 +450,7 @@ pub enum TopologyReply {
 
 /// The closed set of web mutations. The service maps each one to one existing operation.
 /// The browser never sends an operation name.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WebCommand {
     PlanCreate {
@@ -479,6 +479,11 @@ pub enum WebCommand {
     },
     /// Commit the kept Builder proposal.
     EditConfirm { proposal_id: String },
+    /// One Builder edit. The service validates and saves it in one step, with no review.
+    Edit {
+        expected_revision: u64,
+        edit: BuilderEdit,
+    },
 }
 
 /// The durable result of one web mutation, found again by its request key.
@@ -499,7 +504,7 @@ pub struct WebReceipt {
 
 /// `POST /api/v1/topology/mutations`. The browser makes the key once per user action and sends it
 /// again on a retry; the service runs one command once per key.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MutationRequest {
     pub key: String,
@@ -619,6 +624,13 @@ pub enum BuilderEdit {
     },
     #[serde(rename = "node.remove")]
     NodeRemove { node_id: String },
+    /// Set or clear the map type and location. Both coordinates change together.
+    #[serde(rename = "node.location")]
+    NodeLocation {
+        node_id: String,
+        geo_type: Option<GeoType>,
+        location: Option<Location>,
+    },
     /// A WAN node on an interface from the latest WAN discovery of the service.
     #[serde(rename = "wan.create")]
     WanCreate {
@@ -831,5 +843,23 @@ mod canvas_tests {
         }))
         .unwrap();
         assert_eq!((n.geo, n.position), (None, None));
+    }
+
+    #[test]
+    fn a_browser_edit_command_decodes_and_unknown_fields_are_refused() {
+        let mut v = serde_json::json!({"key": "k", "command": {"command": "edit",
+            "expected_revision": 2, "edit": {"kind": "node.location", "node_id": "n1",
+            "geo_type": "ap", "location": {"latitude": "1.5", "longitude": "-2"}}}});
+        let r: MutationRequest = serde_json::from_value(v.clone()).unwrap();
+        let WebCommand::Edit {
+            expected_revision: 2,
+            edit: BuilderEdit::NodeLocation { geo_type, .. },
+        } = r.command
+        else {
+            panic!("not an edit command");
+        };
+        assert_eq!(geo_type, Some(GeoType::Ap));
+        v["command"]["edit"]["extra"] = true.into();
+        assert!(serde_json::from_value::<MutationRequest>(v).is_err());
     }
 }

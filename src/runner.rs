@@ -95,6 +95,8 @@ pub struct Runner<C: Connector + 'static> {
     config_error: Option<String>,
     /// The reason for the next cycle. The caller sets it.
     pub trigger: Trigger,
+    /// A web edit was saved; the service loop starts the next cycle soon.
+    pub reconcile_requested: bool,
     config_path: String,
     config_digest: String,
     cycle_seq: u64,
@@ -240,6 +242,7 @@ where
             lock: None,
             config_error: None,
             trigger: Trigger::Start,
+            reconcile_requested: false,
             config_path: String::new(),
             config_digest: String::new(),
             cycle_seq: 0,
@@ -1802,7 +1805,7 @@ where
 
     /// API `topology.web.mutate`: run one closed web command once per request key. A repeated
     /// key with the same actor and command returns the stored receipt and commits nothing.
-    pub fn api_web_mutate(
+    pub async fn api_web_mutate(
         &mut self,
         key: &str,
         actor: &str,
@@ -1877,6 +1880,10 @@ where
                     )
                 }),
             C::EditConfirm { proposal_id } => self.api_edit_confirm(proposal_id),
+            C::Edit {
+                expected_revision,
+                edit,
+            } => self.api_edit_apply(*expected_revision, edit).await,
         };
         self.web_pending = None;
         let receipts = self
@@ -1914,6 +1921,25 @@ where
         // The commit published the view before this receipt was final; show the final state.
         self.publish_web_view(now);
         Ok(serde_json::to_value(done.view())?)
+    }
+
+    /// One automatic Builder edit: the proposal checks run, then the commit, with no review step.
+    async fn api_edit_apply(
+        &mut self,
+        expected_revision: u64,
+        edit: &web_contract::topology::BuilderEdit,
+    ) -> anyhow::Result<serde_json::Value> {
+        let edit = serde_json::to_value(edit)
+            .and_then(serde_json::from_value)
+            .map_err(|_| rule("the edit is not a service edit".into()))?;
+        let proposal = self.api_edit_propose(expected_revision, edit).await?;
+        let id = proposal["proposal_id"]
+            .as_str()
+            .context("the edit made no proposal")?
+            .to_owned();
+        let saved = self.api_edit_confirm(&id)?;
+        self.reconcile_requested = true;
+        Ok(saved)
     }
 
     /// API `topology.web.operation`: the receipt of one request key, or `null` for another actor.
