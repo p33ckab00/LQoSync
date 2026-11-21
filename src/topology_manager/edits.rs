@@ -91,6 +91,31 @@ pub enum Edit {
     },
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
+    /// Local plans as reviewed edits: the review lists rate and capacity changes first.
+    #[serde(rename = "plan.create")]
+    PlanCreate {
+        name: String,
+        down_mbps: u64,
+        up_mbps: u64,
+    },
+    #[serde(rename = "plan.update")]
+    PlanUpdate {
+        plan_id: String,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        down_mbps: Option<u64>,
+        #[serde(default)]
+        up_mbps: Option<u64>,
+    },
+    #[serde(rename = "plan.delete")]
+    PlanDelete { plan_id: String },
+    /// Select or clear the plan of one saved subscriber, for all its identities.
+    #[serde(rename = "subscriber.plan")]
+    SubscriberPlan {
+        subscriber_id: String,
+        plan_id: Option<String>,
+    },
     #[serde(rename = "subscriber.pin")]
     SubscriberPin {
         #[serde(default)]
@@ -1215,6 +1240,46 @@ pub fn apply(
         }
         Edit::SourceAdd { .. } => {
             return Err(invalid("source.add needs a fresh source read"));
+        }
+        Edit::PlanCreate {
+            name,
+            down_mbps,
+            up_mbps,
+        } => {
+            d = super::plans::create(&d, name, *down_mbps, *up_mbps)?.0;
+            check_only = true;
+        }
+        Edit::PlanUpdate {
+            plan_id,
+            name,
+            down_mbps,
+            up_mbps,
+        } => {
+            d = super::plans::update(&d, plan_id, name.as_deref(), *down_mbps, *up_mbps)?;
+            check_only = true;
+        }
+        Edit::PlanDelete { plan_id } => {
+            d = super::plans::delete(&d, plan_id)?;
+            check_only = true;
+        }
+        Edit::SubscriberPlan {
+            subscriber_id,
+            plan_id,
+        } => {
+            let record = d
+                .subscribers
+                .iter()
+                .find(|s| s.id == *subscriber_id)
+                .ok_or_else(|| invalid("unknown subscriber"))?;
+            let identities = record.identities.clone();
+            if identities.is_empty() {
+                return Err(invalid("the subscriber has no verified identity"));
+            }
+            // The plan belongs to the subscriber record, so every identity gets the same plan.
+            for identity in &identities {
+                d = super::plans::attach(&d, identity, plan_id.as_deref(), true)?.0;
+            }
+            check_only = true;
         }
         Edit::SpeedDefaults {
             down_min,

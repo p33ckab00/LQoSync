@@ -66,7 +66,7 @@ pub(crate) fn SourcePage(
           </section>
         }.into_any()
       } else {
-        view!{<Records session data kind states rows_label/>}.into_any()
+        view!{<Records session data kind states rows_label reload=load/>}.into_any()
       }}
     }
 }
@@ -101,7 +101,9 @@ fn Records(
     kind: &'static str,
     states: &'static [(&'static str, &'static str)],
     rows_label: &'static str,
+    reload: Callback<()>,
 ) -> impl IntoView {
+    let action = RwSignal::new(None::<Change>);
     let search = RwSignal::new(String::new());
     let router = RwSignal::new(String::new());
     let state = RwSignal::new(String::new());
@@ -228,8 +230,13 @@ fn Records(
           <button type="button" class="quiet" on:click=move|_|fetch(next.get_untracked())>{format!("Load more {}",rows_label.to_lowercase())}</button>
         </Show>
       </section>
+      <crate::topology_forms::ChangeDialog session data action reload=Callback::new(move|()|{
+        reload.run(());
+        fetch(None);
+        if let Some(id)=open.get_untracked(){select(id);}
+      })/>
       <Show when=move||open.with(Option::is_some)>
-        <SubscriberPanel detail plans=data/>
+        <SubscriberPanel detail plans=data action/>
         <p>{move||open.get().map(|id|view!{<Link href=assignments_href(&id)>"View assignments"</Link>})}</p>
       </Show>
     }

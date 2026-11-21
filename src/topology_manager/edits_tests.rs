@@ -1298,6 +1298,29 @@ fn every_web_builder_edit_is_a_service_edit() {
             key: "access-ppp".into(),
             parent: Some("wan1".into()),
         },
+        B::PlanCreate {
+            name: "Gold".into(),
+            down_mbps: 100,
+            up_mbps: 50,
+        },
+        B::PlanUpdate {
+            plan_id: "plan-1".into(),
+            name: None,
+            down_mbps: Some(200),
+            up_mbps: None,
+        },
+        B::PlanDelete {
+            plan_id: "plan-1".into(),
+        },
+        B::SubscriberPlan {
+            subscriber_id: "tm-sub-1".into(),
+            plan_id: None,
+        },
+        B::SubscriberPin {
+            subscriber_id: "tm-sub-1".into(),
+            wan_node_id: Some("wan1".into()),
+        },
+        B::Rebalance { source_id: None },
     ];
     for edit in edits {
         let wire = serde_json::to_value(&edit).unwrap();

@@ -452,6 +452,38 @@ pub enum BuilderEdit {
     /// One source from the latest source discovery, under `parent`.
     #[serde(rename = "source.add")]
     SourceAdd { key: String, parent: Option<String> },
+    #[serde(rename = "plan.create")]
+    PlanCreate {
+        name: String,
+        down_mbps: u64,
+        up_mbps: u64,
+    },
+    /// A field that is `None` keeps its value.
+    #[serde(rename = "plan.update")]
+    PlanUpdate {
+        plan_id: String,
+        name: Option<String>,
+        down_mbps: Option<u64>,
+        up_mbps: Option<u64>,
+    },
+    #[serde(rename = "plan.delete")]
+    PlanDelete { plan_id: String },
+    /// The plan of one saved subscriber, for all its identities. `None` clears it.
+    #[serde(rename = "subscriber.plan")]
+    SubscriberPlan {
+        subscriber_id: String,
+        plan_id: Option<String>,
+    },
+    /// Pin one saved subscriber to a WAN node, or unpin with `None`. A topology pin writes no
+    /// router rule.
+    #[serde(rename = "subscriber.pin")]
+    SubscriberPin {
+        subscriber_id: String,
+        wan_node_id: Option<String>,
+    },
+    /// Place the subscribers of one source again, or of all sources with `None`.
+    #[serde(rename = "rebalance")]
+    Rebalance { source_id: Option<String> },
 }
 
 /// `POST /api/v1/topology/proposals`. `key` names the proposal for its actor only.
@@ -491,6 +523,30 @@ pub struct Review {
     /// Nodes that the edit adds, removes, moves, or changes.
     pub nodes: Vec<NodeChange>,
     pub warnings: Vec<String>,
+    /// Subscribers whose rate changes. `rates` lists the first ones.
+    #[serde(default)]
+    pub rates_changed: u64,
+    #[serde(default)]
+    pub rates: Vec<RateChange>,
+    /// Node capacities that change.
+    #[serde(default)]
+    pub capacities: Vec<CapacityChange>,
+}
+
+/// Rates as display text from the service values; the browser computes nothing from them.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RateChange {
+    pub subscriber_id: String,
+    pub label: Option<String>,
+    pub before: String,
+    pub after: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapacityChange {
+    pub node_id: String,
+    pub before: String,
+    pub after: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

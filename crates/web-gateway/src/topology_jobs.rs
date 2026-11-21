@@ -13,8 +13,9 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Mutex, Semaphore};
 use web_contract::topology::{
-    DiscoveredRouter, Discovery, Moved, Node, NodeChange, Operation, ProposalRequest, ReadJob,
-    ReadRequest, Review, SourceCandidate, WanCandidate, WebCommand, WebReceipt,
+    CapacityChange, DiscoveredRouter, Discovery, Moved, Node, NodeChange, Operation,
+    ProposalRequest, RateChange, ReadJob, ReadRequest, Review, SourceCandidate, WanCandidate,
+    WebCommand, WebReceipt,
 };
 
 /// Queued and running mutations at one time, for all actors.
@@ -221,7 +222,42 @@ fn review(key: &str, base: u64, v: &serde_json::Value, current: &[Node]) -> Revi
         sources: list("sources"),
         nodes,
         warnings: list("warnings"),
+        rates_changed: v["rates_changed"].as_u64().unwrap_or(0),
+        rates: v["rates"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .take(MOVE_SAMPLE)
+            .map(|r| RateChange {
+                subscriber_id: text(&r["subscriber_id"]).unwrap_or_default(),
+                label: text(&r["label"]),
+                before: rates(&r["before"]),
+                after: rates(&r["after"]),
+            })
+            .collect(),
+        capacities: v["capacities"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|c| CapacityChange {
+                node_id: text(&c["node_id"]).unwrap_or_default(),
+                before: mbps(&c["before_mbps"]),
+                after: mbps(&c["after_mbps"]),
+            })
+            .collect(),
     }
+}
+
+/// `[down, up]` in Mbps as text. The service value stays exact; this is display only.
+fn mbps(v: &serde_json::Value) -> String {
+    match (v[0].as_f64(), v[1].as_f64()) {
+        (Some(d), Some(u)) => format!("{d} / {u} Mbps"),
+        _ => "—".into(),
+    }
+}
+
+fn rates(v: &serde_json::Value) -> String {
+    format!("min {}, max {}", mbps(&v["min_mbps"]), mbps(&v["max_mbps"]))
 }
 
 /// The typed answer of one discovery. Unknown fields stay out; missing fields become empty.

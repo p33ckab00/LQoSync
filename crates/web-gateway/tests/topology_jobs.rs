@@ -217,7 +217,11 @@ fn builder_core(dir: &std::path::Path, ttl: u64) -> Arc<tokio::sync::Mutex<Vec<V
                                    "source_id": null, "capacity": {"mode": "automatic"}, "alias": false}],
                         "moves": [{"subscriber_id": "s1", "label": "alice", "from": "a", "to": "b"},
                                   {"subscriber_id": "s2", "label": null, "from": "a", "to": "b"}],
-                        "cleared": ["s3"], "assigned": 0, "new_records": 0, "sources": ["ppp-a"]}})
+                        "cleared": ["s3"], "assigned": 0, "new_records": 0, "sources": ["ppp-a"],
+                        "rates_changed": 1, "rates": [{"subscriber_id": "s1", "label": "alice",
+                            "before": {"min_mbps": [50.0, 25.0], "max_mbps": [100.0, 50.0]},
+                            "after": {"min_mbps": [5.0, 2.5], "max_mbps": [10.0, 5.0]}}],
+                        "capacities": [{"node_id": "g1", "before_mbps": [400.0, 200.0], "after_mbps": [40.0, 20.0]}]}})
                     }
                     "wan.discover" => json!({"v": 1, "id": v["id"], "ok": true, "result": {
                         "collected_at": now, "unconfigured": [], "routers": [
@@ -270,6 +274,16 @@ async fn a_reviewed_proposal_saves_once_through_its_private_token() {
     let r = review.review.unwrap();
     assert_eq!((r.proposal.as_str(), r.moves, r.cleared), (KEY, 2, 1));
     assert_eq!(r.moved[0].label.as_deref(), Some("alice"));
+    assert_eq!(r.rates_changed, 1);
+    assert_eq!(r.rates[0].before, "min 50 / 25 Mbps, max 100 / 50 Mbps");
+    assert_eq!(r.rates[0].after, "min 5 / 2.5 Mbps, max 10 / 5 Mbps");
+    assert_eq!(
+        (
+            r.capacities[0].node_id.as_str(),
+            r.capacities[0].after.as_str()
+        ),
+        ("g1", "40 / 20 Mbps")
+    );
     assert!(
         !serde_json::to_string(&r).unwrap().contains("edit-2-7"),
         "no service token"

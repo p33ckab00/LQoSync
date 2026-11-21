@@ -1564,6 +1564,62 @@ mod edits {
     }
 
     #[tokio::test]
+    async fn a_plan_change_is_reviewed_before_it_commits() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let p = propose(
+            &mut r,
+            json!({"kind": "plan.create", "name": "Web 7", "down_mbps": 7, "up_mbps": 3}),
+        )
+        .await
+        .unwrap();
+        assert_eq!(revision(&mut r), 2, "a review commits nothing");
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let doc = r.api_registry().unwrap().unwrap();
+        let plan = doc
+            .catalog
+            .as_ref()
+            .unwrap()
+            .profiles
+            .iter()
+            .find(|p| p.name == "Web 7")
+            .unwrap()
+            .id
+            .clone();
+        // A subscriber plan addresses the stable ID and lists that subscriber's new rates.
+        let sub = doc.subscribers[0].id.clone();
+        let p = propose(
+            &mut r,
+            json!({"kind": "subscriber.plan", "subscriber_id": sub, "plan_id": plan}),
+        )
+        .await
+        .unwrap();
+        let rates = p["rates"].as_array().unwrap();
+        assert!(
+            rates.iter().any(|x| x["subscriber_id"] == sub.as_str()),
+            "{p}"
+        );
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let doc = r.api_registry().unwrap().unwrap();
+        let record = doc.subscribers.iter().find(|s| s.id == sub).unwrap();
+        assert_eq!(record.policy.profile_id.as_deref(), Some(plan.as_str()));
+        // A plan in use stays; an unknown subscriber is refused.
+        let used = propose(&mut r, json!({"kind": "plan.delete", "plan_id": plan}))
+            .await
+            .unwrap_err();
+        assert_eq!(rule(&used), "the plan is in use");
+        let unknown = propose(
+            &mut r,
+            json!({"kind": "subscriber.plan", "subscriber_id": "tm-sub-ffff", "plan_id": null}),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(rule(&unknown), "unknown subscriber");
+    }
+
+    #[tokio::test]
     async fn a_fixed_minimum_above_a_plan_is_refused_with_the_subscribers() {
         let e = env();
         let mut r = enrolled(&e).await;

@@ -156,6 +156,47 @@ const fs=require('node:fs');
     const reads=writes.filter(w=>w.endsWith('/api/v1/topology/reads')).length;
     assert.equal(reads,3,'one read POST per click');
 
+    // Plans: Create plan goes through the same review, which lists rate and capacity changes.
+    await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Policies'}).click();
+    await page.getByRole('button',{name:'Create plan'}).click();
+    const planDialog=page.getByRole('dialog',{name:'Create plan'});
+    await planDialog.getByLabel('Name').fill('Access 200');
+    await planDialog.getByLabel('Download, Mbps').fill('200');
+    await planDialog.getByLabel('Upload, Mbps').fill('100');
+    await planDialog.getByRole('button',{name:'Review change'}).click();
+    await planDialog.getByRole('heading',{name:'Rate changes: 1 subscribers'}).waitFor({timeout:15000});
+    assert.match(await planDialog.innerText(),/account-02[\s\S]*min 50 \/ 25 Mbps, max 100 \/ 50 Mbps to min 100 \/ 50 Mbps/);
+    assert.match(await planDialog.innerText(),/Capacity changes[\s\S]*PPPoE access[\s\S]*400 \/ 200 Mbps to 500 \/ 250 Mbps/);
+    await planDialog.getByRole('button',{name:'Save change'}).click();
+    await planDialog.getByText('Saved as policy revision 43.',{exact:false}).waitFor({timeout:15000});
+    await page.keyboard.press('Escape');
+    await planDialog.waitFor({state:'hidden'});
+    await page.getByRole('button',{name:'Edit plan Access 100'}).waitFor();
+    // A subscriber plan and a pin start from the shared subscriber record.
+    await nav.getByRole('link',{name:'PPPoE'}).click();
+    const users=page.getByRole('region',{name:'PPPoE identity records'});
+    await users.getByRole('button',{name:'tm-sub-0000000000000002'}).click();
+    await page.getByRole('region',{name:'Selected subscriber'}).getByRole('button',{name:'Change plan'}).click();
+    const choose=page.getByRole('dialog',{name:'Change plan of tm-sub-0000000000000002'});
+    await choose.getByLabel('Local plan').selectOption('');
+    await choose.getByRole('button',{name:'Review change'}).click();
+    await choose.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
+    await page.keyboard.press('Escape');
+    await choose.waitFor({state:'hidden'});
+    await page.getByRole('region',{name:'Selected subscriber'}).getByRole('button',{name:'Pin to WAN'}).click();
+    const pin=page.getByRole('dialog',{name:'Pin tm-sub-0000000000000002 to a WAN'});
+    assert.match(await pin.innerText(),/writes no router rule/);
+    await pin.getByLabel('WAN').selectOption('tm-node-wan-south');
+    await pin.getByRole('button',{name:'Review change'}).click();
+    await pin.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
+    await pin.getByRole('button',{name:'Save change'}).click();
+    await pin.getByText('Saved as policy revision 43.',{exact:false}).waitFor({timeout:15000});
+    await page.keyboard.press('Escape');
+    await pin.waitFor({state:'hidden'});
+    const sent=writes.map(w=>w.replace(/^POST http:\/\/127\.0\.0\.1:19581\/api\/v1\/topology\//,'').replace(/[0-9a-f]+-[0-9a-f]{13}-[0-9a-f]{13}/g,'KEY'));
+    assert.ok(sent.every(p=>/^(proposals|proposals\/KEY\/(confirm|cancel)|reads)$/.test(p)),sent.join(' '));
+    await page.goto('http://127.0.0.1:19581/topology');
+
     // Remove: review, then Back cancels the kept proposal.
     await page.getByRole('list',{name:'Topology nodes'}).getByRole('button',{name:/DHCP access/}).click();
     await page.getByRole('button',{name:'Remove node'}).click();

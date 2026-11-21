@@ -311,10 +311,12 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
     }
     // A topology change: same origin and CSRF, then 202 and an operation URL.
     let key = "0f8b5a3c-1d2e-4f60-9a7b-000000000001";
-    let change = serde_json::json!({"key": key, "command": {"command": "plan_create",
-        "expected_revision": 1, "name": "Gold", "down_mbps": 100, "up_mbps": 50}})
-    .to_string();
-    let no_csrf = app
+    let change =
+        serde_json::json!({"key": key, "expected_revision": 1, "edit": {"kind": "plan.create",
+        "name": "Gold", "down_mbps": 100, "up_mbps": 50}})
+        .to_string();
+    // Every web change is reviewed: no route commits without a proposal.
+    let unreviewed = app
         .clone()
         .oneshot(req(
             "POST",
@@ -325,10 +327,22 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
         ))
         .await
         .unwrap();
+    assert_eq!(unreviewed.status(), StatusCode::NOT_FOUND);
+    let no_csrf = app
+        .clone()
+        .oneshot(req(
+            "POST",
+            "/api/v1/topology/proposals",
+            &cookie,
+            "https://lqosync.test",
+            &change,
+        ))
+        .await
+        .unwrap();
     assert_eq!(no_csrf.status(), StatusCode::FORBIDDEN);
     let mut mutate = req(
         "POST",
-        "/api/v1/topology/mutations",
+        "/api/v1/topology/proposals",
         &cookie,
         "https://lqosync.test",
         &change,
@@ -343,7 +357,7 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
         queued.headers()["location"],
         format!("/api/v1/topology/operations/{key}")
     );
-    // No service socket in this fixture: the change fails without a write.
+    // No service socket in this fixture: the review fails and nothing is written.
     let mut state = String::new();
     for _ in 0..50 {
         let op = status_owned(&app, &format!("/api/v1/topology/operations/{key}"), &cookie).await;

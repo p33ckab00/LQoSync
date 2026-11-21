@@ -85,6 +85,12 @@ fn title(action: &Change) -> String {
         Change::Remove(n) => format!("Remove {}", n.name),
         Change::CreateWan(_, router, interface) => format!("Create WAN on {router} {interface}"),
         Change::AddSource(_, name) => format!("Add source {name}"),
+        Change::CreatePlan => "Create plan".into(),
+        Change::EditPlan(p) => format!("Edit plan {}", p.name),
+        Change::DeletePlan(p) => format!("Delete plan {}", p.name),
+        Change::SubscriberPlan(id, _) => format!("Change plan of {id}"),
+        Change::SubscriberPin(id, _) => format!("Pin {id} to a WAN"),
+        Change::Rebalance(_, label) => format!("Rebalance {label}"),
     }
 }
 
@@ -291,7 +297,7 @@ pub(crate) fn ChangeDialog(
             (Some(_),Step::Review(r))=>review_view(&r, data).into_any(),
             (Some(a),_)=>{
               let locked=busy();
-              view!{<fieldset disabled=locked>{fields(&a, draft, parents)}</fieldset>}.into_any()
+              view!{<fieldset disabled=locked>{fields(&a, draft, parents, data)}</fieldset>}.into_any()
             }
           }}
           <p class="sr-only" role="status">{move||match step.get() {Step::Reviewing=>"Reviewing the change…",Step::Saving=>"Saving the change…",_=>""}}</p>
@@ -318,10 +324,33 @@ fn fields(
     action: &Change,
     draft: RwSignal<Draft>,
     parents: impl Fn(Option<String>) -> Vec<(String, String)> + Copy + Send + Sync + 'static,
+    data: RwSignal<Option<TopologySummary>>,
 ) -> impl IntoView {
     let text = move |f: fn(&Draft) -> String| move || draft.with(f);
     let set =
         move |f: fn(&mut Draft, String)| move |ev| draft.update(|d| f(d, event_target_value(&ev)));
+    let choice = move |label: &'static str, none: &'static str, options: Vec<(String, String)>| {
+        view! {
+          <div class="field"><label for="change-choice">{label}</label>
+            <select id="change-choice" on:change=set(|d,v|d.parent=v)>
+              <option value="" selected=move||draft.with(|d|d.parent.is_empty())>{none}</option>
+              {options.into_iter().map(|(id,label)|view!{<option value=id.clone() selected=move||draft.with(|d|d.parent==id)>{label}</option>}).collect_view()}
+            </select>
+          </div>
+        }
+    };
+    let rates = move || {
+        view! {
+          <div class="field"><label for="change-name">"Name"</label>
+            <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>
+          <div class="field-row">
+            <div class="field"><label for="change-down">"Download, Mbps"</label>
+              <input id="change-down" type="number" inputmode="numeric" min="1" step="1" required prop:value=text(|d|d.down.clone()) on:input=set(|d,v|d.down=v)/></div>
+            <div class="field"><label for="change-up">"Upload, Mbps"</label>
+              <input id="change-up" type="number" inputmode="numeric" min="1" step="1" required prop:value=text(|d|d.up.clone()) on:input=set(|d,v|d.up=v)/></div>
+          </div>
+        }
+    };
     let parent_select = move |exclude: Option<String>| {
         view! {
           <div class="field"><label for="change-parent">"Parent"</label>
@@ -397,6 +426,40 @@ fn fields(
           {parent_select(None)}
         }
         .into_any(),
+        Change::CreatePlan => view! {
+          <p>"One plan serves PPPoE and DHCP subscribers alike."</p>
+          {rates()}
+        }
+        .into_any(),
+        Change::EditPlan(p) => view! {
+          <p>{format!("{} subscribers use this plan, over all sources. The review lists their new rates.", p.subscribers)}</p>
+          {rates()}
+        }
+        .into_any(),
+        Change::DeletePlan(p) => view! {
+          <p>{format!("Delete {}. The service refuses this while a subscriber uses the plan.", p.name)}</p>
+        }
+        .into_any(),
+        Change::SubscriberPlan(..) => {
+          let plans = data.with(|d| d.as_ref().map(|s| s.plans.iter().map(|p| (p.id.clone(), format!("{} · {} / {} Mbps", p.name, p.down_mbps, p.up_mbps))).collect()).unwrap_or_default());
+          view! {
+            <p>"The plan applies to the subscriber record, so every verified identity of it gets the same plan."</p>
+            {choice("Local plan", "No local plan: use the source rate", plans)}
+          }
+          .into_any()
+        }
+        Change::SubscriberPin(..) => {
+          let wans = data.with(|d| d.as_ref().map(|s| s.nodes.iter().filter(|n| n.kind == "wan").map(|n| (n.id.clone(), n.name.clone())).collect()).unwrap_or_default());
+          view! {
+            <p>"A topology pin places the subscriber below one WAN. It writes no router rule. Pinning needs the subscriber online; unpinning does not."</p>
+            {choice("WAN", "No pin", wans)}
+          }
+          .into_any()
+        }
+        Change::Rebalance(_, label) => view! {
+          <p>{format!("Place the subscribers of {label} again across their nodes. The service reads the routers for the review.")}</p>
+        }
+        .into_any(),
     }
 }
 
@@ -428,6 +491,15 @@ fn review_view(r: &Review, data: RwSignal<Option<TopologySummary>>) -> impl Into
         })}
         {(!r.warnings.is_empty()).then(||view!{
           <div class="notice" role="note"><ul>{r.warnings.iter().map(|w|view!{<li>{w.clone()}</li>}).collect_view()}</ul></div>
+        })}
+        {(r.rates_changed>0).then(||view!{
+          <h3>{format!("Rate changes: {} subscribers",r.rates_changed)}</h3>
+          <ul class="plain-list">{r.rates.iter().map(|x|view!{<li><strong>{x.label.clone().unwrap_or(x.subscriber_id.clone())}</strong><small>{format!("{} to {}",x.before,x.after)}</small></li>}).collect_view()}</ul>
+          {(r.rates_changed>r.rates.len() as u64).then(||view!{<p class="field-help">{format!("{} more rate changes are not listed.",r.rates_changed-r.rates.len() as u64)}</p>})}
+        })}
+        {(!r.capacities.is_empty()).then(||view!{
+          <h3>"Capacity changes"</h3>
+          <ul class="plain-list">{r.capacities.iter().map(|c|view!{<li><strong>{node_name(data,&c.node_id)}</strong><small>{format!("{} to {}",c.before,c.after)}</small></li>}).collect_view()}</ul>
         })}
         {(!r.sources.is_empty()).then(||view!{<p class="field-help">"The review read the current subscriber sources from their routers."</p>})}
         <p class="field-help">{format!("Save before {expires}. After that time, review the change again.")}</p>

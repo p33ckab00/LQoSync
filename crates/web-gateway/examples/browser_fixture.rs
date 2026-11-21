@@ -365,7 +365,10 @@ async fn main() -> anyhow::Result<()> {
                               {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false},
                               {"id":"tm-node-new","name":v["args"]["edit"]["name"].as_str().unwrap_or("Changed"),"parent":"tm-node-wan-north","kind":"intermediate","source_id":null,"capacity":{"mode":"automatic"},"alias":false}],
                     "moves": [{"subscriber_id":"tm-sub-0000000000000003","label":"account-03","from":"tm-node-ppp-north","to":"tm-node-wan-south"}],
-                    "cleared": [], "assigned": 0, "new_records": 0, "sources": ["access-ppp"]})),
+                    "cleared": [], "assigned": 0, "new_records": 0, "sources": ["access-ppp"],
+                    "rates_changed": 1, "rates": [{"subscriber_id":"tm-sub-0000000000000002","label":"account-02",
+                        "before":{"min_mbps":[50.0,25.0],"max_mbps":[100.0,50.0]},"after":{"min_mbps":[100.0,50.0],"max_mbps":[200.0,100.0]}}],
+                    "capacities": [{"node_id":"tm-node-ppp-north","before_mbps":[400.0,200.0],"after_mbps":[500.0,250.0]}]})),
                 "topology.web.mutate" => Some(
                     serde_json::json!({"key": v["args"]["key"], "state": "saved",
                     "base_revision": "42", "revision": "43", "subject_id": null, "error": null}),

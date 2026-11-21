@@ -314,20 +314,6 @@ async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read)
         },
     )
 }
-/// Queue one topology change. `202` with the operation; the page reads its state by key.
-async fn topology_mutate(
-    State(s): State<WebState>,
-    h: HeaderMap,
-    Json(body): Json<web_contract::topology::MutationRequest>,
-) -> ApiResult {
-    let p = writer(&s, &h).await?;
-    let request = BrokerRequest::TopologyMutate {
-        actor: p.username,
-        key: body.key,
-        command: body.command,
-    };
-    queued(&s, &request).await
-}
 /// Send one queue request to the broker: `202` with the operation and its URL, or the refusal.
 async fn queued(s: &WebState, request: &BrokerRequest) -> ApiResult {
     let reply = exchange(&s.broker, request)
@@ -611,7 +597,6 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/routers/{id}/test", post(test_router))
         .route("/api/v1/routers/sync", post(sync_routers))
         .route("/api/v1/topology", get(topology))
-        .route("/api/v1/topology/mutations", post(topology_mutate))
         .route("/api/v1/topology/proposals", post(topology_propose))
         .route("/api/v1/topology/reads", post(topology_reads))
         .route(

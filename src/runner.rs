@@ -1047,6 +1047,12 @@ where
             .await?;
         let mut current = read.registry.clone();
         current.catalog = doc.catalog.clone();
+        // The saved policy of each known record, so a plan choice shows its rate change.
+        for s in &mut current.subscribers {
+            if let Some(saved) = doc.subscribers.iter().find(|o| o.id == s.id) {
+                s.policy = saved.policy.clone();
+            }
+        }
         let side = |registry| {
             resolve(Reconciliation {
                 generation: read.generation,

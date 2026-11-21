@@ -1,5 +1,5 @@
 //! Pure helpers of the Topology, PPPoE, and IPoE screens, so native tests cover them.
-use web_contract::topology::{BuilderEdit, Capacity, Node, PageQuery};
+use web_contract::topology::{BuilderEdit, Capacity, Node, PageQuery, Plan};
 
 /// Nodes in tree order with their depth. A node whose parent is absent is a root.
 /// A parent cycle cannot loop: each node appears once.
@@ -189,6 +189,15 @@ pub(crate) enum Change {
     CreateWan(String, String, String),
     /// A discovered source: key and name.
     AddSource(String, String),
+    CreatePlan,
+    EditPlan(Plan),
+    DeletePlan(Plan),
+    /// One saved subscriber and its current plan. `Draft::parent` holds the chosen plan ID.
+    SubscriberPlan(String, Option<String>),
+    /// One saved subscriber and its current pin. `Draft::parent` holds the chosen WAN node ID.
+    SubscriberPin(String, Option<String>),
+    /// One source ID and its label, or all sources with `None`.
+    Rebalance(Option<String>, String),
 }
 
 /// The form values as typed. The browser checks shape; the service decides every rule.
@@ -222,7 +231,23 @@ impl Draft {
                     ..Self::default()
                 };
             }
-            Change::AddSource(..) => return Self::default(),
+            Change::AddSource(..) | Change::CreatePlan | Change::Rebalance(..) => {
+                return Self::default();
+            }
+            Change::EditPlan(p) | Change::DeletePlan(p) => {
+                return Self {
+                    name: p.name.clone(),
+                    down: p.down_mbps.to_string(),
+                    up: p.up_mbps.to_string(),
+                    ..Self::default()
+                };
+            }
+            Change::SubscriberPlan(_, current) | Change::SubscriberPin(_, current) => {
+                return Self {
+                    parent: current.clone().unwrap_or_default(),
+                    ..Self::default()
+                };
+            }
             Change::Edit(n) | Change::Move(n) | Change::Remove(n) => n,
         };
         let (mode, down, up) = match &node.capacity {
@@ -352,6 +377,71 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
             key: key.clone(),
             parent,
         },
+        Change::CreatePlan | Change::EditPlan(_) => {
+            if name.is_empty() {
+                return Err("Enter a plan name.");
+            }
+            let Capacity::Fixed {
+                down_mbps, up_mbps, ..
+            } = capacity(
+                &Draft {
+                    mode: "fixed".into(),
+                    ..d.clone()
+                },
+                None,
+            )?
+            else {
+                return Err("Enter download and upload as whole Mbps above 0.");
+            };
+            match action {
+                Change::EditPlan(p) => {
+                    let changed = |new: u64, old: u64| (new != old).then_some(new);
+                    let edit = BuilderEdit::PlanUpdate {
+                        plan_id: p.id.clone(),
+                        name: (name != p.name).then(|| name.into()),
+                        down_mbps: changed(down_mbps, p.down_mbps),
+                        up_mbps: changed(up_mbps, p.up_mbps),
+                    };
+                    if edit
+                        == (BuilderEdit::PlanUpdate {
+                            plan_id: p.id.clone(),
+                            name: None,
+                            down_mbps: None,
+                            up_mbps: None,
+                        })
+                    {
+                        return Err("Change the name or a rate first.");
+                    }
+                    edit
+                }
+                _ => BuilderEdit::PlanCreate {
+                    name: name.into(),
+                    down_mbps,
+                    up_mbps,
+                },
+            }
+        }
+        Change::DeletePlan(p) => BuilderEdit::PlanDelete {
+            plan_id: p.id.clone(),
+        },
+        Change::SubscriberPlan(id, current) | Change::SubscriberPin(id, current) => {
+            if parent == *current {
+                return Err("Select another value first.");
+            }
+            match action {
+                Change::SubscriberPlan(..) => BuilderEdit::SubscriberPlan {
+                    subscriber_id: id.clone(),
+                    plan_id: parent,
+                },
+                _ => BuilderEdit::SubscriberPin {
+                    subscriber_id: id.clone(),
+                    wan_node_id: parent,
+                },
+            }
+        }
+        Change::Rebalance(source, _) => BuilderEdit::Rebalance {
+            source_id: source.clone(),
+        },
     })
 }
 
@@ -446,6 +536,80 @@ mod tests {
                 key: "access-ppp".into(),
                 parent: Some("wan1".into())
             })
+        );
+        // Plans: a create needs rates; an edit sends only what changed.
+        let mut d = Draft::of(&Change::CreatePlan);
+        d.name = "Access 100".into();
+        assert!(build_edit(&Change::CreatePlan, &d).is_err());
+        d.down = "100".into();
+        d.up = "50".into();
+        assert_eq!(
+            build_edit(&Change::CreatePlan, &d),
+            Ok(BuilderEdit::PlanCreate {
+                name: "Access 100".into(),
+                down_mbps: 100,
+                up_mbps: 50
+            })
+        );
+        let plan = Plan {
+            id: "plan-1".into(),
+            name: "Access 100".into(),
+            down_mbps: 100,
+            up_mbps: 50,
+            ppp_identities: 1,
+            dhcp_identities: 0,
+            subscribers: 1,
+        };
+        let edit = Change::EditPlan(plan.clone());
+        let mut d = Draft::of(&edit);
+        assert_eq!(
+            build_edit(&edit, &d),
+            Err("Change the name or a rate first.")
+        );
+        d.up = "60".into();
+        assert_eq!(
+            build_edit(&edit, &d),
+            Ok(BuilderEdit::PlanUpdate {
+                plan_id: "plan-1".into(),
+                name: None,
+                down_mbps: None,
+                up_mbps: Some(60)
+            })
+        );
+        assert_eq!(
+            build_edit(&Change::DeletePlan(plan), &Draft::default()),
+            Ok(BuilderEdit::PlanDelete {
+                plan_id: "plan-1".into()
+            })
+        );
+        // A subscriber plan and a pin address the stable ID; an empty choice clears.
+        let choose = Change::SubscriberPlan("tm-sub-1".into(), Some("plan-1".into()));
+        let mut d = Draft::of(&choose);
+        assert_eq!(build_edit(&choose, &d), Err("Select another value first."));
+        d.parent = String::new();
+        assert_eq!(
+            build_edit(&choose, &d),
+            Ok(BuilderEdit::SubscriberPlan {
+                subscriber_id: "tm-sub-1".into(),
+                plan_id: None
+            })
+        );
+        let pin = Change::SubscriberPin("tm-sub-1".into(), None);
+        let mut d = Draft::of(&pin);
+        d.parent = "wan1".into();
+        assert_eq!(
+            build_edit(&pin, &d),
+            Ok(BuilderEdit::SubscriberPin {
+                subscriber_id: "tm-sub-1".into(),
+                wan_node_id: Some("wan1".into())
+            })
+        );
+        assert_eq!(
+            build_edit(
+                &Change::Rebalance(None, "All sources".into()),
+                &Draft::default()
+            ),
+            Ok(BuilderEdit::Rebalance { source_id: None })
         );
         assert_eq!(
             build_edit(&Change::Remove(g), &Draft::default()),

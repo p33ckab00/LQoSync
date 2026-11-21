@@ -187,8 +187,8 @@ pub(crate) fn TopologyPage(
         {
           let subscriber=subscriber.clone();
           move||match tab {
-            "assignments"=>view!{<Assignments session data selected=subscriber.clone()/>}.into_any(),
-            "policies"=>view!{<Policies data/>}.into_any(),
+            "assignments"=>view!{<Assignments session data selected=subscriber.clone() reload=load/>}.into_any(),
+            "policies"=>view!{<Policies session data reload=load/>}.into_any(),
             "changes"=>view!{<Changes data/>}.into_any(),
             _=>view!{<Builder session data reload=load/>}.into_any(),
           }
@@ -237,7 +237,10 @@ fn Builder(
         <section class="panel" aria-labelledby="tree-title">
           <div class="panel-title">
             <h2 id="tree-title">"Topology tree"</h2>
-            <button type="button" class="primary" disabled=locked on:click=move|_|action.set(Some(Change::Create))>"Create node"</button>
+            <div class="node-actions form-actions">
+              <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Rebalance(None,"all sources".into())))>"Rebalance all"</button>
+              <button type="button" class="primary" disabled=locked on:click=move|_|action.set(Some(Change::Create))>"Create node"</button>
+            </div>
           </div>
           <p class="panel-note">"Select a node to inspect it. Capacities describe policy, not measured traffic."</p>
           {move||blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
@@ -285,6 +288,10 @@ fn Builder(
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Edit(e.clone())))>"Edit node"</button>
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Move(m.clone())))>"Move"</button>
                   <button type="button" class="quiet danger" disabled=locked on:click=move|_|action.set(Some(Change::Remove(r.clone())))>"Remove node"</button>
+                  {(n.kind=="group").then(||n.source_id.clone()).flatten().map(|source|{
+                    let change=Change::Rebalance(Some(source),n.name.clone());
+                    view!{<button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(change.clone()))>"Rebalance source"</button>}
+                  })}
                 </div>}
               }
             }.into_any(),
@@ -299,7 +306,10 @@ fn Assignments(
     session: RwSignal<Option<Principal>>,
     data: RwSignal<Option<TopologySummary>>,
     selected: Option<String>,
+    reload: Callback<()>,
 ) -> impl IntoView {
+    let action = RwSignal::new(None::<Change>);
+    let version = RwSignal::new(0u32);
     let search = RwSignal::new(String::new());
     let state = RwSignal::new(String::new());
     let plan = RwSignal::new(String::new());
@@ -345,7 +355,11 @@ fn Assignments(
         fetch(None);
     });
     let detail = RwSignal::new(None::<SubscriberDetail>);
-    if let Some(id) = selected.clone() {
+    // The detail loads on entry and again after each saved change.
+    let wanted = selected.clone();
+    Effect::new(move |_| {
+        version.track();
+        let Some(id) = wanted.clone() else { return };
         leptos::task::spawn_local(async move {
             match get::<SubscriberDetail>(session, &format!("/api/v1/topology/subscribers/{id}"))
                 .await
@@ -354,7 +368,12 @@ fn Assignments(
                 Err(e) => error.set(e.into()),
             }
         });
-    }
+    });
+    let after_save = Callback::new(move |()| {
+        reload.run(());
+        version.update(|v| *v += 1);
+        fetch(None);
+    });
     let plan_name = move |id: &Option<String>| {
         id.as_ref()
             .map(|id| {
@@ -404,7 +423,8 @@ fn Assignments(
           <button type="button" class="quiet" on:click=move|_|fetch(next.get_untracked())>"Load more"</button>
         </Show>
       </section>
-      {selected.map(|_|view!{<SubscriberPanel detail plans=data/>})}
+      {selected.map(|_|view!{<SubscriberPanel detail plans=data action/>})}
+      <crate::topology_forms::ChangeDialog session data action reload=after_save/>
     }
 }
 
@@ -413,7 +433,11 @@ fn Assignments(
 pub(crate) fn SubscriberPanel(
     detail: RwSignal<Option<SubscriberDetail>>,
     plans: RwSignal<Option<TopologySummary>>,
+    /// Set when the page hosts the change dialog.
+    #[prop(optional)]
+    action: Option<RwSignal<Option<Change>>>,
 ) -> impl IntoView {
+    let locked = move || crate::topology_forms::blocked(plans).is_some();
     view! {
       <section class="panel subscriber-panel" aria-live="polite" aria-label="Selected subscriber">
         {move||match detail.get() {
@@ -431,7 +455,14 @@ pub(crate) fn SubscriberPanel(
                 Some(a)=>format!("Active in the preview at {} · {}",node_name(plans,&a.node),a.ips.join(", ")),
                 None=>"Not active in the preview. No current endpoint.".into(),
               }}</p>
-              <p class="panel-note">"Every source view opens this same record. A DHCP lease does not grant permission to shape traffic. Plan and pin changes arrive with the write release."</p>
+              {action.map(|action|{
+                let (plan_change,pin_change)=(Change::SubscriberPlan(s.id.clone(),s.plan_id.clone()),Change::SubscriberPin(s.id.clone(),s.pin.clone()));
+                view!{<div class="form-actions node-actions">
+                  <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(plan_change.clone()))>"Change plan"</button>
+                  <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(pin_change.clone()))>"Pin to WAN"</button>
+                </div>}
+              })}
+              <p class="panel-note">"Every source view opens this same record. A DHCP lease does not grant permission to shape traffic."</p>
             }.into_any()
           }
         }}
@@ -440,20 +471,30 @@ pub(crate) fn SubscriberPanel(
 }
 
 #[component]
-fn Policies(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
+fn Policies(
+    session: RwSignal<Option<Principal>>,
+    data: RwSignal<Option<TopologySummary>>,
+    reload: Callback<()>,
+) -> impl IntoView {
+    let action = RwSignal::new(None::<Change>);
+    let locked = move || crate::topology_forms::blocked(data).is_some();
     view! {
       <section class="panel" aria-labelledby="plans-title">
-        <h2 id="plans-title">"Local plans"</h2>
+        <div class="panel-title">
+          <h2 id="plans-title">"Local plans"</h2>
+          <button type="button" class="primary" disabled=locked on:click=move|_|action.set(Some(Change::CreatePlan))>"Create plan"</button>
+        </div>
         <p class="panel-note">"One shared plan catalog for PPPoE and IPoE. Subscriber counts are unique over all sources."</p>
-        <PlansTable data kind=None/>
+        <PlansTable data kind=None action/>
       </section>
+      <crate::topology_forms::ChangeDialog session data action reload/>
       <section class="panel" aria-labelledby="fallback-title">
         <h2 id="fallback-title">"Fallback"</h2>
         <p>{move||data.with(|d|match d.as_ref().and_then(|s|s.fallback.as_ref()) {
           Some(f)=>format!("Fallback nodes: {} · default {} / {} Mbps",f.node_ids.join(", "),f.default_mbps[0],f.default_mbps[1]),
           None=>"No fallback group.".into(),
         })}</p>
-        <p class="panel-note">"Speed defaults, source factors, and plan edits arrive with the write release. Schedules and profile formulas are not supported."</p>
+        <p class="panel-note">"Speed defaults, source factors, and fallback changes arrive in a later release. Schedules and profile formulas are not supported."</p>
       </section>
     }
 }
@@ -463,7 +504,11 @@ fn Policies(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
 pub(crate) fn PlansTable(
     data: RwSignal<Option<TopologySummary>>,
     kind: Option<&'static str>,
+    /// Set when the page hosts the change dialog: each row gets Edit and Delete.
+    #[prop(optional)]
+    action: Option<RwSignal<Option<Change>>>,
 ) -> impl IntoView {
+    let locked = move || crate::topology_forms::blocked(data).is_some();
     view! {
       <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.plans.is_empty()))
         fallback=||view!{<p class="router-empty">"No local plans. Subscribers use the rate that their source reads."</p>}>
@@ -471,13 +516,21 @@ pub(crate) fn PlansTable(
           <table class="router-table">
             <thead><tr><th scope="col">"Plan"</th><th scope="col" class="num">"Down / up Mbps"</th>
               {kind.map(|k|view!{<th scope="col" class="num">{if k=="ppp"{"PPPoE identities"}else{"DHCP identities"}}</th>})}
-              <th scope="col" class="num">"Unique subscribers, all sources"</th></tr></thead>
+              <th scope="col" class="num">"Unique subscribers, all sources"</th>
+              {action.map(|_|view!{<th scope="col">"Actions"</th>})}</tr></thead>
             <tbody>
               {move||data.with(|d|d.as_ref().map(|s|s.plans.iter().map(|p|view!{<tr>
                 <th scope="row">{p.name.clone()}<br/><small>{p.id.clone()}</small></th>
                 <td class="num">{format!("{} / {}",p.down_mbps,p.up_mbps)}</td>
                 {kind.map(|k|view!{<td class="num">{if k=="ppp"{p.ppp_identities}else{p.dhcp_identities}}</td>})}
                 <td class="num">{p.subscribers}</td>
+                {action.map(|action|{
+                  let (edit,delete)=(Change::EditPlan(p.clone()),Change::DeletePlan(p.clone()));
+                  view!{<td><div class="node-actions form-actions">
+                    <button type="button" class="quiet" disabled=locked aria-label=format!("Edit plan {}",p.name) on:click=move|_|action.set(Some(edit.clone()))>"Edit"</button>
+                    <button type="button" class="quiet danger" disabled=locked aria-label=format!("Delete plan {}",p.name) on:click=move|_|action.set(Some(delete.clone()))>"Delete"</button>
+                  </div></td>}
+                })}
               </tr>}).collect_view()))}
             </tbody>
           </table>

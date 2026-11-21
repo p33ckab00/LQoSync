@@ -83,12 +83,6 @@ pub enum Request {
     Topology {
         read: crate::topology::Read,
     },
-    /// Queue one web mutation. The gateway sets `actor` from the session, never from the browser.
-    TopologyMutate {
-        actor: String,
-        key: String,
-        command: web_contract::topology::WebCommand,
-    },
     /// The state of one web mutation of this actor.
     TopologyOperation {
         actor: String,
@@ -322,16 +316,6 @@ pub async fn serve(
                         })
                         .await?;
                         reply.ok = reply.topology.is_some();
-                    }
-                    Request::TopologyMutate {
-                        actor,
-                        key,
-                        command,
-                    } => {
-                        crate::topology_jobs::answer(
-                            &mut reply,
-                            jobs.submit(&actor, &key, command).await,
-                        );
                     }
                     Request::TopologyPropose { actor, request } => {
                         crate::topology_jobs::answer(
