@@ -486,19 +486,29 @@ fn account_ref(
         }
         ReferenceAuthority::PppSecretName => match &account.authority {
             AuthorityEvidence::LocalAccount { name, .. } if !name.is_empty() => {
-                Ok(format!("ppp-name/v1/{}", encode_name(name)))
+                Ok(ppp_name_reference(name))
             }
             _ => Err(IdentityIssue::MissingReference),
         },
         ReferenceAuthority::DhcpClientMac => {
             let macs: BTreeSet<_> = account.endpoints.iter().map(|e| e.mac.as_deref()).collect();
             match macs.into_iter().collect::<Vec<_>>()[..] {
-                [Some(mac)] => Ok(format!("dhcp-mac/v1/{mac}")),
+                [Some(mac)] => Ok(dhcp_mac_reference(mac)),
                 [] | [None] => Err(IdentityIssue::MissingReference),
                 _ => Err(IdentityIssue::InvalidReference),
             }
         }
     }
+}
+
+/// The `PppSecretName` reference of a PPP secret name.
+pub(crate) fn ppp_name_reference(name: &str) -> String {
+    format!("ppp-name/v1/{}", encode_name(name))
+}
+
+/// The `DhcpClientMac` reference of a normalized MAC (`AA:BB:..`).
+pub(crate) fn dhcp_mac_reference(mac: &str) -> String {
+    format!("dhcp-mac/v1/{mac}")
 }
 
 /// Encode a source name for an identity reference. `%` is encoded, so distinct names stay distinct.

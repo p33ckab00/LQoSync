@@ -579,14 +579,19 @@ where
             "registry_revision": doc.as_ref().map(|d| d.revision),
             "enrolled": doc.as_ref().is_some_and(|d| d.export_ownership.is_some()),
             "last_cycle_started": self.last_cycle_started,
-            "writer": match crate::topology_manager::runtime::topology_owns(Path::new(
-                &self.cfg.runtime.state_dir,
-            )) {
-                Ok(true) => "topology",
-                Ok(false) => "legacy",
-                Err(_) => "unknown",
-            },
+            "writer": self.writer(),
         }))
+    }
+
+    /// The shaping writer: `topology`, `legacy`, or `unknown` when the claim cannot be read.
+    fn writer(&self) -> &'static str {
+        match crate::topology_manager::runtime::topology_owns(Path::new(
+            &self.cfg.runtime.state_dir,
+        )) {
+            Ok(true) => "topology",
+            Ok(false) => "legacy",
+            Err(_) => "unknown",
+        }
     }
 
     /// API `registry.get`.
@@ -2050,6 +2055,23 @@ where
         if let Err(error) = crate::router_view::publish(state_dir, &inventory) {
             eprintln!("warning: cannot write routers.json: {error:#}");
         }
+        // The web Topology view: registry, cached preview, and this collection. No router I/O.
+        let doc = self.api_document().ok().flatten();
+        let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
+        let view =
+            crate::topology_manager::web_view::project(&crate::topology_manager::web_view::Input {
+                doc: doc.as_ref(),
+                preview: self.last_preview.as_ref(),
+                collection: Some(&collection),
+                mode: &mode,
+                writer: self.writer(),
+                cycle_seq: self.cycle_seq,
+                now,
+                fresh_for: collection.fresh_for,
+            });
+        if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
+            eprintln!("warning: cannot write topology.json: {error:#}");
+        }
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
@@ -2724,6 +2746,33 @@ mod tests {
         assert_eq!(inv.routers[0].collection.as_ref().unwrap().state, "online");
         assert_eq!(inv.routers[1].collection, None);
         assert!(!read(&e.state.join("routers.json")).contains("password_file"));
+    }
+
+    #[tokio::test]
+    async fn each_cycle_publishes_the_topology_view() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut r = runner(&e, cfg(&e, "shadow", ""));
+        r.cycle(1_000, false).await;
+        let text = read(&e.state.join(web_contract::topology::CACHE));
+        let view: web_contract::topology::TopologyView = serde_json::from_str(&text).unwrap();
+        assert_eq!(view.updated, 1_000);
+        assert_eq!(view.writer, "legacy");
+        let alice = view
+            .observations
+            .iter()
+            .find(|o| o.name == "alice")
+            .unwrap();
+        assert_eq!(
+            (alice.kind.as_str(), alice.state.as_str()),
+            ("ppp", "online")
+        );
+        assert_eq!(
+            (alice.link.as_str(), alice.subscriber_id.as_ref()),
+            ("none", None)
+        );
+        assert_eq!(view.collection[0].state, "online");
+        assert!(!text.contains("password_file"));
     }
 
     #[test]
