@@ -24,7 +24,14 @@ pub struct Input<'a> {
     pub cycle_seq: u64,
     pub now: u64,
     pub fresh_for: u64,
+    /// The current shaping write receipt.
+    pub publication: Option<&'a crate::write_receipt::Receipt>,
+    /// Web change receipts, in any order.
+    pub history: &'a [crate::topology_manager::web_receipts::Record],
 }
+
+/// Web changes kept in the view, newest first.
+const HISTORY: usize = 50;
 
 pub fn project(input: &Input<'_>) -> TopologyView {
     let doc = input.doc;
@@ -184,6 +191,76 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                 SourceOrigin::Wan { .. } => None,
             })
             .collect(),
+        publication: input.publication.map(publication),
+        history: {
+            let mut records: Vec<_> = input.history.iter().collect();
+            records.sort_by_key(|r| std::cmp::Reverse(r.at));
+            records
+                .into_iter()
+                .take(HISTORY)
+                .map(|r| {
+                    let receipt = r.view();
+                    WebChange {
+                        at: r.at,
+                        actor: r.actor.clone(),
+                        change: change_label(&r.command),
+                        state: receipt.state,
+                        base_revision: receipt.base_revision,
+                        revision: receipt.revision,
+                    }
+                })
+                .collect()
+        },
+    }
+}
+
+/// A lower-case name of a serialized enum value, for example `IMPORT_CONFIRMED`.
+fn name<T: serde::Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_ascii_lowercase))
+        .unwrap_or_else(|| "unknown".into())
+}
+
+/// The latest write without paths or error text: those stay in the service journal.
+fn publication(r: &crate::write_receipt::Receipt) -> Publication {
+    Publication {
+        write_id: r.write_id.clone(),
+        phase: name(&r.phase),
+        started: r.started,
+        updated: r.updated,
+        policy_revision: r
+            .meta
+            .topology
+            .as_ref()
+            .map(|t| t.policy_revision.to_string()),
+        files: r
+            .files
+            .iter()
+            .map(|f| PublishedFile {
+                name: f
+                    .path
+                    .file_name()
+                    .map_or("file".into(), |n| n.to_string_lossy().into_owned()),
+                outcome: name(&f.outcome),
+            })
+            .collect(),
+        failed: r.error.is_some(),
+        accepted: r.acceptance.is_some(),
+        superseded_by: r.superseded_by.clone(),
+    }
+}
+
+fn change_label(c: &WebCommand) -> String {
+    match c {
+        WebCommand::PlanCreate { name, .. } => format!("Create plan {name}"),
+        WebCommand::PlanUpdate { plan_id, .. } => format!("Edit plan {plan_id}"),
+        WebCommand::PlanDelete { plan_id, .. } => format!("Delete plan {plan_id}"),
+        WebCommand::SubscriberPlan { identity, .. } => {
+            format!("Plan of {}", identity.account_ref)
+        }
+        // The Builder review names the edit; the receipt keeps only the private token.
+        WebCommand::EditConfirm { .. } => "Reviewed change".into(),
     }
 }
 

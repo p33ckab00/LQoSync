@@ -27,6 +27,9 @@ const fs=require('node:fs');
     await evidence.getByText('Revision 42').waitFor();
     await evidence.getByText('Topology · apply').waitFor();
     assert.match(await evidence.innerText(),/r42 · \d+s ago/);
+    // Files, import, and native verification stay separate facts.
+    assert.match(await evidence.innerText(),/Files \/ import\s+r42 · import confirmed/);
+    assert.match(await evidence.innerText(),/Native verification\s+r42 · waiting/);
     const tree=page.getByRole('list',{name:'Topology nodes'});
     const names=await tree.locator('.tree-node strong').allInnerTexts();
     assert.deepEqual(names,['WAN North','PPPoE access','WAN South','DHCP access']);
@@ -38,6 +41,16 @@ const fs=require('node:fs');
     await details.getByText('Automatic · plan sum').waitFor();
     await details.getByText('400 / 200 Mbps').first().waitFor();
     if(scheme==='dark')await page.screenshot({path:`${out}/topology-builder-${scheme}.png`,fullPage:true});
+
+    // Changes: the latest write without paths, and the web change history.
+    await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Changes'}).click();
+    await page.waitForURL('**/topology?tab=changes');
+    const latest=page.getByRole('region',{name:'Latest write'});
+    assert.match(await latest.innerText(),/w-42-1[\s\S]*import confirmed[\s\S]*42[\s\S]*Not accepted yet/);
+    assert.match(await latest.getByRole('list',{name:'Written files'}).innerText(),/ShapedDevices\.csv\s+written[\s\S]*network\.json\s+unchanged/);
+    assert.doesNotMatch(await latest.innerText(),/\/opt\//);
+    assert.match(await page.getByRole('region',{name:'Web change history'}).innerText(),/Create plan Access 100[\s\S]*browser-test[\s\S]*saved[\s\S]*42 from 41/);
+    await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Builder'}).click();
 
     // Assignments: every saved record, offline included; a deep link opens one subscriber.
     await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Assignments'}).click();

@@ -1,6 +1,7 @@
 //! Pure helpers of the Topology, PPPoE, and IPoE screens, so native tests cover them.
 use web_contract::topology::{
-    BuilderEdit, Capacity, Fallback, Node, PageQuery, Plan, RuleInput, SourceFactor, SpeedDefaults,
+    BuilderEdit, Capacity, Fallback, Node, PageQuery, Plan, Publication, RuleInput, SourceFactor,
+    SpeedDefaults,
 };
 
 /// Nodes in tree order with their depth. A node whose parent is absent is a root.
@@ -178,6 +179,60 @@ pub(crate) fn account(account_ref: &str) -> String {
         }
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Evidence strip texts for the latest write: (files/import, class, native, class, note).
+/// Saved policy, files, import, and native verification never stand in for each other.
+pub(crate) fn publication_labels(
+    p: Option<&Publication>,
+    saved: Option<&str>,
+) -> (String, &'static str, String, &'static str, Option<String>) {
+    let Some(p) = p else {
+        return (
+            "No write yet".into(),
+            "neutral",
+            "—".into(),
+            "neutral",
+            None,
+        );
+    };
+    let which = p
+        .policy_revision
+        .as_ref()
+        .map_or("Legacy write".to_string(), |r| format!("r{r}"));
+    let (files, files_class) = match p.phase.as_str() {
+        "intent" | "pending" | "candidate" => ("files pending", "warn"),
+        "import_confirmed" | "applied" | "verify_timeout" => ("import confirmed", "good"),
+        "write_failed" => ("write failed", "bad"),
+        "apply_failed" => ("import failed", "bad"),
+        "superseded" => ("superseded", "neutral"),
+        "interrupted" => ("interrupted", "warn"),
+        _ => ("unknown state", "warn"),
+    };
+    let (native, native_class) = match p.phase.as_str() {
+        "applied" if p.accepted => ("applied", "good"),
+        "import_confirmed" => ("waiting", "warn"),
+        "verify_timeout" => ("verification timed out", "warn"),
+        "write_failed" | "apply_failed" => ("not applied", "bad"),
+        _ => ("not verified", "neutral"),
+    };
+    let note = match (&p.policy_revision, saved) {
+        (Some(published), Some(saved)) if published != saved => Some(format!(
+            "Revision {saved} is saved. The latest write published revision {published}; the next service cycle publishes the saved revision."
+        )),
+        (None, Some(_)) => Some(
+            "The legacy writer made the latest write. It does not publish a topology revision."
+                .into(),
+        ),
+        _ => None,
+    };
+    (
+        format!("{which} · {files}"),
+        files_class,
+        format!("{which} · {native}"),
+        native_class,
+        note,
+    )
 }
 
 /// One Builder action on the selected node, or a new node.
@@ -571,6 +626,42 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn publication_labels_keep_each_fact_apart() {
+        let write = |phase: &str, revision: Option<&str>, accepted: bool| Publication {
+            write_id: "w".into(),
+            phase: phase.into(),
+            policy_revision: revision.map(str::to_owned),
+            accepted,
+            ..Publication::default()
+        };
+        assert_eq!(publication_labels(None, Some("7")).0, "No write yet");
+        let (files, _, native, class, note) = publication_labels(
+            Some(&write("import_confirmed", Some("7"), false)),
+            Some("7"),
+        );
+        assert_eq!(
+            (files.as_str(), native.as_str(), class),
+            ("r7 · import confirmed", "r7 · waiting", "warn")
+        );
+        assert_eq!(note, None);
+        // An import is not an application; an applied write needs native acceptance.
+        let (_, _, native, _, _) =
+            publication_labels(Some(&write("applied", Some("7"), false)), Some("7"));
+        assert_eq!(native, "r7 · not verified");
+        let (_, _, native, class, note) =
+            publication_labels(Some(&write("applied", Some("7"), true)), Some("8"));
+        assert_eq!((native.as_str(), class), ("r7 · applied", "good"));
+        assert!(note.unwrap().starts_with("Revision 8 is saved."));
+        let (files, class, _, _, _) =
+            publication_labels(Some(&write("write_failed", Some("7"), false)), Some("7"));
+        assert_eq!((files.as_str(), class), ("r7 · write failed", "bad"));
+        let (files, _, _, _, note) =
+            publication_labels(Some(&write("applied", None, true)), Some("7"));
+        assert_eq!(files, "Legacy write · import confirmed");
+        assert!(note.unwrap().contains("legacy writer"));
+    }
 
     #[test]
     fn drafts_make_the_service_edit_or_a_form_error() {

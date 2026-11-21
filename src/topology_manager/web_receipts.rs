@@ -284,6 +284,11 @@ impl Receipts {
         Ok(removed)
     }
 
+    /// Every record, for the web change history. The prune at open bounds the count.
+    pub fn recent(&self) -> anyhow::Result<Vec<Record>> {
+        self.records()
+    }
+
     fn records(&self) -> anyhow::Result<Vec<Record>> {
         let mut out = Vec::new();
         for entry in std::fs::read_dir(&self.dir)? {

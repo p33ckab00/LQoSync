@@ -9,6 +9,8 @@ use web_contract::topology::*;
 pub const BUDGET: usize = 60 * 1024;
 /// The service cache grows with the subscriber count: about 400 bytes per subscriber.
 const MAX_CACHE: u64 = 64 * 1024 * 1024;
+/// Web changes in the summary, newest first.
+const HISTORY: usize = 20;
 /// The summary keeps this much room for the first conflicts.
 const CONFLICT_BUDGET: usize = 8 * 1024;
 
@@ -115,6 +117,8 @@ fn summary(v: &TopologyView) -> TopologySummary {
         dhcp_total: count("dhcp"),
         speed: v.speed.clone(),
         factors: v.factors.clone(),
+        publication: v.publication.clone(),
+        history: v.history.iter().take(HISTORY).cloned().collect(),
     };
     // Envelope: `{"summary":{...}}`.
     let mut used = size(&s) + 16;

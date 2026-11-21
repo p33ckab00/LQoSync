@@ -609,6 +609,15 @@ where
     fn publish_web_view(&mut self, now: u64) {
         let doc = self.api_document().ok().flatten();
         let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
+        let publication = self
+            .write_tracker
+            .as_ref()
+            .and_then(|t| t.lock().ok().and_then(|t| t.current().cloned()));
+        let history = self
+            .web_receipts
+            .as_ref()
+            .and_then(|r| r.recent().ok())
+            .unwrap_or_default();
         let view =
             crate::topology_manager::web_view::project(&crate::topology_manager::web_view::Input {
                 doc: doc.as_ref(),
@@ -619,6 +628,8 @@ where
                 cycle_seq: self.cycle_seq,
                 now,
                 fresh_for: self.collection.as_ref().map_or(300, |c| c.fresh_for),
+                publication: publication.as_ref(),
+                history: &history,
             });
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
@@ -1860,6 +1871,8 @@ where
             }
             Err(error) => receipts.finish_failed(&record, &safe_error(&error))?,
         };
+        // The commit published the view before this receipt was final; show the final state.
+        self.publish_web_view(now);
         Ok(serde_json::to_value(done.view())?)
     }
 

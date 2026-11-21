@@ -42,6 +42,53 @@ pub struct TopologyView {
     /// The group factor of each subscriber source.
     #[serde(default)]
     pub factors: Vec<SourceFactor>,
+    /// The latest shaping write. `None` when the service has no write record.
+    #[serde(default)]
+    pub publication: Option<Publication>,
+    /// Recent web changes, newest first. Changes from the TUI or the CLI are not recorded here.
+    #[serde(default)]
+    pub history: Vec<WebChange>,
+}
+
+/// The latest shaping write and its evidence. Saved policy, files, import, and native
+/// verification are separate facts; none of them stands in for another.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Publication {
+    pub write_id: String,
+    /// `intent`, `pending`, `import_confirmed`, `applied`, `write_failed`, `apply_failed`,
+    /// `verify_timeout`, `superseded`, `interrupted`, or `candidate`.
+    pub phase: String,
+    pub started: u64,
+    pub updated: u64,
+    /// The policy revision that the write published. `None`: a legacy writer write.
+    pub policy_revision: Option<String>,
+    /// File names (never paths) and their outcome: `pending`, `written`, `unchanged`,
+    /// `reconciled`, or `failed`.
+    pub files: Vec<PublishedFile>,
+    /// The write recorded an error. The text stays in the service journal.
+    pub failed: bool,
+    /// The native runtime accepted this write.
+    pub accepted: bool,
+    pub superseded_by: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublishedFile {
+    pub name: String,
+    pub outcome: String,
+}
+
+/// One web change receipt.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WebChange {
+    pub at: u64,
+    pub actor: String,
+    /// What changed, in words.
+    pub change: String,
+    /// `saved`, `failed`, `not_committed`, or `outcome_unknown`.
+    pub state: String,
+    pub base_revision: String,
+    pub revision: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -257,6 +304,11 @@ pub struct TopologySummary {
     pub speed: Option<SpeedDefaults>,
     #[serde(default)]
     pub factors: Vec<SourceFactor>,
+    #[serde(default)]
+    pub publication: Option<Publication>,
+    /// The newest web changes. The cache holds more.
+    #[serde(default)]
+    pub history: Vec<WebChange>,
 }
 
 /// One page of a filtered list. The cursor binds the snapshot and the filter.

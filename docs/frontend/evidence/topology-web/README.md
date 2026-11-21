@@ -74,11 +74,11 @@ The browser check covers these items:
 
 ## Limits of this release
 
-- Files/import and native verification show "Not in this release". T10 adds that evidence.
-- Speed defaults and source factors do not show. Policies shows plans and fallback only.
+- Files/import and native verification came in T10. See "Publication evidence (T10)" below.
+- Speed defaults and source factors came in T09.
 - The broker reads the whole cache on each request. Large networks can make reads slower.
 - The summary keeps the first nodes that fit one reply and marks the rest as truncated.
-- Refresh, discovery, edits, plans, pins, and rebalance are T04–T09.
+- Refresh, discovery, edits, plans, pins, and rebalance came in T04–T09.
 
 # Builder changes (T04–T06)
 
@@ -131,3 +131,30 @@ Date: 2026-11-21, Asia/Manila.
 | `topology-check.cjs` | Review and save, Escape, focus return, `:user-invalid`, and only the proposal and confirm POSTs |
 
 ![Builder review](builder-review-dark.png)
+
+# Publication evidence (T10)
+
+Date: 2026-11-21, Asia/Manila.
+
+The view carries the latest shaping write from `write-receipt.json`:
+
+- The write ID and phase.
+- File names and their outcomes. Paths and error texts stay in the service journal.
+- Native acceptance.
+- The published policy revision. A legacy writer write has no revision.
+
+The evidence strip shows three separate facts:
+
+| Item | Source | Example |
+|---|---|---|
+| Saved policy | Registry revision | Revision 42 |
+| Files / import | Write phase | r42 · import confirmed |
+| Native verification | Write phase and acceptance | r42 · waiting |
+
+An imported write is not applied until the native runtime accepts it.
+When the saved revision is newer than the published revision, a note says so.
+A legacy write says that it publishes no topology revision.
+
+Changes shows the latest write and the web change history.
+The history lists only changes saved from the web page. TUI and CLI changes are not in it.
+A Builder save shows as "Reviewed change", because the receipt keeps only the private proposal token.

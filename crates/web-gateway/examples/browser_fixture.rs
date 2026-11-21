@@ -336,7 +336,11 @@ async fn main() -> anyhow::Result<()> {
       "speed":{"down_min":{"unit":"percent","value":"20"},"up_min":{"unit":"percent","value":"20"},
                "down_max":{"unit":"percent","value":"100"},"up_max":{"unit":"legacy","value":"100"},"overrides":1},
       "factors":[{"source_id":"access-ppp","name":"PPPoE access","down":"0.5","up":"0.5"},
-                 {"source_id":"access-dhcp","name":"DHCP service","down":"1","up":"1"}]
+                 {"source_id":"access-dhcp","name":"DHCP service","down":"1","up":"1"}],
+      "publication":{"write_id":"w-42-1","phase":"import_confirmed","started":at.saturating_sub(30),"updated":at.saturating_sub(20),
+        "policy_revision":"42","files":[{"name":"ShapedDevices.csv","outcome":"written"},{"name":"network.json","outcome":"unchanged"}],
+        "failed":false,"accepted":false,"superseded_by":null},
+      "history":[{"at":at.saturating_sub(60),"actor":"browser-test","change":"Create plan Access 100","state":"saved","base_revision":"41","revision":"42"}]
     });
     for (name, value) in [
         ("topology.json", topology),

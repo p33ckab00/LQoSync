@@ -469,6 +469,12 @@ mod plans {
         )
         .await;
         assert_eq!(found["result"], *receipt);
+        // The view lists the saved change at once, as saved.
+        let history = web_view(&e).history;
+        assert_eq!(
+            (history[0].state.as_str(), history[0].change.as_str()),
+            ("saved", "Create plan Web 100")
+        );
         let foreign = web(
             &mut r,
             "topology.web.operation",

@@ -147,17 +147,30 @@ pub(crate) fn Evidence(data: RwSignal<Option<TopologySummary>>) -> impl IntoView
             None => "neutral",
         })
     });
-    let unavailable = Signal::derive(|| "Not in this release".to_string());
     let neutral = Signal::derive(|| "neutral");
+    let labels = move || {
+        data.with(|d| {
+            let s = d.as_ref();
+            publication_labels(
+                s.and_then(|s| s.publication.as_ref()),
+                s.and_then(|s| s.registry_revision.as_deref()),
+            )
+        })
+    };
+    let files = Signal::derive(move || labels().0);
+    let files_class = Signal::derive(move || labels().1);
+    let native = Signal::derive(move || labels().2);
+    let native_class = Signal::derive(move || labels().3);
     view! {
       <dl class="evidence-strip" aria-label="Topology evidence">
         {item("View", view_age, view_class)}
         {item("Observations", observed, observed_class)}
         {item("Saved policy", saved, neutral)}
         {item("Writer", writer, writer_class)}
-        {item("Files / import", unavailable, neutral)}
-        {item("Native verification", unavailable, neutral)}
+        {item("Files / import", files, files_class)}
+        {item("Native verification", native, native_class)}
       </dl>
+      {move||labels().4.map(|note|view!{<p class="panel-note evidence-note">{note}</p>})}
     }
 }
 
@@ -604,7 +617,51 @@ fn Changes(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
         <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.conflicts_total>s.conflicts.len() as u64))>
           <p class="notice" role="status">{move||data.with(|d|d.as_ref().map(|s|format!("{} more conflicts are not shown here.",s.conflicts_total-s.conflicts.len() as u64)).unwrap_or_default())}</p>
         </Show>
-        <p class="panel-note">"Publication history and per-revision import evidence arrive in a later release."</p>
+      </section>
+      <section class="panel" aria-labelledby="publication-title">
+        <h2 id="publication-title">"Latest write"</h2>
+        {move||match data.with(|d|d.as_ref().and_then(|s|s.publication.clone())) {
+          None=>view!{<p class="panel-note">"The service has no write record yet."</p>}.into_any(),
+          Some(p)=>{
+            let phase=p.phase.replace('_'," ");
+            view!{
+              <dl class="router-facts">
+                <div><dt>"Write"</dt><dd>{p.write_id.clone()}</dd></div>
+                <div><dt>"Phase"</dt><dd>{phase}</dd></div>
+                <div><dt>"Policy revision"</dt><dd>{p.policy_revision.clone().unwrap_or("None: legacy writer".into())}</dd></div>
+                <div><dt>"Native acceptance"</dt><dd>{if p.accepted{"Accepted"}else{"Not accepted yet"}}</dd></div>
+                <div><dt>"Started"</dt><dd>{crate::dashboard::local_time(p.started)}</dd></div>
+                <div><dt>"Updated"</dt><dd>{crate::dashboard::local_time(p.updated)}</dd></div>
+              </dl>
+              <ul class="plain-list" aria-label="Written files">
+                {p.files.iter().map(|f|view!{<li><strong>{f.name.clone()}</strong><span class="chip neutral">{f.outcome.clone()}</span></li>}).collect_view()}
+              </ul>
+              {p.failed.then(||view!{<p class="notice" role="note">"The write recorded an error. Read the lqosync3 service journal for the details."</p>})}
+              {p.superseded_by.clone().map(|by|view!{<p class="panel-note">{format!("A newer write {by} replaced this write.")}</p>})}
+            }.into_any()
+          }
+        }}
+      </section>
+      <section class="panel" aria-labelledby="history-title">
+        <h2 id="history-title">"Web changes"</h2>
+        <p class="panel-note">"Changes saved from this web page, newest first. Changes from the TUI or the CLI are not recorded here."</p>
+        <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.history.is_empty()))
+          fallback=||view!{<p class="router-empty">"No web change yet."</p>}>
+          <div class="table-scroll" role="region" aria-label="Web change history" tabindex="0">
+            <table class="router-table">
+              <thead><tr><th scope="col">"Time"</th><th scope="col">"Change"</th><th scope="col">"Actor"</th><th scope="col">"Result"</th><th scope="col">"Revision"</th></tr></thead>
+              <tbody>
+                {move||data.with(|d|d.as_ref().map(|s|s.history.clone()).unwrap_or_default()).into_iter().map(|h|view!{<tr>
+                  <td>{crate::dashboard::local_time(h.at)}</td>
+                  <th scope="row">{h.change.clone()}</th>
+                  <td>{h.actor.clone()}</td>
+                  <td><span class="chip neutral">{h.state.replace('_'," ")}</span></td>
+                  <td>{h.revision.clone().map(|r|format!("{} from {}",r,h.base_revision)).unwrap_or(format!("base {}",h.base_revision))}</td>
+                </tr>}).collect_view()}
+              </tbody>
+            </table>
+          </div>
+        </Show>
       </section>
     }
 }

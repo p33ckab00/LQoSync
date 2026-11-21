@@ -187,6 +187,8 @@ fn input<'a>(
         cycle_seq: 4,
         now: 100,
         fresh_for: 60,
+        publication: None,
+        history: &[],
     }
 }
 
@@ -446,4 +448,100 @@ fn speed_rules_and_source_factors_are_exact_text() {
         "WAN sources have no factor"
     );
     assert_eq!(project(&input(None, None, None)).speed, None);
+}
+
+fn write(phase: &str, revision: Option<u64>) -> crate::write_receipt::Receipt {
+    let topology = revision.map(|r| {
+        json!({"policy_revision": r, "observation_generation": 3, "registry_digest": "0".repeat(64)})
+    });
+    serde_json::from_value(json!({
+        "version": 1, "write_id": "w-9", "phase": phase, "started": 90, "updated": 95,
+        "meta": {"topology": topology, "cycle_seq": 4, "config_digest": "c", "notice": null},
+        "files": [
+            {"path": "/opt/libreqos/src/ShapedDevices.csv", "sha256": "a", "outcome": "WRITTEN"},
+            {"path": "/opt/libreqos/src/network.json", "sha256": "b", "outcome": "UNCHANGED"}],
+        "error": "cannot write /opt/libreqos/src/x.tmp", "acceptance": null, "superseded_by": null
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_latest_write_links_its_revision_and_hides_paths() {
+    let d = doc();
+    let receipt = write("IMPORT_CONFIRMED", Some(7));
+    let mut i = input(Some(&d), None, None);
+    i.publication = Some(&receipt);
+    let v = project(&i);
+    let p = v.publication.as_ref().unwrap();
+    assert_eq!(
+        (p.phase.as_str(), p.policy_revision.as_deref()),
+        ("import_confirmed", Some("7"))
+    );
+    assert_eq!(p.files[0].name, "ShapedDevices.csv");
+    assert_eq!(p.files[0].outcome, "written");
+    assert!(p.failed && !p.accepted);
+    let text = serde_json::to_string(&v).unwrap();
+    assert!(
+        !text.contains("/opt/libreqos"),
+        "no file path or error text"
+    );
+    // A legacy writer write has no policy revision.
+    let legacy = write("APPLIED", None);
+    i.publication = Some(&legacy);
+    assert_eq!(project(&i).publication.unwrap().policy_revision, None);
+}
+
+#[test]
+fn web_history_is_newest_first_and_named() {
+    use crate::topology_manager::web_receipts::{Record, State};
+    use web_contract::topology::WebCommand;
+    let record = |key: &str, at: u64, command: WebCommand, state: State| Record {
+        key: key.into(),
+        actor: "alice".into(),
+        command,
+        base_revision: 6,
+        at,
+        state,
+    };
+    let history = [
+        record(
+            "k1",
+            10,
+            WebCommand::PlanDelete {
+                expected_revision: 6,
+                plan_id: "plan-1".into(),
+            },
+            State::Failed {
+                error: "conflict".into(),
+            },
+        ),
+        record(
+            "k2",
+            20,
+            WebCommand::EditConfirm {
+                proposal_id: "edit-6-1".into(),
+            },
+            State::Saved {
+                revision: 7,
+                subject_id: None,
+            },
+        ),
+    ];
+    let d = doc();
+    let mut i = input(Some(&d), None, None);
+    i.history = &history;
+    let v = project(&i);
+    assert_eq!(v.history[0].change, "Reviewed change");
+    assert_eq!(
+        (
+            v.history[0].state.as_str(),
+            v.history[0].revision.as_deref()
+        ),
+        ("saved", Some("7"))
+    );
+    assert_eq!(v.history[1].change, "Delete plan plan-1");
+    assert!(
+        !serde_json::to_string(&v).unwrap().contains("edit-6-1"),
+        "no service token"
+    );
 }
