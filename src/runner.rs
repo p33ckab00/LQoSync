@@ -106,6 +106,10 @@ pub struct Runner<C: Connector + 'static> {
     pub health: crate::system_health::Hub,
     write_tracker: Option<Arc<Mutex<crate::write_receipt::Tracker>>>,
     topology_store: Option<crate::topology_manager::store::RegistryStore>,
+    /// Web mutation receipts. `None` until the registry opens, or when the directory is unsafe.
+    web_receipts: Option<crate::topology_manager::web_receipts::Receipts>,
+    /// The receipt of the web mutation in progress. `api_edit` marks it prepared before writing.
+    web_pending: Option<crate::topology_manager::web_receipts::Record>,
     last_topology_generation: u64,
     /// Start time of the most recent cycle, in Unix seconds.
     last_cycle_started: Option<u64>,
@@ -137,6 +141,21 @@ fn stale_proposal() -> anyhow::Error {
 
 fn rule(message: String) -> anyhow::Error {
     anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(message))
+}
+
+/// A failure reason for a browser: the rule text or a class, never an internal path.
+fn safe_error(error: &anyhow::Error) -> String {
+    use crate::topology_manager::store::{InvalidPolicy, RevisionConflict};
+    if error.chain().any(|c| c.is::<RevisionConflict>()) {
+        "conflict".into()
+    } else if let Some(rule) = error
+        .chain()
+        .find_map(|c| c.downcast_ref::<InvalidPolicy>())
+    {
+        format!("invalid: {}", rule.0)
+    } else {
+        "internal".into()
+    }
 }
 
 fn state_name(r: &RouterResult) -> &'static str {
@@ -229,6 +248,8 @@ where
             health: crate::system_health::Hub::default(),
             write_tracker: None,
             topology_store: None,
+            web_receipts: None,
+            web_pending: None,
             last_topology_generation: 0,
             last_cycle_started: None,
             last_preview: None,
@@ -1390,7 +1411,16 @@ where
             ));
         }
         let (candidate, out) = edit(&doc, self.last_preview.as_ref())?;
-        match store.commit(expected_revision, candidate) {
+        let committed = match (self.web_pending.take(), self.web_receipts.as_ref()) {
+            (Some(record), Some(receipts)) => {
+                let mut prepare = |doc: &crate::topology_manager::model::RegistryDocument| {
+                    receipts.prepare(&record, doc)
+                };
+                store.commit_observed(expected_revision, candidate, &mut prepare)
+            }
+            _ => store.commit(expected_revision, candidate),
+        };
+        match committed {
             Ok(outcome) => Ok((outcome.revision, out)),
             Err(e) => {
                 self.topology_store = None;
@@ -1652,14 +1682,172 @@ where
 
     fn open_topology_store(&mut self) -> anyhow::Result<()> {
         if self.topology_store.is_none() {
-            self.topology_store = Some(crate::topology_manager::store::RegistryStore::open_owned(
+            let store = crate::topology_manager::store::RegistryStore::open_owned(
                 self.lock
                     .as_ref()
                     .context("instance lock is missing")?
                     .clone(),
-            )?);
+            )?;
+            // Resolve web receipts that a crash left open, before any other commit. A receipt
+            // error disables web mutations only; it never blocks the registry owner.
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs());
+            self.web_receipts = match crate::topology_manager::web_receipts::Receipts::open(
+                store.owner_directory(),
+            )
+            .and_then(|r| {
+                r.recover(store.document()?)?;
+                r.prune(now)?;
+                Ok(r)
+            }) {
+                Ok(r) => Some(r),
+                Err(error) => {
+                    eprintln!("warning: web receipts unavailable: {error:#}");
+                    None
+                }
+            };
+            self.topology_store = Some(store);
         }
         Ok(())
+    }
+
+    /// API `topology.web.mutate`: run one closed web command once per request key. A repeated
+    /// key with the same actor and command returns the stored receipt and commits nothing.
+    pub fn api_web_mutate(
+        &mut self,
+        key: &str,
+        actor: &str,
+        command: web_contract::topology::WebCommand,
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::web_receipts::Begin;
+        use web_contract::topology::WebCommand as C;
+        self.lock()?;
+        self.open_topology_store()?;
+        let base = self
+            .topology_store
+            .as_ref()
+            .context("registry owner is missing")?
+            .document()?
+            .revision;
+        let receipts = self
+            .web_receipts
+            .as_ref()
+            .context("web receipts are unavailable; web changes are disabled")?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let record = match receipts.begin(key, actor, &command, base, now)? {
+            Begin::Existing(_) => {
+                return self.api_web_operation(key, actor);
+            }
+            Begin::New(record) => record,
+        };
+        self.web_pending = Some(record.clone());
+        let result = match &command {
+            C::PlanCreate {
+                expected_revision,
+                name,
+                down_mbps,
+                up_mbps,
+            } => self.api_plan_create(*expected_revision, name, *down_mbps, *up_mbps),
+            C::PlanUpdate {
+                expected_revision,
+                plan_id,
+                name,
+                down_mbps,
+                up_mbps,
+            } => self.api_plan_update(
+                *expected_revision,
+                plan_id,
+                name.as_deref(),
+                *down_mbps,
+                *up_mbps,
+            ),
+            C::PlanDelete {
+                expected_revision,
+                plan_id,
+            } => self.api_plan_delete(*expected_revision, plan_id),
+            C::SubscriberPlan {
+                expected_revision,
+                identity,
+                plan_id,
+            } => serde_json::from_value(serde_json::json!(identity.kind))
+                .map_err(|_| rule("unknown identity kind".into()))
+                .and_then(|kind| {
+                    self.api_subscriber_plan(
+                        *expected_revision,
+                        crate::topology_manager::model::IdentityRef {
+                            scope: crate::topology_manager::model::SourceScope {
+                                router_id: identity.router_id.clone(),
+                                source_id: identity.source_id.clone(),
+                                kind,
+                            },
+                            account_ref: identity.account_ref.clone(),
+                        },
+                        plan_id.clone(),
+                    )
+                }),
+            C::EditConfirm { proposal_id } => self.api_edit_confirm(proposal_id),
+        };
+        self.web_pending = None;
+        let receipts = self
+            .web_receipts
+            .as_ref()
+            .context("web receipts are unavailable")?;
+        let done = match result {
+            Ok(value) => receipts.finish_saved(
+                &record,
+                value["revision"].as_u64().unwrap_or(base),
+                value["plan_id"]
+                    .as_str()
+                    .or(value["subscriber_id"].as_str())
+                    .map(str::to_owned),
+            )?,
+            // The registry write may have started: decide from the registry, never by guessing.
+            Err(_) if receipts.get(key)?.is_some_and(|r| r.state != record.state) => {
+                self.open_topology_store()?;
+                let doc = self
+                    .topology_store
+                    .as_ref()
+                    .context("registry owner is missing")?
+                    .document()?
+                    .clone();
+                let receipts = self
+                    .web_receipts
+                    .as_ref()
+                    .context("web receipts are unavailable")?;
+                receipts
+                    .lookup(key, actor, &doc)?
+                    .context("the web receipt is missing")?
+            }
+            Err(error) => receipts.finish_failed(&record, &safe_error(&error))?,
+        };
+        Ok(serde_json::to_value(done.view())?)
+    }
+
+    /// API `topology.web.operation`: the receipt of one request key, or `null` for another actor.
+    pub fn api_web_operation(
+        &mut self,
+        key: &str,
+        actor: &str,
+    ) -> anyhow::Result<serde_json::Value> {
+        self.lock()?;
+        self.open_topology_store()?;
+        let doc = self
+            .topology_store
+            .as_ref()
+            .context("registry owner is missing")?
+            .document()?
+            .clone();
+        let receipts = self
+            .web_receipts
+            .as_ref()
+            .context("web receipts are unavailable")?;
+        Ok(match receipts.lookup(key, actor, &doc)? {
+            Some(record) => serde_json::to_value(record.view())?,
+            None => serde_json::Value::Null,
+        })
     }
 
     /// Prepare fresh configured output for preview or enrollment. Do not write or claim a writer.

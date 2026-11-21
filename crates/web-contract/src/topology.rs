@@ -269,3 +269,52 @@ pub enum TopologyReply {
     /// No such subscriber in this snapshot.
     NotFound,
 }
+
+/// The closed set of web mutations. The service maps each one to one existing operation.
+/// The browser never sends an operation name.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WebCommand {
+    PlanCreate {
+        expected_revision: u64,
+        name: String,
+        down_mbps: u64,
+        up_mbps: u64,
+    },
+    /// A field that is `None` keeps its value.
+    PlanUpdate {
+        expected_revision: u64,
+        plan_id: String,
+        name: Option<String>,
+        down_mbps: Option<u64>,
+        up_mbps: Option<u64>,
+    },
+    PlanDelete {
+        expected_revision: u64,
+        plan_id: String,
+    },
+    /// Select (`Some`) or clear (`None`) the local plan of one verified identity.
+    SubscriberPlan {
+        expected_revision: u64,
+        identity: Identity,
+        plan_id: Option<String>,
+    },
+    /// Commit the kept Builder proposal.
+    EditConfirm { proposal_id: String },
+}
+
+/// The durable result of one web mutation, found again by its request key.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WebReceipt {
+    pub key: String,
+    /// `saved`, `not_committed`, `failed`, or `outcome_unknown`.
+    pub state: String,
+    /// The registry revision before the mutation. Decimal string.
+    pub base_revision: String,
+    /// The saved revision. Decimal string. Only for `saved`.
+    pub revision: Option<String>,
+    /// The new plan or subscriber ID, when the operation makes one.
+    pub subject_id: Option<String>,
+    /// A safe reason for `failed`.
+    pub error: Option<String>,
+}

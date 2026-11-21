@@ -13,6 +13,7 @@ pub mod rates;
 pub mod reader;
 pub mod resolver;
 pub mod wan;
+pub mod web_receipts;
 pub mod web_view;
 pub use resolver::rebalance;
 pub mod admission;

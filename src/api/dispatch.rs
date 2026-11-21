@@ -82,13 +82,31 @@ struct SubscriberPlanArgs {
     plan_id: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WebMutateArgs {
+    key: String,
+    actor: String,
+    command: web_contract::topology::WebCommand,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WebOperationArgs {
+    key: String,
+    actor: String,
+}
+
 fn parse<T: serde::de::DeserializeOwned>(request: &Request) -> Result<T, ApiError> {
     serde_json::from_value(request.args.clone())
         .map_err(|e| ApiError::new(ErrorCode::BadRequest, format!("invalid arguments: {e}")))
 }
 
 fn code_of(e: &anyhow::Error) -> ErrorCode {
-    if e.chain().any(|c| c.is::<RevisionConflict>()) {
+    use crate::topology_manager::web_receipts::KeyReused;
+    if e.chain()
+        .any(|c| c.is::<RevisionConflict>() || c.is::<KeyReused>())
+    {
         ErrorCode::Conflict
     } else if e.chain().any(|c| c.is::<InvalidPolicy>()) {
         ErrorCode::Invalid
@@ -183,6 +201,19 @@ where
             runner
                 .api_subscriber_plan(a.expected_revision, identity, a.plan_id)
                 .map_err(fail)
+        }
+        "topology.web.mutate" => {
+            let a: WebMutateArgs = parse(request)?;
+            if !crate::topology_manager::web_receipts::valid_key(&a.key) {
+                return Err(ApiError::new(ErrorCode::BadRequest, "invalid request key"));
+            }
+            runner
+                .api_web_mutate(&a.key, &a.actor, a.command)
+                .map_err(fail)
+        }
+        "topology.web.operation" => {
+            let a: WebOperationArgs = parse(request)?;
+            runner.api_web_operation(&a.key, &a.actor).map_err(fail)
         }
         other => Err(ApiError::new(
             ErrorCode::UnknownOp,

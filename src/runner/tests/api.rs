@@ -418,6 +418,110 @@ mod plans {
             .clone()
     }
 
+    async fn web(r: &mut Runner<FakeConnector>, op: &str, args: Value) -> Value {
+        let req = crate::api::protocol::Request {
+            v: 1,
+            id: "w".into(),
+            op: op.into(),
+            args,
+        };
+        let line = crate::api::dispatch::handle(r, &req).await.unwrap();
+        serde_json::from_str::<Value>(line.trim_end()).unwrap()
+    }
+
+    const KEY1: &str = "0f8b5a3c-1d2e-4f60-9a7b-000000000001";
+    const KEY2: &str = "0f8b5a3c-1d2e-4f60-9a7b-000000000002";
+
+    fn create(revision: u64, name: &str) -> Value {
+        json!({"command": "plan_create", "expected_revision": revision, "name": name,
+               "down_mbps": 100, "up_mbps": 50})
+    }
+
+    #[tokio::test]
+    async fn a_web_mutation_commits_once_per_request_key() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        let args = json!({"key": KEY1, "actor": "alice", "command": create(2, "Web 100")});
+        let first = web(&mut r, "topology.web.mutate", args.clone()).await;
+        assert_eq!(first["ok"], true, "{first}");
+        let receipt = &first["result"];
+        assert_eq!(receipt["state"], "saved");
+        assert_eq!(receipt["base_revision"], "2");
+        assert_eq!(receipt["revision"], "3");
+        assert_eq!(receipt["subject_id"], "plan-1");
+        // A retry after a lost reply gets the same receipt and makes no second commit.
+        let again = web(&mut r, "topology.web.mutate", args).await;
+        assert_eq!(again["result"], *receipt);
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 3);
+        // The same key with another payload is a conflict.
+        let reused = web(
+            &mut r,
+            "topology.web.mutate",
+            json!({"key": KEY1, "actor": "alice", "command": create(3, "Other")}),
+        )
+        .await;
+        assert_eq!(reused["error"]["code"], "conflict", "{reused}");
+        // The receipt lookup is per actor.
+        let found = web(
+            &mut r,
+            "topology.web.operation",
+            json!({"key": KEY1, "actor": "alice"}),
+        )
+        .await;
+        assert_eq!(found["result"], *receipt);
+        let foreign = web(
+            &mut r,
+            "topology.web.operation",
+            json!({"key": KEY1, "actor": "bob"}),
+        )
+        .await;
+        assert_eq!(foreign["result"], Value::Null);
+        // A stale revision gives a durable failed receipt and no commit.
+        let stale = web(
+            &mut r,
+            "topology.web.mutate",
+            json!({"key": KEY2, "actor": "alice", "command": create(2, "Late")}),
+        )
+        .await;
+        assert_eq!(stale["result"]["state"], "failed", "{stale}");
+        assert_eq!(stale["result"]["error"], "conflict");
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 3);
+        // An unknown command is not an operation.
+        let unknown = web(
+            &mut r,
+            "topology.web.mutate",
+            json!({"key": KEY2, "actor": "alice", "command": {"command": "policy_commit"}}),
+        )
+        .await;
+        assert_eq!(unknown["error"]["code"], "bad_request", "{unknown}");
+    }
+
+    #[tokio::test]
+    async fn an_open_intent_resolves_when_the_service_starts_again() {
+        let e = env();
+        let r = enrolled(&e).await;
+        // A crash after the intent and before the commit leaves this record.
+        let receipts = crate::topology_manager::web_receipts::Receipts::open(&e.state).unwrap();
+        let command: web_contract::topology::WebCommand =
+            serde_json::from_value(create(2, "Lost")).unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        receipts.begin(KEY1, "alice", &command, 2, now).unwrap();
+        drop(r);
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let found = web(
+            &mut r,
+            "topology.web.operation",
+            json!({"key": KEY1, "actor": "alice"}),
+        )
+        .await;
+        assert_eq!(found["result"]["state"], "not_committed", "{found}");
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 2);
+    }
+
     #[tokio::test]
     async fn plan_operations_commit_and_return_the_new_revision() {
         let e = env();

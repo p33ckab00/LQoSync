@@ -37,6 +37,9 @@ pub struct RegistryStore {
     history_cleanup_pending: bool,
 }
 
+/// Called on the final document just before the registry write.
+pub type BeforeWrite<'a> = &'a mut dyn FnMut(&RegistryDocument) -> anyhow::Result<()>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CommitOutcome {
     pub revision: u64,
@@ -231,6 +234,24 @@ impl RegistryStore {
         self.commit_inner(expected_revision, candidate, crate::files::write_secret)
     }
 
+    /// `commit`, with `before_write` called on the final document just before the registry write.
+    /// An error from `before_write` stops the commit with no registry change.
+    pub fn commit_observed(
+        &mut self,
+        expected_revision: u64,
+        candidate: RegistryDocument,
+        before_write: BeforeWrite<'_>,
+    ) -> anyhow::Result<CommitOutcome> {
+        super::staging::check_ready(self.owner_directory())?;
+        self.commit_hooked(
+            expected_revision,
+            candidate,
+            crate::files::write_secret,
+            false,
+            Some(before_write),
+        )
+    }
+
     fn commit_inner(
         &mut self,
         expected_revision: u64,
@@ -260,6 +281,17 @@ impl RegistryStore {
         candidate: RegistryDocument,
         write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
         staged: bool,
+    ) -> anyhow::Result<CommitOutcome> {
+        self.commit_hooked(expected_revision, candidate, write, staged, None)
+    }
+
+    fn commit_hooked(
+        &mut self,
+        expected_revision: u64,
+        candidate: RegistryDocument,
+        write: impl FnOnce(&Path, &[u8]) -> anyhow::Result<()>,
+        staged: bool,
+        before_write: Option<BeforeWrite<'_>>,
     ) -> anyhow::Result<CommitOutcome> {
         self._lock.check(self._lock.directory())?;
         let current = self.document()?;
@@ -291,6 +323,9 @@ impl RegistryStore {
         }
         let bytes = serde_json::to_vec(&candidate).context("cannot encode subscriber registry")?;
         let revision = candidate.revision;
+        if let Some(hook) = before_write {
+            hook(&candidate)?;
+        }
         self.backup_current()?;
         // An error can follow rename. Never expose old memory as a confirmed current document.
         self.document = None;
@@ -302,6 +337,16 @@ impl RegistryStore {
             changed: true,
         })
     }
+    /// Test only: the document that a commit of `candidate` would write.
+    #[cfg(test)]
+    pub(crate) fn preview_for_test(
+        &self,
+        expected_revision: u64,
+        candidate: RegistryDocument,
+    ) -> RegistryDocument {
+        self.preview(expected_revision, candidate, false).unwrap()
+    }
+
     pub(super) fn preview(
         &self,
         expected_revision: u64,
