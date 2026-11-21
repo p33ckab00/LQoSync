@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22T04:30+08:00 (Asia/Manila) — Topology canvas Task 5 (pair publication)
+
+- Last agent: Claude Code. Branch `lqosync3`. Commit 1b863c4.
+- Finding: the installed LibreQoS scheduler and lqosd read the pair with no generation gate.
+- Change: `Tracker::write` stages every changed file before it replaces any. `Tracker::load` completes an interrupted pair from verified stages; the service then requests the import.
+- Residual risk: a scheduled LibreQoS read during the microseconds between the two renames. Only a LibreQoS reader gate closes it. Decide this before the Task 7 live window.
+- Checks: workspace tests 1783 pass, clippy clean. Not deployed.
+- Next: Task 3 remainder (blocks Task 6). Task 7 needs an owner live window.
+
 ## 2026-11-22T03:45+08:00 (Asia/Manila) — Topology canvas Tasks 0–4 (first slice)
 
 - Goal: execute the canvas integration plan. Last agent: Claude Code. Branch `lqosync3`.
