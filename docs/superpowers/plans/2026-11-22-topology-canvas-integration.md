@@ -12,7 +12,7 @@ Transfer writer ownership only after shadow and integrity checks pass.
 
 **Spec:** [Canvas design](../../frontend/TOPOLOGY_CANVAS_DESIGN.md) and [integration map](../../frontend/TOPOLOGY_CANVAS_INTEGRATION.md).
 
-Status: planned, not executed. Date: 2026-11-22 (Asia/Manila). Inspected source: `f8898b4` plus current documentation edits.
+Status: in progress. Implementation baseline: `2aa4fb0` (2026-11-22, Claude Code). Baseline manifest: [evidence](../../frontend/evidence/topology-canvas-integration/README.md).
 
 ## Global constraints
 
@@ -45,10 +45,10 @@ Task 6 requires Tasks 2–5. Task 7 requires Task 6. Task 8 requires Task 7 evid
 **Files:** create `docs/frontend/evidence/topology-canvas-integration/README.md`; update this plan with the implementation baseline.
 **Interface:** input is the current build, ownership, source configuration, and existing policy. Output is the evidence manifest.
 
-- [ ] Record source/worktree state, target/source mode, compiler identity, current writer, and deployed binary separately.
-- [ ] Define supported configurations, backup paths, semantic comparison fields, required live events, and observation window.
-- [ ] Identify protected static data and existing external writers before any transfer.
-- [ ] Check the manifest against actual read-only installation evidence. Do not copy fixture names as live facts.
+- [x] Record source/worktree state, target/source mode, compiler identity, current writer, and deployed binary separately.
+- [x] Define supported configurations, backup paths, semantic comparison fields, required live events, and observation window.
+- [x] Identify protected static data and existing external writers before any transfer.
+- [x] Check the manifest against actual read-only installation evidence. Do not copy fixture names as live facts.
 
 ### Task 1: Extend the model and typed canvas contract
 
