@@ -1,0 +1,188 @@
+{
+  "kind": "static-design-checks",
+  "notRuntimeAcceptance": true,
+  "results": [
+    {
+      "screenshot": "builder-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "builder-light.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 5.3608602167306785,
+        "primary": 5.421106716901289,
+        "control": 3.877915293692602,
+        "focus": 5.421106716901289
+      }
+    },
+    {
+      "screenshot": "assignments-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "policies-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "changes-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "review-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "builder-tablet.png",
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "builder-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "builder-320.png",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "assignments-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "policies-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "changes-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "review-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    }
+  ]
+}
