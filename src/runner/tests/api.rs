@@ -496,6 +496,24 @@ mod plans {
         assert_eq!(unknown["error"]["code"], "bad_request", "{unknown}");
     }
 
+    fn web_view(e: &Env) -> web_contract::topology::TopologyView {
+        let path = e.state.join(web_contract::topology::CACHE);
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_commit_and_a_refresh_publish_the_web_view_at_once() {
+        let e = env();
+        let mut r = enrolled(&e).await;
+        r.api_plan_create(2, "Web 100", 100, 50).unwrap();
+        let view = web_view(&e);
+        assert_eq!(view.registry_revision.as_deref(), Some("3"));
+        assert!(view.plans.iter().any(|p| p.name == "Web 100"));
+        r.api_preview_refresh().await.unwrap();
+        let observed = web_view(&e).observed.unwrap();
+        assert_eq!((observed.revision.as_str(), observed.stale), ("3", false));
+    }
+
     #[tokio::test]
     async fn an_open_intent_resolves_when_the_service_starts_again() {
         let e = env();

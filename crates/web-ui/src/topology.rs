@@ -232,7 +232,7 @@ fn Builder(
                 <small>{format!("Read {}",age(now(),r.observed_at))}</small></li>}
             }).collect_view()))}
           </ul>
-          <p class="panel-note">"Discovery is an explicit router read. It arrives with the write release."</p>
+          <Reads session action reload locked/>
         </section>
         <section class="panel" aria-labelledby="tree-title">
           <div class="panel-title">
@@ -506,5 +506,87 @@ fn Changes(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
         </Show>
         <p class="panel-note">"Publication history and per-revision import evidence arrive in a later release."</p>
       </section>
+    }
+}
+
+/// Refresh and discovery. Each button reads the enabled routers once; nothing else does.
+/// A failed read keeps the last good answer beside the error.
+#[component]
+fn Reads(
+    session: RwSignal<Option<Principal>>,
+    action: RwSignal<Option<Change>>,
+    reload: Callback<()>,
+    locked: impl Fn() -> bool + Copy + Send + Sync + 'static,
+) -> impl IntoView {
+    use crate::topology_forms::run_read;
+    let running = RwSignal::new(None::<ReadJob>);
+    let wan = RwSignal::new(None::<Discovery>);
+    let sources = RwSignal::new(None::<Discovery>);
+    let message = RwSignal::new(String::new());
+    let start = move |job: ReadJob| {
+        if running.get_untracked().is_some() {
+            return;
+        }
+        running.set(Some(job));
+        message.set(String::new());
+        leptos::task::spawn_local(async move {
+            match run_read(session, job).await {
+                Ok(op) => match job {
+                    ReadJob::Refresh => {
+                        message.set("Observations refreshed.".into());
+                        reload.run(());
+                    }
+                    ReadJob::Wan => wan.set(op.discovery),
+                    ReadJob::Sources => sources.set(op.discovery),
+                },
+                Err(e) => message.set(format!(
+                    "Read failed: {e} The last good answer stays below."
+                )),
+            }
+            running.set(None);
+        });
+    };
+    let busy = move |job: ReadJob| running.get() == Some(job);
+    view! {
+      <h3>"Router reads"</h3>
+      <p class="panel-note">"Each button reads every enabled router now. Opening this page reads none."</p>
+      <div class="form-actions node-actions">
+        <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Refresh)>
+          {move||if busy(ReadJob::Refresh){"Refreshing…"}else{"Refresh observations"}}</button>
+        <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Wan)>
+          {move||if busy(ReadJob::Wan){"Discovering…"}else{"Discover WAN interfaces"}}</button>
+        <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Sources)>
+          {move||if busy(ReadJob::Sources){"Discovering…"}else{"Discover sources"}}</button>
+      </div>
+      <p role="status" class="field-help">{move||message.get()}</p>
+      {move||wan.get().map(|d|view!{
+        <h3>{format!("WAN interfaces · read {}",age(now(),d.collected_at))}</h3>
+        <ul class="plain-list" aria-label="WAN interfaces">
+          {d.routers.into_iter().map(|r|{
+            if r.state!="ok" {
+              return view!{<li><strong>{r.name.clone()}</strong><span class="chip warn">"Read failed"</span><small>{r.error.clone().unwrap_or_default()}</small></li>}.into_any();
+            }
+            r.candidates.into_iter().map(|c|{
+              let change=Change::CreateWan(r.router_id.clone(),r.name.clone(),c.name.clone());
+              let used=!c.used_by.is_empty();
+              view!{<li><strong>{c.name.clone()}</strong><small>{format!("{} · {}",r.name,if c.running{"running"}else{"not running"})}</small>
+                {if used {view!{<span class="chip neutral">"In use"</span>}.into_any()} else {view!{
+                  <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(change.clone()))>"Create WAN"</button>}.into_any()}}
+              </li>}
+            }).collect_view().into_any()
+          }).collect_view()}
+        </ul>
+      })}
+      {move||sources.get().map(|d|view!{
+        <h3>{format!("New sources · read {}",age(now(),d.collected_at))}</h3>
+        {d.sources.is_empty().then(||view!{<p class="field-help">"No new source was found."</p>})}
+        <ul class="plain-list" aria-label="New sources">
+          {d.sources.into_iter().map(|c|{
+            let change=Change::AddSource(c.key.clone(),c.name.clone());
+            view!{<li><strong>{c.name.clone()}</strong><small>{c.kind.to_uppercase()}</small>
+              <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(change.clone()))>"Add source"</button></li>}
+          }).collect_view()}
+        </ul>
+      })}
     }
 }

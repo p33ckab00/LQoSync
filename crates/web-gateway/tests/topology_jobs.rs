@@ -219,6 +219,20 @@ fn builder_core(dir: &std::path::Path, ttl: u64) -> Arc<tokio::sync::Mutex<Vec<V
                                   {"subscriber_id": "s2", "label": null, "from": "a", "to": "b"}],
                         "cleared": ["s3"], "assigned": 0, "new_records": 0, "sources": ["ppp-a"]}})
                     }
+                    "wan.discover" => json!({"v": 1, "id": v["id"], "ok": true, "result": {
+                        "collected_at": now, "unconfigured": [], "routers": [
+                        {"router_id": "core", "name": "Core", "state": "ok", "error": null, "missing": [],
+                         "candidates": [{"name": "pppoe-out7", "type": "pppoe-out", "running": true,
+                            "disabled": false, "comment": null, "suggested": true, "source_id": null, "used_by": []}]},
+                        {"router_id": "edge", "name": "Edge", "state": "failed", "error": "timeout",
+                         "candidates": [], "missing": []}]}}),
+                    "topology.sources.candidates" => {
+                        json!({"v": 1, "id": v["id"], "ok": true, "result": {
+                        "candidates": [{"key": "access-ppp", "kind": "ppp", "router": "edge",
+                            "name": "PPPoE Edge", "subscribers": null, "rebind": false}]}})
+                    }
+                    "topology.preview.refresh" => json!({"v": 1, "id": v["id"], "ok": true,
+                        "result": {"state": "ok"}}),
                     "topology.web.mutate" => json!({"v": 1, "id": v["id"], "ok": true,
                         "result": {"key": v["args"]["key"], "state": "saved", "base_revision": "2",
                                    "revision": "3", "subject_id": null, "error": null}}),
@@ -343,5 +357,59 @@ async fn a_refused_proposal_shows_the_service_rule() {
     assert_eq!(
         done.error.as_deref(),
         Some("a node with children cannot be removed")
+    );
+}
+
+#[tokio::test]
+async fn explicit_reads_return_their_typed_answers() {
+    use web_contract::topology::{ReadJob, ReadRequest};
+    let dir = tempfile::tempdir().unwrap();
+    let seen = builder_core(dir.path(), 120);
+    let jobs = Jobs::new(dir.path().into());
+    for (i, job) in [ReadJob::Wan, ReadJob::Sources, ReadJob::Refresh]
+        .into_iter()
+        .enumerate()
+    {
+        let key = format!("0f8b5a3c-1d2e-4f60-9a7b-00000000r00{i}");
+        let request = ReadRequest {
+            key: key.clone(),
+            job,
+        };
+        jobs.read("alice", request.clone()).await.unwrap();
+        // A double click returns the same job.
+        jobs.read("alice", request).await.unwrap();
+        let mut done = jobs.status("alice", &key).await;
+        for _ in 0..100 {
+            if done.state != "queued" && done.state != "running" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            done = jobs.status("alice", &key).await;
+        }
+        assert_eq!(done.state, "done", "{job:?}");
+        let d = done.discovery.unwrap_or_default();
+        match job {
+            ReadJob::Wan => {
+                assert_eq!(d.routers.len(), 2);
+                assert_eq!(d.routers[0].candidates[0].name, "pppoe-out7");
+                assert_eq!(d.routers[1].error.as_deref(), Some("timeout"));
+            }
+            ReadJob::Sources => assert_eq!(d.sources[0].key, "access-ppp"),
+            ReadJob::Refresh => assert!(d.routers.is_empty() && d.sources.is_empty()),
+        }
+    }
+    let ops: Vec<String> = seen
+        .lock()
+        .await
+        .iter()
+        .map(|v| v["op"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        ops,
+        [
+            "wan.discover",
+            "topology.sources.candidates",
+            "topology.preview.refresh"
+        ]
     );
 }

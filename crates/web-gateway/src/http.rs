@@ -365,6 +365,22 @@ async fn topology_propose(
     )
     .await
 }
+/// Start one explicit router read (refresh or discovery). Only this POST reads routers.
+async fn topology_reads(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Json(request): Json<web_contract::topology::ReadRequest>,
+) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    queued(
+        &s,
+        &BrokerRequest::TopologyRead {
+            actor: p.username,
+            request,
+        },
+    )
+    .await
+}
 /// Save a reviewed proposal of this account. `410` when it expired or was replaced.
 async fn topology_confirm(
     State(s): State<WebState>,
@@ -597,6 +613,7 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/topology", get(topology))
         .route("/api/v1/topology/mutations", post(topology_mutate))
         .route("/api/v1/topology/proposals", post(topology_propose))
+        .route("/api/v1/topology/reads", post(topology_reads))
         .route(
             "/api/v1/topology/proposals/{key}/confirm",
             post(topology_confirm),

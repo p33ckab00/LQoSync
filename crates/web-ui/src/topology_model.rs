@@ -185,6 +185,10 @@ pub(crate) enum Change {
     Edit(Node),
     Move(Node),
     Remove(Node),
+    /// A WAN node on a discovered interface: router ID, router name, interface name.
+    CreateWan(String, String, String),
+    /// A discovered source: key and name.
+    AddSource(String, String),
 }
 
 /// The form values as typed. The browser checks shape; the service decides every rule.
@@ -211,6 +215,14 @@ impl Draft {
                     ..Self::default()
                 };
             }
+            Change::CreateWan(_, router, interface) => {
+                return Self {
+                    name: format!("{router} {interface}"),
+                    mode: "fixed".into(),
+                    ..Self::default()
+                };
+            }
+            Change::AddSource(..) => return Self::default(),
             Change::Edit(n) | Change::Move(n) | Change::Remove(n) => n,
         };
         let (mode, down, up) = match &node.capacity {
@@ -311,6 +323,35 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
         Change::Remove(n) => BuilderEdit::NodeRemove {
             node_id: n.id.clone(),
         },
+        Change::CreateWan(router_id, _, interface) => {
+            if name.is_empty() {
+                return Err("Enter a WAN name.");
+            }
+            let Capacity::Fixed {
+                down_mbps, up_mbps, ..
+            } = capacity(
+                &Draft {
+                    mode: "fixed".into(),
+                    ..d.clone()
+                },
+                None,
+            )?
+            else {
+                return Err("Enter download and upload as whole Mbps above 0.");
+            };
+            BuilderEdit::WanCreate {
+                router_id: router_id.clone(),
+                endpoint_ref: interface.clone(),
+                name: name.into(),
+                down_mbps,
+                up_mbps,
+                factor_percent: None,
+            }
+        }
+        Change::AddSource(key, _) => BuilderEdit::SourceAdd {
+            key: key.clone(),
+            parent,
+        },
     })
 }
 
@@ -379,6 +420,33 @@ mod tests {
         );
         d.parent = "g1".into();
         assert!(build_edit(&mv, &d).is_err());
+        let wan = Change::CreateWan("lq3-c1".into(), "Core".into(), "pppoe-out7".into());
+        let mut d = Draft::of(&wan);
+        assert_eq!(d.name, "Core pppoe-out7");
+        assert!(build_edit(&wan, &d).is_err(), "rates are required");
+        d.down = "500".into();
+        d.up = "100".into();
+        assert_eq!(
+            build_edit(&wan, &d),
+            Ok(BuilderEdit::WanCreate {
+                router_id: "lq3-c1".into(),
+                endpoint_ref: "pppoe-out7".into(),
+                name: "Core pppoe-out7".into(),
+                down_mbps: 500,
+                up_mbps: 100,
+                factor_percent: None,
+            })
+        );
+        let add = Change::AddSource("access-ppp".into(), "PPPoE Edge".into());
+        let mut d = Draft::of(&add);
+        d.parent = "wan1".into();
+        assert_eq!(
+            build_edit(&add, &d),
+            Ok(BuilderEdit::SourceAdd {
+                key: "access-ppp".into(),
+                parent: Some("wan1".into())
+            })
+        );
         assert_eq!(
             build_edit(&Change::Remove(g), &Draft::default()),
             Ok(BuilderEdit::NodeRemove {

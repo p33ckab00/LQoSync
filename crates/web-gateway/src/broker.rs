@@ -110,6 +110,11 @@ pub enum Request {
         actor: String,
         proposal: String,
     },
+    /// One explicit router read: refresh or discovery.
+    TopologyRead {
+        actor: String,
+        request: web_contract::topology::ReadRequest,
+    },
 }
 #[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
@@ -343,6 +348,9 @@ pub async fn serve(
                             &mut reply,
                             jobs.confirm(&actor, &proposal, &key).await,
                         );
+                    }
+                    Request::TopologyRead { actor, request } => {
+                        crate::topology_jobs::answer(&mut reply, jobs.read(&actor, request).await);
                     }
                     Request::TopologyCancel { actor, proposal } => {
                         reply.ok = jobs.cancel(&actor, &proposal).await;

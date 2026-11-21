@@ -342,6 +342,70 @@ pub struct Operation {
     /// A safe reason when the service refused the request.
     #[serde(default)]
     pub error: Option<String>,
+    /// The answer of a discovery job (`done`).
+    #[serde(default)]
+    pub discovery: Option<Discovery>,
+}
+
+/// An explicit read that contacts the enabled routers. No GET starts one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadJob {
+    /// Read the subscriber sources and cache a new preview.
+    Refresh,
+    /// Read the router interfaces that can be WAN endpoints.
+    Wan,
+    /// Read the subscriber sources that the policy does not hold yet.
+    Sources,
+}
+
+/// `POST /api/v1/topology/reads`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadRequest {
+    pub key: String,
+    pub job: ReadJob,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Discovery {
+    pub collected_at: u64,
+    /// WAN discovery: one entry per configured router, with its own state.
+    pub routers: Vec<DiscoveredRouter>,
+    /// Source discovery: sources that the policy can add.
+    pub sources: Vec<SourceCandidate>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiscoveredRouter {
+    pub router_id: String,
+    pub name: String,
+    /// `ok` or `failed`. A failed router keeps its own error.
+    pub state: String,
+    pub error: Option<String>,
+    pub candidates: Vec<WanCandidate>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WanCandidate {
+    /// The interface name; `wan.create` uses it as the endpoint reference.
+    pub name: String,
+    pub kind: String,
+    pub running: bool,
+    pub disabled: bool,
+    pub suggested: bool,
+    /// WAN nodes that already use this endpoint.
+    pub used_by: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceCandidate {
+    pub key: String,
+    pub kind: String,
+    pub router: String,
+    pub name: String,
+    /// The source exists and changes its binding.
+    pub rebind: bool,
 }
 
 /// The Builder edits that the web can propose. The JSON is the service `Edit` form.
@@ -375,6 +439,19 @@ pub enum BuilderEdit {
     },
     #[serde(rename = "node.remove")]
     NodeRemove { node_id: String },
+    /// A WAN node on an interface from the latest WAN discovery of the service.
+    #[serde(rename = "wan.create")]
+    WanCreate {
+        router_id: String,
+        endpoint_ref: String,
+        name: String,
+        down_mbps: u64,
+        up_mbps: u64,
+        factor_percent: Option<[u64; 2]>,
+    },
+    /// One source from the latest source discovery, under `parent`.
+    #[serde(rename = "source.add")]
+    SourceAdd { key: String, parent: Option<String> },
 }
 
 /// `POST /api/v1/topology/proposals`. `key` names the proposal for its actor only.

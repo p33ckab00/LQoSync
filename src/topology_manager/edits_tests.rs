@@ -1286,6 +1286,18 @@ fn every_web_builder_edit_is_a_service_edit() {
         B::NodeRemove {
             node_id: "group1".into(),
         },
+        B::WanCreate {
+            router_id: "core".into(),
+            endpoint_ref: "pppoe-out7".into(),
+            name: "WAN 7".into(),
+            down_mbps: 500,
+            up_mbps: 100,
+            factor_percent: None,
+        },
+        B::SourceAdd {
+            key: "access-ppp".into(),
+            parent: Some("wan1".into()),
+        },
     ];
     for edit in edits {
         let wire = serde_json::to_value(&edit).unwrap();

@@ -132,6 +132,30 @@ const fs=require('node:fs');
       'POST http://127.0.0.1:19581/api/v1/topology/proposals',
       'POST http://127.0.0.1:19581/api/v1/topology/proposals/KEY/confirm',
     ]);
+    // Explicit reads: WAN discovery lists each router with its own state; a free interface
+    // opens Create WAN, which goes through the same review and save.
+    await page.getByRole('button',{name:'Discover WAN interfaces'}).click();
+    const wans=page.getByRole('list',{name:'WAN interfaces'});
+    await wans.waitFor({timeout:15000});
+    const wanText=await wans.innerText();
+    assert.match(wanText,/pppoe-out1[\s\S]*In use/);
+    assert.match(wanText,/Access-02[\s\S]*Read failed[\s\S]*the router did not answer/);
+    await wans.getByRole('button',{name:'Create WAN'}).click();
+    const wanDialog=page.getByRole('dialog',{name:'Create WAN on Core-01 pppoe-out3'});
+    await wanDialog.getByLabel('Download, Mbps').fill('500');
+    await wanDialog.getByLabel('Upload, Mbps').fill('100');
+    await wanDialog.getByRole('button',{name:'Review change'}).click();
+    await wanDialog.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
+    await page.keyboard.press('Escape');
+    await wanDialog.waitFor({state:'hidden'});
+    await page.getByRole('button',{name:'Discover sources'}).click();
+    const found=page.getByRole('list',{name:'New sources'});
+    await found.getByText('Hotspot Access-01').waitFor({timeout:15000});
+    await page.getByRole('button',{name:'Refresh observations'}).click();
+    await page.getByText('Observations refreshed.').waitFor({timeout:15000});
+    const reads=writes.filter(w=>w.endsWith('/api/v1/topology/reads')).length;
+    assert.equal(reads,3,'one read POST per click');
+
     // Remove: review, then Back cancels the kept proposal.
     await page.getByRole('list',{name:'Topology nodes'}).getByRole('button',{name:/DHCP access/}).click();
     await page.getByRole('button',{name:'Remove node'}).click();

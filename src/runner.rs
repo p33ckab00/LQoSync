@@ -604,6 +604,28 @@ where
         }))
     }
 
+    /// Write the web Topology view: registry, cached preview, and the last collection. No router
+    /// I/O. The cycle, each registry commit, and each preview refresh call it.
+    fn publish_web_view(&mut self, now: u64) {
+        let doc = self.api_document().ok().flatten();
+        let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
+        let view =
+            crate::topology_manager::web_view::project(&crate::topology_manager::web_view::Input {
+                doc: doc.as_ref(),
+                preview: self.last_preview.as_ref(),
+                collection: self.collection.as_ref(),
+                mode: &mode,
+                writer: self.writer(),
+                cycle_seq: self.cycle_seq,
+                now,
+                fresh_for: self.collection.as_ref().map_or(300, |c| c.fresh_for),
+            });
+        let state_dir = Path::new(&self.cfg.runtime.state_dir);
+        if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
+            eprintln!("warning: cannot write topology.json: {error:#}");
+        }
+    }
+
     /// The shaping writer: `topology`, `legacy`, or `unknown` when the claim cannot be read.
     fn writer(&self) -> &'static str {
         match crate::topology_manager::runtime::topology_owns(Path::new(
@@ -1295,6 +1317,7 @@ where
             },
         };
         self.last_preview = Some(value.clone());
+        self.publish_web_view(collected_at);
         Ok(value)
     }
 
@@ -1421,7 +1444,15 @@ where
             _ => store.commit(expected_revision, candidate),
         };
         match committed {
-            Ok(outcome) => Ok((outcome.revision, out)),
+            Ok(outcome) => {
+                if outcome.changed {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0, |d| d.as_secs());
+                    self.publish_web_view(now);
+                }
+                Ok((outcome.revision, out))
+            }
             Err(e) => {
                 self.topology_store = None;
                 Err(e)
@@ -2243,25 +2274,9 @@ where
         if let Err(error) = crate::router_view::publish(state_dir, &inventory) {
             eprintln!("warning: cannot write routers.json: {error:#}");
         }
-        // The web Topology view: registry, cached preview, and this collection. No router I/O.
-        let doc = self.api_document().ok().flatten();
-        let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
-        let view =
-            crate::topology_manager::web_view::project(&crate::topology_manager::web_view::Input {
-                doc: doc.as_ref(),
-                preview: self.last_preview.as_ref(),
-                collection: Some(&collection),
-                mode: &mode,
-                writer: self.writer(),
-                cycle_seq: self.cycle_seq,
-                now,
-                fresh_for: collection.fresh_for,
-            });
-        if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
-            eprintln!("warning: cannot write topology.json: {error:#}");
-        }
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
+        self.publish_web_view(now);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
         if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {
             eprintln!("warning: cannot write snapshot.json: {e:#}");

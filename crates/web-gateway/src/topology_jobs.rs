@@ -13,7 +13,8 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Mutex, Semaphore};
 use web_contract::topology::{
-    Moved, Node, NodeChange, Operation, ProposalRequest, Review, WebCommand, WebReceipt,
+    DiscoveredRouter, Discovery, Moved, Node, NodeChange, Operation, ProposalRequest, ReadJob,
+    ReadRequest, Review, SourceCandidate, WanCandidate, WebCommand, WebReceipt,
 };
 
 /// Queued and running mutations at one time, for all actors.
@@ -91,6 +92,7 @@ fn op(key: &str, state: &str, receipt: Option<WebReceipt>) -> Operation {
         receipt,
         review: None,
         error: None,
+        discovery: None,
     }
 }
 
@@ -219,6 +221,47 @@ fn review(key: &str, base: u64, v: &serde_json::Value, current: &[Node]) -> Revi
         sources: list("sources"),
         nodes,
         warnings: list("warnings"),
+    }
+}
+
+/// The typed answer of one discovery. Unknown fields stay out; missing fields become empty.
+fn discovery(v: &serde_json::Value) -> Discovery {
+    let text = |x: &serde_json::Value| x.as_str().unwrap_or_default().to_owned();
+    let flag = |x: &serde_json::Value| x.as_bool().unwrap_or(false);
+    let items = |x: &serde_json::Value| x.as_array().cloned().unwrap_or_default();
+    Discovery {
+        // Source discovery has no time of its own; the read finished now.
+        collected_at: v["collected_at"].as_u64().unwrap_or_else(unix_now),
+        routers: items(&v["routers"])
+            .iter()
+            .map(|r| DiscoveredRouter {
+                router_id: text(&r["router_id"]),
+                name: text(&r["name"]),
+                state: text(&r["state"]),
+                error: r["error"].as_str().map(|e| e.chars().take(300).collect()),
+                candidates: items(&r["candidates"])
+                    .iter()
+                    .map(|c| WanCandidate {
+                        name: text(&c["name"]),
+                        kind: text(&c["type"]),
+                        running: flag(&c["running"]),
+                        disabled: flag(&c["disabled"]),
+                        suggested: flag(&c["suggested"]),
+                        used_by: items(&c["used_by"]).iter().map(text).collect(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+        sources: items(&v["candidates"])
+            .iter()
+            .map(|c| SourceCandidate {
+                key: text(&c["key"]),
+                kind: text(&c["kind"]),
+                router: text(&c["router"]),
+                name: text(&c["name"]),
+                rebind: flag(&c["rebind"]),
+            })
+            .collect(),
     }
 }
 
@@ -383,6 +426,40 @@ impl Jobs {
                 Err(_) => State::Done(Box::new(op(&request.key, "failed", None))),
             };
             this.set(&request.key, state).await;
+        });
+        Ok(op(&key, "queued", None))
+    }
+
+    /// Start one explicit router read. The answer arrives on the operation (`done`).
+    pub async fn read(&self, actor: &str, request: ReadRequest) -> Result<Operation, Refused> {
+        let key = request.key.clone();
+        let payload = serde_json::to_value(&request).map_err(|_| Refused::Invalid)?;
+        if let Some(known) = self.admit(actor, &key, payload).await? {
+            return Ok(known);
+        }
+        let this = self.clone();
+        tokio::spawn(async move {
+            let _lane = this.lane.acquire().await;
+            this.set(&request.key, State::Running).await;
+            let operation = match request.job {
+                ReadJob::Refresh => "topology.preview.refresh",
+                ReadJob::Wan => "wan.discover",
+                ReadJob::Sources => "topology.sources.candidates",
+            };
+            let failed = |error: Option<String>| Operation {
+                error,
+                ..op(&request.key, "failed", None)
+            };
+            let state = match call(&this.root, operation, serde_json::json!({}), MUTATE_LIMIT).await
+            {
+                Ok(v) => Operation {
+                    discovery: (request.job != ReadJob::Refresh).then(|| discovery(&v)),
+                    ..op(&request.key, "done", None)
+                },
+                Err(CallError::Refused(error)) => failed(error),
+                Err(_) => failed(Some("The service did not answer the read.".into())),
+            };
+            this.set(&request.key, State::Done(Box::new(state))).await;
         });
         Ok(op(&key, "queued", None))
     }

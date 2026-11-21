@@ -83,6 +83,29 @@ fn title(action: &Change) -> String {
         Change::Edit(n) => format!("Edit {}", n.name),
         Change::Move(n) => format!("Move {}", n.name),
         Change::Remove(n) => format!("Remove {}", n.name),
+        Change::CreateWan(_, router, interface) => format!("Create WAN on {router} {interface}"),
+        Change::AddSource(_, name) => format!("Add source {name}"),
+    }
+}
+
+/// Run one explicit router read and wait for its answer.
+pub(crate) async fn run_read(
+    session: RwSignal<Option<Principal>>,
+    job: ReadJob,
+) -> Result<Operation, String> {
+    let request = ReadRequest {
+        key: new_key(),
+        job,
+    };
+    post(session, "/api/v1/topology/reads", &request)
+        .await
+        .map_err(str::to_owned)?;
+    let op = settle(session, &request.key).await.map_err(str::to_owned)?;
+    match op.state.as_str() {
+        "done" => Ok(op),
+        _ => Err(op
+            .error
+            .unwrap_or("The read did not finish. Check the router state and try again.".into())),
     }
 }
 
@@ -355,6 +378,23 @@ fn fields(
         .into_any(),
         Change::Remove(n) => view! {
           <p>{format!("Remove {} from the topology. The service refuses this when the node still has children or sources.", n.name)}</p>
+        }
+        .into_any(),
+        Change::CreateWan(..) => view! {
+          <div class="field"><label for="change-name">"Name"</label>
+            <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>
+          <p class="field-help">"The WAN capacity is the contracted rate of this uplink."</p>
+          <div class="field-row">
+            <div class="field"><label for="change-down">"Download, Mbps"</label>
+              <input id="change-down" type="number" inputmode="numeric" min="1" step="1" required prop:value=text(|d|d.down.clone()) on:input=set(|d,v|d.down=v)/></div>
+            <div class="field"><label for="change-up">"Upload, Mbps"</label>
+              <input id="change-up" type="number" inputmode="numeric" min="1" step="1" required prop:value=text(|d|d.up.clone()) on:input=set(|d,v|d.up=v)/></div>
+          </div>
+        }
+        .into_any(),
+        Change::AddSource(..) => view! {
+          <p>"The service reads the routers again for this source. The review shows the subscribers that it places."</p>
+          {parent_select(None)}
         }
         .into_any(),
     }

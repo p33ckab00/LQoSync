@@ -371,6 +371,16 @@ async fn main() -> anyhow::Result<()> {
                     "base_revision": "42", "revision": "43", "subject_id": null, "error": null}),
                 ),
                 "topology.edit.cancel" => Some(serde_json::json!({})),
+                "topology.preview.refresh" => Some(serde_json::json!({"state": "ok"})),
+                "wan.discover" => Some(
+                    serde_json::json!({"collected_at": broker::now(), "unconfigured": [], "routers": [
+                    {"router_id":"lq3-00000000000000c1","name":"Core-01","state":"ok","error":null,"missing":[],
+                     "candidates":[{"name":"pppoe-out3","type":"pppoe-out","running":true,"disabled":false,"comment":null,"suggested":true,"source_id":null,"used_by":[]},
+                                   {"name":"pppoe-out1","type":"pppoe-out","running":true,"disabled":false,"comment":null,"suggested":true,"source_id":"wan-north","used_by":["WAN North"]}]},
+                    {"router_id":"lq3-00000000000000a2","name":"Access-02","state":"failed","error":"the router did not answer","missing":[],"candidates":[]}]}),
+                ),
+                "topology.sources.candidates" => Some(serde_json::json!({"candidates": [
+                    {"key":"src-hotspot-a1","kind":"hotspot","router":"lq3-00000000000000a1","name":"Hotspot Access-01","subscribers":null,"rebind":false}]})),
                 "topology.web.operation" => Some(serde_json::Value::Null),
                 _ => None,
             };
