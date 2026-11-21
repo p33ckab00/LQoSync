@@ -263,7 +263,7 @@ fn Builder(
     use crate::topology_forms::{ChangeDialog, blocked};
     let selected = RwSignal::new(None::<String>);
     let action = RwSignal::new(None::<Change>);
-    let locked = move || blocked(data).is_some();
+    let locked = move || crate::topology_forms::structural_blocked(data).is_some();
     let query = RwSignal::new(String::new());
     let collapsed = RwSignal::new(std::collections::HashSet::<String>::new());
     let forest = Memo::new(move |_| {
@@ -324,20 +324,27 @@ fn Builder(
           <div class="panel-title">
             <h2 id="tree-title">"Topology tree"</h2>
             <div class="node-actions form-actions">
-              <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Rebalance(None,"all sources".into())))>"Rebalance all"</button>
+              <button type="button" class="quiet" disabled=move||blocked(data).is_some() on:click=move|_|action.set(Some(Change::Rebalance(None,"all sources".into())))>"Rebalance all"</button>
               <button type="button" class="primary" disabled=locked on:click=move|_|action.set(Some(Change::Create))>"Create node"</button>
             </div>
           </div>
+          <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.frontend_initialized && !s.nodes.is_empty()))>
+            <p class="panel-note">"Existing saved policy. Opening this page does not create or import nodes."</p>
+          </Show>
           <div class="hierarchy-toolbar">
             <label class="hierarchy-search">"Find a node"<input type="search" placeholder="Node name or type…" prop:value=move||query.get() on:input=move|ev|query.set(event_target_value(&ev))/></label>
             <button type="button" class="quiet" on:click=move|_|collapsed.set(std::collections::HashSet::new())>"Expand all"</button>
             <button type="button" class="quiet" on:click=move|_|collapsed.set(data.with(|d|d.as_ref().map(|s|s.nodes.iter().filter(|n|s.nodes.iter().any(|c|c.parent.as_deref()==Some(n.id.as_str()))).map(|n|n.id.clone()).collect()).unwrap_or_default()))>"Collapse all"</button>
           </div>
+          {move||crate::topology_forms::structural_blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
+          <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.nodes.is_empty()))
+            fallback=move||view!{<div class="router-empty"><p>"No topology nodes. Build the hierarchy from this workspace."</p>
+              <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.frontend_initialized && !s.enrolled && s.writer=="legacy" && s.nodes.is_empty() && s.sources.is_empty()))>
+                <button type="button" class="primary" on:click=move|_|action.set(Some(Change::Initialize))>"Start empty topology"</button>
+              </Show></div>}>
           <div class="network-root"><strong>"Network"</strong><span>{move||data.with(|d|d.as_ref().map(|s|format!("{} WANs · {} active subscribers",s.nodes.iter().filter(|n|n.kind=="wan").count(),s.subscribers_active)))}</span></div>
           <div class="tree-labels"><span>"Node / policy"</span><span>"Down / Up Mbps"</span><span>"Members"</span></div>
-          {move||blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
-          <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.nodes.is_empty()))
-            fallback=||view!{<p class="router-empty">"No topology nodes. Enroll a topology policy to build the tree."</p>}>
+
             <ul class="topology-tree" aria-label="Topology nodes">
               {move||forest.get().into_iter().map(|branch|branch_view(branch,selected,collapsed,matches,searching)).collect_view()}
             </ul>
@@ -365,6 +372,10 @@ fn Builder(
                 <div><dt>"Exported capacity"</dt><dd>{mbps(n.exported_mbps)}</dd></div>
                 <div><dt>"Direct subscribers"</dt><dd>{n.members.map(|m|m.to_string()).unwrap_or("No preview".into())}</dd></div>
               </dl>
+              {n.source_id.as_ref().map(|source| {
+                let names=data.with(|d|d.as_ref().map(|s|shared_parent_names(&s.nodes,source)).unwrap_or_default());
+                view!{<p class="panel-note">{format!("Source placements: {}. Each subscriber has one effective placement.",names.join(", "))}</p>}
+              })}
               {n.alias.then(||view!{<p class="panel-note">"This node keeps an adopted legacy name."</p>})}
               {
                 let (e,m,r,child)=(n.clone(),n.clone(),n.clone(),n.id.clone());
@@ -373,9 +384,14 @@ fn Builder(
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Edit(e.clone())))>"Edit node"</button>
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Move(m.clone())))>"Move"</button>
                   <button type="button" class="quiet danger" disabled=locked on:click=move|_|action.set(Some(Change::Remove(r.clone())))>"Remove node"</button>
+                  {(n.kind=="group" && n.source_id.is_some()).then(||{
+                    let candidate=n.clone();
+                    let available=data.with(|d|d.as_ref().is_some_and(|s|!additional_parents(&s.nodes,&n).is_empty()));
+                    view!{<button type="button" class="quiet" disabled=move||locked()||!available on:click=move|_|action.set(Some(Change::AddParent(candidate.clone())))>"Add parent"</button>}
+                  })}
                   {(n.kind=="group").then(||n.source_id.clone()).flatten().map(|source|{
                     let change=Change::Rebalance(Some(source),n.name.clone());
-                    view!{<button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(change.clone()))>"Rebalance source"</button>}
+                    view!{<button type="button" class="quiet" disabled=move||blocked(data).is_some() on:click=move|_|action.set(Some(change.clone()))>"Rebalance source"</button>}
                   })}
                 </div>}
               }

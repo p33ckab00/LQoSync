@@ -54,6 +54,13 @@ pub struct RegistryDocument {
     pub catalog: Option<super::catalog::TopologyCatalog>,
     pub source_settings: Option<super::settings::SourceSettings>,
     pub export_ownership: Option<super::ownership::ExportOwnership>,
+    /// The operator explicitly created this policy in the frontend Builder.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub frontend_initialized: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl Default for RegistryDocument {
@@ -66,6 +73,7 @@ impl Default for RegistryDocument {
             catalog: None,
             source_settings: None,
             export_ownership: None,
+            frontend_initialized: false,
         }
     }
 }

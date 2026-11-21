@@ -5,10 +5,28 @@ Date: 2026-11-21 (Asia/Manila).
 ## Design and workflow
 
 The Builder follows the documented Inventory / Topology tree / Details reference.
-The hierarchy uses nested lists, branch controls, a synthetic Network root, and readable parent/source labels.
+The hierarchy uses nested lists, branch controls, a Network heading for saved nodes, and readable parent/source labels.
 Search reveals matching nodes and their ancestors. Clear search to restore the previous branch state.
 Select a node to add a child, edit, move, or review removal.
 Attach an existing source to add another instance beneath an explicit parent.
+
+A fresh installation shows no topology nodes or Network heading.
+Select **Start empty topology**, review the empty candidate, and save it.
+This creates a frontend draft with configured routers available for discovery.
+It imports no source, node, subscriber, assignment, or shaping file.
+The frontend can then create WANs, create structural nodes, and attach selected sources before enrollment.
+Subscriber rules and rebalancing still require enrollment. Publication still requires admitted writer activation.
+Opening the page and cancelling a review create no registry.
+Existing saved policies stay visible and have an explicit label. Initialization cannot replace them.
+
+Select a subscriber group and use **Add parent** to place its shared source under another WAN or intermediate node.
+The new placement has its own stable node ID. The original placement retains its parent.
+The parent list excludes placements already used by that source. The service also rejects duplicate source/parent pairs.
+Each exported queue node has one parent. Each subscriber has one effective placement and one exported circuit.
+WAN nodes remain roots; the export hierarchy remains a tree.
+
+The `frontend_initialized` registry marker is omitted when false, so existing registry serialization stays unchanged.
+A registry initialized with the new marker requires the updated binary. Preserve the pre-update registry for rollback.
 
 The service still reviews each policy edit before confirmation.
 

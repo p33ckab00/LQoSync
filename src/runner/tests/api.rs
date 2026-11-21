@@ -41,6 +41,133 @@ mod operations {
     }
 
     #[tokio::test]
+    async fn frontend_initialize_requires_confirmation_and_builds_without_live_io() {
+        use crate::topology_manager::edits::{CapacityInput, Edit};
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let shaped_before = read(&e.lqos.join("ShapedDevices.csv"));
+        let network_before = read(&e.lqos.join("network.json"));
+        assert!(r.api_registry().unwrap().is_none());
+        let proposal = r.api_edit_propose(0, Edit::Initialize).await.unwrap();
+        assert_eq!(proposal["nodes"], json!([]));
+        assert!(r.api_registry().unwrap().is_none());
+        assert!(!e.state.join("topology-manager/registry.json").exists());
+        r.api_edit_cancel(proposal["proposal_id"].as_str().unwrap())
+            .unwrap();
+        assert!(r.api_registry().unwrap().is_none());
+        let proposal = r.api_edit_propose(0, Edit::Initialize).await.unwrap();
+        let command = web_contract::topology::WebCommand::EditConfirm {
+            proposal_id: proposal["proposal_id"].as_str().unwrap().into(),
+        };
+        let receipt = r
+            .api_web_mutate("frontend-init-0001", "operator", command.clone())
+            .unwrap();
+        let repeated = r
+            .api_web_mutate("frontend-init-0001", "operator", command)
+            .unwrap();
+        assert_eq!(receipt, repeated);
+        let doc = r.api_registry().unwrap().unwrap();
+        assert_eq!(doc.revision, 1);
+        assert!(doc.frontend_initialized);
+        assert!(doc.catalog.as_ref().unwrap().nodes.is_empty());
+        assert!(doc.catalog.as_ref().unwrap().sources.is_empty());
+        assert!(doc.subscribers.is_empty() && doc.export_ownership.is_none());
+        assert!(r.api_edit_propose(1, Edit::Initialize).await.is_err());
+        let proposal = r
+            .api_edit_propose(
+                1,
+                Edit::NodeCreate {
+                    name: "Distribution".into(),
+                    parent: None,
+                    node_kind: None,
+                    capacity: CapacityInput::Fixed {
+                        down_mbps: 100,
+                        up_mbps: 50,
+                        factor_percent: None,
+                    },
+                },
+            )
+            .await
+            .unwrap();
+        r.api_edit_confirm(proposal["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let doc = r.api_registry().unwrap().unwrap();
+        assert_eq!(doc.catalog.unwrap().nodes.len(), 1);
+        assert!(doc.subscribers.is_empty() && doc.export_ownership.is_none());
+        assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert_eq!(read(&e.lqos.join("ShapedDevices.csv")), shaped_before);
+        assert_eq!(read(&e.lqos.join("network.json")), network_before);
+    }
+
+    #[tokio::test]
+    async fn frontend_initialized_discovery_is_inventory_and_attach_keeps_subscribers_unassigned() {
+        use crate::topology_manager::edits::Edit;
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let p = r.api_edit_propose(0, Edit::Initialize).await.unwrap();
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let available = r.api_source_candidates().await.unwrap();
+        let key = available["candidates"][0]["key"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let unchanged = r.api_registry().unwrap().unwrap();
+        assert!(unchanged.catalog.as_ref().unwrap().nodes.is_empty());
+        assert!(unchanged.catalog.as_ref().unwrap().sources.is_empty());
+        let p = r
+            .api_edit_propose(
+                1,
+                Edit::SourceAdd {
+                    key: key.clone(),
+                    parent: None,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(p["new_records"], 0);
+        assert!(
+            r.api_registry()
+                .unwrap()
+                .unwrap()
+                .catalog
+                .unwrap()
+                .nodes
+                .is_empty()
+        );
+        r.api_edit_confirm(p["proposal_id"].as_str().unwrap())
+            .unwrap();
+        let doc = r.api_registry().unwrap().unwrap();
+        let c = doc.catalog.unwrap();
+        assert_eq!(c.sources.len(), 1);
+        assert_eq!(c.sources[0].id, key);
+        assert_eq!(c.nodes.len(), 1);
+        assert!(c.nodes[0].parent.is_none());
+        assert!(doc.subscribers.is_empty() && doc.export_ownership.is_none());
+    }
+
+    #[tokio::test]
+    async fn frontend_initialize_refuses_an_active_writer_at_preview_and_confirm() {
+        use crate::topology_manager::edits::Edit;
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let proposal = r.api_edit_propose(0, Edit::Initialize).await.unwrap();
+        r.open_topology_store().unwrap();
+        crate::files::write_secret(
+            &e.state.join("topology-manager/runtime-owner.json"),
+            br#"{"schema_version":1,"writer":"topology"}"#,
+        )
+        .unwrap();
+        assert!(
+            r.api_edit_confirm(proposal["proposal_id"].as_str().unwrap())
+                .is_err()
+        );
+        assert!(r.api_edit_propose(0, Edit::Initialize).await.is_err());
+        let doc = r.api_registry().unwrap().unwrap();
+        assert!(doc.catalog.is_none() && !doc.frontend_initialized);
+    }
+
+    #[tokio::test]
     async fn status_reports_the_legacy_writer_without_an_owner_file() {
         let e = env();
         let mut r = runner(&e, setup(&e, None));

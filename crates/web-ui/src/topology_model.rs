@@ -109,6 +109,47 @@ pub(crate) fn kind_label(kind: &str) -> &'static str {
     }
 }
 
+/// One logical source may have several queue placements, each with one export parent.
+pub(crate) fn shared_parent_names(nodes: &[Node], source: &str) -> Vec<String> {
+    let mut names: Vec<_> = nodes
+        .iter()
+        .filter(|n| n.source_id.as_deref() == Some(source))
+        .map(|n| {
+            n.parent
+                .as_ref()
+                .map(|id| {
+                    nodes
+                        .iter()
+                        .find(|p| p.id == *id)
+                        .map(|p| p.name.clone())
+                        .unwrap_or(id.clone())
+                })
+                .unwrap_or("Network".into())
+        })
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+pub(crate) fn additional_parents(nodes: &[Node], node: &Node) -> Vec<(String, String)> {
+    let Some(source) = node.source_id.as_deref() else {
+        return Vec::new();
+    };
+    let used: std::collections::HashSet<_> = nodes
+        .iter()
+        .filter(|n| n.source_id.as_deref() == Some(source))
+        .filter_map(|n| n.parent.as_deref())
+        .collect();
+    nodes
+        .iter()
+        .filter(|n| {
+            matches!(n.kind.as_str(), "wan" | "intermediate") && !used.contains(n.id.as_str())
+        })
+        .map(|n| (n.id.clone(), n.name.clone()))
+        .collect()
+}
+
 pub(crate) fn capacity_label(c: &Capacity) -> String {
     match c {
         Capacity::Inherit => "Inherit from parent".into(),
@@ -299,9 +340,11 @@ pub(crate) fn publication_labels(
 /// One Builder action on the selected node, or a new node.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Change {
+    Initialize,
     Create,
     CreateChild(String),
     AttachSource(String, String, Option<String>),
+    AddParent(Node),
     Edit(Node),
     Move(Node),
     Remove(Node),
@@ -372,6 +415,7 @@ impl Draft {
                     ..Self::default()
                 };
             }
+            Change::AddParent(_) => return Self::default(),
             Change::CreateWan(_, router, interface) => {
                 return Self {
                     name: format!("{router} {interface}"),
@@ -379,7 +423,10 @@ impl Draft {
                     ..Self::default()
                 };
             }
-            Change::AddSource(..) | Change::CreatePlan | Change::Rebalance(..) => {
+            Change::Initialize
+            | Change::AddSource(..)
+            | Change::CreatePlan
+            | Change::Rebalance(..) => {
                 return Self::default();
             }
             Change::EditPlan(p) | Change::DeletePlan(p) => {
@@ -494,6 +541,7 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
     let name = d.name.trim();
     let parent = (!d.parent.is_empty()).then(|| d.parent.clone());
     Ok(match action {
+        Change::Initialize => BuilderEdit::Initialize,
         Change::Create | Change::CreateChild(_) => {
             if name.is_empty() {
                 return Err("Enter a node name.");
@@ -569,6 +617,20 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
             parent,
             name: None,
         },
+        Change::AddParent(node) => {
+            let source_id = node
+                .source_id
+                .clone()
+                .ok_or("This node has no shared subscriber source.")?;
+            if parent.is_none() {
+                return Err("Select an additional parent.");
+            }
+            BuilderEdit::InstanceAdd {
+                source_id,
+                parent,
+                name: None,
+            }
+        }
         Change::CreatePlan | Change::EditPlan(_) => {
             if name.is_empty() {
                 return Err("Enter a plan name.");
@@ -1069,6 +1131,47 @@ mod tests {
                 name: None
             }
         );
+    }
+
+    #[test]
+    fn initialization_is_an_explicit_empty_edit() {
+        assert_eq!(
+            build_edit(&Change::Initialize, &Draft::of(&Change::Initialize)),
+            Ok(BuilderEdit::Initialize)
+        );
+        assert_eq!(
+            serde_json::to_value(BuilderEdit::Initialize).unwrap(),
+            serde_json::json!({"kind":"topology.initialize"})
+        );
+    }
+
+    #[test]
+    fn shared_source_can_add_a_second_parent_without_moving_the_first() {
+        let mut first = node("source-at-north", Some("north"));
+        first.source_id = Some("shared-source".into());
+        let mut north = node("north", None);
+        north.kind = "wan".into();
+        let mut south = node("south", None);
+        south.kind = "wan".into();
+        let all = vec![north, south, first.clone()];
+        assert_eq!(
+            additional_parents(&all, &first),
+            vec![("south".into(), "south".into())]
+        );
+        let change = Change::AddParent(first.clone());
+        let mut d = Draft::of(&change);
+        assert!(build_edit(&change, &d).is_err());
+        d.parent = "south".into();
+        assert_eq!(
+            build_edit(&change, &d).unwrap(),
+            BuilderEdit::InstanceAdd {
+                source_id: "shared-source".into(),
+                parent: Some("south".into()),
+                name: None
+            }
+        );
+        assert_eq!(first.parent.as_deref(), Some("north"));
+        assert_eq!(shared_parent_names(&all, "shared-source"), vec!["north"]);
     }
 
     #[test]

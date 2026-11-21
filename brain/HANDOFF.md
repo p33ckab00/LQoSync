@@ -8,6 +8,26 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T23:12:40+08:00 (Asia/Manila) — Empty frontend draft and shared source parents
+
+- Goal: keep a new tree empty and allow one logical subscriber source beneath multiple parents.
+- Last agent: Codex `/root`, with backend agent `empty_topology_init`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: topology contract/summary, registry marker and migrations, core edit/confirmation paths and tests, Builder model/forms/tree, browser check, workflow guide, and initialization evidence.
+- Behavior: explicit reviewed `topology.initialize` creates no nodes/sources/subscribers. Only marked drafts accept structural edits before enrollment. Discovery supplies Inventory; selected attachment remains explicit. Add parent creates another source instance and retains the original parent. Existing saved policies cannot be reset by initialization.
+- Checks: 1,580 core tests passed (10 ignored); 102 UI/gateway/contract tests passed (one ignored); native/Wasm Clippy, optimized Wasm, formatting, whitespace, and four browser suites passed.
+- Evidence: `docs/frontend/evidence/topology-initialization/README.md`. New check: `tools/frontend/topology-initialization-check.cjs`.
+- Deployment: none. No production registry, router, service, ownership, or shaping file changed. A live registry needs privileged inspection to identify existing saved nodes; do not assume fixture names describe it.
+- Publication: commit and push authorized by the owner. Deployment remains pending. Preserve unrelated Routers edits and evidence. Existing registry JSON omits the new marker when false; initialized registries require the updated binary.
+- Next action: deploy through the normal workflow when requested. Do not reset an existing policy to make it look like a fresh installation.
+
+## 2026-11-21T22:42:14+08:00 (Asia/Manila) — Empty topology and frontend ownership clarification
+
+- Owner requirement: a new topology starts empty. The frontend controls initial construction and later hierarchy changes. Discovery supplies Inventory only.
+- Current gap: the repaired UI edits an enrolled policy. It does not yet initialize the first empty policy through the frontend.
+- Source evidence: default catalog nodes are empty; WAN North/South are synthetic fixture data. The reported live/screenshot context remains unconfirmed.
+- Next action: identify the reported node source, then add explicit empty initialization with existing review/validation boundaries. Do not erase a saved registry without explicit scope.
+- Note: `brain/10-sessions/2026-11-21-frontend-owned-topology-requirement.md`. No application or live-state change occurred in this clarification.
+
 ## 2026-11-21T22:14:59+08:00 (Asia/Manila) — Topology workflow and automatic orchestration repair
 
 - Goal: repair Topology, IPoE/DHCP, and PPPoE layout/workflow against the documented pictures and make topology policy drive scheduled network/CSV exports.

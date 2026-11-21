@@ -79,9 +79,11 @@ enum Step {
 
 fn title(action: &Change) -> String {
     match action {
+        Change::Initialize => "Start empty topology".into(),
         Change::Create => "Create node".into(),
         Change::CreateChild(_) => "Create child node".into(),
         Change::AttachSource(_, name, _) => format!("Attach source {name}"),
+        Change::AddParent(n) => format!("Add parent for {}", n.name),
         Change::Edit(n) => format!("Edit {}", n.name),
         Change::Move(n) => format!("Move {}", n.name),
         Change::Remove(n) => format!("Remove {}", n.name),
@@ -123,10 +125,25 @@ pub(crate) async fn run_read(
 
 /// Why changes are unavailable, or `None` when the service accepts them.
 pub(crate) fn blocked(data: RwSignal<Option<TopologySummary>>) -> Option<&'static str> {
+    structural_blocked(data).or_else(|| {
+        data.with(|d| {
+            d.as_ref()
+                .filter(|s| !s.enrolled)
+                .map(|_| "Enroll the topology policy before you change subscriber rules.")
+        })
+    })
+}
+
+/// Explicit frontend drafts accept structural edits before enrollment.
+pub(crate) fn structural_blocked(data: RwSignal<Option<TopologySummary>>) -> Option<&'static str> {
     data.with(|d| match d {
         None => Some("Loading the topology view."),
-        Some(s) if s.registry_revision.is_none() => Some("No topology registry exists yet."),
-        Some(s) if !s.enrolled => Some("Enroll the topology policy before you change it."),
+        Some(s) if s.registry_revision.is_none() => {
+            Some("Start an empty topology to build the hierarchy.")
+        }
+        Some(s) if !s.enrolled && !(s.frontend_initialized && s.writer == "legacy") => {
+            Some("Enroll the existing policy before you change it.")
+        }
         Some(s) if s.writer == "unknown" => {
             Some("The shaping writer is unknown. Changes stay off until recovery finishes.")
         }
@@ -182,6 +199,7 @@ pub(crate) fn ChangeDialog(
             d.as_ref()
                 .and_then(|s| s.registry_revision.as_ref())
                 .and_then(|r| r.parse::<u64>().ok())
+                .or_else(|| matches!(a, Change::Initialize).then_some(0))
         }) else {
             return failure.set("The saved revision is unknown. Reload the view.".into());
         };
@@ -298,7 +316,7 @@ pub(crate) fn ChangeDialog(
           {move||match (action.get(), step.get()) {
             (None,_)=>().into_any(),
             (Some(_),Step::Saved(revision))=>view!{
-              <p class="saved-notice" role="status">{format!("Saved as policy revision {revision}. The service publishes it in its next cycle; Changes shows the publication.")}</p>
+              <p class="saved-notice" role="status">{if data.with(|d|d.as_ref().is_some_and(|s|s.enrolled && s.writer=="topology")){format!("Saved as policy revision {revision}. The service publishes it in its next cycle; Changes shows the publication.")}else{format!("Saved draft revision {revision}. Continue building here. Enrollment and writer activation are required before publication.")}}</p>
             }.into_any(),
             (Some(_),Step::Review(r))=>review_view(&r, data).into_any(),
             (Some(a),_)=>{
@@ -390,6 +408,7 @@ fn fields(
         }
     };
     match action.clone() {
+        Change::Initialize => view! {<p class="panel-note">"Create an empty topology draft. Configured routers remain available for discovery. No nodes, sources, subscriber assignments, or shaping files are imported. Review before saving."</p>}.into_any(),
         Change::Create | Change::CreateChild(_) => view! {
           <div class="field"><label for="change-name">"Name"</label>
             <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>
@@ -406,6 +425,13 @@ fn fields(
           <p class="panel-note">{format!("Add an instance of {name}. Choose its parent in the hierarchy. The source identity stays shared.")}</p>
           {parent_select(None)}
         }.into_any(),
+        Change::AddParent(n) => {
+            let options=data.with_untracked(|d|d.as_ref().map(|s|additional_parents(&s.nodes,&n)).unwrap_or_default());
+            view!{
+              <p class="panel-note">"Add a placement of this shared source beneath another parent. The current placement stays. Each subscriber keeps one effective placement."</p>
+              {choice("Additional parent","Select a parent…",options)}
+            }.into_any()
+        },
         Change::Edit(_) => view! {
           <div class="field"><label for="change-name">"Name"</label>
             <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>

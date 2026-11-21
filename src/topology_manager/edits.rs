@@ -18,6 +18,8 @@ use std::collections::BTreeSet;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum Edit {
+    #[serde(rename = "topology.initialize")]
+    Initialize,
     #[serde(rename = "wan.create")]
     WanCreate {
         router_id: String,
@@ -584,6 +586,14 @@ fn instance_add(
         return Err(invalid("the source is not selected"));
     }
     check_parent(c, parent)?;
+    if c.nodes
+        .iter()
+        .any(|n| n.source_id.as_deref() == Some(source_id) && n.parent.as_deref() == parent)
+    {
+        return Err(invalid(
+            "the source already has an instance under this parent",
+        ));
+    }
     let name = match (name, parent) {
         (Some(n), _) => n.to_string(),
         (None, Some(p)) => format!("{} {}", source.name, find(c, p)?.name),
@@ -934,7 +944,7 @@ pub fn add_source(
     key: &str,
     parent: Option<&str>,
 ) -> anyhow::Result<Applied> {
-    if doc.export_ownership.is_none() || doc.catalog.is_none() {
+    if (doc.export_ownership.is_none() && !frontend_draft(doc)) || doc.catalog.is_none() {
         return Err(invalid(
             "enroll first: the registry has no export ownership",
         ));
@@ -1076,14 +1086,70 @@ pub fn add_source(
     })
 }
 
-/// Apply one edit to a copy of an enrolled registry.
+/// A frontend-created draft has no published ownership or subscriber records.
+pub fn frontend_draft(doc: &RegistryDocument) -> bool {
+    doc.frontend_initialized
+        && doc.export_ownership.is_none()
+        && doc.subscribers.is_empty()
+        && doc.catalog.is_some()
+        && doc.source_settings.is_some()
+}
+
+/// Initialization never replaces installed intent, even if it is not enrolled.
+pub fn can_initialize(doc: &RegistryDocument) -> bool {
+    doc.revision == 0
+        && doc.next_id == 1
+        && doc.subscribers.is_empty()
+        && doc.catalog.is_none()
+        && doc.source_settings.is_none()
+        && doc.export_ownership.is_none()
+        && !doc.frontend_initialized
+}
+
+/// Apply one reviewed edit to an enrolled registry or an explicit frontend draft.
 pub fn apply(
     doc: &RegistryDocument,
     edit: &Edit,
     discovery: Option<&Value>,
     cfg: &Config,
 ) -> anyhow::Result<Applied> {
-    if doc.export_ownership.is_none() || doc.catalog.is_none() {
+    if matches!(edit, Edit::Initialize) {
+        if !can_initialize(doc) {
+            return Err(invalid(
+                "initialization requires an empty registry without an installed policy",
+            ));
+        }
+        let mut candidate = doc.clone();
+        candidate.catalog = Some(super::policy_draft::read_catalog(cfg));
+        candidate.source_settings = Some(super::settings::SourceSettings {
+            selections: Vec::new(),
+        });
+        candidate.frontend_initialized = true;
+        candidate.validate()?;
+        return Ok(Applied {
+            candidate,
+            affected: Vec::new(),
+            cleared: Vec::new(),
+            require_online: Vec::new(),
+            clear_offline: false,
+            check_only: false,
+            legacy_replaced: 0,
+            clear_fallback: false,
+        });
+    }
+    let structural = matches!(
+        edit,
+        Edit::WanCreate { .. }
+            | Edit::NodeCreate { .. }
+            | Edit::InstanceAdd { .. }
+            | Edit::NodeMove { .. }
+            | Edit::NodeUpdate { .. }
+            | Edit::NodeRemove { .. }
+            | Edit::SourceAdd { .. }
+    );
+    if doc.catalog.is_none()
+        || (doc.export_ownership.is_none() && !(frontend_draft(doc) && structural))
+    {
         return Err(invalid(
             "enroll first: the registry has no export ownership",
         ));
@@ -1097,6 +1163,7 @@ pub fn apply(
     let mut legacy_replaced = 0;
     let mut clear_fallback = false;
     match edit {
+        Edit::Initialize => unreachable!("handled above"),
         Edit::WanCreate {
             router_id,
             endpoint_ref,

@@ -22,6 +22,8 @@ pub struct TopologyView {
     /// `topology`, `legacy`, or `unknown`. Unknown disables writes.
     pub writer: String,
     pub enrolled: bool,
+    #[serde(default)]
+    pub frontend_initialized: bool,
     /// The cached preview. `None`: no preview since the service started.
     pub observed: Option<Observed>,
     pub nodes: Vec<Node>,
@@ -285,6 +287,8 @@ pub struct TopologySummary {
     pub mode: String,
     pub writer: String,
     pub enrolled: bool,
+    #[serde(default)]
+    pub frontend_initialized: bool,
     pub observed: Option<Observed>,
     pub nodes: Vec<Node>,
     /// The reply limit cut the node list.
@@ -501,6 +505,8 @@ pub struct SourceCandidate {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum BuilderEdit {
+    #[serde(rename = "topology.initialize")]
+    Initialize,
     #[serde(rename = "node.create")]
     NodeCreate {
         name: String,

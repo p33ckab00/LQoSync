@@ -157,6 +157,7 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         mode: input.mode.into(),
         writer: input.writer.into(),
         enrolled: doc.is_some_and(|d| d.export_ownership.is_some()),
+        frontend_initialized: doc.is_some_and(|d| d.frontend_initialized),
         observed,
         nodes,
         sources: serde_json::from_value(field("sources")).unwrap_or_default(),

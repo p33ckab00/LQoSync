@@ -555,6 +555,7 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 catalog: None,
                 source_settings: None,
                 export_ownership: None,
+                frontend_initialized: false,
             }
         }
         2 => {
@@ -572,6 +573,7 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 catalog: legacy.catalog,
                 source_settings: None,
                 export_ownership: None,
+                frontend_initialized: false,
             }
         }
         3 => {
@@ -589,6 +591,7 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                 catalog: old.catalog,
                 source_settings: old.source_settings,
                 export_ownership: None,
+                frontend_initialized: false,
             }
         }
         4 => serde_json::from_slice(&bytes).context("cannot decode schema-4 registry")?,

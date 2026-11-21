@@ -814,9 +814,22 @@ where
             RebalanceRequest, RebalanceScope, rebalance,
         };
         self.edit_proposal = None;
-        let doc = self
-            .api_document()?
-            .ok_or_else(|| rule("enroll first: the registry has no export ownership".into()))?;
+        let doc = match self.api_document()? {
+            Some(doc) => doc,
+            None if matches!(edit, crate::topology_manager::edits::Edit::Initialize) => {
+                Default::default()
+            }
+            None => {
+                return Err(rule(
+                    "enroll first: the registry has no export ownership".into(),
+                ));
+            }
+        };
+        if doc.export_ownership.is_none() && self.writer() != "legacy" {
+            return Err(rule(
+                "draft editing requires an inactive topology writer".into(),
+            ));
+        }
         if doc.revision != expected_revision {
             return Err(anyhow::Error::new(
                 crate::topology_manager::store::RevisionConflict,
@@ -846,7 +859,7 @@ where
         let mut candidate = applied.candidate;
         let mut online = std::collections::HashSet::new();
         let mut cleared_extra = Vec::new();
-        if !applied.affected.is_empty() {
+        if !applied.affected.is_empty() && !crate::topology_manager::edits::frontend_draft(&doc) {
             let mut current = self
                 .topology_sources
                 .reconcile_for(
@@ -1027,7 +1040,11 @@ where
     pub async fn api_source_candidates(&mut self) -> anyhow::Result<serde_json::Value> {
         let doc = self
             .api_document()?
-            .filter(|d| d.export_ownership.is_some())
+            .filter(|d| {
+                d.export_ownership.is_some()
+                    || (crate::topology_manager::edits::frontend_draft(d)
+                        && self.writer() == "legacy")
+            })
             .ok_or_else(|| rule("enroll first: the registry has no export ownership".into()))?;
         let draft = self
             .propose_policy(Duration::from_secs(30))
@@ -1241,8 +1258,23 @@ where
         if tokio::time::Instant::now() >= proposal.expires {
             return Err(stale_proposal());
         }
-        let (revision, ()) =
-            self.api_edit(proposal.base_revision, |_, _| Ok((proposal.candidate, ())))?;
+        let is_draft = crate::topology_manager::edits::frontend_draft(&proposal.candidate);
+        if is_draft && self.writer() != "legacy" {
+            return Err(rule(
+                "draft editing requires an inactive topology writer".into(),
+            ));
+        }
+        let (revision, ()) = self.api_edit(proposal.base_revision, |current, _| {
+            if is_draft
+                && !(crate::topology_manager::edits::frontend_draft(current)
+                    || crate::topology_manager::edits::can_initialize(current))
+            {
+                return Err(rule(
+                    "the registry is no longer an editable frontend draft".into(),
+                ));
+            }
+            Ok((proposal.candidate, ()))
+        })?;
         self.last_preview = None;
         Ok(serde_json::json!({"revision": revision}))
     }

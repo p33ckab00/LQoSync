@@ -102,6 +102,7 @@ fn summary(v: &TopologyView) -> TopologySummary {
         mode: v.mode.clone(),
         writer: v.writer.clone(),
         enrolled: v.enrolled,
+        frontend_initialized: v.frontend_initialized,
         observed: v.observed.clone(),
         nodes: Vec::new(),
         nodes_truncated: false,

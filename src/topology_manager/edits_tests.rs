@@ -1215,6 +1215,29 @@ mod fallback_fixes {
     }
 
     #[test]
+    fn frontend_draft_attaches_only_the_selected_discovered_source() {
+        let discovered = draft_of(&settled());
+        let empty = run(
+            &RegistryDocument::default(),
+            json!({"kind":"topology.initialize"}),
+        )
+        .unwrap()
+        .candidate;
+        let added = add_source(&empty, &discovered, "profile-source", None)
+            .unwrap()
+            .candidate;
+        let c = added.catalog.as_ref().unwrap();
+        assert_eq!(c.sources.len(), 1);
+        assert_eq!(c.sources[0].id, "profile-source");
+        assert_eq!(c.nodes.len(), 1);
+        assert_eq!(c.nodes[0].source_id.as_deref(), Some("profile-source"));
+        assert!(c.nodes[0].parent.is_none());
+        assert!(added.subscribers.is_empty() && added.export_ownership.is_none());
+        assert!(empty.catalog.as_ref().unwrap().nodes.is_empty());
+        assert!(empty.catalog.as_ref().unwrap().sources.is_empty());
+    }
+
+    #[test]
     fn a_renamed_profile_is_a_rebind_candidate() {
         let d = settled();
         let mut draft = draft_of(&d);
@@ -1249,6 +1272,7 @@ fn every_web_builder_edit_is_a_service_edit() {
         factor_percent: None,
     };
     let edits = [
+        B::Initialize,
         B::NodeCreate {
             name: "Tower".into(),
             parent: Some("wan1".into()),
@@ -1343,5 +1367,88 @@ fn every_web_builder_edit_is_a_service_edit() {
         let wire = serde_json::to_value(&edit).unwrap();
         let parsed: Result<Edit, _> = serde_json::from_value(wire.clone());
         assert!(parsed.is_ok(), "{wire}: {parsed:?}");
+    }
+}
+
+#[test]
+fn frontend_initialization_is_empty_reviewable_and_never_replaces_policy() {
+    let original = RegistryDocument::default();
+    let initialized = run(&original, json!({"kind":"topology.initialize"}))
+        .unwrap()
+        .candidate;
+    assert!(original.catalog.is_none());
+    let c = initialized.catalog.as_ref().unwrap();
+    assert!(c.nodes.is_empty() && c.sources.is_empty());
+    assert_eq!(c.routers.len(), cfg().routers.len());
+    assert!(
+        initialized
+            .source_settings
+            .as_ref()
+            .unwrap()
+            .selections
+            .is_empty()
+    );
+    assert!(initialized.subscribers.is_empty());
+    assert!(initialized.export_ownership.is_none());
+    assert!(run(&initialized, json!({"kind":"topology.initialize"})).is_err());
+    assert!(run(&doc(), json!({"kind":"topology.initialize"})).is_err());
+    let added = run(
+        &initialized,
+        json!({"kind":"node.create","name":"Distribution","parent":null,
+        "capacity":{"mode":"fixed","down_mbps":100,"up_mbps":50}}),
+    );
+    assert!(added.is_ok(), "{added:?}");
+    assert!(added.unwrap().candidate.subscribers.is_empty());
+}
+
+#[test]
+fn duplicate_source_parent_placement_is_refused() {
+    let d = doc();
+    let c = d.catalog.as_ref().unwrap();
+    let n = c
+        .nodes
+        .iter()
+        .find(|n| n.source_id.as_deref() == Some("profile-source"))
+        .unwrap();
+    let err = refused(
+        &d,
+        json!({"kind":"instance.add","source_id":"profile-source","parent":n.parent}),
+    );
+    assert_eq!(err, "the source already has an instance under this parent");
+}
+
+#[test]
+fn frontend_initialization_rejects_any_existing_intent_and_preserves_old_encoding() {
+    let original = RegistryDocument::default();
+    assert!(
+        !serde_json::to_value(&original)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("frontend_initialized")
+    );
+    for mut d in [
+        RegistryDocument {
+            catalog: Some(Default::default()),
+            ..Default::default()
+        },
+        RegistryDocument {
+            source_settings: Some(crate::topology_manager::settings::SourceSettings {
+                selections: vec![],
+            }),
+            ..Default::default()
+        },
+        RegistryDocument {
+            revision: 1,
+            ..Default::default()
+        },
+        RegistryDocument {
+            next_id: 2,
+            ..Default::default()
+        },
+    ] {
+        assert!(run(&d, json!({"kind":"topology.initialize"})).is_err());
+        d.frontend_initialized = true;
+        assert!(run(&d, json!({"kind":"topology.initialize"})).is_err());
     }
 }
