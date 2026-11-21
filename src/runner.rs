@@ -639,6 +639,73 @@ where
         Ok(answer)
     }
 
+    /// API `router.test`: one connection test of one enabled router: TCP, TLS, sign-in, and an
+    /// identity read. It uses its own session, never the cycle session. A disabled router gets no
+    /// connection. The answer has a class, never error text, and the audit log gets one line.
+    pub async fn api_router_test(
+        &mut self,
+        id: &str,
+        actor: &str,
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::routeros::{ReadError, RouterSession};
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let started = Instant::now();
+        let router = self
+            .cfg
+            .routers
+            .iter()
+            .find(|r| crate::topology_manager::policy_draft::router_id(&r.name) == id)
+            .cloned();
+        let (class, identity) = match &router {
+            None => ("not_found", None),
+            Some(r) if !r.enabled => ("disabled", None),
+            Some(r) => {
+                let access = self.cfg.router_access.clone();
+                let limit = Duration::from_secs(access.connect_timeout + access.api_timeout);
+                let test = async {
+                    let mut session = self.connector.connect(r, &access).await?;
+                    let rows = session.print("/system/identity", "name").await?;
+                    Ok::<_, ReadError>(rows.first().and_then(|row| row.get("name").cloned()))
+                };
+                match tokio::time::timeout(limit, test).await {
+                    Ok(Ok(name)) => ("ok", name),
+                    Ok(Err(ReadError::Unreachable(_))) => ("unreachable", None),
+                    Ok(Err(ReadError::Login(_))) => ("login", None),
+                    Ok(Err(ReadError::Tls(_))) => ("tls", None),
+                    Ok(Err(ReadError::Timeout(_))) | Err(_) => ("timeout", None),
+                    Ok(Err(ReadError::Trap(_))) => ("trap", None),
+                    Ok(Err(ReadError::Protocol(_))) => ("protocol", None),
+                }
+            }
+        };
+        let result = web_contract::routers::RouterTestResult {
+            router_id: id.into(),
+            class: class.into(),
+            identity: identity.map(|i| i.chars().take(64).collect()),
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            at: now,
+        };
+        if let Some(r) = &router {
+            let event = web_contract::routers::RouterEvent {
+                at: now,
+                actor: actor.chars().take(64).collect(),
+                router_id: id.into(),
+                router: r.name.clone(),
+                action: "test".into(),
+                changes: vec![class.into()],
+                digest: self.config_digest.clone(),
+            };
+            if let Err(e) =
+                crate::router_edit::audit(Path::new(&self.cfg.runtime.state_dir), &event)
+            {
+                eprintln!("warning: cannot write the router audit log: {e:#}");
+            }
+        }
+        Ok(serde_json::to_value(result)?)
+    }
+
     /// API `topology.tree`: every catalog node, without a router read.
     pub fn api_tree(&mut self) -> anyhow::Result<serde_json::Value> {
         let doc = self.api_document()?.unwrap_or_default();
@@ -2531,6 +2598,56 @@ mod tests {
         let st: serde_json::Value =
             serde_json::from_str(&read(&e.state.join("status.json"))).unwrap();
         assert!(!st.to_string().contains("Core"), "{st}");
+    }
+
+    #[tokio::test]
+    async fn a_connection_test_reads_the_identity_of_one_enabled_router_only() {
+        let e = env();
+        let mut c = cfg(&e, "shadow", "");
+        let off = Config::from_toml_str(
+            "[[routers]]\nname=\"Off\"\nenabled=false\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        )
+        .unwrap()
+        .routers
+        .remove(0);
+        c.routers.push(off);
+        e.fake.panicking.lock().unwrap().insert("Off".into());
+        e.fake
+            .rows
+            .lock()
+            .unwrap()
+            .entry("R1".into())
+            .or_default()
+            .insert("/system/identity".into(), vec![row(&[("name", "edge-r1")])]);
+        // The service writes its state folder in its first cycle; a test before it makes the folder.
+        std::fs::create_dir_all(&e.state).unwrap();
+        let mut r = runner(&e, c);
+        let id = |n: &str| crate::topology_manager::policy_draft::router_id(n);
+        let ok = r.api_router_test(&id("R1"), "operator-a").await.unwrap();
+        assert_eq!(
+            (ok["class"].as_str(), ok["identity"].as_str()),
+            (Some("ok"), Some("edge-r1"))
+        );
+        let off = r.api_router_test(&id("Off"), "operator-a").await.unwrap();
+        assert_eq!(
+            off["class"], "disabled",
+            "a disabled router gets no connection"
+        );
+        let none = r
+            .api_router_test("lq3-ffffffffffffffff", "a")
+            .await
+            .unwrap();
+        assert_eq!(none["class"], "not_found");
+        e.fake.failing.lock().unwrap().insert("R1".into());
+        let trap = r.api_router_test(&id("R1"), "operator-a").await.unwrap();
+        assert_eq!(trap["class"], "trap");
+        let log = read(&e.state.join(crate::router_edit::AUDIT));
+        assert_eq!(
+            log.lines().count(),
+            3,
+            "one audit line for each known router"
+        );
+        assert!(log.contains("\"action\":\"test\"") && log.contains("\"disabled\""));
     }
 
     #[tokio::test]

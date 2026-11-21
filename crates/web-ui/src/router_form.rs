@@ -878,3 +878,117 @@ pub(crate) fn AdminAction(router: RouterSummary) -> impl IntoView {
       </dialog>
     }
 }
+
+/// A POST without a body, with the CSRF token and a time limit.
+async fn post(c: Ctx, url: &str, limit_ms: u32) -> Result<gloo_net::http::Response, ()> {
+    let csrf = c
+        .session
+        .get_untracked()
+        .map(|p| p.csrf)
+        .unwrap_or_default();
+    let controller = web_sys::AbortController::new().map_err(|_| ())?;
+    let signal = controller.signal();
+    let _timer = gloo_timers::callback::Timeout::new(limit_ms, move || controller.abort());
+    let r = Request::post(url)
+        .header("x-csrf-token", &csrf)
+        .abort_signal(Some(&signal))
+        .send()
+        .await
+        .map_err(|_| ())?;
+    if r.status() == 401 {
+        c.session.set(None);
+        return Err(());
+    }
+    Ok(r)
+}
+
+/// Test connection: the service connects, signs in, and reads the identity of this router only.
+/// A disabled router has no test: LQoSync makes no connection to it.
+#[component]
+pub(crate) fn TestConnection(router: RouterSummary) -> impl IntoView {
+    let c = ctx();
+    let result = RwSignal::new(None::<(String, &'static str, String)>);
+    let busy = RwSignal::new(false);
+    let r = StoredValue::new(router);
+    let enabled = r.with_value(|r| r.enabled);
+    let run = move |_| {
+        if busy.get_untracked() {
+            return;
+        }
+        busy.set(true);
+        let id = r.with_value(|r| r.id.clone());
+        leptos::task::spawn_local(async move {
+            let out = match post(c, &format!("/api/v1/routers/{id}/test"), 75_000).await {
+                Ok(resp) if resp.ok() => {
+                    match resp.json::<web_contract::routers::RouterTestResult>().await {
+                        Ok(t) => {
+                            let (text, tone) =
+                                crate::routers_model::test_message(&t, &r.get_value());
+                            (
+                                text,
+                                tone,
+                                format!("Tested at {} in {} ms.", local_time(t.at), t.elapsed_ms),
+                            )
+                        }
+                        Err(_) => ("The test answer is not valid.".into(), "bad", String::new()),
+                    }
+                }
+                _ => (
+                    "The test request did not complete. Try again.".into(),
+                    "bad",
+                    String::new(),
+                ),
+            };
+            result.try_set(Some(out));
+            busy.try_set(false);
+        });
+    };
+    view! {
+      <div class="test-connection">
+        <div class="form-actions start">
+          <button type="button" class="secondary" disabled=move||busy.get()||!enabled on:click=run>
+            {move||if busy.get(){"Testing…"}else{"Test connection"}}
+          </button>
+          <span class="field-help">{if enabled {"Connects, signs in, and reads the router identity. It changes nothing."} else {"Enable the router to test it: LQoSync makes no connection to a disabled router."}}</span>
+        </div>
+        <div aria-live="polite">
+          {move||result.get().map(|(text,tone,when)|view!{
+            <div class=format!("test-result {tone}")><p><b>{text}</b></p><p class="field-help">{when}</p></div>
+          })}
+        </div>
+      </div>
+    }
+}
+
+/// Sync now: a cycle starts now for all enabled routers. The table updates after the cycle.
+#[component]
+pub(crate) fn SyncNow() -> impl IntoView {
+    let c = ctx();
+    let message = RwSignal::new(None::<(&'static str, &'static str)>);
+    let busy = RwSignal::new(false);
+    let run = move |_| {
+        if busy.get_untracked() {
+            return;
+        }
+        busy.set(true);
+        leptos::task::spawn_local(async move {
+            let ok = matches!(post(c, "/api/v1/routers/sync", 30_000).await, Ok(r) if r.ok());
+            message.try_set(Some(if ok {
+                (
+                    "Sync started for all enabled routers. The table updates after the cycle.",
+                    "good",
+                )
+            } else {
+                (
+                    "Sync now did not reach the service. Check that it runs, then try again.",
+                    "bad",
+                )
+            }));
+            busy.try_set(false);
+        });
+    };
+    view! {
+      <button type="button" class="secondary" disabled=move||busy.get() on:click=run>{move||if busy.get(){"Starting…"}else{"Sync now"}}</button>
+      <div class="sync-message" aria-live="polite">{move||message.get().map(|(text,tone)|view!{<p class=format!("router-state {tone}")>{text}</p>})}</div>
+    }
+}

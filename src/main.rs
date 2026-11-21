@@ -267,6 +267,11 @@ async fn main() {
         println!("{}", serde_json::to_string(&out).unwrap_or_default());
         return;
     }
+    if parsed.command == Command::SyncNow {
+        let out = lqosync3::router_edit::sync_now(&parsed.config);
+        println!("{}", serde_json::to_string(&out).unwrap_or_default());
+        return;
+    }
     // The TUI starts also with a bad config file: it shows the error.
     if parsed.command == Command::Tui {
         lqosync3::tui::run(&parsed.config).unwrap_or_else(|e| exit_with(e));
@@ -346,7 +351,11 @@ async fn main() {
         Command::Run => run(&parsed.config, cfg, digest)
             .await
             .unwrap_or_else(|e| exit_with(e)),
-        Command::Defaults | Command::Tui | Command::Version | Command::RouterEdit => {
+        Command::Defaults
+        | Command::Tui
+        | Command::Version
+        | Command::RouterEdit
+        | Command::SyncNow => {
             unreachable!("handled above")
         }
     }

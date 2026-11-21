@@ -28,6 +28,13 @@ struct EditProposeArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct RouterTestArgs {
+    router_id: String,
+    actor: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ProposalArgs {
     proposal_id: String,
 }
@@ -115,6 +122,13 @@ where
         "topology.preview.get" => runner.api_preview_get().map_err(fail),
         "topology.policies" => runner.api_policies().map_err(fail),
         "wan.discover" => runner.api_wan_discover().await.map_err(fail),
+        "router.test" => {
+            let args: RouterTestArgs = parse(request)?;
+            runner
+                .api_router_test(&args.router_id, &args.actor)
+                .await
+                .map_err(fail)
+        }
         "topology.tree" => runner.api_tree().map_err(fail),
         "topology.sources.candidates" => runner.api_source_candidates().await.map_err(fail),
         "topology.edit.propose" => {

@@ -1,5 +1,5 @@
 //! Labels and filters for the router inventory. Pure functions, so native tests cover them.
-use web_contract::routers::{RouterCollection, RouterSummary, ShapingPolicy};
+use web_contract::routers::{RouterCollection, RouterSummary, RouterTestResult, ShapingPolicy};
 
 /// A state label with its tone class. The text carries the meaning; the tone only supports it.
 pub(crate) fn read_state(c: Option<&RouterCollection>) -> (&'static str, &'static str) {
@@ -121,6 +121,50 @@ pub(crate) fn tracks(r: &RouterSummary, p: &ShapingPolicy, loaded: bool) -> (Str
     (io, shaping)
 }
 
+/// The text and tone of a connection test result. Each failure says what to check next.
+pub(crate) fn test_message(t: &RouterTestResult, r: &RouterSummary) -> (String, &'static str) {
+    match t.class.as_str() {
+        "ok" => (
+            match &t.identity {
+                Some(name) => format!("Connected and signed in. The router identity is {name}."),
+                None => "Connected and signed in.".into(),
+            },
+            "good",
+        ),
+        "disabled" => ("The router is disabled. LQoSync makes no connection to it.".into(), "neutral"),
+        "not_found" => (
+            "The service does not have this router yet. Wait until it loads the last change.".into(),
+            "warn",
+        ),
+        "unreachable" => (
+            format!(
+                "No TCP connection to {}:{}. Check the address, the API port, and the firewall.",
+                r.address, r.port
+            ),
+            "bad",
+        ),
+        "tls" => (
+            "The TLS handshake or the certificate check failed. Check the CA certificate and the router certificate.".into(),
+            "bad",
+        ),
+        "login" => (
+            "The router refused the sign-in, or the credential cannot be read. Check the RouterOS user and the credential.".into(),
+            "bad",
+        ),
+        "timeout" => ("The router did not answer in time.".into(), "warn"),
+        "trap" => (
+            "The router signed in but refused the identity read. Check the user group permissions.".into(),
+            "warn",
+        ),
+        "protocol" => (
+            "The API connection failed. Check the API service and the port: 8728 without TLS, 8729 with TLS.".into(),
+            "bad",
+        ),
+        "busy" => ("Another connection test is running. Try again in a moment.".into(), "neutral"),
+        _ => ("The LQoSync service did not answer. Check that it runs.".into(), "bad"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +256,44 @@ mod tests {
         r.circuits = Some(0);
         assert!(tracks(&r, &policy, true).1.starts_with("Done"));
         assert!(tracks(&r, &off, true).1.starts_with("Not removed"));
+    }
+
+    #[test]
+    fn each_test_class_has_a_next_step() {
+        let r = router("Access", &["ppp"], Some("online"));
+        let t = |class: &str| RouterTestResult {
+            class: class.into(),
+            identity: Some("edge".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            test_message(&t("ok"), &r),
+            (
+                "Connected and signed in. The router identity is edge.".into(),
+                "good"
+            )
+        );
+        assert!(
+            test_message(&t("unreachable"), &r)
+                .0
+                .contains("192.0.2.1:0")
+        );
+        for class in [
+            "disabled",
+            "not_found",
+            "tls",
+            "login",
+            "timeout",
+            "trap",
+            "protocol",
+            "busy",
+            "service",
+            "new",
+        ] {
+            let (text, tone) = test_message(&t(class), &r);
+            assert!(text.ends_with('.') && !tone.is_empty(), "{class}");
+        }
+        assert_eq!(test_message(&t("service"), &r).1, "bad");
     }
 
     #[test]

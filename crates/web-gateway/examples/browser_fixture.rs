@@ -182,6 +182,10 @@ async fn main() -> anyhow::Result<()> {
     if args.get(1).map(String::as_str) == Some("router-edit") {
         return fake_router_edit(std::path::Path::new(&args[3]));
     }
+    if args.get(1).map(String::as_str) == Some("sync-now") {
+        println!(r#"{{"code":"ok","message":"sent","reply":null}}"#);
+        return Ok(());
+    }
     let dir = tempfile::tempdir()?;
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700))?;
     let accounts = Accounts::new(dir.path().join("accounts.db"))?;
@@ -214,6 +218,32 @@ async fn main() -> anyhow::Result<()> {
     ] {
         std::fs::write(dir.path().join(name), serde_json::to_vec(&value)?)?;
     }
+    // A fake service API socket: connection tests answer from the synthetic routers.
+    let api = tokio::net::UnixListener::bind(dir.path().join("api.sock"))?;
+    tokio::spawn(async move {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+        while let Ok((stream, _)) = api.accept().await {
+            let (read, mut write) = stream.into_split();
+            let mut line = String::new();
+            let _ = tokio::io::BufReader::new(read).read_line(&mut line).await;
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
+            let id = v["args"]["router_id"].as_str().unwrap_or("").to_string();
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            let (class, identity) = match id.as_str() {
+                "lq3-00000000000000a2" => ("unreachable", None),
+                "lq3-00000000000000a3" => ("disabled", None),
+                _ => (
+                    "ok",
+                    Some(format!("fixture-{}", &id[id.len().saturating_sub(2)..])),
+                ),
+            };
+            let answer = serde_json::json!({"v":1,"id":v["id"],"ok":true,"result":{
+                "router_id":id,"class":class,"identity":identity,"elapsed_ms":42,"at":broker::now()}});
+            let _ = write.write_all(format!("{answer}\n").as_bytes()).await;
+        }
+    });
     let cache_dir = dir.path().to_owned();
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(1));

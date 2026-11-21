@@ -2,7 +2,7 @@
 use std::path::Path;
 use web_contract::routers::{
     CACHE, RouterActivity, RouterEditOutcome, RouterEditRequest, RouterEvent, RouterInventory,
-    VERSION,
+    RouterTestResult, VERSION,
 };
 
 /// The inventory part of a broker reply stays under this size. The reply limit is 64 KiB.
@@ -58,10 +58,64 @@ pub fn activity(root: &Path, router_id: &str) -> RouterActivity {
     RouterActivity { events }
 }
 
+/// A connection test through the service API socket (`router.test`). The service owns router I/O;
+/// the broker has no network access. A missing or slow service gives the class `service`.
+pub async fn core_test(state_dir: &Path, actor: &str, router_id: &str) -> RouterTestResult {
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+    let fallback = RouterTestResult {
+        router_id: router_id.into(),
+        class: "service".into(),
+        at: crate::broker::now(),
+        ..Default::default()
+    };
+    let exchange = async {
+        let stream = tokio::net::UnixStream::connect(state_dir.join("api.sock")).await?;
+        let (read, mut write) = stream.into_split();
+        let mut line = serde_json::to_vec(&serde_json::json!({
+            "v": 1, "id": "web-test", "op": "router.test",
+            "args": {"router_id": router_id, "actor": actor},
+        }))?;
+        line.push(b'\n');
+        write.write_all(&line).await?;
+        let mut answer = String::new();
+        tokio::io::BufReader::new(read)
+            .take(64 * 1024)
+            .read_line(&mut answer)
+            .await?;
+        let value: serde_json::Value = serde_json::from_str(&answer)?;
+        anyhow::ensure!(value["ok"] == true, "the service refused the test");
+        Ok::<_, anyhow::Error>(serde_json::from_value::<RouterTestResult>(
+            value["result"].clone(),
+        )?)
+    };
+    match tokio::time::timeout(std::time::Duration::from_secs(60), exchange).await {
+        Ok(Ok(result)) if result.router_id == router_id => result,
+        _ => fallback,
+    }
+}
+
+/// `lqosync3 sync-now`: the same command binary, without a request body.
+pub async fn run_sync(editor: &crate::broker::Editor) -> RouterEditOutcome {
+    command(editor, "sync-now", None).await
+}
+
 /// Run the core command once with a time limit. Its answer is the outcome; anything else is internal.
 pub async fn run_editor(
     editor: &crate::broker::Editor,
     request: &RouterEditRequest,
+) -> RouterEditOutcome {
+    command(
+        editor,
+        "router-edit",
+        Some(serde_json::to_vec(request).unwrap_or_default()),
+    )
+    .await
+}
+
+async fn command(
+    editor: &crate::broker::Editor,
+    name: &str,
+    body: Option<Vec<u8>>,
 ) -> RouterEditOutcome {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let fail = |m: &str| RouterEditOutcome {
@@ -70,7 +124,7 @@ pub async fn run_editor(
         reply: None,
     };
     let Ok(mut child) = tokio::process::Command::new(&editor.bin)
-        .arg("router-edit")
+        .arg(name)
         .arg("--config")
         .arg(&editor.config)
         .stdin(std::process::Stdio::piped())
@@ -84,9 +138,8 @@ pub async fn run_editor(
     let (Some(mut stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
         return fail("The router editor could not start.");
     };
-    let body = serde_json::to_vec(request).unwrap_or_default();
     let run = async {
-        stdin.write_all(&body).await?;
+        stdin.write_all(&body.unwrap_or_default()).await?;
         drop(stdin);
         let mut out = Vec::new();
         stdout.take(64 * 1024).read_to_end(&mut out).await?;

@@ -336,6 +336,17 @@ The page shows "Saved", then "The service loaded the change" when the service ha
 - Each save keeps a config backup in `<state_dir>/config-backups/` and adds one line to `<state_dir>/router-audit.jsonl`. The line holds field names, never a credential.
 - If the TUI or another session changed the configuration first, the save stops. Load the page again, then repeat the change.
 
+## Test a router connection in the web UI
+
+Open the router, then the Connection tab, and select Test connection. The service connects, signs in, and reads the router identity. The test changes nothing on the router.
+
+- The result names the failed step: no TCP connection, TLS or certificate, sign-in or credential, timeout, a refused identity read, or an API problem. Each result says what to check.
+- A disabled router has no test: LQoSync makes no connection to it.
+- The service runs the test between cycles. A test can wait until the current cycle ends.
+- Each test adds one line to the router audit log.
+
+Sync now, on the Routers page, starts a cycle at once for all enabled routers. It is the same as Sync now in the TUI.
+
 ## Disable a router
 
 Set `enabled = false` in the `[[routers]]` entry of the router. In the TUI, select the group of the router and set the key `enabled`.

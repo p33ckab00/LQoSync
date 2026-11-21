@@ -12,7 +12,7 @@ use axum::{
         Html, IntoResponse, Response, Sse,
         sse::{Event, KeepAlive},
     },
-    routing::{get, patch},
+    routing::{get, patch, post},
 };
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
@@ -233,6 +233,39 @@ async fn update_router(
     }
     edit_router(&s, &h, Some(id), form).await
 }
+/// One connection test. The service runs it; a disabled router gets no connection.
+async fn test_router(State(s): State<WebState>, h: HeaderMap, Path(id): Path<String>) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    if !router_id(&id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let request = BrokerRequest::RouterTest {
+        actor: p.username,
+        router_id: id,
+    };
+    let reply = exchange_within(&s.broker, &request, std::time::Duration::from_secs(70))
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(reply.test.ok_or(StatusCode::SERVICE_UNAVAILABLE)?).into_response())
+}
+/// Start a cycle now for all enabled routers (SIGUSR1 to the service).
+async fn sync_routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
+    writer(&s, &h).await?;
+    let reply = exchange_within(
+        &s.broker,
+        &BrokerRequest::SyncNow,
+        std::time::Duration::from_secs(25),
+    )
+    .await
+    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let outcome = reply.edit.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let status = if outcome.code == "ok" {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    Ok((status, Json(outcome)).into_response())
+}
 async fn router_activity(
     State(s): State<WebState>,
     h: HeaderMap,
@@ -351,6 +384,8 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
             patch(update_router).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route("/api/v1/routers/{id}/activity", get(router_activity))
+        .route("/api/v1/routers/{id}/test", post(test_router))
+        .route("/api/v1/routers/sync", post(sync_routers))
         // Browser routes of the single-page UI. The page itself loads data through the API.
         .route("/routers", get(index))
         .route("/routers/{*rest}", get(index))

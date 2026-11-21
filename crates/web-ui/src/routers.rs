@@ -3,7 +3,9 @@
 use crate::dashboard::local_time;
 use crate::route::{Link, page};
 use crate::route_model::{Page, Tab, router_href};
-use crate::router_form::{ActivityTab, AdminAction, Ctx, EditableSection, NewRouter, SavedNotice};
+use crate::router_form::{
+    ActivityTab, AdminAction, Ctx, EditableSection, NewRouter, SavedNotice, SyncNow, TestConnection,
+};
 use crate::router_form_model::Section;
 use crate::routers_model::{Filter, matches, read_state, role_label, state, transport};
 use gloo_net::http::Request;
@@ -120,7 +122,10 @@ fn Inventory(
     view! {
       <div class="page-heading">
         <div><h1 tabindex="-1">"Routers"</h1><p>"MikroTik routers in the configuration, their roles, and the latest read."</p></div>
-        <Link href="/routers/new".to_string() class="button primary">"Add router"</Link>
+        <div class="router-actions">
+          <SyncNow/>
+          <Link href="/routers/new".to_string() class="button primary">"Add router"</Link>
+        </div>
         <div class="freshness">{move||inventory.with(|i|match i {
           Some(i) if data.with(|d|d.as_ref().is_some_and(|v|v.stale))=>format!("Service evidence stale · inventory from {}",local_time(i.updated)),
           Some(i)=>format!("Inventory from {}",local_time(i.updated)),
@@ -249,7 +254,7 @@ fn Detail(
             <section class="panel router-section" aria-label=tab.label()>
               {match tab {
                 Tab::Overview=>overview(&r).into_any(),
-                Tab::Connection=>view!{<EditableSection router=r.clone() section=Section::Connection/>}.into_any(),
+                Tab::Connection=>view!{<TestConnection router=r.clone()/><EditableSection router=r.clone() section=Section::Connection/>}.into_any(),
                 Tab::Sources=>view!{<EditableSection router=r.clone() section=Section::Sources/>}.into_any(),
                 Tab::Activity=>view!{<ActivityTab router_id=r.id.clone()/>}.into_any(),
               }}

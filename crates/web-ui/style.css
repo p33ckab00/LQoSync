@@ -464,3 +464,11 @@ button.danger:disabled{opacity:.5;cursor:not-allowed}
 .tracks dt{color:var(--muted)}.tracks dd{margin:0}
 .tracks>div{display:contents}
 dialog.reauth .field-error{color:var(--bad)}
+/* Connection test and Sync now. */
+.test-connection{margin-block-end:16px;padding-block-end:16px;border-block-end:1px solid var(--border)}
+.test-connection .form-actions{margin-block-start:0}
+.test-result{margin-block-start:12px;padding:10px 14px;border:1px solid var(--border);border-inline-start:4px solid var(--muted);border-radius:8px}
+.test-result.good{border-inline-start-color:var(--good)}.test-result.warn{border-inline-start-color:var(--warn)}.test-result.bad{border-inline-start-color:var(--bad)}
+.test-result p{margin:0;font-size:14px}
+.sync-message{flex-basis:100%;text-align:end}
+.sync-message p{margin:0;font-size:13px;white-space:normal}

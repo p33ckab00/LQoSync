@@ -40,7 +40,7 @@ fn key(i: usize, parts: &[&str]) -> Vec<Seg> {
 }
 
 /// The audit log is append-only. At 1 MiB the file moves to `.1`, so it stays bounded.
-fn audit(state_dir: &Path, event: &RouterEvent) -> anyhow::Result<()> {
+pub(crate) fn audit(state_dir: &Path, event: &RouterEvent) -> anyhow::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let path = state_dir.join(AUDIT);
@@ -60,6 +60,27 @@ fn audit(state_dir: &Path, event: &RouterEvent) -> anyhow::Result<()> {
 
 /// Send SIGHUP to the service, as the TUI does after an apply. The answer is `sent` or the reason.
 pub fn signal_reload(cfg: &Config) -> String {
+    signal_service(cfg, libc::SIGHUP)
+}
+
+/// `lqosync3 sync-now`: SIGUSR1 starts a cycle now for all routers, as the TUI Sync now does.
+/// The service reads only the enabled routers. The answer is JSON: `ok` with `sent`, or the reason.
+pub fn sync_now(config_path: &Path) -> RouterEditOutcome {
+    let out = |code: &str, message: String| RouterEditOutcome {
+        code: code.into(),
+        message,
+        reply: None,
+    };
+    match crate::cli::read_config(config_path) {
+        Err(e) => out("internal", format!("{e:#}")),
+        Ok((cfg, _)) => match signal_service(&cfg, libc::SIGUSR1) {
+            m if m == "sent" => out("ok", m),
+            m => out("internal", m),
+        },
+    }
+}
+
+fn signal_service(cfg: &Config, signal: libc::c_int) -> String {
     let Some(unit) =
         crate::tui::data::systemctl_show("systemctl", &cfg.tui.service_unit, &["MainPID"])
     else {
@@ -70,7 +91,7 @@ pub fn signal_reload(cfg: &Config) -> String {
     });
     match target {
         // SAFETY: kill has no memory preconditions; signal_target checked the PID.
-        Ok(pid) if unsafe { libc::kill(pid as libc::pid_t, libc::SIGHUP) } == 0 => "sent".into(),
+        Ok(pid) if unsafe { libc::kill(pid as libc::pid_t, signal) } == 0 => "sent".into(),
         Ok(pid) => format!("cannot signal PID {pid}"),
         Err(e) => e,
     }

@@ -37,6 +37,7 @@ fn the_inventory_fits_the_broker_reply_and_keeps_config_order() {
         routers: Some(big),
         edit: None,
         activity: None,
+        test: None,
     };
     assert!(serde_json::to_vec(&reply).unwrap().len() < 65536);
     let many = bound(inventory(MAX_ROUTERS + 20, 1));

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -26,6 +26,8 @@ pub enum Command {
     Version,
     /// One local router change from the web broker: JSON on stdin, JSON on stdout.
     RouterEdit,
+    /// Start a cycle now (SIGUSR1 to the service): JSON on stdout.
+    SyncNow,
 }
 
 /// Service API commands for operators.
@@ -184,7 +186,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
             }
             w if (topology || api) && !w.starts_with('-') => words.push(a.clone()),
             "check" | "detect" | "once" | "run" | "diff" | "tui" | "defaults" | "version"
-            | "router-edit"
+            | "router-edit" | "sync-now"
                 if command.is_none() =>
             {
                 command = Some(a.clone())
@@ -217,6 +219,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
     let command = match command.as_deref() {
         Some("check") => Command::Check,
         Some("router-edit") => Command::RouterEdit,
+        Some("sync-now") => Command::SyncNow,
         Some("once") => Command::Once { force },
         Some("run") => Command::Run,
         Some("diff") => Command::Diff,
@@ -459,6 +462,10 @@ mod tests {
         assert_eq!(a.command, Command::RouterEdit);
         assert_eq!(a.config, PathBuf::from("/etc/x.toml"));
         assert!(parse(&s(&["l", "router-edit", "extra"])).is_err());
+        assert_eq!(
+            parse(&s(&["l", "sync-now"])).unwrap().command,
+            Command::SyncNow
+        );
     }
 
     #[test]

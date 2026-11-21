@@ -201,3 +201,16 @@ pub struct RouterEvent {
 pub struct RouterActivity {
     pub events: Vec<RouterEvent>,
 }
+
+/// One connection test of one router: TCP, TLS, sign-in, and an identity read. The service runs it.
+/// `class` is `ok`, `disabled`, `not_found`, `unreachable`, `tls`, `login`, `timeout`, `trap`,
+/// `protocol`, `busy`, or `service` (the service did not answer). It never carries error text.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RouterTestResult {
+    pub router_id: String,
+    pub class: String,
+    /// The RouterOS identity name after a successful read.
+    pub identity: Option<String>,
+    pub elapsed_ms: u64,
+    pub at: u64,
+}

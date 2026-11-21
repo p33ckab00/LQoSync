@@ -285,3 +285,73 @@ async fn core_conflicts_and_activity_reach_the_browser() {
         "only this router, newest first, bad lines skipped"
     );
 }
+
+#[tokio::test]
+async fn a_connection_test_goes_to_the_service_socket_and_sync_now_runs_the_command() {
+    let ok = r#"{"code":"ok","message":"sent","reply":null}"#;
+    let (dir, app) = app(ok).await;
+    let (cookie, csrf) = sign_in(&app).await;
+    let path = "/api/v1/routers/lq3-0000000000000001/test";
+    // No service socket: the test answers with the class `service`, not an error page.
+    let r = app
+        .clone()
+        .oneshot(req("POST", path, &cookie, &csrf, ""))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let t: web_contract::routers::RouterTestResult =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(t.class, "service");
+    // A fake service: it checks the request and answers one test.
+    let listener = tokio::net::UnixListener::bind(dir.path().join("api.sock")).unwrap();
+    let service = tokio::spawn(async move {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+        let (stream, _) = listener.accept().await.unwrap();
+        let (read, mut write) = stream.into_split();
+        let mut line = String::new();
+        tokio::io::BufReader::new(read)
+            .read_line(&mut line)
+            .await
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(v["op"], "router.test");
+        assert_eq!(
+            v["args"]["actor"], "operator-a",
+            "the actor comes from the session"
+        );
+        let answer = serde_json::json!({"v":1,"id":v["id"],"ok":true,"result":{
+            "router_id":"lq3-0000000000000001","class":"ok","identity":"edge-r1","elapsed_ms":12,"at":1}});
+        write
+            .write_all(format!("{answer}\n").as_bytes())
+            .await
+            .unwrap();
+    });
+    let r = app
+        .clone()
+        .oneshot(req("POST", path, &cookie, "wrong", ""))
+        .await
+        .unwrap();
+    assert_eq!(
+        r.status(),
+        StatusCode::FORBIDDEN,
+        "a test needs the CSRF token"
+    );
+    let r = app
+        .clone()
+        .oneshot(req("POST", path, &cookie, &csrf, ""))
+        .await
+        .unwrap();
+    let t: web_contract::routers::RouterTestResult =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(
+        (t.class.as_str(), t.identity.as_deref()),
+        ("ok", Some("edge-r1"))
+    );
+    service.await.unwrap();
+    let r = app
+        .clone()
+        .oneshot(req("POST", "/api/v1/routers/sync", &cookie, &csrf, ""))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+}

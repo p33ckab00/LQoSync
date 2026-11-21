@@ -14,7 +14,9 @@ use tokio::{
     net::{UnixListener, UnixStream},
     sync::{Mutex, RwLock, Semaphore},
 };
-use web_contract::routers::{RouterActivity, RouterEditForm, RouterEditOutcome, RouterEditRequest};
+use web_contract::routers::{
+    RouterActivity, RouterEditForm, RouterEditOutcome, RouterEditRequest, RouterTestResult,
+};
 use web_contract::{Overview, TrafficWindow};
 
 /// The request line limit. A router edit can carry a CA certificate of up to 16 KiB.
@@ -60,6 +62,13 @@ pub enum Request {
     RouterActivity {
         router_id: String,
     },
+    /// One connection test, run by the service through its API socket.
+    RouterTest {
+        actor: String,
+        router_id: String,
+    },
+    /// Start a cycle now for all enabled routers.
+    SyncNow,
 }
 #[derive(Serialize, Deserialize)]
 pub struct Reply {
@@ -74,6 +83,8 @@ pub struct Reply {
     pub edit: Option<RouterEditOutcome>,
     #[serde(default)]
     pub activity: Option<RouterActivity>,
+    #[serde(default)]
+    pub test: Option<RouterTestResult>,
 }
 impl Reply {
     fn no() -> Self {
@@ -85,6 +96,7 @@ impl Reply {
             routers: None,
             edit: None,
             activity: None,
+            test: None,
         }
     }
 }
@@ -191,6 +203,8 @@ pub async fn serve(
     let limits = Arc::new(Mutex::new(HashMap::<String, (u64, u32)>::new()));
     // One config writer at a time: router edits are serialized.
     let edits = Arc::new(Semaphore::new(1));
+    // One connection test at a time; the service runs it between cycles.
+    let tests = Arc::new(Semaphore::new(1));
     let editor = editor.map(Arc::new);
     loop {
         let (stream, _) = listener.accept().await?;
@@ -207,10 +221,12 @@ pub async fn serve(
         let limits = limits.clone();
         let root = inventory_root.clone();
         let edits = edits.clone();
+        let tests = tests.clone();
         let editor = editor.clone();
         tokio::spawn(async move {
             let _permit = permit;
-            let result = tokio::time::timeout(Duration::from_secs(30), async {
+            // A connection test waits for the current cycle, then for its own router timeouts.
+            let result = tokio::time::timeout(Duration::from_secs(75), async {
                 let (read, mut write) = stream.into_split();
                 let mut line = String::new();
                 BufReader::new(read)
@@ -238,6 +254,26 @@ pub async fn serve(
                             tokio::task::spawn_blocking(move || crate::routers::load(&root))
                                 .await?;
                         reply.ok = reply.routers.is_some();
+                    }
+                    Request::RouterTest { actor, router_id } => {
+                        ensure!(actor.len() <= 64 && router_id.len() <= 64, "invalid input");
+                        reply.test = Some(match tests.clone().try_acquire_owned() {
+                            Ok(_one) => crate::routers::core_test(&root, &actor, &router_id).await,
+                            Err(_) => RouterTestResult {
+                                router_id,
+                                class: "busy".into(),
+                                at: now(),
+                                ..Default::default()
+                            },
+                        });
+                        reply.ok = true;
+                    }
+                    Request::SyncNow => {
+                        let Some(editor) = editor.as_deref() else {
+                            anyhow::bail!("no router editor");
+                        };
+                        reply.edit = Some(crate::routers::run_sync(editor).await);
+                        reply.ok = true;
                     }
                     Request::RouterActivity { router_id } => {
                         ensure!(router_id.len() <= 64, "invalid input");
