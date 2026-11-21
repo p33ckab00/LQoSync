@@ -326,7 +326,11 @@ async fn topology_mutate(
         key: body.key,
         command: body.command,
     };
-    let reply = exchange(&s.broker, &request)
+    queued(&s, &request).await
+}
+/// Send one queue request to the broker: `202` with the operation and its URL, or the refusal.
+async fn queued(s: &WebState, request: &BrokerRequest) -> ApiResult {
+    let reply = exchange(&s.broker, request)
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     match (reply.operation, reply.refused.as_deref()) {
@@ -341,8 +345,69 @@ async fn topology_mutate(
         (None, Some("key_reused")) => Err(StatusCode::CONFLICT),
         (None, Some("busy")) => Err(StatusCode::TOO_MANY_REQUESTS),
         (None, Some("invalid")) => Err(StatusCode::BAD_REQUEST),
+        (None, Some("expired")) => Err(StatusCode::GONE),
         _ => Err(StatusCode::SERVICE_UNAVAILABLE),
     }
+}
+/// Ask for the impact review of one Builder edit. The review arrives on the operation.
+async fn topology_propose(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Json(request): Json<web_contract::topology::ProposalRequest>,
+) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    queued(
+        &s,
+        &BrokerRequest::TopologyPropose {
+            actor: p.username,
+            request,
+        },
+    )
+    .await
+}
+/// Save a reviewed proposal of this account. `410` when it expired or was replaced.
+async fn topology_confirm(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(proposal): Path<String>,
+    Json(body): Json<web_contract::topology::ConfirmRequest>,
+) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    if proposal.len() > 64 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    queued(
+        &s,
+        &BrokerRequest::TopologyConfirm {
+            actor: p.username,
+            proposal,
+            key: body.key,
+        },
+    )
+    .await
+}
+async fn topology_cancel(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(proposal): Path<String>,
+) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    if proposal.len() > 64 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let request = BrokerRequest::TopologyCancel {
+        actor: p.username,
+        proposal,
+    };
+    let reply = exchange(&s.broker, &request)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(if reply.ok {
+        StatusCode::NO_CONTENT
+    } else {
+        StatusCode::GONE
+    }
+    .into_response())
 }
 /// The state of one topology change of this account.
 async fn topology_operation(
@@ -531,6 +596,15 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/routers/sync", post(sync_routers))
         .route("/api/v1/topology", get(topology))
         .route("/api/v1/topology/mutations", post(topology_mutate))
+        .route("/api/v1/topology/proposals", post(topology_propose))
+        .route(
+            "/api/v1/topology/proposals/{key}/confirm",
+            post(topology_confirm),
+        )
+        .route(
+            "/api/v1/topology/proposals/{key}/cancel",
+            post(topology_cancel),
+        )
         .route("/api/v1/topology/operations/{key}", get(topology_operation))
         .route("/api/v1/topology/assignments", get(topology_assignments))
         .route("/api/v1/topology/observations", get(topology_observations))

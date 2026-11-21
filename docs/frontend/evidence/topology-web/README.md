@@ -79,3 +79,55 @@ The browser check covers these items:
 - The broker reads the whole cache on each request. Large networks can make reads slower.
 - The summary keeps the first nodes that fit one reply and marks the rest as truncated.
 - Refresh, discovery, edits, plans, pins, and rebalance are T04–T09.
+
+# Builder changes (T04–T06)
+
+Date: 2026-11-21, Asia/Manila.
+
+## Flow
+
+1. The operator opens **Create node**, **Edit node**, **Move**, or **Remove node**.
+2. **Review change** sends `POST /api/v1/topology/proposals`. The answer is `202` and an operation key.
+3. The broker asks the service for a proposal. The operation becomes `review_ready` with an impact review:
+   moves, cleared placements, node changes, warnings, and the expiry time.
+4. **Save change** sends `POST /api/v1/topology/proposals/{key}/confirm` with a new receipt key.
+   The broker sends the private service token. The browser never holds that token.
+5. The page reads `GET /api/v1/topology/operations/{key}` until the state is final.
+   **Saved** shows the policy revision. Publication follows in the next service cycle.
+
+**Back to the change** and **Close** cancel the kept proposal. The draft stays in the form.
+
+## Safety rules
+
+- Every change needs the same origin, a current session, and the CSRF token.
+- The actor comes from the session. A proposal of one actor cannot be confirmed by another.
+- The same receipt key gives the same receipt. The service commits once per key.
+- A reply lost after the request left is never sent again. The status asks the service receipt.
+- Recovery after a crash decides from the registry only:
+  - Still at the base revision: `not_committed`.
+  - The prepared revision and the same document fingerprint: `saved`.
+  - Anything else: `outcome_unknown`.
+- Changes are off when the registry is absent, not enrolled, or the writer is unknown.
+
+## Design guidance used
+
+- Vercel frontend-design (`~/.agents/skills/frontend-design/SKILL.md`):
+  - The page keeps the existing visual system.
+  - One action keeps one name: **Review change**, then **Save change**, then "Saved".
+  - Error texts say what to do next.
+- Google Modern Web Guidance (github.com/GoogleChrome/modern-web-guidance):
+  - `ui-components/dialog.md`: the dialog opens with `showModal()` and has `aria-labelledby`. It has no custom focus trap and no Escape handler. The browser returns focus to the button that opened the dialog.
+  - `forms/validate-input-after-interaction.md` and `forms/required-field-feedback.md`: the form uses native `required`, `min`, and `max`, and `:user-invalid` styling. The submit button stays enabled during input.
+  - `accessibility/accessible-error-announcement.md`: one polite status region and one alert for failures.
+
+## Checks
+
+| Check | Result |
+|---|---|
+| `cargo test --lib web_receipts` | 9 passed: crash before the write, crash after the write, later commit, key reuse, foreign actor, pruning |
+| Runner API tests | One commit per key, failed receipt on a stale revision, and recovery at restart |
+| `cargo test -p web-gateway --test topology_jobs` | 8 passed: deduplication, lost reply, queue limit, proposal lease, expiry, cancel, service rule text |
+| `edits_tests::every_web_builder_edit_is_a_service_edit` | Each web edit parses as a service edit |
+| `topology-check.cjs` | Review and save, Escape, focus return, `:user-invalid`, and only the proposal and confirm POSTs |
+
+![Builder review](builder-review-dark.png)

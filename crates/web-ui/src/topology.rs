@@ -190,7 +190,7 @@ pub(crate) fn TopologyPage(
             "assignments"=>view!{<Assignments session data selected=subscriber.clone()/>}.into_any(),
             "policies"=>view!{<Policies data/>}.into_any(),
             "changes"=>view!{<Changes data/>}.into_any(),
-            _=>view!{<Builder data/>}.into_any(),
+            _=>view!{<Builder session data reload=load/>}.into_any(),
           }
         }
       </Show>
@@ -198,8 +198,15 @@ pub(crate) fn TopologyPage(
 }
 
 #[component]
-fn Builder(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
+fn Builder(
+    session: RwSignal<Option<Principal>>,
+    data: RwSignal<Option<TopologySummary>>,
+    reload: Callback<()>,
+) -> impl IntoView {
+    use crate::topology_forms::{ChangeDialog, blocked};
     let selected = RwSignal::new(None::<String>);
+    let action = RwSignal::new(None::<Change>);
+    let locked = move || blocked(data).is_some();
     let nodes = move || data.with(|d| d.as_ref().map(|s| s.nodes.clone()).unwrap_or_default());
     let node = Memo::new(move |_| {
         let id = selected.get()?;
@@ -228,8 +235,12 @@ fn Builder(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
           <p class="panel-note">"Discovery is an explicit router read. It arrives with the write release."</p>
         </section>
         <section class="panel" aria-labelledby="tree-title">
-          <h2 id="tree-title">"Topology tree"</h2>
+          <div class="panel-title">
+            <h2 id="tree-title">"Topology tree"</h2>
+            <button type="button" class="primary" disabled=locked on:click=move|_|action.set(Some(Change::Create))>"Create node"</button>
+          </div>
           <p class="panel-note">"Select a node to inspect it. Capacities describe policy, not measured traffic."</p>
+          {move||blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
           <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.nodes.is_empty()))
             fallback=||view!{<p class="router-empty">"No topology nodes. Enroll a topology policy to build the tree."</p>}>
             <ul class="topology-tree" aria-label="Topology nodes">
@@ -250,6 +261,7 @@ fn Builder(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
             </Show>
           </Show>
         </section>
+        <ChangeDialog session data action reload/>
         <section class="panel" aria-labelledby="details-title" aria-live="polite">
           <h2 id="details-title">"Details"</h2>
           {move||match node.get() {
@@ -267,7 +279,14 @@ fn Builder(data: RwSignal<Option<TopologySummary>>) -> impl IntoView {
                 <div><dt>"Direct subscribers"</dt><dd>{n.members.map(|m|m.to_string()).unwrap_or("No preview".into())}</dd></div>
               </dl>
               {n.alias.then(||view!{<p class="panel-note">"This node keeps an adopted legacy name."</p>})}
-              <p class="panel-note">"Edit, Move, and Remove arrive with the write release."</p>
+              {
+                let (e,m,r)=(n.clone(),n.clone(),n.clone());
+                view!{<div class="form-actions node-actions">
+                  <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Edit(e.clone())))>"Edit node"</button>
+                  <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Move(m.clone())))>"Move"</button>
+                  <button type="button" class="quiet danger" disabled=locked on:click=move|_|action.set(Some(Change::Remove(r.clone())))>"Remove node"</button>
+                </div>}
+              }
             }.into_any(),
           }}
         </section>

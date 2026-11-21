@@ -94,6 +94,22 @@ pub enum Request {
         actor: String,
         key: String,
     },
+    /// Ask the service for the impact review of one Builder edit.
+    TopologyPropose {
+        actor: String,
+        request: web_contract::topology::ProposalRequest,
+    },
+    /// Save the reviewed proposal of this actor under the receipt key `key`.
+    TopologyConfirm {
+        actor: String,
+        proposal: String,
+        key: String,
+    },
+    /// Drop the reviewed proposal of this actor.
+    TopologyCancel {
+        actor: String,
+        proposal: String,
+    },
 }
 #[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
@@ -307,21 +323,29 @@ pub async fn serve(
                         key,
                         command,
                     } => {
-                        use crate::topology_jobs::Refused;
-                        match jobs.submit(&actor, &key, command).await {
-                            Ok(operation) => reply.operation = Some(operation),
-                            Err(refused) => {
-                                reply.refused = Some(
-                                    match refused {
-                                        Refused::Invalid => "invalid",
-                                        Refused::KeyReused => "key_reused",
-                                        Refused::Busy => "busy",
-                                    }
-                                    .into(),
-                                )
-                            }
-                        }
-                        reply.ok = reply.operation.is_some();
+                        crate::topology_jobs::answer(
+                            &mut reply,
+                            jobs.submit(&actor, &key, command).await,
+                        );
+                    }
+                    Request::TopologyPropose { actor, request } => {
+                        crate::topology_jobs::answer(
+                            &mut reply,
+                            jobs.propose(&actor, request).await,
+                        );
+                    }
+                    Request::TopologyConfirm {
+                        actor,
+                        proposal,
+                        key,
+                    } => {
+                        crate::topology_jobs::answer(
+                            &mut reply,
+                            jobs.confirm(&actor, &proposal, &key).await,
+                        );
+                    }
+                    Request::TopologyCancel { actor, proposal } => {
+                        reply.ok = jobs.cancel(&actor, &proposal).await;
                     }
                     Request::TopologyOperation { actor, key } => {
                         ensure!(actor.len() <= 64 && key.len() <= 64, "invalid input");

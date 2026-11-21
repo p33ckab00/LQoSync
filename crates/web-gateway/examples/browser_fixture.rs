@@ -354,6 +354,32 @@ async fn main() -> anyhow::Result<()> {
             let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
                 continue;
             };
+            // Topology changes: a review that moves one subscriber, then a saved receipt.
+            let topology = match v["op"].as_str().unwrap_or("") {
+                "topology.edit.propose" => Some(serde_json::json!({
+                    "proposal_id": "edit-42-1", "expires_at": broker::now() + 120,
+                    "edit": v["args"]["edit"],
+                    "nodes": [{"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false},
+                              {"id":"tm-node-ppp-north","name":"PPPoE access","parent":"tm-node-wan-north","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false},
+                              {"id":"tm-node-wan-south","name":"WAN South","parent":null,"kind":"wan","source_id":"wan-south","capacity":{"mode":"fixed","down_mbps":500,"up_mbps":250,"factor_percent":null},"alias":false},
+                              {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false},
+                              {"id":"tm-node-new","name":v["args"]["edit"]["name"].as_str().unwrap_or("Changed"),"parent":"tm-node-wan-north","kind":"intermediate","source_id":null,"capacity":{"mode":"automatic"},"alias":false}],
+                    "moves": [{"subscriber_id":"tm-sub-0000000000000003","label":"account-03","from":"tm-node-ppp-north","to":"tm-node-wan-south"}],
+                    "cleared": [], "assigned": 0, "new_records": 0, "sources": ["access-ppp"]})),
+                "topology.web.mutate" => Some(
+                    serde_json::json!({"key": v["args"]["key"], "state": "saved",
+                    "base_revision": "42", "revision": "43", "subject_id": null, "error": null}),
+                ),
+                "topology.edit.cancel" => Some(serde_json::json!({})),
+                "topology.web.operation" => Some(serde_json::Value::Null),
+                _ => None,
+            };
+            if let Some(result) = topology {
+                tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                let answer = serde_json::json!({"v":1,"id":v["id"],"ok":true,"result":result});
+                let _ = write.write_all(format!("{answer}\n").as_bytes()).await;
+                continue;
+            }
             let id = v["args"]["router_id"].as_str().unwrap_or("").to_string();
             tokio::time::sleep(std::time::Duration::from_millis(300)).await;
             let (class, identity) = match id.as_str() {

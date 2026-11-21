@@ -1239,3 +1239,57 @@ mod fallback_fixes {
         assert_eq!(a.affected, vec!["profile-source".to_string()]);
     }
 }
+
+#[test]
+fn every_web_builder_edit_is_a_service_edit() {
+    use web_contract::topology::{BuilderEdit as B, Capacity as C};
+    let fixed = C::Fixed {
+        down_mbps: 100,
+        up_mbps: 50,
+        factor_percent: None,
+    };
+    let edits = [
+        B::NodeCreate {
+            name: "Tower".into(),
+            parent: Some("wan1".into()),
+            capacity: C::Automatic,
+            node_kind: Some("group".into()),
+        },
+        B::NodeCreate {
+            name: "Core".into(),
+            parent: None,
+            capacity: fixed.clone(),
+            node_kind: None,
+        },
+        B::InstanceAdd {
+            source_id: "profile-source".into(),
+            parent: None,
+            name: None,
+        },
+        B::NodeMove {
+            node_id: "group1".into(),
+            parent: Some("wan2".into()),
+        },
+        B::NodeUpdate {
+            node_id: "wan1".into(),
+            name: Some("North".into()),
+            capacity: Some(C::WanPercent {
+                down_percent: 50,
+                up_percent: 50,
+            }),
+        },
+        B::NodeUpdate {
+            node_id: "wan1".into(),
+            name: None,
+            capacity: Some(C::Inherit),
+        },
+        B::NodeRemove {
+            node_id: "group1".into(),
+        },
+    ];
+    for edit in edits {
+        let wire = serde_json::to_value(&edit).unwrap();
+        let parsed: Result<Edit, _> = serde_json::from_value(wire.clone());
+        assert!(parsed.is_ok(), "{wire}: {parsed:?}");
+    }
+}

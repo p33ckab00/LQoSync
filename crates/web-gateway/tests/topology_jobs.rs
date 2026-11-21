@@ -77,7 +77,7 @@ fn core(dir: &std::path::Path, mode: Mode) -> Arc<AtomicUsize> {
 async fn settle(jobs: &Jobs, actor: &str) -> web_contract::topology::Operation {
     for _ in 0..100 {
         let op = jobs.status(actor, KEY).await;
-        if !matches!(op.state.as_str(), "queued" | "running") {
+        if !matches!(op.state.as_str(), "queued" | "running" | "reviewing") {
             return op;
         }
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
@@ -181,5 +181,167 @@ async fn the_queue_has_a_limit() {
     assert_eq!(
         refused,
         Some((web_gateway::topology_jobs::MAX_OPEN, Refused::Busy))
+    );
+}
+
+/// A fake service for Builder proposals. It records every request. `node.remove` of `busy` is
+/// refused with a rule; any other edit gets a proposal that moves two subscribers.
+fn builder_core(dir: &std::path::Path, ttl: u64) -> Arc<tokio::sync::Mutex<Vec<Value>>> {
+    let seen = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let listener = tokio::net::UnixListener::bind(dir.join("api.sock")).unwrap();
+    let log = seen.clone();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let log = log.clone();
+            tokio::spawn(async move {
+                let (read, mut write) = stream.into_split();
+                let mut line = String::new();
+                tokio::io::BufReader::new(read)
+                    .read_line(&mut line)
+                    .await
+                    .unwrap();
+                let v: Value = serde_json::from_str(&line).unwrap();
+                log.lock().await.push(v.clone());
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let answer = match v["op"].as_str().unwrap() {
+                    "topology.edit.propose" if v["args"]["edit"]["node_id"] == "busy" => json!({
+                        "v": 1, "id": v["id"], "ok": false,
+                        "error": {"code": "invalid", "message": "a node with children cannot be removed"}}),
+                    "topology.edit.propose" => {
+                        json!({"v": 1, "id": v["id"], "ok": true, "result": {
+                        "proposal_id": "edit-2-7", "expires_at": now + ttl, "edit": v["args"]["edit"],
+                        "nodes": [{"id": "new-1", "name": "Tower 1", "parent": null, "kind": "intermediate",
+                                   "source_id": null, "capacity": {"mode": "automatic"}, "alias": false}],
+                        "moves": [{"subscriber_id": "s1", "label": "alice", "from": "a", "to": "b"},
+                                  {"subscriber_id": "s2", "label": null, "from": "a", "to": "b"}],
+                        "cleared": ["s3"], "assigned": 0, "new_records": 0, "sources": ["ppp-a"]}})
+                    }
+                    "topology.web.mutate" => json!({"v": 1, "id": v["id"], "ok": true,
+                        "result": {"key": v["args"]["key"], "state": "saved", "base_revision": "2",
+                                   "revision": "3", "subject_id": null, "error": null}}),
+                    _ => json!({"v": 1, "id": v["id"], "ok": true, "result": {}}),
+                };
+                let mut bytes = serde_json::to_vec(&answer).unwrap();
+                bytes.push(b'\n');
+                let _ = write.write_all(&bytes).await;
+            });
+        }
+    });
+    seen
+}
+
+fn proposal(node: &str) -> web_contract::topology::ProposalRequest {
+    web_contract::topology::ProposalRequest {
+        key: KEY.into(),
+        expected_revision: 2,
+        edit: web_contract::topology::BuilderEdit::NodeRemove {
+            node_id: node.into(),
+        },
+    }
+}
+
+const SAVE: &str = "0f8b5a3c-1d2e-4f60-9a7b-00000000aaaa";
+
+#[tokio::test]
+async fn a_reviewed_proposal_saves_once_through_its_private_token() {
+    let dir = tempfile::tempdir().unwrap();
+    let seen = builder_core(dir.path(), 120);
+    let jobs = Jobs::new(dir.path().into());
+    jobs.propose("alice", proposal("old")).await.unwrap();
+    let review = settle(&jobs, "alice").await;
+    assert_eq!(review.state, "review_ready");
+    let r = review.review.unwrap();
+    assert_eq!((r.proposal.as_str(), r.moves, r.cleared), (KEY, 2, 1));
+    assert_eq!(r.moved[0].label.as_deref(), Some("alice"));
+    assert!(
+        !serde_json::to_string(&r).unwrap().contains("edit-2-7"),
+        "no service token"
+    );
+    // No cached view of revision 2: no node diff, and the review says why.
+    assert!(r.nodes.is_empty());
+    assert_eq!(r.warnings.len(), 1);
+    // Another actor cannot confirm or cancel this proposal.
+    assert_eq!(
+        jobs.confirm("bob", KEY, SAVE).await.unwrap_err(),
+        Refused::Expired
+    );
+    let saved = jobs.confirm("alice", KEY, SAVE).await.unwrap();
+    assert!(matches!(saved.state.as_str(), "queued" | "running"));
+    // A double click on Save uses the same key: no second commit.
+    jobs.confirm("alice", KEY, SAVE).await.unwrap();
+    let mut done = jobs.status("alice", SAVE).await;
+    for _ in 0..100 {
+        if done.state == "saved" {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        done = jobs.status("alice", SAVE).await;
+    }
+    assert_eq!(done.state, "saved");
+    let log = seen.lock().await;
+    let confirms: Vec<&Value> = log
+        .iter()
+        .filter(|v| v["op"] == "topology.web.mutate")
+        .collect();
+    assert_eq!(confirms.len(), 1);
+    assert_eq!(confirms[0]["args"]["command"]["proposal_id"], "edit-2-7");
+    assert_eq!(confirms[0]["args"]["actor"], "alice");
+}
+
+#[tokio::test]
+async fn an_expired_or_cancelled_proposal_cannot_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let seen = builder_core(dir.path(), 0);
+    let jobs = Jobs::new(dir.path().into());
+    jobs.propose("alice", proposal("old")).await.unwrap();
+    assert_eq!(settle(&jobs, "alice").await.state, "review_ready");
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    assert_eq!(
+        jobs.confirm("alice", KEY, SAVE).await.unwrap_err(),
+        Refused::Expired
+    );
+
+    let dir = tempfile::tempdir().unwrap();
+    let seen2 = builder_core(dir.path(), 120);
+    let jobs = Jobs::new(dir.path().into());
+    jobs.propose("alice", proposal("old")).await.unwrap();
+    settle(&jobs, "alice").await;
+    assert!(!jobs.cancel("bob", KEY).await);
+    assert!(jobs.cancel("alice", KEY).await);
+    assert_eq!(
+        jobs.confirm("alice", KEY, SAVE).await.unwrap_err(),
+        Refused::Expired
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert!(
+        seen2
+            .lock()
+            .await
+            .iter()
+            .any(|v| v["op"] == "topology.edit.cancel" && v["args"]["proposal_id"] == "edit-2-7")
+    );
+    assert!(
+        !seen
+            .lock()
+            .await
+            .iter()
+            .any(|v| v["op"] == "topology.web.mutate")
+    );
+}
+
+#[tokio::test]
+async fn a_refused_proposal_shows_the_service_rule() {
+    let dir = tempfile::tempdir().unwrap();
+    builder_core(dir.path(), 120);
+    let jobs = Jobs::new(dir.path().into());
+    jobs.propose("alice", proposal("busy")).await.unwrap();
+    let done = settle(&jobs, "alice").await;
+    assert_eq!(done.state, "failed");
+    assert_eq!(
+        done.error.as_deref(),
+        Some("a node with children cannot be removed")
     );
 }

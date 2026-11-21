@@ -336,4 +336,98 @@ pub struct Operation {
     pub state: String,
     /// The service receipt once the service answered or recovery decided.
     pub receipt: Option<WebReceipt>,
+    /// The impact review of a Builder proposal (`review_ready`).
+    #[serde(default)]
+    pub review: Option<Review>,
+    /// A safe reason when the service refused the request.
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+/// The Builder edits that the web can propose. The JSON is the service `Edit` form.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", deny_unknown_fields)]
+pub enum BuilderEdit {
+    #[serde(rename = "node.create")]
+    NodeCreate {
+        name: String,
+        parent: Option<String>,
+        capacity: Capacity,
+        /// `intermediate` or `group`.
+        node_kind: Option<String>,
+    },
+    #[serde(rename = "instance.add")]
+    InstanceAdd {
+        source_id: String,
+        parent: Option<String>,
+        name: Option<String>,
+    },
+    #[serde(rename = "node.move")]
+    NodeMove {
+        node_id: String,
+        parent: Option<String>,
+    },
+    #[serde(rename = "node.update")]
+    NodeUpdate {
+        node_id: String,
+        name: Option<String>,
+        capacity: Option<Capacity>,
+    },
+    #[serde(rename = "node.remove")]
+    NodeRemove { node_id: String },
+}
+
+/// `POST /api/v1/topology/proposals`. `key` names the proposal for its actor only.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProposalRequest {
+    pub key: String,
+    pub expected_revision: u64,
+    pub edit: BuilderEdit,
+}
+
+/// `POST /api/v1/topology/proposals/{proposal}/confirm`. `key` is the receipt key of the save.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConfirmRequest {
+    pub key: String,
+}
+
+/// The service impact review of one Builder proposal.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Review {
+    /// The proposal key. The service token stays in the broker.
+    pub proposal: String,
+    /// Unix seconds. Confirm before this time.
+    pub expires_at: u64,
+    pub base_revision: String,
+    /// Subscribers that move to another node.
+    pub moves: u64,
+    /// The first moves. `moves` counts all of them.
+    pub moved: Vec<Moved>,
+    /// Offline subscribers that lose their saved placement.
+    pub cleared: u64,
+    pub assigned: u64,
+    pub new_records: u64,
+    /// Subscriber sources that the service rebalanced for the review.
+    pub sources: Vec<String>,
+    /// Nodes that the edit adds, removes, moves, or changes.
+    pub nodes: Vec<NodeChange>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Moved {
+    pub subscriber_id: String,
+    pub label: Option<String>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeChange {
+    pub id: String,
+    pub name: String,
+    /// `added`, `removed`, `moved`, or `changed`.
+    pub change: String,
 }

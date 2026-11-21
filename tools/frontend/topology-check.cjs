@@ -97,9 +97,56 @@ const fs=require('node:fs');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${path} fits ${w}px`);
     }
     assert.deepEqual(writes,[],'no topology request other than GET');
+
+    // A Builder change: draft, service review, save. Writes happen only after explicit clicks.
+    await page.setViewportSize({width:1440,height:1000});
+    await page.goto('http://127.0.0.1:19581/topology');
+    const create=page.getByRole('button',{name:'Create node'});
+    await create.click();
+    const dialog=page.getByRole('dialog',{name:'Create node'});
+    await dialog.waitFor();
+    // Escape closes the draft; the browser returns focus to the invoker.
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>document.activeElement?.textContent),'Create node');
+    await create.click();
+    // An empty required name stays in the draft (native validation).
+    await dialog.getByRole('button',{name:'Review change'}).click();
+    assert.equal(await dialog.getByLabel('Name').evaluate(e=>e.matches(':user-invalid')),true);
+    assert.equal(writes.length,0);
+    await dialog.getByLabel('Name').fill('Tower 7');
+    await dialog.getByLabel('Parent').selectOption('tm-node-wan-north');
+    await dialog.getByRole('button',{name:'Review change'}).click();
+    await dialog.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
+    const impact=await dialog.innerText();
+    assert.match(impact,/Subscribers that move\s+1/);
+    assert.match(impact,/added\s+Tower 7/);
+    assert.match(impact,/account-03[\s\S]*PPPoE access to WAN South/);
+    if(scheme==='dark')await page.screenshot({path:`${out}/builder-review-${scheme}.png`});
+    await dialog.getByRole('button',{name:'Save change'}).click();
+    await dialog.getByText('Saved as policy revision 43.',{exact:false}).waitFor({timeout:15000});
+    await dialog.getByRole('button',{name:'Close',exact:true}).last().click();
+    await dialog.waitFor({state:'hidden'});
+    const paths=writes.map(w=>w.replace(/[0-9a-f]+-[0-9a-f]{13}-[0-9a-f]{13}/g,'KEY'));
+    assert.deepEqual(paths,[
+      'POST http://127.0.0.1:19581/api/v1/topology/proposals',
+      'POST http://127.0.0.1:19581/api/v1/topology/proposals/KEY/confirm',
+    ]);
+    // Remove: review, then Back cancels the kept proposal.
+    await page.getByRole('list',{name:'Topology nodes'}).getByRole('button',{name:/DHCP access/}).click();
+    await page.getByRole('button',{name:'Remove node'}).click();
+    const remove=page.getByRole('dialog',{name:'Remove DHCP access'});
+    await remove.getByRole('button',{name:'Review change'}).click();
+    await remove.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
+    await remove.getByRole('button',{name:'Back to the change'}).click();
+    await remove.getByRole('button',{name:'Review change'}).waitFor();
+    await page.waitForTimeout(300);
+    assert.ok(writes.some(w=>/proposals\/[^/]+\/cancel$/.test(w)),'Back cancels the review');
+    await page.keyboard.press('Escape');
+    await remove.waitFor({state:'hidden'});
     assert.deepEqual(errors,[]);
     await page.close();
   }
   await browser.close();
-  console.log('PASS: Topology Builder/Assignments, PPPoE Users, IPoE Clients, Local plans, shared subscriber record, both themes, 320-390px, GET only.');
+  console.log('PASS: Topology Builder change review and save, Builder/Assignments, PPPoE Users, IPoE Clients, Local plans, shared subscriber record, both themes, 320-390px, GET only.');
 })().catch(e=>{console.error(e);process.exit(1);});

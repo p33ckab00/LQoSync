@@ -1,5 +1,5 @@
 //! Pure helpers of the Topology, PPPoE, and IPoE screens, so native tests cover them.
-use web_contract::topology::{Capacity, Node, PageQuery};
+use web_contract::topology::{BuilderEdit, Capacity, Node, PageQuery};
 
 /// Nodes in tree order with their depth. A node whose parent is absent is a root.
 /// A parent cycle cannot loop: each node appears once.
@@ -178,9 +178,214 @@ pub(crate) fn account(account_ref: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// One Builder action on the selected node, or a new node.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Change {
+    Create,
+    Edit(Node),
+    Move(Node),
+    Remove(Node),
+}
+
+/// The form values as typed. The browser checks shape; the service decides every rule.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct Draft {
+    pub name: String,
+    /// A node ID, or empty for the root.
+    pub parent: String,
+    /// `intermediate` or `group`.
+    pub kind: String,
+    /// `automatic`, `inherit`, `fixed`, or `wan_percent`.
+    pub mode: String,
+    pub down: String,
+    pub up: String,
+}
+
+impl Draft {
+    pub(crate) fn of(action: &Change) -> Self {
+        let node = match action {
+            Change::Create => {
+                return Self {
+                    kind: "intermediate".into(),
+                    mode: "automatic".into(),
+                    ..Self::default()
+                };
+            }
+            Change::Edit(n) | Change::Move(n) | Change::Remove(n) => n,
+        };
+        let (mode, down, up) = match &node.capacity {
+            Capacity::Inherit => ("inherit", String::new(), String::new()),
+            Capacity::Automatic => ("automatic", String::new(), String::new()),
+            Capacity::Fixed {
+                down_mbps, up_mbps, ..
+            } => ("fixed", down_mbps.to_string(), up_mbps.to_string()),
+            Capacity::WanPercent {
+                down_percent,
+                up_percent,
+            } => (
+                "wan_percent",
+                down_percent.to_string(),
+                up_percent.to_string(),
+            ),
+        };
+        Self {
+            name: node.name.clone(),
+            parent: node.parent.clone().unwrap_or_default(),
+            kind: node.kind.clone(),
+            mode: mode.into(),
+            down,
+            up,
+        }
+    }
+}
+
+fn capacity(d: &Draft, keep_factor: Option<[u64; 2]>) -> Result<Capacity, &'static str> {
+    let number = |s: &str| s.trim().parse::<u64>().ok().filter(|n| *n > 0);
+    Ok(match d.mode.as_str() {
+        "inherit" => Capacity::Inherit,
+        "automatic" => Capacity::Automatic,
+        "fixed" => match (number(&d.down), number(&d.up)) {
+            (Some(down_mbps), Some(up_mbps)) => Capacity::Fixed {
+                down_mbps,
+                up_mbps,
+                factor_percent: keep_factor,
+            },
+            _ => return Err("Enter download and upload as whole Mbps above 0."),
+        },
+        "wan_percent" => match (number(&d.down), number(&d.up)) {
+            (Some(down_percent), Some(up_percent)) if down_percent <= 100 && up_percent <= 100 => {
+                Capacity::WanPercent {
+                    down_percent,
+                    up_percent,
+                }
+            }
+            _ => return Err("Enter download and upload as whole percents from 1 to 100."),
+        },
+        _ => return Err("Select a capacity mode."),
+    })
+}
+
+/// The service edit for one action. An error is a sentence for the form.
+pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'static str> {
+    let name = d.name.trim();
+    let parent = (!d.parent.is_empty()).then(|| d.parent.clone());
+    Ok(match action {
+        Change::Create => {
+            if name.is_empty() {
+                return Err("Enter a node name.");
+            }
+            BuilderEdit::NodeCreate {
+                name: name.into(),
+                parent,
+                capacity: capacity(d, None)?,
+                node_kind: Some(d.kind.clone()),
+            }
+        }
+        Change::Edit(n) => {
+            if name.is_empty() {
+                return Err("Enter a node name.");
+            }
+            let factor = match n.capacity {
+                Capacity::Fixed { factor_percent, .. } => factor_percent,
+                _ => None,
+            };
+            let capacity = capacity(d, factor)?;
+            BuilderEdit::NodeUpdate {
+                node_id: n.id.clone(),
+                name: (name != n.name).then(|| name.into()),
+                capacity: (capacity != n.capacity).then_some(capacity),
+            }
+        }
+        Change::Move(n) => {
+            if parent.as_deref() == Some(n.id.as_str()) {
+                return Err("A node cannot be its own parent.");
+            }
+            if parent == n.parent {
+                return Err("Select another parent.");
+            }
+            BuilderEdit::NodeMove {
+                node_id: n.id.clone(),
+                parent,
+            }
+        }
+        Change::Remove(n) => BuilderEdit::NodeRemove {
+            node_id: n.id.clone(),
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn drafts_make_the_service_edit_or_a_form_error() {
+        let wan = Node {
+            capacity: Capacity::Fixed {
+                down_mbps: 1000,
+                up_mbps: 500,
+                factor_percent: Some([50, 50]),
+            },
+            ..node("wan1", None)
+        };
+        let mut d = Draft::of(&Change::Create);
+        assert_eq!(build_edit(&Change::Create, &d), Err("Enter a node name."));
+        d.name = " Tower 1 ".into();
+        d.parent = "wan1".into();
+        assert_eq!(
+            build_edit(&Change::Create, &d),
+            Ok(BuilderEdit::NodeCreate {
+                name: "Tower 1".into(),
+                parent: Some("wan1".into()),
+                capacity: Capacity::Automatic,
+                node_kind: Some("intermediate".into()),
+            })
+        );
+        d.mode = "wan_percent".into();
+        d.down = "120".into();
+        d.up = "50".into();
+        assert!(build_edit(&Change::Create, &d).is_err());
+        // An edit sends only what changed and keeps the factor override.
+        let edit = Change::Edit(wan.clone());
+        let mut d = Draft::of(&edit);
+        assert_eq!((d.mode.as_str(), d.down.as_str()), ("fixed", "1000"));
+        d.down = "800".into();
+        assert_eq!(
+            build_edit(&edit, &d),
+            Ok(BuilderEdit::NodeUpdate {
+                node_id: "wan1".into(),
+                name: None,
+                capacity: Some(Capacity::Fixed {
+                    down_mbps: 800,
+                    up_mbps: 500,
+                    factor_percent: Some([50, 50]),
+                }),
+            })
+        );
+        d.down = "0".into();
+        assert!(build_edit(&edit, &d).is_err());
+        // A move needs another parent.
+        let g = node("g1", Some("wan1"));
+        let mv = Change::Move(g.clone());
+        let mut d = Draft::of(&mv);
+        assert_eq!(build_edit(&mv, &d), Err("Select another parent."));
+        d.parent = String::new();
+        assert_eq!(
+            build_edit(&mv, &d),
+            Ok(BuilderEdit::NodeMove {
+                node_id: "g1".into(),
+                parent: None
+            })
+        );
+        d.parent = "g1".into();
+        assert!(build_edit(&mv, &d).is_err());
+        assert_eq!(
+            build_edit(&Change::Remove(g), &Draft::default()),
+            Ok(BuilderEdit::NodeRemove {
+                node_id: "g1".into()
+            })
+        );
+    }
 
     fn node(id: &str, parent: Option<&str>) -> Node {
         Node {

@@ -59,6 +59,8 @@ mod routers_model;
 mod subscriber_views;
 #[cfg(target_arch = "wasm32")]
 mod topology;
+#[cfg(target_arch = "wasm32")]
+mod topology_forms;
 #[cfg(any(target_arch = "wasm32", test))]
 mod topology_model;
 #[cfg(target_arch = "wasm32")]
