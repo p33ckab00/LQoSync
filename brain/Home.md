@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-21-router-toolbar-modal]] — Compact icon controls and modal registration on Routers
+
 - [[2026-11-21-routers-screen-planning]] — Router no-I/O disable, shaping-removal review, and future core WAN/DPI pinning plans
 
 - [[2026-11-21-nic-supplied-artwork]] — Owner-supplied metallic NIC symbols with existing live diagnostics

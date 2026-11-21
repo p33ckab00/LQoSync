@@ -14,15 +14,58 @@ const fs=require('node:fs');
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   await page.locator('.router-table tbody tr').first().waitFor();
 
+  // Toolbar controls stay aligned; the native modal contains focus and restores the trigger.
+  const add=page.getByRole('button',{name:'Add router',exact:true});
+  const sync=page.getByRole('button',{name:'Sync now',exact:true});
+  assert.equal(await add.innerText(),'');
+  assert.equal(await sync.innerText(),'');
+  const addBox=await add.boundingBox(),syncBox=await sync.boundingBox();
+  assert.equal(addBox.y,syncBox.y);
+  assert.ok(addBox.width>=44&&syncBox.width>=44);
+  await page.getByLabel('Search',{exact:true}).fill('Core');
+  await add.click();
+  const registration=page.getByRole('dialog',{name:'Add router',exact:true});
+  await registration.waitFor();
+  assert.equal(await registration.evaluate(d=>d.matches(':modal')),true);
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'add-router-title');
+  for(let i=0;i<18;i++){
+    await page.keyboard.press('Tab');
+    assert.equal(await registration.evaluate(d=>d.contains(document.activeElement)||document.activeElement===document.body),true,'Tab cannot focus a background control');
+  }
+  for(const width of [1440,768,390]){
+    await page.setViewportSize({width,height:900});
+    const bounds=await registration.boundingBox();
+    assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width);
+    assert.equal(await registration.evaluate(d=>d.scrollWidth<=d.clientWidth),true);
+    await page.screenshot({path:`${out}/add-modal-${width}.png`});
+  }
+  await page.keyboard.press('Escape');
+  await registration.waitFor({state:'hidden'});
+  await page.waitForURL('**/routers');
+  await page.waitForFunction(()=>document.activeElement.id==='add-router');
+  assert.equal(await page.getByLabel('Search',{exact:true}).inputValue(),'Core');
+  await page.getByLabel('Search',{exact:true}).fill('');
+  await add.click();
+  await registration.getByRole('button',{name:'Cancel',exact:true}).click();
+  await registration.waitFor({state:'hidden'});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.getByLabel('Color theme').selectOption('light');
+  await add.click();
+  await registration.waitFor();
+  await page.screenshot({path:`${out}/add-modal-light-1440.png`});
+  await registration.getByRole('button',{name:'Close Add router',exact:true}).click();
+  await registration.waitFor({state:'hidden'});
+  await page.getByLabel('Color theme').selectOption('dark');
+
   // Add router: step checks, focus on the first invalid field, review, then a disabled router.
-  await page.getByRole('link',{name:'Add router'}).click();
+  await page.getByRole('button',{name:'Add router',exact:true}).click();
   await page.waitForURL('**/routers/new');
-  await page.getByRole('heading',{name:'Add router',level:1}).waitFor();
+  await page.getByRole('heading',{name:'Add router',level:2}).waitFor();
   const steps=page.getByRole('list',{name:'Steps'});
   assert.match(await steps.locator('[aria-current=step]').innerText(),/Connection/);
   await page.getByRole('button',{name:'Next'}).click();
   await page.getByText('Use 1 to 64 letters, digits, dots, underscores, or hyphens.').waitFor();
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'name','focus moves to the first invalid field');
+  await page.waitForFunction(()=>document.activeElement.id==='name');
   assert.equal(await page.locator('#name').getAttribute('aria-invalid'),'true');
   await page.getByLabel('Router name').fill('Core-02');
   await page.getByLabel('Address').fill('192.0.2.20');
@@ -39,7 +82,7 @@ const fs=require('node:fs');
   assert.match(await review.innerText(),/Core-02[\s\S]*192\.0\.2\.20:8729[\s\S]*Entered \(not shown\)[\s\S]*PPPoE[\s\S]*Disabled after the save/);
   assert.ok(!(await review.innerText()).includes('fixture-credential'),'the review never shows the credential');
   await review.screenshot({path:`${out}/add-review.png`});
-  await page.getByRole('button',{name:'Add router'}).click();
+  await registration.getByRole('button',{name:'Add router',exact:true}).click();
   await page.waitForURL(/\/routers\/lq3-[0-9a-f]{16}$/);
   const notice=page.locator('.saved-notice');
   await notice.getByText('Router added and disabled.').waitFor();
@@ -135,8 +178,9 @@ const fs=require('node:fs');
   // Narrow screens: the form fits without a horizontal page scroll.
   await page.setViewportSize({width:320,height:900});
   await page.goto('http://127.0.0.1:19581/routers/new');
-  await page.getByRole('heading',{name:'Add router',level:1}).waitFor();
+  await page.getByRole('heading',{name:'Add router',level:2}).waitFor();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'the form fits 320px');
+  assert.ok(await registration.evaluate(d=>d.scrollWidth<=d.clientWidth),'the modal content fits 320px');
   await page.screenshot({path:`${out}/add-320.png`,fullPage:true});
   assert.deepEqual(errors,[]);
   await browser.close();

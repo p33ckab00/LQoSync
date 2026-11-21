@@ -8,6 +8,32 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T11:21:53+08:00 (Asia/Shanghai) — Inline Connection actions
+
+- Goal: show Test Connection and Edit Connection as inline icons with hover labels.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: router tab composition, form controls, CSS hints, operations browser check, and the toolbar evidence/session notes.
+- Checks: release Wasm, 26 UI tests, Wasm Clippy, `cargo fmt`, whitespace, and all three router browser suites passed.
+- Browser proof: alignment, hover/focus labels, hoverable hints, Escape dismissal, disabled hints, edit/save, test results, and 320px layout.
+- Evidence: `docs/frontend/evidence/router-toolbar/README.md`, Connection actions section.
+- Unfinished work: install the prepared web distribution when deployment is authorized.
+- Next action: review the screenshots, then use the normal frontend installation workflow.
+- Production services did not change. Preserve unrelated work.
+
+
+## 2026-11-21T11:10:46+08:00 (Asia/Shanghai) — Router toolbar and registration modal
+
+- Goal: replace Add Router and Sync text controls with icons; show registration in a modal.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: `crates/web-ui/src/routers.rs`, `router_form.rs`, `style.css`, two router browser checks, evidence, and task notes.
+- Checks: 26 UI tests, release Wasm, Wasm Clippy, formatting, whitespace, and all three router browser suites passed.
+- Browser checks cover keyboard access, Escape/Cancel/Close, focus return, filter retention, validation, save, Sync layout, and 320–1440px widths.
+- Evidence: `docs/frontend/evidence/router-toolbar/README.md`. Screenshots use synthetic data.
+- Unfinished work: install the prepared web distribution through the normal frontend workflow when authorized.
+- Next action: review the screenshots, then use `tools/frontend/install.sh` for deployment.
+- No production configuration, service, or router changed. Preserve unrelated November 16 notes and the worker ZIP.
+
+
 ## 2026-11-21T05:01:37+08:00 (Asia/Shanghai) — Routers planning only
 
 - Goal: design Routers before coding. The owner reserved Dashboard work for Claude Code.
