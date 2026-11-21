@@ -11,8 +11,8 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use toml_edit::Value;
 use web_contract::routers::{
-    MAX_CA_PEM, MAX_CLIENTS, MAX_LIST, MAX_PASSWORD, RouterEditOutcome, RouterEditReply,
-    RouterEditRequest, RouterEvent,
+    MAX_CA_PEM, MAX_CLIENTS, MAX_LIST, MAX_PASSWORD, MAX_SERVERS, RouterEditOutcome,
+    RouterEditReply, RouterEditRequest, RouterEvent,
 };
 
 pub const AUDIT: &str = "router-audit.jsonl";
@@ -469,6 +469,111 @@ pub fn edit(
                 .map_err(|err| invalid(format!("{err:#}")))?;
         }
         changes.push("dhcp_clients".into());
+    }
+    let modes = ["per_site", "per_plan"];
+    if let Some(m) = &e.dhcp_server_mode {
+        if !modes.contains(&m.as_str()) {
+            return Err(invalid("Use the mode per_site or per_plan."));
+        }
+        put(
+            &mut draft,
+            &mut changes,
+            i,
+            &["dhcp", "server_mode"],
+            Value::from(m.as_str()),
+            "dhcp_server_mode",
+        )?;
+    }
+    if let Some(servers) = &e.dhcp_servers {
+        if action == "create" {
+            return Err(invalid(
+                "Add DHCP server settings after the router is saved.",
+            ));
+        }
+        if servers.len() > MAX_SERVERS {
+            return Err(invalid(format!(
+                "Use at most {MAX_SERVERS} DHCP server settings."
+            )));
+        }
+        let sources = ["server_comment", "lease_comment", "settings"];
+        for s in servers {
+            if s.name.trim().is_empty() || s.name.len() > 64 || s.name.chars().any(char::is_control)
+            {
+                return Err(invalid("Use a DHCP server name of 1 to 64 characters."));
+            }
+            if !modes.contains(&s.mode.as_str()) {
+                return Err(invalid(format!(
+                    "Server {}: use the mode per_site or per_plan.",
+                    s.name
+                )));
+            }
+            if s.speed_sources.as_ref().is_some_and(|v| {
+                v.iter().any(|x| !sources.contains(&x.as_str()))
+                    || (1..v.len()).any(|j| v[..j].contains(&v[j]))
+            }) {
+                return Err(invalid(format!(
+                    "Server {}: each speed source can be in the list once.",
+                    s.name
+                )));
+            }
+            let finite = |v: Option<f64>| v.is_none_or(|v| v.is_finite() && v <= 100_000.0);
+            if ![
+                s.default_plan_down_mbps,
+                s.default_plan_up_mbps,
+                s.download_factor,
+                s.upload_factor,
+            ]
+            .into_iter()
+            .all(finite)
+            {
+                return Err(invalid(format!("Server {}: check the numbers.", s.name)));
+            }
+        }
+        // Remove the old entries from the end, then write each entry in the given order.
+        for j in (0..cfg.routers[i].dhcp.servers.len()).rev() {
+            draft
+                .remove_server(i, j)
+                .map_err(|err| internal(format!("{err:#}")))?;
+        }
+        for s in servers {
+            let j = draft
+                .add_server(i, s.name.trim())
+                .map_err(|err| invalid(format!("{err:#}")))?;
+            let at = |k: &str| {
+                vec![
+                    Seg::Key("routers".into()),
+                    Seg::Index(i),
+                    Seg::Key("dhcp".into()),
+                    Seg::Key("servers".into()),
+                    Seg::Index(j),
+                    Seg::Key(k.into()),
+                ]
+            };
+            let set = |draft: &mut Draft, k: &str, v: Value| {
+                draft
+                    .set(&at(k), v)
+                    .map_err(|err| internal(format!("{err:#}")))
+            };
+            set(&mut draft, "mode", Value::from(s.mode.as_str()))?;
+            if let Some(list) = &s.speed_sources {
+                let mut a = toml_edit::Array::new();
+                for x in list {
+                    a.push(x.as_str());
+                }
+                set(&mut draft, "speed_sources", Value::Array(a))?;
+            }
+            for (k, v) in [
+                ("default_plan_down_mbps", s.default_plan_down_mbps),
+                ("default_plan_up_mbps", s.default_plan_up_mbps),
+                ("download_factor", s.download_factor),
+                ("upload_factor", s.upload_factor),
+            ] {
+                if let Some(v) = v {
+                    set(&mut draft, k, Value::from(v))?;
+                }
+            }
+        }
+        changes.push("dhcp_servers".into());
     }
     if changes.is_empty() {
         return Err(invalid("There is no change to save."));
@@ -941,6 +1046,84 @@ mod tests {
             let change = RouterEdit {
                 expected_digest: digest(&e),
                 ..bad
+            };
+            let err = edit(
+                &e.config,
+                &request(Some(&id), change),
+                1_000,
+                me(),
+                &no_reload,
+            )
+            .unwrap_err();
+            assert_eq!(err.0, "invalid", "{}", err.1);
+        }
+        assert_eq!(std::fs::read_to_string(&e.config).unwrap(), before);
+    }
+
+    #[test]
+    fn dhcp_server_settings_replace_the_list_and_the_config_rules_check_them() {
+        use web_contract::routers::DhcpServerSetting;
+        let e = env();
+        let id = router_id("R1");
+        let server = |name: &str, mode: &str, sources: Option<Vec<&str>>| DhcpServerSetting {
+            name: name.into(),
+            mode: mode.into(),
+            speed_sources: sources.map(|v| v.into_iter().map(Into::into).collect()),
+            default_plan_down_mbps: Some(50.0),
+            default_plan_up_mbps: Some(10.0),
+            ..Default::default()
+        };
+        edit_ok(
+            &e,
+            Some(&id),
+            RouterEdit {
+                expected_digest: digest(&e),
+                dhcp_server_mode: Some("per_plan".into()),
+                dhcp_servers: Some(vec![
+                    server("LAN", "per_site", None),
+                    server("GUEST", "per_plan", Some(vec!["lease_comment", "settings"])),
+                ]),
+                ..Default::default()
+            },
+        );
+        let cfg = Config::from_toml_str(&std::fs::read_to_string(&e.config).unwrap()).unwrap();
+        let d = &cfg.routers[0].dhcp;
+        assert_eq!(d.server_mode, crate::config::DhcpMode::PerPlan);
+        let names: Vec<_> = d.servers.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, ["LAN", "GUEST"]);
+        assert_eq!(d.servers[1].speed_sources.as_ref().map(Vec::len), Some(2));
+        assert_eq!(d.servers[0].default_plan_down_mbps, Some(50.0));
+        // A shorter list replaces the old one.
+        edit_ok(
+            &e,
+            Some(&id),
+            RouterEdit {
+                expected_digest: digest(&e),
+                dhcp_servers: Some(vec![server("GUEST", "per_site", None)]),
+                ..Default::default()
+            },
+        );
+        let before = std::fs::read_to_string(&e.config).unwrap();
+        let cfg = Config::from_toml_str(&before).unwrap();
+        assert_eq!(cfg.routers[0].dhcp.servers.len(), 1);
+        for bad in [
+            vec![server("LAN", "per_site", Some(vec!["lease_comment"]))],
+            vec![
+                server("LAN", "per_site", None),
+                server("LAN", "per_plan", None),
+            ],
+            vec![server("LAN", "weekly", None)],
+            vec![server(
+                "LAN",
+                "per_plan",
+                Some(vec!["settings", "settings"]),
+            )],
+            vec![server("LAN", "per_plan", Some(vec![]))],
+        ] {
+            let change = RouterEdit {
+                expected_digest: digest(&e),
+                dhcp_servers: Some(bad),
+                ..Default::default()
             };
             let err = edit(
                 &e.config,

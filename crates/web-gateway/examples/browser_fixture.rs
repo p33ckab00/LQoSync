@@ -130,6 +130,8 @@ fn fake_router_edit(config: &std::path::Path) -> anyhow::Result<()> {
         || e.exclude_ppp_profiles.is_some()
         || e.exclude_ips.is_some()
         || e.dhcp_clients.is_some()
+        || e.dhcp_servers.is_some()
+        || e.dhcp_server_mode.is_some()
     {
         let lists = r.lists.get_or_insert_with(Default::default);
         if let Some(v) = &e.exclude_dhcp_servers {
@@ -140,6 +142,13 @@ fn fake_router_edit(config: &std::path::Path) -> anyhow::Result<()> {
         }
         if let Some(v) = &e.exclude_ips {
             lists.exclude_ips = v.clone();
+        }
+        if let Some(v) = &e.dhcp_server_mode {
+            lists.dhcp_server_mode = v.clone();
+        }
+        if let Some(v) = &e.dhcp_servers {
+            lists.dhcp_servers = v.clone();
+            r.options.dhcp_servers = v.len() as u64;
         }
         if let Some(v) = &e.dhcp_clients {
             lists.dhcp_clients = v.clone();
@@ -221,7 +230,8 @@ async fn main() -> anyhow::Result<()> {
        "roles":["wan"],"wans":["ether1","ether2"],"collection":null,"sources":[{"kind":"ppp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
        "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":false,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}},
       {"id":"lq3-00000000000000a1","name":"Access-01",
-       "lists":{"exclude_dhcp_servers":[],"exclude_ppp_profiles":["staff"],"exclude_ips":["100.64.9.0/24"],"dhcp_clients":[{"mac":"02:00:00:00:0A:01","download_mbps":20.0,"upload_mbps":5.0,"name":"Office"}],"truncated":false},"circuits":3,"address":"192.0.2.11","port":8728,"tls":false,"tls_verify":false,"tls_ca":false,"username":"lqosync","credential":true,
+       "lists":{"exclude_dhcp_servers":[],"exclude_ppp_profiles":["staff"],"exclude_ips":["100.64.9.0/24"],"dhcp_clients":[{"mac":"02:00:00:00:0A:01","download_mbps":20.0,"upload_mbps":5.0,"name":"Office"}],
+         "dhcp_server_mode":"per_site","dhcp_servers":[{"name":"LAN","mode":"per_plan","speed_sources":["lease_comment","settings"],"default_plan_down_mbps":50.0,"default_plan_up_mbps":10.0,"download_factor":null,"upload_factor":null}],"truncated":false},"circuits":3,"address":"192.0.2.11","port":8728,"tls":false,"tls_verify":false,"tls_ca":false,"username":"lqosync","credential":true,
        "roles":["ppp","dhcp"],"wans":[],"collection":{"state":"online","observed_at":at,"subscribers":3},"sources":[{"kind":"ppp","enabled":true,"records":3,"online":2,"offline":1},{"kind":"dhcp","enabled":true,"records":1,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
        "location":[14.5995,120.9842],"options":{"ppp_per_plan_node":true,"hotspot_include_mac":false,"dhcp_require_bound":true,"dhcp_discover":true,"dhcp_shape_unassigned":false,"dhcp_servers":2,"dhcp_clients":1,"exclusions":3}},
       {"id":"lq3-00000000000000a2","name":"Access-02","circuits":0,"address":"192.0.2.12","port":8729,"tls":true,"tls_verify":false,"tls_ca":false,"username":"lqosync","credential":false,

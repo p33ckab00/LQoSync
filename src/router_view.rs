@@ -1,13 +1,13 @@
 //! The router inventory for the web: configured routers, catalog WAN roles, and the latest collection.
 //! No router I/O. No secret value and no file path leave this module: only "configured" flags.
 use crate::collection;
-use crate::config::{Config, RouterCfg};
+use crate::config::{Config, DhcpMode, DhcpSource, RouterCfg};
 use crate::model::State;
 use crate::topology_manager::catalog::{RouterRole, SourceOrigin, TopologyCatalog};
 use std::path::Path;
 use web_contract::routers::{
-    CACHE, DhcpClientOverride, RouterCollection, RouterInventory, RouterLists, RouterOptions,
-    RouterSource, RouterSummary, ShapingPolicy, VERSION,
+    CACHE, DhcpClientOverride, DhcpServerSetting, RouterCollection, RouterInventory, RouterLists,
+    RouterOptions, RouterSource, RouterSummary, ShapingPolicy, VERSION,
 };
 
 /// A configured file exists and is not empty. The content is never read.
@@ -112,6 +112,32 @@ fn summary(
                     name: c.name.clone(),
                 })
                 .collect(),
+            dhcp_server_mode: mode(r.dhcp.server_mode).into(),
+            dhcp_servers: r
+                .dhcp
+                .servers
+                .iter()
+                .map(|s| DhcpServerSetting {
+                    name: s.name.clone(),
+                    mode: mode(s.mode).into(),
+                    speed_sources: s.speed_sources.as_ref().map(|v| {
+                        v.iter()
+                            .map(|x| {
+                                match x {
+                                    DhcpSource::ServerComment => "server_comment",
+                                    DhcpSource::LeaseComment => "lease_comment",
+                                    DhcpSource::Settings => "settings",
+                                }
+                                .to_string()
+                            })
+                            .collect()
+                    }),
+                    default_plan_down_mbps: s.default_plan_down_mbps,
+                    default_plan_up_mbps: s.default_plan_up_mbps,
+                    download_factor: s.download_factor,
+                    upload_factor: s.upload_factor,
+                })
+                .collect(),
             truncated: false,
         }),
         circuits: state.map(|s| {
@@ -120,6 +146,13 @@ fn summary(
                 .filter(|c| c.router.as_deref() == Some(r.name.as_str()))
                 .count() as u64
         }),
+    }
+}
+
+fn mode(m: DhcpMode) -> &'static str {
+    match m {
+        DhcpMode::PerSite => "per_site",
+        DhcpMode::PerPlan => "per_plan",
     }
 }
 

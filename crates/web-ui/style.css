@@ -529,3 +529,5 @@ dialog.add-router-dialog{box-sizing:border-box;inline-size:min(760px,calc(100vw 
 .client-row>button{margin-block-end:8px}
 .client-row input[aria-invalid=true]{border-color:var(--bad)}
 .form-failure ul{margin:4px 0 0;padding-inline-start:20px}
+.server-row .field.wide{flex:2 1 220px}
+.router-form select{min-height:44px;padding:8px 12px;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px}

@@ -343,6 +343,8 @@ Open the router, then the Sources tab.
 - Exclusions: select Edit exclusions. Enter one entry for each line. In DHCP server and PPP profile names, `*` matches any text. IP entries are IPv4 addresses or networks, such as `100.64.9.0/24`. The service joins these lists with the global `[exclude]`.
 - Client overrides: select Edit client overrides. Each row is a MAC address, a download rate, an upload rate (Mbps), and an optional name. A MAC address can be in the list only once.
 
+- DHCP server settings: select Edit DHCP server settings. Set the mode of a server without its own settings, then one row for each server with its own settings: name, mode, speed sources in order (`server_comment`, `lease_comment`, `settings`, separated by commas), plan rates, and factors. An empty field uses the default. The `per_site` mode cannot use `lease_comment`.
+
 A save replaces the whole list in the configuration. An empty list removes it. If a router has more client overrides than the page can load, edit them in the TUI.
 
 ## Test a router connection in the web UI

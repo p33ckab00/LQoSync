@@ -327,6 +327,122 @@ pub(crate) fn clients(
     }
 }
 
+/// One editable DHCP server row. Empty number fields and an empty source list use the defaults.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct ServerRow {
+    pub name: String,
+    pub mode: String,
+    /// Speed sources in order, separated by commas.
+    pub sources: String,
+    pub down: String,
+    pub up: String,
+    pub down_factor: String,
+    pub up_factor: String,
+}
+impl ServerRow {
+    pub(crate) fn from(s: &web_contract::routers::DhcpServerSetting) -> ServerRow {
+        let n = |v: Option<f64>| v.map(|v| v.to_string()).unwrap_or_default();
+        ServerRow {
+            name: s.name.clone(),
+            mode: s.mode.clone(),
+            sources: s
+                .speed_sources
+                .as_ref()
+                .map(|v| v.join(", "))
+                .unwrap_or_default(),
+            down: n(s.default_plan_down_mbps),
+            up: n(s.default_plan_up_mbps),
+            down_factor: n(s.download_factor),
+            up_factor: n(s.upload_factor),
+        }
+    }
+}
+
+pub(crate) const SOURCES: [&str; 3] = ["server_comment", "lease_comment", "settings"];
+
+/// Row errors as (row index, message), and the settings when there is no error.
+/// The service checks the same rules again.
+pub(crate) fn servers(
+    rows: &[ServerRow],
+) -> Result<Vec<web_contract::routers::DhcpServerSetting>, Vec<(usize, String)>> {
+    let mut errors = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    let mut out = Vec::new();
+    let number = |s: &str| -> Result<Option<f64>, ()> {
+        match s.trim() {
+            "" => Ok(None),
+            t => t
+                .parse::<f64>()
+                .ok()
+                .filter(|v| v.is_finite() && *v > 0.0 && *v <= 100_000.0)
+                .map(Some)
+                .ok_or(()),
+        }
+    };
+    for (i, r) in rows.iter().enumerate() {
+        let name = r.name.trim();
+        if name.is_empty() || name.chars().count() > 64 {
+            errors.push((i, "Enter the DHCP server name as RouterOS shows it.".into()));
+            continue;
+        }
+        if names.iter().any(|n| n == name) {
+            errors.push((i, "This server name is in the list twice.".into()));
+            continue;
+        }
+        names.push(name.into());
+        if !matches!(r.mode.as_str(), "per_site" | "per_plan") {
+            errors.push((i, "Choose a mode.".into()));
+            continue;
+        }
+        let list: Vec<String> = r
+            .sources
+            .split(',')
+            .map(str::trim)
+            .filter(|x| !x.is_empty())
+            .map(String::from)
+            .collect();
+        if list.iter().any(|x| !SOURCES.contains(&x.as_str()))
+            || (1..list.len()).any(|j| list[..j].contains(&list[j]))
+        {
+            errors.push((
+                i,
+                "Use server_comment, lease_comment, or settings, each once, in order.".into(),
+            ));
+            continue;
+        }
+        if r.mode == "per_site" && list.iter().any(|x| x == "lease_comment") {
+            errors.push((i, "The per_site mode cannot use lease_comment.".into()));
+            continue;
+        }
+        let (Ok(down), Ok(up), Ok(df), Ok(uf)) = (
+            number(&r.down),
+            number(&r.up),
+            number(&r.down_factor),
+            number(&r.up_factor),
+        ) else {
+            errors.push((
+                i,
+                "Enter numbers above 0, or leave a field empty for the default.".into(),
+            ));
+            continue;
+        };
+        out.push(web_contract::routers::DhcpServerSetting {
+            name: name.into(),
+            mode: r.mode.clone(),
+            speed_sources: (!list.is_empty()).then_some(list),
+            default_plan_down_mbps: down,
+            default_plan_up_mbps: up,
+            download_factor: df,
+            upload_factor: uf,
+        });
+    }
+    if errors.is_empty() {
+        Ok(out)
+    } else {
+        Err(errors)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -395,6 +511,55 @@ mod tests {
         );
         // A saved override opens in the editor with the same values.
         assert_eq!(clients(&[ClientRow::from(&ok[0])]).unwrap(), ok);
+    }
+
+    #[test]
+    fn server_rows_keep_the_source_order_and_follow_the_mode_rules() {
+        let row = |name: &str, mode: &str, sources: &str| ServerRow {
+            name: name.into(),
+            mode: mode.into(),
+            sources: sources.into(),
+            down: "50".into(),
+            ..Default::default()
+        };
+        let ok = servers(&[
+            row(" LAN ", "per_plan", "settings, lease_comment"),
+            row("GUEST", "per_site", ""),
+        ])
+        .unwrap();
+        assert_eq!(ok[0].name, "LAN");
+        assert_eq!(
+            ok[0].speed_sources.as_deref(),
+            Some(&["settings".to_string(), "lease_comment".to_string()][..]),
+            "the order stays"
+        );
+        assert_eq!(
+            (
+                ok[1].speed_sources.clone(),
+                ok[1].default_plan_down_mbps,
+                ok[1].upload_factor
+            ),
+            (None, Some(50.0), None)
+        );
+        assert_eq!(
+            servers(&[ServerRow::from(&ok[0])]).unwrap()[0],
+            ok[0],
+            "a saved server opens with the same values"
+        );
+        let bad = servers(&[
+            row("LAN", "per_site", "lease_comment"),
+            row("A", "per_plan", "settings, settings"),
+            row("B", "", ""),
+            row("C", "per_plan", "dns"),
+            row("A", "per_plan", ""),
+            ServerRow {
+                down: "-1".into(),
+                ..row("D", "per_plan", "")
+            },
+        ])
+        .unwrap_err();
+        let rows: Vec<usize> = bad.iter().map(|(i, _)| *i).collect();
+        assert_eq!(rows, [0, 1, 2, 3, 4, 5]);
     }
 
     #[test]

@@ -85,12 +85,13 @@ The first Routers slice (S1 to S6) is complete. Open work:
 
 - R08 address evidence and R09 address-list writer. R09 needs lab evidence and owner approval (D3).
 - The Topology Manager disable path, after activation.
-- A DHCP server settings editor (in the TUI now). S7a added the exclusion and DHCP client override editors.
 - A per-router source read (Sync now reads all routers).
 
 S7a is implemented. The Sources tab edits the three exclusion lists (one entry for each line) and the DHCP client overrides (rows with a MAC address, two rates, and a name).
 A list that is sent replaces the whole list. Only the one-router detail (`GET /api/v1/routers/{id}`) carries the lists; the inventory list stays small.
-When the detail must cut a long client list to stay under 60 KiB, it flags the list and the page refuses to edit it, so a save cannot remove entries that the page did not get. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
+When the detail must cut a long client list to stay under 60 KiB, it flags the list and the page refuses to edit it, so a save cannot remove entries that the page did not get.
+S7b is implemented. The Sources tab edits the DHCP server settings (name, mode, speed sources in order, plan defaults, and factors) and the mode of a server without its own settings.
+The speed sources are one text field, so the order of an existing list stays. The config rules check a repeated name, an empty source list, and lease_comment in per_site mode. All router-scoped settings are now in the web UI. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
 
 Each slice ends with tests, browser evidence, a commit, and a release build.
 

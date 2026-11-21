@@ -75,10 +75,32 @@ pub struct RouterLists {
     /// IPv4 addresses or networks (`a.b.c.d` or `a.b.c.d/n`).
     pub exclude_ips: Vec<String>,
     pub dhcp_clients: Vec<DhcpClientOverride>,
+    /// The mode of a DHCP server without its own settings: `per_site` or `per_plan`.
+    #[serde(default)]
+    pub dhcp_server_mode: String,
+    #[serde(default)]
+    pub dhcp_servers: Vec<DhcpServerSetting>,
     /// The gateway dropped client overrides to keep the reply bounded. The page then refuses to
     /// edit the client list, because a save would remove the entries that it did not get.
     #[serde(default)]
     pub truncated: bool,
+}
+
+pub const MAX_SERVERS: usize = 100;
+
+/// The settings of one DHCP server of a router. An absent value uses the default.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DhcpServerSetting {
+    pub name: String,
+    /// `per_site` or `per_plan`.
+    pub mode: String,
+    /// In order: `server_comment`, `lease_comment`, `settings`. Absent: the list of the mode in `[speed]`.
+    pub speed_sources: Option<Vec<String>>,
+    pub default_plan_down_mbps: Option<f64>,
+    pub default_plan_up_mbps: Option<f64>,
+    pub download_factor: Option<f64>,
+    pub upload_factor: Option<f64>,
 }
 
 /// A speed override for one DHCP client, found by its MAC address.
@@ -183,6 +205,8 @@ pub struct RouterEdit {
     pub exclude_ppp_profiles: Option<Vec<String>>,
     pub exclude_ips: Option<Vec<String>>,
     pub dhcp_clients: Option<Vec<DhcpClientOverride>>,
+    pub dhcp_server_mode: Option<String>,
+    pub dhcp_servers: Option<Vec<DhcpServerSetting>>,
 }
 
 /// What the browser sends: the edit, and the operator password when the edit replaces a credential.
