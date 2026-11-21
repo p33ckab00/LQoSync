@@ -4,7 +4,7 @@ use crate::dashboard::local_time;
 use crate::route::{Link, go_to};
 use crate::route_model::{Tab, router_href};
 use crate::router_form_model::{Form, Section, changes, check, create, removes_a_source, update};
-use crate::routers_model::{role_label, transport};
+use crate::routers_model::{impact, role_label, tracks, transport};
 use gloo_net::http::Request;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -31,6 +31,8 @@ pub(crate) struct Saved {
     pub reload: String,
     pub warnings: Vec<String>,
     pub what: &'static str,
+    /// A disable shows two result tracks: connections and the shaping removal.
+    pub disable: bool,
 }
 
 fn ctx() -> Ctx {
@@ -143,6 +145,12 @@ pub(crate) fn SavedNotice(router_id: String) -> impl IntoView {
       {move||mine.get().map(|s|view!{
         <div class=move||format!("saved-notice {}",if loaded.get(){"done"}else{"waiting"}) role="status">
           <p><b>{s.what}</b>{move||if loaded.get(){" The service loaded the change."}else{" Waiting for the service to load the change…"}}</p>
+          {s.disable.then(||{let id=s.router_id.clone();view!{
+            <dl class="tracks">{move||c.inventory.with(|i|i.as_ref().and_then(|i|i.routers.iter().find(|r|r.id==id).map(|r|{
+              let (io,shaping)=tracks(r,&i.shaping,loaded.get());
+              view!{<div><dt>"Router connections"</dt><dd>{io}</dd></div><div><dt>"Shaping removal"</dt><dd>{shaping}</dd></div>}
+            })))}</dl>
+          }})}
           {(s.reload!="sent").then(||view!{<p class="router-warn">{format!("The reload signal did not reach the service: {}. The change applies when the service starts again.",s.reload)}</p>})}
           {s.warnings.iter().map(|w|view!{<p class="router-warn">{w.clone()}</p>}).collect_view()}
           <button type="button" class="quiet" on:click=move|_|c.saved.set(None)>"Dismiss"</button>
@@ -419,6 +427,7 @@ pub(crate) fn NewRouter() -> impl IntoView {
                             reload: reply.reload,
                             warnings: reply.warnings,
                             what: "Router added and disabled.",
+                            disable: false,
                         },
                     );
                     go_to(nav, &href);
@@ -552,6 +561,7 @@ pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl I
                             reload: reply.reload,
                             warnings: reply.warnings,
                             what: "Changes saved.",
+                            disable: false,
                         },
                     );
                 }
@@ -673,6 +683,8 @@ fn action_label(a: &str) -> &'static str {
     match a {
         "create" => "Added",
         "update" => "Changed",
+        "disable" => "Disabled",
+        "enable" => "Enabled",
         _ => "Action",
     }
 }
@@ -722,5 +734,147 @@ pub(crate) fn ActivityTab(router_id: String) -> impl IntoView {
           <p class="field-help">"Web changes only, newest first. Credential changes show as \"credential\"; no value is kept."</p>
         }.into_any(),
       }}
+    }
+}
+
+/// Disable or enable one router, after a review in a modal dialog. A disable shows its shaping impact
+/// first and needs the operator password (owner decision D2). Neither action contacts the router.
+#[component]
+pub(crate) fn AdminAction(router: RouterSummary) -> impl IntoView {
+    let c = ctx();
+    let dialog = NodeRef::<leptos::html::Dialog>::new();
+    let ack = RwSignal::new(false);
+    let password = RwSignal::new(String::new());
+    let error = RwSignal::new(String::new());
+    let busy = RwSignal::new(false);
+    let digest = RwSignal::new(String::new());
+    let r = StoredValue::new(router);
+    let disable = r.with_value(|r| r.enabled);
+    let preview = Memo::new(move |_| {
+        c.inventory
+            .with(|i| i.as_ref().map(|i| impact(&r.get_value(), &i.shaping)))
+    });
+    let needs_ack = move || {
+        preview.with(|p| {
+            p.as_ref()
+                .is_some_and(|p| !p.removal_off && p.circuits.unwrap_or(0) > 0)
+        })
+    };
+    let open = move |_| {
+        ack.set(false);
+        password.set(String::new());
+        error.set(String::new());
+        digest.set(loaded_digest(c));
+        if let Some(d) = dialog.get() {
+            let _ = d.show_modal();
+        }
+    };
+    let close = move || {
+        if let Some(d) = dialog.get() {
+            d.close();
+        }
+    };
+    let confirm = move || {
+        if busy.get_untracked() || (disable && needs_ack() && !ack.get_untracked()) {
+            return;
+        }
+        busy.set(true);
+        error.set(String::new());
+        let id = r.with_value(|r| r.id.clone());
+        let form = RouterEditForm {
+            edit: web_contract::routers::RouterEdit {
+                expected_digest: digest.get_untracked(),
+                enabled: Some(!disable),
+                ..Default::default()
+            },
+            current_password: disable.then(|| password.get_untracked()),
+        };
+        leptos::task::spawn_local(async move {
+            match send(c, Some(id.clone()), form).await {
+                Ok(reply) => {
+                    close();
+                    follow(
+                        c,
+                        Saved {
+                            router_id: id,
+                            digest: reply.digest,
+                            reload: reply.reload,
+                            warnings: reply.warnings,
+                            what: if disable { "Router disabled." } else { "Router enabled." },
+                            disable,
+                        },
+                    );
+                }
+                Err(f) if f.code == "reauth" => error.set(
+                    "The password is not correct, or there were too many tries. Wait one minute, then try again."
+                        .into(),
+                ),
+                Err(f) => error.set(f.message),
+            }
+            busy.try_set(false);
+        });
+    };
+    let name = r.with_value(|r| r.name.clone());
+    let title = if disable {
+        format!("Disable {name}?")
+    } else {
+        format!("Enable {name}?")
+    };
+    let credential = r.with_value(|r| r.credential);
+    view! {
+      <button type="button" class=if disable {"danger"} else {"secondary"} on:click=open
+        disabled=move||c.inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty()))>
+        {if disable {"Disable router"} else {"Enable router"}}
+      </button>
+      <dialog node_ref=dialog class="reauth admin" aria-labelledby="admin-title">
+        <form method="dialog" on:submit=move|ev|{ev.prevent_default();confirm();}>
+          <h2 id="admin-title">{title}</h2>
+          {if disable {
+            view!{
+              <ul class="impact">
+                <li>"LQoSync stops every connection to this router: no reads, discovery, tests, or writes."</li>
+                <li>{move||preview.get().map(|p| if p.removal_off {
+                    "Removal of inactive entries is off (runtime.remove_inactive_entries), so the circuits of this router stay in the shaping.".to_string()
+                  } else {
+                    match p.circuits {
+                      Some(0)=>"This router has no circuits in the LQoSync shaping list.".to_string(),
+                      Some(n)=>format!("{n} circuits of this router leave the shaping after the grace time ({} min).",p.grace_minutes),
+                      None=>"The circuit count of this router is not known yet. Its circuits leave after the grace time.".to_string(),
+                    }
+                  }).unwrap_or_default()}</li>
+                <Show when=move||preview.with(|p|p.as_ref().is_some_and(|p|p.guard_trips))>
+                  <li class="router-warn">"This removal is larger than a removal guard limit, so the guard holds it for one cycle first."</li>
+                </Show>
+                <li>"The router entry, its credential, and its history stay. You can enable the router again."</li>
+              </ul>
+              <Show when=needs_ack>
+                <div class="check">
+                  <input id="admin-ack" type="checkbox" prop:checked=move||ack.get() on:change=move|ev|ack.set(event_target_checked(&ev))/>
+                  <label for="admin-ack">{move||format!("I understand that {} circuits leave the shaping.",preview.with(|p|p.as_ref().and_then(|p|p.circuits).unwrap_or(0)))}</label>
+                </div>
+              </Show>
+              <label for="admin-password">"Your password"</label>
+              <input id="admin-password" type="password" autocomplete="current-password" maxlength="256" required
+                prop:value=move||password.get() on:input=move|ev|password.set(event_target_value(&ev))/>
+            }.into_any()
+          } else {
+            view!{
+              <ul class="impact">
+                <li>"LQoSync reads the router again from the next cycle."</li>
+                <li>"Old circuits do not come back from a cache. The next successful read adds them again."</li>
+                {(!credential).then(||view!{<li class="router-warn">"The credential is missing: the reads fail until you add one in Connection."</li>})}
+              </ul>
+            }.into_any()
+          }}
+          <p class="field-error" role="alert">{move||error.get()}</p>
+          <div class="form-actions">
+            <button type="button" class="quiet" on:click=move|_|close()>"Cancel"</button>
+            <button type="submit" class=if disable {"danger"} else {"primary"}
+              disabled=move||busy.get()||(disable&&needs_ack()&&!ack.get())>
+              {move||match (busy.get(),disable) {(true,true)=>"Disabling…",(true,false)=>"Enabling…",(false,true)=>"Disable router",(false,false)=>"Enable router"}}
+            </button>
+          </div>
+        </form>
+      </dialog>
     }
 }

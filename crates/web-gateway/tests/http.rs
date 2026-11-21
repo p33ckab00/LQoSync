@@ -242,6 +242,7 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
             ..Default::default()
         }],
         config_digest: String::new(),
+        shaping: Default::default(),
         truncated: false,
     };
     std::fs::write(

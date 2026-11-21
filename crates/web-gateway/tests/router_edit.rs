@@ -178,6 +178,45 @@ async fn a_credential_replacement_needs_the_current_password() {
         .await
         .unwrap();
     assert_eq!(r.status(), StatusCode::OK);
+    // A disable needs the password too; an enable does not.
+    std::fs::remove_file(dir.path().join("request.json")).unwrap();
+    let disable = |pw: &str| {
+        format!(r#"{{"edit":{{"expected_digest":"d1","enabled":false}},"current_password":{pw}}}"#)
+    };
+    let r = app
+        .clone()
+        .oneshot(req("PATCH", path, &cookie, &csrf, &disable("null")))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::FORBIDDEN);
+    assert!(
+        !dir.path().join("request.json").exists(),
+        "no disable without the password"
+    );
+    let r = app
+        .clone()
+        .oneshot(req(
+            "PATCH",
+            path,
+            &cookie,
+            &csrf,
+            &disable("\"test-password-only-123\""),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let r = app
+        .clone()
+        .oneshot(req(
+            "PATCH",
+            path,
+            &cookie,
+            &csrf,
+            r#"{"edit":{"expected_digest":"d1","enabled":true},"current_password":null}"#,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
     // An edit without a new credential needs no password.
     let r = app
         .clone()

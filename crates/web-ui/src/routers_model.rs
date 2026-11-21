@@ -1,5 +1,5 @@
 //! Labels and filters for the router inventory. Pure functions, so native tests cover them.
-use web_contract::routers::{RouterCollection, RouterSummary};
+use web_contract::routers::{RouterCollection, RouterSummary, ShapingPolicy};
 
 /// A state label with its tone class. The text carries the meaning; the tone only supports it.
 pub(crate) fn read_state(c: Option<&RouterCollection>) -> (&'static str, &'static str) {
@@ -67,6 +67,60 @@ pub(crate) fn matches(r: &RouterSummary, f: &Filter) -> bool {
         }
 }
 
+/// What a disable does to the shaping, from the last inventory. The cycle applies the same rules.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Impact {
+    /// Circuits of the router in the shaping list; `None` when the count is not known yet.
+    pub circuits: Option<u64>,
+    /// The removal is larger than a guard limit, so the guard holds it for one cycle.
+    pub guard_trips: bool,
+    /// `remove_inactive_entries` is off: the circuits stay.
+    pub removal_off: bool,
+    pub grace_minutes: u64,
+}
+
+pub(crate) fn impact(r: &RouterSummary, p: &ShapingPolicy) -> Impact {
+    let n = r.circuits.unwrap_or(0);
+    let large =
+        n > p.guard_max_count || n as f64 * 100.0 > p.total_circuits as f64 * p.guard_max_percent;
+    Impact {
+        circuits: r.circuits,
+        guard_trips: p.remove_inactive && p.guard_enabled && n > 0 && large,
+        removal_off: !p.remove_inactive,
+        grace_minutes: p.grace_secs.div_ceil(60),
+    }
+}
+
+/// The two result tracks after a disable: router connections, then the shaping removal.
+/// `loaded`: the service has loaded the saved configuration.
+pub(crate) fn tracks(r: &RouterSummary, p: &ShapingPolicy, loaded: bool) -> (String, String) {
+    let io = if loaded && !r.enabled {
+        "Stopped: LQoSync makes no connection to this router.".to_string()
+    } else {
+        "Stopping: waiting for the service to load the change.".to_string()
+    };
+    let i = impact(r, p);
+    let shaping = if i.removal_off {
+        "Not removed: runtime.remove_inactive_entries is off, so the circuits stay.".to_string()
+    } else {
+        match r.circuits {
+            None => "Unknown: the circuit count is not available yet.".to_string(),
+            Some(0) => {
+                "Done in the LQoSync shaping list. LibreQoS applies it with the next publication."
+                    .to_string()
+            }
+            Some(n) if p.guard_held.is_some() => {
+                format!("Held by the removal guard for one cycle: {n} circuits.")
+            }
+            Some(n) => format!(
+                "Pending: {n} circuits leave after the grace time ({} min).",
+                i.grace_minutes
+            ),
+        }
+    };
+    (io, shaping)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,6 +157,63 @@ mod tests {
         assert_eq!(transport(&r).0, "TLS, checked with its CA");
         assert_eq!(role_label("ppp"), "PPPoE");
     }
+    #[test]
+    fn impact_and_tracks_follow_the_removal_rules() {
+        let policy = ShapingPolicy {
+            total_circuits: 100,
+            grace_secs: 600,
+            remove_inactive: true,
+            guard_enabled: true,
+            guard_max_count: 50,
+            guard_max_percent: 20.0,
+            guard_held: None,
+        };
+        let mut r = router("Access", &["ppp"], Some("online"));
+        r.circuits = Some(10);
+        let i = impact(&r, &policy);
+        assert_eq!(
+            (i.guard_trips, i.removal_off, i.grace_minutes),
+            (false, false, 10)
+        );
+        r.circuits = Some(30);
+        assert!(
+            impact(&r, &policy).guard_trips,
+            "30 of 100 is over 20 percent"
+        );
+        r.circuits = Some(0);
+        assert!(!impact(&r, &policy).guard_trips);
+        let off = ShapingPolicy {
+            remove_inactive: false,
+            ..policy.clone()
+        };
+        assert!(impact(&r, &off).removal_off);
+        // The tracks: connections stop when the service has the change; the shaping follows the count.
+        r.circuits = Some(3);
+        assert!(
+            tracks(&r, &policy, true).0.starts_with("Stopping"),
+            "still enabled"
+        );
+        r.enabled = false;
+        let (io, shaping) = tracks(&r, &policy, true);
+        assert!(io.starts_with("Stopped"));
+        assert_eq!(
+            shaping,
+            "Pending: 3 circuits leave after the grace time (10 min)."
+        );
+        let held = ShapingPolicy {
+            guard_held: Some(3),
+            ..policy.clone()
+        };
+        assert!(
+            tracks(&r, &held, true)
+                .1
+                .starts_with("Held by the removal guard")
+        );
+        r.circuits = Some(0);
+        assert!(tracks(&r, &policy, true).1.starts_with("Done"));
+        assert!(tracks(&r, &off, true).1.starts_with("Not removed"));
+    }
+
     #[test]
     fn filters_combine_text_role_and_state() {
         let core = router("FSE-CORE", &["wan"], None);

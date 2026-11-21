@@ -2,10 +2,12 @@
 //! No router I/O. No secret value and no file path leave this module: only "configured" flags.
 use crate::collection;
 use crate::config::{Config, RouterCfg};
+use crate::model::State;
 use crate::topology_manager::catalog::{RouterRole, SourceOrigin, TopologyCatalog};
 use std::path::Path;
 use web_contract::routers::{
-    CACHE, RouterCollection, RouterInventory, RouterOptions, RouterSource, RouterSummary, VERSION,
+    CACHE, RouterCollection, RouterInventory, RouterOptions, RouterSource, RouterSummary,
+    ShapingPolicy, VERSION,
 };
 
 /// A configured file exists and is not empty. The content is never read.
@@ -17,6 +19,7 @@ fn summary(
     r: &RouterCfg,
     catalog: Option<&TopologyCatalog>,
     report: Option<&collection::Report>,
+    state: Option<&State>,
 ) -> RouterSummary {
     let id = crate::topology_manager::policy_draft::router_id(&r.name);
     let entry = catalog.and_then(|c| c.routers.iter().find(|c| c.name == r.name));
@@ -94,6 +97,12 @@ fn summary(
             dhcp_clients: r.dhcp.clients.len() as u64,
             exclusions: (ex.dhcp_servers.len() + ex.ppp_profiles.len() + ex.ips.len()) as u64,
         },
+        circuits: state.map(|s| {
+            s.circuits
+                .values()
+                .filter(|c| c.router.as_deref() == Some(r.name.as_str()))
+                .count() as u64
+        }),
     }
 }
 
@@ -102,9 +111,11 @@ pub fn project(
     cfg: &Config,
     catalog: Option<&TopologyCatalog>,
     report: Option<&collection::Report>,
+    state: Option<&State>,
     config_digest: &str,
     now: u64,
 ) -> RouterInventory {
+    let s = &cfg.safety;
     RouterInventory {
         version: VERSION,
         updated: now,
@@ -113,9 +124,18 @@ pub fn project(
         routers: cfg
             .routers
             .iter()
-            .map(|r| summary(r, catalog, report))
+            .map(|r| summary(r, catalog, report, state))
             .collect(),
         config_digest: config_digest.into(),
+        shaping: ShapingPolicy {
+            total_circuits: state.map_or(0, |s| s.circuits.len() as u64),
+            grace_secs: cfg.runtime.subscriber_grace,
+            remove_inactive: cfg.runtime.remove_inactive_entries,
+            guard_enabled: s.enabled,
+            guard_max_count: s.max_removed_count as u64,
+            guard_max_percent: s.max_removed_percent,
+            guard_held: state.and_then(|st| st.guard).map(|g| g.count as u64),
+        },
         truncated: false,
     }
 }
@@ -211,6 +231,7 @@ mod tests {
             &config(dir.path()),
             Some(&catalog()),
             Some(&report()),
+            None,
             "d",
             1_000,
         );
@@ -240,7 +261,7 @@ mod tests {
     #[test]
     fn an_access_router_carries_its_collection_sources_and_options() {
         let dir = tempfile::tempdir().unwrap();
-        let inv = project(&config(dir.path()), None, Some(&report()), "d", 1_000);
+        let inv = project(&config(dir.path()), None, Some(&report()), None, "d", 1_000);
         let access = &inv.routers[1];
         assert_eq!(access.roles, ["ppp"]);
         assert!(access.credential);
@@ -263,7 +284,7 @@ mod tests {
         let cfg = config(dir.path());
         publish(
             dir.path(),
-            &project(&cfg, Some(&catalog()), None, "d", 1_000),
+            &project(&cfg, Some(&catalog()), None, None, "d", 1_000),
         )
         .unwrap();
         let path = dir.path().join(CACHE);

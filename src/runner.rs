@@ -1976,6 +1976,7 @@ where
             &self.cfg,
             catalog.as_ref(),
             Some(&collection),
+            Some(&state),
             &self.config_digest,
             now,
         );
@@ -2591,11 +2592,18 @@ mod tests {
         .remove(0);
         c.routers.push(core);
         e.fake.panicking.lock().unwrap().insert("Core".into());
-        runner(&e, c).cycle(1_000, false).await;
+        let mut r = runner(&e, c);
+        r.cycle(1_000, false).await;
+        // The circuit counts come from the state at the start of a cycle: the second cycle has them.
+        r.cycle(1_100, false).await;
         let inv: web_contract::routers::RouterInventory =
             serde_json::from_str(&read(&e.state.join("routers.json"))).unwrap();
         let names: Vec<_> = inv.routers.iter().map(|r| r.name.as_str()).collect();
         assert_eq!(names, ["R1", "Core"], "every configured router is listed");
+        assert_eq!(inv.routers[0].circuits, Some(1));
+        assert_eq!(inv.routers[1].circuits, Some(0));
+        assert_eq!(inv.shaping.total_circuits, 1);
+        assert!(inv.shaping.guard_max_count > 0 && inv.shaping.guard_held.is_none());
         assert_eq!(inv.routers[0].collection.as_ref().unwrap().state, "online");
         assert_eq!(inv.routers[1].collection, None);
         assert!(!read(&e.state.join("routers.json")).contains("password_file"));

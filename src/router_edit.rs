@@ -136,6 +136,11 @@ pub fn edit(
             if e.password.as_deref().is_none_or(str::is_empty) {
                 return Err(invalid("A new router needs a credential."));
             }
+            if e.enabled.is_some() {
+                return Err(invalid(
+                    "A new router starts disabled. Enable it after the save.",
+                ));
+            }
             if !valid_address(address) || !valid_user(username) {
                 return Err(invalid("Check the address and the username."));
             }
@@ -201,6 +206,29 @@ pub fn edit(
             (i, r.name.clone(), "update", file)
         }
     };
+    // Enable removes the key, so an enabled router has no `enabled` line (older binaries load the file).
+    let mut action = action;
+    match (e.enabled, action) {
+        (Some(false), "update") => {
+            put(
+                &mut draft,
+                &mut changes,
+                i,
+                &["enabled"],
+                Value::from(false),
+                "disabled",
+            )?;
+            action = "disable";
+        }
+        (Some(true), "update") => {
+            draft
+                .reset(&key(i, &["enabled"]))
+                .map_err(|err| internal(format!("{err:#}")))?;
+            changes.push("enabled".into());
+            action = "enable";
+        }
+        _ => {}
+    }
     if let Some(p) = e.port {
         if p == 0 {
             return Err(invalid("Use an API port from 1 to 65535."));
@@ -669,6 +697,58 @@ mod tests {
             1_000,
         );
         assert_eq!(out.code, "invalid");
+    }
+
+    #[test]
+    fn disable_writes_false_and_enable_removes_the_key() {
+        let e = env();
+        let id = router_id("R1");
+        let off = RouterEdit {
+            expected_digest: digest(&e),
+            enabled: Some(false),
+            ..Default::default()
+        };
+        edit_ok(&e, Some(&id), off);
+        let text = std::fs::read_to_string(&e.config).unwrap();
+        assert!(text.contains("enabled = false"), "{text}");
+        assert!(!Config::from_toml_str(&text).unwrap().routers[0].enabled);
+        let on = RouterEdit {
+            expected_digest: digest(&e),
+            enabled: Some(true),
+            ..Default::default()
+        };
+        edit_ok(&e, Some(&id), on);
+        let text = std::fs::read_to_string(&e.config).unwrap();
+        assert!(!text.contains("enabled = false"), "{text}");
+        let cfg = Config::from_toml_str(&text).unwrap();
+        assert!(cfg.routers[0].enabled && cfg.routers[0].pppoe.enabled);
+        let log = std::fs::read_to_string(e.dir.path().join("state").join(AUDIT)).unwrap();
+        let actions: Vec<String> = log
+            .lines()
+            .map(|l| serde_json::from_str::<RouterEvent>(l).unwrap().action)
+            .collect();
+        assert_eq!(actions, ["disable", "enable"]);
+        // A new router cannot start enabled.
+        let err = edit(
+            &e.config,
+            &request(
+                None,
+                RouterEdit {
+                    expected_digest: digest(&e),
+                    name: Some("R9".into()),
+                    address: Some("192.0.2.9".into()),
+                    username: Some("u".into()),
+                    password: Some("x".into()),
+                    enabled: Some(true),
+                    ..Default::default()
+                },
+            ),
+            1_000,
+            me(),
+            &no_reload,
+        )
+        .unwrap_err();
+        assert_eq!(err.0, "invalid");
     }
 
     #[test]

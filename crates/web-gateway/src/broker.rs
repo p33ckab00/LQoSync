@@ -260,31 +260,33 @@ pub async fn serve(
                         let Some(editor) = editor.as_deref() else {
                             anyhow::bail!("no router editor");
                         };
-                        // A credential replacement needs the operator password again (owner decision D2).
-                        let replaces = router_id.is_some() && form.edit.password.is_some();
-                        let confirmed = if replaces {
-                            let allowed = {
-                                let mut map = limits.lock().await;
-                                map.retain(|_, (at, _)| now().saturating_sub(*at) < 60);
-                                let counter = map.entry(actor.clone()).or_insert((now(), 0));
-                                counter.1 += 1;
-                                counter.1 <= 5
-                            };
-                            match (
-                                allowed,
-                                form.current_password.clone(),
-                                hashes.try_acquire_owned(),
-                            ) {
-                                (true, Some(password), Ok(_hash)) if password.len() <= 256 => {
-                                    let (a, user) = (accounts.clone(), actor.clone());
-                                    tokio::task::spawn_blocking(move || a.verify(&user, &password))
+                        // A credential replacement or a disable needs the operator password again (owner decision D2).
+                        let replaces = router_id.is_some()
+                            && (form.edit.password.is_some() || form.edit.enabled == Some(false));
+                        let confirmed = match (replaces, form.current_password.clone()) {
+                            (false, _) => true,
+                            // Only a real password try counts against the login rate limit.
+                            (true, Some(password)) if password.len() <= 256 => {
+                                let allowed = {
+                                    let mut map = limits.lock().await;
+                                    map.retain(|_, (at, _)| now().saturating_sub(*at) < 60);
+                                    let counter = map.entry(actor.clone()).or_insert((now(), 0));
+                                    counter.1 += 1;
+                                    counter.1 <= 5
+                                };
+                                match (allowed, hashes.try_acquire_owned()) {
+                                    (true, Ok(_hash)) => {
+                                        let (a, user) = (accounts.clone(), actor.clone());
+                                        tokio::task::spawn_blocking(move || {
+                                            a.verify(&user, &password)
+                                        })
                                         .await?
                                         .is_ok()
+                                    }
+                                    _ => false,
                                 }
-                                _ => false,
                             }
-                        } else {
-                            true
+                            (true, _) => false,
                         };
                         reply.edit = Some(if confirmed {
                             let _one = edits.acquire().await?;
@@ -297,7 +299,7 @@ pub async fn serve(
                         } else {
                             RouterEditOutcome {
                                 code: "reauth".into(),
-                                message: "Enter your current password to replace the credential."
+                                message: "Enter your current password to confirm this change."
                                     .into(),
                                 reply: None,
                             }

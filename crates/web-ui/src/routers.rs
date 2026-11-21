@@ -3,7 +3,7 @@
 use crate::dashboard::local_time;
 use crate::route::{Link, page};
 use crate::route_model::{Page, Tab, router_href};
-use crate::router_form::{ActivityTab, Ctx, EditableSection, NewRouter, SavedNotice};
+use crate::router_form::{ActivityTab, AdminAction, Ctx, EditableSection, NewRouter, SavedNotice};
 use crate::router_form_model::Section;
 use crate::routers_model::{Filter, matches, read_state, role_label, state, transport};
 use gloo_net::http::Request;
@@ -237,7 +237,10 @@ fn Detail(
           view!{
             <div class="page-heading">
               <div><h1 tabindex="-1">{r.name.clone()}</h1><p>{format!("{}:{}",r.address,r.port)}</p></div>
-              <span class=format!("router-state big {tone}")><i aria-hidden="true"></i>{state}</span>
+              <div class="router-actions">
+                <span class=format!("router-state big {tone}")><i aria-hidden="true"></i>{state}</span>
+                <AdminAction router=r.clone()/>
+              </div>
             </div>
             <SavedNotice router_id=id.clone()/>
             <nav class="router-tabs" aria-label="Router sections">

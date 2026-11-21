@@ -73,7 +73,10 @@ S2 is implemented. `[[routers]] enabled = false` closes four paths: the legacy c
 A disabled router keeps no rows and no nodes: its circuits leave after the grace time, through the removal guard. The TUI shows the key per router. `router_defaults.enabled` is not allowed.
 S3 is implemented. The broker runs `lqosync3 router-edit` (the TUI Settings draft, check, and apply path) instead of an `api.sock` operation, so a save does not wait for the cycle.
 The broker unit can write `/etc/lqosync3` and `/var/lib/lqosync3` for this command. The Activity tab reads `router-audit.jsonl`; it lists web changes only, not TUI changes.
-Not in S3: list editors for exclusions, DHCP server settings, and DHCP client overrides. They stay in the TUI. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
+Not in S3: list editors for exclusions, DHCP server settings, and DHCP client overrides. They stay in the TUI.
+S4 is implemented for the legacy writer. The inventory carries the circuit count of each router and the removal rules (grace time, `remove_inactive_entries`, guard limits, a held removal).
+The disable review shows the impact first, needs an acknowledgement when circuits leave, and needs the operator password (D2). The result has two tracks: router connections and the shaping removal.
+Enable removes the `enabled` key and needs no password. The Topology Manager path waits for activation; a batch that selects a disabled router fails before any connection (S2). The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
 
 Each slice ends with tests, browser evidence, a commit, and a release build.
 

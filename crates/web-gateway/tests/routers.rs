@@ -14,6 +14,7 @@ fn inventory(n: usize, name_len: usize) -> RouterInventory {
             })
             .collect(),
         config_digest: String::new(),
+        shaping: Default::default(),
         truncated: false,
     }
 }

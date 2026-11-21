@@ -20,6 +20,9 @@ pub struct RouterInventory {
     /// The digest of the config that the service has loaded. An edit sends it back as its expected digest.
     #[serde(default)]
     pub config_digest: String,
+    /// The removal rules that decide what a disable does to the shaping.
+    #[serde(default)]
+    pub shaping: ShapingPolicy,
     /// The gateway dropped routers to keep the reply bounded.
     #[serde(default)]
     pub truncated: bool,
@@ -52,6 +55,25 @@ pub struct RouterSummary {
     /// Latitude and longitude for the LibreQoS Site Map.
     pub location: Option<[f64; 2]>,
     pub options: RouterOptions,
+    /// Circuits of this router in the LQoSync shaping list at the start of the last cycle.
+    #[serde(default)]
+    pub circuits: Option<u64>,
+}
+
+/// The removal rules of the legacy writer, from the config and the last cycle.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ShapingPolicy {
+    /// Circuits in the LQoSync shaping list at the start of the last cycle.
+    pub total_circuits: u64,
+    /// `runtime.subscriber_grace`: a circuit that is not read leaves after this time.
+    pub grace_secs: u64,
+    /// `runtime.remove_inactive_entries`. False: the circuits of a router that is not read stay.
+    pub remove_inactive: bool,
+    pub guard_enabled: bool,
+    pub guard_max_count: u64,
+    pub guard_max_percent: f64,
+    /// The circuit count of a removal that the guard holds now.
+    pub guard_held: Option<u64>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -123,6 +145,8 @@ pub struct RouterEdit {
     pub location: Option<[f64; 2]>,
     #[serde(default)]
     pub clear_location: bool,
+    /// Disable (`false`) or enable (`true`) an existing router. A disable needs the operator password.
+    pub enabled: Option<bool>,
 }
 
 /// What the browser sends: the edit, and the operator password when the edit replaces a credential.

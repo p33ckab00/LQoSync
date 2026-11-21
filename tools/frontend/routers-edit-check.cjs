@@ -99,6 +99,39 @@ const fs=require('node:fs');
   await page.locator('.router-section').screenshot({path:`${out}/edit-sources.png`});
   await page.getByRole('button',{name:'Cancel'}).click();
 
+  // Disable: the impact first, an acknowledgement for the circuits, the password, then two result tracks.
+  await page.goto('http://127.0.0.1:19581/routers/lq3-00000000000000a1');
+  await page.getByRole('heading',{name:'Access-01',level:1}).waitFor();
+  await page.getByRole('button',{name:'Disable router'}).click();
+  const admin=page.getByRole('dialog',{name:'Disable Access-01?'});
+  await admin.waitFor();
+  assert.match(await admin.innerText(),/3 circuits of this router leave the shaping after the grace time \(10 min\)/);
+  const confirm=admin.getByRole('button',{name:'Disable router'});
+  assert.ok(await confirm.isDisabled(),'the circuits need an acknowledgement first');
+  await admin.getByLabel('I understand that 3 circuits leave the shaping.').check();
+  await admin.getByLabel('Your password').fill('not-the-password');
+  await confirm.click();
+  await admin.getByText(/The password is not correct/).waitFor();
+  await page.screenshot({path:`${out}/disable-dialog.png`});
+  await admin.getByLabel('Your password').fill(process.env.BROWSER_TEST_PASSWORD);
+  await confirm.click();
+  await admin.waitFor({state:'hidden'});
+  await notice.getByText('Router disabled.').waitFor();
+  await notice.getByText('Stopped: LQoSync makes no connection to this router.').waitFor({timeout:15000});
+  assert.match(await notice.innerText(),/Shaping removal\s*Pending: 3 circuits leave after the grace time \(10 min\)\./);
+  await notice.screenshot({path:`${out}/disable-tracks.png`});
+  assert.match(await page.locator('.page-heading').innerText(),/Disabled/);
+  // Enable: a plain confirmation without a password.
+  await page.getByRole('button',{name:'Enable router'}).click();
+  const enable=page.getByRole('dialog',{name:'Enable Access-01?'});
+  assert.match(await enable.innerText(),/Old circuits do not come back from a cache/);
+  await enable.getByRole('button',{name:'Enable router'}).click();
+  await notice.getByText('Router enabled.').waitFor();
+  await page.getByRole('button',{name:'Disable router'}).waitFor({timeout:15000});
+  await tabs.getByRole('link',{name:'Activity'}).click();
+  await page.locator('.activity li').first().waitFor();
+  assert.match(await page.locator('.activity').innerText(),/Enabled by browser-test[\s\S]*Disabled by browser-test/);
+
   // Narrow screens: the form fits without a horizontal page scroll.
   await page.setViewportSize({width:320,height:900});
   await page.goto('http://127.0.0.1:19581/routers/new');
@@ -107,5 +140,5 @@ const fs=require('node:fs');
   await page.screenshot({path:`${out}/add-320.png`,fullPage:true});
   assert.deepEqual(errors,[]);
   await browser.close();
-  console.log('PASS: Add router steps with field errors and focus, review without the credential, saved and loaded stages, disabled new router, activity, changed-field-only edits, password dialog for a credential replacement, conflict message, source removal warning, and 320px layout.');
+  console.log('PASS: Add router steps with field errors and focus, review without the credential, saved and loaded stages, disabled new router, activity, changed-field-only edits, password dialog for a credential replacement, conflict message, source removal warning, disable review with acknowledgement, password and two result tracks, enable without a password, and 320px layout.');
 })().catch(e=>{console.error(e);process.exit(1);});

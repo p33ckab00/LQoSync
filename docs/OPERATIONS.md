@@ -349,7 +349,13 @@ The router entry, its credential, and its history stay.
 - A Topology Manager batch that selects a disabled router fails before any connection. Change the policy first.
 - The web Routers page shows the state "Disabled".
 
-To enable the router again, remove the key or set `enabled = true`. The next cycle reads the router again. Old rows do not come back from a cache.
+In the web UI, open the router and select Disable router. The dialog shows the impact first: the circuits that leave the shaping, the grace time, and a removal guard hold.
+Confirm the circuit count, then enter your own LQoSync password. The page then shows two results:
+
+- Router connections: Stopped, when the service has loaded the change.
+- Shaping removal: Pending until the grace time ends, Held for one cycle by the removal guard, or Done in the LQoSync shaping list. LibreQoS applies the change with its next publication.
+
+To enable the router again in the web UI, select Enable router. In the file, remove the key or set `enabled = true`. The next cycle reads the router again. Old rows do not come back from a cache.
 
 A configuration file with `enabled` needs a build that has this key. An older binary does not load the file, so remove the key before a downgrade.
 

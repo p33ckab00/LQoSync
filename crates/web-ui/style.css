@@ -453,3 +453,14 @@ dialog.reauth label{display:block;margin-block:12px 6px;font-size:14px}
 @media(forced-colors:active){.steps li[aria-current=step] span{forced-color-adjust:none;background:Highlight;color:HighlightText}.saved-notice{border-inline-start-color:CanvasText}}
 .dashboard-nav a:not(.nav-active){display:flex;gap:12px;align-items:center;min-height:42px;padding:8px 12px;border-radius:8px;color:var(--text);font-size:14px;font-weight:500;text-decoration:none}
 .dashboard-nav a:not(.nav-active):hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+/* Disable and enable: a danger action, the impact list, and the two result tracks. */
+.router-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+button.danger{min-height:44px;padding:8px 16px;border:1px solid var(--bad);border-radius:8px;background:transparent;color:var(--bad);font-weight:600}
+.form-actions button.danger{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+button.danger:disabled{opacity:.5;cursor:not-allowed}
+.impact{margin:8px 0 16px;padding-inline-start:20px;font-size:14px;line-height:1.5}
+.impact li{margin-block:6px}
+.tracks{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 16px;margin:0;inline-size:100%;font-size:14px}
+.tracks dt{color:var(--muted)}.tracks dd{margin:0}
+.tracks>div{display:contents}
+dialog.reauth .field-error{color:var(--bad)}
