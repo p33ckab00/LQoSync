@@ -1,0 +1,726 @@
+//! Router registration and local edits. A save changes the configuration only: it makes no router I/O.
+//! The page shows two stages: saved by the core, then loaded by the service (the inventory digest).
+use crate::dashboard::local_time;
+use crate::route::{Link, go_to};
+use crate::route_model::{Tab, router_href};
+use crate::router_form_model::{Form, Section, changes, check, create, removes_a_source, update};
+use crate::routers_model::{role_label, transport};
+use gloo_net::http::Request;
+use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+use web_contract::Principal;
+use web_contract::routers::{
+    RouterActivity, RouterEditForm, RouterEditOutcome, RouterEditReply, RouterInventory,
+    RouterSummary,
+};
+
+/// Shared state of the Routers screen.
+#[derive(Clone, Copy)]
+pub(crate) struct Ctx {
+    pub inventory: RwSignal<Option<RouterInventory>>,
+    /// A change loads the inventory again.
+    pub refresh: RwSignal<u32>,
+    pub saved: RwSignal<Option<Saved>>,
+    pub session: RwSignal<Option<Principal>>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Saved {
+    pub router_id: String,
+    pub digest: String,
+    pub reload: String,
+    pub warnings: Vec<String>,
+    pub what: &'static str,
+}
+
+fn ctx() -> Ctx {
+    expect_context::<Ctx>()
+}
+
+/// The digest of the loaded configuration. Empty: the service is too old for web edits.
+fn loaded_digest(c: Ctx) -> String {
+    c.inventory
+        .with_untracked(|i| i.as_ref().map(|i| i.config_digest.clone()))
+        .unwrap_or_default()
+}
+
+struct Failure {
+    code: String,
+    message: String,
+}
+
+/// POST a new router or PATCH one router. The core can need some seconds, so the limit is 35 s.
+async fn send(
+    c: Ctx,
+    router_id: Option<String>,
+    form: RouterEditForm,
+) -> Result<RouterEditReply, Failure> {
+    let fail = |code: &str, message: &str| Failure {
+        code: code.into(),
+        message: message.into(),
+    };
+    let csrf = c
+        .session
+        .get_untracked()
+        .map(|p| p.csrf)
+        .unwrap_or_default();
+    let controller = web_sys::AbortController::new()
+        .map_err(|_| fail("internal", "The browser cannot send the change."))?;
+    let signal = controller.signal();
+    let _timer = gloo_timers::callback::Timeout::new(35_000, move || controller.abort());
+    let builder = match &router_id {
+        None => Request::post("/api/v1/routers"),
+        Some(id) => Request::patch(&format!("/api/v1/routers/{id}")),
+    };
+    let request = builder
+        .header("x-csrf-token", &csrf)
+        .abort_signal(Some(&signal))
+        .json(&form)
+        .map_err(|_| fail("internal", "The browser cannot send the change."))?;
+    let response = request.send().await.map_err(|_| {
+        fail(
+            "network",
+            "The change did not reach the server. Check the connection, then try again.",
+        )
+    })?;
+    if response.status() == 401 {
+        c.session.set(None);
+        return Err(fail("session", "Your session ended. Sign in again."));
+    }
+    match response.json::<RouterEditOutcome>().await {
+        Ok(RouterEditOutcome {
+            code,
+            reply: Some(reply),
+            ..
+        }) if code == "ok" => Ok(reply),
+        Ok(o) => Err(Failure {
+            code: o.code,
+            message: o.message,
+        }),
+        Err(_) if response.status() == 403 => Err(fail(
+            "forbidden",
+            "The server refused the change. Load the page again, then try again.",
+        )),
+        Err(_) => Err(fail(
+            "internal",
+            "The server could not save the change. Try again; if it fails again, use the TUI.",
+        )),
+    }
+}
+
+/// After a save: load the inventory again every 2 s until it shows the saved digest, for at most 60 s.
+fn follow(c: Ctx, saved: Saved) {
+    let digest = saved.digest.clone();
+    c.saved.set(Some(saved));
+    leptos::task::spawn_local(async move {
+        for _ in 0..30 {
+            c.refresh.update(|n| *n = n.wrapping_add(1));
+            gloo_timers::future::TimeoutFuture::new(2000).await;
+            if c.inventory
+                .with_untracked(|i| i.as_ref().is_some_and(|i| i.config_digest == digest))
+            {
+                break;
+            }
+        }
+    });
+}
+
+/// The two save stages for one router, in place, with the reload result and warnings.
+#[component]
+pub(crate) fn SavedNotice(router_id: String) -> impl IntoView {
+    let c = ctx();
+    let id = router_id.clone();
+    let mine = Memo::new(move |_| c.saved.get().filter(|s| s.router_id == id));
+    let loaded = Memo::new(move |_| {
+        mine.with(|s| {
+            s.as_ref().is_some_and(|s| {
+                c.inventory
+                    .with(|i| i.as_ref().is_some_and(|i| i.config_digest == s.digest))
+            })
+        })
+    });
+    view! {
+      {move||mine.get().map(|s|view!{
+        <div class=move||format!("saved-notice {}",if loaded.get(){"done"}else{"waiting"}) role="status">
+          <p><b>{s.what}</b>{move||if loaded.get(){" The service loaded the change."}else{" Waiting for the service to load the change…"}}</p>
+          {(s.reload!="sent").then(||view!{<p class="router-warn">{format!("The reload signal did not reach the service: {}. The change applies when the service starts again.",s.reload)}</p>})}
+          {s.warnings.iter().map(|w|view!{<p class="router-warn">{w.clone()}</p>}).collect_view()}
+          <button type="button" class="quiet" on:click=move|_|c.saved.set(None)>"Dismiss"</button>
+        </div>
+      })}
+    }
+}
+
+fn set_text(form: RwSignal<Form>, f: fn(&mut Form, String)) -> impl Fn(leptos::ev::Event) + Copy {
+    move |ev| {
+        let v = event_target_value(&ev);
+        form.update(|x| f(x, v));
+    }
+}
+fn set_check(form: RwSignal<Form>, f: fn(&mut Form, bool)) -> impl Fn(leptos::ev::Event) + Copy {
+    move |ev| {
+        let v = event_target_checked(&ev);
+        form.update(|x| f(x, v));
+    }
+}
+
+/// A labelled text field with its help text and its error below the field.
+#[component]
+fn Field(
+    id: &'static str,
+    label: &'static str,
+    #[prop(optional)] help: &'static str,
+    errors: RwSignal<Vec<(&'static str, String)>>,
+    children: Children,
+) -> impl IntoView {
+    let error = move || errors.with(|e| e.iter().find(|(k, _)| *k == id).map(|(_, m)| m.clone()));
+    view! {
+      <div class="field" class:invalid=move||error().is_some()>
+        <label for=id>{label}</label>
+        {children()}
+        {(!help.is_empty()).then(||view!{<p class="field-help" id=format!("{id}-help")>{help}</p>})}
+        <p class="field-error" id=format!("{id}-error") aria-live="polite">{error}</p>
+      </div>
+    }
+}
+
+/// While the operator types, an error goes away when its field passes. No new error appears before
+/// the next Next or Save.
+fn clear_fixed(
+    form: RwSignal<Form>,
+    errors: RwSignal<Vec<(&'static str, String)>>,
+    new: bool,
+    section: impl Fn() -> Section + 'static,
+) {
+    Effect::new(move |_| {
+        let still = form.with(|f| check(f, new, section()));
+        if errors.with_untracked(|e| e.iter().any(|(k, _)| !still.iter().any(|(n, _)| n == k))) {
+            errors.update(|e| e.retain(|(k, _)| still.iter().any(|(n, _)| n == k)));
+        }
+    });
+}
+
+/// Move focus to the first invalid field, after a failed step or save.
+fn focus_first(errors: &[(&'static str, String)]) {
+    let Some((id, _)) = errors.first() else {
+        return;
+    };
+    let id = if *id == "location" { "latitude" } else { id };
+    if let Some(e) = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.get_element_by_id(id))
+        .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
+    {
+        let _ = e.focus();
+    }
+}
+
+/// The connection fields: shared by Add router and the Connection editor.
+#[component]
+fn ConnectionFields(
+    form: RwSignal<Form>,
+    errors: RwSignal<Vec<(&'static str, String)>>,
+    new: bool,
+) -> impl IntoView {
+    let show = RwSignal::new(false);
+    let invalid =
+        move |k: &'static str| errors.with(|e| e.iter().any(|(x, _)| *x == k)).to_string();
+    let ca_error = RwSignal::new(String::new());
+    view! {
+      {new.then(||view!{
+        <Field id="name" label="Router name" help="The router identity. It cannot change later." errors>
+          <input id="name" type="text" autocomplete="off" spellcheck="false" maxlength="64" required
+            aria-invalid=move||invalid("name") aria-describedby="name-help name-error"
+            prop:value=move||form.with(|f|f.name.clone()) on:input=set_text(form,|f,v|f.name=v)/>
+        </Field>
+      })}
+      <div class="field-row">
+        <Field id="address" label="Address" help="IP address or host name of the RouterOS API." errors>
+          <input id="address" type="text" autocomplete="off" spellcheck="false" maxlength="253" required
+            aria-invalid=move||invalid("address") aria-describedby="address-help address-error"
+            prop:value=move||form.with(|f|f.address.clone()) on:input=set_text(form,|f,v|f.address=v)/>
+        </Field>
+        <Field id="port" label="API port" errors>
+          <input id="port" type="text" inputmode="numeric" autocomplete="off" maxlength="5" required class="short"
+            aria-invalid=move||invalid("port") aria-describedby="port-error"
+            prop:value=move||form.with(|f|f.port.clone()) on:input=set_text(form,|f,v|f.port=v)/>
+        </Field>
+      </div>
+      <div class="check">
+        <input id="tls" type="checkbox" prop:checked=move||form.with(|f|f.tls)
+          on:change=move|ev|{let on=event_target_checked(&ev);form.update(|f|{f.tls=on;f.port=if on{"8729".into()}else{"8728".into()};});}/>
+        <label for="tls">"Use TLS (API-SSL)"<small>"The default port changes: 8729 with TLS, 8728 without."</small></label>
+      </div>
+      <Show when=move||form.with(|f|f.tls)>
+        <div class="check">
+          <input id="tls_verify" type="checkbox" prop:checked=move||form.with(|f|f.tls_verify) on:change=set_check(form,|f,v|f.tls_verify=v)/>
+          <label for="tls_verify">"Check the router certificate"<small>"Turn this off only for a test: the connection then accepts any certificate."</small></label>
+        </div>
+        <Field id="ca" label="CA certificate" help="A PEM file of the CA that signed the router certificate. Without it, the public CAs apply." errors>
+          <input id="ca" type="file" accept=".pem,.crt,.cer" aria-describedby="ca-help ca-error"
+            on:change=move|ev|{
+              let input:web_sys::HtmlInputElement=event_target(&ev);
+              let Some(file)=input.files().and_then(|l|l.get(0)) else {return};
+              if file.size()>16384.0 {ca_error.set("The file is larger than 16 KiB.".into());return;}
+              ca_error.set(String::new());
+              let name=file.name();
+              leptos::task::spawn_local(async move{
+                if let Ok(text)=wasm_bindgen_futures::JsFuture::from(file.text()).await
+                  && let Some(text)=text.as_string()
+                {
+                  form.update(|f|{f.ca_pem=Some(text);f.ca_name=name;f.clear_ca=false;});
+                }
+              });
+            }/>
+          <p class="field-error" aria-live="polite">{move||ca_error.get()}</p>
+          <Show when=move||form.with(|f|f.ca_pem.is_some())>
+            <p class="field-help">{move||format!("Selected: {}",form.with(|f|f.ca_name.clone()))}
+              " "<button type="button" class="link" on:click=move|_|form.update(|f|{f.ca_pem=None;f.ca_name.clear();})>"Remove the selection"</button></p>
+          </Show>
+        </Field>
+      </Show>
+      <Field id="username" label="RouterOS user" help="Use a read-only RouterOS user." errors>
+        <input id="username" type="text" autocomplete="off" spellcheck="false" maxlength="64" required
+          aria-invalid=move||invalid("username") aria-describedby="username-help username-error"
+          prop:value=move||form.with(|f|f.username.clone()) on:input=set_text(form,|f,v|f.username=v)/>
+      </Field>
+      {(!new).then(||view!{
+        <div class="check">
+          <input id="replace_password" type="checkbox" prop:checked=move||form.with(|f|f.replace_password) on:change=set_check(form,|f,v|f.replace_password=v)/>
+          <label for="replace_password">"Replace the credential"<small>"Without this, the current credential stays. You confirm with your own password."</small></label>
+        </div>
+      })}
+      <Show when=move||new||form.with(|f|f.replace_password)>
+        <Field id="password" label="Credential" help="The password of the RouterOS user. The server stores it; the page never shows it again." errors>
+          <div class="password-field">
+            <input id="password" type=move||if show.get(){"text"}else{"password"} autocomplete="new-password" maxlength="256" required
+              aria-invalid=move||invalid("password") aria-describedby="password-help password-error"
+              prop:value=move||form.with(|f|f.password.clone()) on:input=set_text(form,|f,v|f.password=v)/>
+            <button type="button" aria-label=move||if show.get(){"Hide credential"}else{"Show credential"} on:click=move|_|show.update(|v| *v = !*v)>{move||if show.get(){"Hide"}else{"Show"}}</button>
+          </div>
+        </Field>
+      </Show>
+    }
+}
+
+/// The source fields: shared by Add router and the Sources editor.
+#[component]
+fn SourceFields(
+    form: RwSignal<Form>,
+    errors: RwSignal<Vec<(&'static str, String)>>,
+) -> impl IntoView {
+    let check_box = move |id: &'static str,
+                          label: &'static str,
+                          help: &'static str,
+                          get: fn(&Form) -> bool,
+                          put: fn(&mut Form, bool)| {
+        view! {
+          <div class="check">
+            <input id=id type="checkbox" prop:checked=move||form.with(get) on:change=set_check(form,put)/>
+            <label for=id>{label}<small>{help}</small></label>
+          </div>
+        }
+    };
+    view! {
+      <fieldset class="sub"><legend>"Subscriber sources"</legend>
+        {check_box("pppoe","PPPoE","Read PPP secrets and active sessions.",|f|f.pppoe,|f,v|f.pppoe=v)}
+        {check_box("dhcp","DHCP","Read DHCP leases.",|f|f.dhcp,|f,v|f.dhcp=v)}
+        {check_box("hotspot","Hotspot","Read Hotspot users and active hosts.",|f|f.hotspot,|f,v|f.hotspot=v)}
+        <p class="field-help">"A router without a source is a WAN-only core: the cycle does not read it."</p>
+      </fieldset>
+      <fieldset class="sub"><legend>"Source options"</legend>
+        {check_box("ppp_per_plan_node","PPPoE node per plan","Group PPPoE circuits by plan.",|f|f.ppp_per_plan_node,|f,v|f.ppp_per_plan_node=v)}
+        {check_box("hotspot_include_mac","Hotspot MAC in circuit","Add the MAC address to each Hotspot circuit.",|f|f.hotspot_include_mac,|f,v|f.hotspot_include_mac=v)}
+        {check_box("dhcp_require_bound","DHCP bound leases only","Ignore leases that are not bound.",|f|f.dhcp_require_bound,|f,v|f.dhcp_require_bound=v)}
+        {check_box("dhcp_discover","DHCP server discovery","Read all DHCP servers of the router.",|f|f.dhcp_discover,|f,v|f.dhcp_discover=v)}
+        {check_box("dhcp_shape_unassigned","Shape unassigned leases","Shape leases without a server in the group \"unassigned\".",|f|f.dhcp_shape_unassigned,|f,v|f.dhcp_shape_unassigned=v)}
+      </fieldset>
+      <fieldset class="sub"><legend>"Site Map location"</legend>
+        <div class="field-row">
+          <Field id="latitude" label="Latitude" errors>
+            <input id="latitude" type="text" inputmode="decimal" autocomplete="off" class="short" aria-describedby="latitude-error location-error"
+              prop:value=move||form.with(|f|f.latitude.clone()) on:input=set_text(form,|f,v|f.latitude=v)/>
+          </Field>
+          <Field id="longitude" label="Longitude" errors>
+            <input id="longitude" type="text" inputmode="decimal" autocomplete="off" class="short" aria-describedby="location-error"
+              prop:value=move||form.with(|f|f.longitude.clone()) on:input=set_text(form,|f,v|f.longitude=v)/>
+          </Field>
+        </div>
+        <p class="field-error" id="location-error" aria-live="polite">{move||errors.with(|e|e.iter().find(|(k,_)|*k=="location").map(|(_,m)|m.clone()))}</p>
+        <p class="field-help">"Leave both empty for no location."</p>
+      </fieldset>
+    }
+}
+
+const STEPS: [&str; 3] = ["Connection", "Sources", "Review"];
+
+/// Add router: three steps. The router is saved disabled; it gets no connection until an enable.
+#[component]
+pub(crate) fn NewRouter() -> impl IntoView {
+    let c = ctx();
+    let nav = crate::route::page();
+    let form = RwSignal::new(Form::new_router());
+    let step = RwSignal::new(0usize);
+    let errors = RwSignal::new(Vec::new());
+    let busy = RwSignal::new(false);
+    let failure = RwSignal::new(String::new());
+    let digest = Memo::new(move |_| {
+        c.inventory
+            .with(|i| i.as_ref().map(|i| i.config_digest.clone()))
+            .unwrap_or_default()
+    });
+    clear_fixed(form, errors, true, move || {
+        if step.get_untracked() == 0 {
+            Section::Connection
+        } else {
+            Section::Sources
+        }
+    });
+    let next = move || {
+        let section = if step.get_untracked() == 0 {
+            Section::Connection
+        } else {
+            Section::Sources
+        };
+        let found = form.with_untracked(|f| check(f, true, section));
+        let ok = found.is_empty();
+        errors.set(found);
+        if ok {
+            step.update(|s| *s += 1);
+        } else {
+            request_animation_frame(move || errors.with_untracked(|e| focus_first(e)));
+        }
+    };
+    let submit = move || {
+        if busy.get_untracked() {
+            return;
+        }
+        let edit = form.with_untracked(|f| create(f, &digest.get_untracked()));
+        busy.set(true);
+        failure.set(String::new());
+        leptos::task::spawn_local(async move {
+            match send(
+                c,
+                None,
+                RouterEditForm {
+                    edit,
+                    current_password: None,
+                },
+            )
+            .await
+            {
+                Ok(reply) => {
+                    let href = router_href(&reply.router_id, Tab::Overview);
+                    follow(
+                        c,
+                        Saved {
+                            router_id: reply.router_id,
+                            digest: reply.digest,
+                            reload: reply.reload,
+                            warnings: reply.warnings,
+                            what: "Router added and disabled.",
+                        },
+                    );
+                    go_to(nav, &href);
+                }
+                Err(f) => failure.set(f.message),
+            }
+            busy.try_set(false);
+        });
+    };
+    view! {
+      <nav class="breadcrumb" aria-label="Breadcrumb"><Link href="/routers".to_string()>"Routers"</Link><span aria-hidden="true">"/"</span><span aria-current="page">"Add router"</span></nav>
+      <div class="page-heading"><div><h1 tabindex="-1">"Add router"</h1>
+        <p>"The router is saved disabled. LQoSync makes no connection to it until you enable it."</p></div></div>
+      <Show when=move||digest.with(String::is_empty)>
+        <div class="notice" role="status">"Router editing needs the updated LQoSync service. Install the new lqosync3 binary, then load this page again."</div>
+      </Show>
+      <ol class="steps" aria-label="Steps">
+        {STEPS.iter().enumerate().map(|(i,label)|view!{
+          <li class:done=move||{step.get()>i} aria-current=move||(step.get()==i).then_some("step")><span>{i+1}</span>{*label}</li>
+        }).collect_view()}
+      </ol>
+      <form class="panel router-form" novalidate on:submit=move|ev|{ev.prevent_default(); if step.get_untracked()<2 {next()} else {submit()}}>
+        {move||match step.get() {
+          0=>view!{<fieldset><legend>"Connection"</legend><ConnectionFields form errors new=true/></fieldset>}.into_any(),
+          1=>view!{<fieldset><legend>"Sources"</legend><SourceFields form errors/></fieldset>}.into_any(),
+          _=>form.with(|f|{
+            let roles:Vec<&str>=[(f.pppoe,"PPPoE"),(f.dhcp,"DHCP"),(f.hotspot,"Hotspot")].into_iter().filter(|(on,_)|*on).map(|(_,l)|l).collect();
+            view!{<fieldset><legend>"Review"</legend>
+              <dl class="router-facts">
+                <div><dt>"Router name"</dt><dd>{f.name.clone()}</dd></div>
+                <div><dt>"Address"</dt><dd>{format!("{}:{}",f.address,f.port)}</dd></div>
+                <div><dt>"Transport"</dt><dd>{if !f.tls{"Plain API".to_string()}else if !f.tls_verify{"TLS, certificate not checked".into()}else if f.ca_pem.is_some(){format!("TLS, checked with {}",f.ca_name)}else{"TLS, checked with public CAs".into()}}</dd></div>
+                <div><dt>"RouterOS user"</dt><dd>{f.username.clone()}</dd></div>
+                <div><dt>"Credential"</dt><dd>"Entered (not shown)"</dd></div>
+                <div><dt>"Sources"</dt><dd>{if roles.is_empty(){"None: a WAN-only core".to_string()}else{roles.join(", ")}}</dd></div>
+                <div><dt>"Administrative state"</dt><dd>"Disabled after the save"</dd></div>
+              </dl>
+              <p class="field-help">"Add router saves the configuration only. It does not sign in to the router, test it, or read from it."</p>
+            </fieldset>}.into_any()
+          }),
+        }}
+        <Show when=move||!failure.get().is_empty()><p class="form-failure" role="alert">{move||failure.get()}</p></Show>
+        <div class="form-actions">
+          <Show when=move||{step.get()>0}><button type="button" class="quiet" on:click=move|_|{errors.set(Vec::new());step.update(|s|*s-=1);}>"Back"</button></Show>
+          <Link href="/routers".to_string() class="quiet-link">"Cancel"</Link>
+          <button type="submit" class="primary" disabled=move||busy.get()||digest.with(String::is_empty)>
+            {move||match (step.get(),busy.get()) {(2,true)=>"Adding…",(2,false)=>"Add router",_=>"Next"}}
+          </button>
+        </div>
+      </form>
+    }
+}
+
+/// The password check before a credential replacement (owner decision D2). A native modal dialog
+/// keeps focus inside, closes with Escape, and returns focus to the trigger.
+#[component]
+fn Reauth(
+    open: RwSignal<bool>,
+    error: RwSignal<String>,
+    on_confirm: Callback<String>,
+) -> impl IntoView {
+    let dialog = NodeRef::<leptos::html::Dialog>::new();
+    let password = RwSignal::new(String::new());
+    Effect::new(move |_| {
+        let Some(d) = dialog.get() else { return };
+        if open.get() {
+            if !d.open() {
+                let _ = d.show_modal();
+            }
+        } else if d.open() {
+            d.close();
+        }
+    });
+    view! {
+      <dialog node_ref=dialog class="reauth" aria-labelledby="reauth-title" on:close=move|_|{open.set(false);password.set(String::new());}>
+        <form method="dialog" on:submit=move|ev|{ev.prevent_default();on_confirm.run(password.get_untracked());}>
+          <h2 id="reauth-title">"Confirm with your password"</h2>
+          <p>"Replacing a router credential needs your current LQoSync password."</p>
+          <label for="current-password">"Your password"</label>
+          <input id="current-password" type="password" autocomplete="current-password" maxlength="256" required
+            prop:value=move||password.get() on:input=move|ev|password.set(event_target_value(&ev))/>
+          <p class="field-error" role="alert">{move||error.get()}</p>
+          <div class="form-actions">
+            <button type="button" class="quiet" on:click=move|_|open.set(false)>"Cancel"</button>
+            <button type="submit" class="primary">"Confirm and save"</button>
+          </div>
+        </form>
+      </dialog>
+    }
+}
+
+/// A Connection or Sources section: the facts, and an editor after Edit.
+#[component]
+pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl IntoView {
+    let c = ctx();
+    let editing = RwSignal::new(false);
+    let form = RwSignal::new(Form::from(&router));
+    let errors = RwSignal::new(Vec::new());
+    let busy = RwSignal::new(false);
+    let failure = RwSignal::new(String::new());
+    let digest = RwSignal::new(String::new());
+    let reauth = RwSignal::new(false);
+    let reauth_error = RwSignal::new(String::new());
+    let r = StoredValue::new(router.clone());
+    clear_fixed(form, errors, false, move || section);
+    let save = move |current_password: Option<String>| {
+        let edit =
+            form.with_untracked(|f| update(f, &r.get_value(), section, &digest.get_untracked()));
+        busy.set(true);
+        failure.set(String::new());
+        let id = r.with_value(|r| r.id.clone());
+        leptos::task::spawn_local(async move {
+            match send(
+                c,
+                Some(id.clone()),
+                RouterEditForm {
+                    edit,
+                    current_password,
+                },
+            )
+            .await
+            {
+                Ok(reply) => {
+                    reauth.set(false);
+                    editing.set(false);
+                    follow(
+                        c,
+                        Saved {
+                            router_id: id,
+                            digest: reply.digest,
+                            reload: reply.reload,
+                            warnings: reply.warnings,
+                            what: "Changes saved.",
+                        },
+                    );
+                }
+                Err(f) if f.code == "reauth" => {
+                    reauth_error.set("The password is not correct, or there were too many tries. Wait one minute, then try again.".into());
+                    reauth.set(true);
+                }
+                Err(f) => {
+                    reauth.set(false);
+                    failure.set(f.message);
+                }
+            }
+            busy.try_set(false);
+        });
+    };
+    let submit = move || {
+        if busy.get_untracked() {
+            return;
+        }
+        let found = form.with_untracked(|f| check(f, false, section));
+        let ok = found.is_empty();
+        errors.set(found);
+        if !ok {
+            request_animation_frame(move || errors.with_untracked(|e| focus_first(e)));
+            return;
+        }
+        let edit =
+            form.with_untracked(|f| update(f, &r.get_value(), section, &digest.get_untracked()));
+        if !changes(&edit) {
+            failure.set("There is no change to save.".into());
+            return;
+        }
+        if edit.password.is_some() {
+            reauth_error.set(String::new());
+            reauth.set(true);
+        } else {
+            save(None);
+        }
+    };
+    let label = match section {
+        Section::Connection => "Edit connection",
+        Section::Sources => "Edit sources",
+    };
+    view! {
+      <Show when=move||editing.get() fallback=move||view!{
+        {match section {Section::Connection=>connection_facts(&r.get_value()).into_any(),Section::Sources=>sources_facts(&r.get_value()).into_any()}}
+        <div class="form-actions start">
+          <button type="button" class="secondary" disabled=move||c.inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty()))
+            on:click=move|_|{form.set(Form::from(&r.get_value()));errors.set(Vec::new());failure.set(String::new());digest.set(loaded_digest(c));editing.set(true);}>{label}</button>
+        </div>
+      }>
+        <form class="router-form inline" novalidate on:submit=move|ev|{ev.prevent_default();submit();}>
+          {match section {
+            Section::Connection=>view!{<ConnectionFields form errors new=false/>}.into_any(),
+            Section::Sources=>view!{<SourceFields form errors/>}.into_any(),
+          }}
+          <Show when=move||section==Section::Sources && form.with(|f|removes_a_source(f,&r.get_value()))>
+            <p class="router-warn" role="note">"This router is enabled. A source that you turn off loses its circuits after the grace time, through the removal guard."</p>
+          </Show>
+          <Show when=move||!failure.get().is_empty()><p class="form-failure" role="alert">{move||failure.get()}</p></Show>
+          <div class="form-actions start">
+            <button type="submit" class="primary" disabled=move||busy.get()>{move||if busy.get(){"Saving…"}else{"Save changes"}}</button>
+            <button type="button" class="quiet" on:click=move|_|editing.set(false)>"Cancel"</button>
+          </div>
+        </form>
+        <Reauth open=reauth error=reauth_error on_confirm=Callback::new(move|pw:String|save(Some(pw)))/>
+      </Show>
+    }
+}
+
+pub(crate) fn connection_facts(r: &RouterSummary) -> impl IntoView {
+    let (link, tone) = transport(r);
+    view! {
+      <dl class="router-facts">
+        <div><dt>"Address"</dt><dd>{r.address.clone()}</dd></div>
+        <div><dt>"API port"</dt><dd class="num">{r.port}</dd></div>
+        <div><dt>"Transport"</dt><dd><span class=format!("router-transport {tone}")>{link}</span></dd></div>
+        {r.tls.then(||view!{<div><dt>"CA certificate"</dt><dd>{if r.tls_ca{"Configured"}else{"Not configured"}}</dd></div>})}
+        <div><dt>"Username"</dt><dd>{r.username.clone()}</dd></div>
+        <div><dt>"Credential"</dt><dd>{if r.credential{"Configured".into_any()}else{view!{<span class="router-warn">"Missing: the service cannot sign in"</span>}.into_any()}}</dd></div>
+      </dl>
+    }
+}
+
+fn yes(b: bool) -> &'static str {
+    if b { "Yes" } else { "No" }
+}
+fn count(n: Option<u64>) -> String {
+    n.map(|n| n.to_string()).unwrap_or("—".into())
+}
+
+pub(crate) fn sources_facts(r: &RouterSummary) -> impl IntoView {
+    let o = &r.options;
+    view! {
+      <div class="table-scroll" role="region" aria-label="Subscriber sources" tabindex="0">
+        <table class="router-table compact">
+          <thead><tr><th scope="col">"Source"</th><th scope="col">"Enabled"</th><th scope="col" class="num">"Records"</th><th scope="col" class="num">"Online"</th><th scope="col" class="num">"Offline"</th></tr></thead>
+          <tbody>{r.sources.iter().map(|s|view!{<tr>
+            <th scope="row">{role_label(&s.kind)}</th><td>{yes(s.enabled)}</td>
+            <td class="num">{count(s.records)}</td><td class="num">{count(s.online)}</td><td class="num">{count(s.offline)}</td>
+          </tr>}).collect_view()}</tbody>
+        </table>
+      </div>
+      <dl class="router-facts">
+        <div><dt>"PPPoE node per plan"</dt><dd>{yes(o.ppp_per_plan_node)}</dd></div>
+        <div><dt>"Hotspot MAC in circuit"</dt><dd>{yes(o.hotspot_include_mac)}</dd></div>
+        <div><dt>"DHCP bound leases only"</dt><dd>{yes(o.dhcp_require_bound)}</dd></div>
+        <div><dt>"DHCP server discovery"</dt><dd>{yes(o.dhcp_discover)}</dd></div>
+        <div><dt>"DHCP server settings"</dt><dd class="num">{o.dhcp_servers}</dd></div>
+        <div><dt>"DHCP client overrides"</dt><dd class="num">{o.dhcp_clients}</dd></div>
+        <div><dt>"Shape unassigned leases"</dt><dd>{yes(o.dhcp_shape_unassigned)}</dd></div>
+        <div><dt>"Router exclusions"</dt><dd class="num">{o.exclusions}</dd></div>
+        <div><dt>"Location"</dt><dd>{r.location.map(|[a,b]|format!("{a:.5}, {b:.5}")).unwrap_or("Not set".into())}</dd></div>
+      </dl>
+    }
+}
+
+fn action_label(a: &str) -> &'static str {
+    match a {
+        "create" => "Added",
+        "update" => "Changed",
+        _ => "Action",
+    }
+}
+
+/// The audit events of one router, newest first. It loads again after a save.
+#[component]
+pub(crate) fn ActivityTab(router_id: String) -> impl IntoView {
+    let c = ctx();
+    let events = RwSignal::new(None::<Result<RouterActivity, String>>);
+    let id = router_id.clone();
+    Effect::new(move |_| {
+        c.saved.track();
+        let id = id.clone();
+        leptos::task::spawn_local(async move {
+            let (signal, _timer) = crate::app::deadline();
+            let r = Request::get(&format!("/api/v1/routers/{id}/activity"))
+                .abort_signal(Some(&signal))
+                .send()
+                .await;
+            let out = match r {
+                Ok(r) if r.ok() => r
+                    .json::<RouterActivity>()
+                    .await
+                    .map_err(|_| "The activity response is not valid.".to_string()),
+                Ok(r) if r.status() == 401 => {
+                    c.session.set(None);
+                    return;
+                }
+                _ => Err("The activity could not load. Try again later.".to_string()),
+            };
+            events.try_set(Some(out));
+        });
+    });
+    view! {
+      {move||match events.get() {
+        None=>view!{<p class="router-empty" role="status">"Loading activity…"</p>}.into_any(),
+        Some(Err(e))=>view!{<p class="notice" role="status">{e}</p>}.into_any(),
+        Some(Ok(a)) if a.events.is_empty()=>view!{<p class="router-empty">"No web changes to this router yet. Changes from the TUI are not in this list."</p>}.into_any(),
+        Some(Ok(a))=>view!{
+          <ol class="activity">
+            {a.events.into_iter().map(|e|view!{<li>
+              <span class="activity-time">{local_time(e.at)}</span>
+              <span><b>{action_label(&e.action)}</b>" by "{e.actor}</span>
+              <span class="activity-changes">{e.changes.iter().map(|c|c.replace('_'," ")).collect::<Vec<_>>().join(", ")}</span>
+            </li>}).collect_view()}
+          </ol>
+          <p class="field-help">"Web changes only, newest first. Credential changes show as \"credential\"; no value is kept."</p>
+        }.into_any(),
+      }}
+    }
+}

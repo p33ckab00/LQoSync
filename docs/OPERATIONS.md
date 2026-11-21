@@ -320,6 +320,22 @@ The tool supports both versions. The upgrade changes the output target. Do this 
 > [!note]
 > In v3, `LibreQoS.py --updateonly` does nothing. The tool does not start it on v3. `lqosd` reads the changed files by itself.
 
+## Add or change a router in the web UI
+
+1. Open Routers, then select Add router.
+2. Enter the connection: name, address, API port, TLS, the RouterOS user, and the credential. For a private CA, choose its PEM file (16 KiB or less).
+3. Select the subscriber sources. A router without a source is a WAN-only core.
+4. Read the review, then select Add router.
+
+The router is saved disabled. The save writes only the configuration: no login, test, or read of the router.
+The page shows "Saved", then "The service loaded the change" when the service has the new configuration.
+
+- The name is the router identity. You cannot change it later.
+- The credential goes to `<config folder>/secrets/<name>.password` (mode 0600). A CA file goes to `<config folder>/ca/<name>.pem`.
+- To replace a credential, select "Replace the credential" and enter your own LQoSync password again.
+- Each save keeps a config backup in `<state_dir>/config-backups/` and adds one line to `<state_dir>/router-audit.jsonl`. The line holds field names, never a credential.
+- If the TUI or another session changed the configuration first, the save stops. Load the page again, then repeat the change.
+
 ## Disable a router
 
 Set `enabled = false` in the `[[routers]]` entry of the router. In the TUI, select the group of the router and set the key `enabled`.

@@ -70,7 +70,10 @@ The file uses the `web-contract` router types, so the core and the gateway share
 Status: S1 is implemented. The service writes `routers.json` each cycle. `GET /api/v1/routers` and the `/routers` page read it.
 `tools/frontend/routers-check.cjs` holds the browser evidence.
 S2 is implemented. `[[routers]] enabled = false` closes four paths: the legacy cycle read, WAN discovery, the Topology Manager batch (which also closes a held session), and the connector itself.
-A disabled router keeps no rows and no nodes: its circuits leave after the grace time, through the removal guard. The TUI shows the key per router. `router_defaults.enabled` is not allowed. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
+A disabled router keeps no rows and no nodes: its circuits leave after the grace time, through the removal guard. The TUI shows the key per router. `router_defaults.enabled` is not allowed.
+S3 is implemented. The broker runs `lqosync3 router-edit` (the TUI Settings draft, check, and apply path) instead of an `api.sock` operation, so a save does not wait for the cycle.
+The broker unit can write `/etc/lqosync3` and `/var/lib/lqosync3` for this command. The Activity tab reads `router-audit.jsonl`; it lists web changes only, not TUI changes.
+Not in S3: list editors for exclusions, DHCP server settings, and DHCP client overrides. They stay in the TUI. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
 
 Each slice ends with tests, browser evidence, a commit, and a release build.
 

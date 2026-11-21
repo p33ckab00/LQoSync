@@ -115,7 +115,7 @@ pub(crate) fn Navigation() -> impl IntoView {
       <nav class="dashboard-nav" aria-label="Main navigation">
         <NavLink href="/" label="Dashboard" icon="dashboard" active=Signal::derive(move||page.get()==Page::Dashboard)/>
         <div class="nav-group"><p>"Network"</p>
-          <NavLink href="/routers" label="Routers" icon="router" active=Signal::derive(move||matches!(page.get(),Page::Routers|Page::Router{..}))/>
+          <NavLink href="/routers" label="Routers" icon="router" active=Signal::derive(move||matches!(page.get(),Page::Routers|Page::NewRouter|Page::Router{..}))/>
         </div>
         {groups.into_iter().map(|(group,items)|view!{
           <div class="nav-group"><p>{group}</p>{items.into_iter().map(|(label,icon)|view!{

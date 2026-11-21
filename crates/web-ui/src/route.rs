@@ -31,13 +31,18 @@ pub(crate) fn page() -> RwSignal<Page> {
 
 /// Go to `href` inside the page. Then move focus to the page heading, for screen readers.
 pub(crate) fn go(href: &str) {
+    go_to(page(), href);
+}
+
+/// The same, with the page signal taken earlier: an async task after an await has no context.
+pub(crate) fn go_to(page: RwSignal<Page>, href: &str) {
     let Some(window) = web_sys::window() else {
         return;
     };
     if let Ok(history) = window.history() {
         let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(href));
     }
-    page().set(current());
+    page.set(current());
     window.scroll_to_with_x_and_y(0.0, 0.0);
     request_animation_frame(|| {
         if let Some(h) = web_sys::window()

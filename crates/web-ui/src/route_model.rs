@@ -4,6 +4,7 @@
 pub(crate) enum Page {
     Dashboard,
     Routers,
+    NewRouter,
     Router { id: String, tab: Tab },
     Unknown,
 }
@@ -14,14 +15,16 @@ pub(crate) enum Tab {
     Overview,
     Connection,
     Sources,
+    Activity,
 }
 impl Tab {
-    pub(crate) const ALL: [Tab; 3] = [Tab::Overview, Tab::Connection, Tab::Sources];
+    pub(crate) const ALL: [Tab; 4] = [Tab::Overview, Tab::Connection, Tab::Sources, Tab::Activity];
     pub(crate) fn key(self) -> &'static str {
         match self {
             Tab::Overview => "overview",
             Tab::Connection => "connection",
             Tab::Sources => "sources",
+            Tab::Activity => "activity",
         }
     }
     pub(crate) fn label(self) -> &'static str {
@@ -29,6 +32,7 @@ impl Tab {
             Tab::Overview => "Overview",
             Tab::Connection => "Connection",
             Tab::Sources => "Sources",
+            Tab::Activity => "Activity",
         }
     }
 }
@@ -43,6 +47,7 @@ pub(crate) fn parse(path: &str, search: &str) -> Page {
     match path {
         "" => Page::Dashboard,
         "/routers" => Page::Routers,
+        "/routers/new" => Page::NewRouter,
         _ => match path.strip_prefix("/routers/") {
             Some(id) if router_id(id) => {
                 let key = search
@@ -75,6 +80,7 @@ mod tests {
     fn routes_parse_and_reject_unsafe_ids() {
         assert_eq!(parse("/", ""), Page::Dashboard);
         assert_eq!(parse("/routers/", ""), Page::Routers);
+        assert_eq!(parse("/routers/new", ""), Page::NewRouter);
         let page = parse("/routers/lq3-00ff", "?x=1&tab=connection");
         assert_eq!(
             page,

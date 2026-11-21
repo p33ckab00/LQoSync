@@ -1,8 +1,10 @@
-//! The Routers screen: the cached inventory and a read-only router detail.
+//! The Routers screen: the cached inventory, the router detail, and local edits.
 //! The page reads `/api/v1/routers` (a service cache). It never connects to a router.
 use crate::dashboard::local_time;
 use crate::route::{Link, page};
 use crate::route_model::{Page, Tab, router_href};
+use crate::router_form::{ActivityTab, Ctx, EditableSection, NewRouter, SavedNotice};
+use crate::router_form_model::Section;
 use crate::routers_model::{Filter, matches, read_state, role_label, state, transport};
 use gloo_net::http::Request;
 use leptos::prelude::*;
@@ -12,9 +14,6 @@ use web_contract::{Overview, Principal};
 fn count(n: Option<u64>) -> String {
     n.map(|n| n.to_string()).unwrap_or("—".into())
 }
-fn yes(b: bool) -> &'static str {
-    if b { "Yes" } else { "No" }
-}
 
 #[component]
 pub(crate) fn RoutersPage(
@@ -23,12 +22,20 @@ pub(crate) fn RoutersPage(
     filter: RwSignal<Filter>,
 ) -> impl IntoView {
     let inventory = RwSignal::new(None::<RouterInventory>);
+    let refresh = RwSignal::new(0u32);
+    provide_context(Ctx {
+        inventory,
+        refresh,
+        saved: RwSignal::new(None),
+        session,
+    });
     let loaded = RwSignal::new(false);
     let error = RwSignal::new(String::new());
     // Load on entry and again after each service cycle; the overview time changes once per cycle.
     let cycle = Memo::new(move |_| data.with(|d| d.as_ref().and_then(|v| v.observed_at)));
     Effect::new(move |_| {
         cycle.track();
+        refresh.track();
         let expected = session.get_untracked().map(|p| p.csrf);
         leptos::task::spawn_local(async move {
             let (signal, _timer) = crate::app::deadline();
@@ -77,6 +84,7 @@ pub(crate) fn RoutersPage(
     view! {
       {move||match route.get() {
         Page::Router{id,tab}=>view!{<Detail id tab inventory loaded error/>}.into_any(),
+        Page::NewRouter=>view!{<NewRouter/>}.into_any(),
         _=>view!{<Inventory inventory loaded error filter data/>}.into_any(),
       }}
     }
@@ -112,6 +120,7 @@ fn Inventory(
     view! {
       <div class="page-heading">
         <div><h1 tabindex="-1">"Routers"</h1><p>"MikroTik routers in the configuration, their roles, and the latest read."</p></div>
+        <Link href="/routers/new".to_string() class="button primary">"Add router"</Link>
         <div class="freshness">{move||inventory.with(|i|match i {
           Some(i) if data.with(|d|d.as_ref().is_some_and(|v|v.stale))=>format!("Service evidence stale · inventory from {}",local_time(i.updated)),
           Some(i)=>format!("Inventory from {}",local_time(i.updated)),
@@ -143,7 +152,7 @@ fn Inventory(
         </div>
         <Show when=move||loaded.get()||inventory.with(Option::is_some) fallback=||view!{<p class="router-empty" role="status">"Loading router inventory…"</p>}>
           <Show when=move||{total.get()>0} fallback=move||view!{
-            <p class="router-empty">{move||if inventory.with(Option::is_some){"No routers are in the configuration. Add a router in the TUI Settings for now; web registration comes in a later update."}else{"No router inventory yet."}}</p>
+            <p class="router-empty">{move||if inventory.with(Option::is_some){"No routers are in the configuration. Select Add router to register the first one."}else{"No router inventory yet."}}</p>
           }>
             <Show when=move||rows.with(|r|!r.is_empty()) fallback=move||view!{
               <div class="router-empty"><p>"No router matches these filters."</p>
@@ -201,6 +210,8 @@ fn Detail(
     error: RwSignal<String>,
 ) -> impl IntoView {
     let key = id.clone();
+    let key2 = id.clone();
+    let saved = expect_context::<Ctx>().saved;
     let router = Memo::new(move |_| {
         inventory.with(|i| {
             i.as_ref()
@@ -212,6 +223,10 @@ fn Detail(
         <span aria-current="page">{move||router.with(|r|r.as_ref().map(|r|r.name.clone()).unwrap_or("Router".into()))}</span></nav>
       <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
       {move||match router.get() {
+        None if saved.with(|s|s.as_ref().is_some_and(|s|s.router_id==key2))=>view!{
+          <div class="page-heading"><div><h1 tabindex="-1">"New router"</h1><p role="status">"Saved. It appears here when the service loads the configuration."</p></div></div>
+          <SavedNotice router_id=key2.clone()/>
+        }.into_any(),
         None if !loaded.get()=>view!{<div class="page-heading"><div><h1 tabindex="-1">"Router"</h1><p role="status">"Loading router…"</p></div></div>}.into_any(),
         None=>view!{<div class="page-heading"><div><h1 tabindex="-1">"Router not found"</h1>
           <p>"This router is not in the configuration. It may have a new name."</p></div></div>
@@ -224,12 +239,18 @@ fn Detail(
               <div><h1 tabindex="-1">{r.name.clone()}</h1><p>{format!("{}:{}",r.address,r.port)}</p></div>
               <span class=format!("router-state big {tone}")><i aria-hidden="true"></i>{state}</span>
             </div>
+            <SavedNotice router_id=id.clone()/>
             <nav class="router-tabs" aria-label="Router sections">
               {Tab::ALL.into_iter().map(|t|view!{<Link href=router_href(&id,t) current=Signal::derive(move||t==tab)>{t.label()}</Link>}).collect_view()}
             </nav>
             <section class="panel router-section" aria-label=tab.label()>
-              {match tab {Tab::Overview=>overview(&r).into_any(),Tab::Connection=>connection(&r).into_any(),Tab::Sources=>sources(&r).into_any()}}
-              <p class="panel-note">"Read-only. Router editing comes in a later update; use the TUI Settings for changes now."</p>
+              {match tab {
+                Tab::Overview=>overview(&r).into_any(),
+                Tab::Connection=>view!{<EditableSection router=r.clone() section=Section::Connection/>}.into_any(),
+                Tab::Sources=>view!{<EditableSection router=r.clone() section=Section::Sources/>}.into_any(),
+                Tab::Activity=>view!{<ActivityTab router_id=r.id.clone()/>}.into_any(),
+              }}
+              <p class="panel-note">"A save changes the configuration only. It does not connect to the router."</p>
             </section>
           }.into_any()
         }
@@ -257,45 +278,6 @@ fn overview(r: &RouterSummary) -> impl IntoView {
         <div><dt>"WAN links"</dt><dd>{if r.wans.is_empty(){"None in the topology catalog".to_string()}else{r.wans.join(", ")}}</dd></div>
         <div><dt>"Location"</dt><dd>{r.location.map(|[a,b]|format!("{a:.5}, {b:.5}")).unwrap_or("Not set".into())}</dd></div>
         <div><dt>"Router ID"</dt><dd><code>{r.id.clone()}</code></dd></div>
-      </dl>
-    }
-}
-
-fn connection(r: &RouterSummary) -> impl IntoView {
-    let (link, tone) = transport(r);
-    view! {
-      <dl class="router-facts">
-        <div><dt>"Address"</dt><dd>{r.address.clone()}</dd></div>
-        <div><dt>"API port"</dt><dd class="num">{r.port}</dd></div>
-        <div><dt>"Transport"</dt><dd><span class=format!("router-transport {tone}")>{link}</span></dd></div>
-        {r.tls.then(||view!{<div><dt>"CA certificate"</dt><dd>{if r.tls_ca{"Configured"}else{"Not configured"}}</dd></div>})}
-        <div><dt>"Username"</dt><dd>{r.username.clone()}</dd></div>
-        <div><dt>"Credential"</dt><dd>{if r.credential{"Configured".into_any()}else{view!{<span class="router-warn">"Missing: the service cannot sign in"</span>}.into_any()}}</dd></div>
-      </dl>
-    }
-}
-
-fn sources(r: &RouterSummary) -> impl IntoView {
-    let o = &r.options;
-    view! {
-      <div class="table-scroll" role="region" aria-label="Subscriber sources" tabindex="0">
-        <table class="router-table compact">
-          <thead><tr><th scope="col">"Source"</th><th scope="col">"Enabled"</th><th scope="col" class="num">"Records"</th><th scope="col" class="num">"Online"</th><th scope="col" class="num">"Offline"</th></tr></thead>
-          <tbody>{r.sources.iter().map(|s|view!{<tr>
-            <th scope="row">{role_label(&s.kind)}</th><td>{yes(s.enabled)}</td>
-            <td class="num">{count(s.records)}</td><td class="num">{count(s.online)}</td><td class="num">{count(s.offline)}</td>
-          </tr>}).collect_view()}</tbody>
-        </table>
-      </div>
-      <dl class="router-facts">
-        <div><dt>"PPPoE node per plan"</dt><dd>{yes(o.ppp_per_plan_node)}</dd></div>
-        <div><dt>"Hotspot MAC in circuit"</dt><dd>{yes(o.hotspot_include_mac)}</dd></div>
-        <div><dt>"DHCP bound leases only"</dt><dd>{yes(o.dhcp_require_bound)}</dd></div>
-        <div><dt>"DHCP server discovery"</dt><dd>{yes(o.dhcp_discover)}</dd></div>
-        <div><dt>"DHCP server settings"</dt><dd class="num">{o.dhcp_servers}</dd></div>
-        <div><dt>"DHCP client overrides"</dt><dd class="num">{o.dhcp_clients}</dd></div>
-        <div><dt>"Shape unassigned leases"</dt><dd>{yes(o.dhcp_shape_unassigned)}</dd></div>
-        <div><dt>"Router exclusions"</dt><dd class="num">{o.exclusions}</dd></div>
       </dl>
     }
 }

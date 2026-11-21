@@ -57,7 +57,9 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
     let filter = RwSignal::new(crate::routers_model::Filter::default());
     let section = Memo::new(move |_| match page.get() {
         crate::route_model::Page::Dashboard => 0,
-        crate::route_model::Page::Routers | crate::route_model::Page::Router { .. } => 1,
+        crate::route_model::Page::Routers
+        | crate::route_model::Page::NewRouter
+        | crate::route_model::Page::Router { .. } => 1,
         crate::route_model::Page::Unknown => 2,
     });
     let data = RwSignal::new(None::<Overview>);
