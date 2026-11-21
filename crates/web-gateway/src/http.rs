@@ -266,6 +266,33 @@ async fn sync_routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     };
     Ok((status, Json(outcome)).into_response())
 }
+#[derive(serde::Deserialize)]
+struct JournalQuery {
+    unit: String,
+    priority: Option<u8>,
+    before: Option<u64>,
+}
+/// One page of a service log, read-only. Only allowlisted units.
+async fn journal(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Query(q): Query<JournalQuery>,
+) -> ApiResult {
+    principal(&s, &h).await?;
+    let priority = q.priority.unwrap_or(6);
+    if !crate::journal::allowed(&q.unit) || priority > 7 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let request = BrokerRequest::Journal {
+        unit: q.unit,
+        priority,
+        before_usec: q.before,
+    };
+    let reply = exchange_within(&s.broker, &request, std::time::Duration::from_secs(15))
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(reply.journal.ok_or(StatusCode::SERVICE_UNAVAILABLE)?).into_response())
+}
 /// One router with its lists, from the service cache.
 async fn router_detail(
     State(s): State<WebState>,
@@ -387,6 +414,7 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/overview", get(overview))
         .route("/api/v1/overview/live", get(live))
         .route("/api/v1/traffic", get(traffic))
+        .route("/api/v1/journal", get(journal))
         // A router edit can carry a CA certificate, so its body limit is larger.
         .route(
             "/api/v1/routers",
@@ -406,6 +434,8 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         // Browser routes of the single-page UI. The page itself loads data through the API.
         .route("/routers", get(index))
         .route("/routers/{*rest}", get(index))
+        .route("/workers", get(index))
+        .route("/journal", get(index))
         .route(
             "/api/{*path}",
             get(|| async { StatusCode::NOT_FOUND })

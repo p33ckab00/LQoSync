@@ -531,3 +531,23 @@ dialog.add-router-dialog{box-sizing:border-box;inline-size:min(760px,calc(100vw 
 .form-failure ul{margin:4px 0 0;padding-inline-start:20px}
 .server-row .field.wide{flex:2 1 220px}
 .router-form select{min-height:44px;padding:8px 12px;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px}
+/* Workers screen: busy bars, session sparklines, and phase mixes. */
+.workers-summary{margin:0 0 12px;font-size:14px}
+.busy-cell{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.busy-bar{display:inline-block;inline-size:80px;block-size:8px;border-radius:4px;background:var(--border);overflow:hidden}
+.busy-bar i{display:block;block-size:100%;background:var(--accent)}
+.sparkline{inline-size:120px;block-size:24px;overflow:visible}
+.sparkline path{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.phase-mix{display:flex;inline-size:160px;block-size:10px;border-radius:5px;overflow:hidden;background:var(--border)}
+.phase-mix i,.swatch{background:var(--phase)}
+.swatch{display:inline-block;inline-size:10px;block-size:10px;border-radius:2px;margin-inline-end:6px}
+.workers-table.stale tbody{opacity:.6}
+.worker-detail td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+/* Journal screen: one line for each entry, newest first. */
+.journal{list-style:none;margin:0;padding:0;font-size:13px}
+.journal-line{display:grid;grid-template-columns:110px 100px minmax(0,1fr);gap:4px 12px;padding-block:6px;border-block-end:1px solid var(--border);align-items:start}
+.journal-time{color:var(--muted);font-variant-numeric:tabular-nums}
+.journal-message{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.journal-line.bad .journal-message{color:var(--bad)}
+.check.follow{align-self:center;margin:0;flex-direction:row;gap:8px;color:var(--text)}
+@media(max-width:600px){.journal-line{grid-template-columns:1fr auto}.journal-message{grid-column:1/-1}}

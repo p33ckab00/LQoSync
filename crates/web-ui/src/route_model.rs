@@ -5,6 +5,8 @@ pub(crate) enum Page {
     Dashboard,
     Routers,
     NewRouter,
+    Workers,
+    Journal,
     Router { id: String, tab: Tab },
     Unknown,
 }
@@ -56,6 +58,8 @@ pub(crate) fn parse(path: &str, search: &str) -> Page {
     match path {
         "" => Page::Dashboard,
         "/routers" => Page::Routers,
+        "/workers" => Page::Workers,
+        "/journal" => Page::Journal,
         "/routers/new" => Page::NewRouter,
         _ => match path.strip_prefix("/routers/") {
             Some(id) if router_id(id) => {
@@ -90,6 +94,8 @@ mod tests {
         assert_eq!(parse("/", ""), Page::Dashboard);
         assert_eq!(parse("/routers/", ""), Page::Routers);
         assert_eq!(parse("/routers/new", ""), Page::NewRouter);
+        assert_eq!(parse("/workers/", ""), Page::Workers);
+        assert_eq!(parse("/journal", "?unit=x"), Page::Journal);
         let page = parse("/routers/lq3-00ff", "?x=1&tab=connection");
         assert_eq!(
             page,

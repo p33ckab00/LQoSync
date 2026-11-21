@@ -60,6 +60,8 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
         crate::route_model::Page::Routers
         | crate::route_model::Page::NewRouter
         | crate::route_model::Page::Router { .. } => 1,
+        crate::route_model::Page::Workers => 3,
+        crate::route_model::Page::Journal => 4,
         crate::route_model::Page::Unknown => 2,
     });
     let data = RwSignal::new(None::<Overview>);
@@ -158,6 +160,8 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
                 </Show>
               }.into_any(),
               1=>view!{<crate::routers::RoutersPage data session filter/>}.into_any(),
+              3=>view!{<crate::workers::WorkersPage data/>}.into_any(),
+              4=>view!{<crate::journal::JournalPage session/>}.into_any(),
               _=>view!{
                 <div class="page-heading"><div><h1 tabindex="-1">"Page not found"</h1><p>"This address is not a page of LQoSync."</p></div></div>
                 <p><crate::route::Link href="/".to_string()>"Go to the Dashboard"</crate::route::Link></p>

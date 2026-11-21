@@ -97,17 +97,23 @@ pub(crate) fn Navigation() -> impl IntoView {
     let groups = [
         (
             "IPoE",
-            vec![("Subscribers", "people"), ("Profiles", "layers")],
+            vec![
+                ("Subscribers", "people", None),
+                ("Profiles", "layers", None),
+            ],
         ),
-        ("PPPoE", vec![("Users", "people"), ("Profiles", "layers")]),
+        (
+            "PPPoE",
+            vec![("Users", "people", None), ("Profiles", "layers", None)],
+        ),
         (
             "System",
             vec![
-                ("LibreQoS", "layers"),
-                ("WAN topology", "router"),
-                ("Workers", "workers"),
-                ("Settings", "settings"),
-                ("Journal", "journal"),
+                ("LibreQoS", "layers", None),
+                ("WAN topology", "router", None),
+                ("Workers", "workers", Some(("/workers", Page::Workers))),
+                ("Settings", "settings", None),
+                ("Journal", "journal", Some(("/journal", Page::Journal))),
             ],
         ),
     ];
@@ -118,8 +124,9 @@ pub(crate) fn Navigation() -> impl IntoView {
           <NavLink href="/routers" label="Routers" icon="router" active=Signal::derive(move||matches!(page.get(),Page::Routers|Page::NewRouter|Page::Router{..}))/>
         </div>
         {groups.into_iter().map(|(group,items)|view!{
-          <div class="nav-group"><p>{group}</p>{items.into_iter().map(|(label,icon)|view!{
-            <button class="nav-planned" disabled title="This screen is not available yet"><Icon name=icon/><span>{label}</span><small>"Soon"</small></button>
+          <div class="nav-group"><p>{group}</p>{items.into_iter().map(|(label,icon,target)|match target {
+            Some((href,target))=>view!{<NavLink href label icon active=Signal::derive(move||page.get()==target)/>}.into_any(),
+            None=>view!{<button class="nav-planned" disabled title="This screen is not available yet"><Icon name=icon/><span>{label}</span><small>"Soon"</small></button>}.into_any(),
           }).collect_view()}</div>
         }).collect_view()}
       </nav>

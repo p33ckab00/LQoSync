@@ -4,6 +4,7 @@ pub mod broker;
 mod dpdk;
 pub mod history;
 pub mod http;
+pub mod journal;
 pub mod overview;
 pub mod routers;
 pub mod sessions;

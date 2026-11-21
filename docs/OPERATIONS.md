@@ -347,6 +347,12 @@ Open the router, then the Sources tab.
 
 A save replaces the whole list in the configuration. An empty list removes it. If a router has more client overrides than the page can load, edit them in the TUI.
 
+## Workers and Journal in the web UI
+
+- Workers shows each DPDK worker of the bridge snapshot: busy share, a trend from the time the page opened, idle share, laps per second, cycles for each busy lap, mean backlog, and the phase mix. Select a worker name to see the exact cycles of each phase. The phase shares count from the bridge start; they are not the CPU time now.
+- Journal shows the service logs, newest first, 200 lines for each page. Select the service and the level, and search the loaded lines. Load older lines reads the page before the oldest line. Follow adds the newest lines every 5 seconds while the page is visible.
+- Journal reads only these units: lqosync3, lqosync3-web, lqosync3-web-broker, lqosd, and lqos_scheduler. Both screens are read-only.
+
 ## Test a router connection in the web UI
 
 Open the router, then the Connection tab, and select Test connection. The service connects, signs in, and reads the router identity. The test changes nothing on the router.

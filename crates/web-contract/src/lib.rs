@@ -1,6 +1,7 @@
 //! Browser-safe views. No configuration or credential records cross this boundary.
 use serde::{Deserialize, Serialize};
 pub mod dpdk;
+pub mod journal;
 pub mod routers;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Overview {

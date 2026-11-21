@@ -211,10 +211,56 @@ async fn main() -> anyhow::Result<()> {
     if args.get(1).map(String::as_str) == Some("router-edit") {
         return fake_router_edit(std::path::Path::new(&args[3]));
     }
+    // The fixture as a fake journalctl: synthetic lines only, never the journal of this machine.
+    if args.get(1).map(String::as_str) == Some("-u") {
+        let value = |flag: &str| {
+            args.iter()
+                .position(|a| a == flag)
+                .and_then(|i| args.get(i + 1))
+        };
+        let n: usize = value("-n").and_then(|v| v.parse().ok()).unwrap_or(10);
+        let max: u8 = value("-p")
+            .and_then(|v| v.rsplit("..").next()?.parse().ok())
+            .unwrap_or(7);
+        let until: u64 = args
+            .iter()
+            .find_map(|a| a.strip_prefix("--until=@"))
+            .and_then(|t| {
+                let (s, us) = t.split_once('.')?;
+                Some(s.parse::<u64>().ok()? * 1_000_000 + us.parse::<u64>().ok()?)
+            })
+            .unwrap_or(u64::MAX);
+        let unit = &args[2];
+        let base = (broker::now() - 600) * 1_000_000;
+        let lines: Vec<String> = (0..600u64)
+            .filter(|_| unit == "lqosync3.service")
+            .map(|i| {
+                let (prio, msg) = if i % 50 == 7 {
+                    (3, format!("router Access-02: unreachable (synthetic line {i})"))
+                } else if i % 20 == 3 {
+                    (4, format!("removal guard: 0 of 40 circuits (synthetic line {i})"))
+                } else {
+                    (6, format!("cycle {i} done: 3 routers read (synthetic)"))
+                };
+                (base + i * 1_000_000, prio, msg)
+            })
+            .filter(|(at, prio, _)| *prio <= max && *at <= until)
+            .map(|(at, prio, msg)| {
+                serde_json::json!({"__REALTIME_TIMESTAMP": at.to_string(), "PRIORITY": prio.to_string(), "MESSAGE": msg})
+                    .to_string()
+            })
+            .collect();
+        for l in &lines[lines.len().saturating_sub(n)..] {
+            println!("{l}");
+        }
+        return Ok(());
+    }
     if args.get(1).map(String::as_str) == Some("sync-now") {
         println!(r#"{{"code":"ok","message":"sent","reply":null}}"#);
         return Ok(());
     }
+    // SAFETY: set before the fixture serves; nothing reads the environment at the same time.
+    unsafe { std::env::set_var("LQOSYNC_JOURNALCTL", std::env::current_exe()?) };
     let dir = tempfile::tempdir()?;
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700))?;
     let accounts = Accounts::new(dir.path().join("accounts.db"))?;

@@ -62,6 +62,12 @@ pub enum Request {
     RouterActivity {
         router_id: String,
     },
+    /// One page of a service log. Only allowlisted units.
+    Journal {
+        unit: String,
+        priority: u8,
+        before_usec: Option<u64>,
+    },
     /// One router with its lists.
     RouterDetail {
         router_id: String,
@@ -91,6 +97,8 @@ pub struct Reply {
     pub test: Option<RouterTestResult>,
     #[serde(default)]
     pub router: Option<web_contract::routers::RouterSummary>,
+    #[serde(default)]
+    pub journal: Option<web_contract::journal::JournalPage>,
 }
 impl Reply {
     fn no() -> Self {
@@ -104,6 +112,7 @@ impl Reply {
             activity: None,
             test: None,
             router: None,
+            journal: None,
         }
     }
 }
@@ -261,6 +270,18 @@ pub async fn serve(
                             tokio::task::spawn_blocking(move || crate::routers::load(&root))
                                 .await?;
                         reply.ok = reply.routers.is_some();
+                    }
+                    Request::Journal {
+                        unit,
+                        priority,
+                        before_usec,
+                    } => {
+                        ensure!(
+                            crate::journal::allowed(&unit) && priority <= 7,
+                            "invalid input"
+                        );
+                        reply.journal = crate::journal::read(&unit, priority, before_usec).await;
+                        reply.ok = reply.journal.is_some();
                     }
                     Request::RouterDetail { router_id } => {
                         ensure!(router_id.len() <= 64, "invalid input");
