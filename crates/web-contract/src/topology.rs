@@ -398,6 +398,9 @@ pub struct TopologySummary {
     /// The newest web changes. The cache holds more.
     #[serde(default)]
     pub history: Vec<WebChange>,
+    /// The canvas layout revision. Decimal string.
+    #[serde(default)]
+    pub layout_revision: Option<String>,
 }
 
 /// One page of a filtered list. The cursor binds the snapshot and the filter.

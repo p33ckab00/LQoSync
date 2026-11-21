@@ -42,64 +42,6 @@ pub(crate) fn tree_rows(nodes: &[Node]) -> Vec<(usize, &Node)> {
     out
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct TreeBranch {
-    pub node: Node,
-    pub children: Vec<TreeBranch>,
-}
-
-/// Build from the bounded, cycle-safe ordering. Broken parents remain visible as roots.
-pub(crate) fn tree_forest(nodes: &[Node]) -> Vec<TreeBranch> {
-    fn finish(stack: &mut Vec<TreeBranch>, roots: &mut Vec<TreeBranch>) {
-        let branch = stack.pop().unwrap();
-        if let Some(parent) = stack.last_mut() {
-            parent.children.push(branch);
-        } else {
-            roots.push(branch);
-        }
-    }
-    let mut roots = Vec::new();
-    let mut stack = Vec::new();
-    for (depth, node) in tree_rows(nodes) {
-        while stack.len() > depth {
-            finish(&mut stack, &mut roots);
-        }
-        stack.push(TreeBranch {
-            node: node.clone(),
-            children: Vec::new(),
-        });
-    }
-    while !stack.is_empty() {
-        finish(&mut stack, &mut roots);
-    }
-    roots
-}
-
-/// Search includes the path to each match, never an unrelated sibling.
-pub(crate) fn tree_matches(nodes: &[Node], query: &str) -> std::collections::HashSet<String> {
-    let q = query.trim().to_lowercase();
-    let by_id: std::collections::HashMap<_, _> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
-    let mut visible = std::collections::HashSet::new();
-    for node in nodes.iter().filter(|n| {
-        q.is_empty()
-            || [&n.name, &n.id, &n.kind]
-                .iter()
-                .any(|s| s.to_lowercase().contains(&q))
-    }) {
-        let mut next = Some(node.id.as_str());
-        while let Some(id) = next {
-            if !visible.insert(id.to_owned()) {
-                break;
-            }
-            next = by_id
-                .get(id)
-                .and_then(|n| n.parent.as_deref())
-                .filter(|p| by_id.contains_key(p));
-        }
-    }
-    visible
-}
-
 pub(crate) fn kind_label(kind: &str) -> &'static str {
     match kind {
         "wan" => "WAN",
@@ -1083,36 +1025,6 @@ mod tests {
                 (0, "b")
             ]
         );
-    }
-
-    #[test]
-    fn hierarchy_search_keeps_ancestors_and_survives_cycles() {
-        let mut nodes = vec![
-            node("wan", None),
-            node("branch", Some("wan")),
-            node("leaf", Some("branch")),
-            node("a", Some("b")),
-            node("b", Some("a")),
-        ];
-        nodes[2].name = "Remote DHCP".into();
-        assert_eq!(
-            tree_matches(&nodes, "dhcp"),
-            ["wan", "branch", "leaf"]
-                .map(String::from)
-                .into_iter()
-                .collect()
-        );
-        assert_eq!(
-            tree_matches(&nodes, "a"),
-            ["wan", "branch", "leaf", "a", "b"]
-                .map(String::from)
-                .into_iter()
-                .collect()
-        );
-        let forest = tree_forest(&nodes);
-        assert_eq!(forest.len(), 3);
-        assert_eq!(forest[0].children[0].children[0].node.id, "leaf");
-        assert_eq!(tree_matches(&nodes, "absent").len(), 0);
     }
 
     #[test]

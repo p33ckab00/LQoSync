@@ -710,3 +710,50 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 .capacity-meter.over .meter-fill{background:var(--bad)}
 @media(forced-colors:active){.meter-track{border:1px solid CanvasText}.meter-fill,.traffic-state i,.live-dot{background:CanvasText!important}}
 @media(max-width:760px){.traffic-controls{inline-size:100%;margin-inline-start:0}.traffic-controls .range-options{flex:1}.traffic-controls .range-options button{flex:1;min-block-size:44px}.traffic-panel .traffic-live{min-block-size:44px}.traffic-panel .traffic-source-controls{gap:6px}.traffic-panel .traffic-source-controls button{grid-template-columns:1fr;padding:8px;gap:2px}.traffic-panel .legend-rate{font-size:13px}.traffic-panel .source-name{flex-direction:column;align-items:flex-start;gap:6px}.chart-marks .mark{max-inline-size:47%}}
+/* Topology canvas: cards and wires are the content; the dock, zoom, and status stay quiet. */
+.canvas-shell{--wire:#0e7490;display:flex;flex-direction:column;gap:12px;min-block-size:0}
+:root[data-theme=dark] .canvas-shell{--wire:#5fd4e8}
+@media(prefers-color-scheme:dark){:root[data-theme=system] .canvas-shell{--wire:#5fd4e8}}
+.canvas-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 16px}
+.canvas-facts,.canvas-status{margin:0;font-size:13px;color:var(--muted)}
+.canvas-status:empty{display:none}
+.canvas-frame{position:relative;block-size:clamp(420px,calc(100dvh - 260px),1200px);border:1px solid var(--border);border-radius:12px;background:var(--bg);overflow:hidden}
+.canvas-viewport{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;background-image:radial-gradient(color-mix(in srgb,var(--line) 45%,transparent) 1px,transparent 1.2px);background-size:24px 24px}
+.canvas-viewport:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.canvas-surface{position:relative}
+.canvas-layer{position:absolute;inset-block-start:0;inset-inline-start:0;transform-origin:0 0}
+.canvas-wires{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.canvas-wires path{fill:none;stroke:var(--line);stroke-width:1.5}
+.canvas-wires path.active{stroke:var(--wire);stroke-width:2.5}
+.canvas-node{position:absolute;box-sizing:border-box;inline-size:232px;block-size:84px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px 16px;text-align:start;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;box-shadow:0 1px 2px rgb(0 0 0/.06)}
+.canvas-node:active{cursor:grabbing}
+.canvas-node::before,.canvas-node::after{content:"";position:absolute;inset-block-start:calc(50% - 5px);inline-size:8px;block-size:8px;border:1.5px solid var(--line);border-radius:50%;background:var(--surface)}
+.canvas-node::before{inset-inline-start:-6px}
+.canvas-node::after{inset-inline-end:-6px}
+.canvas-node[data-kind=wan]{border-inline-start:3px solid var(--accent)}
+.canvas-node[aria-pressed=true]{border-color:var(--wire);box-shadow:0 0 0 3px color-mix(in srgb,var(--wire) 28%,transparent)}
+.canvas-node[aria-pressed=true]::before,.canvas-node[aria-pressed=true]::after{border-color:var(--wire)}
+.canvas-node:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.canvas-node strong{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.canvas-node-kind,.canvas-node-meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.canvas-empty{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;padding:24px;text-align:center;pointer-events:none}
+.canvas-empty>*{margin:0;max-inline-size:44ch;color:var(--muted);pointer-events:auto}
+.canvas-dock{position:absolute;inset-block-start:16px;inset-inline-end:16px;display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 4px 16px rgb(0 0 0/.08)}
+.canvas-tool{display:grid;place-items:center;inline-size:44px;block-size:44px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);cursor:pointer}
+.canvas-tool:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.canvas-tool:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.canvas-tool svg{inline-size:22px;block-size:22px}
+.canvas-zoom{position:absolute;inset-block-end:12px;inset-inline-start:12px;display:flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:13px}
+.canvas-zoom button{min-block-size:36px;min-inline-size:36px}
+.canvas-zoom span{min-inline-size:44px;text-align:center;color:var(--muted)}
+dialog.canvas-dialog{inline-size:min(560px,calc(100vw - 32px));flex-direction:column;padding:0}
+dialog.canvas-dialog[open]{display:flex}
+.canvas-dialog .add-router-heading{padding:20px 24px 0}
+.canvas-dialog-body{flex:1;min-block-size:0;overflow:auto;padding:8px 24px 16px}
+.canvas-dialog-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;border-block-start:1px solid var(--border)}
+.canvas-dialog-footer p{margin:0;font-size:13px;color:var(--muted)}
+.canvas-dialog fieldset{display:grid;gap:10px;margin-block-start:16px}
+.canvas-dialog legend{margin-block-end:4px;font-size:14px;font-weight:600}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.canvas-modes label{display:flex;align-items:center;gap:8px}
+@media(max-width:640px){.canvas-frame{block-size:calc(100dvh - 200px)}.canvas-dock{inset-block-start:8px;inset-inline-end:8px;padding:4px}.canvas-zoom{inset-block-end:8px;inset-inline-start:8px}dialog.canvas-dialog{inline-size:100vw;max-inline-size:100vw;block-size:100dvh;max-block-size:100dvh;margin:0;border-radius:0}.canvas-pair{grid-template-columns:1fr}}

@@ -382,6 +382,8 @@ async fn main() -> anyhow::Result<()> {
                     "base_revision": "42", "revision": "43", "subject_id": null, "error": null}),
                 ),
                 "topology.edit.cancel" => Some(serde_json::json!({})),
+                "topology.layout.save" => Some(serde_json::json!({"revision":
+                    v["args"]["expected_revision"].as_u64().unwrap_or(0) + 1})),
                 "topology.preview.refresh" => Some(serde_json::json!({"state": "ok"})),
                 "wan.discover" => Some(
                     serde_json::json!({"collected_at": broker::now(), "unconfigured": [], "routers": [

@@ -81,3 +81,41 @@ Circuit ID, device ID, MAC, IPv4 and IPv6 endpoints, resolved parent node, downl
 
 At least 24 hours after the first topology publication, with all events above.
 A shorter idle interval does not prove reliability.
+
+## Task 4: canvas user interface (first slice)
+
+Recorded: 2026-11-22 (Asia/Manila). Synthetic fixture only. No production service, router, or shaping file changed.
+
+### What the slice contains
+
+- The Builder tab shows the canvas. The tree Builder and its Details column are removed.
+- Cards for each node, with wires from the parent port to the child port. A selected card and its wires use the cyan relationship color.
+- Pan by scrolling (arrow keys on the focused canvas region). Zoom from 40% to 160% with buttons.
+- Drag a card with a pointer, or press Shift and an arrow key on a focused card. Escape cancels a drag. The layout saves 600 ms after the last move through `PUT /api/v1/topology/layout`. A layout save never changes the policy revision.
+- A vertical tool dock with four 44 px icon buttons: Router inventory, Topology settings, Subscriber allocation, and Preview and evidence. Each opens a native modal `<dialog>`.
+- The node modal (double-click, or Enter on the selected card) has General, Capacity, Location, and Structure sections. A valid change saves automatically through `POST /api/v1/topology/edits`. There is no Review, Save, or Approve button.
+- Location accepts a Google Maps paste (`latitude, longitude`) and keeps all decimal places. An invalid value stays as a draft for that node, with an inline error, and is not sent.
+- Router inventory runs the existing explicit reads. Discovery adds nothing. A WAN interface or a source goes on the canvas only after the operator selects it.
+
+### Not in this slice
+
+- Plans, speed rules, group factors, and fallback still use the reviewed editors on the Policies tab. The settings modal links to it.
+- Drag from the inventory onto the canvas. "Add to canvas" places items under the selected card.
+- Equal-count and quality-aware allocation (Task 3). The allocation modal shows them as not available.
+- Undo and redo.
+
+### Guidance used
+
+- Vercel frontend-design: one memorable element (wires and ports), existing tokens and IBM Plex, sentence-case labels.
+- Google Modern Web Guidance: `ui-components/dialog.md` (native `showModal`, browser focus return and Escape), `ui-behaviors/2d-panning.md` (focusable `role="region"` scroll container), `ui-behaviors/drag-and-drop.md` (pointer capture, Escape cancels, keyboard alternative, `touch-action: none` on the card only).
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `tools/frontend/topology-canvas-check.cjs` | Pass: 44 px tools, selection, Shift+Arrow layout save with no policy edit, full-decimal paste edit, focus return after Escape and Close, invalid draft kept and not sent, WAN placement after discovery, read-only preview, dark theme, 375 px width with no sideways scroll |
+| `tools/frontend/topology-check.cjs` | Pass after the port to canvas |
+| `tools/frontend/topology-initialization-check.cjs` | Pass: one-click empty start with no review, second parent for a shared source |
+| `tools/frontend/topology-workflow-check.cjs` | Removed: it tested the tree disclosure and search of the removed tree Builder |
+
+Captures: `canvas-light.png`, `canvas-dark.png`, `node-modal.png`, `node-modal-375.png`.

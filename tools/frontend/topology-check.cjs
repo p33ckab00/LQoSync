@@ -30,16 +30,15 @@ const fs=require('node:fs');
     // Files, import, and native verification stay separate facts.
     assert.match(await evidence.innerText(),/Files \/ import\s+r42 · import confirmed/);
     assert.match(await evidence.innerText(),/Native verification\s+r42 · waiting/);
-    const tree=page.getByRole('list',{name:'Topology nodes'});
-    const names=await tree.locator('.tree-node strong').allInnerTexts();
+    const canvas=page.getByRole('region',{name:/^Topology canvas\./});
+    await canvas.locator('.canvas-node').nth(3).waitFor();
+    const names=await canvas.locator('.canvas-node strong').allInnerTexts();
     assert.deepEqual(names,['WAN North','PPPoE access','WAN South','DHCP access']);
-    const node=tree.getByRole('button',{name:/PPPoE access/});
+    const node=canvas.getByRole('button',{name:/^PPPoE access,/});
     assert.equal(await node.getAttribute('aria-pressed'),'false');
     await node.click();
     assert.equal(await node.getAttribute('aria-pressed'),'true');
-    const details=page.getByRole('region',{name:'Details'});
-    await details.getByText('Automatic · plan sum').waitFor();
-    await details.getByText('400 / 200 Mbps').first().waitFor();
+    assert.match(await node.innerText(),/400 \/ 200 Mbps · 3 subscribers/);
     if(scheme==='dark')await page.screenshot({path:`${out}/topology-builder-${scheme}.png`,fullPage:true});
 
     // Changes: the latest write without paths, and the web change history.
@@ -110,19 +109,19 @@ const fs=require('node:fs');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${path} fits ${w}px`);
     }
     // 200 percent zoom of a 1440px window is a 720px layout; forced colors and reduced motion
-    // keep the controls visible. Keyboard only: Tab reaches Create node, Enter opens the dialog.
+    // keep the controls visible. Keyboard only: Enter selects a card, Enter again opens its modal.
     if(scheme==='dark'){
       await page.setViewportSize({width:720,height:900});
       await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});
       await page.goto('http://127.0.0.1:19581/topology');
-      await page.getByRole('list',{name:'Topology nodes'}).waitFor();
+      const card=page.getByRole('button',{name:/^PPPoE access,/});
+      await card.waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'200% zoom fits');
-      const create=page.getByRole('button',{name:'Create node'});
-      await create.focus();
-      await page.keyboard.press('Enter');
-      const kd=page.getByRole('dialog',{name:'Create node'});
+      await card.focus();
+      await page.keyboard.press('Enter');await page.keyboard.press('Enter');
+      const kd=page.getByRole('dialog',{name:'PPPoE access'});
       await kd.waitFor();
-      assert.equal(await page.evaluate(()=>document.activeElement?.id),'change-name','focus starts on the name');
+      assert.ok(await kd.evaluate(d=>d.contains(document.activeElement)),'focus moves into the modal');
       await page.keyboard.press('Escape');
       await kd.waitFor({state:'hidden'});
       await page.screenshot({path:`${out}/topology-forced-colors.png`});
@@ -130,61 +129,32 @@ const fs=require('node:fs');
     }
     assert.deepEqual(writes,[],'no topology request other than GET');
 
-    // A Builder change: draft, service review, save. Writes happen only after explicit clicks.
+    // Canvas inventory: explicit reads list each router with its own state; a free interface
+    // opens a WAN form that saves automatically, with no review step.
     await page.setViewportSize({width:1440,height:1000});
     await page.goto('http://127.0.0.1:19581/topology');
-    const create=page.getByRole('button',{name:'Create node'});
-    await create.click();
-    const dialog=page.getByRole('dialog',{name:'Create node'});
-    await dialog.waitFor();
-    // Escape closes the draft; the browser returns focus to the invoker.
-    await page.keyboard.press('Escape');
-    await dialog.waitFor({state:'hidden'});
-    assert.equal(await page.evaluate(()=>document.activeElement?.textContent),'Create node');
-    await create.click();
-    // An empty required name stays in the draft (native validation).
-    await dialog.getByRole('button',{name:'Review change'}).click();
-    assert.equal(await dialog.getByLabel('Name').evaluate(e=>e.matches(':user-invalid')),true);
-    assert.equal(writes.length,0);
-    await dialog.getByLabel('Name').fill('Tower 7');
-    await dialog.getByLabel('Parent').selectOption('tm-node-wan-north');
-    await dialog.getByRole('button',{name:'Review change'}).click();
-    await dialog.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
-    const impact=await dialog.innerText();
-    assert.match(impact,/Subscribers that move\s+1/);
-    assert.match(impact,/added\s+Tower 7/);
-    assert.match(impact,/account-03[\s\S]*PPPoE access to WAN South/);
-    if(scheme==='dark')await page.screenshot({path:`${out}/builder-review-${scheme}.png`});
-    await dialog.getByRole('button',{name:'Save change'}).click();
-    await dialog.getByText('Saved as policy revision 43.',{exact:false}).waitFor({timeout:15000});
-    await dialog.getByRole('button',{name:'Close',exact:true}).last().click();
-    await dialog.waitFor({state:'hidden'});
-    const paths=writes.map(w=>w.replace(/[0-9a-f]+-[0-9a-f]{13}-[0-9a-f]{13}/g,'KEY'));
-    assert.deepEqual(paths,[
-      'POST http://127.0.0.1:19581/api/v1/topology/proposals',
-      'POST http://127.0.0.1:19581/api/v1/topology/proposals/KEY/confirm',
-    ]);
-    // Explicit reads: WAN discovery lists each router with its own state; a free interface
-    // opens Create WAN, which goes through the same review and save.
-    await page.getByRole('button',{name:'Discover WAN interfaces'}).click();
-    const wans=page.getByRole('list',{name:'WAN interfaces'});
+    await page.getByRole('toolbar',{name:'Topology tools'}).getByRole('button',{name:'Router inventory'}).click();
+    const inventory=page.getByRole('dialog',{name:'Router inventory'});
+    await inventory.waitFor();
+    await inventory.getByRole('button',{name:'Discover WAN interfaces'}).click();
+    const wans=inventory.getByRole('list',{name:'WAN interfaces'});
     await wans.waitFor({timeout:15000});
     const wanText=await wans.innerText();
     assert.match(wanText,/pppoe-out1[\s\S]*In use/);
     assert.match(wanText,/Access-02[\s\S]*Read failed[\s\S]*the router did not answer/);
     await wans.getByRole('button',{name:'Create WAN'}).click();
-    const wanDialog=page.getByRole('dialog',{name:'Create WAN on Core-01 pppoe-out3'});
-    await wanDialog.getByLabel('Download, Mbps').fill('500');
-    await wanDialog.getByLabel('Upload, Mbps').fill('100');
-    await wanDialog.getByRole('button',{name:'Review change'}).click();
-    await wanDialog.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
-    await page.keyboard.press('Escape');
-    await wanDialog.waitFor({state:'hidden'});
-    await page.getByRole('button',{name:'Discover sources'}).click();
-    const found=page.getByRole('list',{name:'New sources'});
+    await inventory.getByLabel('Download Mbps').fill('500');
+    await inventory.getByLabel('Upload Mbps').fill('100');
+    await inventory.getByRole('button',{name:'Add WAN to canvas'}).click();
+    await page.getByText('Saved revision 43.',{exact:false}).first().waitFor({timeout:15000});
+    assert.ok(writes.some(w=>w.endsWith('/api/v1/topology/edits')),'the WAN saved through an automatic edit');
+    assert.ok(!writes.some(w=>w.includes('/proposals')),'no review request');
+    await inventory.getByRole('button',{name:'Discover sources'}).click();
+    const found=inventory.getByRole('list',{name:'New sources'});
     await found.getByText('Hotspot Access-01').waitFor({timeout:15000});
-    await page.getByRole('button',{name:'Refresh observations'}).click();
-    await page.getByText('Observations refreshed.').waitFor({timeout:15000});
+    await inventory.getByRole('button',{name:'Refresh observations'}).click();
+    await inventory.getByText('Observations refreshed.').waitFor({timeout:15000});
+    await page.keyboard.press('Escape');
     const reads=writes.filter(w=>w.endsWith('/api/v1/topology/reads')).length;
     assert.equal(reads,3,'one read POST per click');
 
@@ -259,21 +229,20 @@ const fs=require('node:fs');
     await page.keyboard.press('Escape');
     await pin.waitFor({state:'hidden'});
     const sent=writes.map(w=>w.replace(/^POST http:\/\/127\.0\.0\.1:19581\/api\/v1\/topology\//,'').replace(/[0-9a-f]+-[0-9a-f]{13}-[0-9a-f]{13}/g,'KEY'));
-    assert.ok(sent.every(p=>/^(proposals|proposals\/KEY\/(confirm|cancel)|reads)$/.test(p)),sent.join(' '));
+    assert.ok(sent.every(p=>/^(proposals|proposals\/KEY\/(confirm|cancel)|reads|edits)$/.test(p)),sent.join(' '));
     await page.goto('http://127.0.0.1:19581/topology');
 
-    // Remove: review, then Back cancels the kept proposal.
-    await page.getByRole('list',{name:'Topology nodes'}).getByRole('button',{name:/DHCP access/}).click();
-    await page.getByRole('button',{name:'Remove node'}).click();
-    const remove=page.getByRole('dialog',{name:'Remove DHCP access'});
-    await remove.getByRole('button',{name:'Review change'}).click();
-    await remove.getByRole('heading',{name:'Impact'}).waitFor({timeout:15000});
-    await remove.getByRole('button',{name:'Back to the change'}).click();
-    await remove.getByRole('button',{name:'Review change'}).waitFor();
-    await page.waitForTimeout(300);
-    assert.ok(writes.some(w=>/proposals\/[^/]+\/cancel$/.test(w)),'Back cancels the review');
-    await page.keyboard.press('Escape');
+    // Remove: a second click confirms, then the edit saves with no review.
+    const dhcpCard=page.getByRole('region',{name:/^Topology canvas\./}).getByRole('button',{name:/^DHCP access,/});
+    await dhcpCard.click();await dhcpCard.press('Enter');
+    const remove=page.getByRole('dialog',{name:'DHCP access'});
+    const edits=writes.filter(w=>w.endsWith('/edits')).length;
+    await remove.getByRole('button',{name:'Remove node'}).click();
+    assert.equal(writes.filter(w=>w.endsWith('/edits')).length,edits,'the first click only asks');
+    await remove.getByRole('button',{name:'Confirm remove'}).click();
     await remove.waitFor({state:'hidden'});
+    await page.waitForTimeout(300);
+    assert.equal(writes.filter(w=>w.endsWith('/edits')).length,edits+1);
     assert.deepEqual(errors,[]);
     await page.close();
   }

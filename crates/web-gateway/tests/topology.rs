@@ -311,3 +311,15 @@ fn release_scale_reads_stay_bounded() {
     }
     eprintln!("cache {} bytes, load {read:?}", bytes.len());
 }
+
+#[test]
+fn the_summary_carries_the_layout_revision_and_card_positions() {
+    let mut v = view(1);
+    v.layout_revision = Some("4".into());
+    v.nodes[0].position = Some([10.0, 20.5]);
+    let TopologyReply::Summary(s) = answer(&v, &Read::Summary) else {
+        panic!("not a summary");
+    };
+    assert_eq!(s.layout_revision.as_deref(), Some("4"));
+    assert_eq!(s.nodes[0].position, Some([10.0, 20.5]));
+}

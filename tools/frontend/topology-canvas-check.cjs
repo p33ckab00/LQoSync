@@ -1,0 +1,113 @@
+// Synthetic loopback fixture only. No production account, router, or shaping write.
+// Checks the Topology canvas: cards, keyboard moves, automatic edits, modals, and narrow screens.
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+(async()=>{
+  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,headless:true,args:['--no-sandbox']});
+  const out=process.env.ROUTERS_EVIDENCE_DIR||'/tmp/lqosync-topology-canvas';fs.mkdirSync(out,{recursive:true});
+  try{
+    const page=await browser.newPage({viewport:{width:1440,height:1000},colorScheme:'light'});
+    const errors=[],edits=[],layouts=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('request',r=>{
+      if(r.url().endsWith('/api/v1/topology/edits'))edits.push(JSON.parse(r.postData()));
+      if(r.url().endsWith('/api/v1/topology/layout'))layouts.push(JSON.parse(r.postData()));
+      if(r.url().includes('/api/v1/topology/proposals'))errors.push('a canvas edit used the review route');
+    });
+    await page.goto('http://127.0.0.1:19581');
+    await page.getByLabel('Username',{exact:true}).fill('browser-test');
+    await page.getByLabel('Password',{exact:true}).fill(process.env.BROWSER_TEST_PASSWORD);
+    await page.getByRole('button',{name:'Sign in',exact:true}).click();
+    await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Topology',exact:true}).click();
+    const canvas=page.getByRole('region',{name:/^Topology canvas\./});
+    const cards=canvas.locator('.canvas-node');await cards.nth(3).waitFor();
+    assert.equal(await cards.count(),4);
+    assert.equal(await canvas.locator('.canvas-wires path').count(),2,'one wire per parent link');
+    const dock=page.getByRole('toolbar',{name:'Topology tools'});
+    for(const name of ['Router inventory','Topology settings','Subscriber allocation','Preview and evidence']){
+      const box=await dock.getByRole('button',{name,exact:true}).boundingBox();
+      assert.ok(box.width>=44&&box.height>=44,`${name} target is at least 44 px`);
+    }
+    // Selection highlights the active relationship.
+    const north=canvas.getByRole('button',{name:/^WAN North,/});
+    await north.click();
+    assert.equal(await north.getAttribute('aria-pressed'),'true');
+    assert.equal(await canvas.locator('.canvas-wires path.active').count(),1);
+    await page.screenshot({path:`${out}/canvas-light.png`});
+    // Keyboard move: Shift+Arrow moves the card and saves the layout only.
+    const before=await north.boundingBox();
+    await north.focus();await page.keyboard.press('Shift+ArrowRight');await page.keyboard.press('Shift+ArrowRight');
+    await page.waitForTimeout(900);
+    const after=await north.boundingBox();
+    assert.equal(Math.round(after.x-before.x),32,'two 16 px steps');
+    assert.equal(layouts.length,1,'one debounced layout save');
+    assert.equal(layouts[0].positions['tm-node-wan-north'][0],48+32);
+    assert.equal(edits.length,0,'a card move is not a policy edit');
+    await canvas.locator('.canvas-node').first().waitFor();
+    await page.getByRole('status').filter({hasText:'Layout saved'}).first().waitFor();
+    // Enter on the selected card opens its modal; a Google Maps paste saves the full text.
+    await north.focus();await page.keyboard.press('Enter');
+    const dialog=page.getByRole('dialog',{name:'WAN North'});await dialog.waitFor();
+    await dialog.getByLabel('Map type').selectOption('site');
+    await page.waitForFunction(()=>true);
+    const lat=dialog.getByLabel('Latitude',{exact:true});
+    await lat.focus();
+    await lat.evaluate(el=>{const dt=new DataTransfer();dt.setData('text','12.236199459585354, 122.02419129509887');
+      el.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));});
+    // Selecting Site saves the type at once; the paste then saves both coordinates together.
+    for(let i=0;i<100&&!edits.some(e=>e.edit.location);i++)await page.waitForTimeout(100);
+    const location=edits.find(e=>e.edit.kind==='node.location'&&e.edit.location);
+    assert.ok(location,'the paste saved a location edit');
+    assert.deepEqual(location.edit,{kind:'node.location',node_id:'tm-node-wan-north',geo_type:'site',
+      location:{latitude:'12.236199459585354',longitude:'122.02419129509887'}});
+    assert.equal(await dialog.getByLabel('Longitude',{exact:true}).inputValue(),'122.02419129509887');
+    assert.equal(await dialog.getByRole('button',{name:/^(Save|Approve|Confirm)/}).count(),0,'no approval step');
+    await page.screenshot({path:`${out}/node-modal.png`});
+    // Escape closes the modal and returns focus to the card.
+    await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+    assert.equal(await north.evaluate(el=>el===document.activeElement),true,'focus returns to the card');
+    // An invalid coordinate stays a draft with an inline error and sends nothing.
+    const sent=edits.length;
+    await page.keyboard.press('Enter');await dialog.waitFor();
+    await dialog.getByLabel('Latitude',{exact:true}).fill('95');
+    await dialog.getByLabel('Longitude',{exact:true}).fill('121.5');
+    await dialog.getByLabel('Longitude',{exact:true}).press('Tab');
+    await dialog.getByRole('alert').filter({hasText:'latitude must be from -90 to 90'}).waitFor();
+    assert.equal(edits.length,sent,'an invalid location is not sent');
+    await dialog.getByRole('button',{name:'Close',exact:true}).last().click();await dialog.waitFor({state:'hidden'});
+    const focused=await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')||document.activeElement?.tagName);
+    assert.match(focused,/^WAN North,/,`Close returns focus to the card, not ${focused}`);
+    await page.keyboard.press('Enter');await dialog.waitFor();
+    assert.equal(await dialog.getByLabel('Latitude',{exact:true}).inputValue(),'95','the invalid draft stays');
+    await dialog.getByRole('alert').waitFor();
+    await page.keyboard.press('Escape');
+    // Inventory: discovery adds nothing until a WAN is placed.
+    await dock.getByRole('button',{name:'Router inventory',exact:true}).click();
+    const inventory=page.getByRole('dialog',{name:'Router inventory'});await inventory.waitFor();
+    await inventory.getByRole('button',{name:'Discover WAN interfaces',exact:true}).click();
+    await inventory.getByRole('button',{name:'Create WAN',exact:true}).first().click();
+    assert.equal(edits.filter(e=>e.edit.kind==='wan.create').length,0,'discovery attaches nothing');
+    await inventory.getByLabel('Download Mbps').fill('300');await inventory.getByLabel('Upload Mbps').fill('100');
+    await inventory.getByRole('button',{name:'Add WAN to canvas',exact:true}).click();
+    await page.waitForFunction(()=>[...document.querySelectorAll('[role=status]')].some(s=>s.textContent.includes('Saved revision')));
+    const wan=edits.find(e=>e.edit.kind==='wan.create');
+    assert.equal(wan.edit.endpoint_ref,'pppoe-out3');assert.equal(wan.edit.down_mbps,300);
+    await page.keyboard.press('Escape');
+    // Preview is read-only.
+    const count=edits.length;
+    await dock.getByRole('button',{name:'Preview and evidence',exact:true}).click();
+    await page.getByRole('dialog',{name:'Preview and evidence'}).getByText('Read-only.',{exact:false}).waitFor();
+    await page.keyboard.press('Escape');
+    assert.equal(edits.length,count,'preview sends nothing');
+    // Dark theme and a phone width: no sideways page scroll, and the modal fits.
+    await page.emulateMedia({colorScheme:'dark'});await page.screenshot({path:`${out}/canvas-dark.png`});
+    await page.setViewportSize({width:375,height:760});
+    assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=375),'no sideways scroll at 375 px');
+    await north.focus();await page.keyboard.press('Enter');await dialog.waitFor();
+    const box=await dialog.boundingBox();assert.ok(box.width<=375&&box.x>=0,'the modal fits a phone');
+    await page.screenshot({path:`${out}/node-modal-375.png`});
+    assert.deepEqual(errors,[]);
+    console.log('topology canvas check passed');
+  }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

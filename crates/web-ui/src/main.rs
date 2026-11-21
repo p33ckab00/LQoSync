@@ -64,6 +64,10 @@ mod topology_forms;
 #[cfg(any(target_arch = "wasm32", test))]
 mod topology_model;
 #[cfg(target_arch = "wasm32")]
+mod topology_canvas;
+#[cfg(any(target_arch = "wasm32", test))]
+mod topology_canvas_model;
+#[cfg(target_arch = "wasm32")]
 mod workers;
 #[cfg(any(target_arch = "wasm32", test))]
 mod workers_model;
