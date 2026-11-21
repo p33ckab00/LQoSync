@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22T03:45+08:00 (Asia/Manila) — Topology canvas Tasks 0–4 (first slice)
+
+- Goal: execute the canvas integration plan. Last agent: Claude Code. Branch `lqosync3`.
+- Commits: 23e482a (Task 0 baseline), edb88b0 (schema 5, Site/AP location, layout store), 9336041 (automatic edit command), 3b6369c (Site/AP and coordinate export), b15c3a8 (`POST /api/v1/topology/edits`, `PUT /api/v1/topology/layout`), 245b41d (canvas UI replaces the tree Builder).
+- Checks: `tools/frontend/check-all.sh` 25 pass, pulse-check skipped. Workspace tests pass.
+- Not done: Task 3 remainder (selective reads, shared-bottleneck rejection, count/quality modes), Task 5 pair protocol, Task 6 shadow, Task 7 live window, Task 8 retirement. Ledger: `.superpowers/sdd/2026-11-22-topology-canvas-integration/progress.md`.
+- Warning: registry schema is now 5. An old binary cannot open it; rollback needs the `registry-v4-r*.json` backup. Nothing is deployed.
+- Other agents: the traffic/overview work in the tree is not mine and is not committed.
+
 ## 2026-11-22T00:15:01+08:00 (Asia/Manila) — Canvas integration map and writer transition plan
 
 - Goal: map the canvas into frontend/backend and prove correct publication before legacy retirement.
