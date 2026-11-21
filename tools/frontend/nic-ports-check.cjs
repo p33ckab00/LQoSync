@@ -30,10 +30,15 @@ const fs=require('node:fs');
   assert.ok((await ports.nth(1).getAttribute('aria-label')).includes('inferred'));
   assert.equal(await ports.first().evaluate(n=>getComputedStyle(n).borderTopWidth),'0px');
   const boxes=await ports.evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().toJSON()));
-  assert.ok(boxes[1].x-boxes[0].right<=10,'ports must be adjacent');
+  // The ports share one row and spread evenly across the NIC area, as in the NOC Command Deck layout.
+  assert.equal(boxes[0].y,boxes[1].y,'ports share one row');
+  const area=await nic.locator('.nic-faceplate').evaluate(n=>n.getBoundingClientRect().toJSON());
+  const left=boxes[0].x-area.x,right=area.right-boxes[1].right;
+  assert.ok(boxes[1].x>boxes[0].right && Math.abs(left-right)<=2,'ports spread evenly in their area');
   for(const tile of await ports.all()){
-   const art=await tile.locator('svg').boundingBox();const leds=await tile.locator('.nic-activity-leds').boundingBox();
-   assert.ok(leds.y>=art.y+art.height && leds.y-art.y-art.height<=4,'LEDs must sit directly below artwork');
+   // The frame holds the artwork; the activity LEDs sit directly below the frame.
+   const art=await tile.locator('.nic-port-frame').boundingBox();const leds=await tile.locator('.nic-activity-leds').boundingBox();
+   assert.ok(leds.y>=art.y+art.height && leds.y-art.y-art.height<=4,'LEDs must sit directly below the port frame');
   }
   await page.evaluate(async()=>{window.nicView=await(await fetch('/api/v1/overview')).json();window.testStreams.forEach(s=>s.close());window.nicEpoch=window.nicView.dpdk.nic.updated;});
   await page.route('**/api/v1/overview',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(await page.evaluate(()=>window.nicView))}));
@@ -51,7 +56,12 @@ const fs=require('node:fs');
   await page.waitForTimeout(220);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,0]);
   await sample(0,9);await page.waitForTimeout(240);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
   await sample(0,0);await page.waitForTimeout(220);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
-  await sample(8,8,{state:'DOWN'});await page.waitForTimeout(220);assert.equal(await ports.first().evaluate(n=>n.classList.contains('link-down')),true);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
+  // The port frame shows the link: solid with a glow when up, dashed when down (not color alone).
+  const frame=ports.first().locator('.nic-port-frame');
+  assert.equal(await frame.evaluate(n=>getComputedStyle(n).borderTopStyle),'solid');
+  assert.notEqual(await frame.evaluate(n=>getComputedStyle(n).boxShadow),'none');
+  await sample(8,8,{state:'DOWN'});await page.waitForTimeout(220);assert.equal(await ports.first().evaluate(n=>n.classList.contains('link-down')),true);
+  assert.equal(await frame.evaluate(n=>getComputedStyle(n).borderTopStyle),'dashed');assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
   await sample(8,8,{reset:true});await page.waitForTimeout(220);assert.deepEqual(await page.evaluate(()=>window.nicPulses),[1,1]);
   await page.evaluate(()=>{const v=window.nicView;v.dpdk.nic.stale=true;window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(v)}));});
   await nic.getByText('Link unknown · stale',{exact:true}).waitFor();
@@ -70,11 +80,17 @@ const fs=require('node:fs');
    assert.equal(boxes[0].y,boxes[1].y,`ports must stay adjacent at ${width}px`);
    if(width===1920){await page.getByLabel('Color theme').selectOption('dark');await summary.screenshot({path:`${out}/wide.png`});}
    if(width>=1600){
-     // Five metric cards share one row. The DPDK Health card, with the NIC ports, fills the next row.
-     const cards=await summary.locator(':scope > article.metric').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().toJSON()));
-     assert.equal(cards.length,5);assert.ok(cards.every(c=>c.top===cards[0].top),'the five metric cards share one row on wide screens');
-     const health=await summary.locator(':scope > .worker-ring-card').evaluate(n=>n.getBoundingClientRect().toJSON());const row=await summary.evaluate(n=>n.getBoundingClientRect().toJSON());
-     assert.ok(health.top>=cards[0].bottom && Math.abs(health.width-row.width)<1,'the DPDK Health card fills the row below the metric cards');
+     // NOC Command Deck: the five status tiles stand in one column at the left; the deck fills the row.
+     const cards=await summary.locator('.noc-status > article.metric').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().toJSON()));
+     assert.equal(cards.length,5);
+     assert.ok(cards.every(c=>c.left===cards[0].left),'the status tiles share one column on wide screens');
+     assert.ok(cards.every((c,i)=>i===0||c.top>=cards[i-1].bottom),'the status tiles stack from top to bottom');
+     const deck=await summary.locator(':scope > .noc-deck').evaluate(n=>n.getBoundingClientRect().toJSON());const row=await summary.evaluate(n=>n.getBoundingClientRect().toJSON());
+     assert.ok(Math.abs(deck.width-row.width)<1,'the NOC Command Deck fills the row');
+     // The link count stands at the right end of the NIC heading line.
+     const heading=await nic.locator('.nic-faceplate-heading').evaluate(n=>n.getBoundingClientRect().toJSON());
+     const count=await nic.locator('.nic-up-count').evaluate(n=>n.getBoundingClientRect().toJSON());
+     assert.ok(Math.abs(count.right-heading.right)<1,'2 / 2 UP is right-aligned on the heading line');
    }
   }
   // Unknown source metadata must keep a generic connector and an explicit unknown role.

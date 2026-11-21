@@ -1,7 +1,7 @@
 //! DPDK health ring: the worker execution ring after `worker-radial-profiler-v3.svg`, with an outer
 //! band for analytics, classification, and bridge health. Hover or focus keeps the view radial:
 //! the sector or band grows and the chip shows its value. A new band value pulses and shows briefly.
-use crate::dpdk_console_model::{Segment, count, details, segments, uptime};
+use crate::dpdk_console_model::{Segment, count, details, segments, status_tone, uptime};
 use crate::worker_ring_model::{
     CX, CY, RADIUS, Sector, band, compact, grouped, pick, sector_text, sectors,
 };
@@ -24,7 +24,13 @@ fn value(n: Option<u64>) -> String {
 }
 
 #[component]
-pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) -> impl IntoView {
+/// The NOC Command Deck: service status (the `children`), the radial profiler, worker telemetry,
+/// the NIC ports, and the bridge health line.
+pub(crate) fn WorkerRing(
+    snapshot: Memo<Option<Dpdk>>,
+    server_clock: Memo<u64>,
+    children: Children,
+) -> impl IntoView {
     let selected = RwSignal::new(None::<u16>);
     let hovered = RwSignal::new(None::<Target>);
     let pinned = RwSignal::new(None::<Target>);
@@ -106,11 +112,21 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
         })
     };
     view! {
-      <article class="panel worker-ring-card" aria-labelledby="worker-ring-title">
+      <article class="panel worker-ring-card noc-deck" aria-labelledby="worker-ring-title">
         <div class="worker-ring-head">
-          <h2 id="worker-ring-title">"DPDK Health"</h2>
-          <span class=move||format!("chip {}",if live.get(){"good"}else{"neutral"})>{move||if live.get(){"Live"}else if snapshot.with(|d|d.is_none()){"Unavailable"}else{"Stale · last known"}}</span>
+          <h2 id="worker-ring-title">"NOC Command Deck"</h2>
+          <div class="noc-head-meta">
+            <span class=move||format!("chip {}",if live.get(){"good"}else{"neutral"})>{move||if live.get(){"Live"}else if snapshot.with(|d|d.is_none()){"Unavailable"}else{"Stale · last known"}}</span>
+            <span class="noc-age">{move||ages.get().0.map(|a|format!("DPDK age {a}s")).unwrap_or_default()}</span>
+          </div>
         </div>
+        <div class="noc-grid">
+        <section class="noc-status" aria-labelledby="noc-status-title">
+          <h3 id="noc-status-title">"Service status"</h3>
+          {children()}
+        </section>
+        <div class="noc-radial">
+        <h3>"DPDK worker radial profiler"</h3>
         <Show when=move||ids.with(|v|v.len()>1)>
           <div class="worker-picker" role="group" aria-label="Select worker">
             {move||ids.get().into_iter().map(|id|view!{
@@ -119,7 +135,6 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
             }).collect_view()}
           </div>
         </Show>
-        <div class="worker-ring-body">
         <svg class="worker-ring" class:active=move||over.get()||focus.with(Option::is_some) class:stale=move||!live.get()
           viewBox="-28 0 576 400" role="group" aria-label=move||format!("DPDK health: worker {} execution phases and bridge instruments",name())
           on:pointerenter=move|_|over.set(true) on:pointerleave=move|_|{over.set(false);hovered.set(None);}
@@ -220,6 +235,7 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
             }/>
           </g>
         </svg>
+        </div>
         <div class="worker-ring-side">
           <h3>"Worker telemetry"</h3>
           <dl class="worker-stats">
@@ -234,14 +250,32 @@ pub(crate) fn WorkerRing(snapshot: Memo<Option<Dpdk>>, server_clock: Memo<u64>) 
             None=>"Hover or focus a phase or a health band · click to pin · Esc to clear".into(),
           }}</p>
           <section class="nic-summary" aria-label="NIC ports"><crate::nic_ports::NicPorts snapshot clock=server_clock/></section>
-          <p class="health-line">{move||{let (a,b)=ages.get();snapshot.with(|d|d.as_ref().map(|d|{let c=&d.console;
-            let status=if health_live.get(){format!("Bridge {}",c.status.as_deref().unwrap_or("unknown"))}else{format!("Unknown health · last known {}",c.status.as_deref().unwrap_or("none"))};
-            format!("{status}{} · uptime {} · rollups missing {} · analytics {} · bridge {}",
-            c.version.as_deref().map(|v|format!(" · {v}")).unwrap_or_default(),uptime(c.uptime_ms),count(c.missing_rollups),
-            a.map(|a|format!("{a}s")).unwrap_or("—".into()),b.map(|b|format!("{b}s")).unwrap_or("—".into()))}).unwrap_or("Bridge health unavailable".into()))}}</p>
-          <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
         </div>
         </div>
+        <ul class="health-line noc-footer" aria-label="Bridge health">
+          {move||{let b=ages.get().1;snapshot.with(|d|match d {
+            None=>view!{<li>"Bridge health unavailable"</li>}.into_any(),
+            Some(d)=>{
+              let c=&d.console;
+              let (state,tone)=if health_live.get(){
+                (format!("Bridge {}",c.status.as_deref().unwrap_or("unknown")),status_tone(c).class())
+              }else{
+                (format!("Unknown health · last known {}",c.status.as_deref().unwrap_or("none")),"tone-neutral")
+              };
+              let classified=match c.classification_empty{Some(false)=>"populated",Some(true)=>"empty",None=>"—"};
+              view!{
+                <li class=format!("noc-bridge {tone}")><b>{state}</b></li>
+                {c.version.clone().map(|v|view!{<li class="noc-version">{v}</li>})}
+                <li>"Uptime "<b>{uptime(c.uptime_ms)}</b></li>
+                <li>"Rollups missing "<b>{count(c.missing_rollups)}</b></li>
+                <li>"AQM degraded "<b>{count(c.aqm_degraded_workers)}</b></li>
+                <li>"Classification "<b>{classified}</b></li>
+                <li>"Bridge age "<b>{b.map(|b|format!("{b}s")).unwrap_or("—".into())}</b></li>
+              }.into_any()
+            }
+          })}}
+        </ul>
+        <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
       </article>
     }
 }

@@ -147,7 +147,7 @@ fn Metric(
     };
     view! {
       <article class="metric panel">
-        <h2><span class=color><Icon name=icon/></span>{title}</h2>
+        <h4><span class=color><Icon name=icon/></span>{title}</h4>
         <strong class=move||if kind=="publication"{data.with(|d|format!("metric-state {}",d.as_ref().map(|v|badge(&v.publication)).unwrap_or("neutral")))}else{String::new()}>{move||data.with(|d|d.as_ref().map(|v|match kind{
           "ipoe"=>number(v.ipoe_active),"ppp_online"=>number(v.ppp_online),"ppp_offline"=>number(v.ppp_offline),"routers"=>number(v.routers),_=>phase(&v.publication)
         }).unwrap_or("—".into()))}</strong>
@@ -183,13 +183,14 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
     view! {
       <Show when=move||data.with(|d|d.as_ref().is_some_and(|v|v.stale))><div class="notice">"Some source evidence is stale or unavailable. Unknown counts are shown as —."</div></Show>
       <section class="metrics" aria-label="Service summary">
-        <Metric data kind="ipoe" title="IPoE Subscribers" icon="people" note="Active DHCP observations"/>
-        <Metric data kind="ppp_online" title="PPPoE Online" icon="wifi" note="Currently online users"/>
-        <Metric data kind="ppp_offline" title="PPPoE Offline" icon="wifi-off" note="Configured users offline"/>
-        <Metric data kind="routers" title="Routers" icon="router" note="Managed routers"/>
-        <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
-        // The DPDK Health card has its own full row: worker ring, health band, telemetry, and NIC ports.
-        <crate::worker_ring::WorkerRing snapshot server_clock/>
+        // The NOC Command Deck: service status, the radial profiler, worker telemetry, and NIC ports.
+        <crate::worker_ring::WorkerRing snapshot server_clock>
+          <Metric data kind="ipoe" title="IPoE Subscribers" icon="people" note="Active DHCP observations"/>
+          <Metric data kind="ppp_online" title="PPPoE Online" icon="wifi" note="Currently online users"/>
+          <Metric data kind="ppp_offline" title="PPPoE Offline" icon="wifi-off" note="Configured users offline"/>
+          <Metric data kind="routers" title="Routers" icon="router" note="Managed routers"/>
+          <Metric data kind="publication" title="LibreQoS" icon="layers" note="Publication evidence"/>
+        </crate::worker_ring::WorkerRing>
       </section>
       <div class="overview-grid">
         <crate::traffic_chart::TrafficChart data/>
