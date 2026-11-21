@@ -222,6 +222,7 @@ fn precision_histories_fit_the_complete_broker_envelope() {
         edit: None,
         activity: None,
         test: None,
+        router: None,
     };
     assert!(serde_json::to_vec(&reply).unwrap().len() + 1 < 65536);
 }

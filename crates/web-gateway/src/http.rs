@@ -12,7 +12,7 @@ use axum::{
         Html, IntoResponse, Response, Sse,
         sse::{Event, KeepAlive},
     },
-    routing::{get, patch, post},
+    routing::{get, post},
 };
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
@@ -266,6 +266,21 @@ async fn sync_routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     };
     Ok((status, Json(outcome)).into_response())
 }
+/// One router with its lists, from the service cache.
+async fn router_detail(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult {
+    principal(&s, &h).await?;
+    if !router_id(&id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let reply = exchange(&s.broker, &BrokerRequest::RouterDetail { router_id: id })
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(reply.router.ok_or(StatusCode::NOT_FOUND)?).into_response())
+}
 async fn router_activity(
     State(s): State<WebState>,
     h: HeaderMap,
@@ -381,7 +396,9 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         )
         .route(
             "/api/v1/routers/{id}",
-            patch(update_router).layer(DefaultBodyLimit::max(32 * 1024)),
+            get(router_detail)
+                .patch(update_router)
+                .layer(DefaultBodyLimit::max(64 * 1024)),
         )
         .route("/api/v1/routers/{id}/activity", get(router_activity))
         .route("/api/v1/routers/{id}/test", post(test_router))

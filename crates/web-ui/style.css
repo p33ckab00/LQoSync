@@ -517,3 +517,15 @@ dialog.add-router-dialog{box-sizing:border-box;inline-size:min(760px,calc(100vw 
 .router-facts.outline{grid-template-columns:1fr}
 .router-facts.outline dd{font-size:14px}
 @media(max-width:600px){.prereqs li{grid-template-columns:1fr}}
+/* Router lists: exclusions as text areas, client overrides as rows. */
+.router-lists{margin-block-start:20px;padding-block-start:4px;border-block-start:1px solid var(--border)}
+.router-lists h3{font-size:15px;margin:16px 0 10px}
+.router-form textarea{inline-size:100%;box-sizing:border-box;min-height:88px;padding:8px 12px;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;resize:vertical}
+.router-form textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.client-rows{list-style:none;margin:0 0 12px;padding:0}
+.client-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 12px;padding-block:8px;border-block-end:1px solid var(--border)}
+.client-row .field{margin-block-end:8px;flex:1 1 150px}
+.client-row .field:has(.short){flex:0 1 120px}
+.client-row>button{margin-block-end:8px}
+.client-row input[aria-invalid=true]{border-color:var(--bad)}
+.form-failure ul{margin:4px 0 0;padding-inline-start:20px}

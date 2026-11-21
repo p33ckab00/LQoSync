@@ -2,7 +2,7 @@
 use std::path::Path;
 use web_contract::routers::{
     CACHE, RouterActivity, RouterEditOutcome, RouterEditRequest, RouterEvent, RouterInventory,
-    RouterTestResult, VERSION,
+    RouterSummary, RouterTestResult, VERSION,
 };
 
 /// The inventory part of a broker reply stays under this size. The reply limit is 64 KiB.
@@ -10,9 +10,35 @@ pub const BUDGET: usize = 60 * 1024;
 /// More routers than an ISP inventory screen needs; the byte budget usually binds first.
 pub const MAX_ROUTERS: usize = 200;
 
-pub fn load(root: &Path) -> Option<RouterInventory> {
+fn read(root: &Path) -> Option<RouterInventory> {
     let inventory: RouterInventory = crate::overview::read(root, CACHE)?;
-    (inventory.version == VERSION && inventory.updated > 0).then(|| bound(inventory))
+    (inventory.version == VERSION && inventory.updated > 0).then_some(inventory)
+}
+
+/// The inventory list: every router without its lists, bounded.
+pub fn load(root: &Path) -> Option<RouterInventory> {
+    let mut inventory = read(root)?;
+    for r in &mut inventory.routers {
+        r.lists = None;
+    }
+    Some(bound(inventory))
+}
+
+/// One router with its lists. Client overrides past the byte budget are dropped and flagged, so
+/// the page can refuse to save a list that it did not get completely.
+pub fn load_one(root: &Path, router_id: &str) -> Option<RouterSummary> {
+    let mut r = read(root)?
+        .routers
+        .into_iter()
+        .find(|r| r.id == router_id)?;
+    while serde_json::to_vec(&r).map_or(usize::MAX, |b| b.len()) > BUDGET {
+        let Some(lists) = r.lists.as_mut() else { break };
+        if lists.dhcp_clients.pop().is_none() {
+            break;
+        }
+        lists.truncated = true;
+    }
+    Some(r)
 }
 
 /// Keep the routers in config order and drop from the end until the reply fits.

@@ -19,8 +19,8 @@ use web_contract::routers::{
 };
 use web_contract::{Overview, TrafficWindow};
 
-/// The request line limit. A router edit can carry a CA certificate of up to 16 KiB.
-const MAX_REQUEST: usize = 32 * 1024;
+/// The request line limit. A router edit can carry a CA certificate (16 KiB) or 500 client overrides.
+const MAX_REQUEST: usize = 64 * 1024;
 
 /// The core command that saves router edits: `<bin> router-edit --config <config>`.
 #[derive(Clone, Debug)]
@@ -62,6 +62,10 @@ pub enum Request {
     RouterActivity {
         router_id: String,
     },
+    /// One router with its lists.
+    RouterDetail {
+        router_id: String,
+    },
     /// One connection test, run by the service through its API socket.
     RouterTest {
         actor: String,
@@ -85,6 +89,8 @@ pub struct Reply {
     pub activity: Option<RouterActivity>,
     #[serde(default)]
     pub test: Option<RouterTestResult>,
+    #[serde(default)]
+    pub router: Option<web_contract::routers::RouterSummary>,
 }
 impl Reply {
     fn no() -> Self {
@@ -97,6 +103,7 @@ impl Reply {
             edit: None,
             activity: None,
             test: None,
+            router: None,
         }
     }
 }
@@ -254,6 +261,14 @@ pub async fn serve(
                             tokio::task::spawn_blocking(move || crate::routers::load(&root))
                                 .await?;
                         reply.ok = reply.routers.is_some();
+                    }
+                    Request::RouterDetail { router_id } => {
+                        ensure!(router_id.len() <= 64, "invalid input");
+                        reply.router = tokio::task::spawn_blocking(move || {
+                            crate::routers::load_one(&root, &router_id)
+                        })
+                        .await?;
+                        reply.ok = reply.router.is_some();
                     }
                     Request::RouterTest { actor, router_id } => {
                         ensure!(actor.len() <= 64 && router_id.len() <= 64, "invalid input");

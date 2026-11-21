@@ -58,6 +58,37 @@ pub struct RouterSummary {
     /// Circuits of this router in the LQoSync shaping list at the start of the last cycle.
     #[serde(default)]
     pub circuits: Option<u64>,
+    /// The router lists. Only the one-router detail carries them; the inventory list leaves them out.
+    #[serde(default)]
+    pub lists: Option<RouterLists>,
+}
+
+/// The longest list that one edit can set. The core checks it again.
+pub const MAX_LIST: usize = 200;
+pub const MAX_CLIENTS: usize = 500;
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RouterLists {
+    /// Router-scoped exclusions; the service joins them with the global `[exclude]`.
+    pub exclude_dhcp_servers: Vec<String>,
+    pub exclude_ppp_profiles: Vec<String>,
+    /// IPv4 addresses or networks (`a.b.c.d` or `a.b.c.d/n`).
+    pub exclude_ips: Vec<String>,
+    pub dhcp_clients: Vec<DhcpClientOverride>,
+    /// The gateway dropped client overrides to keep the reply bounded. The page then refuses to
+    /// edit the client list, because a save would remove the entries that it did not get.
+    #[serde(default)]
+    pub truncated: bool,
+}
+
+/// A speed override for one DHCP client, found by its MAC address.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DhcpClientOverride {
+    pub mac: String,
+    pub download_mbps: f64,
+    pub upload_mbps: f64,
+    pub name: Option<String>,
 }
 
 /// The removal rules of the legacy writer, from the config and the last cycle.
@@ -147,6 +178,11 @@ pub struct RouterEdit {
     pub clear_location: bool,
     /// Disable (`false`) or enable (`true`) an existing router. A disable needs the operator password.
     pub enabled: Option<bool>,
+    /// A list that is present replaces the whole list. An empty list removes it.
+    pub exclude_dhcp_servers: Option<Vec<String>>,
+    pub exclude_ppp_profiles: Option<Vec<String>>,
+    pub exclude_ips: Option<Vec<String>>,
+    pub dhcp_clients: Option<Vec<DhcpClientOverride>>,
 }
 
 /// What the browser sends: the edit, and the operator password when the edit replaces a credential.

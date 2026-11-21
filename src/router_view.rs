@@ -6,8 +6,8 @@ use crate::model::State;
 use crate::topology_manager::catalog::{RouterRole, SourceOrigin, TopologyCatalog};
 use std::path::Path;
 use web_contract::routers::{
-    CACHE, RouterCollection, RouterInventory, RouterOptions, RouterSource, RouterSummary,
-    ShapingPolicy, VERSION,
+    CACHE, DhcpClientOverride, RouterCollection, RouterInventory, RouterLists, RouterOptions,
+    RouterSource, RouterSummary, ShapingPolicy, VERSION,
 };
 
 /// A configured file exists and is not empty. The content is never read.
@@ -97,6 +97,23 @@ fn summary(
             dhcp_clients: r.dhcp.clients.len() as u64,
             exclusions: (ex.dhcp_servers.len() + ex.ppp_profiles.len() + ex.ips.len()) as u64,
         },
+        lists: Some(RouterLists {
+            exclude_dhcp_servers: ex.dhcp_servers.clone(),
+            exclude_ppp_profiles: ex.ppp_profiles.clone(),
+            exclude_ips: ex.ips.clone(),
+            dhcp_clients: r
+                .dhcp
+                .clients
+                .iter()
+                .map(|c| DhcpClientOverride {
+                    mac: c.mac.clone(),
+                    download_mbps: c.download_mbps,
+                    upload_mbps: c.upload_mbps,
+                    name: c.name.clone(),
+                })
+                .collect(),
+            truncated: false,
+        }),
         circuits: state.map(|s| {
             s.circuits
                 .values()

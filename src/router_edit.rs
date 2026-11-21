@@ -11,7 +11,8 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use toml_edit::Value;
 use web_contract::routers::{
-    MAX_CA_PEM, MAX_PASSWORD, RouterEditOutcome, RouterEditReply, RouterEditRequest, RouterEvent,
+    MAX_CA_PEM, MAX_CLIENTS, MAX_LIST, MAX_PASSWORD, RouterEditOutcome, RouterEditReply,
+    RouterEditRequest, RouterEvent,
 };
 
 pub const AUDIT: &str = "router-audit.jsonl";
@@ -380,6 +381,94 @@ pub fn edit(
             Value::from(""),
             "ca_certificate",
         )?;
+    }
+    // Lists replace the whole list. The config rules check the IP networks and the patterns.
+    for (list, field, label) in [
+        (
+            &e.exclude_dhcp_servers,
+            "dhcp_servers",
+            "exclude_dhcp_servers",
+        ),
+        (
+            &e.exclude_ppp_profiles,
+            "ppp_profiles",
+            "exclude_ppp_profiles",
+        ),
+        (&e.exclude_ips, "ips", "exclude_ips"),
+    ] {
+        let Some(list) = list else { continue };
+        if list.len() > MAX_LIST
+            || list
+                .iter()
+                .any(|x| x.trim().is_empty() || x.len() > 128 || x.chars().any(char::is_control))
+        {
+            return Err(invalid(format!(
+                "Use at most {MAX_LIST} entries of 1 to 128 characters, one for each line."
+            )));
+        }
+        let path = key(i, &["exclude", field]);
+        if list.is_empty() {
+            draft
+                .reset(&path)
+                .map_err(|err| internal(format!("{err:#}")))?;
+            changes.push(label.into());
+        } else {
+            let mut a = toml_edit::Array::new();
+            for x in list {
+                a.push(x.trim());
+            }
+            put(
+                &mut draft,
+                &mut changes,
+                i,
+                &["exclude", field],
+                Value::Array(a),
+                label,
+            )?;
+        }
+    }
+    if let Some(clients) = &e.dhcp_clients {
+        if clients.len() > MAX_CLIENTS {
+            return Err(invalid(format!(
+                "Use at most {MAX_CLIENTS} client overrides."
+            )));
+        }
+        let mut seen = HashSet::new();
+        for c in clients {
+            let Some(mac) = crate::config::normalize_mac(&c.mac) else {
+                return Err(invalid(format!("\"{}\" is not a MAC address.", c.mac)));
+            };
+            if !seen.insert(mac) {
+                return Err(invalid(format!(
+                    "The MAC address {} is in the list twice.",
+                    c.mac
+                )));
+            }
+            let rate = |r: f64| r.is_finite() && r > 0.0 && r <= 100_000.0;
+            if !rate(c.download_mbps) || !rate(c.upload_mbps) {
+                return Err(invalid("Use rates above 0 and up to 100000 Mbps."));
+            }
+            if c.name
+                .as_ref()
+                .is_some_and(|n| n.len() > 64 || n.chars().any(char::is_control))
+            {
+                return Err(invalid("Use a client name of up to 64 characters."));
+            }
+        }
+        if action == "create" {
+            return Err(invalid("Add client overrides after the router is saved."));
+        }
+        for old in &cfg.routers[i].dhcp.clients {
+            draft
+                .remove_client(i, &old.mac)
+                .map_err(|err| internal(format!("{err:#}")))?;
+        }
+        for c in clients {
+            draft
+                .set_client(i, &c.mac, c.download_mbps, c.upload_mbps, c.name.as_deref())
+                .map_err(|err| invalid(format!("{err:#}")))?;
+        }
+        changes.push("dhcp_clients".into());
     }
     if changes.is_empty() {
         return Err(invalid("There is no change to save."));
@@ -770,6 +859,100 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err.0, "invalid");
+    }
+
+    #[test]
+    fn lists_replace_the_whole_list_and_bad_entries_change_nothing() {
+        use web_contract::routers::DhcpClientOverride;
+        let e = env();
+        let id = router_id("R1");
+        let client = |mac: &str, down: f64| DhcpClientOverride {
+            mac: mac.into(),
+            download_mbps: down,
+            upload_mbps: 5.0,
+            name: Some("Office".into()),
+        };
+        edit_ok(
+            &e,
+            Some(&id),
+            RouterEdit {
+                expected_digest: digest(&e),
+                exclude_ppp_profiles: Some(vec!["staff".into(), "test-*".into()]),
+                exclude_ips: Some(vec!["100.64.9.0/24".into()]),
+                dhcp_clients: Some(vec![
+                    client("02-00-00-00-0a-01", 20.0),
+                    client("02:00:00:00:0a:02", 30.0),
+                ]),
+                ..Default::default()
+            },
+        );
+        let cfg = Config::from_toml_str(&std::fs::read_to_string(&e.config).unwrap()).unwrap();
+        let r1 = &cfg.routers[0];
+        assert_eq!(r1.exclude.ppp_profiles, ["staff", "test-*"]);
+        assert_eq!(r1.exclude.ips, ["100.64.9.0/24"]);
+        let macs: Vec<_> = r1.dhcp.clients.iter().map(|c| c.mac.as_str()).collect();
+        assert_eq!(
+            macs,
+            ["02:00:00:00:0A:01", "02:00:00:00:0A:02"],
+            "normalized, in order"
+        );
+        // A new list replaces the old one; an empty list removes the key.
+        edit_ok(
+            &e,
+            Some(&id),
+            RouterEdit {
+                expected_digest: digest(&e),
+                exclude_ppp_profiles: Some(vec![]),
+                dhcp_clients: Some(vec![client("02:00:00:00:0a:02", 40.0)]),
+                ..Default::default()
+            },
+        );
+        let text = std::fs::read_to_string(&e.config).unwrap();
+        let cfg = Config::from_toml_str(&text).unwrap();
+        assert!(cfg.routers[0].exclude.ppp_profiles.is_empty());
+        assert_eq!(cfg.routers[0].dhcp.clients.len(), 1);
+        assert_eq!(cfg.routers[0].dhcp.clients[0].download_mbps, 40.0);
+        let before = text;
+        for bad in [
+            RouterEdit {
+                exclude_ips: Some(vec!["100.64.9.0/33".into()]),
+                ..Default::default()
+            },
+            RouterEdit {
+                dhcp_clients: Some(vec![client("not-a-mac", 1.0)]),
+                ..Default::default()
+            },
+            RouterEdit {
+                dhcp_clients: Some(vec![
+                    client("02:00:00:00:0a:01", 1.0),
+                    client("02-00-00-00-0A-01", 2.0),
+                ]),
+                ..Default::default()
+            },
+            RouterEdit {
+                dhcp_clients: Some(vec![client("02:00:00:00:0a:01", 0.0)]),
+                ..Default::default()
+            },
+            RouterEdit {
+                exclude_dhcp_servers: Some(vec![" ".into()]),
+                ..Default::default()
+            },
+        ] {
+            let change = RouterEdit {
+                expected_digest: digest(&e),
+                ..bad
+            };
+            let err = edit(
+                &e.config,
+                &request(Some(&id), change),
+                1_000,
+                me(),
+                &no_reload,
+            )
+            .unwrap_err();
+            assert_eq!(err.0, "invalid", "{}", err.1);
+        }
+        assert_eq!(std::fs::read_to_string(&e.config).unwrap(), before);
     }
 
     #[test]

@@ -225,6 +225,108 @@ pub(crate) fn removes_a_source(f: &Form, r: &RouterSummary) -> bool {
     r.enabled && ((old.pppoe && !f.pppoe) || (old.dhcp && !f.dhcp) || (old.hotspot && !f.hotspot))
 }
 
+/// The lines of a list field: trimmed, without empty lines and repeats, in order.
+pub(crate) fn lines(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for l in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        if !out.iter().any(|x| x == l) {
+            out.push(l.to_string());
+        }
+    }
+    out
+}
+
+/// An IPv4 address or network: `a.b.c.d` or `a.b.c.d/n` with n from 0 to 32.
+fn ipv4_net(s: &str) -> bool {
+    let (addr, bits) = s.split_once('/').unwrap_or((s, "32"));
+    bits.parse::<u8>().is_ok_and(|b| b <= 32) && addr.parse::<std::net::Ipv4Addr>().is_ok()
+}
+/// The entries that are not IPv4 addresses or networks.
+pub(crate) fn bad_ips(list: &[String]) -> Vec<String> {
+    list.iter().filter(|x| !ipv4_net(x)).cloned().collect()
+}
+
+/// `AA:BB:CC:DD:EE:FF` from any case, with `:` or `-` or no separator.
+pub(crate) fn mac(s: &str) -> Option<String> {
+    let hex: String = s.chars().filter(|c| !matches!(c, ':' | '-')).collect();
+    (hex.len() == 12 && hex.chars().all(|c| c.is_ascii_hexdigit())).then(|| {
+        hex.to_ascii_uppercase()
+            .as_bytes()
+            .chunks(2)
+            .map(|p| String::from_utf8_lossy(p).into_owned())
+            .collect::<Vec<_>>()
+            .join(":")
+    })
+}
+
+/// One editable client override row: the text of its fields.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct ClientRow {
+    pub mac: String,
+    pub down: String,
+    pub up: String,
+    pub name: String,
+}
+impl ClientRow {
+    pub(crate) fn from(c: &web_contract::routers::DhcpClientOverride) -> ClientRow {
+        ClientRow {
+            mac: c.mac.clone(),
+            down: c.download_mbps.to_string(),
+            up: c.upload_mbps.to_string(),
+            name: c.name.clone().unwrap_or_default(),
+        }
+    }
+}
+
+/// Row errors as (row index, message), and the overrides when there is no error.
+pub(crate) fn clients(
+    rows: &[ClientRow],
+) -> Result<Vec<web_contract::routers::DhcpClientOverride>, Vec<(usize, String)>> {
+    let mut errors = Vec::new();
+    let mut seen = Vec::new();
+    let mut out = Vec::new();
+    let rate = |s: &str| {
+        s.trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|r| r.is_finite() && *r > 0.0 && *r <= 100_000.0)
+    };
+    for (i, r) in rows.iter().enumerate() {
+        let Some(m) = mac(r.mac.trim()) else {
+            errors.push((i, "Enter a MAC address such as 02:00:00:00:0A:01.".into()));
+            continue;
+        };
+        if seen.contains(&m) {
+            errors.push((i, "This MAC address is in the list twice.".into()));
+            continue;
+        }
+        seen.push(m.clone());
+        let (Some(down), Some(up)) = (rate(&r.down), rate(&r.up)) else {
+            errors.push((
+                i,
+                "Enter both rates in Mbps, above 0 and up to 100000.".into(),
+            ));
+            continue;
+        };
+        let name = r.name.trim();
+        if name.chars().count() > 64 {
+            errors.push((i, "Use a name of up to 64 characters.".into()));
+            continue;
+        }
+        out.push(web_contract::routers::DhcpClientOverride {
+            mac: m,
+            download_mbps: down,
+            upload_mbps: up,
+            name: (!name.is_empty()).then(|| name.into()),
+        });
+    }
+    if errors.is_empty() {
+        Ok(out)
+    } else {
+        Err(errors)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,6 +352,49 @@ mod tests {
             },
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn list_lines_ips_and_client_rows_are_checked_before_a_save() {
+        assert_eq!(lines(" staff \n\nstaff\ntest-*\n"), ["staff", "test-*"]);
+        let ips = lines("100.64.9.0/24\n192.0.2.1\n10.0.0.0/33\nexample\n");
+        assert_eq!(bad_ips(&ips), ["10.0.0.0/33", "example"]);
+        assert_eq!(
+            mac("02-00-00-00-0a-01").as_deref(),
+            Some("02:00:00:00:0A:01")
+        );
+        assert_eq!(mac("0200000000aa").as_deref(), Some("02:00:00:00:00:AA"));
+        assert_eq!(mac("02:00:00:00:0a"), None);
+        let row = |m: &str, d: &str| ClientRow {
+            mac: m.into(),
+            down: d.into(),
+            up: "5".into(),
+            name: " Office ".into(),
+        };
+        let ok = clients(&[row("02:00:00:00:0a:01", "20")]).unwrap();
+        assert_eq!(
+            (
+                ok[0].mac.as_str(),
+                ok[0].download_mbps,
+                ok[0].name.as_deref()
+            ),
+            ("02:00:00:00:0A:01", 20.0, Some("Office"))
+        );
+        let bad = clients(&[
+            row("02:00:00:00:0a:01", "20"),
+            row("02-00-00-00-0A-01", "30"),
+            row("zz", "1"),
+            row("02:00:00:00:0a:03", "0"),
+        ])
+        .unwrap_err();
+        let rows: Vec<usize> = bad.iter().map(|(i, _)| *i).collect();
+        assert_eq!(rows, [1, 2, 3]);
+        assert!(
+            clients(&[]).unwrap().is_empty(),
+            "an empty list removes every override"
+        );
+        // A saved override opens in the editor with the same values.
+        assert_eq!(clients(&[ClientRow::from(&ok[0])]).unwrap(), ok);
     }
 
     #[test]

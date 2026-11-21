@@ -264,7 +264,7 @@ fn Detail(
               {match tab {
                 Tab::Overview=>overview(&r).into_any(),
                 Tab::Connection=>view!{<EditableSection router=r.clone() section=Section::Connection/>}.into_any(),
-                Tab::Sources=>view!{<EditableSection router=r.clone() section=Section::Sources/>}.into_any(),
+                Tab::Sources=>view!{<EditableSection router=r.clone() section=Section::Sources/><crate::router_lists::ListsSection router=r.clone()/>}.into_any(),
                 Tab::Pinning=>pinning(&r).into_any(),
                 Tab::Activity=>view!{<ActivityTab router_id=r.id.clone()/>}.into_any(),
               }}

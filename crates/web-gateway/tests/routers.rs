@@ -38,6 +38,7 @@ fn the_inventory_fits_the_broker_reply_and_keeps_config_order() {
         edit: None,
         activity: None,
         test: None,
+        router: None,
     };
     assert!(serde_json::to_vec(&reply).unwrap().len() < 65536);
     let many = bound(inventory(MAX_ROUTERS + 20, 1));
@@ -94,4 +95,40 @@ fn the_dashboard_counts_every_configured_router_only_for_a_current_service() {
         web_gateway::overview::project(dir.path(), 1000).routers,
         None
     );
+}
+
+#[test]
+fn the_list_leaves_out_router_lists_and_the_detail_flags_a_cut_client_list() {
+    use web_contract::routers::{DhcpClientOverride, RouterLists};
+    let dir = tempfile::tempdir().unwrap();
+    let mut inv = inventory(2, 1);
+    let client = |i: usize| DhcpClientOverride {
+        mac: format!("02:00:00:00:{:02x}:{:02x}", i / 256, i % 256),
+        download_mbps: 10.0,
+        upload_mbps: 5.0,
+        name: Some("x".repeat(60)),
+    };
+    inv.routers[0].lists = Some(RouterLists {
+        exclude_ips: vec!["100.64.9.0/24".into()],
+        dhcp_clients: (0..2000).map(client).collect(),
+        ..Default::default()
+    });
+    inv.routers[1].lists = Some(RouterLists::default());
+    std::fs::write(
+        dir.path().join("routers.json"),
+        serde_json::to_vec(&inv).unwrap(),
+    )
+    .unwrap();
+    let list = web_gateway::routers::load(dir.path()).unwrap();
+    assert!(
+        list.routers.iter().all(|r| r.lists.is_none()),
+        "the list stays small"
+    );
+    let one = web_gateway::routers::load_one(dir.path(), "router-0").unwrap();
+    let lists = one.lists.unwrap();
+    assert!(lists.truncated && lists.dhcp_clients.len() < 2000);
+    assert_eq!(lists.exclude_ips, ["100.64.9.0/24"]);
+    let small = web_gateway::routers::load_one(dir.path(), "router-1").unwrap();
+    assert!(!small.lists.unwrap().truncated);
+    assert!(web_gateway::routers::load_one(dir.path(), "router-9").is_none());
 }

@@ -336,6 +336,15 @@ The page shows "Saved", then "The service loaded the change" when the service ha
 - Each save keeps a config backup in `<state_dir>/config-backups/` and adds one line to `<state_dir>/router-audit.jsonl`. The line holds field names, never a credential.
 - If the TUI or another session changed the configuration first, the save stops. Load the page again, then repeat the change.
 
+## Edit router exclusions and DHCP client overrides in the web UI
+
+Open the router, then the Sources tab.
+
+- Exclusions: select Edit exclusions. Enter one entry for each line. In DHCP server and PPP profile names, `*` matches any text. IP entries are IPv4 addresses or networks, such as `100.64.9.0/24`. The service joins these lists with the global `[exclude]`.
+- Client overrides: select Edit client overrides. Each row is a MAC address, a download rate, an upload rate (Mbps), and an optional name. A MAC address can be in the list only once.
+
+A save replaces the whole list in the configuration. An empty list removes it. If a router has more client overrides than the page can load, edit them in the TUI.
+
 ## Test a router connection in the web UI
 
 Open the router, then the Connection tab, and select Test connection. The service connects, signs in, and reads the router identity. The test changes nothing on the router.

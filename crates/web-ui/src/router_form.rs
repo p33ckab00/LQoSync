@@ -35,24 +35,24 @@ pub(crate) struct Saved {
     pub disable: bool,
 }
 
-fn ctx() -> Ctx {
+pub(crate) fn ctx() -> Ctx {
     expect_context::<Ctx>()
 }
 
 /// The digest of the loaded configuration. Empty: the service is too old for web edits.
-fn loaded_digest(c: Ctx) -> String {
+pub(crate) fn loaded_digest(c: Ctx) -> String {
     c.inventory
         .with_untracked(|i| i.as_ref().map(|i| i.config_digest.clone()))
         .unwrap_or_default()
 }
 
-struct Failure {
-    code: String,
-    message: String,
+pub(crate) struct Failure {
+    pub code: String,
+    pub message: String,
 }
 
 /// POST a new router or PATCH one router. The core can need some seconds, so the limit is 35 s.
-async fn send(
+pub(crate) async fn send(
     c: Ctx,
     router_id: Option<String>,
     form: RouterEditForm,
@@ -111,7 +111,7 @@ async fn send(
 }
 
 /// After a save: load the inventory again every 2 s until it shows the saved digest, for at most 60 s.
-fn follow(c: Ctx, saved: Saved) {
+pub(crate) fn follow(c: Ctx, saved: Saved) {
     let digest = saved.digest.clone();
     c.saved.set(Some(saved));
     leptos::task::spawn_local(async move {
