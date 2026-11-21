@@ -8,6 +8,16 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T12:50:00+08:00 (Asia/Shanghai) — Work split: Journal and Workers screens
+
+- Goal: build the Journal and Workers screens in parallel with the Topology work, with no shared files in flight.
+- Last agent: Claude Code. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Claude Code owns: `/journal` and `/workers` routes, new `crates/web-ui/src/{journal,workers}*.rs`, new `crates/web-gateway/src/journal.rs`, journal broker and HTTP operations, and `tools/frontend/{journal,workers}-check.cjs`.
+- Shared files (`app.rs`, `dashboard.rs` navigation, `route_model.rs`, `main.rs`, `style.css`, `broker.rs`, `http.rs`): small additive edits only, each committed at once with explicit paths.
+- Codex owns: `/topology` and its views, topology adapters, plans, speed rules, PPPoE/IPoE profiles, writer and publication evidence (`docs/frontend/TOPOLOGY_DESIGN.md`).
+- New: `tools/frontend/check-all.sh` runs every gate with a fresh fixture for each browser check. Use it before a commit.
+- Rule: stage explicit paths only. Run `git status` and read this file before a commit.
+
 ## 2026-11-21T11:21:53+08:00 (Asia/Shanghai) — Inline Connection actions
 
 - Goal: show Test Connection and Edit Connection as inline icons with hover labels.
