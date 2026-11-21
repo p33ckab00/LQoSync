@@ -94,34 +94,23 @@ fn NavLink(
 #[component]
 pub(crate) fn Navigation() -> impl IntoView {
     let page = crate::route::page();
-    let groups = [
-        (
-            "IPoE",
-            vec![
-                ("Subscribers", "people", None),
-                ("Profiles", "layers", None),
-            ],
-        ),
-        (
-            "PPPoE",
-            vec![("Users", "people", None), ("Profiles", "layers", None)],
-        ),
-        (
-            "System",
-            vec![
-                ("LibreQoS", "layers", None),
-                ("WAN topology", "router", None),
-                ("Workers", "workers", Some(("/workers", Page::Workers))),
-                ("Settings", "settings", None),
-                ("Journal", "journal", Some(("/journal", Page::Journal))),
-            ],
-        ),
-    ];
+    let groups = [(
+        "System",
+        vec![
+            ("LibreQoS", "layers", None),
+            ("Workers", "workers", Some(("/workers", Page::Workers))),
+            ("Settings", "settings", None),
+            ("Journal", "journal", Some(("/journal", Page::Journal))),
+        ],
+    )];
     view! {
       <nav class="dashboard-nav" aria-label="Main navigation">
         <NavLink href="/" label="Dashboard" icon="dashboard" active=Signal::derive(move||page.get()==Page::Dashboard)/>
         <div class="nav-group"><p>"Network"</p>
           <NavLink href="/routers" label="Routers" icon="router" active=Signal::derive(move||matches!(page.get(),Page::Routers|Page::NewRouter|Page::Router{..}))/>
+          <NavLink href="/topology" label="Topology" icon="layers" active=Signal::derive(move||matches!(page.get(),Page::Topology{..}))/>
+          <NavLink href="/pppoe" label="PPPoE" icon="people" active=Signal::derive(move||matches!(page.get(),Page::Source{kind:"ppp",..}))/>
+          <NavLink href="/ipoe" label="IPoE / DHCP" icon="people" active=Signal::derive(move||matches!(page.get(),Page::Source{kind:"dhcp",..}))/>
         </div>
         {groups.into_iter().map(|(group,items)|view!{
           <div class="nav-group"><p>{group}</p>{items.into_iter().map(|(label,icon,target)|match target {

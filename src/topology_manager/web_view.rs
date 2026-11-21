@@ -82,7 +82,7 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         })
         .collect();
     let records = doc.map_or(&[][..], |d| &d.subscribers[..]);
-    let subscribers = records
+    let subscribers: Vec<Subscriber> = records
         .iter()
         .map(|r| Subscriber {
             id: r.id.clone(),
@@ -125,10 +125,19 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         })
         .collect();
 
-    let (observations, collection) = input
+    let (mut observations, collection) = input
         .collection
         .map(|r| observe(doc, r))
         .unwrap_or_default();
+    let by_id: HashMap<&str, &Subscriber> =
+        subscribers.iter().map(|s| (s.id.as_str(), s)).collect();
+    for o in &mut observations {
+        if let Some(s) = o.subscriber_id.as_deref().and_then(|id| by_id.get(id)) {
+            o.plan_id = s.plan_id.clone();
+            o.pin = s.pin.clone();
+            o.node = s.active.as_ref().map(|a| a.node.clone());
+        }
+    }
 
     TopologyView {
         version: VERSION,
@@ -208,6 +217,9 @@ fn observe(
                 state: state.label().to_ascii_lowercase(),
                 link: link.into(),
                 subscriber_id,
+                plan_id: None,
+                pin: None,
+                node: None,
             });
         }
         routers.push(CollectionRouter {

@@ -292,6 +292,9 @@ fn observations_link_only_through_the_reference_authority() {
         (a.link.as_str(), a.subscriber_id.as_deref()),
         ("verified", Some("sub-1"))
     );
+    // A linked row shows the policy of its saved record.
+    assert_eq!(a.plan_id.as_deref(), Some("plan-100"));
+    assert_eq!(obs(&v, "Core", "ppp", "carol").pin.as_deref(), Some("wan1"));
     // A different MAC spelling still gives the same normalized reference.
     let h = obs(&v, "Core", "dhcp", "host");
     assert_eq!(h.subscriber_id.as_deref(), Some("sub-1"));

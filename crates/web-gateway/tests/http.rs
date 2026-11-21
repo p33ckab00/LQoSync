@@ -316,7 +316,13 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
         .unwrap();
     assert_eq!(posted.status(), StatusCode::METHOD_NOT_ALLOWED);
     // Deep links load the page shell; the page reads data through the API.
-    for path in ["/routers", "/routers/router-core"] {
+    for path in [
+        "/routers",
+        "/routers/router-core",
+        "/topology",
+        "/pppoe",
+        "/ipoe",
+    ] {
         let page = status(path, String::new()).await;
         assert_eq!(page.status(), StatusCode::OK, "{path}");
     }

@@ -7,8 +7,44 @@ pub(crate) enum Page {
     NewRouter,
     Workers,
     Journal,
-    Router { id: String, tab: Tab },
+    Router {
+        id: String,
+        tab: Tab,
+    },
+    /// `tab`: one of `TOPOLOGY_TABS`. `subscriber`: the selected stable ID on Assignments.
+    Topology {
+        tab: &'static str,
+        subscriber: Option<String>,
+    },
+    /// The PPPoE (`ppp`) or IPoE / DHCP (`dhcp`) source view. `plans`: the Local plans view.
+    Source {
+        kind: &'static str,
+        plans: bool,
+    },
     Unknown,
+}
+
+pub(crate) const TOPOLOGY_TABS: [(&str, &str); 4] = [
+    ("builder", "Builder"),
+    ("assignments", "Assignments"),
+    ("policies", "Policies"),
+    ("changes", "Changes"),
+];
+
+fn param<'a>(search: &'a str, key: &str) -> Option<&'a str> {
+    search
+        .trim_start_matches('?')
+        .split('&')
+        .find_map(|p| p.strip_prefix(key)?.strip_prefix('='))
+}
+
+/// A stable subscriber ID from the service (`tm-sub-` and hex digits). Never an IP or a name.
+pub(crate) fn subscriber_id(s: &str) -> bool {
+    !s.is_empty() && s.len() <= 128 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+}
+
+pub(crate) fn assignments_href(subscriber: &str) -> String {
+    format!("/topology?tab=assignments&subscriber={subscriber}")
 }
 
 /// A section of the router detail page, selected with `?tab=`.
@@ -61,6 +97,21 @@ pub(crate) fn parse(path: &str, search: &str) -> Page {
         "/workers" => Page::Workers,
         "/journal" => Page::Journal,
         "/routers/new" => Page::NewRouter,
+        "/topology" => {
+            let key = param(search, "tab").unwrap_or("");
+            let tab = TOPOLOGY_TABS
+                .iter()
+                .find(|(k, _)| *k == key)
+                .map_or("builder", |(k, _)| k);
+            let subscriber = param(search, "subscriber")
+                .filter(|s| tab == "assignments" && subscriber_id(s))
+                .map(str::to_owned);
+            Page::Topology { tab, subscriber }
+        }
+        "/pppoe" | "/ipoe" => Page::Source {
+            kind: if path == "/pppoe" { "ppp" } else { "dhcp" },
+            plans: param(search, "view") == Some("plans"),
+        },
         _ => match path.strip_prefix("/routers/") {
             Some(id) if router_id(id) => {
                 let key = search
@@ -116,6 +167,63 @@ mod tests {
             assert_eq!(parse(bad, ""), Page::Unknown, "{bad}");
         }
         assert_eq!(router_href("lq3-1", Tab::Overview), "/routers/lq3-1");
+        // Topology views. An unknown tab is the Builder; an unsafe subscriber is dropped.
+        assert_eq!(
+            parse("/topology", ""),
+            Page::Topology {
+                tab: "builder",
+                subscriber: None
+            }
+        );
+        assert_eq!(
+            parse("/topology/", "?tab=secrets"),
+            Page::Topology {
+                tab: "builder",
+                subscriber: None
+            }
+        );
+        assert_eq!(
+            parse("/topology", "?tab=assignments&subscriber=tm-sub-00ff"),
+            Page::Topology {
+                tab: "assignments",
+                subscriber: Some("tm-sub-00ff".into())
+            }
+        );
+        for bad in ["192.0.2.1", "a/b", "%2e"] {
+            assert_eq!(
+                parse("/topology", &format!("?tab=assignments&subscriber={bad}")),
+                Page::Topology {
+                    tab: "assignments",
+                    subscriber: None
+                },
+                "{bad}"
+            );
+        }
+        assert_eq!(
+            parse("/topology", "?tab=policies&subscriber=tm-sub-1"),
+            Page::Topology {
+                tab: "policies",
+                subscriber: None
+            }
+        );
+        assert_eq!(
+            parse("/pppoe", ""),
+            Page::Source {
+                kind: "ppp",
+                plans: false
+            }
+        );
+        assert_eq!(
+            parse("/ipoe", "?view=plans"),
+            Page::Source {
+                kind: "dhcp",
+                plans: true
+            }
+        );
+        assert_eq!(
+            assignments_href("tm-sub-1"),
+            "/topology?tab=assignments&subscriber=tm-sub-1"
+        );
         assert_eq!(
             router_href("lq3-1", Tab::Sources),
             "/routers/lq3-1?tab=sources"

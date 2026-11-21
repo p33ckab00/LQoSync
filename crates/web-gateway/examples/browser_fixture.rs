@@ -287,7 +287,55 @@ async fn main() -> anyhow::Result<()> {
        "roles":["ppp"],"wans":[],"collection":null,"sources":[{"kind":"ppp","enabled":true,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
        "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":false,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}}
     ]});
+    // Synthetic topology view: two WANs, one shared plan with four unique members, one subscriber
+    // with both PPPoE and DHCP identities, and observation-only rows.
+    let ident = |kind: &str, account: &str| serde_json::json!({"router_id":"lq3-00000000000000a1","source_id":format!("access-{kind}"),"kind":kind,"account_ref":account});
+    let active = |node: &str, ip: &str| serde_json::json!({"node":node,"ips":[ip],"min_mbps":[50.0,25.0],"max_mbps":[100.0,50.0],"fallback":false});
+    let obs = |kind: &str,
+               name: &str,
+               ip: &str,
+               state: &str,
+               sub: Option<&str>,
+               pin: Option<&str>,
+               node: Option<&str>| {
+        serde_json::json!({"router_id":"lq3-00000000000000a1","router":"Access-01","kind":kind,"name":name,"ipv4":ip,"mac":"",
+          "state":state,"link":if sub.is_some(){"verified"}else{"none"},"subscriber_id":sub,
+          "plan_id":sub.map(|_|"plan-access-100"),"pin":pin,"node":node})
+    };
+    let topology = serde_json::json!({"version":1,"updated":at,"fresh_for":300,"snapshot_id":"r42-c1-o42-g7-p1",
+      "registry_revision":"42","mode":"apply","writer":"topology","enrolled":true,
+      "observed":{"revision":"42","collected_at":at.saturating_sub(8),"generation":7,"state":"ok","stale":false},
+      "nodes":[
+        {"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false,"calculated_mbps":[1000.0,500.0],"exported_mbps":[1000.0,500.0],"members":3},
+        {"id":"tm-node-ppp-north","name":"PPPoE access","parent":"tm-node-wan-north","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[400.0,200.0],"exported_mbps":[400.0,200.0],"members":3},
+        {"id":"tm-node-wan-south","name":"WAN South","parent":null,"kind":"wan","source_id":"wan-south","capacity":{"mode":"fixed","down_mbps":500,"up_mbps":250,"factor_percent":null},"alias":false,"calculated_mbps":[500.0,250.0],"exported_mbps":[500.0,250.0],"members":1},
+        {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":1}
+      ],
+      "sources":[{"id":"wan-north","name":"pppoe-wan-north","kind":"wan"},{"id":"wan-south","name":"pppoe-wan-south","kind":"wan"},
+                 {"id":"access-ppp","name":"PPPoE access","kind":"subscribers"},{"id":"access-dhcp","name":"DHCP service","kind":"subscribers"}],
+      "fallback":null,
+      "plans":[{"id":"plan-access-100","name":"Access 100","down_mbps":100,"up_mbps":50,"ppp_identities":3,"dhcp_identities":2,"subscribers":4}],
+      "subscribers":[
+        {"id":"tm-sub-0000000000000002","identities":[ident("ppp","ppp-name/v1/account-02"),ident("dhcp","dhcp-mac/v1/02:00:00:00:00:02")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-ppp-north","192.0.2.12")},
+        {"id":"tm-sub-0000000000000003","identities":[ident("ppp","ppp-name/v1/account-03")],"plan_id":"plan-access-100","pin":"tm-node-wan-south","assignment":null,"active":active("tm-node-ppp-north","192.0.2.13")},
+        {"id":"tm-sub-0000000000000004","identities":[ident("ppp","ppp-name/v1/account-04")],"plan_id":"plan-access-100","pin":"tm-node-wan-north","assignment":null,"active":null},
+        {"id":"tm-sub-0000000000000006","identities":[ident("dhcp","dhcp-mac/v1/02:00:00:00:00:06")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-dhcp-south","192.0.2.16")}
+      ],
+      "observations":[
+        obs("ppp","account-02","192.0.2.12","online",Some("tm-sub-0000000000000002"),None,Some("tm-node-ppp-north")),
+        obs("ppp","account-03","192.0.2.13","online",Some("tm-sub-0000000000000003"),Some("tm-node-wan-south"),Some("tm-node-ppp-north")),
+        obs("ppp","account-04","","offline",Some("tm-sub-0000000000000004"),Some("tm-node-wan-north"),None),
+        obs("ppp","account-05","","disabled",None,None,None),
+        obs("dhcp","client-02","192.0.2.22","bound",Some("tm-sub-0000000000000002"),None,Some("tm-node-ppp-north")),
+        obs("dhcp","client-06","192.0.2.16","bound",Some("tm-sub-0000000000000006"),None,Some("tm-node-dhcp-south")),
+        obs("dhcp","unknown-host","192.0.2.30","bound",None,None,None)
+      ],
+      "collection":[{"router_id":"lq3-00000000000000a1","name":"Access-01","state":"online","observed_at":at,
+        "sources":[{"kind":"ppp","enabled":true,"records":4,"online":2,"offline":1},{"kind":"dhcp","enabled":true,"records":3,"online":3,"offline":null}]}],
+      "conflicts":[]
+    });
     for (name, value) in [
+        ("topology.json", topology),
         ("status.json", status),
         ("collection.json", collection),
         ("system-health.json", health),

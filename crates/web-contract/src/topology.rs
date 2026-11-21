@@ -156,6 +156,14 @@ pub struct Observation {
     /// `none`: no saved record has that reference. `unknown`: the evidence cannot decide.
     pub link: String,
     pub subscriber_id: Option<String>,
+    /// The policy of the linked record. `None` without a verified link.
+    #[serde(default)]
+    pub plan_id: Option<String>,
+    #[serde(default)]
+    pub pin: Option<String>,
+    /// The preview placement of the linked record.
+    #[serde(default)]
+    pub node: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

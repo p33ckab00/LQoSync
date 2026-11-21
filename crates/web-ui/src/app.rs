@@ -62,6 +62,8 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
         | crate::route_model::Page::Router { .. } => 1,
         crate::route_model::Page::Workers => 3,
         crate::route_model::Page::Journal => 4,
+        crate::route_model::Page::Topology { .. } => 5,
+        crate::route_model::Page::Source { .. } => 6,
         crate::route_model::Page::Unknown => 2,
     });
     let data = RwSignal::new(None::<Overview>);
@@ -162,6 +164,12 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
               1=>view!{<crate::routers::RoutersPage data session filter/>}.into_any(),
               3=>view!{<crate::workers::WorkersPage data/>}.into_any(),
               4=>view!{<crate::journal::JournalPage session/>}.into_any(),
+              // A view change inside Topology, PPPoE, or IPoE renders the page again from the route.
+              5|6=>(move||match page.get() {
+                crate::route_model::Page::Topology{tab,subscriber}=>view!{<crate::topology::TopologyPage session tab subscriber/>}.into_any(),
+                crate::route_model::Page::Source{kind,plans}=>view!{<crate::subscriber_views::SourcePage session kind plans/>}.into_any(),
+                _=>().into_any(),
+              }).into_any(),
               _=>view!{
                 <div class="page-heading"><div><h1 tabindex="-1">"Page not found"</h1><p>"This address is not a page of LQoSync."</p></div></div>
                 <p><crate::route::Link href="/".to_string()>"Go to the Dashboard"</crate::route::Link></p>

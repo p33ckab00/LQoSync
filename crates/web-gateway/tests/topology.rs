@@ -34,6 +34,9 @@ fn observation(i: usize, kind: &str, router: &str, linked: bool) -> Observation 
         state: "online".into(),
         link: if linked { "verified" } else { "none" }.into(),
         subscriber_id: linked.then(|| format!("sub-{i:05}")),
+        plan_id: None,
+        pin: None,
+        node: None,
     }
 }
 

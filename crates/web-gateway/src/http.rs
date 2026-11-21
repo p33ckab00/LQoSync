@@ -488,6 +488,9 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/routers/{*rest}", get(index))
         .route("/workers", get(index))
         .route("/journal", get(index))
+        .route("/topology", get(index))
+        .route("/pppoe", get(index))
+        .route("/ipoe", get(index))
         .route(
             "/api/{*path}",
             get(|| async { StatusCode::NOT_FOUND })
