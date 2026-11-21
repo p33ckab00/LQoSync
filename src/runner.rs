@@ -507,6 +507,9 @@ where
                     if let Err(error) = tracker.recover_events(&self.health) {
                         eprintln!("write event recovery: {error}");
                     }
+                    if tracker.recovered_pair() {
+                        self.request_recovered_import();
+                    }
                     self.write_tracker = Some(Arc::new(Mutex::new(tracker)));
                 }
                 Err(error) => {
@@ -645,6 +648,28 @@ where
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
             eprintln!("warning: cannot write topology.json: {error:#}");
+        }
+    }
+
+    /// A restart installed an interrupted pair: ask LibreQoS to import it, as after a write.
+    fn request_recovered_import(&self) {
+        let v3_pair = crate::detect::resolve(&self.cfg.libreqos)
+            .is_ok_and(|d| d.target == crate::config::Target::V3Pair);
+        if !v3_pair || self.cfg.runtime.mode != RuntimeMode::Apply {
+            return;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let state_dir = Path::new(&self.cfg.runtime.state_dir);
+        let lqos_state = Path::new(&self.cfg.libreqos.state_directory);
+        if let Err(e) = files::write_if_changed(
+            &state_dir.join("import-pending"),
+            now.to_string().as_bytes(),
+        )
+        .and_then(|_| files::request_v3_import(lqos_state, now, &random_id(16)))
+        {
+            eprintln!("warning: cannot request the import of the recovered pair: {e:#}");
         }
     }
 
@@ -3448,6 +3473,43 @@ mod tests {
         let t: serde_json::Value = serde_json::from_str(&read(&req)).unwrap();
         assert_eq!(t["requested_at"], 1_240);
         assert_ne!(t["nonce"].as_str().unwrap(), nonce);
+    }
+
+    #[tokio::test]
+    async fn a_restart_completes_an_interrupted_pair_and_asks_for_its_import() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let req = e.lqos.join("lqstate/scheduler/reload_request.json");
+        let mut r = runner(&e, v3_apply(&e));
+        r.cycle(1_000, false).await;
+        drop(r);
+        std::fs::remove_file(&req).unwrap();
+        let _ = std::fs::remove_file(e.state.join("import-pending"));
+        // Rewind to a crash after network.json: the CSV is old and its stage holds the new text.
+        let csv = e.lqos.join("ShapedDevices.csv");
+        let receipt_path = e.state.join("write-receipt.json");
+        let mut receipt: serde_json::Value = serde_json::from_str(&read(&receipt_path)).unwrap();
+        let id = receipt["write_id"].as_str().unwrap().to_string();
+        let index = (0..2)
+            .find(|&i| {
+                receipt["files"][i]["path"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("ShapedDevices.csv")
+            })
+            .unwrap();
+        let new = read(&csv);
+        std::fs::write(crate::files::stage_path(&csv, &id), &new).unwrap();
+        std::fs::write(&csv, "old\n").unwrap();
+        receipt["phase"] = "INTENT".into();
+        receipt["files"][index]["outcome"] = "PENDING".into();
+        crate::files::write_secret(&receipt_path, &serde_json::to_vec(&receipt).unwrap()).unwrap();
+        let mut r = runner(&e, v3_apply(&e));
+        r.lock().unwrap();
+        assert_eq!(read(&csv), new, "the restart installs the staged CSV");
+        let t: serde_json::Value = serde_json::from_str(&read(&req)).unwrap();
+        assert_eq!(t["requested_by"], "lqosync3");
+        assert!(e.state.join("import-pending").exists());
     }
 
     #[tokio::test]

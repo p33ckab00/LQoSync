@@ -116,6 +116,57 @@ pub struct WriteResult {
 pub struct Tracker {
     dir: PathBuf,
     current: Option<Receipt>,
+    /// Load completed an interrupted pair from its stages. The pair needs an import request.
+    recovered_pair: bool,
+}
+
+/// The file at `path` has the SHA-256 `sha`. A missing or oversized file does not match.
+fn matches_hash(path: &Path, sha: &str) -> bool {
+    let read = || -> anyhow::Result<bool> {
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)?
+            .take(64 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)?;
+        Ok(bytes.len() <= 64 * 1024 * 1024 && sha256(&bytes) == sha)
+    };
+    read().unwrap_or(false)
+}
+
+/// Finish an interrupted write: install its stages only when every unfinished file has a stage
+/// with the recorded hash, so the pair is never left half new. Remove every stage after.
+fn complete_pair(receipt: &Receipt) -> bool {
+    let todo: Vec<&FileReceipt> = receipt
+        .files
+        .iter()
+        .filter(|f| f.outcome == FileOutcome::Pending && !matches_hash(&f.path, &f.sha256))
+        .collect();
+    let stages: Vec<PathBuf> = todo
+        .iter()
+        .map(|f| crate::files::stage_path(&f.path, &receipt.write_id))
+        .collect();
+    let complete = !todo.is_empty()
+        && todo
+            .iter()
+            .zip(&stages)
+            .all(|(f, stage)| matches_hash(stage, &f.sha256));
+    let mut installed = complete;
+    if complete {
+        for (f, stage) in todo.iter().zip(&stages) {
+            if let Err(error) = crate::files::install_stage(stage, &f.path) {
+                eprintln!("write recovery: {error:#}");
+                installed = false;
+                break;
+            }
+        }
+    } else if !todo.is_empty() {
+        eprintln!(
+            "write recovery: the interrupted write has no complete stage; the next write replaces the pair"
+        );
+    }
+    for f in &receipt.files {
+        crate::files::remove_stages(&f.path);
+    }
+    installed
 }
 
 /// Reuse the existing crypto implementation; no new hashing dependency or subprocess.
@@ -156,23 +207,25 @@ impl Tracker {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e.into()),
         };
+        // Recovery comes before any new publication or import request.
+        let recovered_pair = current
+            .as_ref()
+            .is_some_and(|r| r.phase == Phase::Interrupted && complete_pair(r));
         Ok(Self {
             dir: dir.into(),
             current,
+            recovered_pair,
         })
+    }
+    pub fn recovered_pair(&self) -> bool {
+        self.recovered_pair
     }
     fn files_match(&self) -> bool {
         self.current.as_ref().is_some_and(|receipt| {
-            receipt.files.iter().all(|file| {
-                let read = || -> anyhow::Result<bool> {
-                    let mut bytes = Vec::new();
-                    std::fs::File::open(&file.path)?
-                        .take(64 * 1024 * 1024 + 1)
-                        .read_to_end(&mut bytes)?;
-                    Ok(bytes.len() <= 64 * 1024 * 1024 && sha256(&bytes) == file.sha256)
-                };
-                read().unwrap_or(false)
-            })
+            receipt
+                .files
+                .iter()
+                .all(|file| matches_hash(&file.path, &file.sha256))
         })
     }
     pub fn reconcile(&mut self, now: u64, hub: &Hub) -> anyhow::Result<bool> {
@@ -558,7 +611,7 @@ impl Tracker {
         }
         self.current = Some(Receipt {
             version: 1,
-            write_id,
+            write_id: write_id.clone(),
             phase: Phase::Intent,
             started: now,
             updated: now,
@@ -586,17 +639,38 @@ impl Tracker {
             self.notification_fault(hub);
             return result;
         }
+        // Stage every changed file before any replacement. A crash then leaves the old pair, or
+        // stages that `load` installs together; LibreQoS has no pair generation gate of its own.
+        let mut staged = Vec::new();
         for (index, (path, text)) in outputs.iter().enumerate() {
-            let outcome = crate::files::write_if_changed(path, text.as_bytes());
+            if !differs[index] {
+                continue;
+            }
+            crate::files::remove_stages(path);
+            match crate::files::stage(path, text.as_bytes(), &write_id) {
+                Ok(stage) => staged.push((index, stage)),
+                Err(error) => {
+                    let receipt = self.current.as_mut().expect("write intent");
+                    receipt.files[index].outcome = FileOutcome::Failed;
+                    receipt.error = Some(bounded_error(&error));
+                    result.error = Some(format!("{error:#}"));
+                    break;
+                }
+            }
+        }
+        if result.error.is_some() {
+            for (_, stage) in &staged {
+                let _ = std::fs::remove_file(stage);
+            }
+            staged.clear();
+        }
+        for (index, stage) in staged {
+            let outcome = crate::files::install_stage(&stage, &outputs[index].0);
             let receipt = self.current.as_mut().expect("write intent");
             match outcome {
-                Ok(changed) => {
-                    result.changed |= changed;
-                    receipt.files[index].outcome = if changed {
-                        FileOutcome::Written
-                    } else {
-                        FileOutcome::Unchanged
-                    };
+                Ok(()) => {
+                    result.changed = true;
+                    receipt.files[index].outcome = FileOutcome::Written;
                 }
                 Err(error) => {
                     receipt.files[index].outcome = FileOutcome::Failed;

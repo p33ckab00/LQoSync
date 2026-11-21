@@ -119,3 +119,37 @@ Recorded: 2026-11-22 (Asia/Manila). Synthetic fixture only. No production servic
 | `tools/frontend/topology-workflow-check.cjs` | Removed: it tested the tree disclosure and search of the removed tree Builder |
 
 Captures: `canvas-light.png`, `canvas-dark.png`, `node-modal.png`, `node-modal-375.png`.
+
+## Task 5: coordinated pair publication
+
+Recorded: 2026-11-22 (Asia/Manila). Source inspection of the installed LibreQoS is read-only.
+
+### Importer finding
+
+The installed LibreQoS does not exclude a mixed pair.
+`/opt/libreqos/src/scheduler.py` reads `network.json` and `ShapedDevices.csv` on a reload request and on each scheduled partial reload (`importAndShapePartialReload`, `calculate_shaping_runtime_hash`). It has no pair generation gate.
+`lqosd` also loads `ShapedDevices.csv` when the file changes. The `topology_effective_publish.lock.guard` file belongs to the `lqosd` output, not to the input pair.
+
+### Publisher protocol
+
+1. Save the write intent with the SHA-256 of each file (unchanged).
+2. Stage every changed file beside its target as `.<name>.stage-<write id>`. Sync each stage and its folder.
+3. Replace the targets only after all stages are durable. Record each outcome.
+4. On restart, `Tracker::load` completes an interrupted write before any cycle: it installs the stages only when every unfinished file has a stage with the recorded hash. Otherwise it installs nothing and removes the stages.
+5. After a completed recovery, the service requests a LibreQoS import, as after a normal write.
+
+Results: a crash before or during staging keeps the previous pair. A crash between the two replacements is completed on restart. A corrupt stage is never installed, and a mixed pair is never reconciled or confirmed.
+
+### Residual risk
+
+During a normal write, the two renames are microseconds apart. A scheduled LibreQoS read in that interval can still read a mixed pair.
+Only a reader-side gate in LibreQoS can close this interval. Record this risk in the Task 7 live window decision.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| `tests/write_receipt.rs` (21 tests) | Pass: staging failure replaces no file, no stage remains, restart completes after the first replacement and before any replacement, interrupted staging keeps the old pair, corrupt stage is never installed |
+| `runner::tests::a_restart_completes_an_interrupted_pair_and_asks_for_its_import` | Pass |
+| Existing: `superseded_operation_cannot_consume_an_older_proof`, `only_correlated_evidence_can_accept_the_same_operation`, `input_changes_restarts_and_wrong_runtime_evidence_cannot_accept`, `compiler_drift_invalidates_prepared_and_already_constructed_proofs` | Pass: stale ACK, late receipts, digest drift, and compiler drift cannot mark a new revision Applied |
+| Existing: `a_replaced_instance_lock_prevents_staging_and_recovery`, `unknown_source_and_owner_changes_block_recovery_and_keep_the_journal` | Pass: lock loss and unknown ownership block writes |

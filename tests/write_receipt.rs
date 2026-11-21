@@ -40,12 +40,14 @@ fn partial_pair_failure_retains_the_completed_file_outcome() {
     out[1].0 = d.path().join("blocked/child");
     let mut tracker = Tracker::load(d.path()).unwrap();
     let r = tracker.write(&out, meta(), 10, &Hub::default());
-    assert!(r.changed);
+    assert!(!r.changed, "a staging failure replaces no file");
     assert!(r.error.is_some());
     let current = tracker.current().unwrap();
     assert_eq!(current.phase, Phase::WriteFailed);
-    assert_eq!(current.files[0].outcome, FileOutcome::Written);
+    assert_eq!(current.files[0].outcome, FileOutcome::Pending);
     assert_eq!(current.files[1].outcome, FileOutcome::Failed);
+    assert!(!out[0].0.exists(), "the first file is not replaced alone");
+    assert!(stages(&d.path().join("live")).is_empty());
 }
 #[test]
 fn restart_recovers_identity_but_interrupted_intent_never_becomes_applied() {
@@ -388,5 +390,127 @@ fn unchanged_outputs_keep_the_current_static_source_revision_after_restart() {
             .unwrap()
             .revision,
         2
+    );
+}
+
+/// Stage files left in a directory.
+fn stages(dir: &std::path::Path) -> Vec<String> {
+    std::fs::read_dir(dir)
+        .map(|r| {
+            r.filter_map(|e| e.ok()?.file_name().into_string().ok())
+                .filter(|n| n.contains(".stage-"))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Write pair A, then pair B, then rewind the disk to a crash during B: `replaced` files hold B,
+/// the others hold A, `staged` files have a B stage (or `corrupt` bytes), and the receipt is Intent.
+fn crash(
+    d: &std::path::Path,
+    replaced: &[usize],
+    staged: &[usize],
+    corrupt: bool,
+) -> Vec<(PathBuf, String)> {
+    let live = d.join("live");
+    let a = outputs(&live);
+    let b = vec![
+        (live.join("network.json"), "{\"b\":1}".to_string()),
+        (live.join("ShapedDevices.csv"), "csv-b".to_string()),
+    ];
+    let mut tracker = Tracker::load(d).unwrap();
+    tracker.write(&a, meta(), 10, &Hub::default());
+    tracker.write(&b, meta(), 11, &Hub::default());
+    let id = tracker.current().unwrap().write_id.clone();
+    drop(tracker);
+    let receipt_path = d.join("write-receipt.json");
+    let mut receipt: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&receipt_path).unwrap()).unwrap();
+    receipt["phase"] = "INTENT".into();
+    for i in 0..2 {
+        if !replaced.contains(&i) {
+            std::fs::write(&a[i].0, &a[i].1).unwrap();
+            receipt["files"][i]["outcome"] = "PENDING".into();
+        }
+        if staged.contains(&i) {
+            let bytes = if corrupt { "garbage" } else { b[i].1.as_str() };
+            std::fs::write(lqosync3::files::stage_path(&b[i].0, &id), bytes).unwrap();
+        }
+    }
+    lqosync3::files::write_secret(&receipt_path, &serde_json::to_vec(&receipt).unwrap()).unwrap();
+    b
+}
+
+#[test]
+fn a_write_stages_both_files_and_leaves_no_stage_behind() {
+    let d = tempfile::tempdir().unwrap();
+    let out = outputs(&d.path().join("live"));
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    assert!(
+        tracker
+            .write(&out, meta(), 10, &Hub::default())
+            .error
+            .is_none()
+    );
+    assert!(stages(&d.path().join("live")).is_empty());
+    assert_eq!(std::fs::read_to_string(&out[1].0).unwrap(), "csv");
+}
+
+#[test]
+fn restart_completes_a_pair_interrupted_after_the_first_replacement() {
+    let d = tempfile::tempdir().unwrap();
+    let b = crash(d.path(), &[0], &[1], false);
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    assert!(tracker.recovered_pair());
+    for (path, text) in &b {
+        assert_eq!(&std::fs::read_to_string(path).unwrap(), text);
+    }
+    assert!(stages(&d.path().join("live")).is_empty());
+    assert!(tracker.reconcile(12, &Hub::default()).unwrap());
+    assert_eq!(tracker.current().unwrap().phase, Phase::Pending);
+}
+
+#[test]
+fn restart_completes_a_pair_interrupted_before_any_replacement() {
+    let d = tempfile::tempdir().unwrap();
+    let b = crash(d.path(), &[], &[0, 1], false);
+    let tracker = Tracker::load(d.path()).unwrap();
+    assert!(tracker.recovered_pair());
+    for (path, text) in &b {
+        assert_eq!(&std::fs::read_to_string(path).unwrap(), text);
+    }
+}
+
+#[test]
+fn restart_after_an_interrupted_staging_keeps_the_previous_pair() {
+    let d = tempfile::tempdir().unwrap();
+    let a = outputs(&d.path().join("live"));
+    crash(d.path(), &[], &[0], false);
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    assert!(!tracker.recovered_pair());
+    for (path, text) in &a {
+        assert_eq!(
+            &std::fs::read_to_string(path).unwrap(),
+            text,
+            "the old pair stays whole"
+        );
+    }
+    assert!(stages(&d.path().join("live")).is_empty());
+    assert!(!tracker.reconcile(12, &Hub::default()).unwrap());
+    assert_ne!(tracker.current().unwrap().phase, Phase::Applied);
+}
+
+#[test]
+fn a_corrupt_stage_is_never_installed() {
+    let d = tempfile::tempdir().unwrap();
+    let a = outputs(&d.path().join("live"));
+    crash(d.path(), &[0], &[1], true);
+    let mut tracker = Tracker::load(d.path()).unwrap();
+    assert!(!tracker.recovered_pair());
+    assert_eq!(std::fs::read_to_string(&a[1].0).unwrap(), a[1].1);
+    assert!(stages(&d.path().join("live")).is_empty());
+    assert!(
+        !tracker.reconcile(12, &Hub::default()).unwrap(),
+        "a mixed pair is never confirmed"
     );
 }

@@ -104,6 +104,67 @@ pub fn write_if_changed(path: &Path, bytes: &[u8]) -> anyhow::Result<bool> {
     Ok(true)
 }
 
+/// The staged copy of `path` for the write `write_id`, beside it on the same file system.
+pub fn stage_path(path: &Path, write_id: &str) -> std::path::PathBuf {
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+    path.with_file_name(format!(".{name}.stage-{write_id}"))
+}
+
+/// Write `bytes` to the stage of `path`, with the mode and owner of the old file. The stage and
+/// its folder entry are synced, so a restart can still find it.
+pub fn stage(path: &Path, bytes: &[u8], write_id: &str) -> anyhow::Result<std::path::PathBuf> {
+    let dir = path
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir).with_context(|| format!("cannot make {}", dir.display()))?;
+    let staged = stage_path(path, write_id);
+    let _ = std::fs::remove_file(&staged);
+    let mut f = File::options()
+        .write(true)
+        .create_new(true)
+        .open(&staged)
+        .with_context(|| format!("cannot write {}", staged.display()))?;
+    f.write_all(bytes)?;
+    if let Ok(old) = std::fs::metadata(path) {
+        use std::os::unix::fs::MetadataExt;
+        f.set_permissions(old.permissions())?;
+        let _ = std::os::unix::fs::fchown(&f, Some(old.uid()), Some(old.gid()));
+    }
+    f.sync_all()?;
+    File::open(dir)?.sync_all()?;
+    Ok(staged)
+}
+
+/// Replace `path` with its stage, then sync the folder.
+pub fn install_stage(staged: &Path, path: &Path) -> anyhow::Result<()> {
+    std::fs::rename(staged, path)
+        .with_context(|| format!("cannot rename {} to {}", staged.display(), path.display()))?;
+    let dir = path
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    File::open(dir)?.sync_all()?;
+    Ok(())
+}
+
+/// Remove every stage of `path`, also those of an older write.
+pub fn remove_stages(path: &Path) {
+    let (Some(dir), Some(name)) = (path.parent(), path.file_name().and_then(|n| n.to_str())) else {
+        return;
+    };
+    let prefix = format!(".{name}.stage-");
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|n| n.starts_with(&prefix))
+        {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 /// Write `bytes` to `path` with mode 0600, through a temporary file with mode 0600 and a rename.
 /// No sync: use it only for a cache that the next cycle writes again.
 pub fn write_private(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
