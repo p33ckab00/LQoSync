@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-21-topology-workflow-repair]] — Compact Builder and source views, automatic owned cycles, and explicit activation
+
 - [[2026-11-21-traffic-queue-dynamics-v5]] — DPDK-only traffic chart, Queue Dynamics design reference, three SVG samples, and Rust integration plan
 
 - [[2026-11-21-router-toolbar-modal]] — Compact icon controls and modal registration on Routers

@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod live_test;
+mod topology_cycle;
 pub use live_test::{LiveIo, LiveTestReport, NativeIo, restore_backup, restore_pair};
 
 /// The time that LibreQoS v3 can take to import a new `shaped_devices` pair. Its scheduler
@@ -121,6 +122,7 @@ pub struct Runner<C: Connector + 'static> {
     edit_proposal: Option<EditProposal>,
     edit_sequence: u64,
     topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
+    topology_compiler: Option<crate::topology_manager::compiler::ControlledCompiler>,
 }
 
 /// A Builder edit result that `topology.edit.confirm` commits as it is.
@@ -232,6 +234,7 @@ where
             topology_sources: crate::topology_manager::coordinator::Coordinator::new(
                 connector.clone(),
             ),
+            topology_compiler: None,
             connector,
             sessions: HashMap::new(),
             lock: None,
@@ -1983,21 +1986,7 @@ where
             pair.generation() > self.last_topology_generation,
             "out-of-order topology observation generation"
         );
-        pair.check_source_filters(&self.cfg)?;
-        {
-            let tracker = self
-                .write_tracker
-                .as_ref()
-                .context("receipt owner is missing")?
-                .lock()
-                .map_err(|_| anyhow::anyhow!("write receipt owner is poisoned"))?;
-            pair.check_static_previous(
-                tracker
-                    .current()
-                    .and_then(|r| r.meta.topology.as_ref())
-                    .and_then(|t| t.static_source.as_ref()),
-            )?;
-        }
+        self.check_topology_pair(&pair)?;
         compiler.check_config(&self.cfg.libreqos)?;
         let compiled = compiler.compile(pair).await?;
         self.publish_compiled(compiled, now)
@@ -2096,6 +2085,7 @@ where
             .clear(crate::system_health::Domain::Notification);
         self.sessions.clear();
         self.topology_sources.clear_sessions();
+        self.topology_compiler = None;
         self.config_error = None;
     }
 
@@ -2111,25 +2101,30 @@ where
         let state_dir = Path::new(&self.cfg.runtime.state_dir).to_path_buf();
         let mut status = self.base_status(now);
         // Without the lock, another process owns the files: write nothing, not even the status.
-        if let Err(e) = self.lock().and_then(|()| {
-            anyhow::ensure!(
-                !crate::topology_manager::runtime::topology_owns(&state_dir)?,
-                "topology owns the writer; legacy fallback is blocked"
-            );
-            Ok(())
-        }) {
-            let error = Some(format!("{e:#}"));
-            status.error = error.clone();
-            return CycleSummary {
-                changed: false,
-                error,
-                status,
-            };
-        }
+        let topology = match self
+            .lock()
+            .and_then(|()| crate::topology_manager::runtime::topology_owns(&state_dir))
+        {
+            Ok(topology) => topology,
+            Err(e) => {
+                let error = Some(format!("{e:#}"));
+                status.error = error.clone();
+                return CycleSummary {
+                    changed: false,
+                    error,
+                    status,
+                };
+            }
+        };
         self.cycle_seq += 1;
         self.cycle_observed_at = now;
         status.cycle_seq = self.cycle_seq;
-        let result = self.cycle_inner(now, force, &state_dir, &mut status).await;
+        let result = if topology {
+            self.topology_cycle_inner(now, &state_dir, &mut status)
+                .await
+        } else {
+            self.cycle_inner(now, force, &state_dir, &mut status).await
+        };
         let (changed, error) = match result {
             Ok((changed, None)) => (changed, None),
             Ok((changed, Some(reload))) => {
@@ -2160,6 +2155,21 @@ where
         summary
     }
 
+    async fn native_diagnostics(
+        &self,
+        now: u64,
+        state_dir: &Path,
+        status: &mut Status,
+    ) -> Option<crate::probe::Probe> {
+        let (native, native_new) = crate::probe::status(&self.cfg.libreqos, state_dir, now).await;
+        status.native = native.as_ref().map_or(String::new(), |p| p.summary());
+        status.native_ready_new = native_new;
+        if native.is_some() {
+            status.bridge = crate::bridge::read().await;
+        }
+        native
+    }
+
     async fn cycle_inner(
         &mut self,
         now: u64,
@@ -2173,13 +2183,7 @@ where
         let v3 = target != Target::V2Pair;
         // LibreQoS 3.0.7 compiles libreqos_network.json with 1 Mbps nodes. The probe runs again
         // after a LibreQoS upgrade; v3_network writes only when it passes.
-        let (native, native_new) = crate::probe::status(&self.cfg.libreqos, state_dir, now).await;
-        status.native = native.as_ref().map_or(String::new(), |p| p.summary());
-        status.native_ready_new = native_new;
-        // The same test as the probe: LibreQoS v3 with its binding has the DPDK bridge.
-        if native.is_some() {
-            status.bridge = crate::bridge::read().await;
-        }
+        let native = self.native_diagnostics(now, state_dir, status).await;
         if target == Target::V3Network
             && self.cfg.runtime.mode == RuntimeMode::Apply
             && !native.as_ref().is_some_and(|p| p.ready())
@@ -2937,6 +2941,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn wan_discovery_rereads_a_wan_only_router_without_subscriber_protocols() {
+        let e = env();
+        let mut c = cfg(&e, "shadow", "");
+        let core = Config::from_toml_str(
+            "[[routers]]\nname=\"Core\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        ).unwrap().routers.remove(0);
+        assert!(!core.reads_subscribers());
+        c.routers.push(core);
+        e.fake.rows.lock().unwrap().insert(
+            "Core".into(),
+            BTreeMap::from([(
+                "/interface".into(),
+                vec![row(&[
+                    ("name", "pppoe-out1"),
+                    ("type", "pppoe-out"),
+                    ("running", "true"),
+                ])],
+            )]),
+        );
+        let mut r = runner(&e, c);
+        let first = r.api_wan_discover().await.unwrap();
+        assert_eq!(first["routers"].as_array().unwrap().len(), 2);
+        assert_eq!(first["routers"][0]["candidates"], serde_json::json!([]));
+        assert_eq!(first["routers"][1]["candidates"][0]["name"], "pppoe-out1");
+        e.fake
+            .rows
+            .lock()
+            .unwrap()
+            .get_mut("Core")
+            .unwrap()
+            .get_mut("/interface")
+            .unwrap()[0]
+            .insert("name".into(), "pppoe-out2".into());
+        let second = r.api_wan_discover().await.unwrap();
+        assert_eq!(second["routers"][1]["candidates"][0]["name"], "pppoe-out2");
+        assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 4);
+    }
+
+    #[tokio::test]
     async fn each_cycle_publishes_the_router_inventory_without_reading_a_wan_only_router() {
         let e = env();
         users(&e, &[("alice", "100.64.0.2")]);
@@ -3658,6 +3701,115 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn activation_requires_enrollment_without_claiming_the_writer_or_reading_sources() {
+        for yes in [false, true] {
+            let e = env();
+            source_registry(&e);
+            let mut r = runner(&e, v3_apply(&e));
+            let error = r.activate_topology(yes, 1000).await.err().unwrap();
+            assert!(error.to_string().contains("not enrolled"));
+            assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
+            assert!(!e.lqos.join("ShapedDevices.csv").exists());
+            assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn activation_cannot_bypass_the_running_services_instance_lease() {
+        let e = env();
+        source_registry(&e);
+        let config = v3_apply(&e);
+        let mut owner = runner(&e, config.clone());
+        owner.lock().unwrap();
+        let mut another = runner(&e, config);
+        let error = another.activate_topology(true, 1000).await.err().unwrap();
+        assert!(error.to_string().contains("another lqosync3 is running"));
+        assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
+    }
+
+    #[tokio::test]
+    async fn config_reload_discards_the_previous_topology_compiler_binding() {
+        let e = env();
+        let config = v3_apply(&e);
+        let mut r = runner(&e, config.clone());
+        let (_native, _, compiler) = crate::topology_manager::compiler::tests::fixture();
+        r.topology_compiler = Some(compiler);
+        r.set_config(config);
+        assert!(r.topology_compiler.is_none());
+    }
+
+    #[tokio::test]
+    async fn an_owned_topology_cycle_reports_its_failure_without_legacy_output() {
+        let e = env();
+        source_registry(&e);
+        crate::topology_manager::runtime::claim(&e.state).unwrap();
+        let mut r = runner(&e, v3_apply(&e));
+        let mut doc = r.api_document().unwrap().unwrap();
+        doc.export_ownership = Some(Default::default());
+        r.test_commit(doc).unwrap();
+        let summary = r.cycle(1_000, false).await;
+        let error = summary.error.expect("the fixture has no native compiler");
+        assert!(!error.contains("legacy fallback"), "{error}");
+        assert_eq!(summary.status.cycle_seq, 1);
+        let saved: serde_json::Value =
+            serde_json::from_str(&read(&e.state.join("status.json"))).unwrap();
+        assert_eq!(saved["updated"], 1_000);
+        assert_eq!(saved["error"], error);
+        assert!(!e.lqos.join("ShapedDevices.csv").exists());
+        assert!(!e.state.join("candidate/ShapedDevices.csv").exists());
+    }
+
+    #[tokio::test]
+    async fn an_owned_topology_cycle_keeps_native_diagnostics_on_publication_failure() {
+        let e = env();
+        source_registry(&e);
+        crate::topology_manager::runtime::claim(&e.state).unwrap();
+        let (_native, mut native_cfg, _) = crate::topology_manager::compiler::tests::fixture();
+        native_cfg.target = Target::V3Pair;
+        let dpkg = e._dir.path().join("dpkg-status");
+        std::fs::write(
+            &dpkg,
+            "Package: libreqos\nStatus: install ok installed\nVersion: 3.0.7\n\n",
+        )
+        .unwrap();
+        native_cfg.dpkg_status = dpkg.to_string_lossy().into();
+        let key = crate::probe::key(&native_cfg).unwrap();
+        crate::files::write_secret(
+            &e.state.join(crate::probe::CACHE),
+            &serde_json::to_vec(&crate::probe::Probe {
+                key,
+                state: "blocked".into(),
+                detail: "fixture probe result".into(),
+                at: 1_000,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let mut config = cfg(&e, "apply", "");
+        config.libreqos = native_cfg;
+        let mut r = runner(&e, config);
+        let summary = r.cycle(1_000, false).await;
+        assert!(summary.error.unwrap().contains("not enrolled"));
+        assert_eq!(summary.status.native, "blocked: fixture probe result");
+        let saved: serde_json::Value =
+            serde_json::from_str(&read(&e.state.join("status.json"))).unwrap();
+        assert_eq!(saved["native"], "blocked: fixture probe result");
+    }
+
+    #[tokio::test]
+    async fn automatic_topology_publication_requires_enrollment_before_any_source_read() {
+        let e = env();
+        source_registry(&e);
+        crate::topology_manager::runtime::claim(&e.state).unwrap();
+        let mut r = runner(&e, v3_apply(&e));
+        let summary = r.cycle(1_000, false).await;
+        assert!(summary.error.unwrap().contains("not enrolled"));
+        assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(r.topology_compiler.is_none());
+        assert!(!e.lqos.join("ShapedDevices.csv").exists());
+    }
+
+    #[tokio::test]
     async fn a_durable_topology_owner_prevents_legacy_fallback_after_restart() {
         let e = env();
         drop(crate::topology_manager::store::RegistryStore::open(&e.state).unwrap());
@@ -3670,7 +3822,12 @@ mod tests {
         let result = r.cycle(1_000, false).await;
         assert!(result.error.is_some());
         assert!(!e.state.join("candidate/ShapedDevices.csv").exists());
-        assert!(!e.state.join("status.json").exists());
+        assert!(e.state.join("status.json").exists());
+        assert!(
+            r.topology_compiler.is_none(),
+            "shadow mode opens no compiler"
+        );
+        assert!(r.sessions.is_empty(), "shadow mode opens no legacy session");
     }
 
     #[tokio::test]
@@ -4104,11 +4261,21 @@ mod tests {
         let mut config = cfg(&e, "apply", "");
         config.libreqos = native_cfg.clone();
         let mut r = runner(&e, config.clone());
+        let mut doc = r.api_document().unwrap().unwrap();
+        doc.export_ownership = Some(Default::default());
+        r.test_commit(doc).unwrap();
+        let revision = r.api_document().unwrap().unwrap().revision;
+        assert!(r.activate_topology(false, 998).await.unwrap().is_none());
+        assert_eq!(r.api_document().unwrap().unwrap().revision, revision);
+        assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
+        assert!(
+            !Path::new(&native_cfg.directory)
+                .join("ShapedDevices.csv")
+                .exists()
+        );
         r.cfg.exclude.ips.push("192.0.2.0/24".into());
-        let filtered = r
-            .sync_topology(&mut compiler, Duration::from_secs(10), 999)
-            .await
-            .unwrap();
+        let filtered = r.activate_topology(true, 999).await.unwrap().unwrap();
+        assert!(e.state.join("topology-manager/runtime-owner.json").exists());
         assert!(filtered.error.is_none());
         assert!(
             crate::state::read_csv(&read(
@@ -4190,7 +4357,73 @@ mod tests {
                 .join("scheduler/reload_request.json")
                 .exists()
         );
-        assert!(r.cycle(1004, false).await.error.is_some());
+        let cycle = r.cycle(1004, false).await;
+        assert!(cycle.error.is_none(), "{:?}", cycle.error);
+        let collection: crate::collection::Report =
+            serde_json::from_str(&read(&e.state.join("collection.json"))).unwrap();
+        assert_eq!(collection.cycle_seq, cycle.status.cycle_seq);
+        assert_eq!(collection.routers[0].subscribers.len(), 1);
+        assert_eq!(collection.routers[0].subscribers[0].ipv4, "192.0.2.99");
+        assert!(e.state.join("topology.json").exists());
+        assert!(e.state.join("routers.json").exists());
+        let routers: web_contract::routers::RouterInventory =
+            serde_json::from_str(&read(&e.state.join("routers.json"))).unwrap();
+        assert_eq!(routers.shaping.total_circuits, 1);
+        assert_eq!(routers.routers[0].circuits, Some(1));
+        let network = Path::new(&native_cfg.directory).join("network.json");
+        let before = read(&network);
+        let mut document = r.api_document().unwrap().unwrap();
+        // Swap the two source instances, preserving one instance per source and parent.
+        for node in &mut document.catalog.as_mut().unwrap().nodes {
+            if node.kind == crate::topology_manager::layout::NodeKind::SubscriberGroup {
+                node.parent = Some(
+                    if node.parent.as_deref() == Some("wan1") {
+                        "wan2"
+                    } else {
+                        "wan1"
+                    }
+                    .into(),
+                );
+            }
+        }
+        r.test_commit(document).unwrap();
+        let moved = r.cycle(1005, false).await;
+        assert!(moved.error.is_none(), "{:?}", moved.error);
+        assert!(moved.changed);
+        assert_ne!(
+            read(&network),
+            before,
+            "the automatic cycle exports the confirmed hierarchy"
+        );
+        let accepted_csv = read(&csv);
+        let exported = crate::state::read_csv(&accepted_csv).unwrap();
+        assert_eq!(exported[0].circuit_id, id);
+        e.fake.failing.lock().unwrap().insert("R1".into());
+        let failed = r.cycle(1006, false).await;
+        assert!(failed.error.is_some());
+        assert_eq!(
+            read(&csv),
+            accepted_csv,
+            "a failed batch cannot replace the live pair"
+        );
+        let kept: crate::collection::Report =
+            serde_json::from_str(&read(&e.state.join("collection.json"))).unwrap();
+        assert_eq!(
+            kept.updated, 1005,
+            "failed reads retain the last source timestamp"
+        );
+        assert_eq!(kept.routers[0].state, "failed");
+        let failed_routers: web_contract::routers::RouterInventory =
+            serde_json::from_str(&read(&e.state.join("routers.json"))).unwrap();
+        assert_eq!(failed_routers.shaping.total_circuits, 1);
+        assert_eq!(failed_routers.routers[0].circuits, Some(1));
+        assert_eq!(
+            failed_routers.routers[0].collection.as_ref().unwrap().state,
+            "failed"
+        );
+        let web: web_contract::topology::TopologyView =
+            serde_json::from_str(&read(&e.state.join("topology.json"))).unwrap();
+        assert_eq!(web.observations[0].state, "stale");
         println!(
             "Configured source sync preserves identity, current endpoints, failure fencing, and restart generations in temporary directories."
         );

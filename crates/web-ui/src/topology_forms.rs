@@ -80,6 +80,8 @@ enum Step {
 fn title(action: &Change) -> String {
     match action {
         Change::Create => "Create node".into(),
+        Change::CreateChild(_) => "Create child node".into(),
+        Change::AttachSource(_, name, _) => format!("Attach source {name}"),
         Change::Edit(n) => format!("Edit {}", n.name),
         Change::Move(n) => format!("Move {}", n.name),
         Change::Remove(n) => format!("Remove {}", n.name),
@@ -301,7 +303,9 @@ pub(crate) fn ChangeDialog(
             (Some(_),Step::Review(r))=>review_view(&r, data).into_any(),
             (Some(a),_)=>{
               let locked=busy();
-              view!{<fieldset disabled=locked>{fields(&a, draft, parents, data)}</fieldset>}.into_any()
+              // Cache age updates must not replace focused draft inputs.
+              let controls=untrack(||fields(&a, draft, parents, data));
+              view!{<fieldset disabled=locked>{controls}</fieldset>}.into_any()
             }
           }}
           <p class="sr-only" role="status">{move||match step.get() {Step::Reviewing=>"Reviewing the change…",Step::Saving=>"Saving the change…",_=>""}}</p>
@@ -386,7 +390,7 @@ fn fields(
         }
     };
     match action.clone() {
-        Change::Create => view! {
+        Change::Create | Change::CreateChild(_) => view! {
           <div class="field"><label for="change-name">"Name"</label>
             <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>
           {parent_select(None)}
@@ -398,6 +402,10 @@ fn fields(
           {capacity()}
         }
         .into_any(),
+        Change::AttachSource(_, name, _) => view! {
+          <p class="panel-note">{format!("Add an instance of {name}. Choose its parent in the hierarchy. The source identity stays shared.")}</p>
+          {parent_select(None)}
+        }.into_any(),
         Change::Edit(_) => view! {
           <div class="field"><label for="change-name">"Name"</label>
             <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>

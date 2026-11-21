@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | activate [--yes] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -36,7 +36,7 @@ pub enum ApiCommand {
     Status,
 }
 
-/// Topology Manager enrollment commands. Each one reads or writes only the files it names.
+/// Topology Manager policy, enrollment, and explicit activation commands.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TopologyCommand {
     PolicyPropose {
@@ -57,6 +57,10 @@ pub enum TopologyCommand {
         mapping: PathBuf,
         yes: bool,
         replace: bool,
+    },
+    /// Compile current enrolled sources. Only `--yes` claims the writer and publishes.
+    Activate {
+        yes: bool,
     },
     /// One live acceptance test on production. The service must be stopped.
     LiveTest {
@@ -90,6 +94,7 @@ fn parse_topology(
         ["policy", "propose"] | ["propose"] => &["--out", "--previous"],
         ["check"] | ["policy", "install"] => &["--policy"],
         ["enroll"] => &["--mapping"],
+        ["activate"] => &[],
         ["live-test"] => &["--report", "--import-timeout"],
         ["live-test-restore"] => &["--backup"],
         _ => bail!("unknown topology command\n{USAGE}"),
@@ -97,8 +102,8 @@ fn parse_topology(
     if let Some(extra) = flags.keys().find(|k| !allowed.contains(&k.as_str())) {
         bail!("unknown argument \"{extra}\"\n{USAGE}");
     }
-    if yes && words != ["enroll"] {
-        bail!("--yes is only for topology enroll\n{USAGE}");
+    if yes && words != ["enroll"] && words != ["activate"] {
+        bail!("--yes is only for topology enroll and activate\n{USAGE}");
     }
     if replace && words != ["enroll"] && words != ["propose"] {
         bail!("--replace is only for topology propose and enroll\n{USAGE}");
@@ -125,6 +130,7 @@ fn parse_topology(
             yes,
             replace,
         },
+        ["activate"] => TopologyCommand::Activate { yes },
         ["live-test"] => TopologyCommand::LiveTest {
             report: file("--report")?,
             import_timeout: match flags.get("--import-timeout") {
@@ -559,6 +565,22 @@ mod tests {
                 replace: false
             })
         );
+    }
+
+    #[test]
+    fn topology_activation_is_an_explicit_dry_run_or_confirmation() {
+        for yes in [false, true] {
+            let mut args = s(&["l", "topology", "activate"]);
+            if yes {
+                args.push("--yes".into());
+            }
+            assert_eq!(
+                parse(&args).unwrap().command,
+                Command::Topology(TopologyCommand::Activate { yes })
+            );
+        }
+        assert!(parse(&s(&["l", "topology", "activate", "--replace"])).is_err());
+        assert!(parse(&s(&["l", "topology", "activate", "--mapping", "m"])).is_err());
     }
 
     #[test]

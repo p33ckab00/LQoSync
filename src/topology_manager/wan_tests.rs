@@ -182,6 +182,25 @@ fn a_wan_source_on_an_unconfigured_router_is_listed() {
 }
 
 #[test]
+fn every_router_remains_visible_when_one_has_no_wan_candidates() {
+    let v = answer(
+        &[
+            ok("Distro", vec![]),
+            ok("Core", vec![iface("pppoe-out1", "pppoe-out")]),
+        ],
+        None,
+        1_000,
+    );
+    let routers = v["routers"].as_array().unwrap();
+    assert_eq!(routers.len(), 2);
+    assert_eq!(routers[0]["name"], "Distro");
+    assert_eq!(routers[0]["state"], "ok");
+    assert_eq!(routers[0]["candidates"], json!([]));
+    assert_eq!(routers[1]["name"], "Core");
+    assert_eq!(names(&routers[1]), ["pppoe-out1"]);
+}
+
+#[test]
 fn without_a_catalog_lists_are_empty() {
     let v = answer(
         &[ok("Core", vec![iface("pppoe-out1", "pppoe-out")])],

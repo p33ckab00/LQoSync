@@ -1,5 +1,8 @@
 # Topology Manager web design
 
+For the current workflow repair and automatic writer activation, read [Topology workflow and automatic sync](TOPOLOGY_WORKFLOW_REPAIR.md).
+The original design below remains the baseline for policy and publication boundaries.
+
 Status: proposal for implementation. This task supplies documents and static mockups only.
 Date: 2026-11-21, Asia/Shanghai. Inspected source: `76563ee`, branch `lqosync3`.
 The deployed state was not inspected. Source availability does not prove production activation.

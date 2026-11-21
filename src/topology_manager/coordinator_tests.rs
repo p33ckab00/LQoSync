@@ -174,6 +174,30 @@ async fn selected_sources_prepare_a_fresh_pair_without_reading_other_protocols_o
     assert_eq!(pair.rows()[0].ipv4, "192.0.2.1");
     assert_eq!(pair.rows()[0].download_max, "50");
     assert_eq!(pair.network().as_object().unwrap().len(), 2);
+    let observed = coordinator.take_observed();
+    assert_eq!(observed.len(), 1);
+    assert_eq!(observed[0].0, "Distro");
+    assert_eq!(observed[0].1.ppp_secret.len(), 1);
+    assert_eq!(observed[0].1.ppp_active.len(), 1);
+    assert_eq!(observed[0].2, ["ppp"]);
+    assert!(coordinator.take_observed().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_failed_source_batch_cannot_republish_previous_observations_as_current() {
+    let (cfg, registry, fake, mut coordinator) = fixture();
+    coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    fake.data.lock().unwrap().get_mut("Distro").unwrap().fail = true;
+    assert!(
+        coordinator
+            .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+            .await
+            .is_err()
+    );
+    assert!(coordinator.take_observed().is_empty());
 }
 
 #[tokio::test(start_paused = true)]

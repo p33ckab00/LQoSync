@@ -46,6 +46,7 @@ pub(crate) struct Coordinator<C: Connector> {
     generation: u64,
     gate: ObservationGate,
     sessions: HashMap<String, SourceSession<C::Session>>,
+    observed: Vec<(String, crate::model::RouterSnapshot, Vec<&'static str>)>,
 }
 impl<C: Connector + 'static> Coordinator<C>
 where
@@ -57,10 +58,17 @@ where
             generation: 0,
             gate: ObservationGate::default(),
             sessions: HashMap::new(),
+            observed: Vec::new(),
         }
     }
     pub(crate) fn clear_sessions(&mut self) {
         self.sessions.clear();
+        self.observed.clear();
+    }
+    pub(crate) fn take_observed(
+        &mut self,
+    ) -> Vec<(String, crate::model::RouterSnapshot, Vec<&'static str>)> {
+        std::mem::take(&mut self.observed)
     }
 
     /// Read and normalize the required protocols of each selected router in one bounded batch.
@@ -72,6 +80,7 @@ where
         minimum_generation: u64,
         deadline: Instant,
     ) -> anyhow::Result<(u64, Vec<CurrentRouter>)> {
+        self.observed.clear();
         // A router disabled since the last batch loses its held session first, even if this batch fails.
         self.sessions.retain(|_, held| {
             cfg.routers
@@ -178,10 +187,32 @@ where
                         )
                         .await
                         .map_err(|_| anyhow::anyhow!("source read failed"))?;
-                    normalize_configured(&evidence, &global_exclusions, &router.exclude)
-                        .map_err(|_| anyhow::anyhow!("source normalization failed"))
+                    let current =
+                        normalize_configured(&evidence, &global_exclusions, &router.exclude)
+                            .map_err(|_| anyhow::anyhow!("source normalization failed"))?;
+                    use super::reader::Table;
+                    let rows = |table| evidence.rows(table).map(<[_]>::to_vec).unwrap_or_default();
+                    let snapshot = crate::model::RouterSnapshot {
+                        ppp_secret: rows(Table::PppSecrets),
+                        ppp_active: rows(Table::PppActive),
+                        ppp_profile: rows(Table::PppProfiles),
+                        hotspot_active: rows(Table::HotspotActive),
+                        hotspot_user: evidence.rows(Table::HotspotUsers).ok().map(<[_]>::to_vec),
+                        dhcp_server: rows(Table::DhcpServers),
+                        dhcp_lease: rows(Table::DhcpLeases),
+                    };
+                    let protocols = evidence
+                        .tables()
+                        .filter_map(|table| match table {
+                            Table::PppSecrets => Some("ppp"),
+                            Table::DhcpLeases => Some("dhcp"),
+                            Table::HotspotUsers => Some("hotspot"),
+                            _ => None,
+                        })
+                        .collect();
+                    Ok::<_, anyhow::Error>((current, snapshot, protocols))
                 };
-                let current = timeout_at(deadline, read)
+                let (current, snapshot, protocols) = timeout_at(deadline, read)
                     .await
                     .context("source batch expired")??;
                 Ok::<_, anyhow::Error>((
@@ -192,16 +223,21 @@ where
                         session,
                     },
                     current,
+                    snapshot,
+                    protocols,
                 ))
             });
         }
         let mut current = Vec::with_capacity(tasks.len());
+        let mut observed = Vec::with_capacity(tasks.len());
         while let Some(outcome) = tasks.join_next().await {
-            let (id, session, router) =
+            let (id, session, router, snapshot, protocols) =
                 outcome.map_err(|_| anyhow::anyhow!("source task stopped"))??;
+            observed.push((session.router.name.clone(), snapshot, protocols));
             self.sessions.insert(id, session);
             current.push(router);
         }
+        self.observed = observed;
         Ok((generation, current))
     }
 
@@ -211,6 +247,7 @@ where
         cfg: &Config,
         max_age: Duration,
     ) -> anyhow::Result<Vec<CurrentRouter>> {
+        self.observed.clear();
         ensure!(!max_age.is_zero(), "source age limit must be positive");
         let deadline = Instant::now()
             .checked_add(max_age)
@@ -242,6 +279,7 @@ where
         minimum_generation: u64,
         max_age: Duration,
     ) -> anyhow::Result<PreparedPair> {
+        self.observed.clear();
         let started = Instant::now();
         ensure!(!max_age.is_zero(), "source age limit must be positive");
         let deadline = started
@@ -279,6 +317,7 @@ where
         minimum_generation: u64,
         max_age: Duration,
     ) -> anyhow::Result<super::observation::Reconciliation> {
+        self.observed.clear();
         ensure!(!max_age.is_zero(), "source age limit must be positive");
         let deadline = Instant::now()
             .checked_add(max_age)

@@ -1,5 +1,4 @@
-//! The Topology Manager screen: Builder, Assignments, Policies, and Changes. Read-only release:
-//! every request is a GET of the service cache. No request reads a router or changes policy.
+//! Cached topology views and explicit, reviewed policy changes. The service owns orchestration.
 use crate::route::Link;
 use crate::route_model::{TOPOLOGY_TABS, assignments_href};
 use crate::topology_model::*;
@@ -48,7 +47,7 @@ pub(crate) fn node_name(data: RwSignal<Option<TopologySummary>>, id: &str) -> St
     .unwrap_or(id.into())
 }
 
-/// The summary, loaded on entry and on Reload. `None` while loading.
+/// Refresh the cache while visible. Polling never reads routers or changes policy.
 pub(crate) fn summary(
     session: RwSignal<Option<Principal>>,
 ) -> (
@@ -58,9 +57,28 @@ pub(crate) fn summary(
 ) {
     let data = RwSignal::new(None::<TopologySummary>);
     let error = RwSignal::new(String::new());
+    let busy = RwSignal::new(false);
+    let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let stop = alive.clone();
+    on_cleanup(move || stop.store(false, std::sync::atomic::Ordering::Relaxed));
+    let active = alive.clone();
     let load = Callback::new(move |()| {
+        if busy.get_untracked() {
+            return;
+        }
+        busy.set(true);
+        let active = active.clone();
+        let expected = session.get_untracked().map(|p| p.csrf);
         leptos::task::spawn_local(async move {
-            match get::<TopologySummary>(session, "/api/v1/topology").await {
+            let result = get::<TopologySummary>(session, "/api/v1/topology").await;
+            if !active.load(std::sync::atomic::Ordering::Relaxed) {
+                return;
+            }
+            busy.set(false);
+            if expected != session.get_untracked().map(|p| p.csrf) {
+                return;
+            }
+            match result {
                 Ok(s) => {
                     data.set(Some(s));
                     error.set(String::new());
@@ -70,6 +88,17 @@ pub(crate) fn summary(
         });
     });
     load.run(());
+    leptos::task::spawn_local(async move {
+        loop {
+            gloo_timers::future::TimeoutFuture::new(5000).await;
+            if !alive.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+            if !web_sys::window().unwrap().document().unwrap().hidden() {
+                load.run(());
+            }
+        }
+    });
     (data, error, load)
 }
 
@@ -183,12 +212,27 @@ pub(crate) fn TopologyPage(
     let (data, error, load) = summary(session);
     view! {
       <div class="page-heading">
-        <div><h1 tabindex="-1">"Topology Manager"</h1><p>"Inspect the hierarchy, placement, plans, and conflicts. This release is read-only."</p></div>
+        <div><h1 tabindex="-1">"Topology Manager"</h1><p>"Build the network hierarchy. The service applies the active policy each cycle."</p></div>
         <div class="router-actions">
           <button type="button" class="quiet" on:click=move|_|load.run(())>"Reload view"</button>
         </div>
       </div>
       <Evidence data/>
+      <div class="topology-workflow" aria-label="Topology workflow">
+        <span>"1. Discover sources"</span><span>"2. Build hierarchy"</span><span>"3. Review and save"</span><span>"4. Automatic sync"</span>
+      </div>
+      {move||data.with(|d|d.as_ref().filter(|s|s.writer!="topology"||s.mode!="apply").map(|s|view!{
+        <p class="notice" role="note">{if s.writer!="topology"{"Policy editor ready. Automatic topology publication needs an enrolled policy and active topology writer. The current writer remains in control."}else{"Topology owns the hierarchy. The current mode does not apply shaping files."}}</p>
+      }))}
+      {move||data.with(|d|d.as_ref().filter(|s|s.enrolled&&s.writer=="legacy").map(|_|view!{
+        <details class="topology-activation"><summary>"Enable automatic topology sync"</summary>
+          <p>"An operator must activate the enrolled policy once. Stop the service first, then preview with its configuration."</p>
+          <code>"lqosync3 topology activate --config PATH"</code>
+          <p>"Review the preview. Repeat with --yes to publish and select the topology writer, then start the service. It follows saved Builder changes each cycle."</p>
+          <code>"lqosync3 topology activate --yes --config PATH"</code>
+          <p>"Activation requires apply mode and the v3_pair target. It keeps the enrollment, lease, and file admission checks."</p>
+        </details>
+      }))}
       <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
       <nav class="router-tabs" aria-label="Topology views">
         {TOPOLOGY_TABS.iter().map(|(key,label)|{
@@ -220,34 +264,63 @@ fn Builder(
     let selected = RwSignal::new(None::<String>);
     let action = RwSignal::new(None::<Change>);
     let locked = move || blocked(data).is_some();
-    let nodes = move || data.with(|d| d.as_ref().map(|s| s.nodes.clone()).unwrap_or_default());
+    let query = RwSignal::new(String::new());
+    let collapsed = RwSignal::new(std::collections::HashSet::<String>::new());
+    let forest = Memo::new(move |_| {
+        data.with(|d| tree_forest(d.as_ref().map(|s| s.nodes.as_slice()).unwrap_or_default()))
+    });
+    let matches = Memo::new(move |_| {
+        data.with(|d| {
+            tree_matches(
+                d.as_ref().map(|s| s.nodes.as_slice()).unwrap_or_default(),
+                &query.get(),
+            )
+        })
+    });
+    let searching = Signal::derive(move || !query.get().trim().is_empty());
+    let inventory_open = RwSignal::new(
+        web_sys::window()
+            .and_then(|w| w.match_media("(min-width: 901px)").ok().flatten())
+            .is_some_and(|m| m.matches()),
+    );
     let node = Memo::new(move |_| {
         let id = selected.get()?;
         data.with(|d| d.as_ref()?.nodes.iter().find(|n| n.id == id).cloned())
     });
     view! {
       <div class="topology-builder">
-        <section class="panel" aria-labelledby="inventory-title">
-          <h2 id="inventory-title">"Inventory"</h2>
-          <p class="panel-note">"Sources and the latest router reads."</p>
+        <section class="panel topology-inventory" aria-labelledby="inventory-title">
+          <div class="inventory-heading"><h2 id="inventory-title">"Inventory"</h2>
+            <button type="button" class="quiet" aria-label="Toggle source inventory" aria-expanded=move||inventory_open.get().to_string()
+              on:click=move|_|inventory_open.update(|open| *open = !*open)>{move||if inventory_open.get(){"Hide"}else{"Show"}}</button>
+          </div>
+          <div hidden=move||!inventory_open.get()>
+          <p class="panel-note">"Attach a source beneath the selected parent."</p>
           <h3>"Sources"</h3>
           <ul class="plain-list">
             {move||data.with(|d|d.as_ref().map(|s|s.sources.iter().map(|src|view!{
-              <li><strong>{src.name.clone()}</strong><span class="chip neutral">{if src.kind=="wan"{"WAN"}else{"Subscribers"}}</span></li>
+              <li><div><strong>{src.name.clone()}</strong><small>{if src.kind=="wan"{"WAN source"}else{"Subscriber source"}}</small></div>
+                {(src.kind=="subscribers").then(||{
+                  let (id,name)=(src.id.clone(),src.name.clone());
+                  view!{<button type="button" class="quiet" aria-label=format!("Attach {}",src.name) disabled=locked on:click=move|_|action.set(Some(Change::AttachSource(id.clone(),name.clone(),selected.get_untracked())))>"Attach"</button>}
+                })}
+              </li>
             }).collect_view()))}
           </ul>
-          <h3>"Router reads"</h3>
+          <h3>"Subscriber collection"</h3>
           <ul class="plain-list">
             {move||data.with(|d|d.as_ref().map(|s|s.collection.iter().map(|r|{
               let good=r.state=="online";
+              let collects=r.sources.iter().any(|s|s.enabled);
               view!{<li><strong>{r.name.clone()}</strong>
-                <span class=if good{"chip good"}else{"chip warn"}>{r.state.clone()}</span>
-                <small>{format!("Read {}",age(now(),r.observed_at))}</small></li>}
+                <span class=if !collects{"chip neutral"}else if good{"chip good"}else{"chip warn"}>{if collects{r.state.clone()}else{"No subscriber collector".into()}}</span>
+                <small>{if collects{format!("Read {}",age(now(),r.observed_at))}else{"Use WAN discovery for interfaces.".into()}}</small></li>}
             }).collect_view()))}
           </ul>
           <Reads session action reload locked/>
+          </div>
         </section>
-        <section class="panel" aria-labelledby="tree-title">
+        <section class="panel topology-hierarchy" aria-labelledby="tree-title">
           <div class="panel-title">
             <h2 id="tree-title">"Topology tree"</h2>
             <div class="node-actions form-actions">
@@ -255,30 +328,28 @@ fn Builder(
               <button type="button" class="primary" disabled=locked on:click=move|_|action.set(Some(Change::Create))>"Create node"</button>
             </div>
           </div>
-          <p class="panel-note">"Select a node to inspect it. Capacities describe policy, not measured traffic."</p>
+          <div class="hierarchy-toolbar">
+            <label class="hierarchy-search">"Find a node"<input type="search" placeholder="Node name or type…" prop:value=move||query.get() on:input=move|ev|query.set(event_target_value(&ev))/></label>
+            <button type="button" class="quiet" on:click=move|_|collapsed.set(std::collections::HashSet::new())>"Expand all"</button>
+            <button type="button" class="quiet" on:click=move|_|collapsed.set(data.with(|d|d.as_ref().map(|s|s.nodes.iter().filter(|n|s.nodes.iter().any(|c|c.parent.as_deref()==Some(n.id.as_str()))).map(|n|n.id.clone()).collect()).unwrap_or_default()))>"Collapse all"</button>
+          </div>
+          <div class="network-root"><strong>"Network"</strong><span>{move||data.with(|d|d.as_ref().map(|s|format!("{} WANs · {} active subscribers",s.nodes.iter().filter(|n|n.kind=="wan").count(),s.subscribers_active)))}</span></div>
+          <div class="tree-labels"><span>"Node / policy"</span><span>"Down / Up Mbps"</span><span>"Members"</span></div>
           {move||blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
           <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|!s.nodes.is_empty()))
             fallback=||view!{<p class="router-empty">"No topology nodes. Enroll a topology policy to build the tree."</p>}>
             <ul class="topology-tree" aria-label="Topology nodes">
-              {move||{let all=nodes();tree_rows(&all).into_iter().map(|(depth,n)|{
-                let id=n.id.clone();
-                let current=id.clone();
-                view!{<li style=format!("--depth:{depth}")>
-                  <button type="button" class="tree-node" aria-pressed=move||(selected.get().as_deref()==Some(current.as_str())).to_string()
-                    on:click=move|_|selected.set(Some(id.clone()))>
-                    <span><strong>{n.name.clone()}</strong><small>{kind_label(&n.kind)}</small></span>
-                    <span class="num">{mbps(n.exported_mbps)}</span>
-                    <span class="num">{n.members.map(|m|m.to_string()).unwrap_or("—".into())}</span>
-                  </button></li>}
-              }).collect_view()}}
+              {move||forest.get().into_iter().map(|branch|branch_view(branch,selected,collapsed,matches,searching)).collect_view()}
             </ul>
+            <Show when=move||searching.get()&&matches.with(|m|m.is_empty())><p class="router-empty">"No node matches. Clear the search to show the hierarchy."</p></Show>
+            <p class="panel-note hierarchy-caption">"Saved capacity policy, not measured traffic. Review changes before saving."</p>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes_truncated))>
               <p class="notice" role="status">"The tree has more nodes than one reply holds. The first nodes are shown."</p>
             </Show>
           </Show>
         </section>
         <ChangeDialog session data action reload/>
-        <section class="panel" aria-labelledby="details-title" aria-live="polite">
+        <section class="panel topology-details" aria-labelledby="details-title">
           <h2 id="details-title">"Details"</h2>
           {move||match node.get() {
             None=>view!{<p class="panel-note">"No node selected."</p>}.into_any(),
@@ -287,8 +358,8 @@ fn Builder(
               <h3>{n.name.clone()}</h3>
               <dl class="router-facts">
                 <div><dt>"Node ID"</dt><dd>{n.id.clone()}</dd></div>
-                <div><dt>"Parent"</dt><dd>{n.parent.clone().unwrap_or("None (root)".into())}</dd></div>
-                <div><dt>"Source"</dt><dd>{n.source_id.clone().unwrap_or("—".into())}</dd></div>
+                <div><dt>"Parent"</dt><dd>{n.parent.as_ref().map(|id|node_name(data,id)).unwrap_or("Network".into())}</dd></div>
+                <div><dt>"Source"</dt><dd>{n.source_id.as_ref().map(|id|data.with(|d|d.as_ref().and_then(|s|s.sources.iter().find(|src|src.id==*id)).map(|src|src.name.clone()).unwrap_or(id.clone()))).unwrap_or("—".into())}</dd></div>
                 <div><dt>"Capacity mode"</dt><dd>{capacity_label(&n.capacity)}</dd></div>
                 <div><dt>"Calculated capacity"</dt><dd>{mbps(n.calculated_mbps)}</dd></div>
                 <div><dt>"Exported capacity"</dt><dd>{mbps(n.exported_mbps)}</dd></div>
@@ -296,8 +367,9 @@ fn Builder(
               </dl>
               {n.alias.then(||view!{<p class="panel-note">"This node keeps an adopted legacy name."</p>})}
               {
-                let (e,m,r)=(n.clone(),n.clone(),n.clone());
+                let (e,m,r,child)=(n.clone(),n.clone(),n.clone(),n.id.clone());
                 view!{<div class="form-actions node-actions">
+                  <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::CreateChild(child.clone())))>"Add child"</button>
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Edit(e.clone())))>"Edit node"</button>
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(Change::Move(m.clone())))>"Move"</button>
                   <button type="button" class="quiet danger" disabled=locked on:click=move|_|action.set(Some(Change::Remove(r.clone())))>"Remove node"</button>
@@ -312,6 +384,48 @@ fn Builder(
         </section>
       </div>
     }
+}
+
+/// Ordinary nested lists keep the hierarchy readable without an incomplete ARIA tree widget.
+fn branch_view(
+    branch: TreeBranch,
+    selected: RwSignal<Option<String>>,
+    collapsed: RwSignal<std::collections::HashSet<String>>,
+    matches: Memo<std::collections::HashSet<String>>,
+    searching: Signal<bool>,
+) -> AnyView {
+    let n = branch.node;
+    let (id, current, visible_id, toggle_id, open_id) = (
+        n.id.clone(),
+        n.id.clone(),
+        n.id.clone(),
+        n.id.clone(),
+        n.id.clone(),
+    );
+    let has_children = !branch.children.is_empty();
+    let open = Signal::derive(move || searching.get() || !collapsed.with(|c| c.contains(&open_id)));
+    let children = branch
+        .children
+        .into_iter()
+        .map(|b| branch_view(b, selected, collapsed, matches, searching))
+        .collect_view();
+    view! {
+      <li hidden=move||!matches.with(|m|m.contains(&visible_id))>
+        <div class="tree-branch-row">
+          {if has_children {view!{
+            <button type="button" class="tree-disclosure" aria-label=format!("Toggle {} branch",n.name) aria-expanded=move||open.get().to_string()
+              on:click=move|_|collapsed.update(|c|{if !c.remove(&toggle_id){c.insert(toggle_id.clone());}})><span aria-hidden="true">{move||if open.get(){"⌄"}else{"›"}}</span></button>
+          }.into_any()}else{view!{<span class="tree-leaf" aria-hidden="true">"·"</span>}.into_any()}}
+          <button type="button" class="tree-node" aria-pressed=move||(selected.get().as_deref()==Some(current.as_str())).to_string()
+            on:click=move|_|selected.set(Some(id.clone()))>
+            <span><strong>{n.name}</strong><small>{kind_label(&n.kind)}</small></span>
+            <span class="num">{mbps(n.exported_mbps)}</span>
+            <span class="num">{n.members.map(|m|m.to_string()).unwrap_or("—".into())}</span>
+          </button>
+        </div>
+        {has_children.then(||view!{<ul hidden=move||!open.get()>{children}</ul>})}
+      </li>
+    }.into_any()
 }
 
 #[component]
@@ -723,14 +837,16 @@ fn Reads(
             if r.state!="ok" {
               return view!{<li><strong>{r.name.clone()}</strong><span class="chip warn">"Read failed"</span><small>{r.error.clone().unwrap_or_default()}</small></li>}.into_any();
             }
-            r.candidates.into_iter().map(|c|{
+            let result = view!{<li class="discovery-router"><strong>{r.name.clone()}</strong><span class="chip good">"Read complete"</span><small>{format!("{} interfaces",r.candidates.len())}</small></li>};
+            let candidates = r.candidates.into_iter().map(|c|{
               let change=Change::CreateWan(r.router_id.clone(),r.name.clone(),c.name.clone());
               let used=!c.used_by.is_empty();
               view!{<li><strong>{c.name.clone()}</strong><small>{format!("{} · {}",r.name,if c.running{"running"}else{"not running"})}</small>
                 {if used {view!{<span class="chip neutral">"In use"</span>}.into_any()} else {view!{
                   <button type="button" class="quiet" disabled=locked on:click=move|_|action.set(Some(change.clone()))>"Create WAN"</button>}.into_any()}}
               </li>}
-            }).collect_view().into_any()
+            }).collect_view();
+            view!{<>{result}{candidates}</>}.into_any()
           }).collect_view()}
         </ul>
       })}

@@ -160,9 +160,17 @@ fn observation_matches(o: &Observation, q: &PageQuery) -> bool {
         && has(&q.router_id, &o.router_id)
         && has(&q.state, &o.state)
         && has(&q.link, &o.link)
+        && q.plan_id
+            .as_ref()
+            .is_none_or(|p| o.plan_id.as_ref() == Some(p))
         && text(
             q,
-            &[&o.name, o.subscriber_id.as_deref().unwrap_or_default()],
+            &[
+                &o.name,
+                &o.ipv4,
+                &o.mac,
+                o.subscriber_id.as_deref().unwrap_or_default(),
+            ],
         )
 }
 
@@ -236,4 +244,69 @@ fn page<'a, T: Serialize + Clone + 'a>(
         out.items.push((*row).clone());
     }
     Some(out)
+}
+
+#[cfg(test)]
+mod observation_filter_tests {
+    use super::*;
+
+    fn row() -> Observation {
+        Observation {
+            router_id: "router-a".into(),
+            router: "Access A".into(),
+            kind: "dhcp".into(),
+            name: "account-a".into(),
+            ipv4: "192.0.2.42".into(),
+            mac: "AA:BB:CC:00:00:42".into(),
+            state: "bound".into(),
+            link: "verified".into(),
+            subscriber_id: Some("sub-a".into()),
+            plan_id: Some("plan-a".into()),
+            pin: None,
+            node: None,
+        }
+    }
+
+    #[test]
+    fn source_observations_search_endpoint_and_mac_without_changing_identity() {
+        let o = row();
+        for query in ["192.0.2.42", "aa:bb:cc", "account-a", "sub-a"] {
+            assert!(
+                observation_matches(
+                    &o,
+                    &PageQuery {
+                        q: Some(query.into()),
+                        ..Default::default()
+                    }
+                ),
+                "query {query}"
+            );
+        }
+        assert!(!observation_matches(
+            &o,
+            &PageQuery {
+                q: Some("192.0.2.43".into()),
+                ..Default::default()
+            }
+        ));
+        assert_eq!(o.subscriber_id.as_deref(), Some("sub-a"));
+    }
+
+    #[test]
+    fn source_observations_filter_plan_before_pagination() {
+        let o = row();
+        let q = |id: &str| PageQuery {
+            plan_id: Some(id.into()),
+            ..Default::default()
+        };
+        assert!(observation_matches(&o, &q("plan-a")));
+        assert!(!observation_matches(&o, &q("plan-b")));
+        let unlinked = Observation {
+            plan_id: None,
+            subscriber_id: None,
+            link: "none".into(),
+            ..o
+        };
+        assert!(!observation_matches(&unlinked, &q("plan-a")));
+    }
 }

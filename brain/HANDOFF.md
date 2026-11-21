@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-21T22:14:59+08:00 (Asia/Manila) — Topology workflow and automatic orchestration repair
+
+- Goal: repair Topology, IPoE/DHCP, and PPPoE layout/workflow against the documented pictures and make topology policy drive scheduled network/CSV exports.
+- Authorization: the current owner request supersedes the earlier Topology ownership restriction. Preserve unrelated Routers edits.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed core: `src/runner.rs`, new `src/runner/topology_cycle.rs`, `src/cli.rs`, `src/topology_cli.rs`, source coordinator/cache reuse, and focused coordinator/WAN tests.
+- Changed web: topology view/model/forms, subscriber views, observation filters, and scoped CSS additions. New workflow browser checks and documentation/evidence accompany the code.
+- Behavior: an active topology writer orchestrates every scheduled cycle. `topology activate` previews; `activate --yes` performs explicit admitted activation under the service lease. The browser cannot activate the writer.
+- Checks: 1,573 core tests, 100 web tests, explicit scale/native tests, native/Wasm Clippy, formatting, optimized Wasm/core/web builds, and three browser suites passed. Native proof covers hierarchy changes, stable identity, circuit counts, and failure retention.
+- Evidence: `docs/frontend/evidence/topology-workflow/README.md`. Guide: `docs/frontend/TOPOLOGY_WORKFLOW_REPAIR.md`.
+- Unfinished work: install repaired core/web artifacts and perform operator activation if the installation still uses the legacy writer. No running service, router, or live shaping pair changed in this task.
+- Next action: review screenshots and source diff, then follow the normal deployment workflow and the explicit activation guide.
+- This task is ready for publication. Keep the pre-existing Routers changes, router evidence, and shared-note additions separate.
+
 ## 2026-11-21T21:08:28+08:00 (Asia/Manila) — DPDK traffic chart design reference
 
 - Goal: prepare research, an executable mock, SVG samples, and a plan for a later Dashboard improvement.

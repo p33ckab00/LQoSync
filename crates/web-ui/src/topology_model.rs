@@ -10,6 +10,13 @@ pub(crate) fn tree_rows(nodes: &[Node]) -> Vec<(usize, &Node)> {
     let known: std::collections::HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
     let mut out = Vec::with_capacity(nodes.len());
     let mut seen = std::collections::HashSet::new();
+    let mut children: std::collections::HashMap<&str, Vec<&Node>> =
+        std::collections::HashMap::new();
+    for node in nodes {
+        if let Some(parent) = node.parent.as_deref() {
+            children.entry(parent).or_default().push(node);
+        }
+    }
     let mut stack: Vec<(usize, &Node)> = nodes
         .iter()
         .rev()
@@ -21,13 +28,9 @@ pub(crate) fn tree_rows(nodes: &[Node]) -> Vec<(usize, &Node)> {
             continue;
         }
         out.push((depth, node));
-        stack.extend(
-            nodes
-                .iter()
-                .rev()
-                .filter(|c| c.parent.as_deref() == Some(node.id.as_str()))
-                .map(|c| (depth + 1, c)),
-        );
+        if let Some(branch) = children.get(node.id.as_str()) {
+            stack.extend(branch.iter().rev().map(|c| (depth + 1, *c)));
+        }
     }
     // Nodes in a parent cycle have no root; show them last instead of hiding them.
     out.extend(
@@ -37,6 +40,64 @@ pub(crate) fn tree_rows(nodes: &[Node]) -> Vec<(usize, &Node)> {
             .map(|n| (0, n)),
     );
     out
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct TreeBranch {
+    pub node: Node,
+    pub children: Vec<TreeBranch>,
+}
+
+/// Build from the bounded, cycle-safe ordering. Broken parents remain visible as roots.
+pub(crate) fn tree_forest(nodes: &[Node]) -> Vec<TreeBranch> {
+    fn finish(stack: &mut Vec<TreeBranch>, roots: &mut Vec<TreeBranch>) {
+        let branch = stack.pop().unwrap();
+        if let Some(parent) = stack.last_mut() {
+            parent.children.push(branch);
+        } else {
+            roots.push(branch);
+        }
+    }
+    let mut roots = Vec::new();
+    let mut stack = Vec::new();
+    for (depth, node) in tree_rows(nodes) {
+        while stack.len() > depth {
+            finish(&mut stack, &mut roots);
+        }
+        stack.push(TreeBranch {
+            node: node.clone(),
+            children: Vec::new(),
+        });
+    }
+    while !stack.is_empty() {
+        finish(&mut stack, &mut roots);
+    }
+    roots
+}
+
+/// Search includes the path to each match, never an unrelated sibling.
+pub(crate) fn tree_matches(nodes: &[Node], query: &str) -> std::collections::HashSet<String> {
+    let q = query.trim().to_lowercase();
+    let by_id: std::collections::HashMap<_, _> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let mut visible = std::collections::HashSet::new();
+    for node in nodes.iter().filter(|n| {
+        q.is_empty()
+            || [&n.name, &n.id, &n.kind]
+                .iter()
+                .any(|s| s.to_lowercase().contains(&q))
+    }) {
+        let mut next = Some(node.id.as_str());
+        while let Some(id) = next {
+            if !visible.insert(id.to_owned()) {
+                break;
+            }
+            next = by_id
+                .get(id)
+                .and_then(|n| n.parent.as_deref())
+                .filter(|p| by_id.contains_key(p));
+        }
+    }
+    visible
 }
 
 pub(crate) fn kind_label(kind: &str) -> &'static str {
@@ -239,6 +300,8 @@ pub(crate) fn publication_labels(
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Change {
     Create,
+    CreateChild(String),
+    AttachSource(String, String, Option<String>),
     Edit(Node),
     Move(Node),
     Remove(Node),
@@ -292,10 +355,20 @@ pub(crate) struct Draft {
 impl Draft {
     pub(crate) fn of(action: &Change) -> Self {
         let node = match action {
-            Change::Create => {
+            Change::Create | Change::CreateChild(_) => {
                 return Self {
                     kind: "intermediate".into(),
                     mode: "automatic".into(),
+                    parent: match action {
+                        Change::CreateChild(id) => id.clone(),
+                        _ => String::new(),
+                    },
+                    ..Self::default()
+                };
+            }
+            Change::AttachSource(_, _, parent) => {
+                return Self {
+                    parent: parent.clone().unwrap_or_default(),
                     ..Self::default()
                 };
             }
@@ -421,7 +494,7 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
     let name = d.name.trim();
     let parent = (!d.parent.is_empty()).then(|| d.parent.clone());
     Ok(match action {
-        Change::Create => {
+        Change::Create | Change::CreateChild(_) => {
             if name.is_empty() {
                 return Err("Enter a node name.");
             }
@@ -490,6 +563,11 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
         Change::AddSource(key, _) => BuilderEdit::SourceAdd {
             key: key.clone(),
             parent,
+        },
+        Change::AttachSource(source_id, _, _) => BuilderEdit::InstanceAdd {
+            source_id: source_id.clone(),
+            parent,
+            name: None,
         },
         Change::CreatePlan | Change::EditPlan(_) => {
             if name.is_empty() {
@@ -940,6 +1018,56 @@ mod tests {
                 (0, "a"),
                 (0, "b")
             ]
+        );
+    }
+
+    #[test]
+    fn hierarchy_search_keeps_ancestors_and_survives_cycles() {
+        let mut nodes = vec![
+            node("wan", None),
+            node("branch", Some("wan")),
+            node("leaf", Some("branch")),
+            node("a", Some("b")),
+            node("b", Some("a")),
+        ];
+        nodes[2].name = "Remote DHCP".into();
+        assert_eq!(
+            tree_matches(&nodes, "dhcp"),
+            ["wan", "branch", "leaf"]
+                .map(String::from)
+                .into_iter()
+                .collect()
+        );
+        assert_eq!(
+            tree_matches(&nodes, "a"),
+            ["wan", "branch", "leaf", "a", "b"]
+                .map(String::from)
+                .into_iter()
+                .collect()
+        );
+        let forest = tree_forest(&nodes);
+        assert_eq!(forest.len(), 3);
+        assert_eq!(forest[0].children[0].children[0].node.id, "leaf");
+        assert_eq!(tree_matches(&nodes, "absent").len(), 0);
+    }
+
+    #[test]
+    fn contextual_node_and_instance_actions_keep_the_selected_parent() {
+        let action = Change::CreateChild("wan".into());
+        let mut draft = Draft::of(&action);
+        draft.name = "Access".into();
+        assert!(
+            matches!(build_edit(&action, &draft).unwrap(), BuilderEdit::NodeCreate { parent: Some(p), .. } if p == "wan")
+        );
+        let action = Change::AttachSource("src".into(), "PPPoE".into(), Some("wan".into()));
+        let draft = Draft::of(&action);
+        assert_eq!(
+            build_edit(&action, &draft).unwrap(),
+            BuilderEdit::InstanceAdd {
+                source_id: "src".into(),
+                parent: Some("wan".into()),
+                name: None
+            }
         );
     }
 
