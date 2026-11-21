@@ -53,8 +53,13 @@ Every control also needs the reliability gates in the delivery plan.
 | TM-20 | Enroll, replace adoption, activate, or deactivate | Controlled CLI and runtime-owner boundaries | Read prerequisites and writer state and execution stays outside the initial web scope |
 | TM-21 | Write WAN routing or DPI application pins | Separate future router-writer work | Link to router capabilities and topology placement does not change routing |
 | TM-22 | Edit profile-specific speed overrides, backstops, or formulas | Some domain records exist and no narrow edit in the inspected dispatcher | Read current values and add explicit core operations before web edits |
+| TM-23 | Inspect PPPoE users and sessions | Collection and verified identity projection need a safe adapter | PPPoE Users in the same T03 read-only cut |
+| TM-24 | Inspect IPoE/DHCP clients and leases | Lease observations do not grant shaping permission | IPoE Clients in the same T03 read-only cut |
+| TM-25 | Inspect source-specific local-plan membership | One shared plan catalog and cross-source impact | PPPoE/IPoE Local plans in T03, shared mutations in T08 |
+| TM-26 | Open shared subscriber actions from source views | Stable IDs, explicit identity scope, common receipt | Same detail, plan, pin, and result path as Assignments |
 
-Shared plans stay shared. PPPoE and IPoE profile links open a filtered Policies view.
+Shared plans stay shared. PPPoE and IPoE Local plans views filter the same catalog.
+Include [the source views](TOPOLOGY_SUBSCRIBER_VIEWS.md) in this delivery. They are not a separate later port.
 Router source settings remain in the Router screen. Topology owns placement, capacities, factors, fallback, and local speed policy.
 Do not expose `registry.get` or unrestricted `policy.commit` to the browser to bypass an absent narrow operation.
 

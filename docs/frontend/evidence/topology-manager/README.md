@@ -4,7 +4,7 @@ Status: static design references for review. This task does not implement the To
 Date: 2026-11-21, Asia/Shanghai. Source checkpoint: `76563ee`.
 Cross-check: `e17b3b8` has no change to the inspected topology, API, Runner, or web routing sources.
 
-Read [the feature/layout design](../../TOPOLOGY_DESIGN.md), [the connection map](../../TOPOLOGY_CONNECTIONS.md), and [the implementation plan](../../TOPOLOGY_IMPLEMENTATION_PLAN.md).
+Read [the feature/layout design](../../TOPOLOGY_DESIGN.md), [the connection map](../../TOPOLOGY_CONNECTIONS.md), [the implementation plan](../../TOPOLOGY_IMPLEMENTATION_PLAN.md), and [the subscriber-view specification](../../TOPOLOGY_SUBSCRIBER_VIEWS.md).
 
 ## Visual references
 
@@ -15,6 +15,14 @@ Read [the feature/layout design](../../TOPOLOGY_DESIGN.md), [the connection map]
 | [Assignments](assignments-dark.png) | Subscriber identity, placement, plans, and pins |
 | [Policies](policies-dark.png) | Global speed rules, local plans, source factors, fallback, unavailable schedules |
 | [Changes](changes-dark.png) | Critical conflict, web history, and separate publication evidence |
+| [PPPoE Users](pppoe-dark.png) | Accounts, sessions, identity links, plan, and placement |
+| [IPoE Clients](ipoe-dark.png) | DHCP lease states, historical evidence, and verified subscribers |
+| [PPPoE Local plans](pppoe-plans-dark.png) | PPPoE membership in the shared plan catalog |
+| [IPoE Local plans](ipoe-plans-dark.png) | DHCP membership and global unique impact |
+| [PPPoE light](pppoe-light.png) / [IPoE light](ipoe-light.png) | Source-view light tokens |
+| [PPPoE mobile](pppoe-mobile.png) / [IPoE mobile](ipoe-mobile.png) | Source tables with local scroll |
+| [PPPoE 320px](pppoe-320.png) / [IPoE 320px](ipoe-320.png) | Narrow source-view layout |
+| [PPPoE plans mobile](pppoe-plans-mobile.png) / [IPoE plans mobile](ipoe-plans-mobile.png) | Shared plan layouts on mobile |
 | [Review](review-dark.png) | An edit-specific capacity review with explicit base revision |
 | [Tablet](builder-tablet.png) | Two workspace columns and Details below |
 | [Mobile Builder](builder-mobile.png) | One focused workspace panel with local panel selectors |
@@ -52,6 +60,12 @@ The total minimum is 450/225 Mbps, so publication stops.
 Saved revision 43 does not replace the last written revision 42 merely because the UI loaded it.
 The old receipt still has two identities that await native acceptance.
 
+The source-view fixture is independent from Builder.
+Three PPPoE subscribers and two DHCP subscribers use Access 100.
+One subscriber has both identities, so the plan has four unique subscribers.
+Both views select `sub-002` and show the same plan and pin.
+Observation-only records have no policy actions. A stale DHCP address is labeled Past.
+
 ## Layout contract for coding
 
 | Element | Reference |
@@ -80,7 +94,7 @@ Only the static view links navigate between reference files.
 
 ## Reproduction and completed checks
 
-The editable sources are [Builder HTML](mockup.html), [Assignments HTML](assignments.html), [Policies HTML](policies.html), [Changes HTML](changes.html), [Review HTML](review.html), and [CSS](mockup.css).
+The editable sources are [Builder HTML](mockup.html), [Assignments HTML](assignments.html), [Policies HTML](policies.html), [Changes HTML](changes.html), [Review HTML](review.html), [PPPoE Users](pppoe.html), [IPoE Clients](ipoe.html), [PPPoE plans](pppoe-plans.html), [IPoE plans](ipoe-plans.html), and [CSS](mockup.css).
 No image-generation model produced these pictures. Chromium rendered the HTML/CSS with the repository's local font.
 The mockups add no third-party image asset or runtime dependency.
 
@@ -94,7 +108,7 @@ Set `PLAYWRIGHT_MODULE` and `CHROMIUM_PATH` when those tools are outside their n
 The script uses local files only. It does not start a production service or request an account password.
 
 The capture script records dimensions and checks in [capture-results.json](capture-results.json).
-All 13 static captures passed.
+All 25 static captures passed. The subscriber extension adds 12 captures to the original 13.
 The checks cover page overflow, the local font, title presence, the 13px text floor, and semantic color-token contrast.
 Text tokens must meet 4.5:1. Control boundaries and focus tokens must meet 3:1.
 
@@ -109,7 +123,9 @@ The optional UI/UX inspector scripts are absent. Playwright supplies the availab
 [Vercel frontend-design](https://github.com/vercel-labs/open-agents/blob/main/.agents/skills/frontend-design/SKILL.md) supplied visual direction and controlled density.
 The design preserves the current console instead of replacing its identity with a generic dashboard.
 
-[Google Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance) supplied the `responsive-table` and `dialog` guidance.
+[Google Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance) supplied the `responsive-table`, `tabs`, and `dialog` guidance.
+Source-view destinations use navigation links, not ARIA tab roles.
+The source tables preserve semantic headers and keyboard-scroll regions.
 The table plan keeps semantic headers and a local scroll region.
 The production modal plan uses `showModal()`, native focus behavior, and progressive scroll containment.
 The static review picture does not claim to implement that modal behavior.

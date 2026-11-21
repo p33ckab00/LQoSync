@@ -183,6 +183,174 @@
         "control": 4.450751603972574,
         "focus": 7.648493188829977
       }
+    },
+    {
+      "screenshot": "pppoe-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "pppoe-light.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 5.3608602167306785,
+        "primary": 5.421106716901289,
+        "control": 3.877915293692602,
+        "focus": 5.421106716901289
+      }
+    },
+    {
+      "screenshot": "pppoe-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "pppoe-320.png",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "pppoe-plans-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "pppoe-plans-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "ipoe-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "ipoe-light.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 5.3608602167306785,
+        "primary": 5.421106716901289,
+        "control": 3.877915293692602,
+        "focus": 5.421106716901289
+      }
+    },
+    {
+      "screenshot": "ipoe-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "ipoe-320.png",
+      "width": 320,
+      "height": 640,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "ipoe-plans-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
+    },
+    {
+      "screenshot": "ipoe-plans-mobile.png",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "horizontalPageOverflow": false,
+      "minimumFontPx": 13,
+      "contrast": {
+        "text": 6.016267094630342,
+        "primary": 7.94416958552624,
+        "control": 4.450751603972574,
+        "focus": 7.648493188829977
+      }
     }
   ]
 }

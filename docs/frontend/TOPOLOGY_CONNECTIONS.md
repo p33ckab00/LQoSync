@@ -196,6 +196,25 @@ The adapter will use these proposed states. They are separate from core publicat
 Session revocation blocks new confirmation. A dispatched operation remains auditable and does not become a second write.
 A queued undispatched action can cancel. Do not promise cancellation after a commit starts.
 
+## PPPoE and IPoE source views
+
+Include [the subscriber-view contract](TOPOLOGY_SUBSCRIBER_VIEWS.md) in the same adapter delivery.
+Propose `GET /api/v1/topology/observations` with `source_kind=ppp|dhcp`, stable router/source filters, and bounded cursors.
+The core snapshot supplies verified links and explicit unmatched or ambiguous link states.
+An observation ID is read-only. Mutations require the stable subscriber ID and explicit verified identity scope.
+Do not infer that link from IP, MAC, or display name.
+
+Propose source-kind membership filters on `GET /api/v1/topology/policies`.
+Return filtered identity/subscriber counts and global unique subscriber counts separately.
+Both routes use the same snapshot envelope, limits, authorization, and freshness checks as Assignments.
+They do not read routers on GET or expose raw collection records.
+
+Collection records alone lack full offline policy links and optional session/lease metadata.
+T00 must supply the missing safe projection before these reads ship.
+A failed source read is not proof that its users disconnected.
+All source-view actions reuse the existing proposed mutation, review, and receipt routes.
+A plan filter never narrows a shared plan's service-side impact review.
+
 ## Edit and publication sequence
 
 ```mermaid

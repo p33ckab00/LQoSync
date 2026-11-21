@@ -20,6 +20,8 @@ Result: the package is ready for owner review. Production implementation and run
 | TM-20 | Read prerequisites only. Controlled CLI actions stay outside the initial web scope |
 | TM-21 | Deferred router routing/DPI writer. Placement remains distinct |
 | TM-22 | Read domain values only until narrow service operations exist |
+| TM-23, TM-24 | T00 observation/identity projection, T01 adapter, T03 PPPoE Users and IPoE Clients |
+| TM-25, TM-26 | T03 shared plan membership/details, T08 common actions and cross-source review |
 
 The reliability gates T00, T04, and T05 precede mutation UI delivery.
 T11 supplies runtime/browser/recovery release proof. Its tasks are unchecked.
@@ -46,7 +48,7 @@ T11 supplies runtime/browser/recovery release proof. Its tasks are unchecked.
 
 ## Completed verification
 
-The static capture script passed 13 scenes with local fonts and no horizontal page overflow.
+The static capture script passed 25 scenes with local fonts and no horizontal page overflow.
 It checked the 13px text floor and the declared text/control/focus contrast thresholds.
 The images include desktop, tablet, narrow, light, dark, conflict, and review states.
 The available Chromium renderer supplied these checks. No cross-browser runtime acceptance claim follows.
@@ -66,3 +68,22 @@ Future implementation must pass TQ-01 through TQ-15 and all task-specific checks
 The owner later authorized publication after review of the no-collision work-split note.
 Only the isolated Topology documentation paths form part of this commit.
 No process termination, staging of unrelated files, or forced Git update forms part of this task.
+
+## Subscriber-view extension
+
+The same delivery now includes PPPoE Users, IPoE Clients, and both source Local plans views.
+Read the [subscriber-view contract](../../TOPOLOGY_SUBSCRIBER_VIEWS.md).
+The feature map has 26 features. Existing reliability gates still apply to every entry route.
+
+Four new editable HTML scenes supply 12 additional captures.
+Desktop, light, mobile, and 320px source views passed the static capture checks.
+Both plan scenes passed desktop and mobile checks.
+Manual visual review confirmed source states, shared subscriber identity, local table scroll, and unique plan counts.
+The source fixture has four unique plan members across five verified identities.
+A historical DHCP row carries no current endpoint or verified policy link.
+
+STE review corrected long paragraphs and avoidable wording.
+Technical names and explicit state labels remain exact. The checker is heuristic.
+No production source file, service, router, or runtime test changed.
+T00/T01 must add safe observation contracts before T03 source views can ship.
+The T08/T11 cross-source integrity and recovery checks remain unchecked release conditions.

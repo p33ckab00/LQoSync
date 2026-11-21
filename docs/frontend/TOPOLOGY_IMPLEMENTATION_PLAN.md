@@ -14,6 +14,9 @@ Source checkpoint: `76563ee`, 2026-11-21, Asia/Shanghai.
 This is an implementation plan. Its unchecked tasks are not completed application features.
 The static mockup files are documentation assets, not production frontend modules.
 
+The same delivery includes [PPPoE Users, IPoE Clients, and their shared Local plans views](TOPOLOGY_SUBSCRIBER_VIEWS.md).
+T03 includes these read views. T08 includes their shared plan and pin actions.
+
 ## Global constraints
 
 
@@ -66,7 +69,7 @@ Keep shared-file edits small and coordinate them with any other worker first.
 | Core receipts | New `src/topology_manager/web_receipts.rs`: durable request-key result and recovery contract |
 | DTOs | New `crates/web-contract/src/topology.rs`: safe typed views, allowed commands, errors, operation results |
 | Broker/HTTP | New `crates/web-gateway/src/topology.rs` and `topology_jobs.rs` and extend `broker.rs`, `http.rs`, `sessions.rs` only as needed |
-| Browser workspace | New `crates/web-ui/src/topology.rs`, `topology_model.rs`, `topology_builder.rs`, `topology_assignments.rs`, `topology_policies.rs`, `topology_changes.rs`, `topology_forms.rs` |
+| Browser workspace | New `crates/web-ui/src/topology.rs`, `topology_model.rs`, `topology_builder.rs`, `topology_assignments.rs`, `topology_policies.rs`, `topology_changes.rs`, `topology_forms.rs`, `subscriber_views.rs`, `subscriber_views_model.rs` |
 | Route and shell | Edit `route_model.rs`, `route.rs`, `app.rs`, `main.rs`, and `style.css` under `crates/web-ui` |
 | Proof | New core integration tests, gateway topology tests, and `tools/frontend/topology-check.cjs` |
 | Release record | New implementation evidence beside this design's static mockups and update deployment instructions after gates pass |
@@ -95,6 +98,11 @@ The file map sets responsibilities. Do not create empty modules or abstractions 
 Run: `cargo test --locked --test topology_web_view` after the test target exists.
 Stop condition: TQ-01, TQ-02, TQ-03, and TQ-13 pass for the core view.
 
+Subscriber extension for T00:
+
+- [ ] Add safe observation records, verified identity links, explicit unmatched states, source health, and unique membership counts.
+- [ ] Test source failure, process/cycle freshness, duplicate names, reused IPs, repeated MACs, and cross-protocol aliases.
+
 ## T01 — Safe broker and HTTP read adapter
 
 **Files:** New gateway topology module and `crates/web-gateway/tests/topology.rs` and extend the fixed broker enum and HTTP router.
@@ -114,6 +122,11 @@ Stop condition: TQ-01, TQ-02, TQ-03, and TQ-13 pass for the core view.
 
 Run: `cargo test --locked -p web-gateway --test topology` after the test target exists.
 Stop condition: authorized cached reads work and all topology writes still return an explicit unavailable capability.
+
+Subscriber extension for T01:
+
+- [ ] Add bounded observation reads and source-kind plan membership filters on the shared snapshot contract.
+- [ ] Test authorization, cursor invalidation, filtering before pagination, and no router I/O on GET.
 
 ## T02 — Workspace shell and Builder reads
 
@@ -139,7 +152,7 @@ Stop condition: operators can inspect topology without any write or router-read 
 
 **Files:** Browser Assignments/Policies modules, pure models, gateway fixtures, and browser checks.
 **Consumes:** T01 paged assignments, all subscriber identities, plans, defaults, factors, and fallback state.
-**Produces:** Filtered Assignments and Policies views with honest read-only states.
+**Produces:** Assignments, Policies, PPPoE Users, IPoE Clients, and source Local plans views with honest read-only states.
 
 
 - [ ] Test multi-identity subscribers, absent endpoints, offline pins, source-read rates, and inherited rules.
@@ -148,11 +161,15 @@ Stop condition: operators can inspect topology without any write or router-read 
 
 - [ ] Preserve table headers and keyboard-scroll access on narrow layouts.
 
-- [ ] Link PPPoE/IPoE profile destinations to the same local-plan owner.
+- [ ] Build PPPoE Users and IPoE Clients with separate observation, identity-link, policy, and placement states.
+
+- [ ] Build both source Local plans views against the shared catalog. Show filtered and global unique counts.
+
+- [ ] Link source settings to Routers and subscriber details to the same Assignments record.
 
 - [ ] Show unavailable schedules and unsupported policy editors with reasons.
 
-Stop condition: TM-10 and all supported policy read fields work without mutation controls.
+Stop condition: TM-10 and TM-23–TM-26 read fields work across all entry routes without mutation controls.
 The read-only release cut ends here. Record browser and API evidence before release.
 
 ## T04 — Durable core mutation receipts
@@ -257,6 +274,10 @@ Stop condition: entry to any topology view still causes zero RouterOS requests.
 
 - [ ] Test plan deletion in use, duplicate names, rate boundaries, exact revision checks, and lost replies.
 
+- [ ] Reuse the same action forms from PPPoE, IPoE, and Assignments. Test explicit scope and cross-source plan impact.
+
+- [ ] Invalidate shared query results after confirmed writes. Show the same receipt and publication result on each route.
+
 Stop condition: no action addresses a subscriber only by current IP, row index, or visible label.
 
 ## T09 — Speed defaults, factors, and fallback
@@ -316,7 +337,9 @@ Stop condition: no successful HTTP save can appear as Applied without correlated
 
 - [ ] Prove web shutdown independence, restart recovery, rollback, and no second writer.
 
-- [ ] Review screenshots against the mockup guide. Document justified deviations.
+- [ ] Run every subscriber integrity fixture in the source-view contract, including cross-route lost-reply recovery.
+
+- [ ] Review Topology, PPPoE, and IPoE screenshots against the mockup guide. Document justified deviations.
 
 - [ ] Check the source revision did not change during the gates. Rerun affected checks after any relevant change.
 

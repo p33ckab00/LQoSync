@@ -50,3 +50,29 @@ Publication uses explicit paths, an inspected index, no concurrent Git writer, a
 Shared Home, HANDOFF, frontend indexes, and source files remain untouched to preserve the other worker's ownership.
 The static capture, link, coverage, source-operation, and whitespace checks precede the commit.
 Next action after publication: review the design, then authorize implementation separately.
+
+## PPPoE and IPoE delivery extension
+
+Updated: 2026-11-21T13:20:36+08:00 (Asia/Shanghai).
+The owner requested PPPoE/IPoE views in the same Topology Manager delivery.
+Added `docs/frontend/TOPOLOGY_SUBSCRIBER_VIEWS.md` and extended the design, connection map, and T00–T11 plan.
+The feature map now has 26 features. T03 includes both source views and shared plan membership.
+T08 reuses shared actions and cross-source impact review.
+
+Added four HTML mockups and 12 screenshots. All 25 static captures passed.
+Both protocols show the same verified subscriber ID and local plan.
+Unlinked lease/account observations stay read-only. Old endpoint evidence stays historical.
+Vercel frontend-design and Google responsive-table/tabs guidance informed the layouts.
+STE review remains heuristic. Production implementation and runtime acceptance remain future tasks.
+Shared source files, Home, and HANDOFF remain under the existing work split.
+Next action: use the combined plan and screenshots for implementation.
+
+## Subscriber documentation publication
+
+Updated: 2026-11-21T14:08:55+08:00 (Asia/Shanghai).
+The owner authorized commit and push. Parent checkpoint: `89ff93f`.
+The Journal/Workers implementation is committed. The current work split permits isolated Topology documentation publication.
+Checks: 25 static captures, local Markdown/HTML links, 26 unique feature IDs, and whitespace passed.
+This documentation change needs no production build or runtime deployment. Runtime release checks remain in T11.
+Publish only the Topology plans, subscriber specification, static evidence, and this session note.
+Preserve unrelated untracked notes and assets. Next action: implement the combined delivery plan.

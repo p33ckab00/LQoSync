@@ -23,7 +23,19 @@ const assert = require('node:assert/strict');
     ['assignments.html','assignments-mobile.png',390,844,false],
     ['policies.html','policies-mobile.png',390,844,false],
     ['changes.html','changes-mobile.png',390,844,false],
-    ['review.html','review-mobile.png',390,844,false]
+    ['review.html','review-mobile.png',390,844,false],
+    ['pppoe.html','pppoe-dark.png',1440,1000,false],
+    ['pppoe.html','pppoe-light.png',1440,1000,true],
+    ['pppoe.html','pppoe-mobile.png',390,844,false],
+    ['pppoe.html','pppoe-320.png',320,640,false],
+    ['pppoe-plans.html','pppoe-plans-dark.png',1440,1000,false],
+    ['pppoe-plans.html','pppoe-plans-mobile.png',390,844,false],
+    ['ipoe.html','ipoe-dark.png',1440,1000,false],
+    ['ipoe.html','ipoe-light.png',1440,1000,true],
+    ['ipoe.html','ipoe-mobile.png',390,844,false],
+    ['ipoe.html','ipoe-320.png',320,640,false],
+    ['ipoe-plans.html','ipoe-plans-dark.png',1440,1000,false],
+    ['ipoe-plans.html','ipoe-plans-mobile.png',390,844,false]
   ]) {
     await page.setViewportSize({width,height});
     await page.goto(pathToFileURL(path.join(__dirname,file)).href);
@@ -34,7 +46,7 @@ const assert = require('node:assert/strict');
     },light);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${screenshot}: no horizontal page overflow`);
     assert.equal(await page.evaluate(()=>document.fonts.check('15px Plex')),true,'local Plex font loaded');
-    assert.equal(await page.getByRole('heading',{name:'Topology Manager',exact:true}).count(),1);
+    assert.equal(await page.getByRole('heading',{name:file.startsWith('pppoe')?'PPPoE':file.startsWith('ipoe')?'IPoE / DHCP':'Topology Manager',exact:true}).count(),1);
     const minimumFont = await page.locator('main').evaluate(root=>Math.min(...[...root.querySelectorAll('*')].filter(e=>e.getClientRects().length&&e.childNodes.length&&[...e.childNodes].some(n=>n.nodeType===3&&n.textContent.trim())).map(e=>parseFloat(getComputedStyle(e).fontSize))));
     assert.ok(minimumFont>=13,`${screenshot}: readable text floor`);
     const contrast=await page.evaluate(()=>{
