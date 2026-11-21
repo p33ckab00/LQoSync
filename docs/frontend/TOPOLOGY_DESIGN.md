@@ -1,5 +1,8 @@
 # Topology Manager web design
 
+For the finalized canvas direction and automatic apply requirement, read [Topology Manager canvas design](TOPOLOGY_CANVAS_DESIGN.md).
+That design supersedes mandatory preview and operator approval steps below. It is not implemented yet.
+
 For the current workflow repair and automatic writer activation, read [Topology workflow and automatic sync](TOPOLOGY_WORKFLOW_REPAIR.md).
 The original design below remains the baseline for policy and publication boundaries.
 

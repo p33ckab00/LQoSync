@@ -1,5 +1,9 @@
 # Topology Manager Web Implementation Plan
 
+The new [canvas integration plan](../superpowers/plans/2026-11-22-topology-canvas-integration.md) supersedes the tree layout and mandatory operator review flow below.
+Use its [source map and writer transition gates](TOPOLOGY_CANVAS_INTEGRATION.md) for new canvas work.
+This older plan remains historical implementation evidence, not proof of canvas completion.
+
 > For agentic workers: use `superpowers:executing-plans` to implement one task at a time. Do not start parallel writers without explicit coordination.
 
 **Goal:** Deliver the current Topology Manager workflow through a reliable, typed Rust web interface.

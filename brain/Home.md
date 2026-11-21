@@ -11,11 +11,17 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-22-topology-canvas-integration-map]] — Feature-to-code map, automatic edit contract, publisher integrity, and legacy retirement gates
+
+- [[2026-11-21-infinite-canvas-research]] — Finalized canvas direction, automatic apply, coordinates, and remaining route scope question
+
 - [[2026-11-21-frontend-owned-topology-requirement]] — Empty initial hierarchy and frontend ownership of initial construction
 
 - [[2026-11-21-topology-workflow-repair]] — Compact Builder and source views, automatic owned cycles, and explicit activation
 
 - [[2026-11-21-traffic-queue-dynamics-v5]] — DPDK-only traffic chart, Queue Dynamics design reference, three SVG samples, and Rust integration plan
+
+- [[2026-11-21-router-reference-layout]] — Router inventory and cached details beside the selected row
 
 - [[2026-11-21-router-toolbar-modal]] — Compact icon controls and modal registration on Routers
 
@@ -173,6 +179,9 @@ Read [[HANDOFF]] first for the current state.
 - [[2026-10-31-first-live-shadow-run]]
 
 ## Decisions
+
+- [[ADR-0014-canvas-auto-apply-and-writer-retirement]] — accepted direction, implementation and runtime evidence pending
+
 - [[ADR-0001-one-model-many-writers]] — accepted
 - [[ADR-0002-v3-target-selection]] — proposed
 - [[ADR-0003-router-failed-vs-offline]] — accepted

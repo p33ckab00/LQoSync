@@ -8,6 +8,38 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22T00:15:01+08:00 (Asia/Manila) — Canvas integration map and writer transition plan
+
+- Goal: map the canvas into frontend/backend and prove correct publication before legacy retirement.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Source checkpoint: `f8898b4`.
+- Changed: new canvas integration map, Tasks 0–8 implementation plan, ADR-0014, session note, and links in the canvas design, older plan/connection map, and Home.
+- Findings: topology scheduling and durable ownership already exist. Browser edits still use proposal/confirm. Per-file atomic replacement does not prove coordinated pair visibility to the importer.
+- Gates: same-snapshot shadow comparison, identity/static/rate/capacity invariants, pair failure recovery, exact-generation native acceptance, exclusive ownership transfer, observation window, and rollback proof.
+- Checks: 14 local links, 16 primary source paths, all nine task IDs, and whitespace passed. No runtime tests ran for this documentation-only task.
+- Status: mapped, not implemented or deployed. No live writer switch, ownership change, legacy deletion, commit, or push occurred.
+- Next action: execute Task 0 and the dependency-ordered plan when implementation is requested. Preserve unrelated Routers work. Do not remove legacy before the evidence gates pass.
+
+## 2026-11-21T23:56:20+08:00 (Asia/Manila) — Canvas FAB settings and modal design
+
+- Goal: place Topology settings in canvas icon FABs that open modals, using Vercel frontend guidance.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: canvas design, `SCREEN_SETTINGS.md`, research note, and new `docs/frontend/evidence/topology-canvas/` mock, check, README, and six captures.
+- Checks: browser check passed for keyboard access, Escape/focus return, local feedback, full decimal input, optional preview, themes, 375/768px overflow, and no network requests. Dark and mobile captures received visual inspection.
+- Status: documentation and isolated mock only, uncommitted. No production code or live service changed. Preserve unrelated Routers work.
+- Next action: implement the canvas/modal specification when requested. Keep automatic apply and optional preview. Mock discovery and graph manipulation remain outside its scope.
+
+## 2026-11-21T23:46:58+08:00 (Asia/Manila) — Canvas direction and automatic apply
+
+- Goal: finalize the Topology canvas concept and remove mandatory per-edit preview and operator approval.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: new `docs/frontend/TOPOLOGY_CANVAS_DESIGN.md`, links in the earlier design and workflow guide, research note, Home, and this entry.
+- Decision: valid completed edits save and apply automatically. Preview is optional. Automatic validation, revision checks, and last-good state remain.
+- Included: selective Inventory, shared sources, modal forms, allocation modes, long Google Maps decimals, and per-Site/AP types and coordinates.
+- Open: actual MikroTik route control, strict-pin failure behavior, quality probes, shared bottleneck representation, and activation-boundary implementation.
+- Checks: local documentation links, whitespace, and automatic-apply requirement checks passed. The heuristic prose checker reported style findings, not certified compliance.
+- Implementation: pending. No application source, live files, routers, services, or writer ownership changed. These documents remain uncommitted.
+- Next action: implement from the new design when requested. Preserve unrelated Router edits. Do not retain earlier approval gates in the new normal edit flow.
+
 ## 2026-11-21T23:12:40+08:00 (Asia/Manila) — Empty frontend draft and shared source parents
 
 - Goal: keep a new tree empty and allow one logical subscriber source beneath multiple parents.
@@ -53,6 +85,27 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 - Unfinished work: production DPDK integration. Subscriber mode and subscriber metrics are outside this task.
 - Next action: use tasks 2–3 in `docs/frontend/plans/2026-11-21-traffic-queue-dynamics.md` for the later improvement.
 - Preserve other agents' files. This task changed no production application file or running service.
+
+## 2026-11-21 (Asia/Manila) — Topology ownership moves to Claude Code
+
+- Owner decision: Claude Code now owns all Topology work: `/topology`, `/pppoe`, `/ipoe`, topology adapters, plans, speed rules, and the web evidence for them.
+- Codex: do not edit Topology, PPPoE, or IPoE files. Routers work stays with its current owner.
+- Plan: `docs/frontend/TOPOLOGY_IMPLEMENTATION_PLAN.md`. Ledger: `.superpowers/sdd/TOPOLOGY_IMPLEMENTATION_PLAN/progress.md`.
+- T00 adds `topology.json`, a cache that the service writes each cycle (`src/topology_manager/web_view.rs`, `crates/web-contract/src/topology.rs`).
+- Status: T00–T11 committed (8b2b402 to f85421a). Not deployed. Deployment and rollback: `docs/frontend/DEPLOYMENT.md`, section "Topology Manager update".
+- Evidence: `docs/frontend/evidence/topology-web/README.md`. Browser check: `tools/frontend/topology-check.cjs`.
+- Removed route: `POST /api/v1/topology/mutations`. Every web change goes through proposals, review, and confirm.
+
+## 2026-11-21T16:24:27+08:00 (Asia/Manila) — Router reference layout
+
+- Goal: follow the router reference image with inventory and selected details side by side.
+- Last agent: Codex `/root`. Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`.
+- Changed: `crates/web-ui/src/routers.rs`, `crates/web-ui/style.css`, `tools/frontend/routers-layout-check.cjs`, the reference plan/evidence, and this task's brain note.
+- Checks: 32 UI tests, release Wasm, Wasm Clippy, formatting, whitespace, and all five router browser suites passed.
+- Evidence: `docs/frontend/evidence/router-reference/README.md`. Screenshots contain synthetic data.
+- Behavior: stable selection, keyboard close/focus return, filter reset, existing detail routes, all table columns, and stacked narrow layouts.
+- Unfinished work: production installation. No production service or router changed.
+- Next action: review screenshots, then use the normal frontend installation workflow when requested.
 
 ## 2026-11-21T12:50:00+08:00 (Asia/Shanghai) — Work split: Journal and Workers screens
 

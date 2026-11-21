@@ -1,5 +1,8 @@
 # Topology workflow and automatic sync
 
+This guide describes the current implementation.
+The [finalized canvas design](TOPOLOGY_CANVAS_DESIGN.md) replaces per-edit preview and approval with automatic apply in the planned implementation.
+
 Date: 2026-11-21 (Asia/Manila).
 
 ## Design and workflow

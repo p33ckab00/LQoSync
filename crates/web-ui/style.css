@@ -393,8 +393,8 @@
 .router-facts dd{margin:4px 0 0;font-size:15px;overflow-wrap:anywhere}
 .router-facts code{font-size:13px}
 .router-section .table-scroll{margin-block-end:20px}
-/* Narrow screens keep the name and the read state; the other columns stay in the detail page. */
-@media(max-width:600px){.routers-panel,.router-section{padding:16px}.router-table:not(.compact) :is(th,td):is(:nth-child(2),:nth-child(n+4)){display:none}.router-count{margin-inline-start:0}}
+/* Narrow screens retain table columns in the inventory scroll region. */
+@media(max-width:600px){.routers-panel,.router-section{padding:16px}.router-count{margin-inline-start:0}}
 @media(forced-colors:active){.router-state i{forced-color-adjust:none;background:CanvasText}.router-tabs a[aria-current=page]{border-color:Highlight}}
 /* Router forms: Add router steps, the inline editors, and the password dialog. */
 .page-heading .button.primary{display:inline-flex;align-items:center;min-height:44px;padding:10px 18px;text-decoration:none;white-space:nowrap}
@@ -587,6 +587,38 @@ dialog.add-router-dialog{box-sizing:border-box;inline-size:min(760px,calc(100vw 
 @media(forced-colors:active){.nic-port-art{filter:none!important}.nic-link-outline{stroke:CanvasText}.link-up .nic-link-outline{stroke:Highlight}}
 @media(max-width:900px){.noc-status{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.noc-status{grid-template-columns:minmax(0,1fr)}.app-shell .noc-status .metric{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title value" "note value"}.app-shell .noc-status .metric strong{text-align:end}}
+
+/* Router reference: inventory beside the selected router, within the existing shell. */
+.router-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+.router-workspace.has-selection{grid-template-columns:minmax(0,1fr) minmax(360px,min(420px,36%))}
+.router-inventory-column{min-inline-size:0;container-type:inline-size}
+.router-workspace .routers-panel{padding:16px}
+.router-workspace .router-table{min-inline-size:720px}
+.router-workspace .table-scroll{max-inline-size:100%;overscroll-behavior-inline:contain}
+.router-workspace .router-table :is(th,td){display:table-cell;vertical-align:middle}
+.router-workspace .router-table tbody th{position:sticky;inset-inline-start:0;background:var(--surface);z-index:1;min-inline-size:130px}
+.router-workspace .router-table tbody tr.selected{background:color-mix(in srgb,var(--accent) 18%,var(--surface));box-shadow:inset 3px 0 var(--accent)}
+.router-workspace .router-table tbody tr.selected th{background:color-mix(in srgb,var(--accent) 18%,var(--surface));box-shadow:inset 3px 0 var(--accent)}
+.router-workspace .router-table thead{position:sticky;inset-block-start:0;z-index:2;background:var(--surface)}
+.router-inspect-column{inline-size:56px;text-align:end}
+.router-preview{min-inline-size:0;padding:24px;position:sticky;inset-block-start:24px}
+.router-preview-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-block-end:24px}
+.router-preview-heading>div{min-inline-size:0}
+.router-preview-heading h2{font-size:28px;letter-spacing:-.5px;line-height:1.2;overflow-wrap:anywhere;margin:0 0 16px}
+.router-preview-status{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.router-preview-facts{display:grid;gap:14px;margin:0}
+.router-preview-facts>div{display:grid;grid-template-columns:minmax(90px,.85fr) minmax(0,1.25fr);gap:16px}
+.router-preview-facts dt{font-size:14px;color:var(--muted)}
+.router-preview-facts dd{font-size:14px;margin:0;overflow-wrap:anywhere}
+.router-preview .router-good{color:var(--good)}
+.router-preview-section{margin-block-start:24px;padding-block-start:24px;border-block-start:1px solid var(--border)}
+.router-preview-section h3{margin:0 0 18px;font-size:18px}
+.router-preview-actions{display:flex;flex-wrap:wrap;gap:8px}
+.router-preview-actions a{display:inline-flex;align-items:center;justify-content:center;min-block-size:44px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-size:14px;text-decoration:none}
+@container(max-width:850px){.router-filters{gap:12px}.router-filters .router-search{flex-basis:100%}}
+@media(max-width:1199px){.router-workspace.has-selection{grid-template-columns:minmax(0,1fr)}.router-preview{position:static}}
+@media(max-width:600px){.router-preview{padding:16px}.router-preview-heading h2{font-size:24px}.router-workspace .router-table{min-inline-size:720px}.router-workspace .routers-panel{padding:12px}}
+@media(forced-colors:active){.router-workspace .router-table tbody tr.selected{outline:2px solid Highlight;outline-offset:-2px}.router-preview-actions a{border-color:ButtonText}}
 /* Topology, PPPoE, and IPoE views */
 .evidence-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 20px;margin:0 0 20px;padding:14px 0;border-block:1px solid var(--border)}
 .evidence-strip dt{font-size:13px;color:var(--muted)}

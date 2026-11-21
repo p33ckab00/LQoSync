@@ -32,7 +32,7 @@ Shared plans remain shared domain records. Their placement does not require dupl
 | Hotspot | Hotspot view > Settings, with selected router/source | Supported Hotspot source settings and policy bindings |
 | Local plans/profiles | Profile or plan detail > Settings | Local rates, membership, and supported plan rules; no RouterOS profile sync |
 | Routers | Router detail > Connection and Settings | Router endpoint, connection credentials, timeouts, and router-wide collection settings |
-| Topology/WAN | Builder node detail or Policies | Node hierarchy, capacity, factors, fallback, shaping placement, pin/rebalance controls |
+| Topology/WAN | Canvas FAB icons and modal editors, per the finalized canvas design | Node hierarchy, capacity, factors, fallback, shaping placement, pin/rebalance controls; automatic apply without a review gate |
 | LibreQoS | LibreQoS > Settings | Supported target, shaping paths, sync policy, and native verification configuration |
 | Workers | Workers view > Settings when supported | Feature-specific telemetry/display settings; do not invent DPDK runtime tuning APIs |
 | Journal | Journal view controls | Level, search, follow, and bounded view preferences; fixed service-unit permissions remain backend-owned |

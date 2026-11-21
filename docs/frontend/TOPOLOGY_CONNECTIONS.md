@@ -1,5 +1,8 @@
 # Topology web connections and integrity
 
+For the current planned canvas contract, automatic edits, and writer transition, read [Canvas integration and writer transition](TOPOLOGY_CANVAS_INTEGRATION.md).
+The proposal/confirmation routes below describe the previous web workflow and remain compatibility considerations during rollout.
+
 Status: proposed adapter contract. No route in this document exists merely because it appears in a table.
 Source checkpoint: `76563ee`, 2026-11-21, Asia/Shanghai.
 Read [the design](TOPOLOGY_DESIGN.md) and [the delivery plan](TOPOLOGY_IMPLEMENTATION_PLAN.md).

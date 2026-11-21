@@ -12,6 +12,7 @@ use crate::routers_model::{
 };
 use gloo_net::http::Request;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 use web_contract::routers::{RouterInventory, RouterSummary};
 use web_contract::{Overview, Principal};
 
@@ -104,6 +105,17 @@ fn Inventory(
     filter: RwSignal<Filter>,
     data: RwSignal<Option<Overview>>,
 ) -> impl IntoView {
+    let selected = RwSignal::new(None::<String>);
+    let selected_router = Memo::new(move |_| {
+        inventory.with(|i| {
+            i.as_ref().and_then(|i| {
+                i.routers
+                    .iter()
+                    .find(|r| Some(&r.id) == selected.get().as_ref())
+                    .cloned()
+            })
+        })
+    });
     let sync_message = RwSignal::new(None::<(&'static str, &'static str)>);
     let rows = Memo::new(move |_| {
         let f = filter.get();
@@ -124,7 +136,45 @@ fn Inventory(
         let v = event_target_value(&ev);
         filter.update(|x| f(x, v));
     };
+    Effect::new(move |_| {
+        filter.track();
+        if let Some(r) = selected_router.get_untracked()
+            && !matches(&r, &filter.get_untracked())
+        {
+            selected.set(None);
+        }
+    });
+    let close = move || {
+        let id = selected.get_untracked();
+        selected.set(None);
+        request_animation_frame(move || {
+            if let Some(button) = id
+                .and_then(|id| {
+                    web_sys::window()
+                        .and_then(|w| w.document())
+                        .and_then(|d| d.get_element_by_id(&format!("inspect-{id}")))
+                })
+                .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
+            {
+                let _ = button.focus();
+            }
+        });
+    };
+    let open = move |id: String| {
+        selected.set(Some(id));
+        request_animation_frame(move || {
+            if let Some(heading) = web_sys::window()
+                .and_then(|w| w.document())
+                .and_then(|d| d.get_element_by_id("router-preview-title"))
+                .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
+            {
+                let _ = heading.focus();
+            }
+        });
+    };
     view! {
+      <div class="router-workspace" class:has-selection=move||selected_router.with(Option::is_some)>
+      <div class="router-inventory-column">
       <div class="page-heading router-heading">
         <div><h1 tabindex="-1">"Routers"</h1><p>"MikroTik routers in the configuration, their roles, and the latest read."</p></div>
         <div class="router-actions">
@@ -174,12 +224,15 @@ fn Inventory(
             }>
               <div class="table-scroll" role="region" aria-label="Router table" tabindex="0">
                 <table class="router-table">
-                  <thead><tr><th scope="col">"Router"</th><th scope="col">"Roles"</th><th scope="col">"Read state"</th><th scope="col" class="num">"Subscribers"</th><th scope="col">"Connection"</th></tr></thead>
+                  <thead><tr><th scope="col">"Router"</th><th scope="col">"Roles"</th><th scope="col">"Read state"</th><th scope="col" class="num">"Subscribers"</th><th scope="col">"Connection"</th><th scope="col" class="router-inspect-column">"Details"</th></tr></thead>
                   <tbody>
                     <For each=move||rows.get() key=|r:&RouterSummary|r.id.clone() children=move|r:RouterSummary|{
                       let (state,tone)=state(&r);
                       let (link,link_tone)=transport(&r);
-                      view!{<tr>
+                      let selected_id = r.id.clone();
+                      let inspect_id = r.id.clone();
+                      let inspect_label = format!("Inspect {}",r.name);
+                      view!{<tr class:selected=move||selected.with(|s|s.as_ref()==Some(&selected_id))>
                         <th scope="row"><Link href=router_href(&r.id,Tab::Overview) class="router-name">{r.name.clone()}</Link>
                           <small>{format!("{}:{}",r.address,r.port)}</small></th>
                         <td><Roles roles=r.roles.clone()/></td>
@@ -188,6 +241,12 @@ fn Inventory(
                         <td class="num">{count(r.collection.as_ref().map(|c|c.subscribers))}</td>
                         <td><span class=format!("router-transport {link_tone}")>{link}</span>
                           {(!r.credential).then(||view!{<small class="router-warn">"Credential missing"</small>})}</td>
+                        <td class="router-inspect-column"><button type="button" class="router-icon secondary"
+                          id=format!("inspect-{}",r.id) aria-label=inspect_label.clone() title=inspect_label
+                          aria-controls="router-preview" aria-expanded=move||selected.with(|s|s.as_ref()==Some(&inspect_id)).to_string()
+                          on:click={let id=r.id.clone();move|_|open(id.clone())}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                        </button></td>
                       </tr>}
                     }/>
                   </tbody>
@@ -201,6 +260,45 @@ fn Inventory(
         </Show>
         <p class="panel-note">"This page reads the service cache. Opening it does not connect to any router."</p>
       </section>
+      </div>
+      <Show when=move||selected_router.with(Option::is_some)>
+        <aside id="router-preview" class="panel router-preview" aria-labelledby="router-preview-title"
+          on:keydown=move|ev|if ev.key()=="Escape" {ev.prevent_default();close();}>
+          {move||selected_router.get().map(|r| {
+            let (state,tone)=state(&r);
+            let (connection,connection_tone)=transport(&r);
+            view! {
+              <div class="router-preview-heading"><div><h2 id="router-preview-title" tabindex="-1">{r.name.clone()}</h2>
+                <div class="router-preview-status"><Roles roles=r.roles.clone()/><span class=format!("router-state {tone}")><i aria-hidden="true"></i>{state}</span></div>
+              </div><button type="button" class="router-icon secondary" aria-label="Close router details" title="Close router details" on:click=move|_|close()>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+              </button></div>
+              <dl class="router-preview-facts">
+                <div><dt>"Endpoint"</dt><dd>{format!("{}:{}",r.address,r.port)}</dd></div>
+                <div><dt>"Username"</dt><dd>{r.username.clone()}</dd></div>
+                <div><dt>"Credential"</dt><dd class=if r.credential {"router-good"}else{"router-warn"}>{if r.credential {"Configured"}else{"Missing"}}</dd></div>
+                <div><dt>"Connection"</dt><dd class=format!("router-transport {connection_tone}")>{connection}</dd></div>
+              </dl>
+              <section class="router-preview-section" aria-label="Last collection"><h3>"Last collection"</h3>
+                <dl class="router-preview-facts">
+                  <div><dt>"Read state"</dt><dd class=format!("router-state {tone}")><i aria-hidden="true"></i>{state}</dd></div>
+                  <div><dt>"Last successful read"</dt><dd>{r.collection.as_ref().filter(|c|c.observed_at>0).map(|c|local_time(c.observed_at)).unwrap_or("No successful read yet".into())}</dd></div>
+                  <div><dt>"Subscribers"</dt><dd>{count(r.collection.as_ref().map(|c|c.subscribers))}</dd></div>
+                </dl>
+                <p class="field-help">{if !r.enabled {"Router disabled. LQoSync makes no connection to it."}else if r.collection.is_none(){"No subscriber role. The collection cycle does not read this router."}else{"The read state and last successful read are separate evidence. A failed read can retain earlier data."}}</p>
+              </section>
+              <section class="router-preview-section"><h3>"Actions"</h3><div class="router-preview-actions">
+                <Link href=router_href(&r.id,Tab::Connection) class="quiet">"Connection"</Link>
+                <Link href=router_href(&r.id,Tab::Sources) class="quiet">"Sources"</Link>
+                <Link href=router_href(&r.id,Tab::Activity) class="quiet">"Activity"</Link>
+                <Link href=router_href(&r.id,Tab::Overview) class="primary">"Open router"</Link>
+              </div><p class="field-help">"Open Connection to test or edit this endpoint. Sync now starts a cycle for all enabled routers."</p></section>
+              <p class="panel-note">"Cached service evidence. Inspection does not connect to the router."</p>
+            }
+          })}
+        </aside>
+      </Show>
+      </div>
     }
 }
 
