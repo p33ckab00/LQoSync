@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LQoSync DPDK traffic activity · design prototype</title>
+<style>
+:root{color-scheme:light;--bg:#edf2f8;--surface:#fff;--text:#152131;--muted:#526378;--border:#c2cedb;--accent:#0865d9;--good:#08704f;--warn:#835600;--violet:#7c3aed;--bad:#b3283d;--red:#dc2626;--orange:#c2410c;--yellow:#a16207;--green:#15803d;--cyan:#0e7490;--blue:#2563eb}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0b0c0e;--surface:#17191b;--text:#f1f3f5;--muted:#b2b8bf;--border:#40454c;--accent:#80aaff;--good:#2bd391;--warn:#ffd077;--violet:#bc9aff;--bad:#ff858a;--red:#ef4444;--orange:#f97316;--yellow:#eab308;--green:#22c55e;--cyan:#06b6d4;--blue:#3b82f6}
+@media(prefers-color-scheme:dark){:root[data-theme=system]{color-scheme:dark;--bg:#0b0c0e;--surface:#17191b;--text:#f1f3f5;--muted:#b2b8bf;--border:#40454c;--accent:#80aaff;--good:#2bd391;--warn:#ffd077;--violet:#bc9aff;--bad:#ff858a;--red:#ef4444;--orange:#f97316;--yellow:#eab308;--green:#22c55e;--cyan:#06b6d4;--blue:#3b82f6}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 'IBM Plex Sans','Segoe UI',sans-serif;font-variant-numeric:tabular-nums}main{max-width:1440px;margin:auto;padding:28px}h1{font-size:26px;line-height:1.2;margin:0 0 8px;letter-spacing:-.025em}h2{font-size:16px;margin:0}p{margin:0}header p,.note,.help{color:var(--muted);font-size:13px}.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:22px 0 16px}label{display:grid;gap:4px;font-size:13px;color:var(--muted)}select,button{min-height:44px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);padding:8px 12px;font:inherit;cursor:pointer;touch-action:manipulation}button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}button:disabled{cursor:default;opacity:.55}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.spacer{flex:1}.workbench{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:20px;align-items:start}.panel{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}.legend{display:flex;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--border)}.key{display:inline-block;width:22px;border-top:3px solid var(--accent);margin-right:7px;vertical-align:middle}.mapped .key{border-color:var(--warn);border-top-style:dashed}.unmapped .key{border-color:var(--violet);border-top-style:dotted}.help{padding:0 18px 16px}.inspector{padding:18px}.inspector h2{margin-bottom:5px}.stamp{color:var(--accent);margin:8px 0;font-size:14px}.inspector dl{margin:0}.inspector dl div{padding:10px 0;border-bottom:1px solid var(--border)}dt{font-size:13px;color:var(--muted)}dd{font-size:16px;margin:3px 0 0}.inspector .note{margin-top:14px}.foot{margin-top:18px}details{margin-top:14px;padding:14px 18px}summary{cursor:pointer;min-height:40px;align-content:center}.table-wrap{overflow:auto;max-height:330px}table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th,td{padding:9px;text-align:right;border-bottom:1px solid var(--border)}th:first-child,td:first-child{text-align:left}th{position:sticky;top:0;background:var(--surface)}svg{display:block;width:100%;height:auto;touch-action:pan-y}svg:focus-visible{outline-offset:-4px}.skip{position:absolute;left:12px;top:-100px;background:var(--surface);padding:10px}.skip:focus{top:10px;z-index:2}
+@media(max-width:900px){.workbench{grid-template-columns:1fr}.inspector dl{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}}
+@media(max-width:520px){main{padding:16px 10px}h1{font-size:23px}.toolbar{gap:8px}.toolbar label{flex:1;min-width:135px}.toolbar select{width:100%}.spacer{display:none}.legend{padding:10px}.legend button{flex:1;padding:8px}.inspector{padding:14px}.inspector dl{grid-template-columns:1fr}.help{padding:0 12px 14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+@media(forced-colors:active){button[aria-pressed=true]{outline:2px solid ButtonText}.key{border-color:CanvasText}}
+</style>
+<a class="skip" href="#chart">Skip to chart</a>
+<main>
+<header><h1>DPDK traffic activity</h1><p>Whole-bridge DPDK activity · v5 · Synthetic data</p></header>
+<div class="toolbar" aria-label="Preview settings">
+  <label>Color theme<select id="theme" aria-label="Color theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  <label>Source state<select id="scenario" aria-label="Source state"><option value="observed">Observed demo</option><option value="gap">Missing samples</option><option value="stale">Stale source</option><option value="reset">Counter reset</option><option value="capacity">Unknown capacity</option><option value="unavailable">Unavailable source</option></select></label>
+  <span class="spacer"></span><button id="play" aria-pressed="false">Play demo</button><button id="latest">Latest sample</button>
+</div>
+<div class="workbench">
+  <section class="panel" aria-label="Linked traffic and queue plots">
+    <svg id="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 690" tabindex="0" role="group" aria-labelledby="chart-title chart-description"></svg>
+    <div class="legend" aria-label="Visible traffic sources"><button id="actual" aria-pressed="true"><i class="key" aria-hidden="true"></i><span>Actual</span></button><button id="mapped" class="mapped" aria-pressed="true"><i class="key" aria-hidden="true"></i><span>Mapped</span></button><button id="unmapped" class="unmapped" aria-pressed="true"><i class="key" aria-hidden="true"></i><span>Unmapped</span></button></div>
+    <p class="help" id="chart-help">Hover to inspect. Click or tap to pin. Left/Right selects a sample. Escape clears the pin.</p>
+  </section>
+  <aside class="panel inspector" aria-label="Sample inspector"><h2 id="inspection-heading">Latest sample</h2><p id="stamp" class="stamp"></p><p id="quality" class="note"></p><dl id="readings"></dl><p class="note" id="scope-note"></p><p class="note" id="announcement" aria-live="polite"></p></aside>
+</div>
+<details class="panel"><summary>Sample data table</summary><div class="table-wrap"><table><caption id="table-caption">Synthetic source samples</caption><thead><tr id="columns"></tr></thead><tbody id="samples"></tbody></table></div></details>
+<p class="note foot">Design sample only. The running Dashboard keeps its existing Recent, 1h, 6h, and 24h ranges. No live collector is connected.</p>
+</main>
+<script>
+/* Portable design reference. Production retains Rust/Leptos and the existing theme store. */
+const $=id=>document.getElementById(id), chart=$('chart');
+const state={scenario:'observed',visible:{actual:true,mapped:true,unmapped:true},pinned:null,hover:null,playing:false,tick:0};
+const base=Date.UTC(2026,10,21,8,0,0)/1000;
+function sample(at,i){
+  const burst=i%60>=36&&i%60<=39;
+  return {at,down:54+12*Math.sin(i*.31)+6*Math.sin(i*.93),up:12+5*Math.sin(i*.23),enqDown:59+14*Math.sin(i*.31)+6*Math.sin(i*.93),enqUp:14+5*Math.sin(i*.23),unDown:.08+.06*Math.sin(i*.3),unUp:.004+.002*Math.cos(i*.27),backlog:40+12*Math.sin(i*.3)+(burst?52:0),drops:i%60===38?4:0,marks:burst?6:0};
+}
+let points=Array.from({length:61},(_,i)=>sample(base-60+i,i));
+function read(p){
+  if(!p)return null;
+  p={...p};const age=points.at(-1).at-p.at;
+  if(state.scenario==='unavailable')for(const k of Object.keys(p))if(k!=='at')p[k]=null;
+  if(state.scenario==='gap'&&age>=34&&age<=37)for(const k of Object.keys(p))if(k!=='at')p[k]=null;
+  if(state.scenario==='reset'&&age===0){p.drops=null;p.marks=null;}
+  return p;
+}
+function fmt(v,unit,digits=1){return v==null?'Unavailable':`${v.toFixed(digits)} ${unit}`}
+function stamp(at){return new Date(at*1000).toISOString().slice(11,19)+' UTC'}
+const paletteNames=['surface','text','muted','border','accent','good','warn','violet','bad','red','orange','yellow','green','cyan','blue'];
+function colors(){const c=getComputedStyle(document.documentElement);return Object.fromEntries(paletteNames.map(k=>[k,c.getPropertyValue('--'+k).trim()]));}
+function path(key,y){let d='',open=false;points.forEach((raw,i)=>{const v=read(raw)[key];if(v==null){open=false;return;}const px=layout.x(i),py=y(v);d+=open?`H${px.toFixed(2)}V${py.toFixed(2)}`:`M${px.toFixed(2)},${py.toFixed(2)}`;open=true;});return d;}
+function area(key,y,zero){let d='',run=[];const flush=()=>{if(run.length){d+=`M${layout.x(run[0][0])},${zero}`;run.forEach(([i,v])=>{d+=`H${layout.x(i)}V${y(v)}`});d+=`L${layout.x(run.at(-1)[0])},${zero}Z`;run=[]}};points.forEach((p,i)=>{const v=read(p)[key];if(v==null)flush();else run.push([i,v]);});flush();return d;}
+let layout;
+function render(){
+  const c=colors(),w=Math.max(280,Math.round(chart.getBoundingClientRect().width)),small=w<560;
+  layout={w,left:52,right:w-18,x:i=>52+(w-70)*i/60};
+  chart.setAttribute('viewBox',`0 0 ${w} 690`);
+  const unknown=state.scenario==='capacity',downMax=unknown?85:110,upMax=unknown?22:30;
+  const downY=v=>211-v/downMax*100,upY=v=>211+v/upMax*100;
+  const txt=(x,y,t,size=13,color=c.muted,anchor='start')=>`<text x="${x}" y="${y}" font-size="${size}" fill="${color}" text-anchor="${anchor}">${t}</text>`;
+  const line=(y,color=c.border,dash='')=>`<path d="M52,${y}H${w-18}" stroke="${color}" stroke-dasharray="${dash}" fill="none"/>`;
+  const series=(key,y,color,dash='',width=2)=>`<path data-series="${key}" d="${path(key,y)}" fill="none" stroke="${color}" stroke-width="${width}" stroke-dasharray="${dash}" stroke-linejoin="round"/>`;
+  const gradient=(id,y0,y1)=>`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${y0}" y2="${y1}">${['red','orange','yellow','green','cyan','blue','violet'].map((k,i)=>`<stop offset="${i/6}" stop-color="${c[k]}" stop-opacity=".22"/>`).join('')}</linearGradient>`;
+  let s=`<title id="chart-title">Whole-bridge DPDK traffic activity</title><desc id="chart-description">Synthetic 60-second window. Download above zero, upload below zero with independent scales. Linked detail lanes share one timestamp. Missing samples remain gaps. Use the sample inspector or data table for values.</desc><defs>${gradient('down-fill',downY(100),211)}${gradient('up-fill',upY(25),211)}</defs><rect width="${w}" height="690" rx="12" fill="${c.surface}"/><g font-family="IBM Plex Sans, Segoe UI, sans-serif" style="font-variant-numeric:tabular-nums">`;
+  s+=txt(18,29,small?'DPDK traffic':'DPDK traffic · Aggregate',19,c.text)+txt(w-18,28,'DEMO',13,c.warn,'end');
+  const status=state.scenario==='stale'?'Stale · last sample 12 s ago':state.scenario==='unavailable'?'Source unavailable':'Synthetic 1 s samples';
+  s+=txt(18,53,status,13)+txt(18,79,small?'Download ↑ / Upload ↓ · Mbps':'Download above / Upload below zero · Mbps · independent scales',13,c.text);
+  s+=txt(52,100,unknown?'Capacity unavailable · observed scale':'WAN capacity ↓ 100 / ↑ 25 Mbps',13,c.muted);
+  for(const [y,label] of [[111,downMax.toFixed(0)],[161,(downMax/2).toFixed(0)],[211,'0'],[261,(upMax/2).toFixed(0)],[311,upMax.toFixed(0)]])s+=line(y)+txt(44,y+4,label,13,c.muted,'end');
+  if(!unknown)s+=line(downY(100),c.muted,'5 5')+line(upY(25),c.muted,'5 5');
+  if(state.visible.actual){s+=`<path d="${area('down',downY,211)}" fill="${unknown?c.accent:'url(#down-fill)'}" ${unknown?'fill-opacity=".12"':''}/><path d="${area('up',upY,211)}" fill="${unknown?c.good:'url(#up-fill)'}" ${unknown?'fill-opacity=".12"':''}/>`;s+=series('down',downY,c.accent,'',2.2)+series('up',upY,c.good,'',2.2);}
+  if(state.visible.mapped)s+=series('enqDown',downY,c.warn,'6 4',1.8)+series('enqUp',upY,c.warn,'6 4',1.8);
+  if(state.visible.unmapped)s+=series('unDown',downY,c.violet,'2 4')+series('unUp',upY,c.violet,'2 4');
+  s+=txt(18,351,'Unmapped detail · Mbps',15,c.text);
+  s+=txt(18,373,small?'↓ dotted / ↑ dashed · DPDK scope':'Download dotted / Upload dashed · independent scale · DPDK scope',13);
+  const y2=v=>456-v/.2*66;
+  for(const v of [0,.1,.2])s+=line(y2(v))+txt(44,y2(v)+4,String(v),13,c.muted,'end');
+  if(state.visible.unmapped)s+=series('unDown',y2,c.violet,'2 4')+series('unUp',y2,c.good,'6 4');
+  s+=txt(18,494,'Queue backlog · kB',15,c.text)+txt(18,516,'Whole-bridge DPDK queues · synthetic',13);
+  const y3=v=>605-v/120*70;
+  for(const v of [0,60,120])s+=line(y3(v))+txt(44,y3(v)+4,String(v),13,c.muted,'end');
+  s+=series('backlog',y3,c.warn);
+  points.forEach((p,i)=>{p=read(p);if(p.drops>0)s+=`<g data-event="drops"><path d="M${layout.x(i)},${y3(p.backlog)-9}l-5,-8h10z" fill="${c.bad}"/>${txt(Math.min(w-100,Math.max(52,layout.x(i)-20)),545,`${p.drops} drops / 1 s`,13,c.bad)}</g>`;});
+  const ticks=small?[0,30,60]:[0,15,30,45,60];
+  ticks.forEach(i=>{s+=txt(layout.x(i),632,i===60?'Latest':`−${60-i}s`,13,c.muted,i===60?'end':i===0?'start':'middle')});
+  s+=txt(18,660,'Solid: Actual / Dashed: Mapped',13,c.text);
+  s+=txt(18,680,'Dotted: Unmapped / DPDK bridge',13);
+  s+=`<g id="selection" pointer-events="none"></g></g>`;
+  chart.innerHTML=s;
+  const now=points.at(-1).at,selected=state.pinned??state.hover??now;
+  inspect(selected);
+  $('scope-note').textContent='All traffic and queue figures describe whole-bridge DPDK activity.';
+  if($('samples').closest('details').open)renderTable();
+}
+function inspect(at){
+  const p=read(points.find(p=>p.at===at));
+  $('inspection-heading').textContent=state.pinned!=null?'Pinned sample':state.hover!=null?'Inspected sample':'Latest sample';
+  $('stamp').textContent=stamp(at);
+  $('quality').textContent=!p?'Outside retained window':state.scenario==='stale'?'Stale · values retained · 12 s old':state.scenario==='reset'&&at===points.at(-1).at?'Reset · delta unavailable':p.down==null?'Unavailable / gap':'Observed demo · 1 s interval';
+  const pair=(a,b,unit,d=1)=>p?`${fmt(p[a],unit,d)} ↓ / ${fmt(p[b],unit,d)} ↑`:'Unavailable';
+  const rows=[['Actual · delivered',pair('down','up','Mbps')],['Mapped · enqueued',pair('enqDown','enqUp','Mbps')]];
+  rows.push(['Unmapped · enqueued',pair('unDown','unUp','Mbps',3)]);
+  rows.push(['Queue backlog',fmt(p?.backlog,'kB')],['Drops / AQM marks · 1 s',`${fmt(p?.drops,'packets',0)} / ${fmt(p?.marks,'marks',0)}`],['Capacity ↓ / ↑',state.scenario==='capacity'?'Unavailable':'100 / 25 Mbps']);
+  $('readings').innerHTML=rows.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  const i=points.findIndex(p=>p.at===at),g=$('selection');
+  g.innerHTML=i<0?'':`<path d="M${layout.x(i)},110V605" stroke="${colors().text}" stroke-dasharray="3 4"/><text x="${Math.min(layout.w-128,Math.max(52,layout.x(i)+8))}" y="328" fill="${colors().text}" font-size="13">${stamp(at)}</text>`;
+}
+function renderTable(){
+  const cols=[['Time (UTC)','at'],['Actual ↓ Mbps','down'],['Actual ↑ Mbps','up'],['Enqueued ↓ Mbps','enqDown'],['Enqueued ↑ Mbps','enqUp']];
+  cols.push(['Unmapped ↓ Mbps','unDown'],['Unmapped ↑ Mbps','unUp']);
+  cols.push(['Backlog kB','backlog'],['Drops / 1 s','drops'],['Marks / 1 s','marks']);
+  $('table-caption').textContent=`Whole-bridge DPDK · synthetic samples · ${state.scenario}`;
+  $('columns').innerHTML=cols.map(([t])=>`<th scope="col">${t}</th>`).join('');
+  $('samples').innerHTML=points.map(read).map(p=>'<tr>'+cols.map(([,k])=>`<td>${k==='at'?stamp(p.at):p[k]==null?'Unavailable':Number(p[k].toFixed(3))}</td>`).join('')+'</tr>').join('');
+}
+function clear(){state.pinned=null;state.hover=null;inspect(points.at(-1).at);$('announcement').textContent='Latest sample selected.';}
+function indexFor(e){const r=chart.getBoundingClientRect();return Math.max(0,Math.min(60,Math.round(((e.clientX-r.left)*layout.w/r.width-layout.left)/(layout.right-layout.left)*60)));}
+chart.addEventListener('pointermove',e=>{if(state.pinned==null&&e.pointerType!=='touch'){state.hover=points[indexFor(e)].at;inspect(state.hover);}});
+chart.addEventListener('pointerleave',()=>{state.hover=null;if(state.pinned==null)inspect(points.at(-1).at);});
+chart.addEventListener('click',e=>{const at=points[indexFor(e)].at;state.pinned=state.pinned===at?null:at;state.hover=null;inspect(state.pinned??points.at(-1).at);$('announcement').textContent=state.pinned==null?'Pin cleared.':`Pinned ${stamp(at)}.`;});
+chart.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();clear();}else if(['ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key)){e.preventDefault();let i=points.findIndex(p=>p.at===(state.pinned??state.hover));if(i<0)i=60;i=e.key==='Home'?0:e.key==='End'?60:Math.max(0,Math.min(60,i+(e.key==='ArrowLeft'?-1:e.key==='ArrowRight'?1:0)));state.pinned=points[i].at;inspect(state.pinned);$('announcement').textContent=`Pinned ${stamp(state.pinned)}.`;}});
+for(const k of ['actual','mapped','unmapped'])$(k).addEventListener('click',()=>{state.visible[k]=!state.visible[k];$(k).setAttribute('aria-pressed',String(state.visible[k]));render();});
+$('scenario').addEventListener('change',e=>{state.scenario=e.target.value;render();});
+try{$('theme').value=localStorage.getItem('lqosync-queue-prototype-theme')||'system'}catch{}
+document.documentElement.dataset.theme=$('theme').value;
+$('theme').addEventListener('change',e=>{document.documentElement.dataset.theme=e.target.value;try{localStorage.setItem('lqosync-queue-prototype-theme',e.target.value)}catch{}render();});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+$('latest').addEventListener('click',clear);
+$('play').addEventListener('click',()=>{state.playing=!state.playing;$('play').setAttribute('aria-pressed',String(state.playing));$('play').textContent=state.playing?'Pause demo':'Play demo';});
+setInterval(()=>{if(state.playing&&state.scenario!=='stale'&&!document.hidden){state.tick++;points.push(sample(points.at(-1).at+1,60+state.tick));points=points.slice(-61);render();}},1000);
+document.querySelector('details').addEventListener('toggle',e=>{if(e.target.open)renderTable();});
+let lastWidth=0;new ResizeObserver(()=>{const w=Math.round(chart.getBoundingClientRect().width);if(w!==lastWidth){lastWidth=w;render();}}).observe(chart);
+render();
+</script>
+</html>
