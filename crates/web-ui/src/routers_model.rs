@@ -13,6 +13,15 @@ pub(crate) fn read_state(c: Option<&RouterCollection>) -> (&'static str, &'stati
     }
 }
 
+/// The row state: Disabled first, else the read state.
+pub(crate) fn state(r: &RouterSummary) -> (&'static str, &'static str) {
+    if r.enabled {
+        read_state(r.collection.as_ref())
+    } else {
+        ("Disabled", "neutral")
+    }
+}
+
 pub(crate) fn transport(r: &RouterSummary) -> (&'static str, &'static str) {
     match (r.tls, r.tls_verify, r.tls_ca) {
         (false, _, _) => ("Plain API", "warn"),
@@ -38,7 +47,7 @@ pub(crate) struct Filter {
     pub text: String,
     /// A role key (`wan`, `ppp`, `dhcp`, `hotspot`), or empty.
     pub role: String,
-    /// `online`, `problem`, `not_read`, or empty.
+    /// `online`, `problem`, `not_read`, `disabled`, or empty.
     pub state: String,
 }
 
@@ -52,7 +61,8 @@ pub(crate) fn matches(r: &RouterSummary, f: &Filter) -> bool {
         && match f.state.as_str() {
             "online" => state == Some("online"),
             "problem" => matches!(state, Some("failed" | "unreachable" | "offline")),
-            "not_read" => state.is_none(),
+            "not_read" => r.enabled && state.is_none(),
+            "disabled" => !r.enabled,
             _ => true,
         }
 }
@@ -63,6 +73,7 @@ mod tests {
     fn router(name: &str, roles: &[&str], state: Option<&str>) -> RouterSummary {
         RouterSummary {
             name: name.into(),
+            enabled: true,
             address: "192.0.2.1".into(),
             roles: roles.iter().map(|r| r.to_string()).collect(),
             collection: state.map(|s| RouterCollection {
@@ -109,5 +120,13 @@ mod tests {
         assert!(matches(&access, &f("", "dhcp", "problem")));
         assert!(matches(&core, &f("", "", "not_read")));
         assert!(!matches(&core, &f("", "", "online")));
+        // A disabled router has its own state and is not "not read".
+        let mut off = router("Spare", &["ppp"], None);
+        off.enabled = false;
+        assert_eq!(state(&off), ("Disabled", "neutral"));
+        assert_eq!(state(&core).0, "Not read");
+        assert!(matches(&off, &f("", "", "disabled")));
+        assert!(!matches(&off, &f("", "", "not_read")));
+        assert!(!matches(&core, &f("", "", "disabled")));
     }
 }

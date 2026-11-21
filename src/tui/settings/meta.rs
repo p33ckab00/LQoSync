@@ -386,6 +386,17 @@ fn build() -> Vec<KeyMeta> {
             read_only: false,
         });
     }
+    // Per router only: a shared `router_defaults.enabled` is not allowed.
+    out.push(KeyMeta {
+        path: "routers.*.enabled".into(),
+        kind: Kind::Bool,
+        default: Some("true".into()),
+        help: "false = LQoSync makes no connection to this router: no read, test, discovery, or write. \
+               Its circuits leave the shaping after the grace time, through the removal guard."
+            .into(),
+        optional: true,
+        read_only: false,
+    });
     for m in out.iter_mut().filter(|m| m.path == "runtime.state_dir") {
         m.help.push_str("\nread-only here: change it by hand; copy the folder first, or the service loses its state");
     }

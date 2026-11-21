@@ -68,7 +68,9 @@ The file uses the `web-contract` router types, so the core and the gateway share
 ## Revised slice order
 
 Status: S1 is implemented. The service writes `routers.json` each cycle. `GET /api/v1/routers` and the `/routers` page read it.
-`tools/frontend/routers-check.cjs` holds the browser evidence. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
+`tools/frontend/routers-check.cjs` holds the browser evidence.
+S2 is implemented. `[[routers]] enabled = false` closes four paths: the legacy cycle read, WAN discovery, the Topology Manager batch (which also closes a held session), and the connector itself.
+A disabled router keeps no rows and no nodes: its circuits leave after the grace time, through the removal guard. The TUI shows the key per router. `router_defaults.enabled` is not allowed. The drawer from the design is not built: the row link opens the detail route, which has the same content and a stable URL.
 
 Each slice ends with tests, browser evidence, a commit, and a release build.
 

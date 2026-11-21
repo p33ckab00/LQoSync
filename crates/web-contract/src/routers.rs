@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 pub const CACHE: &str = "routers.json";
 pub const VERSION: u32 = 1;
 
+fn enabled() -> bool {
+    true
+}
+
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RouterInventory {
     pub version: u32,
@@ -23,6 +27,9 @@ pub struct RouterSummary {
     /// Stable ID, the same as the topology registry router ID.
     pub id: String,
     pub name: String,
+    /// `false`: LQoSync makes no connection to this router. Absent in older caches means enabled.
+    #[serde(default = "enabled")]
+    pub enabled: bool,
     pub address: String,
     pub port: u16,
     pub tls: bool,

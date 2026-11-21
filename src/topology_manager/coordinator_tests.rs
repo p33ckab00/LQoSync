@@ -178,10 +178,11 @@ async fn selected_sources_prepare_a_fresh_pair_without_reading_other_protocols_o
 
 #[tokio::test(start_paused = true)]
 async fn invalid_source_bindings_stop_before_any_connection() {
-    for case in 0..5 {
+    for case in 0..6 {
         let (mut cfg, mut registry, fake, mut coordinator) = fixture();
         match case {
             0 => cfg.routers.clear(),
+            5 => cfg.routers[0].enabled = false,
             1 => cfg.routers.push(cfg.routers[0].clone()),
             2 => cfg.routers[0].pppoe.enabled = false,
             3 => {
@@ -1214,4 +1215,36 @@ async fn reconcile_for_reads_the_candidate_sources_without_publication() {
     assert_eq!(reconciliation.active.len(), 1);
     assert_eq!(reconciliation.registry.catalog, registry.catalog);
     assert_eq!(fake.connects.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn disabling_a_router_closes_its_held_session_and_blocks_the_next_batch() {
+    let (mut cfg, registry, fake, mut coordinator) = fixture();
+    coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    let connects = fake.connects.load(Ordering::SeqCst);
+    assert!(
+        fake.alive.load(Ordering::SeqCst) > 0,
+        "the batch keeps its session"
+    );
+    cfg.routers[0].enabled = false;
+    let Err(error) = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+    else {
+        panic!("a disabled router must block the batch");
+    };
+    assert!(format!("{error:#}").contains("disabled"), "{error:#}");
+    assert_eq!(
+        fake.connects.load(Ordering::SeqCst),
+        connects,
+        "no new connection"
+    );
+    assert_eq!(
+        fake.alive.load(Ordering::SeqCst),
+        0,
+        "the held session is closed"
+    );
 }

@@ -14,7 +14,7 @@ const fs=require('node:fs');
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   // The Dashboard counts every configured router, including the WAN-only core.
   const metric=page.locator('.metric').filter({has:page.getByRole('heading',{name:'Routers',exact:true})});
-  await metric.getByText('3',{exact:true}).waitFor();
+  await metric.getByText('4',{exact:true}).waitFor();
 
   const nav=page.getByRole('navigation',{name:'Main navigation'});
   await nav.getByRole('link',{name:'Routers'}).click();
@@ -24,11 +24,12 @@ const fs=require('node:fs');
   assert.equal(await nav.getByRole('link',{name:'Dashboard'}).getAttribute('aria-current'),null);
   const table=page.locator('.router-table');
   await table.locator('tbody tr').first().waitFor();
-  assert.equal(await table.locator('tbody tr').count(),3);
+  assert.equal(await table.locator('tbody tr').count(),4);
   const row=name=>table.locator('tbody tr').filter({has:page.getByRole('link',{name,exact:true})});
   assert.match(await row('Core-01').innerText(),/WAN[\s\S]*Not read[\s\S]*No subscriber role[\s\S]*TLS, checked with its CA/);
   assert.match(await row('Access-02').innerText(),/Unreachable[\s\S]*No successful read yet[\s\S]*certificate not checked[\s\S]*Credential missing/);
   assert.match(await row('Access-01').innerText(),/PPPoE[\s\S]*DHCP[\s\S]*Online/);
+  assert.match(await row('Spare-01').innerText(),/Disabled[\s\S]*No reads or writes/);
   for(const theme of ['dark','light']){
     await page.getByLabel('Color theme').selectOption(theme);
     await page.locator('.routers-panel').screenshot({path:`${out}/inventory-${theme}.png`});
@@ -41,11 +42,15 @@ const fs=require('node:fs');
   await filters.getByLabel('Role').selectOption('');
   await filters.getByLabel('Read state').selectOption('problem');
   assert.deepEqual(await table.locator('tbody th a').allTextContents(),['Access-02']);
+  await filters.getByLabel('Read state').selectOption('disabled');
+  assert.deepEqual(await table.locator('tbody th a').allTextContents(),['Spare-01']);
+  await filters.getByLabel('Read state').selectOption('not_read');
+  assert.deepEqual(await table.locator('tbody th a').allTextContents(),['Core-01'],'a disabled router is not "not read"');
   await filters.getByLabel('Read state').selectOption('');
   await filters.getByLabel('Search').fill('nothing-matches');
   await page.getByText('No router matches these filters.').waitFor();
   await page.getByRole('button',{name:'Clear filters'}).click();
-  assert.equal(await table.locator('tbody tr').count(),3);
+  assert.equal(await table.locator('tbody tr').count(),4);
 
   // Detail: tabs are links; Back restores the inventory filters.
   await filters.getByLabel('Role').selectOption('dhcp');
@@ -74,6 +79,9 @@ const fs=require('node:fs');
   await page.getByRole('heading',{name:'Core-01',level:1}).waitFor();
   assert.match(await page.locator('.router-section').innerText(),/TLS, checked with its CA[\s\S]*CA certificate\s*Configured[\s\S]*Credential\s*Configured/);
   assert.ok(!(await page.content()).includes('.password'),'no file path reaches the page');
+  await page.goto('http://127.0.0.1:19581/routers/lq3-00000000000000a3');
+  await page.getByRole('heading',{name:'Spare-01',level:1}).waitFor();
+  assert.match(await page.locator('.router-facts').innerText(),/Administrative state\s*Disabled: LQoSync makes no connection/);
   await page.goto('http://127.0.0.1:19581/routers/lq3-ffffffffffffffff');
   await page.getByRole('heading',{name:'Router not found',level:1}).waitFor();
 
@@ -89,5 +97,5 @@ const fs=require('node:fs');
   assert.deepEqual(writes,[],'the Routers screen sends no write request');
   assert.deepEqual(errors,[]);
   await browser.close();
-  console.log('PASS: Dashboard router count, navigation and aria-current, inventory states and transport labels, combined filters, detail tabs as links, heading focus, Back keeps filters, deep links, unknown router, no file paths, no write requests, Light/Dark, and 768/320px layouts.');
+  console.log('PASS: Dashboard router count, disabled state and filter, navigation and aria-current, inventory states and transport labels, combined filters, detail tabs as links, heading focus, Back keeps filters, deep links, unknown router, no file paths, no write requests, Light/Dark, and 768/320px layouts.');
 })().catch(e=>{console.error(e);process.exit(1);});

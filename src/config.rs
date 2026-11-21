@@ -323,6 +323,10 @@ pub struct Tui {
 #[serde(deny_unknown_fields)]
 pub struct RouterCfg {
     pub name: String,
+    /// `false`: LQoSync makes no connection to this router: no read, test, discovery, or write.
+    /// Absent means `true`, so older files keep their behavior. A config with `false` needs this version.
+    #[serde(default = "router_enabled")]
+    pub enabled: bool,
     pub address: String,
     pub port: u16,
     pub tls: bool,
@@ -344,10 +348,15 @@ pub struct RouterCfg {
     pub longitude: Option<f64>,
 }
 
+fn router_enabled() -> bool {
+    true
+}
+
 impl RouterCfg {
-    /// True when the router has a subscriber protocol. The legacy cycle reads only these routers.
+    /// True when the router is enabled and has a subscriber protocol. The legacy cycle reads only these routers.
+    /// A router that the cycle does not read keeps no rows and no nodes: they go after the grace time.
     pub fn reads_subscribers(&self) -> bool {
-        self.pppoe.enabled || self.dhcp.enabled || self.hotspot.enabled
+        self.enabled && (self.pppoe.enabled || self.dhcp.enabled || self.hotspot.enabled)
     }
 }
 
@@ -592,7 +601,7 @@ impl Config {
         match user.remove("router_defaults") {
             Some(toml::Value::Table(t)) => {
                 // These keys are different for each router. A shared value would be a mistake.
-                for k in ["name", "address", "username", "password_file"] {
+                for k in ["name", "address", "username", "password_file", "enabled"] {
                     ensure!(
                         !t.contains_key(k),
                         "config: router_defaults.{k} is not allowed; set {k} in each [[routers]] entry"
@@ -1536,6 +1545,28 @@ mod tests {
             (8728, false, false, false)
         );
         assert_eq!(tower.dhcp.servers[0].mode, DhcpMode::PerPlan);
+    }
+
+    #[test]
+    fn a_router_is_enabled_unless_its_own_entry_says_false() {
+        let c = Config::from_toml_str(&format!("{MIN}[routers.pppoe]\nenabled=true\n")).unwrap();
+        assert!(c.routers[0].enabled && c.routers[0].reads_subscribers());
+        let c = Config::from_toml_str(&format!(
+            "{MIN}enabled=false\n[routers.pppoe]\nenabled=true\n"
+        ))
+        .unwrap();
+        assert!(!c.routers[0].enabled);
+        assert!(
+            !c.routers[0].reads_subscribers(),
+            "a disabled router is not read, whatever its protocols"
+        );
+        // One shared value could disable every router at once.
+        let e =
+            Config::from_toml_str(&format!("[router_defaults]\nenabled=false\n{MIN}")).unwrap_err();
+        assert!(
+            format!("{e:#}").contains("router_defaults.enabled"),
+            "{e:#}"
+        );
     }
 
     #[test]

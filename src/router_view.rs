@@ -67,6 +67,7 @@ fn summary(
     RouterSummary {
         id,
         name: r.name.clone(),
+        enabled: r.enabled,
         address: r.address.clone(),
         port: r.port,
         tls: r.tls,

@@ -34,7 +34,14 @@ where
     let deadline = now.checked_add(limit).unwrap_or(now);
     let (path, fields) = Table::Interfaces.command();
     let mut tasks = JoinSet::new();
-    for (i, router) in cfg.routers.iter().cloned().enumerate() {
+    // A disabled router gets no discovery read.
+    for (i, router) in cfg
+        .routers
+        .iter()
+        .cloned()
+        .enumerate()
+        .filter(|(_, r)| r.enabled)
+    {
         let (connector, access) = (connector.clone(), cfg.router_access.clone());
         tasks.spawn(async move {
             let read = async {
@@ -56,7 +63,11 @@ where
         .map(|r| RouterInterfaces {
             router_id: router_id(&r.name),
             name: r.name.clone(),
-            read: Err("the read task stopped".into()),
+            read: Err(if r.enabled {
+                "the read task stopped".into()
+            } else {
+                "the router is disabled; no discovery read".into()
+            }),
         })
         .collect();
     while let Some(done) = tasks.join_next().await {

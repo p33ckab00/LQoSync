@@ -2528,6 +2528,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_disabled_router_is_not_read_by_the_cycle_or_wan_discovery() {
+        let e = env();
+        users(&e, &[("alice", "100.64.0.2")]);
+        let mut c = cfg(
+            &e,
+            "shadow",
+            "[router_access]\nread_retries=0\nretry_delay=0\n",
+        );
+        let off = Config::from_toml_str(
+            "[[routers]]\nname=\"Off\"\nenabled=false\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n[routers.pppoe]\nenabled=true\n",
+        )
+        .unwrap()
+        .routers
+        .remove(0);
+        c.routers.push(off);
+        // Any connection to Off panics its task and would show Off as failed.
+        e.fake.panicking.lock().unwrap().insert("Off".into());
+        let mut r = runner(&e, c);
+        let s = r.cycle(1_000, false).await;
+        assert_eq!(s.error, None);
+        let names: Vec<_> = s.status.routers.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(
+            names,
+            ["R1"],
+            "a disabled router has no read and no held rows"
+        );
+        let inv: web_contract::routers::RouterInventory =
+            serde_json::from_str(&read(&e.state.join("routers.json"))).unwrap();
+        let off = inv.routers.iter().find(|r| r.name == "Off").unwrap();
+        assert!(!off.enabled && off.collection.is_none());
+        let found = r.api_wan_discover().await.unwrap();
+        let off = found["routers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["name"] == "Off")
+            .unwrap();
+        assert_eq!(off["state"], "failed");
+        assert!(off["error"].as_str().unwrap().contains("disabled"), "{off}");
+    }
+
+    #[tokio::test]
     async fn each_cycle_publishes_the_router_inventory_without_reading_a_wan_only_router() {
         let e = env();
         users(&e, &[("alice", "100.64.0.2")]);

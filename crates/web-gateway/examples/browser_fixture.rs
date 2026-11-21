@@ -26,7 +26,10 @@ async fn main() -> anyhow::Result<()> {
        "location":[14.5995,120.9842],"options":{"ppp_per_plan_node":true,"hotspot_include_mac":false,"dhcp_require_bound":true,"dhcp_discover":true,"dhcp_shape_unassigned":false,"dhcp_servers":2,"dhcp_clients":1,"exclusions":3}},
       {"id":"lq3-00000000000000a2","name":"Access-02","address":"192.0.2.12","port":8729,"tls":true,"tls_verify":false,"tls_ca":false,"username":"lqosync","credential":false,
        "roles":["hotspot"],"wans":[],"collection":{"state":"unreachable","observed_at":0,"subscribers":0},"sources":[{"kind":"ppp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":true,"records":null,"online":null,"offline":null}],
-       "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":true,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}}
+       "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":true,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}},
+      {"id":"lq3-00000000000000a3","name":"Spare-01","enabled":false,"address":"192.0.2.13","port":8729,"tls":true,"tls_verify":true,"tls_ca":false,"username":"lqosync","credential":true,
+       "roles":["ppp"],"wans":[],"collection":null,"sources":[{"kind":"ppp","enabled":true,"records":null,"online":null,"offline":null},{"kind":"dhcp","enabled":false,"records":null,"online":null,"offline":null},{"kind":"hotspot","enabled":false,"records":null,"online":null,"offline":null}],
+       "location":null,"options":{"ppp_per_plan_node":false,"hotspot_include_mac":false,"dhcp_require_bound":false,"dhcp_discover":false,"dhcp_shape_unassigned":false,"dhcp_servers":0,"dhcp_clients":0,"exclusions":0}}
     ]});
     for (name, value) in [
         ("status.json", status),

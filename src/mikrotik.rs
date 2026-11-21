@@ -133,9 +133,17 @@ impl Connector for MikrotikConnector {
         access: &RouterAccess,
     ) -> impl Future<Output = Result<MikrotikSession, ReadError>> + Send {
         let router = router.clone();
+        // The last gate before the network: a disabled router gets no socket, even from a stale caller.
+        let disabled = !router.enabled;
         let connect_timeout = std::time::Duration::from_secs(access.connect_timeout);
         let owner_uid = self.owner_uid;
         async move {
+            if disabled {
+                return Err(ReadError::Protocol(format!(
+                    "router {} is disabled; LQoSync makes no connection",
+                    router.name
+                )));
+            }
             let password = read_secret(Path::new(&router.password_file), owner_uid)
                 .map_err(|e| ReadError::Login(format!("{e:#}")))?;
             let addr = (router.address.clone(), router.port);
@@ -234,6 +242,26 @@ impl RouterSession for MikrotikSession {
             Err(ReadError::Protocol(
                 "the connection closed before the command completed".into(),
             ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_disabled_router_gets_no_connection_attempt() {
+        let cfg = crate::config::Config::from_toml_str(
+            "[[routers]]\nname=\"R1\"\nenabled=false\naddress=\"192.0.2.1\"\nusername=\"u\"\npassword_file=\"/nonexistent\"\n",
+        )
+        .unwrap();
+        // Without the gate, the missing secret file would give a Login error before any socket.
+        let connector = MikrotikConnector { owner_uid: 0 };
+        match connector.connect(&cfg.routers[0], &cfg.router_access).await {
+            Err(ReadError::Protocol(m)) => assert!(m.contains("disabled"), "{m}"),
+            Err(other) => panic!("the gate must answer first: {other:?}"),
+            Ok(_) => panic!("a disabled router must not connect"),
         }
     }
 }

@@ -3,7 +3,7 @@
 use crate::dashboard::local_time;
 use crate::route::{Link, page};
 use crate::route_model::{Page, Tab, router_href};
-use crate::routers_model::{Filter, matches, read_state, role_label, transport};
+use crate::routers_model::{Filter, matches, read_state, role_label, state, transport};
 use gloo_net::http::Request;
 use leptos::prelude::*;
 use web_contract::routers::{RouterInventory, RouterSummary};
@@ -136,6 +136,7 @@ fn Inventory(
             <select prop:value=move||filter.with(|f|f.state.clone()) on:change=move|ev|set(|f,v|f.state=v,ev)>
               <option value="">"All states"</option><option value="online">"Online"</option>
               <option value="problem">"Needs attention"</option><option value="not_read">"Not read"</option>
+              <option value="disabled">"Disabled"</option>
             </select>
           </label>
           <span class="router-count" aria-live="polite">{move||format!("{} of {} routers",rows.with(Vec::len),total.get())}</span>
@@ -153,14 +154,14 @@ fn Inventory(
                   <thead><tr><th scope="col">"Router"</th><th scope="col">"Roles"</th><th scope="col">"Read state"</th><th scope="col" class="num">"Subscribers"</th><th scope="col">"Connection"</th></tr></thead>
                   <tbody>
                     <For each=move||rows.get() key=|r:&RouterSummary|r.id.clone() children=move|r:RouterSummary|{
-                      let (state,tone)=read_state(r.collection.as_ref());
+                      let (state,tone)=state(&r);
                       let (link,link_tone)=transport(&r);
                       view!{<tr>
                         <th scope="row"><Link href=router_href(&r.id,Tab::Overview) class="router-name">{r.name.clone()}</Link>
                           <small>{format!("{}:{}",r.address,r.port)}</small></th>
                         <td><Roles roles=r.roles.clone()/></td>
                         <td><span class=format!("router-state {tone}")><i aria-hidden="true"></i>{state}</span>
-                          <small>{r.collection.as_ref().map(|c|if c.observed_at>0{format!("Last read {}",local_time(c.observed_at))}else{"No successful read yet".into()}).unwrap_or("No subscriber role".into())}</small></td>
+                          <small>{if !r.enabled {"No reads or writes".into()} else {r.collection.as_ref().map(|c|if c.observed_at>0{format!("Last read {}",local_time(c.observed_at))}else{"No successful read yet".into()}).unwrap_or("No subscriber role".into())}}</small></td>
                         <td class="num">{count(r.collection.as_ref().map(|c|c.subscribers))}</td>
                         <td><span class=format!("router-transport {link_tone}")>{link}</span>
                           {(!r.credential).then(||view!{<small class="router-warn">"Credential missing"</small>})}</td>
@@ -216,7 +217,7 @@ fn Detail(
           <p>"This router is not in the configuration. It may have a new name."</p></div></div>
           <p><Link href="/routers".to_string()>"Back to all routers"</Link></p>}.into_any(),
         Some(r)=>{
-          let (state,tone)=read_state(r.collection.as_ref());
+          let (state,tone)=state(&r);
           let id=r.id.clone();
           view!{
             <div class="page-heading">
@@ -238,6 +239,7 @@ fn Detail(
 
 fn overview(r: &RouterSummary) -> impl IntoView {
     let read = match &r.collection {
+        None if !r.enabled => "Not read: the router is disabled.".to_string(),
         None => "The cycle does not read this router: it has no subscriber role.".to_string(),
         Some(c) if c.observed_at > 0 => format!(
             "{}, last successful read {}",
@@ -248,6 +250,7 @@ fn overview(r: &RouterSummary) -> impl IntoView {
     };
     view! {
       <dl class="router-facts">
+        <div><dt>"Administrative state"</dt><dd>{if r.enabled{"Enabled"}else{"Disabled: LQoSync makes no connection to this router"}}</dd></div>
         <div><dt>"Roles"</dt><dd><Roles roles=r.roles.clone()/></dd></div>
         <div><dt>"Read state"</dt><dd>{read}</dd></div>
         <div><dt>"Subscribers"</dt><dd class="num">{count(r.collection.as_ref().map(|c|c.subscribers))}</dd></div>

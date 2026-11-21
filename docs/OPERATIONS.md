@@ -320,6 +320,23 @@ The tool supports both versions. The upgrade changes the output target. Do this 
 > [!note]
 > In v3, `LibreQoS.py --updateonly` does nothing. The tool does not start it on v3. `lqosd` reads the changed files by itself.
 
+## Disable a router
+
+Set `enabled = false` in the `[[routers]]` entry of the router. In the TUI, select the group of the router and set the key `enabled`.
+You cannot set `enabled` in `[router_defaults]`: one shared value could disable all routers.
+
+A disabled router gets no connection from LQoSync: no cycle read, no WAN discovery read, no Topology Manager read, and no write.
+The router entry, its credential, and its history stay.
+
+- The cycle does not read the router, so it does not keep its rows. Its circuits leave the shaping after `runtime.subscriber_grace`.
+- The removal guard applies. A large removal stops until you confirm it, as for any other removal.
+- A Topology Manager batch that selects a disabled router fails before any connection. Change the policy first.
+- The web Routers page shows the state "Disabled".
+
+To enable the router again, remove the key or set `enabled = true`. The next cycle reads the router again. Old rows do not come back from a cache.
+
+A configuration file with `enabled` needs a build that has this key. An older binary does not load the file, so remove the key before a downgrade.
+
 ## Router TLS with your own CA
 
 Use this procedure to connect to a router on `api-ssl` (port 8729) with a certificate check. A MikroTik router has no certificate from a public CA. Thus you make a CA on the router and sign the API certificate with it. Then you give the CA file to the tool.

@@ -72,6 +72,12 @@ where
         minimum_generation: u64,
         deadline: Instant,
     ) -> anyhow::Result<(u64, Vec<CurrentRouter>)> {
+        // A router disabled since the last batch loses its held session first, even if this batch fails.
+        self.sessions.retain(|_, held| {
+            cfg.routers
+                .iter()
+                .any(|r| r.name == held.router.name && r.enabled)
+        });
         let mut by_name: HashMap<&str, Vec<_>> = HashMap::new();
         for router in &cfg.routers {
             by_name.entry(&router.name).or_default().push(router);
@@ -91,6 +97,10 @@ where
                 "selected router connection is ambiguous"
             );
             let router = matches[0];
+            ensure!(
+                router.enabled,
+                "selected router is disabled; LQoSync makes no connection to it"
+            );
             let mut roles = Vec::with_capacity(kinds.len());
             for kind in kinds {
                 let (role, enabled) = match kind {
