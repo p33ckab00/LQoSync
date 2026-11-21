@@ -202,34 +202,46 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
     };
     view! {
       <section class="panel traffic-panel" aria-labelledby="aggregate-traffic-title">
-        <div class="panel-title"><h2 id="aggregate-traffic-title">"Traffic (Aggregate)"</h2><span class="chip neutral">{move||model.with(|m|m.states[0])}</span></div>
-        <Show when=move||model.with(|m|m.states[0]=="Stale" && !m.series[0].is_empty())><p class="sample-note">"Last known samples"</p></Show>
-        <div class="traffic-toolbar"><div class="range-options" role="group" aria-label="Traffic window">{RANGES.into_iter().map(|label|view!{
+        <div class="panel-title traffic-head">
+          <h2 id="aggregate-traffic-title">"Traffic (Aggregate)"</h2>
+          <span class="traffic-state" data-state=move||model.with(|m|m.states[0].to_lowercase())><i aria-hidden="true"></i>{move||model.with(|m|m.states[0])}</span>
+          <div class="traffic-controls"><div class="range-options" role="group" aria-label="Traffic window">{RANGES.into_iter().map(|label|view!{
             <button type="button" class:range-selected=move||range.get()==label aria-pressed=move||(range.get()==label).to_string()
               on:click=move|_|{if range.get_untracked()!=label{selected.set(None);pinned.set(false);history.set(None);range.set(label);if label!="Recent"{load(label);}}}>{label}</button>
           }).collect_view()}</div>
-          <button class="traffic-live" on:click=move |_|{selected.set(None);pinned.set(false);} aria-pressed=move||(!pinned.get()).to_string()>"Live"</button>
+          <button class="traffic-live" on:click=move |_|{selected.set(None);pinned.set(false);} aria-pressed=move||(!pinned.get()).to_string()><i class="live-dot" aria-hidden="true"></i>"Live"</button>
+          </div>
         </div>
+        <Show when=move||model.with(|m|m.states[0]=="Stale" && !m.series[0].is_empty())><p class="sample-note">"Last known samples"</p></Show>
         <div class="traffic-source-controls" role="group" aria-label="Traffic sources">
           {(0..3).map(|i|view!{
             <button class=CLASSES[i] aria-pressed=move||enabled.get()[i].to_string() on:click=move |_|enabled.update(|v|v[i] = !v[i])>
-              <span class="source-key" aria-hidden="true"></span>{NAMES[i]}
+              <span class="source-name"><span class="source-key" aria-hidden="true"></span>{NAMES[i]}
+              <Show when=move||model.with(|m|!matches!(m.states[i],"Observed"|"Live"))><small>{move||model.with(|m|m.states[i])}</small></Show></span>
               {[true,false].into_iter().map(move |down|view!{<span class="legend-rate">{if down{"↓\u{2009}"}else{"↑\u{2009}"}}{move||model.with(|m|{
                   let at=selected.get().or_else(||m.times.last().copied());
                   at.and_then(|at|plot::sample(&m.series[i],at)).map(|p|rate(if down{p.down_mbps}else{p.up_mbps})).unwrap_or("—".into())
               })}</span>}).collect_view()}
-              <Show when=move||model.with(|m|!matches!(m.states[i],"Observed"|"Live"))><small>{move||model.with(|m|m.states[i])}</small></Show>
             </button>
           }).collect_view()}
         </div>
-        <p class="capacity-note">{move||model.with(|m|match &m.capacity {
+        <div class="capacity-note" role="group" aria-label="WAN capacity use">{move||model.with(|m|match &m.capacity {
             Some(c)=>{
-                let utilization=m.series[0].last().filter(|_| c.down_bps>0 && c.up_bps>0).map(|p|format!(" Actual ↓ {:.1}% ↑ {:.1}%.",p.down_mbps/(c.down_bps as f64/1_000_000.0)*100.0,p.up_mbps/(c.up_bps as f64/1_000_000.0)*100.0)).unwrap_or_default();
-                let each=if c.wans.len()>1{format!(" ({})",c.wans.iter().map(|w|format!("{} ↓ {} ↑ {}",w.name,rate(w.down_bps as f64/1_000_000.0),rate(w.up_bps as f64/1_000_000.0))).collect::<Vec<_>>().join(", "))}else{String::new()};
-                format!("Capacity ({} WAN): ↓ {} ↑ {}{each} · red = current peak, dashed = WAN capacity.{}",c.wan_count,rate(c.down_bps as f64/1_000_000.0),rate(c.up_bps as f64/1_000_000.0),utilization)
+                let caps=[c.down_bps as f64/1_000_000.0,c.up_bps as f64/1_000_000.0];
+                let last=m.series[0].last().map(|p|[p.down_mbps,p.up_mbps]);
+                view!{
+                  <span class="wan-count">{format!("WAN ×{}",c.wan_count)}</span>
+                  {(0..2).map(|d|{
+                      let used=last.map(|l|l[d]/caps[d]*100.0);
+                      view!{<span class="capacity-meter" class:over=used.is_some_and(|u|u>100.0)>
+                        <span class="meter-track" aria-hidden="true"><span class="meter-fill" style=format!("inline-size:{:.1}%",used.unwrap_or(0.0).clamp(0.0,100.0))></span></span>
+                        {format!("{} {} of {}",if d==0{"↓"}else{"↑"},used.map(|u|format!("{u:.1}%")).unwrap_or("—".into()),rate(caps[d]))}
+                      </span>}
+                  }).collect_view()}
+                }.into_any()
             },
-            None=>"WAN capacity unavailable. Red = current peak.".into()
-        })}</p>
+            None=>view!{<span>"WAN capacity unavailable."</span>}.into_any()
+        })}</div>
         <Show when=move||model.with(|m|m.series.iter().any(|s|!s.is_empty())) fallback=move||if range.get()=="Recent"{view!{<div class="chart-empty">"No traffic samples available."<span>"Waiting for published traffic observations."</span></div>}.into_any()}else{view!{<div class="chart-empty">{move||format!("No {} history yet.",range.get())}<span>"The web service collects this history while it runs. It starts with the last hour from the core."</span></div>}.into_any()}>
           <div class="chart-frame mirrored-chart rainbow">
             <div class="y-axis" aria-hidden="true">{move||geometry.with(|g|view!{<span>{format!("↓ {}",axis_rate(g.max[0]))}</span><span>{axis_rate(g.max[0]/2.0)}</span><span>"0"</span><span>{axis_rate(g.max[1]/2.0)}</span><span>{format!("↑ {}",axis_rate(g.max[1]))}</span>})}</div>
@@ -309,7 +321,7 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
           </div>
         </Show>
         <p id="traffic-inspector-help" class="sr-only">"Download above zero, upload below. Hover to inspect. Tap to pin. Use Left/Right on the chart; Escape or Live clears selection."</p>
-        <p class="panel-note">"↓ download · ↑ upload · Actual is delivered; Mapped and Unmapped are enqueued, so rates are not additive. Hover or tap the chart for samples."</p>
+        <p class="panel-note">"Mapped and Unmapped are enqueue rates. They do not add up to Actual. Hover or tap the chart to inspect."</p>
         <Show when=move||model.with(|m|m.capped)><p class="panel-note">"Older samples were omitted to keep the live response bounded."</p></Show>
       </section>
     }

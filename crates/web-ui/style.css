@@ -684,3 +684,29 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 .topology-activation{margin-block:0 18px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;font-size:14px}.topology-activation summary{cursor:pointer;min-block-size:40px;align-content:center}.topology-activation p{margin-block:10px;color:var(--muted);max-inline-size:80ch}.topology-activation code{display:block;overflow-wrap:anywhere;color:var(--text);font-size:13px}.subscriber-filters{display:flex;flex-wrap:wrap;align-items:end}.subscriber-filters label:first-child{flex:1 1 220px}.subscriber-filters label{min-inline-size:130px;max-inline-size:100%}.subscriber-filters input{inline-size:100%}
 .inventory-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.inventory-heading button{min-block-size:40px;padding:6px 10px;font-size:13px}.topology-hierarchy .node-actions{margin:0}.topology-hierarchy .tree-labels{align-items:start}
 .subscriber-workspace .subscriber-records .router-table :is(th,td){display:table-cell}
+
+/* Traffic card header: one toolbar row, a three-column legend, and WAN capacity meters. */
+.traffic-panel .traffic-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-block-end:12px}
+.traffic-panel .traffic-head h2{margin:0}
+.traffic-state{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.traffic-state i,.live-dot{inline-size:8px;block-size:8px;border-radius:50%;background:var(--muted)}
+.traffic-state[data-state=observed] i{background:var(--good)}
+.traffic-state[data-state=stale] i{background:var(--warn)}
+.traffic-controls{display:flex;align-items:center;gap:8px;margin-inline-start:auto}
+.traffic-panel .traffic-live{display:inline-flex;align-items:center;gap:6px}
+.traffic-live[aria-pressed=true] .live-dot{background:var(--good);animation:live-pulse 2s ease-in-out infinite}
+@keyframes live-pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.live-dot{animation:none!important}}
+.traffic-panel .traffic-source-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-block:0 10px}
+.traffic-panel .traffic-source-controls button{display:grid;grid-template-columns:auto auto;justify-content:start;align-items:baseline;gap:2px 14px;min-block-size:44px;padding:8px 12px;text-align:start;white-space:nowrap}
+.traffic-panel .source-name{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-weight:600}
+.traffic-panel .legend-rate{font-size:14px}
+.traffic-panel .capacity-note{display:flex;align-items:center;flex-wrap:wrap;gap:6px 18px;margin:0 0 4px;font-variant-numeric:tabular-nums}
+.wan-count{font-weight:600;color:var(--text)}
+.capacity-meter{display:inline-flex;align-items:center;gap:8px}
+.meter-track{inline-size:72px;block-size:6px;border-radius:3px;background:var(--border);overflow:hidden}
+.meter-fill{display:block;block-size:100%;background:var(--accent)}
+.capacity-meter.over{color:var(--bad)}
+.capacity-meter.over .meter-fill{background:var(--bad)}
+@media(forced-colors:active){.meter-track{border:1px solid CanvasText}.meter-fill,.traffic-state i,.live-dot{background:CanvasText!important}}
+@media(max-width:760px){.traffic-controls{inline-size:100%;margin-inline-start:0}.traffic-controls .range-options{flex:1}.traffic-controls .range-options button{flex:1;min-block-size:44px}.traffic-panel .traffic-live{min-block-size:44px}.traffic-panel .traffic-source-controls{gap:6px}.traffic-panel .traffic-source-controls button{grid-template-columns:1fr;padding:8px;gap:2px}.traffic-panel .legend-rate{font-size:13px}.traffic-panel .source-name{flex-direction:column;align-items:flex-start;gap:6px}.chart-marks .mark{max-inline-size:47%}}

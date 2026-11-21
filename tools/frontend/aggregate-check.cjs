@@ -26,7 +26,7 @@ const fs=require('node:fs');
   // Every WAN reference is labeled, on the plot or as an above-scale tag.
   const marks=(await card.locator('.chart-marks').innerText());
   for(const label of ['Combined WAN','WAN-Fiber','WAN-LTE'])assert.ok(marks.includes(label),marks);
-  assert.match(await card.locator('.capacity-note').innerText(),/WAN-Fiber ↓ 150.0 Mbps/);
+  assert.match(await card.locator('.capacity-note').innerText(),/WAN ×2[\s\S]*↓ [\d.]+% of 200.0 Mbps[\s\S]*↑ [\d.]+% of 80.0 Mbps/);
   assert.ok(geometry.every(g=>g.units==='userSpaceOnUse'&&g.stops===7));
   for(const direction of ['download','upload']){
     const path=await card.locator(`.traffic-line.actual.${direction}-line`).getAttribute('d');
