@@ -271,6 +271,7 @@ fn precision_histories_fit_the_complete_broker_envelope() {
         router: None,
         journal: None,
         topology: None,
+        layout: None,
         operation: None,
         refused: None,
     };

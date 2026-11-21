@@ -1923,6 +1923,42 @@ where
         Ok(serde_json::to_value(done.view())?)
     }
 
+    /// API `topology.layout.save`: replace the canvas card positions. The registry revision
+    /// stays; no cycle is scheduled.
+    pub fn api_layout_save(
+        &mut self,
+        expected_revision: u64,
+        positions: std::collections::BTreeMap<String, [f64; 2]>,
+    ) -> anyhow::Result<serde_json::Value> {
+        self.lock()?;
+        self.open_topology_store()?;
+        let known = self
+            .topology_store
+            .as_ref()
+            .context("registry owner is missing")?
+            .document()?
+            .catalog
+            .iter()
+            .flat_map(|c| &c.nodes)
+            .map(|n| n.id.clone())
+            .collect();
+        let directory = Path::new(&self.cfg.runtime.state_dir).join("topology-manager");
+        let revision =
+            crate::topology_manager::canvas::save(&directory, expected_revision, positions, &known)
+                .map_err(|e| {
+                    if e.is::<crate::topology_manager::store::RevisionConflict>() {
+                        e
+                    } else {
+                        rule(format!("{e:#}"))
+                    }
+                })?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        self.publish_web_view(now);
+        Ok(serde_json::json!({ "revision": revision }))
+    }
+
     /// One automatic Builder edit: the proposal checks run, then the commit, with no review step.
     async fn api_edit_apply(
         &mut self,

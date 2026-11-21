@@ -328,6 +328,51 @@ async fn sign_in_dashboard_revocation_and_no_account_routes() {
         .await
         .unwrap();
     assert_eq!(unreviewed.status(), StatusCode::NOT_FOUND);
+    // A canvas edit saves without a review: same origin and CSRF, then 202.
+    let edit_key = "0f8b5a3c-1d2e-4f60-9a7b-000000000009";
+    let edit = serde_json::json!({"key": edit_key, "expected_revision": 1,
+        "edit": {"kind": "node.remove", "node_id": "n1"}})
+    .to_string();
+    let layout = r#"{"expected_revision":0,"positions":{"n1":[10.0,20.5]}}"#;
+    for (method, path, body) in [
+        ("POST", "/api/v1/topology/edits", edit.as_str()),
+        ("PUT", "/api/v1/topology/layout", layout),
+    ] {
+        let refused = app
+            .clone()
+            .oneshot(req(method, path, &cookie, "https://lqosync.test", body))
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::FORBIDDEN, "{path}");
+    }
+    let csrf: axum::http::HeaderValue = json["csrf"].as_str().unwrap().parse().unwrap();
+    let mut post = req(
+        "POST",
+        "/api/v1/topology/edits",
+        &cookie,
+        "https://lqosync.test",
+        &edit,
+    );
+    post.headers_mut().insert("x-csrf-token", csrf.clone());
+    let queued = app.clone().oneshot(post).await.unwrap();
+    assert_eq!(queued.status(), StatusCode::ACCEPTED);
+    assert_eq!(
+        queued.headers()["location"],
+        format!("/api/v1/topology/operations/{edit_key}")
+    );
+    // No service socket in this fixture: the layout save is unavailable and writes nothing.
+    let mut put = req(
+        "PUT",
+        "/api/v1/topology/layout",
+        &cookie,
+        "https://lqosync.test",
+        layout,
+    );
+    put.headers_mut().insert("x-csrf-token", csrf);
+    assert_eq!(
+        app.clone().oneshot(put).await.unwrap().status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
     let no_csrf = app
         .clone()
         .oneshot(req(

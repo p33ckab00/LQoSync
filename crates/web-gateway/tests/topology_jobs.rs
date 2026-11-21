@@ -427,3 +427,73 @@ async fn explicit_reads_return_their_typed_answers() {
         ]
     );
 }
+
+/// A fake service that saves layout revision 1 from base 0 and refuses any other base.
+fn layout_core(dir: &std::path::Path) -> Arc<AtomicUsize> {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let listener = tokio::net::UnixListener::bind(dir.join("api.sock")).unwrap();
+    let counter = calls.clone();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            counter.fetch_add(1, Ordering::SeqCst);
+            tokio::spawn(async move {
+                let (read, mut write) = stream.into_split();
+                let mut line = String::new();
+                tokio::io::BufReader::new(read)
+                    .read_line(&mut line)
+                    .await
+                    .unwrap();
+                let v: Value = serde_json::from_str(&line).unwrap();
+                assert_eq!(v["op"], "topology.layout.save");
+                let answer = if v["args"]["expected_revision"] == 0 {
+                    json!({"v": 1, "id": v["id"], "ok": true, "result": {"revision": 1}})
+                } else {
+                    json!({"v": 1, "id": v["id"], "ok": false,
+                           "error": {"code": "conflict", "message": "revision conflict"}})
+                };
+                let mut bytes = serde_json::to_vec(&answer).unwrap();
+                bytes.push(b'\n');
+                let _ = write.write_all(&bytes).await;
+            });
+        }
+    });
+    calls
+}
+
+#[tokio::test]
+async fn a_layout_save_returns_the_revision_or_a_conflict() {
+    use web_contract::topology::LayoutRequest;
+    let dir = tempfile::tempdir().unwrap();
+    let calls = layout_core(dir.path());
+    let jobs = Jobs::new(dir.path().into());
+    let request = |rev| LayoutRequest {
+        expected_revision: rev,
+        positions: [("n1".to_string(), [1.0, 2.0])].into(),
+    };
+    assert_eq!(jobs.layout(request(0)).await, Ok(1));
+    assert_eq!(jobs.layout(request(5)).await, Err(Refused::Conflict));
+    let mut far = request(0);
+    far.positions.insert("n2".into(), [f64::INFINITY, 0.0]);
+    assert_eq!(jobs.layout(far).await, Err(Refused::Invalid));
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        2,
+        "an invalid layout never reaches the service"
+    );
+}
+
+#[tokio::test]
+async fn an_automatic_edit_is_a_submitted_command() {
+    let dir = tempfile::tempdir().unwrap();
+    let calls = core(dir.path(), Mode::Save);
+    let jobs = Jobs::new(dir.path().into());
+    let edit = WebCommand::Edit {
+        expected_revision: 2,
+        edit: web_contract::topology::BuilderEdit::NodeRemove {
+            node_id: "n1".into(),
+        },
+    };
+    jobs.submit("alice", KEY, edit).await.unwrap();
+    assert_eq!(settle(&jobs, "alice").await.state, "saved");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+}

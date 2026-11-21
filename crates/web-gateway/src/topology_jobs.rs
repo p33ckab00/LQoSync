@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Mutex, Semaphore};
 use web_contract::topology::{
-    CapacityChange, DiscoveredRouter, Discovery, Moved, Node, NodeChange, Operation,
+    CapacityChange, DiscoveredRouter, Discovery, LayoutRequest, Moved, Node, NodeChange, Operation,
     ProposalRequest, RateChange, ReadJob, ReadRequest, Review, SourceCandidate, WanCandidate,
     WebCommand, WebReceipt,
 };
@@ -38,6 +38,10 @@ pub enum Refused {
     Busy,
     /// No current proposal of this actor has that key.
     Expired,
+    /// The saved layout has another revision. Load the view again.
+    Conflict,
+    /// The service did not answer.
+    Unavailable,
 }
 
 #[derive(Clone)]
@@ -348,6 +352,24 @@ impl Jobs {
         Ok(None)
     }
 
+    /// Save all canvas card positions. Layout only: no receipt, no shaping change.
+    pub async fn layout(&self, request: LayoutRequest) -> Result<u64, Refused> {
+        let valid = request.positions.len() <= 4096
+            && request.positions.iter().all(|(id, point)| {
+                (1..=64).contains(&id.len())
+                    && point.iter().all(|v| v.is_finite() && v.abs() <= 1e7)
+            });
+        if !valid {
+            return Err(Refused::Invalid);
+        }
+        let args = serde_json::to_value(&request).map_err(|_| Refused::Invalid)?;
+        match call(&self.root, "topology.layout.save", args, LOOKUP_LIMIT).await {
+            Ok(v) => v["revision"].as_u64().ok_or(Refused::Unavailable),
+            Err(CallError::Refused(_)) => Err(Refused::Conflict),
+            Err(_) => Err(Refused::Unavailable),
+        }
+    }
+
     /// Queue one command, or return the operation of a known key. Never waits for the service.
     pub async fn submit(
         &self,
@@ -619,6 +641,8 @@ pub fn answer(reply: &mut crate::broker::Reply, result: Result<Operation, Refuse
                     Refused::KeyReused => "key_reused",
                     Refused::Busy => "busy",
                     Refused::Expired => "expired",
+                    Refused::Conflict => "conflict",
+                    Refused::Unavailable => "unavailable",
                 }
                 .into(),
             )

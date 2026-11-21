@@ -175,6 +175,79 @@ mod operations {
     }
 
     #[tokio::test]
+    async fn a_layout_save_keeps_the_registry_revision_and_refuses_unknown_nodes() {
+        use web_contract::topology::{BuilderEdit, Capacity, WebCommand};
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        let edit = |rev, edit| WebCommand::Edit {
+            expected_revision: rev,
+            edit,
+        };
+        r.api_web_mutate(
+            "layout-test-00001",
+            "operator",
+            edit(0, BuilderEdit::Initialize),
+        )
+        .await
+        .unwrap();
+        r.api_web_mutate(
+            "layout-test-00002",
+            "operator",
+            edit(
+                1,
+                BuilderEdit::NodeCreate {
+                    name: "Tower".into(),
+                    parent: None,
+                    capacity: Capacity::Fixed {
+                        down_mbps: 100,
+                        up_mbps: 50,
+                        factor_percent: None,
+                    },
+                    node_kind: None,
+                },
+            ),
+        )
+        .await
+        .unwrap();
+        r.reconcile_requested = false;
+        let id = r.api_registry().unwrap().unwrap().catalog.unwrap().nodes[0]
+            .id
+            .clone();
+        let saved = call(
+            &mut r,
+            "topology.layout.save",
+            json!({"expected_revision": 0, "positions": {id.clone(): [120.5, -40.0]}}),
+        )
+        .await;
+        assert_eq!(saved["result"]["revision"], 1, "{saved}");
+        assert_eq!(r.api_registry().unwrap().unwrap().revision, 2);
+        assert!(
+            !r.reconcile_requested,
+            "a layout save never schedules shaping"
+        );
+        let stale = call(
+            &mut r,
+            "topology.layout.save",
+            json!({"expected_revision": 0, "positions": {}}),
+        )
+        .await;
+        assert_eq!(stale["error"]["code"], "conflict", "{stale}");
+        let unknown = call(
+            &mut r,
+            "topology.layout.save",
+            json!({"expected_revision": 1, "positions": {"ghost": [1.0, 1.0]}}),
+        )
+        .await;
+        assert_eq!(unknown["ok"], false, "{unknown}");
+        let view: web_contract::topology::TopologyView = serde_json::from_slice(
+            &std::fs::read(e.state.join(web_contract::topology::CACHE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(view.layout_revision.as_deref(), Some("1"));
+        assert_eq!(view.nodes[0].position, Some([120.5, -40.0]));
+    }
+
+    #[tokio::test]
     async fn frontend_initialize_requires_confirmation_and_builds_without_live_io() {
         use crate::topology_manager::edits::{CapacityInput, Edit};
         let e = env();

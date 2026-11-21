@@ -12,7 +12,7 @@ use axum::{
         Html, IntoResponse, Response, Sse,
         sse::{Event, KeepAlive},
     },
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
@@ -351,6 +351,39 @@ async fn topology_propose(
     )
     .await
 }
+/// Save one canvas edit automatically. The service validates it; there is no review step.
+async fn topology_edit(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Json(request): Json<web_contract::topology::EditRequest>,
+) -> ApiResult {
+    let p = writer(&s, &h).await?;
+    queued(
+        &s,
+        &BrokerRequest::TopologyEdit {
+            actor: p.username,
+            request,
+        },
+    )
+    .await
+}
+/// Save all canvas card positions: `409` when the layout changed. No shaping change.
+async fn topology_layout(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    Json(request): Json<web_contract::topology::LayoutRequest>,
+) -> ApiResult {
+    writer(&s, &h).await?;
+    let reply = exchange(&s.broker, &BrokerRequest::TopologyLayout { request })
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    match (reply.layout, reply.refused.as_deref()) {
+        (Some(layout), _) => Ok(Json(layout).into_response()),
+        (None, Some("conflict")) => Err(StatusCode::CONFLICT),
+        (None, Some("invalid")) => Err(StatusCode::BAD_REQUEST),
+        _ => Err(StatusCode::SERVICE_UNAVAILABLE),
+    }
+}
 /// Start one explicit router read (refresh or discovery). Only this POST reads routers.
 async fn topology_reads(
     State(s): State<WebState>,
@@ -599,6 +632,8 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/topology", get(topology))
         .route("/api/v1/topology/proposals", post(topology_propose))
         .route("/api/v1/topology/reads", post(topology_reads))
+        .route("/api/v1/topology/edits", post(topology_edit))
+        .route("/api/v1/topology/layout", put(topology_layout))
         .route(
             "/api/v1/topology/proposals/{key}/confirm",
             post(topology_confirm),

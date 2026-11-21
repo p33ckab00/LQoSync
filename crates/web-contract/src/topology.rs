@@ -719,6 +719,31 @@ pub struct ProposalRequest {
     pub edit: BuilderEdit,
 }
 
+/// `POST /api/v1/topology/edits`. One automatic Builder edit; the service saves it with no
+/// review step. The browser makes `key` once per edit and sends it again on a retry.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EditRequest {
+    pub key: String,
+    pub expected_revision: u64,
+    pub edit: BuilderEdit,
+}
+
+/// `PUT /api/v1/topology/layout`, and the service `topology.layout.save` arguments. All card
+/// positions; the layout has its own revision and never changes shaping.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LayoutRequest {
+    pub expected_revision: u64,
+    pub positions: std::collections::BTreeMap<String, [f64; 2]>,
+}
+
+/// The saved layout revision.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayoutReply {
+    pub revision: u64,
+}
+
 /// `POST /api/v1/topology/proposals/{proposal}/confirm`. `key` is the receipt key of the save.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -109,6 +109,15 @@ pub enum Request {
         actor: String,
         request: web_contract::topology::ReadRequest,
     },
+    /// One automatic Builder edit, saved without a review.
+    TopologyEdit {
+        actor: String,
+        request: web_contract::topology::EditRequest,
+    },
+    /// Save all canvas card positions. Layout only.
+    TopologyLayout {
+        request: web_contract::topology::LayoutRequest,
+    },
 }
 #[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
@@ -132,6 +141,8 @@ pub struct Reply {
     #[serde(default)]
     pub topology: Option<web_contract::topology::TopologyReply>,
     #[serde(default)]
+    pub layout: Option<web_contract::topology::LayoutReply>,
+    #[serde(default)]
     pub operation: Option<web_contract::topology::Operation>,
     /// Why a mutation was not queued: `invalid`, `key_reused`, or `busy`.
     #[serde(default)]
@@ -151,6 +162,7 @@ impl Reply {
             router: None,
             journal: None,
             topology: None,
+            layout: None,
             operation: None,
             refused: None,
         }
@@ -336,6 +348,23 @@ pub async fn serve(
                     Request::TopologyRead { actor, request } => {
                         crate::topology_jobs::answer(&mut reply, jobs.read(&actor, request).await);
                     }
+                    Request::TopologyEdit { actor, request } => {
+                        let command = web_contract::topology::WebCommand::Edit {
+                            expected_revision: request.expected_revision,
+                            edit: request.edit,
+                        };
+                        crate::topology_jobs::answer(
+                            &mut reply,
+                            jobs.submit(&actor, &request.key, command).await,
+                        );
+                    }
+                    Request::TopologyLayout { request } => match jobs.layout(request).await {
+                        Ok(revision) => {
+                            reply.layout = Some(web_contract::topology::LayoutReply { revision });
+                            reply.ok = true;
+                        }
+                        Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
+                    },
                     Request::TopologyCancel { actor, proposal } => {
                         reply.ok = jobs.cancel(&actor, &proposal).await;
                     }

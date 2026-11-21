@@ -41,6 +41,7 @@ fn the_inventory_fits_the_broker_reply_and_keeps_config_order() {
         router: None,
         journal: None,
         topology: None,
+        layout: None,
         operation: None,
         refused: None,
     };
