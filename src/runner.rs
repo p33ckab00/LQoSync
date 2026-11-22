@@ -1861,6 +1861,64 @@ where
         crate::api::server::bind(Path::new(&self.cfg.runtime.state_dir), lock)
     }
 
+    /// Commit the automatic groups of `draft` on top of `base`. `false`: nothing to add, or a
+    /// newer registry revision (a web edit came first; the next cycle tries again).
+    pub(crate) fn commit_live_groups(
+        &mut self,
+        base: &crate::topology_manager::model::RegistryDocument,
+        draft: &crate::topology_manager::policy_draft::PolicyDraft,
+    ) -> anyhow::Result<bool> {
+        let Some(next) = crate::topology_manager::edits::auto_groups(base, draft)? else {
+            return Ok(false);
+        };
+        match self.api_edit(base.revision, |_, _| Ok((next, ()))) {
+            Ok(_) => Ok(true),
+            Err(e)
+                if e.downcast_ref::<crate::topology_manager::store::RevisionConflict>()
+                    .is_some() =>
+            {
+                Ok(false)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Live source canvas: read the current sources and add the groups of new active sources.
+    /// Returns the IDs of the active group nodes; `None` when the read failed or did not run.
+    pub(crate) async fn sync_live_groups(&mut self) -> Option<std::collections::BTreeSet<String>> {
+        use crate::topology_manager::layout::NodeKind;
+        // The proposal supports only root_promotion.
+        if self.cfg.network.mode != crate::config::NetworkMode::RootPromotion {
+            return None;
+        }
+        let base = self
+            .api_document()
+            .ok()
+            .flatten()
+            .filter(|d| d.catalog.is_some() && d.export_ownership.is_some())?;
+        let draft = match self.propose_policy(Duration::from_secs(30)).await {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("warning: live sources: cannot read the current sources: {e:#}");
+                return None;
+            }
+        };
+        match self.commit_live_groups(&base, &draft) {
+            Ok(true) => eprintln!("live sources: added the groups of new active sources"),
+            Ok(false) => {}
+            Err(e) => eprintln!("warning: live sources: no group added: {e:#}"),
+        }
+        Some(
+            draft
+                .catalog
+                .nodes
+                .iter()
+                .filter(|n| n.kind == NodeKind::SubscriberGroup)
+                .map(|n| n.id.clone())
+                .collect(),
+        )
+    }
+
     /// Propose a first topology policy from the configuration and current router data.
     /// No lock is taken and no file is written.
     pub async fn propose_policy(
@@ -2737,6 +2795,7 @@ where
         }
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
+        self.sync_live_groups().await;
         self.publish_web_view(now);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
         if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {

@@ -903,3 +903,68 @@ async fn a_router_failure_during_a_manager_failure_keeps_the_failure() {
     assert_eq!(summary.status.manager_failed_since, Some(1_000));
     assert_eq!(notices(&e).len(), 1);
 }
+
+// Live source canvas, Task 2.
+
+/// Move secret `g1` of the fake router to a new profile `Bronze`.
+fn bronze_on_the_router(e: &Env) {
+    let mut rows = e.fake.rows.lock().unwrap();
+    let tables = rows.get_mut("Hub-1").unwrap();
+    let profiles = tables.get_mut("/ppp/profile").unwrap();
+    let mut profile = profiles[0].clone();
+    profile.insert("name".into(), "Bronze".into());
+    profile.insert(".id".into(), "*p9".into());
+    profiles.push(profile);
+    for s in tables
+        .get_mut("/ppp/secret")
+        .unwrap()
+        .iter_mut()
+        .filter(|s| s["name"] == "g1")
+    {
+        s.insert("profile".into(), "Bronze".into());
+    }
+}
+
+fn bronze_id() -> String {
+    crate::topology::group_node_id("Hub-1", &crate::sources::GroupKey::PppPlan("Bronze".into()))
+}
+
+#[tokio::test]
+async fn a_cycle_adds_the_group_of_a_new_profile() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    bronze_on_the_router(&e);
+    r.cycle(1_000, false).await;
+    let doc = r.api_document().unwrap().unwrap();
+    assert!(
+        doc.catalog
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|n| n.id == bronze_id())
+    );
+}
+
+#[tokio::test]
+async fn an_automatic_commit_yields_to_a_newer_revision() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    let base = r.api_document().unwrap().unwrap();
+    bronze_on_the_router(&e);
+    let draft = r.propose_policy(AGE).await.unwrap();
+    // A web edit commits first.
+    let mut newer = base.clone();
+    newer.catalog.as_mut().unwrap().nodes[0]
+        .name
+        .push_str(" (edited)");
+    r.test_commit(newer).unwrap();
+    assert!(!r.commit_live_groups(&base, &draft).unwrap());
+    let doc = r.api_document().unwrap().unwrap();
+    assert!(
+        !doc.catalog
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|n| n.id == bronze_id())
+    );
+}

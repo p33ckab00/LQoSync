@@ -1117,6 +1117,52 @@ pub fn auto_read(
     Ok(Some(d))
 }
 
+/// Live source canvas (owner decision, 2026-11-22): add the group node of each active draft
+/// source that the registry does not have yet. A new source comes in as `add_source` adds it.
+/// A saved source without any node gets the draft node. It never removes or changes a node.
+/// `None` means that nothing is missing. An unenrolled registry is not changed.
+pub fn auto_groups(
+    doc: &RegistryDocument,
+    draft: &super::policy_draft::PolicyDraft,
+) -> anyhow::Result<Option<RegistryDocument>> {
+    if doc.catalog.is_none() || doc.export_ownership.is_none() {
+        return Ok(None);
+    }
+    let mut d = doc.clone();
+    let mut changed = false;
+    for node in draft
+        .catalog
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::SubscriberGroup)
+    {
+        let Some(key) = node.source_id.as_deref() else {
+            continue;
+        };
+        let c = d.catalog.as_ref().expect("checked above");
+        // A source with any node keeps the operator's placement.
+        if c.nodes
+            .iter()
+            .any(|n| n.id == node.id || n.source_id.as_deref() == Some(key))
+        {
+            continue;
+        }
+        if c.sources.iter().any(|s| s.id == key) {
+            let c = d.catalog.as_mut().expect("checked above");
+            c.nodes.push(node.clone());
+            c.canonicalize();
+        } else {
+            d = add_source(&d, draft, key, None)?.candidate;
+        }
+        changed = true;
+    }
+    if !changed {
+        return Ok(None);
+    }
+    d.validate()?;
+    Ok(Some(d))
+}
+
 /// Copy one draft source into the registry, as enrollment builds it, with its first instance.
 pub fn add_source(
     doc: &RegistryDocument,

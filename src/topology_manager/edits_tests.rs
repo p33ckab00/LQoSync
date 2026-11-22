@@ -1798,3 +1798,82 @@ fn two_wans_with_one_list_are_refused_on_edit() {
     );
     assert!(error.contains("two WAN nodes"), "{error}");
 }
+
+// Live source canvas, Task 2.
+
+/// The scenario with secret `g1` moved to a new profile `Bronze` (an active session uses it).
+fn bronze(snap: &mut crate::model::RouterSnapshot) {
+    let mut profile = snap.ppp_profile[0].clone();
+    profile.insert("name".into(), "Bronze".into());
+    snap.ppp_profile.push(profile);
+    for s in snap.ppp_secret.iter_mut().filter(|s| s["name"] == "g1") {
+        s.insert("profile".into(), "Bronze".into());
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn auto_groups_adds_a_new_active_profile_once() {
+    use crate::topology_manager::policy_draft::{document, propose, tests as scenario};
+    let (cfg, mut snap) = scenario::scenario();
+    let mut doc =
+        document(&propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap()).unwrap();
+    doc.export_ownership = Some(Default::default());
+    bronze(&mut snap);
+    let draft = propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap();
+    let next = auto_groups(&doc, &draft).unwrap().expect("a new group");
+    next.validate().unwrap();
+    let id = crate::topology::group_node_id(
+        "Hub-1",
+        &crate::sources::GroupKey::PppPlan("Bronze".into()),
+    );
+    assert!(
+        next.catalog
+            .as_ref()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|n| n.id == id)
+    );
+    assert!(auto_groups(&next, &draft).unwrap().is_none());
+}
+
+#[tokio::test(start_paused = true)]
+async fn auto_groups_keeps_an_edited_node() {
+    use crate::topology_manager::policy_draft::{document, propose, tests as scenario};
+    let (cfg, mut snap) = scenario::scenario();
+    let mut doc =
+        document(&propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap()).unwrap();
+    doc.export_ownership = Some(Default::default());
+    let gold =
+        crate::topology::group_node_id("Hub-1", &crate::sources::GroupKey::PppPlan("Gold".into()));
+    let node = doc
+        .catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == gold)
+        .unwrap();
+    node.name = "Gold edited".into();
+    let edited = node.clone();
+    bronze(&mut snap);
+    let draft = propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap();
+    let next = auto_groups(&doc, &draft).unwrap().unwrap();
+    let kept = next
+        .catalog
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|n| n.id == gold)
+        .unwrap();
+    assert_eq!(kept, &edited);
+}
+
+#[test]
+fn the_same_profile_on_two_routers_gives_two_groups() {
+    use crate::sources::GroupKey;
+    use crate::topology::group_node_id;
+    let key = GroupKey::PppPlan("Gold".into());
+    assert_ne!(group_node_id("Hub-1", &key), group_node_id("Hub-2", &key));
+}
