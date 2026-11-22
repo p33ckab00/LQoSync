@@ -191,7 +191,7 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
             .context("aggregate circuit is absent from the registry")?;
         ensure!(
             candidate.subscribers[*record].policy.assignment.as_deref()
-                == Some(placement.target_id.as_str()),
+                == placement.target_id.as_deref(),
             "aggregate placement differs from candidate assignment"
         );
         placement.base.validate()?;
@@ -202,8 +202,12 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
                 && placement.rates.min.up <= placement.rates.max.up,
             "aggregate subscriber minimum exceeds maximum"
         );
+        // A flat placement has no node demand.
+        let Some(target_id) = placement.target_id.as_deref() else {
+            continue;
+        };
         let &target = node_index
-            .get(placement.target_id.as_str())
+            .get(target_id)
             .context("aggregate target is absent from the catalog")?;
         direct[target] = direct[target]
             .add(Demand {
@@ -212,7 +216,7 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
                 min: placement.rates.min,
                 max: placement.rates.max,
             })
-            .with_context(|| format!("node {} direct demand", placement.target_id))?;
+            .with_context(|| format!("node {target_id} direct demand"))?;
     }
     ensure!(
         placed_ids == active_ids,

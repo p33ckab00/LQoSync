@@ -89,7 +89,7 @@ fn count(result: &RebalanceResult, target: &str) -> usize {
         .evaluation
         .placements
         .iter()
-        .filter(|p| p.target_id == target)
+        .filter(|p| p.target_id.as_deref() == Some(target))
         .count()
 }
 
@@ -512,7 +512,7 @@ fn different_plan_sizes_rebalance_demand_instead_of_circuit_count() {
         .evaluation
         .placements
         .iter()
-        .filter(|p| p.target_id == "group1")
+        .filter(|p| p.target_id.as_deref() == Some("group1"))
         .map(|p| p.base.down)
         .sum();
     assert_eq!(demand, 400_000_000);
@@ -832,7 +832,7 @@ fn count_mode_places_new_subscribers_evenly() {
         resolved
             .placements
             .iter()
-            .filter(|p| p.target_id == t)
+            .filter(|p| p.target_id.as_deref() == Some(t))
             .count()
     };
     assert_eq!((on("group1"), on("group2")), (31, 30));

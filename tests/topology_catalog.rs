@@ -150,7 +150,7 @@ async fn fresh_authorized_return_restores_pins_after_restart_and_reaches_the_cap
         );
         let evaluation = evaluate(resolve(returned.reconciliation).unwrap()).unwrap();
         assert!(evaluation.conflicts.is_empty());
-        assert_eq!(evaluation.placements[0].target_id, "g1");
+        assert_eq!(evaluation.placements[0].target_id.as_deref(), Some("g1"));
         assert_eq!(evaluation.placements[0].rates.max.down, 50_000_000);
         assert_eq!(evaluation.placements[0].rates.max.up, 10_000_000);
         assert!(tokio::time::Instant::now() < expires);

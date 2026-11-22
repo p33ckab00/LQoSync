@@ -36,7 +36,8 @@ pub struct PlacementConflict {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Placement {
     pub subscriber_id: String,
-    pub target_id: String,
+    /// `None`: no parent (flat). The CSV row gets an empty `Parent Node`.
+    pub target_id: Option<String>,
     pub profile_id: Option<String>,
     pub base: RateBps,
     pub rates: SubscriberRates,
@@ -232,20 +233,13 @@ impl<'a> Index<'a> {
             });
         }
         let mut source_targets = vec![Vec::new(); catalog.sources.len()];
-        let selected: HashSet<_> = catalog
-            .nodes
-            .iter()
-            .filter_map(|n| n.source_id.as_deref())
-            .collect();
         let mut selectors: HashMap<&SourceScope, Selectors<'_>> = HashMap::new();
         for (i, source) in catalog.sources.iter().enumerate() {
             if let SourceOrigin::Subscribers {
                 scope, profile_ref, ..
             } = &source.origin
             {
-                if source.targets.is_empty() && !selected.contains(source.id.as_str()) {
-                    continue;
-                }
+                // An unplaced source still matches its subscribers: it gives their profile.
                 let selectors = selectors.entry(scope).or_default();
                 match profile_ref {
                     Some(profile) => selectors.profiles.entry(profile).or_default().push(i),
@@ -313,6 +307,7 @@ impl<'a> Index<'a> {
         let mut eligible: Option<BTreeSet<usize>> = None;
         let mut defaults = BTreeSet::new();
         let mut any_matched = false;
+        let mut flat_accounts = 0;
         for account in &active.accounts {
             let mut matched = HashSet::new();
             if let Some(selectors) = self.selectors.get(&account.identity.scope) {
@@ -330,8 +325,19 @@ impl<'a> Index<'a> {
                 }
             }
             any_matched |= !matched.is_empty();
-            if matched.is_empty() {
-                let allowed = self.unplaced(&account.identity.scope.router_id);
+            if matched.iter().all(|s| self.source_targets[*s].is_empty()) {
+                for source in &matched {
+                    if let Some(profile) = self.catalog.sources[*source].profile_id.as_deref() {
+                        defaults.insert(profile);
+                    }
+                }
+                let allowed = match self.unplaced(&account.identity.scope.router_id) {
+                    Some(allowed) => allowed,
+                    None => {
+                        flat_accounts += 1;
+                        BTreeSet::new()
+                    }
+                };
                 if let Some(eligible) = &mut eligible {
                     eligible.retain(|t| allowed.contains(t));
                 } else {
@@ -360,8 +366,10 @@ impl<'a> Index<'a> {
             }
         }
         let mut eligible = eligible.unwrap_or_default();
-        // No placed source knows this subscriber: its rates come from the router plan.
+        // No source knows this subscriber: its rates come from the router plan.
         let fallback = !any_matched;
+        // No account has an eligible node (R1, R6): no parent. A mix is an integrity conflict.
+        let flat = flat_accounts == active.accounts.len();
         let profile_id = match record.policy.profile_id.as_deref() {
             Some(profile) => Some(profile),
             None if defaults.len() > 1 => return Err(PlacementConflictReason::ConflictingProfiles),
@@ -393,7 +401,7 @@ impl<'a> Index<'a> {
         } else {
             None
         };
-        if eligible.is_empty() {
+        if eligible.is_empty() && !flat {
             return Err(PlacementConflictReason::NoEligibleTarget);
         }
         if fallback {
@@ -409,6 +417,7 @@ impl<'a> Index<'a> {
                 .map_err(|error| PlacementConflictReason::InvalidRates(error.to_string()))?;
             return Ok(Prepared {
                 eligible,
+                flat,
                 fixed,
                 base,
                 rates,
@@ -437,6 +446,7 @@ impl<'a> Index<'a> {
             .map_err(|error| PlacementConflictReason::InvalidRates(error.to_string()))?;
         Ok(Prepared {
             eligible,
+            flat,
             fixed,
             base,
             rates,
@@ -448,7 +458,8 @@ impl<'a> Index<'a> {
 impl Index<'_> {
     /// Targets of an account whose source is not placed. An explicit fallback policy keeps
     /// priority; the family rule filters it. Else the automatic set of the router (R3–R5).
-    fn unplaced(&self, router: &str) -> BTreeSet<usize> {
+    /// `None` means no eligible node: the subscriber gets no parent.
+    fn unplaced(&self, router: &str) -> Option<BTreeSet<usize>> {
         let fallback: BTreeSet<usize> = self
             .fallback_targets
             .iter()
@@ -456,15 +467,16 @@ impl Index<'_> {
             .filter(|t| self.families[self.targets[*t].node].is_none_or(|f| f == router))
             .collect();
         if fallback.is_empty() {
-            self.auto_targets.get(router).cloned().unwrap_or_default()
+            self.auto_targets.get(router).cloned()
         } else {
-            fallback
+            Some(fallback)
         }
     }
 }
 
 struct Prepared {
     eligible: BTreeSet<usize>,
+    flat: bool,
     fixed: Option<usize>,
     base: RateBps,
     rates: SubscriberRates,
@@ -515,11 +527,8 @@ fn ratio(demand: RateBps, capacity: Option<RateBps>) -> Ratio {
 /// Keep valid saved intent. This function does not perform an explicit rebalance or any I/O.
 pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution> {
     let registry_index = collection.registry.index()?;
-    let catalog = collection
-        .registry
-        .catalog
-        .as_ref()
-        .context("placement requires a configured catalog")?;
+    let catalog = collection.registry.catalog.clone().unwrap_or_default();
+    let catalog = &catalog;
     let index = Index::new(catalog)?;
     let mut active = collection.active;
     active.sort_unstable_by(|a, b| a.subscriber_id.cmp(&b.subscriber_id));
@@ -584,6 +593,17 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
     let mut placements = Vec::with_capacity(pending.len());
     let mut assignments = Vec::with_capacity(pending.len());
     for (a, record, prepared) in pending {
+        if prepared.flat {
+            assignments.push((record, None));
+            placements.push(Placement {
+                subscriber_id: active[a].subscriber_id.clone(),
+                target_id: None,
+                profile_id: prepared.profile_id,
+                base: prepared.base,
+                rates: prepared.rates,
+            });
+            continue;
+        }
         let target = match prepared.fixed {
             Some(target) => target,
             // Count mode: the eligible instance with the fewest subscribers, pins included.
@@ -622,10 +642,10 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
             node_demand[n] = add(node_demand[n], prepared.base)?;
         }
         let target_id = &catalog.nodes[index.targets[target].node].id;
-        assignments.push((record, target_id.clone()));
+        assignments.push((record, Some(target_id.clone())));
         placements.push(Placement {
             subscriber_id: active[a].subscriber_id.clone(),
-            target_id: target_id.clone(),
+            target_id: Some(target_id.clone()),
             profile_id: prepared.profile_id,
             base: prepared.base,
             rates: prepared.rates,
@@ -635,7 +655,7 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
     let candidate = if conflicts.is_empty() {
         let mut candidate = collection.registry;
         for (record, target) in assignments {
-            candidate.subscribers[record].policy.assignment = Some(target);
+            candidate.subscribers[record].policy.assignment = target;
         }
         candidate.validate()?;
         Some(candidate)

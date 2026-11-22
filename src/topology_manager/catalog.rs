@@ -483,9 +483,6 @@ impl TopologyCatalog {
                         .entry(scope)
                         .or_default()
                         .extend(source.targets.iter().map(String::as_str));
-                    if selected.contains(source.id.as_str()) {
-                        selected_scopes.insert(scope.clone());
-                    }
                     let role = match scope.kind {
                         SourceKind::Ppp => RouterRole::Ppp,
                         SourceKind::Dhcp => RouterRole::Dhcp,
@@ -502,6 +499,13 @@ impl TopologyCatalog {
                     router.roles.contains(&role),
                     "selected source requires its router read role"
                 );
+            }
+            // Every subscriber source with a read role is read, also an unplaced one: automatic
+            // placement shapes its subscribers. A disabled protocol is not read.
+            if let SourceOrigin::Subscribers { scope, .. } = &source.origin
+                && router.roles.contains(&role)
+            {
+                selected_scopes.insert(scope.clone());
             }
             ensure!(
                 origins.insert(source.origin.key()),

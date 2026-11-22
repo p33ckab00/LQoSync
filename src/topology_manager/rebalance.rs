@@ -377,7 +377,11 @@ pub fn rebalance(
         let mut pending = Vec::new();
         let mut group = vec![ZERO; index.targets.len()];
         for (position, placement) in baseline.placements.iter().enumerate() {
-            let target = index.target_ids[placement.target_id.as_str()];
+            // A flat placement has no node to balance.
+            let Some(target_id) = placement.target_id.as_deref() else {
+                continue;
+            };
+            let target = index.target_ids[target_id];
             loads.targets[target] = add(loads.targets[target], placement.base)?;
             for &n in &index.targets[target].independent_path {
                 loads.nodes[n] = add(loads.nodes[n], placement.base)?;
@@ -450,7 +454,7 @@ pub fn rebalance(
                 let to = catalog.nodes[index.targets[dest].node].id.clone();
                 proposed_moves.push(ProposedMove {
                     subscriber_id: placement.subscriber_id.clone(),
-                    from_target_id: placement.target_id.clone(),
+                    from_target_id: placement.target_id.clone().unwrap_or_default(),
                     to_target_id: to.clone(),
                 });
                 updates.push((position, record, to));
@@ -463,7 +467,7 @@ pub fn rebalance(
         .as_mut()
         .context("rebalance candidate is missing")?;
     for (position, record, to) in updates {
-        baseline.placements[position].target_id = to.clone();
+        baseline.placements[position].target_id = Some(to.clone());
         candidate.subscribers[record].policy.assignment = Some(to);
     }
     proposed_moves.sort_unstable_by(|a, b| a.subscriber_id.cmp(&b.subscriber_id));

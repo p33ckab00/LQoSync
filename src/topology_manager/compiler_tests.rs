@@ -285,3 +285,18 @@ fn native_configuration_errors_do_not_expose_raw_config_text() {
         .unwrap();
     assert!(!format!("{error:#}").contains("private-credential"));
 }
+
+#[tokio::test]
+async fn a_flat_pair_compiles_and_passes_admission() {
+    let (_root, _cfg, mut compiler) = fixture();
+    let mut observed = input(2);
+    let c = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    c.nodes.clear();
+    for source in &mut c.sources {
+        source.targets.clear();
+    }
+    let pair = prepare(observed).unwrap();
+    assert_eq!(pair.network(), &serde_json::json!({}));
+    let compiled = compiled(&mut compiler, pair).await;
+    compiled.check().unwrap();
+}

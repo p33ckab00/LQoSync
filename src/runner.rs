@@ -1053,7 +1053,7 @@ where
         if placed
             .placements
             .iter()
-            .any(|p| nodes.contains(&p.target_id))
+            .any(|p| p.target_id.as_ref().is_some_and(|t| nodes.contains(t)))
         {
             return Err(rule("move the fallback subscribers first".into()));
         }

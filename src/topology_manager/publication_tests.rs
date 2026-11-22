@@ -753,3 +753,21 @@ async fn explicit_node_type_and_full_coordinates_win_over_the_router_location() 
     assert_eq!(nodes["wan2"]["type"], "site");
     admitted(pair);
 }
+
+#[test]
+fn flat_pair_has_empty_parent_and_an_empty_network() {
+    let mut input = input(2);
+    let c = input.reconciliation.registry.catalog.as_mut().unwrap();
+    c.nodes.clear();
+    for source in &mut c.sources {
+        source.targets.clear();
+    }
+    let pair = prepare(input).unwrap();
+    assert_eq!(pair.network(), &serde_json::json!({}));
+    assert_eq!(pair.rows().len(), 2);
+    assert!(
+        pair.rows()
+            .iter()
+            .all(|r| r.parent_node.is_empty() && r.parent_node_id.is_empty())
+    );
+}

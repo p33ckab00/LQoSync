@@ -386,9 +386,12 @@ pub fn prepare_with_static(
         let placement = placements
             .get(subscriber.subscriber_id.as_str())
             .context("export placement missing")?;
-        let &parent = indices
-            .get(placement.target_id.as_str())
-            .context("export target missing")?;
+        // A flat placement has no parent node.
+        let parent = placement
+            .target_id
+            .as_deref()
+            .map(|t| indices.get(t).copied().context("export target missing"))
+            .transpose()?;
         let down_min = rate_text(placement.rates.min.down)?;
         let up_min = rate_text(placement.rates.min.up)?;
         let down_max = rate_text(placement.rates.max.down)?;
@@ -435,11 +438,17 @@ pub fn prepare_with_static(
                     .map_or_else(|| subscriber.subscriber_id.clone(), |a| a.name.clone()),
                 device_name: alias.map_or_else(|| device_id.clone(), |a| a.name.clone()),
                 device_id,
-                parent_node: keys[parent].clone(),
-                parent_node_id: aliases
-                    .nodes
-                    .get(placement.target_id.as_str())
-                    .map_or_else(|| placement.target_id.clone(), |a| a.id.clone()),
+                parent_node: parent.map(|p| keys[p].clone()).unwrap_or_default(),
+                parent_node_id: placement
+                    .target_id
+                    .as_deref()
+                    .map(|t| {
+                        aliases
+                            .nodes
+                            .get(t)
+                            .map_or_else(|| t.to_string(), |a| a.id.clone())
+                    })
+                    .unwrap_or_default(),
                 ipv4: ipv4.join(","),
                 ipv6: ipv6.join(","),
                 mac: endpoint.endpoint.mac.clone().unwrap_or_default(),

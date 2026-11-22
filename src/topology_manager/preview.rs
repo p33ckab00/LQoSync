@@ -90,7 +90,9 @@ pub(super) fn build(
         .collect();
     let mut direct: HashMap<&str, u64> = HashMap::new();
     for p in resolved {
-        *direct.entry(p.target_id.as_str()).or_default() += 1;
+        if let Some(target) = p.target_id.as_deref() {
+            *direct.entry(target).or_default() += 1;
+        }
     }
     let mut nodes = Vec::with_capacity(evaluated.len());
     for (i, node) in evaluated.iter().enumerate() {
@@ -173,12 +175,15 @@ pub(super) fn build(
             scope: first.identity.scope.source_id.clone(),
             ips,
             macs,
-            node: placement.target_id.clone(),
+            node: placement.target_id.clone().unwrap_or_default(),
             pin: pins.get(active.subscriber_id.as_str()).cloned().flatten(),
             profile: placement.profile_id.clone(),
             min_mbps: mbps(placement.rates.min)?,
             max_mbps: mbps(placement.rates.max)?,
-            fallback: fallback.contains(&placement.target_id.as_str()),
+            fallback: placement
+                .target_id
+                .as_deref()
+                .is_some_and(|t| fallback.contains(&t)),
         });
     }
     subscribers.sort_by(|a, b| a.account_ref.cmp(&b.account_ref));

@@ -63,7 +63,7 @@ fn count(result: &PlacementResolution, target: &str) -> usize {
     result
         .placements
         .iter()
-        .filter(|p| p.target_id == target)
+        .filter(|p| p.target_id.as_deref() == Some(target))
         .count()
 }
 
@@ -168,7 +168,7 @@ fn pins_are_counted_before_new_automatic_assignments() {
     let mut r = collect(&registry(), vec![observed(0)]).registry;
     r.subscribers[0].policy.pin = Some("group1".into());
     let result = run(&r, 3);
-    assert_eq!(result.placements[0].target_id, "group1");
+    assert_eq!(result.placements[0].target_id.as_deref(), Some("group1"));
     assert_eq!((count(&result, "group1"), count(&result, "group2")), (1, 2));
 }
 
@@ -438,7 +438,7 @@ fn different_plan_sizes_use_plan_demand_instead_of_subscriber_count() {
     let demand: u64 = result
         .placements
         .iter()
-        .filter(|p| p.target_id == "group1")
+        .filter(|p| p.target_id.as_deref() == Some("group1"))
         .map(|p| p.base.down)
         .sum();
     assert_eq!(demand, 400_000_000);
@@ -585,7 +585,7 @@ fn an_unmatched_subscriber_goes_to_a_fallback_node_with_the_router_plan() {
     ))
     .unwrap();
     assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
-    assert_eq!(result.placements[0].target_id, "fb");
+    assert_eq!(result.placements[0].target_id.as_deref(), Some("fb"));
     assert_eq!(result.placements[0].base, rate(20_000_000, 5_000_000));
 }
 
@@ -617,7 +617,7 @@ fn a_moved_customer_is_placed_again_instead_of_invalid_assignment() {
     ))
     .unwrap();
     assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
-    assert_eq!(result.placements[0].target_id, "fb");
+    assert_eq!(result.placements[0].target_id.as_deref(), Some("fb"));
 }
 
 #[test]
@@ -691,7 +691,7 @@ fn targets(result: &PlacementResolution) -> BTreeSet<String> {
     result
         .placements
         .iter()
-        .map(|p| p.target_id.clone())
+        .map(|p| p.target_id.clone().unwrap_or_default())
         .collect()
 }
 
@@ -859,7 +859,7 @@ fn saved_assignment_stays_when_a_new_child_appears() {
         .filter(|p| r.subscribers.iter().any(|s| s.id == p.subscriber_id))
         .collect();
     assert_eq!(old.len(), 4);
-    assert!(old.iter().all(|p| p.target_id == "t1"));
+    assert!(old.iter().all(|p| p.target_id.as_deref() == Some("t1")));
     assert_eq!(count(&result, "t2"), 4);
 }
 
@@ -961,4 +961,87 @@ fn explicit_fallback_keeps_priority_and_obeys_the_family_rule() {
 fn placed_source_ignores_automatic_sets() {
     let result = run(&towered(), 6);
     assert_eq!(targets(&result), set(&["group1", "group2"]));
+}
+
+// Flat output (R1, R6).
+
+/// `catalog()` with no nodes and no source targets: an empty tree with one known source.
+fn empty_tree() -> RegistryDocument {
+    let mut r = registry();
+    let c = r.catalog.as_mut().unwrap();
+    c.nodes.clear();
+    for source in &mut c.sources {
+        source.targets.clear();
+    }
+    r
+}
+
+#[test]
+fn empty_tree_places_every_subscriber_without_a_parent() {
+    let result = run(&empty_tree(), 3);
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!(result.placements.len(), 3);
+    assert!(result.placements.iter().all(|p| p.target_id.is_none()));
+    // The unplaced source still gives its profile rates.
+    assert!(
+        result
+            .placements
+            .iter()
+            .all(|p| p.base == rate(50_000_000, 10_000_000))
+    );
+    let candidate = result.candidate.unwrap();
+    assert!(
+        candidate
+            .subscribers
+            .iter()
+            .all(|s| s.policy.assignment.is_none())
+    );
+}
+
+#[test]
+fn empty_tree_without_a_plan_is_a_conflict() {
+    let result = resolve(collect(&empty_tree(), vec![unbound(0, None)])).unwrap();
+    assert_eq!(
+        result.conflicts[0].reason,
+        PlacementConflictReason::MissingPlan
+    );
+    assert!(result.candidate.is_none());
+}
+
+#[test]
+fn roots_that_are_other_router_nodes_give_no_parent() {
+    let mut r = empty_tree();
+    r.catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .push(catalog::CatalogNode {
+            router_id: Some("core".into()),
+            geo: None,
+            minimum: Default::default(),
+            id: "coreSite".into(),
+            name: "coreSite".into(),
+            parent: None,
+            source_id: None,
+            kind: NodeKind::Intermediate,
+            capacity: catalog::CapacityPolicy::Fixed {
+                base: rate(1_000_000_000, 1_000_000_000),
+                factors: FactorChoice::Inherit,
+            },
+        });
+    let result = auto_run(&r, 2);
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert!(result.placements.iter().all(|p| p.target_id.is_none()));
+}
+
+#[test]
+fn missing_catalog_uses_the_default_catalog() {
+    let r = RegistryDocument::default();
+    let result = resolve(collect(
+        &r,
+        vec![unbound(0, Some(rate(20_000_000, 5_000_000)))],
+    ))
+    .unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!(result.placements[0].target_id, None);
 }
