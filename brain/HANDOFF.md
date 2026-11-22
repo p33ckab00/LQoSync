@@ -8,6 +8,16 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Task 9 done
+
+- Commit: `feat(web): show the live source canvas`. Branch `lqosync3`. Not pushed. Not deployed.
+- Done: the tier layout on the canvas, hidden inactive groups, "not configured" WAN cards, the WAN connector drag, router card settings (tree exclusion, another WAN parent, Routers link), the two-step "Do not read", the Excluded tool, the routing warning on cards and in the node modal, and Fit, Reset layout, and List view.
+- The connector drag is pointer only. Keyboard users set parents in the card settings. The handle has `tabindex=-1`.
+- `TopologySummary.wan_candidates` is new. The browser fixture has one candidate WAN (`pppoe-out3` on Core-01) and one excluded source (PPPoE Trial).
+- Not done: the routing warning in the review step.
+- Checks: `tools/frontend/check-all.sh` passes every gate (pulse-check skipped as before). The first full run failed only on a duplicate variable name in `topology-canvas-check.cjs`. After the fix, that check passed alone.
+- Next: Task 10 (documents and status).
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Task 8 done
 
 - Commit: `feat(web): add the canvas layout engine`. Branch `lqosync3`. Not pushed. Not deployed.
