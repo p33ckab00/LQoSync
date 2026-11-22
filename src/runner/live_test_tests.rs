@@ -925,3 +925,96 @@ async fn deactivate_gives_each_manager_id_to_one_legacy_circuit() {
         .collect();
     assert_eq!(holders, vec![first.circuit_name]);
 }
+
+// Live source canvas, Task 7.
+
+/// The legacy pair has another download maximum on its first row: one `ChangedRow`. The fake
+/// LibreQoS imported that legacy pair.
+fn changed_legacy_row(e: &Env, fake: &FakeLqos) {
+    let mut rows = crate::state::read_csv(&read(&e.lqos.join("ShapedDevices.csv"))).unwrap();
+    rows[0].download_max = "999".into();
+    std::fs::write(
+        e.lqos.join("ShapedDevices.csv"),
+        render_csv(&rows, Columns::V3),
+    )
+    .unwrap();
+    fake.simulate(None);
+}
+
+#[tokio::test]
+async fn live_test_with_accept_changes_passes_a_changed_row() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    changed_legacy_row(&e, &fake);
+    let mut r = runner(&e, c);
+    let report = r.live_test_accepting(&mut fake, SHORT, true).await.unwrap();
+    assert!(report.passed, "{}", report.summary());
+    assert!(!report.accepted_changes.is_empty());
+    assert!(report.restored);
+}
+
+#[tokio::test]
+async fn live_test_without_accept_changes_stays_exact() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    changed_legacy_row(&e, &fake);
+    let mut r = runner(&e, c);
+    let report = r
+        .live_test_accepting(&mut fake, SHORT, false)
+        .await
+        .unwrap();
+    assert!(!report.passed);
+    assert!(report.accepted_changes.is_empty());
+}
+
+#[tokio::test]
+async fn activate_with_accept_changes_needs_the_same_reviewed_changes() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    changed_legacy_row(&e, &fake);
+    let mut r = runner(&e, c);
+    let report = r.live_test_accepting(&mut fake, SHORT, true).await.unwrap();
+    let path = e.state.join("../activation-report.json");
+    std::fs::write(&path, serde_json::to_string(&report).unwrap()).unwrap();
+    // Without the flag, the gate stays exact.
+    let error = format!(
+        "{:#}",
+        r.activate_topology_checked(&mut fake, &path, AGE, false, false)
+            .await
+            .unwrap_err()
+    );
+    assert!(error.contains("differs from the legacy pair"), "{error}");
+    r.activate_topology_checked(&mut fake, &path, AGE, false, true)
+        .await
+        .unwrap();
+    // A report that reviewed other changes does not prove this pair.
+    let mut other = serde_json::to_value(&report).unwrap();
+    other["accepted_changes"] = json!(["ChangedNetwork"]);
+    std::fs::write(&path, other.to_string()).unwrap();
+    let error = format!(
+        "{:#}",
+        r.activate_topology_checked(&mut fake, &path, AGE, false, true)
+            .await
+            .unwrap_err()
+    );
+    assert!(error.contains("reviewed"), "{error}");
+}
+
+#[tokio::test]
+async fn activate_with_accept_changes_still_refuses_a_missing_row() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let report = report_file(&e, true, revision(&mut r));
+    let csv = e.lqos.join("ShapedDevices.csv");
+    let text = read(&csv);
+    let first = crate::state::read_csv(&text).unwrap()[0].circuit_id.clone();
+    std::fs::write(&csv, text.replacen(&first, "N9999", 1)).unwrap();
+    let error = format!(
+        "{:#}",
+        r.activate_topology_checked(&mut fake, &report, AGE, true, true)
+            .await
+            .unwrap_err()
+    );
+    assert!(error.contains("propose --replace"), "{error}");
+}

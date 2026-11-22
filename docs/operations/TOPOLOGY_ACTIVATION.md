@@ -18,9 +18,10 @@ You need these items:
 - Root access on the LQoSync host (`sudo` needs a password).
 - The new release binary and its SHA-256 hash from the release build record.
 - A time with low traffic. The window takes about 30 minutes.
+- For an activation with canvas changes: `LIBREQOS_DPDK_BULK_GENERATION_THRESHOLD=200`. Refer to `docs/operations/LIBREQOS_V3_DATAPLANE_SETTINGS.md`, Setting 1. With a lower value, the dataplane holds a large change until the maintenance window.
 - The owner decision on the routing lists. This procedure does not turn on the routing list writer. Do that later, with `docs/operations/WAN_ROUTING_LISTS.md`, when the manager is stable.
 
-> **CAUTION:** The new release changes the registry schema to 8 when it opens the registry. An older release cannot read schema 8. Make the backup in step 1 before the new release starts. A rollback to an older release needs this backup.
+> **CAUTION:** The new release changes the registry schema to 9 when it opens the registry. An older release cannot read schema 9. Make the backup in step 1 before the new release starts. A rollback to an older release needs this backup.
 
 ## Step 1: Backup
 
@@ -73,6 +74,19 @@ The activation gate needs a live test report of the current registry revision.
 
 Check: the exit status is 0 (`echo $?`). The report has `"passed": true` and a `registry_revision`.
 
+If you changed the canvas before the window (for example, a WAN connector), the manager pair is not equal to the legacy pair. Then the test without the flag fails with `the manager pair differs from the legacy pair`. Do these steps:
+
+1. Read the `parity` list in the report. Make sure that each difference is a change that you made.
+2. Run the live test again with `--accept-changes`:
+
+   ```sh
+   lqosync3 topology live-test --report "$B"/live-test.json --accept-changes --config /etc/lqosync3/lqosync3.toml
+   ```
+
+3. Check: the report has `"passed": true`, and `accepted_changes` lists the reviewed differences.
+
+The flag accepts only added rows, changed rows, and a changed network. These rows still stop the test: a legacy row that is not in the manager pair, and a protected, unclassified, or duplicate row.
+
 If the test fails, stop here. Start the service: the legacy writer continues. Keep the report for the analysis.
 
 ## Step 5: Activation dry run
@@ -80,6 +94,8 @@ If the test fails, stop here. Start the service: the legacy writer continues. Ke
 ```sh
 lqosync3 topology activate --report "$B"/live-test.json --config /etc/lqosync3/lqosync3.toml
 ```
+
+If the live test used `--accept-changes`, add `--accept-changes` to this command and to the command of step 6.
 
 Check: the command prints `dry run: every activation gate passed; no file changed` and gives exit status 2. Read the lines about rounded node capacities and multi-identity subscribers.
 
@@ -91,6 +107,7 @@ If a gate refuses, read the text and do this:
 | `the manager pair differs from the legacy pair` | Stop. Start the service. Analyze the differences first |
 | `the LibreQoS compiler check failed` | Make sure that LibreQoS is ready (`systemctl status lqosd`), then try again |
 | `the live test report does not prove ...` | Go back to step 4. The registry changed after the test |
+| `the live test report reviewed other changes` | Go back to step 4. The differences changed after the test. Review them again |
 
 ## Step 6: Activation
 

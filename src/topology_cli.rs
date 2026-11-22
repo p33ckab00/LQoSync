@@ -202,9 +202,13 @@ where
                 }
             }
         }
-        TopologyCommand::Activate { report, yes } => {
+        TopologyCommand::Activate {
+            report,
+            yes,
+            accept_changes,
+        } => {
             let outcome = runner
-                .activate_topology(report, MAX_AGE, *yes)
+                .activate_topology(report, MAX_AGE, *yes, *accept_changes)
                 .await
                 .map_err(locked)?;
             rounded(&mut out, &outcome.rounded);
@@ -254,9 +258,10 @@ where
         TopologyCommand::LiveTest {
             report,
             import_timeout,
+            accept_changes,
         } => {
             let result = runner
-                .live_test(Duration::from_secs(*import_timeout))
+                .live_test(Duration::from_secs(*import_timeout), *accept_changes)
                 .await
                 .map_err(locked)?;
             live_test_output(&mut out, &result, report)?

@@ -105,3 +105,31 @@ async fn legacy_router_locations_equal_the_manager_node_locations() {
     let legacy: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(compare_legacy(&pair, pair.rows(), &legacy).unwrap(), []);
 }
+
+#[test]
+fn needs_review_is_true_only_for_reviewed_kinds() {
+    let row = || ("c".to_string(), "d".to_string());
+    let (c, d) = row();
+    assert!(needs_review(&ParityIssue::AddedRow {
+        circuit_id: c.clone(),
+        device_id: d.clone()
+    }));
+    assert!(needs_review(&ParityIssue::ChangedRow {
+        circuit_id: c.clone(),
+        device_id: d.clone()
+    }));
+    assert!(needs_review(&ParityIssue::ChangedNetwork));
+    assert!(!needs_review(&ParityIssue::MissingRow {
+        circuit_id: c.clone(),
+        device_id: d.clone()
+    }));
+    assert!(!needs_review(&ParityIssue::ProtectedRow {
+        circuit_id: c.clone(),
+        device_id: d.clone()
+    }));
+    assert!(!needs_review(&ParityIssue::UnclassifiedRow {
+        circuit_id: c,
+        device_id: d
+    }));
+    assert!(!needs_review(&ParityIssue::DuplicateRow));
+}

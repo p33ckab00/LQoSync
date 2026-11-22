@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | activate --report <file> [--yes] | deactivate [--yes] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | activate --report <file> [--yes] [--accept-changes] | deactivate [--yes] | live-test --report <file> [--import-timeout <seconds>] [--accept-changes] | live-test-restore --backup <dir>> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -62,6 +62,8 @@ pub enum TopologyCommand {
     Activate {
         report: PathBuf,
         yes: bool,
+        /// Pass the differences that the live test report accepted.
+        accept_changes: bool,
     },
     /// Seed the legacy state with the manager IDs. Only `--yes` releases the writer.
     Deactivate {
@@ -71,6 +73,8 @@ pub enum TopologyCommand {
     LiveTest {
         report: PathBuf,
         import_timeout: u64,
+        /// Pass added rows, changed rows, and a changed network, and list them in the report.
+        accept_changes: bool,
     },
     /// Put the backup pair back, request an import, and wait for it.
     LiveTestRestore {
@@ -99,9 +103,9 @@ fn parse_topology(
         ["policy", "propose"] | ["propose"] => &["--out", "--previous"],
         ["check"] | ["policy", "install"] => &["--policy"],
         ["enroll"] => &["--mapping"],
-        ["activate"] => &["--report"],
+        ["activate"] => &["--report", "--accept-changes"],
         ["deactivate"] => &[],
-        ["live-test"] => &["--report", "--import-timeout"],
+        ["live-test"] => &["--report", "--import-timeout", "--accept-changes"],
         ["live-test-restore"] => &["--backup"],
         _ => bail!("unknown topology command\n{USAGE}"),
     };
@@ -139,6 +143,7 @@ fn parse_topology(
         ["activate"] => TopologyCommand::Activate {
             report: file("--report")?,
             yes,
+            accept_changes: flags.contains_key("--accept-changes"),
         },
         ["deactivate"] => TopologyCommand::Deactivate { yes },
         ["live-test"] => TopologyCommand::LiveTest {
@@ -152,6 +157,7 @@ fn parse_topology(
                     ),
                 },
             },
+            accept_changes: flags.contains_key("--accept-changes"),
         },
         ["live-test-restore"] => TopologyCommand::LiveTestRestore {
             backup: file("--backup")?,
@@ -190,6 +196,10 @@ pub fn parse(args: &[String]) -> anyhow::Result<Args> {
             },
             "--yes" if topology => yes = true,
             "--replace" if topology => replace = true,
+            // A switch: the per-command list of allowed flags checks it.
+            "--accept-changes" if topology => {
+                flags.insert(a.clone(), String::new());
+            }
             "--out" | "--previous" | "--policy" | "--mapping" | "--report" | "--backup"
             | "--import-timeout"
                 if topology =>
@@ -598,7 +608,8 @@ mod tests {
                 parse(&args).unwrap().command,
                 Command::Topology(TopologyCommand::Activate {
                     report: "r.json".into(),
-                    yes
+                    yes,
+                    accept_changes: false
                 })
             );
         }
@@ -641,7 +652,8 @@ mod tests {
             cmd(&["l", "topology", "live-test", "--report", "r.json"]),
             Command::Topology(T::LiveTest {
                 report: "r.json".into(),
-                import_timeout: 120
+                import_timeout: 120,
+                accept_changes: false
             })
         );
         assert_eq!(
@@ -656,7 +668,8 @@ mod tests {
             ]),
             Command::Topology(T::LiveTest {
                 report: "r.json".into(),
-                import_timeout: 3600
+                import_timeout: 3600,
+                accept_changes: false
             })
         );
         for bad in ["0", "3601", "-1", "x", "18446744073709551616"] {
@@ -674,6 +687,45 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    #[test]
+    fn accept_changes_is_only_for_live_test_and_activate() {
+        use TopologyCommand as T;
+        let cmd = |v: &[&str]| parse(&s(v)).unwrap().command;
+        assert_eq!(
+            cmd(&[
+                "l",
+                "topology",
+                "live-test",
+                "--report",
+                "r",
+                "--accept-changes"
+            ]),
+            Command::Topology(T::LiveTest {
+                report: "r".into(),
+                import_timeout: 120,
+                accept_changes: true
+            })
+        );
+        assert_eq!(
+            cmd(&[
+                "l",
+                "topology",
+                "activate",
+                "--report",
+                "r",
+                "--accept-changes",
+                "--yes"
+            ]),
+            Command::Topology(T::Activate {
+                report: "r".into(),
+                yes: true,
+                accept_changes: true
+            })
+        );
+        assert!(parse(&s(&["l", "topology", "deactivate", "--accept-changes"])).is_err());
+        assert!(parse(&s(&["l", "--accept-changes", "once"])).is_err());
     }
 
     #[test]

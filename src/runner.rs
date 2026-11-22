@@ -4373,6 +4373,7 @@ mod tests {
                     Path::new("/nonexistent/report.json"),
                     Duration::from_secs(10),
                     yes,
+                    false,
                 )
                 .await
                 .err()
@@ -4397,6 +4398,7 @@ mod tests {
                 Path::new("/nonexistent/report.json"),
                 Duration::from_secs(10),
                 true,
+                false,
             )
             .await
             .err()

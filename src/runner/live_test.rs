@@ -109,6 +109,9 @@ pub struct LiveTestReport {
     pub admission: Vec<String>,
     /// Differences between the manager pair and the legacy pair.
     pub parity: Vec<String>,
+    /// The differences that the operator accepted with `--accept-changes`. Activation needs the
+    /// same list.
+    pub accepted_changes: Vec<String>,
     /// The legacy state before the test, compared with the legacy model.
     pub baseline: Option<Diff>,
     /// The manager model compared with the legacy state before the test.
@@ -469,15 +472,31 @@ where
     C::Session: 'static,
 {
     /// Run the live acceptance test on the production LibreQoS. The service must be stopped.
-    pub async fn live_test(&mut self, import_timeout: Duration) -> anyhow::Result<LiveTestReport> {
-        self.live_test_with(&mut NativeIo, import_timeout).await
+    pub async fn live_test(
+        &mut self,
+        import_timeout: Duration,
+        accept_changes: bool,
+    ) -> anyhow::Result<LiveTestReport> {
+        self.live_test_accepting(&mut NativeIo, import_timeout, accept_changes)
+            .await
     }
 
-    /// Run the live acceptance test through `io`. An error comes only before any write.
+    /// Run the live acceptance test through `io` with exact parity.
     pub async fn live_test_with(
         &mut self,
         io: &mut impl LiveIo,
         import_timeout: Duration,
+    ) -> anyhow::Result<LiveTestReport> {
+        self.live_test_accepting(io, import_timeout, false).await
+    }
+
+    /// Run the live acceptance test through `io`. An error comes only before any write. With
+    /// `accept_changes`, a difference that `needs_review` passes and goes in the report.
+    pub async fn live_test_accepting(
+        &mut self,
+        io: &mut impl LiveIo,
+        import_timeout: Duration,
+        accept_changes: bool,
     ) -> anyhow::Result<LiveTestReport> {
         // Step 1. Take the instance lock without the write receipt tracker.
         let state = PathBuf::from(&self.cfg.runtime.state_dir);
@@ -545,11 +564,15 @@ where
         let t = Instant::now();
         report.admission = live_check::admission(&want);
         report.parity = parity.iter().map(|i| format!("{i:?}")).collect();
+        let (accepted, refused): (Vec<_>, Vec<_>) = parity
+            .iter()
+            .partition(|i| accept_changes && crate::topology_manager::parity::needs_review(i));
+        report.accepted_changes = accepted.iter().map(|i| format!("{i:?}")).collect();
         let gate = if !report.admission.is_empty() {
             Err(anyhow::anyhow!(
                 "planner admission refused the manager pair"
             ))
-        } else if !report.parity.is_empty() {
+        } else if !refused.is_empty() {
             Err(anyhow::anyhow!(
                 "the manager pair differs from the legacy pair"
             ))

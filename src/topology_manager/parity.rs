@@ -29,6 +29,15 @@ pub enum ParityIssue {
     },
     ChangedNetwork,
 }
+/// A difference that an operator can review and accept with `--accept-changes`. A missing,
+/// protected, unclassified, or duplicate row always refuses.
+pub fn needs_review(issue: &ParityIssue) -> bool {
+    matches!(
+        issue,
+        ParityIssue::AddedRow { .. } | ParityIssue::ChangedRow { .. } | ParityIssue::ChangedNetwork
+    )
+}
+
 pub fn compare_legacy(
     pair: &PreparedPair,
     rows: &[CsvRow],

@@ -44,9 +44,16 @@ where
         report: &Path,
         max_age: Duration,
         install: bool,
+        accept_changes: bool,
     ) -> anyhow::Result<ActivationOutcome> {
-        self.activate_topology_with(&mut super::live_test::NativeIo, report, max_age, install)
-            .await
+        self.activate_topology_checked(
+            &mut super::live_test::NativeIo,
+            report,
+            max_age,
+            install,
+            accept_changes,
+        )
+        .await
     }
 
     /// As `activate_topology`, with the LibreQoS compiler check through `io`. Gates in order:
@@ -57,6 +64,20 @@ where
         report: &Path,
         max_age: Duration,
         install: bool,
+    ) -> anyhow::Result<ActivationOutcome> {
+        self.activate_topology_checked(io, report, max_age, install, false)
+            .await
+    }
+
+    /// As `activate_topology_with`. With `accept_changes`, a difference that `needs_review`
+    /// passes when the live test report accepted the same differences.
+    pub async fn activate_topology_checked(
+        &mut self,
+        io: &mut impl super::live_test::LiveIo,
+        report: &Path,
+        max_age: Duration,
+        install: bool,
+        accept_changes: bool,
     ) -> anyhow::Result<ActivationOutcome> {
         use crate::topology_manager::parity::ParityIssue;
         self.lock()?;
@@ -91,10 +112,14 @@ where
                 "legacy row {circuit_id} / {device_id} has no alias; run topology propose --replace and topology enroll --replace"
             );
         }
+        let (reviewed, refused): (Vec<_>, Vec<_>) = issues
+            .iter()
+            .partition(|i| accept_changes && crate::topology_manager::parity::needs_review(i));
         anyhow::ensure!(
-            issues.is_empty(),
-            "the manager pair differs from the legacy pair: {issues:?}"
+            refused.is_empty(),
+            "the manager pair differs from the legacy pair: {refused:?}"
         );
+        let reviewed: Vec<String> = reviewed.iter().map(|i| format!("{i:?}")).collect();
         let rounded = pair.node_export_adjustments().to_vec();
         io.admit(&self.cfg, pair)
             .await
@@ -110,6 +135,17 @@ where
             "the live test report does not prove the current registry revision {}",
             document.revision
         );
+        if !reviewed.is_empty() {
+            let accepted: Vec<String> = std::fs::read(report)
+                .ok()
+                .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+                .and_then(|v| serde_json::from_value(v["accepted_changes"].clone()).ok())
+                .unwrap_or_default();
+            anyhow::ensure!(
+                accepted == reviewed,
+                "the live test report reviewed other changes; run topology live-test --accept-changes again: {reviewed:?}"
+            );
+        }
         if install {
             crate::topology_manager::runtime::claim(&state_dir)?;
         }
