@@ -617,14 +617,37 @@ pub(crate) fn Reads(
     let wan = RwSignal::new(None::<Discovery>);
     let sources = RwSignal::new(None::<Discovery>);
     let message = RwSignal::new(String::new());
+    // Enabled routers and whether WAN discovery reads them. WAN routers start selected.
+    let choices = RwSignal::new(Vec::<(String, String, bool)>::new());
+    leptos::task::spawn_local(async move {
+        if let Ok(inv) =
+            get::<web_contract::routers::RouterInventory>(session, "/api/v1/routers").await
+        {
+            choices.set(
+                inv.routers
+                    .into_iter()
+                    .filter(|r| r.enabled)
+                    .map(|r| {
+                        let wan = r.roles.iter().any(|x| x == "wan");
+                        (r.id, r.name, wan)
+                    })
+                    .collect(),
+            );
+        }
+    });
     let start = move |job: ReadJob| {
         if running.get_untracked().is_some() {
             return;
         }
         running.set(Some(job));
         message.set(String::new());
+        let routers = if job == ReadJob::Wan {
+            choices.with_untracked(|c| c.iter().filter(|x| x.2).map(|x| x.0.clone()).collect())
+        } else {
+            Vec::new()
+        };
         leptos::task::spawn_local(async move {
-            match run_read(session, job).await {
+            match run_read(session, job, routers).await {
                 Ok(op) => match job {
                     ReadJob::Refresh => {
                         message.set("Observations refreshed.".into());
@@ -643,11 +666,17 @@ pub(crate) fn Reads(
     let busy = move |job: ReadJob| running.get() == Some(job);
     view! {
       <h3>"Read the routers now"</h3>
-      <p class="panel-note">"Each button reads every enabled router now. Opening this page reads none."</p>
+      <p class="panel-note">"A read starts only from these buttons. Opening this page reads no router."</p>
+      <fieldset class="canvas-routers"><legend>"Routers for WAN discovery"</legend>
+        {move||choices.get().into_iter().enumerate().map(|(i,(_,name,on))|view!{
+          <label><input type="checkbox" prop:checked=on
+            on:change=move|ev|{let v=event_target_checked(&ev);choices.update(|c|c[i].2=v);}/>{name}</label>
+        }).collect_view()}
+      </fieldset>
       <div class="form-actions node-actions">
         <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Refresh)>
           {move||if busy(ReadJob::Refresh){"Refreshing…"}else{"Refresh observations"}}</button>
-        <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Wan)>
+        <button type="button" class="quiet" disabled=move||running.get().is_some()||choices.with(|c|!c.is_empty()&&!c.iter().any(|x|x.2)) on:click=move|_|start(ReadJob::Wan)>
           {move||if busy(ReadJob::Wan){"Discovering…"}else{"Discover WAN interfaces"}}</button>
         <button type="button" class="quiet" disabled=move||running.get().is_some() on:click=move|_|start(ReadJob::Sources)>
           {move||if busy(ReadJob::Sources){"Discovering…"}else{"Discover sources"}}</button>

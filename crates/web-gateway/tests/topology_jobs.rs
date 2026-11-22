@@ -388,6 +388,7 @@ async fn explicit_reads_return_their_typed_answers() {
         let request = ReadRequest {
             key: key.clone(),
             job,
+            routers: Vec::new(),
         };
         jobs.read("alice", request.clone()).await.unwrap();
         // A double click returns the same job.
@@ -496,4 +497,22 @@ async fn an_automatic_edit_is_a_submitted_command() {
     jobs.submit("alice", KEY, edit).await.unwrap();
     assert_eq!(settle(&jobs, "alice").await.state, "saved");
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn a_read_with_too_many_or_empty_router_ids_is_refused() {
+    use web_contract::topology::{ReadJob, ReadRequest};
+    let dir = tempfile::tempdir().unwrap();
+    let jobs = Jobs::new(dir.path().into());
+    for routers in [vec!["r".to_string(); 65], vec![String::new()]] {
+        let request = ReadRequest {
+            key: KEY.into(),
+            job: ReadJob::Wan,
+            routers,
+        };
+        assert_eq!(
+            jobs.read("alice", request).await.unwrap_err(),
+            Refused::Invalid
+        );
+    }
 }

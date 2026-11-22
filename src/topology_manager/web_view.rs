@@ -193,6 +193,7 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                     name: s.name.clone(),
                     down: factor_text(group.factors.down),
                     up: factor_text(group.factors.up),
+                    allocation: name(&group.allocation),
                 }),
                 SourceOrigin::Wan { .. } => None,
             })

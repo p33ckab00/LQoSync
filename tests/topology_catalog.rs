@@ -408,6 +408,7 @@ fn document() -> RegistryDocument {
                         scope: scope(),
                         profile_ref: Some("provider-profile".into()),
                         group: GroupDefaults {
+                            allocation: Default::default(),
                             floor: None,
                             formula: GroupFormula::PlanSum,
                             factors: Factors {

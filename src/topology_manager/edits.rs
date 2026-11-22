@@ -99,6 +99,12 @@ pub enum Edit {
         #[serde(default)]
         up: Option<String>,
     },
+    /// How a source spreads its subscribers over its instances. It moves nobody by itself.
+    #[serde(rename = "group.allocation")]
+    GroupAllocation {
+        source_id: String,
+        mode: super::catalog::AllocationMode,
+    },
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
     /// Local plans as reviewed edits: the review lists rate and capacity changes first.
@@ -1425,6 +1431,19 @@ pub fn apply(
             }
             check_only = true;
         }
+        Edit::GroupAllocation { source_id, mode } => {
+            let c = d.catalog.as_mut().expect("enrolled");
+            let group = c
+                .sources
+                .iter_mut()
+                .find(|s| s.id == *source_id)
+                .and_then(|s| match &mut s.origin {
+                    SourceOrigin::Subscribers { group, .. } => Some(group),
+                    SourceOrigin::Wan { .. } => None,
+                })
+                .ok_or_else(|| invalid("the subscriber source does not exist"))?;
+            group.allocation = *mode;
+        }
         Edit::Rebalance { source_id } => {
             affected = rebalance(d.catalog.as_ref().expect("enrolled"), source_id.as_deref())?;
             clear_offline = true;
@@ -1452,6 +1471,16 @@ pub fn apply(
     }
     c.canonicalize();
     d.validate().map_err(|e| invalid(format!("{e:#}")))?;
+    // Refuse a new violation only, so an older saved policy still opens and edits.
+    if let Some(name) = shared_fixed(d.catalog.as_ref().expect("enrolled"))
+        && doc.catalog.as_ref().and_then(shared_fixed).is_none()
+    {
+        return Err(invalid(format!(
+            "{name} has placements under several parents. A fixed capacity on one placement cannot \
+             hold one shared limit: LibreQoS has no shared limit across parents. Use automatic \
+             capacity, or keep one placement."
+        )));
+    }
     cleared.sort();
     Ok(Applied {
         candidate: d,
@@ -1490,6 +1519,25 @@ fn kind_out(kind: NodeKind) -> &'static str {
         NodeKind::Intermediate => "intermediate",
         NodeKind::SubscriberGroup => "group",
     }
+}
+
+/// The name of a source with several placements where one has a fixed capacity. Two parents
+/// would each get an independent limit, not one shared physical limit.
+fn shared_fixed(c: &TopologyCatalog) -> Option<String> {
+    c.sources
+        .iter()
+        .find(|s| {
+            let placements: Vec<_> = c
+                .nodes
+                .iter()
+                .filter(|n| n.source_id.as_deref() == Some(s.id.as_str()))
+                .collect();
+            placements.len() > 1
+                && placements
+                    .iter()
+                    .any(|n| matches!(n.capacity, CapacityPolicy::Fixed { .. }))
+        })
+        .map(|s| s.name.clone())
 }
 
 /// The `topology.tree` answer: every catalog node, without a router read.

@@ -62,6 +62,23 @@ pub struct BackstopPolicy {
     pub factor: Fraction,
 }
 
+/// How a source-pool rebalance spreads subscribers over the instances of one source.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AllocationMode {
+    /// By plan demand relative to the capacity above each instance.
+    #[default]
+    Capacity,
+    /// By subscriber count: each instance gets an equal share, pins included.
+    Count,
+}
+
+impl AllocationMode {
+    pub fn is_capacity(&self) -> bool {
+        *self == Self::Capacity
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GroupDefaults {
@@ -70,6 +87,9 @@ pub struct GroupDefaults {
     pub backstop: Option<BackstopPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub floor: Option<RateBps>,
+    /// Added in registry schema 5.
+    #[serde(default, skip_serializing_if = "AllocationMode::is_capacity")]
+    pub allocation: AllocationMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

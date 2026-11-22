@@ -171,6 +171,23 @@ A LibreQoS parent change does not steer Internet traffic to another WAN.
 The UI must distinguish a shaping assignment from an observed or enforced route.
 Strict-pin failure behavior and quality probe policy require a separate decision before those modes can ship.
 
+### Implementation state (2026-11-22)
+
+- Capacity mode: implemented. It is the default.
+- Equal subscriber count: implemented per subscriber source (`group.allocation`). New subscribers go to the placement with the fewest subscribers. A source-pool rebalance equalizes counts. Pins stay fixed and count in their placement.
+- A fixed capacity on one placement of a shared source is refused, because LibreQoS cannot hold one shared limit across parents.
+- Quality-aware: not implemented. The control stays unavailable.
+
+### Proposal for owner decision: quality mode and strict pins
+
+This proposal is not approved. Do not implement quality mode until the owner accepts or changes it.
+
+- Measurement: one probe per WAN path, through that WAN only (for example a ping to a fixed target with a routing mark). Record loss and latency.
+- Freshness: a measurement older than 3 probe intervals is stale. With any eligible WAN stale, quality mode uses capacity mode for that rebalance and shows "quality data stale".
+- Movement: move a subscriber only when the score of the destination is better by at least 20%, and not more often than once per 30 minutes per subscriber.
+- Strict pin, WAN unavailable: keep the pin and the shaping placement. Show the subscriber as "pinned to an unavailable WAN". Do not move it automatically.
+- Routing: quality mode changes only the LibreQoS placement. MikroTik routing stays a separate decision.
+
 ## Site and AP coordinates
 
 Each Site and AP supports an optional location in its configuration modal.

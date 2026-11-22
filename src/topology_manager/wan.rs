@@ -26,6 +26,7 @@ pub async fn read_all<C: Connector + 'static>(
     connector: Arc<C>,
     cfg: &Config,
     limit: Duration,
+    only: &[String],
 ) -> Vec<RouterInterfaces>
 where
     C::Session: 'static,
@@ -40,7 +41,7 @@ where
         .iter()
         .cloned()
         .enumerate()
-        .filter(|(_, r)| r.enabled)
+        .filter(|(_, r)| r.enabled && (only.is_empty() || only.contains(&router_id(&r.name))))
     {
         let (connector, access) = (connector.clone(), cfg.router_access.clone());
         tasks.spawn(async move {
@@ -75,6 +76,8 @@ where
             out[i].read = read;
         }
     }
+    // An unselected router is neither read nor listed.
+    out.retain(|r| only.is_empty() || only.contains(&r.router_id));
     out
 }
 

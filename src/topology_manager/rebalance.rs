@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::topology_manager::aggregate::{AggregateResolution, evaluate};
+use crate::topology_manager::catalog::AllocationMode;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,8 +269,16 @@ fn share_move(
     from: usize,
     eligible: &[usize],
     base: RateBps,
+    by_count: bool,
 ) -> anyhow::Result<usize> {
-    let w = |t: usize| weight(index, &index.targets[t]);
+    // Count mode: every instance has the same weight, and `group` holds subscriber counts.
+    let w = |t: usize| {
+        if by_count {
+            ONE
+        } else {
+            weight(index, &index.targets[t])
+        }
+    };
     let left = subtract(group[from], base)?;
     let mut best = (utilization(group[from], w(from)), from);
     for &to in eligible.iter().filter(|&&t| t != from) {
@@ -296,6 +305,9 @@ pub(crate) fn instance_weights(
         .map(|t| (catalog.nodes[t.node].id.clone(), weight(&index, t)))
         .collect())
 }
+
+/// One subscriber in count mode.
+const ONE: RateBps = RateBps { down: 1, up: 1 };
 
 fn weight(index: &Index<'_>, target: &Target) -> RateBps {
     target
@@ -356,6 +368,12 @@ pub fn rebalance(
                 .map(|t| t.independent_path.iter().copied().collect())
                 .collect(),
         };
+        let by_count = scope.source.is_some_and(|s| {
+            matches!(&catalog.sources[s].origin,
+                SourceOrigin::Subscribers { group, .. } if group.allocation == AllocationMode::Count)
+        });
+        // The share of one subscriber in the group totals: its plan, or one in count mode.
+        let share = |base: RateBps| if by_count { ONE } else { base };
         let mut pending = Vec::new();
         let mut group = vec![ZERO; index.targets.len()];
         for (position, placement) in baseline.placements.iter().enumerate() {
@@ -377,7 +395,7 @@ pub fn rebalance(
                 continue;
             }
             // Pins count in the group share but never move.
-            group[target] = add(group[target], placement.base)?;
+            group[target] = add(group[target], share(placement.base))?;
             if subscriber.policy.pin.is_some() {
                 continue;
             }
@@ -404,7 +422,14 @@ pub fn rebalance(
         for (position, record, from, eligible) in pending {
             let placement = &baseline.placements[position];
             let dest = if scope.source.is_some() {
-                share_move(&index, &group, from, &eligible, placement.base)?
+                share_move(
+                    &index,
+                    &group,
+                    from,
+                    &eligible,
+                    share(placement.base),
+                    by_count,
+                )?
             } else {
                 let mut best = (Delta::default(), from);
                 for to in eligible {
@@ -420,8 +445,8 @@ pub fn rebalance(
             };
             if dest != from {
                 loads.apply(from, dest, placement.base)?;
-                group[from] = subtract(group[from], placement.base)?;
-                group[dest] = add(group[dest], placement.base)?;
+                group[from] = subtract(group[from], share(placement.base))?;
+                group[dest] = add(group[dest], share(placement.base))?;
                 let to = catalog.nodes[index.targets[dest].node].id.clone();
                 proposed_moves.push(ProposedMove {
                     subscriber_id: placement.subscriber_id.clone(),

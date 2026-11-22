@@ -121,6 +121,9 @@ pub struct SourceFactor {
     /// Exact decimal factors, for example `0.5`.
     pub down: String,
     pub up: String,
+    /// `capacity` or `count`.
+    #[serde(default)]
+    pub allocation: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -551,6 +554,9 @@ pub enum ReadJob {
 pub struct ReadRequest {
     pub key: String,
     pub job: ReadJob,
+    /// WAN discovery: the router IDs to read. Empty: every enabled router.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub routers: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -676,6 +682,9 @@ pub enum BuilderEdit {
         subscriber_id: String,
         wan_node_id: Option<String>,
     },
+    /// `capacity` or `count`: how a source spreads its subscribers over its instances.
+    #[serde(rename = "group.allocation")]
+    GroupAllocation { source_id: String, mode: String },
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },

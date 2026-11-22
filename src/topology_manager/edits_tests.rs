@@ -1500,3 +1500,75 @@ fn node_location_refuses_bad_input_without_a_partial_change() {
     assert!(refused(&d, edit("group1", json!(null), "1", "1")).contains("Site or AP"));
     assert!(refused(&d, edit("nope", json!("site"), "1", "1")).contains("node"));
 }
+
+#[test]
+fn group_allocation_sets_count_mode_and_refuses_unknown_sources_and_modes() {
+    let d = doc();
+    let a = run(
+        &d,
+        json!({"kind": "group.allocation", "source_id": "profile-source", "mode": "count"}),
+    )
+    .unwrap();
+    let source = a
+        .candidate
+        .catalog
+        .as_ref()
+        .unwrap()
+        .sources
+        .iter()
+        .find(|s| s.id == "profile-source")
+        .unwrap();
+    let SourceOrigin::Subscribers { group, .. } = &source.origin else {
+        panic!("not a subscriber source")
+    };
+    assert_eq!(group.allocation, catalog::AllocationMode::Count);
+    assert!(
+        refused(
+            &d,
+            json!({"kind": "group.allocation", "source_id": "wan-source-1", "mode": "count"})
+        )
+        .contains("source")
+    );
+    assert!(
+        serde_json::from_value::<Edit>(
+            json!({"kind": "group.allocation", "source_id": "profile-source", "mode": "quality"})
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn a_fixed_capacity_on_a_shared_source_placement_is_refused() {
+    let d = doc();
+    let fixed = json!({"mode": "fixed", "down_mbps": 300, "up_mbps": 100, "factor_percent": null});
+    let why = refused(
+        &d,
+        json!({"kind": "node.update", "node_id": "group1", "capacity": fixed}),
+    );
+    assert!(why.contains("shared limit"), "{why}");
+    // One placement only: a fixed capacity is one real limit.
+    let mut single = doc();
+    single
+        .catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .retain(|n| n.id != "group2");
+    if let Some(s) = single
+        .catalog
+        .as_mut()
+        .unwrap()
+        .sources
+        .iter_mut()
+        .find(|s| s.id == "profile-source")
+    {
+        s.targets.retain(|t| t != "group2");
+    }
+    assert!(
+        run(
+            &single,
+            json!({"kind": "node.update", "node_id": "group1", "capacity": fixed})
+        )
+        .is_ok()
+    );
+}

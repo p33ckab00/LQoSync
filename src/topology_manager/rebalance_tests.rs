@@ -786,3 +786,54 @@ fn instance_weights_use_the_nearest_independent_ancestor() {
         ]
     );
 }
+
+fn counted(mut r: RegistryDocument) -> RegistryDocument {
+    if let SourceOrigin::Subscribers { group, .. } =
+        &mut r.catalog.as_mut().unwrap().sources[2].origin
+    {
+        group.allocation = catalog::AllocationMode::Count;
+    }
+    r
+}
+
+#[test]
+fn count_mode_balances_subscriber_counts_regardless_of_wan_capacity() {
+    let r = seeded(&counted(registry()), 60, "group1");
+    let result = run(&r, 60);
+    assert_eq!(
+        (count(&result, "group1"), count(&result, "group2")),
+        (30, 30)
+    );
+    assert_eq!(result.proposed_moves.len(), 30);
+}
+
+#[test]
+fn count_mode_keeps_pins_and_counts_them() {
+    let mut r = seeded(&counted(registry()), 60, "group1");
+    for s in r.subscribers.iter_mut().take(40) {
+        s.policy.pin = Some("group1".into());
+    }
+    let result = run(&r, 60);
+    assert_eq!(
+        (count(&result, "group1"), count(&result, "group2")),
+        (40, 20)
+    );
+    assert_eq!(result.proposed_moves.len(), 20);
+}
+
+#[test]
+fn count_mode_places_new_subscribers_evenly() {
+    let resolved = resolve(collect(
+        &counted(registry()),
+        (0..61).map(observed).collect(),
+    ))
+    .unwrap();
+    let on = |t: &str| {
+        resolved
+            .placements
+            .iter()
+            .filter(|p| p.target_id == t)
+            .count()
+    };
+    assert_eq!((on("group1"), on("group2")), (31, 30));
+}

@@ -79,6 +79,7 @@ impl Builder<'_> {
         let rules = super::preflight::expected(self.cfg, router, selection)?;
         let rule = rules.first().context("legacy source policy is absent")?;
         Ok(GroupDefaults {
+            allocation: Default::default(),
             // Per-site DHCP uses the plan sum. `propose` refuses DHCP client overrides.
             formula: if rule.count && selection.scope.kind != SourceKind::Dhcp {
                 GroupFormula::CountTimesUnit(rule.priority.settings)

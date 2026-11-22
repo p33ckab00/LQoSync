@@ -942,6 +942,7 @@ mod tests {
             name: "PPPoE".into(),
             down: "1".into(),
             up: "1".into(),
+            allocation: "capacity".into(),
         });
         let mut d = Draft::of(&factor);
         assert_eq!(build_edit(&factor, &d), Err("Change a factor first."));

@@ -153,3 +153,16 @@ Only a reader-side gate in LibreQoS can close this interval. Record this risk in
 | `runner::tests::a_restart_completes_an_interrupted_pair_and_asks_for_its_import` | Pass |
 | Existing: `superseded_operation_cannot_consume_an_older_proof`, `only_correlated_evidence_can_accept_the_same_operation`, `input_changes_restarts_and_wrong_runtime_evidence_cannot_accept`, `compiler_drift_invalidates_prepared_and_already_constructed_proofs` | Pass: stale ACK, late receipts, digest drift, and compiler drift cannot mark a new revision Applied |
 | Existing: `a_replaced_instance_lock_prevents_staging_and_recovery`, `unknown_source_and_owner_changes_block_recovery_and_keep_the_journal` | Pass: lock loss and unknown ownership block writes |
+
+## Task 3 (remainder): discovery, allocation, and shared limits
+
+Recorded: 2026-11-22 (Asia/Manila). Synthetic tests and fixture only.
+
+| Item | State | Proof |
+|---|---|---|
+| Selective WAN discovery | Done. `ReadRequest.routers` selects router IDs; the service reads and lists only those. Empty means every enabled router. The Inventory modal shows a checkbox per enabled router; WAN routers start selected. | `runner::tests::wan_discovery_reads_only_the_selected_routers`, `a_read_with_too_many_or_empty_router_ids_is_refused`, canvas check |
+| Selective source discovery | Not done. Source discovery still reads all enabled subscriber routers, because the collector reads them together. | — |
+| Equal subscriber count | Done per source (`group.allocation`). New subscribers go to the placement with the fewest subscribers; a source-pool rebalance equalizes counts; pins stay and count. | `count_mode_*` tests (3), `group_allocation_*`, canvas check |
+| Shared bottleneck | A new fixed capacity on one placement of a shared source is refused with an explanation. An older saved policy with this state still opens. | `a_fixed_capacity_on_a_shared_source_placement_is_refused` |
+| Quality mode, strict pin failure | Proposal only, in the canvas design. The control stays unavailable. | — |
+| Overlapping PPP selectors, incomplete evidence, outages | Existing coverage (identity, source policy, coordinator tests). No change. | Workspace suite |

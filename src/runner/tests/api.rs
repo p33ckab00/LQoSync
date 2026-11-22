@@ -1169,7 +1169,7 @@ mod wan {
         let e = env();
         let mut r = with_core(&e);
         e.fake.failing.lock().unwrap().insert("Core".into());
-        let v = r.api_wan_discover().await.unwrap();
+        let v = r.api_wan_discover(&[]).await.unwrap();
         let (r1, core) = (&v["routers"][0], &v["routers"][1]);
         assert_eq!((&r1["name"], &r1["state"]), (&json!("R1"), &json!("ok")));
         assert_eq!(r1["candidates"][0]["name"], json!("pppoe-out1"));
@@ -1185,7 +1185,7 @@ mod wan {
     async fn wan_discover_changes_no_registry() {
         let e = env();
         let mut r = with_core(&e);
-        r.api_wan_discover().await.unwrap();
+        r.api_wan_discover(&[]).await.unwrap();
         assert!(!e.state.join("topology-manager").exists());
     }
 
@@ -1195,7 +1195,7 @@ mod wan {
         let mut r = with_core(&e);
         e.fake.stalling.lock().unwrap().insert("Core".into());
         let started = tokio::time::Instant::now();
-        let v = r.api_wan_discover().await.unwrap();
+        let v = r.api_wan_discover(&[]).await.unwrap();
         assert!(started.elapsed() <= std::time::Duration::from_secs(31));
         assert_eq!(v["routers"][0]["state"], json!("ok"));
         assert_eq!(v["routers"][1]["state"], json!("failed"));
@@ -1279,7 +1279,7 @@ mod edits {
                     ]),
                 ],
             );
-        let discovery = r.api_wan_discover().await.unwrap();
+        let discovery = r.api_wan_discover(&[]).await.unwrap();
         let router_id = discovery["routers"][0]["router_id"]
             .as_str()
             .unwrap()

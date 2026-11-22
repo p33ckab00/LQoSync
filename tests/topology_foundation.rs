@@ -58,6 +58,7 @@ fn aggregate_stage_preserves_legacy_ppp_factors_backstop_and_explicit_floor() {
                         scope: scope.clone(),
                         profile_ref: None,
                         group: GroupDefaults {
+                            allocation: Default::default(),
                             formula: GroupFormula::PlanSum,
                             factors: Factors {
                                 down: fraction(35, 100),

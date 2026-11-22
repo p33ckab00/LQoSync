@@ -133,6 +133,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
                     scope: scope(),
                     profile_ref: Some("provider-profile-id".into()),
                     group: GroupDefaults {
+                        allocation: Default::default(),
                         floor: None,
                         formula: GroupFormula::PlanSum,
                         factors: Factors {
@@ -462,6 +463,7 @@ fn a_large_catalog_uses_iterative_validation() {
             scope: scope(),
             profile_ref: None,
             group: GroupDefaults {
+                allocation: Default::default(),
                 floor: None,
                 formula: GroupFormula::PlanSum,
                 factors: Factors::default(),

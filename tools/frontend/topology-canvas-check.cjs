@@ -8,11 +8,12 @@ const fs=require('node:fs');
   const out=process.env.ROUTERS_EVIDENCE_DIR||'/tmp/lqosync-topology-canvas';fs.mkdirSync(out,{recursive:true});
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000},colorScheme:'light'});
-    const errors=[],edits=[],layouts=[];
+    const errors=[],edits=[],layouts=[],reads=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{
       if(r.url().endsWith('/api/v1/topology/edits'))edits.push(JSON.parse(r.postData()));
       if(r.url().endsWith('/api/v1/topology/layout'))layouts.push(JSON.parse(r.postData()));
+      if(r.url().endsWith('/api/v1/topology/reads'))reads.push(JSON.parse(r.postData()));
       if(r.url().includes('/api/v1/topology/proposals'))errors.push('a canvas edit used the review route');
     });
     await page.goto('http://127.0.0.1:19581');
@@ -85,7 +86,14 @@ const fs=require('node:fs');
     // Inventory: discovery adds nothing until a WAN is placed.
     await dock.getByRole('button',{name:'Router inventory',exact:true}).click();
     const inventory=page.getByRole('dialog',{name:'Router inventory'});await inventory.waitFor();
+    // Router selection: WAN routers start selected; only selected routers are read.
+    const pick=inventory.getByRole('group',{name:'Routers for WAN discovery'});
+    await pick.getByLabel('Core-01').waitFor();
+    assert.equal(await pick.getByLabel('Core-01').isChecked(),true);
+    assert.equal(await pick.getByLabel('Access-01').isChecked(),false);
     await inventory.getByRole('button',{name:'Discover WAN interfaces',exact:true}).click();
+    await inventory.getByRole('list',{name:'WAN interfaces'}).waitFor({timeout:15000});
+    assert.deepEqual(reads.at(-1).routers,['lq3-00000000000000c1'],'only the selected router is read');
     await inventory.getByRole('button',{name:'Create WAN',exact:true}).first().click();
     assert.equal(edits.filter(e=>e.edit.kind==='wan.create').length,0,'discovery attaches nothing');
     await inventory.getByLabel('Download Mbps').fill('300');await inventory.getByLabel('Upload Mbps').fill('100');
@@ -93,6 +101,15 @@ const fs=require('node:fs');
     await page.waitForFunction(()=>[...document.querySelectorAll('[role=status]')].some(s=>s.textContent.includes('Saved revision')));
     const wan=edits.find(e=>e.edit.kind==='wan.create');
     assert.equal(wan.edit.endpoint_ref,'pppoe-out3');assert.equal(wan.edit.down_mbps,300);
+    await page.keyboard.press('Escape');
+    // Allocation: equal count for the selected group saves one group.allocation edit.
+    const ppp=canvas.getByRole('button',{name:/^PPPoE access,/});await ppp.click();
+    await dock.getByRole('button',{name:'Subscriber allocation',exact:true}).click();
+    const allocation=page.getByRole('dialog',{name:'Subscriber allocation'});
+    await allocation.getByLabel('Equal subscriber count, pins included').check();
+    for(let i=0;i<100&&!edits.some(e=>e.edit.kind==='group.allocation');i++)await page.waitForTimeout(100);
+    assert.deepEqual(edits.find(e=>e.edit.kind==='group.allocation').edit,{kind:'group.allocation',source_id:'access-ppp',mode:'count'});
+    assert.equal(await allocation.getByLabel(/^Quality-aware/).isDisabled(),true);
     await page.keyboard.press('Escape');
     // Preview is read-only.
     const count=edits.length;
@@ -104,7 +121,7 @@ const fs=require('node:fs');
     await page.emulateMedia({colorScheme:'dark'});await page.screenshot({path:`${out}/canvas-dark.png`});
     await page.setViewportSize({width:375,height:760});
     assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=375),'no sideways scroll at 375 px');
-    await north.focus();await page.keyboard.press('Enter');await dialog.waitFor();
+    await north.click();await page.keyboard.press("Enter");await dialog.waitFor();
     const box=await dialog.boundingBox();assert.ok(box.width<=375&&box.x>=0,'the modal fits a phone');
     await page.screenshot({path:`${out}/node-modal-375.png`});
     assert.deepEqual(errors,[]);

@@ -490,6 +490,11 @@ impl Jobs {
 
     /// Start one explicit router read. The answer arrives on the operation (`done`).
     pub async fn read(&self, actor: &str, request: ReadRequest) -> Result<Operation, Refused> {
+        if request.routers.len() > 64
+            || request.routers.iter().any(|r| !(1..=64).contains(&r.len()))
+        {
+            return Err(Refused::Invalid);
+        }
         let key = request.key.clone();
         let payload = serde_json::to_value(&request).map_err(|_| Refused::Invalid)?;
         if let Some(known) = self.admit(actor, &key, payload).await? {
@@ -508,8 +513,11 @@ impl Jobs {
                 error,
                 ..op(&request.key, "failed", None)
             };
-            let state = match call(&this.root, operation, serde_json::json!({}), MUTATE_LIMIT).await
-            {
+            let args = match request.job {
+                ReadJob::Wan => serde_json::json!({"routers": request.routers}),
+                _ => serde_json::json!({}),
+            };
+            let state = match call(&this.root, operation, args, MUTATE_LIMIT).await {
                 Ok(v) => Operation {
                     discovery: (request.job != ReadJob::Refresh).then(|| discovery(&v)),
                     ..op(&request.key, "done", None)

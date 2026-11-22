@@ -718,7 +718,8 @@ where
     }
 
     /// Read the interfaces of every configured router as WAN candidates. No registry change.
-    pub async fn api_wan_discover(&mut self) -> anyhow::Result<serde_json::Value> {
+    /// `only`: router IDs to read. Empty: every enabled router.
+    pub async fn api_wan_discover(&mut self, only: &[String]) -> anyhow::Result<serde_json::Value> {
         let catalog = self.api_document()?.and_then(|d| d.catalog);
         let collected_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -727,6 +728,7 @@ where
             self.connector.clone(),
             &self.cfg,
             Duration::from_secs(30),
+            only,
         )
         .await;
         let answer = crate::topology_manager::wan::answer(&reads, catalog.as_ref(), collected_at);
@@ -3053,7 +3055,7 @@ mod tests {
             serde_json::from_str(&read(&e.state.join("routers.json"))).unwrap();
         let off = inv.routers.iter().find(|r| r.name == "Off").unwrap();
         assert!(!off.enabled && off.collection.is_none());
-        let found = r.api_wan_discover().await.unwrap();
+        let found = r.api_wan_discover(&[]).await.unwrap();
         let off = found["routers"]
             .as_array()
             .unwrap()
@@ -3062,6 +3064,28 @@ mod tests {
             .unwrap();
         assert_eq!(off["state"], "failed");
         assert!(off["error"].as_str().unwrap().contains("disabled"), "{off}");
+    }
+
+    #[tokio::test]
+    async fn wan_discovery_reads_only_the_selected_routers() {
+        let e = env();
+        let mut c = cfg(&e, "shadow", "");
+        let core = Config::from_toml_str(
+            "[[routers]]\nname=\"Core\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+        ).unwrap().routers.remove(0);
+        c.routers.push(core);
+        // Any connection to R1 panics its task and would show R1 as failed.
+        e.fake.panicking.lock().unwrap().insert("R1".into());
+        let mut r = runner(&e, c);
+        let only = [crate::topology_manager::policy_draft::router_id("Core")];
+        let found = r.api_wan_discover(&only).await.unwrap();
+        let names: Vec<_> = found["routers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["name"].clone())
+            .collect();
+        assert_eq!(names, [serde_json::json!("Core")]);
     }
 
     #[tokio::test]
@@ -3085,7 +3109,7 @@ mod tests {
             )]),
         );
         let mut r = runner(&e, c);
-        let first = r.api_wan_discover().await.unwrap();
+        let first = r.api_wan_discover(&[]).await.unwrap();
         assert_eq!(first["routers"].as_array().unwrap().len(), 2);
         assert_eq!(first["routers"][0]["candidates"], serde_json::json!([]));
         assert_eq!(first["routers"][1]["candidates"][0]["name"], "pppoe-out1");
@@ -3098,7 +3122,7 @@ mod tests {
             .get_mut("/interface")
             .unwrap()[0]
             .insert("name".into(), "pppoe-out2".into());
-        let second = r.api_wan_discover().await.unwrap();
+        let second = r.api_wan_discover(&[]).await.unwrap();
         assert_eq!(second["routers"][1]["candidates"][0]["name"], "pppoe-out2");
         assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 4);
     }

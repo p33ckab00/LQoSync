@@ -106,10 +106,12 @@ fn title(action: &Change) -> String {
 pub(crate) async fn run_read(
     session: RwSignal<Option<Principal>>,
     job: ReadJob,
+    routers: Vec<String>,
 ) -> Result<Operation, String> {
     let request = ReadRequest {
         key: new_key(),
         job,
+        routers,
     };
     post(session, "/api/v1/topology/reads", &request)
         .await

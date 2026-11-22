@@ -35,6 +35,13 @@ struct RouterTestArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct WanDiscoverArgs {
+    #[serde(default)]
+    routers: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ProposalArgs {
     proposal_id: String,
 }
@@ -139,7 +146,10 @@ where
         "topology.preview.refresh" => runner.api_preview_refresh().await.map_err(fail),
         "topology.preview.get" => runner.api_preview_get().map_err(fail),
         "topology.policies" => runner.api_policies().map_err(fail),
-        "wan.discover" => runner.api_wan_discover().await.map_err(fail),
+        "wan.discover" => {
+            let a: WanDiscoverArgs = parse(request)?;
+            runner.api_wan_discover(&a.routers).await.map_err(fail)
+        }
         "router.test" => {
             let args: RouterTestArgs = parse(request)?;
             runner

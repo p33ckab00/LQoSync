@@ -468,11 +468,35 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
     pending.sort_by_key(|(a, _, p)| (p.fixed.is_none(), *a));
     let mut node_demand = vec![ZERO; catalog.nodes.len()];
     let mut target_demand = vec![ZERO; index.targets.len()];
+    // Placed subscribers per target, and the targets of a source in count mode.
+    let mut target_count = vec![0u64; index.targets.len()];
+    let by_count: Vec<bool> = index
+        .targets
+        .iter()
+        .map(|t| {
+            let source = catalog.nodes[t.node].source_id.as_deref();
+            catalog.sources.iter().any(|s| {
+                Some(s.id.as_str()) == source
+                    && matches!(&s.origin, SourceOrigin::Subscribers { group, .. }
+                        if group.allocation == super::catalog::AllocationMode::Count)
+            })
+        })
+        .collect();
     let mut placements = Vec::with_capacity(pending.len());
     let mut assignments = Vec::with_capacity(pending.len());
     for (a, record, prepared) in pending {
         let target = match prepared.fixed {
             Some(target) => target,
+            // Count mode: the eligible instance with the fewest subscribers, pins included.
+            None if !prepared.eligible.is_empty()
+                && prepared.eligible.iter().all(|&t| by_count[t]) =>
+            {
+                *prepared
+                    .eligible
+                    .iter()
+                    .min_by_key(|&&t| (target_count[t], t))
+                    .expect("eligible set is not empty")
+            }
             None => {
                 let mut best = None;
                 for &t in &prepared.eligible {
@@ -494,6 +518,7 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
             }
         };
         target_demand[target] = add(target_demand[target], prepared.base)?;
+        target_count[target] += 1;
         for &n in &index.targets[target].independent_path {
             node_demand[n] = add(node_demand[n], prepared.base)?;
         }
