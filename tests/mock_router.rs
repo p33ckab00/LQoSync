@@ -376,3 +376,70 @@ async fn tls_without_verify_does_not_panic() {
         .unwrap_err();
     assert!(!matches!(e, ReadError::Login(_)), "{e:?}");
 }
+
+fn row(fields: &[(&str, &str)]) -> Vec<(String, String)> {
+    fields
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
+}
+
+#[tokio::test]
+async fn ping_reads_the_round_trip_time_and_a_lost_reply() {
+    use lqosync3::routeros::{Connector, RouterProbe};
+    let (port, log) = mock(
+        |p| match p {
+            "/ping" => Answer::Rows(vec![row(&[
+                ("host", "1.1.1.1"),
+                ("time", "12ms345us"),
+                ("received", "1"),
+            ])]),
+            _ => Answer::Empty,
+        },
+        "good",
+    )
+    .await;
+    let s = setup(port);
+    let mut session = s.connector.connect(&s.router, &s.access).await.unwrap();
+    assert_eq!(
+        session.ping("1.1.1.1", "ether1").await.unwrap(),
+        Some(12_345)
+    );
+    let sent = log
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|w| w[0] == "/ping")
+        .cloned()
+        .unwrap();
+    for word in ["=address=1.1.1.1", "=interface=ether1", "=count=1"] {
+        assert!(sent.iter().any(|w| w == word), "{sent:?}");
+    }
+    let (port, _) = mock(
+        |p| match p {
+            "/ping" => Answer::Rows(vec![row(&[("status", "timeout"), ("received", "0")])]),
+            _ => Answer::Empty,
+        },
+        "good",
+    )
+    .await;
+    let s = setup(port);
+    let mut session = s.connector.connect(&s.router, &s.access).await.unwrap();
+    assert_eq!(session.ping("1.1.1.1", "ether1").await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn ping_permission_error_is_a_read_error() {
+    use lqosync3::routeros::{Connector, RouterProbe};
+    let (port, _) = mock(
+        |p| match p {
+            "/ping" => Answer::Trap("not enough permissions (9)".into()),
+            _ => Answer::Empty,
+        },
+        "good",
+    )
+    .await;
+    let s = setup(port);
+    let mut session = s.connector.connect(&s.router, &s.access).await.unwrap();
+    assert!(session.ping("1.1.1.1", "ether1").await.is_err());
+}

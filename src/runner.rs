@@ -124,6 +124,8 @@ pub struct Runner<C: Connector + 'static> {
     edit_proposal: Option<EditProposal>,
     edit_sequence: u64,
     topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
+    /// The WAN monitor of the service. `None` in one-shot commands and in most tests.
+    pub wan_monitor: Option<crate::wan_monitor::Handle>,
     topology_compiler: Option<crate::topology_manager::compiler::ControlledCompiler>,
 }
 
@@ -133,6 +135,8 @@ struct EditProposal {
     base_revision: u64,
     candidate: crate::topology_manager::model::RegistryDocument,
     expires: tokio::time::Instant,
+    /// A confirmed Rebalance also releases the WANs that wait for it.
+    rebalance: bool,
 }
 
 /// A proposal stays for this time after `topology.edit.propose`.
@@ -236,6 +240,7 @@ where
             topology_sources: crate::topology_manager::coordinator::Coordinator::new(
                 connector.clone(),
             ),
+            wan_monitor: None,
             topology_compiler: None,
             connector,
             sessions: HashMap::new(),
@@ -1020,6 +1025,7 @@ where
             base_revision: doc.revision,
             candidate,
             expires: tokio::time::Instant::now() + PROPOSAL_LIFETIME,
+            rebalance: matches!(edit, crate::topology_manager::edits::Edit::Rebalance { .. }),
         });
         Ok(answer)
     }
@@ -1279,6 +1285,7 @@ where
             base_revision: doc.revision,
             candidate,
             expires: tokio::time::Instant::now() + PROPOSAL_LIFETIME,
+            rebalance: matches!(edit, crate::topology_manager::edits::Edit::Rebalance { .. }),
         });
         Ok(answer)
     }
@@ -1315,6 +1322,11 @@ where
             Ok((proposal.candidate, ()))
         })?;
         self.last_preview = None;
+        if proposal.rebalance
+            && let Some(monitor) = &self.wan_monitor
+        {
+            monitor.release_waiting();
+        }
         Ok(serde_json::json!({"revision": revision}))
     }
 
@@ -1999,6 +2011,15 @@ where
         let edit = serde_json::to_value(edit)
             .and_then(serde_json::from_value)
             .map_err(|_| rule("the edit is not a service edit".into()))?;
+        if matches!(edit, crate::topology_manager::edits::Edit::FailbackRelease) {
+            let monitor = self
+                .wan_monitor
+                .as_ref()
+                .ok_or_else(|| rule("the WAN monitor is not running".into()))?;
+            monitor.release_waiting();
+            self.reconcile_requested = true;
+            return Ok(serde_json::json!({"revision": expected_revision}));
+        }
         let proposal = self.api_edit_propose(expected_revision, edit).await?;
         let id = proposal["proposal_id"]
             .as_str()
@@ -2080,6 +2101,16 @@ where
             && let Ok(Some(next)) = crate::topology_manager::edits::auto_read(&document, &draft)
         {
             document = next;
+        }
+        // The WAN monitor probes the WAN nodes of this policy; placement uses its snapshot.
+        if let Some(monitor) = &self.wan_monitor {
+            let (wans, auto_failback) = crate::wan_monitor::probes_of(&document);
+            monitor.set_wans(wans, auto_failback);
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            self.topology_sources.set_wan(monitor.snapshot(now));
         }
         let receipt_generation = self
             .write_tracker

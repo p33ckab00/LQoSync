@@ -711,6 +711,9 @@ pub enum BuilderEdit {
     /// Automatic failback to a recovered WAN.
     #[serde(rename = "failback.auto")]
     AutoFailback { enabled: bool },
+    /// Return subscribers to the WANs that wait for a Rebalance (automatic failback off).
+    #[serde(rename = "failback.release")]
+    FailbackRelease,
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },

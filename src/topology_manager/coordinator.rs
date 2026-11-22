@@ -47,6 +47,8 @@ pub(crate) struct Coordinator<C: Connector> {
     gate: ObservationGate,
     sessions: HashMap<String, SourceSession<C::Session>>,
     observed: Vec<(String, crate::model::RouterSnapshot, Vec<&'static str>)>,
+    /// The WAN availability for the next placement.
+    wan: super::wan_health::WanSnapshot,
 }
 impl<C: Connector + 'static> Coordinator<C>
 where
@@ -59,7 +61,11 @@ where
             gate: ObservationGate::default(),
             sessions: HashMap::new(),
             observed: Vec::new(),
+            wan: Default::default(),
         }
+    }
+    pub(crate) fn set_wan(&mut self, wan: super::wan_health::WanSnapshot) {
+        self.wan = wan;
     }
     pub(crate) fn clear_sessions(&mut self) {
         self.sessions.clear();
@@ -302,6 +308,7 @@ where
             .authorized(cfg, registry, minimum_generation, deadline)
             .await?;
         authorized.router_locations = super::publication::router_locations(cfg);
+        authorized.reconciliation.wan = self.wan.clone();
         let mut pair = prepare_with_static(authorized, static_source.as_ref().map(|s| s.input()))?;
         pair.static_source = static_source.map(|s| s.binding);
         pair.check_fresh()?;
@@ -327,10 +334,12 @@ where
             issues.is_empty(),
             "unsupported configured source policies: {issues:?}"
         );
-        Ok(self
+        let mut reconciliation = self
             .authorized(cfg, registry, minimum_generation, deadline)
             .await?
-            .reconciliation)
+            .reconciliation;
+        reconciliation.wan = self.wan.clone();
+        Ok(reconciliation)
     }
 
     async fn authorized(

@@ -195,6 +195,42 @@ impl Connector for MikrotikConnector {
     }
 }
 
+impl crate::routeros::RouterProbe for MikrotikSession {
+    fn ping(
+        &mut self,
+        address: &str,
+        interface: &str,
+    ) -> impl Future<Output = Result<Option<u64>, ReadError>> + Send {
+        let device = self.device.clone();
+        let command = CommandBuilder::new()
+            .command("/ping")
+            .attribute("address", Some(address))
+            .attribute("interface", Some(interface))
+            .attribute("count", Some("1"))
+            .build();
+        async move {
+            let mut rx = device.send_command(command).await.map_err(map_err)?;
+            let mut rtt = None;
+            while let Some(event) = rx.recv().await {
+                match event {
+                    Event::Reply { response, .. } => {
+                        // A lost reply has `status=timeout` and no `time`.
+                        if let Some(Some(time)) = response.attributes.get("time") {
+                            rtt = crate::routeros::duration_us(time).or(rtt);
+                        }
+                    }
+                    Event::Done { .. } | Event::Empty { .. } => return Ok(rtt),
+                    Event::Trap { response, .. } => return Err(ReadError::Trap(response.message)),
+                    Event::Fatal { reason } => {
+                        return Err(ReadError::Protocol(format!("{reason:?}")));
+                    }
+                }
+            }
+            Err(ReadError::Protocol("the ping answer ended early".into()))
+        }
+    }
+}
+
 impl RouterSession for MikrotikSession {
     fn print(
         &mut self,

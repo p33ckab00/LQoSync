@@ -176,6 +176,15 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
     lqosync3::api::server::spawn(listener, api_jobs);
     let worker_monitor =
         lqosync3::worker_util::Monitor::start_with_health(&cfg, runner.health.clone());
+    // WAN probes run in their own task with their own router sessions.
+    let wan_monitor = lqosync3::wan_monitor::Handle::new(&cfg);
+    let _wan_task = lqosync3::wan_monitor::start(
+        Arc::new(MikrotikConnector {
+            owner_uid: SECRET_OWNER_UID,
+        }),
+        wan_monitor.clone(),
+    );
+    runner.wan_monitor = Some(wan_monitor.clone());
     runner.set_source(path, digest.clone());
     let apply_monitor = runner.pending_tracker().map(|tracker| {
         lqosync3::apply_evidence::Monitor::start(&cfg, &digest, tracker, runner.health.clone())
@@ -221,6 +230,7 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
                     Ok(()) => {
                         eprintln!("config reloaded from {}", path.display());
                         worker_monitor.reconfigure(&cfg);
+                        wan_monitor.reconfigure(&cfg);
                         telegram_worker.reconfigure(&cfg.telegram);
                         if let Some(monitor)=&apply_monitor {monitor.reconfigure(&cfg,&digest);}
                         runner.set_config(cfg.clone());

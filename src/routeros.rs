@@ -46,6 +46,44 @@ pub trait RouterSession: Send {
     ) -> impl Future<Output = Result<Vec<RosRow>, ReadError>> + Send;
 }
 
+/// A WAN probe through one router. `/ping` is a test command; it changes no configuration.
+pub trait RouterProbe: Send {
+    /// One ping of `address` out of `interface`. `Some(rtt_us)`, or `None` for a lost reply.
+    fn ping(
+        &mut self,
+        address: &str,
+        interface: &str,
+    ) -> impl Future<Output = Result<Option<u64>, ReadError>> + Send;
+}
+
+/// A RouterOS duration such as `12ms345us`, `1s2ms`, or `850us`, in microseconds.
+pub fn duration_us(text: &str) -> Option<u64> {
+    let mut total = 0u64;
+    let mut number = String::new();
+    let mut rest = text.trim();
+    while !rest.is_empty() {
+        let digits = rest
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(rest.len());
+        number.clear();
+        number.push_str(&rest[..digits]);
+        rest = &rest[digits..];
+        let unit_len = rest
+            .find(|c: char| c.is_ascii_digit())
+            .unwrap_or(rest.len());
+        let factor = match &rest[..unit_len] {
+            "us" => 1,
+            "ms" => 1_000,
+            "s" => 1_000_000,
+            "m" => 60_000_000,
+            _ => return None,
+        };
+        total = total.checked_add(number.parse::<u64>().ok()?.checked_mul(factor)?)?;
+        rest = &rest[unit_len..];
+    }
+    (!text.trim().is_empty()).then_some(total)
+}
+
 /// Opens sessions to routers.
 pub trait Connector: Send + Sync {
     type Session: RouterSession;
@@ -409,5 +447,18 @@ mod tests {
             .push_back(Err(ReadError::Timeout("dead".into())));
         read_router(&f, &mut s, &r, &a).await.unwrap();
         assert_eq!(f.connects.load(Ordering::SeqCst), 2);
+    }
+}
+
+#[cfg(test)]
+mod duration_tests {
+    #[test]
+    fn routeros_durations_parse_to_microseconds() {
+        assert_eq!(super::duration_us("12ms345us"), Some(12_345));
+        assert_eq!(super::duration_us("11ms"), Some(11_000));
+        assert_eq!(super::duration_us("1s2ms"), Some(1_002_000));
+        assert_eq!(super::duration_us("850us"), Some(850));
+        assert_eq!(super::duration_us(""), None);
+        assert_eq!(super::duration_us("12xs"), None);
     }
 }

@@ -657,7 +657,7 @@ pub(crate) fn Canvas(
                     .filter(|m|!m.is_empty()).unwrap_or("capacity".into());
                   let off=group.is_none();
                   let pick=move|m:&'static str|{let g=group.clone();move|_|if let Some(source_id)=g.clone(){
-                    submit(BuilderEdit::GroupAllocation{source_id,mode:m.into()});}};
+                    submit(BuilderEdit::GroupAllocation{source_id,mode:Some(m.into())});}};
                   view!{
                   <p class="field-help">{if off{"Select a subscriber group card to choose how its source spreads subscribers over its placements."}
                     else{"The mode applies to new subscribers and to the next rebalance. It moves nobody now."}}</p>

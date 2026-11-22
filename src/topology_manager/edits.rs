@@ -120,6 +120,9 @@ pub enum Edit {
     /// Return subscribers to a recovered WAN without a Rebalance (on) or only by Rebalance (off).
     #[serde(rename = "failback.auto")]
     AutoFailback { enabled: bool },
+    /// Return subscribers to the WANs that wait for a Rebalance. No registry change.
+    #[serde(rename = "failback.release")]
+    FailbackRelease,
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
     /// Local plans as reviewed edits: the review lists rate and capacity changes first.
@@ -1604,6 +1607,11 @@ pub fn apply(
         }
         Edit::AllocationDefault { mode } => {
             d.catalog.as_mut().expect("enrolled").allocation = *mode;
+        }
+        Edit::FailbackRelease => {
+            return Err(invalid(
+                "the service runs failback.release without a registry edit",
+            ));
         }
         Edit::AutoFailback { enabled } => {
             d.catalog.as_mut().expect("enrolled").auto_failback = *enabled;

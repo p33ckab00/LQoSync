@@ -302,3 +302,128 @@ async fn a_flat_publication_saves_the_auto_read_selections() {
             .all(|s| s.policy.assignment.is_none())
     );
 }
+
+/// Two WAN roots `wanA` (ether1) and `wanB` (ether2) on the scenario router, committed.
+fn add_wans(r: &mut Runner<FakeConnector>, auto_failback: bool) {
+    use crate::topology_manager::catalog::{
+        CapacityPolicy, CatalogNode, CatalogSource, FactorChoice, RouterRole, SourceOrigin,
+    };
+    let mut doc = r.api_document().unwrap().unwrap();
+    let c = doc.catalog.as_mut().unwrap();
+    c.auto_failback = auto_failback;
+    let router = c.routers.iter_mut().find(|r| r.name == "Hub-1").unwrap();
+    router.roles.push(RouterRole::Wan);
+    let router_id = router.id.clone();
+    for (node, source, iface) in [("wanA", "wan-a", "ether1"), ("wanB", "wan-b", "ether2")] {
+        c.sources.push(CatalogSource {
+            id: source.into(),
+            name: iface.into(),
+            origin: SourceOrigin::Wan {
+                router_id: router_id.clone(),
+                endpoint_ref: iface.into(),
+            },
+            profile_id: None,
+            targets: Vec::new(),
+        });
+        c.nodes.push(CatalogNode {
+            router_id: None,
+            geo: None,
+            minimum: Default::default(),
+            id: node.into(),
+            name: node.into(),
+            parent: None,
+            source_id: Some(source.into()),
+            kind: crate::topology_manager::layout::NodeKind::Wan,
+            capacity: CapacityPolicy::Fixed {
+                base: crate::topology_manager::rates::RateBps {
+                    down: 1_000_000_000,
+                    up: 1_000_000_000,
+                },
+                factors: FactorChoice::Inherit,
+            },
+        });
+    }
+    r.test_commit(doc).unwrap();
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+/// Make `wanA` unavailable: more than 2 minutes with its interface down, until now.
+fn fail_wan_a(monitor: &crate::wan_monitor::Handle, now: u64) {
+    use crate::topology_manager::wan_health::Sample;
+    for t in (now - 140..=now).step_by(10) {
+        monitor.observe("wanA", t, Sample::InterfaceDown, None);
+    }
+}
+
+#[tokio::test]
+async fn the_cycle_passes_the_wan_snapshot_to_placement() {
+    use web_contract::topology::{BuilderEdit, WebCommand};
+    let e = env();
+    let config = setup(&e, None);
+    let mut r = runner(&e, config.clone());
+    let init = WebCommand::Edit {
+        expected_revision: 0,
+        edit: BuilderEdit::Initialize,
+    };
+    r.api_web_mutate("automatic-edit-wan", "operator", init)
+        .await
+        .unwrap();
+    add_wans(&mut r, true);
+    let monitor = crate::wan_monitor::Handle::new(&config);
+    r.wan_monitor = Some(monitor.clone());
+    let parents = |pair: &crate::topology_manager::publication::PreparedPair| {
+        let mut p: Vec<_> = pair
+            .rows()
+            .iter()
+            .map(|row| row.parent_node_id.clone())
+            .collect();
+        p.sort();
+        p.dedup();
+        p
+    };
+    // No probe data: both WANs take subscribers (count mode).
+    let pair = r.prepare_topology(AGE).await.unwrap();
+    assert_eq!(parents(&pair), vec!["wanA".to_string(), "wanB".to_string()]);
+    fail_wan_a(&monitor, unix_now());
+    let pair = r.prepare_topology(AGE).await.unwrap();
+    assert_eq!(parents(&pair), vec!["wanB".to_string()]);
+}
+
+#[tokio::test]
+async fn manual_failback_waits_for_a_rebalance() {
+    use crate::topology_manager::wan_health::{Sample, WanState};
+    let e = env();
+    let mut r = enrolled(&e).await;
+    add_wans(&mut r, false);
+    let monitor = crate::wan_monitor::Handle::new(&r.cfg);
+    r.wan_monitor = Some(monitor.clone());
+    r.prepare_topology(AGE).await.unwrap();
+    let now = unix_now();
+    fail_wan_a(&monitor, now - 700);
+    for t in (now - 690..=now).step_by(10) {
+        monitor.observe("wanA", t, Sample::Reply { rtt_us: 10_000 }, None);
+    }
+    assert_eq!(
+        monitor.snapshot(now).0["wanA"].state,
+        WanState::WaitingForRebalance
+    );
+    // Placement keeps the subscribers away until the operator returns them.
+    let revision = r.api_document().unwrap().unwrap().revision;
+    let release = web_contract::topology::WebCommand::Edit {
+        expected_revision: revision,
+        edit: web_contract::topology::BuilderEdit::FailbackRelease,
+    };
+    let saved = r
+        .api_web_mutate("automatic-edit-release", "operator", release)
+        .await
+        .unwrap();
+    assert_eq!(saved["state"], "saved", "{saved}");
+    assert_eq!(monitor.snapshot(now).0["wanA"].state, WanState::Up);
+    assert_eq!(r.api_document().unwrap().unwrap().revision, revision);
+}
