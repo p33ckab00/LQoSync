@@ -36,6 +36,8 @@ pub struct PlacementConflict {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Placement {
     pub subscriber_id: String,
+    /// The saved assignment while a WAN failover keeps the subscriber on `target_id`.
+    pub home: Option<String>,
     /// `None`: no parent (flat). The CSV row gets an empty `Parent Node`.
     pub target_id: Option<String>,
     pub profile_id: Option<String>,
@@ -80,6 +82,12 @@ struct Index<'a> {
     families: Vec<Option<&'a str>>,
     /// Router ID to the targets of its unplaced subscribers (R3–R5). An absent key has none.
     auto_targets: HashMap<&'a str, BTreeSet<usize>>,
+    /// The WAN root at or above each node.
+    wan_roots: Vec<Option<usize>>,
+    /// Targets below a WAN that placement must not use now (failover).
+    excluded: Vec<bool>,
+    /// The quality score of each WAN node. `None`: stale, use capacity.
+    quality: Vec<Option<super::rates::Fraction>>,
 }
 
 impl<'a> Index<'a> {
@@ -114,6 +122,7 @@ impl<'a> Index<'a> {
         let mut capacities = vec![None; layout.len()];
         let mut wans = vec![None; layout.len()];
         let mut families: Vec<Option<&str>> = vec![None; layout.len()];
+        let mut wan_roots = vec![None; layout.len()];
         // A node with a subscriber source at or above it belongs to that source.
         let mut sourced = vec![false; layout.len()];
         while let Some(i) = queue.pop_front() {
@@ -138,6 +147,11 @@ impl<'a> Index<'a> {
                 parents[i].and_then(|p| wans[p])
             };
             wans[i] = wan;
+            wan_roots[i] = if catalog.nodes[i].kind == NodeKind::Wan {
+                Some(i)
+            } else {
+                parents[i].and_then(|p| wan_roots[p])
+            };
             capacities[i] = match layout[i].capacity {
                 AggregateRule::Automatic { .. } => parent,
                 _ => Some(
@@ -290,6 +304,9 @@ impl<'a> Index<'a> {
             fallback_targets,
             families,
             auto_targets,
+            excluded: Vec::new(),
+            quality: vec![None; catalog.nodes.len()],
+            wan_roots,
             profiles: catalog
                 .profiles
                 .iter()
@@ -308,6 +325,7 @@ impl<'a> Index<'a> {
         let mut defaults = BTreeSet::new();
         let mut any_matched = false;
         let mut flat_accounts = 0;
+        let mut mode = None;
         for account in &active.accounts {
             let mut matched = HashSet::new();
             if let Some(selectors) = self.selectors.get(&account.identity.scope) {
@@ -350,6 +368,9 @@ impl<'a> Index<'a> {
                 if let Some(profile) = self.catalog.sources[*source].profile_id.as_deref() {
                     defaults.insert(profile);
                 }
+                if !self.source_targets[*source].is_empty() {
+                    mode.get_or_insert(self.catalog.mode_of(Some(&self.catalog.sources[*source])));
+                }
                 allowed.extend(self.source_targets[*source].iter().copied());
             }
             allowed.retain(|t| {
@@ -383,24 +404,38 @@ impl<'a> Index<'a> {
                 .collect();
             eligible.retain(|t| allowed.contains(t));
         }
+        // Failover: a WAN that is not available leaves the set. If no WAN stays, nobody moves.
+        let full = eligible.clone();
+        let available: BTreeSet<usize> = full
+            .iter()
+            .copied()
+            .filter(|t| !self.excluded.get(*t).copied().unwrap_or(false))
+            .collect();
+        if !available.is_empty() {
+            eligible = available;
+        }
+        let mut home = None;
         let fixed = if let Some(pin) = &record.policy.pin {
+            // A pin stays on its node also during a failover.
             Some(
                 *self
                     .target_ids
                     .get(pin.as_str())
-                    .filter(|t| eligible.contains(t))
+                    .filter(|t| full.contains(t))
                     .ok_or_else(|| PlacementConflictReason::InvalidPin(pin.clone()))?,
             )
         } else if let Some(assignment) = &record.policy.assignment {
             // Owner decision: an assignment that is no longer eligible is dropped, and the
             // subscriber is placed again. A pin above stays strict.
-            self.target_ids
-                .get(assignment.as_str())
-                .filter(|t| eligible.contains(t))
-                .copied()
+            let saved = self.target_ids.get(assignment.as_str()).copied();
+            if saved.is_some_and(|t| full.contains(&t) && !eligible.contains(&t)) {
+                home = Some(assignment.clone());
+            }
+            saved.filter(|t| eligible.contains(t))
         } else {
             None
         };
+        let mode = mode.unwrap_or(self.catalog.allocation);
         if eligible.is_empty() && !flat {
             return Err(PlacementConflictReason::NoEligibleTarget);
         }
@@ -418,6 +453,8 @@ impl<'a> Index<'a> {
             return Ok(Prepared {
                 eligible,
                 flat,
+                mode,
+                home,
                 fixed,
                 base,
                 rates,
@@ -447,6 +484,8 @@ impl<'a> Index<'a> {
         Ok(Prepared {
             eligible,
             flat,
+            mode,
+            home,
             fixed,
             base,
             rates,
@@ -456,6 +495,49 @@ impl<'a> Index<'a> {
 }
 
 impl Index<'_> {
+    /// Use the WAN availability and quality of one collection.
+    fn apply_wan(&mut self, wan: &super::wan_health::WanSnapshot) {
+        let status = |node: usize| wan.0.get(&self.catalog.nodes[node].id);
+        self.excluded = self
+            .targets
+            .iter()
+            .map(|t| {
+                self.wan_roots[t.node]
+                    .and_then(status)
+                    .is_some_and(|s| s.excluded())
+            })
+            .collect();
+        self.quality = (0..self.catalog.nodes.len())
+            .map(|n| {
+                status(n).and_then(|s| match s.state {
+                    super::wan_health::WanState::Up => s.quality,
+                    _ => None,
+                })
+            })
+            .collect();
+    }
+
+    /// The capacity of `node` for a score. Quality mode scales a WAN with a fresh quality score.
+    fn scored(&self, node: usize, capacity: Option<RateBps>, quality: bool) -> Option<RateBps> {
+        let q = self.quality[node]
+            .filter(|_| quality && self.catalog.nodes[node].kind == NodeKind::Wan);
+        match (capacity, q) {
+            (Some(c), Some(q)) => {
+                // A zero score still leaves a tiny capacity, so the ratio stays defined.
+                let scale = |v: u64| {
+                    let v =
+                        u128::from(v) * u128::from(q.numerator) / u128::from(q.denominator.max(1));
+                    u64::try_from(v).unwrap_or(u64::MAX).max(1)
+                };
+                Some(RateBps {
+                    down: scale(c.down),
+                    up: scale(c.up),
+                })
+            }
+            _ => capacity,
+        }
+    }
+
     /// Targets of an account whose source is not placed. An explicit fallback policy keeps
     /// priority; the family rule filters it. Else the automatic set of the router (R3–R5).
     /// `None` means no eligible node: the subscriber gets no parent.
@@ -493,6 +575,8 @@ pub fn automatic_sets(catalog: &TopologyCatalog) -> anyhow::Result<HashMap<Strin
 struct Prepared {
     eligible: BTreeSet<usize>,
     flat: bool,
+    mode: super::catalog::AllocationMode,
+    home: Option<String>,
     fixed: Option<usize>,
     base: RateBps,
     rates: SubscriberRates,
@@ -545,7 +629,8 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
     let registry_index = collection.registry.index()?;
     let catalog = collection.registry.catalog.clone().unwrap_or_default();
     let catalog = &catalog;
-    let index = Index::new(catalog)?;
+    let mut index = Index::new(catalog)?;
+    index.apply_wan(&collection.wan);
     let mut active = collection.active;
     active.sort_unstable_by(|a, b| a.subscriber_id.cmp(&b.subscriber_id));
     let mut seen = HashSet::new();
@@ -592,20 +677,8 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
     pending.sort_by_key(|(a, _, p)| (p.fixed.is_none(), *a));
     let mut node_demand = vec![ZERO; catalog.nodes.len()];
     let mut target_demand = vec![ZERO; index.targets.len()];
-    // Placed subscribers per target, and the targets of a source in count mode.
+    // Placed subscribers per target, for count mode.
     let mut target_count = vec![0u64; index.targets.len()];
-    let by_count: Vec<bool> = index
-        .targets
-        .iter()
-        .map(|t| {
-            let source = catalog.nodes[t.node].source_id.as_deref();
-            catalog.sources.iter().any(|s| {
-                Some(s.id.as_str()) == source
-                    && matches!(&s.origin, SourceOrigin::Subscribers { .. })
-                    && catalog.mode_of(Some(s)) == super::catalog::AllocationMode::Count
-            })
-        })
-        .collect();
     let mut placements = Vec::with_capacity(pending.len());
     let mut assignments = Vec::with_capacity(pending.len());
     for (a, record, prepared) in pending {
@@ -613,6 +686,7 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
             assignments.push((record, None));
             placements.push(Placement {
                 subscriber_id: active[a].subscriber_id.clone(),
+                home: None,
                 target_id: None,
                 profile_id: prepared.profile_id,
                 base: prepared.base,
@@ -622,9 +696,9 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
         }
         let target = match prepared.fixed {
             Some(target) => target,
-            // Count mode: the eligible instance with the fewest subscribers, pins included.
+            // Count mode: the eligible node with the fewest subscribers, pins included.
             None if !prepared.eligible.is_empty()
-                && prepared.eligible.iter().all(|&t| by_count[t]) =>
+                && prepared.mode == super::catalog::AllocationMode::Count =>
             {
                 *prepared
                     .eligible
@@ -634,14 +708,18 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
             }
             None => {
                 let mut best = None;
+                let quality = prepared.mode == super::catalog::AllocationMode::Quality;
                 for &t in &prepared.eligible {
                     let target = &index.targets[t];
-                    let local = ratio(add(target_demand[t], prepared.base)?, target.capacity);
+                    let local = ratio(
+                        add(target_demand[t], prepared.base)?,
+                        index.scored(target.node, target.capacity, quality),
+                    );
                     let mut path = local;
                     for &n in &target.independent_path {
                         path = path.max(ratio(
                             add(node_demand[n], prepared.base)?,
-                            index.capacities[n],
+                            index.scored(n, index.capacities[n], quality),
                         ));
                     }
                     let score = (path, local, t);
@@ -658,9 +736,11 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
             node_demand[n] = add(node_demand[n], prepared.base)?;
         }
         let target_id = &catalog.nodes[index.targets[target].node].id;
-        assignments.push((record, Some(target_id.clone())));
+        // During a failover the saved assignment stays the home of the subscriber.
+        assignments.push((record, prepared.home.clone().or(Some(target_id.clone()))));
         placements.push(Placement {
             subscriber_id: active[a].subscriber_id.clone(),
+            home: prepared.home,
             target_id: Some(target_id.clone()),
             profile_id: prepared.profile_id,
             base: prepared.base,

@@ -930,6 +930,7 @@ where
             }
             for source in &applied.affected {
                 let generation = current.generation;
+                let wan = current.wan.clone();
                 let request = RebalanceRequest {
                     expected_revision: current.registry.revision,
                     scope: RebalanceScope::SourcePool(source.clone()),
@@ -951,6 +952,7 @@ where
                         .candidate
                         .context("the rebalance gave no candidate")?,
                     active: evaluation.active,
+                    wan,
                 };
             }
             candidate = current.registry;
@@ -1124,6 +1126,7 @@ where
                 generation: read.generation,
                 registry,
                 active: read.active.clone(),
+                wan: read.wan.clone(),
             })
         };
         let (before, after) = (side(current)?, side(read.registry.clone())?);
@@ -1203,6 +1206,7 @@ where
             resolve(Reconciliation {
                 generation: read.generation,
                 registry,
+                wan: read.wan.clone(),
                 active: read
                     .active
                     .iter()

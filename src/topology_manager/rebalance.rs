@@ -397,9 +397,9 @@ pub fn rebalance(
             {
                 continue;
             }
-            // Pins count in the group share but never move.
+            // Pins and failover placements count in the group share but never move here.
             group[target] = add(group[target], share(placement.base))?;
-            if subscriber.policy.pin.is_some() {
+            if subscriber.policy.pin.is_some() || placement.home.is_some() {
                 continue;
             }
             let prepared = index

@@ -84,6 +84,8 @@ pub struct Reconciliation {
     pub generation: u64,
     pub registry: RegistryDocument,
     pub active: Vec<ActiveSubscriber>,
+    /// WAN availability and quality for placement. `reconcile` leaves it empty.
+    pub wan: super::wan_health::WanSnapshot,
 }
 
 impl ObservationGate {
@@ -268,6 +270,7 @@ pub fn reconcile(
         generation: snapshot.generation,
         registry: candidate,
         active,
+        wan: Default::default(),
     })
 }
 

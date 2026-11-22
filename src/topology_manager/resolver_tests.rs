@@ -1045,3 +1045,155 @@ fn missing_catalog_uses_the_default_catalog() {
     assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
     assert_eq!(result.placements[0].target_id, None);
 }
+
+// Allocation modes, quality, and failover.
+
+use crate::topology_manager::wan_health::{WanSnapshot, WanState, WanStatus};
+
+/// A WAN node ID, its state, and its quality as `(numerator, denominator)`.
+type WanRow<'a> = (&'a str, WanState, Option<(u64, u64)>);
+
+fn wan_of(states: &[WanRow<'_>]) -> WanSnapshot {
+    WanSnapshot(
+        states
+            .iter()
+            .map(|(id, state, q)| {
+                let quality = q.map(|(n, d)| frac(n, d));
+                (
+                    id.to_string(),
+                    WanStatus {
+                        state: *state,
+                        quality,
+                    },
+                )
+            })
+            .collect(),
+    )
+}
+
+fn auto_with(r: &RegistryDocument, count: u32, wan: &[WanRow<'_>]) -> PlacementResolution {
+    let accounts = (0..count)
+        .map(|i| unbound(i, Some(rate(50_000_000, 10_000_000))))
+        .collect();
+    let mut c = collect(r, accounts);
+    c.wan = wan_of(wan);
+    resolve(c).unwrap()
+}
+
+fn mode(m: catalog::AllocationMode) -> RegistryDocument {
+    let mut r = registry();
+    r.catalog.as_mut().unwrap().allocation = m;
+    r
+}
+
+#[test]
+fn count_is_the_default_for_automatic_sets() {
+    let result = auto_with(&mode(catalog::AllocationMode::Count), 9, &[]);
+    let (a, b) = (count(&result, "wan1"), count(&result, "wan2"));
+    assert_eq!(a + b, 9);
+    assert!(a.abs_diff(b) <= 1, "{a} / {b}");
+}
+
+#[test]
+fn capacity_mode_follows_capacity() {
+    let result = auto_with(&mode(catalog::AllocationMode::Capacity), 9, &[]);
+    assert_eq!((count(&result, "wan1"), count(&result, "wan2")), (3, 6));
+}
+
+#[test]
+fn quality_mode_weights_capacity_by_quality() {
+    let wan = [("wan2", WanState::Up, Some((1, 4)))];
+    let result = auto_with(&mode(catalog::AllocationMode::Quality), 9, &wan);
+    // 310 : 620 x 1/4 = 310 : 155.
+    assert_eq!((count(&result, "wan1"), count(&result, "wan2")), (6, 3));
+}
+
+#[test]
+fn stale_quality_uses_capacity() {
+    let wan = [("wan2", WanState::Unknown, None)];
+    let result = auto_with(&mode(catalog::AllocationMode::Quality), 9, &wan);
+    assert_eq!((count(&result, "wan1"), count(&result, "wan2")), (3, 6));
+}
+
+#[test]
+fn an_unavailable_wan_branch_leaves_every_set() {
+    let wan = [("wan1", WanState::Unavailable, None)];
+    assert_eq!(targets(&auto_with(&registry(), 4, &wan)), set(&["wan2"]));
+    let mut c = collect(&registry(), (0..4).map(observed).collect());
+    c.wan = wan_of(&wan);
+    assert_eq!(targets(&resolve(c).unwrap()), set(&["group2"]));
+}
+
+/// One placed subscriber, its saved group, and the WAN above that group.
+fn saved_one() -> (RegistryDocument, String, &'static str) {
+    let r = run(&registry(), 1).candidate.unwrap();
+    let group = r.subscribers[0].policy.assignment.clone().unwrap();
+    let wan = if group == "group1" { "wan1" } else { "wan2" };
+    (r, group, wan)
+}
+
+#[test]
+fn a_failover_keeps_the_home_assignment() {
+    let (r, group, wan) = saved_one();
+    let mut c = collect(&r, vec![observed(0)]);
+    c.wan = wan_of(&[(wan, WanState::Unavailable, None)]);
+    let result = resolve(c).unwrap();
+    let p = &result.placements[0];
+    assert_ne!(p.target_id.as_deref(), Some(group.as_str()));
+    assert_eq!(p.home.as_deref(), Some(group.as_str()));
+    let saved = &result.candidate.unwrap().subscribers[0];
+    assert_eq!(saved.policy.assignment.as_deref(), Some(group.as_str()));
+}
+
+#[test]
+fn the_home_returns_when_the_wan_is_up() {
+    let (r, group, wan) = saved_one();
+    let mut c = collect(&r, vec![observed(0)]);
+    c.wan = wan_of(&[(wan, WanState::Up, None)]);
+    let result = resolve(c).unwrap();
+    assert_eq!(
+        result.placements[0].target_id.as_deref(),
+        Some(group.as_str())
+    );
+    assert_eq!(result.placements[0].home, None);
+}
+
+#[test]
+fn when_every_wan_is_unavailable_nobody_moves() {
+    let (r, group, _) = saved_one();
+    let mut c = collect(&r, vec![observed(0)]);
+    c.wan = wan_of(&[
+        ("wan1", WanState::Unavailable, None),
+        ("wan2", WanState::Unavailable, None),
+    ]);
+    let result = resolve(c).unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert_eq!(
+        result.placements[0].target_id.as_deref(),
+        Some(group.as_str())
+    );
+    assert_eq!(result.placements[0].home, None);
+}
+
+#[test]
+fn quality_changes_do_not_move_saved_assignments() {
+    let r = auto_with(&mode(catalog::AllocationMode::Quality), 9, &[])
+        .candidate
+        .unwrap();
+    let before: Vec<_> = r
+        .subscribers
+        .iter()
+        .map(|s| s.policy.assignment.clone())
+        .collect();
+    let after = auto_with(&r, 9, &[("wan2", WanState::Up, Some((1, 10)))]);
+    let placed: Vec<_> = after
+        .placements
+        .iter()
+        .map(|p| p.target_id.clone())
+        .collect();
+    let mut expected = before.clone();
+    expected.sort();
+    let mut placed_sorted = placed.clone();
+    placed_sorted.sort();
+    assert_eq!(placed_sorted, expected);
+}

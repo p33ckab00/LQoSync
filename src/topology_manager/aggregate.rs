@@ -191,7 +191,7 @@ pub fn evaluate(input: PlacementResolution) -> anyhow::Result<AggregateResolutio
             .context("aggregate circuit is absent from the registry")?;
         ensure!(
             candidate.subscribers[*record].policy.assignment.as_deref()
-                == placement.target_id.as_deref(),
+                == placement.home.as_deref().or(placement.target_id.as_deref()),
             "aggregate placement differs from candidate assignment"
         );
         placement.base.validate()?;
