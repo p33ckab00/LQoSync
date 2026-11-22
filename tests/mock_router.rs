@@ -510,11 +510,10 @@ async fn the_writer_logs_in_with_the_writer_user() {
         .connect_writer(&writer_router(&s), &s.access)
         .await
         .unwrap();
-    let log = log.lock().unwrap();
+    let login = log.lock().unwrap()[0].clone();
     assert!(
-        log[0].iter().any(|w| w == "=name=lqosync-writer"),
-        "{:?}",
-        log[0]
+        login.iter().any(|w| w == "=name=lqosync-writer"),
+        "{login:?}"
     );
     // A router without a writer user gets no write session.
     assert!(
