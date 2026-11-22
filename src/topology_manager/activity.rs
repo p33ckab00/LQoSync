@@ -16,7 +16,7 @@ pub struct SourceActivity {
 
 impl SourceActivity {
     /// The saved state of `dir`. A missing or damaged file gives an empty state: then every
-    /// node is active until the grace after the first good read.
+    /// source is active until the first good read.
     pub fn load(dir: &Path) -> SourceActivity {
         std::fs::read(dir.join(FILE))
             .ok()
@@ -32,14 +32,13 @@ impl SourceActivity {
         }
     }
 
-    /// A node is active while its last active read is not older than `grace`.
-    pub fn is_active(&self, node_id: &str, now: u64, grace: u64) -> bool {
-        let since = self
-            .last_active
-            .get(node_id)
-            .copied()
-            .or(self.first_observed);
-        since.is_none_or(|t| now.saturating_sub(t) <= grace)
+    /// A source is active while its last active read is not older than `grace`. Before the first
+    /// good read every source counts as active; after it, a source never seen active is not.
+    pub fn is_active(&self, source_id: &str, now: u64, grace: u64) -> bool {
+        match self.last_active.get(source_id) {
+            Some(t) => now.saturating_sub(*t) <= grace,
+            None => self.first_observed.is_none(),
+        }
     }
 
     pub fn save(&self, dir: &Path) -> anyhow::Result<()> {
@@ -93,10 +92,16 @@ mod tests {
         std::fs::write(dir.path().join(FILE), b"not json").unwrap();
         let mut a = SourceActivity::load(dir.path());
         assert!(a.is_active("g", 9_999, 600));
-        // After the first good read, a node without members gets the grace, then hides.
+    }
+
+    #[test]
+    fn a_source_never_seen_active_is_hidden_after_the_first_read() {
+        // Owner, 2026-11-23: a profile without an active session, or a server without a lease,
+        // does not belong on the canvas. Only the canvas changes; shaping does not use this.
+        let mut a = SourceActivity::default();
         a.observe(10_000, &set(&["other"]));
-        assert!(a.is_active("g", 10_600, 600));
-        assert!(!a.is_active("g", 10_601, 600));
+        assert!(!a.is_active("g", 10_000, 600));
+        assert!(a.is_active("other", 10_000, 600));
     }
 
     #[test]
