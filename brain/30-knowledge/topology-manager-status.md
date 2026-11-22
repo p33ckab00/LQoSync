@@ -152,6 +152,15 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - The one expected change from the legacy to the manager world is node `lq3-f270781791bd2d0a` (225.75 to 225 Mbps).
 - Next: Phase 4, the deploy of the new binary with a backup and a rollback, then the activation design. The activation must refresh the adoption before it claims the writer.
 
+## Phase 4 activation code (2026-11-22)
+
+- `topology activate --report <file> [--yes]` runs the gates: enrolled, not active, every legacy row has an alias, parity, the compiler check, and a passed live test of the current registry revision. Only `--yes` writes `runtime-owner.json`. It writes no pair.
+- After activation, each cycle writes only the manager pair. A manager failure keeps the last pair and sets `manager_failed`, `manager_error`, and `manager_failed_since` in `status.json`. It sends one notice when the failure starts and one when it stops. A restart sends no second notice. A source batch (router read) failure is not a manager failure.
+- Health has the component `apply/writer`. The API `status` and the TUI show the writer and the failure.
+- `topology deactivate [--yes]` reads the routers, gives the legacy `state.json` the manager IDs (matched by IPv4, then MAC), and removes `runtime-owner.json`. A subscriber with more than one device row gets new legacy IDs.
+- The default `[network] mode` for a new installation is `root_promotion`.
+- Not deployed. The window procedure: `docs/operations/TOPOLOGY_ACTIVATION.md`.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.

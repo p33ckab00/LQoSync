@@ -1,6 +1,15 @@
 //! Scheduled publication for an explicitly selected topology writer. Never a legacy fallback.
 use super::*;
 
+/// A source batch failure in topology mode: the pair stays, and it is no manager failure.
+#[derive(Debug)]
+struct SourceBatchFailed;
+impl std::fmt::Display for SourceBatchFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("the topology source batch failed; the last pair stays")
+    }
+}
+
 /// The result of `topology activate`.
 #[derive(Debug)]
 pub struct ActivationOutcome {
@@ -10,6 +19,17 @@ pub struct ActivationOutcome {
     pub rounded: Vec<crate::topology_manager::publication::NodeExportAdjustment>,
     /// Registry subscribers with more than one identity.
     pub multi_identity: usize,
+}
+
+/// The result of `topology deactivate`.
+#[derive(Debug)]
+pub struct DeactivationOutcome {
+    /// True when the owner file is removed (`--yes`).
+    pub deactivated: bool,
+    /// Legacy circuits that got the manager IDs.
+    pub seeded: usize,
+    /// Subscribers with more than one device row. The legacy writer gives them new IDs.
+    pub skipped_multi_identity: usize,
 }
 
 impl<C> Runner<C>
@@ -104,6 +124,112 @@ where
         })
     }
 
+    /// `topology deactivate`: seed the legacy `state.json` with the IDs of the last manager pair,
+    /// and with `install` release the writer. The legacy names come from a fresh router read
+    /// through the legacy collection code. A row matches a collected circuit by IPv4, else by MAC.
+    pub async fn deactivate_topology(
+        &mut self,
+        now: u64,
+        install: bool,
+    ) -> anyhow::Result<DeactivationOutcome> {
+        self.lock()?;
+        let state_dir = std::path::PathBuf::from(&self.cfg.runtime.state_dir);
+        anyhow::ensure!(
+            crate::topology_manager::runtime::topology_owns(&state_dir)?,
+            "the Topology Manager is not active"
+        );
+        let super::Inputs {
+            live, mut state, ..
+        } = super::cycle_inputs(&self.cfg, now)?;
+        // A subscriber with more than one device row has no single legacy key: skip it.
+        let mut devices: HashMap<&str, usize> = HashMap::new();
+        for row in &live.other_rows {
+            *devices.entry(row.circuit_id.as_str()).or_default() += 1;
+        }
+        let skipped_multi_identity = devices.values().filter(|n| **n > 1).count();
+        let single: Vec<&crate::model::CsvRow> = live
+            .other_rows
+            .iter()
+            .filter(|r| devices[r.circuit_id.as_str()] == 1)
+            .collect();
+        let speed = crate::speed::SpeedParser::new(&self.cfg.speed)?;
+        let mut seeded = 0;
+        // Each manager row seeds one legacy circuit only, so no Circuit ID is used twice.
+        let mut used: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for router in self.cfg.routers.clone() {
+            if !router.reads_subscribers() {
+                continue;
+            }
+            let mut session = self.sessions.remove(&router.name).flatten();
+            let read = read_router(
+                &*self.connector,
+                &mut session,
+                &router,
+                &self.cfg.router_access,
+            )
+            .await;
+            self.sessions.insert(router.name.clone(), session);
+            let snap = read.map_err(|e| {
+                anyhow::anyhow!(
+                    "router {} cannot be read: {e}; nothing changed",
+                    router.name
+                )
+            })?;
+            for c in
+                crate::sources::collect_router(&self.cfg, &router, &snap, &speed, &mut Vec::new())
+            {
+                let by_ip = |r: &&&crate::model::CsvRow| {
+                    !c.ipv4.is_empty() && r.ipv4.split(',').any(|ip| ip == c.ipv4)
+                };
+                let by_mac = |r: &&&crate::model::CsvRow| {
+                    !c.mac.is_empty() && r.mac.eq_ignore_ascii_case(&c.mac)
+                };
+                let Some(row) = single
+                    .iter()
+                    .find(by_ip)
+                    .or_else(|| single.iter().find(by_mac))
+                    .filter(|r| !used.contains(&r.circuit_id))
+                else {
+                    continue;
+                };
+                used.insert(row.circuit_id.clone());
+                let mut row = (*row).clone();
+                row.circuit_name = c.name.clone();
+                // An old entry under another name with the same ID would give a duplicate ID.
+                state
+                    .circuits
+                    .retain(|name, old| *name == c.name || old.row.circuit_id != row.circuit_id);
+                state.circuits.insert(
+                    c.name,
+                    crate::model::StoredCircuit {
+                        router: Some(router.name.clone()),
+                        source: c.source,
+                        last_seen: now,
+                        row,
+                    },
+                );
+                seeded += 1;
+            }
+        }
+        // Keep the manager node IDs for the legacy nodes of the same name.
+        if let Some(network) = &live.network {
+            for (name, node) in crate::state::seed_nodes(network) {
+                if let Some(old) = state.nodes.get_mut(&name) {
+                    old.id = node.id;
+                }
+            }
+        }
+        if install {
+            files::write_if_changed(&state_dir.join("state.json"), state.to_json().as_bytes())?;
+            crate::topology_manager::runtime::release(&state_dir)?;
+        }
+        Ok(DeactivationOutcome {
+            deactivated: install,
+            seeded,
+            skipped_multi_identity,
+        })
+    }
+
     pub(super) fn check_topology_pair(
         &self,
         pair: &crate::topology_manager::publication::PreparedPair,
@@ -145,6 +271,21 @@ where
         status: &mut Status,
     ) -> anyhow::Result<(bool, Option<String>)> {
         let result = self.topology_cycle_publish(now, state_dir, status).await;
+        let manager_error = match &result {
+            Err(e) if e.downcast_ref::<SourceBatchFailed>().is_none() => Some(format!("{e:#}")),
+            _ => None,
+        };
+        if result.is_ok() || manager_error.is_some() {
+            self.record_manager(now, manager_error, status);
+        } else {
+            // A source batch failure neither starts nor ends a manager failure.
+            status.writer = "topology".into();
+            if let Some((since, error)) = self.manager_failure() {
+                status.manager_failed = true;
+                status.manager_failed_since = Some(since);
+                status.manager_error = Some(error);
+            }
+        }
         // Failure retains last good evidence with its old timestamp; it never pretends to be empty.
         self.publish_web_view(now);
         result
@@ -213,7 +354,7 @@ where
                         }
                     }
                 }
-                Err(error)
+                Err(error.context(SourceBatchFailed))
             }
         };
         self.topology_compiler = Some(compiler);

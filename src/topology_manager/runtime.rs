@@ -69,7 +69,6 @@ pub(crate) fn claim(state: &Path) -> anyhow::Result<()> {
 }
 
 /// Remove the topology owner file. Only `topology deactivate` calls it. A missing file is no error.
-#[allow(dead_code)] // shortcut: Task 4 of the activation plan (deactivate) is its caller; remove then.
 pub(crate) fn release(state: &Path) -> anyhow::Result<()> {
     let directory = state.join("topology-manager");
     match std::fs::remove_file(directory.join("runtime-owner.json")) {

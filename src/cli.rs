@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The default config file.
 pub const DEFAULT_CONFIG: &str = "/etc/lqosync3/lqosync3.toml";
 
-const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | activate --report <file> [--yes] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
+const USAGE: &str = "usage: lqosync3 <check | detect | once [--force] | run | diff | tui | defaults | version> [--config <path>]\n       lqosync3 router-edit [--config <path>]  (one JSON request on stdin, from the web broker)\n       lqosync3 sync-now [--config <path>]  (start a cycle now, from the web broker)\n       lqosync3 api status [--config <path>]\n       lqosync3 topology <policy propose --out <file> | check --policy <file> | policy install --policy <file> | propose --out <file> [--previous <file>] [--replace] | enroll --mapping <file> [--yes] [--replace] | activate --report <file> [--yes] | deactivate [--yes] | live-test --report <file> [--import-timeout <seconds>] | live-test-restore --backup <dir>> [--config <path>]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -63,6 +63,10 @@ pub enum TopologyCommand {
         report: PathBuf,
         yes: bool,
     },
+    /// Seed the legacy state with the manager IDs. Only `--yes` releases the writer.
+    Deactivate {
+        yes: bool,
+    },
     /// One live acceptance test on production. The service must be stopped.
     LiveTest {
         report: PathBuf,
@@ -96,6 +100,7 @@ fn parse_topology(
         ["check"] | ["policy", "install"] => &["--policy"],
         ["enroll"] => &["--mapping"],
         ["activate"] => &["--report"],
+        ["deactivate"] => &[],
         ["live-test"] => &["--report", "--import-timeout"],
         ["live-test-restore"] => &["--backup"],
         _ => bail!("unknown topology command\n{USAGE}"),
@@ -103,8 +108,8 @@ fn parse_topology(
     if let Some(extra) = flags.keys().find(|k| !allowed.contains(&k.as_str())) {
         bail!("unknown argument \"{extra}\"\n{USAGE}");
     }
-    if yes && words != ["enroll"] && words != ["activate"] {
-        bail!("--yes is only for topology enroll and activate\n{USAGE}");
+    if yes && !matches!(words.as_slice(), ["enroll"] | ["activate"] | ["deactivate"]) {
+        bail!("--yes is only for topology enroll, activate, and deactivate\n{USAGE}");
     }
     if replace && words != ["enroll"] && words != ["propose"] {
         bail!("--replace is only for topology propose and enroll\n{USAGE}");
@@ -135,6 +140,7 @@ fn parse_topology(
             report: file("--report")?,
             yes,
         },
+        ["deactivate"] => TopologyCommand::Deactivate { yes },
         ["live-test"] => TopologyCommand::LiveTest {
             report: file("--report")?,
             import_timeout: match flags.get("--import-timeout") {
@@ -599,6 +605,17 @@ mod tests {
         assert!(parse(&s(&["l", "topology", "activate", "--yes"])).is_err());
         assert!(parse(&s(&["l", "topology", "activate", "--replace"])).is_err());
         assert!(parse(&s(&["l", "topology", "activate", "--mapping", "m"])).is_err());
+        for yes in [false, true] {
+            let mut args = s(&["l", "topology", "deactivate"]);
+            if yes {
+                args.push("--yes".into());
+            }
+            assert_eq!(
+                parse(&args).unwrap().command,
+                Command::Topology(TopologyCommand::Deactivate { yes })
+            );
+        }
+        assert!(parse(&s(&["l", "topology", "deactivate", "--report", "r"])).is_err());
     }
 
     #[test]

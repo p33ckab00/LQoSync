@@ -65,6 +65,7 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
         ),
         format!("mode: {}", s("mode")),
         format!("target: {}", s("target")),
+        format!("writer: {}", s("writer")),
         "[last cycle]".into(),
         format!(
             "time: {}",
@@ -96,6 +97,18 @@ pub fn lines(d: &Data, now: u64) -> Vec<Line<'static>> {
         ),
         format!("telegram: {}", s("telegram")),
     ];
+    if st["manager_failed"] == true {
+        let age = st["manager_failed_since"]
+            .as_u64()
+            .map_or("unknown".into(), |t| fmt_elapsed(now.saturating_sub(t)));
+        out.insert(
+            5,
+            format!(
+                "manager failed {age}: {}",
+                st["manager_error"].as_str().unwrap_or("unknown")
+            ),
+        );
+    }
     // LibreQoS v3 only: the load of the bridge worker (its CPU is always 100%) and the native probe.
     let b = &st["bridge"];
     if b.is_object() {
@@ -1020,6 +1033,20 @@ mod tests {
         );
         let d = data(json!({"config_digest": crate::cli::config_digest(b"a")}));
         assert!(text(&d).iter().any(|l| l == "config: loaded"));
+    }
+
+    #[test]
+    fn the_status_screen_shows_the_writer() {
+        let d = data(json!({"writer": "topology"}));
+        assert!(text(&d).iter().any(|l| l == "writer: topology"));
+        assert!(!text(&d).iter().any(|l| l.contains("manager failed")));
+        let d = data(json!({"writer": "topology", "manager_failed": true,
+            "manager_failed_since": 0, "manager_error": "compile failed"}));
+        assert!(
+            text(&d)
+                .iter()
+                .any(|l| l.starts_with("manager failed") && l.ends_with(": compile failed"))
+        );
     }
 
     #[test]

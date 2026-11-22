@@ -130,6 +130,10 @@ pub struct Runner<C: Connector + 'static> {
     pub wan_writer: Option<crate::wan_writer::Handle>,
     /// The result of the last routing list write, for the topology view.
     pub wan_lists: Option<serde_json::Value>,
+    /// The Topology Manager failure: (first failure time, error), or `None` when it works.
+    /// The outer `None` means not read yet: it comes from the last `status.json`, so a restart
+    /// is no state change.
+    manager_state: Option<Option<(u64, String)>>,
     topology_compiler: Option<crate::topology_manager::compiler::ControlledCompiler>,
 }
 
@@ -247,6 +251,7 @@ where
             wan_monitor: None,
             wan_writer: None,
             wan_lists: None,
+            manager_state: None,
             topology_compiler: None,
             connector,
             sessions: HashMap::new(),
@@ -331,8 +336,76 @@ where
             trigger: self.trigger,
             program_version: crate::VERSION.into(),
             telegram: self.telegram.clone(),
+            writer: self.writer().into(),
             ..Status::default()
         }
+    }
+
+    /// The current Topology Manager failure: (first failure time, error). Read once from the
+    /// last `status.json`.
+    pub(super) fn manager_failure(&mut self) -> Option<(u64, String)> {
+        let state_dir = Path::new(&self.cfg.runtime.state_dir);
+        self.manager_state
+            .get_or_insert_with(|| {
+                let last: serde_json::Value = std::fs::read(state_dir.join("status.json"))
+                    .ok()
+                    .and_then(|b| serde_json::from_slice(&b).ok())
+                    .unwrap_or_default();
+                (last["manager_failed"] == true).then(|| {
+                    (
+                        last["manager_failed_since"].as_u64().unwrap_or_default(),
+                        last["manager_error"].as_str().unwrap_or_default().into(),
+                    )
+                })
+            })
+            .clone()
+    }
+
+    /// Record one topology publication result: the status fields, the `writer` health component,
+    /// and one notice when the failure starts or ends. `error` is `None` for a good cycle.
+    pub(crate) fn record_manager(&mut self, now: u64, error: Option<String>, status: &mut Status) {
+        let state_dir = std::path::PathBuf::from(&self.cfg.runtime.state_dir);
+        let previous = self.manager_failure().map(|(since, _)| since);
+        let failed = previous.is_some();
+        let notice = match (&error, failed) {
+            (Some(e), false) => Some(format!(
+                "lqosync3: the Topology Manager failed; the last pair stays. {e}"
+            )),
+            (None, true) => Some("lqosync3: the Topology Manager works again.".to_string()),
+            _ => None,
+        };
+        if let Some(text) = notice
+            && let Err(e) =
+                crate::notify::outbox::enqueue(&state_dir, &self.cfg.telegram, &text, now)
+        {
+            eprintln!("warning: cannot queue the writer notice: {e:#}");
+        }
+        let since = error.as_ref().map(|_| previous.unwrap_or(now));
+        self.manager_state = Some(since.zip(error.clone()));
+        status.writer = "topology".into();
+        status.manager_failed = error.is_some();
+        status.manager_failed_since = since;
+        let degraded = error.is_some();
+        status.manager_error = error;
+        let _ = self.health.observe(crate::system_health::Observation {
+            domain: crate::system_health::Domain::Apply,
+            component: "writer".into(),
+            state: if degraded {
+                crate::system_health::State::Degraded
+            } else {
+                crate::system_health::State::Healthy
+            },
+            reason: if degraded {
+                "manager_failed"
+            } else {
+                "topology"
+            }
+            .into(),
+            observed_at: now,
+            max_age: IMPORT_LIMIT_SECS,
+            source_epoch: "service".into(),
+            last_success: (!degraded).then_some(now),
+        });
     }
 
     fn write_status(&mut self, mut s: Status) {
@@ -614,6 +687,7 @@ where
     /// API `status`: version, mode, registry revision, enrollment, and the last cycle start.
     pub fn api_status(&mut self) -> anyhow::Result<serde_json::Value> {
         let doc = self.api_document()?;
+        let failure = self.manager_failure();
         Ok(serde_json::json!({
             "version": crate::VERSION,
             "mode": format!("{:?}", self.cfg.runtime.mode).to_lowercase(),
@@ -621,6 +695,8 @@ where
             "enrolled": doc.as_ref().is_some_and(|d| d.export_ownership.is_some()),
             "last_cycle_started": self.last_cycle_started,
             "writer": self.writer(),
+            "manager_failed": failure.is_some(),
+            "manager_error": failure.map(|(_, e)| e),
         }))
     }
 

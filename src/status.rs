@@ -207,6 +207,13 @@ pub struct Status {
     pub native_ready_new: bool,
     /// The load counters of the LibreQoS v3 bridge (`bridge.rs`). `None`: not v3 or not readable.
     pub bridge: Option<crate::bridge::BridgeStats>,
+    /// `topology`, `legacy`, or `unknown` (an invalid owner file).
+    pub writer: String,
+    /// The Topology Manager could not publish; the last pair stays.
+    pub manager_failed: bool,
+    pub manager_error: Option<String>,
+    /// The first cycle of the current failure, in Unix seconds.
+    pub manager_failed_since: Option<u64>,
 }
 
 impl Status {

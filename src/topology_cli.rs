@@ -230,6 +230,27 @@ where
                 2
             }
         }
+        TopologyCommand::Deactivate { yes } => {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs());
+            let outcome = runner
+                .deactivate_topology(now, *yes)
+                .await
+                .map_err(locked)?;
+            let _ = writeln!(
+                out,
+                "{} legacy circuit(s) keep the manager IDs; {} subscriber(s) with more than one device get new IDs",
+                outcome.seeded, outcome.skipped_multi_identity
+            );
+            if outcome.deactivated {
+                let _ = writeln!(out, "deactivated: the legacy writer is the writer");
+                0
+            } else {
+                let _ = writeln!(out, "dry run: no file changed. Run again with --yes");
+                2
+            }
+        }
         TopologyCommand::LiveTest {
             report,
             import_timeout,

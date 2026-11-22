@@ -783,3 +783,123 @@ async fn routing_lists_follow_placement_and_failover() {
     assert!(rows.iter().any(|row| row[".id"] == "*manual"));
     assert_eq!(rows.len(), 8, "7 client addresses and the manual entry");
 }
+
+// The writer status in topology mode (activation plan Task 3).
+
+fn notices(e: &Env) -> Vec<String> {
+    std::fs::read_dir(e.state.join("telegram-events"))
+        .map(|d| d.flatten().map(|f| read(&f.path())).collect::<Vec<_>>())
+        .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn a_manager_failure_notifies_once_and_the_next_good_cycle_clears_it() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    let mut status = r.base_status(1_000);
+    r.record_manager(1_000, Some("admission refused".into()), &mut status);
+    assert_eq!(status.writer, "topology");
+    assert!(status.manager_failed);
+    assert_eq!(status.manager_error.as_deref(), Some("admission refused"));
+    assert_eq!(status.manager_failed_since, Some(1_000));
+    let mut status = r.base_status(1_060);
+    r.record_manager(1_060, Some("admission refused".into()), &mut status);
+    assert_eq!(
+        status.manager_failed_since,
+        Some(1_000),
+        "the first failure time stays"
+    );
+    assert_eq!(notices(&e).len(), 1, "no notice on each failed cycle");
+    let mut status = r.base_status(1_120);
+    r.record_manager(1_120, None, &mut status);
+    assert!(!status.manager_failed && status.manager_error.is_none());
+    let texts = notices(&e).join("\n");
+    assert_eq!(notices(&e).len(), 2);
+    assert!(texts.contains("the Topology Manager failed; the last pair stays"));
+    assert!(texts.contains("the Topology Manager works again"));
+}
+
+#[tokio::test]
+async fn a_restart_during_a_failure_sends_no_second_notice() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    let mut status = r.base_status(1_000);
+    r.record_manager(1_000, Some("compile failed".into()), &mut status);
+    std::fs::write(e.state.join("status.json"), status.to_json()).unwrap();
+    drop(r);
+    // A new process reads the last status.json.
+    let mut r = runner(&e, setup(&e, None));
+    let mut status = r.base_status(2_000);
+    r.record_manager(2_000, Some("compile failed".into()), &mut status);
+    assert_eq!(status.manager_failed_since, Some(1_000));
+    assert_eq!(notices(&e).len(), 1);
+}
+
+#[tokio::test]
+async fn an_owned_cycle_failure_is_a_manager_failure_and_a_router_failure_is_not() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    crate::topology_manager::runtime::claim(&e.state).unwrap();
+    // The fixture has no LibreQoS compiler: the publication fails.
+    let summary = r.cycle(1_000, false).await;
+    assert!(summary.error.is_some());
+    assert_eq!(summary.status.writer, "topology");
+    assert!(summary.status.manager_failed, "{:?}", summary.status.error);
+    // A router read failure keeps the pair and is not a manager failure.
+    let e2 = env();
+    let mut r = enrolled(&e2).await;
+    crate::topology_manager::runtime::claim(&e2.state).unwrap();
+    let (_root, mut native_cfg, compiler) = crate::topology_manager::compiler::tests::fixture();
+    native_cfg.target = Target::V3Pair;
+    r.cfg.libreqos = native_cfg;
+    r.topology_compiler = Some(compiler);
+    e2.fake.failing.lock().unwrap().insert("Hub-1".into());
+    let summary = r.cycle(1_000, false).await;
+    assert!(summary.error.is_some());
+    assert!(!summary.status.manager_failed, "{:?}", summary.status.error);
+    assert_eq!(summary.status.writer, "topology");
+    // A legacy cycle reports the legacy writer.
+    let e3 = env();
+    let mut r = runner(&e3, setup(&e3, None));
+    assert_eq!(r.cycle(1_000, false).await.status.writer, "legacy");
+}
+
+#[tokio::test]
+async fn api_status_reports_the_manager_failure() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    let mut status = r.base_status(1_000);
+    r.record_manager(1_000, Some("compile failed".into()), &mut status);
+    let v = r.api_status().unwrap();
+    assert_eq!(
+        (v["manager_failed"].clone(), v["manager_error"].clone()),
+        (serde_json::json!(true), serde_json::json!("compile failed"))
+    );
+    // A new process reads the failure from the last status.json.
+    std::fs::write(e.state.join("status.json"), status.to_json()).unwrap();
+    drop(r);
+    let mut r = runner(&e, setup(&e, None));
+    assert_eq!(r.api_status().unwrap()["manager_error"], "compile failed");
+    let mut status = r.base_status(2_000);
+    r.record_manager(2_000, None, &mut status);
+    assert_eq!(r.api_status().unwrap()["manager_failed"], false);
+}
+
+#[tokio::test]
+async fn a_router_failure_during_a_manager_failure_keeps_the_failure() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    crate::topology_manager::runtime::claim(&e.state).unwrap();
+    let mut status = r.base_status(1_000);
+    r.record_manager(1_000, Some("compile failed".into()), &mut status);
+    let (_root, mut native_cfg, compiler) = crate::topology_manager::compiler::tests::fixture();
+    native_cfg.target = Target::V3Pair;
+    r.cfg.libreqos = native_cfg;
+    r.topology_compiler = Some(compiler);
+    e.fake.failing.lock().unwrap().insert("Hub-1".into());
+    let summary = r.cycle(1_100, false).await;
+    assert!(summary.error.is_some());
+    assert!(summary.status.manager_failed);
+    assert_eq!(summary.status.manager_failed_since, Some(1_000));
+    assert_eq!(notices(&e).len(), 1);
+}

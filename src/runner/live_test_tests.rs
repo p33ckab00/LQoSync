@@ -804,3 +804,124 @@ async fn activate_refuses_a_report_of_another_revision() {
     }
     assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
 }
+
+// Deactivation (activation plan Task 4).
+
+/// An enrolled and active runner whose live pair gives the first row manager-owned IDs.
+async fn active(e: &Env) -> (Runner<FakeConnector>, crate::model::CsvRow) {
+    let (c, _fake) = enrolled(e).await;
+    crate::topology_manager::runtime::claim(&e.state).unwrap();
+    let csv = e.lqos.join("ShapedDevices.csv");
+    let text = read(&csv);
+    let rows = crate::state::read_csv(&text).unwrap();
+    // A PPP row: the fixture leases have no `mac-address`, so legacy DHCP collects nothing.
+    let first = rows
+        .iter()
+        .find(|r| r.circuit_name == "g1")
+        .unwrap()
+        .clone();
+    // The legacy writer ran before activation: its state holds the legacy IDs.
+    let mut legacy = crate::state::seed_state(&rows, &c.circuits, 1_000);
+    let network = serde_json::from_str(&read(&e.lqos.join("network.json"))).unwrap();
+    legacy.nodes = crate::state::seed_nodes(&network);
+    std::fs::write(e.state.join("state.json"), legacy.to_json()).unwrap();
+    let text =
+        text.replacen(&first.circuit_id, "tm-sub-9", 1)
+            .replacen(&first.device_id, "tm-dev-9", 1);
+    std::fs::write(&csv, text).unwrap();
+    (runner(e, c), first)
+}
+
+#[tokio::test]
+async fn deactivate_dry_run_changes_nothing() {
+    let e = env();
+    let (mut r, _) = active(&e).await;
+    let before = state_files(&e);
+    let out = r.deactivate_topology(2_000, false).await.unwrap();
+    assert!(!out.deactivated);
+    assert!(out.seeded > 0);
+    assert_eq!(state_files(&e), before);
+    assert!(crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+}
+
+#[tokio::test]
+async fn deactivate_seeds_the_legacy_state_and_releases() {
+    let e = env();
+    let (mut r, first) = active(&e).await;
+    let out = r.deactivate_topology(2_000, true).await.unwrap();
+    assert!(out.deactivated);
+    assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+    let state = State::from_json(&read(&e.state.join("state.json"))).unwrap();
+    let seeded = &state.circuits[&first.circuit_name].row;
+    assert_eq!(
+        (seeded.circuit_id.as_str(), seeded.device_id.as_str()),
+        ("tm-sub-9", "tm-dev-9")
+    );
+}
+
+#[tokio::test]
+async fn the_legacy_writer_keeps_a_tm_sub_id_after_deactivate() {
+    let e = env();
+    let (mut r, first) = active(&e).await;
+    r.deactivate_topology(2_000, true).await.unwrap();
+    let summary = r.cycle(2_100, false).await;
+    assert!(summary.error.is_none(), "{:?}", summary.error);
+    let rows = crate::state::read_csv(&read(&e.lqos.join("ShapedDevices.csv"))).unwrap();
+    let row = rows
+        .iter()
+        .find(|row| row.circuit_name == first.circuit_name)
+        .unwrap();
+    assert_eq!(row.circuit_id, "tm-sub-9");
+}
+
+#[tokio::test]
+async fn deactivate_refuses_when_not_active() {
+    let e = env();
+    let (c, _fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let error = r.deactivate_topology(2_000, true).await.unwrap_err();
+    assert!(format!("{error:#}").contains("is not active"), "{error:#}");
+}
+
+#[tokio::test]
+async fn deactivate_counts_multi_identity_subscribers() {
+    let e = env();
+    let (mut r, _) = active(&e).await;
+    // A second device row of the first subscriber.
+    let csv = e.lqos.join("ShapedDevices.csv");
+    let text = read(&csv);
+    let line = text
+        .lines()
+        .find(|l| l.contains("tm-sub-9"))
+        .unwrap()
+        .to_string();
+    std::fs::write(
+        &csv,
+        format!("{text}{}\n", line.replace("tm-dev-9", "tm-dev-10")),
+    )
+    .unwrap();
+    let out = r.deactivate_topology(2_000, false).await.unwrap();
+    assert_eq!(out.skipped_multi_identity, 1);
+}
+
+#[tokio::test]
+async fn deactivate_gives_each_manager_id_to_one_legacy_circuit() {
+    let e = env();
+    let (mut r, first) = active(&e).await;
+    // An old legacy entry under another name already holds the manager ID.
+    let path = e.state.join("state.json");
+    let mut state = State::from_json(&read(&path)).unwrap();
+    let mut old = state.circuits[&first.circuit_name].clone();
+    old.row.circuit_id = "tm-sub-9".into();
+    state.circuits.insert("old-name".into(), old);
+    std::fs::write(&path, state.to_json()).unwrap();
+    r.deactivate_topology(2_000, true).await.unwrap();
+    let state = State::from_json(&read(&path)).unwrap();
+    let holders: Vec<_> = state
+        .circuits
+        .iter()
+        .filter(|(_, c)| c.row.circuit_id == "tm-sub-9")
+        .map(|(name, _)| name.clone())
+        .collect();
+    assert_eq!(holders, vec![first.circuit_name]);
+}
