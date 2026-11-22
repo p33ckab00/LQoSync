@@ -94,7 +94,7 @@
 .app-shell .upstream-panel{margin-block-end:20px}
 .upstream-panel table{min-inline-size:780px}
 .sr-only{position:absolute;inline-size:1px;block-size:1px;padding:0;margin:-1px;overflow:clip;clip-path:inset(50%);white-space:nowrap;border:0}
-@container wan-panel (inline-size < 340px){.wan-distribution{grid-template-columns:1fr}.wan-ring{max-inline-size:150px}}
+@container wan-panel (inline-size < 480px){.wan-distribution{grid-template-columns:1fr;min-block-size:0}.wan-ring{max-inline-size:180px}}
 @media(max-width:1200px){.header-time,.header-update{display:none}.app-shell .overview-grid{grid-template-columns:1fr 1fr}.app-shell .metric strong{font-size:34px}}
 @media(max-width:1000px){.app-shell .overview-grid{grid-template-columns:1fr}.wan-distribution{grid-template-columns:minmax(130px,.6fr) minmax(0,1.4fr)}.app-shell .top-context{display:none}.app-shell .top-actions{margin-inline-start:auto}}
 @media(max-width:760px){.app-shell .sidebar{overflow:visible;padding:12px 16px}.dashboard-nav{margin:0}.dashboard-nav .nav-group{display:none}.app-shell .dashboard{padding:20px 16px}.app-shell .main-top{padding:12px 16px}.app-shell .top-actions{margin:0;inline-size:100%;justify-content:space-between;gap:8px}.app-shell .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.app-shell .metric:nth-child(5){grid-column:1/-1}.app-shell .metric h2{font-size:14px;gap:7px}.app-shell .metric h2 .ui-icon{inline-size:21px;block-size:21px}.app-shell .metric strong{font-size:32px}.app-shell .panel{padding:16px}.app-shell .overview-grid{gap:16px}.app-shell .page-heading{display:block}.app-shell .freshness{margin-block-start:12px}.app-shell .metric p{font-size:13px}.app-shell .traffic-values{gap:16px}.app-shell .sample-note{inline-size:100%}.chart-frame{grid-template-columns:58px minmax(0,1fr);gap:8px}.chart-data svg,.y-axis{block-size:180px}.x-axis>span:nth-child(2),.x-axis>span:nth-child(4){display:none}.upstream-statuses{gap:8px}.upstream-statuses>span{padding:8px 10px;gap:12px}.diagnostics summary>span{display:block;margin:6px 0 0}.diagnostics dl{grid-template-columns:1fr;gap:6px}.diagnostics dd{margin-block-end:8px}}
@@ -114,7 +114,6 @@
 /* Capacity colors use fixed SVG coordinates, so low peaks stay below red. */
 .app-shell .traffic-area{opacity:.28}
 .app-shell .upload-line{stroke-dasharray:6 4}
-.capacity-note{font-size:13px;line-height:1.6;color:var(--muted);margin:0 0 12px;overflow-wrap:anywhere}
 .capacity-lines path{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 5;fill:none;vector-effect:non-scaling-stroke;opacity:.75}
 .capacity-key{color:var(--muted);margin-left:auto}
 /* Red marks the visible peak. Dashed neutral lines mark WAN capacity, which traffic may exceed. */
@@ -312,7 +311,6 @@
 .traffic-inspector.flip{transform:translateX(calc(-100% - 14px))}
 .traffic-inspector th,.traffic-inspector td,.traffic-inspector .table-scroll th,.traffic-inspector .table-scroll td{padding:4px 6px;font-size:13px}
 .traffic-inspector .table-scroll{overflow:visible}
-.traffic-panel .capacity-note{font-size:13px;color:var(--muted);margin:0}
 @media(forced-colors:active){.traffic-inspector{border-color:CanvasText}}
 .nic-faceplate{flex-wrap:nowrap}
 .traffic-inspector td{white-space:nowrap}
@@ -685,7 +683,7 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 .inventory-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.inventory-heading button{min-block-size:40px;padding:6px 10px;font-size:13px}.topology-hierarchy .node-actions{margin:0}.topology-hierarchy .tree-labels{align-items:start}
 .subscriber-workspace .subscriber-records .router-table :is(th,td){display:table-cell}
 
-/* Traffic card header: one toolbar row, a three-column legend, and WAN capacity meters. */
+/* Traffic card header: one toolbar row and a three-column legend. */
 .traffic-panel .traffic-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-block-end:12px}
 .traffic-panel .traffic-head h2{margin:0}
 .traffic-state{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
@@ -698,18 +696,27 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 @keyframes live-pulse{50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){.live-dot{animation:none!important}}
 .traffic-panel .traffic-source-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-block:0 10px}
-.traffic-panel .traffic-source-controls button{display:grid;grid-template-columns:auto auto;justify-content:start;align-items:baseline;gap:2px 14px;min-block-size:44px;padding:8px 12px;text-align:start;white-space:nowrap}
-.traffic-panel .source-name{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-weight:600}
+/* Rates wrap onto their own lines when a column is too narrow for both. */
+.traffic-panel .traffic-source-controls button{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 14px;min-inline-size:0;min-block-size:44px;padding:8px 12px;text-align:start;white-space:nowrap}
+.traffic-panel .source-name{flex-basis:100%;display:flex;align-items:center;gap:8px;font-weight:600}
 .traffic-panel .legend-rate{font-size:14px}
-.traffic-panel .capacity-note{display:flex;align-items:center;flex-wrap:wrap;gap:6px 18px;margin:0 0 4px;font-variant-numeric:tabular-nums}
-.wan-count{font-weight:600;color:var(--text)}
-.capacity-meter{display:inline-flex;align-items:center;gap:8px}
-.meter-track{inline-size:72px;block-size:6px;border-radius:3px;background:var(--border);overflow:hidden}
-.meter-fill{display:block;block-size:100%;background:var(--accent)}
-.capacity-meter.over{color:var(--bad)}
-.capacity-meter.over .meter-fill{background:var(--bad)}
-@media(forced-colors:active){.meter-track{border:1px solid CanvasText}.meter-fill,.traffic-state i,.live-dot{background:CanvasText!important}}
-@media(max-width:760px){.traffic-controls{inline-size:100%;margin-inline-start:0}.traffic-controls .range-options{flex:1}.traffic-controls .range-options button{flex:1;min-block-size:44px}.traffic-panel .traffic-live{min-block-size:44px}.traffic-panel .traffic-source-controls{gap:6px}.traffic-panel .traffic-source-controls button{grid-template-columns:1fr;padding:8px;gap:2px}.traffic-panel .legend-rate{font-size:13px}.traffic-panel .source-name{flex-direction:column;align-items:flex-start;gap:6px}.chart-marks .mark{max-inline-size:47%}}
+@media(forced-colors:active){.traffic-state i,.live-dot{background:CanvasText!important}}
+@media(max-width:760px){.traffic-controls{inline-size:100%;margin-inline-start:0}.traffic-controls .range-options{flex:1}.traffic-controls .range-options button{flex:1;min-block-size:44px}.traffic-panel .traffic-live{min-block-size:44px}.traffic-panel .traffic-source-controls{gap:6px}.traffic-panel .traffic-source-controls button{padding:8px 6px;gap:2px}.traffic-panel .legend-rate{font-size:12px;min-inline-size:0;overflow:hidden;text-overflow:ellipsis}.traffic-panel .source-name{flex-direction:column;align-items:flex-start;gap:6px}.chart-marks .mark{max-inline-size:47%}}
+
+/* WAN allocation rings, inside out: capacity, traffic share, subscribers. Arc colors follow table order. */
+.wan-ring circle{stroke-width:12}
+.wan-ring .wan-track{stroke:var(--border)}
+.wan-arcs.capacity circle{stroke-width:14}
+.wan-arcs.share .wan-track{opacity:.45}
+.wan-ring strong{font-size:14px;line-height:1.35;font-weight:600;font-variant-numeric:tabular-nums}
+.wan-ring .wan-total>span{margin-block-start:2px}
+.wan-ring>div>span{font-size:12px}
+.wan-swatch{display:inline-block;inline-size:10px;block-size:10px;border-radius:2px;margin-inline-end:8px;vertical-align:-1px}
+.wan-panel .table-scroll td,.wan-panel .table-scroll th{font-variant-numeric:tabular-nums;white-space:nowrap;padding:10px 8px}
+.wan-panel .cap-line{display:block}
+@media(forced-colors:active){.wan-ring circle{stroke:CanvasText!important}.wan-swatch{background:CanvasText!important}}
+/* Under 380 px three legend columns cannot hold "999.9 Mbps": list one source on each row, rates stacked. */
+@media(max-width:380px){.traffic-panel .traffic-source-controls{grid-template-columns:minmax(0,1fr)}.traffic-panel .traffic-source-controls button{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 10px;min-block-size:44px}.traffic-panel .source-name{grid-column:1;grid-row:span 2;flex-direction:row;align-items:center}.traffic-panel .legend-rate{grid-column:2;text-align:end}.traffic-panel .source-key{flex-shrink:0;inline-size:16px}.traffic-controls .range-options button,.traffic-panel .traffic-live{padding-inline:6px}}
 /* Topology canvas: cards and wires are the content; the dock, zoom, and status stay quiet. */
 .canvas-shell{--wire:#0e7490;display:flex;flex-direction:column;gap:12px;min-block-size:0}
 :root[data-theme=dark] .canvas-shell{--wire:#5fd4e8}

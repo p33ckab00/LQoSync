@@ -42,9 +42,15 @@ pub struct WanCapacity {
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WanLink {
+    /// Older core builds omit the node ID.
+    #[serde(default)]
+    pub id: String,
     pub name: String,
     pub down_bps: u64,
     pub up_bps: u64,
+    /// Subscribers placed under this WAN in the current Topology view. `None` is unknown.
+    #[serde(default)]
+    pub subscribers: Option<u64>,
 }
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Component {

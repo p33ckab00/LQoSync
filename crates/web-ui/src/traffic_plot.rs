@@ -104,9 +104,11 @@ mod tests {
     #[test]
     fn references_label_combined_and_each_wan_and_flag_off_scale() {
         let link = |name: &str, d, u| web_contract::WanLink {
+            id: name.to_lowercase(),
             name: name.into(),
             down_bps: d,
             up_bps: u,
+            subscribers: None,
         };
         let mut c = web_contract::WanCapacity {
             down_bps: 300_000_000,

@@ -39,6 +39,36 @@ fn text(v: &Value, key: &str) -> String {
         .unwrap_or("unknown")
         .to_owned()
 }
+/// Subscribers under each WAN: the direct members of the WAN and of every node below it.
+/// One unknown count in a WAN subtree makes that WAN's total unknown.
+fn wan_members(
+    nodes: &[web_contract::topology::Node],
+) -> std::collections::HashMap<&str, Option<u64>> {
+    let by_id: std::collections::HashMap<&str, _> =
+        nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let mut totals: std::collections::HashMap<&str, Option<u64>> = nodes
+        .iter()
+        .filter(|n| n.kind == "wan")
+        .map(|n| (n.id.as_str(), Some(0)))
+        .collect();
+    for node in nodes {
+        let mut at = Some(node);
+        let mut wan = None;
+        // The bound stops a parent cycle in a damaged cache.
+        for _ in 0..=nodes.len() {
+            let Some(n) = at else { break };
+            if n.kind == "wan" {
+                wan = Some(n.id.as_str());
+                break;
+            }
+            at = n.parent.as_deref().and_then(|p| by_id.get(p).copied());
+        }
+        if let Some(total) = wan.and_then(|w| totals.get_mut(w)) {
+            *total = total.zip(node.members).and_then(|(a, b)| a.checked_add(b));
+        }
+    }
+    totals
+}
 fn fresh(at: u64, now: u64, age: u64) -> bool {
     at > 0 && now >= at && now - at <= age
 }
@@ -99,6 +129,16 @@ pub fn project(root: &Path, now: u64) -> Overview {
                     rate(w.down_bps) && rate(w.up_bps) && !w.name.is_empty() && w.name.len() <= 64
                 });
                 v.wans.truncate(16);
+                // Only a fresh Topology view supplies counts. Values in status.json are ignored.
+                let topology =
+                    crate::topology::load(&root).filter(|t| fresh(t.updated, now, t.fresh_for));
+                let totals = topology
+                    .as_ref()
+                    .map(|t| wan_members(&t.nodes))
+                    .unwrap_or_default();
+                for w in &mut v.wans {
+                    w.subscribers = totals.get(w.id.as_str()).copied().flatten();
+                }
                 v
             });
     }

@@ -64,6 +64,53 @@ fn per_wan_capacity_keeps_valid_bounded_links_only() {
     );
 }
 #[test]
+fn per_wan_subscribers_sum_direct_members_under_each_wan_by_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let status = serde_json::json!({"version":3,"updated":990,"wan_capacity":{
+        "down_bps":300,"up_bps":30,"wan_count":3,"registry_revision":7,
+        "wans":[{"id":"wan-a","name":"Same","down_bps":100,"up_bps":10},
+                {"id":"wan-b","name":"Same","down_bps":100,"up_bps":10},
+                {"id":"wan-gone","name":"Gone","down_bps":100,"up_bps":10}]}});
+    std::fs::write(
+        dir.path().join("status.json"),
+        serde_json::to_vec(&status).unwrap(),
+    )
+    .unwrap();
+    let node = |id: &str, parent: Option<&str>, kind: &str, members: Option<u64>| {
+        serde_json::json!({"id":id,"name":id,"parent":parent,"kind":kind,"source_id":null,
+            "capacity":{"mode":"automatic"},"alias":false,"members":members})
+    };
+    let mut topology = serde_json::to_value(web_contract::topology::TopologyView {
+        version: web_contract::topology::VERSION,
+        updated: 995,
+        fresh_for: 60,
+        ..Default::default()
+    })
+    .unwrap();
+    topology["nodes"] = serde_json::json!([
+        node("wan-a", None, "wan", Some(0)),
+        node("g1", Some("wan-a"), "group", Some(0)),
+        node("g2", Some("g1"), "subscribers", Some(3)),
+        node("g3", Some("wan-a"), "subscribers", Some(2)),
+        node("wan-b", None, "wan", Some(4)),
+        node("loose", None, "group", Some(9)),
+    ]);
+    let path = dir.path().join("topology.json");
+    std::fs::write(&path, serde_json::to_vec(&topology).unwrap()).unwrap();
+    let counts = |now| {
+        project(dir.path(), now)
+            .wan_capacity
+            .map(|c| c.wans.iter().map(|w| w.subscribers).collect::<Vec<_>>())
+    };
+    assert_eq!(counts(1000), Some(vec![Some(5), Some(4), None]));
+    // A stale Topology view gives unknown counts, not zero.
+    assert_eq!(counts(1056), Some(vec![None, None, None]));
+    // Unknown members stay unknown.
+    topology["nodes"][2]["members"] = serde_json::Value::Null;
+    std::fs::write(&path, serde_json::to_vec(&topology).unwrap()).unwrap();
+    assert_eq!(counts(1000), Some(vec![None, Some(4), None]));
+}
+#[test]
 fn missing_sources_are_unknown_not_zero() {
     let dir = tempfile::tempdir().unwrap();
     let view = project(dir.path(), 1000);

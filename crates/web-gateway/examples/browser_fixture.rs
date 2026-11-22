@@ -266,7 +266,7 @@ async fn main() -> anyhow::Result<()> {
     let accounts = Accounts::new(dir.path().join("accounts.db"))?;
     accounts.create("browser-test", &std::env::var("BROWSER_TEST_PASSWORD")?)?;
     let at = broker::now();
-    let status = serde_json::json!({"version":3,"updated":at,"pid":1,"cycle_seq":1,"mode":"shadow","target":"v3_pair","cycle_ms":482,"wan_capacity":{"down_bps":200_000_000,"up_bps":80_000_000,"wan_count":2,"registry_revision":7,"wans":[{"name":"WAN-Fiber","down_bps":150_000_000,"up_bps":60_000_000},{"name":"WAN-LTE","down_bps":50_000_000,"up_bps":20_000_000}]}});
+    let status = serde_json::json!({"version":3,"updated":at,"pid":1,"cycle_seq":1,"mode":"shadow","target":"v3_pair","cycle_ms":482,"wan_capacity":{"down_bps":200_000_000,"up_bps":80_000_000,"wan_count":2,"registry_revision":7,"wans":[{"id":"tm-node-wan-north","name":"WAN-Fiber","down_bps":150_000_000,"up_bps":60_000_000},{"id":"tm-node-wan-south","name":"WAN-LTE","down_bps":50_000_000,"up_bps":20_000_000}]}});
     let collection = serde_json::json!({"version":1,"updated":at,"pid":1,"cycle_seq":1,"fresh_for":300,"routers":[{"state":"online","observed_at":at,"sources":{"ppp":{"enabled":true,"online":2,"offline":1},"dhcp":{"enabled":true}},"subscribers":[{"source":"dhcp","state":"bound"},{"source":"ppp","state":"online"},{"source":"ppp","state":"offline"}]}]});
     let health = serde_json::json!({"version":1,"updated":at,"overall":"HEALTHY","update":{"phase":"Applied"},"components":[{"component":"collector","state":"HEALTHY","observed_at":at,"max_age":300},{"component":"import","state":"HEALTHY","observed_at":at,"max_age":300}]});
     // Synthetic router inventory: a WAN-only core, an online access router, and a failing one.

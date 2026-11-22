@@ -18,6 +18,8 @@ pub struct WanCapacity {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct WanLink {
+    /// The catalog node ID. The web joins Topology counts on it, not on the label.
+    pub id: String,
     pub name: String,
     pub down_bps: u64,
     pub up_bps: u64,
@@ -48,6 +50,7 @@ impl WanCapacity {
             sum.up_bps = sum.up_bps.checked_add(base.up)?;
             sum.wan_count += 1;
             sum.wans.push(WanLink {
+                id: node.id.clone(),
                 name: node.name.clone(),
                 down_bps: base.down,
                 up_bps: base.up,

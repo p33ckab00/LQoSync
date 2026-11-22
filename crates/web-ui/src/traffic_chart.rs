@@ -225,23 +225,6 @@ pub(crate) fn TrafficChart(data: RwSignal<Option<Overview>>) -> impl IntoView {
             </button>
           }).collect_view()}
         </div>
-        <div class="capacity-note" role="group" aria-label="WAN capacity use">{move||model.with(|m|match &m.capacity {
-            Some(c)=>{
-                let caps=[c.down_bps as f64/1_000_000.0,c.up_bps as f64/1_000_000.0];
-                let last=m.series[0].last().map(|p|[p.down_mbps,p.up_mbps]);
-                view!{
-                  <span class="wan-count">{format!("WAN ×{}",c.wan_count)}</span>
-                  {(0..2).map(|d|{
-                      let used=last.map(|l|l[d]/caps[d]*100.0);
-                      view!{<span class="capacity-meter" class:over=used.is_some_and(|u|u>100.0)>
-                        <span class="meter-track" aria-hidden="true"><span class="meter-fill" style=format!("inline-size:{:.1}%",used.unwrap_or(0.0).clamp(0.0,100.0))></span></span>
-                        {format!("{} {} of {}",if d==0{"↓"}else{"↑"},used.map(|u|format!("{u:.1}%")).unwrap_or("—".into()),rate(caps[d]))}
-                      </span>}
-                  }).collect_view()}
-                }.into_any()
-            },
-            None=>view!{<span>"WAN capacity unavailable."</span>}.into_any()
-        })}</div>
         <Show when=move||model.with(|m|m.series.iter().any(|s|!s.is_empty())) fallback=move||if range.get()=="Recent"{view!{<div class="chart-empty">"No traffic samples available."<span>"Waiting for published traffic observations."</span></div>}.into_any()}else{view!{<div class="chart-empty">{move||format!("No {} history yet.",range.get())}<span>"The web service collects this history while it runs. It starts with the last hour from the core."</span></div>}.into_any()}>
           <div class="chart-frame mirrored-chart rainbow">
             <div class="y-axis" aria-hidden="true">{move||geometry.with(|g|view!{<span>{format!("↓ {}",axis_rate(g.max[0]))}</span><span>{axis_rate(g.max[0]/2.0)}</span><span>"0"</span><span>{axis_rate(g.max[1]/2.0)}</span><span>{format!("↑ {}",axis_rate(g.max[1]))}</span>})}</div>

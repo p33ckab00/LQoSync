@@ -144,16 +144,62 @@ fn Metric(
       </article>
     }
 }
+const WAN_COLORS: [&str; 6] = ["blue", "cyan", "green", "yellow", "orange", "violet"];
+/// One ring: an empty track, then one arc for each WAN in WAN order.
+fn ring(radius: u32, class: &'static str, values: Vec<f64>) -> impl IntoView {
+    view! {
+      <g class=format!("wan-arcs {class}")>
+        <circle class="wan-track" cx="90" cy="90" r=radius/>
+        {crate::wan_ring::arcs(&values).into_iter().enumerate().filter(|(_, (_, len))| *len > 0.0).map(|(i, (start, len))| view!{
+          <circle cx="90" cy="90" r=radius pathLength="100" transform="rotate(-90 90 90)"
+            stroke-dasharray=format!("{len:.2} 100") stroke-dashoffset=format!("{:.2}", -start)
+            style=format!("stroke:var(--traffic-{})", WAN_COLORS[i % WAN_COLORS.len()])/>
+        }).collect_view()}
+      </g>
+    }
+}
 #[component]
-fn WanDistribution() -> impl IntoView {
+fn WanDistribution(data: RwSignal<Option<Overview>>) -> impl IntoView {
+    let capacity = move || data.with(|d| d.as_ref().and_then(|v| v.wan_capacity.clone()));
     view! {
       <section class="panel wan-panel" aria-labelledby="wan-distribution-title">
-        <div class="panel-title"><h2 id="wan-distribution-title">"WAN Allocation Distribution"</h2><span class="chip neutral">"Unavailable"</span></div>
+        <div class="panel-title"><h2 id="wan-distribution-title">"WAN Allocation Distribution"</h2>
+          <span class="chip neutral">{move||if capacity().is_some(){"Partial"}else{"Unavailable"}}</span></div>
         <div class="wan-distribution">
-          <div class="wan-ring" role="img" aria-label="WAN traffic allocation is unavailable"><svg viewBox="0 0 180 180" aria-hidden="true"><circle cx="90" cy="90" r="69"/></svg><div><strong>"—"</strong><span>"WAN traffic"</span></div></div>
-          <div class="table-scroll" role="region" aria-label="WAN traffic shares" tabindex="0"><table><caption class="sr-only">"Observed traffic by WAN"</caption><thead><tr><th scope="col">"WAN"</th><th scope="col">"Traffic"</th><th scope="col">"Share"</th></tr></thead><tbody><tr><td colspan="3" class="empty-cell">"Per-WAN traffic is not available."</td></tr></tbody></table></div>
+          {move||{
+              let c=capacity();
+              // A core build without per-WAN rates still has the combined total: show it as one arc.
+              let wans=c.as_ref().map(|c|if c.wans.is_empty(){vec![web_contract::WanLink{id:String::new(),name:"Combined WAN".into(),down_bps:c.down_bps,up_bps:c.up_bps,subscribers:None}]}else{c.wans.clone()}).unwrap_or_default();
+              let label=c.as_ref().map_or("WAN allocation is unavailable".to_string(),|c|format!("Rings, inside out: capacity of {} WAN, traffic share (unavailable), and subscribers. The table lists each value.",c.wan_count));
+              view!{
+                <div class="wan-ring" role="img" aria-label=label>
+                  <svg viewBox="0 0 180 180" aria-hidden="true">
+                    {ring(46,"capacity",wans.iter().map(|w|w.down_bps as f64).collect())}
+                    {ring(64,"share",Vec::new())}
+                    {ring(81,"members",wans.iter().map(|w|w.subscribers.unwrap_or(0) as f64).collect())}
+                  </svg>
+                  <div class="wan-total">{match c.as_ref(){
+                    Some(c)=>view!{<strong>{format!("↓ {}",axis_rate(c.down_bps as f64/1_000_000.0))}</strong><strong>{format!("↑ {}",axis_rate(c.up_bps as f64/1_000_000.0))}</strong><span>"Combined"</span>}.into_any(),
+                    None=>view!{<strong>"—"</strong><span>"WAN capacity"</span>}.into_any(),
+                  }}</div>
+                </div>
+                <div class="table-scroll" role="region" aria-label="WAN allocation by WAN" tabindex="0"><table>
+                  <caption class="sr-only">"Capacity, traffic share, and subscribers for each WAN"</caption>
+                  <thead><tr><th scope="col">"WAN"</th><th scope="col">"Capacity"</th><th scope="col">"Share"</th><th scope="col">"Subs"</th></tr></thead>
+                  <tbody>
+                    {if wans.is_empty(){view!{<tr><td colspan="4" class="empty-cell">"WAN capacity is not available."</td></tr>}.into_any()}else{
+                      wans.iter().enumerate().map(|(i,w)|view!{<tr>
+                        <th scope="row"><span class="wan-swatch" aria-hidden="true" style=format!("background:var(--traffic-{})",WAN_COLORS[i%WAN_COLORS.len()])></span>{w.name.clone()}</th>
+                        <td><span class="cap-line">{format!("↓ {}",axis_rate(w.down_bps as f64/1_000_000.0))}</span><span class="cap-line">{format!("↑ {}",axis_rate(w.up_bps as f64/1_000_000.0))}</span></td>
+                        <td title="Per-WAN traffic is not available yet">"—"</td>
+                        <td>{number(w.subscribers)}</td>
+                      </tr>}).collect_view().into_any()
+                    }}
+                  </tbody>
+                </table></div>
+              }
+          }}
         </div>
-        <p class="panel-note">"Aggregate traffic cannot establish each WAN's share."</p>
       </section>
     }
 }
@@ -183,7 +229,7 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
       </section>
       <div class="overview-grid">
         <crate::traffic_chart::TrafficChart data/>
-        <WanDistribution/>
+        <WanDistribution data/>
       </div>
       <Upstream/>
     }

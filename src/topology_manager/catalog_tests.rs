@@ -29,6 +29,12 @@ fn web_capacity_uses_true_wan_bases_and_checks_overflow() {
         .filter(|n| n.kind == NodeKind::Wan)
         .map(|n| n.name.as_str());
     assert!(sum.wans.iter().map(|w| w.name.as_str()).eq(names));
+    let ids = c
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::Wan)
+        .map(|n| n.id.as_str());
+    assert!(sum.wans.iter().map(|w| w.id.as_str()).eq(ids));
     assert_eq!(sum.registry_revision, 9);
     assert_eq!(WanCapacity::from_catalog(&c, 9), Some(sum));
     assert!(WanCapacity::from_catalog(&TopologyCatalog::default(), 0).is_none());

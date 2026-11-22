@@ -26,7 +26,19 @@ const fs=require('node:fs');
   // Every WAN reference is labeled, on the plot or as an above-scale tag.
   const marks=(await card.locator('.chart-marks').innerText());
   for(const label of ['Combined WAN','WAN-Fiber','WAN-LTE'])assert.ok(marks.includes(label),marks);
-  assert.match(await card.locator('.capacity-note').innerText(),/WAN ×2[\s\S]*↓ [\d.]+% of 200.0 Mbps[\s\S]*↑ [\d.]+% of 80.0 Mbps/);
+  const wan=page.getByRole('region',{name:'WAN Allocation Distribution',exact:true});
+  // The center shows the combined total in both directions.
+  assert.match(await wan.locator('.wan-total').innerText(),/↓ 200 Mbps\s+↑ 80 Mbps\s+Combined/);
+  assert.equal(await wan.locator('.capacity-note, .panel-note').count(),0);
+  // Rings, inside out: one capacity arc and one subscriber arc for each WAN; traffic share stays an empty track.
+  assert.equal(await wan.locator('.wan-arcs.capacity circle').count(),3);
+  assert.equal(await wan.locator('.wan-arcs.share circle').count(),1);
+  assert.equal(await wan.locator('.wan-arcs.members circle').count(),3);
+  const rows=await wan.locator('tbody tr').evaluateAll(r=>r.map(x=>[...x.children].map(c=>c.textContent.trim())));
+  assert.deepEqual(rows.map(r=>r[0]),['WAN-Fiber','WAN-LTE']);
+  assert.deepEqual(rows.map(r=>r[1]),['↓ 150 Mbps↑ 60 Mbps','↓ 50 Mbps↑ 20 Mbps']);
+  assert.ok(rows.every(r=>r[2]==='—'&&/^\d+$/.test(r[3])),JSON.stringify(rows));
+  assert.equal(await wan.locator('.chip').innerText(),'Partial');
   assert.ok(geometry.every(g=>g.units==='userSpaceOnUse'&&g.stops===7));
   for(const direction of ['download','upload']){
     const path=await card.locator(`.traffic-line.actual.${direction}-line`).getAttribute('d');
@@ -104,7 +116,6 @@ const fs=require('node:fs');
     window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
   });
   await page.waitForFunction(()=>Number(document.querySelector('.chart-frame linearGradient')?.getAttribute('y1'))>0);
-  assert.match(await card.locator('.capacity-note').innerText(),/110.0%/);
   // Traffic may pass combined capacity. The combined line then sits inside the scale, below the peak.
   await card.locator('.chart-marks .capacity.down',{hasText:'Combined WAN ↓ 200.0 Mbps'}).waitFor();
   assert.match(await card.locator('.chart-marks .peak.down').innerText(),/220.0 Mbps/);
@@ -114,7 +125,8 @@ const fs=require('node:fs');
     const view=window.aggregateView;view.wan_capacity=null;view.classification=null;
     window.testStreams.at(-1).dispatchEvent(new MessageEvent('message',{data:JSON.stringify(view)}));
   });
-  await card.getByText('WAN capacity unavailable',{exact:false}).waitFor();
+  await wan.getByText('WAN capacity is not available.',{exact:true}).waitFor();
+  assert.equal(await wan.locator('.chip').innerText(),'Unavailable');
   assert.equal(await card.locator('.capacity-lines path').count(),0);
   assert.equal(await card.locator('.chart-marks .capacity, .chart-marks .edge').count(),0);
   assert.equal(await card.locator('.peak-lines path').count(),2);
