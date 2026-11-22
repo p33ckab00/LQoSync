@@ -23,6 +23,7 @@ pub struct Config {
     pub telegram: Telegram,
     pub tui: Tui,
     pub exclude: Exclude,
+    pub wan_monitor: WanMonitor,
     pub routers: Vec<RouterCfg>,
 }
 
@@ -75,6 +76,20 @@ pub struct RouterAccess {
     pub retry_delay: u64,
     pub offline_after: u64,
     pub offline_action: OfflineAction,
+}
+
+/// Probes of each WAN node through its router, for failover and quality mode.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WanMonitor {
+    pub enabled: bool,
+    pub interval_secs: u64,
+    pub targets: Vec<String>,
+    pub loss_percent: u64,
+    pub latency_factor: u64,
+    pub window_secs: u64,
+    pub move_after_secs: u64,
+    pub failback_secs: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]

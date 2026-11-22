@@ -176,6 +176,16 @@ ips = []                        # IPv4 addresses or CIDR blocks, for PPP, Hotspo
 
 # Defaults for each [[routers]] entry. A router entry changes only the keys that it sets.
 # Change a key here (in your file) to change it for all routers.
+[wan_monitor]                    # probes each WAN node through its router (/ping, read only)
+enabled = true
+interval_secs = 10              # one probe of each target for each interval
+targets = ["1.1.1.1", "8.8.8.8"]
+loss_percent = 50               # this loss or more in the window is a bad WAN
+latency_factor = 3              # a median latency above this multiple of normal is a bad WAN
+window_secs = 60
+move_after_secs = 120           # subscribers move only after a longer bad period
+failback_secs = 600             # stable time before subscribers return
+
 [router_defaults]
 port = 8729                     # 8729 = API over TLS, 8728 = plain API
 tls = true
