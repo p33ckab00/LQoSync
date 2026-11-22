@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Task 8 done
+
+- Commit: `feat(web): add the canvas layout engine`. Branch `lqosync3`. Not pushed. Not deployed.
+- Done: `crates/web-ui/src/canvas_layout.rs`, ported from `traffic-intelligence` `src/ui/canvas.rs`. The clone was in the scratchpad only, and it is deleted.
+- The engine has tiers (WAN, router, group, other). A child goes below its parent. Manual positions stay. An automatic card never overlaps a card. It also has `edge_path`, `fit`, and `clamp_zoom`.
+- The module is test-only (`#[cfg(test)]` in `main.rs`). Task 9 must add `target_arch = "wasm32"` when the canvas uses it.
+- Checks: workspace tests 1957 passed, 0 failed. Workspace clippy, Wasm clippy, `cargo fmt --check`, and `git diff --check` are clean.
+- Next: Task 9 (live canvas UI). The browser checks need `BROWSER_TEST_PASSWORD`, `TRUNK`, `PLAYWRIGHT_MODULE`, and `CHROMIUM_PATH`.
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Task 7 done
 
 - Commit efbef2c. Branch `lqosync3`. Not pushed. Not deployed.
