@@ -8,6 +8,17 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Task 5 done
+
+- Commit ed29d7a. Branch `lqosync3`. Not pushed. Not deployed. The owner approved router-node copies below two WANs.
+- Done: the edit `node.instance_add` copies a router node below one more WAN. The copy gets one instance of each source group of the router node. The groups divide their subscribers by their allocation mode (Count default).
+- Done: one router can have one router node under one parent. A router node cannot be inside a router node of the same router. Automatic placement (R3) uses all router nodes of a router.
+- Done: a WAN parent for a group below a router card is refused with "connect the WAN to the router card" (`node.move` and `instance.add`).
+- Not done: manual child nodes, and groups that are added later, are not copied to the other router node copies. A `shortcut:` comment marks it.
+- Checks: workspace tests 1937 passed, 0 failed. Workspace clippy, Wasm clippy, `cargo fmt --check`, and `git diff --check` are clean.
+- Open owner decision: the Task 4 filter for an excluded source. Recommendation: put it after `reconcile` and before `resolver::resolve`, so that the Circuit IDs stay.
+- Next: the Task 4 filter after the owner decision, then Task 6 (default-route WAN candidates).
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Tasks 1–4 done, Task 4 partly
 
 - Agents: Tasks 1–3 by the VS Code session `21013898` (cwd `/opt/libreqos`), commits d618534, 144b775, d36c23f. That session stopped at the token limit at 00:24. Task 4 by the scheduled resume of the terminal session, commit c5561de. Branch `lqosync3`. Not pushed. Not deployed.
