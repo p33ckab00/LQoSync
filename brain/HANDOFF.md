@@ -8,6 +8,16 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Task 4 filter and Task 6 done
+
+- Commits b7158b6 (Task 4 filter) and 8738861 (Task 6). Branch `lqosync3`. Not pushed. Not deployed.
+- Owner decision: the filter for an excluded source is at the start of `resolver::resolve`. The resolver drops a subscriber when each of its accounts matches only excluded sources. The registry keeps the record, so the Circuit ID stays.
+- Task 6: WAN discovery also reads `/ip/route`. The view field `wan_candidates` lists the default-route interfaces of WAN routers that no WAN node uses. The cycle reads the WAN routers at the first cycle and every 10 cycles, only with an enrolled topology. The file `topology-manager/wan-discovery.json` (0600) keeps the last answer.
+- Change from the plan: `TopologyView.wan_candidates` is `Vec<DiscoveredRouter>`, not `Vec<WanCandidate>`, so that each candidate keeps its router.
+- Before deploy: the LQoSync router user needs read access to `/ip/route` on the WAN routers. A failed route read gives no default-route candidates and no error.
+- Checks at 8738861: workspace tests 1945 passed, 0 failed. Workspace clippy, Wasm clippy, `cargo fmt --check`, and `git diff --check` are clean.
+- Next: Task 7 (`--accept-changes` for the live test and the activation).
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Task 5 done
 
 - Commit ed29d7a. Branch `lqosync3`. Not pushed. Not deployed. The owner approved router-node copies below two WANs.
