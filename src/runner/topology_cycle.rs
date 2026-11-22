@@ -20,9 +20,12 @@ where
         )?;
         let pair = self.prepare_topology(Duration::from_secs(30)).await?;
         self.check_topology_pair(&pair)?;
+        let wanted = self.wanted_lists(&pair)?;
         let compiled = compiler.compile(pair).await?;
         if confirmed {
-            self.publish_compiled(compiled, now).map(Some)
+            self.publish_with_lists(compiled, wanted, now)
+                .await
+                .map(Some)
         } else {
             Ok(None)
         }

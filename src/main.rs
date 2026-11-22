@@ -185,6 +185,17 @@ async fn run(path: &Path, mut cfg: Config, mut digest: String) -> anyhow::Result
         wan_monitor.clone(),
     );
     runner.wan_monitor = Some(wan_monitor.clone());
+    // shortcut: the writer user and the router address apply after a service restart.
+    if let Some(router) = cfg.routers.iter().find(|r| !r.writer_username.is_empty()) {
+        let (router, access) = (router.clone(), cfg.router_access.clone());
+        let connector = Arc::new(MikrotikConnector {
+            owner_uid: SECRET_OWNER_UID,
+        });
+        runner.wan_writer = Some(lqosync3::wan_writer::start(move || {
+            let (connector, router, access) = (connector.clone(), router.clone(), access.clone());
+            async move { connector.connect_writer(&router, &access).await }
+        }));
+    }
     runner.set_source(path, digest.clone());
     let apply_monitor = runner.pending_tracker().map(|tracker| {
         lqosync3::apply_evidence::Monitor::start(&cfg, &digest, tracker, runner.health.clone())

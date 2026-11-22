@@ -179,6 +179,70 @@ pub async fn apply<W: ListWriter + RouterSession>(
     })
 }
 
+type Job = (
+    BTreeMap<Ipv4Addr, ListEntry>,
+    WanWriter,
+    tokio::sync::oneshot::Sender<Result<WriteReport, WriteError>>,
+);
+
+/// The writer task. It keeps one write session and the last held removal.
+#[derive(Clone)]
+pub struct Handle(tokio::sync::mpsc::Sender<Job>);
+
+/// One write must finish in this time, or the cycle keeps the previous pair.
+const LIMIT: std::time::Duration = std::time::Duration::from_secs(30);
+
+impl Handle {
+    pub async fn write(
+        &self,
+        wanted: BTreeMap<Ipv4Addr, ListEntry>,
+        cfg: &WanWriter,
+    ) -> Result<WriteReport, WriteError> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.0
+            .send((wanted, cfg.clone(), tx))
+            .await
+            .map_err(|_| router("the writer task stopped"))?;
+        tokio::time::timeout(LIMIT, rx)
+            .await
+            .map_err(|_| router("the routing list write timed out"))?
+            .map_err(|_| router("the writer task stopped"))?
+    }
+}
+
+/// Start the writer task. `connect` opens a write session; a failed write drops the session.
+pub fn start<W, F, Fut>(connect: F) -> Handle
+where
+    W: ListWriter + RouterSession + 'static,
+    F: Fn() -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Result<W, crate::routeros::ReadError>> + Send,
+{
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Job>(1);
+    tokio::spawn(async move {
+        let mut session: Option<W> = None;
+        let mut held = None;
+        while let Some((wanted, cfg, reply)) = rx.recv().await {
+            let result = async {
+                if session.is_none() {
+                    session = Some(connect().await.map_err(router)?);
+                }
+                let w = session.as_mut().expect("connected above");
+                apply(w, &wanted, &cfg, held).await
+            }
+            .await;
+            held = match &result {
+                Err(WriteError::Held { fingerprint, .. }) => Some(*fingerprint),
+                _ => None,
+            };
+            if matches!(result, Err(WriteError::Router(_))) {
+                session = None;
+            }
+            let _ = reply.send(result);
+        }
+    });
+    Handle(tx)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

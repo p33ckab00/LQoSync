@@ -150,6 +150,10 @@ impl PreparedPair {
     pub(crate) fn device_identities(&self) -> &HashMap<String, super::model::IdentityRef> {
         &self.device_identities
     }
+    /// The catalog of the candidate policy.
+    pub(crate) fn catalog(&self) -> Option<&super::catalog::TopologyCatalog> {
+        self.candidate.catalog.as_ref()
+    }
     /// Read-only view models for a preview.
     pub fn view(&self) -> &super::preview::PreviewView {
         &self.view

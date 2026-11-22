@@ -126,6 +126,10 @@ pub struct Runner<C: Connector + 'static> {
     topology_sources: crate::topology_manager::coordinator::Coordinator<C>,
     /// The WAN monitor of the service. `None` in one-shot commands and in most tests.
     pub wan_monitor: Option<crate::wan_monitor::Handle>,
+    /// The routing list writer of the service. `None` without writer credentials.
+    pub wan_writer: Option<crate::wan_writer::Handle>,
+    /// The result of the last routing list write, for the topology view.
+    pub wan_lists: Option<serde_json::Value>,
     topology_compiler: Option<crate::topology_manager::compiler::ControlledCompiler>,
 }
 
@@ -241,6 +245,8 @@ where
                 connector.clone(),
             ),
             wan_monitor: None,
+            wan_writer: None,
+            wan_lists: None,
             topology_compiler: None,
             connector,
             sessions: HashMap::new(),
@@ -2162,7 +2168,63 @@ where
         );
         self.check_topology_pair(&pair)?;
         compiler.check_config(&self.cfg.libreqos)?;
+        let wanted = self.wanted_lists(&pair)?;
         let compiled = compiler.compile(pair).await?;
+        self.publish_with_lists(compiled, wanted, now).await
+    }
+
+    /// The routing list entries of a pair, when the writer is on. `None` when it is off.
+    pub(crate) fn wanted_lists(
+        &self,
+        pair: &crate::topology_manager::publication::PreparedPair,
+    ) -> anyhow::Result<
+        Option<
+            std::collections::BTreeMap<
+                std::net::Ipv4Addr,
+                crate::topology_manager::wan_lists::ListEntry,
+            >,
+        >,
+    > {
+        if !self.cfg.wan_writer.enabled || self.wan_writer.is_none() {
+            return Ok(None);
+        }
+        let catalog = pair.catalog().context("the pair has no catalog")?;
+        crate::topology_manager::wan_lists::wanted(pair, catalog).map(Some)
+    }
+
+    /// Write the routing lists, then publish. A failed or held write keeps the previous pair,
+    /// so shaping and routing do not part.
+    pub(crate) async fn publish_with_lists(
+        &mut self,
+        compiled: crate::topology_manager::compiler::CompiledPair,
+        wanted: Option<
+            std::collections::BTreeMap<
+                std::net::Ipv4Addr,
+                crate::topology_manager::wan_lists::ListEntry,
+            >,
+        >,
+        now: u64,
+    ) -> anyhow::Result<crate::write_receipt::WriteResult> {
+        if let (Some(wanted), Some(writer)) = (wanted, self.wan_writer.clone()) {
+            use crate::wan_writer::WriteError;
+            match writer.write(wanted, &self.cfg.wan_writer).await {
+                Ok(r) => {
+                    self.wan_lists = Some(serde_json::json!({"state": "written", "at": now,
+                        "added": r.added, "changed": r.changed, "removed": r.removed, "owned": r.owned_after}));
+                }
+                Err(e) => {
+                    let (state, reason) = match e {
+                        WriteError::Held { reason, .. } => ("held", reason),
+                        WriteError::Router(reason) => ("failed", reason),
+                    };
+                    self.wan_lists =
+                        Some(serde_json::json!({"state": state, "at": now, "error": reason}));
+                    anyhow::bail!(
+                        "routing lists {state}: {reason}; the previous shaping pair stays"
+                    );
+                }
+            }
+        }
         self.publish_compiled(compiled, now)
     }
     fn publish_compiled(

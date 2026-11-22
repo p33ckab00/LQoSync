@@ -466,3 +466,191 @@ async fn a_wan_failover_moves_only_the_affected_subscribers() {
     }
     assert!(before.rows().iter().any(|o| o.parent_node_id == "wanA"));
 }
+
+/// A core router address-list table for the writer tests. `fail` refuses each add.
+#[derive(Clone, Default)]
+struct ListRouter {
+    rows: Arc<std::sync::Mutex<Vec<crate::model::RosRow>>>,
+    fail: Arc<std::sync::atomic::AtomicBool>,
+}
+impl crate::routeros::RouterSession for ListRouter {
+    fn print(
+        &mut self,
+        _: &str,
+        _: &str,
+    ) -> impl Future<Output = Result<Vec<crate::model::RosRow>, ReadError>> + Send {
+        let rows = self.rows.lock().unwrap().clone();
+        async move { Ok(rows) }
+    }
+}
+impl crate::routeros::ListWriter for ListRouter {
+    fn add(
+        &mut self,
+        e: &crate::topology_manager::wan_lists::ListEntry,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send {
+        let fail = self.fail.load(std::sync::atomic::Ordering::SeqCst);
+        if !fail {
+            let mut rows = self.rows.lock().unwrap();
+            let id = format!("*{}", rows.len() + 1);
+            rows.push(row(&[
+                (".id", &id),
+                ("list", &e.list),
+                ("address", &e.address.to_string()),
+                ("comment", &e.comment),
+            ]));
+        }
+        async move {
+            if fail {
+                Err(ReadError::Trap("not enough permissions".into()))
+            } else {
+                Ok(())
+            }
+        }
+    }
+    fn remove(&mut self, id: &str) -> impl Future<Output = Result<(), ReadError>> + Send {
+        self.rows.lock().unwrap().retain(|r| r[".id"] != id);
+        async { Ok(()) }
+    }
+    fn set_address(
+        &mut self,
+        id: &str,
+        address: std::net::Ipv4Addr,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send {
+        for r in self.rows.lock().unwrap().iter_mut() {
+            if r[".id"] == id {
+                r.insert("address".into(), address.to_string());
+            }
+        }
+        async { Ok(()) }
+    }
+}
+
+/// An initialized tree with two WANs, the writer on, and a scratch publication target.
+async fn writer_runner(
+    e: &Env,
+    router: &ListRouter,
+) -> (
+    Runner<FakeConnector>,
+    tempfile::TempDir,
+    crate::config::Libreqos,
+    crate::topology_manager::compiler::ControlledCompiler,
+) {
+    use web_contract::topology::{BuilderEdit, WebCommand};
+    let config = setup(e, None);
+    let mut r = runner(e, config);
+    let init = WebCommand::Edit {
+        expected_revision: 0,
+        edit: BuilderEdit::Initialize,
+    };
+    r.api_web_mutate("automatic-edit-writer", "operator", init)
+        .await
+        .unwrap();
+    add_wans(&mut r, true);
+    r.cfg.wan_writer.enabled = true;
+    let session = router.clone();
+    r.wan_writer = Some(crate::wan_writer::start(move || {
+        let s = session.clone();
+        async move { Ok::<_, ReadError>(s) }
+    }));
+    let (root, mut native_cfg, compiler) = crate::topology_manager::compiler::tests::fixture();
+    native_cfg.target = Target::V3Pair;
+    (r, root, native_cfg, compiler)
+}
+
+async fn publish_once(
+    r: &mut Runner<FakeConnector>,
+    native_cfg: &crate::config::Libreqos,
+    compiler: &mut crate::topology_manager::compiler::ControlledCompiler,
+    now: u64,
+) -> anyhow::Result<crate::write_receipt::WriteResult> {
+    let pair = r.prepare_topology(AGE).await.unwrap();
+    let wanted = r.wanted_lists(&pair).unwrap();
+    let compiled = crate::topology_manager::compiler::tests::compiled(compiler, pair).await;
+    r.cfg.libreqos = native_cfg.clone();
+    let result = r.publish_with_lists(compiled, wanted, now).await;
+    r.cfg.libreqos = native_cfg.clone();
+    result
+}
+
+#[tokio::test]
+async fn a_successful_write_then_publishes_the_pair() {
+    let e = env();
+    let lists = ListRouter::default();
+    let (mut r, _root, native, mut c) = writer_runner(&e, &lists).await;
+    publish_once(&mut r, &native, &mut c, 2_000).await.unwrap();
+    let rows = lists.rows.lock().unwrap().clone();
+    assert_eq!(rows.len(), 7, "one entry for each subscriber address");
+    assert!(
+        rows.iter()
+            .all(|row| row["list"] == "via-wanA" || row["list"] == "via-wanB")
+    );
+    assert!(
+        Path::new(&native.directory)
+            .join("ShapedDevices.csv")
+            .exists()
+    );
+    assert_eq!(r.wan_lists.as_ref().unwrap()["state"], "written");
+}
+
+#[tokio::test]
+async fn a_failed_write_holds_publication_and_retries() {
+    let e = env();
+    let lists = ListRouter::default();
+    lists.fail.store(true, std::sync::atomic::Ordering::SeqCst);
+    let (mut r, _root, native, mut c) = writer_runner(&e, &lists).await;
+    let error = publish_once(&mut r, &native, &mut c, 2_000)
+        .await
+        .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("previous shaping pair stays"),
+        "{error:#}"
+    );
+    assert!(
+        !Path::new(&native.directory)
+            .join("ShapedDevices.csv")
+            .exists()
+    );
+    assert_eq!(r.wan_lists.as_ref().unwrap()["state"], "failed");
+    lists.fail.store(false, std::sync::atomic::Ordering::SeqCst);
+    publish_once(&mut r, &native, &mut c, 2_100).await.unwrap();
+    assert!(
+        Path::new(&native.directory)
+            .join("ShapedDevices.csv")
+            .exists()
+    );
+}
+
+#[tokio::test]
+async fn a_disabled_writer_publishes_without_waiting() {
+    let e = env();
+    let lists = ListRouter::default();
+    lists.fail.store(true, std::sync::atomic::Ordering::SeqCst);
+    let (mut r, _root, native, mut c) = writer_runner(&e, &lists).await;
+    r.cfg.wan_writer.enabled = false;
+    publish_once(&mut r, &native, &mut c, 2_000).await.unwrap();
+    assert!(lists.rows.lock().unwrap().is_empty());
+    assert!(r.wan_lists.is_none());
+}
+
+#[tokio::test]
+async fn a_held_write_reports_the_reason() {
+    let e = env();
+    let lists = ListRouter::default();
+    *lists.rows.lock().unwrap() = (1..=100)
+        .map(|i| {
+            row(&[
+                (".id", &format!("*o{i}")),
+                ("list", "via-wanA"),
+                ("address", &format!("10.250.0.{i}")),
+                ("comment", "lqosync: gone"),
+            ])
+        })
+        .collect();
+    let (mut r, _root, native, mut c) = writer_runner(&e, &lists).await;
+    let error = publish_once(&mut r, &native, &mut c, 2_000)
+        .await
+        .unwrap_err();
+    assert!(format!("{error:#}").contains("held"), "{error:#}");
+    assert_eq!(r.wan_lists.as_ref().unwrap()["state"], "held");
+    assert_eq!(lists.rows.lock().unwrap().len(), 100);
+}
