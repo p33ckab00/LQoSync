@@ -90,7 +90,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         assert!(SourceActivity::load(dir.path()).is_active("g", 9_999, 600));
         std::fs::write(dir.path().join(FILE), b"not json").unwrap();
-        let mut a = SourceActivity::load(dir.path());
+        let a = SourceActivity::load(dir.path());
         assert!(a.is_active("g", 9_999, 600));
     }
 

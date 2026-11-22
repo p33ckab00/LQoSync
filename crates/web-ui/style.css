@@ -734,9 +734,8 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 .canvas-wires path.active{stroke:var(--wire);stroke-width:2.5}
 .canvas-node{position:absolute;box-sizing:border-box;inline-size:232px;block-size:84px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:10px 16px;text-align:start;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;box-shadow:0 1px 2px rgb(0 0 0/.06)}
 .canvas-node:active{cursor:grabbing}
-.canvas-node::before,.canvas-node::after{content:"";position:absolute;inset-block-start:calc(50% - 5px);inline-size:8px;block-size:8px;border:1.5px solid var(--line);border-radius:50%;background:var(--surface)}
-.canvas-node::before{inset-inline-start:-6px}
-.canvas-node::after{inset-inline-end:-6px}
+.canvas-node[data-kind="wan"]::before{display:none}
+.canvas-node::before{content:"";position:absolute;inset-block-start:calc(50% - 5px);inset-inline-start:-6px;inline-size:8px;block-size:8px;border:1.5px solid var(--line);border-radius:50%;background:var(--surface)}
 .canvas-node[data-kind=wan]{border-inline-start:3px solid var(--accent)}
 .canvas-node[aria-pressed=true]{border-color:var(--wire);box-shadow:0 0 0 3px color-mix(in srgb,var(--wire) 28%,transparent)}
 .canvas-node[aria-pressed=true]::before,.canvas-node[aria-pressed=true]::after{border-color:var(--wire)}

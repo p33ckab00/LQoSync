@@ -179,10 +179,11 @@ pub(crate) fn Canvas(
     let nodes = Memo::new(move |_| {
         data.with(|d| d.as_ref().map(|s| visible(&s.nodes)).unwrap_or_default())
     });
-    let wans = Memo::new(move |_| {
+    // Cards that can be a parent get a connector port: WAN, router, and Site/AP cards.
+    let parents = Memo::new(move |_| {
         nodes.with(|n| {
             n.iter()
-                .filter(|n| n.kind == "wan")
+                .filter(|n| can_parent(n))
                 .cloned()
                 .collect::<Vec<_>>()
         })
@@ -525,7 +526,7 @@ pub(crate) fn Canvas(
     let wan_form = RwSignal::new(None::<(Change, Draft, String)>);
     // The one-time routing adoption is a reviewed change in the house change dialog.
     let adopt = RwSignal::new(None::<Change>);
-    // WAN connector drag: WAN node ID, start pointer, start point, end point (canvas pixels).
+    // Connector drag: parent node ID, start pointer, start point, end point (canvas pixels).
     let connect = RwSignal::new(None::<(String, f64, f64, [f64; 2], [f64; 2])>);
     let handle = move |n: Node| {
         let id = StoredValue::new(n.id.clone());
@@ -533,15 +534,15 @@ pub(crate) fn Canvas(
         // The pointer drag is a shortcut. Keyboard users set a parent in the settings of a card.
         view! {
           <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true"
-            title=format!("Drag from {} to a router or group card",n.name) disabled=locked
-            style:left=move||format!("{}px",pos()[0]+CARD_W/2.0-11.0) style:top=move||format!("{}px",pos()[1]+CARD_H-11.0)
+            title=format!("Drag from {} to the card that goes below it",n.name) disabled=locked
+            style:left=move||format!("{}px",pos()[0]+CARD_W-11.0) style:top=move||format!("{}px",pos()[1]+CARD_H/2.0-11.0)
             on:pointerdown=move|ev: web_sys::PointerEvent|{
               if ev.button()!=0 { return; }
               ev.stop_propagation();
               if let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) {
                 let _=t.set_pointer_capture(ev.pointer_id());
               }
-              let start=[pos()[0]+CARD_W/2.0,pos()[1]+CARD_H];
+              let start=[pos()[0]+CARD_W,pos()[1]+CARD_H/2.0];
               connect.set(Some((id.get_value(),ev.client_x() as f64,ev.client_y() as f64,start,start)));
             }
             on:pointermove=move|ev: web_sys::PointerEvent|{
@@ -551,13 +552,13 @@ pub(crate) fn Canvas(
               });
             }
             on:pointerup=move|ev: web_sys::PointerEvent|{
-              let Some((wan,..))=connect.get_untracked() else {return};
+              let Some((from,..))=connect.get_untracked() else {return};
               connect.set(None);
               let target=document().element_from_point(ev.client_x() as f32,ev.client_y() as f32)
                 .and_then(|e|e.closest("[data-node-id]").ok().flatten())
                 .and_then(|e|e.get_attribute("data-node-id"));
               let Some(target)=target else {return};
-              match nodes.with_untracked(|ns|drop_edit(ns,&wan,&target)) {
+              match nodes.with_untracked(|ns|drop_edit(ns,&from,&target)) {
                 Ok(edit)=>submit(edit),
                 Err(why)=>status.set(format!("Not connected: {why}")),
               }
@@ -570,7 +571,18 @@ pub(crate) fn Canvas(
         let pos = move || card_id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
         let label = format!("{iface} on {router}, WAN, not configured. Enter adds it as a WAN.");
         let name = iface.clone();
+        let (r2, rn2, if2) = (router_id.clone(), router.clone(), iface.clone());
         view! {
+          // A WAN needs a saved capacity before it can be a parent: its port opens the WAN form.
+          <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true" disabled=locked
+            title=format!("Save a capacity for {iface} first, then connect it")
+            style:left=move||format!("{}px",pos()[0]+CARD_W-11.0) style:top=move||format!("{}px",pos()[1]+CARD_H/2.0-11.0)
+            on:pointerdown=move|ev: web_sys::PointerEvent|{
+              ev.stop_propagation();
+              status.set(format!("Save a capacity for {} first, then connect it.",if2));
+              read_action.set(Some(Change::CreateWan(r2.clone(),rn2.clone(),if2.clone())));
+              open(Panel::Inventory);
+            }>"+"</button>
           <button type="button" class="canvas-candidate" data-kind="wan" aria-label=label disabled=locked
             style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
             on:click=move|_|{
@@ -596,14 +608,14 @@ pub(crate) fn Canvas(
                 .collect_view()
         })
     };
-    // The connector that the operator drags from a WAN card.
+    // The connector that the operator drags from a parent card.
     let pending = move || {
-        connect.get().and_then(|(wan, _, _, _, end)| {
-            let a = point_of(&wan)?;
+        connect.get().and_then(|(from, _, _, _, end)| {
+            let a = point_of(&from)?;
             let d = format!(
                 "M{} {} L{} {}",
-                a[0] + CARD_W / 2.0,
-                a[1] + CARD_H,
+                a[0] + CARD_W,
+                a[1] + CARD_H / 2.0,
                 end[0],
                 end[1]
             );
@@ -699,7 +711,7 @@ pub(crate) fn Canvas(
                 style:transform=move||format!("scale({})",zoom.get())>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}{pending}</svg>
                 <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded)) children=card/>
-                <For each=move||wans.get() key=|n|n.id.clone() children=handle/>
+                <For each=move||parents.get() key=|n|n.id.clone() children=handle/>
                 <For each=move||candidate_cards(&candidates.get()) key=|c|c.0.clone() children=candidate/>
               </div>
             </div>

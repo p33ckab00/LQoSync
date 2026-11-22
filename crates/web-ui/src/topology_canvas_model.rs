@@ -88,18 +88,50 @@ pub(crate) fn wire(parent: [f64; 2], child: [f64; 2]) -> String {
     edge_path(parent, SIZE, child, SIZE).0
 }
 
-/// The edit for a WAN connector that the operator drops on `target`. A group below a router
-/// card takes its WANs from the card, so the drop goes on the card.
+/// A card that can be a parent: a WAN, a router card, or a Site/AP card. A subscriber group
+/// has no child cards.
+pub(crate) fn can_parent(n: &Node) -> bool {
+    n.kind == "wan" || n.kind == "intermediate"
+}
+
+/// The edit for a connector that the operator drags from `from` and drops on `target`: `from`
+/// becomes the parent of `target`. A WAN gives a second parent through an instance. A group
+/// below a router card takes its WANs from the card, so a WAN drop goes on the card.
 pub(crate) fn drop_edit(
     nodes: &[Node],
-    wan: &str,
+    from: &str,
     target: &str,
 ) -> Result<BuilderEdit, &'static str> {
     let find = |id: &str| nodes.iter().find(|n| n.id == id);
     let t = find(target).ok_or("The card is not on the canvas.")?;
-    if t.kind == "wan" {
-        return Err("Connect a WAN to a router card or a group card.");
+    let f = find(from).ok_or("The card is not on the canvas.")?;
+    if !can_parent(f) {
+        return Err("A subscriber group has no child cards.");
     }
+    if t.kind == "wan" {
+        return Err("A WAN card is always on top. Connect it to a router, Site, or group card.");
+    }
+    if t.id == f.id {
+        return Err("A card cannot be its own parent.");
+    }
+    if f.kind != "wan" {
+        // The target must not be above the parent card: that would make a loop.
+        let mut up = f.parent.as_deref();
+        while let Some(id) = up {
+            if id == t.id {
+                return Err("This would make a loop.");
+            }
+            up = find(id).and_then(|n| n.parent.as_deref());
+        }
+        if t.parent.as_deref() == Some(from) {
+            return Err("This card is already a child of that card.");
+        }
+        return Ok(BuilderEdit::NodeMove {
+            node_id: t.id.clone(),
+            parent: Some(from.to_string()),
+        });
+    }
+    let wan = from;
     if t.parent.as_deref() == Some(wan) {
         return Err("This WAN is already a parent of the card.");
     }
@@ -341,6 +373,41 @@ mod tests {
         );
         assert!(drop_edit(&nodes, "wan1", "g2").is_err());
         assert!(drop_edit(&nodes, "wan1", "wan2").is_err());
+    }
+
+    #[test]
+    fn a_connector_from_a_router_or_site_card_sets_the_parent() {
+        let nodes = [
+            kind(node("wan1", None, None), "wan"),
+            router(node("r1", Some("wan1"), None)),
+            kind(node("site", Some("r1"), None), "intermediate"),
+            sourced(node("g1", Some("r1"), None)),
+            sourced(node("g2", None, None)),
+        ];
+        assert_eq!(
+            drop_edit(&nodes, "site", "g1"),
+            Ok(BuilderEdit::NodeMove {
+                node_id: "g1".into(),
+                parent: Some("site".into())
+            })
+        );
+        assert_eq!(
+            drop_edit(&nodes, "r1", "g2"),
+            Ok(BuilderEdit::NodeMove {
+                node_id: "g2".into(),
+                parent: Some("r1".into())
+            })
+        );
+        assert!(drop_edit(&nodes, "site", "site").is_err());
+        assert!(drop_edit(&nodes, "site", "r1").is_err(), "a loop");
+        assert!(drop_edit(&nodes, "r1", "wan1").is_err());
+        assert!(
+            drop_edit(&nodes, "g2", "g1").is_err(),
+            "a group has no children"
+        );
+        assert!(drop_edit(&nodes, "r1", "g1").is_err(), "already the parent");
+        assert!(can_parent(&nodes[1]) && can_parent(&nodes[2]) && can_parent(&nodes[0]));
+        assert!(!can_parent(&nodes[3]));
     }
 
     #[test]
