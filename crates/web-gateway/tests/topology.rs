@@ -83,6 +83,7 @@ fn view(n: usize) -> TopologyView {
                 position: None,
                 router_id: None,
                 auto_members: None,
+                wan_health: None,
             })
             .collect(),
         ..Default::default()
@@ -288,6 +289,7 @@ fn release_scale_reads_stay_bounded() {
             position: None,
             router_id: None,
             auto_members: None,
+            wan_health: None,
         })
         .collect();
     let bytes = serde_json::to_vec(&big).unwrap();

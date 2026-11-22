@@ -102,15 +102,40 @@ const fs=require('node:fs');
     const wan=edits.find(e=>e.edit.kind==='wan.create');
     assert.equal(wan.edit.endpoint_ref,'pppoe-out3');assert.equal(wan.edit.down_mbps,300);
     await page.keyboard.press('Escape');
-    // Allocation: equal count for the selected group saves one group.allocation edit.
+    // Allocation: the topology default and the mode of one group save one edit each.
     const ppp=canvas.getByRole('button',{name:/^PPPoE access,/});await ppp.click();
     await dock.getByRole('button',{name:'Subscriber allocation',exact:true}).click();
     const allocation=page.getByRole('dialog',{name:'Subscriber allocation'});
-    await allocation.getByLabel('Equal subscriber count, pins included').check();
-    for(let i=0;i<100&&!edits.some(e=>e.edit.kind==='group.allocation');i++)await page.waitForTimeout(100);
-    assert.deepEqual(edits.find(e=>e.edit.kind==='group.allocation').edit,{kind:'group.allocation',source_id:'access-ppp',mode:'count'});
-    assert.equal(await allocation.getByLabel(/^Quality-aware/).isDisabled(),true);
-    await page.keyboard.press('Escape');
+    const wait=async kind=>{for(let i=0;i<100&&!edits.some(e=>e.edit.kind===kind);i++)await page.waitForTimeout(100);
+      return edits.filter(e=>e.edit.kind===kind).at(-1)?.edit;};
+    const topo=allocation.getByRole('group',{name:'Topology default'});
+    assert.equal(await topo.getByLabel(/^Equal subscriber count/).isChecked(),true,'count is the default');
+    await topo.getByLabel(/^Quality/).check();
+    assert.deepEqual(await wait('allocation.default'),{kind:'allocation.default',mode:'quality'});
+    const own=allocation.getByLabel('Mode of PPPoE access');
+    assert.equal(await own.inputValue(),'','the group follows the topology default');
+    await own.selectOption('count');
+    assert.deepEqual(await wait('group.allocation'),{kind:'group.allocation',source_id:'access-ppp',mode:'count'});
+    const groupEdits=edits.filter(e=>e.edit.kind==='group.allocation').length;
+    await own.selectOption('');
+    for(let i=0;i<100&&edits.filter(e=>e.edit.kind==='group.allocation').length===groupEdits;i++)await page.waitForTimeout(100);
+    assert.deepEqual(edits.filter(e=>e.edit.kind==='group.allocation').at(-1).edit,{kind:'group.allocation',source_id:'access-ppp',mode:null});
+    await page.keyboard.press('Escape');await allocation.waitFor({state:'hidden'});
+    // WAN health is text on the WAN cards.
+    await north.locator('.canvas-node-health').filter({hasText:'Up · Quality 87%'}).waitFor();
+    const south=canvas.getByRole('button',{name:/^WAN South,/});
+    await south.locator('.canvas-node-health').filter({hasText:'Waiting for Rebalance'}).waitFor();
+    // Settings: automatic failback and the manual return save one edit each.
+    await dock.getByRole('button',{name:'Topology settings',exact:true}).click();
+    const settings=page.getByRole('dialog',{name:'Topology settings'});await settings.waitFor();
+    const failback=settings.getByLabel('Automatic failback');
+    assert.equal(await failback.isChecked(),true);
+    await failback.uncheck();
+    assert.deepEqual(await wait('failback.auto'),{kind:'failback.auto',enabled:false});
+    await settings.getByRole('button',{name:'Return subscribers to recovered WANs',exact:true}).click();
+    assert.deepEqual(await wait('failback.release'),{kind:'failback.release'});
+    await page.screenshot({path:`${out}/settings-failback.png`});
+    await page.keyboard.press('Escape');await settings.waitFor({state:'hidden'});
     // Preview is read-only.
     const count=edits.length;
     await dock.getByRole('button',{name:'Preview and evidence',exact:true}).click();

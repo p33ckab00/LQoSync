@@ -385,14 +385,22 @@ pub(crate) fn Canvas(
         let located = n.geo.as_ref().is_some_and(|g| g.location.is_some());
         let router = n.router_id.as_ref().map(|r| router_name(data, r));
         let auto = n.auto_members.map(|c| format!("+{c} auto"));
+        let health = n
+            .wan_health
+            .as_ref()
+            .map(|h| (h.state.clone(), health_label(h)));
         let label = format!(
-            "{}, {kind}{}{}. Enter opens settings. Shift and arrow keys move the card.",
+            "{}, {kind}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
             n.name,
             router
                 .as_ref()
                 .map(|r| format!(", router {r}"))
                 .unwrap_or_default(),
             auto.as_ref().map(|a| format!(", {a}")).unwrap_or_default(),
+            health
+                .as_ref()
+                .map(|(_, h)| format!(", WAN {h}"))
+                .unwrap_or_default(),
         );
         view! {
           <button type="button" class="canvas-node" data-kind=n.kind.clone()
@@ -441,6 +449,7 @@ pub(crate) fn Canvas(
               <span class="canvas-node-kind">{kind}</span>
               {router.map(|r|view!{<span class="canvas-node-router">{format!("Router {r}")}</span>})}
               {auto.map(|a|view!{<span class="canvas-node-auto">{a}</span>})}
+              {health.map(|(state,h)|view!{<span class="canvas-node-health" data-state=state>{h}</span>})}
             </span>
             <strong>{n.name.clone()}</strong>
             <span class="canvas-node-meta">{meta}{located.then_some(" · Located")}</span>
@@ -547,7 +556,7 @@ pub(crate) fn Canvas(
               <div class="canvas-layer" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}</svg>
-                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,n.auto_members) children=card/>
+                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health)) children=card/>
               </div>
             </div>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.is_empty()))>
@@ -649,24 +658,50 @@ pub(crate) fn Canvas(
                   <div><dt>"Plans"</dt><dd>{move||data.with(|d|d.as_ref().map(|s|s.plans.len()).unwrap_or(0)).to_string()}</dd></div>
                 </dl>
                 <a class="button quiet" href="/topology?tab=policies">"Open Policies"</a>
+                <fieldset class="canvas-modes"><legend>"WAN failover"</legend>
+                  <div class="check">
+                    <input type="checkbox" id="canvas-failback" disabled=locked
+                      prop:checked=move||data.with(|d|d.as_ref().is_none_or(|s|s.auto_failback))
+                      on:change=move|ev|submit(BuilderEdit::AutoFailback{enabled:event_target_checked(&ev)})/>
+                    <label for="canvas-failback">"Automatic failback"
+                      <small>"On: subscribers return to a WAN after it is stable for 10 minutes. Off: they stay on the other WAN until you return them."</small></label>
+                  </div>
+                  {move||data.with(|d|d.as_ref().map(|s|s.nodes.iter().filter_map(|n|{
+                    let h=n.wan_health.as_ref()?;
+                    h.error.as_ref().map(|e|view!{<p class="field-help">{format!("{}: {e}",n.name)}</p>})
+                  }).collect_view()))}
+                  <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.iter().any(|n|n.wan_health.as_ref().is_some_and(|h|h.state=="waiting_for_rebalance"))))>
+                    <div class="form-actions">
+                      <button type="button" class="quiet" disabled=locked on:click=move|_|submit(BuilderEdit::FailbackRelease)>"Return subscribers to recovered WANs"</button>
+                    </div>
+                  </Show>
+                </fieldset>
               }.into_any(),
               Some(Panel::Allocation)=>view!{
                 {move||{
-                  let group=selected_node().filter(|n|n.kind=="group").and_then(|n|n.source_id.clone());
-                  let mode=group.as_ref().and_then(|s|data.with(|d|d.as_ref()?.factors.iter().find(|f|f.source_id==*s).map(|f|f.allocation.clone())))
-                    .filter(|m|!m.is_empty()).unwrap_or("capacity".into());
-                  let off=group.is_none();
-                  let pick=move|m:&'static str|{let g=group.clone();move|_|if let Some(source_id)=g.clone(){
-                    submit(BuilderEdit::GroupAllocation{source_id,mode:Some(m.into())});}};
+                  let current=data.with(|d|d.as_ref().map(|s|s.allocation.clone())).filter(|m|!m.is_empty()).unwrap_or("count".into());
+                  let pick=move|m:&'static str|move|_|submit(BuilderEdit::AllocationDefault{mode:m.into()});
                   view!{
-                  <p class="field-help">{if off{"Select a subscriber group card to choose how its source spreads subscribers over its placements."}
-                    else{"The mode applies to new subscribers and to the next rebalance. It moves nobody now."}}</p>
-                  <fieldset class="canvas-modes"><legend>"Allocation mode"</legend>
-                    <label><input type="radio" name="allocation" checked=mode=="capacity" disabled=move||off||locked() on:change=pick("capacity")/>"Capacity: by plan demand against the capacity above each placement"</label>
-                    <label><input type="radio" name="allocation" checked=mode=="count" disabled=move||off||locked() on:change=pick("count")/>"Equal subscriber count, pins included"</label>
-                    <label><input type="radio" name="allocation" disabled/>"Quality-aware (not available: it needs fresh per-WAN measurements)"</label>
+                  <fieldset class="canvas-modes"><legend>"Topology default"</legend>
+                    <label><input type="radio" name="allocation-default" prop:checked=current=="count" disabled=locked on:change=pick("count")/>"Equal subscriber count, pins included"</label>
+                    <label><input type="radio" name="allocation-default" prop:checked=current=="capacity" disabled=locked on:change=pick("capacity")/>"Capacity: plan demand against the capacity above each node"</label>
+                    <label><input type="radio" name="allocation-default" prop:checked=current=="quality" disabled=locked on:change=pick("quality")/>"Quality: capacity multiplied by the WAN quality score"</label>
                   </fieldset>}
                 }}
+                {move||selected_node().filter(|n|n.kind=="group").and_then(|n|n.source_id.clone().map(|s|(s,n.name))).map(|(source,name)|{
+                  let mode=data.with(|d|d.as_ref().and_then(|s|s.factors.iter().find(|f|f.source_id==source).map(|f|f.allocation.clone()))).unwrap_or_default();
+                  view!{
+                  <label>{format!("Mode of {name}")}<select prop:value=mode disabled=locked on:change=move|ev|{
+                      let m=event_target_value(&ev);
+                      submit(BuilderEdit::GroupAllocation{source_id:source.clone(),mode:(!m.is_empty()).then_some(m)});
+                    }>
+                    <option value="">"Use the topology default"</option>
+                    <option value="count">"Equal subscriber count"</option>
+                    <option value="capacity">"Capacity"</option>
+                    <option value="quality">"Quality"</option>
+                  </select></label>}
+                })}
+                <p class="field-help">"A mode applies to new subscribers and to the next rebalance. It moves nobody now. Stale WAN quality data uses capacity."</p>
                 <p class="field-help">"A shaping placement does not change MikroTik routing."</p>
                 <div class="form-actions">
                   {move||selected_node().filter(|n|n.kind=="group").and_then(|n|n.source_id.clone().map(|s|(s,n.name))).map(|(source,name)|view!{
@@ -694,6 +729,21 @@ pub(crate) fn Canvas(
           </footer>
         </dialog>
       </section>
+    }
+}
+
+/// The text of a WAN probe state. Text, not only color, carries the state.
+fn health_label(h: &WanHealthView) -> String {
+    match h.state.as_str() {
+        "up" => match h.quality_percent {
+            Some(q) => format!("Up · Quality {q}%"),
+            None => "Up".into(),
+        },
+        "degraded" => "Degraded".into(),
+        "unavailable" => "Unavailable".into(),
+        "recovering" => "Recovering".into(),
+        "waiting_for_rebalance" => "Waiting for Rebalance".into(),
+        _ => "No probe data".into(),
     }
 }
 

@@ -30,6 +30,8 @@ pub struct Input<'a> {
     pub history: &'a [crate::topology_manager::web_receipts::Record],
     /// Canvas card positions. Layout only.
     pub layout: Option<&'a crate::topology_manager::canvas::CanvasLayout>,
+    /// The WAN monitor state of each WAN node.
+    pub wan: Option<&'a HashMap<String, crate::wan_monitor::WanView>>,
 }
 
 /// Web changes kept in the view, newest first.
@@ -88,6 +90,13 @@ pub fn project(input: &Input<'_>) -> TopologyView {
     }
     for node in &mut nodes {
         node.auto_members = auto_members.get(node.id.as_str()).copied();
+        node.wan_health = input.wan.and_then(|w| w.get(&node.id)).map(|w| {
+            web_contract::topology::WanHealthView {
+                state: name(&w.state),
+                quality_percent: w.quality_percent,
+                error: w.error.clone(),
+            }
+        });
         node.position = input
             .layout
             .and_then(|l| l.positions.get(&node.id).copied());
@@ -211,11 +220,18 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                     name: s.name.clone(),
                     down: factor_text(group.factors.down),
                     up: factor_text(group.factors.up),
-                    allocation: name(&group.allocation),
+                    allocation: group.allocation.as_ref().map(name).unwrap_or_default(),
                 }),
                 SourceOrigin::Wan { .. } => None,
             })
             .collect(),
+        allocation: doc
+            .and_then(|d| d.catalog.as_ref())
+            .map(|c| name(&c.allocation))
+            .unwrap_or_default(),
+        auto_failback: doc
+            .and_then(|d| d.catalog.as_ref())
+            .is_none_or(|c| c.auto_failback),
         publication: input.publication.map(publication),
         history: {
             let mut records: Vec<_> = input.history.iter().collect();

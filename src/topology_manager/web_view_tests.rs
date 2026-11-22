@@ -190,6 +190,7 @@ fn input<'a>(
         publication: None,
         history: &[],
         layout: None,
+        wan: None,
     }
 }
 
@@ -666,4 +667,59 @@ fn view_shows_the_automatic_parent_of_a_source() {
     }
     let v = project(&input(Some(&d), None, None));
     assert!(source(&v, "silver").auto_parents.is_empty());
+}
+
+#[test]
+fn view_shows_wan_health_and_modes() {
+    use crate::topology_manager::wan_health::WanState;
+    use crate::wan_monitor::WanView;
+    let mut d = routed_doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.allocation = catalog::AllocationMode::Quality;
+    c.auto_failback = false;
+    if let catalog::SourceOrigin::Subscribers { group, .. } = &mut c.sources[2].origin {
+        group.allocation = Some(catalog::AllocationMode::Count);
+    }
+    let wan = std::collections::HashMap::from([(
+        "wan1".to_string(),
+        WanView {
+            state: WanState::WaitingForRebalance,
+            quality_percent: Some(87),
+            error: None,
+        },
+    )]);
+    let mut i = input(Some(&d), None, None);
+    i.wan = Some(&wan);
+    let v = project(&i);
+    assert_eq!((v.allocation.as_str(), v.auto_failback), ("quality", false));
+    let health = v
+        .nodes
+        .iter()
+        .find(|n| n.id == "wan1")
+        .unwrap()
+        .wan_health
+        .clone();
+    let health = health.unwrap();
+    assert_eq!(
+        (health.state.as_str(), health.quality_percent),
+        ("waiting_for_rebalance", Some(87))
+    );
+    assert!(
+        v.nodes
+            .iter()
+            .find(|n| n.id == "wan2")
+            .unwrap()
+            .wan_health
+            .is_none()
+    );
+    let factor = |id: &str| {
+        v.factors
+            .iter()
+            .find(|f| f.source_id == id)
+            .unwrap()
+            .allocation
+            .clone()
+    };
+    assert_eq!(factor("profile-source"), "count");
+    assert_eq!(factor("silver"), "", "silver follows the topology default");
 }

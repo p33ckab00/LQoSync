@@ -44,6 +44,11 @@ pub struct TopologyView {
     /// The group factor of each subscriber source.
     #[serde(default)]
     pub factors: Vec<SourceFactor>,
+    /// The topology default allocation mode.
+    #[serde(default)]
+    pub allocation: String,
+    #[serde(default = "yes")]
+    pub auto_failback: bool,
     /// The latest shaping write. `None` when the service has no write record.
     #[serde(default)]
     pub publication: Option<Publication>,
@@ -121,9 +126,24 @@ pub struct SourceFactor {
     /// Exact decimal factors, for example `0.5`.
     pub down: String,
     pub up: String,
-    /// `capacity` or `count`.
+    /// The mode of this source: `count`, `capacity`, or `quality`. Empty: the topology default.
     #[serde(default)]
     pub allocation: String,
+}
+
+/// The probe state of one WAN node.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WanHealthView {
+    /// `up`, `unknown`, `degraded`, `unavailable`, `recovering`, or `waiting_for_rebalance`.
+    pub state: String,
+    pub quality_percent: Option<u64>,
+    /// The last probe error, for example a missing `test` policy of the API user.
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -181,6 +201,9 @@ pub struct Node {
     /// Saved subscribers that automatic placement put on this node. `None` for zero.
     #[serde(default)]
     pub auto_members: Option<u64>,
+    /// The probe state of a WAN node. `None` without probe data.
+    #[serde(default)]
+    pub wan_health: Option<WanHealthView>,
 }
 
 /// The `type` of a node in `network.json`. Separate from the policy role.
@@ -406,6 +429,10 @@ pub struct TopologySummary {
     pub speed: Option<SpeedDefaults>,
     #[serde(default)]
     pub factors: Vec<SourceFactor>,
+    #[serde(default)]
+    pub allocation: String,
+    #[serde(default = "yes")]
+    pub auto_failback: bool,
     #[serde(default)]
     pub publication: Option<Publication>,
     /// The newest web changes. The cache holds more.

@@ -749,6 +749,10 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 .canvas-node-router{border:1px solid var(--wire);color:var(--text)}
 .canvas-node-auto{min-inline-size:6ch;text-align:center;background:color-mix(in srgb,var(--wire) 14%,transparent);color:var(--text)}
 .canvas-auto-parent{color:var(--muted)}
+.canvas-dialog .check label{align-items:flex-start;text-align:start}
+.canvas-node-health{flex:none;font-size:11px;line-height:16px;padding:0 6px;border-radius:999px;white-space:nowrap;min-inline-size:9ch;text-align:center;border:1px solid var(--wire);color:var(--text)}
+.canvas-node-health[data-state=unavailable],.canvas-node-health[data-state=degraded]{border-color:var(--bad);color:var(--bad)}
+.canvas-node-health[data-state=recovering],.canvas-node-health[data-state=waiting_for_rebalance]{border-style:dashed}
 .canvas-empty{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;padding:24px;text-align:center;pointer-events:none}
 .canvas-empty>*{margin:0;max-inline-size:44ch;color:var(--muted);pointer-events:auto}
 .canvas-dock{position:absolute;inset-block-start:16px;inset-inline-end:16px;display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 4px 16px rgb(0 0 0/.08)}

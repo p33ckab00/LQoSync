@@ -118,6 +118,8 @@ fn summary(v: &TopologyView) -> TopologySummary {
         dhcp_total: count("dhcp"),
         speed: v.speed.clone(),
         factors: v.factors.clone(),
+        allocation: v.allocation.clone(),
+        auto_failback: v.auto_failback,
         publication: v.publication.clone(),
         history: v.history.iter().take(HISTORY).cloned().collect(),
         layout_revision: v.layout_revision.clone(),

@@ -632,6 +632,7 @@ where
             .as_ref()
             .and_then(|r| r.recent().ok())
             .unwrap_or_default();
+        let wan = self.wan_monitor.as_ref().map(|m| m.view(now));
         let layout = crate::topology_manager::canvas::load(
             &Path::new(&self.cfg.runtime.state_dir).join("topology-manager"),
         )
@@ -649,6 +650,7 @@ where
                 publication: publication.as_ref(),
                 history: &history,
                 layout: layout.as_ref(),
+                wan: wan.as_ref(),
             });
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {

@@ -998,6 +998,7 @@ mod tests {
             position: None,
             router_id: None,
             auto_members: None,
+            wan_health: None,
         }
     }
 

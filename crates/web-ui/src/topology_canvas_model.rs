@@ -113,6 +113,7 @@ mod tests {
             position,
             router_id: None,
             auto_members: None,
+            wan_health: None,
         }
     }
 
