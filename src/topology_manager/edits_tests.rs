@@ -1521,7 +1521,7 @@ fn group_allocation_sets_count_mode_and_refuses_unknown_sources_and_modes() {
     let SourceOrigin::Subscribers { group, .. } = &source.origin else {
         panic!("not a subscriber source")
     };
-    assert_eq!(group.allocation, catalog::AllocationMode::Count);
+    assert_eq!(group.allocation, Some(catalog::AllocationMode::Count));
     assert!(
         refused(
             &d,
@@ -1531,10 +1531,69 @@ fn group_allocation_sets_count_mode_and_refuses_unknown_sources_and_modes() {
     );
     assert!(
         serde_json::from_value::<Edit>(
-            json!({"kind": "group.allocation", "source_id": "profile-source", "mode": "quality"})
+            json!({"kind": "group.allocation", "source_id": "profile-source", "mode": "fastest"})
         )
         .is_err()
     );
+}
+
+fn group_mode(d: &RegistryDocument) -> Option<catalog::AllocationMode> {
+    d.catalog
+        .as_ref()
+        .unwrap()
+        .sources
+        .iter()
+        .find_map(|s| match &s.origin {
+            SourceOrigin::Subscribers { group, .. } if s.id == "profile-source" => {
+                Some(group.allocation)
+            }
+            _ => None,
+        })
+        .unwrap()
+}
+
+#[test]
+fn group_allocation_null_returns_to_the_topology_default() {
+    let d = run(
+        &doc(),
+        json!({"kind": "group.allocation", "source_id": "profile-source", "mode": "quality"}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(group_mode(&d), Some(catalog::AllocationMode::Quality));
+    let d = run(
+        &d,
+        json!({"kind": "group.allocation", "source_id": "profile-source", "mode": null}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(group_mode(&d), None);
+}
+
+#[test]
+fn allocation_default_and_auto_failback_edits_save() {
+    let d = run(
+        &doc(),
+        json!({"kind": "allocation.default", "mode": "quality"}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(
+        d.catalog.as_ref().unwrap().allocation,
+        catalog::AllocationMode::Quality
+    );
+    let d = run(&d, json!({"kind": "failback.auto", "enabled": false}))
+        .unwrap()
+        .candidate;
+    assert!(!d.catalog.as_ref().unwrap().auto_failback);
+}
+
+#[test]
+fn an_unknown_mode_is_refused() {
+    let e =
+        serde_json::from_value::<Edit>(json!({"kind": "allocation.default", "mode": "fastest"}))
+            .unwrap_err();
+    assert!(e.to_string().contains("unknown variant"), "{e}");
 }
 
 #[test]

@@ -171,6 +171,8 @@ pub(crate) fn catalog() -> TopologyCatalog {
             group("group1", "wan1"),
             group("group2", "wan2"),
         ],
+        // The fixture states its mode: most placement tests expect capacity shares.
+        allocation: AllocationMode::Capacity,
         ..TopologyCatalog::default()
     }
 }
@@ -716,4 +718,20 @@ fn a_source_in_the_branch_of_another_router_node_is_refused() {
     c.validate().unwrap();
     let error = c.check_router_nodes().unwrap_err().to_string();
     assert!(error.contains("another router"), "{error}");
+}
+
+#[test]
+fn mode_of_uses_the_source_override_then_the_topology_default() {
+    let mut c = catalog();
+    c.allocation = AllocationMode::Count;
+    assert_eq!(c.mode_of(None), AllocationMode::Count);
+    let source = c.sources[2].clone();
+    assert_eq!(c.mode_of(Some(&source)), AllocationMode::Count);
+    let mut capacity = source.clone();
+    if let SourceOrigin::Subscribers { group, .. } = &mut capacity.origin {
+        group.allocation = Some(AllocationMode::Capacity);
+    }
+    assert_eq!(c.mode_of(Some(&capacity)), AllocationMode::Capacity);
+    assert_eq!(AllocationMode::default(), AllocationMode::Count);
+    assert!(TopologyCatalog::default().auto_failback);
 }

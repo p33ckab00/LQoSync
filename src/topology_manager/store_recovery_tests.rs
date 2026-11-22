@@ -490,18 +490,26 @@ fn a_location_outside_the_valid_range_is_not_a_valid_registry() {
 fn schema_5_registry_migrates_to_6_without_change() {
     let root = tempfile::tempdir().unwrap();
     drop(RegistryStore::open(root.path()).unwrap());
-    let original = RegistryDocument {
+    let mut original = RegistryDocument {
         revision: 3,
         catalog: Some(located_catalog()),
         ..RegistryDocument::default()
     };
     let mut old = serde_json::to_value(&original).unwrap();
     old["schema_version"] = 5.into();
+    // The migration states the capacity mode that a schema-5 group used.
+    for source in &mut original.catalog.as_mut().unwrap().sources {
+        if let crate::topology_manager::catalog::SourceOrigin::Subscribers { group, .. } =
+            &mut source.origin
+        {
+            group.allocation = Some(crate::topology_manager::catalog::AllocationMode::Capacity);
+        }
+    }
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     let before = std::fs::read(primary(root.path())).unwrap();
     let mut store = RegistryStore::open(root.path()).unwrap();
     let doc = store.document().unwrap().clone();
-    assert_eq!(doc.schema_version, 6);
+    assert_eq!(doc.schema_version, SCHEMA);
     assert_eq!(
         RegistryDocument {
             schema_version: original.schema_version,
@@ -520,4 +528,34 @@ fn schema_5_registry_migrates_to_6_without_change() {
     old["catalog"]["nodes"][2]["router_id"] = "distro".into();
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     assert!(RegistryStore::open(root.path()).is_err());
+}
+
+#[test]
+fn schema_6_sources_keep_capacity_after_migration() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let mut old = serde_json::to_value(RegistryDocument {
+        revision: 2,
+        catalog: Some(crate::topology_manager::catalog::tests::catalog()),
+        ..RegistryDocument::default()
+    })
+    .unwrap();
+    old["schema_version"] = 6.into();
+    // A schema-6 group without "allocation" used capacity mode.
+    let group = &mut old["catalog"]["sources"][2]["origin"]["Subscribers"]["group"];
+    group.as_object_mut().unwrap().remove("allocation");
+    old["catalog"].as_object_mut().unwrap().remove("allocation");
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    let store = RegistryStore::open(root.path()).unwrap();
+    let doc = store.document().unwrap();
+    assert_eq!(doc.schema_version, 7);
+    let c = doc.catalog.as_ref().unwrap();
+    assert_eq!(
+        c.allocation,
+        crate::topology_manager::catalog::AllocationMode::Count
+    );
+    assert_eq!(
+        c.mode_of(Some(&c.sources[2])),
+        crate::topology_manager::catalog::AllocationMode::Capacity
+    );
 }

@@ -368,10 +368,9 @@ pub fn rebalance(
                 .map(|t| t.independent_path.iter().copied().collect())
                 .collect(),
         };
-        let by_count = scope.source.is_some_and(|s| {
-            matches!(&catalog.sources[s].origin,
-                SourceOrigin::Subscribers { group, .. } if group.allocation == AllocationMode::Count)
-        });
+        let by_count = scope
+            .source
+            .is_some_and(|s| catalog.mode_of(Some(&catalog.sources[s])) == AllocationMode::Count);
         // The share of one subscriber in the group totals: its plan, or one in count mode.
         let share = |base: RateBps| if by_count { ONE } else { base };
         let mut pending = Vec::new();

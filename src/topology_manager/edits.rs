@@ -109,8 +109,17 @@ pub enum Edit {
     #[serde(rename = "group.allocation")]
     GroupAllocation {
         source_id: String,
+        /// `null` returns the source to the topology default.
+        mode: Option<super::catalog::AllocationMode>,
+    },
+    /// The topology default allocation mode. It moves nobody by itself.
+    #[serde(rename = "allocation.default")]
+    AllocationDefault {
         mode: super::catalog::AllocationMode,
     },
+    /// Return subscribers to a recovered WAN without a Rebalance (on) or only by Rebalance (off).
+    #[serde(rename = "failback.auto")]
+    AutoFailback { enabled: bool },
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
     /// Local plans as reviewed edits: the review lists rate and capacity changes first.
@@ -1592,6 +1601,12 @@ pub fn apply(
                 })
                 .ok_or_else(|| invalid("the subscriber source does not exist"))?;
             group.allocation = *mode;
+        }
+        Edit::AllocationDefault { mode } => {
+            d.catalog.as_mut().expect("enrolled").allocation = *mode;
+        }
+        Edit::AutoFailback { enabled } => {
+            d.catalog.as_mut().expect("enrolled").auto_failback = *enabled;
         }
         Edit::Rebalance { source_id } => {
             affected = rebalance(d.catalog.as_ref().expect("enrolled"), source_id.as_deref())?;

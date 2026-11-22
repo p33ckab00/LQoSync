@@ -791,7 +791,7 @@ fn counted(mut r: RegistryDocument) -> RegistryDocument {
     if let SourceOrigin::Subscribers { group, .. } =
         &mut r.catalog.as_mut().unwrap().sources[2].origin
     {
-        group.allocation = catalog::AllocationMode::Count;
+        group.allocation = Some(catalog::AllocationMode::Count);
     }
     r
 }

@@ -628,9 +628,30 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
             old.schema_version = SCHEMA;
             old
         }
-        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-6 registry")?,
+        6 => {
+            let mut old: RegistryDocument =
+                serde_json::from_slice(&bytes).context("cannot decode schema-6 registry")?;
+            ensure!(
+                old.schema_version == 6,
+                "registry schema changed during load"
+            );
+            old.schema_version = SCHEMA;
+            old
+        }
+        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-7 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
+    let mut document = document;
+    // Before schema 7, a group without a mode used capacity mode. Keep that behavior.
+    if header.schema_version < 7 {
+        for source in document.catalog.iter_mut().flat_map(|c| &mut c.sources) {
+            if let super::catalog::SourceOrigin::Subscribers { group, .. } = &mut source.origin {
+                group
+                    .allocation
+                    .get_or_insert(super::catalog::AllocationMode::Capacity);
+            }
+        }
+    }
     document.validate()?;
     Ok(Some(LoadedDocument {
         document,
@@ -825,7 +846,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":7,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":8,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -1078,7 +1099,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":7,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":8,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());

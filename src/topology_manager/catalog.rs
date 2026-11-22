@@ -62,21 +62,31 @@ pub struct BackstopPolicy {
     pub factor: Fraction,
 }
 
-/// How a source-pool rebalance spreads subscribers over the instances of one source.
+/// How new subscribers and a rebalance spread over the eligible nodes. The operator selects it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AllocationMode {
-    /// By plan demand relative to the capacity above each instance.
+    /// By subscriber count: each node gets an equal share, pins included. Owner default.
     #[default]
-    Capacity,
-    /// By subscriber count: each instance gets an equal share, pins included.
     Count,
+    /// By plan demand relative to the capacity above each node.
+    Capacity,
+    /// As capacity, with each WAN capacity multiplied by its quality score. Stale data: capacity.
+    Quality,
 }
 
 impl AllocationMode {
-    pub fn is_capacity(&self) -> bool {
-        *self == Self::Capacity
+    pub fn is_count(&self) -> bool {
+        *self == Self::Count
     }
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,9 +97,9 @@ pub struct GroupDefaults {
     pub backstop: Option<BackstopPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub floor: Option<RateBps>,
-    /// Added in registry schema 5.
-    #[serde(default, skip_serializing_if = "AllocationMode::is_capacity")]
-    pub allocation: AllocationMode,
+    /// Schema 5 added it; schema 7 made it optional. `None` uses the topology default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allocation: Option<AllocationMode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -189,6 +199,12 @@ pub struct TopologyCatalog {
     /// Absent in registries written before Phase 2c-2; such files serialize unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fallback: Option<FallbackPolicy>,
+    /// The topology default allocation mode. Added in registry schema 7.
+    #[serde(default, skip_serializing_if = "AllocationMode::is_count")]
+    pub allocation: AllocationMode,
+    /// Subscribers return to a recovered WAN without a Rebalance. Added in registry schema 7.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub auto_failback: bool,
 }
 
 impl Default for TopologyCatalog {
@@ -201,6 +217,8 @@ impl Default for TopologyCatalog {
             defaults: new_policy_defaults(),
             nodes: Vec::new(),
             fallback: None,
+            allocation: AllocationMode::Count,
+            auto_failback: true,
         }
     }
 }
@@ -208,6 +226,16 @@ impl Default for TopologyCatalog {
 impl TopologyCatalog {
     pub fn validate(&self) -> anyhow::Result<()> {
         self.index().map(|_| ())
+    }
+
+    /// The allocation mode of the subscribers of `source`: its override, else the topology default.
+    pub fn mode_of(&self, source: Option<&CatalogSource>) -> AllocationMode {
+        source
+            .and_then(|s| match &s.origin {
+                SourceOrigin::Subscribers { group, .. } => group.allocation,
+                SourceOrigin::Wan { .. } => None,
+            })
+            .unwrap_or(self.allocation)
     }
 
     /// The index of the router node of `router_id`.

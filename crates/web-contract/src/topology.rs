@@ -700,7 +700,17 @@ pub enum BuilderEdit {
     },
     /// `capacity` or `count`: how a source spreads its subscribers over its instances.
     #[serde(rename = "group.allocation")]
-    GroupAllocation { source_id: String, mode: String },
+    GroupAllocation {
+        source_id: String,
+        /// `None` returns the source to the topology default.
+        mode: Option<String>,
+    },
+    /// The topology default allocation mode: `count`, `capacity`, or `quality`.
+    #[serde(rename = "allocation.default")]
+    AllocationDefault { mode: String },
+    /// Automatic failback to a recovered WAN.
+    #[serde(rename = "failback.auto")]
+    AutoFailback { enabled: bool },
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },

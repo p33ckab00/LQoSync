@@ -601,8 +601,8 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
             let source = catalog.nodes[t.node].source_id.as_deref();
             catalog.sources.iter().any(|s| {
                 Some(s.id.as_str()) == source
-                    && matches!(&s.origin, SourceOrigin::Subscribers { group, .. }
-                        if group.allocation == super::catalog::AllocationMode::Count)
+                    && matches!(&s.origin, SourceOrigin::Subscribers { .. })
+                    && catalog.mode_of(Some(s)) == super::catalog::AllocationMode::Count
             })
         })
         .collect();
