@@ -15,6 +15,7 @@ pub mod reader;
 pub mod resolver;
 pub mod wan;
 pub mod wan_health;
+pub mod wan_lists;
 pub mod web_receipts;
 pub mod web_view;
 pub use resolver::rebalance;
