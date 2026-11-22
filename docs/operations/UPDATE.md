@@ -36,7 +36,9 @@ Check: both commands end without an error. `target/release/lqosync3` and `crates
 
 ### Step 2: Backup
 
-Do these commands as root (`sudo -i`). The first `systemctl` command stops the core service.
+First, open a root shell with `sudo -i`, and type the password. Then paste the commands. Do not paste `sudo -i` together with the commands: the password prompt reads the pasted lines, and the commands do not run.
+
+The `systemctl stop` command stops the core service.
 
 ```bash
 B=/var/backups/lqosync3/update-$(date +%Y%m%d%H%M)
@@ -48,6 +50,8 @@ cp -a /var/lib/lqosync3 "$B"/state
 cp -a /opt/libreqos/src/network.json /opt/libreqos/src/ShapedDevices.csv "$B"/
 echo "$B"
 ```
+
+Check: the last command shows the folder, and `systemctl is-active lqosync3` shows `inactive`. If the service is still active, stop here: the commands did not run.
 
 Write down the value of `$B`. The rollback needs it.
 
@@ -65,8 +69,10 @@ Check: `lqosync3 check` shows no `ERROR` line. If it shows an `ERROR` line, do n
 
 ```bash
 systemctl start lqosync3
-lqosync3 version
+systemctl show lqosync3 -p MainPID -p ActiveEnterTimestamp
 ```
+
+Check: the start time is now. `lqosync3 version` shows the version of the file on disk only. It does not show the version of the running process.
 
 ### Step 4: Install the web UI
 
