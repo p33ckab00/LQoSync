@@ -45,6 +45,55 @@ These constraints apply to all rules:
 | A router node is an `Intermediate` or `SubscriberGroup` node. A WAN node cannot be a router node. | Builder call. A WAN node already has a router through its WAN source. |
 | One router has a maximum of one router node. | Builder call. Two nodes would make R3 ambiguous. |
 
+## Owner decisions, round 2 (2026-11-22)
+
+These decisions apply to later phases. They do not change the implemented rules R1–R6.
+
+### WAN choice and routing
+
+- Each subscriber uses one WAN. A MikroTik address-list on the core router selects that WAN (policy-based routing).
+- There is one address-list for each WAN. The members are the client addresses. Example: LitoYambi, `10.100.0.234/32`.
+- LQoSync decides the WAN of each client. When LQoSync publishes a change, it also updates the address-lists on the configured core router.
+- At this time, the operator keeps the address-lists manually.
+- The core or edge router holds the WANs. The distribution router or access concentrator holds the subscribers (DHCP, IPoE, PPPoE, Hotspot).
+- The configured capacity of each WAN is the ceiling of that WAN.
+- The core router writer is a later phase. It needs a separate scope approval before implementation, because it writes to MikroTik.
+- List name: `lqosync-wan-<WAN name>`, one list for each WAN.
+- The writer changes only the entries that have a comment that starts with `lqosync:`. It does not change manual entries.
+- The operator makes the mangle rules and the routes one time. The writer keeps only the list members.
+- Before the first write, the service reads the manual lists and keeps those WAN choices. No client changes its WAN at the cutover.
+- When the address of a PPPoE or DHCP client changes, the writer changes the address in the list. The client keeps its WAN.
+- When a write to the core router fails, the service does not publish the placement change of those clients. It tries again in the next cycle.
+
+### Allocation
+
+- The operator selects the allocation mode. The system must stay flexible.
+- Modes: equal subscriber count (default), capacity, and quality.
+- Quality mode: the share of each WAN is proportional to its capacity multiplied by its quality score (0 to 1). Example: WAN1 1000 Mbps with quality 1.0 and WAN2 300 Mbps with quality 0.5 give 1000 : 150, about 87% : 13%.
+- When the quality data is stale, quality mode uses capacity mode.
+- The saved tree in the Topology Manager is the authority for the structure.
+
+### WAN monitoring and failover
+
+- The service must monitor each WAN.
+- These conditions make a WAN unavailable: bad ping quality, a disabled interface, and a WAN that does not return in time.
+- Probe: one ping every 10 seconds through the WAN itself (with its routing mark), to two targets.
+- A disabled or not running interface makes the WAN unavailable at once.
+- Bad quality: loss of 50% or more, or latency more than 3 times the normal value, for 1 minute.
+- The subscribers move only when the problem continues for more than 2 minutes. A short failure moves no subscriber.
+- When a WAN is unavailable, its subscribers move to the other eligible WAN nodes.
+- Failback: the subscribers return after the WAN is stable for 10 minutes.
+- An on/off setting controls automatic rebalance. On: failback and rebalance occur automatically. Off: only the manual Rebalance moves subscribers.
+- After a failover, the ceiling of the WAN that stays available applies to all its subscribers. The owner accepts this.
+- Each node keeps its own bandwidth control: plan capacity multiplied by the number of clients, multiplied by the factor.
+
+### Stability (S1–S4 = A)
+
+- A saved assignment stays. A subscriber moves only for a tree change, a manual Rebalance, or a failover.
+- A new child node takes new subscribers only. The other subscribers stay on their nodes.
+- When the operator adds a router node, its automatic subscribers move one time, together.
+- An assignment stays until the service or the operator removes the subscriber record. This is also true when the subscriber is offline.
+
 ## Approaches
 
 1. **Extend the resolver eligibility (selected).** Calculate the eligible nodes for each router one time for each index build. Use them where the current fallback path applies. This reuses the resolver, the sticky assignment, the allocation, and the publication path.
