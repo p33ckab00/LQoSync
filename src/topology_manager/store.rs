@@ -611,7 +611,24 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
             old.schema_version = SCHEMA;
             old
         }
-        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-5 registry")?,
+        5 => {
+            let mut old: RegistryDocument =
+                serde_json::from_slice(&bytes).context("cannot decode schema-5 registry")?;
+            ensure!(
+                old.schema_version == 5,
+                "registry schema changed during load"
+            );
+            ensure!(
+                old.catalog
+                    .iter()
+                    .flat_map(|c| &c.nodes)
+                    .all(|n| n.router_id.is_none()),
+                "a schema-5 registry cannot contain router nodes"
+            );
+            old.schema_version = SCHEMA;
+            old
+        }
+        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-6 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     document.validate()?;
@@ -808,7 +825,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":6,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":7,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -1061,7 +1078,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":6,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":7,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());

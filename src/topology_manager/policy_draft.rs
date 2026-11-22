@@ -152,6 +152,7 @@ impl Builder<'_> {
             targets: vec![],
         });
         self.catalog.nodes.push(CatalogNode {
+            router_id: None,
             geo: None,
             minimum,
             id,

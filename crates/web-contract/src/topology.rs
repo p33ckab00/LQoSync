@@ -640,6 +640,12 @@ pub enum BuilderEdit {
         geo_type: Option<GeoType>,
         location: Option<Location>,
     },
+    /// Set or clear the access router that a node represents.
+    #[serde(rename = "node.router")]
+    NodeRouter {
+        node_id: String,
+        router_id: Option<String>,
+    },
     /// A WAN node on an interface from the latest WAN discovery of the service.
     #[serde(rename = "wan.create")]
     WanCreate {
@@ -898,5 +904,17 @@ mod canvas_tests {
         assert_eq!(geo_type, Some(GeoType::Ap));
         v["command"]["edit"]["extra"] = true.into();
         assert!(serde_json::from_value::<MutationRequest>(v).is_err());
+    }
+
+    #[test]
+    fn a_router_edit_uses_the_service_edit_form() {
+        let edit = BuilderEdit::NodeRouter {
+            node_id: "n1".into(),
+            router_id: None,
+        };
+        assert_eq!(
+            serde_json::to_value(&edit).unwrap(),
+            serde_json::json!({"kind": "node.router", "node_id": "n1", "router_id": null})
+        );
     }
 }

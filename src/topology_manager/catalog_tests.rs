@@ -73,6 +73,7 @@ fn fixed(base: RateBps) -> CapacityPolicy {
 
 pub(crate) fn catalog() -> TopologyCatalog {
     let wan = |id: &str, source: &str, base| CatalogNode {
+        router_id: None,
         geo: None,
         minimum: Default::default(),
         id: id.into(),
@@ -83,6 +84,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
         capacity: fixed(base),
     };
     let group = |id: &str, parent: &str| CatalogNode {
+        router_id: None,
         geo: None,
         minimum: Default::default(),
         id: id.into(),
@@ -197,6 +199,7 @@ fn one_profile_supports_multiple_wans_with_distinct_instances_and_equal_labels()
 fn profile_only_and_wan_only_topologies_keep_their_explicit_structure() {
     let mut c = catalog();
     c.nodes = vec![CatalogNode {
+        router_id: None,
         geo: None,
         minimum: Default::default(),
         parent: None,
@@ -437,6 +440,7 @@ fn a_large_catalog_uses_iterative_validation() {
     let mut c = TopologyCatalog {
         nodes: (0..10_000)
             .map(|i| CatalogNode {
+                router_id: None,
                 geo: None,
                 minimum: Default::default(),
                 id: format!("group-{i}"),
@@ -564,6 +568,7 @@ fn node_minimums_require_positive_exact_whole_mbps_and_keep_absent_policy_compat
 pub(crate) fn with_fallback_node() -> TopologyCatalog {
     let mut c = catalog();
     c.nodes.push(CatalogNode {
+        router_id: None,
         geo: None,
         minimum: Default::default(),
         id: "fb".into(),
@@ -608,4 +613,101 @@ fn fallback_validation_rules() {
         c.fallback = Some(bad.clone());
         assert!(c.validate().is_err(), "{bad:?}");
     }
+}
+
+/// `catalog()` with router nodes: `towerA` names `distro`, `towerB` (below `towerA`) names `core`.
+fn routed() -> TopologyCatalog {
+    let mut c = catalog();
+    let node = |id: &str, parent: &str, router: &str| CatalogNode {
+        geo: None,
+        minimum: Default::default(),
+        id: id.into(),
+        name: id.into(),
+        parent: Some(parent.into()),
+        source_id: None,
+        kind: NodeKind::Intermediate,
+        capacity: CapacityPolicy::Inherit,
+        router_id: Some(router.into()),
+    };
+    c.nodes.push(node("towerA", "wan1", "distro"));
+    c.nodes.push(node("towerB", "towerA", "core"));
+    c.nodes.push(CatalogNode {
+        router_id: None,
+        ..node("apB", "towerB", "core")
+    });
+    c
+}
+
+#[test]
+fn router_node_round_trips_and_old_nodes_omit_it() {
+    let c = routed();
+    c.validate().unwrap();
+    let value = serde_json::to_value(&c).unwrap();
+    let nodes = value["nodes"].as_array().unwrap();
+    let wan = nodes.iter().find(|n| n["id"] == "wan1").unwrap();
+    assert!(wan.get("router_id").is_none());
+    let tower = nodes.iter().find(|n| n["id"] == "towerA").unwrap();
+    assert_eq!(tower["router_id"], "distro");
+    assert_eq!(serde_json::from_value::<TopologyCatalog>(value).unwrap(), c);
+}
+
+#[test]
+fn router_node_must_name_a_catalog_router() {
+    let mut c = routed();
+    c.check_router_nodes().unwrap();
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == "towerA")
+        .unwrap()
+        .router_id = Some("gone".into());
+    // An absent router still loads. Only an edit refuses it.
+    c.validate().unwrap();
+    let error = c.check_router_nodes().unwrap_err().to_string();
+    assert!(error.contains("router node"), "{error}");
+}
+
+#[test]
+fn one_router_has_at_most_one_router_node() {
+    let mut c = routed();
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == "towerB")
+        .unwrap()
+        .router_id = Some("distro".into());
+    let error = format!("{:#}", c.validate().unwrap_err());
+    assert!(error.contains("router node"), "{error}");
+}
+
+#[test]
+fn wan_node_cannot_be_a_router_node() {
+    let mut c = catalog();
+    c.nodes[0].router_id = Some("core".into());
+    let error = format!("{:#}", c.validate().unwrap_err());
+    assert!(error.contains("router node"), "{error}");
+}
+
+#[test]
+fn family_of_returns_the_nearest_router_node() {
+    let c = routed();
+    let at = |id: &str| c.nodes.iter().position(|n| n.id == id).unwrap();
+    assert_eq!(c.family_of(at("apB")), Some("core"));
+    assert_eq!(c.family_of(at("towerB")), Some("core"));
+    assert_eq!(c.family_of(at("towerA")), Some("distro"));
+    assert_eq!(c.family_of(at("wan1")), None);
+    assert_eq!(c.router_node("core"), Some(at("towerB")));
+    assert_eq!(c.router_node("other"), None);
+}
+
+#[test]
+fn a_source_in_the_branch_of_another_router_node_is_refused() {
+    let mut c = routed();
+    // profile-source belongs to `distro`. group1 moves below the `core` router node.
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .parent = Some("apB".into());
+    c.validate().unwrap();
+    let error = c.check_router_nodes().unwrap_err().to_string();
+    assert!(error.contains("another router"), "{error}");
 }

@@ -420,7 +420,7 @@ fn schema_four_migrates_to_five_and_keeps_the_schema_four_backup() {
     let before = std::fs::read(primary(root.path())).unwrap();
     let mut store = RegistryStore::open(root.path()).unwrap();
     let mut doc = store.document().unwrap().clone();
-    assert_eq!(doc.schema_version, 5);
+    assert_eq!(doc.schema_version, SCHEMA);
     let ids: std::collections::BTreeSet<_> = doc
         .catalog
         .as_ref()
@@ -440,7 +440,7 @@ fn schema_four_migrates_to_five_and_keeps_the_schema_four_backup() {
     let saved = store.document().unwrap();
     let disk: serde_json::Value =
         serde_json::from_slice(&std::fs::read(primary(root.path())).unwrap()).unwrap();
-    assert_eq!(disk["schema_version"], 5);
+    assert_eq!(disk["schema_version"], SCHEMA);
     let nodes = &saved.catalog.as_ref().unwrap().nodes;
     assert_eq!(
         nodes
@@ -467,7 +467,7 @@ fn a_future_schema_or_a_schema_four_file_with_canvas_fields_is_refused() {
         ..RegistryDocument::default()
     })
     .unwrap();
-    for schema in [4, 6] {
+    for schema in [4, SCHEMA + 1] {
         doc["schema_version"] = schema.into();
         crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&doc).unwrap())
             .unwrap();
@@ -484,4 +484,40 @@ fn a_location_outside_the_valid_range_is_not_a_valid_registry() {
         longitude: "0".into(),
     });
     assert!(c.validate().is_err());
+}
+
+#[test]
+fn schema_5_registry_migrates_to_6_without_change() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let original = RegistryDocument {
+        revision: 3,
+        catalog: Some(located_catalog()),
+        ..RegistryDocument::default()
+    };
+    let mut old = serde_json::to_value(&original).unwrap();
+    old["schema_version"] = 5.into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    let before = std::fs::read(primary(root.path())).unwrap();
+    let mut store = RegistryStore::open(root.path()).unwrap();
+    let doc = store.document().unwrap().clone();
+    assert_eq!(doc.schema_version, 6);
+    assert_eq!(
+        RegistryDocument {
+            schema_version: original.schema_version,
+            ..doc.clone()
+        },
+        original
+    );
+    let mut next = doc;
+    next.next_id += 1;
+    assert_eq!(store.commit(3, next).unwrap().revision, 4);
+    assert_eq!(
+        std::fs::read(backup_path(root.path(), 5, 3)).unwrap(),
+        before
+    );
+    // A schema-5 file cannot hold router nodes.
+    old["catalog"]["nodes"][2]["router_id"] = "distro".into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    assert!(RegistryStore::open(root.path()).is_err());
 }

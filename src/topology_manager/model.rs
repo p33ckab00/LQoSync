@@ -64,7 +64,7 @@ fn is_false(value: &bool) -> bool {
 }
 
 /// The current registry schema. Schema 5 adds node `geo` (type and location).
-pub const SCHEMA: u32 = 5;
+pub const SCHEMA: u32 = 6;
 
 impl Default for RegistryDocument {
     fn default() -> Self {

@@ -163,6 +163,9 @@ pub struct CatalogNode {
     /// The `network.json` type and location. Added in registry schema 5.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub geo: Option<web_contract::topology::NodeGeo>,
+    /// The access router that this node represents. Added in registry schema 6.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub router_id: Option<String>,
 }
 
 /// Group nodes that take subscribers whose source the catalog does not know.
@@ -205,6 +208,70 @@ impl Default for TopologyCatalog {
 impl TopologyCatalog {
     pub fn validate(&self) -> anyhow::Result<()> {
         self.index().map(|_| ())
+    }
+
+    /// The index of the router node of `router_id`.
+    pub fn router_node(&self, router_id: &str) -> Option<usize> {
+        self.nodes
+            .iter()
+            .position(|n| n.router_id.as_deref() == Some(router_id))
+    }
+
+    /// The router of the nearest router node at or above `node`. The parent graph is validated.
+    pub fn family_of(&self, node: usize) -> Option<&str> {
+        let mut cursor = Some(&self.nodes[node]);
+        while let Some(n) = cursor {
+            if let Some(router) = n.router_id.as_deref() {
+                return Some(router);
+            }
+            cursor = n
+                .parent
+                .as_deref()
+                .and_then(|p| self.nodes.iter().find(|m| m.id == p));
+        }
+        None
+    }
+
+    /// Edit-time rules for router nodes. A saved registry that breaks them still loads.
+    pub fn check_router_nodes(&self) -> anyhow::Result<()> {
+        for node in &self.nodes {
+            if let Some(router) = &node.router_id {
+                ensure!(
+                    self.routers.iter().any(|r| &r.id == router),
+                    "the router node {} names a router that is not in the catalog",
+                    node.name
+                );
+            }
+        }
+        for source in &self.sources {
+            let SourceOrigin::Subscribers { scope, .. } = &source.origin else {
+                continue;
+            };
+            let placed = self
+                .nodes
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| n.source_id.as_deref() == Some(source.id.as_str()))
+                .map(|(i, _)| i)
+                .chain(
+                    source
+                        .targets
+                        .iter()
+                        .filter_map(|t| self.nodes.iter().position(|n| &n.id == t)),
+                );
+            for i in placed {
+                if let Some(family) = self.family_of(i)
+                    && family != scope.router_id
+                {
+                    anyhow::bail!(
+                        "{} is in the branch of another router. Subscribers stay in the branch \
+                         of their own router.",
+                        source.name
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Check configured potential destinations. Current source-profile membership remains separate.
@@ -314,6 +381,19 @@ impl TopologyCatalog {
     }
 
     fn index(&self) -> anyhow::Result<CatalogIndex<'_>> {
+        let mut router_nodes = HashSet::new();
+        for node in &self.nodes {
+            if let Some(router) = &node.router_id {
+                ensure!(
+                    node.kind != NodeKind::Wan,
+                    "a WAN node cannot be a router node"
+                );
+                ensure!(
+                    router_nodes.insert(router.as_str()),
+                    "one router can have only one router node"
+                );
+            }
+        }
         nonempty(&self.root_label, "synthetic root label")?;
         validate_speed(&self.defaults, &SpeedOverrides::default(), None)?;
         let routers = named_index(&self.routers, |r| (&r.id, &r.name)).context("router catalog")?;

@@ -67,6 +67,12 @@ pub enum Edit {
         node_id: String,
         parent: Option<String>,
     },
+    /// Set or clear the access router that a node represents.
+    #[serde(rename = "node.router")]
+    NodeRouter {
+        node_id: String,
+        router_id: Option<String>,
+    },
     #[serde(rename = "node.update")]
     NodeUpdate {
         node_id: String,
@@ -568,6 +574,7 @@ fn wan_create(
         targets: Vec::new(),
     });
     c.nodes.push(CatalogNode {
+        router_id: None,
         geo: None,
         minimum: Default::default(),
         id: ids[1].clone(),
@@ -626,6 +633,7 @@ fn instance_add(
         source.targets.push(ids[0].clone());
     }
     c.nodes.push(CatalogNode {
+        router_id: None,
         geo: None,
         minimum: Default::default(),
         id: ids[0].clone(),
@@ -1162,6 +1170,7 @@ pub fn apply(
             | Edit::NodeUpdate { .. }
             | Edit::NodeRemove { .. }
             | Edit::NodeLocation { .. }
+            | Edit::NodeRouter { .. }
             | Edit::SourceAdd { .. }
     );
     if doc.catalog.is_none()
@@ -1224,6 +1233,7 @@ pub fn apply(
                 .expect("enrolled")
                 .nodes
                 .push(CatalogNode {
+                    router_id: None,
                     geo: None,
                     minimum: Default::default(),
                     id: ids[0].clone(),
@@ -1311,6 +1321,12 @@ pub fn apply(
                 }),
             };
             d.catalog.as_mut().expect("enrolled").nodes[i].geo = geo;
+        }
+        Edit::NodeRouter { node_id, router_id } => {
+            let c = d.catalog.as_ref().expect("enrolled");
+            affected.extend(sources_below(c, &top(c, node_id)));
+            let i = position(c, node_id)?;
+            d.catalog.as_mut().expect("enrolled").nodes[i].router_id = router_id.clone();
         }
         Edit::FallbackSet {
             node_ids,
@@ -1471,6 +1487,11 @@ pub fn apply(
     }
     c.canonicalize();
     d.validate().map_err(|e| invalid(format!("{e:#}")))?;
+    d.catalog
+        .as_ref()
+        .expect("enrolled")
+        .check_router_nodes()
+        .map_err(|e| invalid(format!("{e:#}")))?;
     // Refuse a new violation only, so an older saved policy still opens and edits.
     if let Some(name) = shared_fixed(d.catalog.as_ref().expect("enrolled"))
         && doc.catalog.as_ref().and_then(shared_fixed).is_none()

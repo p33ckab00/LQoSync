@@ -1572,3 +1572,103 @@ fn a_fixed_capacity_on_a_shared_source_placement_is_refused() {
         .is_ok()
     );
 }
+
+/// `doc()` with one empty intermediate node `Tower` below `wan1`. Returns its ID.
+fn with_tower(d: &mut RegistryDocument) -> String {
+    let next = run(
+        d,
+        json!({"kind": "node.create", "name": "Tower", "parent": "wan1", "capacity": {"mode": "inherit"}}),
+    )
+    .unwrap()
+    .candidate;
+    let id = new_node(d, &next).id.clone();
+    *d = next;
+    id
+}
+
+#[test]
+fn node_router_edit_sets_and_clears_the_router() {
+    let mut d = doc();
+    let tower = with_tower(&mut d);
+    let set = run(
+        &d,
+        json!({"kind": "node.router", "node_id": tower, "router_id": "distro"}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(node(&set, &tower).router_id.as_deref(), Some("distro"));
+    let clear = run(
+        &set,
+        json!({"kind": "node.router", "node_id": tower, "router_id": null}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(node(&clear, &tower).router_id, None);
+    assert!(
+        refused(
+            &d,
+            json!({"kind": "node.router", "node_id": "wan1", "router_id": "core"})
+        )
+        .contains("router node")
+    );
+}
+
+#[test]
+fn source_of_router_a_is_refused_in_the_branch_of_router_b() {
+    let mut d = doc();
+    let tower = with_tower(&mut d);
+    let core = run(
+        &d,
+        json!({"kind": "node.router", "node_id": tower, "router_id": "core"}),
+    )
+    .unwrap()
+    .candidate;
+    // group1 holds `profile-source` of router `distro`.
+    let error = refused(
+        &core,
+        json!({"kind": "node.move", "node_id": "group1", "parent": tower}),
+    );
+    assert!(error.contains("another router"), "{error}");
+    // The same check refuses a router node above an existing source of another router.
+    let moved = run(
+        &d,
+        json!({"kind": "node.move", "node_id": "group1", "parent": tower}),
+    )
+    .unwrap()
+    .candidate;
+    let error = refused(
+        &moved,
+        json!({"kind": "node.router", "node_id": tower, "router_id": "core"}),
+    );
+    assert!(error.contains("another router"), "{error}");
+}
+
+#[test]
+fn router_node_of_an_absent_router_is_refused_on_edit_but_loads() {
+    let mut d = doc();
+    let tower = with_tower(&mut d);
+    let mut d = run(
+        &d,
+        json!({"kind": "node.router", "node_id": tower, "router_id": "distro"}),
+    )
+    .unwrap()
+    .candidate;
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == tower)
+        .unwrap()
+        .router_id = Some("gone".into());
+    d.validate().unwrap();
+    let error = refused(
+        &d,
+        json!({"kind": "node.update", "node_id": "wan1", "name": "WAN one"}),
+    );
+    assert!(error.contains("router node"), "{error}");
+    // Clearing the router repairs the policy.
+    run(
+        &d,
+        json!({"kind": "node.router", "node_id": tower, "router_id": null}),
+    )
+    .unwrap();
+}
