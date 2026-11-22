@@ -27,12 +27,14 @@ This design replaces these parts of earlier designs:
    - Hotspot: one group card for the Hotspot of a router that has at least one active session. Builder call: this is the legacy grouping (`GroupKey::Hotspot`, one group for each router).
    - WAN: one WAN card for each discovered WAN interface.
 2. A card disappears when its source has no members. A source that is not on the canvas is not read for shaping.
-3. A router card is optional. The operator adds it. When it is added, it becomes the parent of all group cards of that router automatically. When it is removed, its group cards go to the nearest parent that stays on the canvas (the parent of the router card, else no parent).
+3. A router card appears automatically for each router that has active subscriber sources. It is the parent of all group cards of that router on the canvas. Each router card has the setting "Exclude from network tree" (changed 2026-11-22, replaces "the operator adds it"):
+   - Excluded: the canvas shows the card, but `network.json` has no router node. Its group nodes go to the parent of the router card (a WAN), else to no parent. This is the legacy `root_promotion` form.
+   - Included: `network.json` has a router node with its group nodes below it. This is the legacy `grouped_router_root` form.
 4. A connector makes a WAN the parent of a router card or of a group card. With two or more WAN parents, the subscribers are divided by the allocation mode: Count (default), Capacity, or Quality (earlier owner decision W4).
 5. Each card has its own settings in a modal: concise and compact. The approved mockup (brainstorm screen `canvas-cards.html`):
    - Group card: capacity (from plans, or fixed), download and upload factor, minimum, the division between WANs, and a Subscribers tab.
    - WAN card: capacity, address list (for example `via-WAN1`), auto failback. Health is read-only.
-   - Router card: location, a link to the Routers screen, and "Remove card".
+   - Router card: "Exclude from network tree", location, and a link to the Routers screen.
 6. The operator can connect WANs and change settings before activation. The activation does not wait for a canvas without changes.
 7. Port the infinite canvas, the cards, and the connectors of `traffic-intelligence` (`https://github.com/p33ckab00/traffic-intelligence`, the owner's repository).
 8. Approach A (below).
@@ -110,12 +112,16 @@ An interface with a default route (`0.0.0.0/0`) on a router with the WAN role ap
 
 ### 3. Router cards
 
+- Builder call: the default of "Exclude from network tree" follows `[network] mode`. With `root_promotion` (production), each router card starts excluded, so the first tree stays equal to the legacy tree and parity passes.
+- Builder call: a WAN connector to an excluded router card passes through. In the export, the WAN is the parent of the group nodes of that router.
+- Builder call: a router with only WAN interfaces (for example FSE-CORE) gets no router card. Its name shows on its WAN cards.
+- A change of the setting is an operator change through the review flow.
+
 The approved mockup shows two WANs as parents of one router card. Thus a router card can have two or more WAN parents, and its subscribers are divided by the allocation mode (Count default). Builder call: a group card below a router card takes its WAN parents from the router card. A WAN connector straight to such a group card is refused, because it would break the router branch rule.
 
-- "Add router card" (canvas action) lists the configured routers that have active sources.
-- Adding it sets the router node as the parent of every group node of that router. The existing placement rule R3 (the router node rule) applies.
-- The router node keeps the current rule: a subscriber never goes into the branch of another router.
-- Removing it moves each of its group nodes to the parent of the router node (or to no parent). Then it removes the router node.
+- An included router card is a router node. The existing placement rule R3 (the router node rule) applies.
+- The router node keeps the current rule: a subscriber never goes into the branch of another router. This rule also applies to an excluded router card on the canvas.
+- A router card disappears with the grace rule of section 1, when its router has no active sources.
 
 ### 4. Connectors
 
@@ -167,7 +173,7 @@ Use the existing forms (`crates/web-ui/src/topology_forms.rs`) and the review fl
   - A source becomes active on its first member, and inactive only after the grace.
   - A failed read changes nothing.
   - A returning source keeps its node ID and settings.
-  - Adding and removing a router card moves its groups.
+  - Excluding and including a router card changes only the export: the group nodes move between the router node and its parent.
   - The gate with `--accept-changes` passes reviewed changes and refuses `MissingRow`.
 - Native tests of the ported engine: no overlap for 1 to 200 cards, manual overrides kept, reset, fit.
 - Browser checks (`tools/frontend/check-all.sh`): drag a WAN connector, open each modal, list view, keyboard access, light and dark themes, narrow screen.
