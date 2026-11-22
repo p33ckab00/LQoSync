@@ -874,3 +874,20 @@ async fn a_router_card_below_two_wans_splits_its_subscribers() {
     placed.sort();
     assert_eq!(placed, ["group1", "group2"]);
 }
+
+#[tokio::test(start_paused = true)]
+async fn an_excluded_source_is_not_read_and_not_added_again() {
+    let mut observed = input(2);
+    for s in &mut observed
+        .reconciliation
+        .registry
+        .catalog
+        .as_mut()
+        .unwrap()
+        .sources
+    {
+        s.excluded = matches!(s.origin, catalog::SourceOrigin::Subscribers { .. });
+    }
+    let pair = prepare(observed).unwrap();
+    assert!(pair.rows().is_empty());
+}

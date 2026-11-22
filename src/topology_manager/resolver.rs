@@ -324,6 +324,25 @@ impl<'a> Index<'a> {
         })
     }
 
+    /// Every account of the subscriber matches only excluded sources ("Do not read").
+    fn excluded_only(&self, active: &ActiveSubscriber) -> bool {
+        active.accounts.iter().all(|account| {
+            let Some(selectors) = self.selectors.get(&account.identity.scope) else {
+                return false;
+            };
+            let profile = match &account.policy.profile {
+                ProfileObservation::Known(Some(p)) => selectors.profiles.get(p.as_str()),
+                _ => None,
+            };
+            let mut sources = selectors
+                .all
+                .iter()
+                .chain(profile.into_iter().flatten())
+                .peekable();
+            sources.peek().is_some() && sources.all(|s| self.catalog.sources[*s].excluded)
+        })
+    }
+
     fn prepare(
         &self,
         record: &SubscriberRecord,
@@ -640,6 +659,8 @@ pub fn resolve(collection: Reconciliation) -> anyhow::Result<PlacementResolution
     let mut index = Index::new(catalog)?;
     index.apply_wan(&collection.wan);
     let mut active = collection.active;
+    // An excluded source is not shaped. Its records stay, so its Circuit IDs stay.
+    active.retain(|a| !index.excluded_only(a));
     active.sort_unstable_by(|a, b| a.subscriber_id.cmp(&b.subscriber_id));
     let mut seen = HashSet::new();
     let mut pending = Vec::new();
