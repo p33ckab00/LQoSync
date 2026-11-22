@@ -115,9 +115,12 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         // Only a node with a subscriber source can become inactive.
         node.active = node.source_id.is_none()
             || node.kind != "group"
-            || input
-                .activity
-                .is_none_or(|a| a.is_active(&node.id, input.now, input.grace));
+            || input.activity.is_none_or(|a| {
+                // By source: every instance of a source shares its activity.
+                node.source_id
+                    .as_deref()
+                    .is_some_and(|s| a.is_active(s, input.now, input.grace))
+            });
         if let Some(p) = preview_nodes.get(&node.id) {
             node.calculated_mbps = serde_json::from_value(p["calculated_mbps"].clone()).ok();
             node.exported_mbps = serde_json::from_value(p["exported_mbps"].clone()).ok();

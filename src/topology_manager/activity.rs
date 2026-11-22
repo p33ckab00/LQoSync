@@ -10,7 +10,7 @@ pub const FILE: &str = "source-activity.json";
 pub struct SourceActivity {
     /// The first good read after the file was made. `None`: no read yet.
     first_observed: Option<u64>,
-    /// The last good read in which each node had a member.
+    /// The last good read in which each source had a member. The keys are source IDs.
     last_active: BTreeMap<String, u64>,
 }
 

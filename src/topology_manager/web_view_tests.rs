@@ -796,3 +796,40 @@ fn a_distro_router_gives_no_wan_candidate() {
     let v = project(&i);
     assert!(v.wan_candidates.is_empty());
 }
+
+#[test]
+fn every_instance_of_an_active_source_stays_active() {
+    use crate::topology_manager::activity::SourceActivity;
+    // group1 and group2 are two instances of one source: they have different node IDs.
+    let doc = RegistryDocument {
+        catalog: Some(catalog::tests::catalog()),
+        export_ownership: Some(Default::default()),
+        ..RegistryDocument::default()
+    };
+    let active = |activity: &SourceActivity| {
+        let mut i = input(Some(&doc), None, None);
+        i.now = 1_000;
+        i.activity = Some(activity);
+        project(&i)
+            .nodes
+            .iter()
+            .filter(|n| n.kind == "group")
+            .map(|n| (n.id.clone(), n.active))
+            .collect::<Vec<_>>()
+    };
+    // The first read is old, so only a recent active read keeps a card.
+    let mut on = SourceActivity::default();
+    on.observe(0, &BTreeSet::from(["profile-source".to_string()]));
+    on.observe(900, &BTreeSet::from(["profile-source".to_string()]));
+    assert_eq!(
+        active(&on),
+        [("group1".to_string(), true), ("group2".to_string(), true)]
+    );
+    let mut off = SourceActivity::default();
+    off.observe(0, &BTreeSet::from(["profile-source".to_string()]));
+    off.observe(900, &BTreeSet::new());
+    assert_eq!(
+        active(&off),
+        [("group1".to_string(), false), ("group2".to_string(), false)]
+    );
+}

@@ -1988,7 +1988,7 @@ where
     }
 
     /// Live source canvas: read the current sources and add the groups of new active sources.
-    /// Returns the IDs of the active group nodes; `None` when the read failed or did not run.
+    /// Returns the source IDs of the active groups; `None` when the read failed or did not run.
     pub(crate) async fn sync_live_groups(&mut self) -> Option<std::collections::BTreeSet<String>> {
         use crate::topology_manager::layout::NodeKind;
         // The proposal supports only root_promotion.
@@ -2012,13 +2012,14 @@ where
             Ok(false) => {}
             Err(e) => eprintln!("warning: live sources: no group added: {e:#}"),
         }
+        // The source IDs, not the node IDs: a web node or an instance has another node ID.
         Some(
             draft
                 .catalog
                 .nodes
                 .iter()
                 .filter(|n| n.kind == NodeKind::SubscriberGroup)
-                .map(|n| n.id.clone())
+                .filter_map(|n| n.source_id.clone())
                 .collect(),
         )
     }
