@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22 (Asia/Manila) — Topology canvas Task 3 remainder
+
+- Last agent: Claude Code. Branch `lqosync3`. Commit 7b087ef.
+- Done: equal subscriber count per source (`group.allocation`), selective WAN discovery by router, refusal of a new fixed capacity on a shared source placement, quality/strict-pin proposal in the canvas design (owner decision).
+- Not done: selective source discovery (reads all subscriber routers).
+- Checks: `tools/frontend/check-all.sh` all pass (pulse-check skipped); workspace 1790 tests.
+- Tooling moved: `/tmp/lqosync-web-tools` was wiped. Use `TRUNK=~/.cache/lqosync-web-tools/bin/trunk` and `PLAYWRIGHT_MODULE=~/.cache/lqosync-web-tools/node_modules/playwright`.
+- Next: Task 6 shadow acceptance. Task 7 needs an owner live window and a decision on the LibreQoS rename window and the quality proposal.
+
 ## 2026-11-22T04:30+08:00 (Asia/Manila) — Topology canvas Task 5 (pair publication)
 
 - Last agent: Claude Code. Branch `lqosync3`. Commit 1b863c4.
