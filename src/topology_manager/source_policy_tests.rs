@@ -24,6 +24,7 @@ fn profile(row_ref: &str, name: &str, rate: Option<&str>) -> CurrentProfile {
         name: name.into(),
         rate_limit: rate.map(str::to_owned),
         comment: None,
+        in_use: true,
     }
 }
 fn index(profiles: &[CurrentProfile]) -> SourceIndex<'_> {

@@ -219,7 +219,9 @@ pub fn propose(cfg: &Config, current: &[CurrentRouter]) -> anyhow::Result<Policy
                 },
             };
             if router.pppoe.per_plan_node {
-                for p in &profiles {
+                // Owner rule: only a profile that a PPP secret uses gets a group. Every profile
+                // stays bound, so a secret that moves to another profile blocks no publication.
+                for p in profiles.iter().filter(|p| p.in_use) {
                     b.add(
                         &selection,
                         router,

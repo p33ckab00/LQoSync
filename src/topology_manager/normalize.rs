@@ -80,6 +80,8 @@ pub struct CurrentProfile {
     pub name: String,
     pub rate_limit: Option<String>,
     pub comment: Option<String>,
+    /// At least one account (PPP secret or Hotspot user) names this profile.
+    pub in_use: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -346,6 +348,10 @@ fn local_accounts(
     let profile_rows = rows(read, profile_table)?;
     let profiles = named(profile_rows, profile_table)?;
     let mut excluded_profiles = HashSet::new();
+    let used: HashSet<String> = rows(read, inventory)?
+        .iter()
+        .filter_map(|r| optional(r, "profile"))
+        .collect();
     for (index, row) in profile_rows.iter().enumerate() {
         let name = required(row, profile_table, index, "name")?;
         let reference = required(row, profile_table, index, ".id")?;
@@ -358,6 +364,7 @@ fn local_accounts(
             name: name.into(),
             rate_limit: optional(row, "rate-limit"),
             comment: optional(row, "comment"),
+            in_use: used.contains(name),
         });
     }
     let mut grouped: HashMap<String, usize> = HashMap::new();

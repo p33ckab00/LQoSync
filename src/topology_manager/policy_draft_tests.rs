@@ -256,3 +256,48 @@ async fn discovered_dhcp_server_is_selected_when_discover_is_on() {
     assert_eq!(unaliased(pair.network()), quantized);
     assert_eq!(pair.rows().len(), old.rows.len());
 }
+
+#[tokio::test(start_paused = true)]
+async fn a_ppp_profile_without_a_secret_gets_no_group() {
+    let (cfg, mut snap) = scenario();
+    let groups = |d: &PolicyDraft| {
+        let mut names: Vec<String> = d.catalog.nodes.iter().map(|n| n.name.clone()).collect();
+        names.sort();
+        names
+    };
+    let before = groups(&propose(&cfg, &[current(&cfg, &snap).await]).unwrap());
+    let mut unused = snap.ppp_profile[0].clone();
+    unused.insert("name".into(), "Unused".into());
+    snap.ppp_profile.push(unused);
+    let draft = propose(&cfg, &[current(&cfg, &snap).await]).unwrap();
+    assert_eq!(groups(&draft), before);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_secret_that_moves_to_a_profile_without_a_group_keeps_the_others() {
+    let (cfg, mut snap) = scenario();
+    let mut unused = snap.ppp_profile[0].clone();
+    unused.insert("name".into(), "Unused".into());
+    snap.ppp_profile.push(unused);
+    let draft = propose(&cfg, &[current(&cfg, &snap).await]).unwrap();
+    let doc = document(&draft).unwrap();
+    // Later, the operator moves one secret to the profile without a group.
+    let user = snap.ppp_active[0]["name"].clone();
+    for s in snap.ppp_secret.iter_mut().filter(|s| s["name"] == user) {
+        s.insert("profile".into(), "Unused".into());
+    }
+    let auth = authorize_configured(&doc, 0, 1, vec![current(&cfg, &snap).await]).unwrap();
+    assert!(auth.conflicts().is_empty(), "{:?}", auth.conflicts());
+    let pair = crate::topology_manager::publication::prepare(
+        auth.reconcile(&mut ObservationGate::default()).unwrap(),
+    )
+    .unwrap();
+    // The moved subscriber stays shaped without a group; the others keep their groups.
+    assert_eq!(pair.rows().len(), legacy(&cfg, &snap).rows.len());
+    let ungrouped = pair
+        .rows()
+        .iter()
+        .filter(|r| r.parent_node.is_empty())
+        .count();
+    assert_eq!(ungrouped, 1);
+}

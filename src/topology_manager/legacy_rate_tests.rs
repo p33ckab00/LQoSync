@@ -22,6 +22,7 @@ fn profile() -> CurrentProfile {
         name: "100M".into(),
         rate_limit: Some("3M/60M".into()),
         comment: Some("40M/8M".into()),
+        in_use: true,
     }
 }
 #[test]
