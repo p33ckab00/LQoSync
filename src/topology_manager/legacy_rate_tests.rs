@@ -22,7 +22,7 @@ fn profile() -> CurrentProfile {
         name: "100M".into(),
         rate_limit: Some("3M/60M".into()),
         comment: Some("40M/8M".into()),
-        in_use: true,
+        active: true,
     }
 }
 #[test]
@@ -109,6 +109,7 @@ fn converted_dhcp_uses_selected_server_and_has_no_implicit_fallback() {
         name: "access".into(),
         disabled: false,
         comment: Some("30M/8M".into()),
+        active: true,
     };
     assert_eq!(
         rule.compile(SourceKind::Dhcp)

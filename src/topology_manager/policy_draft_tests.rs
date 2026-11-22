@@ -258,7 +258,7 @@ async fn discovered_dhcp_server_is_selected_when_discover_is_on() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_ppp_profile_without_a_secret_gets_no_group() {
+async fn a_ppp_profile_without_an_active_session_gets_no_group() {
     let (cfg, mut snap) = scenario();
     let groups = |d: &PolicyDraft| {
         let mut names: Vec<String> = d.catalog.nodes.iter().map(|n| n.name.clone()).collect();
@@ -269,8 +269,41 @@ async fn a_ppp_profile_without_a_secret_gets_no_group() {
     let mut unused = snap.ppp_profile[0].clone();
     unused.insert("name".into(), "Unused".into());
     snap.ppp_profile.push(unused);
+    // A secret uses the profile, but the secret has no active session.
+    let mut secret = snap.ppp_secret[0].clone();
+    secret.insert("name".into(), "offline-user".into());
+    secret.insert("profile".into(), "Unused".into());
+    snap.ppp_secret.push(secret);
     let draft = propose(&cfg, &[current(&cfg, &snap).await]).unwrap();
     assert_eq!(groups(&draft), before);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dhcp_server_without_a_lease_gets_no_group() {
+    let (cfg, snap) = scenario();
+    let draft = propose(&cfg, &[current(&cfg, &snap).await]).unwrap();
+    assert!(
+        !draft
+            .catalog
+            .nodes
+            .iter()
+            .any(|n| n.name == "DHCP-EMPTY-Hub-1"),
+        "{:?}",
+        draft
+            .catalog
+            .nodes
+            .iter()
+            .map(|n| &n.name)
+            .collect::<Vec<_>>()
+    );
+    // The server stays selected, so a first lease on it is read.
+    assert!(
+        draft
+            .source_settings
+            .selections
+            .iter()
+            .any(|s| s.service_names == ["EMPTY"])
+    );
 }
 
 #[tokio::test(start_paused = true)]

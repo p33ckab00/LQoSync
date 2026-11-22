@@ -120,13 +120,15 @@ impl Builder<'_> {
         )
     }
 
-    /// Add one source, its local profile, and one top-level group node with the legacy ID and label.
+    /// Add one source and its local profile. With `active`, also one top-level group node with
+    /// the legacy ID and label. An inactive source gets its node when it becomes active.
     fn add(
         &mut self,
         selection: &SourceSelection,
         router: &RouterCfg,
         key: GroupKey,
         profile_ref: Option<String>,
+        active: bool,
     ) -> anyhow::Result<()> {
         let id = group_node_id(&router.name, &key);
         let name = group_node_name(self.cfg, &router.name, &key);
@@ -151,6 +153,9 @@ impl Builder<'_> {
             profile_id: Some(profile_id),
             targets: vec![],
         });
+        if !active {
+            return Ok(());
+        }
         self.catalog.nodes.push(CatalogNode {
             address_list: None,
             router_id: None,
@@ -219,18 +224,19 @@ pub fn propose(cfg: &Config, current: &[CurrentRouter]) -> anyhow::Result<Policy
                 },
             };
             if router.pppoe.per_plan_node {
-                // Owner rule: only a profile that a PPP secret uses gets a group. Every profile
-                // stays bound, so a secret that moves to another profile blocks no publication.
-                for p in profiles.iter().filter(|p| p.in_use) {
+                // Owner rule (live source canvas): only a profile with an active session gets a
+                // group. Every profile stays bound, so a moved secret blocks no publication.
+                for p in &profiles {
                     b.add(
                         &selection,
                         router,
                         GroupKey::PppPlan(p.name.clone()),
                         Some(p.row_ref.clone()),
+                        p.active,
                     )?;
                 }
             } else {
-                b.add(&selection, router, GroupKey::Ppp, None)?;
+                b.add(&selection, router, GroupKey::Ppp, None, true)?;
             }
             b.selections.push(selection);
         }
@@ -257,6 +263,17 @@ pub fn propose(cfg: &Config, current: &[CurrentRouter]) -> anyhow::Result<Policy
                 found.sort_unstable();
                 names.extend(found);
             }
+            let active: Vec<String> = current
+                .iter()
+                .find(|c| c.router_id() == rid)
+                .and_then(|c| c.services().ok())
+                .map(|s| {
+                    s.iter()
+                        .filter(|s| s.kind == SourceKind::Dhcp && s.active)
+                        .map(|s| s.name.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
             for name in &names {
                 let server = router.dhcp.server(name);
                 ensure!(
@@ -279,11 +296,13 @@ pub fn propose(cfg: &Config, current: &[CurrentRouter]) -> anyhow::Result<Policy
                         ..Default::default()
                     },
                 };
+                // Owner rule: only a server with a lease gets a group. Every server stays selected.
                 b.add(
                     &selection,
                     router,
                     GroupKey::DhcpSite(server.name.clone()),
                     None,
+                    active.contains(&server.name),
                 )?;
                 b.selections.push(selection);
             }

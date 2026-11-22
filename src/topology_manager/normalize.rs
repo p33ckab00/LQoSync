@@ -80,8 +80,8 @@ pub struct CurrentProfile {
     pub name: String,
     pub rate_limit: Option<String>,
     pub comment: Option<String>,
-    /// At least one account (PPP secret or Hotspot user) names this profile.
-    pub in_use: bool,
+    /// An active session of this read uses this profile.
+    pub active: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -91,6 +91,8 @@ pub struct CurrentService {
     pub name: String,
     pub disabled: bool,
     pub comment: Option<String>,
+    /// An account of this read (a lease or a session) names this service.
+    pub active: bool,
 }
 
 pub struct CurrentRouter {
@@ -209,6 +211,19 @@ fn normalize_inner(
             .sort_unstable_by(|a, b| a.session_id.cmp(&b.session_id));
         account.service_refs.sort_unstable();
         account.service_refs.dedup();
+    }
+    // A profile or a service is active when an account of this read uses it.
+    let used: HashSet<&str> = current
+        .accounts
+        .iter()
+        .flat_map(|a| a.profile_ref.iter().chain(a.service_refs.iter()))
+        .map(String::as_str)
+        .collect();
+    for profile in &mut current.profiles {
+        profile.active = used.contains(profile.row_ref.as_str());
+    }
+    for service in &mut current.services {
+        service.active = used.contains(service.row_ref.as_str());
     }
     current
         .accounts
@@ -348,10 +363,6 @@ fn local_accounts(
     let profile_rows = rows(read, profile_table)?;
     let profiles = named(profile_rows, profile_table)?;
     let mut excluded_profiles = HashSet::new();
-    let used: HashSet<String> = rows(read, inventory)?
-        .iter()
-        .filter_map(|r| optional(r, "profile"))
-        .collect();
     for (index, row) in profile_rows.iter().enumerate() {
         let name = required(row, profile_table, index, "name")?;
         let reference = required(row, profile_table, index, ".id")?;
@@ -364,7 +375,7 @@ fn local_accounts(
             name: name.into(),
             rate_limit: optional(row, "rate-limit"),
             comment: optional(row, "comment"),
-            in_use: used.contains(name),
+            active: false,
         });
     }
     let mut grouped: HashMap<String, usize> = HashMap::new();
@@ -557,6 +568,7 @@ fn service_inventory<'a>(
             name: required(row, table, position, "name")?.into(),
             disabled: disabled(row, table, position)?,
             comment: optional(row, "comment"),
+            active: false,
         });
     }
     Ok(index)
