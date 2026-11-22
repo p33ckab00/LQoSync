@@ -77,6 +77,7 @@ pub const CHOICES: &[(&str, &[&str])] = &[
 /// The `f64` and `Option<f64>` fields of `config.rs`. A number key not in this list is an integer.
 pub const FLOATS: &[&str] = &[
     "safety.max_removed_percent",
+    "wan_writer.max_removed_percent",
     "network.root_download_mbps",
     "network.root_upload_mbps",
     "bandwidth_defaults.min_rate_percentage",

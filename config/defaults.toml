@@ -186,6 +186,11 @@ window_secs = 60
 move_after_secs = 120           # subscribers move only after a longer bad period
 failback_secs = 600             # stable time before subscribers return
 
+[wan_writer]                     # pushes the via-<WAN> address-lists to the core router
+enabled = false                 # needs writer_username and writer_password_file on that router
+max_removed = 50                # hold a write that removes more entries than this
+max_removed_percent = 20        # or more than this percent of the owned entries
+
 [router_defaults]
 port = 8729                     # 8729 = API over TLS, 8728 = plain API
 tls = true

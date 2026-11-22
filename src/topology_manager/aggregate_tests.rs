@@ -217,6 +217,7 @@ fn inherited_intermediates_do_not_recalculate_subscriber_plans() {
     let mut r = registry();
     let c = r.catalog.as_mut().unwrap();
     c.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -242,6 +243,7 @@ fn nested_limits_clip_descendants_without_compounding_factors() {
     let mut r = registry();
     let c = r.catalog.as_mut().unwrap();
     c.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -414,6 +416,7 @@ fn a_deep_reversed_graph_uses_iterative_evaluation() {
     for i in 0..20_000 {
         let id = format!("middle-{i:05}");
         c.nodes.push(CatalogNode {
+            address_list: None,
             router_id: None,
             geo: None,
             minimum: Default::default(),

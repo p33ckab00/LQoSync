@@ -82,6 +82,7 @@ fn aggregate_stage_preserves_legacy_ppp_factors_backstop_and_explicit_floor() {
                     eligible_targets: None,
                 }],
                 nodes: vec![CatalogNode {
+                    address_list: None,
                     router_id: None,
                     geo: None,
                     minimum: Default::default(),

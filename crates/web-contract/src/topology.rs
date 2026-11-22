@@ -677,6 +677,12 @@ pub enum BuilderEdit {
         geo_type: Option<GeoType>,
         location: Option<Location>,
     },
+    /// Set or clear the `via-` address-list name of a WAN node.
+    #[serde(rename = "node.address_list")]
+    NodeAddressList {
+        node_id: String,
+        list: Option<String>,
+    },
     /// Set or clear the access router that a node represents.
     #[serde(rename = "node.router")]
     NodeRouter {

@@ -594,6 +594,7 @@ fn routed_doc() -> RegistryDocument {
     let mut d = doc();
     let c = d.catalog.as_mut().unwrap();
     c.nodes.push(catalog::CatalogNode {
+        address_list: None,
         router_id: Some("distro".into()),
         geo: None,
         minimum: Default::default(),

@@ -326,6 +326,7 @@ fn add_wans(r: &mut Runner<FakeConnector>, auto_failback: bool) {
             targets: Vec::new(),
         });
         c.nodes.push(CatalogNode {
+            address_list: None,
             router_id: None,
             geo: None,
             minimum: Default::default(),

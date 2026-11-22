@@ -67,6 +67,12 @@ pub enum Edit {
         node_id: String,
         parent: Option<String>,
     },
+    /// Set or clear the `via-` address-list name of a WAN node.
+    #[serde(rename = "node.address_list")]
+    NodeAddressList {
+        node_id: String,
+        list: Option<String>,
+    },
     /// Set or clear the access router that a node represents.
     #[serde(rename = "node.router")]
     NodeRouter {
@@ -586,6 +592,7 @@ fn wan_create(
         targets: Vec::new(),
     });
     c.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -645,6 +652,7 @@ fn instance_add(
         source.targets.push(ids[0].clone());
     }
     c.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -1316,6 +1324,7 @@ pub fn apply(
             | Edit::NodeRemove { .. }
             | Edit::NodeLocation { .. }
             | Edit::NodeRouter { .. }
+            | Edit::NodeAddressList { .. }
             | Edit::SourceAdd { .. }
     );
     if doc.catalog.is_none()
@@ -1378,6 +1387,7 @@ pub fn apply(
                 .expect("enrolled")
                 .nodes
                 .push(CatalogNode {
+                    address_list: None,
                     router_id: None,
                     geo: None,
                     minimum: Default::default(),
@@ -1466,6 +1476,10 @@ pub fn apply(
                 }),
             };
             d.catalog.as_mut().expect("enrolled").nodes[i].geo = geo;
+        }
+        Edit::NodeAddressList { node_id, list } => {
+            let i = position(d.catalog.as_ref().expect("enrolled"), node_id)?;
+            d.catalog.as_mut().expect("enrolled").nodes[i].address_list = list.clone();
         }
         Edit::NodeRouter { node_id, router_id } => {
             let c = d.catalog.as_ref().expect("enrolled");

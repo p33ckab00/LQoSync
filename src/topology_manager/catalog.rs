@@ -176,6 +176,9 @@ pub struct CatalogNode {
     /// The access router that this node represents. Added in registry schema 6.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub router_id: Option<String>,
+    /// The `via-` address-list of a WAN node. `None` uses `via-<name>`. Added in schema 8.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address_list: Option<String>,
 }
 
 /// Group nodes that take subscribers whose source the catalog does not know.
@@ -238,6 +241,17 @@ impl TopologyCatalog {
             .unwrap_or(self.allocation)
     }
 
+    /// The `via-` address-list of a WAN node: its own value, else `via-<name>` with `-` for spaces.
+    pub fn wan_list(&self, node: usize) -> Option<String> {
+        let n = &self.nodes[node];
+        (n.kind == NodeKind::Wan).then(|| {
+            n.address_list.clone().unwrap_or_else(|| {
+                let name: String = n.name.split_whitespace().collect::<Vec<_>>().join("-");
+                format!("via-{name}")
+            })
+        })
+    }
+
     /// The index of the router node of `router_id`.
     pub fn router_node(&self, router_id: &str) -> Option<usize> {
         self.nodes
@@ -262,6 +276,16 @@ impl TopologyCatalog {
 
     /// Edit-time rules for router nodes. A saved registry that breaks them still loads.
     pub fn check_router_nodes(&self) -> anyhow::Result<()> {
+        // Two WAN nodes with one list would route both WANs alike. A saved registry still loads.
+        let mut lists = HashSet::new();
+        for i in 0..self.nodes.len() {
+            if let Some(list) = self.wan_list(i) {
+                ensure!(
+                    lists.insert(list.clone()),
+                    "two WAN nodes use the address list {list}; give one of them its own list name"
+                );
+            }
+        }
         for node in &self.nodes {
             if let Some(router) = &node.router_id {
                 ensure!(
@@ -413,6 +437,20 @@ impl TopologyCatalog {
     }
 
     fn index(&self) -> anyhow::Result<CatalogIndex<'_>> {
+        for node in &self.nodes {
+            if let Some(list) = &node.address_list {
+                ensure!(
+                    node.kind == NodeKind::Wan,
+                    "only a WAN node can have an address list"
+                );
+                ensure!(
+                    list.starts_with("via-")
+                        && (5..=63).contains(&list.len())
+                        && !list.chars().any(char::is_whitespace),
+                    "an address list name starts with via-, has 5 to 63 characters, and no spaces"
+                );
+            }
+        }
         let mut router_nodes = HashSet::new();
         for node in &self.nodes {
             if let Some(router) = &node.router_id {

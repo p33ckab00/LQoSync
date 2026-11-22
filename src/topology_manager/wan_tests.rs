@@ -57,6 +57,7 @@ fn catalog(router_id: &str, router_name: &str, endpoint: &str, nodes: &[&str]) -
         nodes: nodes
             .iter()
             .map(|id| CatalogNode {
+                address_list: None,
                 router_id: None,
                 geo: None,
                 minimum: Default::default(),

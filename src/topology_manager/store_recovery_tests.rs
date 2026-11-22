@@ -548,7 +548,7 @@ fn schema_6_sources_keep_capacity_after_migration() {
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     let store = RegistryStore::open(root.path()).unwrap();
     let doc = store.document().unwrap();
-    assert_eq!(doc.schema_version, 7);
+    assert_eq!(doc.schema_version, SCHEMA);
     let c = doc.catalog.as_ref().unwrap();
     assert_eq!(
         c.allocation,
@@ -558,4 +558,29 @@ fn schema_6_sources_keep_capacity_after_migration() {
         c.mode_of(Some(&c.sources[2])),
         crate::topology_manager::catalog::AllocationMode::Capacity
     );
+}
+
+#[test]
+fn schema_7_registry_migrates_to_8_without_change() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let mut old = serde_json::to_value(RegistryDocument {
+        revision: 2,
+        catalog: Some(crate::topology_manager::catalog::tests::catalog()),
+        ..RegistryDocument::default()
+    })
+    .unwrap();
+    old["schema_version"] = 7.into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    let store = RegistryStore::open(root.path()).unwrap();
+    let doc = store.document().unwrap();
+    assert_eq!(doc.schema_version, 8);
+    assert_eq!(
+        doc.catalog,
+        Some(crate::topology_manager::catalog::tests::catalog())
+    );
+    // A schema-7 file cannot hold list names.
+    old["catalog"]["nodes"][0]["address_list"] = "via-x".into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    assert!(RegistryStore::open(root.path()).is_err());
 }

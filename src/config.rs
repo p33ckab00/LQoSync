@@ -24,6 +24,7 @@ pub struct Config {
     pub tui: Tui,
     pub exclude: Exclude,
     pub wan_monitor: WanMonitor,
+    pub wan_writer: WanWriter,
     pub routers: Vec<RouterCfg>,
 }
 
@@ -76,6 +77,17 @@ pub struct RouterAccess {
     pub retry_delay: u64,
     pub offline_after: u64,
     pub offline_action: OfflineAction,
+}
+
+/// The writer of the `via-<WAN>` address-lists on the core router. Off by default.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WanWriter {
+    pub enabled: bool,
+    /// Hold a write that removes more entries than this.
+    pub max_removed: usize,
+    /// Hold a write that removes more than this percent of the owned entries.
+    pub max_removed_percent: f64,
 }
 
 /// Probes of each WAN node through its router, for failover and quality mode.
@@ -351,6 +363,11 @@ pub struct RouterCfg {
     pub tls_ca_file: String,
     pub username: String,
     pub password_file: String,
+    /// The router user of the WAN address-list writer. Empty: no writer for this router.
+    #[serde(default)]
+    pub writer_username: String,
+    #[serde(default)]
+    pub writer_password_file: String,
     pub pppoe: PppoeCfg,
     pub hotspot: HotspotCfg,
     pub dhcp: DhcpCfg,
@@ -815,6 +832,13 @@ impl Config {
         };
         check_exclude("exclude", &self.exclude)?;
         for r in &self.routers {
+            ensure!(
+                r.writer_username.is_empty() == r.writer_password_file.is_empty(),
+                "config: router \"{}\": set both writer_username and writer_password_file, or neither",
+                r.name
+            );
+        }
+        for r in &self.routers {
             check_exclude(&format!("router \"{}\": exclude", r.name), &r.exclude)?;
         }
         let mut names = BTreeSet::new();
@@ -1262,6 +1286,34 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
+
+    const ROUTER: &str =
+        "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n";
+
+    #[test]
+    fn writer_credentials_are_both_or_neither() {
+        let c = Config::from_toml_str(ROUTER).unwrap();
+        assert!(c.routers[0].writer_username.is_empty());
+        let both = format!("{ROUTER}writer_username='w'\nwriter_password_file='/w'\n");
+        assert_eq!(
+            Config::from_toml_str(&both).unwrap().routers[0].writer_username,
+            "w"
+        );
+        let one = format!("{ROUTER}writer_username='w'\n");
+        let e = format!("{:#}", Config::from_toml_str(&one).unwrap_err());
+        assert!(
+            e.contains("writer_username and writer_password_file"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn wan_writer_defaults_are_off_and_safe() {
+        let w = Config::from_toml_str(ROUTER).unwrap().wan_writer;
+        assert!(!w.enabled);
+        assert_eq!((w.max_removed, w.max_removed_percent), (50, 20.0));
+    }
+
     use super::*;
 
     const MIN: &str =

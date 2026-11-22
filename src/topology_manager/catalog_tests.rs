@@ -79,6 +79,7 @@ fn fixed(base: RateBps) -> CapacityPolicy {
 
 pub(crate) fn catalog() -> TopologyCatalog {
     let wan = |id: &str, source: &str, base| CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -90,6 +91,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
         capacity: fixed(base),
     };
     let group = |id: &str, parent: &str| CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -207,6 +209,7 @@ fn one_profile_supports_multiple_wans_with_distinct_instances_and_equal_labels()
 fn profile_only_and_wan_only_topologies_keep_their_explicit_structure() {
     let mut c = catalog();
     c.nodes = vec![CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -448,6 +451,7 @@ fn a_large_catalog_uses_iterative_validation() {
     let mut c = TopologyCatalog {
         nodes: (0..10_000)
             .map(|i| CatalogNode {
+                address_list: None,
                 router_id: None,
                 geo: None,
                 minimum: Default::default(),
@@ -576,6 +580,7 @@ fn node_minimums_require_positive_exact_whole_mbps_and_keep_absent_policy_compat
 pub(crate) fn with_fallback_node() -> TopologyCatalog {
     let mut c = catalog();
     c.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -627,6 +632,7 @@ fn fallback_validation_rules() {
 fn routed() -> TopologyCatalog {
     let mut c = catalog();
     let node = |id: &str, parent: &str, router: &str| CatalogNode {
+        address_list: None,
         geo: None,
         minimum: Default::default(),
         id: id.into(),
@@ -640,6 +646,7 @@ fn routed() -> TopologyCatalog {
     c.nodes.push(node("towerA", "wan1", "distro"));
     c.nodes.push(node("towerB", "towerA", "core"));
     c.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         ..node("apB", "towerB", "core")
     });
@@ -734,4 +741,25 @@ fn mode_of_uses_the_source_override_then_the_topology_default() {
     assert_eq!(c.mode_of(Some(&capacity)), AllocationMode::Capacity);
     assert_eq!(AllocationMode::default(), AllocationMode::Count);
     assert!(TopologyCatalog::default().auto_failback);
+}
+
+#[test]
+fn wan_list_uses_the_node_value_or_via_name() {
+    let mut c = catalog();
+    c.nodes[0].name = "WAN 1".into();
+    assert_eq!(c.wan_list(0).as_deref(), Some("via-WAN-1"));
+    c.nodes[0].address_list = Some("via-pldt".into());
+    assert_eq!(c.wan_list(0).as_deref(), Some("via-pldt"));
+    assert_eq!(c.wan_list(2), None, "a group node has no list");
+}
+
+#[test]
+fn a_list_name_without_via_is_refused() {
+    let mut c = catalog();
+    c.nodes[0].address_list = Some("WAN1-CUSTOMERS".into());
+    let e = format!("{:#}", c.validate().unwrap_err());
+    assert!(e.contains("via-"), "{e}");
+    let mut c = catalog();
+    c.nodes[2].address_list = Some("via-x".into());
+    assert!(format!("{:#}", c.validate().unwrap_err()).contains("WAN node"));
 }

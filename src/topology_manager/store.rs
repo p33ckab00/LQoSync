@@ -638,7 +638,24 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
             old.schema_version = SCHEMA;
             old
         }
-        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-7 registry")?,
+        7 => {
+            let mut old: RegistryDocument =
+                serde_json::from_slice(&bytes).context("cannot decode schema-7 registry")?;
+            ensure!(
+                old.schema_version == 7,
+                "registry schema changed during load"
+            );
+            ensure!(
+                old.catalog
+                    .iter()
+                    .flat_map(|c| &c.nodes)
+                    .all(|n| n.address_list.is_none()),
+                "a schema-7 registry cannot contain address list names"
+            );
+            old.schema_version = SCHEMA;
+            old
+        }
+        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-8 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     let mut document = document;
@@ -846,7 +863,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":8,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":9,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -1099,7 +1116,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":8,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":9,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());

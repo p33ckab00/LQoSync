@@ -1771,3 +1771,30 @@ async fn auto_read_adds_each_unconfigured_protocol_without_nodes() {
     });
     assert!(auto_read(&partial, &draft).unwrap().is_none());
 }
+
+#[test]
+fn node_address_list_edit_sets_and_clears_the_name() {
+    let d = run(
+        &doc(),
+        json!({"kind": "node.address_list", "node_id": "wan1", "list": "via-pldt"}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(node(&d, "wan1").address_list.as_deref(), Some("via-pldt"));
+    let d = run(
+        &d,
+        json!({"kind": "node.address_list", "node_id": "wan1", "list": null}),
+    )
+    .unwrap()
+    .candidate;
+    assert_eq!(node(&d, "wan1").address_list, None);
+}
+
+#[test]
+fn two_wans_with_one_list_are_refused_on_edit() {
+    let error = refused(
+        &doc(),
+        json!({"kind": "node.address_list", "node_id": "wan2", "list": "via-wan1"}),
+    );
+    assert!(error.contains("two WAN nodes"), "{error}");
+}

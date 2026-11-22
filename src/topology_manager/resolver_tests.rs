@@ -667,6 +667,7 @@ fn add(
         .unwrap()
         .nodes
         .push(catalog::CatalogNode {
+            address_list: None,
             router_id: router.map(Into::into),
             geo: None,
             minimum: Default::default(),
@@ -1016,6 +1017,7 @@ fn roots_that_are_other_router_nodes_give_no_parent() {
         .unwrap()
         .nodes
         .push(catalog::CatalogNode {
+            address_list: None,
             router_id: Some("core".into()),
             geo: None,
             minimum: Default::default(),

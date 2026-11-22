@@ -361,6 +361,16 @@ pub fn check_with(
                 Err(e) => out.push(line(Level::Error, format!("{at}: {e:#}"))),
             }
         }
+        if !r.writer_password_file.is_empty() && !typed.contains(Path::new(&r.writer_password_file))
+        {
+            match read_secret(Path::new(&r.writer_password_file), owner_uid) {
+                Ok(_) => out.push(line(
+                    Level::Ok,
+                    format!("{at}: writer password file is readable"),
+                )),
+                Err(e) => out.push(line(Level::Error, format!("{at}: writer password: {e:#}"))),
+            }
+        }
         if !(r.pppoe.enabled || r.hotspot.enabled || r.dhcp.enabled) {
             out.push(line(Level::Warn, format!("{at}: no source is enabled (pppoe, hotspot, dhcp); its subscribers will be removed")));
         }
@@ -813,6 +823,17 @@ mod tests {
             .filter(|l| l.level == level)
             .map(|l| l.text.clone())
             .collect()
+    }
+
+    #[test]
+    fn check_reports_a_missing_writer_password_file() {
+        let e = env(
+            "writer_username=\"w\"\nwriter_password_file=\"/nonexistent/w.password\"\n",
+            "",
+        );
+        let lines = check(&Config::from_toml_str(&e.toml).unwrap(), e.uid);
+        let errors = texts(&lines, Level::Error).join("\n");
+        assert!(errors.contains("writer password"), "{errors}");
     }
 
     #[test]

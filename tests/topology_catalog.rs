@@ -343,6 +343,7 @@ fn document() -> RegistryDocument {
         targets: Vec::new(),
     };
     let wan = |id: &str, source: &str, down| CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -360,6 +361,7 @@ fn document() -> RegistryDocument {
         },
     };
     let group = |id: &str, parent: &str| CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -477,6 +479,7 @@ fn reopen_move_and_discovery_keep_ids_pins_and_explicit_target_sets() {
     let mut edit = store.document().unwrap().clone();
     let catalog = edit.catalog.as_mut().unwrap();
     catalog.nodes.push(CatalogNode {
+        address_list: None,
         router_id: None,
         geo: None,
         minimum: Default::default(),
