@@ -30,12 +30,13 @@ Do these commands as root:
 B=/var/backups/lqosync3/activation-$(date +%Y%m%d%H%M)
 install -d -m 0700 "$B"
 systemctl stop lqosync3
-cp -a /usr/local/bin/lqosync3 /etc/lqosync3 /etc/systemd/system/lqosync3.service "$B"/
+cp -a /usr/local/bin/lqosync3 /etc/systemd/system/lqosync3.service "$B"/
+cp -a /etc/lqosync3 "$B"/etc-lqosync3
 cp -a /var/lib/lqosync3 "$B"/state
 cp -a /opt/libreqos/src/network.json /opt/libreqos/src/ShapedDevices.csv "$B"/
 ```
 
-Check: `ls -l "$B"` shows the binary, the configuration, the unit file, `state`, and the two pair files. Write down the value of `$B`.
+Check: `ls -l "$B"` shows the binary `lqosync3`, the unit file, `etc-lqosync3`, `state`, and the two pair files. Write down the value of `$B`.
 
 ## Step 2: Install the new release
 
