@@ -195,6 +195,91 @@ impl Connector for MikrotikConnector {
     }
 }
 
+impl MikrotikSession {
+    /// Run one command that returns no rows. A trap is an error.
+    fn run(
+        &self,
+        command: mikrotik_rs::Command,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send {
+        let device = self.device.clone();
+        async move {
+            let mut rx = device.send_command(command).await.map_err(map_err)?;
+            while let Some(event) = rx.recv().await {
+                match event {
+                    Event::Reply { .. } => {}
+                    Event::Done { .. } | Event::Empty { .. } => return Ok(()),
+                    Event::Trap { response, .. } => return Err(ReadError::Trap(response.message)),
+                    Event::Fatal { reason } => {
+                        return Err(ReadError::Protocol(format!("{reason:?}")));
+                    }
+                }
+            }
+            Err(ReadError::Protocol("the answer ended early".into()))
+        }
+    }
+}
+
+const ADDRESS_LIST: &str = "/ip/firewall/address-list";
+
+impl crate::routeros::ListWriter for MikrotikSession {
+    fn add(
+        &mut self,
+        entry: &crate::topology_manager::wan_lists::ListEntry,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send {
+        let address = entry.address.to_string();
+        self.run(
+            CommandBuilder::new()
+                .command(&format!("{ADDRESS_LIST}/add"))
+                .attribute("list", Some(&entry.list))
+                .attribute("address", Some(&address))
+                .attribute("comment", Some(&entry.comment))
+                .build(),
+        )
+    }
+    fn remove(&mut self, id: &str) -> impl Future<Output = Result<(), ReadError>> + Send {
+        self.run(
+            CommandBuilder::new()
+                .command(&format!("{ADDRESS_LIST}/remove"))
+                .attribute(".id", Some(id))
+                .build(),
+        )
+    }
+    fn set_address(
+        &mut self,
+        id: &str,
+        address: std::net::Ipv4Addr,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send {
+        let address = address.to_string();
+        self.run(
+            CommandBuilder::new()
+                .command(&format!("{ADDRESS_LIST}/set"))
+                .attribute(".id", Some(id))
+                .attribute("address", Some(&address))
+                .build(),
+        )
+    }
+}
+
+impl MikrotikConnector {
+    /// A session with the writer user of `router`. A router without one gets no write session.
+    pub async fn connect_writer(
+        &self,
+        router: &RouterCfg,
+        access: &RouterAccess,
+    ) -> Result<MikrotikSession, ReadError> {
+        if router.writer_username.is_empty() {
+            return Err(ReadError::Login(format!(
+                "router {} has no writer user",
+                router.name
+            )));
+        }
+        let mut writer = router.clone();
+        writer.username = router.writer_username.clone();
+        writer.password_file = router.writer_password_file.clone();
+        self.connect(&writer, access).await
+    }
+}
+
 impl crate::routeros::RouterProbe for MikrotikSession {
     fn ping(
         &mut self,

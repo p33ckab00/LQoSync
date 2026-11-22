@@ -56,6 +56,20 @@ pub trait RouterProbe: Send {
     ) -> impl Future<Output = Result<Option<u64>, ReadError>> + Send;
 }
 
+/// The approved writes: entries of `via-` address-lists only. Other configuration stays as it is.
+pub trait ListWriter: Send {
+    fn add(
+        &mut self,
+        entry: &crate::topology_manager::wan_lists::ListEntry,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send;
+    fn remove(&mut self, id: &str) -> impl Future<Output = Result<(), ReadError>> + Send;
+    fn set_address(
+        &mut self,
+        id: &str,
+        address: std::net::Ipv4Addr,
+    ) -> impl Future<Output = Result<(), ReadError>> + Send;
+}
+
 /// A RouterOS duration such as `12ms345us`, `1s2ms`, or `850us`, in microseconds.
 pub fn duration_us(text: &str) -> Option<u64> {
     let mut total = 0u64;

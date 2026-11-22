@@ -443,3 +443,104 @@ async fn ping_permission_error_is_a_read_error() {
     let mut session = s.connector.connect(&s.router, &s.access).await.unwrap();
     assert!(session.ping("1.1.1.1", "ether1").await.is_err());
 }
+
+fn writer_router(s: &Setup) -> lqosync3::config::RouterCfg {
+    let mut r = s.router.clone();
+    r.writer_username = "lqosync-writer".into();
+    r.writer_password_file = r.password_file.clone();
+    r
+}
+
+#[tokio::test]
+async fn the_writer_sends_only_address_list_commands() {
+    use lqosync3::routeros::ListWriter;
+    use lqosync3::topology_manager::wan_lists::ListEntry;
+    let (port, log) = mock(|_| Answer::Rows(vec![]), "good").await;
+    let s = setup(port);
+    let mut w = s
+        .connector
+        .connect_writer(&writer_router(&s), &s.access)
+        .await
+        .unwrap();
+    let entry = ListEntry {
+        list: "via-WAN1".into(),
+        address: "10.0.100.222".parse().unwrap(),
+        comment: "lqosync: LitoYambi".into(),
+    };
+    w.add(&entry).await.unwrap();
+    w.set_address("*1A", "10.0.100.223".parse().unwrap())
+        .await
+        .unwrap();
+    w.remove("*1A").await.unwrap();
+    let log = log.lock().unwrap();
+    let commands: Vec<&str> = log.iter().map(|w| w[0].as_str()).collect();
+    assert_eq!(
+        commands,
+        [
+            "/login",
+            "/ip/firewall/address-list/add",
+            "/ip/firewall/address-list/set",
+            "/ip/firewall/address-list/remove"
+        ]
+    );
+    let words = |i: usize| {
+        log[i]
+            .iter()
+            .filter(|w| w.starts_with('='))
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        words(1),
+        [
+            "=list=via-WAN1",
+            "=address=10.0.100.222",
+            "=comment=lqosync: LitoYambi"
+        ]
+    );
+    assert_eq!(words(2), ["=.id=*1A", "=address=10.0.100.223"]);
+    assert_eq!(words(3), ["=.id=*1A"]);
+}
+
+#[tokio::test]
+async fn the_writer_logs_in_with_the_writer_user() {
+    let (port, log) = mock(|_| Answer::Rows(vec![]), "good").await;
+    let s = setup(port);
+    s.connector
+        .connect_writer(&writer_router(&s), &s.access)
+        .await
+        .unwrap();
+    let log = log.lock().unwrap();
+    assert!(
+        log[0].iter().any(|w| w == "=name=lqosync-writer"),
+        "{:?}",
+        log[0]
+    );
+    // A router without a writer user gets no write session.
+    assert!(
+        s.connector
+            .connect_writer(&s.router, &s.access)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn a_refused_write_is_an_error() {
+    use lqosync3::routeros::ListWriter;
+    let (port, _) = mock(
+        |p| match p {
+            "/ip/firewall/address-list/remove" => Answer::Trap("no such item".into()),
+            _ => Answer::Rows(vec![]),
+        },
+        "good",
+    )
+    .await;
+    let s = setup(port);
+    let mut w = s
+        .connector
+        .connect_writer(&writer_router(&s), &s.access)
+        .await
+        .unwrap();
+    assert!(w.remove("*9").await.is_err());
+}
