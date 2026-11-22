@@ -10,6 +10,7 @@ use tokio::time::Instant;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Table {
     Interfaces,
+    Routes,
     PppSecrets,
     PppProfiles,
     PppActive,
@@ -25,6 +26,10 @@ impl Table {
     pub fn command(self) -> (&'static str, &'static str) {
         match self {
             Self::Interfaces => ("/interface", ".id,name,type,disabled,running,comment"),
+            Self::Routes => (
+                "/ip/route",
+                "dst-address,gateway,immediate-gw,active,routing-table",
+            ),
             Self::PppSecrets => (
                 "/ppp/secret",
                 ".id,name,profile,comment,disabled,caller-id,service",

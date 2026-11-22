@@ -18,6 +18,23 @@ pub struct RouterInterfaces {
     pub router_id: String,
     pub name: String,
     pub read: Result<Vec<RosRow>, String>,
+    /// The `/ip/route` rows. A failed route read gives no rows: no interface is a default route.
+    pub routes: Vec<RosRow>,
+}
+
+/// The interfaces of the active `0.0.0.0/0` routes, in any routing table. The gateway is an
+/// interface name, or `address%interface` in `immediate-gw`.
+pub fn default_route_interfaces(routes: &[RosRow]) -> BTreeSet<String> {
+    let field = |row: &RosRow, k: &str| row.get(k).map_or("", String::as_str).to_string();
+    routes
+        .iter()
+        .filter(|r| field(r, "dst-address") == "0.0.0.0/0" && field(r, "active") == "true")
+        .flat_map(|r| [field(r, "gateway"), field(r, "immediate-gw")])
+        .filter_map(|gw| match gw.split_once('%') {
+            Some((_, iface)) => Some(iface.to_string()),
+            None => (!gw.is_empty() && gw.parse::<std::net::IpAddr>().is_err()).then_some(gw),
+        })
+        .collect()
 }
 
 /// Read `/interface` once from every configured router at the same time, with one deadline.
@@ -50,7 +67,13 @@ where
                     .connect(&router, &access)
                     .await
                     .map_err(|e| e.to_string())?;
-                session.print(path, fields).await.map_err(|e| e.to_string())
+                let interfaces = session
+                    .print(path, fields)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let (path, fields) = Table::Routes.command();
+                let routes = session.print(path, fields).await.unwrap_or_default();
+                Ok::<_, String>((interfaces, routes))
             };
             let out = timeout_at(deadline, read)
                 .await
@@ -64,6 +87,7 @@ where
         .map(|r| RouterInterfaces {
             router_id: router_id(&r.name),
             name: r.name.clone(),
+            routes: Vec::new(),
             read: Err(if r.enabled {
                 "the read task stopped".into()
             } else {
@@ -73,7 +97,13 @@ where
         .collect();
     while let Some(done) = tasks.join_next().await {
         if let Ok((i, read)) = done {
-            out[i].read = read;
+            match read {
+                Ok((interfaces, routes)) => {
+                    out[i].read = Ok(interfaces);
+                    out[i].routes = routes;
+                }
+                Err(e) => out[i].read = Err(e),
+            }
         }
     }
     // An unselected router is neither read nor listed.
@@ -139,6 +169,7 @@ pub fn answer(
                 .iter()
                 .filter(|w| w.router_name == Some(r.name.as_str()))
                 .collect();
+            let defaults = default_route_interfaces(&r.routes);
             // Server-side dynamic tunnels (`pppoe-in` and others) are subscriber sessions.
             let mut found: BTreeMap<(bool, &str), Value> = BTreeMap::new();
             for row in rows {
@@ -160,6 +191,7 @@ pub fn answer(
                         "disabled": field("disabled") == "true",
                         "comment": row.get("comment"),
                         "suggested": suggested, "source_id": source, "used_by": users,
+                        "default_route": defaults.contains(name),
                     }),
                 );
             }

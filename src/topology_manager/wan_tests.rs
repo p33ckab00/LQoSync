@@ -24,6 +24,7 @@ fn ok(name: &str, rows: Vec<RosRow>) -> RouterInterfaces {
         router_id: format!("id-{name}"),
         name: name.into(),
         read: Ok(rows),
+        routes: Vec::new(),
     }
 }
 
@@ -118,6 +119,7 @@ fn a_failed_router_gives_its_error_and_no_missing_list() {
         router_id: "id-Core".into(),
         name: "Core".into(),
         read: Err("login refused".into()),
+        routes: Vec::new(),
     };
     let cat = catalog("id-Core", "Core", "pppoe-out1", &["n1"]);
     let v = answer(&[failed], Some(&cat), 0);
@@ -216,4 +218,63 @@ fn without_a_catalog_lists_are_empty() {
     assert_eq!((&c["source_id"], &c["used_by"]), (&Value::Null, &json!([])));
     assert_eq!(v["routers"][0]["missing"], json!([]));
     assert_eq!(v["unconfigured"], json!([]));
+}
+
+// Live source canvas, Task 6.
+
+fn route(table: &str, gateway: &str, immediate: &str, active: bool) -> RosRow {
+    [
+        ("dst-address", "0.0.0.0/0"),
+        ("gateway", gateway),
+        ("immediate-gw", immediate),
+        ("active", if active { "true" } else { "false" }),
+        ("routing-table", table),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
+}
+
+#[test]
+fn default_route_interfaces_reads_every_table() {
+    let mut other = route("main", "192.0.2.1", "192.0.2.1%ether5", true);
+    other.insert("dst-address".into(), "10.0.0.0/8".into());
+    let routes = [
+        route("wan1-rt", "pppoe-out1", "pppoe-out1", true),
+        route("wan2-rt", "100.64.0.1", "100.64.0.1%pppoe-out2", true),
+        route("main", "pppoe-out1", "pppoe-out1", true),
+        other,
+    ];
+    assert_eq!(
+        default_route_interfaces(&routes),
+        BTreeSet::from(["pppoe-out1".to_string(), "pppoe-out2".to_string()])
+    );
+}
+
+#[test]
+fn an_inactive_default_route_is_ignored() {
+    let routes = [route("main", "pppoe-out3", "pppoe-out3", false)];
+    assert!(default_route_interfaces(&routes).is_empty());
+}
+
+#[test]
+fn the_answer_marks_default_route_candidates() {
+    let mut read = ok(
+        "Core",
+        vec![iface("pppoe-out1", "pppoe-out"), iface("ether2", "ether")],
+    );
+    read.routes = vec![route("main", "pppoe-out1", "pppoe-out1", true)];
+    let answer = answer(&[read], None, 0);
+    let flags: Vec<_> = answer["routers"][0]["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            (
+                c["name"].as_str().unwrap(),
+                c["default_route"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(flags, [("pppoe-out1", true), ("ether2", false)]);
 }

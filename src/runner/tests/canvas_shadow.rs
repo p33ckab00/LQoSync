@@ -1003,3 +1003,80 @@ async fn the_view_marks_an_inactive_group() {
     assert!(active("Gold"));
     assert!(!active("Silver"));
 }
+
+// Live source canvas, Task 6.
+
+#[tokio::test]
+async fn the_cycle_lists_default_route_wans_and_reads_them_every_ten_cycles() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    let core = Config::from_toml_str(
+        "[[routers]]\nname=\"Core\"\naddress=\"192.0.2.9\"\nusername=\"u\"\npassword_file=\"/x\"\n",
+    )
+    .unwrap()
+    .routers
+    .remove(0);
+    r.cfg.routers.push(core);
+    let iface = |name: &str| {
+        [("name", name), ("type", "pppoe-out"), ("running", "true")]
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<crate::model::RosRow>()
+    };
+    let route = |gw: &str| {
+        [
+            ("dst-address", "0.0.0.0/0"),
+            ("gateway", gw),
+            ("active", "true"),
+        ]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect::<crate::model::RosRow>()
+    };
+    e.fake.rows.lock().unwrap().insert(
+        "Core".into(),
+        BTreeMap::from([
+            ("/interface".into(), vec![iface("pppoe-out1")]),
+            ("/ip/route".into(), vec![route("pppoe-out1")]),
+        ]),
+    );
+    let candidates = |e: &Env| -> Vec<String> {
+        let view: web_contract::topology::TopologyView = serde_json::from_slice(
+            &std::fs::read(e.state.join(web_contract::topology::CACHE)).unwrap(),
+        )
+        .unwrap();
+        view.wan_candidates
+            .iter()
+            .flat_map(|r| r.candidates.iter().map(|c| c.name.clone()))
+            .collect()
+    };
+    r.cycle(1_000, false).await;
+    assert_eq!(candidates(&e), ["pppoe-out1"]);
+    let file = e.state.join("topology-manager/wan-discovery.json");
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(
+        std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    e.fake
+        .rows
+        .lock()
+        .unwrap()
+        .get_mut("Core")
+        .unwrap()
+        .insert("/ip/route".into(), vec![route("pppoe-out2")]);
+    e.fake.rows.lock().unwrap().get_mut("Core").unwrap().insert(
+        "/interface".into(),
+        vec![iface("pppoe-out1"), iface("pppoe-out2")],
+    );
+    for i in 1..10 {
+        r.cycle(1_000 + i * 100, false).await;
+    }
+    assert_eq!(candidates(&e), ["pppoe-out1"], "no read before ten cycles");
+    r.cycle(2_000, false).await;
+    assert_eq!(candidates(&e), ["pppoe-out2"]);
+    // A restart keeps the cards from the file until the next read.
+    let mut again = runner(&e, r.cfg.clone());
+    again.load_wan_discovery();
+    assert!(again.wan_discovery.is_some());
+}

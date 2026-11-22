@@ -309,6 +309,7 @@ where
             )?,
         };
         self.record_live_groups(now).await;
+        self.refresh_wan_discovery(now).await;
         let prepared = self.prepare_topology(Duration::from_secs(30)).await;
         let result = match prepared {
             Ok(pair) => {

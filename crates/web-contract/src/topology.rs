@@ -58,6 +58,9 @@ pub struct TopologyView {
     /// Recent web changes, newest first. Changes from the TUI or the CLI are not recorded here.
     #[serde(default)]
     pub history: Vec<WebChange>,
+    /// Default-route interfaces of WAN routers that no WAN node uses yet ("not configured" cards).
+    #[serde(default)]
+    pub wan_candidates: Vec<DiscoveredRouter>,
     /// Decimal string. The canvas layout revision, independent of `registry_revision`.
     #[serde(default)]
     pub layout_revision: Option<String>,
@@ -667,6 +670,9 @@ pub struct WanCandidate {
     pub suggested: bool,
     /// WAN nodes that already use this endpoint.
     pub used_by: Vec<String>,
+    /// An active `0.0.0.0/0` route uses this interface.
+    #[serde(default)]
+    pub default_route: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

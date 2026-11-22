@@ -37,6 +37,9 @@ pub struct Input<'a> {
     /// Live source activity, and the grace period in seconds.
     pub activity: Option<&'a crate::topology_manager::activity::SourceActivity>,
     pub grace: u64,
+    /// The last WAN discovery answer (`wan::answer`), and the names of the WAN routers.
+    pub wan_discovery: Option<&'a Value>,
+    pub wan_routers: &'a std::collections::BTreeSet<String>,
 }
 
 /// Web changes kept in the view, newest first.
@@ -271,7 +274,42 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                 .collect()
         },
         layout_revision: input.layout.map(|l| l.revision.to_string()),
+        wan_candidates: wan_candidates(input),
     }
+}
+
+/// Default-route interfaces of the WAN routers that no WAN node uses yet.
+fn wan_candidates(input: &Input<'_>) -> Vec<DiscoveredRouter> {
+    let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let empty = Vec::new();
+    let items = |v: &Value| v.as_array().unwrap_or(&empty).clone();
+    input
+        .wan_discovery
+        .map(|d| items(&d["routers"]))
+        .unwrap_or_default()
+        .iter()
+        .filter(|r| input.wan_routers.contains(&text(&r["name"])))
+        .map(|r| DiscoveredRouter {
+            router_id: text(&r["router_id"]),
+            name: text(&r["name"]),
+            state: text(&r["state"]),
+            error: r["error"].as_str().map(str::to_string),
+            candidates: items(&r["candidates"])
+                .iter()
+                .filter(|c| c["default_route"] == true && items(&c["used_by"]).is_empty())
+                .map(|c| WanCandidate {
+                    name: text(&c["name"]),
+                    kind: text(&c["type"]),
+                    running: c["running"] == true,
+                    disabled: c["disabled"] == true,
+                    suggested: c["suggested"] == true,
+                    used_by: Vec::new(),
+                    default_route: true,
+                })
+                .collect(),
+        })
+        .filter(|r| !r.candidates.is_empty())
+        .collect()
 }
 
 /// A lower-case name of a serialized enum value, for example `IMPORT_CONFIRMED`.

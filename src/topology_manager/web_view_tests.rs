@@ -9,6 +9,7 @@ use crate::topology_manager::policy_draft::router_id;
 use crate::topology_manager::rates::RateBps;
 use crate::topology_manager::settings::SourceSettings;
 use serde_json::json;
+use std::collections::BTreeSet;
 
 fn scope(router: &str, kind: SourceKind) -> SourceScope {
     SourceScope {
@@ -173,6 +174,8 @@ fn preview(revision: u64) -> Value {
     })
 }
 
+static NO_ROUTERS: BTreeSet<String> = BTreeSet::new();
+
 fn input<'a>(
     doc: Option<&'a RegistryDocument>,
     preview: Option<&'a Value>,
@@ -194,6 +197,8 @@ fn input<'a>(
         wan_lists: None,
         activity: None,
         grace: 600,
+        wan_discovery: None,
+        wan_routers: &NO_ROUTERS,
     }
 }
 
@@ -747,4 +752,47 @@ fn view_shows_routing_lists() {
     let lists = v.wan_lists.unwrap();
     assert_eq!(lists.state, "held");
     assert_eq!(lists.error.as_deref(), Some("3 of 5 clients would leave"));
+}
+
+// Live source canvas, Task 6.
+
+fn discovery() -> Value {
+    let c = |name: &str, default_route: bool, used: &[&str]| {
+        serde_json::json!({"name": name, "type": "pppoe-out", "running": true, "disabled": false,
+            "suggested": true, "used_by": used, "default_route": default_route})
+    };
+    serde_json::json!({"collected_at": 5, "unconfigured": [], "routers": [
+        {"router_id": "fse-core", "name": "FSE-CORE", "state": "ok", "error": null,
+         "candidates": [c("pppoe-out1", true, &[]), c("pppoe-out2", true, &["wan2"]),
+                        c("ether9", false, &[])]},
+        {"router_id": "hub-1", "name": "Hub-1", "state": "ok", "error": null,
+         "candidates": [c("pppoe-out1", true, &[])]}
+    ]})
+}
+
+#[test]
+fn the_view_lists_unconfigured_wan_candidates() {
+    let d = discovery();
+    let routers = BTreeSet::from(["FSE-CORE".to_string()]);
+    let mut i = input(None, None, None);
+    i.wan_discovery = Some(&d);
+    i.wan_routers = &routers;
+    let v = project(&i);
+    assert_eq!(v.wan_candidates.len(), 1);
+    let names: Vec<_> = v.wan_candidates[0]
+        .candidates
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, ["pppoe-out1"]);
+    assert!(v.wan_candidates[0].candidates[0].default_route);
+}
+
+#[test]
+fn a_distro_router_gives_no_wan_candidate() {
+    let d = discovery();
+    let mut i = input(None, None, None);
+    i.wan_discovery = Some(&d);
+    let v = project(&i);
+    assert!(v.wan_candidates.is_empty());
 }

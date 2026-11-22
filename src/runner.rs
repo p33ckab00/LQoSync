@@ -120,6 +120,8 @@ pub struct Runner<C: Connector + 'static> {
     last_preview: Option<serde_json::Value>,
     /// The last `wan.discover` answer. `wan.create` checks candidates against it.
     wan_discovery: Option<serde_json::Value>,
+    /// The cycle of the last WAN discovery read by the cycle. `None`: no read since the start.
+    wan_read_at: Option<u64>,
     /// The one kept Builder edit proposal.
     edit_proposal: Option<EditProposal>,
     edit_sequence: u64,
@@ -279,6 +281,7 @@ where
             last_cycle_started: None,
             last_preview: None,
             wan_discovery: None,
+            wan_read_at: None,
             edit_proposal: None,
             edit_sequence: 0,
         }
@@ -722,6 +725,7 @@ where
             &Path::new(&self.cfg.runtime.state_dir).join("topology-manager"),
         )
         .ok();
+        let wan_routers = self.wan_routers(doc.as_ref());
         let view =
             crate::topology_manager::web_view::project(&crate::topology_manager::web_view::Input {
                 doc: doc.as_ref(),
@@ -739,6 +743,8 @@ where
                 wan_lists: self.wan_lists.as_ref(),
                 activity: self.activity.as_ref(),
                 grace: self.cfg.runtime.subscriber_grace,
+                wan_discovery: self.wan_discovery.as_ref(),
+                wan_routers: &wan_routers,
             });
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
@@ -1888,6 +1894,83 @@ where
         }
     }
 
+    /// The names of the WAN routers: the WAN role in the catalog, or no subscriber protocol.
+    fn wan_routers(
+        &self,
+        doc: Option<&crate::topology_manager::model::RegistryDocument>,
+    ) -> std::collections::BTreeSet<String> {
+        use crate::topology_manager::catalog::RouterRole;
+        let catalog = doc.and_then(|d| d.catalog.as_ref());
+        self.cfg
+            .routers
+            .iter()
+            .filter(|r| {
+                !r.reads_subscribers()
+                    || catalog.is_some_and(|c| {
+                        c.routers
+                            .iter()
+                            .any(|cr| cr.name == r.name && cr.roles.contains(&RouterRole::Wan))
+                    })
+            })
+            .map(|r| r.name.clone())
+            .collect()
+    }
+
+    fn wan_discovery_path(&self) -> std::path::PathBuf {
+        Path::new(&self.cfg.runtime.state_dir).join("topology-manager/wan-discovery.json")
+    }
+
+    /// Load the last WAN discovery, so that the WAN cards stay after a restart.
+    pub(crate) fn load_wan_discovery(&mut self) {
+        if self.wan_discovery.is_none() {
+            self.wan_discovery = std::fs::read(self.wan_discovery_path())
+                .ok()
+                .and_then(|b| serde_json::from_slice(&b).ok());
+        }
+    }
+
+    /// Live source canvas: read the WAN routers at the first cycle and every 10 cycles. Only an
+    /// enrolled topology has a canvas, so a legacy installation gets no extra router reads.
+    pub(crate) async fn refresh_wan_discovery(&mut self, now: u64) {
+        self.load_wan_discovery();
+        if self.wan_read_at.is_some_and(|at| self.cycle_seq < at + 10) {
+            return;
+        }
+        let Some(doc) = self
+            .api_document()
+            .ok()
+            .flatten()
+            .filter(|d| d.catalog.is_some() && d.export_ownership.is_some())
+        else {
+            return;
+        };
+        let only: Vec<String> = self
+            .wan_routers(Some(&doc))
+            .iter()
+            .map(|n| crate::topology_manager::policy_draft::router_id(n))
+            .collect();
+        // An empty list reads every router: no WAN router means no read.
+        if only.is_empty() {
+            return;
+        }
+        self.wan_read_at = Some(self.cycle_seq);
+        let reads = crate::topology_manager::wan::read_all(
+            self.connector.clone(),
+            &self.cfg,
+            Duration::from_secs(30),
+            &only,
+        )
+        .await;
+        let answer = crate::topology_manager::wan::answer(&reads, doc.catalog.as_ref(), now);
+        if let Err(e) = crate::files::write_secret(
+            &self.wan_discovery_path(),
+            &serde_json::to_vec(&answer).unwrap_or_default(),
+        ) {
+            eprintln!("warning: cannot write the WAN discovery: {e:#}");
+        }
+        self.wan_discovery = Some(answer);
+    }
+
     /// Read the live sources, add new groups, and record which groups are active. A failed read
     /// changes no activity.
     pub(crate) async fn record_live_groups(&mut self, now: u64) {
@@ -2817,6 +2900,7 @@ where
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
         self.record_live_groups(now).await;
+        self.refresh_wan_discovery(now).await;
         self.publish_web_view(now);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
         if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {
@@ -3516,7 +3600,8 @@ mod tests {
             .insert("name".into(), "pppoe-out2".into());
         let second = r.api_wan_discover(&[]).await.unwrap();
         assert_eq!(second["routers"][1]["candidates"][0]["name"], "pppoe-out2");
-        assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 4);
+        // Each discovery reads `/interface` and `/ip/route` on two routers.
+        assert_eq!(e.fake.reads.load(std::sync::atomic::Ordering::SeqCst), 8);
     }
 
     #[tokio::test]

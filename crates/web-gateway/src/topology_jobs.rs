@@ -288,6 +288,7 @@ fn discovery(v: &serde_json::Value) -> Discovery {
                         disabled: flag(&c["disabled"]),
                         suggested: flag(&c["suggested"]),
                         used_by: items(&c["used_by"]).iter().map(text).collect(),
+                        default_route: flag(&c["default_route"]),
                     })
                     .collect(),
             })
