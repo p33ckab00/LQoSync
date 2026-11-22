@@ -4127,7 +4127,15 @@ mod tests {
             let e = env();
             source_registry(&e);
             let mut r = runner(&e, v3_apply(&e));
-            let error = r.activate_topology(yes, 1000).await.err().unwrap();
+            let error = r
+                .activate_topology(
+                    Path::new("/nonexistent/report.json"),
+                    Duration::from_secs(10),
+                    yes,
+                )
+                .await
+                .err()
+                .unwrap();
             assert!(error.to_string().contains("not enrolled"));
             assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
             assert!(!e.lqos.join("ShapedDevices.csv").exists());
@@ -4143,7 +4151,15 @@ mod tests {
         let mut owner = runner(&e, config.clone());
         owner.lock().unwrap();
         let mut another = runner(&e, config);
-        let error = another.activate_topology(true, 1000).await.err().unwrap();
+        let error = another
+            .activate_topology(
+                Path::new("/nonexistent/report.json"),
+                Duration::from_secs(10),
+                true,
+            )
+            .await
+            .err()
+            .unwrap();
         assert!(error.to_string().contains("another lqosync3 is running"));
         assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
     }
@@ -4689,17 +4705,15 @@ mod tests {
         doc.export_ownership = Some(Default::default());
         r.test_commit(doc).unwrap();
         let revision = r.api_document().unwrap().unwrap().revision;
-        assert!(r.activate_topology(false, 998).await.unwrap().is_none());
         assert_eq!(r.api_document().unwrap().unwrap().revision, revision);
         assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
-        assert!(
-            !Path::new(&native_cfg.directory)
-                .join("ShapedDevices.csv")
-                .exists()
-        );
+        // Activation only claims the writer; the first sync writes the pair.
+        crate::topology_manager::runtime::claim(&e.state).unwrap();
         r.cfg.exclude.ips.push("192.0.2.0/24".into());
-        let filtered = r.activate_topology(true, 999).await.unwrap().unwrap();
-        assert!(e.state.join("topology-manager/runtime-owner.json").exists());
+        let filtered = r
+            .sync_topology(&mut compiler, Duration::from_secs(10), 999)
+            .await
+            .unwrap();
         assert!(filtered.error.is_none());
         assert!(
             crate::state::read_csv(&read(

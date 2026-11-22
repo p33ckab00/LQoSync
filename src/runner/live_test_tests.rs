@@ -690,3 +690,117 @@ fn a_waiting_proof_gives_the_waiting_identities_in_the_error() {
     assert!(text.contains("waiting to take effect"), "{text}");
     assert!(text.contains("C1"), "{text}");
 }
+
+// Activation gates (activation plan Task 2).
+
+/// A live test report for `revision`, as `topology live-test --report` writes it.
+fn report_file(e: &Env, passed: bool, revision: u64) -> PathBuf {
+    let path = e.state.join("../activation-report.json");
+    std::fs::write(
+        &path,
+        json!({"passed": passed, "registry_revision": revision}).to_string(),
+    )
+    .unwrap();
+    path
+}
+
+fn revision(r: &mut Runner<FakeConnector>) -> u64 {
+    r.api_document().unwrap().unwrap().revision
+}
+
+#[tokio::test]
+async fn activate_dry_run_writes_nothing() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let report = report_file(&e, true, revision(&mut r));
+    let before = (pair(&e), state_files(&e));
+    let out = r
+        .activate_topology_with(&mut fake, &report, AGE, false)
+        .await
+        .unwrap();
+    assert!(!out.activated);
+    assert_eq!((pair(&e), state_files(&e)), before);
+    assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+}
+
+#[tokio::test]
+async fn activate_writes_the_owner_file() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let report = report_file(&e, true, revision(&mut r));
+    let legacy = pair(&e);
+    let out = r
+        .activate_topology_with(&mut fake, &report, AGE, true)
+        .await
+        .unwrap();
+    assert!(out.activated);
+    assert!(crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+    // The first manager pair comes from the next cycle, not from activation.
+    assert_eq!(pair(&e), legacy);
+}
+
+#[tokio::test]
+async fn activate_refuses_when_already_active() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let report = report_file(&e, true, revision(&mut r));
+    crate::topology_manager::runtime::claim(&e.state).unwrap();
+    let error = r
+        .activate_topology_with(&mut fake, &report, AGE, true)
+        .await
+        .unwrap_err();
+    assert!(format!("{error:#}").contains("already active"), "{error:#}");
+}
+
+#[tokio::test]
+async fn activate_refuses_a_legacy_row_without_an_alias() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let report = report_file(&e, true, revision(&mut r));
+    // A client came back with a new legacy Circuit ID.
+    let csv = e.lqos.join("ShapedDevices.csv");
+    let text = read(&csv);
+    let first = crate::state::read_csv(&text).unwrap()[0].circuit_id.clone();
+    std::fs::write(&csv, text.replacen(&first, "N9999", 1)).unwrap();
+    let error = format!(
+        "{:#}",
+        r.activate_topology_with(&mut fake, &report, AGE, true)
+            .await
+            .unwrap_err()
+    );
+    assert!(
+        error.contains("N9999") && error.contains("propose --replace"),
+        "{error}"
+    );
+    assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+}
+
+#[tokio::test]
+async fn activate_refuses_a_report_of_another_revision() {
+    let e = env();
+    let (c, mut fake) = enrolled(&e).await;
+    let mut r = runner(&e, c);
+    let current = revision(&mut r);
+    for report in [
+        report_file(&e, true, current - 1),
+        report_file(&e, false, current),
+    ] {
+        let error = format!(
+            "{:#}",
+            r.activate_topology_with(&mut fake, &report, AGE, true)
+                .await
+                .unwrap_err()
+        );
+        assert!(
+            error.contains(&format!(
+                "does not prove the current registry revision {current}"
+            )),
+            "{error}"
+        );
+    }
+    assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+}

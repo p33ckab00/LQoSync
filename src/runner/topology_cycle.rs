@@ -1,35 +1,107 @@
 //! Scheduled publication for an explicitly selected topology writer. Never a legacy fallback.
 use super::*;
 
+/// The result of `topology activate`.
+#[derive(Debug)]
+pub struct ActivationOutcome {
+    /// True when the owner file is written (`--yes`).
+    pub activated: bool,
+    /// Node capacities that the export rounds.
+    pub rounded: Vec<crate::topology_manager::publication::NodeExportAdjustment>,
+    /// Registry subscribers with more than one identity.
+    pub multi_identity: usize,
+}
+
 impl<C> Runner<C>
 where
     C: Connector + 'static,
     C::Session: 'static,
 {
-    /// Explicit activation: dry-run compiles only. Confirmation uses the existing sole writer.
+    /// `topology activate`: run the gates, and with `install` claim the writer. It writes no
+    /// pair: the next cycle publishes the first manager pair.
     pub async fn activate_topology(
         &mut self,
-        confirmed: bool,
-        now: u64,
-    ) -> anyhow::Result<Option<crate::write_receipt::WriteResult>> {
-        self.require_topology_enrollment()?;
+        report: &Path,
+        max_age: Duration,
+        install: bool,
+    ) -> anyhow::Result<ActivationOutcome> {
+        self.activate_topology_with(&mut super::live_test::NativeIo, report, max_age, install)
+            .await
+    }
+
+    /// As `activate_topology`, with the LibreQoS compiler check through `io`. Gates in order:
+    /// enrolled, not active, every legacy row has an alias, parity, compiler, live test report.
+    pub async fn activate_topology_with(
+        &mut self,
+        io: &mut impl super::live_test::LiveIo,
+        report: &Path,
+        max_age: Duration,
+        install: bool,
+    ) -> anyhow::Result<ActivationOutcome> {
+        use crate::topology_manager::parity::ParityIssue;
+        self.lock()?;
+        self.topology_preflight()?;
+        self.open_topology_store()?;
+        let document = self
+            .topology_store
+            .as_ref()
+            .context("registry owner is missing")?
+            .document()?
+            .clone();
+        anyhow::ensure!(
+            document.export_ownership.is_some(),
+            "the topology registry is not enrolled"
+        );
         let state_dir = std::path::PathBuf::from(&self.cfg.runtime.state_dir);
-        let mut compiler = crate::topology_manager::compiler::ControlledCompiler::open(
-            &self.cfg.libreqos,
-            &state_dir.join("topology-manager/compiler"),
-        )?;
-        let pair = self.prepare_topology(Duration::from_secs(30)).await?;
-        self.check_topology_pair(&pair)?;
-        let wanted = self.wanted_lists(&pair)?;
-        let compiled = compiler.compile(pair).await?;
-        if confirmed {
-            let result = self.publish_with_lists(compiled, wanted, now).await?;
-            // Only activation claims the writer, after its first pair is written.
-            crate::topology_manager::runtime::claim(&state_dir)?;
-            Ok(Some(result))
-        } else {
-            Ok(None)
+        anyhow::ensure!(
+            !crate::topology_manager::runtime::topology_owns(&state_dir)?,
+            "the Topology Manager is already active"
+        );
+        let pair = self.prepare_topology(max_age).await?;
+        let (rows, network) = crate::topology_manager::enrollment::read_live_pair(&self.cfg)?;
+        let issues = crate::topology_manager::parity::compare_legacy(&pair, &rows, &network)?;
+        if let Some(ParityIssue::MissingRow {
+            circuit_id,
+            device_id,
+        }) = issues
+            .iter()
+            .find(|i| matches!(i, ParityIssue::MissingRow { .. }))
+        {
+            anyhow::bail!(
+                "legacy row {circuit_id} / {device_id} has no alias; run topology propose --replace and topology enroll --replace"
+            );
         }
+        anyhow::ensure!(
+            issues.is_empty(),
+            "the manager pair differs from the legacy pair: {issues:?}"
+        );
+        let rounded = pair.node_export_adjustments().to_vec();
+        io.admit(&self.cfg, pair)
+            .await
+            .context("the LibreQoS compiler check failed")?;
+        let proved = std::fs::read(report)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .is_some_and(|v| {
+                v["passed"] == true && v["registry_revision"].as_u64() == Some(document.revision)
+            });
+        anyhow::ensure!(
+            proved,
+            "the live test report does not prove the current registry revision {}",
+            document.revision
+        );
+        if install {
+            crate::topology_manager::runtime::claim(&state_dir)?;
+        }
+        Ok(ActivationOutcome {
+            activated: install,
+            rounded,
+            multi_identity: document
+                .subscribers
+                .iter()
+                .filter(|s| s.identities.len() > 1)
+                .count(),
+        })
     }
 
     pub(super) fn check_topology_pair(

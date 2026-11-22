@@ -202,46 +202,32 @@ where
                 }
             }
         }
-        TopologyCommand::Activate { yes } => {
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_secs());
-            match runner.activate_topology(*yes, now).await.map_err(locked)? {
-                None => {
-                    let _ = writeln!(
-                        out,
-                        "activation preview passed: current sources compiled and passed admission; no live pair or writer changed"
-                    );
-                    let _ = writeln!(
-                        out,
-                        "run topology activate --yes to select automatic topology publication, then start the service"
-                    );
-                    0
-                }
-                Some(result) => {
-                    if let Some(error) = result.error {
-                        anyhow::bail!(
-                            "topology publication failed: {error}; writer ownership remains topology; legacy fallback is blocked"
-                        );
-                    }
-                    if let Some(error) = result.tracking_error {
-                        let _ = writeln!(out, "warning: write receipt storage failed: {error}");
-                    }
-                    let _ = writeln!(
-                        out,
-                        "topology writer selected; pair {}; start the service for automatic cycles",
-                        if result.changed {
-                            "written and scheduler import requested"
-                        } else {
-                            "unchanged"
-                        }
-                    );
-                    let _ = writeln!(
-                        out,
-                        "publication is not proof that LibreQoS applied the pair; check publication evidence after service start"
-                    );
-                    0
-                }
+        TopologyCommand::Activate { report, yes } => {
+            let outcome = runner
+                .activate_topology(report, MAX_AGE, *yes)
+                .await
+                .map_err(locked)?;
+            rounded(&mut out, &outcome.rounded);
+            if outcome.multi_identity > 0 {
+                let _ = writeln!(
+                    out,
+                    "{} subscriber(s) have more than one identity",
+                    outcome.multi_identity
+                );
+            }
+            if outcome.activated {
+                let _ = writeln!(out, "activated: the Topology Manager is the writer");
+                let _ = writeln!(
+                    out,
+                    "start the service; its next cycle writes the first manager pair"
+                );
+                0
+            } else {
+                let _ = writeln!(
+                    out,
+                    "dry run: every activation gate passed; no file changed. Run again with --yes"
+                );
+                2
             }
         }
         TopologyCommand::LiveTest {
