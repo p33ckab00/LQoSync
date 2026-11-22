@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22 (Asia/Manila) — Topology automatic placement: design and plan
+
+- Last agent: Claude Code. Branch `lqosync3`. No code change. No commit.
+- Owner decisions: the first run starts with an empty tree. An empty tree gives a flat output. A saved tree is the authority. A node can represent an access router. Subscribers stay in the branch of their router. A router without a router node goes under the WAN node.
+- Spec: `docs/superpowers/specs/2026-11-22-topology-auto-placement-design.md`. Plan: `docs/superpowers/plans/2026-11-22-topology-auto-placement.md` (Tasks 1–6).
+- Open owner questions: more than one WAN (proposal: own WAN of the router, then capacity balance). Stability (builder call: saved assignments stay, new subscribers go to new nodes).
+- Warning: the tree has uncommitted canvas Task 6 work (`src/runner/tests/canvas_shadow.rs`) and traffic work. Do not overwrite it.
+- Next: execute the plan from Task 1. Do not deploy.
+
 ## 2026-11-22 (Asia/Manila) — Topology canvas Task 6 (shadow acceptance)
 
 - Last agent: Claude Code. Branch `lqosync3`. Commit cc26639.
