@@ -161,6 +161,14 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - The default `[network] mode` for a new installation is `root_promotion`.
 - Not deployed. The window procedure: `docs/operations/TOPOLOGY_ACTIVATION.md`.
 
+## Live source canvas (2026-11-23)
+
+- Status: done on branch `lqosync3`, Tasks 1–10 of `docs/superpowers/plans/2026-11-22-live-source-canvas.md`. Not deployed.
+- Backend: groups only for active sources, an automatic group commit in each cycle, activity with a grace period, registry schema 9 (source and tree exclusion), router node copies below two or more WANs, default-route WAN candidates, and `--accept-changes` for the live test and the activation.
+- Web: the tier layout engine (ported from `traffic-intelligence`), "not configured" WAN cards, the WAN connector drag, router and group settings, the Excluded tool, the routing warning, Fit, Reset layout, and List view.
+- Not done: automatic router nodes (Task 2), the routing warning in the review step, and the copy of later groups to other router node copies.
+- Before deploy: the schema-8 backup for rollback, and read access to `/ip/route` on the WAN routers.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.

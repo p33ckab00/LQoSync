@@ -64,7 +64,7 @@ The legacy files have no rows for that server, so live shaping does not change. 
    ```
 
    Review the policy file. It contains the catalog (routers, group nodes, rates) and the source selections with their identity rules.
-   Each DHCP server in the configuration (and each discovered server when `discover = true`) gets a group. A PPP profile gets a group only when at least one PPP secret uses it. The source selection keeps every profile, so a secret that moves to a profile without a group stays shaped without a parent node. Add that profile with **Discover sources** in the web UI.
+   The first proposal makes a group only for an active source. These sources are active: a PPP profile with an active session, and a DHCP server with a shaped lease. A router with an active Hotspot session gets one Hotspot group. The legacy tree has the same nodes, so parity passes. The source selection keeps every profile and every server. After enrollment, the service adds the group of a new active source in each cycle.
    Exit status 0 means ready. Exit status 2 means a `CRITICAL` line. Correct each `CRITICAL` line, then run the check again.
    A `WARN` line for a locally administered DHCP MAC is not a blocker. A random MAC can give a new identity when it changes.
    A `rounded node` line shows a node capacity that the manager exports in whole Mbps, for example 225.75 Mbps to 225 Mbps.

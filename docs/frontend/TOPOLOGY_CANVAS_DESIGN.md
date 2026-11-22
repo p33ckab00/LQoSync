@@ -15,7 +15,8 @@ The [implementation and transition plan](../superpowers/plans/2026-11-22-topolog
 
 Topology Manager uses an infinite canvas inside the current Rust web application.
 The canvas supports pan, zoom, selection, node movement, connectors, and modal forms.
-A fresh topology starts empty. Discovery adds resources to Inventory only.
+Replaced on 2026-11-22 by the [live source canvas design](../superpowers/specs/2026-11-22-live-source-canvas-design.md): ~~A fresh topology starts empty. Discovery adds resources to Inventory only.~~
+The canvas follows the routers. Each cycle adds a card for each active PPP profile, DHCP server with leases, and Hotspot. A router card appears for a router with active sources. A default-route WAN interface without a WAN node is a "not configured" card. A card without members disappears after the grace period. Its settings stay.
 Saved policies remain visible. The application must not reset them to create an empty canvas.
 
 The FAB opens Router Inventory and resource actions.
