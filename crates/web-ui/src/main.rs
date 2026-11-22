@@ -61,6 +61,9 @@ mod routers_model;
 mod subscriber_views;
 #[cfg(target_arch = "wasm32")]
 mod topology;
+// shortcut: test-only until Task 9 uses it in the canvas; then add target_arch = "wasm32".
+#[cfg(test)]
+mod canvas_layout;
 #[cfg(target_arch = "wasm32")]
 mod topology_canvas;
 #[cfg(any(target_arch = "wasm32", test))]

@@ -1,0 +1,274 @@
+//! Ported from p33ckab00/traffic-intelligence src/ui/canvas.rs (same owner).
+//! Framework-independent canvas geometry: card positions, connector paths, fit, and zoom.
+
+use std::collections::BTreeMap;
+
+/// The row of a card. WAN cards are at the top, then router cards, then group cards.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+    Wan,
+    Router,
+    Group,
+    Other,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CardBox {
+    pub id: String,
+    pub tier: Tier,
+    pub parent: Option<String>,
+    /// Width and height in canvas pixels.
+    pub size: [f64; 2],
+}
+
+/// The free space around each card.
+const GAP: f64 = 16.0;
+const MARGIN: f64 = 32.0;
+/// The vertical space between a parent and the row of its children.
+const ROW_GAP: f64 = 56.0;
+
+/// Positions (top-left corners) of all cards. A manual position stays. An automatic card goes
+/// in its tier row, below its parent when the parent has a position, and never overlaps a card.
+pub fn layout(
+    cards: &[CardBox],
+    manual: &BTreeMap<String, [f64; 2]>,
+) -> BTreeMap<String, [f64; 2]> {
+    let size: BTreeMap<&str, [f64; 2]> = cards.iter().map(|c| (c.id.as_str(), c.size)).collect();
+    // Manual cards reserve space first.
+    let mut out: BTreeMap<String, [f64; 2]> = cards
+        .iter()
+        .filter_map(|c| manual.get(&c.id).map(|p| (c.id.clone(), *p)))
+        .collect();
+    let row = ROW_GAP + cards.iter().map(|c| c.size[1]).fold(0.0, f64::max);
+    let mut order: Vec<&CardBox> = cards.iter().filter(|c| !out.contains_key(&c.id)).collect();
+    order.sort_by_key(|c| c.tier);
+    for card in order {
+        let [w, h] = card.size;
+        let mut p = match card
+            .parent
+            .as_deref()
+            .and_then(|id| Some((out.get(id)?, size[id])))
+        {
+            Some((parent, [_, ph])) => [parent[0], parent[1] + ph + ROW_GAP],
+            None => [MARGIN, MARGIN + card.tier as u8 as f64 * row],
+        };
+        // Move right past each card in the way. `x` only grows, so the search ends.
+        while let Some((id, q)) = out.iter().find(|(id, q)| {
+            let [ow, oh] = size[id.as_str()];
+            p[0] < q[0] + ow + GAP
+                && q[0] < p[0] + w + GAP
+                && p[1] < q[1] + oh + GAP
+                && q[1] < p[1] + h + GAP
+        }) {
+            p[0] = q[0] + size[id.as_str()][0] + GAP;
+        }
+        out.insert(card.id.clone(), p);
+    }
+    out
+}
+
+/// SVG path from card `a` to card `b`, and the label point. Cards in one column (within 1 px)
+/// connect bottom to top with a line. Other cards connect side to side with a curve.
+pub fn edge_path(
+    a: [f64; 2],
+    a_size: [f64; 2],
+    b: [f64; 2],
+    b_size: [f64; 2],
+) -> (String, f64, f64) {
+    if (a[0] - b[0]).abs() < 1.0 {
+        let x = a[0] + a_size[0] / 2.0;
+        let (y1, y2) = if a[1] < b[1] {
+            (a[1] + a_size[1], b[1])
+        } else {
+            (b[1] + b_size[1], a[1])
+        };
+        return (format!("M{x},{y1} L{x},{y2}"), x, (y1 + y2) / 2.0);
+    }
+    let (x1, y1, x2, y2) = if a[0] < b[0] {
+        (
+            a[0] + a_size[0],
+            a[1] + a_size[1] / 2.0,
+            b[0],
+            b[1] + b_size[1] / 2.0,
+        )
+    } else {
+        (
+            a[0],
+            a[1] + a_size[1] / 2.0,
+            b[0] + b_size[0],
+            b[1] + b_size[1] / 2.0,
+        )
+    };
+    let mid = (x1 + x2) / 2.0;
+    (
+        format!("M{x1},{y1} C{mid},{y1} {mid},{y2} {x2},{y2}"),
+        mid,
+        (y1 + y2) / 2.0,
+    )
+}
+
+/// Zoom and pan that fit `bounds` (`[min x, min y, max x, max y]`) in `viewport`, with a 4 %
+/// border. Returns `(zoom, pan x, pan y)`.
+pub fn fit(bounds: [f64; 4], viewport: [f64; 2]) -> (f64, f64, f64) {
+    let (w, h) = (bounds[2] - bounds[0], bounds[3] - bounds[1]);
+    if viewport[0] <= 0.0 || viewport[1] <= 0.0 || w <= 0.0 || h <= 0.0 {
+        return (1.0, 0.0, 0.0);
+    }
+    let zoom = clamp_zoom((viewport[0] / w).min(viewport[1] / h) * 0.96);
+    (
+        zoom,
+        (viewport[0] - w * zoom) / 2.0 - bounds[0] * zoom,
+        (viewport[1] - h * zoom) / 2.0 - bounds[1] * zoom,
+    )
+}
+
+pub fn clamp_zoom(z: f64) -> f64 {
+    z.clamp(0.25, 2.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(id: &str, tier: Tier, parent: Option<&str>) -> CardBox {
+        CardBox {
+            id: id.into(),
+            tier,
+            parent: parent.map(Into::into),
+            size: [200.0, 100.0],
+        }
+    }
+
+    fn overlaps(cards: &[CardBox], at: &BTreeMap<String, [f64; 2]>) -> Option<(String, String)> {
+        for (i, a) in cards.iter().enumerate() {
+            for b in &cards[i + 1..] {
+                let (p, q) = (at[&a.id], at[&b.id]);
+                if p[0] < q[0] + b.size[0] + GAP
+                    && q[0] < p[0] + a.size[0] + GAP
+                    && p[1] < q[1] + b.size[1] + GAP
+                    && q[1] < p[1] + a.size[1] + GAP
+                {
+                    return Some((a.id.clone(), b.id.clone()));
+                }
+            }
+        }
+        None
+    }
+
+    /// A small fixed-seed generator: the test needs no random crate.
+    fn next(seed: &mut u64) -> u64 {
+        *seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        *seed >> 33
+    }
+
+    fn random_cards(n: usize, seed: &mut u64) -> Vec<CardBox> {
+        let mut cards: Vec<CardBox> = Vec::with_capacity(n);
+        for i in 0..n {
+            let tier =
+                [Tier::Wan, Tier::Router, Tier::Group, Tier::Other][(next(seed) % 4) as usize];
+            let parent = (i > 0 && next(seed).is_multiple_of(2))
+                .then(|| cards[(next(seed) as usize) % i].id.clone());
+            cards.push(CardBox {
+                id: format!("c{i}"),
+                tier,
+                parent,
+                size: [
+                    160.0 + (next(seed) % 101) as f64,
+                    70.0 + (next(seed) % 71) as f64,
+                ],
+            });
+        }
+        cards
+    }
+
+    #[test]
+    fn no_automatic_card_overlaps_for_1_to_200_cards() {
+        let mut seed = 7;
+        for n in 1..=200 {
+            let cards = random_cards(n, &mut seed);
+            let at = layout(&cards, &BTreeMap::new());
+            assert_eq!(at.len(), n);
+            assert_eq!(overlaps(&cards, &at), None, "{n} cards");
+        }
+    }
+
+    #[test]
+    fn a_manual_position_is_kept_and_avoided() {
+        let cards = [
+            card("wan1", Tier::Wan, None),
+            card("r1", Tier::Router, Some("wan1")),
+            card("g1", Tier::Group, Some("r1")),
+        ];
+        let auto = layout(&cards, &BTreeMap::new());
+        // The operator drops the router card on the place of the group card.
+        let manual = BTreeMap::from([("r1".to_string(), auto["g1"])]);
+        let at = layout(&cards, &manual);
+        assert_eq!(at["r1"], auto["g1"]);
+        assert_eq!(overlaps(&cards, &at), None);
+    }
+
+    #[test]
+    fn an_empty_manual_map_is_the_reset_layout() {
+        let cards = random_cards(30, &mut 3);
+        let auto = layout(&cards, &BTreeMap::new());
+        let manual = BTreeMap::from([("c0".to_string(), [900.0, 900.0])]);
+        assert_ne!(layout(&cards, &manual), auto);
+        assert_eq!(layout(&cards, &BTreeMap::new()), auto);
+    }
+
+    #[test]
+    fn a_group_is_below_its_parent() {
+        let cards = [
+            card("wan1", Tier::Wan, None),
+            card("r1", Tier::Router, Some("wan1")),
+            card("g1", Tier::Group, Some("r1")),
+            card("g2", Tier::Group, Some("r1")),
+        ];
+        let at = layout(&cards, &BTreeMap::new());
+        assert!(at["r1"][1] > at["wan1"][1] + 100.0);
+        for g in ["g1", "g2"] {
+            assert!(at[g][1] > at["r1"][1] + 100.0, "{g}");
+        }
+        assert_eq!(at["g1"][0], at["r1"][0]);
+    }
+
+    #[test]
+    fn edge_path_is_vertical_in_one_column() {
+        let (path, x, y) = edge_path([10.0, 0.0], [200.0, 100.0], [10.5, 300.0], [200.0, 100.0]);
+        assert_eq!(path, "M110,100 L110,300");
+        assert_eq!((x, y), (110.0, 200.0));
+        let (path, _, _) = edge_path([0.0, 0.0], [200.0, 100.0], [400.0, 300.0], [200.0, 100.0]);
+        assert!(path.starts_with("M200,50 C"), "{path}");
+    }
+
+    #[test]
+    fn fit_contains_every_card() {
+        let cards = random_cards(10, &mut 11);
+        let at = layout(&cards, &BTreeMap::new());
+        let mut b = [f64::MAX, f64::MAX, f64::MIN, f64::MIN];
+        for c in &cards {
+            let p = at[&c.id];
+            b = [
+                b[0].min(p[0]),
+                b[1].min(p[1]),
+                b[2].max(p[0] + c.size[0]),
+                b[3].max(p[1] + c.size[1]),
+            ];
+        }
+        let viewport = [1280.0, 720.0];
+        let (zoom, px, py) = fit(b, viewport);
+        let screen = |x: f64, y: f64| (x * zoom + px, y * zoom + py);
+        let (x0, y0) = screen(b[0], b[1]);
+        let (x1, y1) = screen(b[2], b[3]);
+        assert!(
+            zoom > clamp_zoom(0.0),
+            "the test needs a zoom above the minimum"
+        );
+        assert!(x0 >= 0.0 && y0 >= 0.0, "{x0} {y0}");
+        assert!(x1 <= viewport[0] && y1 <= viewport[1], "{x1} {y1}");
+        assert_eq!(fit([0.0; 4], [0.0, 0.0]), (1.0, 0.0, 0.0));
+        assert_eq!((clamp_zoom(0.01), clamp_zoom(9.0)), (0.25, 2.0));
+    }
+}
