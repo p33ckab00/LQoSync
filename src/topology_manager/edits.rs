@@ -961,6 +961,139 @@ fn rebinds(doc: &RegistryDocument, draft: &super::policy_draft::PolicyDraft) -> 
     out
 }
 
+/// The read role of a subscriber source kind.
+fn read_role(kind: SourceKind) -> RouterRole {
+    match kind {
+        SourceKind::Ppp => RouterRole::Ppp,
+        SourceKind::Dhcp => RouterRole::Dhcp,
+        SourceKind::Hotspot => RouterRole::Hotspot,
+    }
+}
+
+/// Saved selections as `(router name, kind)`. A router is matched by name, because a catalog
+/// router ID can differ from the ID that the policy proposal derives from the config.
+fn saved_protocols(doc: &RegistryDocument) -> std::collections::HashSet<(String, SourceKind)> {
+    let names: std::collections::HashMap<_, _> = doc
+        .catalog
+        .iter()
+        .flat_map(|c| &c.routers)
+        .map(|r| (r.id.as_str(), r.name.as_str()))
+        .collect();
+    doc.source_settings
+        .iter()
+        .flat_map(|s| &s.selections)
+        .map(|s| {
+            let id = s.scope.router_id.as_str();
+            (
+                names.get(id).copied().unwrap_or(id).to_string(),
+                s.scope.kind,
+            )
+        })
+        .collect()
+}
+
+/// True if an enabled PPP or DHCP protocol of `cfg` has no saved selection. No router read.
+/// Hotspot is not counted: the policy proposal does not support it.
+pub fn unread_protocols(doc: &RegistryDocument, cfg: &Config) -> bool {
+    let saved = saved_protocols(doc);
+    doc.catalog.is_some()
+        && cfg.routers.iter().any(|r| {
+            (r.pppoe.enabled && !saved.contains(&(r.name.clone(), SourceKind::Ppp)))
+                || (r.dhcp.enabled && !saved.contains(&(r.name.clone(), SourceKind::Dhcp)))
+        })
+}
+
+/// Owner decision (2026-11-22): every enabled protocol is read, so that automatic placement
+/// shapes each subscriber. For each router protocol without a saved selection, copy the draft
+/// selections and their sources, with no node. `None` means that nothing is missing.
+/// A draft router whose name has a different catalog ID is skipped: a merge would be ambiguous.
+pub fn auto_read(
+    doc: &RegistryDocument,
+    draft: &super::policy_draft::PolicyDraft,
+) -> anyhow::Result<Option<RegistryDocument>> {
+    let Some(catalog) = &doc.catalog else {
+        return Ok(None);
+    };
+    let saved = saved_protocols(doc);
+    let selections: Vec<_> = draft
+        .source_settings
+        .selections
+        .iter()
+        .filter(|s| {
+            let Some(router) = draft
+                .catalog
+                .routers
+                .iter()
+                .find(|r| r.id == s.scope.router_id)
+            else {
+                return false;
+            };
+            !saved.contains(&(router.name.clone(), s.scope.kind))
+                && catalog
+                    .routers
+                    .iter()
+                    .all(|r| r.name != router.name || r.id == router.id)
+        })
+        .cloned()
+        .collect();
+    if selections.is_empty() {
+        return Ok(None);
+    }
+    let mut d = doc.clone();
+    let c = d.catalog.as_mut().expect("checked above");
+    for selection in &selections {
+        let role = read_role(selection.scope.kind);
+        match c
+            .routers
+            .iter_mut()
+            .find(|r| r.id == selection.scope.router_id)
+        {
+            Some(r) if !r.roles.contains(&role) => r.roles.push(role),
+            Some(_) => {}
+            None => {
+                let r = draft
+                    .catalog
+                    .routers
+                    .iter()
+                    .find(|r| r.id == selection.scope.router_id)
+                    .ok_or_else(|| anyhow::anyhow!("a draft selection has no draft router"))?;
+                c.routers.push(CatalogRouter {
+                    id: r.id.clone(),
+                    name: r.name.clone(),
+                    roles: vec![role],
+                });
+            }
+        }
+        for source in &draft.catalog.sources {
+            let SourceOrigin::Subscribers { scope, .. } = &source.origin else {
+                continue;
+            };
+            if scope != &selection.scope || c.sources.iter().any(|s| s.id == source.id) {
+                continue;
+            }
+            let mut added = source.clone();
+            added.targets.clear();
+            c.sources.push(added);
+            if let Some(pid) = source.profile_id.as_deref()
+                && !c.profiles.iter().any(|p| p.id == pid)
+                && let Some(p) = draft.catalog.profiles.iter().find(|p| p.id == pid)
+            {
+                c.profiles.push(p.clone());
+            }
+        }
+    }
+    c.canonicalize();
+    let settings = d
+        .source_settings
+        .get_or_insert_with(|| super::settings::SourceSettings {
+            selections: Vec::new(),
+        });
+    settings.selections.extend(selections);
+    settings.canonicalize();
+    d.validate()?;
+    Ok(Some(d))
+}
+
 /// Copy one draft source into the registry, as enrollment builds it, with its first instance.
 pub fn add_source(
     doc: &RegistryDocument,

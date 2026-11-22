@@ -233,3 +233,26 @@ async fn a_canvas_edit_is_the_only_difference_and_publishes_through_the_fixture(
     assert_eq!(read(&target.join("network.json")), text);
     assert_eq!(live(&e), (rows, network));
 }
+
+#[tokio::test]
+async fn an_initialized_empty_tree_reads_every_protocol_and_places_everyone_flat() {
+    use web_contract::topology::{BuilderEdit, WebCommand};
+    let e = env();
+    let config = setup(&e, None);
+    let mut r = runner(&e, config);
+    let init = WebCommand::Edit {
+        expected_revision: 0,
+        edit: BuilderEdit::Initialize,
+    };
+    r.api_web_mutate("automatic-edit-flat", "operator", init)
+        .await
+        .unwrap();
+    let pair = r.prepare_topology(AGE).await.unwrap();
+    // The 7 router subscribers of the scenario. No node, no parent.
+    assert_eq!(pair.network(), &serde_json::json!({}));
+    assert_eq!(pair.rows().len(), 7);
+    assert!(pair.rows().iter().all(|row| row.parent_node.is_empty()));
+    // The saved policy does not change until a publication commits it.
+    let saved = r.api_document().unwrap().unwrap();
+    assert!(saved.source_settings.unwrap().selections.is_empty());
+}

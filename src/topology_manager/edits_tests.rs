@@ -1672,3 +1672,43 @@ fn router_node_of_an_absent_router_is_refused_on_edit_but_loads() {
     )
     .unwrap();
 }
+
+#[tokio::test(start_paused = true)]
+async fn auto_read_adds_each_unconfigured_protocol_without_nodes() {
+    use crate::topology_manager::policy_draft::{propose, read_catalog, tests as scenario};
+    use crate::topology_manager::settings::SourceSettings;
+    let (cfg, snap) = scenario::scenario();
+    let draft = propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap();
+    let empty = RegistryDocument {
+        catalog: Some(read_catalog(&cfg)),
+        source_settings: Some(SourceSettings { selections: vec![] }),
+        frontend_initialized: true,
+        ..Default::default()
+    };
+    let next = auto_read(&empty, &draft)
+        .unwrap()
+        .expect("unconfigured protocols");
+    next.validate().unwrap();
+    let c = next.catalog.as_ref().unwrap();
+    assert!(c.nodes.is_empty());
+    assert!(c.sources.iter().all(|s| s.targets.is_empty()));
+    let mut expected = draft.source_settings.selections.clone();
+    expected.sort_by(|a, b| a.scope.cmp(&b.scope));
+    assert_eq!(next.source_settings.as_ref().unwrap().selections, expected);
+    assert_eq!(c.sources.len(), draft.catalog.sources.len());
+    // Nothing is missing now.
+    assert!(auto_read(&next, &draft).unwrap().is_none());
+    // A protocol with one saved selection keeps the operator's choice.
+    let mut partial = next.clone();
+    let settings = partial.source_settings.as_mut().unwrap();
+    let dhcp = settings
+        .selections
+        .iter()
+        .position(|s| s.scope.kind == crate::topology_manager::model::SourceKind::Dhcp)
+        .unwrap();
+    let removed = settings.selections.remove(dhcp).scope;
+    partial.catalog.as_mut().unwrap().sources.retain(|s| {
+        !matches!(&s.origin, catalog::SourceOrigin::Subscribers { scope, .. } if scope == &removed)
+    });
+    assert!(auto_read(&partial, &draft).unwrap().is_none());
+}

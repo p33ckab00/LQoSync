@@ -2066,6 +2066,17 @@ where
             );
             document.export_ownership = None;
         }
+        // Owner decision: an enabled protocol without a saved selection is read too, so that
+        // automatic placement shapes its subscribers. The publication commits the selections.
+        // shortcut: a failed draft (for example an unsupported config) keeps the saved policy
+        // without a status message; add one when operators need to see it.
+        if !replace
+            && crate::topology_manager::edits::unread_protocols(&document, &self.cfg)
+            && let Ok(draft) = self.propose_policy(max_age).await
+            && let Ok(Some(next)) = crate::topology_manager::edits::auto_read(&document, &draft)
+        {
+            document = next;
+        }
         let receipt_generation = self
             .write_tracker
             .as_ref()
