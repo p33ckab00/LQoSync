@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22 (Asia/Manila) — Topology canvas Task 6 (shadow acceptance)
+
+- Last agent: Claude Code. Branch `lqosync3`. Commit cc26639.
+- Done: `src/runner/tests/canvas_shadow.rs`. The legacy generator and the enrolled manager read the same frozen rows. The shadow candidate matches the legacy pair by identity. Cases: PPP, DHCP, protected static row, reconnect, exclusion, source outage, canvas location edit with a scratch publish.
+- Fix: enrollment with a protected static row asked for a node mapping for the static root node. The mapping now skips static root subtrees.
+- Not covered: IPv6 (no reader reads it), several devices on one circuit, live rows (root-only files).
+- Checks: `tools/frontend/check-all.sh` all pass after a clippy fix (pulse-check skipped); workspace 1795 tests.
+- Next: Task 7 needs an owner live window. Before it: run the shadow comparison on the live rows, and decide the LibreQoS rename window and the quality proposal.
+
 ## 2026-11-22 (Asia/Manila) — Topology canvas Task 3 remainder
 
 - Last agent: Claude Code. Branch `lqosync3`. Commit 7b087ef.
