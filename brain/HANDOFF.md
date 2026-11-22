@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Task 7 done
+
+- Commit efbef2c. Branch `lqosync3`. Not pushed. Not deployed.
+- Done: `parity::needs_review` (added row, changed row, changed network). `topology live-test --accept-changes` passes these kinds and lists them in `accepted_changes`. `topology activate --accept-changes` passes them only when the report has the same list. Without the flag, both gates stay exact.
+- Runbook `docs/operations/TOPOLOGY_ACTIVATION.md`: review steps, `LIBREQOS_DPDK_BULK_GENERATION_THRESHOLD=200` for an activation with canvas changes, and registry schema 9 in the CAUTION.
+- Not done: `active_sources` in the report. No gate reads it yet.
+- Checks at efbef2c: workspace tests 1951 passed, 0 failed. Workspace clippy, Wasm clippy, `cargo fmt --check`, and `git diff --check` are clean.
+- Next: Task 8 (canvas layout engine port from `traffic-intelligence`), Task 9 (live canvas UI, browser checks need `BROWSER_TEST_PASSWORD`, `TRUNK`, `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH`), Task 10 (documents).
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Task 4 filter and Task 6 done
 
 - Commits b7158b6 (Task 4 filter) and 8738861 (Task 6). Branch `lqosync3`. Not pushed. Not deployed.
