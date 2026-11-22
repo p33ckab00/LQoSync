@@ -1080,3 +1080,44 @@ async fn the_cycle_lists_default_route_wans_and_reads_them_every_ten_cycles() {
     again.load_wan_discovery();
     assert!(again.wan_discovery.is_some());
 }
+
+// Live source canvas follow-up (2026-11-23): automatic router cards.
+
+#[tokio::test]
+async fn an_automatic_router_card_keeps_the_legacy_tree() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    let before = live(&e);
+    r.cycle(1_000, false).await;
+    let doc = r.api_document().unwrap().unwrap();
+    assert!(
+        doc.catalog
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|n| n.router_id.is_some() && n.tree_excluded)
+    );
+    let pair = r.prepare_topology(AGE).await.unwrap();
+    assert_eq!(compare_legacy(&pair, &before.0, &before.1).unwrap(), vec![]);
+}
+
+#[tokio::test]
+async fn a_router_card_hides_when_no_group_is_active() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    r.cycle(1_000, false).await;
+    {
+        let mut rows = e.fake.rows.lock().unwrap();
+        let tables = rows.get_mut("Hub-1").unwrap();
+        for path in ["/ppp/active", "/ip/dhcp-server/lease"] {
+            tables.get_mut(path).unwrap().clear();
+        }
+    }
+    r.cycle(2_000, false).await;
+    let view: web_contract::topology::TopologyView = serde_json::from_slice(
+        &std::fs::read(e.state.join(web_contract::topology::CACHE)).unwrap(),
+    )
+    .unwrap();
+    let card = view.nodes.iter().find(|n| n.router_id.is_some()).unwrap();
+    assert!(!card.active);
+}

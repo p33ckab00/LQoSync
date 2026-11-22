@@ -1879,7 +1879,12 @@ where
         base: &crate::topology_manager::model::RegistryDocument,
         draft: &crate::topology_manager::policy_draft::PolicyDraft,
     ) -> anyhow::Result<bool> {
-        let Some(next) = crate::topology_manager::edits::auto_groups(base, draft)? else {
+        use crate::topology_manager::edits::{auto_groups, auto_router_nodes};
+        let groups = auto_groups(base, draft)?;
+        // A router card is out of the tree by default with root_promotion (owner decision 3).
+        let exclude = self.cfg.network.mode == crate::config::NetworkMode::RootPromotion;
+        let routers = auto_router_nodes(groups.as_ref().unwrap_or(base), draft, exclude)?;
+        let Some(next) = routers.or(groups) else {
             return Ok(false);
         };
         match self.api_edit(base.revision, |_, _| Ok((next, ()))) {

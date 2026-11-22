@@ -2040,3 +2040,39 @@ fn a_router_card_can_have_two_wan_parents() {
     );
     assert!(error.contains("router node"), "{error}");
 }
+
+// Live source canvas follow-up (2026-11-23): automatic router cards.
+
+#[tokio::test(start_paused = true)]
+async fn auto_router_nodes_adds_one_card_that_adopts_the_parentless_groups() {
+    use crate::topology_manager::policy_draft::{document, propose, router_id, tests as scenario};
+    let (cfg, snap) = scenario::scenario();
+    let draft = propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap();
+    let mut doc = document(&draft).unwrap();
+    doc.export_ownership = Some(Default::default());
+    let next = auto_router_nodes(&doc, &draft, true)
+        .unwrap()
+        .expect("a router card");
+    let c = next.catalog.as_ref().unwrap();
+    let hub = router_id("Hub-1");
+    let card = c
+        .nodes
+        .iter()
+        .find(|n| n.router_id.as_deref() == Some(hub.as_str()))
+        .expect("router node");
+    assert!(card.tree_excluded);
+    assert_eq!(card.name, "Hub-1");
+    for group in c
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::SubscriberGroup)
+    {
+        assert_eq!(
+            group.parent.as_deref(),
+            Some(card.id.as_str()),
+            "{}",
+            group.name
+        );
+    }
+    assert!(auto_router_nodes(&next, &draft, true).unwrap().is_none());
+}

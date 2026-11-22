@@ -1250,6 +1250,98 @@ pub fn auto_groups(
     Ok(Some(d))
 }
 
+/// The start ceiling of an automatic router card: 100 Gbit/s, so that it limits nothing.
+pub const ROUTER_CARD_BPS: u64 = 100_000_000_000;
+
+/// Live source canvas (owner decision 3): one router card for each router that has an active
+/// group and no router node yet. It adopts the group nodes of its router that have no parent.
+/// `exclude`: the card stays out of `network.json` (the default with `root_promotion`).
+/// `None` means that nothing is missing.
+pub fn auto_router_nodes(
+    doc: &RegistryDocument,
+    draft: &super::policy_draft::PolicyDraft,
+    exclude: bool,
+) -> anyhow::Result<Option<RegistryDocument>> {
+    if doc.catalog.is_none() || doc.export_ownership.is_none() {
+        return Ok(None);
+    }
+    let router_of = |c: &TopologyCatalog, source_id: &str| {
+        c.sources
+            .iter()
+            .find(|s| s.id == source_id)
+            .and_then(|s| match &s.origin {
+                SourceOrigin::Subscribers { scope, .. } => Some(scope.router_id.clone()),
+                SourceOrigin::Wan { .. } => None,
+            })
+    };
+    let active: BTreeSet<String> = draft
+        .catalog
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::SubscriberGroup)
+        .filter_map(|n| router_of(&draft.catalog, n.source_id.as_deref()?))
+        .collect();
+    let mut d = doc.clone();
+    let c = d.catalog.as_mut().expect("checked above");
+    let mut changed = false;
+    for router in active {
+        let Some(name) = c
+            .routers
+            .iter()
+            .find(|r| r.id == router)
+            .map(|r| r.name.clone())
+        else {
+            continue;
+        };
+        if !c.router_nodes(&router).is_empty() {
+            continue;
+        }
+        let id = format!("router-{router}");
+        let adopted: Vec<usize> = (0..c.nodes.len())
+            .filter(|&i| {
+                let n = &c.nodes[i];
+                n.kind == NodeKind::SubscriberGroup
+                    && n.parent.is_none()
+                    && n.source_id
+                        .as_deref()
+                        .and_then(|s| router_of(c, s))
+                        .is_some_and(|r| r == router)
+            })
+            .collect();
+        for i in adopted {
+            c.nodes[i].parent = Some(id.clone());
+        }
+        c.nodes.push(CatalogNode {
+            address_list: None,
+            tree_excluded: exclude,
+            router_id: Some(router.clone()),
+            geo: None,
+            minimum: Default::default(),
+            id,
+            name,
+            parent: None,
+            source_id: None,
+            kind: NodeKind::Intermediate,
+            // A root node needs its own ceiling. 100 Gbit/s does not limit; the operator sets the
+            // real capacity in the card before including the card in the tree.
+            capacity: CapacityPolicy::Fixed {
+                base: super::rates::RateBps {
+                    down: ROUTER_CARD_BPS,
+                    up: ROUTER_CARD_BPS,
+                },
+                factors: FactorChoice::Inherit,
+            },
+        });
+        changed = true;
+    }
+    if !changed {
+        return Ok(None);
+    }
+    c.canonicalize();
+    d.validate()?;
+    Ok(Some(d))
+}
+
 /// Copy one draft source into the registry, as enrollment builds it, with its first instance.
 pub fn add_source(
     doc: &RegistryDocument,

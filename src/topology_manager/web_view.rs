@@ -128,6 +128,17 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         }
     }
 
+    // A router card is active while one of its child cards is active.
+    if input.activity.is_some() {
+        let shown: std::collections::HashSet<String> = nodes
+            .iter()
+            .filter(|n| n.active && n.source_id.is_some())
+            .filter_map(|n| n.parent.clone())
+            .collect();
+        for node in nodes.iter_mut().filter(|n| n.router_id.is_some()) {
+            node.active = shown.contains(&node.id);
+        }
+    }
     let active: HashMap<String, Active> = list("subscribers")
         .into_iter()
         .filter_map(|s| {
