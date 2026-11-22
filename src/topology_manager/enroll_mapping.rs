@@ -118,6 +118,27 @@ fn identity(row: &CsvRow) -> RowIdentity {
     }
 }
 
+/// IDs of the static root nodes and of every node below them. Static adoption keeps them,
+/// so they need no node mapping.
+fn static_node_ids<'a>(network: &'a Value, roots: &[String]) -> anyhow::Result<BTreeSet<&'a str>> {
+    let nodes = super::migration::nodes(network)?;
+    let mut work: Vec<&Value> = roots
+        .iter()
+        .filter_map(|root| nodes.get(root.as_str()).map(|(_, node)| *node))
+        .collect();
+    let mut out = BTreeSet::new();
+    while let Some(node) = work.pop() {
+        out.extend(node.get("id").and_then(Value::as_str));
+        work.extend(
+            node.get("children")
+                .and_then(Value::as_object)
+                .into_iter()
+                .flat_map(|c| c.values()),
+        );
+    }
+    Ok(out)
+}
+
 /// Propose a mapping file. A decision in `previous` for the same legacy row is kept.
 pub fn propose(
     pair: &PreparedPair,
@@ -169,8 +190,13 @@ pub fn propose(
     let old_nodes: HashMap<_, _> = previous
         .map(|p| p.nodes.iter().map(|n| (n.legacy_id.as_str(), n)).collect())
         .unwrap_or_default();
+    let roots = previous
+        .map(|p| p.static_roots.as_slice())
+        .unwrap_or_default();
+    let skip = static_node_ids(legacy_network, roots)?;
     let mut nodes: Vec<_> = super::migration::nodes(legacy_network)?
         .into_iter()
+        .filter(|(id, _)| !skip.contains(id))
         .map(|(id, (name, _))| {
             old_nodes.get(id).map_or_else(
                 || NodeEntry {
@@ -256,8 +282,15 @@ pub fn build_manifest(
             "current account {account} has no legacy row; it enters after activation"
         ));
     }
+    let skip = static_node_ids(legacy_network, &file.static_roots).map_err(|e| Drift {
+        issues: vec![format!("{e:#}")],
+    })?;
     let mut nodes = vec![];
-    for node in &file.nodes {
+    for node in file
+        .nodes
+        .iter()
+        .filter(|n| !skip.contains(n.legacy_id.as_str()))
+    {
         match (&node.current_id, node.confirmed) {
             (Some(current), true) => nodes.push(NodeMapping {
                 legacy_id: node.legacy_id.clone(),

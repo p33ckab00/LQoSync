@@ -397,7 +397,7 @@ pub(crate) mod cli_flow {
         config
     }
 
-    fn files(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    pub(crate) fn files(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut out = vec![];
         let mut work = vec![dir.to_path_buf()];
         while let Some(d) = work.pop() {

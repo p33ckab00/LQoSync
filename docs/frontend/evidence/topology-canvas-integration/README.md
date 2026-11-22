@@ -166,3 +166,52 @@ Recorded: 2026-11-22 (Asia/Manila). Synthetic tests and fixture only.
 | Shared bottleneck | A new fixed capacity on one placement of a shared source is refused with an explanation. An older saved policy with this state still opens. | `a_fixed_capacity_on_a_shared_source_placement_is_refused` |
 | Quality mode, strict pin failure | Proposal only, in the canvas design. The control stays unavailable. | — |
 | Overlapping PPP selectors, incomplete evidence, outages | Existing coverage (identity, source policy, coordinator tests). No change. | Workspace suite |
+
+## Task 6: shadow and semantic acceptance
+
+Recorded: 2026-11-22 (Asia/Manila). Synthetic fixture only. No production service, router, or shaping file changed.
+
+### Method
+
+The test module is `src/runner/tests/canvas_shadow.rs`.
+It uses the `v3_root_promotion` scenario: PPP accounts on two plans, DHCP leases on two servers, and one empty DHCP server.
+The live legacy pair also has one protected static row (`fixed-ap`) below a static root node (`Management`).
+
+1. The legacy generator (`cycle::assemble`) writes the live pair from the frozen router rows.
+2. A fake router serves the same rows to the service. The operator enrolls the manager with the CLI mapping flow: propose, name the static root, protect the static row, propose again, confirm, enroll.
+3. `prepare_topology` builds the shadow candidate in memory. `parity::compare_legacy` compares it with the live pair by circuit ID and device ID.
+
+The comparison covers every CSV column except Comment (LibreQoS does not shape by it), and all network node fields after the recorded export quantization.
+
+### Cases
+
+| Test | Result |
+|---|---|
+| `shadow_candidate_matches_the_legacy_pair_by_identity` | No difference. 8 records, with the protected static row. IPv6 is empty in both outputs. No live file, reload, owner marker, or legacy candidate is written. A removed, an extra, a moved record, and a changed capacity are each reported, so the comparison is not blind. |
+| `a_reconnect_keeps_identities_and_changes_only_the_endpoint` | A new PPP session ID and address for `s1` changes only that record. The identity and MAC stay. The legacy generator gives the same new address. |
+| `an_exclusion_removes_the_same_subscriber_in_both_generators` | An excluded IP removes `g3` in both generators. The Gold plan node capacity is the same in both (two subscribers). |
+| `a_source_outage_keeps_saved_intent_and_removes_nothing` | With the router down, preparation fails. The registry revision and the live pair do not change. After recovery, the candidate matches the live pair again. |
+| `a_canvas_edit_is_the_only_difference_and_publishes_through_the_fixture` | A GET of the document reads no router and writes no file. A canvas location edit (`topology.web.mutate`) saves with no preview. The only difference is the new location on one node, with all decimal places. The controlled compiler and publisher write the same bytes to a scratch target. The live pair does not change. |
+
+### Expected differences
+
+| Difference | Reason |
+|---|---|
+| Comment column | Legacy and manager texts differ. LibreQoS does not shape by it. |
+| Node capacity quantization | Recorded by `node_export_adjustments` and shown by enrollment as rounded nodes. |
+| Node latitude and longitude after a canvas location edit | A deliberate new policy. It has no legacy equivalent. |
+
+Any other added, missing, or changed record or node is a failure.
+
+### Finding fixed
+
+The enrollment mapping file listed the static root node and asked for a node mapping for it.
+Enrollment with a protected static row failed with "legacy node Management has no confirmed mapping".
+Now `enroll_mapping::propose` and `build_manifest` skip the static root nodes and the nodes below them. Static adoption keeps them.
+
+### Not covered
+
+- IPv6: no source reader in this release reads an IPv6 address. Both generators write an empty IPv6 column.
+- Several devices on one circuit: router sources give one device per circuit in both generators. Several devices on one node are covered.
+- The HTTP gateway: the test calls the service command handler (`api_web_mutate`) directly. The gateway route tests (`crates/web-gateway/tests/topology*.rs`) run in the workspace gate.
+- Production data: the live pair was not compared. `topology.json` and the owner directory are root-only. Task 7 must run the shadow comparison on the live rows before the transfer.

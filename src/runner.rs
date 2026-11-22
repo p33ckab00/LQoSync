@@ -4638,6 +4638,7 @@ mod tests {
         assert!(!e.state.join("topology-manager/runtime-owner.json").exists());
     }
     mod api;
+    mod canvas_shadow;
     mod enrollment;
     #[path = "../live_test_tests.rs"]
     mod live_test;
