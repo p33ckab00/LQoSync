@@ -427,3 +427,41 @@ async fn manual_failback_waits_for_a_rebalance() {
     assert_eq!(monitor.snapshot(now).0["wanA"].state, WanState::Up);
     assert_eq!(r.api_document().unwrap().unwrap().revision, revision);
 }
+
+#[tokio::test]
+async fn a_wan_failover_moves_only_the_affected_subscribers() {
+    use web_contract::topology::{BuilderEdit, WebCommand};
+    let e = env();
+    let config = setup(&e, None);
+    let mut r = runner(&e, config.clone());
+    let init = WebCommand::Edit {
+        expected_revision: 0,
+        edit: BuilderEdit::Initialize,
+    };
+    r.api_web_mutate("automatic-edit-failover", "operator", init)
+        .await
+        .unwrap();
+    add_wans(&mut r, true);
+    let monitor = crate::wan_monitor::Handle::new(&config);
+    r.wan_monitor = Some(monitor.clone());
+    let key = |row: &crate::model::CsvRow| (row.circuit_id.clone(), row.device_id.clone());
+    let before = r.prepare_topology(AGE).await.unwrap();
+    fail_wan_a(&monitor, unix_now());
+    let after = r.prepare_topology(AGE).await.unwrap();
+    // The same records: nobody is added or lost.
+    let mut a: Vec<_> = before.rows().iter().map(key).collect();
+    let mut b: Vec<_> = after.rows().iter().map(key).collect();
+    a.sort();
+    b.sort();
+    assert_eq!(a, b);
+    for row in after.rows() {
+        let old = before.rows().iter().find(|o| key(o) == key(row)).unwrap();
+        assert_eq!(row.parent_node_id, "wanB");
+        // Only the parent of a subscriber on the failed WAN changes.
+        let mut moved = old.clone();
+        moved.parent_node_id = row.parent_node_id.clone();
+        moved.parent_node = row.parent_node.clone();
+        assert_eq!(&moved, row);
+    }
+    assert!(before.rows().iter().any(|o| o.parent_node_id == "wanA"));
+}

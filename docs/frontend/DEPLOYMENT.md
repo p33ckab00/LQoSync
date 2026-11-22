@@ -228,6 +228,15 @@ Every change goes through **Review change**. Nothing changes until **Save change
 The previous binary ignores `topology.json` and the receipt directory. They can stay.
 Policy revisions that the web saved stay in the registry. The previous binary reads them as before.
 
+### WAN monitor
+
+The service probes each WAN through its router with `/interface/print` and `/ping`.
+The router user of LQoSync needs the `test` policy for `/ping`. Without it, each WAN shows "No probe data" and no failover occurs.
+The `[wan_monitor]` section in `lqosync3.toml` changes the probe values. `enabled = false` stops the probes. Then placement treats every WAN as available.
+A change of `interval_secs` applies after a service restart. The other values apply after a config reload.
+
+Rollback: registry schema 7 needs the schema-6 backup for a schema-6 binary.
+
 ### Limits of this release
 
 - The broker reads the whole `topology.json` for each request. At 50,000 subscribers and 5,000 nodes, the file is 31 MB.

@@ -173,10 +173,22 @@ Strict-pin failure behavior and quality probe policy require a separate decision
 
 ### Implementation state (2026-11-22)
 
-- Capacity mode: implemented. It is the default.
-- Equal subscriber count: implemented per subscriber source (`group.allocation`). New subscribers go to the placement with the fewest subscribers. A source-pool rebalance equalizes counts. Pins stay fixed and count in their placement.
+- The operator sets a topology default mode (`allocation.default`) and, for each subscriber source, its own mode or the default (`group.allocation`, `null` for the default). Registry schema 7.
+- Equal subscriber count: the default. New subscribers go to the node with the fewest subscribers. Pins stay fixed and count in their node.
+- Capacity: by plan demand against the capacity above each node.
+- Quality: as capacity, with each WAN capacity multiplied by its quality score. Stale quality data uses capacity.
+- An upgrade from schema 6 or older keeps capacity mode for each source that the registry already has.
 - A fixed capacity on one placement of a shared source is refused, because LibreQoS cannot hold one shared limit across parents.
-- Quality-aware: not implemented. The control stays unavailable.
+
+### WAN monitor and failover (2026-11-22)
+
+- The service probes each WAN node every 10 seconds through its router: it reads the interface state and pings two targets out of that interface. The `[wan_monitor]` config section holds the values.
+- A disabled or not running interface is bad at once. A loss of 50% or more, or a median latency above 3 times the normal value, in a 60-second window, is bad.
+- Subscribers move only after more than 2 minutes of bad state. They go to the other eligible WANs. A pin stays on its node.
+- The saved node stays the home of a moved subscriber. When the WAN is stable for 10 minutes, the subscriber returns (automatic failback). With automatic failback off, the operator returns them in Topology settings.
+- A probe error (no answer, or no permission) is no evidence. The WAN shows "No probe data" and nobody moves.
+- When all eligible WANs are bad, nobody moves.
+- A failover changes the LibreQoS placement only. MikroTik routing does not change until the address-list writer exists.
 
 ### Automatic placement (2026-11-22)
 

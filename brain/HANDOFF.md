@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22 (Asia/Manila) — WAN allocation modes and failover: Tasks 1–6 done
+
+- Last agent: Claude Code (session libreqos-09). Branch `lqosync3`. Commits d48efa0, 4b5f675, c7a6dd6, c0857e6, 2a1ce48, and the Task 6 docs commit. Not deployed.
+- Done: operator allocation modes (count default, capacity, quality), registry schema 7, WAN monitor (read-only `/ping` and `/interface/print`), failover with a home assignment, automatic failback switch, `failback.release` edit, canvas controls and WAN health chips.
+- Checks: `tools/frontend/check-all.sh` all pass (pulse-check skipped); workspace about 1860 tests.
+- Before deploy: give the LQoSync router user the `test` policy for `/ping`. Keep the schema-6 backup for rollback.
+- Not done: reading the manual address-lists and the address-list writer (separate plans; the writer needs owner approval).
+- Next: canvas integration Task 7 (owner live window).
+
 ## 2026-11-22 (Asia/Manila) — Topology automatic placement: Tasks 1–6 done
 
 - Last agent: Claude Code (session libreqos-09). Branch `lqosync3`. Commits e3a05c6, fc46f5e, d632935, e2d794e, db04860, 38b14e1, and the Task 6 docs commit. Not deployed.
