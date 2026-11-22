@@ -39,6 +39,7 @@ pub mod topology_manager;
 pub mod tui;
 pub mod validate;
 pub mod wan_monitor;
+pub mod wan_writer;
 pub mod worker_util;
 pub mod write_receipt;
 pub mod writer;
