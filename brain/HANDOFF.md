@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Tasks 1–10 done
+
+- Commit d7d152d (Task 10 documents). Branch `lqosync3`, 20+ commits ahead of `origin/lqosync3`. Not pushed. Not deployed.
+- Documents: `TOPOLOGY_CANVAS_DESIGN.md` marks the replaced "fresh topology starts empty" rule. `TOPOLOGY_ENROLLMENT.md` gives the active-source rule. `brain/30-knowledge/topology-manager-status.md` has the live source canvas entry.
+- Open work: automatic router nodes (Task 2 gap), the routing warning in the review step, the copy of later groups to router node copies, and `active_sources` in the live test report.
+- Before deploy: the schema-8 backup, read access to `/ip/route` on the WAN routers, and `LIBREQOS_DPDK_BULK_GENERATION_THRESHOLD=200` for an activation with canvas changes.
+- CAUTION: A VS Code Claude session (pid 34606) runs on this host. Make sure that only one session works on this branch.
+- Next: owner review of the branch, then push and the release procedure in `docs/RELEASE.md`.
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Task 9 done
 
 - Commit: `feat(web): show the live source canvas`. Branch `lqosync3`. Not pushed. Not deployed.
