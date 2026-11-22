@@ -32,6 +32,8 @@ struct NodeForm {
     router: String,
     /// The service refusal of the last router change. The draft stays.
     router_error: String,
+    /// The `via-` routing list of a WAN node.
+    address_list: String,
 }
 
 impl NodeForm {
@@ -52,6 +54,7 @@ impl NodeForm {
             error: String::new(),
             router: n.router_id.clone().unwrap_or_default(),
             router_error: String::new(),
+            address_list: n.address_list.clone().unwrap_or_default(),
         }
     }
 }
@@ -83,6 +86,13 @@ fn form_edits(n: &Node, f: &NodeForm) -> Result<Vec<BuilderEdit>, String> {
             node_id: n.id.clone(),
             geo_type,
             location,
+        });
+    }
+    let list = f.address_list.trim();
+    if n.kind == "wan" && list != n.address_list.as_deref().unwrap_or_default() {
+        edits.push(BuilderEdit::NodeAddressList {
+            node_id: n.id.clone(),
+            list: (!list.is_empty()).then(|| list.to_string()),
         });
     }
     let router_id = (!f.router.is_empty()).then(|| f.router.clone());
@@ -385,13 +395,18 @@ pub(crate) fn Canvas(
         let located = n.geo.as_ref().is_some_and(|g| g.location.is_some());
         let router = n.router_id.as_ref().map(|r| router_name(data, r));
         let auto = n.auto_members.map(|c| format!("+{c} auto"));
+        let routed = n.routed.map(|c| format!("{c} routed"));
         let health = n
             .wan_health
             .as_ref()
             .map(|h| (h.state.clone(), health_label(h)));
         let label = format!(
-            "{}, {kind}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
+            "{}, {kind}{}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
             n.name,
+            routed
+                .as_ref()
+                .map(|r| format!(", {r}"))
+                .unwrap_or_default(),
             router
                 .as_ref()
                 .map(|r| format!(", router {r}"))
@@ -494,6 +509,8 @@ pub(crate) fn Canvas(
     // Inventory actions from the router reads.
     let read_action = RwSignal::new(None::<Change>);
     let wan_form = RwSignal::new(None::<(Change, Draft, String)>);
+    // The one-time routing adoption is a reviewed change in the house change dialog.
+    let adopt = RwSignal::new(None::<Change>);
     Effect::new(move |_| match read_action.get() {
         Some(Change::AddSource(key, _)) => {
             submit(BuilderEdit::SourceAdd {
@@ -556,7 +573,7 @@ pub(crate) fn Canvas(
               <div class="canvas-layer" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}</svg>
-                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health)) children=card/>
+                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health,n.routed)) children=card/>
               </div>
             </div>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.is_empty()))>
@@ -676,6 +693,18 @@ pub(crate) fn Canvas(
                     </div>
                   </Show>
                 </fieldset>
+                <fieldset class="canvas-modes"><legend>"Routing lists"</legend>
+                  <p role="status">{move||data.with(|d|match d.as_ref().and_then(|s|s.wan_lists.as_ref()){
+                    None=>"Off. The service writes no routing list.".to_string(),
+                    Some(w) if w.state=="written"=>format!("Written · {} entries · {} added, {} changed, {} removed",w.owned,w.added,w.changed,w.removed),
+                    Some(w) if w.state=="held"=>format!("Held: {}",w.error.clone().unwrap_or_default()),
+                    Some(w)=>format!("Not written: {}",w.error.clone().unwrap_or_default()),
+                  })}</p>
+                  <p class="field-help">"The service writes one via- list for each WAN on the core router. It publishes shaping only after the router has the lists."</p>
+                  <div class="form-actions">
+                    <button type="button" class="quiet" disabled=locked on:click=move|_|{close();adopt.set(Some(Change::AdoptRouting));}>"Adopt current routing"</button>
+                  </div>
+                </fieldset>
               }.into_any(),
               Some(Panel::Allocation)=>view!{
                 {move||{
@@ -728,6 +757,7 @@ pub(crate) fn Canvas(
             <button type="button" class="quiet" on:click=move|_|close()>"Close"</button>
           </footer>
         </dialog>
+        <crate::topology_forms::ChangeDialog session data action=adopt reload/>
       </section>
     }
 }
@@ -839,6 +869,14 @@ fn NodeEditor(
             })}
             {move||(!form().router_error.is_empty()).then(||view!{<p id="canvas-router-error" class="field-error">{form().router_error}</p>})}
           </fieldset>
+          {wan.then(||view!{
+            <fieldset><legend>"Routing"</legend>
+              <label>"Address list"<input autocomplete="off" spellcheck="false" prop:value=move||form().address_list disabled=locked
+                on:input=move|ev|set(|f|&mut f.address_list,event_target_value(&ev)) on:change=move|_|flush()/></label>
+              <p class="field-help">"The via- list of this WAN on the core router. Empty uses via- and the WAN name."</p>
+              {n.routed.map(|c|view!{<p class="field-help">{format!("{c} clients in this list at the last write.")}</p>})}
+            </fieldset>
+          })}
           <fieldset><legend>"Capacity"</legend>
             <label>"Mode"<select prop:value=move||form().draft.mode disabled=move||locked()||wan
               on:change=move|ev|{set(|f|&mut f.draft.mode,event_target_value(&ev));flush();}>

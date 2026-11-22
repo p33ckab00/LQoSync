@@ -657,6 +657,7 @@ where
                 history: &history,
                 layout: layout.as_ref(),
                 wan: wan.as_ref(),
+                wan_lists: self.wan_lists.as_ref(),
             });
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
@@ -2328,10 +2329,15 @@ where
     ) -> anyhow::Result<crate::write_receipt::WriteResult> {
         if let (Some(wanted), Some(writer)) = (wanted, self.wan_writer.clone()) {
             use crate::wan_writer::WriteError;
+            let mut lists = std::collections::BTreeMap::<String, u64>::new();
+            for e in wanted.values() {
+                *lists.entry(e.list.clone()).or_default() += 1;
+            }
             match writer.write(wanted, &self.cfg.wan_writer).await {
                 Ok(r) => {
                     self.wan_lists = Some(serde_json::json!({"state": "written", "at": now,
-                        "added": r.added, "changed": r.changed, "removed": r.removed, "owned": r.owned_after}));
+                        "added": r.added, "changed": r.changed, "removed": r.removed,
+                        "owned": r.owned_after, "lists": lists}));
                 }
                 Err(e) => {
                     let (state, reason) = match e {

@@ -303,6 +303,8 @@ pub(crate) enum Change {
     SubscriberPin(String, Option<String>),
     /// One source ID and its label, or all sources with `None`.
     Rebalance(Option<String>, String),
+    /// One time: keep the WAN that the operator range lists give each client today.
+    AdoptRouting,
     SpeedDefaults(SpeedDefaults),
     GroupFactor(SourceFactor),
     /// The current fallback, if any.
@@ -368,6 +370,7 @@ impl Draft {
             Change::Initialize
             | Change::AddSource(..)
             | Change::CreatePlan
+            | Change::AdoptRouting
             | Change::Rebalance(..) => {
                 return Self::default();
             }
@@ -638,6 +641,7 @@ pub(crate) fn build_edit(action: &Change, d: &Draft) -> Result<BuilderEdit, &'st
         Change::Rebalance(source, _) => BuilderEdit::Rebalance {
             source_id: source.clone(),
         },
+        Change::AdoptRouting => BuilderEdit::WanAdopt,
         Change::SpeedDefaults(_) => {
             let mut out = [RuleInput::Mbps(0); 4];
             for (i, (unit, value)) in d.rules.iter().enumerate() {
@@ -907,6 +911,10 @@ mod tests {
             ),
             Ok(BuilderEdit::Rebalance { source_id: None })
         );
+        assert_eq!(
+            build_edit(&Change::AdoptRouting, &Draft::default()),
+            Ok(BuilderEdit::WanAdopt)
+        );
         // Speed rules keep each unit; a bad value stays in the form.
         let rule = |unit: &str, value: &str| web_contract::topology::SpeedRule {
             unit: unit.into(),
@@ -999,6 +1007,8 @@ mod tests {
             router_id: None,
             auto_members: None,
             wan_health: None,
+            address_list: None,
+            routed: None,
         }
     }
 

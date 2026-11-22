@@ -32,6 +32,8 @@ pub struct Input<'a> {
     pub layout: Option<&'a crate::topology_manager::canvas::CanvasLayout>,
     /// The WAN monitor state of each WAN node.
     pub wan: Option<&'a HashMap<String, crate::wan_monitor::WanView>>,
+    /// The last routing list write (`Runner::wan_lists`).
+    pub wan_lists: Option<&'a Value>,
 }
 
 /// Web changes kept in the view, newest first.
@@ -90,6 +92,10 @@ pub fn project(input: &Input<'_>) -> TopologyView {
     }
     for node in &mut nodes {
         node.auto_members = auto_members.get(node.id.as_str()).copied();
+        node.routed = node
+            .address_list
+            .as_ref()
+            .and_then(|l| input.wan_lists?["lists"][l].as_u64());
         node.wan_health = input.wan.and_then(|w| w.get(&node.id)).map(|w| {
             web_contract::topology::WanHealthView {
                 state: name(&w.state),
@@ -232,6 +238,9 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         auto_failback: doc
             .and_then(|d| d.catalog.as_ref())
             .is_none_or(|c| c.auto_failback),
+        wan_lists: input
+            .wan_lists
+            .and_then(|v| serde_json::from_value(v.clone()).ok()),
         publication: input.publication.map(publication),
         history: {
             let mut records: Vec<_> = input.history.iter().collect();

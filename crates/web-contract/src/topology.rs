@@ -49,6 +49,9 @@ pub struct TopologyView {
     pub allocation: String,
     #[serde(default = "yes")]
     pub auto_failback: bool,
+    /// The last routing list write. `None` when the writer is off.
+    #[serde(default)]
+    pub wan_lists: Option<WanListsView>,
     /// The latest shaping write. `None` when the service has no write record.
     #[serde(default)]
     pub publication: Option<Publication>,
@@ -204,6 +207,32 @@ pub struct Node {
     /// The probe state of a WAN node. `None` without probe data.
     #[serde(default)]
     pub wan_health: Option<WanHealthView>,
+    /// The `via-` routing list of a WAN node.
+    #[serde(default)]
+    pub address_list: Option<String>,
+    /// Client addresses in that list at the last write.
+    #[serde(default)]
+    pub routed: Option<u64>,
+}
+
+/// The last write of the routing lists on the core router.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WanListsView {
+    /// `written`, `held`, or `failed`.
+    pub state: String,
+    /// Unix seconds of the write.
+    #[serde(default)]
+    pub at: u64,
+    #[serde(default)]
+    pub added: u64,
+    #[serde(default)]
+    pub changed: u64,
+    #[serde(default)]
+    pub removed: u64,
+    #[serde(default)]
+    pub owned: u64,
+    #[serde(default)]
+    pub error: Option<String>,
 }
 
 /// The `type` of a node in `network.json`. Separate from the policy role.
@@ -433,6 +462,9 @@ pub struct TopologySummary {
     pub allocation: String,
     #[serde(default = "yes")]
     pub auto_failback: bool,
+    /// The last routing list write. `None` when the writer is off.
+    #[serde(default)]
+    pub wan_lists: Option<WanListsView>,
     #[serde(default)]
     pub publication: Option<Publication>,
     /// The newest web changes. The cache holds more.

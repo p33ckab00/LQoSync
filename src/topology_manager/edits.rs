@@ -1742,11 +1742,13 @@ pub fn tree(doc: &RegistryDocument) -> Value {
     let nodes: Vec<Value> = c
         .nodes
         .iter()
-        .map(|n| {
+        .enumerate()
+        .map(|(i, n)| {
             json!({
                 "id": n.id, "name": n.name, "parent": n.parent, "kind": kind_out(n.kind),
                 "source_id": n.source_id, "capacity": capacity_out(&n.capacity),
                 "alias": aliased(doc, &n.id), "geo": n.geo, "router_id": n.router_id,
+                "address_list": c.wan_list(i),
             })
         })
         .collect();

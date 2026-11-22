@@ -114,6 +114,8 @@ mod tests {
             router_id: None,
             auto_members: None,
             wan_health: None,
+            address_list: None,
+            routed: None,
         }
     }
 

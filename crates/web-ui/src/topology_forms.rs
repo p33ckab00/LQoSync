@@ -95,6 +95,7 @@ fn title(action: &Change) -> String {
         Change::SubscriberPlan(id, _) => format!("Change plan of {id}"),
         Change::SubscriberPin(id, _) => format!("Pin {id} to a WAN"),
         Change::Rebalance(_, label) => format!("Rebalance {label}"),
+        Change::AdoptRouting => "Adopt current WAN routing".into(),
         Change::SpeedDefaults(_) => "Edit speed rules".into(),
         Change::GroupFactor(f) => format!("Edit factor of {}", f.name),
         Change::SetFallback(_) => "Set fallback".into(),
@@ -498,6 +499,10 @@ fn fields(
         }
         Change::Rebalance(_, label) => view! {
           <p>{format!("Place the subscribers of {label} again across their nodes. The service reads the routers for the review.")}</p>
+        }
+        .into_any(),
+        Change::AdoptRouting => view! {
+          <p>"Each client keeps the WAN that the range lists on the core router give it today. Pinned clients stay. The review lists the clients that move. Do this one time, before you put the via- rules first in the mangle list."</p>
         }
         .into_any(),
         Change::SpeedDefaults(sd) => view! {

@@ -191,6 +191,7 @@ fn input<'a>(
         history: &[],
         layout: None,
         wan: None,
+        wan_lists: None,
     }
 }
 
@@ -723,4 +724,24 @@ fn view_shows_wan_health_and_modes() {
     };
     assert_eq!(factor("profile-source"), "count");
     assert_eq!(factor("silver"), "", "silver follows the topology default");
+}
+
+#[test]
+fn view_shows_routing_lists() {
+    let d = doc();
+    let status = json!({"state": "held", "at": 90, "error": "3 of 5 clients would leave",
+        "lists": {"via-wan1": 4}});
+    let mut i = input(Some(&d), None, None);
+    i.wan_lists = Some(&status);
+    let v = project(&i);
+    let wan1 = v.nodes.iter().find(|n| n.id == "wan1").unwrap();
+    assert_eq!(
+        (wan1.address_list.as_deref(), wan1.routed),
+        (Some("via-wan1"), Some(4))
+    );
+    let group = v.nodes.iter().find(|n| n.id == "group1").unwrap();
+    assert_eq!((group.address_list.as_deref(), group.routed), (None, None));
+    let lists = v.wan_lists.unwrap();
+    assert_eq!(lists.state, "held");
+    assert_eq!(lists.error.as_deref(), Some("3 of 5 clients would leave"));
 }

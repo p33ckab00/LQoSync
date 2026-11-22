@@ -8,13 +8,15 @@ const fs=require('node:fs');
   const out=process.env.ROUTERS_EVIDENCE_DIR||'/tmp/lqosync-topology-canvas';fs.mkdirSync(out,{recursive:true});
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1000},colorScheme:'light'});
-    const errors=[],edits=[],layouts=[],reads=[];
+    const errors=[],edits=[],layouts=[],reads=[],proposals=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{
       if(r.url().endsWith('/api/v1/topology/edits'))edits.push(JSON.parse(r.postData()));
       if(r.url().endsWith('/api/v1/topology/layout'))layouts.push(JSON.parse(r.postData()));
       if(r.url().endsWith('/api/v1/topology/reads'))reads.push(JSON.parse(r.postData()));
-      if(r.url().includes('/api/v1/topology/proposals'))errors.push('a canvas edit used the review route');
+      // Only the one-time routing adoption is a reviewed change on the canvas.
+      if(r.url().endsWith('/api/v1/topology/proposals')){const body=JSON.parse(r.postData());proposals.push(body.edit);
+        if(body.edit.kind!=='wan.adopt')errors.push('a canvas edit used the review route');}
     });
     await page.goto('http://127.0.0.1:19581');
     await page.getByLabel('Username',{exact:true}).fill('browser-test');
@@ -123,6 +125,17 @@ const fs=require('node:fs');
     await page.keyboard.press('Escape');await allocation.waitFor({state:'hidden'});
     // WAN health is text on the WAN cards.
     await north.locator('.canvas-node-health').filter({hasText:'Up · Quality 87%'}).waitFor();
+    assert.match(await north.getAttribute('aria-label'),/, 24 routed[,.]/,'the routed count is in the card name');
+    // The WAN modal names its routing list. A change saves one node.address_list edit.
+    const southCard=canvas.getByRole('button',{name:/^WAN South,/});
+    await southCard.click();await page.keyboard.press('Enter');
+    const southDialog=page.getByRole('dialog',{name:'WAN South'});await southDialog.waitFor();
+    const list=southDialog.getByLabel('Address list');
+    assert.equal(await list.inputValue(),'via-WAN-South');
+    await list.fill('via-pldt');await list.press('Tab');
+    for(let i=0;i<100&&!edits.some(e=>e.edit.kind==='node.address_list');i++)await page.waitForTimeout(100);
+    assert.deepEqual(edits.find(e=>e.edit.kind==='node.address_list').edit,{kind:'node.address_list',node_id:'tm-node-wan-south',list:'via-pldt'});
+    await page.keyboard.press('Escape');await southDialog.waitFor({state:'hidden'});
     const south=canvas.getByRole('button',{name:/^WAN South,/});
     await south.locator('.canvas-node-health').filter({hasText:'Waiting for Rebalance'}).waitFor();
     // Settings: automatic failback and the manual return save one edit each.
@@ -134,7 +147,17 @@ const fs=require('node:fs');
     assert.deepEqual(await wait('failback.auto'),{kind:'failback.auto',enabled:false});
     await settings.getByRole('button',{name:'Return subscribers to recovered WANs',exact:true}).click();
     assert.deepEqual(await wait('failback.release'),{kind:'failback.release'});
+    // Routing lists: the last write as text, and the one-time adoption as a reviewed change.
+    await settings.getByText('Written · 24 entries · 3 added, 1 changed, 0 removed').waitFor();
     await page.screenshot({path:`${out}/settings-failback.png`});
+    await settings.getByRole('button',{name:'Adopt current routing',exact:true}).click();
+    const adoptDialog=page.getByRole('dialog',{name:'Adopt current WAN routing'});await adoptDialog.waitFor();
+    await adoptDialog.getByRole('button',{name:'Review change',exact:true}).click();
+    await adoptDialog.getByRole('button',{name:'Save change',exact:true}).waitFor({timeout:15000});
+    assert.deepEqual(proposals,[{kind:'wan.adopt'}],'one reviewed adoption');
+    await adoptDialog.getByRole('button',{name:'Back to the change',exact:true}).click();
+    await adoptDialog.getByRole('button',{name:'Cancel',exact:true}).click();await adoptDialog.waitFor({state:'hidden'});
+    await dock.getByRole('button',{name:'Topology settings',exact:true}).click();await settings.waitFor();
     await page.keyboard.press('Escape');await settings.waitFor({state:'hidden'});
     // Preview is read-only.
     const count=edits.length;

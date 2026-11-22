@@ -306,9 +306,9 @@ async fn main() -> anyhow::Result<()> {
       "registry_revision":"42","mode":"apply","writer":"topology","enrolled":true,
       "observed":{"revision":"42","collected_at":at.saturating_sub(8),"generation":7,"state":"ok","stale":false},
       "nodes":[
-        {"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false,"calculated_mbps":[1000.0,500.0],"exported_mbps":[1000.0,500.0],"members":3,"auto_members":2,"wan_health":{"state":"up","quality_percent":87}},
+        {"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false,"calculated_mbps":[1000.0,500.0],"exported_mbps":[1000.0,500.0],"members":3,"auto_members":2,"wan_health":{"state":"up","quality_percent":87},"address_list":"via-WAN-North","routed":24},
         {"id":"tm-node-ppp-north","name":"PPPoE access","parent":"tm-node-wan-north","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[400.0,200.0],"exported_mbps":[400.0,200.0],"members":3},
-        {"id":"tm-node-wan-south","name":"WAN South","parent":null,"kind":"wan","source_id":"wan-south","capacity":{"mode":"fixed","down_mbps":500,"up_mbps":250,"factor_percent":null},"alias":false,"calculated_mbps":[500.0,250.0],"exported_mbps":[500.0,250.0],"members":1,"wan_health":{"state":"waiting_for_rebalance","quality_percent":100}},
+        {"id":"tm-node-wan-south","name":"WAN South","parent":null,"kind":"wan","source_id":"wan-south","capacity":{"mode":"fixed","down_mbps":500,"up_mbps":250,"factor_percent":null},"alias":false,"calculated_mbps":[500.0,250.0],"exported_mbps":[500.0,250.0],"members":1,"wan_health":{"state":"waiting_for_rebalance","quality_percent":100},"address_list":"via-WAN-South"},
         {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":1,"router_id":"lq3-00000000000000a1"}
       ],
       "sources":[{"id":"wan-north","name":"pppoe-wan-north","kind":"wan"},{"id":"wan-south","name":"pppoe-wan-south","kind":"wan"},
@@ -316,6 +316,7 @@ async fn main() -> anyhow::Result<()> {
                  {"id":"access-ppp-silver","name":"PPPoE Silver","kind":"subscribers","auto_parents":["tm-node-wan-north"]},
                  {"id":"access-dhcp-guest","name":"DHCP guest","kind":"subscribers","auto_parents":[]}],
       "fallback":null,"allocation":"count","auto_failback":true,
+      "wan_lists":{"state":"written","at":at.saturating_sub(60),"added":3,"changed":1,"removed":0,"owned":24,"error":null},
       "plans":[{"id":"plan-access-100","name":"Access 100","down_mbps":100,"up_mbps":50,"ppp_identities":3,"dhcp_identities":2,"subscribers":4}],
       "subscribers":[
         {"id":"tm-sub-0000000000000002","identities":[ident("ppp","ppp-name/v1/account-02"),ident("dhcp","dhcp-mac/v1/02:00:00:00:00:02")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-ppp-north","192.0.2.12")},
