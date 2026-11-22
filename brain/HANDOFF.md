@@ -8,6 +8,21 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23 (Asia/Manila) — Live source canvas: Tasks 1–4 done, Task 4 partly
+
+- Agents: Tasks 1–3 by the VS Code session `21013898` (cwd `/opt/libreqos`), commits d618534, 144b775, d36c23f. That session stopped at the token limit at 00:24. Task 4 by the scheduled resume of the terminal session, commit c5561de. Branch `lqosync3`. Not pushed. Not deployed.
+- Uncommitted changes in `src/topology_manager/` (normalize.rs, policy_draft.rs, and three test files) were Task 1. The VS Code session committed them in d618534. The worktree was clean at 00:53.
+- Task 4 done: registry schema 9 (migration arm 8→9), `CatalogSource.excluded`, `CatalogNode.tree_excluded`, and the edits `source.exclude` and `node.tree_exclude` (router nodes only).
+- Task 4 done: the export in `publication.rs` omits an excluded router node. Its children go to the nearest exported ancestor. Placement in `resolver.rs` never targets an excluded router node. `auto_groups` does not add an excluded source. The web contract has both flags. The rollback note is in `docs/frontend/DEPLOYMENT.md`.
+- Task 4 not done: the preparation filter. The subscribers of an excluded source stay in the pair. The `source.exclude` flag does not change the shaper output yet. Do not show "Do not read" in the UI before this filter exists.
+- Task 4 not done: the test `the_first_tree_with_excluded_router_nodes_equals_the_legacy_tree`. It needs automatic router nodes.
+- Task 2 gap: `auto_groups` adds group nodes only. It does not add router nodes, and it has no `cfg` parameter for the `tree_excluded` default. The plan asks for both.
+- Checks at c5561de: `cargo test --locked --workspace --no-fail-fast` 1934 passed, 0 failed. Workspace clippy and Wasm clippy clean; `cargo fmt --check` and `git diff --check` clean. `tools/frontend/check-all.sh` did not run (no web UI change in this task).
+- Rollback: schema 9 needs the schema-8 backup for a schema-8 binary.
+- Next: the Task 4 preparation filter (owner review: it removes rows from the live pair), the Task 2 router nodes, then Task 5.
+- Open questions: (1) Where must the filter go: before `resolver::resolve`, or in the observation gate? (2) Task 5 asks for router-node instances under two WANs. This copies a router branch under each WAN. Owner design decision is necessary.
+- CAUTION: Two sessions use one worktree. Before you continue, make sure that only one session works on this plan.
+
 ## 2026-11-22 (Asia/Manila) — WAN routing list writer: Tasks 1–8 done
 
 - Last agent: Claude Code (session libreqos-09, later named libreqos-4f). Branch `lqosync3`. Commits c251ae2 to bed946a, and the Task 8 docs commit. Not deployed.
