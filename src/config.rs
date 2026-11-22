@@ -1291,6 +1291,12 @@ mod tests {
         "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n";
 
     #[test]
+    fn the_default_network_mode_is_root_promotion() {
+        let c = Config::from_toml_str(ROUTER).unwrap();
+        assert_eq!(c.network.mode, NetworkMode::RootPromotion);
+    }
+
+    #[test]
     fn writer_credentials_are_both_or_neither() {
         let c = Config::from_toml_str(ROUTER).unwrap();
         assert!(c.routers[0].writer_username.is_empty());

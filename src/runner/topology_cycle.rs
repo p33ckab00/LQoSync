@@ -13,7 +13,7 @@ where
         now: u64,
     ) -> anyhow::Result<Option<crate::write_receipt::WriteResult>> {
         self.require_topology_enrollment()?;
-        let state_dir = Path::new(&self.cfg.runtime.state_dir);
+        let state_dir = std::path::PathBuf::from(&self.cfg.runtime.state_dir);
         let mut compiler = crate::topology_manager::compiler::ControlledCompiler::open(
             &self.cfg.libreqos,
             &state_dir.join("topology-manager/compiler"),
@@ -23,9 +23,10 @@ where
         let wanted = self.wanted_lists(&pair)?;
         let compiled = compiler.compile(pair).await?;
         if confirmed {
-            self.publish_with_lists(compiled, wanted, now)
-                .await
-                .map(Some)
+            let result = self.publish_with_lists(compiled, wanted, now).await?;
+            // Only activation claims the writer, after its first pair is written.
+            crate::topology_manager::runtime::claim(&state_dir)?;
+            Ok(Some(result))
         } else {
             Ok(None)
         }

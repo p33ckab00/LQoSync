@@ -2389,7 +2389,6 @@ where
             "manager publication revision conflict"
         );
         self.last_topology_generation = compiled.generation();
-        crate::topology_manager::runtime::claim(Path::new(&self.cfg.runtime.state_dir))?;
         let mut result = compiled.publish(
             store,
             &mut tracker,
@@ -4281,6 +4280,8 @@ mod tests {
         );
         assert!(receipt.meta.topology.as_ref().unwrap().compiler.is_some());
         crate::apply_evidence::prepare(&receipt).unwrap();
+        // Activation claims the writer; then an uncompiled pair cannot publish.
+        crate::topology_manager::runtime::claim(&e.state).unwrap();
         let mut current = crate::topology_manager::publication::tests::input(0);
         current.reconciliation.registry = r
             .topology_store
@@ -4380,7 +4381,8 @@ mod tests {
         let mut r = runner(&e, config);
         let result = r.publish_compiled(bound, 1000).unwrap();
         assert!(result.changed && result.error.is_some());
-        assert!(crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
+        // Only activation claims the writer; a publication does not.
+        assert!(!crate::topology_manager::runtime::topology_owns(&e.state).unwrap());
         let tracker = r.pending_tracker().unwrap();
         let first = tracker.lock().unwrap().current().unwrap().clone();
         assert!(first.phase.pending());

@@ -2583,7 +2583,7 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .text()
-                .contains("mode = \"flat_router_root\"")
+                .contains("mode = \"flat_promotion\"")
         );
     }
 

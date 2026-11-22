@@ -91,7 +91,7 @@ v2_timeout = 300                # seconds
 v3_status_timeout = 60          # reserved: no effect yet (needs a v3 shaper test)
 
 [network]
-mode = "grouped_router_root"    # refer to ARCHITECTURE.md, "Network modes"
+mode = "root_promotion"         # refer to ARCHITECTURE.md, "Network modes"
 preserve_network_config = false
 root_name = "LibreQoS-Network"  # root name for flat_global_root
 root_type = "site"

@@ -120,6 +120,8 @@ pub struct LiveTestReport {
     /// True when the restored pair is imported, equals the baseline, and equals the backup bytes.
     pub restored: bool,
     pub warnings: Vec<String>,
+    /// The registry revision that the test proved. `topology activate` needs the same revision.
+    pub registry_revision: Option<u64>,
 }
 
 impl LiveTestReport {
@@ -513,7 +515,10 @@ where
             timeout: import_timeout,
         };
         // Step 2. Prepare, compile, and check. A failure here writes nothing.
-        let mut report = LiveTestReport::default();
+        let mut report = LiveTestReport {
+            registry_revision: Some(registry.revision),
+            ..LiveTestReport::default()
+        };
         let t = Instant::now();
         let pair = self
             .topology_sources

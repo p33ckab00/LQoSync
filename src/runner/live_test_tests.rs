@@ -233,6 +233,11 @@ async fn a_passing_run_restores_the_legacy_pair_byte_for_byte() {
     assert!(report.passed, "{}", report.summary());
     assert_eq!(report.error, None);
     assert!(report.restored);
+    // The report names the registry revision that it proved.
+    assert_eq!(
+        report.registry_revision,
+        Some(r.api_document().unwrap().unwrap().revision)
+    );
     assert_eq!(pair(&e), legacy);
     let dir = report.backup_dir.clone().unwrap();
     assert_eq!(dir, backups(&e).join(NOW.to_string()));

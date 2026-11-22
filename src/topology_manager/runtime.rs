@@ -1,4 +1,5 @@
 //! Durable writer selection. A topology owner cannot fall back to the legacy cycle.
+//! Only `topology activate --yes` claims the writer, and only `topology deactivate --yes` releases it.
 use anyhow::{Context, ensure};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -65,4 +66,31 @@ pub(crate) fn claim(state: &Path) -> anyhow::Result<()> {
         "writer ownership confirmation failed"
     );
     Ok(())
+}
+
+/// Remove the topology owner file. Only `topology deactivate` calls it. A missing file is no error.
+#[allow(dead_code)] // shortcut: Task 4 of the activation plan (deactivate) is its caller; remove then.
+pub(crate) fn release(state: &Path) -> anyhow::Result<()> {
+    let directory = state.join("topology-manager");
+    match std::fs::remove_file(directory.join("runtime-owner.json")) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        other => other.context("cannot remove the writer ownership file")?,
+    }
+    std::fs::File::open(&directory)?
+        .sync_all()
+        .context("cannot sync the topology manager directory")
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn release_removes_the_owner_file() {
+        let root = tempfile::tempdir().unwrap();
+        drop(super::super::store::RegistryStore::open(root.path()).unwrap());
+        super::claim(root.path()).unwrap();
+        assert!(super::topology_owns(root.path()).unwrap());
+        super::release(root.path()).unwrap();
+        assert!(!super::topology_owns(root.path()).unwrap());
+        super::release(root.path()).unwrap();
+    }
 }

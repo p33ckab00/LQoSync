@@ -6,7 +6,14 @@ use lqosync3::topology::{GroupTotal, RouterGroups, build_nodes, to_network_json}
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
+/// The tests use the router-root tree, so they state that mode (the default is root_promotion).
 fn config(extra: &str) -> Config {
+    let mode = "[network]\nmode='grouped_router_root'\n";
+    let extra = if extra.contains("[network]") {
+        extra.replace("[network]\n", mode)
+    } else {
+        format!("{mode}{extra}")
+    };
     Config::from_toml_str(&format!(
         "{extra}\n[[routers]]\nname='R1'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n"
     ))
