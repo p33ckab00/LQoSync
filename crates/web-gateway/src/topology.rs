@@ -124,6 +124,7 @@ fn summary(v: &TopologyView) -> TopologySummary {
         publication: v.publication.clone(),
         history: v.history.iter().take(HISTORY).cloned().collect(),
         layout_revision: v.layout_revision.clone(),
+        wan_candidates: v.wan_candidates.clone(),
     };
     // Envelope: `{"summary":{...}}`.
     let mut used = size(&s) + 16;

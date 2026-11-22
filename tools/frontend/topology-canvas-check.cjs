@@ -205,6 +205,59 @@ const fs=require('node:fs');
     await inv.getByText('Auto: WAN North',{exact:true}).waitFor();
     await inv.getByText('Auto: no parent',{exact:true}).waitFor();
     await page.keyboard.press('Escape');
+    // Live source canvas. One helper waits for the next edit of a kind.
+    const edit=async kind=>{for(let i=0;i<100;i++){const e=edits.find(x=>x.edit.kind===kind&&!x.seen);if(e){e.seen=true;return e.edit;}await page.waitForTimeout(100);}
+      throw new Error(`no ${kind} edit`);};
+    // A default-route interface without a WAN node is a "not configured" card; it opens the WAN form.
+    const candidate=canvas.getByRole('button',{name:/^pppoe-out3 on Core-01, WAN, not configured/});
+    await candidate.click();
+    const wanInv=page.getByRole('dialog',{name:'Router inventory'});await wanInv.waitFor();
+    await wanInv.getByRole('heading',{name:'New WAN · pppoe-out3 on Core-01'}).waitFor();
+    await page.keyboard.press('Escape');await wanInv.waitFor({state:'hidden'});
+    // Drag a WAN connector to a card: a second WAN parent for a group, and a router card copy.
+    const drag=async(wan,card)=>{
+      const h=await canvas.locator(`.canvas-connector[title^="Drag from ${wan} "]`).boundingBox();
+      const t=await card.boundingBox();
+      await page.mouse.move(h.x+h.width/2,h.y+h.height/2);await page.mouse.down();
+      await page.mouse.move(t.x+t.width/2,t.y+t.height/2,{steps:8});
+      assert.equal(await canvas.locator('.canvas-wires path.pending').count(),1,'the connector follows the pointer');
+      await page.mouse.up();
+    };
+    await drag('WAN South',ppp);
+    assert.deepEqual(await edit('instance.add'),{kind:'instance.add',source_id:'access-ppp',parent:'tm-node-wan-south',name:null});
+    await drag('WAN North',dhcp);
+    assert.deepEqual(await edit('node.instance_add'),{kind:'node.instance_add',node_id:'tm-node-dhcp-south',parent:'tm-node-wan-north'});
+    // Router card settings: exclusion from the network tree, and a link to the Routers screen.
+    await dhcp.click();await page.keyboard.press('Enter');await dhcpDialog.waitFor();
+    await dhcpDialog.getByRole('link',{name:'Open Routers'}).waitFor();
+    await dhcpDialog.getByLabel(/^Exclude from network tree/).check();
+    assert.deepEqual(await edit('node.tree_exclude'),{kind:'node.tree_exclude',node_id:'tm-node-dhcp-south',excluded:true});
+    await page.keyboard.press('Escape');await dhcpDialog.waitFor({state:'hidden'});
+    // Do not read: a two-step action in the group modal.
+    await ppp.click();await page.keyboard.press('Enter');await pppDialog.waitFor();
+    await pppDialog.getByRole('button',{name:'Do not read',exact:true}).click();
+    await pppDialog.getByRole('button',{name:'Confirm do not read',exact:true}).click();
+    assert.deepEqual(await edit('source.exclude'),{kind:'source.exclude',source_id:'access-ppp',excluded:true});
+    await pppDialog.waitFor({state:'hidden'});
+    // The Excluded list reads a source again.
+    await dock.getByRole('button',{name:'Excluded sources',exact:true}).click();
+    const excluded=page.getByRole('dialog',{name:'Excluded sources'});await excluded.waitFor();
+    await excluded.getByRole('button',{name:'Read PPPoE Trial again',exact:true}).click();
+    assert.deepEqual(await edit('source.exclude'),{kind:'source.exclude',source_id:'access-ppp-trial',excluded:false});
+    await page.keyboard.press('Escape');await excluded.waitFor({state:'hidden'});
+    // List view by keyboard: the same cards open the same modals.
+    const listButton=page.getByRole('button',{name:'List view',exact:true});
+    await listButton.focus();await page.keyboard.press('Enter');
+    const cardList=page.getByRole('list',{name:'Topology cards'});await cardList.waitFor();
+    await cardList.getByRole('button',{name:/^WAN North/}).focus();await page.keyboard.press('Enter');
+    await dialog.waitFor();await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+    await cardList.getByRole('button',{name:/^pppoe-out3 on Core-01/}).waitFor();
+    await listButton.click();await cardList.waitFor({state:'hidden'});
+    // Fit keeps every card inside the viewport.
+    await page.getByRole('button',{name:'Fit',exact:true}).click();
+    await page.setViewportSize({width:390,height:800});
+    assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=390),'no sideways scroll at 390 px');
+    await page.setViewportSize({width:1440,height:1000});
     // Dark theme and a phone width: no sideways page scroll, and the modal fits.
     await page.emulateMedia({colorScheme:'dark'});await page.screenshot({path:`${out}/canvas-dark.png`});
     await page.setViewportSize({width:375,height:760});

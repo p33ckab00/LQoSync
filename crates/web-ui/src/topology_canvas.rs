@@ -1,5 +1,6 @@
 //! The Topology canvas: cards, wires, a tool dock, and modal editors. Every valid edit saves
 //! automatically through the service; card moves save the layout only.
+use crate::canvas_layout::{clamp_zoom, fit};
 use crate::topology::{Evidence, Reads, now};
 use crate::topology_canvas_model::*;
 use crate::topology_forms::{blocked, new_key, post, settle, structural_blocked};
@@ -18,6 +19,7 @@ enum Panel {
     Settings,
     Allocation,
     Preview,
+    Excluded,
 }
 
 /// The fields of the node modal. An invalid form stays as a draft for its node.
@@ -141,6 +143,7 @@ fn icon(path: &'static str) -> impl IntoView {
 const ICON_INVENTORY: &str = "M4 7h16v12H4zM8 7V4h8v3M8 12h8M8 15h5";
 const ICON_SETTINGS: &str = "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4";
 const ICON_ALLOCATION: &str = "M12 4v6M6 20v-4h12v4M12 10l-6 6M12 10l6 6";
+const ICON_EXCLUDED: &str = "M4 6h16M4 12h10M4 18h7M15 15l5 5M20 15l-5 5";
 const ICON_PREVIEW: &str =
     "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z";
 
@@ -162,6 +165,8 @@ pub(crate) fn Canvas(
     let draining = RwSignal::new(false);
     let policy_revision = RwSignal::new(None::<u64>);
     let dialog = NodeRef::<leptos::html::Dialog>::new();
+    let viewport = NodeRef::<leptos::html::Div>::new();
+    let list_view = RwSignal::new(false);
 
     // The newest view is the base of the next edit, unless an edit of this page is running.
     Effect::new(move |_| {
@@ -170,11 +175,28 @@ pub(crate) fn Canvas(
             policy_revision.set(rev.and_then(|r| r.parse().ok()));
         }
     });
-    let nodes =
-        Memo::new(move |_| data.with(|d| d.as_ref().map(|s| s.nodes.clone()).unwrap_or_default()));
+    // An inactive group is hidden; its settings stay.
+    let nodes = Memo::new(move |_| {
+        data.with(|d| d.as_ref().map(|s| visible(&s.nodes)).unwrap_or_default())
+    });
+    let wans = Memo::new(move |_| {
+        nodes.with(|n| {
+            n.iter()
+                .filter(|n| n.kind == "wan")
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+    });
+    let candidates = Memo::new(move |_| {
+        data.with(|d| {
+            d.as_ref()
+                .map(|s| s.wan_candidates.clone())
+                .unwrap_or_default()
+        })
+    });
     let points = Memo::new(move |_| {
         let overrides = local.get();
-        let mut p = positions(&nodes.get());
+        let mut p = positions(&nodes.get(), &candidates.get());
         for (id, point) in &mut p {
             if let Some(o) = overrides.get(id) {
                 *point = *o;
@@ -400,6 +422,11 @@ pub(crate) fn Canvas(
             .wan_health
             .as_ref()
             .map(|h| (h.state.clone(), health_label(h)));
+        let excluded = n.tree_excluded.then_some("Excluded from tree");
+        let writer_off = data.with_untracked(|d| d.as_ref().is_some_and(|s| s.wan_lists.is_none()));
+        let warning = nodes
+            .with_untracked(|ns| routing_warning(ns, &n.id, writer_off))
+            .then_some(ROUTING_WARNING);
         let label = format!(
             "{}, {kind}{}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
             n.name,
@@ -416,9 +443,13 @@ pub(crate) fn Canvas(
                 .as_ref()
                 .map(|(_, h)| format!(", WAN {h}"))
                 .unwrap_or_default(),
-        );
+        ) + &[excluded, warning]
+            .iter()
+            .flatten()
+            .map(|t| format!(" {t}."))
+            .collect::<String>();
         view! {
-          <button type="button" class="canvas-node" data-kind=n.kind.clone()
+          <button type="button" class="canvas-node" data-kind=n.kind.clone() data-node-id=n.id.clone()
             aria-pressed=move||is_selected().to_string() aria-label=label
             style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
             on:click=move|_|{
@@ -465,9 +496,11 @@ pub(crate) fn Canvas(
               {router.map(|r|view!{<span class="canvas-node-router">{format!("Router {r}")}</span>})}
               {auto.map(|a|view!{<span class="canvas-node-auto">{a}</span>})}
               {health.map(|(state,h)|view!{<span class="canvas-node-health" data-state=state>{h}</span>})}
+              {excluded.map(|t|view!{<span class="canvas-node-router">{t}</span>})}
             </span>
             <strong>{n.name.clone()}</strong>
             <span class="canvas-node-meta">{meta}{located.then_some(" · Located")}</span>
+            {warning.map(|t|view!{<span class="canvas-node-warning">{t}</span>})}
           </button>
         }
     };
@@ -487,6 +520,69 @@ pub(crate) fn Canvas(
         }
     };
 
+    // Inventory actions from the router reads.
+    let read_action = RwSignal::new(None::<Change>);
+    let wan_form = RwSignal::new(None::<(Change, Draft, String)>);
+    // The one-time routing adoption is a reviewed change in the house change dialog.
+    let adopt = RwSignal::new(None::<Change>);
+    // WAN connector drag: WAN node ID, start pointer, start point, end point (canvas pixels).
+    let connect = RwSignal::new(None::<(String, f64, f64, [f64; 2], [f64; 2])>);
+    let handle = move |n: Node| {
+        let id = StoredValue::new(n.id.clone());
+        let pos = move || id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
+        // The pointer drag is a shortcut. Keyboard users set a parent in the settings of a card.
+        view! {
+          <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true"
+            title=format!("Drag from {} to a router or group card",n.name) disabled=locked
+            style:left=move||format!("{}px",pos()[0]+CARD_W/2.0-11.0) style:top=move||format!("{}px",pos()[1]+CARD_H-11.0)
+            on:pointerdown=move|ev: web_sys::PointerEvent|{
+              if ev.button()!=0 { return; }
+              ev.stop_propagation();
+              if let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) {
+                let _=t.set_pointer_capture(ev.pointer_id());
+              }
+              let start=[pos()[0]+CARD_W/2.0,pos()[1]+CARD_H];
+              connect.set(Some((id.get_value(),ev.client_x() as f64,ev.client_y() as f64,start,start)));
+            }
+            on:pointermove=move|ev: web_sys::PointerEvent|{
+              let z=zoom.get_untracked();
+              connect.update(|c|if let Some((_,x0,y0,start,end))=c{
+                *end=[start[0]+(ev.client_x() as f64-*x0)/z,start[1]+(ev.client_y() as f64-*y0)/z];
+              });
+            }
+            on:pointerup=move|ev: web_sys::PointerEvent|{
+              let Some((wan,..))=connect.get_untracked() else {return};
+              connect.set(None);
+              let target=document().element_from_point(ev.client_x() as f32,ev.client_y() as f32)
+                .and_then(|e|e.closest("[data-node-id]").ok().flatten())
+                .and_then(|e|e.get_attribute("data-node-id"));
+              let Some(target)=target else {return};
+              match nodes.with_untracked(|ns|drop_edit(ns,&wan,&target)) {
+                Ok(edit)=>submit(edit),
+                Err(why)=>status.set(format!("Not connected: {why}")),
+              }
+            }
+            on:pointercancel=move|_|connect.set(None)>"+"</button>
+        }
+    };
+    let candidate = move |(id, router_id, router, iface): (String, String, String, String)| {
+        let card_id = StoredValue::new(id);
+        let pos = move || card_id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
+        let label = format!("{iface} on {router}, WAN, not configured. Enter adds it as a WAN.");
+        let name = iface.clone();
+        view! {
+          <button type="button" class="canvas-candidate" data-kind="wan" aria-label=label disabled=locked
+            style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
+            on:click=move|_|{
+              read_action.set(Some(Change::CreateWan(router_id.clone(),router.clone(),iface.clone())));
+              open(Panel::Inventory);
+            }>
+            <span class="canvas-node-top"><span class="canvas-node-kind">"WAN · not configured"</span></span>
+            <strong>{name}</strong>
+            <span class="canvas-node-meta">"Default route · save a capacity to use it"</span>
+          </button>
+        }
+    };
     let wires = move || {
         let sel = selected.get();
         nodes.with(|ns| {
@@ -500,17 +596,26 @@ pub(crate) fn Canvas(
                 .collect_view()
         })
     };
+    // The connector that the operator drags from a WAN card.
+    let pending = move || {
+        connect.get().and_then(|(wan, _, _, _, end)| {
+            let a = point_of(&wan)?;
+            let d = format!(
+                "M{} {} L{} {}",
+                a[0] + CARD_W / 2.0,
+                a[1] + CARD_H,
+                end[0],
+                end[1]
+            );
+            Some(view! {<path d=d class="pending"/>})
+        })
+    };
     let size = move || points.with(|p| surface(p));
     let selected_node = move || {
         let id = selected.get()?;
         nodes.with(|n| n.iter().find(|x| x.id == id).cloned())
     };
 
-    // Inventory actions from the router reads.
-    let read_action = RwSignal::new(None::<Change>);
-    let wan_form = RwSignal::new(None::<(Change, Draft, String)>);
-    // The one-time routing adoption is a reviewed change in the house change dialog.
-    let adopt = RwSignal::new(None::<Change>);
     Effect::new(move |_| match read_action.get() {
         Some(Change::AddSource(key, _)) => {
             submit(BuilderEdit::SourceAdd {
@@ -561,7 +666,27 @@ pub(crate) fn Canvas(
         </div>
         {move||structural_blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
         <div class="canvas-frame">
-          <div class="canvas-viewport" tabindex="0" role="region"
+          <Show when=move||list_view.get()>
+            <ul class="canvas-list" aria-label="Topology cards">
+              {move||nodes.get().into_iter().map(|n|{
+                let id=n.id.clone();
+                let chips=[n.tree_excluded.then_some("Excluded from tree"),
+                  data.with_untracked(|d|d.as_ref().is_some_and(|s|routing_warning(&visible(&s.nodes),&n.id,s.wan_lists.is_none()))).then_some(ROUTING_WARNING)]
+                  .into_iter().flatten().collect::<Vec<_>>().join(" · ");
+                view!{<li><button type="button" class="quiet" on:click=move|_|{selected.set(Some(id.clone()));open(Panel::Node);}>
+                  <strong>{n.name.clone()}</strong><small>{kind_label(&n.kind)}</small>{(!chips.is_empty()).then(||view!{<small>{chips}</small>})}
+                </button></li>}
+              }).collect_view()}
+              {move||candidate_cards(&candidates.get()).into_iter().map(|(_,rid,router,iface)|{
+                let label=format!("{iface} on {router}");
+                view!{<li><button type="button" class="quiet" disabled=locked on:click=move|_|{
+                    read_action.set(Some(Change::CreateWan(rid.clone(),router.clone(),iface.clone())));
+                    open(Panel::Inventory);
+                  }><strong>{label}</strong><small>"WAN · not configured"</small></button></li>}
+              }).collect_view()}
+            </ul>
+          </Show>
+          <div class="canvas-viewport" node_ref=viewport hidden=move||list_view.get() tabindex="0" role="region"
             aria-label="Topology canvas. Arrow keys scroll. Tab moves between cards." on:keydown=cancel_drag
             on:click=move|ev: web_sys::MouseEvent|{
               // A click on empty canvas clears the selection.
@@ -572,8 +697,10 @@ pub(crate) fn Canvas(
             <div class="canvas-surface" style:width=move||format!("{}px",size().0*zoom.get()) style:height=move||format!("{}px",size().1*zoom.get())>
               <div class="canvas-layer" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
-                <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}</svg>
-                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health,n.routed)) children=card/>
+                <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}{pending}</svg>
+                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded)) children=card/>
+                <For each=move||wans.get() key=|n|n.id.clone() children=handle/>
+                <For each=move||candidate_cards(&candidates.get()) key=|c|c.0.clone() children=candidate/>
               </div>
             </div>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.is_empty()))>
@@ -590,14 +717,38 @@ pub(crate) fn Canvas(
             {tool(Panel::Settings,"Topology settings",ICON_SETTINGS)}
             {tool(Panel::Allocation,"Subscriber allocation",ICON_ALLOCATION)}
             {tool(Panel::Preview,"Preview and evidence",ICON_PREVIEW)}
+            {tool(Panel::Excluded,"Excluded sources",ICON_EXCLUDED)}
           </div>
           <div class="canvas-zoom" role="group" aria-label="Zoom">
-            <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom.update(|z|*z=((*z-0.1)*10.0).round()/10.0)
-              disabled=move||zoom.get()<=0.41>"−"</button>
+            <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z-0.1)*10.0).round()/10.0))
+              disabled=move||zoom.get()<=0.26>"−"</button>
             <span>{move||format!("{:.0}%",zoom.get()*100.0)}</span>
-            <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom.update(|z|*z=((*z+0.1)*10.0).round()/10.0)
-              disabled=move||zoom.get()>=1.59>"+"</button>
+            <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z+0.1)*10.0).round()/10.0))
+              disabled=move||zoom.get()>=1.99>"+"</button>
             <button type="button" class="quiet" on:click=move|_|zoom.set(1.0)>"Reset"</button>
+            <button type="button" class="quiet" on:click=move|_|{
+              let Some(v)=viewport.get_untracked() else {return};
+              let b=points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
+                [b[0].min(q[0]),b[1].min(q[1]),b[2].max(q[0]+CARD_W),b[3].max(q[1]+CARD_H)]));
+              let (z,_,_)=fit(b,[v.client_width() as f64,v.client_height() as f64]);
+              zoom.set(z);
+              v.set_scroll_left((b[0]*z) as i32);
+              v.set_scroll_top((b[1]*z) as i32);
+            }>"Fit"</button>
+            <button type="button" class="quiet" disabled=locked on:click=move|_|{
+              // Clear the saved positions: every card returns to the automatic layout.
+              local.set(HashMap::new());
+              let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
+                d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
+              leptos::task::spawn_local(async move{
+                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default()}).await{
+                  Ok(r)=>{layout_revision.set(Some(r));status.set("Layout reset. Shaping does not change.".into());}
+                  Err(e)=>{layout_revision.set(None);status.set(e.into());}
+                }
+                reload.run(());
+              });
+            }>"Reset layout"</button>
+            <button type="button" class="quiet" aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>"List view"</button>
             <button type="button" class="quiet" disabled=move||selected.get().is_none() on:click=move|_|open(Panel::Node)>"Configure"</button>
           </div>
         </div>
@@ -615,6 +766,7 @@ pub(crate) fn Canvas(
               Some(Panel::Settings)=>"Topology settings".into(),
               Some(Panel::Allocation)=>"Subscriber allocation".into(),
               Some(Panel::Preview)=>"Preview and evidence".into(),
+              Some(Panel::Excluded)=>"Excluded sources".into(),
               None=>String::new(),
             }}</h2></div>
             <button type="button" class="router-icon quiet" aria-label="Close" title="Close" on:click=move|_|close()>
@@ -623,7 +775,7 @@ pub(crate) fn Canvas(
           </header>
           <div class="canvas-dialog-body">
             {move||match panel.get(){
-              Some(Panel::Node)=>view!{<NodeEditor data forms selected locked flush act=Callback::new(move|(c,d)|act(c,d)) close=Callback::new(move|()|close())/>}.into_any(),
+              Some(Panel::Node)=>view!{<NodeEditor data forms selected locked flush act=Callback::new(move|(c,d)|act(c,d)) send=Callback::new(submit) close=Callback::new(move|()|close())/>}.into_any(),
               Some(Panel::Inventory)=>view!{
                 <p class="field-help">{move||match selected_node(){Some(n)=>format!("New items go under {}.",n.name),None=>"New items go at the top level. Select a card first to place them under it.".into()}}</p>
                 <div class="form-actions">
@@ -632,7 +784,7 @@ pub(crate) fn Canvas(
                 </div>
                 <h3>"Saved sources"</h3>
                 <ul class="plain-list">
-                  {move||data.with(|d|d.as_ref().map(|s|s.sources.iter().filter(|x|x.kind=="subscribers").map(|src|{
+                  {move||data.with(|d|d.as_ref().map(|s|s.sources.iter().filter(|x|x.kind=="subscribers" && !x.excluded).map(|src|{
                     let id=src.id.clone();
                     // An unplaced source shows where automatic placement puts its subscribers.
                     let auto=(!s.nodes.iter().any(|n|n.source_id.as_deref()==Some(src.id.as_str()))).then(||{
@@ -749,6 +901,20 @@ pub(crate) fn Canvas(
                   <ul class="plain-list">{s.conflicts.iter().take(20).map(|c|view!{<li><strong>{c.subject.clone()}</strong><small>{c.detail.clone()}</small></li>}).collect_view()}</ul>
                 }))}
               }.into_any(),
+              Some(Panel::Excluded)=>view!{
+                <p class="field-help">"LQoSync does not shape the subscribers of these sources, and does not add them to the canvas again."</p>
+                <ul class="plain-list">
+                  {move||data.with(|d|d.as_ref().map(|s|s.sources.iter().filter(|x|x.excluded).map(|src|{
+                    let id=src.id.clone();
+                    view!{<li><strong>{src.name.clone()}</strong><small>"Not read"</small>
+                      <button type="button" class="quiet" disabled=locked aria-label=format!("Read {} again",src.name)
+                        on:click=move|_|submit(BuilderEdit::SourceExclude{source_id:id.clone(),excluded:false})>"Read again"</button></li>}
+                  }).collect_view()))}
+                </ul>
+                <Show when=move||data.with(|d|d.as_ref().is_none_or(|s|!s.sources.iter().any(|x|x.excluded)))>
+                  <p class="field-help">"No source is excluded."</p>
+                </Show>
+              }.into_any(),
               None=>().into_any(),
             }}
           </div>
@@ -795,6 +961,7 @@ fn NodeEditor(
     locked: impl Fn() -> bool + Copy + Send + Sync + 'static,
     flush: impl Fn() + Copy + Send + Sync + 'static,
     act: Callback<(Change, Draft)>,
+    send: Callback<BuilderEdit>,
     close: Callback<()>,
 ) -> impl IntoView {
     let node = move || {
@@ -817,6 +984,7 @@ fn NodeEditor(
         }
     };
     let confirm_remove = RwSignal::new(false);
+    let confirm_exclude = RwSignal::new(false);
     let paste = move |ev: web_sys::ClipboardEvent| {
         let text = ev
             .clipboard_data()
@@ -868,7 +1036,49 @@ fn NodeEditor(
               <p class="field-help">"Subscribers of this router stay in this branch. Unplaced sources of the router go to its child nodes."</p>
             })}
             {move||(!form().router_error.is_empty()).then(||view!{<p id="canvas-router-error" class="field-error">{form().router_error}</p>})}
+            {data.with(|d|d.as_ref().is_some_and(|s|routing_warning(&visible(&s.nodes),&n.id,s.wan_lists.is_none()))).then(||view!{
+              <p class="field-help canvas-node-warning" role="note">{ROUTING_WARNING}". The rate of each subscriber stays correct."</p>})}
           </fieldset>
+          {n.router_id.is_some().then(||{
+            let (id,id2)=(n.id.clone(),n.id.clone());
+            let wans:Vec<(String,String)>=data.with(|d|d.as_ref().map(|s|s.nodes.iter()
+              .filter(|w|w.kind=="wan" && n.parent.as_deref()!=Some(w.id.as_str()))
+              .map(|w|(w.id.clone(),w.name.clone())).collect()).unwrap_or_default());
+            view!{
+            <fieldset><legend>"Router card"</legend>
+              <div class="check">
+                <input type="checkbox" id="canvas-tree-exclude" disabled=locked prop:checked=n.tree_excluded
+                  on:change=move|ev|send.run(BuilderEdit::NodeTreeExclude{node_id:id.clone(),excluded:event_target_checked(&ev)})/>
+                <label for="canvas-tree-exclude">"Exclude from network tree"
+                  <small>"On: network.json has no node for this router. Its groups go to the parent of the card."</small></label>
+              </div>
+              {(!wans.is_empty()).then(||view!{
+                <label>"Add another WAN parent"<select disabled=locked on:change=move|ev|{
+                    let v=event_target_value(&ev);
+                    if !v.is_empty(){ send.run(BuilderEdit::NodeInstanceAdd{node_id:id2.clone(),parent:Some(v)}); }
+                  }>
+                  <option value="">"Select a WAN"</option>
+                  {wans.into_iter().map(|(wid,name)|view!{<option value=wid>{name}</option>}).collect_view()}
+                </select></label>
+                <p class="field-help">"The groups of this router divide their subscribers between the WANs by the allocation mode."</p>
+              })}
+              <a class="button quiet" href="/routers">"Open Routers"</a>
+            </fieldset>}
+          })}
+          {(n.kind=="group").then(||n.source_id.clone()).flatten().map(|source|view!{
+            <fieldset><legend>"Reading"</legend>
+              <p class="field-help">"Do not read: the card disappears, and LQoSync does not shape the subscribers of this source. The Excluded list can read it again."</p>
+              <div class="form-actions">
+                <button type="button" class="quiet danger" disabled=locked on:click=move|_|{
+                  if confirm_exclude.get_untracked(){
+                    send.run(BuilderEdit::SourceExclude{source_id:source.clone(),excluded:true});
+                    confirm_exclude.set(false);
+                    close.run(());
+                  } else { confirm_exclude.set(true); }
+                }>{move||if confirm_exclude.get(){"Confirm do not read"}else{"Do not read"}}</button>
+              </div>
+            </fieldset>
+          })}
           {wan.then(||view!{
             <fieldset><legend>"Routing"</legend>
               <label>"Address list"<input autocomplete="off" spellcheck="false" prop:value=move||form().address_list disabled=locked

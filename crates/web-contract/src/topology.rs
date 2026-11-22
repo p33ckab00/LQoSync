@@ -486,6 +486,9 @@ pub struct TopologySummary {
     /// The canvas layout revision. Decimal string.
     #[serde(default)]
     pub layout_revision: Option<String>,
+    /// Default-route WAN interfaces without a WAN node ("not configured" cards).
+    #[serde(default)]
+    pub wan_candidates: Vec<DiscoveredRouter>,
 }
 
 /// One page of a filtered list. The cursor binds the snapshot and the filter.

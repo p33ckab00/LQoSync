@@ -23,7 +23,7 @@ pub struct CardBox {
 
 /// The free space around each card.
 const GAP: f64 = 16.0;
-const MARGIN: f64 = 32.0;
+const MARGIN: f64 = 48.0;
 /// The vertical space between a parent and the row of its children.
 const ROW_GAP: f64 = 56.0;
 
