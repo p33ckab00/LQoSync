@@ -172,8 +172,8 @@ pub(crate) fn DashboardBody(data: RwSignal<Option<Overview>>) -> impl IntoView {
     view! {
       <Show when=move||data.with(|d|d.as_ref().is_some_and(|v|v.stale))><div class="notice">"Some source evidence is stale or unavailable. Unknown counts are shown as —."</div></Show>
       <section class="metrics" aria-label="Service summary">
-        // The NOC Command Deck: service status, the radial profiler, worker telemetry, and NIC ports.
-        <crate::worker_ring::WorkerRing snapshot server_clock>
+        // The NOC Command Deck: service status, the radial profiler, worker telemetry, NIC ports, and the status ticker.
+        <crate::worker_ring::WorkerRing snapshot server_clock data>
           <Metric data kind="ipoe" title="IPoE Subscribers" icon="people" note="Active DHCP observations"/>
           <Metric data kind="ppp_online" title="PPPoE Online" icon="wifi" note="Currently online users"/>
           <Metric data kind="ppp_offline" title="PPPoE Offline" icon="wifi-off" note="Configured users offline"/>

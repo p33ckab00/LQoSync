@@ -6,7 +6,10 @@ use crate::worker_ring_model::{
     CX, CY, RADIUS, Sector, band, compact, grouped, pick, sector_text, sectors,
 };
 use leptos::prelude::*;
-use web_contract::dpdk::{Console, Dpdk};
+use web_contract::{
+    Overview,
+    dpdk::{Console, Dpdk},
+};
 
 /// The focused instrument: a phase sector or a health band.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,10 +28,11 @@ fn value(n: Option<u64>) -> String {
 
 #[component]
 /// The NOC Command Deck: service status (the `children`), the radial profiler, worker telemetry,
-/// the NIC ports, and the bridge health line.
+/// the NIC ports, the bridge health line, and the live service status ticker.
 pub(crate) fn WorkerRing(
     snapshot: Memo<Option<Dpdk>>,
     server_clock: Memo<u64>,
+    data: RwSignal<Option<Overview>>,
     children: Children,
 ) -> impl IntoView {
     let selected = RwSignal::new(None::<u16>);
@@ -276,6 +280,9 @@ pub(crate) fn WorkerRing(
           })}}
         </ul>
         <p class="panel-note">{move||snapshot.with(|d|d.as_ref().map(|d|format!("{} workers · mean busy {} · equal-angle phases, cumulative cycles, not CPU-time shares",d.worker_count,pct(d.mean_busy_ppm))).unwrap_or("Worker telemetry unavailable".into()))}</p>
+        <section class="service-diagnostics status-banner" aria-label="Service diagnostics">
+          <crate::diagnostics_ticker::DiagnosticsTicker data/>
+        </section>
       </article>
     }
 }

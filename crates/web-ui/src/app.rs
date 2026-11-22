@@ -147,9 +147,6 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             </div>
           </header>
           <main class="dashboard" id="main">
-            <section class="service-diagnostics status-banner" aria-label="Service diagnostics">
-              <crate::diagnostics_ticker::DiagnosticsTicker data/>
-            </section>
             {move||match section.get() {
               0=>view!{
                 <div class="page-heading">

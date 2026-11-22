@@ -19,12 +19,13 @@ const fs=require('node:fs');
   await page.getByLabel('Username',{exact:true}).fill('browser-test');
   await page.getByLabel('Password',{exact:true}).fill(process.env.BROWSER_TEST_PASSWORD);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
-  const section=page.locator('.service-diagnostics');
-  await section.waitFor();
-  await section.getByText('Waiting for service status…',{exact:true}).waitFor();
+  // The ticker lives in the NOC Command Deck, which renders only after the first source snapshot.
+  const section=page.locator('.noc-deck .service-diagnostics');
+  await page.getByText('Loading service evidence…',{exact:true}).waitFor();
   assert.equal(await page.locator('.ticker-track .ticker-item').count(),0,
     'do not start a moving queue before the first timestamped snapshot');
   releaseStartup();
+  await section.waitFor();
 
   assert.equal(await section.getByRole('heading').count(),0,'banner has no title');
   assert.equal(await section.getByRole('button').count(),0,'banner has no controls');
@@ -42,8 +43,9 @@ const fs=require('node:fs');
 
   for(const label of ['Service health','Runtime mode','Output target','Publication phase','Last cycle']) assert.equal(await list.getByText(label,{exact:true}).count(),1);
   const bannerBox=await section.boundingBox();
-  const titleBox=await page.getByRole('heading',{name:'Dashboard',exact:true}).boundingBox();
-  assert.ok(bannerBox.y+bannerBox.height<=titleBox.y,'banner must precede Dashboard heading');
+  const footerBox=await page.locator('.noc-deck .noc-footer').boundingBox();
+  assert.ok(bannerBox.y>=footerBox.y+footerBox.height,'banner must sit at the bottom of the NOC Command Deck');
+  assert.equal(await section.evaluate(n=>n===n.parentElement.lastElementChild),true,'banner is the last deck element');
   assert.equal(await page.locator('.ticker-clone').getAttribute('aria-hidden'),'true');
   await page.mouse.move(0,0);
   const track=page.locator('.ticker-track');
@@ -152,5 +154,5 @@ const fs=require('node:fs');
   await list.getByText('UNKNOWN',{exact:true}).first().waitFor();
   assert.deepEqual(errors,[]);
   await browser.close();
-  console.log('PASS: delayed first snapshot, no cached Unknown placeholders, top placement, five permanent statuses, activity-only component changes, deduplication, expiry, ticker motion, stable nodes during live refresh, insertion continuity, repeated handoffs without blank tails, compact strip without card/title/buttons, continuous rolling, hidden clone, reduced motion, static details, stale status, Light/Dark, 768/320px.');
+  console.log('PASS: delayed first snapshot, no cached Unknown placeholders, bottom-of-NOC-deck placement, five permanent statuses, activity-only component changes, deduplication, expiry, ticker motion, stable nodes during live refresh, insertion continuity, repeated handoffs without blank tails, compact strip without card/title/buttons, continuous rolling, hidden clone, reduced motion, static details, stale status, Light/Dark, 768/320px.');
 })().catch(e=>{console.error(e);process.exit(1);});

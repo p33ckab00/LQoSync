@@ -152,7 +152,7 @@
   .ticker-clone{display:flex}
   .ticker-track .ticker-item{flex-wrap:nowrap;flex-shrink:0;min-inline-size:max(180px,20vw);max-inline-size:none;white-space:nowrap}
 }
-.status-banner{margin-block-end:22px}
+.status-banner{margin-block-start:16px}
 .ticker-activity{border-inline-start:2px solid var(--accent)}
 @media(max-width:500px){.ticker-item{padding-inline:12px;font-size:13px}}
 
