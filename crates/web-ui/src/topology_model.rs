@@ -996,6 +996,8 @@ mod tests {
             members: None,
             geo: None,
             position: None,
+            router_id: None,
+            auto_members: None,
         }
     }
 

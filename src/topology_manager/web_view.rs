@@ -69,7 +69,25 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         .filter_map(|n| Some((n["id"].as_str()?.to_owned(), n)))
         .collect();
     let mut nodes: Vec<Node> = serde_json::from_value(field("nodes")).unwrap_or_default();
+    // Saved assignments on a node of the automatic set of the subscriber's router.
+    let automatic = doc
+        .and_then(|d| d.catalog.as_ref())
+        .and_then(|c| super::resolver::automatic_sets(c).ok())
+        .unwrap_or_default();
+    let mut auto_members: HashMap<&str, u64> = HashMap::new();
+    for record in doc.map_or(&[][..], |d| &d.subscribers[..]) {
+        if let (Some(node), Some(identity)) = (
+            record.policy.assignment.as_deref(),
+            record.identities.first(),
+        ) && automatic
+            .get(&identity.scope.router_id)
+            .is_some_and(|set| set.iter().any(|n| n == node))
+        {
+            *auto_members.entry(node).or_default() += 1;
+        }
+    }
     for node in &mut nodes {
+        node.auto_members = auto_members.get(node.id.as_str()).copied();
         node.position = input
             .layout
             .and_then(|l| l.positions.get(&node.id).copied());

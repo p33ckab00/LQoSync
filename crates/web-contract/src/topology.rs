@@ -175,6 +175,12 @@ pub struct Node {
     /// Canvas `[x, y]`. Layout only; it never changes shaping or `location`.
     #[serde(default)]
     pub position: Option<[f64; 2]>,
+    /// The access router that the node represents.
+    #[serde(default)]
+    pub router_id: Option<String>,
+    /// Saved subscribers that automatic placement put on this node. `None` for zero.
+    #[serde(default)]
+    pub auto_members: Option<u64>,
 }
 
 /// The `type` of a node in `network.json`. Separate from the policy role.
@@ -259,6 +265,10 @@ pub struct Source {
     pub name: String,
     /// `wan` or `subscribers`.
     pub kind: String,
+    /// For an unplaced subscriber source: the nodes that automatic placement can use.
+    /// Empty: no parent (flat), or the source is placed.
+    #[serde(default)]
+    pub auto_parents: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -916,5 +926,20 @@ mod canvas_tests {
             serde_json::to_value(&edit).unwrap(),
             serde_json::json!({"kind": "node.router", "node_id": "n1", "router_id": null})
         );
+    }
+
+    #[test]
+    fn old_view_json_without_new_fields_decodes() {
+        let n: Node = serde_json::from_value(serde_json::json!({
+            "id": "n1", "name": "A", "parent": null, "kind": "group", "source_id": null,
+            "capacity": {"mode": "inherit"}, "alias": false, "calculated_mbps": null,
+            "exported_mbps": null, "members": null
+        }))
+        .unwrap();
+        assert_eq!((n.router_id, n.auto_members), (None, None));
+        let s: Source =
+            serde_json::from_value(serde_json::json!({"id": "s", "name": "S", "kind": "wan"}))
+                .unwrap();
+        assert!(s.auto_parents.is_empty());
     }
 }

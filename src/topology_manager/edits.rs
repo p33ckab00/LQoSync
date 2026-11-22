@@ -1706,19 +1706,25 @@ pub fn tree(doc: &RegistryDocument) -> Value {
             json!({
                 "id": n.id, "name": n.name, "parent": n.parent, "kind": kind_out(n.kind),
                 "source_id": n.source_id, "capacity": capacity_out(&n.capacity),
-                "alias": aliased(doc, &n.id), "geo": n.geo,
+                "alias": aliased(doc, &n.id), "geo": n.geo, "router_id": n.router_id,
             })
         })
         .collect();
+    let automatic = super::resolver::automatic_sets(c).unwrap_or_default();
     let sources: Vec<Value> = c
         .sources
         .iter()
         .map(|s| {
-            let kind = match s.origin {
-                SourceOrigin::Wan { .. } => "wan",
-                SourceOrigin::Subscribers { .. } => "subscribers",
+            let (kind, auto) = match &s.origin {
+                SourceOrigin::Wan { .. } => ("wan", None),
+                SourceOrigin::Subscribers { scope, .. } => {
+                    let placed = !s.targets.is_empty()
+                        || c.nodes.iter().any(|n| n.source_id.as_deref() == Some(&s.id));
+                    let auto = (!placed).then(|| automatic.get(&scope.router_id)).flatten();
+                    ("subscribers", auto)
+                }
             };
-            json!({"id": s.id, "name": s.name, "kind": kind})
+            json!({"id": s.id, "name": s.name, "kind": kind, "auto_parents": auto.cloned().unwrap_or_default()})
         })
         .collect();
     let pins: Vec<Value> = doc

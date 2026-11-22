@@ -586,3 +586,84 @@ fn node_geo_and_canvas_positions_reach_the_view() {
             .all(|n| n.position.is_none() && n.geo.is_none())
     );
 }
+
+/// `doc()` plus router node `towerA` of `distro` and an unplaced source `silver` of `distro`.
+/// `a` and `b` are automatic on `towerA`; `c` is in the placed group `group1`.
+fn routed_doc() -> RegistryDocument {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes.push(catalog::CatalogNode {
+        router_id: Some("distro".into()),
+        geo: None,
+        minimum: Default::default(),
+        id: "towerA".into(),
+        name: "Tower A".into(),
+        parent: Some("wan1".into()),
+        source_id: None,
+        kind: crate::topology_manager::layout::NodeKind::Intermediate,
+        capacity: catalog::CapacityPolicy::Inherit,
+    });
+    let mut silver = c.sources[2].clone();
+    silver.id = "silver".into();
+    silver.targets.clear();
+    if let catalog::SourceOrigin::Subscribers { profile_ref, .. } = &mut silver.origin {
+        *profile_ref = Some("silver-profile".into());
+    }
+    c.sources.push(silver);
+    let distro = SourceScope {
+        router_id: "distro".into(),
+        source_id: "ppp-service".into(),
+        kind: SourceKind::Ppp,
+    };
+    d.subscribers = ["a", "b", "c"]
+        .iter()
+        .map(|id| {
+            let mut r = record(
+                id,
+                vec![IdentityRef {
+                    scope: distro.clone(),
+                    account_ref: format!("ppp-name/v1/{id}"),
+                }],
+                None,
+            );
+            r.policy.assignment = Some(if *id == "c" { "group1" } else { "towerA" }.into());
+            r
+        })
+        .collect();
+    d
+}
+
+#[test]
+fn view_shows_router_nodes_and_automatic_counts() {
+    let d = routed_doc();
+    let v = project(&input(Some(&d), None, None));
+    let tower = v.nodes.iter().find(|n| n.id == "towerA").unwrap();
+    assert_eq!(tower.router_id.as_deref(), Some("distro"));
+    assert_eq!(tower.auto_members, Some(2));
+    let group = v.nodes.iter().find(|n| n.id == "group1").unwrap();
+    assert_eq!(
+        (group.router_id.as_deref(), group.auto_members),
+        (None, None)
+    );
+}
+
+#[test]
+fn view_shows_the_automatic_parent_of_a_source() {
+    let mut d = routed_doc();
+    let v = project(&input(Some(&d), None, None));
+    let source =
+        |v: &TopologyView, id: &str| v.sources.iter().find(|s| s.id == id).unwrap().clone();
+    assert_eq!(
+        source(&v, "silver").auto_parents,
+        vec!["towerA".to_string()]
+    );
+    // A placed source has no automatic parent.
+    assert!(source(&v, "profile-source").auto_parents.is_empty());
+    // An empty tree: the source has no parent (flat).
+    d.catalog.as_mut().unwrap().nodes.clear();
+    for s in &mut d.catalog.as_mut().unwrap().sources {
+        s.targets.clear();
+    }
+    let v = project(&input(Some(&d), None, None));
+    assert!(source(&v, "silver").auto_parents.is_empty());
+}

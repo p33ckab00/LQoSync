@@ -474,6 +474,22 @@ impl Index<'_> {
     }
 }
 
+/// Router ID to the node IDs of its automatic set (R3–R5). A router without one is absent.
+pub fn automatic_sets(catalog: &TopologyCatalog) -> anyhow::Result<HashMap<String, Vec<String>>> {
+    let index = Index::new(catalog)?;
+    Ok(index
+        .auto_targets
+        .iter()
+        .map(|(router, set)| {
+            let ids = set
+                .iter()
+                .map(|t| catalog.nodes[index.targets[*t].node].id.clone())
+                .collect();
+            (router.to_string(), ids)
+        })
+        .collect())
+}
+
 struct Prepared {
     eligible: BTreeSet<usize>,
     flat: bool,

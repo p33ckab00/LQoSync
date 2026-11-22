@@ -111,6 +111,8 @@ mod tests {
             members: None,
             geo: None,
             position,
+            router_id: None,
+            auto_members: None,
         }
     }
 
