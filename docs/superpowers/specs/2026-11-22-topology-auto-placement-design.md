@@ -65,6 +65,24 @@ These decisions apply to later phases. They do not change the implemented rules 
 - When the address of a PPPoE or DHCP client changes, the writer changes the address in the list. The client keeps its WAN.
 - When a write to the core router fails, the service does not publish the placement change of those clients. It tries again in the next cycle.
 
+### WAN address-lists (round 3, 2026-11-22)
+
+Core router state (FSE-CORE, read by the owner on 2026-11-22):
+
+- Mangle `prerouting` rules mark routing by source list: `WAN2-CUSTOMERS` to `wan2-rt` (rule 0), `WAN1-CUSTOMERS` to `wan1-rt` (rule 1).
+- Table `wan1-rt` routes through `pppoe-out1` (distance 1) and falls back to `pppoe-out2` (distance 2). Table `wan2-rt` is the reverse. Both use `check-gateway=ping`.
+- The lists hold ranges, not clients: PPPoE pool parts (`10.0.100.211-254`), IPoE vlan10 (`10.15.0.0/24`), Pastdues (`10.100.100.0/24`), AccessLAN (`10.17.0.0/24`), Wifi5Soft (`10.0.22.0/24`). All of them are LQoSync subscribers.
+- The router user `lqosync` is in group `lqosync-read` (`read,api`). It has no `test` policy.
+
+Owner decisions:
+
+- The system writer pushes one list for each WAN: `via-<WAN>`, for example `via-WAN1`. Each entry is one client address with the comment `lqosync: <client>`.
+- Approved writer scope: it adds, removes, and changes the address of entries in `via-*` lists only, and only entries whose comment starts with `lqosync:`. It does not change mangle rules, routes, or other configuration.
+- The writer uses its own router user (`lqosync-writer`, with `write`). The user `lqosync` stays read only and gets `test` for the WAN probe. The operator makes both users, with a guide.
+- The `via-*` lists decide the routing: their mangle rules come first. The operator changes the mangle order, with a guide.
+- Pastdue clients are balanced like the other clients. LibreQoS limits their speed.
+- All five networks above are subscriber networks.
+
 ### Allocation
 
 - The operator selects the allocation mode. The system must stay flexible.
