@@ -154,6 +154,10 @@ impl PreparedPair {
     pub(crate) fn catalog(&self) -> Option<&super::catalog::TopologyCatalog> {
         self.candidate.catalog.as_ref()
     }
+    /// The candidate registry: the saved policy plus current records and placements.
+    pub(crate) fn candidate(&self) -> &RegistryDocument {
+        &self.candidate
+    }
     /// Read-only view models for a preview.
     pub fn view(&self) -> &super::preview::PreviewView {
         &self.view

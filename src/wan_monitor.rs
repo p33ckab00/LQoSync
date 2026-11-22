@@ -63,6 +63,62 @@ struct Shared {
     wans: Vec<WanProbe>,
     health: HashMap<String, WanHealth>,
     errors: HashMap<String, String>,
+    /// The operator range lists of the routers (not `via-`), as address ranges and WAN nodes.
+    legacy: Vec<(u32, u32, String)>,
+    legacy_at: Option<u64>,
+}
+
+/// The WAN node of each operator address-list: an enabled `prerouting` `mark-routing` rule gives
+/// list → routing mark; the enabled default route of that table with the lowest distance gives
+/// the interface; the WAN probe with that interface gives the node. `via-` lists are skipped.
+pub fn discover_lists(
+    mangle: &[crate::model::RosRow],
+    routes: &[crate::model::RosRow],
+    wans: &[WanProbe],
+) -> HashMap<String, String> {
+    let get = |r: &crate::model::RosRow, k: &str| r.get(k).cloned().unwrap_or_default();
+    let on = |r: &crate::model::RosRow| get(r, "disabled") != "true";
+    let mut out = HashMap::new();
+    for rule in mangle.iter().filter(|r| on(r)) {
+        let list = get(rule, "src-address-list");
+        if get(rule, "chain") != "prerouting"
+            || get(rule, "action") != "mark-routing"
+            || list.is_empty()
+            || list.starts_with('!')
+            || list.starts_with("via-")
+        {
+            continue;
+        }
+        let table = get(rule, "new-routing-mark");
+        let route = routes
+            .iter()
+            .filter(|r| {
+                on(r) && get(r, "routing-table") == table && get(r, "dst-address") == "0.0.0.0/0"
+            })
+            .min_by_key(|r| get(r, "distance").parse::<u32>().unwrap_or(u32::MAX));
+        let Some(route) = route else { continue };
+        let gateway = get(route, "gateway");
+        if let Some(wan) = wans.iter().find(|w| w.interface == gateway) {
+            out.entry(list).or_insert_with(|| wan.node_id.clone());
+        }
+    }
+    out
+}
+
+/// An address-list address: one address, `a.b.c.d/n`, or `first-last`, as inclusive `u32` bounds.
+pub fn parse_range(text: &str) -> Option<(u32, u32)> {
+    let ip = |t: &str| t.trim().parse::<std::net::Ipv4Addr>().ok().map(u32::from);
+    if let Some((a, b)) = text.split_once('-') {
+        let (a, b) = (ip(a)?, ip(b)?);
+        return (a <= b).then_some((a, b));
+    }
+    if let Some((a, n)) = text.split_once('/') {
+        let n: u32 = n.parse().ok().filter(|n| *n <= 32)?;
+        let mask = if n == 0 { 0 } else { u32::MAX << (32 - n) };
+        let a = ip(a)? & mask;
+        return Some((a, a | !mask));
+    }
+    ip(text).map(|a| (a, a))
 }
 
 /// The shared WAN state. The runner and the probe task hold clones.
@@ -77,6 +133,8 @@ impl Handle {
             wans: Vec::new(),
             health: HashMap::new(),
             errors: HashMap::new(),
+            legacy: Vec::new(),
+            legacy_at: None,
         })))
     }
 
@@ -161,6 +219,22 @@ impl Handle {
         })
     }
 
+    /// The WAN node of an address in the operator range lists, from the last read.
+    pub fn legacy_wan_of(&self, ip: std::net::Ipv4Addr) -> Option<String> {
+        let ip = u32::from(ip);
+        self.with(|s| {
+            s.legacy
+                .iter()
+                .find(|(a, b, _)| *a <= ip && ip <= *b)
+                .map(|(_, _, node)| node.clone())
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_legacy(&self, ranges: Vec<(u32, u32, String)>) {
+        self.with(|s| s.legacy = ranges);
+    }
+
     /// A saved Rebalance: each WAN that waits for it is available again.
     pub fn release_waiting(&self) {
         self.with(|s| s.health.values_mut().for_each(WanHealth::release));
@@ -196,6 +270,17 @@ where
         routers.dedup();
         for router in routers {
             let mine: Vec<&WanProbe> = wans.iter().filter(|w| w.router == router).collect();
+            // The operator range lists change seldom: read them once a minute.
+            if handle.with(|s| s.legacy_at.is_none_or(|t| now >= t + 60))
+                && let Ok(ranges) = self.read_legacy(&cfg, router, &wans, limit).await
+            {
+                handle.with(|s| {
+                    s.legacy
+                        .retain(|(_, _, n)| !mine.iter().any(|w| &w.node_id == n));
+                    s.legacy.extend(ranges);
+                    s.legacy_at = Some(now);
+                });
+            }
             match self.probe_router(&cfg, router, &mine, limit).await {
                 Ok(samples) => {
                     for (wan, sample) in mine.iter().zip(samples) {
@@ -213,13 +298,47 @@ where
         }
     }
 
-    async fn probe_router(
+    async fn read_legacy(
         &mut self,
         cfg: &Config,
         router: &str,
-        wans: &[&WanProbe],
+        wans: &[WanProbe],
         limit: Duration,
-    ) -> Result<Vec<Sample>, String> {
+    ) -> Result<Vec<(u32, u32, String)>, String> {
+        self.session(cfg, router, limit).await?;
+        let session = self.sessions.get_mut(router).expect("connected above");
+        let mut rows = Vec::with_capacity(3);
+        for (path, fields) in [
+            (
+                "/ip/firewall/mangle",
+                "chain,action,new-routing-mark,src-address-list,disabled",
+            ),
+            (
+                "/ip/route",
+                "dst-address,routing-table,gateway,distance,disabled",
+            ),
+            ("/ip/firewall/address-list", "list,address,disabled,dynamic"),
+        ] {
+            rows.push(
+                tokio::time::timeout(limit, session.print(path, fields))
+                    .await
+                    .map_err(|_| format!("{path} read timed out"))?
+                    .map_err(|e| e.to_string())?,
+            );
+        }
+        let map = discover_lists(&rows[0], &rows[1], wans);
+        Ok(rows[2]
+            .iter()
+            .filter(|r| r.get("disabled").map(String::as_str) != Some("true"))
+            .filter_map(|r| {
+                let node = map.get(r.get("list")?)?;
+                let (a, b) = parse_range(r.get("address")?)?;
+                Some((a, b, node.clone()))
+            })
+            .collect())
+    }
+
+    async fn session(&mut self, cfg: &Config, router: &str, limit: Duration) -> Result<(), String> {
         if !self.sessions.contains_key(router) {
             let rc = cfg
                 .routers
@@ -233,7 +352,18 @@ where
                     .map_err(|e| e.to_string())?;
             self.sessions.insert(router.to_string(), session);
         }
-        let session = self.sessions.get_mut(router).expect("inserted above");
+        Ok(())
+    }
+
+    async fn probe_router(
+        &mut self,
+        cfg: &Config,
+        router: &str,
+        wans: &[&WanProbe],
+        limit: Duration,
+    ) -> Result<Vec<Sample>, String> {
+        self.session(cfg, router, limit).await?;
+        let session = self.sessions.get_mut(router).expect("connected above");
         let rows =
             tokio::time::timeout(limit, session.print("/interface", "name,disabled,running"))
                 .await
@@ -385,6 +515,94 @@ mod tests {
             prober.probe_once(&handle, t * 10).await;
         }
         (fake, handle)
+    }
+
+    fn ros(fields: &[(&str, &str)]) -> RosRow {
+        fields
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    /// The FSE-CORE mangle rules and routes of 2026-11-22.
+    fn core() -> (Vec<RosRow>, Vec<RosRow>) {
+        let mark = |list: &str, table: &str, disabled: &str| {
+            ros(&[
+                ("chain", "prerouting"),
+                ("action", "mark-routing"),
+                ("new-routing-mark", table),
+                ("src-address-list", list),
+                ("disabled", disabled),
+            ])
+        };
+        let route = |table: &str, gw: &str, distance: &str| {
+            ros(&[
+                ("dst-address", "0.0.0.0/0"),
+                ("routing-table", table),
+                ("gateway", gw),
+                ("distance", distance),
+                ("disabled", "false"),
+            ])
+        };
+        (
+            vec![
+                mark("WAN2-CUSTOMERS", "wan2-rt", "false"),
+                mark("WAN1-CUSTOMERS", "wan1-rt", "false"),
+                mark("OLD-LIST", "wan1-rt", "true"),
+                mark("via-WAN1", "wan1-rt", "false"),
+            ],
+            vec![
+                route("wan1-rt", "pppoe-out1", "1"),
+                route("wan1-rt", "pppoe-out2", "2"),
+                route("wan2-rt", "pppoe-out2", "1"),
+                route("wan2-rt", "pppoe-out1", "2"),
+            ],
+        )
+    }
+
+    #[test]
+    fn the_core_router_lists_map_to_their_wans() {
+        let (mangle, routes) = core();
+        let map = discover_lists(&mangle, &routes, &wans());
+        assert_eq!(map.len(), 2, "{map:?}");
+        assert_eq!(map["WAN1-CUSTOMERS"], "wan1");
+        assert_eq!(map["WAN2-CUSTOMERS"], "wan2");
+    }
+
+    #[test]
+    fn disabled_rules_via_lists_and_fallback_routes_do_not_map() {
+        let (mangle, mut routes) = core();
+        // Without the distance-1 route, the fallback route gives the other WAN.
+        routes.retain(|r| !(r["routing-table"] == "wan1-rt" && r["distance"] == "1"));
+        let map = discover_lists(&mangle, &routes, &wans());
+        assert_eq!(map["WAN1-CUSTOMERS"], "wan2");
+        assert!(!map.contains_key("OLD-LIST") && !map.contains_key("via-WAN1"));
+    }
+
+    #[test]
+    fn ranges_and_subnets_match_client_addresses() {
+        let ip = |t: &str| u32::from(t.parse::<std::net::Ipv4Addr>().unwrap());
+        assert_eq!(
+            parse_range("10.0.100.211-10.0.100.221"),
+            Some((ip("10.0.100.211"), ip("10.0.100.221")))
+        );
+        assert_eq!(
+            parse_range("10.15.0.0/24"),
+            Some((ip("10.15.0.0"), ip("10.15.0.255")))
+        );
+        assert_eq!(
+            parse_range("10.0.0.7"),
+            Some((ip("10.0.0.7"), ip("10.0.0.7")))
+        );
+        assert_eq!(parse_range("10.0.0.9-10.0.0.1"), None);
+        assert_eq!(parse_range("example.com"), None);
+        let h = Handle::new(&cfg());
+        h.set_legacy(vec![(ip("10.15.0.0"), ip("10.15.0.255"), "wan1".into())]);
+        assert_eq!(
+            h.legacy_wan_of("10.15.0.9".parse().unwrap()).as_deref(),
+            Some("wan1")
+        );
+        assert_eq!(h.legacy_wan_of("10.16.0.9".parse().unwrap()), None);
     }
 
     #[tokio::test]

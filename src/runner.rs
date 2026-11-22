@@ -883,6 +883,9 @@ where
                 crate::topology_manager::store::RevisionConflict,
             ));
         }
+        if matches!(edit, crate::topology_manager::edits::Edit::WanAdopt) {
+            return self.propose_wan_adopt(doc, edit).await;
+        }
         let mut applied = match &edit {
             crate::topology_manager::edits::Edit::SourceAdd { key, parent } => {
                 let draft = self
@@ -1336,6 +1339,124 @@ where
             monitor.release_waiting();
         }
         Ok(serde_json::json!({"revision": revision}))
+    }
+
+    /// A reviewed proposal for `wan.adopt`: each unpinned client whose address is in an operator
+    /// range list gets a node below the WAN of that list. A client already there keeps its node.
+    async fn propose_wan_adopt(
+        &mut self,
+        doc: crate::topology_manager::model::RegistryDocument,
+        edit: crate::topology_manager::edits::Edit,
+    ) -> anyhow::Result<serde_json::Value> {
+        let monitor = self
+            .wan_monitor
+            .clone()
+            .ok_or_else(|| rule("the WAN monitor is not running".into()))?;
+        let catalog = doc
+            .catalog
+            .clone()
+            .ok_or_else(|| rule("enroll first: the registry has no catalog".into()))?;
+        let pair = self.prepare_topology(Duration::from_secs(30)).await?;
+        let index: HashMap<&str, usize> = catalog
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.id.as_str(), i))
+            .collect();
+        let wan_of = |id: &str| {
+            let mut i = *index.get(id)?;
+            while let Some(p) = catalog.nodes[i].parent.as_deref() {
+                i = index[p];
+            }
+            Some(catalog.nodes[i].id.as_str())
+        };
+        let automatic = crate::topology_manager::resolver::automatic_sets(&catalog)?;
+        // The pair holds the records of clients that no publication saved yet.
+        let mut candidate = pair.candidate().clone();
+        anyhow::ensure!(
+            candidate.revision == doc.revision,
+            "the policy changed during the adoption read"
+        );
+        let (mut moves, mut skipped) = (Vec::new(), 0u64);
+        for s in &pair.view().subscribers {
+            let wan = s
+                .ips
+                .iter()
+                .filter_map(|ip| ip.parse().ok())
+                .find_map(|ip| monitor.legacy_wan_of(ip));
+            let Some(wan) = wan else { continue };
+            if s.pin.is_some() {
+                skipped += 1;
+                continue;
+            }
+            if wan_of(&s.node) == Some(wan.as_str()) {
+                continue;
+            }
+            // A node below that WAN in the automatic set of its router, or another instance of
+            // its source group below that WAN.
+            let router = s.identities.first().map(|i| i.router_id.as_str());
+            let source = index
+                .get(s.node.as_str())
+                .and_then(|i| catalog.nodes[*i].source_id.as_deref());
+            let target = router
+                .and_then(|r| automatic.get(r))
+                .into_iter()
+                .flatten()
+                .find(|n| wan_of(n) == Some(wan.as_str()))
+                .cloned()
+                .or_else(|| {
+                    catalog
+                        .nodes
+                        .iter()
+                        .find(|n| {
+                            source.is_some()
+                                && n.source_id.as_deref() == source
+                                && wan_of(&n.id) == Some(wan.as_str())
+                        })
+                        .map(|n| n.id.clone())
+                });
+            let Some(target) = target else {
+                skipped += 1;
+                continue;
+            };
+            if let Some(record) = candidate.subscribers.iter_mut().find(|r| r.id == s.id) {
+                record.policy.assignment = Some(target.clone());
+                moves.push(
+                    serde_json::json!({"subscriber_id": s.id, "label": s.account_ref,
+                    "from": s.node, "to": target}),
+                );
+            }
+        }
+        candidate.validate().map_err(|e| rule(format!("{e:#}")))?;
+        self.edit_sequence += 1;
+        let id = format!("edit-{}-{}", doc.revision, self.edit_sequence);
+        let warnings: Vec<String> = (skipped > 0)
+            .then(|| {
+                format!(
+                    "{skipped} listed client(s) keep their node: pinned, or no node below their WAN"
+                )
+            })
+            .into_iter()
+            .collect();
+        let answer = serde_json::json!({
+            "proposal_id": id,
+            "expires_at": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs())
+                + PROPOSAL_LIFETIME.as_secs(),
+            "edit": edit,
+            "nodes": crate::topology_manager::edits::tree(&candidate)["nodes"],
+            "moves": moves, "cleared": [], "assigned": 0, "new_records": 0, "sources": [],
+            "rates": [], "rates_changed": 0, "capacities": [], "warnings": warnings,
+        });
+        self.edit_proposal = Some(EditProposal {
+            id,
+            base_revision: doc.revision,
+            candidate,
+            expires: tokio::time::Instant::now() + PROPOSAL_LIFETIME,
+            rebalance: false,
+        });
+        Ok(answer)
     }
 
     /// API `topology.edit.cancel`: drop the kept proposal.

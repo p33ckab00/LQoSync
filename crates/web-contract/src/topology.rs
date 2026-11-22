@@ -747,6 +747,9 @@ pub enum BuilderEdit {
     /// Return subscribers to the WANs that wait for a Rebalance (automatic failback off).
     #[serde(rename = "failback.release")]
     FailbackRelease,
+    /// One time: keep the WAN that the operator range lists give each client today.
+    #[serde(rename = "wan.adopt")]
+    WanAdopt,
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },

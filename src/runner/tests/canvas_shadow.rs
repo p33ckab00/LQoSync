@@ -654,3 +654,95 @@ async fn a_held_write_reports_the_reason() {
     assert_eq!(r.wan_lists.as_ref().unwrap()["state"], "held");
     assert_eq!(lists.rows.lock().unwrap().len(), 100);
 }
+
+fn range(first: &str, last: &str, node: &str) -> (u32, u32, String) {
+    let ip = |t: &str| u32::from(t.parse::<std::net::Ipv4Addr>().unwrap());
+    (ip(first), ip(last), node.to_string())
+}
+
+/// An initialized tree with two WANs and a WAN monitor that knows the operator range lists.
+async fn adopt_runner(
+    e: &Env,
+    ranges: Vec<(u32, u32, String)>,
+) -> (Runner<FakeConnector>, crate::wan_monitor::Handle) {
+    use web_contract::topology::{BuilderEdit, WebCommand};
+    let config = setup(e, None);
+    let mut r = runner(e, config.clone());
+    let init = WebCommand::Edit {
+        expected_revision: 0,
+        edit: BuilderEdit::Initialize,
+    };
+    r.api_web_mutate("automatic-edit-adopt", "operator", init)
+        .await
+        .unwrap();
+    add_wans(&mut r, true);
+    let monitor = crate::wan_monitor::Handle::new(&config);
+    monitor.set_legacy(ranges);
+    r.wan_monitor = Some(monitor.clone());
+    (r, monitor)
+}
+
+async fn adopt(r: &mut Runner<FakeConnector>) -> serde_json::Value {
+    let revision = r.api_document().unwrap().unwrap().revision;
+    let proposal = r
+        .api_edit_propose(revision, crate::topology_manager::edits::Edit::WanAdopt)
+        .await
+        .unwrap();
+    r.api_edit_confirm(proposal["proposal_id"].as_str().unwrap())
+        .unwrap();
+    proposal
+}
+
+/// IPv4 address to parent node of the next pair.
+async fn parents_by_ip(r: &mut Runner<FakeConnector>) -> BTreeMap<String, String> {
+    r.prepare_topology(AGE)
+        .await
+        .unwrap()
+        .rows()
+        .iter()
+        .map(|row| (row.ipv4.clone(), row.parent_node_id.clone()))
+        .collect()
+}
+
+#[tokio::test]
+async fn adoption_keeps_the_current_wan_of_each_client() {
+    let e = env();
+    let (mut r, _) = adopt_runner(
+        &e,
+        vec![
+            range("100.64.0.0", "100.64.0.255", "wanB"),
+            range("100.66.0.0", "100.66.255.255", "wanA"),
+        ],
+    )
+    .await;
+    adopt(&mut r).await;
+    for (ip, parent) in parents_by_ip(&mut r).await {
+        let want = if ip.starts_with("100.64.") {
+            "wanB"
+        } else {
+            "wanA"
+        };
+        assert_eq!(parent, want, "{ip}");
+    }
+}
+
+#[tokio::test]
+async fn adoption_moves_only_listed_clients() {
+    let e = env();
+    let (mut r, _) = adopt_runner(&e, vec![range("100.66.0.0", "100.66.255.255", "wanB")]).await;
+    let before = parents_by_ip(&mut r).await;
+    let proposal = adopt(&mut r).await;
+    let after = parents_by_ip(&mut r).await;
+    for (ip, parent) in &after {
+        if ip.starts_with("100.66.") {
+            assert_eq!(parent, "wanB", "{ip}");
+        } else {
+            assert_eq!(
+                Some(parent),
+                before.get(ip),
+                "an unlisted client keeps its node: {ip}"
+            );
+        }
+    }
+    assert!(proposal["moves"].as_array().unwrap().len() <= 3);
+}
