@@ -721,8 +721,8 @@ fn family_of_returns_the_nearest_router_node() {
     assert_eq!(c.family_of(at("towerB")), Some("core"));
     assert_eq!(c.family_of(at("towerA")), Some("distro"));
     assert_eq!(c.family_of(at("wan1")), None);
-    assert_eq!(c.router_node("core"), Some(at("towerB")));
-    assert_eq!(c.router_node("other"), None);
+    assert_eq!(c.router_nodes("core"), vec![at("towerB")]);
+    assert!(c.router_nodes("other").is_empty());
 }
 
 #[test]

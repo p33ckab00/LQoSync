@@ -182,16 +182,16 @@ impl<'a> Index<'a> {
                     && !catalog.nodes[*i].tree_excluded
                     && families[*i].is_none_or(|f| f == r)
             };
-            let own: Option<Vec<usize>> = catalog.router_node(r).and_then(|node| {
-                let children: Vec<_> = children[node].iter().copied().filter(eligible).collect();
-                if !children.is_empty() {
-                    Some(children)
-                } else {
-                    eligible(&node).then(|| vec![node])
-                }
-            });
-            let set: Vec<usize> = if let Some(set) = own {
-                set
+            let nodes = catalog.router_nodes(r);
+            let mut own: Vec<usize> = nodes
+                .iter()
+                .flat_map(|&node| children[node].iter().copied().filter(eligible))
+                .collect();
+            if own.is_empty() {
+                own = nodes.into_iter().filter(eligible).collect();
+            }
+            let set: Vec<usize> = if !own.is_empty() {
+                own
             } else {
                 let own_wans: Vec<_> = (0..layout.len())
                     .filter(|i| {

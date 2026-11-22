@@ -699,6 +699,12 @@ pub enum BuilderEdit {
         parent: Option<String>,
         name: Option<String>,
     },
+    /// Copy a router node and its groups below one more WAN.
+    #[serde(rename = "node.instance_add")]
+    NodeInstanceAdd {
+        node_id: String,
+        parent: Option<String>,
+    },
     #[serde(rename = "node.move")]
     NodeMove {
         node_id: String,

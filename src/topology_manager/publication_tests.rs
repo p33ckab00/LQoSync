@@ -840,3 +840,37 @@ async fn an_included_router_node_is_exported() {
     assert_eq!(tree["tower"].as_deref(), Some("wan1"));
     assert_eq!(tree["group1"].as_deref(), Some("tower"));
 }
+
+#[tokio::test(start_paused = true)]
+async fn a_router_card_below_two_wans_splits_its_subscribers() {
+    let mut observed = tower(false);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    let mut copy = catalog
+        .nodes
+        .iter()
+        .find(|n| n.id == "tower")
+        .unwrap()
+        .clone();
+    copy.id = "tower2".into();
+    copy.name = "tower2".into();
+    copy.parent = Some("wan2".into());
+    catalog.nodes.push(copy);
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == "group2")
+        .unwrap()
+        .parent = Some("tower2".into());
+    let pair = prepare(observed).unwrap();
+    let tree = parents(pair.network());
+    assert_eq!(tree["tower"].as_deref(), Some("wan1"));
+    assert_eq!(tree["tower2"].as_deref(), Some("wan2"));
+    assert_eq!(tree["group2"].as_deref(), Some("tower2"));
+    let mut placed: Vec<_> = pair
+        .rows()
+        .iter()
+        .map(|r| r.parent_node_id.clone())
+        .collect();
+    placed.sort();
+    assert_eq!(placed, ["group1", "group2"]);
+}

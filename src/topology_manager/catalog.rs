@@ -262,11 +262,11 @@ impl TopologyCatalog {
         })
     }
 
-    /// The index of the router node of `router_id`.
-    pub fn router_node(&self, router_id: &str) -> Option<usize> {
-        self.nodes
-            .iter()
-            .position(|n| n.router_id.as_deref() == Some(router_id))
+    /// The indices of the router nodes of `router_id`: one for each WAN parent.
+    pub fn router_nodes(&self, router_id: &str) -> Vec<usize> {
+        (0..self.nodes.len())
+            .filter(|&i| self.nodes[i].router_id.as_deref() == Some(router_id))
+            .collect()
     }
 
     /// The router of the nearest router node at or above `node`. The parent graph is validated.
@@ -472,10 +472,22 @@ impl TopologyCatalog {
                     node.kind != NodeKind::Wan,
                     "a WAN node cannot be a router node"
                 );
+                // Copies of one router node below two WANs divide its subscribers (instances).
                 ensure!(
-                    router_nodes.insert(router.as_str()),
-                    "one router can have only one router node"
+                    router_nodes.insert((router.as_str(), node.parent.as_deref())),
+                    "one router can have only one router node under one parent"
                 );
+                let mut cursor = node.parent.as_deref();
+                for _ in 0..self.nodes.len() {
+                    let Some(n) = cursor.and_then(|p| self.nodes.iter().find(|n| n.id == p)) else {
+                        break;
+                    };
+                    ensure!(
+                        n.router_id.as_ref() != Some(router),
+                        "a router node cannot be inside another router node of the same router"
+                    );
+                    cursor = n.parent.as_deref();
+                }
             }
         }
         nonempty(&self.root_label, "synthetic root label")?;

@@ -62,6 +62,12 @@ pub enum Edit {
         #[serde(default)]
         name: Option<String>,
     },
+    /// Copy a router node and its groups below one more WAN. The groups divide their subscribers.
+    #[serde(rename = "node.instance_add")]
+    NodeInstanceAdd {
+        node_id: String,
+        parent: Option<String>,
+    },
     #[serde(rename = "node.move")]
     NodeMove {
         node_id: String,
@@ -638,6 +644,11 @@ fn instance_add(
         return Err(invalid("the source is not selected"));
     }
     check_parent(c, parent)?;
+    if c.nodes.iter().any(|n| {
+        n.source_id.as_deref() == Some(source_id) && below_router_card(c, n.parent.as_deref())
+    }) {
+        wan_to_router_card(c, parent)?;
+    }
     if c.nodes
         .iter()
         .any(|n| n.source_id.as_deref() == Some(source_id) && n.parent.as_deref() == parent)
@@ -677,6 +688,72 @@ fn instance_add(
             factors: FactorChoice::Inherit,
         },
     });
+    Ok(())
+}
+
+fn below_router_card(c: &TopologyCatalog, parent: Option<&str>) -> bool {
+    parent.is_some_and(|p| c.nodes.iter().any(|n| n.id == p && n.router_id.is_some()))
+}
+
+/// A group below a router card takes its WANs from the card, so a WAN parent goes on the card.
+fn wan_to_router_card(c: &TopologyCatalog, parent: Option<&str>) -> anyhow::Result<()> {
+    if parent.is_some_and(|p| c.nodes.iter().any(|n| n.id == p && n.kind == NodeKind::Wan)) {
+        return Err(invalid("connect the WAN to the router card"));
+    }
+    Ok(())
+}
+
+/// Copy router node `node_id` below `parent`, with one instance of each source group below it.
+/// shortcut: manual child nodes and groups added later are not copied; Task 9 can add them.
+fn node_instance_add(
+    d: &mut RegistryDocument,
+    revision: u64,
+    node_id: &str,
+    parent: Option<&str>,
+) -> anyhow::Result<()> {
+    let c = d.catalog.as_ref().expect("enrolled");
+    let node = find(c, node_id)?.clone();
+    let Some(router) = node.router_id.clone() else {
+        return Err(invalid(
+            "only a router node can have more than one WAN parent",
+        ));
+    };
+    check_parent(c, parent)?;
+    if c.nodes
+        .iter()
+        .any(|n| n.router_id.as_ref() == Some(&router) && n.parent.as_deref() == parent)
+    {
+        return Err(invalid(
+            "the router node already has a copy under this parent",
+        ));
+    }
+    let sources: Vec<String> = c
+        .nodes
+        .iter()
+        .filter(|n| n.parent.as_deref() == Some(node_id))
+        .filter_map(|n| n.source_id.clone())
+        .collect();
+    let name = match parent {
+        Some(p) => format!("{} {}", node.name, find(c, p)?.name),
+        None => format!("{} copy", node.name),
+    };
+    check_name(&name)?;
+    let ids = reserve_ids(d, revision, &[IdKind::Node])?;
+    d.catalog
+        .as_mut()
+        .expect("enrolled")
+        .nodes
+        .push(CatalogNode {
+            id: ids[0].clone(),
+            name,
+            parent: parent.map(Into::into),
+            minimum: Default::default(),
+            geo: None,
+            ..node
+        });
+    for source in sources {
+        instance_add(d, revision, &source, Some(&ids[0]), None)?;
+    }
     Ok(())
 }
 
@@ -1378,6 +1455,7 @@ pub fn apply(
         Edit::WanCreate { .. }
             | Edit::NodeCreate { .. }
             | Edit::InstanceAdd { .. }
+            | Edit::NodeInstanceAdd { .. }
             | Edit::NodeMove { .. }
             | Edit::NodeUpdate { .. }
             | Edit::NodeRemove { .. }
@@ -1475,6 +1553,11 @@ pub fn apply(
             )?;
             affected.insert(source_id.clone());
         }
+        Edit::NodeInstanceAdd { node_id, parent } => {
+            let c = d.catalog.as_ref().expect("enrolled");
+            affected.extend(sources_below(c, &top(c, node_id)));
+            node_instance_add(&mut d, doc.revision, node_id, parent.as_deref())?;
+        }
         Edit::NodeMove { node_id, parent } => {
             let c = d.catalog.as_ref().expect("enrolled");
             let node = find(c, node_id)?;
@@ -1484,6 +1567,9 @@ pub fn apply(
             check_parent(c, parent.as_deref())?;
             if parent.as_deref().is_some_and(|p| is_below(c, p, node_id)) {
                 return Err(invalid("a node cannot move below itself"));
+            }
+            if node.source_id.is_some() && below_router_card(c, node.parent.as_deref()) {
+                wan_to_router_card(c, parent.as_deref())?;
             }
             affected.extend(sources_below(c, &top(c, node_id)));
             let i = position(c, node_id)?;

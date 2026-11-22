@@ -1969,3 +1969,74 @@ async fn an_excluded_source_is_not_added_again() {
         .excluded = true;
     assert!(auto_groups(&doc, &draft).unwrap().is_none());
 }
+
+// Live source canvas, Task 5.
+
+/// Router node `tower` of `distro` below `wan1`, with `group1` moved below it.
+fn router_card() -> (RegistryDocument, String) {
+    let mut d = doc();
+    let tower = with_tower(&mut d);
+    for edit in [
+        json!({"kind": "node.router", "node_id": tower, "router_id": "distro"}),
+        json!({"kind": "node.move", "node_id": "group1", "parent": tower}),
+    ] {
+        d = run(&d, edit).unwrap().candidate;
+    }
+    (d, tower)
+}
+
+#[test]
+fn a_wan_connector_to_a_group_below_a_router_card_is_refused() {
+    let (d, _) = router_card();
+    let error = refused(
+        &d,
+        json!({"kind": "node.move", "node_id": "group1", "parent": "wan1"}),
+    );
+    assert!(
+        error.contains("connect the WAN to the router card"),
+        "{error}"
+    );
+    let error = refused(
+        &d,
+        json!({"kind": "instance.add", "source_id": "profile-source", "parent": "wan1"}),
+    );
+    assert!(
+        error.contains("connect the WAN to the router card"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_router_card_can_have_two_wan_parents() {
+    let (d, tower) = router_card();
+    let d = run(
+        &d,
+        json!({"kind": "node.instance_add", "node_id": tower, "parent": "wan2"}),
+    )
+    .unwrap()
+    .candidate;
+    let c = d.catalog.as_ref().unwrap();
+    let copies: Vec<_> = c
+        .nodes
+        .iter()
+        .filter(|n| n.router_id.as_deref() == Some("distro"))
+        .collect();
+    assert_eq!(copies.len(), 2);
+    let copy = copies
+        .iter()
+        .find(|n| n.parent.as_deref() == Some("wan2"))
+        .expect("a copy below wan2");
+    assert!(c.nodes.iter().any(|n| {
+        n.source_id.as_deref() == Some("profile-source") && n.parent.as_deref() == Some(&copy.id)
+    }));
+    let error = refused(
+        &d,
+        json!({"kind": "node.instance_add", "node_id": tower, "parent": "wan2"}),
+    );
+    assert!(error.contains("already"), "{error}");
+    let error = refused(
+        &d,
+        json!({"kind": "node.instance_add", "node_id": "wan1", "parent": "wan2"}),
+    );
+    assert!(error.contains("router node"), "{error}");
+}
