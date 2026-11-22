@@ -134,6 +134,8 @@ pub struct Runner<C: Connector + 'static> {
     /// The outer `None` means not read yet: it comes from the last `status.json`, so a restart
     /// is no state change.
     manager_state: Option<Option<(u64, String)>>,
+    /// Live source activity (`topology-manager/source-activity.json`), loaded at the first read.
+    activity: Option<crate::topology_manager::activity::SourceActivity>,
     topology_compiler: Option<crate::topology_manager::compiler::ControlledCompiler>,
 }
 
@@ -252,6 +254,7 @@ where
             wan_writer: None,
             wan_lists: None,
             manager_state: None,
+            activity: None,
             topology_compiler: None,
             connector,
             sessions: HashMap::new(),
@@ -734,6 +737,8 @@ where
                 layout: layout.as_ref(),
                 wan: wan.as_ref(),
                 wan_lists: self.wan_lists.as_ref(),
+                activity: self.activity.as_ref(),
+                grace: self.cfg.runtime.subscriber_grace,
             });
         let state_dir = Path::new(&self.cfg.runtime.state_dir);
         if let Err(error) = crate::topology_manager::web_view::publish(state_dir, &view) {
@@ -1883,6 +1888,22 @@ where
         }
     }
 
+    /// Read the live sources, add new groups, and record which groups are active. A failed read
+    /// changes no activity.
+    pub(crate) async fn record_live_groups(&mut self, now: u64) {
+        let Some(active) = self.sync_live_groups().await else {
+            return;
+        };
+        let dir = Path::new(&self.cfg.runtime.state_dir).join("topology-manager");
+        let activity = self
+            .activity
+            .get_or_insert_with(|| crate::topology_manager::activity::SourceActivity::load(&dir));
+        activity.observe(now, &active);
+        if let Err(e) = activity.save(&dir) {
+            eprintln!("warning: cannot write the source activity: {e:#}");
+        }
+    }
+
     /// Live source canvas: read the current sources and add the groups of new active sources.
     /// Returns the IDs of the active group nodes; `None` when the read failed or did not run.
     pub(crate) async fn sync_live_groups(&mut self) -> Option<std::collections::BTreeSet<String>> {
@@ -2795,7 +2816,7 @@ where
         }
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
-        self.sync_live_groups().await;
+        self.record_live_groups(now).await;
         self.publish_web_view(now);
         // A cache for the Settings preview (Plan 4b). A write error never stops the cycle.
         if let Err(e) = write_snapshot(state_dir, &routers, &status.routers, now) {

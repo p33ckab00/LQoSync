@@ -213,6 +213,10 @@ pub struct Node {
     /// Client addresses in that list at the last write.
     #[serde(default)]
     pub routed: Option<u64>,
+    /// The source of a group node has members now, or had them within the grace period.
+    /// The canvas hides an inactive node; its settings stay.
+    #[serde(default = "yes")]
+    pub active: bool,
 }
 
 /// The last write of the routing lists on the core router.

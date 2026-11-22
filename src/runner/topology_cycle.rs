@@ -308,7 +308,7 @@ where
                 &state_dir.join("topology-manager/compiler"),
             )?,
         };
-        self.sync_live_groups().await;
+        self.record_live_groups(now).await;
         let prepared = self.prepare_topology(Duration::from_secs(30)).await;
         let result = match prepared {
             Ok(pair) => {

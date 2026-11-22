@@ -192,6 +192,8 @@ fn input<'a>(
         layout: None,
         wan: None,
         wan_lists: None,
+        activity: None,
+        grace: 600,
     }
 }
 

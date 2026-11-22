@@ -34,6 +34,9 @@ pub struct Input<'a> {
     pub wan: Option<&'a HashMap<String, crate::wan_monitor::WanView>>,
     /// The last routing list write (`Runner::wan_lists`).
     pub wan_lists: Option<&'a Value>,
+    /// Live source activity, and the grace period in seconds.
+    pub activity: Option<&'a crate::topology_manager::activity::SourceActivity>,
+    pub grace: u64,
 }
 
 /// Web changes kept in the view, newest first.
@@ -106,6 +109,12 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         node.position = input
             .layout
             .and_then(|l| l.positions.get(&node.id).copied());
+        // Only a node with a subscriber source can become inactive.
+        node.active = node.source_id.is_none()
+            || node.kind != "group"
+            || input
+                .activity
+                .is_none_or(|a| a.is_active(&node.id, input.now, input.grace));
         if let Some(p) = preview_nodes.get(&node.id) {
             node.calculated_mbps = serde_json::from_value(p["calculated_mbps"].clone()).ok();
             node.exported_mbps = serde_json::from_value(p["exported_mbps"].clone()).ok();

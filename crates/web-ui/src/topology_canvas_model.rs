@@ -116,6 +116,7 @@ mod tests {
             wan_health: None,
             address_list: None,
             routed: None,
+            active: true,
         }
     }
 

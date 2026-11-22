@@ -968,3 +968,36 @@ async fn an_automatic_commit_yields_to_a_newer_revision() {
             .any(|n| n.id == bronze_id())
     );
 }
+
+// Live source canvas, Task 3.
+
+#[tokio::test]
+async fn the_view_marks_an_inactive_group() {
+    let e = env();
+    let mut r = enrolled(&e).await;
+    r.cycle(1_000, false).await;
+    // The Silver session ends.
+    e.fake
+        .rows
+        .lock()
+        .unwrap()
+        .get_mut("Hub-1")
+        .unwrap()
+        .get_mut("/ppp/active")
+        .unwrap()
+        .retain(|row| row["name"] != "s1");
+    r.cycle(2_000, false).await;
+    let view: web_contract::topology::TopologyView = serde_json::from_slice(
+        &std::fs::read(e.state.join(web_contract::topology::CACHE)).unwrap(),
+    )
+    .unwrap();
+    let active = |name: &str| {
+        view.nodes
+            .iter()
+            .find(|n| n.name.starts_with(name))
+            .unwrap()
+            .active
+    };
+    assert!(active("Gold"));
+    assert!(!active("Silver"));
+}

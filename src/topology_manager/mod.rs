@@ -1,5 +1,6 @@
 //! Topology policy, durable identities, and current observations. Service activation remains gated.
 
+pub mod activity;
 pub mod aggregate;
 pub mod canvas;
 pub mod catalog;
