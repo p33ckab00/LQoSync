@@ -8,6 +8,17 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22 (Asia/Manila) — Topology automatic placement: Tasks 1–6 done
+
+- Last agent: Claude Code (session libreqos-09). Branch `lqosync3`. Commits e3a05c6, fc46f5e, d632935, e2d794e, db04860, 38b14e1, and the Task 6 docs commit. Not deployed.
+- Done: router nodes and registry schema 6; automatic placement R1–R6 with the router (family) rule; flat output for an empty tree; every enabled PPP/DHCP protocol is read (owner decision); router badge, auto chip, router select, and Inventory status on the canvas.
+- Checks: `tools/frontend/check-all.sh` all pass (pulse-check skipped); workspace 1827 tests.
+- Not verified: a flat `network.json` (`{}`) with the real LibreQoS compiler. Only the fixture compiler script ran.
+- Rollback: schema 6 needs the schema-5 backup for a schema-5 binary, and the schema-4 backup for older binaries.
+- Open owner questions: stability (saved assignments stay) and more than one WAN (own WAN first). See TOPOLOGY_CANVAS_DESIGN.md "Automatic placement".
+- Warning: an unknown writer added Task 5 code to the canvas files during the work. It was reviewed and committed. Find out who it is before the next canvas change.
+- Next: canvas integration Task 7 (owner live window).
+
 ## 2026-11-22 (Asia/Manila) — Topology automatic placement: design and plan
 
 - Last agent: Claude Code. Branch `lqosync3`. No code change. No commit.

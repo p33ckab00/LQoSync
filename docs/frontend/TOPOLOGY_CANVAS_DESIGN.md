@@ -178,6 +178,32 @@ Strict-pin failure behavior and quality probe policy require a separate decision
 - A fixed capacity on one placement of a shared source is refused, because LibreQoS cannot hold one shared limit across parents.
 - Quality-aware: not implemented. The control stays unavailable.
 
+### Automatic placement (2026-11-22)
+
+Spec: [automatic placement design](../superpowers/specs/2026-11-22-topology-auto-placement-design.md).
+The service places each subscriber on each cycle. A browser is not necessary.
+
+| Rule | Condition | Placement |
+|------|-----------|-----------|
+| R1 | The tree has no nodes. | No parent (flat). |
+| R2 | The source of the subscriber is placed. | The placed node. |
+| R3 | The router has a router node. The source is not placed. | The child nodes of the router node, else the router node. |
+| R4 | The router has no router node, but has its own WAN node. | The WAN nodes of the router. |
+| R5 | The router has no router node and no own WAN node. | The root nodes. |
+| R6 | R3, R4, or R5 gives no eligible node. | No parent (flat). |
+
+- A subscriber never goes into the branch of a router node of a different router. The service refuses an edit that breaks this rule.
+- A node that holds a subscriber source does not take automatic subscribers.
+- A fallback policy has priority over R3–R5. The router rule also applies to it.
+- The accounts of one subscriber use the intersection of their sets. An empty intersection is a `NoEligibleTarget` conflict.
+- The service reads each enabled PPP and DHCP protocol. A protocol without a saved selection gets the selection of the policy proposal. The next publication saves it. Owner decision, 2026-11-22.
+- Registry schema 6 adds `router_id` to a node. A rollback to a schema-5 binary needs the schema-5 backup.
+
+Open owner questions:
+
+- Stability: saved assignments stay, and new subscribers go to new nodes. This is a builder decision. Make sure that the owner accepts it before the release.
+- More than one WAN: the own WAN of the router first, then capacity balance. This is a proposal. Make sure that the owner accepts it before the release.
+
 ### Proposal for owner decision: quality mode and strict pins
 
 This proposal is not approved. Do not implement quality mode until the owner accepts or changes it.

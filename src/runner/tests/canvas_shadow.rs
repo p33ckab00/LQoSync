@@ -256,3 +256,49 @@ async fn an_initialized_empty_tree_reads_every_protocol_and_places_everyone_flat
     let saved = r.api_document().unwrap().unwrap();
     assert!(saved.source_settings.unwrap().selections.is_empty());
 }
+
+#[tokio::test]
+async fn a_flat_publication_saves_the_auto_read_selections() {
+    use web_contract::topology::{BuilderEdit, WebCommand};
+    let e = env();
+    let config = setup(&e, None);
+    let mut r = runner(&e, config.clone());
+    let init = WebCommand::Edit {
+        expected_revision: 0,
+        edit: BuilderEdit::Initialize,
+    };
+    r.api_web_mutate("automatic-edit-flat-publish", "operator", init)
+        .await
+        .unwrap();
+    let pair = r.prepare_topology(AGE).await.unwrap();
+    let (_native, mut native_cfg, mut compiler) =
+        crate::topology_manager::compiler::tests::fixture();
+    native_cfg.target = Target::V3Pair;
+    let csv = pair.csv().to_string();
+    let compiled = crate::topology_manager::compiler::tests::compiled(&mut compiler, pair).await;
+    r.cfg.libreqos = native_cfg.clone();
+    r.publish_compiled(compiled, 2_000).unwrap();
+    assert_eq!(
+        read(&Path::new(&native_cfg.directory).join("ShapedDevices.csv")),
+        csv
+    );
+    // The publication saved the selections, so the next cycle needs no proposal read.
+    let saved = r.api_document().unwrap().unwrap();
+    assert!(
+        !saved
+            .source_settings
+            .as_ref()
+            .unwrap()
+            .selections
+            .is_empty()
+    );
+    assert!(!crate::topology_manager::edits::unread_protocols(
+        &saved, &config
+    ));
+    assert!(
+        saved
+            .subscribers
+            .iter()
+            .all(|s| s.policy.assignment.is_none())
+    );
+}
