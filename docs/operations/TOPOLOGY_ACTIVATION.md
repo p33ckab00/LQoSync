@@ -40,11 +40,17 @@ Check: `ls -l "$B"` shows the binary `lqosync3`, the unit file, `etc-lqosync3`, 
 
 ## Step 2: Install the new release
 
-1. Make sure that the hash of the new binary is the hash in the release build record: `sha256sum <new binary>`.
-2. Install it: `install -m 0755 <new binary> /usr/local/bin/lqosync3`.
-3. Check the configuration: `lqosync3 check --config /etc/lqosync3/lqosync3.toml`.
+The release build record is the folder `/home/pi/.local/state/lqosync3/release-<commit>/`. It holds `bin/`, `web-dist/`, `SHA256SUMS`, and `README.md`. Do these commands as root. Do not start the service yet:
 
-Check: `lqosync3 version` shows the new release. `lqosync3 check` shows no error.
+```sh
+R=/home/pi/.local/state/lqosync3/release-<commit>
+(cd "$R" && sha256sum -c SHA256SUMS --quiet) && echo SUMS_OK
+install -m 0755 "$R"/bin/lqosync3 /usr/local/bin/lqosync3
+lqosync3 version
+lqosync3 check --config /etc/lqosync3/lqosync3.toml
+```
+
+Check: the output shows `SUMS_OK`. `lqosync3 version` shows the new release. `lqosync3 check` shows no error.
 
 ## Step 3: Shadow check with the legacy writer
 
