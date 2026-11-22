@@ -117,12 +117,57 @@ const fs=require('node:fs');
     await page.getByRole('dialog',{name:'Preview and evidence'}).getByText('Read-only.',{exact:false}).waitFor();
     await page.keyboard.press('Escape');
     assert.equal(edits.length,count,'preview sends nothing');
+    // Automatic placement: router badge, auto chip, router select, and Inventory status.
+    const dhcp=canvas.getByRole('button',{name:/^DHCP access,/});
+    await dhcp.locator('.canvas-node-router').filter({hasText:'Router Access-01'}).waitFor();
+    await north.locator('.canvas-node-auto').filter({hasText:'+2 auto'}).waitFor();
+    await dhcp.click();await page.keyboard.press('Enter');
+    const dhcpDialog=page.getByRole('dialog',{name:'DHCP access'});await dhcpDialog.waitFor();
+    const routerOf=d=>d.getByLabel('Access router');
+    await routerOf(dhcpDialog).locator('option').nth(2).waitFor({state:'attached'});
+    assert.deepEqual(await routerOf(dhcpDialog).locator('option').allTextContents(),['None','Access-01','Core-01'],
+      'the own router and routers without a router node');
+    const before2=edits.length;
+    await routerOf(dhcpDialog).selectOption('');
+    for(let i=0;i<100&&edits.length===before2;i++)await page.waitForTimeout(100);
+    const routerEdits=edits.slice(before2).filter(e=>e.edit.kind==='node.router');
+    assert.deepEqual(routerEdits.map(e=>e.edit),[{kind:'node.router',node_id:'tm-node-dhcp-south',router_id:null}],'one router edit');
+    await page.keyboard.press('Escape');await dhcpDialog.waitFor({state:'hidden'});
+    // A refused family edit keeps the draft and shows the service sentence at the select.
+    await ppp.click();await page.keyboard.press('Enter');
+    const pppDialog=page.getByRole('dialog',{name:'PPPoE access'});await pppDialog.waitFor();
+    await routerOf(pppDialog).locator('option').nth(1).waitFor({state:'attached'});
+    assert.deepEqual(await routerOf(pppDialog).locator('option').allTextContents(),['None','Core-01'],
+      'a router with a router node elsewhere is not offered');
+    await routerOf(pppDialog).selectOption('lq3-00000000000000c1');
+    await pppDialog.locator('#canvas-router-error').filter({hasText:'branch of another router'}).waitFor({timeout:15000});
+    await page.getByRole('status').filter({hasText:'Not saved: PPPoE access is in the branch'}).first().waitFor();
+    assert.equal(await routerOf(pppDialog).inputValue(),'lq3-00000000000000c1','the draft stays');
+    assert.equal(await routerOf(pppDialog).evaluate(el=>el===document.activeElement),true,'focus is on the select');
+    const described=await routerOf(pppDialog).getAttribute('aria-describedby');
+    assert.ok(described&&await page.locator(`#${described}`).isVisible(),'the error describes the select');
+    await page.screenshot({path:`${out}/router-refused.png`});
+    const refusedSent=edits.length;
+    await page.keyboard.press('Escape');await pppDialog.waitFor({state:'hidden'});
+    assert.equal(await ppp.evaluate(el=>el===document.activeElement),true,'Escape returns focus to the card');
+    await page.waitForTimeout(600);
+    assert.equal(edits.length,refusedSent,'closing does not send the refused draft again');
+    await dock.getByRole('button',{name:'Router inventory',exact:true}).click();
+    const inv=page.getByRole('dialog',{name:'Router inventory'});await inv.waitFor();
+    await inv.getByText('Auto: WAN North',{exact:true}).waitFor();
+    await inv.getByText('Auto: no parent',{exact:true}).waitFor();
+    await page.keyboard.press('Escape');
     // Dark theme and a phone width: no sideways page scroll, and the modal fits.
     await page.emulateMedia({colorScheme:'dark'});await page.screenshot({path:`${out}/canvas-dark.png`});
     await page.setViewportSize({width:375,height:760});
     assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=375),'no sideways scroll at 375 px');
     await north.click();await page.keyboard.press("Enter");await dialog.waitFor();
     const box=await dialog.boundingBox();assert.ok(box.width<=375&&box.x>=0,'the modal fits a phone');
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({width:768,height:900});
+    assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=768),'no sideways scroll at 768 px');
+    await page.emulateMedia({colorScheme:'light'});
+    await page.setViewportSize({width:375,height:760});await north.click();await page.keyboard.press('Enter');await dialog.waitFor();
     await page.screenshot({path:`${out}/node-modal-375.png`});
     assert.deepEqual(errors,[]);
     console.log('topology canvas check passed');

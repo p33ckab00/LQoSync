@@ -28,6 +28,10 @@ struct NodeForm {
     latitude: String,
     longitude: String,
     error: String,
+    /// The access router ID, or empty for none.
+    router: String,
+    /// The service refusal of the last router change. The draft stays.
+    router_error: String,
 }
 
 impl NodeForm {
@@ -46,6 +50,8 @@ impl NodeForm {
                 .unwrap_or_default(),
             longitude: location.map(|l| l.longitude).unwrap_or_default(),
             error: String::new(),
+            router: n.router_id.clone().unwrap_or_default(),
+            router_error: String::new(),
         }
     }
 }
@@ -77,6 +83,14 @@ fn form_edits(n: &Node, f: &NodeForm) -> Result<Vec<BuilderEdit>, String> {
             node_id: n.id.clone(),
             geo_type,
             location,
+        });
+    }
+    let router_id = (!f.router.is_empty()).then(|| f.router.clone());
+    // A refused router draft stays, but it is not sent again until the operator changes it.
+    if router_id != n.router_id && f.router_error.is_empty() {
+        edits.push(BuilderEdit::NodeRouter {
+            node_id: n.id.clone(),
+            router_id,
         });
     }
     Ok(edits)
@@ -183,6 +197,10 @@ pub(crate) fn Canvas(
                     continue;
                 };
                 let key = new_key();
+                let router_node = match &edit {
+                    BuilderEdit::NodeRouter { node_id, .. } => Some(node_id.clone()),
+                    _ => None,
+                };
                 let request = EditRequest {
                     key: key.clone(),
                     expected_revision,
@@ -213,6 +231,20 @@ pub(crate) fn Canvas(
                             .or(op.receipt.and_then(|r| r.error))
                             .unwrap_or_else(|| "the service did not save it.".into());
                         status.set(format!("Not saved: {why}"));
+                        // A refused router change: the reason goes next to the select, the draft
+                        // stays, and focus moves to the select.
+                        if let Some(id) = router_node {
+                            forms.update(|f| {
+                                if let Some(form) = f.get_mut(&id) {
+                                    form.router_error = why.clone();
+                                }
+                            });
+                            if let Some(select) = document().get_element_by_id("canvas-router")
+                                && let Ok(select) = select.dyn_into::<web_sys::HtmlElement>()
+                            {
+                                let _ = select.focus();
+                            }
+                        }
                         // Later edits were made on top of the refused one; drop them.
                         queue.update_value(VecDeque::clear);
                     }
@@ -285,7 +317,9 @@ pub(crate) fn Canvas(
             if let Some(node) = node {
                 // An invalid draft of this node stays; a clean form starts from the saved node.
                 forms.update(|f| {
-                    if f.get(&id).is_none_or(|form| form.error.is_empty()) {
+                    if f.get(&id)
+                        .is_none_or(|form| form.error.is_empty() && form.router_error.is_empty())
+                    {
                         f.insert(id.clone(), NodeForm::of(&node));
                     }
                 });
@@ -349,9 +383,16 @@ pub(crate) fn Canvas(
             _ => capacity_label(&n.capacity),
         };
         let located = n.geo.as_ref().is_some_and(|g| g.location.is_some());
+        let router = n.router_id.as_ref().map(|r| router_name(data, r));
+        let auto = n.auto_members.map(|c| format!("+{c} auto"));
         let label = format!(
-            "{}, {kind}. Enter opens settings. Shift and arrow keys move the card.",
-            n.name
+            "{}, {kind}{}{}. Enter opens settings. Shift and arrow keys move the card.",
+            n.name,
+            router
+                .as_ref()
+                .map(|r| format!(", router {r}"))
+                .unwrap_or_default(),
+            auto.as_ref().map(|a| format!(", {a}")).unwrap_or_default(),
         );
         view! {
           <button type="button" class="canvas-node" data-kind=n.kind.clone()
@@ -396,7 +437,11 @@ pub(crate) fn Canvas(
               if let Some((_,_,_,start,true))=drag.get_value() { local.update(|l|{l.insert(id.get_value(),start);}); }
               drag.set_value(None);
             }>
-            <span class="canvas-node-kind">{kind}</span>
+            <span class="canvas-node-top">
+              <span class="canvas-node-kind">{kind}</span>
+              {router.map(|r|view!{<span class="canvas-node-router">{format!("Router {r}")}</span>})}
+              {auto.map(|a|view!{<span class="canvas-node-auto">{a}</span>})}
+            </span>
             <strong>{n.name.clone()}</strong>
             <span class="canvas-node-meta">{meta}{located.then_some(" · Located")}</span>
           </button>
@@ -502,7 +547,7 @@ pub(crate) fn Canvas(
               <div class="canvas-layer" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}</svg>
-                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members) children=card/>
+                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,n.auto_members) children=card/>
               </div>
             </div>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.is_empty()))>
@@ -563,7 +608,12 @@ pub(crate) fn Canvas(
                 <ul class="plain-list">
                   {move||data.with(|d|d.as_ref().map(|s|s.sources.iter().filter(|x|x.kind=="subscribers").map(|src|{
                     let id=src.id.clone();
-                    view!{<li><strong>{src.name.clone()}</strong><small>"Subscriber source"</small>
+                    // An unplaced source shows where automatic placement puts its subscribers.
+                    let auto=(!s.nodes.iter().any(|n|n.source_id.as_deref()==Some(src.id.as_str()))).then(||{
+                      let names:Vec<_>=src.auto_parents.iter().map(|p|s.nodes.iter().find(|n|&n.id==p).map_or(p.clone(),|n|n.name.clone())).collect();
+                      if names.is_empty(){"Auto: no parent".to_string()}else{format!("Auto: {}",names.join(", "))}
+                    });
+                    view!{<li><strong>{src.name.clone()}</strong><small>"Subscriber source"</small>{auto.map(|a|view!{<small class="canvas-auto-parent">{a}</small>})}
                       <button type="button" class="quiet" disabled=locked aria-label=format!("Add {} to canvas",src.name)
                         on:click=move|_|act(Change::AttachSource(id.clone(),String::new(),None),under())>"Add to canvas"</button></li>}
                   }).collect_view()))}
@@ -647,6 +697,15 @@ pub(crate) fn Canvas(
     }
 }
 
+/// The display name of a router ID from the collection, or the ID itself.
+fn router_name(data: RwSignal<Option<TopologySummary>>, id: &str) -> String {
+    data.with_untracked(|d| {
+        d.as_ref()
+            .and_then(|s| s.collection.iter().find(|r| r.router_id == id))
+            .map_or_else(|| id.to_string(), |r| r.name.clone())
+    })
+}
+
 /// The node modal: General, Capacity, Location, and Structure. Valid changes save on change.
 #[component]
 fn NodeEditor(
@@ -704,6 +763,10 @@ fn NodeEditor(
           s.nodes.iter().filter(|p|p.id!=n.id && p.kind!="group" && !is_below(&s.nodes,&p.id,&n.id)).map(|p|(p.id.clone(),p.name.clone())).collect()
         }).unwrap_or_default());
         let current_parent=n.parent.clone().unwrap_or_default();
+        // Routers without a router node, and the router of this node.
+        let routers:Vec<(String,String)>=data.with(|d|d.as_ref().map(|s|s.collection.iter()
+          .filter(|r|n.router_id.as_deref()==Some(r.router_id.as_str())||!s.nodes.iter().any(|m|m.router_id.as_deref()==Some(r.router_id.as_str())))
+          .map(|r|(r.router_id.clone(),r.name.clone())).collect()).unwrap_or_default());
         let (move_node,remove_node,child_id,parent_node)=(n.clone(),n.clone(),n.id.clone(),n.clone());
         // Only a subscriber group shares its source between several parents.
         let (more_parents,placements)=data.with(|d|d.as_ref().filter(|_|n.kind=="group").map(|s|(additional_parents(&s.nodes,&n),
@@ -714,6 +777,17 @@ fn NodeEditor(
           <fieldset><legend>"General"</legend>
             <label>"Name"<input prop:value=move||form().draft.name disabled=locked
               on:input=move|ev|set(|f|&mut f.draft.name,event_target_value(&ev)) on:change=move|_|flush()/></label>
+            {(!wan).then(||view!{
+              <label>"Access router"<select id="canvas-router" prop:value=move||form().router disabled=locked
+                aria-invalid=move||(!form().router_error.is_empty()).to_string()
+                aria-describedby=move||(!form().router_error.is_empty()).then_some("canvas-router-error")
+                on:change=move|ev|{set(|f|&mut f.router,event_target_value(&ev));set(|f|&mut f.router_error,String::new());flush();}>
+                <option value="">"None"</option>
+                {routers.into_iter().map(|(rid,name)|view!{<option value=rid>{name}</option>}).collect_view()}
+              </select></label>
+              <p class="field-help">"Subscribers of this router stay in this branch. Unplaced sources of the router go to its child nodes."</p>
+            })}
+            {move||(!form().router_error.is_empty()).then(||view!{<p id="canvas-router-error" class="field-error">{form().router_error}</p>})}
           </fieldset>
           <fieldset><legend>"Capacity"</legend>
             <label>"Mode"<select prop:value=move||form().draft.mode disabled=move||locked()||wan

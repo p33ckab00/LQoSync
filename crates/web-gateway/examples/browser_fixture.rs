@@ -306,13 +306,15 @@ async fn main() -> anyhow::Result<()> {
       "registry_revision":"42","mode":"apply","writer":"topology","enrolled":true,
       "observed":{"revision":"42","collected_at":at.saturating_sub(8),"generation":7,"state":"ok","stale":false},
       "nodes":[
-        {"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false,"calculated_mbps":[1000.0,500.0],"exported_mbps":[1000.0,500.0],"members":3},
+        {"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false,"calculated_mbps":[1000.0,500.0],"exported_mbps":[1000.0,500.0],"members":3,"auto_members":2},
         {"id":"tm-node-ppp-north","name":"PPPoE access","parent":"tm-node-wan-north","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[400.0,200.0],"exported_mbps":[400.0,200.0],"members":3},
         {"id":"tm-node-wan-south","name":"WAN South","parent":null,"kind":"wan","source_id":"wan-south","capacity":{"mode":"fixed","down_mbps":500,"up_mbps":250,"factor_percent":null},"alias":false,"calculated_mbps":[500.0,250.0],"exported_mbps":[500.0,250.0],"members":1},
-        {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":1}
+        {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":1,"router_id":"lq3-00000000000000a1"}
       ],
       "sources":[{"id":"wan-north","name":"pppoe-wan-north","kind":"wan"},{"id":"wan-south","name":"pppoe-wan-south","kind":"wan"},
-                 {"id":"access-ppp","name":"PPPoE access","kind":"subscribers"},{"id":"access-dhcp","name":"DHCP service","kind":"subscribers"}],
+                 {"id":"access-ppp","name":"PPPoE access","kind":"subscribers"},{"id":"access-dhcp","name":"DHCP service","kind":"subscribers"},
+                 {"id":"access-ppp-silver","name":"PPPoE Silver","kind":"subscribers","auto_parents":["tm-node-wan-north"]},
+                 {"id":"access-dhcp-guest","name":"DHCP guest","kind":"subscribers","auto_parents":[]}],
       "fallback":null,
       "plans":[{"id":"plan-access-100","name":"Access 100","down_mbps":100,"up_mbps":50,"ppp_identities":3,"dhcp_identities":2,"subscribers":4}],
       "subscribers":[
@@ -331,7 +333,8 @@ async fn main() -> anyhow::Result<()> {
         obs("dhcp","unknown-host","192.0.2.30","bound",None,None,None)
       ],
       "collection":[{"router_id":"lq3-00000000000000a1","name":"Access-01","state":"online","observed_at":at,
-        "sources":[{"kind":"ppp","enabled":true,"records":4,"online":2,"offline":1},{"kind":"dhcp","enabled":true,"records":3,"online":3,"offline":null}]}],
+        "sources":[{"kind":"ppp","enabled":true,"records":4,"online":2,"offline":1},{"kind":"dhcp","enabled":true,"records":3,"online":3,"offline":null}]},
+        {"router_id":"lq3-00000000000000c1","name":"Core-01","state":"online","observed_at":at,"sources":[]}],
       "conflicts":[],
       "speed":{"down_min":{"unit":"percent","value":"20"},"up_min":{"unit":"percent","value":"20"},
                "down_max":{"unit":"percent","value":"100"},"up_max":{"unit":"legacy","value":"100"},"overrides":1},
@@ -397,6 +400,18 @@ async fn main() -> anyhow::Result<()> {
                 "topology.web.operation" => Some(serde_json::Value::Null),
                 _ => None,
             };
+            // A router node above a source of another router breaks the family rule.
+            if v["op"] == "topology.web.mutate"
+                && v["args"]["command"]["edit"]["kind"] == "node.router"
+                && v["args"]["command"]["edit"]["node_id"] == "tm-node-ppp-north"
+                && v["args"]["command"]["edit"]["router_id"] == "lq3-00000000000000c1"
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                let answer = serde_json::json!({"v":1,"id":v["id"],"ok":false,"error":{"code":"invalid",
+                    "message":"PPPoE access is in the branch of another router. Subscribers stay in the branch of their own router."}});
+                let _ = write.write_all(format!("{answer}\n").as_bytes()).await;
+                continue;
+            }
             if let Some(result) = topology {
                 tokio::time::sleep(std::time::Duration::from_millis(400)).await;
                 let answer = serde_json::json!({"v":1,"id":v["id"],"ok":true,"result":result});
