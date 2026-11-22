@@ -45,6 +45,7 @@ fn catalog(router_id: &str, router_name: &str, endpoint: &str, nodes: &[&str]) -
             roles: vec![RouterRole::Wan],
         }],
         sources: vec![CatalogSource {
+            excluded: false,
             id: "wan-1".into(),
             name: "WAN1".into(),
             origin: SourceOrigin::Wan {
@@ -58,6 +59,7 @@ fn catalog(router_id: &str, router_name: &str, endpoint: &str, nodes: &[&str]) -
             .iter()
             .map(|id| CatalogNode {
                 address_list: None,
+                tree_excluded: false,
                 router_id: None,
                 geo: None,
                 minimum: Default::default(),

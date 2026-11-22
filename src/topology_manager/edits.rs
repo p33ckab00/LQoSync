@@ -73,6 +73,12 @@ pub enum Edit {
         node_id: String,
         list: Option<String>,
     },
+    /// Keep a router node on the canvas, but not in `network.json`.
+    #[serde(rename = "node.tree_exclude")]
+    NodeTreeExclude { node_id: String, excluded: bool },
+    /// Do not shape a source, and do not add it again automatically.
+    #[serde(rename = "source.exclude")]
+    SourceExclude { source_id: String, excluded: bool },
     /// Set or clear the access router that a node represents.
     #[serde(rename = "node.router")]
     NodeRouter {
@@ -585,6 +591,7 @@ fn wan_create(
         }
     };
     c.sources.push(CatalogSource {
+        excluded: false,
         id: ids[0].clone(),
         name: name.into(),
         origin: SourceOrigin::Wan {
@@ -596,6 +603,7 @@ fn wan_create(
     });
     c.nodes.push(CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -656,6 +664,7 @@ fn instance_add(
     }
     c.nodes.push(CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -1140,10 +1149,11 @@ pub fn auto_groups(
             continue;
         };
         let c = d.catalog.as_ref().expect("checked above");
-        // A source with any node keeps the operator's placement.
-        if c.nodes
-            .iter()
-            .any(|n| n.id == node.id || n.source_id.as_deref() == Some(key))
+        // A source with any node keeps the operator's placement. An excluded source stays out.
+        if c.sources.iter().any(|s| s.id == key && s.excluded)
+            || c.nodes
+                .iter()
+                .any(|n| n.id == node.id || n.source_id.as_deref() == Some(key))
         {
             continue;
         }
@@ -1374,6 +1384,8 @@ pub fn apply(
             | Edit::NodeLocation { .. }
             | Edit::NodeRouter { .. }
             | Edit::NodeAddressList { .. }
+            | Edit::NodeTreeExclude { .. }
+            | Edit::SourceExclude { .. }
             | Edit::SourceAdd { .. }
     );
     if doc.catalog.is_none()
@@ -1437,6 +1449,7 @@ pub fn apply(
                 .nodes
                 .push(CatalogNode {
                     address_list: None,
+                    tree_excluded: false,
                     router_id: None,
                     geo: None,
                     minimum: Default::default(),
@@ -1529,6 +1542,30 @@ pub fn apply(
         Edit::NodeAddressList { node_id, list } => {
             let i = position(d.catalog.as_ref().expect("enrolled"), node_id)?;
             d.catalog.as_mut().expect("enrolled").nodes[i].address_list = list.clone();
+        }
+        Edit::NodeTreeExclude { node_id, excluded } => {
+            let c = d.catalog.as_ref().expect("enrolled");
+            let i = position(c, node_id)?;
+            if *excluded && c.nodes[i].router_id.is_none() {
+                return Err(invalid(
+                    "only a router node can be excluded from the network tree",
+                ));
+            }
+            affected.extend(sources_below(c, &top(c, node_id)));
+            d.catalog.as_mut().expect("enrolled").nodes[i].tree_excluded = *excluded;
+        }
+        Edit::SourceExclude {
+            source_id,
+            excluded,
+        } => {
+            let c = d.catalog.as_mut().expect("enrolled");
+            let source = c
+                .sources
+                .iter_mut()
+                .find(|s| s.id == *source_id)
+                .ok_or_else(|| invalid("the source is not in the catalog"))?;
+            source.excluded = *excluded;
+            affected.insert(source_id.clone());
         }
         Edit::NodeRouter { node_id, router_id } => {
             let c = d.catalog.as_ref().expect("enrolled");
@@ -1794,7 +1831,7 @@ pub fn tree(doc: &RegistryDocument) -> Value {
                 "id": n.id, "name": n.name, "parent": n.parent, "kind": kind_out(n.kind),
                 "source_id": n.source_id, "capacity": capacity_out(&n.capacity),
                 "alias": aliased(doc, &n.id), "geo": n.geo, "router_id": n.router_id,
-                "address_list": c.wan_list(i),
+                "address_list": c.wan_list(i), "tree_excluded": n.tree_excluded,
             })
         })
         .collect();
@@ -1812,7 +1849,7 @@ pub fn tree(doc: &RegistryDocument) -> Value {
                     ("subscribers", auto)
                 }
             };
-            json!({"id": s.id, "name": s.name, "kind": kind, "auto_parents": auto.cloned().unwrap_or_default()})
+            json!({"id": s.id, "name": s.name, "kind": kind, "auto_parents": auto.cloned().unwrap_or_default(), "excluded": s.excluded})
         })
         .collect();
     let pins: Vec<Value> = doc

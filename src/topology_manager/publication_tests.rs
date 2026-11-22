@@ -332,6 +332,7 @@ async fn excessive_hierarchy_depth_is_a_conflict_before_recursive_json_work() {
         let id = format!("manual-{i}");
         catalog.nodes.push(catalog::CatalogNode {
             address_list: None,
+            tree_excluded: false,
             router_id: None,
             geo: None,
             minimum: Default::default(),
@@ -657,6 +658,7 @@ async fn router_location_goes_only_on_the_nodes_from_that_router() {
     let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
     catalog.nodes.push(catalog::CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -772,4 +774,69 @@ fn flat_pair_has_empty_parent_and_an_empty_network() {
             .iter()
             .all(|r| r.parent_node.is_empty() && r.parent_node_id.is_empty())
     );
+}
+
+// Live source canvas, Task 4.
+
+fn tower(excluded: bool) -> AuthorizedReconciliation {
+    let mut observed = input(2);
+    let catalog = observed.reconciliation.registry.catalog.as_mut().unwrap();
+    catalog.nodes.push(catalog::CatalogNode {
+        address_list: None,
+        router_id: Some("distro".into()),
+        tree_excluded: excluded,
+        geo: None,
+        minimum: Default::default(),
+        id: "tower".into(),
+        name: "tower".into(),
+        parent: Some("wan1".into()),
+        source_id: None,
+        kind: crate::topology_manager::layout::NodeKind::Intermediate,
+        capacity: catalog::CapacityPolicy::Inherit,
+    });
+    catalog
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == "group1")
+        .unwrap()
+        .parent = Some("tower".into());
+    observed
+}
+
+fn parents(network: &Value) -> HashMap<String, Option<String>> {
+    let mut out = HashMap::new();
+    let mut work: Vec<(&Value, Option<String>)> = network
+        .as_object()
+        .unwrap()
+        .values()
+        .map(|n| (n, None))
+        .collect();
+    while let Some((node, parent)) = work.pop() {
+        let id = node["id"].as_str().unwrap().to_string();
+        work.extend(
+            node["children"]
+                .as_object()
+                .unwrap()
+                .values()
+                .map(|c| (c, Some(id.clone()))),
+        );
+        out.insert(id, parent);
+    }
+    out
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_tree_excluded_router_node_passes_its_groups_to_its_parent() {
+    let pair = prepare(tower(true)).unwrap();
+    let tree = parents(pair.network());
+    assert!(!tree.contains_key("tower"), "{tree:?}");
+    assert_eq!(tree["group1"].as_deref(), Some("wan1"));
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_included_router_node_is_exported() {
+    let pair = prepare(tower(false)).unwrap();
+    let tree = parents(pair.network());
+    assert_eq!(tree["tower"].as_deref(), Some("wan1"));
+    assert_eq!(tree["group1"].as_deref(), Some("tower"));
 }

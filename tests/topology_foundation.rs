@@ -52,6 +52,7 @@ fn aggregate_stage_preserves_legacy_ppp_factors_backstop_and_explicit_floor() {
                     roles: vec![RouterRole::Ppp],
                 }],
                 sources: vec![CatalogSource {
+                    excluded: false,
                     id: "source".into(),
                     name: "Source".into(),
                     origin: SourceOrigin::Subscribers {
@@ -83,6 +84,7 @@ fn aggregate_stage_preserves_legacy_ppp_factors_backstop_and_explicit_floor() {
                 }],
                 nodes: vec![CatalogNode {
                     address_list: None,
+                    tree_excluded: false,
                     router_id: None,
                     geo: None,
                     minimum: Default::default(),

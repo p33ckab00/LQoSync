@@ -1010,6 +1010,7 @@ mod tests {
             address_list: None,
             routed: None,
             active: true,
+            tree_excluded: false,
         }
     }
 

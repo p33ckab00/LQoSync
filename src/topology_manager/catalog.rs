@@ -124,6 +124,13 @@ pub struct CatalogSource {
     pub origin: SourceOrigin,
     pub profile_id: Option<String>,
     pub targets: Vec<String>,
+    /// The operator does not shape this source, and the automatic step does not add it. Schema 9.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub excluded: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -179,6 +186,9 @@ pub struct CatalogNode {
     /// The `via-` address-list of a WAN node. `None` uses `via-<name>`. Added in schema 8.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub address_list: Option<String>,
+    /// A router node that `network.json` does not contain. Its children take its parent. Schema 9.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub tree_excluded: bool,
 }
 
 /// Group nodes that take subscribers whose source the catalog does not know.
@@ -453,6 +463,10 @@ impl TopologyCatalog {
         }
         let mut router_nodes = HashSet::new();
         for node in &self.nodes {
+            ensure!(
+                !node.tree_excluded || node.router_id.is_some(),
+                "only a router node can be excluded from the network tree"
+            );
             if let Some(router) = &node.router_id {
                 ensure!(
                     node.kind != NodeKind::Wan,

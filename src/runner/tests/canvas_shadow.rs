@@ -316,6 +316,7 @@ fn add_wans(r: &mut Runner<FakeConnector>, auto_failback: bool) {
     let router_id = router.id.clone();
     for (node, source, iface) in [("wanA", "wan-a", "ether1"), ("wanB", "wan-b", "ether2")] {
         c.sources.push(CatalogSource {
+            excluded: false,
             id: source.into(),
             name: iface.into(),
             origin: SourceOrigin::Wan {
@@ -327,6 +328,7 @@ fn add_wans(r: &mut Runner<FakeConnector>, auto_failback: bool) {
         });
         c.nodes.push(CatalogNode {
             address_list: None,
+            tree_excluded: false,
             router_id: None,
             geo: None,
             minimum: Default::default(),

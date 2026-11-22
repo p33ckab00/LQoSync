@@ -236,6 +236,7 @@ mod tests {
                 roles: vec![],
             }],
             sources: vec![CatalogSource {
+                excluded: false,
                 id: "wan-1".into(),
                 name: "ISP A".into(),
                 origin: SourceOrigin::Wan {

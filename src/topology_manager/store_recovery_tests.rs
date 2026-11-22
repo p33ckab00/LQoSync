@@ -574,13 +574,38 @@ fn schema_7_registry_migrates_to_8_without_change() {
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     let store = RegistryStore::open(root.path()).unwrap();
     let doc = store.document().unwrap();
-    assert_eq!(doc.schema_version, 8);
+    assert_eq!(doc.schema_version, SCHEMA);
     assert_eq!(
         doc.catalog,
         Some(crate::topology_manager::catalog::tests::catalog())
     );
     // A schema-7 file cannot hold list names.
     old["catalog"]["nodes"][0]["address_list"] = "via-x".into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    assert!(RegistryStore::open(root.path()).is_err());
+}
+
+#[test]
+fn schema_8_migrates_to_9_without_change() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let mut old = serde_json::to_value(RegistryDocument {
+        revision: 2,
+        catalog: Some(crate::topology_manager::catalog::tests::catalog()),
+        ..RegistryDocument::default()
+    })
+    .unwrap();
+    old["schema_version"] = 8.into();
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    let store = RegistryStore::open(root.path()).unwrap();
+    let doc = store.document().unwrap();
+    assert_eq!(doc.schema_version, 9);
+    assert_eq!(
+        doc.catalog,
+        Some(crate::topology_manager::catalog::tests::catalog())
+    );
+    // A schema-8 file cannot hold exclusion flags.
+    old["catalog"]["sources"][0]["excluded"] = true.into();
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     assert!(RegistryStore::open(root.path()).is_err());
 }

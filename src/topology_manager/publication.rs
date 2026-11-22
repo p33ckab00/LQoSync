@@ -215,7 +215,7 @@ pub fn prepare_with_static(
         Instant::now() < input.expires,
         "source evidence expired before pair preparation"
     );
-    let evaluation = aggregate::evaluate(resolver::resolve(input.reconciliation)?)?;
+    let mut evaluation = aggregate::evaluate(resolver::resolve(input.reconciliation)?)?;
     if !evaluation.conflicts.is_empty() {
         anyhow::bail!(super::conflicts::PreparationConflicts(
             evaluation
@@ -238,6 +238,22 @@ pub fn prepare_with_static(
         .context("publication requires a catalog")?;
     let aliases = super::ownership::AliasIndex::new(&candidate)?;
     let definitions: HashMap<_, _> = catalog.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    // A tree-excluded router node is not exported. Its children take its nearest exported ancestor.
+    evaluation.nodes.retain(|n| {
+        definitions
+            .get(n.node_id.as_str())
+            .is_none_or(|d| !d.tree_excluded)
+    });
+    for node in &mut evaluation.nodes {
+        while let Some(d) = node
+            .parent_id
+            .as_deref()
+            .and_then(|p| definitions.get(p))
+            .filter(|d| d.tree_excluded)
+        {
+            node.parent_id = d.parent.clone();
+        }
+    }
     let indices: HashMap<_, _> = evaluation
         .nodes
         .iter()

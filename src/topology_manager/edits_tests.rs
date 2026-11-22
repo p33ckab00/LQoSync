@@ -1877,3 +1877,95 @@ fn the_same_profile_on_two_routers_gives_two_groups() {
     let key = GroupKey::PppPlan("Gold".into());
     assert_ne!(group_node_id("Hub-1", &key), group_node_id("Hub-2", &key));
 }
+
+// Live source canvas, Task 4.
+
+#[test]
+fn tree_exclusion_is_only_for_router_nodes() {
+    let mut d = doc();
+    let tower = with_tower(&mut d);
+    let error = refused(
+        &d,
+        json!({"kind": "node.tree_exclude", "node_id": tower, "excluded": true}),
+    );
+    assert!(error.contains("router node"), "{error}");
+    let d = run(
+        &d,
+        json!({"kind": "node.router", "node_id": tower, "router_id": "distro"}),
+    )
+    .unwrap()
+    .candidate;
+    let d = run(
+        &d,
+        json!({"kind": "node.tree_exclude", "node_id": tower, "excluded": true}),
+    )
+    .unwrap()
+    .candidate;
+    assert!(node(&d, &tower).tree_excluded);
+    // A router node that leaves its router cannot stay excluded.
+    let error = refused(
+        &d,
+        json!({"kind": "node.router", "node_id": tower, "router_id": null}),
+    );
+    assert!(error.contains("router node"), "{error}");
+}
+
+#[test]
+fn source_exclude_sets_and_clears_the_flag() {
+    let d = doc();
+    let source = d.catalog.as_ref().unwrap().sources[0].id.clone();
+    let on = run(
+        &d,
+        json!({"kind": "source.exclude", "source_id": source, "excluded": true}),
+    )
+    .unwrap()
+    .candidate;
+    let flag = |d: &RegistryDocument| {
+        d.catalog
+            .as_ref()
+            .unwrap()
+            .sources
+            .iter()
+            .find(|s| s.id == source)
+            .unwrap()
+            .excluded
+    };
+    assert!(flag(&on));
+    let off = run(
+        &on,
+        json!({"kind": "source.exclude", "source_id": source, "excluded": false}),
+    )
+    .unwrap()
+    .candidate;
+    assert!(!flag(&off));
+    let error = refused(
+        &d,
+        json!({"kind": "source.exclude", "source_id": "absent", "excluded": true}),
+    );
+    assert!(error.contains("source"), "{error}");
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_excluded_source_is_not_added_again() {
+    use crate::topology_manager::policy_draft::{document, propose, tests as scenario};
+    let (cfg, snap) = scenario::scenario();
+    let draft = propose(&cfg, &[scenario::current(&cfg, &snap).await]).unwrap();
+    let mut doc = document(&draft).unwrap();
+    doc.export_ownership = Some(Default::default());
+    let gold =
+        crate::topology::group_node_id("Hub-1", &crate::sources::GroupKey::PppPlan("Gold".into()));
+    let c = doc.catalog.as_mut().unwrap();
+    let source = c
+        .nodes
+        .iter()
+        .find(|n| n.id == gold)
+        .and_then(|n| n.source_id.clone())
+        .unwrap();
+    c.nodes.retain(|n| n.id != gold);
+    c.sources
+        .iter_mut()
+        .find(|s| s.id == source)
+        .unwrap()
+        .excluded = true;
+    assert!(auto_groups(&doc, &draft).unwrap().is_none());
+}

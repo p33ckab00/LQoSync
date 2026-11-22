@@ -80,6 +80,7 @@ fn fixed(base: RateBps) -> CapacityPolicy {
 pub(crate) fn catalog() -> TopologyCatalog {
     let wan = |id: &str, source: &str, base| CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -92,6 +93,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
     };
     let group = |id: &str, parent: &str| CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -117,6 +119,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
         ],
         sources: vec![
             CatalogSource {
+                excluded: false,
                 id: "wan-source-1".into(),
                 name: "WAN".into(),
                 origin: SourceOrigin::Wan {
@@ -127,6 +130,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
                 targets: Vec::new(),
             },
             CatalogSource {
+                excluded: false,
                 id: "wan-source-2".into(),
                 name: "WAN".into(),
                 origin: SourceOrigin::Wan {
@@ -137,6 +141,7 @@ pub(crate) fn catalog() -> TopologyCatalog {
                 targets: Vec::new(),
             },
             CatalogSource {
+                excluded: false,
                 id: "profile-source".into(),
                 name: "One shared profile".into(),
                 origin: SourceOrigin::Subscribers {
@@ -210,6 +215,7 @@ fn profile_only_and_wan_only_topologies_keep_their_explicit_structure() {
     let mut c = catalog();
     c.nodes = vec![CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -425,6 +431,7 @@ fn extra_wan_inventory_does_not_expand_existing_targets_or_instances() {
     let targets = c.sources[2].targets.clone();
     let nodes = c.nodes.clone();
     c.sources.push(CatalogSource {
+        excluded: false,
         id: "new-wan".into(),
         name: "Candidate WAN".into(),
         origin: SourceOrigin::Wan {
@@ -452,6 +459,7 @@ fn a_large_catalog_uses_iterative_validation() {
         nodes: (0..10_000)
             .map(|i| CatalogNode {
                 address_list: None,
+                tree_excluded: false,
                 router_id: None,
                 geo: None,
                 minimum: Default::default(),
@@ -473,6 +481,7 @@ fn a_large_catalog_uses_iterative_validation() {
         roles: vec![RouterRole::Ppp],
     });
     c.sources.push(CatalogSource {
+        excluded: false,
         id: "subscribers".into(),
         name: "Source".into(),
         origin: SourceOrigin::Subscribers {
@@ -581,6 +590,7 @@ pub(crate) fn with_fallback_node() -> TopologyCatalog {
     let mut c = catalog();
     c.nodes.push(CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -633,6 +643,7 @@ fn routed() -> TopologyCatalog {
     let mut c = catalog();
     let node = |id: &str, parent: &str, router: &str| CatalogNode {
         address_list: None,
+        tree_excluded: false,
         geo: None,
         minimum: Default::default(),
         id: id.into(),
@@ -647,6 +658,7 @@ fn routed() -> TopologyCatalog {
     c.nodes.push(node("towerB", "towerA", "core"));
     c.nodes.push(CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         ..node("apB", "towerB", "core")
     });

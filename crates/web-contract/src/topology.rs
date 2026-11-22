@@ -217,6 +217,9 @@ pub struct Node {
     /// The canvas hides an inactive node; its settings stay.
     #[serde(default = "yes")]
     pub active: bool,
+    /// A router node that `network.json` does not contain. The canvas still shows it.
+    #[serde(default)]
+    pub tree_excluded: bool,
 }
 
 /// The last write of the routing lists on the core router.
@@ -325,6 +328,9 @@ pub struct Source {
     /// Empty: no parent (flat), or the source is placed.
     #[serde(default)]
     pub auto_parents: Vec<String>,
+    /// The operator does not shape this source. The "Excluded" list shows it.
+    #[serde(default)]
+    pub excluded: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -719,6 +725,12 @@ pub enum BuilderEdit {
         node_id: String,
         list: Option<String>,
     },
+    /// Keep a router node on the canvas, but not in `network.json`.
+    #[serde(rename = "node.tree_exclude")]
+    NodeTreeExclude { node_id: String, excluded: bool },
+    /// Do not shape a source, and do not add it again automatically.
+    #[serde(rename = "source.exclude")]
+    SourceExclude { source_id: String, excluded: bool },
     /// Set or clear the access router that a node represents.
     #[serde(rename = "node.router")]
     NodeRouter {

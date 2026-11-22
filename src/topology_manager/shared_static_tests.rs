@@ -153,6 +153,7 @@ async fn nested_guarantees_count_once_and_attachments_survive_store_restart() {
     catalog.nodes[0].minimum.down = Some(50_000_000);
     catalog.nodes.push(CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         id: "regional".into(),

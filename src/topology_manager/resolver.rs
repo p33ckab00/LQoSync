@@ -176,14 +176,22 @@ impl<'a> Index<'a> {
         let mut auto_nodes: Vec<(&str, Vec<usize>)> = Vec::new();
         for router in &catalog.routers {
             let r = router.id.as_str();
-            let eligible = |i: &usize| !sourced[*i] && families[*i].is_none_or(|f| f == r);
-            let set: Vec<usize> = if let Some(node) = catalog.router_node(r) {
+            // A tree-excluded router node is not in network.json, so it is never a target.
+            let eligible = |i: &usize| {
+                !sourced[*i]
+                    && !catalog.nodes[*i].tree_excluded
+                    && families[*i].is_none_or(|f| f == r)
+            };
+            let own: Option<Vec<usize>> = catalog.router_node(r).and_then(|node| {
                 let children: Vec<_> = children[node].iter().copied().filter(eligible).collect();
-                if children.is_empty() {
-                    Some(node).into_iter().filter(eligible).collect()
+                if !children.is_empty() {
+                    Some(children)
                 } else {
-                    children
+                    eligible(&node).then(|| vec![node])
                 }
+            });
+            let set: Vec<usize> = if let Some(set) = own {
+                set
             } else {
                 let own_wans: Vec<_> = (0..layout.len())
                     .filter(|i| {

@@ -242,6 +242,11 @@ Rollback: registry schema 7 needs the schema-6 backup for a schema-6 binary.
 The routing list writer is off by default. To set it up, follow [WAN routing lists](../operations/WAN_ROUTING_LISTS.md): router users, writer credentials, adoption, writer on, mangle order, and rollback.
 Registry schema 8 adds the list name of a WAN node. A rollback to a schema-7 binary needs the schema-7 backup.
 
+### Source and tree exclusion
+
+Registry schema 9 adds two flags: "Do not read" on a source, and "Exclude from network tree" on a router node.
+A rollback to a schema-8 binary needs the schema-8 backup. A schema-8 binary cannot open a schema-9 registry.
+
 ### Limits of this release
 
 - The broker reads the whole `topology.json` for each request. At 50,000 subscribers and 5,000 nodes, the file is 31 MB.

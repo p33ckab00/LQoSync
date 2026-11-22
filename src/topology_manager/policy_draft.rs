@@ -143,6 +143,7 @@ impl Builder<'_> {
             eligible_targets: None,
         });
         self.catalog.sources.push(CatalogSource {
+            excluded: false,
             id: format!("source-{id}"),
             name: name.clone(),
             origin: SourceOrigin::Subscribers {
@@ -158,6 +159,7 @@ impl Builder<'_> {
         }
         self.catalog.nodes.push(CatalogNode {
             address_list: None,
+            tree_excluded: false,
             router_id: None,
             geo: None,
             minimum,

@@ -87,6 +87,7 @@ fn view(n: usize) -> TopologyView {
                 address_list: None,
                 routed: None,
                 active: true,
+                tree_excluded: false,
             })
             .collect(),
         ..Default::default()
@@ -296,6 +297,7 @@ fn release_scale_reads_stay_bounded() {
             address_list: None,
             routed: None,
             active: true,
+            tree_excluded: false,
         })
         .collect();
     let bytes = serde_json::to_vec(&big).unwrap();

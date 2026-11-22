@@ -668,6 +668,7 @@ fn add(
         .nodes
         .push(catalog::CatalogNode {
             address_list: None,
+            tree_excluded: false,
             router_id: router.map(Into::into),
             geo: None,
             minimum: Default::default(),
@@ -1018,6 +1019,7 @@ fn roots_that_are_other_router_nodes_give_no_parent() {
         .nodes
         .push(catalog::CatalogNode {
             address_list: None,
+            tree_excluded: false,
             router_id: Some("core".into()),
             geo: None,
             minimum: Default::default(),
@@ -1198,4 +1200,24 @@ fn quality_changes_do_not_move_saved_assignments() {
     let mut placed_sorted = placed.clone();
     placed_sorted.sort();
     assert_eq!(placed_sorted, expected);
+}
+
+#[test]
+fn placement_never_targets_a_tree_excluded_router_node() {
+    let mut r = registry();
+    add(
+        &mut r,
+        "towerA",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    r.catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .last_mut()
+        .unwrap()
+        .tree_excluded = true;
+    assert_eq!(targets(&auto_run(&r, 6)), set(&["wan1", "wan2"]));
 }

@@ -333,6 +333,7 @@ fn scope() -> SourceScope {
 
 fn document() -> RegistryDocument {
     let source = |id: &str, endpoint: &str| CatalogSource {
+        excluded: false,
         id: id.into(),
         name: "WAN candidate".into(),
         origin: SourceOrigin::Wan {
@@ -344,6 +345,7 @@ fn document() -> RegistryDocument {
     };
     let wan = |id: &str, source: &str, down| CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -362,6 +364,7 @@ fn document() -> RegistryDocument {
     };
     let group = |id: &str, parent: &str| CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -406,6 +409,7 @@ fn document() -> RegistryDocument {
                 source("source-w1", "endpoint-1"),
                 source("source-w2", "endpoint-2"),
                 CatalogSource {
+                    excluded: false,
                     id: "subscribers".into(),
                     name: "Shared source".into(),
                     origin: SourceOrigin::Subscribers {
@@ -480,6 +484,7 @@ fn reopen_move_and_discovery_keep_ids_pins_and_explicit_target_sets() {
     let catalog = edit.catalog.as_mut().unwrap();
     catalog.nodes.push(CatalogNode {
         address_list: None,
+        tree_excluded: false,
         router_id: None,
         geo: None,
         minimum: Default::default(),
@@ -516,6 +521,7 @@ fn reopen_move_and_discovery_keep_ids_pins_and_explicit_target_sets() {
         .clone();
     let instances = catalog.nodes.clone();
     catalog.sources.push(CatalogSource {
+        excluded: false,
         id: "unselected-wan".into(),
         name: "WAN 3".into(),
         origin: SourceOrigin::Wan {

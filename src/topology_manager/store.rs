@@ -655,7 +655,24 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
             old.schema_version = SCHEMA;
             old
         }
-        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-8 registry")?,
+        8 => {
+            let mut old: RegistryDocument =
+                serde_json::from_slice(&bytes).context("cannot decode schema-8 registry")?;
+            ensure!(
+                old.schema_version == 8,
+                "registry schema changed during load"
+            );
+            ensure!(
+                old.catalog
+                    .iter()
+                    .all(|c| c.sources.iter().all(|s| !s.excluded)
+                        && c.nodes.iter().all(|n| !n.tree_excluded)),
+                "a schema-8 registry cannot contain exclusion flags"
+            );
+            old.schema_version = SCHEMA;
+            old
+        }
+        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-9 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     let mut document = document;
@@ -863,7 +880,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":9,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":10,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -1116,7 +1133,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":9,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":10,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());
