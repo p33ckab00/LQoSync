@@ -75,6 +75,10 @@ struct Index<'a> {
     capacities: Vec<Option<RateBps>>,
     /// Targets for subscribers whose source the catalog does not know.
     fallback_targets: BTreeSet<usize>,
+    /// The router of the nearest router node at or above each node.
+    families: Vec<Option<&'a str>>,
+    /// Router ID to the targets of its unplaced subscribers (R3–R5). An absent key has none.
+    auto_targets: HashMap<&'a str, BTreeSet<usize>>,
 }
 
 impl<'a> Index<'a> {
@@ -108,7 +112,21 @@ impl<'a> Index<'a> {
         }
         let mut capacities = vec![None; layout.len()];
         let mut wans = vec![None; layout.len()];
+        let mut families: Vec<Option<&str>> = vec![None; layout.len()];
+        // A node with a subscriber source at or above it belongs to that source.
+        let mut sourced = vec![false; layout.len()];
         while let Some(i) = queue.pop_front() {
+            families[i] = catalog.nodes[i]
+                .router_id
+                .as_deref()
+                .or_else(|| parents[i].and_then(|p| families[p]));
+            sourced[i] = parents[i].is_some_and(|p| sourced[p])
+                || catalog.nodes[i].source_id.as_deref().is_some_and(|id| {
+                    matches!(
+                        catalog.sources[sources[id]].origin,
+                        SourceOrigin::Subscribers { .. }
+                    )
+                });
             let parent = parents[i].and_then(|p| capacities[p]);
             let wan = if catalog.nodes[i].kind == NodeKind::Wan {
                 match catalog.nodes[i].capacity {
@@ -139,6 +157,50 @@ impl<'a> Index<'a> {
         leaves.sort_unstable_by_key(|i| &catalog.nodes[*i].id);
         let mut targets = Vec::with_capacity(leaves.len());
         let mut target_ids = HashMap::new();
+        // Automatic sets (R3–R5). The family rule removes the nodes of other router nodes.
+        let mut auto_nodes: Vec<(&str, Vec<usize>)> = Vec::new();
+        for router in &catalog.routers {
+            let r = router.id.as_str();
+            let eligible = |i: &usize| !sourced[*i] && families[*i].is_none_or(|f| f == r);
+            let set: Vec<usize> = if let Some(node) = catalog.router_node(r) {
+                let children: Vec<_> = children[node].iter().copied().filter(eligible).collect();
+                if children.is_empty() {
+                    Some(node).into_iter().filter(eligible).collect()
+                } else {
+                    children
+                }
+            } else {
+                let own_wans: Vec<_> = (0..layout.len())
+                    .filter(|i| {
+                        catalog.nodes[*i].kind == NodeKind::Wan
+                            && catalog.nodes[*i].source_id.as_deref().is_some_and(|id| {
+                                matches!(
+                                    &catalog.sources[sources[id]].origin,
+                                    SourceOrigin::Wan { router_id, .. } if router_id == r
+                                )
+                            })
+                    })
+                    .filter(eligible)
+                    .collect();
+                if own_wans.is_empty() {
+                    (0..layout.len())
+                        .filter(|i| parents[*i].is_none())
+                        .filter(eligible)
+                        .collect()
+                } else {
+                    own_wans
+                }
+            };
+            auto_nodes.push((r, set));
+        }
+        let mut extra: BTreeSet<usize> = auto_nodes
+            .iter()
+            .flat_map(|(_, s)| s.iter().copied())
+            .collect();
+        for i in &leaves {
+            extra.remove(i);
+        }
+        leaves.extend(extra);
         for i in leaves {
             let mut cursor = Some(i);
             let mut independent_path = Vec::new();
@@ -207,6 +269,17 @@ impl<'a> Index<'a> {
             targets.sort_unstable();
             targets.dedup();
         }
+        let auto_targets = auto_nodes
+            .into_iter()
+            .filter(|(_, set)| !set.is_empty())
+            .map(|(r, set)| {
+                let set = set
+                    .iter()
+                    .map(|i| target_ids[catalog.nodes[*i].id.as_str()])
+                    .collect();
+                (r, set)
+            })
+            .collect();
         let fallback_targets = catalog
             .fallback
             .iter()
@@ -221,6 +294,8 @@ impl<'a> Index<'a> {
             target_ids,
             capacities,
             fallback_targets,
+            families,
+            auto_targets,
             profiles: catalog
                 .profiles
                 .iter()
@@ -255,6 +330,15 @@ impl<'a> Index<'a> {
                 }
             }
             any_matched |= !matched.is_empty();
+            if matched.is_empty() {
+                let allowed = self.unplaced(&account.identity.scope.router_id);
+                if let Some(eligible) = &mut eligible {
+                    eligible.retain(|t| allowed.contains(t));
+                } else {
+                    eligible = Some(allowed);
+                }
+                continue;
+            }
             let mut allowed = BTreeSet::new();
             for source in &matched {
                 if let Some(profile) = self.catalog.sources[*source].profile_id.as_deref() {
@@ -276,11 +360,8 @@ impl<'a> Index<'a> {
             }
         }
         let mut eligible = eligible.unwrap_or_default();
-        // No source knows this subscriber: the fallback nodes take it.
-        let fallback = !any_matched && !self.fallback_targets.is_empty();
-        if fallback {
-            eligible = self.fallback_targets.clone();
-        }
+        // No placed source knows this subscriber: its rates come from the router plan.
+        let fallback = !any_matched;
         let profile_id = match record.policy.profile_id.as_deref() {
             Some(profile) => Some(profile),
             None if defaults.len() > 1 => return Err(PlacementConflictReason::ConflictingProfiles),
@@ -361,6 +442,24 @@ impl<'a> Index<'a> {
             rates,
             profile_id: profile_id.map(str::to_owned),
         })
+    }
+}
+
+impl Index<'_> {
+    /// Targets of an account whose source is not placed. An explicit fallback policy keeps
+    /// priority; the family rule filters it. Else the automatic set of the router (R3–R5).
+    fn unplaced(&self, router: &str) -> BTreeSet<usize> {
+        let fallback: BTreeSet<usize> = self
+            .fallback_targets
+            .iter()
+            .copied()
+            .filter(|t| self.families[self.targets[*t].node].is_none_or(|f| f == router))
+            .collect();
+        if fallback.is_empty() {
+            self.auto_targets.get(router).cloned().unwrap_or_default()
+        } else {
+            fallback
+        }
     }
 }
 

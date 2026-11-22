@@ -1,6 +1,6 @@
 use super::*;
 use crate::topology_manager::catalog::{self, FactorChoice, Factors};
-use crate::topology_manager::model::{SourceKind, SourceScope};
+use crate::topology_manager::model::{IdentityRef, SourceKind, SourceScope};
 use crate::topology_manager::observation::{
     AccountObservation, Endpoint, ObservationGate, ObservedPolicy, ProfileObservation, SourceRead,
     reconcile,
@@ -191,22 +191,20 @@ fn current_membership_cannot_be_bypassed_by_a_saved_pin() {
 
 #[test]
 fn unread_profile_evidence_differs_from_verified_no_profile() {
-    for (profile, expected) in [
-        (
-            ProfileObservation::Unread,
-            PlacementConflictReason::MissingProfileEvidence,
-        ),
-        (
-            ProfileObservation::Known(None),
-            PlacementConflictReason::NoEligibleTarget,
-        ),
-    ] {
-        let mut a = observed(0);
-        a.policy.profile = profile;
-        let result = resolve(collect(&registry(), vec![a])).unwrap();
-        assert_eq!(result.conflicts[0].reason, expected);
-        assert!(result.candidate.is_none());
-    }
+    let mut a = observed(0);
+    a.policy.profile = ProfileObservation::Unread;
+    let result = resolve(collect(&registry(), vec![a])).unwrap();
+    assert_eq!(
+        result.conflicts[0].reason,
+        PlacementConflictReason::MissingProfileEvidence
+    );
+    assert!(result.candidate.is_none());
+    // A verified "no profile" matches no placed source: automatic placement takes it (R5).
+    let mut a = observed(0);
+    a.policy.profile = ProfileObservation::Known(None);
+    let result = resolve(collect(&registry(), vec![a])).unwrap();
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    assert!(result.candidate.is_some());
 }
 
 #[test]
@@ -400,19 +398,15 @@ fn conflicting_source_defaults_need_an_explicit_profile_policy() {
 }
 
 #[test]
-fn invalid_saved_assignment_blocks_automatic_fallback() {
+fn an_ineligible_saved_assignment_is_dropped_and_placed_again() {
     let r = run(&registry(), 1).candidate.unwrap();
     let mut a = observed(0);
     a.policy.profile = ProfileObservation::Known(None);
     let result = resolve(collect(&r, vec![a])).unwrap();
-    // Owner decision (2c-2): the ineligible assignment is dropped; without a fallback the
-    // subscriber has no eligible node and still holds the candidate.
-    assert!(matches!(
-        result.conflicts[0].reason,
-        PlacementConflictReason::NoEligibleTarget
-    ));
-    assert!(result.candidate.is_none());
-    // Intent remains intact while the candidate is held.
+    // Owner decision (2c-2): the ineligible group assignment is dropped. The subscriber is
+    // placed again on a root (R5). Intent in the old registry stays intact.
+    assert_eq!(targets(&result).len(), 1);
+    assert!(set(&["wan1", "wan2"]).is_superset(&targets(&result)));
     r.subscribers[0].policy.assignment.as_ref().unwrap();
 }
 
@@ -651,4 +645,320 @@ fn the_fallback_balances_across_its_instances() {
     .unwrap();
     assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
     assert_eq!((count(&result, "fb"), count(&result, "fb2")), (3, 6));
+}
+
+// Automatic placement (R1–R6). `unbound` accounts match no placed source of router `distro`.
+
+fn add(
+    r: &mut RegistryDocument,
+    id: &str,
+    parent: Option<&str>,
+    kind: NodeKind,
+    router: Option<&str>,
+) {
+    let capacity = match kind {
+        NodeKind::Intermediate => catalog::CapacityPolicy::Inherit,
+        _ => catalog::CapacityPolicy::Automatic {
+            factors: FactorChoice::Inherit,
+        },
+    };
+    r.catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .push(catalog::CatalogNode {
+            router_id: router.map(Into::into),
+            geo: None,
+            minimum: Default::default(),
+            id: id.into(),
+            name: id.into(),
+            parent: parent.map(Into::into),
+            source_id: None,
+            kind,
+            capacity,
+        });
+}
+
+fn auto_run(r: &RegistryDocument, count: u32) -> PlacementResolution {
+    let accounts = (0..count)
+        .map(|i| unbound(i, Some(rate(50_000_000, 10_000_000))))
+        .collect();
+    resolve(collect(r, accounts)).unwrap()
+}
+
+fn targets(result: &PlacementResolution) -> BTreeSet<String> {
+    assert!(result.conflicts.is_empty(), "{:?}", result.conflicts);
+    result
+        .placements
+        .iter()
+        .map(|p| p.target_id.clone())
+        .collect()
+}
+
+fn set(ids: &[&str]) -> BTreeSet<String> {
+    ids.iter().map(|s| s.to_string()).collect()
+}
+
+/// Router node `towerA` of `distro` below `wan1`, with `t1` and `t2` below it.
+fn towered() -> RegistryDocument {
+    let mut r = registry();
+    add(
+        &mut r,
+        "towerA",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    add(
+        &mut r,
+        "t1",
+        Some("towerA"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    add(
+        &mut r,
+        "t2",
+        Some("towerA"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    r
+}
+
+#[test]
+fn unplaced_source_with_router_node_goes_to_its_children() {
+    assert_eq!(targets(&auto_run(&towered(), 6)), set(&["t1", "t2"]));
+}
+
+#[test]
+fn router_node_without_children_takes_its_subscribers() {
+    let mut r = registry();
+    add(
+        &mut r,
+        "towerA",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    assert_eq!(targets(&auto_run(&r, 3)), set(&["towerA"]));
+}
+
+#[test]
+fn router_without_node_goes_to_its_own_wan() {
+    let mut r = registry();
+    let c = r.catalog.as_mut().unwrap();
+    let mut source = c.sources[0].clone();
+    source.id = "wan-source-3".into();
+    source.origin = catalog::SourceOrigin::Wan {
+        router_id: "distro".into(),
+        endpoint_ref: "endpoint-3".into(),
+    };
+    c.sources.push(source);
+    c.routers[1].roles.push(catalog::RouterRole::Wan);
+    let mut wan = c.nodes[0].clone();
+    wan.id = "wan3".into();
+    wan.source_id = Some("wan-source-3".into());
+    c.nodes.push(wan);
+    assert_eq!(targets(&auto_run(&r, 3)), set(&["wan3"]));
+}
+
+#[test]
+fn router_without_node_or_wan_goes_to_the_roots() {
+    assert_eq!(targets(&auto_run(&registry(), 9)), set(&["wan1", "wan2"]));
+}
+
+#[test]
+fn nested_router_node_is_not_eligible_for_the_parent_router() {
+    let mut r = registry();
+    add(
+        &mut r,
+        "towerA",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    add(
+        &mut r,
+        "t1",
+        Some("towerA"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    add(
+        &mut r,
+        "towerB",
+        Some("towerA"),
+        NodeKind::Intermediate,
+        Some("core"),
+    );
+    add(
+        &mut r,
+        "apB",
+        Some("towerB"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    assert_eq!(targets(&auto_run(&r, 6)), set(&["t1"]));
+}
+
+#[test]
+fn adding_a_router_node_moves_its_subscribers_once() {
+    let first = auto_run(&registry(), 4);
+    assert_eq!(targets(&first), set(&["wan1", "wan2"]));
+    let mut r = first.candidate.unwrap();
+    add(
+        &mut r,
+        "towerA",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    add(
+        &mut r,
+        "t1",
+        Some("towerA"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    let second = auto_run(&r, 4);
+    assert_eq!(targets(&second), set(&["t1"]));
+    let third = auto_run(&second.candidate.unwrap(), 4);
+    assert_eq!(third.placements, second.placements);
+}
+
+#[test]
+fn saved_assignment_stays_when_a_new_child_appears() {
+    let mut r = registry();
+    add(
+        &mut r,
+        "towerA",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    add(
+        &mut r,
+        "t1",
+        Some("towerA"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    let mut r = auto_run(&r, 4).candidate.unwrap();
+    add(
+        &mut r,
+        "t2",
+        Some("towerA"),
+        NodeKind::SubscriberGroup,
+        None,
+    );
+    let result = auto_run(&r, 8);
+    let old: Vec<_> = result
+        .placements
+        .iter()
+        .filter(|p| r.subscribers.iter().any(|s| s.id == p.subscriber_id))
+        .collect();
+    assert_eq!(old.len(), 4);
+    assert!(old.iter().all(|p| p.target_id == "t1"));
+    assert_eq!(count(&result, "t2"), 4);
+}
+
+#[test]
+fn accounts_on_two_routers_use_the_intersection() {
+    let edge = SourceScope {
+        router_id: "edge".into(),
+        ..scope()
+    };
+    let mut r = towered();
+    let c = r.catalog.as_mut().unwrap();
+    c.routers.push(catalog::CatalogRouter {
+        id: "edge".into(),
+        name: "Edge".into(),
+        roles: vec![catalog::RouterRole::Ppp],
+    });
+    let mut source = c.sources[2].clone();
+    source.id = "edge-source".into();
+    source.targets.clear();
+    if let catalog::SourceOrigin::Subscribers {
+        scope, profile_ref, ..
+    } = &mut source.origin
+    {
+        *scope = edge.clone();
+        *profile_ref = Some("edge-profile".into());
+    }
+    c.sources.push(source);
+    // A placed `edge` source, so the scope is read. The account matches no source of it.
+    let mut group = c.nodes.iter().find(|n| n.id == "group2").unwrap().clone();
+    group.id = "edge-group".into();
+    group.source_id = Some("edge-source".into());
+    c.nodes.push(group);
+    r.subscribers.push(SubscriberRecord {
+        id: "both".into(),
+        identities: vec![
+            IdentityRef {
+                scope: scope(),
+                account_ref: "account-00000".into(),
+            },
+            IdentityRef {
+                scope: edge.clone(),
+                account_ref: "account-00000".into(),
+            },
+        ],
+        policy: Default::default(),
+    });
+    let account = || unbound(0, Some(rate(50_000_000, 10_000_000)));
+    let mut other = account();
+    other.endpoints[0].ips = vec!["192.0.2.200".parse().unwrap()];
+    let snapshot = ObservationGate::default()
+        .accept(
+            1,
+            &[scope(), edge.clone()],
+            vec![
+                SourceRead::Complete {
+                    scope: scope(),
+                    accounts: vec![account()],
+                },
+                SourceRead::Complete {
+                    scope: edge,
+                    accounts: vec![other],
+                },
+            ],
+        )
+        .unwrap();
+    // `distro` gives {t1, t2}; `edge` has no router node or WAN and gives the roots.
+    let result = resolve(reconcile(&r, snapshot).unwrap()).unwrap();
+    assert!(matches!(
+        result.conflicts[0].reason,
+        PlacementConflictReason::NoEligibleTarget
+    ));
+}
+
+#[test]
+fn explicit_fallback_keeps_priority_and_obeys_the_family_rule() {
+    let mut r = fallback_registry(false);
+    add(
+        &mut r,
+        "towerA",
+        Some("wan2"),
+        NodeKind::Intermediate,
+        Some("distro"),
+    );
+    assert_eq!(targets(&auto_run(&r, 2)), set(&["fb"]));
+    // The fallback node moves into the branch of `core`. `distro` subscribers use their router node.
+    add(
+        &mut r,
+        "towerB",
+        Some("wan1"),
+        NodeKind::Intermediate,
+        Some("core"),
+    );
+    let c = r.catalog.as_mut().unwrap();
+    c.nodes.iter_mut().find(|n| n.id == "fb").unwrap().parent = Some("towerB".into());
+    assert_eq!(targets(&auto_run(&r, 2)), set(&["towerA"]));
+}
+
+#[test]
+fn placed_source_ignores_automatic_sets() {
+    let result = run(&towered(), 6);
+    assert_eq!(targets(&result), set(&["group1", "group2"]));
 }

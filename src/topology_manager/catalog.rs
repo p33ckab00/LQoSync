@@ -301,10 +301,14 @@ impl TopologyCatalog {
                     "subscriber profile is absent from the catalog"
                 );
             }
-            for target in [&subscriber.policy.assignment, &subscriber.policy.pin]
-                .into_iter()
-                .flatten()
-            {
+            // Automatic placement can assign any node; the resolver drops an ineligible one.
+            if let Some(assignment) = &subscriber.policy.assignment {
+                ensure!(
+                    self.nodes.iter().any(|n| &n.id == assignment),
+                    "subscriber assignment names an absent node"
+                );
+            }
+            for target in subscriber.policy.pin.iter() {
                 ensure!(
                     index.leaves.contains(target.as_str()),
                     "subscriber destination is absent or cannot contain direct subscribers"

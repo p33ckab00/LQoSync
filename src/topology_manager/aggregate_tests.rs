@@ -391,7 +391,7 @@ fn combined_sibling_minimums_are_checked_at_their_common_ancestor() {
 #[test]
 fn unresolved_placement_candidates_cannot_enter_aggregate_evaluation() {
     let mut a = observed(0);
-    a.policy.profile = ProfileObservation::Known(None);
+    a.policy.profile = ProfileObservation::Unread;
     assert!(evaluate(placements(&registry(), vec![a])).is_err());
 }
 

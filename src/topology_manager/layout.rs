@@ -69,12 +69,8 @@ pub fn validate_layout(nodes: &[PolicyNode]) -> anyhow::Result<()> {
                 "WAN node {} requires explicit capacity",
                 node.id
             ),
+            // Automatic placement can put subscribers directly on an intermediate node.
             NodeKind::Intermediate => {
-                ensure!(
-                    node.direct_subscribers == 0,
-                    "intermediate node {} requires a subscriber group",
-                    node.id
-                );
                 ensure!(
                     !matches!(node.capacity, AggregateRule::Automatic { .. }),
                     "intermediate node {} cannot use subscriber demand",
@@ -86,12 +82,8 @@ pub fn validate_layout(nodes: &[PolicyNode]) -> anyhow::Result<()> {
     }
 
     for (index, node) in nodes.iter().enumerate() {
+        // A node with children can also hold automatic subscribers. LibreQoS accepts both.
         if first_child[index].is_some() {
-            ensure!(
-                node.direct_subscribers == 0,
-                "node {} cannot mix subscribers and group children",
-                node.id
-            );
             ensure!(
                 node.kind != NodeKind::SubscriberGroup,
                 "subscriber group {} cannot contain group children",
@@ -233,15 +225,17 @@ mod tests {
     }
 
     #[test]
-    fn mixed_direct_subscribers_and_child_groups_are_rejected() {
+    fn automatic_subscribers_can_share_a_node_with_child_groups() {
         let mut wan = node("wan", None, NodeKind::Wan);
         wan.direct_subscribers = 1;
-        assert!(
-            validate_layout(&[wan, node("child", Some("wan"), NodeKind::SubscriberGroup)]).is_err()
-        );
-        let mut intermediate = node("parent", None, NodeKind::Intermediate);
+        let mut intermediate = node("tower", Some("wan"), NodeKind::Intermediate);
         intermediate.direct_subscribers = 1;
-        assert!(validate_layout(&[intermediate]).is_err());
+        validate_layout(&[
+            wan,
+            intermediate,
+            node("child", Some("tower"), NodeKind::SubscriberGroup),
+        ])
+        .unwrap();
     }
 
     #[test]
