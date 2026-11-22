@@ -8,6 +8,16 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-22 (Asia/Manila) — WAN routing list writer: Tasks 1–8 done
+
+- Last agent: Claude Code (session libreqos-09, later named libreqos-4f). Branch `lqosync3`. Commits c251ae2 to bed946a, and the Task 8 docs commit. Not deployed.
+- Done: writer config and list names (registry schema 8), wanted entries from placement, write session (address-list commands only), diff and apply with a one-cycle removal hold, write before each publication, one-time adoption from the old range lists, canvas status and adoption, operator guide `docs/operations/WAN_ROUTING_LISTS.md`.
+- Owner-approved write scope: entries in `via-*` lists with the comment `lqosync: ` only.
+- Before deploy: router users from the guide (Step 1), writer password file, schema-7 backup for rollback.
+- Not verified: the real RouterOS answers to address-list add, set, and remove (mock router only).
+- Note: session libreqos-22 also claimed this plan; the owner chose this session.
+- Next: canvas integration Task 7 (owner live window), then the cutover in the guide.
+
 ## 2026-11-22 (Asia/Manila) — WAN allocation modes and failover: Tasks 1–6 done
 
 - Last agent: Claude Code (session libreqos-09). Branch `lqosync3`. Commits d48efa0, 4b5f675, c7a6dd6, c0857e6, 2a1ce48, and the Task 6 docs commit. Not deployed.

@@ -237,6 +237,11 @@ A change of `interval_secs` applies after a service restart. The other values ap
 
 Rollback: registry schema 7 needs the schema-6 backup for a schema-6 binary.
 
+### WAN routing lists
+
+The routing list writer is off by default. To set it up, follow [WAN routing lists](../operations/WAN_ROUTING_LISTS.md): router users, writer credentials, adoption, writer on, mangle order, and rollback.
+Registry schema 8 adds the list name of a WAN node. A rollback to a schema-7 binary needs the schema-7 backup.
+
 ### Limits of this release
 
 - The broker reads the whole `topology.json` for each request. At 50,000 subscribers and 5,000 nodes, the file is 31 MB.

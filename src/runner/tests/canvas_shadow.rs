@@ -746,3 +746,40 @@ async fn adoption_moves_only_listed_clients() {
     }
     assert!(proposal["moves"].as_array().unwrap().len() <= 3);
 }
+
+#[tokio::test]
+async fn routing_lists_follow_placement_and_failover() {
+    let e = env();
+    let lists = ListRouter::default();
+    // A manual entry in a via- list: the writer never touches it.
+    lists.rows.lock().unwrap().push(row(&[
+        (".id", "*manual"),
+        ("list", "via-wanA"),
+        ("address", "192.0.2.50"),
+        ("comment", "operator entry"),
+    ]));
+    let (mut r, _root, native, mut c) = writer_runner(&e, &lists).await;
+    let monitor = crate::wan_monitor::Handle::new(&r.cfg);
+    r.wan_monitor = Some(monitor.clone());
+    publish_once(&mut r, &native, &mut c, 2_000).await.unwrap();
+    let used = |lists: &ListRouter| {
+        let mut l: Vec<String> = lists
+            .rows
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|row| row["comment"].starts_with("lqosync: "))
+            .map(|row| row["list"].clone())
+            .collect();
+        l.sort();
+        l.dedup();
+        l
+    };
+    assert_eq!(used(&lists), ["via-wanA", "via-wanB"]);
+    fail_wan_a(&monitor, unix_now());
+    publish_once(&mut r, &native, &mut c, 2_100).await.unwrap();
+    assert_eq!(used(&lists), ["via-wanB"], "the failover moves the entries");
+    let rows = lists.rows.lock().unwrap();
+    assert!(rows.iter().any(|row| row[".id"] == "*manual"));
+    assert_eq!(rows.len(), 8, "7 client addresses and the manual entry");
+}

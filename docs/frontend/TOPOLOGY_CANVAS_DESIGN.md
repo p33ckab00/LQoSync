@@ -188,7 +188,15 @@ Strict-pin failure behavior and quality probe policy require a separate decision
 - The saved node stays the home of a moved subscriber. When the WAN is stable for 10 minutes, the subscriber returns (automatic failback). With automatic failback off, the operator returns them in Topology settings.
 - A probe error (no answer, or no permission) is no evidence. The WAN shows "No probe data" and nobody moves.
 - When all eligible WANs are bad, nobody moves.
-- A failover changes the LibreQoS placement only. MikroTik routing does not change until the address-list writer exists.
+- With the routing list writer on, a failover also moves the client entries to the `via-` list of the other WAN. Without it, a failover changes the LibreQoS placement only.
+
+### WAN routing lists (2026-11-22)
+
+- The writer puts each client address in the `via-` list of the WAN above its current node, with the comment `lqosync: <client>`. It changes only such entries.
+- Each publication writes the lists first. The shaping pair goes out only after the router confirms the lists.
+- A write that removes too many clients holds for one cycle. A failed write keeps the previous pair.
+- The one-time adoption (Topology settings, **Adopt current routing**) keeps the WAN that the old range lists give each client.
+- Operator procedure: [WAN routing lists](../operations/WAN_ROUTING_LISTS.md).
 
 ### Automatic placement (2026-11-22)
 
