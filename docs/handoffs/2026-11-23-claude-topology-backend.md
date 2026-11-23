@@ -87,3 +87,22 @@ Record this packet after each backend milestone:
 
 Use STE prose and exact technical names.
 Do not report a task complete from a mock response or an unexecuted test command.
+
+## Return packet: B0 (2026-11-23T17:38:53+08:00, Asia/Manila)
+
+| Item | Value |
+| --- | --- |
+| Task | B0. Gate G0 is complete on the backend side. |
+| Branch/worktree | `lqosync3` in `/home/pi/LQoSync3.0`. B0 precedes the lane worktrees, so it is on the integration branch. |
+| Base/head | Base `50830e0d` (plan package). Contract commit `f7e3977e4164ad4da533f8deeeb8ff5a6be27ddb`. |
+| Contract version | `1`, commit `f7e3977e`. Create `codex/topology-studio-ui` and `claude/topology-studio-backend` from the commit that adds this packet. |
+| Files | `crates/web-contract/src/{source_studio,lib,topology,routers}.rs`, `crates/web-contract/tests/studio_contract.rs`, `crates/web-contract/tests/fixtures/studio/*.json`, `crates/web-gateway/examples/browser_fixture.rs`, `crates/web-gateway/src/topology_jobs.rs`, `src/topology_manager/edits.rs`, `src/topology_manager/edits_tests.rs`, `docs/frontend/TOPOLOGY_STUDIO_API.md`. |
+| API state | Types only. The production gateway has no new route. It advertises no feature, and each new route returns `404`. The core service refuses `router.sources_set` and `wan.candidate_set` with `invalid` before any I/O. |
+| Fixture state | `normal`, `partial_read`, `revision_conflict`, `expired_candidate`, `lost_reply`, `legacy_backend`. Select one with `POST /__fixture/studio/scenario` and `{ "case": "..." }`. The section "Browser fixture cases" of the API contract gives the behavior. |
+| Checks | All passed: `cargo test --locked -p web-contract --test studio_contract` (9 tests). `cargo test --locked -p web-contract -p web-gateway`. `cargo test --locked -p lqosync3 --lib` (1794 passed, 10 ignored). `cargo check --locked --workspace --all-targets`. `cargo clippy --locked --workspace --all-targets -- -D warnings`. `cargo clippy --locked -p web-ui --target wasm32-unknown-unknown -- -D warnings`. `cargo fmt --all -- --check`. `git diff --check`. A loopback curl smoke test of the fixture on port `19581` passed. It covered 401, 403, 202 with `Location`, key reuse, 409, 410, 503 recovery, paging, and all six cases. Logs are in the session scratchpad only. |
+| Not run | `bash tools/frontend/check-all.sh` (browser gate) and `cargo test --workspace` for the other crates. |
+| TDD note | The contract types came before `studio_contract.rs`, so its first run passed. The two core tests failed first for the correct reason (unknown variant), then passed. |
+| Migration | None. The registry schema stays 9. There is no config change. Rollback: revert `f7e3977e`. |
+| Open work | B1–B5. Known limits: the fixture page cursor is a plain offset. `POST /api/v1/topology/edits` keeps the 4 KiB body limit until B5. A fixture job finishes `done` at once, with no `queued`/`running` steps. |
+| Next frontend step | F0 can start from the G0 commit. F1 uses the fixture cases. Request a contract change through this file. |
+| Time | 2026-11-23T17:38:53+08:00 |

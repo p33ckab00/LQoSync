@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23T17:38:53+08:00 (Asia/Manila) — Topology Studio B0: contract version 1
+
+- Last agent: Claude Code (backend lane). Branch `lqosync3`. Worktree `/home/pi/LQoSync3.0`.
+- Contract commit `f7e3977e`: `web_contract::source_studio`, `Operation.source_result`, `RouterEdit.access_profiles`, `router.sources_set`, `wan.candidate_set`.
+- Shared fixture cases under `crates/web-contract/tests/fixtures/studio/`. The browser fixture serves them and adds `POST /__fixture/studio/scenario`.
+- Production state: no change. No new production route. No deploy. The core service refuses the two new edits.
+- Return packet: `docs/handoffs/2026-11-23-claude-topology-backend.md`.
+- Next action: both lanes create their worktrees from the commit that adds this entry. Codex starts F0. Claude Code starts B1.
+
 ## 2026-11-23T17:11:52+08:00 (Asia/Manila) — Topology Studio tandem plan
 
 - Goal: connect the approved Studio frontend to the backend through one shared typed contract.
