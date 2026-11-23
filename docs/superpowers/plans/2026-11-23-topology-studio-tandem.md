@@ -135,15 +135,15 @@ Create `crates/web-ui/src/topology_studio_help.rs` and `tools/frontend/studio-sh
 **Interface:** Keep `Canvas` and current `TopologySummary`, `Flow`, and layout requests.
 Use the existing theme state. Do not copy the HTML prototype into the application.
 
-- [ ] Add `tools_stay_inside_canvas`, `modal_stays_inside_canvas`, and `card_data_survives_shell_change` to the browser check.
+- [x] Add `tools_stay_inside_canvas`, `modal_stays_inside_canvas`, and `card_data_survives_shell_change` to the browser check.
 
-- [ ] Assert icon controls, accessible names, focus return, tooltip access, and no permanent workflow strip.
+- [x] Assert icon controls, accessible names, focus return, tooltip access, and no permanent workflow strip.
 
-- [ ] Implement fixed viewport docks. Pan and zoom change the world layer only.
+- [x] Implement fixed viewport docks. Pan and zoom change the world layer only.
 
-- [ ] Reuse current card IDs, layout saves, and service counts. Keep unavailable backend controls visibly unavailable.
+- [x] Reuse current card IDs, layout saves, and service counts. Keep unavailable backend controls visibly unavailable.
 
-- [ ] Run `CHECKS=studio-shell-check STAGES=browser bash tools/frontend/check-all.sh`. Check all three themes and widths 1440, 768, and 390.
+- [x] Run `CHECKS=studio-shell-check STAGES=browser bash tools/frontend/check-all.sh`. Check all three themes and widths 1440, 768, and 390.
 
 ## B1 — Add access profiles and explicit draft tests
 

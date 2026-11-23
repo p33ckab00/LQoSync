@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23T23:08:19+08:00 (Asia/Manila) — Topology Studio F0 complete
+
+- Last agent: Codex. Goal: the accepted canvas shell, with current service behavior intact.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `a0e6035`. Code commits: `4b5b424`, `2918086`, `1faa0c0`. Shared contract: `f7e3977`.
+- Changed: Leptos canvas and theme controls, optional help, CSS, two Studio browser checks, and the current canvas check.
+- Workspace tests: 2023 passed, 0 failed, 13 ignored. Native/Wasm Clippy, format, and whitespace checks passed.
+- The full browser gate passed 20 checks. `pulse-check` remained the established exclusion. Fixture and Wasm builds passed.
+- Independent review: all five important findings fixed with RED/GREEN evidence. The minor Reload/header-close keyboard tooltip remains deferred.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f0/`.
+- Production state: unchanged. No merge, push, or deploy. No backend, contract, or fixture edit.
+- Remaining plan scope: F1–F3, backend B1–B5, integration, and I0. The backend lane supplies its own status.
+- Next action: start F1 with the B0 types and fixture. Keep the branch and worktree.
+
 ## 2026-11-23T17:38:53+08:00 (Asia/Manila) — Topology Studio B0: contract version 1
 
 - Last agent: Claude Code (backend lane). Branch `lqosync3`. Worktree `/home/pi/LQoSync3.0`.
