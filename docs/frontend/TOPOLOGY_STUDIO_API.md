@@ -134,7 +134,7 @@ Missing active endpoints do not authorize invented addresses or identity records
 | `FilterValue` | Tagged enum: `text { value: String }`, `texts { values: Vec<String> }` |
 | `GroupRule` | Tagged enum: `by_field { field }`, `fixed { name }`, `attach { node_id }` |
 | `ParentRule` | Tagged enum: `router`, `node { node_id }` |
-| `RateSource` | Tagged enum: `subscriber_override`, `account_comment`, `active_comment`, `profile_map`, `server_map`, `profile_rate_limit`, `fallback` |
+| `RateSource` | Tagged enum: `subscriber_override`, `account_comment`, `active_comment`, `profile_map`, `server_map`, `profile_rate_limit`, `fallback`, `profile_comment`, `profile_name`, `server_comment`, `settings` |
 | `PlanBinding` | `{ selector: String, plan_id: String }`, exact selector match |
 | `CommentRateFormat` | `legacy_configured` only until another parser has tests |
 | `CapacityRule` | Tagged enum: `from_plans { down_factor, up_factor, minimum_down_bps, minimum_up_bps }` or `fixed { down_bps, up_bps }` |
@@ -142,7 +142,8 @@ Missing active endpoints do not authorize invented addresses or identity records
 | `WriteGrant` | `{ access_ref, scope: WriteScope, enabled: bool }` |
 
 Use `kind` as the serde tag for these supporting enums.
-`account_comment` and `active_comment` carry `format: CommentRateFormat`.
+`account_comment`, `active_comment`, `profile_comment`, and `server_comment` carry `format: CommentRateFormat`.
+`profile_name` uses the configured `profile_name_regex`. `settings` is the configured default rate of the source. Task B3 added these four kinds, so that a draft can state each current engine rate order.
 `profile_map` and `server_map` carry `bindings: Vec<PlanBinding>`.
 
 `profile_rate_limit` uses the existing directional/unit parser. `fallback` carries `plan_id`.

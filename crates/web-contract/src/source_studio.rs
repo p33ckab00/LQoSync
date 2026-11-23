@@ -395,6 +395,18 @@ pub enum RateSource {
     Fallback {
         plan_id: String,
     },
+    /// The comment of the PPP or Hotspot profile.
+    ProfileComment {
+        format: CommentRateFormat,
+    },
+    /// A rate in the profile name, with the configured `profile_name_regex`.
+    ProfileName,
+    /// The comment of the DHCP server.
+    ServerComment {
+        format: CommentRateFormat,
+    },
+    /// The configured default rate of the source.
+    Settings,
 }
 
 /// The `kind` of the `RateSource` that supplied a resolved rate.
@@ -408,6 +420,10 @@ pub enum RateKind {
     ServerMap,
     ProfileRateLimit,
     Fallback,
+    ProfileComment,
+    ProfileName,
+    ServerComment,
+    Settings,
 }
 
 /// An exact selector match.
