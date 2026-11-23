@@ -81,3 +81,11 @@ mod topology_studio_help;
 mod workers;
 #[cfg(any(target_arch = "wasm32", test))]
 mod workers_model;
+
+#[cfg(any(target_arch = "wasm32", test))]
+mod topology_studio_model;
+
+#[cfg(target_arch = "wasm32")]
+mod topology_source_editor;
+#[cfg(target_arch = "wasm32")]
+mod topology_studio;

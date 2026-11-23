@@ -1022,3 +1022,55 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 .canvas-evidence{max-inline-size:calc(100% - 100px)}
 .topology-canvas-page .canvas-viewport,.topology-canvas-page .canvas-list,.studio-initial{inset-inline-end:88px}
 }
+
+/* Router Studio uses the accepted source rail and the existing theme tokens. */
+.canvas-frame dialog[data-panel=studio]{--studio-dialog-width:1080px}
+.canvas-frame dialog[data-panel=studio-add]{--studio-dialog-width:740px;padding:0}
+.studio-router-body{display:grid;grid-template-columns:180px minmax(0,1fr);min-block-size:0;overflow:auto;flex:1}
+.studio-router-list{padding:12px;border-inline-end:1px solid var(--border);background:var(--surface)}
+.studio-router-choice{display:flex;flex-direction:column;align-items:flex-start;gap:4px;inline-size:100%;margin-block:8px;padding:10px;text-align:start;min-block-size:60px}
+.studio-router-choice[aria-pressed=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.studio-router-choice small{color:var(--muted);white-space:normal}
+.studio-router-content{padding:16px 20px;min-inline-size:0}
+.studio-section-tabs,.studio-source-rail,.studio-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.studio-section-tabs{position:sticky;inset-block-start:0;z-index:2;background:var(--surface);padding-block-end:10px;border-block-end:1px solid var(--border)}
+.studio-router-dialog .canvas-tool{display:grid;place-items:center;inline-size:44px;block-size:44px;min-block-size:44px;flex:none;padding:0}
+.studio-router-dialog .canvas-tool svg{inline-size:22px;block-size:22px}
+.studio-router-dialog .canvas-tool::after{inset-block-start:calc(100% + 8px);inset-inline-start:0;inset-inline-end:auto;max-inline-size:min(240px,60vw);white-space:normal}
+.studio-router-dialog .canvas-dialog-footer .canvas-tool::after{inset-block-start:auto;inset-block-end:calc(100% + 8px);inset-inline-start:auto;inset-inline-end:0}
+.studio-router-dialog label{display:grid;gap:6px;min-inline-size:0;margin-block:10px;font-size:13px}
+.studio-router-dialog input:not([type=checkbox]),.studio-router-dialog select{inline-size:100%;min-inline-size:0;max-inline-size:100%;box-sizing:border-box}
+.studio-router-dialog label.check{display:flex;align-items:center;gap:8px}
+.studio-inline>label{flex:1;min-inline-size:120px}
+.studio-source-editor{display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px;margin-block-start:12px}
+.studio-source-rail{flex-direction:column;justify-content:flex-start;align-self:start;position:sticky;inset-block-start:60px}
+.studio-policy-form{min-inline-size:0}
+.studio-policy-form h4{margin:24px 0 10px;padding-block-start:16px;border-block-start:1px solid var(--border);font-size:14px}
+.studio-filter{min-inline-size:0}
+.studio-filter-child{display:flex;align-items:flex-start;gap:6px;margin-block:10px;padding-inline-start:10px;border-inline-start:2px solid var(--border)}
+.studio-filter-child>.studio-filter{flex:1;min-inline-size:0}
+.studio-filter-leaf{display:grid;grid-template-columns:minmax(100px,1.3fr) minmax(70px,.7fr) minmax(100px,1fr);gap:8px;min-inline-size:0}
+.studio-rates{margin:0;padding-inline-start:22px}
+.studio-rates>li{padding:10px 0;border-block-end:1px solid var(--border)}
+.studio-rate-label{flex:1;min-inline-size:100px;font-size:13px}
+.studio-capacity{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.studio-draft-note{padding:10px 12px;border-inline-start:3px solid var(--warn);background:var(--surface);font-size:13px}
+.studio-router-dialog .notice{font-size:13px;white-space:normal}
+.studio-router-dialog .canvas-dialog-footer p{font-size:12px;min-inline-size:0}
+@media(max-width:760px){
+.studio-router-body{grid-template-columns:minmax(0,1fr)}
+.studio-router-list{display:flex;gap:8px;overflow-x:auto;border-inline-end:0;border-block-end:1px solid var(--border);flex:none}
+.studio-router-list>.studio-inline{flex-wrap:nowrap}
+.studio-router-choice{inline-size:140px;flex:none;margin:0}
+.studio-router-content{padding:12px;}
+.studio-source-editor{grid-template-columns:minmax(0,1fr);gap:8px}
+.studio-source-rail{position:static;flex-direction:row;justify-content:flex-start}
+.studio-filter-leaf{grid-template-columns:minmax(0,1fr)}
+.studio-capacity{grid-template-columns:minmax(0,1fr)}
+}
+.studio-router-dialog .canvas-tool::after{inset-inline-start:auto;inset-inline-end:0}
+.studio-router-list .canvas-tool::after,.studio-section-tabs .canvas-tool::after,.studio-source-rail .canvas-tool::after{inset-inline-start:0;inset-inline-end:auto}
+.studio-router-dialog select{min-block-size:44px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+.studio-router-dialog .form-actions button,.canvas-frame dialog[data-panel=studio-add] .form-actions button{min-inline-size:44px;min-block-size:44px}
+.studio-router-dialog .form-actions svg,.studio-router-dialog .password-field svg,.canvas-frame dialog[data-panel=studio-add] button svg{inline-size:22px;block-size:22px;fill:none;stroke:currentColor}
+.canvas-frame dialog.reauth.topology-dialog{--studio-dialog-width:480px}

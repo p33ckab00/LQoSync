@@ -1,0 +1,70 @@
+// F1 uses the B0 fixture. It never calls a live router.
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');const fs=require('node:fs');
+(async()=>{
+ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,headless:true,args:['--no-sandbox']});
+ const out=process.env.ROUTERS_EVIDENCE_DIR||'/tmp/lqosync-studio-router';fs.mkdirSync(out,{recursive:true});let p;
+ try{
+  p=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[],writes=[];
+  p.on('pageerror',e=>errors.push(e.message));p.on('request',r=>{if(r.url().includes('/api/v1/')&&r.method()!=='GET'&&!r.url().endsWith('/session'))writes.push({url:r.url(),body:JSON.parse(r.postData()||'{}')})});
+  await p.goto('http://127.0.0.1:19581');await p.getByLabel('Username',{exact:true}).fill('browser-test');await p.getByLabel('Password',{exact:true}).fill(process.env.BROWSER_TEST_PASSWORD);await p.getByRole('button',{name:'Sign in',exact:true}).click();
+  await p.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Topology',exact:true}).click();await p.locator('.canvas-node').nth(3).waitFor();
+  const launch=p.getByRole('button',{name:'Router source configuration',exact:true});await launch.click({timeout:5000});
+  const modal=p.getByRole('dialog',{name:'Router source configuration',exact:true});await modal.waitFor();
+  await modal.getByRole('button',{name:'Configure Access-01',exact:true}).click();
+  await modal.getByRole('button',{name:'Source policies',exact:true}).click();
+  const source=kind=>modal.getByRole('button',{name:kind,exact:true});
+  await source('PPP / PPPoE').click();await modal.getByLabel('Policy name',{exact:true}).fill('');await modal.getByLabel('Policy name',{exact:true}).pressSequentially('Custom PPP');assert.equal(await modal.getByLabel('Policy name',{exact:true}).inputValue(),'Custom PPP','typing keeps focus');
+  const query=modal.locator('.studio-filter-leaf').first();
+  const options=await query.getByLabel('Query field',{exact:true}).locator('option').evaluateAll(es=>es.filter(e=>!e.disabled).map(e=>e.value));
+  assert.ok(options.includes('account.profile'));assert.ok(!options.includes('active.comment'));assert.ok(!options.includes('lease.server'));
+  await modal.getByLabel('Read access profile',{exact:true}).selectOption('wan-writer');
+  await modal.getByLabel('Group mode',{exact:true}).selectOption('fixed');await modal.getByLabel('Group name',{exact:true}).fill('PPP group');
+  const rates=modal.locator('.studio-rates > li');const before=await rates.locator('.studio-rate-label').allInnerTexts();
+  await rates.nth(2).getByRole('button',{name:'Move rate up',exact:true}).click();
+  const after=await rates.locator('.studio-rate-label').allInnerTexts();assert.equal(after[1],before[2]);assert.equal(after[2],before[1]);
+  await source('DHCP / IPoE').click();await modal.getByLabel('Policy name',{exact:true}).fill('DHCP dynamic');
+  await modal.getByLabel('Group mode',{exact:true}).selectOption('field');await modal.getByLabel('Group field',{exact:true}).selectOption('lease.server');
+  await source('PPP / PPPoE').click();assert.equal(await modal.getByLabel('Policy name',{exact:true}).inputValue(),'Custom PPP');assert.equal(await modal.getByLabel('Group name',{exact:true}).inputValue(),'PPP group');assert.equal(await modal.getByLabel('Read access profile',{exact:true}).inputValue(),'wan-writer');
+  await source('Hotspot').click();await modal.getByLabel('Policy name',{exact:true}).fill('Hotspot draft');
+  await source('WAN').click();assert.equal(await modal.getByLabel('Capacity mode',{exact:true}).inputValue(),'fixed');
+  await modal.getByLabel('Download capacity (bps)',{exact:true}).fill('9007199254740993');
+  await source('Hotspot').click();assert.equal(await modal.getByLabel('Policy name',{exact:true}).inputValue(),'Hotspot draft');await source('WAN').click();assert.equal(await modal.getByLabel('Download capacity (bps)',{exact:true}).inputValue(),'9007199254740993');await source('Hotspot').click();
+  await modal.getByRole('button',{name:'Access profiles',exact:true}).click();assert.match(await modal.innerText(),/Default credential/);
+  await modal.getByRole('button',{name:'Add access profile',exact:true}).click();await modal.getByLabel('Profile label',{exact:true}).fill('');await modal.getByLabel('Profile label',{exact:true}).pressSequentially('Read and WAN writes');assert.equal(await modal.getByLabel('Profile label',{exact:true}).inputValue(),'Read and WAN writes');
+  await modal.getByLabel('RouterOS user',{exact:true}).fill('reader-writer');await modal.getByLabel('Credential',{exact:true}).fill('F1-profile-secret');
+  await modal.getByLabel('Allow WAN address-list writes',{exact:true}).check();
+  await modal.getByRole('button',{name:'Connection',exact:true}).click();assert.equal(await modal.locator('input').evaluateAll(es=>es.some(e=>e.value==='F1-profile-secret')),false);
+  await modal.getByRole('button',{name:'Access profiles',exact:true}).click();assert.equal(await modal.getByLabel('Profile label',{exact:true}).inputValue(),'Read and WAN writes');assert.equal(await modal.getByLabel('Credential',{exact:true}).inputValue(),'');
+  await modal.getByRole('button',{name:'Connection',exact:true}).click();
+  await modal.getByRole('button',{name:'Edit connection',exact:true}).click();await modal.getByLabel(/^Replace the credential/).check();await modal.getByLabel('Credential',{exact:true}).fill('F1-replacement');await modal.getByRole('button',{name:'Save changes',exact:true}).click();
+  const reauth=p.getByRole('dialog',{name:'Confirm with your password',exact:true});await reauth.waitFor();
+  const rf=await p.locator('.canvas-frame').boundingBox(),rb=await reauth.boundingBox();assert.ok(rb.x>=rf.x&&rb.y>=rf.y&&rb.x+rb.width<=rf.x+rf.width+1&&rb.y+rb.height<=rf.y+rf.height+1,'credential confirmation stays in canvas');
+  await p.keyboard.press('Escape');await modal.getByRole('button',{name:'Cancel',exact:true}).click();await modal.getByRole('button',{name:'Access profiles',exact:true}).click();
+  assert.equal(writes.length,0,'opening, switching and drafting make no writes');
+  for(const size of [{width:1440,height:1000},{width:768,height:1000},{width:390,height:844}]){
+   await p.setViewportSize(size);await modal.getByRole('button',{name:'Source policies',exact:true}).click();await source('PPP / PPPoE').click();assert.ok(await modal.evaluate(e=>e.scrollWidth<=e.clientWidth+1),'source editor has no horizontal overflow');await modal.locator('.studio-router-body').evaluate(e=>e.scrollTop=0);await p.screenshot({path:`${out}/studio-policy-${size.width}.png`});await modal.getByRole('button',{name:'Access profiles',exact:true}).click();const a=await p.locator('.canvas-frame').boundingBox(),b=await modal.boundingBox();assert.ok(b.x>=a.x-1&&b.y>=a.y-1&&b.x+b.width<=a.x+a.width+1&&b.y+b.height<=a.y+a.height+1,'Studio stays inside canvas');assert.ok(await modal.evaluate(e=>e.scrollWidth<=e.clientWidth+1));await p.screenshot({path:`${out}/studio-router-${size.width}.png`});
+  }
+  await p.setViewportSize({width:1440,height:1000});await modal.getByRole('button',{name:'Add router',exact:true}).click();
+  const add=p.getByRole('dialog',{name:'Add router',exact:true});await add.waitFor();await add.getByLabel('Router name',{exact:true}).fill('F1-Router');await add.getByLabel('Address',{exact:true}).fill('192.0.2.199');await add.getByLabel('RouterOS user',{exact:true}).fill('reader');await add.getByLabel('Credential',{exact:true}).fill('F1-test-secret');
+  await p.route('**/api/v1/topology/source-jobs',async route=>{const response=await route.fetch();const op=await response.json();op.state='queued';op.source_result=null;await route.fulfill({response,json:op});});
+  await add.getByRole('button',{name:'Test draft connection',exact:true}).click();await add.getByRole('status').filter({hasText:'Draft test completed'}).waitFor();assert.equal(await add.getByLabel('Credential',{exact:true}).inputValue(),'','draft test clears its secret');
+  const job=writes.find(w=>w.url.endsWith('/source-jobs'));assert.equal(job.body.job.kind,'draft_test');assert.equal(job.body.job.connection.password,'F1-test-secret');assert.equal(writes.length,1,'test is explicit and saves nothing');
+  await add.getByLabel('Address',{exact:true}).fill('192.0.2.200');assert.equal(await add.getByText('Draft test completed',{exact:false}).count(),0,'changed connection invalidates test');
+  await add.getByLabel('Credential',{exact:true}).fill('F1-save-secret');await add.getByRole('button',{name:'Next',exact:true}).click();await add.getByRole('button',{name:'Next',exact:true}).click();
+  assert.ok(!(await add.innerText()).includes('F1-save-secret'),'registration review has no credential');
+  await add.getByRole('button',{name:'Add router',exact:true}).click();await add.waitFor({state:'hidden'});
+  await modal.getByText('Router added and disabled.',{exact:true}).waitFor();assert.match(p.url(),/\/topology/,'registration stays in the canvas');
+  assert.ok(await modal.getByRole('button',{name:'Test connection',exact:true}).isDisabled(),'new registered router stays disabled');
+  assert.equal(writes.filter(w=>w.url.endsWith('/api/v1/routers')).length,1);assert.equal(writes.filter(w=>w.url.endsWith('/topology/edits')).length,0,'F1 never saves a source policy');
+  await modal.getByRole('button',{name:'Configure Access-01',exact:true}).click();await p.keyboard.press('Escape');
+  await launch.click();await modal.getByRole('button',{name:'Source policies',exact:true}).click();await source('PPP / PPPoE').click();assert.equal(await modal.getByLabel('Policy name',{exact:true}).inputValue(),'Custom PPP','close/reopen keeps non-secret draft');
+  await p.emulateMedia({colorScheme:'dark'});const dark=await modal.evaluate(e=>getComputedStyle(e).backgroundColor);await p.screenshot({path:`${out}/studio-policy-dark.png`});
+  await p.emulateMedia({colorScheme:'light'});assert.notEqual(await modal.evaluate(e=>getComputedStyle(e).backgroundColor),dark,'System theme changes the open modal');assert.equal(await modal.getByLabel('Policy name',{exact:true}).inputValue(),'Custom PPP');await p.screenshot({path:`${out}/studio-policy-light.png`});
+  await p.keyboard.press('Escape');
+  const csrf=await p.evaluate(async()=>{const r=await fetch('/api/v1/session');return (await r.json()).csrf});
+  await p.evaluate(async token=>fetch('/__fixture/studio/scenario',{method:'POST',headers:{'content-type':'application/json','x-csrf-token':token},body:JSON.stringify({case:'legacy_backend'})}),csrf);
+  await p.reload();await p.locator('.canvas-node').nth(3).waitFor();await launch.click();await modal.getByRole('button',{name:'Configure Access-01',exact:true}).click();await modal.getByRole('button',{name:'Connection',exact:true}).click();await modal.getByRole('button',{name:'Edit connection',exact:true}).waitFor();assert.ok(await modal.getByRole('button',{name:'Source policies',exact:true}).isDisabled(),'legacy backend keeps new source editor unavailable');assert.match(await modal.innerText(),/not support|unavailable/i);
+  assert.deepEqual(errors,[]);console.log('PASS: typed policy drafts, source retention, capability gates, access profiles, exact rate order/capacity, explicit draft test, secret clearing, bounded modal, and legacy connection editor.');
+ }catch(e){if(p)await p.screenshot({path:`${out}/studio-router-failure.png`,fullPage:true}).catch(()=>{});throw e}finally{await browser.close()}
+})().catch(e=>{console.error(e);process.exit(1)});

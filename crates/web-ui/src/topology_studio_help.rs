@@ -27,7 +27,7 @@ pub(crate) fn StudioHelp(selected: Option<Node>) -> impl IntoView {
           <li><strong>"Check the result."</strong>" Valid edits save automatically. Saved policy, written files, and runtime acceptance are separate states."</li>
         </ol>
         <p>"A failed or partial read does not prove that subscribers disappeared. Check source freshness before a change."</p>
-        <p class="field-help">"The new source-policy editor needs later frontend and backend tasks. Current inventory and card settings remain available."</p>
+        <p class="field-help">"Router source configuration edits local source-policy drafts on supported backends. Preview and source-policy save are unavailable in this build."</p>
       </div>
     }
 }

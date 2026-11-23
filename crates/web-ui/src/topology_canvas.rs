@@ -174,6 +174,8 @@ pub(crate) fn Canvas(
     let queue = StoredValue::new(VecDeque::<BuilderEdit>::new());
     let draining = RwSignal::new(false);
     let policy_revision = RwSignal::new(None::<u64>);
+    let studio_open = RwSignal::new(false);
+    let studio_router = RwSignal::new(None::<String>);
     let help_dialog = NodeRef::<leptos::html::Dialog>::new();
     let help_open = RwSignal::new(false);
     let dialog = NodeRef::<leptos::html::Dialog>::new();
@@ -931,6 +933,7 @@ pub(crate) fn Canvas(
           <div class="canvas-dock" role="toolbar" aria-label="Topology tools" aria-orientation="vertical">
             {tool(Panel::Inventory,"Router inventory",ICON_INVENTORY)}
             {tool(Panel::Settings,"Topology settings",ICON_SETTINGS)}
+            <button type="button" class="canvas-tool" aria-label="Router source configuration" title="Router source configuration" on:click=move|_|{measure();studio_open.set(true);}>{icon("M4 4h16v16H4zM8 8h8M8 12h5M8 16h8")}</button>
             {tool(Panel::Allocation,"Subscriber allocation",ICON_ALLOCATION)}
             {tool(Panel::Preview,"Preview and evidence",ICON_PREVIEW)}
             {tool(Panel::Excluded,"Excluded sources",ICON_EXCLUDED)}
@@ -966,6 +969,7 @@ pub(crate) fn Canvas(
               v.set_scroll_top((b[1]*z) as i32);
             }>{icon(ICON_FIT)}</button>
           </div>
+        <crate::topology_studio::Studio open=studio_open router_id=studio_router session data/>
         <crate::app::Theme icons=true/>
         <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||match panel.get(){Some(Panel::Inventory)=>"inventory",_=>"settings"} aria-labelledby="canvas-dialog-title"
           on:close=move|_|{
@@ -985,6 +989,11 @@ pub(crate) fn Canvas(
               Some(Panel::Layout)=>"Canvas layout".into(),
               None=>String::new(),
             }}</h2></div>
+            <Show when=move||selected_node().is_some_and(|n|n.router_id.is_some())>
+              <button type="button" class="canvas-tool" aria-label="Configure source router" title="Configure source router" on:click=move|_|{
+                if let Some(id)=selected_node().and_then(|n|n.router_id){measure();studio_router.set(Some(id));studio_open.set(true);}
+              }>{icon(ICON_SETTINGS)}</button>
+            </Show>
             <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
             <button type="button" class="router-icon quiet" aria-label="Close" title="Close" on:click=move|_|close()>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
