@@ -1,7 +1,7 @@
 //! The Topology canvas: cards, wires, a tool dock, and modal editors. Every valid edit saves
 //! automatically through the service; card moves save the layout only.
 use crate::canvas_layout::{clamp_zoom, fit};
-use crate::topology::{Evidence, Reads, now};
+use crate::topology::{Evidence, now};
 use crate::topology_canvas_model::*;
 use crate::topology_forms::{blocked, new_key, post, settle, structural_blocked};
 use crate::topology_model::*;
@@ -972,7 +972,7 @@ pub(crate) fn Canvas(
             </Show>
           </div>
         </div>
-        <dialog node_ref=dialog class="topology-dialog canvas-dialog" aria-labelledby="canvas-dialog-title"
+        <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||(panel.get()==Some(Panel::Inventory)).then_some("inventory") aria-labelledby="canvas-dialog-title"
           on:close=move|_|{
             // A late close event of an earlier modal must not clear a modal that is open again.
             if dialog.get_untracked().is_some_and(|d|d.open()) { return; }
@@ -1003,20 +1003,6 @@ pub(crate) fn Canvas(
                   <button type="button" class="quiet" disabled=locked on:click=move|_|act(Change::Create,Draft{
                     name:"New group".into(),kind:"group".into(),mode:"automatic".into(),..under()})>"Add empty group"</button>
                 </div>
-                <h3>"Saved sources"</h3>
-                <ul class="plain-list">
-                  {move||data.with(|d|d.as_ref().map(|s|s.sources.iter().filter(|x|x.kind=="subscribers" && !x.excluded).map(|src|{
-                    let id=src.id.clone();
-                    // An unplaced source shows where automatic placement puts its subscribers.
-                    let auto=(!s.nodes.iter().any(|n|n.source_id.as_deref()==Some(src.id.as_str()))).then(||{
-                      let names:Vec<_>=src.auto_parents.iter().map(|p|s.nodes.iter().find(|n|&n.id==p).map_or(p.clone(),|n|n.name.clone())).collect();
-                      if names.is_empty(){"Auto: no parent".to_string()}else{format!("Auto: {}",names.join(", "))}
-                    });
-                    view!{<li><strong>{src.name.clone()}</strong><small>"Subscriber source"</small>{auto.map(|a|view!{<small class="canvas-auto-parent">{a}</small>})}
-                      <button type="button" class="quiet" disabled=locked aria-label=format!("Add {} to canvas",src.name)
-                        on:click=move|_|act(Change::AttachSource(id.clone(),String::new(),None),under())>"Add to canvas"</button></li>}
-                  }).collect_view()))}
-                </ul>
                 {move||wan_form.get().map(|(change,draft,error)|{
                   let label=match &change{Change::CreateWan(_,router,iface)=>format!("{iface} on {router}"),_=>String::new()};
                   view!{<form class="router-form canvas-wan-form" on:submit=move|ev|{
@@ -1035,7 +1021,16 @@ pub(crate) fn Canvas(
                     <div class="form-actions"><button type="submit" class="primary">"Add WAN to canvas"</button></div>
                   </form>}
                 })}
-                <Reads session action=read_action reload locked/>
+                <crate::topology_inventory::Inventory session data reload locked action=read_action
+                  show=Callback::new(move|card:String|{
+                    close();
+                    selected.set(Some(card.clone()));
+                    // Focus moves the card into view.
+                    if let Ok(Some(el))=document().query_selector(&format!("[data-node-id=\"{card}\"]"))
+                      && let Ok(el)=el.dyn_into::<web_sys::HtmlElement>() { let _=el.focus(); }
+                  })
+                  attach=Callback::new(move|id:String|act(Change::AttachSource(id,String::new(),None),under()))
+                  send=Callback::new(submit)/>
               }.into_any(),
               Some(Panel::Settings)=>view!{
                 <p class="field-help">"Plans, speed rules, group factors, and fallback keep their reviewed editors in Policies for now."</p>

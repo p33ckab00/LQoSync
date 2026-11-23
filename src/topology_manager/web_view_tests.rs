@@ -989,3 +989,31 @@ fn an_unlinked_card_gets_counts_for_each_wan() {
         vec![("wan1".to_string(), 2), ("wan2".to_string(), 2)]
     );
 }
+
+#[test]
+fn sources_name_their_router_access_and_endpoint() {
+    let d = routed_doc();
+    let v = project(&input(Some(&d), None, None));
+    let s = v.sources.iter().find(|s| s.id == "profile-source").unwrap();
+    assert_eq!(
+        (s.router_id.as_deref(), s.access.as_deref()),
+        (Some("distro"), Some("ppp"))
+    );
+    let catalog = d.catalog.as_ref().unwrap();
+    let wan = catalog
+        .sources
+        .iter()
+        .find_map(|s| match &s.origin {
+            crate::topology_manager::catalog::SourceOrigin::Wan {
+                router_id,
+                endpoint_ref,
+            } => Some((s.id.clone(), router_id.clone(), endpoint_ref.clone())),
+            _ => None,
+        })
+        .expect("the fixture has a WAN source");
+    let w = v.sources.iter().find(|s| s.id == wan.0).unwrap();
+    assert_eq!(
+        (w.router_id.clone(), w.endpoint.clone()),
+        (Some(wan.1), Some(wan.2))
+    );
+}

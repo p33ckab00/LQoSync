@@ -376,6 +376,15 @@ pub struct Source {
     /// The operator does not shape this source. The "Excluded" list shows it.
     #[serde(default)]
     pub excluded: bool,
+    /// The router that the source reads.
+    #[serde(default)]
+    pub router_id: Option<String>,
+    /// `ppp`, `dhcp`, or `hotspot` for a subscriber source.
+    #[serde(default)]
+    pub access: Option<String>,
+    /// The interface of a WAN source.
+    #[serde(default)]
+    pub endpoint: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

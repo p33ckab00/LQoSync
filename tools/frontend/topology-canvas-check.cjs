@@ -93,15 +93,19 @@ const fs=require('node:fs');
     // Inventory: discovery adds nothing until a WAN is placed.
     await dock.getByRole('button',{name:'Router inventory',exact:true}).click();
     const inventory=page.getByRole('dialog',{name:'Router inventory'});await inventory.waitFor();
-    // Router selection: WAN routers start selected; only selected routers are read.
-    const pick=inventory.getByRole('group',{name:'Routers for WAN discovery'});
-    await pick.getByLabel('Core-01').waitFor();
-    assert.equal(await pick.getByLabel('Core-01').isChecked(),true);
-    assert.equal(await pick.getByLabel('Access-01').isChecked(),false);
-    await inventory.getByRole('button',{name:'Discover WAN interfaces',exact:true}).click();
-    await inventory.getByRole('list',{name:'WAN interfaces'}).waitFor({timeout:15000});
-    assert.deepEqual(reads.at(-1).routers,['lq3-00000000000000c1'],'only the selected router is read');
-    await inventory.getByRole('button',{name:'Create WAN',exact:true}).first().click();
+    // One section for each router. Opening reads no router; Find reads only that router.
+    const core=inventory.getByRole('region',{name:'Core-01',exact:true});await core.waitFor();
+    await inventory.getByRole('region',{name:'Access-01',exact:true}).waitFor();
+    assert.equal(reads.length,0,'opening the inventory reads no router');
+    const coreWans=core.getByRole('table',{name:'WAN interfaces'});
+    await coreWans.getByRole('row',{name:/pppoe-out1/}).getByText('On canvas as WAN North').waitFor();
+    await coreWans.getByRole('row',{name:/pppoe-out3/}).getByText('Default route, not configured').waitFor();
+    await core.getByRole('button',{name:'Find WAN interfaces',exact:true}).click();
+    await inventory.getByText('WAN interfaces read.').first().waitFor({timeout:15000});
+    assert.deepEqual(reads.at(-1).routers,['lq3-00000000000000c1'],'only this router is read');
+    assert.equal(await coreWans.getByRole('row',{name:/pppoe-out3/}).count(),1,'an interface shows once');
+    await page.screenshot({path:`${out}/inventory.png`});
+    await core.getByRole('button',{name:'Add pppoe-out3 as a WAN',exact:true}).click();
     assert.equal(edits.filter(e=>e.edit.kind==='wan.create').length,0,'discovery attaches nothing');
     await inventory.getByLabel('Download Mbps').fill('300');await inventory.getByLabel('Upload Mbps').fill('100');
     await inventory.getByRole('button',{name:'Add WAN to canvas',exact:true}).click();
@@ -207,9 +211,24 @@ const fs=require('node:fs');
     assert.equal(edits.length,refusedSent,'closing does not send the refused draft again');
     await dock.getByRole('button',{name:'Router inventory',exact:true}).click();
     const inv=page.getByRole('dialog',{name:'Router inventory'});await inv.waitFor();
-    await inv.getByText('Auto: WAN North',{exact:true}).waitFor();
-    await inv.getByText('Auto: no parent',{exact:true}).waitFor();
-    await page.keyboard.press('Escape');
+    // Each source has one state and one action in its router section.
+    const srcs=inv.getByRole('region',{name:'Access-01',exact:true}).getByRole('table',{name:'Subscriber sources'});
+    await srcs.getByRole('row',{name:/PPPoE Silver/}).getByText('Auto: WAN North',{exact:true}).waitFor();
+    await srcs.getByRole('row',{name:/DHCP guest/}).getByText('Not on canvas',{exact:true}).waitFor();
+    await srcs.getByRole('row',{name:/PPPoE Trial/}).getByText('Not read',{exact:true}).waitFor();
+    await srcs.getByRole('row',{name:/PPPoE access/}).getByText('On canvas',{exact:true}).waitFor();
+    // Discover sources: a found source joins the section of its router.
+    await inv.getByRole('button',{name:'Discover sources',exact:true}).click();
+    await srcs.getByRole('button',{name:'Add source Hotspot Access-01'}).waitFor({timeout:15000});
+    await page.setViewportSize({width:390,height:800});
+    assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=390),'no sideways scroll at 390 px');
+    assert.equal(await srcs.locator('thead').isVisible(),false,'narrow rows stack, without a header row');
+    await page.screenshot({path:`${out}/inventory-390.png`});
+    await page.setViewportSize({width:1440,height:1000});
+    // Show selects the card on the canvas and closes the inventory.
+    await srcs.getByRole('button',{name:'Show PPPoE access on the canvas'}).click();
+    await inv.waitFor({state:'hidden'});
+    assert.equal(await ppp.getAttribute('aria-pressed'),'true');
     // Live source canvas. One helper waits for the next edit of a kind.
     const edit=async kind=>{for(let i=0;i<100;i++){const e=edits.find(x=>x.edit.kind===kind&&!x.seen);if(e){e.seen=true;return e.edit;}await page.waitForTimeout(100);}
       throw new Error(`no ${kind} edit`);};

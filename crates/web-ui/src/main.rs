@@ -69,6 +69,10 @@ mod topology_canvas;
 mod topology_canvas_model;
 #[cfg(target_arch = "wasm32")]
 mod topology_forms;
+#[cfg(target_arch = "wasm32")]
+mod topology_inventory;
+#[cfg(any(target_arch = "wasm32", test))]
+mod topology_inventory_model;
 #[cfg(any(target_arch = "wasm32", test))]
 mod topology_model;
 #[cfg(target_arch = "wasm32")]

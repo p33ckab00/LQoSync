@@ -2194,16 +2194,21 @@ pub fn tree(doc: &RegistryDocument) -> Value {
         .sources
         .iter()
         .map(|s| {
-            let (kind, auto) = match &s.origin {
-                SourceOrigin::Wan { .. } => ("wan", None),
+            let (kind, auto, router, access, endpoint) = match &s.origin {
+                SourceOrigin::Wan {
+                    router_id,
+                    endpoint_ref,
+                } => ("wan", None, router_id, None, Some(endpoint_ref)),
                 SourceOrigin::Subscribers { scope, .. } => {
                     let placed = !s.targets.is_empty()
                         || c.nodes.iter().any(|n| n.source_id.as_deref() == Some(&s.id));
                     let auto = (!placed).then(|| automatic.get(&scope.router_id)).flatten();
-                    ("subscribers", auto)
+                    let access = serde_json::to_value(scope.kind).ok();
+                    ("subscribers", auto, &scope.router_id, access, None)
                 }
             };
-            json!({"id": s.id, "name": s.name, "kind": kind, "auto_parents": auto.cloned().unwrap_or_default(), "excluded": s.excluded})
+            json!({"id": s.id, "name": s.name, "kind": kind, "auto_parents": auto.cloned().unwrap_or_default(),
+                "excluded": s.excluded, "router_id": router, "access": access, "endpoint": endpoint})
         })
         .collect();
     let pins: Vec<Value> = doc
