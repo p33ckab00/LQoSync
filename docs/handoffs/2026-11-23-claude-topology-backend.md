@@ -196,3 +196,13 @@ B3.2 design, from the engine code:
 4. Candidate: clone the registry. Replace the target router sources, profiles, selections, and new nodes with the result of `policy_draft::propose` on a one-router copy of the config (`pppoe.enabled`, `per_plan_node`, `dhcp.servers` from `RouterIntent`; `hotspot.enabled = false`). Keep the existing nodes with the same deterministic group IDs (parent, capacity, position).
 5. Engine: `authorize_configured(candidate, revision, generation, evidence)?.reconcile(&mut ObservationGate::default())`, then set `router_locations` and `wan`, then `publication::prepare`. This includes compiler admission. Map each error (for example `PreparationConflicts`) to a blocker.
 6. Output: the `PreparedPair::view()` nodes and subscribers. Map a subscriber or node that is not in the saved registry to a `draft:` reference. Discard the clone and the gate.
+
+## B3 progress (2026-11-23T23:41:54+08:00, Asia/Manila)
+
+| Step | State | Commit | Checks |
+| --- | --- | --- | --- |
+| Contract amendment | Done | `4ec8a0a` | `studio_contract` 9 passed |
+| B3.1 translation | Done | `42e3ab9` | `source_studio` 19 passed |
+| B3.2a kept evidence | Done | `fa6970d` | `topology_manager::` 772 passed; `kept_evidence_prepares_the_same_pair_without_router_io` proves the same rows and CSV as a live prepare, with no connection |
+| B3.2b candidate | Open | — | Keep last-cycle evidence in `Studio`; merge `policy_draft::propose` for the target router into a registry clone; map the `PreparedPair` view to records, issues, graph, and diff; the four named B3.2 tests. Remove the two `expect(dead_code)` marks when the runner calls the new functions. |
+| B3.3 transport | Open | — | Candidate cache, evaluate and candidate service operations, gateway GETs, advertisement of `policy_preview` and `fields`. |
