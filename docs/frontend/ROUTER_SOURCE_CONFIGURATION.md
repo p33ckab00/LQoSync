@@ -18,6 +18,13 @@ The earlier ZIP remains the source reference. This document adds the detailed be
 Local `HEAD` and remote `refs/heads/lqosync3` both resolved to `2b54a9a74554c51a189c6761f59273833d823f12` during this review.
 The GitHub connector also returned the branch reader source. These checks do not establish the deployed binary or production state.
 
+## Implementation ownership
+
+The owner assigns the frontend to Codex and the backend to Claude Code.
+Use the [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) and [shared API contract](TOPOLOGY_STUDIO_API.md).
+Claude Code owns the contract and service fixture. Codex uses those types in the Leptos UI.
+The plan defines dependency gates, separate worktrees, tests, and handoff records.
+
 ## Visual references
 
 - [Interactive design viewer](prototypes/topology-studio-v2/index.html)

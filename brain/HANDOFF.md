@@ -8,6 +8,23 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-23T17:11:52+08:00 (Asia/Manila) — Topology Studio tandem plan
+
+- Goal: connect the approved Studio frontend to the backend through one shared typed contract.
+- Last agent: Codex. Owner assignment: Codex frontend, Claude Code backend.
+- Branch: `lqosync3`. Worktree: `/home/pi/LQoSync3.0`. Source baseline: `d38113e`.
+- New plan: `docs/superpowers/plans/2026-11-23-topology-studio-tandem.md`.
+- New contract: `docs/frontend/TOPOLOGY_STUDIO_API.md`. Its new APIs are proposals, not implemented routes.
+- Lane handoffs: `docs/handoffs/2026-11-23-claude-topology-backend.md` and `docs/handoffs/2026-11-23-codex-topology-frontend.md`.
+- Changed indexes: `docs/frontend/README.md`, `docs/frontend/ROUTER_SOURCE_CONFIGURATION.md`, and `brain/Home.md`.
+- Current work changes documents only. No frontend/backend implementation or production state changed.
+- Backend owns `web-contract`, gateway, broker, service, and shared fixture. Frontend owns Leptos UI and browser checks.
+- Unfinished work: all B0–B5, F0–F3, and I0 implementation tasks. No task has started from this plan.
+- Next action: commit the plan package, then Claude completes B0. Both lanes use that exact G0 contract commit.
+- Create separate worktrees at execution time. Reserve fixture port `19581` for one test run at a time.
+- The handoff files do not start or contact an external Claude Code session.
+- Verification: 14 local links, JSON syntax, 11 task IDs, current route/schema/limit assertions, and whitespace checks passed. The STE checker reported style flags. No implementation tests ran.
+
 ## 2026-11-23 (Asia/Manila) — Live source canvas: Tasks 1–10 done
 
 - Commit d7d152d (Task 10 documents). Branch `lqosync3`, 20+ commits ahead of `origin/lqosync3`. Not pushed. Not deployed.

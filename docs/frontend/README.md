@@ -28,6 +28,9 @@ See the [Topology Studio review and implementation guide](TOPOLOGY_STUDIO_REVIEW
 
 See [Router Source Configuration](ROUTER_SOURCE_CONFIGURATION.md) for the detailed source-policy workflow and interactive SVG design reference.
 
+See the [Topology Studio tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) for Codex frontend and Claude Code backend tasks.
+Use the [shared API contract](TOPOLOGY_STUDIO_API.md) before either lane adds a request or response.
+
 ## Read order
 
 1. [Feature design](DESIGN.md): scope, ownership, layouts, and behavior.

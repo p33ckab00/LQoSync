@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-23-topology-studio-tandem-plan]] — Frontend/backend contract, owner tasks, and lane handoffs
+
 - [[2026-11-23-topology-studio-design-review]] — Supplied DOCX/SVG review, source gaps, and proposed implementation phases
 
 - [[2026-11-22-topology-canvas-integration-map]] — Feature-to-code map, automatic edit contract, publisher integrity, and legacy retirement gates
