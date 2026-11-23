@@ -573,6 +573,8 @@ fn node_geo_and_canvas_positions_reach_the_view() {
     let layout = crate::topology_manager::canvas::CanvasLayout {
         schema_version: 1,
         revision: 3,
+        direction: Default::default(),
+        other: Default::default(),
         positions: [
             ("wan1".to_string(), [40.0, -8.5]),
             ("gone".to_string(), [1.0, 1.0]),

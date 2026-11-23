@@ -324,6 +324,7 @@ pub(crate) fn Canvas(
             });
             let body = LayoutRequest {
                 expected_revision,
+                direction: Default::default(),
                 positions: data.with_untracked(|d| {
                     d.as_ref()
                         .map(|s| saved_positions(&s.nodes, &local.get_untracked()))
@@ -761,7 +762,7 @@ pub(crate) fn Canvas(
               let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
                 d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
               leptos::task::spawn_local(async move{
-                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default()}).await{
+                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:Default::default()}).await{
                   Ok(r)=>{layout_revision.set(Some(r));status.set("Layout reset. Shaping does not change.".into());}
                   Err(e)=>{layout_revision.set(None);status.set(e.into());}
                 }

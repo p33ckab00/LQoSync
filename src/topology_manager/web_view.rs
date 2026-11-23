@@ -321,6 +321,7 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                 .collect()
         },
         layout_revision: input.layout.map(|l| l.revision.to_string()),
+        layout_direction: input.layout.map(|l| l.direction).unwrap_or_default(),
         routing_moves: input.routing_moves,
         flows,
         balance,

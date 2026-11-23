@@ -468,6 +468,7 @@ async fn a_layout_save_returns_the_revision_or_a_conflict() {
     let calls = layout_core(dir.path());
     let jobs = Jobs::new(dir.path().into());
     let request = |rev| LayoutRequest {
+        direction: Default::default(),
         expected_revision: rev,
         positions: [("n1".to_string(), [1.0, 2.0])].into(),
     };

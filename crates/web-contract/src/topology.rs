@@ -67,6 +67,9 @@ pub struct TopologyView {
     /// The subscribers that "Rebalance routing" would move to another routing WAN now.
     #[serde(default)]
     pub routing_moves: u64,
+    /// The saved canvas direction.
+    #[serde(default)]
+    pub layout_direction: Direction,
     /// One line for each distinct parent card and child card.
     #[serde(default)]
     pub flows: Vec<Flow>,
@@ -927,6 +930,27 @@ pub struct EditRequest {
 pub struct LayoutRequest {
     pub expected_revision: u64,
     pub positions: std::collections::BTreeMap<String, [f64; 2]>,
+    /// The canvas direction. A change keeps the positions of the old direction; empty positions
+    /// with a new direction restore the saved positions of that direction.
+    #[serde(default)]
+    pub direction: Direction,
+}
+
+/// The direction of the canvas hierarchy. Layout only; shaping does not change.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Direction {
+    /// WAN cards at the top (centered).
+    #[default]
+    TopDown,
+    /// WAN cards at the bottom (reverse).
+    BottomUp,
+    /// WAN cards at the left.
+    LeftRight,
+    /// WAN cards at the right.
+    RightLeft,
 }
 
 /// The saved layout revision.

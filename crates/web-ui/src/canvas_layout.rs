@@ -67,6 +67,72 @@ pub fn layout(
     out
 }
 
+/// Positions in a canvas direction. The layout runs in an abstract space (cross axis, depth)
+/// with the card sizes swapped for a horizontal direction, then turns into canvas coordinates:
+/// mirrored for bottom-up and right-to-left, transposed for the horizontal directions. Manual
+/// positions stay; an automatic card that hits one moves along the cross axis.
+#[allow(dead_code)] // shortcut: the canvas uses it from Task 6 of the flows plan; remove then.
+pub fn layout_in(
+    cards: &[CardBox],
+    manual: &BTreeMap<String, [f64; 2]>,
+    direction: web_contract::topology::Direction,
+) -> BTreeMap<String, [f64; 2]> {
+    use web_contract::topology::Direction;
+    if direction == Direction::TopDown {
+        return layout(cards, manual);
+    }
+    let horizontal = matches!(direction, Direction::LeftRight | Direction::RightLeft);
+    let abstract_cards: Vec<CardBox> = cards
+        .iter()
+        .map(|c| CardBox {
+            size: if horizontal {
+                [c.size[1], c.size[0]]
+            } else {
+                c.size
+            },
+            ..c.clone()
+        })
+        .collect();
+    let auto = layout(&abstract_cards, &BTreeMap::new());
+    let depth_end = abstract_cards
+        .iter()
+        .map(|c| auto[&c.id][1] + c.size[1])
+        .fold(0.0, f64::max);
+    let size: BTreeMap<&str, [f64; 2]> = cards.iter().map(|c| (c.id.as_str(), c.size)).collect();
+    let mut out: BTreeMap<String, [f64; 2]> = cards
+        .iter()
+        .filter_map(|c| manual.get(&c.id).map(|p| (c.id.clone(), *p)))
+        .collect();
+    let mut order: Vec<&CardBox> = cards.iter().filter(|c| !out.contains_key(&c.id)).collect();
+    order.sort_by_key(|c| c.tier);
+    for card in order {
+        let [a, b] = auto[&card.id];
+        let [w, h] = card.size;
+        let mut p = match direction {
+            Direction::BottomUp => [a, depth_end + MARGIN - b - h],
+            Direction::LeftRight => [b, a],
+            _ => [depth_end + MARGIN - b - w, a],
+        };
+        // The cross axis: x for vertical directions, y for horizontal ones. It only grows.
+        while let Some((id, q)) = out.iter().find(|(id, q)| {
+            let [ow, oh] = size[id.as_str()];
+            p[0] < q[0] + ow + GAP
+                && q[0] < p[0] + w + GAP
+                && p[1] < q[1] + oh + GAP
+                && q[1] < p[1] + h + GAP
+        }) {
+            let [ow, oh] = size[id.as_str()];
+            if horizontal {
+                p[1] = q[1] + oh + GAP;
+            } else {
+                p[0] = q[0] + ow + GAP;
+            }
+        }
+        out.insert(card.id.clone(), p);
+    }
+    out
+}
+
 /// SVG path from card `a` to card `b`, and the label point. Cards in one column (within 1 px)
 /// connect bottom to top with a line. Other cards connect side to side with a curve.
 pub fn edge_path(
@@ -241,6 +307,46 @@ mod tests {
         assert_eq!((x, y), (110.0, 200.0));
         let (path, _, _) = edge_path([0.0, 0.0], [200.0, 100.0], [400.0, 300.0], [200.0, 100.0]);
         assert!(path.starts_with("M200,50 C"), "{path}");
+    }
+
+    #[test]
+    fn each_direction_puts_wans_on_its_start_side() {
+        use web_contract::topology::Direction;
+        let cards = [
+            card("wan1", Tier::Wan, None),
+            card("r1", Tier::Router, Some("wan1")),
+            card("g1", Tier::Group, Some("r1")),
+        ];
+        let at = |d| layout_in(&cards, &BTreeMap::new(), d);
+        let td = at(Direction::TopDown);
+        assert!(td["wan1"][1] < td["r1"][1] && td["r1"][1] < td["g1"][1]);
+        let bu = at(Direction::BottomUp);
+        assert!(bu["wan1"][1] > bu["r1"][1] && bu["r1"][1] > bu["g1"][1]);
+        let lr = at(Direction::LeftRight);
+        assert!(lr["wan1"][0] < lr["r1"][0] && lr["r1"][0] < lr["g1"][0]);
+        let rl = at(Direction::RightLeft);
+        assert!(rl["wan1"][0] > rl["r1"][0] && rl["r1"][0] > rl["g1"][0]);
+        // Top-down is the original layout.
+        assert_eq!(td, layout(&cards, &BTreeMap::new()));
+    }
+
+    #[test]
+    fn no_overlap_in_any_direction_for_1_to_200_cards() {
+        use web_contract::topology::Direction;
+        for d in [
+            Direction::BottomUp,
+            Direction::LeftRight,
+            Direction::RightLeft,
+        ] {
+            let mut seed = 5;
+            for n in 1..=200 {
+                let cards = random_cards(n, &mut seed);
+                let manual = BTreeMap::from([("c0".to_string(), [300.0, 300.0])]);
+                let at = layout_in(&cards, &manual, d);
+                assert_eq!(at["c0"], [300.0, 300.0]);
+                assert_eq!(overlaps(&cards, &at), None, "{d:?} {n} cards");
+            }
+        }
     }
 
     #[test]

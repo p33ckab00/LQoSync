@@ -225,7 +225,7 @@ where
         "topology.layout.save" => {
             let a: web_contract::topology::LayoutRequest = parse(request)?;
             runner
-                .api_layout_save(a.expected_revision, a.positions)
+                .api_layout_save(a.expected_revision, a.direction, a.positions)
                 .map_err(fail)
         }
         "topology.web.operation" => {

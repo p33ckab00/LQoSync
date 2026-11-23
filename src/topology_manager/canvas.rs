@@ -6,6 +6,7 @@ use anyhow::{Context, ensure};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use web_contract::topology::Direction;
 
 pub const FILE: &str = "canvas-layout.json";
 /// More cards than any supported topology. Bounds the file and the web view.
@@ -18,8 +19,14 @@ pub const MAX_COORDINATE: f64 = 1e7;
 pub struct CanvasLayout {
     pub schema_version: u32,
     pub revision: u64,
-    /// Node ID to `[x, y]`.
+    /// The current direction. Added in layout schema 2; schema 1 is top-down.
+    #[serde(default)]
+    pub direction: Direction,
+    /// Card ID to `[x, y]` in the current direction.
     pub positions: BTreeMap<String, [f64; 2]>,
+    /// The saved positions of the other directions. Added in layout schema 2.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub other: BTreeMap<Direction, BTreeMap<String, [f64; 2]>>,
 }
 
 /// The saved layout of `directory` (the `topology-manager` directory). Missing: revision 0.
@@ -28,7 +35,7 @@ pub fn load(directory: &Path) -> anyhow::Result<CanvasLayout> {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             return Ok(CanvasLayout {
-                schema_version: 1,
+                schema_version: 2,
                 ..Default::default()
             });
         }
@@ -37,16 +44,19 @@ pub fn load(directory: &Path) -> anyhow::Result<CanvasLayout> {
     let layout: CanvasLayout =
         serde_json::from_slice(&bytes).context("cannot decode the canvas layout")?;
     ensure!(
-        layout.schema_version == 1,
+        matches!(layout.schema_version, 1 | 2),
         "unsupported canvas layout schema"
     );
     Ok(layout)
 }
 
-/// Replace all positions. `known` holds the current catalog node IDs. Returns the new revision.
+/// Replace the positions of `direction`. A new direction keeps the positions of the old one;
+/// empty positions with a new direction restore its saved positions. `known` holds the current
+/// node and card IDs. Returns the new revision.
 pub fn save(
     directory: &Path,
     expected_revision: u64,
+    direction: Direction,
     positions: BTreeMap<String, [f64; 2]>,
     known: &BTreeSet<String>,
 ) -> anyhow::Result<u64> {
@@ -63,17 +73,31 @@ pub fn save(
             "canvas position is out of range"
         );
     }
-    let current = load(directory)?;
+    let mut current = load(directory)?;
     if current.revision != expected_revision {
         anyhow::bail!(RevisionConflict);
     }
+    let positions = if direction == current.direction {
+        positions
+    } else {
+        let old = std::mem::take(&mut current.positions);
+        current.other.insert(current.direction, old);
+        let saved = current.other.remove(&direction).unwrap_or_default();
+        if positions.is_empty() {
+            saved
+        } else {
+            positions
+        }
+    };
     let layout = CanvasLayout {
-        schema_version: 1,
+        schema_version: 2,
         revision: current
             .revision
             .checked_add(1)
             .context("layout revision is exhausted")?,
+        direction,
         positions,
+        other: current.other,
     };
     crate::files::write_secret(&directory.join(FILE), &serde_json::to_vec(&layout)?)?;
     Ok(layout.revision)

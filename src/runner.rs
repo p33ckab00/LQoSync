@@ -2355,6 +2355,7 @@ where
     pub fn api_layout_save(
         &mut self,
         expected_revision: u64,
+        direction: web_contract::topology::Direction,
         positions: std::collections::BTreeMap<String, [f64; 2]>,
     ) -> anyhow::Result<serde_json::Value> {
         self.lock()?;
@@ -2367,18 +2368,23 @@ where
             .catalog
             .iter()
             .flat_map(|c| &c.nodes)
-            .map(|n| n.id.clone())
+            .flat_map(|n| [n.id.clone(), crate::topology_manager::edits::card_key(n)])
             .collect();
         let directory = Path::new(&self.cfg.runtime.state_dir).join("topology-manager");
-        let revision =
-            crate::topology_manager::canvas::save(&directory, expected_revision, positions, &known)
-                .map_err(|e| {
-                    if e.is::<crate::topology_manager::store::RevisionConflict>() {
-                        e
-                    } else {
-                        rule(format!("{e:#}"))
-                    }
-                })?;
+        let revision = crate::topology_manager::canvas::save(
+            &directory,
+            expected_revision,
+            direction,
+            positions,
+            &known,
+        )
+        .map_err(|e| {
+            if e.is::<crate::topology_manager::store::RevisionConflict>() {
+                e
+            } else {
+                rule(format!("{e:#}"))
+            }
+        })?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_secs());

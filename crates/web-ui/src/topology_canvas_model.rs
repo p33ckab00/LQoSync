@@ -105,13 +105,53 @@ pub(crate) fn candidate_cards(
 /// An SVG path from the bottom port of the parent card to the top port of the child card:
 /// straight in one column, else a vertical curve.
 pub(crate) fn wire(parent: [f64; 2], child: [f64; 2]) -> String {
-    if (parent[0] - child[0]).abs() < 1.0 {
+    wire_in(parent, child, web_contract::topology::Direction::TopDown)
+}
+
+/// The path from the out port of the parent to the in port of the child in a direction: the
+/// ports are bottom and top (top-down), top and bottom (bottom-up), right and left (left to
+/// right), left and right (right to left). A straight line when the two ports line up.
+#[allow(dead_code)] // shortcut: the canvas uses it from Task 6 of the flows plan; remove then.
+pub(crate) fn wire_in(
+    parent: [f64; 2],
+    child: [f64; 2],
+    direction: web_contract::topology::Direction,
+) -> String {
+    use web_contract::topology::Direction;
+    if direction == Direction::TopDown && (parent[0] - child[0]).abs() < 1.0 {
         return edge_path(parent, SIZE, child, SIZE).0;
     }
-    let (x1, y1) = (parent[0] + CARD_W / 2.0, parent[1] + CARD_H);
-    let (x2, y2) = (child[0] + CARD_W / 2.0, child[1]);
-    let mid = (y1 + y2) / 2.0;
-    format!("M{x1},{y1} C{x1},{mid} {x2},{mid} {x2},{y2}")
+    let (out, into) = match direction {
+        Direction::TopDown => (
+            [parent[0] + CARD_W / 2.0, parent[1] + CARD_H],
+            [child[0] + CARD_W / 2.0, child[1]],
+        ),
+        Direction::BottomUp => (
+            [parent[0] + CARD_W / 2.0, parent[1]],
+            [child[0] + CARD_W / 2.0, child[1] + CARD_H],
+        ),
+        Direction::LeftRight => (
+            [parent[0] + CARD_W, parent[1] + CARD_H / 2.0],
+            [child[0], child[1] + CARD_H / 2.0],
+        ),
+        Direction::RightLeft => (
+            [parent[0], parent[1] + CARD_H / 2.0],
+            [child[0] + CARD_W, child[1] + CARD_H / 2.0],
+        ),
+    };
+    let [x1, y1] = out;
+    let [x2, y2] = into;
+    match direction {
+        Direction::LeftRight | Direction::RightLeft => {
+            let mid = (x1 + x2) / 2.0;
+            format!("M{x1},{y1} C{mid},{y1} {mid},{y2} {x2},{y2}")
+        }
+        _ if (x1 - x2).abs() < 1.0 => format!("M{x1},{y1} L{x2},{y2}"),
+        _ => {
+            let mid = (y1 + y2) / 2.0;
+            format!("M{x1},{y1} C{x1},{mid} {x2},{mid} {x2},{y2}")
+        }
+    }
 }
 
 /// The kind of a card in one short word.
@@ -425,6 +465,26 @@ mod tests {
         let mut g = node("g", None, None);
         g.router_id = Some("hub-1".into());
         assert_eq!(card_kind(&g), "Group");
+    }
+
+    #[test]
+    fn wires_use_the_ports_of_the_direction() {
+        use web_contract::topology::Direction;
+        // Bottom-up: from the top of the parent to the bottom of the child.
+        assert_eq!(
+            wire_in([0.0, 200.0], [0.0, 0.0], Direction::BottomUp),
+            "M116,200 L116,84"
+        );
+        // Left to right: from the right side of the parent to the left side of the child.
+        assert_eq!(
+            wire_in([0.0, 0.0], [300.0, 0.0], Direction::LeftRight),
+            "M232,42 C266,42 266,42 300,42"
+        );
+        // Right to left: from the left side of the parent to the right side of the child.
+        assert_eq!(
+            wire_in([300.0, 0.0], [0.0, 0.0], Direction::RightLeft),
+            "M300,42 C266,42 266,42 232,42"
+        );
     }
 
     #[test]
