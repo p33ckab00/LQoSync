@@ -115,10 +115,6 @@ pub struct RouterRead {
 impl RouterRead {
     /// Evidence that this process read before: a Studio snapshot or the last cycle. The
     /// caller states the router, a positive generation, and the age limit. No row leaves.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "Studio evaluation (task B3.2b) calls it")
-    )]
     pub(super) fn from_tables(
         router_id: &str,
         generation: u64,

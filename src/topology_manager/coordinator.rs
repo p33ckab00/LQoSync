@@ -319,10 +319,6 @@ where
     /// Prepare a pair from evidence that this process already holds: no router I/O, no
     /// session, and no change to this coordinator. A fresh gate takes the one generation of
     /// the evidence, so the durable observation state stays as it is.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "Studio evaluation (task B3.2b) calls it")
-    )]
     pub(crate) fn prepare_with_evidence(
         &self,
         cfg: &Config,

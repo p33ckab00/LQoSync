@@ -78,6 +78,20 @@ impl Collected {
     pub fn rows(&self, table: Table) -> Option<&[RosRow]> {
         self.tables.get(&table).map(Vec::as_slice)
     }
+
+    /// The complete tables only: a partial table is never evidence of absence.
+    pub fn tables_snapshot(&self) -> BTreeMap<Table, Vec<RosRow>> {
+        self.tables
+            .iter()
+            .filter(|(t, _)| {
+                self.reference
+                    .tables
+                    .iter()
+                    .any(|e| e.table == table_id(**t) && e.state == ReadState::Complete)
+            })
+            .map(|(t, rows)| (*t, rows.clone()))
+            .collect()
+    }
 }
 
 /// The last good WAN reads of one router, and the state of the latest read.
@@ -216,6 +230,15 @@ impl Studio {
             tables,
         });
         Ok(reference)
+    }
+
+    /// The newest kept snapshot of one router that has not expired.
+    pub fn latest(&self, router_id: &str, now: u64) -> Option<&Collected> {
+        self.snapshots
+            .get(router_id)?
+            .iter()
+            .rev()
+            .find(|c| c.reference.expires_at > now)
     }
 
     /// One kept snapshot that has not expired.

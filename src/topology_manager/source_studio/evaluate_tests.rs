@@ -59,7 +59,7 @@ fn ppp() -> SourcePolicyDraft {
         rates: ppp_rates(),
         parent: ParentRule::Router,
         capacity: CapacityRule::FromPlans {
-            down_factor: "0.5".into(),
+            down_factor: "1".into(),
             up_factor: "1".into(),
             minimum_down_bps: "0".into(),
             minimum_up_bps: "0".into(),
@@ -256,4 +256,390 @@ fn input_limits_reject_the_request() {
     };
     assert!(check_limits(&[wide]).is_err());
     assert!(check_limits(&[ppp(), dhcp("d", 1, &["LAN"])]).is_ok());
+}
+
+// ---- B3.2: the engine run on a clone ----
+
+mod engine {
+    use super::*;
+    use crate::config::{RouterAccess, RouterCfg};
+    use crate::routeros::{ReadError, RouterSession};
+    use crate::topology_manager::catalog::{BaseRateAuthority, SubscriberProfile};
+    use crate::topology_manager::model::{IdentityRef, SubscriberPolicy, SubscriberRecord};
+    use crate::topology_manager::normalize::normalize_configured;
+    use crate::topology_manager::rates::RateBps;
+    use std::sync::{Arc, Mutex};
+
+    type Rows = HashMap<&'static str, Vec<RosRow>>;
+
+    #[derive(Clone, Default)]
+    struct Fake {
+        rows: Arc<Mutex<Rows>>,
+        connects: Arc<Mutex<usize>>,
+    }
+    struct Session(Fake);
+    impl Connector for Fake {
+        type Session = Session;
+        fn connect(
+            &self,
+            _r: &RouterCfg,
+            _a: &RouterAccess,
+        ) -> impl Future<Output = Result<Session, ReadError>> + Send {
+            *self.connects.lock().unwrap() += 1;
+            let me = self.clone();
+            async move { Ok(Session(me)) }
+        }
+    }
+    impl RouterSession for Session {
+        fn print(
+            &mut self,
+            path: &str,
+            _p: &str,
+        ) -> impl Future<Output = Result<Vec<RosRow>, ReadError>> + Send {
+            let rows = self
+                .0
+                .rows
+                .lock()
+                .unwrap()
+                .get(path)
+                .cloned()
+                .unwrap_or_default();
+            async move { Ok(rows) }
+        }
+    }
+
+    fn row(pairs: &[(&str, &str)]) -> RosRow {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    const D: &str = "digest-1";
+
+    struct Env {
+        cfg: Config,
+        fake: Fake,
+        studio: Studio,
+        coordinator: Coordinator<Fake>,
+        id: String,
+    }
+
+    fn env(router: &str, rows: Rows) -> Env {
+        let cfg = Config::from_toml_str(&format!(
+            "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n{router}"
+        ))
+        .unwrap();
+        let fake = Fake::default();
+        *fake.rows.lock().unwrap() = rows;
+        let coordinator = Coordinator::new(Arc::new(fake.clone()));
+        Env {
+            cfg,
+            fake,
+            studio: Studio::default(),
+            coordinator,
+            id: router_id("Core"),
+        }
+    }
+
+    fn ppp_rows(active: &[(&str, &str)]) -> Rows {
+        let mut rows = Rows::new();
+        rows.insert(
+            "/ppp/secret",
+            vec![
+                row(&[
+                    (".id", "*1"),
+                    ("name", "alice"),
+                    ("profile", "basic"),
+                    ("disabled", "false"),
+                ]),
+                row(&[
+                    (".id", "*2"),
+                    ("name", "carol"),
+                    ("profile", "basic"),
+                    ("disabled", "false"),
+                ]),
+            ],
+        );
+        rows.insert(
+            "/ppp/profile",
+            vec![row(&[
+                (".id", "*p"),
+                ("name", "basic"),
+                ("rate-limit", "15M/15M"),
+            ])],
+        );
+        rows.insert(
+            "/ppp/active",
+            active
+                .iter()
+                .enumerate()
+                .map(|(i, (name, ip))| {
+                    row(&[
+                        (".id", &format!("*a{i}")),
+                        ("name", name),
+                        ("address", ip),
+                        ("service", "pppoe"),
+                    ])
+                })
+                .collect(),
+        );
+        rows
+    }
+
+    /// The current registry: the first policy of the same config on the same evidence.
+    async fn installed(e: &mut Env, sources: &[SourceKind]) -> (RegistryDocument, String) {
+        let snap = e
+            .studio
+            .collect(&e.fake, &e.cfg, D, &e.id, D, sources)
+            .await
+            .unwrap();
+        let tables = e.studio.snapshot(&snap.id, 0).unwrap().tables_snapshot();
+        let read = RouterRead::from_tables(&e.id, 1, tables, EVIDENCE_AGE).unwrap();
+        let current =
+            normalize_configured(&read, &e.cfg.exclude, &e.cfg.routers[0].exclude).unwrap();
+        let draft = crate::topology_manager::policy_draft::propose(&e.cfg, &[current]).unwrap();
+        (
+            crate::topology_manager::policy_draft::document(&draft).unwrap(),
+            snap.id,
+        )
+    }
+
+    fn run(
+        e: &Env,
+        doc: &RegistryDocument,
+        snap: &str,
+        drafts: &[SourcePolicyDraft],
+    ) -> Evaluation {
+        evaluate(
+            &e.cfg,
+            doc,
+            &e.coordinator,
+            &e.studio,
+            &e.id,
+            snap,
+            drafts,
+            0,
+        )
+        .unwrap()
+    }
+
+    fn blockers(ev: &Evaluation) -> Vec<&str> {
+        ev.issues
+            .iter()
+            .filter(|i| i.severity == Severity::Blocker)
+            .map(|i| i.code.as_str())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn an_equivalent_draft_changes_no_node() {
+        let mut e = env(
+            "[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
+            ppp_rows(&[("alice", "100.64.0.1")]),
+        );
+        let (doc, snap) = installed(&mut e, &[SourceKind::Ppp]).await;
+        let ev = run(&e, &doc, &snap, &[ppp()]);
+        assert!(ev.publishable(), "{:?}", ev.issues);
+        assert_eq!(
+            (ev.diff.added, ev.diff.removed, ev.diff.changed),
+            (0, 0, 0),
+            "{:?}",
+            ev.diff
+        );
+        assert_eq!(ev.records.len(), 1);
+        let r = &ev.records[0];
+        assert_eq!(r.policy_id, "policy-ppp");
+        assert_eq!(r.down_bps.as_deref(), Some("15000000"));
+        assert_eq!(r.issue_codes, ["new_identity"]);
+        assert!(!ev.graph.nodes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn preview_preserves_durable_state() {
+        let mut e = env(
+            "[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
+            ppp_rows(&[("alice", "100.64.0.1")]),
+        );
+        let (doc, snap) = installed(&mut e, &[SourceKind::Ppp]).await;
+        let before = serde_json::to_vec(&doc).unwrap();
+        let connects = *e.fake.connects.lock().unwrap();
+        let mut fixed = ppp();
+        fixed.group = GroupRule::Fixed {
+            name: "All PPPoE".into(),
+        };
+        let ev = run(&e, &doc, &snap, &[fixed]);
+        assert!(ev.complete, "{:?}", ev.issues);
+        // A new group is a draft node; no durable ID, revision, or next ID changed.
+        assert!(
+            ev.diff.added > 0
+                && ev
+                    .diff
+                    .markers
+                    .iter()
+                    .any(|m| m.entity_ref.starts_with("draft:"))
+        );
+        assert_eq!(serde_json::to_vec(&doc).unwrap(), before);
+        assert_eq!(
+            *e.fake.connects.lock().unwrap(),
+            connects,
+            "an evaluation reads no router"
+        );
+        let json = serde_json::to_string(&ev.records).unwrap();
+        assert!(
+            !json.contains("tm-sub-"),
+            "no candidate subscriber ID: {json}"
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_ppp_join_is_a_blocker() {
+        let mut e = env(
+            "[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
+            ppp_rows(&[("alice", "100.64.0.1")]),
+        );
+        let (doc, _) = installed(&mut e, &[SourceKind::Ppp]).await;
+        e.fake.rows.lock().unwrap().insert(
+            "/ppp/active",
+            vec![row(&[
+                (".id", "*a9"),
+                ("name", "bob"),
+                ("address", "100.64.0.9"),
+                ("service", "pppoe"),
+            ])],
+        );
+        let snap = e
+            .studio
+            .collect(&e.fake, &e.cfg, D, &e.id, D, &[SourceKind::Ppp])
+            .await
+            .unwrap();
+        let ev = run(&e, &doc, &snap.id, &[ppp()]);
+        assert_eq!(blockers(&ev), ["missing_ppp_join"]);
+        assert!(!ev.complete && !ev.publishable() && ev.records.is_empty());
+    }
+
+    #[tokio::test]
+    async fn dynamic_dhcp_keeps_identity() {
+        let mut rows = Rows::new();
+        rows.insert(
+            "/ip/dhcp-server",
+            vec![row(&[
+                (".id", "*s"),
+                ("name", "LAN"),
+                ("disabled", "false"),
+            ])],
+        );
+        rows.insert(
+            "/ip/dhcp-server/lease",
+            vec![row(&[
+                (".id", "*l"),
+                ("server", "LAN"),
+                ("status", "bound"),
+                ("active-address", "100.64.1.5"),
+                ("active-mac-address", "02:00:00:00:00:05"),
+                ("dynamic", "true"),
+            ])],
+        );
+        let mut e = env("[routers.dhcp]\nenabled=true\nrequire_bound=true\n", rows);
+        let (mut doc, snap) = installed(&mut e, &[SourceKind::Dhcp]).await;
+        let scope = doc.source_settings.as_ref().unwrap().selections[0]
+            .scope
+            .clone();
+        let account_ref =
+            crate::topology_manager::identity::dhcp_mac_reference("02:00:00:00:00:05");
+        doc.subscribers.push(SubscriberRecord {
+            id: "tm-sub-0000000000000001".into(),
+            identities: vec![IdentityRef {
+                scope,
+                account_ref: account_ref.clone(),
+            }],
+            policy: SubscriberPolicy::default(),
+        });
+        doc.next_id = doc.next_id.max(2);
+        let ev = run(&e, &doc, &snap, &[dhcp("policy-dhcp", 1, &["LAN"])]);
+        assert!(ev.publishable(), "{:?}", ev.issues);
+        assert_eq!(ev.records.len(), 1);
+        assert_eq!(
+            ev.records[0].identity_ref.as_ref().unwrap().account_ref,
+            account_ref
+        );
+        assert!(
+            ev.records[0].issue_codes.is_empty(),
+            "the saved identity stays: {:?}",
+            ev.records[0]
+        );
+    }
+
+    #[tokio::test]
+    async fn explicit_rate_precedes_profile_rate() {
+        let mut e = env(
+            "[routers.pppoe]\nenabled=true\nper_plan_node=true\n",
+            ppp_rows(&[("alice", "100.64.0.1")]),
+        );
+        let (mut doc, snap) = installed(&mut e, &[SourceKind::Ppp]).await;
+        let scope = doc.source_settings.as_ref().unwrap().selections[0]
+            .scope
+            .clone();
+        let catalog = doc.catalog.as_mut().unwrap();
+        let mut plan = catalog.profiles[0].clone();
+        plan.id = "plan-25".into();
+        plan.name = "Override 25".into();
+        plan.base = BaseRateAuthority::Local(RateBps {
+            down: 25_000_000,
+            up: 25_000_000,
+        });
+        catalog.profiles.push(SubscriberProfile { ..plan });
+        doc.subscribers.push(SubscriberRecord {
+            id: "tm-sub-0000000000000001".into(),
+            identities: vec![IdentityRef {
+                scope,
+                account_ref: crate::topology_manager::identity::ppp_name_reference("alice"),
+            }],
+            policy: SubscriberPolicy {
+                profile_id: Some("plan-25".into()),
+                ..Default::default()
+            },
+        });
+        doc.next_id = doc.next_id.max(2);
+        let ev = run(&e, &doc, &snap, &[ppp()]);
+        assert!(ev.publishable(), "{:?}", ev.issues);
+        let r = &ev.records[0];
+        assert_eq!(
+            r.down_bps.as_deref(),
+            Some("25000000"),
+            "15 Mbps profile, 25 Mbps override"
+        );
+        assert_eq!(r.speed_source, Some(RateKind::SubscriberOverride));
+    }
+
+    #[tokio::test]
+    async fn an_expired_or_foreign_snapshot_is_refused() {
+        let mut e = env(
+            "[routers.pppoe]\nenabled=true\n",
+            ppp_rows(&[("alice", "100.64.0.1")]),
+        );
+        let (doc, snap) = installed(&mut e, &[SourceKind::Ppp]).await;
+        let late = evaluate(
+            &e.cfg,
+            &doc,
+            &e.coordinator,
+            &e.studio,
+            &e.id,
+            &snap,
+            &[ppp()],
+            u64::MAX - 1,
+        );
+        assert!(late.is_err());
+        let other = evaluate(
+            &e.cfg,
+            &doc,
+            &e.coordinator,
+            &e.studio,
+            &router_id("Other"),
+            &snap,
+            &[ppp()],
+            0,
+        );
+        assert!(other.is_err());
+    }
 }
