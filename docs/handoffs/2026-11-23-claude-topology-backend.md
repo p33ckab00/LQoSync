@@ -206,3 +206,29 @@ B3.2 design, from the engine code:
 | B3.2a kept evidence | Done | `fa6970d` | `topology_manager::` 772 passed; `kept_evidence_prepares_the_same_pair_without_router_io` proves the same rows and CSV as a live prepare, with no connection |
 | B3.2b candidate | Open | — | Keep last-cycle evidence in `Studio`; merge `policy_draft::propose` for the target router into a registry clone; map the `PreparedPair` view to records, issues, graph, and diff; the four named B3.2 tests. Remove the two `expect(dead_code)` marks when the runner calls the new functions. |
 | B3.3 transport | Open | — | Candidate cache, evaluate and candidate service operations, gateway GETs, advertisement of `policy_preview` and `fields`. |
+
+## Owner Sankey reference for the frontend (2026-11-24T06:02:44+08:00, Asia/Manila)
+
+The owner wants the Studio Sankey to look like `docs/frontend/prototypes/topology-studio-v2/04-owner-sankey-reference.png` ("ganyan na ganyan dapat").
+Owner decision: build this visual style now with the current data. Live throughput comes later from a backend task. This is a frontend lane task (Codex). Claude Code did not edit `crates/web-ui`.
+
+Visual requirements from the reference:
+
+- Columns from left to right in hierarchy order: WAN nodes, router nodes, intermediate nodes, groups, then service cards (PPPoE, IPoE/DHCP, Hotspot).
+- Cards on a dark navy canvas. Each card has a colored left accent bar, a bold title, a muted monospace subtitle, one large colored value, and small monospace stat lines.
+- Curved ribbons between cards. The ribbon width is proportional to the ribbon value. Use a cyan-to-green gradient for normal paths.
+- Use amber for a path that is not shaped normally, for example a backup WAN or a tree-excluded router node ("TREE BYPASS").
+- Hover or focus on a ribbon opens a panel with "Source → Target" and metric tiles.
+
+Data mapping until live throughput exists (do not show an invented value):
+
+| Reference value | Current source | Label |
+| --- | --- | --- |
+| Ribbon width | `Flow.subscribers` | subscribers |
+| Large card value | `Node.exported_mbps` or `calculated_mbps` | capacity |
+| Subscriber count | `Node.members` / `auto_members` | subs |
+| WAN RTT | `wan_health.quality_percent` and `state` | quality |
+| TREE BYPASS | `Node.tree_excluded` | not in network.json |
+| Throughput (Gbps), drop rate, CPU, queues, avg Mbps, shaped % | None yet | Hide, or show "no data" |
+
+Planned backend task after B3 (not started): live throughput for each node and link from LibreQoS, with drop rate where LibreQoS gives it. The ribbons then change from subscriber counts to Gbps, with a contract change before the UI uses it.
