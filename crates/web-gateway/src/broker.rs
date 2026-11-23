@@ -124,6 +124,14 @@ pub enum Request {
     StudioConfig {
         router_id: String,
     },
+    /// One part of a kept candidate (`summary`, `records`, or `issues`). No router I/O.
+    StudioCandidate {
+        actor: String,
+        id: String,
+        part: String,
+        cursor: Option<String>,
+        limit: u16,
+    },
     /// One Studio source job. A draft test carries its secret in this request only.
     StudioJob {
         actor: String,
@@ -163,6 +171,9 @@ pub struct Reply {
     pub capabilities: Option<web_contract::source_studio::StudioCapabilities>,
     #[serde(default)]
     pub source_config: Option<web_contract::source_studio::RouterSourceConfig>,
+    /// The service answer to a candidate read, with its `status`.
+    #[serde(default)]
+    pub candidate: Option<serde_json::Value>,
 }
 impl Reply {
     fn no() -> Self {
@@ -183,6 +194,7 @@ impl Reply {
             refused: None,
             capabilities: None,
             source_config: None,
+            candidate: None,
         }
     }
 }
@@ -397,6 +409,30 @@ pub async fn serve(
                         })
                         .await?;
                         reply.ok = reply.source_config.is_some();
+                    }
+                    Request::StudioCandidate {
+                        actor,
+                        id,
+                        part,
+                        cursor,
+                        limit,
+                    } => {
+                        ensure!(
+                            actor.len() <= 64
+                                && id.len() <= 64
+                                && cursor.as_ref().is_none_or(|c| c.len() <= 128),
+                            "invalid input"
+                        );
+                        match jobs
+                            .studio_candidate(&actor, &id, &part, cursor.as_deref(), limit)
+                            .await
+                        {
+                            Ok(v) => {
+                                reply.candidate = Some(v);
+                                reply.ok = true;
+                            }
+                            Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
+                        }
                     }
                     Request::StudioJob { actor, request } => {
                         crate::topology_jobs::answer(

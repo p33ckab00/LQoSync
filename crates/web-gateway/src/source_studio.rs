@@ -10,7 +10,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use web_contract::source_studio::{
-    CACHE, RouterSourceConfig, StudioCache, StudioError, StudioJob, StudioJobRequest, VERSION,
+    CACHE, CandidatePage, CandidatePageQuery, CandidateSummary, PAGE_MAX, ResolvedRecord,
+    RouterSourceConfig, StudioCache, StudioError, StudioJobRequest, VERSION, ValidationIssue,
 };
 
 fn error(status: StatusCode, code: &str, message: &str) -> Response {
@@ -83,14 +84,6 @@ pub(crate) async fn jobs(
     let Ok(request) = serde_json::from_slice::<StudioJobRequest>(&body) else {
         return error(StatusCode::BAD_REQUEST, "invalid", "Check the source job.");
     };
-    // Evaluation arrives with plan task B3.
-    if matches!(request.job, StudioJob::Evaluate { .. }) {
-        return error(
-            StatusCode::NOT_FOUND,
-            "unavailable",
-            "This service cannot run this job yet.",
-        );
-    }
     let request = BrokerRequest::StudioJob {
         actor: p.username,
         request,
@@ -131,5 +124,119 @@ pub(crate) async fn config(
             ),
         },
         Err(_) => status_error(StatusCode::SERVICE_UNAVAILABLE),
+    }
+}
+
+fn candidate_id(id: &str) -> bool {
+    id.len() <= 64
+        && id.starts_with("cand-")
+        && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+}
+
+/// `GET /api/v1/topology/source-candidates/{id}[/records|/issues]`. Only the actor of the
+/// candidate reads it: another actor gets `404`, an expired one `410`.
+async fn candidate_part(
+    s: &WebState,
+    h: &HeaderMap,
+    id: String,
+    part: &str,
+    query: Option<CandidatePageQuery>,
+) -> Response {
+    let p = match principal(s, h).await {
+        Ok(p) => p,
+        Err(status) => return status_error(status),
+    };
+    if !candidate_id(&id) {
+        return error(StatusCode::NOT_FOUND, "not_found", "No such candidate.");
+    }
+    let query = query.unwrap_or(CandidatePageQuery {
+        cursor: None,
+        limit: 50,
+    });
+    if !(1..=PAGE_MAX).contains(&query.limit) {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "invalid",
+            "The page limit is 1 to 100.",
+        );
+    }
+    let request = BrokerRequest::StudioCandidate {
+        actor: p.username,
+        id,
+        part: part.into(),
+        cursor: query.cursor,
+        limit: query.limit,
+    };
+    let Ok(reply) = exchange(&s.broker, &request).await else {
+        return status_error(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let Some(v) = reply.candidate else {
+        return status_error(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let value = v["value"].clone();
+    // The answer is checked against the contract type before it leaves.
+    let typed = match part {
+        "records" => serde_json::from_value::<CandidatePage<ResolvedRecord>>(value)
+            .ok()
+            .map(|x| Json(x).into_response()),
+        "issues" => serde_json::from_value::<CandidatePage<ValidationIssue>>(value)
+            .ok()
+            .map(|x| Json(x).into_response()),
+        _ => serde_json::from_value::<CandidateSummary>(value)
+            .ok()
+            .map(|x| Json(x).into_response()),
+    };
+    match v["status"].as_str() {
+        Some("ok") => typed.unwrap_or_else(|| status_error(StatusCode::SERVICE_UNAVAILABLE)),
+        Some("expired") => error(
+            StatusCode::GONE,
+            "expired",
+            "The preview expired. Evaluate the draft again.",
+        ),
+        Some("bad_cursor") => error(
+            StatusCode::BAD_REQUEST,
+            "invalid_cursor",
+            "Load the first page again.",
+        ),
+        Some("not_found") => error(StatusCode::NOT_FOUND, "not_found", "No such candidate."),
+        _ => status_error(StatusCode::SERVICE_UNAVAILABLE),
+    }
+}
+
+pub(crate) async fn candidate(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    candidate_part(&s, &h, id, "summary", None).await
+}
+
+pub(crate) async fn candidate_records(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    query: Result<
+        axum::extract::Query<CandidatePageQuery>,
+        axum::extract::rejection::QueryRejection,
+    >,
+) -> Response {
+    match query {
+        Ok(q) => candidate_part(&s, &h, id, "records", Some(q.0)).await,
+        Err(_) => error(StatusCode::BAD_REQUEST, "invalid", "Check the page query."),
+    }
+}
+
+pub(crate) async fn candidate_issues(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    query: Result<
+        axum::extract::Query<CandidatePageQuery>,
+        axum::extract::rejection::QueryRejection,
+    >,
+) -> Response {
+    match query {
+        Ok(q) => candidate_part(&s, &h, id, "issues", Some(q.0)).await,
+        Err(_) => error(StatusCode::BAD_REQUEST, "invalid", "Check the page query."),
     }
 }

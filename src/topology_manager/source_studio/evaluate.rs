@@ -627,10 +627,6 @@ fn tables_for(intent: &RouterIntent) -> Vec<Table> {
 /// allocates no durable ID, and changes no registry, gate, routing, or output state.
 /// `Err` is a refusal of the request, for example an expired snapshot.
 #[allow(clippy::too_many_arguments)]
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the runner calls it in task B3.3")
-)]
 pub(crate) fn evaluate<C: Connector + 'static>(
     cfg: &Config,
     doc: &RegistryDocument,

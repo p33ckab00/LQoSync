@@ -518,7 +518,8 @@ mod operations {
                 "draft_test",
                 "access_profiles",
                 "source_collect",
-                "wan_evidence"
+                "wan_evidence",
+                "policy_preview"
             ])
         );
         let secret = "s3cret-in-args";
@@ -586,6 +587,52 @@ mod operations {
         let view = cache.routers.iter().find(|v| v.router_id == id).unwrap();
         assert_eq!(view.snapshots.len(), 1);
         assert_eq!(view.snapshots[0].id, snapshot["id"].as_str().unwrap());
+    }
+
+    /// Every file under the state directory, with its bytes.
+    fn files(dir: &std::path::Path) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+        let mut out = std::collections::BTreeMap::new();
+        let mut stack = vec![dir.to_path_buf()];
+        while let Some(d) = stack.pop() {
+            for entry in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if let Ok(bytes) = std::fs::read(&path) {
+                    out.insert(path, bytes);
+                }
+            }
+        }
+        out
+    }
+
+    #[tokio::test]
+    async fn source_evaluation_refuses_stale_input_and_changes_no_state_file() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        let before = files(&e.state);
+        let args = |revision: &str| {
+            json!({"actor": "alice", "router_id": id, "expected_revision": revision,
+                   "expected_config_digest": digest, "snapshot_id": "snap-x", "policies": []})
+        };
+        let v = call(&mut r, "source_studio.evaluate", args("0")).await;
+        let code = v["error"]["code"].as_str().unwrap_or_default().to_owned();
+        assert!(code == "invalid" || code == "conflict", "{v}");
+        let v = call(&mut r, "source_studio.evaluate", args("x")).await;
+        assert!(v["error"]["code"].is_string(), "{v}");
+        for part in ["summary", "records", "issues"] {
+            let v = call(
+                &mut r,
+                "source_studio.candidate",
+                json!({"actor": "alice", "id": "cand-old-1", "part": part}),
+            )
+            .await;
+            assert_eq!(v["result"]["status"], json!("expired"), "{v}");
+        }
+        assert_eq!(files(&e.state), before, "no state file changed");
     }
 
     #[tokio::test]

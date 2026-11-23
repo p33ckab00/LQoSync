@@ -648,6 +648,18 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         )
         .route("/api/v1/topology/operations/{key}", get(topology_operation))
         .route(
+            "/api/v1/topology/source-candidates/{id}",
+            get(crate::source_studio::candidate),
+        )
+        .route(
+            "/api/v1/topology/source-candidates/{id}/records",
+            get(crate::source_studio::candidate_records),
+        )
+        .route(
+            "/api/v1/topology/source-candidates/{id}/issues",
+            get(crate::source_studio::candidate_issues),
+        )
+        .route(
             "/api/v1/topology/source-capabilities",
             get(crate::source_studio::capabilities),
         )

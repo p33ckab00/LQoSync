@@ -43,6 +43,33 @@ struct SourceTestArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct SourceEvaluateArgs {
+    actor: String,
+    router_id: String,
+    expected_revision: String,
+    expected_config_digest: String,
+    snapshot_id: String,
+    policies: Vec<web_contract::source_studio::SourcePolicyDraft>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceCandidateArgs {
+    actor: String,
+    id: String,
+    part: String,
+    #[serde(default)]
+    cursor: Option<String>,
+    #[serde(default = "page_limit")]
+    limit: u16,
+}
+
+fn page_limit() -> u16 {
+    web_contract::source_studio::PAGE_DEFAULT
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SourceCollectArgs {
     router_id: String,
     expected_config_digest: String,
@@ -190,6 +217,25 @@ where
             runner
                 .api_source_collect(&a.router_id, &a.expected_config_digest, &a.sources)
                 .await
+                .map_err(fail)
+        }
+        "source_studio.evaluate" => {
+            let a: SourceEvaluateArgs = parse(request)?;
+            runner
+                .api_source_evaluate(
+                    &a.actor,
+                    &a.router_id,
+                    &a.expected_revision,
+                    &a.expected_config_digest,
+                    &a.snapshot_id,
+                    &a.policies,
+                )
+                .map_err(fail)
+        }
+        "source_studio.candidate" => {
+            let a: SourceCandidateArgs = parse(request)?;
+            runner
+                .api_source_candidate(&a.actor, &a.id, &a.part, a.cursor.as_deref(), a.limit)
                 .map_err(fail)
         }
         "topology.tree" => runner.api_tree().map_err(fail),

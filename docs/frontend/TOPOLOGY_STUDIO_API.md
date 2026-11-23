@@ -1,8 +1,8 @@
 # Topology Studio: frontend and backend contract
 
 Status: contract version 1 types exist since task B0 in `crates/web-contract/src/source_studio.rs`.
-Since task B2, the production service has `GET /api/v1/topology/source-capabilities`, `GET /api/v1/routers/{id}/source-config`, and the `draft_test` and `collect` jobs of `POST /api/v1/topology/source-jobs`.
-It advertises `draft_test`, `access_profiles`, `source_collect`, and `wan_evidence`. The candidate routes and the `evaluate` job return `404` until task B3 passes. The browser fixture serves all new HTTP shapes.
+Since task B3, the production service has all new routes and the three jobs (`draft_test`, `collect`, `evaluate`).
+It advertises `draft_test`, `access_profiles`, `source_collect`, `wan_evidence`, and `policy_preview`. `policy_save` waits for task B4. The browser fixture serves all new HTTP shapes.
 The [product design](ROUTER_SOURCE_CONFIGURATION.md) defines the required behavior.
 The [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) assigns the work.
 
@@ -398,6 +398,26 @@ A route that the service does not have returns `404`, so the frontend treats tha
 | Snapshots | The service keeps the last 2 snapshots of each router in memory for 10 minutes. A restart drops them. |
 | WAN evidence | `wan_candidates` comes from the last complete interface and route reads, at most 32 interfaces and 4 default routes each. A failed or partial read keeps the last good evidence and sets `read_state`. A complete empty route table gives no routes. `decision` stays `null` until task B4. |
 | WAN discovery | The `wan.discover` answer has a new `routes_state` (`ok` or `failed`) for each router. A failed route read no longer looks like an empty route table. |
+
+## Version 1 details from task B3
+
+Owner decision: the service translates each draft into the current engine structures and runs the current engine on a clone. It has no second policy engine.
+
+| Item | Task B3 behavior |
+| --- | --- |
+| Supported drafts | PPP: one enabled policy for each router, `members: joined`, no filter, `group` by `account.profile` or `fixed`. DHCP: `members: active`, filter `lease.server` with `eq` or `in` (or none), `group` by `lease.server`, per-site servers. |
+| Rates | A leading `subscriber_override`, then the configured engine order of the source. The default PPP order is `account_comment`, `active_comment`, `profile_comment`, `profile_rate_limit`, `profile_name`, `settings`. The default per-site DHCP order is `server_comment`, `settings`. |
+| Capacity | `from_plans` with plan factors only. Fixed capacity and minimum rates are not supported in version 1. |
+| Other drafts | A blocker `unsupported_in_v1` with the reason, for example Hotspot (no reference authority) or WAN (use WAN decisions). |
+| Other blockers | `priority_overlap`, `unknown_access_profile`, `invalid_name`, `invalid_capacity`, `partial_table`, `failed_table`, `missing_ppp_join`, `collect_router_first` (another router with a selected source has no Studio snapshot), `conflict` (engine preparation conflict), `engine_refused`. |
+| Evidence | The target router uses the named snapshot. Each other router with a selected source uses its newest Studio snapshot. Only complete tables count. |
+| Engine | Current identity authorization, reconciliation, resolver, aggregate, and pair preparation (compiler admission), on a registry clone with a fresh observation gate. No router read and no durable change. |
+| Records | Records of the target router only. `identity_ref` is the engine identity. A record without a saved subscriber has `issue_codes: ["new_identity"]`. `speed_source` is `subscriber_override` for a saved subscriber plan, otherwise `null` (the engine does not report the winning source). Rates are the engine maximum rates. |
+| Graph | The web projection of the candidate. A node that the saved catalog does not have has a `draft:` ID. The diff compares catalog nodes (name and parent). |
+| Refusal | An unknown router, or an expired or foreign snapshot, gives a `failed` operation. A stale `expected_revision` gives a `failed` operation from the service conflict. A request over an input limit gives a `failed` operation. |
+| Candidate GETs | They read the service memory through the broker, with a 10-second limit. Another actor gets `404`. An expired candidate, or one from before a service restart, gets `410`. A bad cursor gets `400` with `invalid_cursor`. |
+| Cache | 10 minutes, at most 4 candidates and 64 MiB for each actor, 128 MiB in total. The oldest candidate leaves first. A page ends early at 48 KiB. |
+| Fields | `account.profile` (PPP, group only) and `lease.server` (DHCP, `eq` and `in`, group). |
 
 ## Browser fixture cases
 

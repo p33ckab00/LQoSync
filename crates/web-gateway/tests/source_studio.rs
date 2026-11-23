@@ -47,6 +47,35 @@ fn core(dir: &std::path::Path, studio: bool) -> Arc<Mutex<Vec<Value>>> {
                         "collected_from": 1, "collected_to": 2, "expires_at": 3,
                         "tables": [{"table": "routes", "state": "failed", "records": 0,
                                     "collected_at": 2, "issue_code": "trap"}]})),
+                    "source_studio.evaluate" if studio => Some(json!({
+                        "id": "cand-b1-1", "base_revision": v["args"]["expected_revision"],
+                        "config_digest": "d1", "snapshot_id": v["args"]["snapshot_id"],
+                        "draft_digest": "x", "expires_at": 9})),
+                    "source_studio.candidate" if studio => Some(
+                        match (
+                            v["args"]["id"].as_str().unwrap(),
+                            v["args"]["actor"].as_str().unwrap(),
+                            v["args"]["part"].as_str().unwrap(),
+                        ) {
+                            ("cand-b1-1", "operator-a", "summary") => {
+                                json!({"status": "ok", "value": {
+                            "reference": {"id": "cand-b1-1", "base_revision": "7", "config_digest": "d1",
+                                          "snapshot_id": "snap-1", "draft_digest": "x", "expires_at": 9},
+                            "graph": {"nodes": [], "flows": [], "nodes_truncated": false, "flows_truncated": false},
+                            "diff": {"added": 0, "removed": 0, "changed": 0, "unchanged": 0, "markers": [], "markers_truncated": false},
+                            "issues": {"blockers": 1, "warnings": 0, "information": 0},
+                            "publishable": false, "complete": true}})
+                            }
+                            ("cand-b1-1", "operator-a", "issues") => {
+                                json!({"status": "ok", "value": {
+                            "candidate_id": "cand-b1-1", "next_cursor": null, "total": 1, "items": [
+                                {"code": "missing_ppp_join", "severity": "blocker", "entity_ref": "table:ppp_active#0",
+                                 "field": null, "message": "m", "remedy": null}]}})
+                            }
+                            ("cand-b1-2", _, _) => json!({"status": "expired"}),
+                            _ => json!({"status": "not_found"}),
+                        },
+                    ),
                     "topology.web.operation" => Some(Value::Null),
                     _ => None,
                 };
@@ -190,17 +219,14 @@ async fn a_draft_test_job_reaches_the_service_and_answers_on_the_operation() {
 }
 
 #[tokio::test]
-async fn source_jobs_refuse_bad_bodies_and_unreleased_jobs() {
+async fn source_jobs_refuse_bad_bodies() {
     let (_dir, app, seen) = app(true).await;
     let (cookie, csrf) = sign_in(&app).await;
     let jobs = "/api/v1/topology/source-jobs";
-    let evaluate = json!({"key": KEY, "job": {"kind": "evaluate", "router_id": "lq3-a1",
-        "expected_revision": "1", "expected_config_digest": "d", "snapshot_id": "s", "policies": []}});
     let mut unknown: Value = serde_json::from_str(&job("studio")).unwrap();
     unknown["job"]["path"] = json!("/system/reboot");
     let big = "x".repeat(33 * 1024);
     for (body, want, code) in [
-        (evaluate.to_string(), StatusCode::NOT_FOUND, "unavailable"),
         (unknown.to_string(), StatusCode::BAD_REQUEST, "invalid"),
         (big, StatusCode::PAYLOAD_TOO_LARGE, "too_large"),
     ] {
@@ -300,4 +326,85 @@ async fn source_config_reads_the_cache_without_router_io() {
         before,
         "a GET sends nothing to the service"
     );
+}
+
+#[tokio::test]
+async fn an_evaluate_job_keeps_a_candidate_that_only_its_actor_reads() {
+    let (_dir, app, seen) = app(true).await;
+    let (cookie, csrf) = sign_in(&app).await;
+    let body = json!({"key": KEY, "job": {"kind": "evaluate", "router_id": "lq3-00000000000000a1",
+        "expected_revision": "18446744073709551615", "expected_config_digest": "d1",
+        "snapshot_id": "snap-1", "policies": []}})
+    .to_string();
+    let (status, _) = send(
+        &app,
+        req("POST", "/api/v1/topology/source-jobs", &cookie, &csrf, body),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    let op = settle(&app, &cookie, KEY).await;
+    assert_eq!(op["source_result"]["kind"], json!("candidate"), "{op}");
+    assert_eq!(
+        op["source_result"]["base_revision"],
+        json!("18446744073709551615")
+    );
+    let sent: Vec<Value> = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|v| v["op"] == "source_studio.evaluate")
+        .cloned()
+        .collect();
+    assert_eq!(
+        sent[0]["args"]["actor"],
+        json!("operator-a"),
+        "the session names the actor"
+    );
+    let base = "/api/v1/topology/source-candidates";
+    let get = |path: String| req("GET", &path, &cookie, "", String::new());
+    let (status, body) = send(&app, get(format!("{base}/cand-b1-1"))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["issues"]["blockers"], json!(1));
+    let (status, body) = send(&app, get(format!("{base}/cand-b1-1/issues?limit=10"))).await;
+    assert_eq!(
+        (status, &body["total"]),
+        (StatusCode::OK, &json!(1)),
+        "{body}"
+    );
+    for (path, want, code) in [
+        (
+            format!("{base}/cand-b1-9"),
+            StatusCode::NOT_FOUND,
+            "not_found",
+        ),
+        (format!("{base}/cand-b1-2"), StatusCode::GONE, "expired"),
+        (
+            format!("{base}/cand-b1-1/records?limit=500"),
+            StatusCode::BAD_REQUEST,
+            "invalid",
+        ),
+        (
+            format!("{base}/cand-b1-1/issues?cursor=x&extra=1"),
+            StatusCode::BAD_REQUEST,
+            "invalid",
+        ),
+        (
+            format!("{base}/not-a-candidate"),
+            StatusCode::NOT_FOUND,
+            "not_found",
+        ),
+    ] {
+        let (status, body) = send(&app, get(path.clone())).await;
+        assert_eq!(
+            (status, &body["code"]),
+            (want, &json!(code)),
+            "{path}: {body}"
+        );
+    }
+    let (status, _) = send(
+        &app,
+        req("GET", &format!("{base}/cand-b1-1"), "", "", String::new()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }

@@ -115,6 +115,8 @@ pub struct Runner<C: Connector + 'static> {
     web_pending: Option<crate::topology_manager::web_receipts::Record>,
     /// Topology Studio snapshots and WAN evidence, in memory only.
     studio: crate::topology_manager::source_studio::snapshots::Studio,
+    /// Studio candidates of this process. A restart drops them.
+    candidates: crate::topology_manager::source_studio::candidate_cache::Cache,
     last_topology_generation: u64,
     /// Start time of the most recent cycle, in Unix seconds.
     last_cycle_started: Option<u64>,
@@ -283,6 +285,15 @@ where
             web_receipts: None,
             web_pending: None,
             studio: Default::default(),
+            candidates: crate::topology_manager::source_studio::candidate_cache::Cache::new(
+                format!(
+                    "{:x}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0, |d| d.as_nanos() as u64)
+                        ^ u64::from(std::process::id())
+                ),
+            ),
             last_topology_generation: 0,
             last_cycle_started: None,
             last_preview: None,
@@ -910,6 +921,96 @@ where
         let revision = self.api_document().ok().flatten().map(|d| d.revision);
         self.publish_studio(revision, reference.collected_to);
         Ok(serde_json::to_value(reference)?)
+    }
+
+    /// API `source_studio.evaluate`: evaluate drafts on a clone of the current topology and keep
+    /// the candidate for `actor`. It reads no router and changes no durable state.
+    pub fn api_source_evaluate(
+        &mut self,
+        actor: &str,
+        router_id: &str,
+        expected_revision: &str,
+        expected_digest: &str,
+        snapshot_id: &str,
+        policies: &[web_contract::source_studio::SourcePolicyDraft],
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::store::{InvalidPolicy, RevisionConflict};
+        let invalid = |m: &str| anyhow::Error::new(InvalidPolicy(m.into()));
+        let doc = self
+            .api_document()?
+            .filter(|d| d.catalog.is_some() && d.source_settings.is_some())
+            .ok_or_else(|| invalid("not_initialized: initialize the topology first"))?;
+        let expected: u64 = expected_revision
+            .parse()
+            .map_err(|_| invalid("the expected revision is not a decimal number"))?;
+        if expected != doc.revision {
+            return Err(anyhow::Error::new(RevisionConflict));
+        }
+        if expected_digest != self.config_digest {
+            return Err(invalid(
+                "The loaded configuration changed. Load the router again.",
+            ));
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let ev = crate::topology_manager::source_studio::evaluate::evaluate(
+            &self.cfg,
+            &doc,
+            &self.topology_sources,
+            &self.studio,
+            router_id,
+            snapshot_id,
+            policies,
+            now,
+        )
+        .map_err(|m| invalid(&m))?;
+        let draft_digest = format!(
+            "{:016x}",
+            crate::topology::fnv1a64(&serde_json::to_vec(policies)?)
+        );
+        let reference = self.candidates.insert(
+            actor,
+            doc.revision,
+            &self.config_digest,
+            snapshot_id,
+            &draft_digest,
+            ev,
+            now,
+        );
+        Ok(serde_json::to_value(reference)?)
+    }
+
+    /// API `source_studio.candidate`: one part of a kept candidate of `actor`. The answer has a
+    /// `status`: `ok`, `not_found`, `expired`, or `bad_cursor`.
+    pub fn api_source_candidate(
+        &self,
+        actor: &str,
+        id: &str,
+        part: &str,
+        cursor: Option<&str>,
+        limit: u16,
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::source_studio::candidate_cache::Lookup;
+        fn answer<T: serde::Serialize>(l: Lookup<T>) -> anyhow::Result<serde_json::Value> {
+            Ok(match l {
+                Lookup::Found(v) => serde_json::json!({"status": "ok", "value": v}),
+                Lookup::NotFound => serde_json::json!({"status": "not_found"}),
+                Lookup::Expired => serde_json::json!({"status": "expired"}),
+                Lookup::BadCursor => serde_json::json!({"status": "bad_cursor"}),
+            })
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        match part {
+            "summary" => answer(self.candidates.summary(actor, id, now)),
+            "records" => answer(self.candidates.records(actor, id, cursor, limit, now)),
+            "issues" => answer(self.candidates.issues(actor, id, cursor, limit, now)),
+            _ => Err(anyhow::Error::new(
+                crate::topology_manager::store::InvalidPolicy("unknown candidate part".into()),
+            )),
+        }
     }
 
     /// API `router.test`: one connection test of one enabled router: TCP, TLS, sign-in, and an
