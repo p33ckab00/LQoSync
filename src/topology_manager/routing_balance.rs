@@ -117,6 +117,98 @@ pub fn balance(demands: &[Demand], wans: &[WanCandidate], previous: &RoutingStat
     out
 }
 
+/// One placed subscriber: subscriber ID, placement node ID (empty: flat), max download Mbps.
+pub type Placed = (String, String, f64);
+
+/// The placed subscribers of a pair.
+pub fn placed_of(pair: &super::publication::PreparedPair) -> Vec<Placed> {
+    pair.view()
+        .subscribers
+        .iter()
+        .map(|s| (s.id.clone(), s.node.clone(), s.max_mbps.0))
+        .collect()
+}
+
+/// The placed subscribers of a cached preview (the JSON of `topology.preview.refresh`).
+pub fn placed_from_preview(preview: &serde_json::Value) -> Vec<Placed> {
+    preview["subscribers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|s| {
+            Some((
+                s["id"].as_str()?.to_string(),
+                s["node"].as_str().unwrap_or_default().to_string(),
+                s["max_mbps"][0].as_f64().unwrap_or(0.0),
+            ))
+        })
+        .collect()
+}
+
+/// The demand of each placed subscriber. Linked: the WAN at the root above its placement node,
+/// so routing follows the shaping WAN while that WAN is up.
+pub fn demands(placed: &[Placed], catalog: &super::catalog::TopologyCatalog) -> Vec<Demand> {
+    use super::layout::NodeKind;
+    let index: std::collections::HashMap<&str, usize> = catalog
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.id.as_str(), i))
+        .collect();
+    placed
+        .iter()
+        .map(|(id, node, mbps)| {
+            let at = index.get(node.as_str()).copied();
+            let mut root = at;
+            while let Some(parent) = root.and_then(|i| catalog.nodes[i].parent.as_deref()) {
+                root = index.get(parent).copied();
+            }
+            let linked = root
+                .filter(|&i| catalog.nodes[i].kind == NodeKind::Wan)
+                .map(|i| vec![catalog.nodes[i].id.clone()])
+                .unwrap_or_default();
+            let source = at
+                .and_then(|i| catalog.nodes[i].source_id.as_deref())
+                .and_then(|s| catalog.sources.iter().find(|x| x.id == s));
+            let bps = (mbps.max(0.0) * 1_000_000.0) as u64;
+            Demand {
+                subscriber_id: id.clone(),
+                linked,
+                mode: catalog.mode_of(source),
+                weight: RateBps { down: bps, up: bps },
+            }
+        })
+        .collect()
+}
+
+/// Every WAN node of the catalog, with its capacity, quality, and WAN monitor state.
+pub fn candidates(
+    catalog: &super::catalog::TopologyCatalog,
+    wan: &super::wan_health::WanSnapshot,
+) -> Vec<WanCandidate> {
+    use super::catalog::CapacityPolicy;
+    use super::layout::NodeKind;
+    catalog
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::Wan)
+        .map(|n| {
+            let status = wan.0.get(&n.id);
+            WanCandidate {
+                node_id: n.id.clone(),
+                capacity: match n.capacity {
+                    CapacityPolicy::Fixed { base, .. } => base,
+                    _ => RateBps { down: 0, up: 0 },
+                },
+                quality: status
+                    .and_then(|s| s.quality)
+                    .map(|q| q.numerator * 100 / q.denominator.max(1)),
+                up: !status.is_some_and(|s| s.excluded()),
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

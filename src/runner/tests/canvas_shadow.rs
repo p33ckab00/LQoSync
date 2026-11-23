@@ -1121,3 +1121,42 @@ async fn a_router_card_hides_when_no_group_is_active() {
     let card = view.nodes.iter().find(|n| n.router_id.is_some()).unwrap();
     assert!(!card.active);
 }
+
+// Canvas flows plan, Task 2: Rebalance routing.
+
+#[tokio::test]
+async fn rebalance_routing_reports_then_applies() {
+    use web_contract::topology::{BuilderEdit, TopologyView, WebCommand};
+    let e = env();
+    let mut r = enrolled(&e).await;
+    add_wans(&mut r, true);
+    r.api_preview_refresh().await.unwrap();
+    let view = |e: &Env| -> TopologyView {
+        serde_json::from_slice(&std::fs::read(e.state.join(web_contract::topology::CACHE)).unwrap())
+            .unwrap()
+    };
+    // The view always counts the subscribers that a Rebalance would move.
+    let moves = view(&e).routing_moves;
+    assert!(moves > 0);
+    let revision = r.api_document().unwrap().unwrap().revision;
+    let ask = |apply: bool| WebCommand::Edit {
+        expected_revision: revision,
+        edit: BuilderEdit::RoutingRebalance { apply },
+    };
+    r.api_web_mutate("routing-rebalance-report", "operator", ask(false))
+        .await
+        .unwrap();
+    let state = e
+        .state
+        .join("topology-manager")
+        .join(crate::topology_manager::routing_balance::FILE);
+    assert!(!state.exists(), "a report changes nothing");
+    r.api_web_mutate("routing-rebalance-applied", "operator", ask(true))
+        .await
+        .unwrap();
+    let saved = crate::topology_manager::routing_balance::RoutingState::load(
+        &e.state.join("topology-manager"),
+    );
+    assert_eq!(saved.assigned.len() as u64, moves);
+    assert_eq!(view(&e).routing_moves, 0);
+}

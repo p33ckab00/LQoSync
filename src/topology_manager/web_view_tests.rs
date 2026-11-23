@@ -197,6 +197,7 @@ fn input<'a>(
         wan_lists: None,
         activity: None,
         grace: 600,
+        routing_moves: 0,
         wan_discovery: None,
         wan_routers: &NO_ROUTERS,
     }

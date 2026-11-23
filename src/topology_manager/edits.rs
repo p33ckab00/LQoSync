@@ -141,6 +141,8 @@ pub enum Edit {
     /// Return subscribers to the WANs that wait for a Rebalance. No registry change.
     #[serde(rename = "failback.release")]
     FailbackRelease,
+    #[serde(rename = "routing.rebalance")]
+    RoutingRebalance { apply: bool },
     /// One time: assign each client to a node below the WAN of its operator range list.
     #[serde(rename = "wan.adopt")]
     WanAdopt,
@@ -1886,7 +1888,7 @@ pub fn apply(
         Edit::AllocationDefault { mode } => {
             d.catalog.as_mut().expect("enrolled").allocation = *mode;
         }
-        Edit::FailbackRelease | Edit::WanAdopt => {
+        Edit::FailbackRelease | Edit::WanAdopt | Edit::RoutingRebalance { .. } => {
             return Err(invalid(
                 "the service runs this edit with its own router data",
             ));

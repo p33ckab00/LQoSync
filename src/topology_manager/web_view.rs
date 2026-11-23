@@ -37,6 +37,8 @@ pub struct Input<'a> {
     /// Live source activity, and the grace period in seconds.
     pub activity: Option<&'a crate::topology_manager::activity::SourceActivity>,
     pub grace: u64,
+    /// The subscribers that a routing Rebalance would move now.
+    pub routing_moves: u64,
     /// The last WAN discovery answer (`wan::answer`), and the names of the WAN routers.
     pub wan_discovery: Option<&'a Value>,
     pub wan_routers: &'a std::collections::BTreeSet<String>,
@@ -288,6 +290,7 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                 .collect()
         },
         layout_revision: input.layout.map(|l| l.revision.to_string()),
+        routing_moves: input.routing_moves,
         wan_candidates: wan_candidates(input),
     }
 }

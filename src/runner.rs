@@ -138,6 +138,8 @@ pub struct Runner<C: Connector + 'static> {
     manager_state: Option<Option<(u64, String)>>,
     /// Live source activity (`topology-manager/source-activity.json`), loaded at the first read.
     activity: Option<crate::topology_manager::activity::SourceActivity>,
+    /// The routing WAN of each subscriber (`topology-manager/routing-balance.json`).
+    routing: Option<crate::topology_manager::routing_balance::RoutingState>,
     topology_compiler: Option<crate::topology_manager::compiler::ControlledCompiler>,
 }
 
@@ -257,6 +259,7 @@ where
             wan_lists: None,
             manager_state: None,
             activity: None,
+            routing: None,
             topology_compiler: None,
             connector,
             sessions: HashMap::new(),
@@ -709,6 +712,9 @@ where
     /// Write the web Topology view: registry, cached preview, and the last collection. No router
     /// I/O. The cycle, each registry commit, and each preview refresh call it.
     fn publish_web_view(&mut self, now: u64) {
+        let routing_moves = self
+            .rebalanced(now)
+            .map_or(0, |(current, next)| moves(&current, &next));
         let doc = self.api_document().ok().flatten();
         let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
         let publication = self
@@ -743,6 +749,7 @@ where
                 wan_lists: self.wan_lists.as_ref(),
                 activity: self.activity.as_ref(),
                 grace: self.cfg.runtime.subscriber_grace,
+                routing_moves,
                 wan_discovery: self.wan_discovery.as_ref(),
                 wan_routers: &wan_routers,
             });
@@ -2385,6 +2392,9 @@ where
         let edit = serde_json::to_value(edit)
             .and_then(serde_json::from_value)
             .map_err(|_| rule("the edit is not a service edit".into()))?;
+        if let crate::topology_manager::edits::Edit::RoutingRebalance { apply } = edit {
+            return self.routing_rebalance(expected_revision, apply);
+        }
         if matches!(edit, crate::topology_manager::edits::Edit::FailbackRelease) {
             let monitor = self
                 .wan_monitor
@@ -2541,7 +2551,7 @@ where
 
     /// The routing list entries of a pair, when the writer is on. `None` when it is off.
     pub(crate) fn wanted_lists(
-        &self,
+        &mut self,
         pair: &crate::topology_manager::publication::PreparedPair,
     ) -> anyhow::Result<
         Option<
@@ -2555,7 +2565,99 @@ where
             return Ok(None);
         }
         let catalog = pair.catalog().context("the pair has no catalog")?;
-        crate::topology_manager::wan_lists::wanted(pair, catalog).map(Some)
+        let routing = self.route(
+            &crate::topology_manager::routing_balance::placed_of(pair),
+            catalog,
+        );
+        crate::topology_manager::wan_lists::wanted(pair, catalog, &routing).map(Some)
+    }
+
+    /// `routing.rebalance`: balance every subscriber of the cached preview from an empty state.
+    /// The count is the subscribers whose routing WAN changes; only `apply` changes them.
+    fn routing_rebalance(
+        &mut self,
+        expected_revision: u64,
+        apply: bool,
+    ) -> anyhow::Result<serde_json::Value> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let (current, next) = self
+            .rebalanced(now)
+            .ok_or_else(|| rule("refresh the observations first".into()))?;
+        let count = moves(&current, &next);
+        if apply {
+            next.save(&Path::new(&self.cfg.runtime.state_dir).join("topology-manager"))?;
+            self.routing = Some(next);
+            self.reconcile_requested = true;
+            self.publish_web_view(now);
+        }
+        Ok(serde_json::json!({"revision": expected_revision, "moves": count}))
+    }
+
+    /// The current routing state and a balance of the cached preview from an empty state.
+    /// `None` without a policy or a preview. It writes nothing.
+    fn rebalanced(
+        &mut self,
+        now: u64,
+    ) -> Option<(
+        crate::topology_manager::routing_balance::RoutingState,
+        crate::topology_manager::routing_balance::RoutingState,
+    )> {
+        use crate::topology_manager::routing_balance::{
+            RoutingState, balance, candidates, demands, placed_from_preview,
+        };
+        let catalog = self.api_document().ok().flatten()?.catalog?;
+        let preview = self.last_preview.clone()?;
+        let dir = Path::new(&self.cfg.runtime.state_dir).join("topology-manager");
+        let wan = self
+            .wan_monitor
+            .as_ref()
+            .map(|m| m.snapshot(now))
+            .unwrap_or_default();
+        let current = self
+            .routing
+            .clone()
+            .unwrap_or_else(|| RoutingState::load(&dir));
+        let next = balance(
+            &demands(&placed_from_preview(&preview), &catalog),
+            &candidates(&catalog, &wan),
+            &RoutingState::default(),
+        );
+        Some((current, next))
+    }
+
+    /// Run the routing balance for `placed`, keep the result, and save it.
+    fn route(
+        &mut self,
+        placed: &[crate::topology_manager::routing_balance::Placed],
+        catalog: &crate::topology_manager::catalog::TopologyCatalog,
+    ) -> crate::topology_manager::routing_balance::RoutingState {
+        use crate::topology_manager::routing_balance::{
+            RoutingState, balance, candidates, demands,
+        };
+        let dir = Path::new(&self.cfg.runtime.state_dir).join("topology-manager");
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let wan = self
+            .wan_monitor
+            .as_ref()
+            .map(|m| m.snapshot(now))
+            .unwrap_or_default();
+        let previous = self.routing.get_or_insert_with(|| RoutingState::load(&dir));
+        let next = balance(
+            &demands(placed, catalog),
+            &candidates(catalog, &wan),
+            previous,
+        );
+        if &next != previous {
+            if let Err(e) = next.save(&dir) {
+                eprintln!("warning: cannot write the routing balance: {e:#}");
+            }
+            *previous = next.clone();
+        }
+        next
     }
 
     /// Write the routing lists, then publish. A failed or held write keeps the previous pair,
@@ -3109,6 +3211,17 @@ where
         }
         Ok((changed, reload_error))
     }
+}
+
+/// The subscribers whose routing WAN differs between two routing states.
+fn moves(
+    current: &crate::topology_manager::routing_balance::RoutingState,
+    next: &crate::topology_manager::routing_balance::RoutingState,
+) -> u64 {
+    next.assigned
+        .iter()
+        .filter(|(s, w)| current.assigned.get(*s) != Some(*w))
+        .count() as u64
 }
 
 #[cfg(test)]

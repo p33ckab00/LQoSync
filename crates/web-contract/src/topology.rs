@@ -64,6 +64,9 @@ pub struct TopologyView {
     /// Decimal string. The canvas layout revision, independent of `registry_revision`.
     #[serde(default)]
     pub layout_revision: Option<String>,
+    /// The subscribers that "Rebalance routing" would move to another routing WAN now.
+    #[serde(default)]
+    pub routing_moves: u64,
 }
 
 /// The latest shaping write and its evidence. Saved policy, files, import, and native
@@ -813,6 +816,10 @@ pub enum BuilderEdit {
     /// One time: keep the WAN that the operator range lists give each client today.
     #[serde(rename = "wan.adopt")]
     WanAdopt,
+    /// Balance the routing WAN of every subscriber again. `apply: false` only counts the
+    /// subscribers that would change WAN; `apply: true` changes them.
+    #[serde(rename = "routing.rebalance")]
+    RoutingRebalance { apply: bool },
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
