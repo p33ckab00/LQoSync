@@ -1,5 +1,6 @@
 //! Topology Studio source jobs. Only the core service reads RouterOS for them.
 pub mod connection;
+pub mod evaluate;
 pub mod snapshots;
 
 use web_contract::source_studio::{StudioCapabilities, StudioFeature, StudioLimits, VERSION};
