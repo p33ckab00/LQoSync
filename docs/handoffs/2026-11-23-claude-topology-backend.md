@@ -252,3 +252,22 @@ Planned backend task after B3 (not started): live throughput for each node and l
 | Open work | B4 (policy save) and B5. Known limits: the engine does not report the winning rate source (only a subscriber plan is named). Candidate GETs wait for the service API (10-second limit). Another router with a selected source needs its own Studio snapshot. A stale revision gives a `failed` operation, not `409` on the POST. |
 | Next frontend step | F2 can call the `evaluate` job and the candidate GETs against the real gateway. The fixture still gives `409` for `revision_conflict`; the real service gives a `failed` operation with a conflict message. Treat both as a conflict. |
 | Time | 2026-11-24T06:25:46+08:00 |
+
+## Return packet: B4 (2026-11-24T06:54:13+08:00, Asia/Manila)
+
+| Item | Value |
+| --- | --- |
+| Task | B4. |
+| Branch/worktree | `claude/topology-studio-backend` in `/home/pi/LQoSync3.0-worktrees/claude-topology-studio-backend`. |
+| Base/head | Base `49d8a99` (B3 packet). Head `2ddfa1e4a4243a03612b29e4e31325a49415bfe7`. |
+| Contract version | `1`. No contract type changed in B4. |
+| API state | `router.sources_set` and `wan.candidate_set` work through `POST /api/v1/topology/edits`. Advertised: all six features, including `policy_save`. The edit route takes 32 KiB. |
+| Fixture state | Six cases, unchanged. The fixture `revision_conflict` case still refuses `router.sources_set`. |
+| Named tests | `uninitialized_registry_refuses_policy_without_side_effects`, `policy_save_goes_through_receipts_revisions_and_digests` (stale digest, stale revision, partial read, same key once, changed payload refused, `Some([])` removes the sources, the preview of the saved policy), `wan_decision_survives_read_failure`, `schema_9_migrates_to_10_and_keeps_legacy_sources` (also `None` keeps the sources), `large_policy_uses_scoped_body_limit`, and the `add_source` refusal in `source_add_adds_the_router_and_its_role`. |
+| Checks | All passed: `cargo test --locked -p lqosync3 -p web-contract -p web-gateway --no-fail-fast` (2001 passed, 0 failed, 13 ignored). `cargo clippy --locked --workspace --all-targets -- -D warnings`. `cargo fmt --all`. `git diff --check`. |
+| TDD note | The schema tests failed first on the version change. The B4 flow tests were written with their code; they passed at the first run after a borrow fix. |
+| Not run | Wasm clippy (no contract change in B4). Browser fixture smoke and `tools/frontend/check-all.sh`. No save on the production registry. |
+| Migration | Registry schema 9 → 10 at the first load by the new binary. Before deploy, back up `/var/lib/lqosync3/topology-manager/registry.json` (unique target name). Rollback: stop the service, restore that schema-9 backup, then install the older binary. Without a backup, a schema-10 file with no `source_policies` and no `wan_decisions` differs from schema 9 only in `schema_version`; an operator can set it to 9 by hand. |
+| Open work | B5 (transport and release evidence, `studio-service-smoke.sh`). Known limits: the save does not run the compiler (the cycle does). In legacy writer mode the saved policy changes the registry only; the live output follows the config until the topology writer owns publication. A removed profile or source keeps its files. |
+| Next frontend step | F3 can save access profiles (router edit), wait for `loaded_config_digest`, then send `router.sources_set` with the registry revision. A failed receipt `error` starts with its code. |
+| Time | 2026-11-24T06:54:13+08:00 |
