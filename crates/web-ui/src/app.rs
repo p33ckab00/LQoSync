@@ -86,6 +86,7 @@ fn NetworkArt() -> impl IntoView {
 }
 #[component]
 fn SignIn(session: RwSignal<Option<Principal>>) -> impl IntoView {
+    let memory = expect_context::<crate::topology_studio::StudioMemory>().0;
     let username = RwSignal::new(String::new());
     let password = RwSignal::new(String::new());
     let show = RwSignal::new(false);
@@ -93,7 +94,7 @@ fn SignIn(session: RwSignal<Option<Principal>>) -> impl IntoView {
     let error = RwSignal::new(String::new());
     view! {<div class="signin-page"><header class="signin-top"><Theme/></header><main class="signin-layout" id="main"><section class="identity"><Brand/><p>"Network configuration and orchestration"</p><NetworkArt/></section><section class="signin-panel glass"><Brand compact=true/><h1>"Sign in"</h1><p class="intro">"Use your administrator account."</p><form on:submit=move|ev|{ev.prevent_default();if pending.get_untracked(){return;}pending.set(true);error.set(String::new());let body=serde_json::json!({"username":username.get_untracked(),"password":password.get_untracked()});leptos::task::spawn_local(async move{
     let (signal,_timer)=deadline();let response=Request::post("/api/v1/session").abort_signal(Some(&signal)).json(&body).expect("serializable login").send().await;
-    match response {Ok(r)if r.ok()=>match r.json::<Principal>().await{Ok(p)=>{password.set(String::new());session.set(Some(p));},Err(_)=>error.set("The sign-in response is invalid. Try again.".into())},Ok(r)if r.status()==401=>error.set("Sign-in details are incorrect.".into()),_=>error.set("Sign-in service unavailable. Try again shortly.".into())};pending.set(false);
+    match response {Ok(r)if r.ok()=>match r.json::<Principal>().await{Ok(p)=>{password.set(String::new());memory.update(|m|m.bind_actor(&p.username));session.set(Some(p));},Err(_)=>error.set("The sign-in response is invalid. Try again.".into())},Ok(r)if r.status()==401=>error.set("Sign-in details are incorrect.".into()),_=>error.set("Sign-in service unavailable. Try again shortly.".into())};pending.set(false);
     });}><label for="username">"Username"</label><input id="username" name="username" type="text" autocomplete="username" spellcheck="false" autocapitalize="none" placeholder="Enter your username" maxlength="64" required prop:value=move||username.get() on:input=move|ev|username.set(event_target_value(&ev))/><label for="password">"Password"</label><div class="password-field"><input id="password" name="password" type=move||if show.get(){"text"}else{"password"} autocomplete="current-password" placeholder="Enter your password" maxlength="256" required prop:value=move||password.get() on:input=move|ev|password.set(event_target_value(&ev))/><button type="button" aria-label=move||if show.get(){"Hide password"}else{"Show password"} on:click=move|_|show.update(|v|*v = !*v)>{move||if show.get(){"Hide"}else{"Show"}}</button></div><p class="form-error" role="alert">{move||error.get()}</p><button type="submit" class="primary signin-button" disabled=move||pending.get()>{move||if pending.get(){"Signing in…"}else{"Sign in"}}</button></form><p class="access-note">"Contact your system administrator for account access."</p></section></main><footer>"LQoSync · Web control panel"</footer></div>}
 }
 #[component]
@@ -157,6 +158,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             gloo_timers::future::TimeoutFuture::new(5000).await;
         }
     });
+    let studio_memory = expect_context::<crate::topology_studio::StudioMemory>().0;
     let signing_out = RwSignal::new(false);
     view! {
       <div class="app-shell">
@@ -184,7 +186,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
                 leptos::task::spawn_local(async move{
                   let (signal,_timer)=deadline();
                   match Request::delete("/api/v1/session").abort_signal(Some(&signal)).header("x-csrf-token",&csrf).send().await{
-                    Ok(r)if r.ok()||r.status()==401=>session.set(None),
+                    Ok(r)if r.ok()||r.status()==401=>{studio_memory.update(|m|m.clear());session.set(None);},
                     _=>error.set("Sign out could not complete. Try again.".into())
                   };
                   signing_out.set(false);
@@ -234,6 +236,8 @@ pub fn App() -> impl IntoView {
         .and_then(|e| e.get_attribute("data-theme"))
         .unwrap_or("system".into());
     provide_context(ThemePreference(RwSignal::new(theme)));
+    let studio_memory = RwSignal::new(crate::topology_studio_model::DraftVault::default());
+    provide_context(crate::topology_studio::StudioMemory(studio_memory));
     let session = RwSignal::new(None::<Principal>);
     let loading = RwSignal::new(true);
     leptos::task::spawn_local(async move {
@@ -245,6 +249,7 @@ pub fn App() -> impl IntoView {
             && r.ok()
             && let Ok(p) = r.json::<Principal>().await
         {
+            studio_memory.update(|m| m.bind_actor(&p.username));
             session.set(Some(p));
         }
         loading.set(false);

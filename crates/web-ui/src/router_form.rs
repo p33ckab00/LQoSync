@@ -1203,45 +1203,9 @@ fn DraftConnectionTest(
                     required_sources: sources,
                 },
             };
-            let result = match crate::topology_forms::post(
-                c.session,
-                "/api/v1/topology/source-jobs",
-                &request,
-            )
-            .await
-            {
-                Ok(Some(op)) => {
-                    if matches!(op.state.as_str(), "queued" | "running") {
-                        let mut result = Err("The draft test did not finish. Retry explicitly.");
-                        for _ in 0..60 {
-                            match crate::topology::get::<web_contract::topology::Operation>(
-                                c.session,
-                                &format!("/api/v1/topology/operations/{key}"),
-                            )
-                            .await
-                            {
-                                Ok(op) if matches!(op.state.as_str(), "queued" | "running") => {
-                                    gloo_timers::future::TimeoutFuture::new(1000).await
-                                }
-                                Ok(op) => {
-                                    result = Ok(op);
-                                    break;
-                                }
-                                Err(_) => break,
-                            }
-                            if !alive.load(std::sync::atomic::Ordering::Relaxed) {
-                                return;
-                            }
-                        }
-                        result
-                    } else {
-                        Ok(op)
-                    }
-                }
-                _ => {
-                    Err("The draft test answer is unknown. Retry explicitly. No router was saved.")
-                }
-            };
+            let result =
+                crate::topology_studio_api::job(c.session, &request, JOB_DEADLINE_SECS, false)
+                    .await;
             drop(request);
             if !alive.load(std::sync::atomic::Ordering::Relaxed) {
                 return;

@@ -89,3 +89,8 @@ mod topology_studio_model;
 mod topology_source_editor;
 #[cfg(target_arch = "wasm32")]
 mod topology_studio;
+
+#[cfg(target_arch = "wasm32")]
+mod topology_studio_api;
+#[cfg(target_arch = "wasm32")]
+mod topology_studio_preview;

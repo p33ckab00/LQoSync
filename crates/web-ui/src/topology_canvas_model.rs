@@ -75,6 +75,16 @@ pub(crate) fn cards(nodes: &[Node]) -> Vec<Card> {
     out
 }
 
+/// The shared tier of a saved or candidate card.
+pub(crate) fn node_tier(n: &Node) -> Tier {
+    match (n.kind.as_str(), n.router_id.is_some()) {
+        ("wan", _) => Tier::Wan,
+        (_, true) => Tier::Router,
+        ("group", _) => Tier::Group,
+        _ => Tier::Other,
+    }
+}
+
 /// The card position of each card and candidate WAN: the saved position, else the tier layout
 /// of the direction (WAN row, router row, group row, a child next to its parent). `extra` is the
 /// height below a card that its leaf labels take.
@@ -84,12 +94,6 @@ pub(crate) fn positions(
     direction: Direction,
     extra: &std::collections::HashMap<String, f64>,
 ) -> Vec<(String, [f64; 2])> {
-    let tier = |n: &Node| match (n.kind.as_str(), n.router_id.is_some()) {
-        ("wan", _) => Tier::Wan,
-        (_, true) => Tier::Router,
-        ("group", _) => Tier::Group,
-        _ => Tier::Other,
-    };
     let card_by_node = |id: &str| {
         cards
             .iter()
@@ -100,7 +104,7 @@ pub(crate) fn positions(
         .iter()
         .map(|c| CardBox {
             id: c.id.clone(),
-            tier: tier(&c.node),
+            tier: node_tier(&c.node),
             parent: c.node.parent.as_deref().and_then(card_by_node),
             size: [CARD_W, CARD_H + extra.get(&c.id).copied().unwrap_or(0.0)],
         })

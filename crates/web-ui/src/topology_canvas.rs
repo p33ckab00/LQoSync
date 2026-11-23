@@ -174,6 +174,7 @@ pub(crate) fn Canvas(
     let queue = StoredValue::new(VecDeque::<BuilderEdit>::new());
     let draining = RwSignal::new(false);
     let policy_revision = RwSignal::new(None::<u64>);
+    let projection = RwSignal::new(None::<web_contract::source_studio::CandidateSummary>);
     let studio_open = RwSignal::new(false);
     let studio_router = RwSignal::new(None::<String>);
     let help_dialog = NodeRef::<leptos::html::Dialog>::new();
@@ -297,7 +298,7 @@ pub(crate) fn Canvas(
     });
     let point_of =
         move |id: &str| points.with(|p| p.iter().find(|(n, _)| n == id).map(|(_, x)| *x));
-    let locked = move || structural_blocked(data).is_some();
+    let locked = move || structural_blocked(data).is_some() || projection.with(Option::is_some);
     let topology_writer = move || {
         data.with_untracked(|d| {
             d.as_ref()
@@ -815,7 +816,25 @@ pub(crate) fn Canvas(
             Some(view! {<path d=d class="pending"/>})
         })
     };
-    let size = move || points.with(|p| surface(p));
+    let world_points = Memo::new(move |_| {
+        let mut at = points.get();
+        if let Some(p) = projection.get() {
+            let (_, extra) = crate::topology_studio_preview::candidate_geometry(
+                &p,
+                data.get().as_ref(),
+                &at,
+                direction.get(),
+            );
+            at.extend(extra);
+        }
+        at
+    });
+    let size = move || world_points.with(|p| surface(p));
+    Effect::new(move |_| {
+        if projection.with(Option::is_some) {
+            list_view.set(false);
+        }
+    });
     let selected_node = move || {
         let id = selected.get()?;
         nodes.with(|n| n.iter().find(|x| card_of(x) == id).cloned())
@@ -848,7 +867,7 @@ pub(crate) fn Canvas(
     let tool = move |p: Panel, label: &'static str, path: &'static str| {
         view! {
           <button type="button" class="canvas-tool" aria-label=label title=label
-            aria-haspopup="dialog" on:click=move|_|open(p)>{icon(path)}</button>
+            aria-haspopup="dialog" disabled=move||projection.with(Option::is_some) on:click=move|_|open(p)>{icon(path)}</button>
         }
     };
     let wan_field = move |f: fn(&mut Draft) -> &mut String, v: String| {
@@ -914,11 +933,15 @@ pub(crate) fn Canvas(
             <div class="canvas-surface" style:width=move||format!("{}px",size().0*zoom.get()) style:height=move||format!("{}px",size().1*zoom.get())>
               <div class="canvas-layer" data-direction=move||direction_name(direction.get()) style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
+                <div class="canvas-saved-layer" style="display:contents" inert=move||projection.with(Option::is_some) data-preview=move||projection.with(Option::is_some).to_string()>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}{pending}</svg>
                 <For each=move||card_list.get() key=|c|{let n=&c.node; format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",c.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,c.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded))} children=card/>
                 <For each=move||group_cards.get() key=|c|c.id.clone() children=leaves/>
                 <For each=move||parents.get() key=|c|c.id.clone() children=handle/>
                 <For each=move||candidate_cards(&candidates.get()) key=|c|c.0.clone() children=candidate/>
+                </div>
+                <crate::topology_studio_preview::CandidateOverlay projection saved=data points direction/>
+
               </div>
             </div>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.is_empty()))>
@@ -939,7 +962,7 @@ pub(crate) fn Canvas(
             {tool(Panel::Excluded,"Excluded sources",ICON_EXCLUDED)}
             {tool(Panel::Layout,"Canvas layout",ICON_LAYOUT)}
             <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
-            <button type="button" class="canvas-tool" aria-label="List view" title="List view" aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>{icon(ICON_LIST)}</button>
+            <button type="button" class="canvas-tool" aria-label="List view" title="List view" disabled=move||projection.with(Option::is_some) aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>{icon(ICON_LIST)}</button>
             <Show when=move||selected_link.get().is_some()>
               <span class="canvas-zoom-sep" aria-hidden="true"></span>
               <button type="button" class="canvas-tool danger" aria-label="Remove link" title="Remove link" disabled=locked
@@ -947,7 +970,7 @@ pub(crate) fn Canvas(
             </Show>
             <Show when=move||selected.get().is_some()>
               <span class="canvas-zoom-sep" aria-hidden="true"></span>
-              <button type="button" class="canvas-tool" aria-label="Card settings" title="Card settings" on:click=move|_|open(Panel::Node)>{icon(ICON_SETTINGS)}</button>
+              <button type="button" class="canvas-tool" aria-label="Card settings" title="Card settings" disabled=move||projection.with(Option::is_some) on:click=move|_|open(Panel::Node)>{icon(ICON_SETTINGS)}</button>
             </Show>
 
           </div>
@@ -961,7 +984,7 @@ pub(crate) fn Canvas(
             <span class="canvas-zoom-sep" aria-hidden="true"></span>
             <button type="button" class="quiet" aria-label="Fit" title="Fit topology" on:click=move|_|{
               let Some(v)=viewport.get_untracked() else {return};
-              let b=points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
+              let b=world_points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
                 [b[0].min(q[0]),b[1].min(q[1]),b[2].max(q[0]+CARD_W),b[3].max(q[1]+CARD_H)]));
               let (z,_,_)=fit(b,[v.client_width() as f64,v.client_height() as f64]);
               zoom.set(z);
@@ -969,7 +992,7 @@ pub(crate) fn Canvas(
               v.set_scroll_top((b[1]*z) as i32);
             }>{icon(ICON_FIT)}</button>
           </div>
-        <crate::topology_studio::Studio open=studio_open router_id=studio_router session data/>
+        <crate::topology_studio::Studio open=studio_open router_id=studio_router session data projection load_saved=Callback::new(move|()|{projection.set(None);reload.run(());})/>
         <crate::app::Theme icons=true/>
         <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||match panel.get(){Some(Panel::Inventory)=>"inventory",_=>"settings"} aria-labelledby="canvas-dialog-title"
           on:close=move|_|{

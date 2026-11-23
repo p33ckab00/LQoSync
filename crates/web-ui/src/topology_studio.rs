@@ -8,12 +8,17 @@ use web_contract::{
     Principal, routers::RouterInventory, source_studio::*, topology::TopologySummary,
 };
 
+#[derive(Clone, Copy)]
+pub(crate) struct StudioMemory(pub RwSignal<DraftVault>);
+
 #[component]
 pub(crate) fn Studio(
     open: RwSignal<bool>,
     router_id: RwSignal<Option<String>>,
     session: RwSignal<Option<Principal>>,
     data: RwSignal<Option<TopologySummary>>,
+    projection: RwSignal<Option<CandidateSummary>>,
+    load_saved: Callback<()>,
 ) -> impl IntoView {
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     let help = NodeRef::<leptos::html::Dialog>::new();
@@ -39,6 +44,29 @@ pub(crate) fn Studio(
     let credentials = RwSignal::new(Form::default());
     let credential_errors = RwSignal::new(vec![]);
     let generation = StoredValue::new(0u64);
+    let memory = expect_context::<StudioMemory>().0;
+    Effect::new(move |_| {
+        if let (Some(p), Some(d)) = (session.get(), draft.get()) {
+            memory.update(|m| {
+                m.remember(&p.username, d);
+            });
+        }
+    });
+    let preview =
+        crate::topology_studio_preview::controller(crate::topology_studio_preview::Inputs {
+            session,
+            draft,
+            caps,
+            config,
+            data,
+            open,
+            projection,
+            on_edit: Callback::new(move |()| {
+                section.set(StudioSection::Sources);
+                open.set(true);
+            }),
+            on_saved: load_saved,
+        });
     let actor = StoredValue::new(session.get_untracked().map(|p| p.username));
     let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let end = alive.clone();
@@ -85,8 +113,10 @@ pub(crate) fn Studio(
         let expected_actor = actor.get_value();
         let alive = alive.clone();
         leptos::task::spawn_local(async move {
-            let routers = crate::topology::get::<RouterInventory>(session, "/api/v1/routers").await;
-            let capabilities = crate::topology::get::<StudioCapabilities>(
+            let routers =
+                crate::topology_studio_api::get::<RouterInventory>(session, "/api/v1/routers")
+                    .await;
+            let capabilities = crate::topology_studio_api::get::<StudioCapabilities>(
                 session,
                 "/api/v1/topology/source-capabilities",
             )
@@ -116,7 +146,7 @@ pub(crate) fn Studio(
                             router_id.set(Some(id));
                             return;
                         }
-                        let source = crate::topology::get::<RouterSourceConfig>(
+                        let source = crate::topology_studio_api::get::<RouterSourceConfig>(
                             session,
                             &format!("/api/v1/routers/{id}/source-config"),
                         )
@@ -131,6 +161,14 @@ pub(crate) fn Studio(
                             if c.version == VERSION && c.router_id == id {
                                 let local = drafts
                                     .with_value(|all| all.get(&id).cloned())
+                                    .or_else(|| {
+                                        memory.with_untracked(|m| {
+                                            m.recover(
+                                                &expected_actor.clone().unwrap_or_default(),
+                                                &id,
+                                            )
+                                        })
+                                    })
                                     .unwrap_or_else(|| {
                                         let mut d = StudioDraft::from(c.clone());
                                         if let Some(p) =
@@ -210,7 +248,7 @@ pub(crate) fn Studio(
     // Profile metadata is durable draft state. Credentials use the shared, separate form.
     Effect::new(move |_| {
         let username = credentials.with(|f| f.username.clone());
-        draft.update_untracked(|d| {
+        draft.update(|d| {
             if let Some(d) = d
                 && let Some(p) = d.profiles.get_mut(profile.get_untracked())
                 && p.username != username
@@ -269,8 +307,9 @@ pub(crate) fn Studio(
             <Show when=move||draft.with(|d|d.as_ref().is_some_and(|d|d.config_digest!=d.loaded_config_digest))><p class="notice">"The service has not loaded the saved access configuration. Policy save remains unavailable."</p></Show>
             {move||match section.get(){
               StudioSection::Connection=>view!{<h3>"Connection"</h3>{move||router().map(|r|view!{<EditableSection router=r section=Section::Connection icons=true/>})}}.into_any(),
-              StudioSection::Sources=>view!{<p class="studio-draft-note" role="note">"Local draft. Preview and source-policy save are unavailable in this build. Your draft stays in this tab."</p>
+              StudioSection::Sources=>view!{<p class="studio-draft-note" role="note">"Local draft. Discovery and preview are read-only. Source-policy save is unavailable in this build."</p>
                 {move||caps.get().filter(|_|source_ready.get()).map(|caps|view!{<crate::topology_source_editor::SourceEditor draft caps data/>})}
+                <crate::topology_studio_preview::EvidencePane state=preview/>
               }.into_any(),
               StudioSection::Access=>view!{
                 <h3>"Access profiles"</h3><p class="field-help">"One profile can serve reads and explicit supported writes. Stored passwords never return to this page."</p>
@@ -292,7 +331,7 @@ pub(crate) fn Studio(
           </div>
         </div>
         <footer class="canvas-dialog-footer"><p role="status">{move||if section.get()==StudioSection::Connection{"Connection edits use the current service."}else{"Local source configuration draft"}}</p>
-          <button type="button" class="canvas-tool" aria-label="Preview draft" title="Preview is unavailable in this build" disabled>{crate::topology_canvas::icon("M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0")}</button>
+          <button type="button" class="canvas-tool" aria-label="Preview draft" title=move||preview.reason(true).unwrap_or("Preview draft".into()) disabled=move||section.get()!=StudioSection::Sources||preview.reason(true).is_some() on:click=move|_|preview.evaluate()>{crate::topology_canvas::icon("M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0")}</button>
           <button type="button" class="canvas-tool" aria-label="Save configuration" title="Source configuration save is unavailable in this build" disabled>{crate::topology_canvas::icon("M4 3h13l4 4v14H4zM8 3v6h8V3M8 21v-8h9v8")}</button>
         </footer>
         </Show>
@@ -301,6 +340,7 @@ pub(crate) fn Studio(
             on_closed=Callback::new(move|()|adding.set(false)) on_added=Callback::new(move|id:String|{section.set(StudioSection::Connection);profile.set(0);credentials.set(Form::default());adding.set(false);router_id.set(Some(id));refresh.update(|n|*n=n.wrapping_add(1));})/>
         </Show>
       </dialog>
+      <crate::topology_studio_preview::PreviewUi state=preview/>
       <dialog node_ref=help class="topology-dialog canvas-dialog" data-panel="help" aria-labelledby="studio-router-help-title" on:close=move|_|help_open.set(false)>
         <header class="add-router-heading"><h2 id="studio-router-help-title">"Configuration workflow"</h2><button type="button" class="canvas-tool" aria-label="Close" title="Close" on:click=move|_|if let Some(d)=help.get_untracked(){d.close();}>{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18")}</button></header>
         <div class="canvas-dialog-body"><Show when=move||help_open.get()><crate::topology_studio_help::StudioHelp selected=None/></Show></div>

@@ -76,12 +76,12 @@ pub(crate) const SOURCES: [(SourceKind, &str); 4] = [
 pub(crate) fn source_label(kind: SourceKind) -> &'static str {
     SOURCES.iter().find(|(k, _)| *k == kind).unwrap().1
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct PolicyDraft {
     pub policy: SourcePolicyDraft,
     pub priority: String,
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ProfileDraft {
     pub id: String,
     pub label: String,
@@ -89,7 +89,7 @@ pub(crate) struct ProfileDraft {
     pub credential_set: bool,
     pub supported_writes: Vec<WriteScope>,
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct StudioDraft {
     pub router_id: String,
     pub config_digest: String,
@@ -292,6 +292,164 @@ pub(crate) fn rate_choices(source: SourceKind, caps: &StudioCapabilities) -> Vec
     });
     rates
 }
+/// Only non-secret drafts survive a same-actor reauthentication in this tab.
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct DraftVault {
+    pub actor: Option<String>,
+    pub drafts: std::collections::HashMap<String, StudioDraft>,
+}
+impl DraftVault {
+    pub fn bind_actor(&mut self, actor: &str) {
+        if self.actor.as_deref() != Some(actor) {
+            self.drafts.clear();
+            self.actor = Some(actor.into());
+        }
+    }
+    pub fn remember(&mut self, actor: &str, draft: StudioDraft) -> bool {
+        if self.actor.as_deref() != Some(actor) {
+            return false;
+        }
+        self.drafts.insert(draft.router_id.clone(), draft);
+        true
+    }
+    pub fn recover(&self, actor: &str, router: &str) -> Option<StudioDraft> {
+        (self.actor.as_deref() == Some(actor))
+            .then(|| self.drafts.get(router).cloned())
+            .flatten()
+    }
+    pub fn clear(&mut self) {
+        self.drafts.clear();
+        self.actor = None;
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct DraftStamp {
+    pub actor: String,
+    pub router_id: String,
+    pub config_digest: String,
+    pub revision: Option<String>,
+    pub epoch: u64,
+    pub snapshot_id: String,
+}
+impl DraftStamp {
+    pub fn new(actor: &str, d: &StudioDraft, snapshot: &str) -> Option<Self> {
+        if actor.is_empty() || d.router_id.is_empty() {
+            return None;
+        }
+        Some(Self {
+            actor: actor.into(),
+            router_id: d.router_id.clone(),
+            config_digest: d.config_digest.clone(),
+            revision: d.policy_revision.clone(),
+            epoch: d.epoch,
+            snapshot_id: snapshot.into(),
+        })
+    }
+    pub fn matches(&self, actor: &str, d: &StudioDraft, snapshot: &str) -> bool {
+        self.actor == actor
+            && self.router_id == d.router_id
+            && self.config_digest == d.config_digest
+            && d.policy_revision == self.revision
+            && self.epoch == d.epoch
+            && self.snapshot_id == snapshot
+    }
+    pub fn accepts_reference(&self, r: &CandidateRef) -> bool {
+        self.config_digest == r.config_digest
+            && self.revision.as_deref() == Some(r.base_revision.as_str())
+            && self.snapshot_id == r.snapshot_id
+    }
+}
+#[derive(Clone, PartialEq)]
+pub(crate) struct BoundCandidate {
+    pub stamp: DraftStamp,
+    pub summary: CandidateSummary,
+    pub unavailable: bool,
+}
+impl BoundCandidate {
+    pub fn valid(&self, actor: &str, d: &StudioDraft, now: u64) -> bool {
+        !self.unavailable
+            && self.summary.reference.expires_at > now
+            && self.stamp.accepts_reference(&self.summary.reference)
+            && self
+                .stamp
+                .matches(actor, d, &self.summary.reference.snapshot_id)
+    }
+}
+#[derive(Clone)]
+pub(crate) struct DetailPage<T> {
+    pub items: Vec<T>,
+    pub total: Option<u64>,
+    pub next_cursor: Option<String>,
+    seen: Vec<String>,
+}
+impl<T> Default for DetailPage<T> {
+    fn default() -> Self {
+        Self {
+            items: vec![],
+            total: None,
+            next_cursor: None,
+            seen: vec![],
+        }
+    }
+}
+impl<T> DetailPage<T> {
+    pub fn append(
+        &mut self,
+        id: &str,
+        cursor: Option<&str>,
+        page: CandidatePage<T>,
+    ) -> Result<(), &'static str> {
+        if page.candidate_id != id
+            || page.items.len() > PAGE_MAX as usize
+            || page.items.len() as u64 > page.total
+        {
+            return Err("The detail page does not match this candidate.");
+        }
+        if cursor.is_some() && (self.items.len() + page.items.len()) as u64 > page.total {
+            return Err("The detail page exceeds its total count.");
+        }
+        if let Some(cursor) = cursor
+            && (self.next_cursor.as_deref() != Some(cursor) || self.total != Some(page.total))
+        {
+            return Err("The detail page changed. Load its first page again.");
+        }
+        if let Some(next) = &page.next_cursor
+            && (cursor == Some(next.as_str()) || self.seen.contains(next))
+        {
+            return Err("The detail cursor did not advance.");
+        }
+        if cursor.is_none() {
+            self.items.clear();
+            self.seen.clear();
+        }
+        if let Some(cursor) = cursor {
+            self.seen.push(cursor.into());
+        }
+        self.total = Some(page.total);
+        self.next_cursor = page.next_cursor;
+        self.items.extend(page.items);
+        Ok(())
+    }
+    pub fn incomplete(&self) -> bool {
+        self.total.is_some_and(|n| (self.items.len() as u64) < n) && self.next_cursor.is_none()
+    }
+}
+pub(crate) fn evaluation_policies(d: &StudioDraft) -> Result<Vec<SourcePolicyDraft>, String> {
+    d.policies
+        .iter()
+        .map(|p| {
+            let mut policy = p.policy.clone();
+            policy.priority = p
+                .priority
+                .parse::<u16>()
+                .map_err(|_| "Set each policy priority from 0 to 65535.".to_string())?;
+            if policy.name.is_empty() || policy.name.len() > MAX_POLICY_NAME {
+                return Err("Set each policy name from 1 to 128 UTF-8 bytes.".into());
+            }
+            Ok(policy)
+        })
+        .collect()
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -419,5 +577,140 @@ mod tests {
         caps.features
             .retain(|f| *f != StudioFeature::AccessProfiles);
         assert!(section_reason(StudioSection::Access, true, Some(&caps), Some(&config)).is_some());
+    }
+    #[test]
+    fn old_preview_cannot_replace_new_draft() {
+        let (_, c) = fixture();
+        let mut d = StudioDraft::from(c);
+        let stamp = DraftStamp::new("alice", &d, "snapshot").unwrap();
+        assert!(stamp.matches("alice", &d, "snapshot"));
+        d.edit(|p| p.policy.name = "New draft".into());
+        assert!(!stamp.matches("alice", &d, "snapshot"));
+        assert!(!stamp.matches("bob", &d, "snapshot"));
+        assert_eq!(d.current().unwrap().policy.name, "New draft");
+        d.router_id = "other".into();
+        assert!(!stamp.matches("alice", &d, "snapshot"));
+    }
+    #[test]
+    fn expired_candidate_keeps_draft() {
+        let (_, c) = fixture();
+        let d = StudioDraft::from(c);
+        let before = d.clone();
+        let v: serde_json::Value = serde_json::from_str(include_str!(
+            "../../web-contract/tests/fixtures/studio/normal.json"
+        ))
+        .unwrap();
+        let c: CandidateSummary = serde_json::from_value(v["candidate"].clone()).unwrap();
+        let stamp = DraftStamp::new("alice", &d, &c.reference.snapshot_id).unwrap();
+        let mut bound = BoundCandidate {
+            stamp,
+            summary: c,
+            unavailable: false,
+        };
+        assert!(bound.valid("alice", &d, 1));
+        assert!(!bound.valid("alice", &d, u64::MAX));
+        bound.unavailable = true;
+        assert!(!bound.valid("alice", &d, 1));
+        assert!(d == before);
+    }
+    #[test]
+    fn different_actor_cannot_recover_draft() {
+        let (_, c) = fixture();
+        let d = StudioDraft::from(c);
+        let mut vault = DraftVault::default();
+        vault.bind_actor("alice");
+        vault.remember("alice", d.clone());
+        assert!(vault.recover("alice", &d.router_id).is_some());
+        assert!(vault.recover("bob", &d.router_id).is_none());
+        vault.bind_actor("bob");
+        assert!(vault.recover("alice", &d.router_id).is_none());
+        assert!(!vault.remember("alice", d));
+        vault.clear();
+        assert!(vault.actor.is_none());
+    }
+    #[test]
+    fn secret_input_is_not_in_draft_state() {
+        let (_, c) = fixture();
+        let d = StudioDraft::from(c);
+        let mut connection = crate::router_form_model::Form::new_router();
+        connection.password = "DO_NOT_STORE_THIS_SECRET".into();
+        let mut vault = DraftVault::default();
+        vault.bind_actor("alice");
+        vault.remember("alice", d);
+        let json = serde_json::to_string(&vault).unwrap();
+        assert!(!json.contains(&connection.password));
+        assert!(!json.contains("password"));
+        let restored: DraftVault = serde_json::from_str(&json).unwrap();
+        assert!(restored.recover("alice", "lq3-00000000000000a1").is_some());
+    }
+    #[test]
+    fn paged_issues_keep_complete_counts() {
+        let mut page = DetailPage::<ValidationIssue>::default();
+        let issue = ValidationIssue {
+            code: "x".into(),
+            severity: Severity::Blocker,
+            entity_ref: "r".into(),
+            field: None,
+            message: "Fix the record.".into(),
+            remedy: None,
+        };
+        page.append(
+            "candidate",
+            None,
+            CandidatePage {
+                candidate_id: "candidate".into(),
+                items: vec![issue.clone()],
+                next_cursor: Some("next".into()),
+                total: 100,
+            },
+        )
+        .unwrap();
+        assert_eq!(page.total, Some(100));
+        assert_eq!(page.items.len(), 1);
+        assert!(!page.incomplete());
+        assert!(
+            page.append(
+                "foreign",
+                Some("next"),
+                CandidatePage {
+                    candidate_id: "candidate".into(),
+                    items: vec![issue.clone()],
+                    next_cursor: None,
+                    total: 100
+                }
+            )
+            .is_err()
+        );
+        assert!(
+            page.append(
+                "candidate",
+                Some("next"),
+                CandidatePage {
+                    candidate_id: "candidate".into(),
+                    items: vec![issue],
+                    next_cursor: Some("next".into()),
+                    total: 100
+                }
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn invalid_priority_keeps_raw_draft() {
+        let (_, c) = fixture();
+        let mut d = StudioDraft::from(c);
+        d.edit(|p| p.priority = "-".into());
+        assert!(evaluation_policies(&d).is_err());
+        assert_eq!(d.current().unwrap().priority, "-");
+    }
+    #[test]
+    fn collection_stamp_does_not_require_policy_revision() {
+        let (_, mut c) = fixture();
+        c.policy_revision = None;
+        let d = StudioDraft::from(c);
+        let stamp = DraftStamp::new("alice", &d, "").unwrap();
+        assert!(stamp.matches("alice", &d, ""));
+        assert!(DraftStamp::new("", &d, "").is_none());
     }
 }
