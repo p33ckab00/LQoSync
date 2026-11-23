@@ -182,3 +182,17 @@ Owner decision: contract version 1 gets four more rate kinds. Commit `4ec8a0adf0
 - `RateKind`: `profile_comment`, `profile_name`, `server_comment`, `settings`.
 - Required frontend change: the exhaustive `match` on `RateSource` in `crates/web-ui/src/topology_studio_model.rs` (about line 256 in `codex/topology-studio-ui`) needs four new arms after integration. Claude Code did not edit that file.
 - Reason: the engine rate orders use profile name, profile comment, server comment, and the configured default. Without these kinds, a draft for the default PPP configuration is a blocker.
+
+## B3 progress and B3.2 design notes (2026-11-23T23:35:44+08:00, Asia/Manila)
+
+- Done: contract amendment `4ec8a0a` (four rate kinds) and B3.1 `42e3ab9` (`source_studio/evaluate.rs`: `check_limits`, `translate`, `RouterIntent`).
+- B3.1 checks: `cargo test --locked -p lqosync3 --lib source_studio` passed (19 tests). `cargo clippy --locked -p lqosync3 --all-targets -- -D warnings` passed.
+
+B3.2 design, from the engine code:
+
+1. `identity::authorize` needs current evidence for each router that has a selected scope ("selected current router evidence is missing"). Its scopes must also equal `index.required_scopes`. A single-router evaluation is not possible.
+2. Evidence without router I/O: the target router uses the Studio snapshot. The other routers use `Coordinator.observed` (raw rows of the last successful source read). Add a time to `observed`, because each read clears it. A router without evidence makes the candidate `complete: false` with a blocker.
+3. Add `RouterRead::from_tables` in `reader.rs` for both evidence kinds. Then `normalize_configured`. Give all evidence one synthetic generation.
+4. Candidate: clone the registry. Replace the target router sources, profiles, selections, and new nodes with the result of `policy_draft::propose` on a one-router copy of the config (`pppoe.enabled`, `per_plan_node`, `dhcp.servers` from `RouterIntent`; `hotspot.enabled = false`). Keep the existing nodes with the same deterministic group IDs (parent, capacity, position).
+5. Engine: `authorize_configured(candidate, revision, generation, evidence)?.reconcile(&mut ObservationGate::default())`, then set `router_locations` and `wan`, then `publication::prepare`. This includes compiler admission. Map each error (for example `PreparationConflicts`) to a blocker.
+6. Output: the `PreparedPair::view()` nodes and subscribers. Map a subscriber or node that is not in the saved registry to a `draft:` reference. Discard the clone and the gate.
