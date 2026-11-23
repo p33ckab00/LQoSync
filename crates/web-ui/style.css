@@ -1015,7 +1015,6 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 .topology-canvas-page .canvas-viewport{inset:68px 140px 68px 0}
 .topology-canvas-page .canvas-list{inset:68px 140px 68px 0}
 .studio-initial{inset:68px 140px 68px 16px}
-.topology-canvas-page .canvas-bar{display:none}
 }
 @media(max-width:350px){
 .canvas-dock{grid-template-columns:44px}
