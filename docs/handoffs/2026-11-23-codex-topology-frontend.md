@@ -111,3 +111,49 @@ The optional design inspector is unavailable. Playwright supplied the rendered c
 
 Next action: start F1 with the published B0 types and fixture. Keep new backend work in the backend lane.
 Integration and I0 remain separate tasks. Keep the frontend branch and worktree for the next slice.
+
+## F1 return packet — 2026-11-24T00:03:19+08:00 (Asia/Manila)
+
+Status: complete. Base: `18ec855`. Code commits: `19397ac`, `9e18dd6`.
+Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+Contract: B0 `f7e3977`, from G0 `a0e6035`.
+No merge, push, deploy, backend edit, contract edit, or fixture edit occurred.
+
+The canvas action and card editor open the bounded router modal.
+It reads `RouterInventory`, `StudioCapabilities`, and `RouterSourceConfig` as cached state.
+It keeps router-scoped drafts, base revisions, profile metadata, and a local edit epoch.
+Secrets use a separate shared form. Source and profile switches keep non-secret drafts.
+
+The editor has typed filters, member sets, node grouping, parent selection, speed-plan maps, rate order, capacity, and explicit WAN write grants.
+It keeps unsupported saved fields and operators visible without making them selectable.
+The default profile uses the known router username. The v1 view omits explicit-profile usernames, so those require entry before an edit.
+Check the B1 rule for partial and complete profile updates before F3 persistence. No contract assumption changed in F1.
+
+Shared components: `NewRouter`, `EditableSection`, `CredentialFields`, `SavedNotice`, and the current router-edit transport.
+Their Studio mode uses icons and bounded credential confirmation. Ordinary Routers pages retain their defaults.
+The explicit unsaved connection test uses `StudioJob::DraftTest` and the operation result.
+It saves no router, handles queued status, clears its secret, and invalidates changed connection results.
+Registration saves the router disabled and returns to Connection inside the canvas.
+Enable and Disable remain on Routers until a later canvas task.
+
+The independent review found an access secret that survived Add router cancellation.
+A render check found a collapsed phone selector. The new edge check reproduced both defects before the correction.
+The corrections clear the secret before registration and give the selector and form independent scroll regions.
+Minor deferred issue: the binding UI uses a per-row count of 128. F3 must enforce the advertised total per policy before save.
+
+Checks:
+
+- Studio model: 7 tests passed, including all three named F1 tests.
+- Workspace: 2030 passed, 0 failed, 13 ignored.
+- Native and Wasm Clippy with `-D warnings`, format, and whitespace: passed.
+- Full browser gate: 22 checks passed. `pulse-check` remained the established exclusion. Fixture and Wasm builds passed.
+- Final browser logs: `/tmp/lqosync-checks.8ZAiCt/`.
+- Normal and legacy B0 cases: covered. The browser supplies one queued response override to exercise polling.
+- Actual embedded registration, credential confirmation, secret clearing, source/profile retention, exact rates, 1440/768/390 bounds, and System themes: covered.
+
+Evidence: [F1 screenshots and checksums](../frontend/evidence/topology-studio-f1/README.md).
+The optional design inspector is unavailable. Playwright supplied the rendered checks.
+
+Next action: F2 discovery snapshots and candidate preview with B0 fixtures, then B3 at G3.
+F3 owns profile/policy persistence, CAS errors, request recovery, saved-load behavior, and runtime feedback.
+Keep the branch and worktree. Integration and I0 remain separate tasks.

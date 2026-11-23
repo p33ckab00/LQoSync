@@ -8,6 +8,20 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24T00:03:19+08:00 (Asia/Manila) — Topology Studio F1 complete
+
+- Last agent: Codex. Goal: the router modal and typed source editor from the shared plan.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `18ec855`. Code commits: `19397ac`, `9e18dd6`. Contract: B0 `f7e3977`.
+- Changed: Studio client/model/editor, shared router forms, canvas integration, CSS, help, and two browser checks.
+- Workspace: 2030 passed, 0 failed, 13 ignored. Native/Wasm Clippy, format, and whitespace passed.
+- Browser: 22 checks and both builds passed. `pulse-check` remained the established exclusion.
+- Review: the secret-lifecycle defect and clipped phone selector have regression proof. The minor combined binding limit remains for F3.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f1/`.
+- Unfinished: F2 preview, F3 persistence/recovery, integration, and I0. The backend lane supplies its own status.
+- Next: F2 with the B0 fixture. Check explicit-profile username/edit semantics before F3. Keep the branch and worktree.
+- No backend or fixture edit, live service change, merge, push, or deploy occurred.
+
 ## 2026-11-23T23:08:19+08:00 (Asia/Manila) — Topology Studio F0 complete
 
 - Last agent: Codex. Goal: the accepted canvas shell, with current service behavior intact.

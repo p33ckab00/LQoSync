@@ -200,15 +200,15 @@ Create `tools/frontend/studio-router-check.cjs`.
 Reuse `NewRouter`, `EditableSection`, and the current router-edit transport.
 Extend the shared frontend form components when required. Do not create a second connection/credential implementation.
 
-- [ ] Add pure tests `unsupported_field_is_not_selectable`, `source_switch_keeps_each_draft`, and `unenrolled_router_keeps_connection_editor` in `topology_studio_model.rs`.
+- [x] Add pure tests `unsupported_field_is_not_selectable`, `source_switch_keeps_each_draft`, and `unenrolled_router_keeps_connection_editor` in `topology_studio_model.rs`.
 
-- [ ] Add browser tests for source icons, access profiles, explicit test, typed query fields, group selection, and rate precedence.
+- [x] Add browser tests for source icons, access profiles, explicit test, typed query fields, group selection, and rate precedence.
 
-- [ ] Implement a `StudioDraft` state with router ID, base revisions, policy drafts, and local epoch. Keep secret inputs separate.
+- [x] Implement a `StudioDraft` state with router ID, base revisions, policy drafts, and local epoch. Keep secret inputs separate.
 
-- [ ] Run `cargo test --locked -p web-ui topology_studio_model` before and after implementation.
+- [x] Run `cargo test --locked -p web-ui topology_studio_model` before and after implementation.
 
-- [ ] Run `CHECKS=studio-router-check STAGES=browser bash tools/frontend/check-all.sh` against the fixture.
+- [x] Run `CHECKS=studio-router-check STAGES=browser bash tools/frontend/check-all.sh` against the fixture.
 
 ## B3 — Evaluate policies without durable side effects
 
