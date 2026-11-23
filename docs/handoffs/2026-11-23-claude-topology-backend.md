@@ -232,3 +232,23 @@ Data mapping until live throughput exists (do not show an invented value):
 | Throughput (Gbps), drop rate, CPU, queues, avg Mbps, shaped % | None yet | Hide, or show "no data" |
 
 Planned backend task after B3 (not started): live throughput for each node and link from LibreQoS, with drop rate where LibreQoS gives it. The ribbons then change from subscriber counts to Gbps, with a contract change before the UI uses it.
+
+## Return packet: B3 (2026-11-24T06:25:46+08:00, Asia/Manila)
+
+| Item | Value |
+| --- | --- |
+| Task | B3 (steps B3.1, B3.2a, B3.2b, B3.3). |
+| Branch/worktree | `claude/topology-studio-backend` in `/home/pi/LQoSync3.0-worktrees/claude-topology-studio-backend`. |
+| Base/head | Base `d9be272` (B2 packet). Head `722a1097a2e26d8f75246b02088758b710da5096`. Steps: `4ec8a0a` (contract), `42e3ab9`, `fa6970d`, `9854081`, `722a109`. |
+| Contract version | `1` with the B3 amendment `4ec8a0a` (four rate kinds). The frontend `match` on `RateSource` needs four arms after integration. |
+| Owner decisions | Translate drafts into the engine (no second engine). Add the four rate kinds. |
+| API state | All new routes and jobs are in production code. Advertised: `draft_test`, `access_profiles`, `source_collect`, `wan_evidence`, `policy_preview`. Not advertised: `policy_save` (B4). The section "Version 1 details from task B3" of the API contract lists the supported drafts and blocker codes. |
+| Fixture state | Six cases, unchanged. |
+| Named tests | `preview_preserves_durable_state`, `missing_ppp_join_is_a_blocker`, `dynamic_dhcp_keeps_identity`, `explicit_rate_precedes_profile_rate`, `hotspot_authority_is_not_invented`, `paged_issues_keep_complete_counts`, `foreign_actor_cannot_read_candidate`, `restart_expires_candidate`, `kept_evidence_prepares_the_same_pair_without_router_io`, `source_evaluation_refuses_stale_input_and_changes_no_state_file`, and the gateway test `an_evaluate_job_keeps_a_candidate_that_only_its_actor_reads`. |
+| Checks | All passed: `cargo test --locked -p lqosync3 -p web-contract -p web-gateway --no-fail-fast` (1996 passed, 0 failed, 13 ignored). `cargo clippy --locked --workspace --all-targets -- -D warnings`. `cargo clippy --locked -p web-ui --target wasm32-unknown-unknown -- -D warnings`. `cargo fmt --all`. `git diff --check`. |
+| TDD note | B3.1, B3.2b, and B3.3 tests were written with their code. The engine tests failed first on fixture data (compiler admission and DHCP membership), and the fixtures were corrected, not the engine. `kept_evidence` failed first on the router key. |
+| Not run | Browser fixture smoke and `tools/frontend/check-all.sh`. No live evaluation on the production registry. |
+| Migration | None. No config, registry, or cache file change. Candidates are in memory. Rollback: revert the B3 commits. |
+| Open work | B4 (policy save) and B5. Known limits: the engine does not report the winning rate source (only a subscriber plan is named). Candidate GETs wait for the service API (10-second limit). Another router with a selected source needs its own Studio snapshot. A stale revision gives a `failed` operation, not `409` on the POST. |
+| Next frontend step | F2 can call the `evaluate` job and the candidate GETs against the real gateway. The fixture still gives `409` for `revision_conflict`; the real service gives a `failed` operation with a conflict message. Treat both as a conflict. |
+| Time | 2026-11-24T06:25:46+08:00 |
