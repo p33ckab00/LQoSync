@@ -124,7 +124,7 @@ const fs=require('node:fs');
     assert.deepEqual(edits.filter(e=>e.edit.kind==='group.allocation').at(-1).edit,{kind:'group.allocation',source_id:'access-ppp',mode:null});
     await page.keyboard.press('Escape');await allocation.waitFor({state:'hidden'});
     // WAN health is text on the WAN cards.
-    await north.locator('.canvas-node-health').filter({hasText:'Up · Quality 87%'}).waitFor();
+    await north.locator('.canvas-node-health').filter({hasText:'Up, 87%'}).waitFor();
     assert.match(await north.getAttribute('aria-label'),/, 24 routed[,.]/,'the routed count is in the card name');
     // The WAN modal names its routing list. A change saves one node.address_list edit.
     const southCard=canvas.getByRole('button',{name:/^WAN South,/});
@@ -229,7 +229,7 @@ const fs=require('node:fs');
     assert.deepEqual(await edit('node.instance_add'),{kind:'node.instance_add',node_id:'tm-node-dhcp-south',parent:'tm-node-wan-north'});
     // Router card settings: exclusion from the network tree, and a link to the Routers screen.
     await dhcp.click();await page.keyboard.press('Enter');await dhcpDialog.waitFor();
-    await dhcpDialog.getByRole('link',{name:'Open Routers'}).waitFor();
+    await dhcpDialog.getByRole('link',{name:'Router connection settings'}).waitFor();
     await dhcpDialog.getByLabel(/^Exclude from network tree/).check();
     assert.deepEqual(await edit('node.tree_exclude'),{kind:'node.tree_exclude',node_id:'tm-node-dhcp-south',excluded:true});
     await page.keyboard.press('Escape');await dhcpDialog.waitFor({state:'hidden'});

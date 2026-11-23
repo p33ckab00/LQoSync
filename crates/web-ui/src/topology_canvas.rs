@@ -324,7 +324,11 @@ pub(crate) fn Canvas(
             });
             let body = LayoutRequest {
                 expected_revision,
-                positions: points.get_untracked().into_iter().collect(),
+                positions: data.with_untracked(|d| {
+                    d.as_ref()
+                        .map(|s| saved_positions(&s.nodes, &local.get_untracked()))
+                        .unwrap_or_default()
+                }),
             };
             match put_layout(session, &body).await {
                 Ok(revision) => {
@@ -402,19 +406,20 @@ pub(crate) fn Canvas(
             GeoType::Site => "Site",
             GeoType::Ap => "AP",
         });
-        let kind = match geo {
-            Some(g) => format!("{g} · {}", kind_label(&n.kind)),
-            None => kind_label(&n.kind).to_string(),
+        let kind = match (geo, n.kind.as_str()) {
+            (Some(g), "intermediate") => g.to_string(),
+            _ => card_kind(&n).to_string(),
         };
-        let meta = match (n.exported_mbps, n.members) {
-            (Some(m), Some(c)) => format!(
-                "{} · {c} subscriber{}",
-                mbps(Some(m)),
-                if c == 1 { "" } else { "s" }
-            ),
-            (Some(m), None) => mbps(Some(m)),
-            _ => capacity_label(&n.capacity),
+        let rate = match n.exported_mbps {
+            Some(m) => mbps(Some(m)),
+            None => capacity_label(&n.capacity),
         };
+        let members = n
+            .members
+            .map(|c| format!("{c} subscriber{}", if c == 1 { "" } else { "s" }));
+        let meta = members
+            .as_ref()
+            .map_or(rate.clone(), |m| format!("{rate}, {m}"));
         let located = n.geo.as_ref().is_some_and(|g| g.location.is_some());
         let router = n.router_id.as_ref().map(|r| router_name(data, r));
         let auto = n.auto_members.map(|c| format!("+{c} auto"));
@@ -429,8 +434,9 @@ pub(crate) fn Canvas(
             .with_untracked(|ns| routing_warning(ns, &n.id, writer_off))
             .then_some(ROUTING_WARNING);
         let label = format!(
-            "{}, {kind}{}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
+            "{}, {kind}, {meta}{}{}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
             n.name,
+            if located { ", located" } else { "" },
             routed
                 .as_ref()
                 .map(|r| format!(", {r}"))
@@ -500,7 +506,7 @@ pub(crate) fn Canvas(
               {excluded.map(|t|view!{<span class="canvas-node-router">{t}</span>})}
             </span>
             <strong>{n.name.clone()}</strong>
-            <span class="canvas-node-meta">{meta}{located.then_some(" · Located")}</span>
+            <span class="canvas-node-meta"><span>{rate}</span>{members.map(|m|view!{<span>{m}</span>})}</span>
             {warning.map(|t|view!{<span class="canvas-node-warning">{t}</span>})}
           </button>
         }
@@ -535,14 +541,14 @@ pub(crate) fn Canvas(
         view! {
           <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true"
             title=format!("Drag from {} to the card that goes below it",n.name) disabled=locked
-            style:left=move||format!("{}px",pos()[0]+CARD_W-11.0) style:top=move||format!("{}px",pos()[1]+CARD_H/2.0-11.0)
+            style:left=move||format!("{}px",pos()[0]+CARD_W/2.0-9.0) style:top=move||format!("{}px",pos()[1]+CARD_H-9.0)
             on:pointerdown=move|ev: web_sys::PointerEvent|{
               if ev.button()!=0 { return; }
               ev.stop_propagation();
               if let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) {
                 let _=t.set_pointer_capture(ev.pointer_id());
               }
-              let start=[pos()[0]+CARD_W,pos()[1]+CARD_H/2.0];
+              let start=[pos()[0]+CARD_W/2.0,pos()[1]+CARD_H];
               connect.set(Some((id.get_value(),ev.client_x() as f64,ev.client_y() as f64,start,start)));
             }
             on:pointermove=move|ev: web_sys::PointerEvent|{
@@ -572,11 +578,12 @@ pub(crate) fn Canvas(
         let label = format!("{iface} on {router}, WAN, not configured. Enter adds it as a WAN.");
         let name = iface.clone();
         let (r2, rn2, if2) = (router_id.clone(), router.clone(), iface.clone());
+        let place = format!("{router}, default route");
         view! {
           // A WAN needs a saved capacity before it can be a parent: its port opens the WAN form.
           <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true" disabled=locked
             title=format!("Save a capacity for {iface} first, then connect it")
-            style:left=move||format!("{}px",pos()[0]+CARD_W-11.0) style:top=move||format!("{}px",pos()[1]+CARD_H/2.0-11.0)
+            style:left=move||format!("{}px",pos()[0]+CARD_W/2.0-9.0) style:top=move||format!("{}px",pos()[1]+CARD_H-9.0)
             on:pointerdown=move|ev: web_sys::PointerEvent|{
               ev.stop_propagation();
               status.set(format!("Save a capacity for {} first, then connect it.",if2));
@@ -589,9 +596,9 @@ pub(crate) fn Canvas(
               read_action.set(Some(Change::CreateWan(router_id.clone(),router.clone(),iface.clone())));
               open(Panel::Inventory);
             }>
-            <span class="canvas-node-top"><span class="canvas-node-kind">"WAN · not configured"</span></span>
+            <span class="canvas-node-top"><span class="canvas-node-kind">"WAN"</span><span class="canvas-chip" data-tone="muted">"Not configured"</span></span>
             <strong>{name}</strong>
-            <span class="canvas-node-meta">"Default route · save a capacity to use it"</span>
+            <span class="canvas-node-meta"><span>{place}</span></span>
           </button>
         }
     };
@@ -614,8 +621,8 @@ pub(crate) fn Canvas(
             let a = point_of(&from)?;
             let d = format!(
                 "M{} {} L{} {}",
-                a[0] + CARD_W,
-                a[1] + CARD_H / 2.0,
+                a[0] + CARD_W / 2.0,
+                a[1] + CARD_H,
                 end[0],
                 end[1]
             );
@@ -733,11 +740,12 @@ pub(crate) fn Canvas(
           </div>
           <div class="canvas-zoom" role="group" aria-label="Zoom">
             <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z-0.1)*10.0).round()/10.0))
-              disabled=move||zoom.get()<=0.26>"−"</button>
-            <span>{move||format!("{:.0}%",zoom.get()*100.0)}</span>
+              disabled={move||zoom.get()<=0.26}>"−"</button>
+            <button type="button" class="quiet canvas-zoom-level" aria-label="Zoom to 100%" title="Zoom to 100%"
+              on:click=move|_|zoom.set(1.0)>{move||format!("{:.0}%",zoom.get()*100.0)}</button>
             <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z+0.1)*10.0).round()/10.0))
-              disabled=move||zoom.get()>=1.99>"+"</button>
-            <button type="button" class="quiet" on:click=move|_|zoom.set(1.0)>"Reset"</button>
+              disabled={move||zoom.get()>=1.99}>"+"</button>
+            <span class="canvas-zoom-sep" aria-hidden="true"></span>
             <button type="button" class="quiet" on:click=move|_|{
               let Some(v)=viewport.get_untracked() else {return};
               let b=points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
@@ -761,7 +769,10 @@ pub(crate) fn Canvas(
               });
             }>"Reset layout"</button>
             <button type="button" class="quiet" aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>"List view"</button>
-            <button type="button" class="quiet" disabled=move||selected.get().is_none() on:click=move|_|open(Panel::Node)>"Configure"</button>
+            <Show when=move||selected.get().is_some()>
+              <span class="canvas-zoom-sep" aria-hidden="true"></span>
+              <button type="button" class="quiet" on:click=move|_|open(Panel::Node)>"Card settings"</button>
+            </Show>
           </div>
         </div>
         <dialog node_ref=dialog class="topology-dialog canvas-dialog" aria-labelledby="canvas-dialog-title"
@@ -944,7 +955,7 @@ pub(crate) fn Canvas(
 fn health_label(h: &WanHealthView) -> String {
     match h.state.as_str() {
         "up" => match h.quality_percent {
-            Some(q) => format!("Up · Quality {q}%"),
+            Some(q) => format!("Up, {q}%"),
             None => "Up".into(),
         },
         "degraded" => "Degraded".into(),
@@ -1031,38 +1042,84 @@ fn NodeEditor(
         // Only a subscriber group shares its source between several parents.
         let (more_parents,placements)=data.with(|d|d.as_ref().filter(|_|n.kind=="group").map(|s|(additional_parents(&s.nodes,&n),
           n.source_id.as_deref().map(|src|shared_parent_names(&s.nodes,src)).unwrap_or_default())).unwrap_or_default());
+        // A group is the last instance of its source when it has one placement: it cannot be
+        // removed, only not read. A WAN, router, or Site card can hold child cards.
+        let group_source=(n.kind=="group").then(||n.source_id.clone()).flatten();
+        let removable=group_source.is_none()||placements.len()>1;
+        let can_add_child=n.kind!="group";
         view!{
-        <form class="router-form canvas-node-form" on:submit=move|ev|{ev.prevent_default();flush();}>
-          <p class="field-help">{format!("{} · ID {}{}",kind_label(&n.kind),n.id,n.source_id.as_ref().map(|s|format!(" · source {s}")).unwrap_or_default())}</p>
-          <fieldset><legend>"General"</legend>
+        <form class="canvas-node-form" on:submit=move|ev|{ev.prevent_default();flush();}>
+          {data.with(|d|d.as_ref().is_some_and(|s|routing_warning(&visible(&s.nodes),&n.id,s.wan_lists.is_none()))).then(||view!{
+            <p class="canvas-note" data-tone="warn" role="note">{ROUTING_WARNING}". Each subscriber keeps its rate."</p>})}
+          <div class="canvas-row" data-cols=if wan {"1"} else {"2"}>
             <label>"Name"<input prop:value=move||form().draft.name disabled=locked
               on:input=move|ev|set(|f|&mut f.draft.name,event_target_value(&ev)) on:change=move|_|flush()/></label>
             {(!wan).then(||view!{
               <label>"Access router"<select id="canvas-router" prop:value=move||form().router disabled=locked
+                title="Subscribers of this router stay in this branch."
                 aria-invalid=move||(!form().router_error.is_empty()).to_string()
                 aria-describedby=move||(!form().router_error.is_empty()).then_some("canvas-router-error")
                 on:change=move|ev|{set(|f|&mut f.router,event_target_value(&ev));set(|f|&mut f.router_error,String::new());flush();}>
                 <option value="">"None"</option>
                 {routers.into_iter().map(|(rid,name)|view!{<option value=rid>{name}</option>}).collect_view()}
               </select></label>
-              <p class="field-help">"Subscribers of this router stay in this branch. Unplaced sources of the router go to its child nodes."</p>
             })}
-            {move||(!form().router_error.is_empty()).then(||view!{<p id="canvas-router-error" class="field-error">{form().router_error}</p>})}
-            {data.with(|d|d.as_ref().is_some_and(|s|routing_warning(&visible(&s.nodes),&n.id,s.wan_lists.is_none()))).then(||view!{
-              <p class="field-help canvas-node-warning" role="note">{ROUTING_WARNING}". The rate of each subscriber stays correct."</p>})}
+          </div>
+          {move||(!form().router_error.is_empty()).then(||view!{<p id="canvas-router-error" class="field-error">{form().router_error}</p>})}
+          <fieldset><legend>"Capacity"</legend>
+            <div class="canvas-row" data-cols="3">
+              <label>"Mode"<select prop:value=move||form().draft.mode disabled=move||locked()||wan
+                on:change=move|ev|{set(|f|&mut f.draft.mode,event_target_value(&ev));flush();}>
+                <option value="inherit">"Inherit from parent"</option>
+                <option value="automatic">"Sum of plans"</option>
+                <option value="fixed">"Fixed"</option>
+                <option value="wan_percent">"Percent of WAN"</option>
+              </select></label>
+              <Show when=move||matches!(form().draft.mode.as_str(),"fixed"|"wan_percent")>
+                <label>"Download"<span class="canvas-unit" data-unit=move||if form().draft.mode=="fixed"{"Mbps"}else{"%"}>
+                  <input inputmode="numeric" prop:value=move||form().draft.down disabled=locked
+                    on:input=move|ev|set(|f|&mut f.draft.down,event_target_value(&ev)) on:change=move|_|flush()/></span></label>
+                <label>"Upload"<span class="canvas-unit" data-unit=move||if form().draft.mode=="fixed"{"Mbps"}else{"%"}>
+                  <input inputmode="numeric" prop:value=move||form().draft.up disabled=locked
+                    on:input=move|ev|set(|f|&mut f.draft.up,event_target_value(&ev)) on:change=move|_|flush()/></span></label>
+              </Show>
+            </div>
           </fieldset>
+          {(!wan||!more_parents.is_empty()).then(||view!{<fieldset><legend>"Placement"</legend>
+            <div class="canvas-row" data-cols="2">
+              {(!wan).then(||view!{
+                <label>"Parent"<select prop:value=current_parent.clone() disabled=locked
+                  on:change=move|ev|{
+                    act.run((Change::Move(move_node.clone()),Draft{parent:event_target_value(&ev),..Draft::default()}));
+                  }>
+                  <option value="">"Top level"</option>
+                  {parents.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
+                </select></label>
+              })}
+              {(!more_parents.is_empty()).then(||view!{
+                <label>"Add another parent"<select disabled=locked on:change=move|ev|{
+                    let v=event_target_value(&ev);
+                    if !v.is_empty(){ act.run((Change::AddParent(parent_node.clone()),Draft{parent:v,..Draft::default()})); }
+                  }>
+                  <option value="">"Select a WAN or node"</option>
+                  {more_parents.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
+                </select></label>
+              })}
+            </div>
+            {(placements.len()>1).then(||view!{<p class="field-help">{format!("Placed under {}. Each subscriber uses one placement.",placements.join(", "))}</p>})}
+          </fieldset>})}
           {n.router_id.is_some().then(||{
             let (id,id2)=(n.id.clone(),n.id.clone());
             let wans:Vec<(String,String)>=data.with(|d|d.as_ref().map(|s|s.nodes.iter()
               .filter(|w|w.kind=="wan" && n.parent.as_deref()!=Some(w.id.as_str()))
               .map(|w|(w.id.clone(),w.name.clone())).collect()).unwrap_or_default());
             view!{
-            <fieldset><legend>"Router card"</legend>
+            <fieldset><legend>"Router"</legend>
               <div class="check">
                 <input type="checkbox" id="canvas-tree-exclude" disabled=locked prop:checked=n.tree_excluded
                   on:change=move|ev|send.run(BuilderEdit::NodeTreeExclude{node_id:id.clone(),excluded:event_target_checked(&ev)})/>
                 <label for="canvas-tree-exclude">"Exclude from network tree"
-                  <small>"On: network.json has no node for this router. Its groups go to the parent of the card."</small></label>
+                  <small>"Its groups go to the parent of this card in network.json."</small></label>
               </div>
               {(!wans.is_empty()).then(||view!{
                 <label>"Add another WAN parent"<select disabled=locked on:change=move|ev|{
@@ -1072,88 +1129,49 @@ fn NodeEditor(
                   <option value="">"Select a WAN"</option>
                   {wans.into_iter().map(|(wid,name)|view!{<option value=wid>{name}</option>}).collect_view()}
                 </select></label>
-                <p class="field-help">"The groups of this router divide their subscribers between the WANs by the allocation mode."</p>
               })}
-              <a class="button quiet" href="/routers">"Open Routers"</a>
+              <a class="canvas-link" href="/routers">"Router connection settings"</a>
             </fieldset>}
           })}
-          {(n.kind=="group").then(||n.source_id.clone()).flatten().map(|source|view!{
-            <fieldset><legend>"Reading"</legend>
-              <p class="field-help">"Do not read: the card disappears, and LQoSync does not shape the subscribers of this source. The Excluded list can read it again."</p>
-              <div class="form-actions">
-                <button type="button" class="quiet danger" disabled=locked on:click=move|_|{
+          {wan.then(||view!{
+            <fieldset><legend>"Routing"</legend>
+              <label>"Address list"<input autocomplete="off" spellcheck="false" prop:value=move||form().address_list disabled=locked
+                placeholder=format!("via-{}",n.name)
+                on:input=move|ev|set(|f|&mut f.address_list,event_target_value(&ev)) on:change=move|_|flush()/></label>
+              {n.routed.map(|c|view!{<p class="field-help">{format!("{c} clients at the last write.")}</p>})}
+            </fieldset>
+          })}
+          <fieldset><legend>"Location"</legend>
+            <div class="canvas-row" data-cols="geo">
+              <label>"Map type"<select prop:value=move||form().geo disabled=locked
+                on:change=move|ev|{set(|f|&mut f.geo,event_target_value(&ev));flush();}>
+                <option value="">"None"</option><option value="site">"Site"</option><option value="ap">"AP"</option>
+              </select></label>
+              <label>"Latitude"<input inputmode="decimal" autocomplete="off" prop:value=move||form().latitude disabled=locked
+                on:paste=paste on:input=move|ev|set(|f|&mut f.latitude,event_target_value(&ev)) on:change=move|_|flush()/></label>
+              <label>"Longitude"<input inputmode="decimal" autocomplete="off" prop:value=move||form().longitude disabled=locked
+                on:paste=paste on:input=move|ev|set(|f|&mut f.longitude,event_target_value(&ev)) on:change=move|_|flush()/></label>
+            </div>
+            <p class="field-help">"Paste a Google Maps pair into Latitude to fill both."</p>
+          </fieldset>
+          {move||(!form().error.is_empty()).then(||view!{<p class="field-error" role="alert">{form().error}</p>})}
+          <div class="canvas-actions">
+            {can_add_child.then(||view!{
+              <button type="button" class="quiet" disabled=locked on:click=move|_|act.run((Change::CreateChild(child_id.clone()),Draft{
+                name:"New node".into(),parent:child_id.clone(),kind:"intermediate".into(),mode:"inherit".into(),..Draft::default()}))>"Add child node"</button>
+            })}
+            <span class="canvas-actions-gap"></span>
+            {group_source.map(|source|view!{
+              <button type="button" class="quiet danger" disabled=locked title="LQoSync stops reading and shaping this source. Excluded sources can read it again."
+                on:click=move|_|{
                   if confirm_exclude.get_untracked(){
                     send.run(BuilderEdit::SourceExclude{source_id:source.clone(),excluded:true});
                     confirm_exclude.set(false);
                     close.run(());
                   } else { confirm_exclude.set(true); }
                 }>{move||if confirm_exclude.get(){"Confirm do not read"}else{"Do not read"}}</button>
-              </div>
-            </fieldset>
-          })}
-          {wan.then(||view!{
-            <fieldset><legend>"Routing"</legend>
-              <label>"Address list"<input autocomplete="off" spellcheck="false" prop:value=move||form().address_list disabled=locked
-                on:input=move|ev|set(|f|&mut f.address_list,event_target_value(&ev)) on:change=move|_|flush()/></label>
-              <p class="field-help">"The via- list of this WAN on the core router. Empty uses via- and the WAN name."</p>
-              {n.routed.map(|c|view!{<p class="field-help">{format!("{c} clients in this list at the last write.")}</p>})}
-            </fieldset>
-          })}
-          <fieldset><legend>"Capacity"</legend>
-            <label>"Mode"<select prop:value=move||form().draft.mode disabled=move||locked()||wan
-              on:change=move|ev|{set(|f|&mut f.draft.mode,event_target_value(&ev));flush();}>
-              <option value="inherit">"Inherit from parent"</option>
-              <option value="automatic">"Automatic · plan sum"</option>
-              <option value="fixed">"Fixed Mbps"</option>
-              <option value="wan_percent">"Percent of WAN"</option>
-            </select></label>
-            <Show when=move||matches!(form().draft.mode.as_str(),"fixed"|"wan_percent")>
-              <div class="canvas-pair">
-                <label>{move||if form().draft.mode=="fixed"{"Download Mbps"}else{"Download %"}}<input inputmode="numeric" prop:value=move||form().draft.down disabled=locked
-                  on:input=move|ev|set(|f|&mut f.draft.down,event_target_value(&ev)) on:change=move|_|flush()/></label>
-                <label>{move||if form().draft.mode=="fixed"{"Upload Mbps"}else{"Upload %"}}<input inputmode="numeric" prop:value=move||form().draft.up disabled=locked
-                  on:input=move|ev|set(|f|&mut f.draft.up,event_target_value(&ev)) on:change=move|_|flush()/></label>
-              </div>
-            </Show>
-          </fieldset>
-          <fieldset><legend>"Location"</legend>
-            <label>"Map type"<select prop:value=move||form().geo disabled=locked
-              on:change=move|ev|{set(|f|&mut f.geo,event_target_value(&ev));flush();}>
-              <option value="">"None"</option><option value="site">"Site"</option><option value="ap">"AP"</option>
-            </select></label>
-            <p class="field-help">"Paste a Google Maps pair, such as 12.236199459585354, 122.02419129509887. All decimals are kept."</p>
-            <div class="canvas-pair">
-              <label>"Latitude"<input inputmode="decimal" autocomplete="off" prop:value=move||form().latitude disabled=locked
-                on:paste=paste on:input=move|ev|set(|f|&mut f.latitude,event_target_value(&ev)) on:change=move|_|flush()/></label>
-              <label>"Longitude"<input inputmode="decimal" autocomplete="off" prop:value=move||form().longitude disabled=locked
-                on:paste=paste on:input=move|ev|set(|f|&mut f.longitude,event_target_value(&ev)) on:change=move|_|flush()/></label>
-            </div>
-            <p class="field-help">"The LibreQoS map hides a point at 0, 0 and beyond about 85° latitude."</p>
-          </fieldset>
-          {move||(!form().error.is_empty()).then(||view!{<p class="field-error" role="alert">{form().error}</p>})}
-          <fieldset><legend>"Structure"</legend>
-            {(!wan).then(||view!{
-              <label>"Parent"<select prop:value=current_parent.clone() disabled=locked
-                on:change=move|ev|{
-                  act.run((Change::Move(move_node.clone()),Draft{parent:event_target_value(&ev),..Draft::default()}));
-                }>
-                <option value="">"Top level"</option>
-                {parents.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
-              </select></label>
             })}
-            {(!placements.is_empty()).then(||view!{<p class="field-help">{format!("Source placements: {}. Each subscriber has one effective placement.",placements.join(", "))}</p>})}
-            {(!more_parents.is_empty()).then(||view!{
-              <label>"Add another parent"<select disabled=locked on:change=move|ev|{
-                  let v=event_target_value(&ev);
-                  if !v.is_empty(){ act.run((Change::AddParent(parent_node.clone()),Draft{parent:v,..Draft::default()})); }
-                }>
-                <option value="">"Select a WAN or node"</option>
-                {more_parents.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
-              </select></label>
-            })}
-            <div class="form-actions">
-              <button type="button" class="quiet" disabled=locked on:click=move|_|act.run((Change::CreateChild(child_id.clone()),Draft{
-                name:"New node".into(),parent:child_id.clone(),kind:"intermediate".into(),mode:"inherit".into(),..Draft::default()}))>"Add child node"</button>
+            {removable.then(||view!{
               <button type="button" class="quiet danger" disabled=locked on:click=move|_|{
                 if confirm_remove.get_untracked(){
                   act.run((Change::Remove(remove_node.clone()),Draft::default()));
@@ -1161,8 +1179,15 @@ fn NodeEditor(
                   close.run(());
                 } else { confirm_remove.set(true); }
               }>{move||if confirm_remove.get(){"Confirm remove"}else{"Remove node"}}</button>
-            </div>
-          </fieldset>
+            })}
+          </div>
+          <details class="canvas-ids"><summary>"Details"</summary>
+            <dl>
+              <dt>"Kind"</dt><dd>{kind_label(&n.kind)}</dd>
+              <dt>"Node ID"</dt><dd>{n.id.clone()}</dd>
+              {n.source_id.clone().map(|s|view!{<dt>"Source ID"</dt><dd>{s}</dd>})}
+            </dl>
+          </details>
         </form>}
       })}
     }

@@ -210,6 +210,79 @@ pub(crate) fn TopologyPage(
     subscriber: Option<String>,
 ) -> impl IntoView {
     let (data, error, load) = summary(session);
+    let tabs = move || {
+        view! {
+          <nav class="router-tabs" aria-label="Topology views">
+            {TOPOLOGY_TABS.iter().map(|(key,label)|{
+              let key=*key;
+              view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>{*label}</Link>}
+            }).collect_view()}
+          </nav>
+        }
+    };
+    let notices = move || {
+        view! {
+          {move||data.with(|d|d.as_ref().filter(|s|s.writer!="topology"||s.mode!="apply").map(|s|view!{
+            <p class="notice" role="note">{if s.writer!="topology"{"Policy editor ready. Automatic topology publication needs an enrolled policy and active topology writer. The current writer remains in control."}else{"Topology owns the hierarchy. The current mode does not apply shaping files."}}</p>
+          }))}
+          {move||data.with(|d|d.as_ref().filter(|s|s.enrolled&&s.writer=="legacy").map(|_|view!{
+            <details class="topology-activation"><summary>"Enable automatic topology sync"</summary>
+              <p>"An operator must activate the enrolled policy once. Stop the service first, then preview with its configuration."</p>
+              <code>"lqosync3 topology activate --config PATH"</code>
+              <p>"Review the preview. Repeat with --yes to publish and select the topology writer, then start the service. It follows saved Builder changes each cycle."</p>
+              <code>"lqosync3 topology activate --yes --config PATH"</code>
+              <p>"Activation requires apply mode and the v3_pair target. It keeps the enrollment, lease, and file admission checks."</p>
+            </details>
+          }))}
+        }
+    };
+    // The Builder fills the window: one compact heading row, and the status inside the canvas.
+    if !matches!(tab, "assignments" | "policies" | "changes") {
+        let summary_line = move || {
+            data.with(|d| {
+                d.as_ref().map(|s| {
+                    let fresh = !stale(now(), s.updated, s.fresh_for);
+                    let revision = s
+                        .registry_revision
+                        .as_deref()
+                        .map_or("No policy".to_string(), |r| format!("Revision {r}"));
+                    let wans = s.nodes.iter().filter(|n| n.kind == "wan").count();
+                    let cards = s.nodes.iter().filter(|n| n.active).count();
+                    (
+                        fresh,
+                        revision,
+                        format!("{} writer", s.writer),
+                        format!("{wans} WANs, {cards} cards"),
+                    )
+                })
+            })
+        };
+        return view! {
+          <div class="topology-canvas-page">
+            <div class="topology-head">
+              <h1 tabindex="-1">"Topology Manager"</h1>
+              {tabs()}
+              <button type="button" class="quiet router-icon topology-reload" aria-label="Reload view" title="Reload view" on:click=move|_|load.run(())>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+              </button>
+            </div>
+            <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
+            <div class="topology-stage">
+              <details class="canvas-evidence">
+                <summary>{move||summary_line().map(|(fresh,revision,writer,counts)|view!{
+                  <span class="canvas-evidence-dot" data-fresh=fresh.to_string() aria-hidden="true"></span>
+                  <strong>{revision}</strong><span>{writer}</span><span>{counts}</span>
+                })}</summary>
+                <div class="canvas-evidence-body"><Evidence data/>{notices()}</div>
+              </details>
+              <Show when=move||data.with(Option::is_some) fallback=||view!{<div class="panel loading" role="status">"Loading the topology view…"</div>}>
+                <crate::topology_canvas::Canvas session data reload=load/>
+              </Show>
+            </div>
+          </div>
+        }
+        .into_any();
+    }
     view! {
       <div class="page-heading">
         <div><h1 tabindex="-1">"Topology Manager"</h1><p>"Arrange the network on the canvas. Valid edits save automatically; the service applies the active policy each cycle."</p></div>
@@ -218,25 +291,9 @@ pub(crate) fn TopologyPage(
         </div>
       </div>
       <Evidence data/>
-      {move||data.with(|d|d.as_ref().filter(|s|s.writer!="topology"||s.mode!="apply").map(|s|view!{
-        <p class="notice" role="note">{if s.writer!="topology"{"Policy editor ready. Automatic topology publication needs an enrolled policy and active topology writer. The current writer remains in control."}else{"Topology owns the hierarchy. The current mode does not apply shaping files."}}</p>
-      }))}
-      {move||data.with(|d|d.as_ref().filter(|s|s.enrolled&&s.writer=="legacy").map(|_|view!{
-        <details class="topology-activation"><summary>"Enable automatic topology sync"</summary>
-          <p>"An operator must activate the enrolled policy once. Stop the service first, then preview with its configuration."</p>
-          <code>"lqosync3 topology activate --config PATH"</code>
-          <p>"Review the preview. Repeat with --yes to publish and select the topology writer, then start the service. It follows saved Builder changes each cycle."</p>
-          <code>"lqosync3 topology activate --yes --config PATH"</code>
-          <p>"Activation requires apply mode and the v3_pair target. It keeps the enrollment, lease, and file admission checks."</p>
-        </details>
-      }))}
+      {notices()}
       <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
-      <nav class="router-tabs" aria-label="Topology views">
-        {TOPOLOGY_TABS.iter().map(|(key,label)|{
-          let key=*key;
-          view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>{*label}</Link>}
-        }).collect_view()}
-      </nav>
+      {tabs()}
       <Show when=move||data.with(Option::is_some) fallback=||view!{<div class="panel loading" role="status">"Loading the topology view…"</div>}>
         {
           let subscriber=subscriber.clone();
@@ -244,11 +301,12 @@ pub(crate) fn TopologyPage(
             "assignments"=>view!{<Assignments session data selected=subscriber.clone() reload=load/>}.into_any(),
             "policies"=>view!{<Policies session data reload=load/>}.into_any(),
             "changes"=>view!{<Changes data/>}.into_any(),
-            _=>view!{<crate::topology_canvas::Canvas session data reload=load/>}.into_any(),
+            _=>().into_any(),
           }
         }
       </Show>
     }
+    .into_any()
 }
 
 #[component]

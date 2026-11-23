@@ -44,14 +44,14 @@ const out=process.env.TOPOLOGY_EVIDENCE_DIR||'/tmp/lqosync-topology-initializati
   const ppp=canvas.getByRole('button',{name:/^PPPoE access,/});
   await ppp.click();await ppp.press('Enter');
   const dialog=page.getByRole('dialog',{name:'PPPoE access',exact:true});await dialog.waitFor();
-  await dialog.getByText('Source placements: WAN North.',{exact:false}).waitFor();
+  assert.equal(await dialog.getByText('Placed under',{exact:false}).count(),0,'one placement needs no note');
   const select=dialog.getByLabel('Add another parent');assert.equal(await select.inputValue(),'');
   assert.equal(await select.locator('option[value="tm-node-wan-north"]').count(),0,'the current parent is not offered');
   await page.screenshot({path:`${out}/add-parent.png`,fullPage:true});
   await select.selectOption('tm-node-wan-south');
   await page.waitForFunction(()=>[...document.querySelectorAll('[role=status]')].some(s=>/Saved revision 43/.test(s.textContent)));
   assert.deepEqual(requests.filter(r=>r.url.endsWith('/edits')).at(-1).body.edit,{kind:'instance.add',source_id:'access-ppp',parent:'tm-node-wan-south',name:null});
-  await dialog.getByText('Source placements: WAN North, WAN South.',{exact:false}).waitFor({timeout:15000});
+  await dialog.getByText('Placed under WAN North, WAN South.',{exact:false}).waitFor({timeout:15000});
   assert.equal(await dialog.getByLabel('Add another parent').count(),0,'no parent is left to add');
   await page.screenshot({path:`${out}/shared-source-two-parents.png`,fullPage:true});
   assert.deepEqual(errors,[]);

@@ -60,6 +60,25 @@ pub(crate) fn positions(
         .collect()
 }
 
+/// The positions to save: each saved position of a node (also of a hidden node), with the cards
+/// that the operator moved. Automatic positions and candidate WAN cards are not saved, so the
+/// service never gets an unknown ID and an unmoved card keeps its automatic place.
+pub(crate) fn saved_positions(
+    nodes: &[Node],
+    moved: &std::collections::HashMap<String, [f64; 2]>,
+) -> std::collections::BTreeMap<String, [f64; 2]> {
+    let mut out: std::collections::BTreeMap<String, [f64; 2]> = nodes
+        .iter()
+        .filter_map(|n| n.position.map(|p| (n.id.clone(), p)))
+        .collect();
+    for n in nodes {
+        if let Some(p) = moved.get(&n.id) {
+            out.insert(n.id.clone(), *p);
+        }
+    }
+    out
+}
+
 /// The text of a card with a WAN above it while the routing list writer is off.
 pub(crate) const ROUTING_WARNING: &str = "MikroTik routing does not follow yet (writer off)";
 
@@ -83,9 +102,26 @@ pub(crate) fn candidate_cards(
         .collect()
 }
 
-/// An SVG path from the parent card to the child card.
+/// An SVG path from the bottom port of the parent card to the top port of the child card:
+/// straight in one column, else a vertical curve.
 pub(crate) fn wire(parent: [f64; 2], child: [f64; 2]) -> String {
-    edge_path(parent, SIZE, child, SIZE).0
+    if (parent[0] - child[0]).abs() < 1.0 {
+        return edge_path(parent, SIZE, child, SIZE).0;
+    }
+    let (x1, y1) = (parent[0] + CARD_W / 2.0, parent[1] + CARD_H);
+    let (x2, y2) = (child[0] + CARD_W / 2.0, child[1]);
+    let mid = (y1 + y2) / 2.0;
+    format!("M{x1},{y1} C{x1},{mid} {x2},{mid} {x2},{y2}")
+}
+
+/// The kind of a card in one short word.
+pub(crate) fn card_kind(n: &Node) -> &'static str {
+    match (n.kind.as_str(), n.router_id.is_some()) {
+        ("wan", _) => "WAN",
+        ("group", _) => "Group",
+        (_, true) => "Router",
+        _ => "Node",
+    }
 }
 
 /// A card that can be a parent: a WAN, a router card, or a Site/AP card. A subscriber group
@@ -373,6 +409,54 @@ mod tests {
         );
         assert!(drop_edit(&nodes, "wan1", "g2").is_err());
         assert!(drop_edit(&nodes, "wan1", "wan2").is_err());
+    }
+
+    #[test]
+    fn a_card_names_its_kind_in_one_short_word() {
+        assert_eq!(card_kind(&kind(node("w", None, None), "wan")), "WAN");
+        assert_eq!(card_kind(&router(node("r", None, None))), "Router");
+        assert_eq!(
+            card_kind(&kind(node("i", None, None), "intermediate")),
+            "Node"
+        );
+        assert_eq!(card_kind(&node("g", None, None)), "Group");
+        // A group with an access router is still a group.
+        let mut g = node("g", None, None);
+        g.router_id = Some("hub-1".into());
+        assert_eq!(card_kind(&g), "Group");
+    }
+
+    #[test]
+    fn a_wire_leaves_the_bottom_port_and_enters_the_top_port() {
+        // Another column: a curve from the bottom center of the parent to the top center.
+        assert_eq!(
+            wire([0.0, 0.0], [300.0, 200.0]),
+            "M116,84 C116,142 416,142 416,200"
+        );
+    }
+
+    #[test]
+    fn the_saved_layout_keeps_hidden_cards_and_skips_candidates() {
+        let mut hidden = node("old", None, Some([5.0, 5.0]));
+        hidden.active = false;
+        let nodes = [
+            node("a", None, Some([1.0, 2.0])),
+            node("b", None, None),
+            hidden,
+        ];
+        let moved = std::collections::HashMap::from([
+            ("b".to_string(), [30.0, 40.0]),
+            (candidate_id("core", "pppoe-out1"), [9.0, 9.0]),
+        ]);
+        let saved = saved_positions(&nodes, &moved);
+        assert_eq!(
+            saved.into_iter().collect::<Vec<_>>(),
+            vec![
+                ("a".to_string(), [1.0, 2.0]),
+                ("b".to_string(), [30.0, 40.0]),
+                ("old".to_string(), [5.0, 5.0]),
+            ]
+        );
     }
 
     #[test]

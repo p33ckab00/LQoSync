@@ -23,6 +23,9 @@ const fs=require('node:fs');
     await page.waitForURL('**/topology');
     await page.getByRole('heading',{name:'Topology Manager',level:1}).waitFor();
     assert.equal(await nav.getByRole('link',{name:'Topology'}).getAttribute('aria-current'),'page');
+    // The Builder keeps its evidence in a status overlay inside the canvas.
+    await page.locator('.canvas-evidence summary').getByText('Revision 42').waitFor();
+    await page.locator('.canvas-evidence summary').click();
     const evidence=page.getByLabel('Topology evidence');
     await evidence.getByText('Revision 42').waitFor();
     await evidence.getByText('Topology · apply').waitFor();
@@ -38,7 +41,7 @@ const fs=require('node:fs');
     assert.equal(await node.getAttribute('aria-pressed'),'false');
     await node.click();
     assert.equal(await node.getAttribute('aria-pressed'),'true');
-    assert.match(await node.innerText(),/400 \/ 200 Mbps · 3 subscribers/);
+    assert.match(await node.innerText(),/400 \/ 200 Mbps\s*3 subscribers/);
     if(scheme==='dark')await page.screenshot({path:`${out}/topology-builder-${scheme}.png`,fullPage:true});
 
     // Changes: the latest write without paths, and the web change history.
@@ -232,10 +235,18 @@ const fs=require('node:fs');
     assert.ok(sent.every(p=>/^(proposals|proposals\/KEY\/(confirm|cancel)|reads|edits)$/.test(p)),sent.join(' '));
     await page.goto('http://127.0.0.1:19581/topology');
 
-    // Remove: a second click confirms, then the edit saves with no review.
+    // A group with one placement is the last instance of its source: no Remove, only Do not read.
     const dhcpCard=page.getByRole('region',{name:/^Topology canvas\./}).getByRole('button',{name:/^DHCP access,/});
     await dhcpCard.click();await dhcpCard.press('Enter');
-    const remove=page.getByRole('dialog',{name:'DHCP access'});
+    const group=page.getByRole('dialog',{name:'DHCP access'});
+    await group.getByRole('button',{name:'Do not read',exact:true}).waitFor();
+    assert.equal(await group.getByRole('button',{name:'Remove node'}).count(),0,'the last instance has no Remove');
+    await group.getByRole('button',{name:'Close'}).first().click();
+    await group.waitFor({state:'hidden'});
+    // Remove: a second click confirms, then the edit saves with no review.
+    const wanCard=page.getByRole('region',{name:/^Topology canvas\./}).getByRole('button',{name:/^WAN South,/});
+    await wanCard.click();await wanCard.press('Enter');
+    const remove=page.getByRole('dialog',{name:'WAN South'});
     const edits=writes.filter(w=>w.endsWith('/edits')).length;
     await remove.getByRole('button',{name:'Remove node'}).click();
     assert.equal(writes.filter(w=>w.endsWith('/edits')).length,edits,'the first click only asks');
