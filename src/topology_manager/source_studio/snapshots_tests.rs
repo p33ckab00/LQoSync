@@ -101,6 +101,14 @@ async fn route_failure_keeps_last_evidence() {
         .collect(&fake, &c, D, &core, D, &[SourceKind::Wan])
         .await
         .unwrap();
+    // WAN tables are evidence for WAN decisions, never engine evidence.
+    assert!(
+        studio
+            .snapshot(&first.id, now_secs())
+            .unwrap()
+            .tables_snapshot()
+            .is_empty()
+    );
     assert_eq!(state(&first, TableId::Routes).0, ReadState::Complete);
     let view = |s: &Studio| {
         s.router_config(&c.routers[0], None, D, D, None, now_secs())

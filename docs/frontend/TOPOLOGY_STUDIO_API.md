@@ -446,6 +446,8 @@ The broker calls these core service operations on the service API socket. The br
 | `source_studio.candidate` | `actor`, `id`, `part` (`summary`, `records`, `issues`), `cursor`, `limit` | `{ status, value }` with `status` `ok`, `not_found`, `expired`, or `bad_cursor` |
 | `topology.web.mutate` | the current mutation arguments | the current receipt; `router.sources_set` and `wan.candidate_set` use it |
 
+Smoke test: `bash tools/integration/studio-service-smoke.sh` runs HTTP → broker → core service API → a fake RouterOS server in one temporary root. Its output is test evidence, not production acceptance. It uses the real broker, HTTP, `Runner`, and service API code in harness processes (`studio_gateway`, `studio_core`), because the installed broker needs root and the core reads root-owned secrets. It does not cover publication by the topology writer.
+
 The plan proposed `source_studio.config`. It does not exist: `GET /api/v1/routers/{id}/source-config` reads the service cache `source-studio.json`, so a GET never waits for the service.
 
 ## Browser fixture cases

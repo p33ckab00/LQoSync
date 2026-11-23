@@ -79,10 +79,12 @@ impl Collected {
         self.tables.get(&table).map(Vec::as_slice)
     }
 
-    /// The complete tables only: a partial table is never evidence of absence.
+    /// The complete subscriber tables, as engine evidence. A partial table is never evidence
+    /// of absence. WAN tables are not engine evidence (route rows have no row locator).
     pub fn tables_snapshot(&self) -> BTreeMap<Table, Vec<RosRow>> {
         self.tables
             .iter()
+            .filter(|(t, _)| !matches!(t, Table::Interfaces | Table::Routes))
             .filter(|(t, _)| {
                 self.reference
                     .tables
