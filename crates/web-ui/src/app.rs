@@ -14,15 +14,15 @@ pub(crate) fn deadline() -> (web_sys::AbortSignal, gloo_timers::callback::Timeou
 fn Brand(#[prop(default = false)] compact: bool) -> impl IntoView {
     view! {<div class:compact=compact class="brand"><svg viewBox="0 0 80 80" aria-hidden="true"><path class="brand-blue" d="M6 23 40 7 74 23 40 39Z"/><path d="m6 39 34 16 34-16M6 55l34 16 34-16"/></svg><span>"LQoSync"<sup>"v3"</sup></span></div>}
 }
+#[derive(Clone, Copy)]
+struct ThemePreference(RwSignal<String>);
+
 #[component]
-fn Theme() -> impl IntoView {
-    let initial = web_sys::window()
-        .and_then(|w| w.document())
-        .and_then(|d| d.document_element())
-        .and_then(|e| e.get_attribute("data-theme"))
-        .unwrap_or("system".into());
-    view! {<label class="theme"><span>"Theme"</span><select aria-label="Color theme" prop:value=initial on:change=move|ev|{
+pub(crate) fn Theme() -> impl IntoView {
+    let theme = expect_context::<ThemePreference>().0;
+    view! {<label class="theme"><span>"Theme"</span><select aria-label="Color theme" prop:value=move||theme.get() on:change=move|ev|{
     let value=event_target_value(&ev);if !matches!(value.as_str(),"light"|"dark"|"system"){return;}
+    theme.set(value.clone());
     if let Some(document)=web_sys::window().and_then(|w|w.document()){
     if let Some(root)=document.document_element(){let _=root.set_attribute("data-theme",&value);}
     let age=if value=="system"{0}else{31536000};let cookie=format!("lqosync_theme={value}; Path=/; SameSite=Strict; Max-Age={age}{}",if web_sys::window().unwrap().location().protocol().unwrap_or_default()=="https:"{"; Secure"}else{""});
@@ -182,6 +182,12 @@ fn js_now() -> u64 {
 }
 #[component]
 pub fn App() -> impl IntoView {
+    let theme = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.document_element())
+        .and_then(|e| e.get_attribute("data-theme"))
+        .unwrap_or("system".into());
+    provide_context(ThemePreference(RwSignal::new(theme)));
     let session = RwSignal::new(None::<Principal>);
     let loading = RwSignal::new(true);
     leptos::task::spawn_local(async move {

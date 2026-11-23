@@ -303,7 +303,9 @@ const fs=require('node:fs');
     await page.screenshot({path:`${out}/leaf-labels.png`});
     await leaves.getByRole('button',{name:'Hide subscribers'}).click();
     // Layout directions: the WAN cards go to the start side; each choice saves the direction.
-    const dirSelect=page.getByRole('combobox',{name:'Layout direction'});
+    await dock.getByRole('button',{name:'Canvas layout',exact:true}).click();
+    const layoutDialog=page.getByRole('dialog',{name:'Canvas layout',exact:true});await layoutDialog.waitFor();
+    const dirSelect=layoutDialog.getByRole('combobox',{name:'Layout direction'});
     const at=async()=>[await north.boundingBox(),await ppp.boundingBox()];
     for(const [value,check] of [['bottom_up',([w,g])=>w.y>g.y],['left_right',([w,g])=>w.x<g.x],['right_left',([w,g])=>w.x>g.x],['top_down',([w,g])=>w.y<g.y]]){
       await dirSelect.selectOption(value);
@@ -313,6 +315,7 @@ const fs=require('node:fs');
       assert.ok(check(await at()),`${value}: the WAN card is on its side`);
       await page.screenshot({path:`${out}/direction-${value}.png`});
     }
+    await page.keyboard.press('Escape');await layoutDialog.waitFor({state:'hidden'});
     // Rebalance routing: the count of moves, then a confirmation.
     await dock.getByRole('button',{name:'Topology settings',exact:true}).click();await settings.waitFor();
     await settings.getByText('Rebalance routing moves 2 subscribers to another WAN. Their open connections break.').waitFor();

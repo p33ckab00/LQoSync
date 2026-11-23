@@ -215,7 +215,19 @@ pub(crate) fn TopologyPage(
           <nav class="router-tabs" aria-label="Topology views">
             {TOPOLOGY_TABS.iter().map(|(key,label)|{
               let key=*key;
-              view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>{*label}</Link>}
+              let canvas = !matches!(tab, "assignments" | "policies" | "changes");
+              let path = match key {
+                  "assignments" => "M8 6h12M8 12h12M8 18h12M3 6h1M3 12h1M3 18h1",
+                  "policies" => "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4",
+                  "changes" => "M4 5h16v15H4zM8 2v6M16 2v6M8 12h8M8 16h5",
+                  _ => "M3 3h6v6H3zM15 15h6v6h-6zM6 9v9h9",
+              };
+              view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>
+                <span class=if canvas {"canvas-tab-icon"} else {""} title=*label>
+                  {canvas.then(||crate::topology_canvas::icon(path))}
+                  <span class=if canvas {"sr-only"} else {""}>{*label}</span>
+                </span>
+              </Link>}
             }).collect_view()}
           </nav>
         }
@@ -259,6 +271,7 @@ pub(crate) fn TopologyPage(
         };
         return view! {
           <div class="topology-canvas-page">
+            <div class="topology-stage">
             <div class="topology-head">
               <h1 tabindex="-1">"Topology Manager"</h1>
               {tabs()}
@@ -267,7 +280,6 @@ pub(crate) fn TopologyPage(
               </button>
             </div>
             <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
-            <div class="topology-stage">
               <details class="canvas-evidence">
                 <summary>{move||summary_line().map(|(fresh,revision,writer,counts)|view!{
                   <span class="canvas-evidence-dot" data-fresh=fresh.to_string() aria-hidden="true"></span>
