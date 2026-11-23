@@ -20,13 +20,17 @@ pub struct CanvasLayout {
     pub schema_version: u32,
     pub revision: u64,
     /// The current direction. Added in layout schema 2; schema 1 is top-down.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_top_down")]
     pub direction: Direction,
     /// Card ID to `[x, y]` in the current direction.
     pub positions: BTreeMap<String, [f64; 2]>,
     /// The saved positions of the other directions. Added in layout schema 2.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub other: BTreeMap<Direction, BTreeMap<String, [f64; 2]>>,
+}
+
+fn is_top_down(d: &Direction) -> bool {
+    *d == Direction::TopDown
 }
 
 /// The saved layout of `directory` (the `topology-manager` directory). Missing: revision 0.
@@ -89,8 +93,14 @@ pub fn save(
             positions
         }
     };
+    // A top-down layout with no other direction stays schema 1, so an older build reads it.
+    let schema_version = if direction == Direction::TopDown && current.other.is_empty() {
+        1
+    } else {
+        2
+    };
     let layout = CanvasLayout {
-        schema_version: 2,
+        schema_version,
         revision: current
             .revision
             .checked_add(1)

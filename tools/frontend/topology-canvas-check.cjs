@@ -25,8 +25,13 @@ const fs=require('node:fs');
     await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Topology',exact:true}).click();
     const canvas=page.getByRole('region',{name:/^Topology canvas\./});
     const cards=canvas.locator('.canvas-node');await cards.nth(3).waitFor();
-    assert.equal(await cards.count(),4);
-    assert.equal(await canvas.locator('.canvas-wires path').count(),2,'one wire per parent link');
+    assert.equal(await cards.count(),4,'one card for each node: the two PPPoE placements are one card');
+    assert.equal(await canvas.locator('.canvas-flow').count(),3,'one line for each WAN of a card');
+    assert.equal(await canvas.locator('[data-node-id="source:access-ppp"]').count(),1);
+    assert.match(await canvas.getByRole('button',{name:/^PPPoE access,/}).getAttribute('aria-label'),/5 subscribers/);
+    const widths=await canvas.locator('.canvas-flow path:not(.hit)').evaluateAll(ps=>ps.map(p=>parseFloat(p.style.strokeWidth)));
+    assert.ok(Math.max(...widths)===10&&Math.min(...widths)>=1.5&&Math.min(...widths)<10,`line width by subscribers ${widths}`);
+    assert.equal(await page.getByText(/instance/i).count(),0,'the word instance never shows');
     const dock=page.getByRole('toolbar',{name:'Topology tools'});
     for(const name of ['Router inventory','Topology settings','Subscriber allocation','Preview and evidence']){
       const box=await dock.getByRole('button',{name,exact:true}).boundingBox();
@@ -224,7 +229,7 @@ const fs=require('node:fs');
       await page.mouse.up();
     };
     await drag('WAN South',ppp);
-    assert.deepEqual(await edit('instance.add'),{kind:'instance.add',source_id:'access-ppp',parent:'tm-node-wan-south',name:null});
+    await page.getByRole('status').filter({hasText:'Not connected: This WAN is already a parent of the card.'}).first().waitFor();
     await drag('WAN North',dhcp);
     assert.deepEqual(await edit('node.instance_add'),{kind:'node.instance_add',node_id:'tm-node-dhcp-south',parent:'tm-node-wan-north'});
     // Router card settings: exclusion from the network tree, and a link to the Routers screen.
@@ -245,6 +250,57 @@ const fs=require('node:fs');
     await excluded.getByRole('button',{name:'Read PPPoE Trial again',exact:true}).click();
     assert.deepEqual(await edit('source.exclude'),{kind:'source.exclude',source_id:'access-ppp-trial',excluded:false});
     await page.keyboard.press('Escape');await excluded.waitFor({state:'hidden'});
+    // A line: a click selects it; Remove link and the Delete key remove it.
+    const clickLine=async(from,to)=>{
+      const p=await canvas.locator(`.canvas-flow[data-from="${from}"][data-to="${to}"] path.hit`).evaluate(el=>{
+        const q=el.getPointAtLength(el.getTotalLength()/2).matrixTransform(el.getScreenCTM());return {x:q.x,y:q.y};});
+      await page.mouse.click(p.x,p.y);
+    };
+    await clickLine('tm-node-wan-south','source:access-ppp');
+    assert.equal(await canvas.locator('.canvas-flow path.picked').count(),1,'the line is selected');
+    await page.getByRole('button',{name:'Remove link',exact:true}).click();
+    assert.deepEqual(await edit('link.remove'),{kind:'link.remove',parent:'tm-node-wan-south',child:'tm-node-ppp-south'});
+    await clickLine('tm-node-wan-south','source:access-ppp');
+    await page.keyboard.press('Delete');
+    assert.deepEqual(await edit('link.remove'),{kind:'link.remove',parent:'tm-node-wan-south',child:'tm-node-ppp-south'});
+    // By keyboard: the card settings list the lines as text, each with Remove link.
+    await ppp.click();await page.keyboard.press('Enter');await pppDialog.waitFor();
+    const links=pppDialog.getByRole('group',{name:'Links'});
+    await links.getByText('WAN North · 3 subscribers').waitFor();
+    await links.getByText('WAN South · 2 subscribers').waitFor();
+    assert.equal(await pppDialog.getByText(/Add another/).count(),0,'no Add another parent field');
+    await links.getByRole('button',{name:'Remove link from WAN North'}).focus();await page.keyboard.press('Enter');
+    assert.deepEqual(await edit('link.remove'),{kind:'link.remove',parent:'tm-node-wan-north',child:'tm-node-ppp-north'});
+    await page.keyboard.press('Escape');await pppDialog.waitFor({state:'hidden'});
+    // Leaf labels: the WAN counts always show; up to 50 names expand, and the layout makes room.
+    const leaves=canvas.locator('.canvas-leaves[data-card="source:access-ppp"]');
+    await leaves.getByText('WAN North 3').waitFor();await leaves.getByText('WAN South 2').waitFor();
+    await leaves.getByRole('button',{name:'Show subscribers'}).click();
+    assert.equal(await leaves.locator('.canvas-leaf-list li').count(),3);
+    assert.equal(await leaves.getByRole('link',{name:'+2 more'}).getAttribute('href'),'/topology?tab=assignments&group=access-ppp');
+    const lb=await leaves.boundingBox();
+    for(const c of await cards.all()){const b=await c.boundingBox();
+      assert.ok(b.x>=lb.x+lb.width||lb.x>=b.x+b.width||b.y>=lb.y+lb.height||lb.y>=b.y+b.height-1||await c.getAttribute('data-node-id')==='source:access-ppp','the labels cover no card');}
+    await page.screenshot({path:`${out}/leaf-labels.png`});
+    await leaves.getByRole('button',{name:'Hide subscribers'}).click();
+    // Layout directions: the WAN cards go to the start side; each choice saves the direction.
+    const dirSelect=page.getByRole('combobox',{name:'Layout direction'});
+    const at=async()=>[await north.boundingBox(),await ppp.boundingBox()];
+    for(const [value,check] of [['bottom_up',([w,g])=>w.y>g.y],['left_right',([w,g])=>w.x<g.x],['right_left',([w,g])=>w.x>g.x],['top_down',([w,g])=>w.y<g.y]]){
+      await dirSelect.selectOption(value);
+      for(let i=0;i<50&&layouts.at(-1).direction!==value;i++)await page.waitForTimeout(100);
+      assert.equal(layouts.at(-1).direction,value);
+      await page.waitForTimeout(300);
+      assert.ok(check(await at()),`${value}: the WAN card is on its side`);
+      await page.screenshot({path:`${out}/direction-${value}.png`});
+    }
+    // Rebalance routing: the count of moves, then a confirmation.
+    await dock.getByRole('button',{name:'Topology settings',exact:true}).click();await settings.waitFor();
+    await settings.getByText('Rebalance routing moves 2 subscribers to another WAN. Their open connections break.').waitFor();
+    await settings.getByRole('button',{name:'Rebalance routing',exact:true}).click();
+    await settings.getByRole('button',{name:'Confirm: move 2',exact:true}).click();
+    assert.deepEqual(await edit('routing.rebalance'),{kind:'routing.rebalance',apply:true});
+    await page.keyboard.press('Escape');await settings.waitFor({state:'hidden'});
     // List view by keyboard: the same cards open the same modals.
     const listButton=page.getByRole('button',{name:'List view',exact:true});
     await listButton.focus();await page.keyboard.press('Enter');

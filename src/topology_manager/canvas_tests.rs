@@ -145,3 +145,19 @@ fn a_schema_1_layout_loads_as_top_down() {
     assert_eq!((l.revision, l.direction), (3, Direction::TopDown));
     assert_eq!(l.positions, one("wan1", [1.0, 2.0]));
 }
+
+#[test]
+fn a_top_down_layout_stays_schema_1_for_an_older_build() {
+    use web_contract::topology::Direction;
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    save(d, 0, Direction::TopDown, one("wan1", [1.0, 1.0]), &known()).unwrap();
+    let text = std::fs::read_to_string(d.join(FILE)).unwrap();
+    assert!(
+        text.contains(r#""schema_version":1"#) && !text.contains("direction"),
+        "{text}"
+    );
+    save(d, 1, Direction::LeftRight, BTreeMap::new(), &known()).unwrap();
+    let text = std::fs::read_to_string(d.join(FILE)).unwrap();
+    assert!(text.contains(r#""schema_version":2"#), "{text}");
+}

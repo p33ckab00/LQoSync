@@ -167,6 +167,20 @@ pub(crate) fn Canvas(
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     let viewport = NodeRef::<leptos::html::Div>::new();
     let list_view = RwSignal::new(false);
+    // The selected line: parent card ID and child card ID.
+    let selected_link = RwSignal::new(None::<(String, String)>);
+    // Cards with their subscriber labels open. Per browser tab; not saved.
+    let expanded = RwSignal::new(std::collections::HashSet::<String>::new());
+    let direction = RwSignal::new(Direction::TopDown);
+    let direction_set = StoredValue::new(false);
+    Effect::new(move |_| {
+        let saved = data.with(|d| d.as_ref().map(|s| s.layout_direction));
+        if let Some(d) = saved
+            && !direction_set.get_value()
+        {
+            direction.set(d);
+        }
+    });
 
     // The newest view is the base of the next edit, unless an edit of this page is running.
     Effect::new(move |_| {
@@ -179,13 +193,58 @@ pub(crate) fn Canvas(
     let nodes = Memo::new(move |_| {
         data.with(|d| d.as_ref().map(|s| visible(&s.nodes)).unwrap_or_default())
     });
+    // One card for each card ID: the canvas never shows the instances of a node.
+    let card_list = Memo::new(move |_| nodes.with(|n| cards(n)));
     // Cards that can be a parent get a connector port: WAN, router, and Site/AP cards.
     let parents = Memo::new(move |_| {
-        nodes.with(|n| {
-            n.iter()
-                .filter(|n| can_parent(n))
+        card_list.with(|c| {
+            c.iter()
+                .filter(|c| can_parent(&c.node))
                 .cloned()
                 .collect::<Vec<_>>()
+        })
+    });
+    let group_cards = Memo::new(move |_| {
+        card_list.with(|c| {
+            c.iter()
+                .filter(|c| c.node.kind == "group")
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+    });
+    let wan_names = Memo::new(move |_| {
+        nodes.with(|n| {
+            n.iter()
+                .filter(|w| w.kind == "wan")
+                .map(|w| (w.id.clone(), w.name.clone()))
+                .collect::<Vec<_>>()
+        })
+    });
+    let balance_of = move |card: &str| {
+        data.with(|d| {
+            d.as_ref()
+                .and_then(|s| s.balance.iter().find(|b| b.card_id == card).cloned())
+        })
+    };
+    let writer_off = move || data.with(|d| d.as_ref().is_some_and(|s| s.wan_lists.is_none()));
+    // The height below a group card that its warning and leaf labels take.
+    let extra = Memo::new(move |_| {
+        let open = expanded.get();
+        let off = writer_off();
+        card_list.with(|cs| {
+            cs.iter()
+                .filter_map(|c| {
+                    let b = balance_of(&c.id)?;
+                    let warn = nodes.with(|ns| routing_warning(ns, &c.node.id, off));
+                    let rows = if open.contains(&c.id) {
+                        b.leaves.len().div_ceil(2) as f64 * LEAF_ROW
+                            + if b.more > 0 { LEAF_ROW } else { 0.0 }
+                    } else {
+                        0.0
+                    };
+                    Some((c.id.clone(), leaf_top(warn) + LEAF_LINE + rows))
+                })
+                .collect::<HashMap<_, _>>()
         })
     });
     let candidates = Memo::new(move |_| {
@@ -197,7 +256,12 @@ pub(crate) fn Canvas(
     });
     let points = Memo::new(move |_| {
         let overrides = local.get();
-        let mut p = positions(&nodes.get(), &candidates.get());
+        let mut p = positions(
+            &card_list.get(),
+            &candidates.get(),
+            direction.get(),
+            &extra.get(),
+        );
         for (id, point) in &mut p {
             if let Some(o) = overrides.get(id) {
                 *point = *o;
@@ -230,8 +294,13 @@ pub(crate) fn Canvas(
                     continue;
                 };
                 let key = new_key();
+                // The card of a router change: its form gets the refusal.
                 let router_node = match &edit {
-                    BuilderEdit::NodeRouter { node_id, .. } => Some(node_id.clone()),
+                    BuilderEdit::NodeRouter { node_id, .. } => nodes.with_untracked(|ns| {
+                        ns.iter()
+                            .find(|n| n.id == *node_id)
+                            .map(|n| card_of(n).to_string())
+                    }),
                     _ => None,
                 };
                 let request = EditRequest {
@@ -300,9 +369,23 @@ pub(crate) fn Canvas(
         Ok(edit) => submit(edit),
         Err(e) => status.set(format!("Not saved: {e}")),
     };
+    // The first node of the selected card: new items go below it.
+    let selected_first = move || {
+        let card = selected.get_untracked()?;
+        nodes.with_untracked(|ns| ns.iter().find(|n| card_of(n) == card).map(|n| n.id.clone()))
+    };
     let under = move || Draft {
-        parent: selected.get_untracked().unwrap_or_default(),
+        parent: selected_first().unwrap_or_default(),
         ..Draft::default()
+    };
+    let remove_link = move |from: String, to: String| match nodes
+        .with_untracked(|ns| link_of(ns, &from, &to).filter(|(p, c)| removable(ns, p, c)))
+    {
+        Some((parent, child)) => {
+            selected_link.set(None);
+            submit(BuilderEdit::LinkRemove { parent, child });
+        }
+        None => status.set("Not removed: the router branch keeps its groups.".into()),
     };
 
     // Save the layout 600 ms after the last card move.
@@ -324,7 +407,7 @@ pub(crate) fn Canvas(
             });
             let body = LayoutRequest {
                 expected_revision,
-                direction: Default::default(),
+                direction: direction.get_untracked(),
                 positions: data.with_untracked(|d| {
                     d.as_ref()
                         .map(|s| saved_positions(&s.nodes, &local.get_untracked()))
@@ -351,7 +434,7 @@ pub(crate) fn Canvas(
             let Some(id) = selected.get_untracked() else {
                 return;
             };
-            let node = nodes.with_untracked(|n| n.iter().find(|x| x.id == id).cloned());
+            let node = nodes.with_untracked(|n| n.iter().find(|x| card_of(x) == id).cloned());
             if let Some(node) = node {
                 // An invalid draft of this node stays; a clean form starts from the saved node.
                 forms.update(|f| {
@@ -379,13 +462,14 @@ pub(crate) fn Canvas(
         let Some(id) = selected.get_untracked() else {
             return;
         };
-        let Some(node) = nodes.with_untracked(|n| n.iter().find(|x| x.id == id).cloned()) else {
+        let Some(card) = card_list.with_untracked(|c| c.iter().find(|c| c.id == id).cloned())
+        else {
             return;
         };
         let Some(form) = forms.with_untracked(|f| f.get(&id).cloned()) else {
             return;
         };
-        let result = form_edits(&node, &form);
+        let result = form_edits(&card.node, &form).map(|e| card_edits(&card, e));
         forms.update(|f| {
             if let Some(form) = f.get_mut(&id) {
                 form.error = result.as_ref().err().cloned().unwrap_or_default();
@@ -399,8 +483,9 @@ pub(crate) fn Canvas(
     // Card drag: pointer ID, start pointer, start card position, moved.
     let drag = StoredValue::new(None::<(i32, f64, f64, [f64; 2], bool)>);
     let just_dragged = StoredValue::new(false);
-    let card = move |n: Node| {
-        let id = StoredValue::new(n.id.clone());
+    let card = move |c: Card| {
+        let n = c.node.clone();
+        let id = StoredValue::new(c.id.clone());
         let pos = move || id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
         let is_selected = move || id.with_value(|i| selected.get().as_deref() == Some(i.as_str()));
         let geo = n.geo.as_ref().map(|g| match g.geo_type {
@@ -430,9 +515,8 @@ pub(crate) fn Canvas(
             .as_ref()
             .map(|h| (h.state.clone(), health_label(h)));
         let excluded = n.tree_excluded.then_some("Excluded from tree");
-        let writer_off = data.with_untracked(|d| d.as_ref().is_some_and(|s| s.wan_lists.is_none()));
         let warning = nodes
-            .with_untracked(|ns| routing_warning(ns, &n.id, writer_off))
+            .with_untracked(|ns| routing_warning(ns, &n.id, writer_off()))
             .then_some(ROUTING_WARNING);
         let label = format!(
             "{}, {kind}, {meta}{}{}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
@@ -457,12 +541,13 @@ pub(crate) fn Canvas(
             .map(|t| format!(" {t}."))
             .collect::<String>();
         view! {
-          <button type="button" class="canvas-node" data-kind=n.kind.clone() data-node-id=n.id.clone()
+          <button type="button" class="canvas-node" data-kind=n.kind.clone() data-node-id=c.id.clone()
             aria-pressed=move||is_selected().to_string() aria-label=label
             style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
             on:click=move|_|{
               if just_dragged.get_value(){ just_dragged.set_value(false); return; }
               selected.set(Some(id.get_value()));
+              selected_link.set(None);
             }
             on:dblclick=move|_|{ selected.set(Some(id.get_value())); open(Panel::Node); }
             on:keydown=move|ev: web_sys::KeyboardEvent|{
@@ -533,23 +618,26 @@ pub(crate) fn Canvas(
     let wan_form = RwSignal::new(None::<(Change, Draft, String)>);
     // The one-time routing adoption is a reviewed change in the house change dialog.
     let adopt = RwSignal::new(None::<Change>);
+    let confirm_rebalance = RwSignal::new(false);
     // Connector drag: parent node ID, start pointer, start point, end point (canvas pixels).
     let connect = RwSignal::new(None::<(String, f64, f64, [f64; 2], [f64; 2])>);
-    let handle = move |n: Node| {
-        let id = StoredValue::new(n.id.clone());
+    let handle = move |c: Card| {
+        let n = c.node.clone();
+        let id = StoredValue::new(c.id.clone());
         let pos = move || id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
+        let out = move || port(pos(), direction.get(), true);
         // The pointer drag is a shortcut. Keyboard users set a parent in the settings of a card.
         view! {
           <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true"
             title=format!("Drag from {} to the card that goes below it",n.name) disabled=locked
-            style:left=move||format!("{}px",pos()[0]+CARD_W/2.0-9.0) style:top=move||format!("{}px",pos()[1]+CARD_H-9.0)
+            style:left=move||format!("{}px",out()[0]-9.0) style:top=move||format!("{}px",out()[1]-9.0)
             on:pointerdown=move|ev: web_sys::PointerEvent|{
               if ev.button()!=0 { return; }
               ev.stop_propagation();
               if let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) {
                 let _=t.set_pointer_capture(ev.pointer_id());
               }
-              let start=[pos()[0]+CARD_W/2.0,pos()[1]+CARD_H];
+              let start=out();
               connect.set(Some((id.get_value(),ev.client_x() as f64,ev.client_y() as f64,start,start)));
             }
             on:pointermove=move|ev: web_sys::PointerEvent|{
@@ -603,44 +691,110 @@ pub(crate) fn Canvas(
           </button>
         }
     };
+    // One line for each flow between two shown cards; the width is the subscriber count.
     let wires = move || {
         let sel = selected.get();
-        nodes.with(|ns| {
-            ns.iter()
-                .filter_map(|n| {
-                    let parent = n.parent.as_deref()?;
-                    let d = wire(point_of(parent)?, point_of(&n.id)?);
-                    let active = sel.as_deref().is_some_and(|s| s == n.id || s == parent);
-                    Some(view! {<path d=d class:active=active/>})
+        let link = selected_link.get();
+        let dir = direction.get();
+        let flows = data.with(|d| d.as_ref().map(|s| s.flows.clone()).unwrap_or_default());
+        let max = flows.iter().map(|f| f.subscribers).max().unwrap_or(0);
+        flows
+            .into_iter()
+            .filter_map(|f| {
+                let d = wire_in(point_of(&f.from)?, point_of(&f.to)?, dir);
+                let active = sel.as_deref().is_some_and(|s| s == f.to || s == f.from);
+                let picked = link.as_ref().is_some_and(|(a, b)| *a == f.from && *b == f.to);
+                let width = format!("{}", flow_width(f.subscribers, max));
+                let (from, to) = (f.from.clone(), f.to.clone());
+                Some(view! {
+                  <g class="canvas-flow" data-from=f.from.clone() data-to=f.to.clone()>
+                    <path d=d.clone() class:active=active class:picked=picked style:stroke-width=width/>
+                    <path d=d class="hit" on:click=move|ev: web_sys::MouseEvent|{
+                      ev.stop_propagation();
+                      selected.set(None);
+                      selected_link.set(Some((from.clone(),to.clone())));
+                    }/>
+                  </g>
                 })
-                .collect_view()
-        })
+            })
+            .collect_view()
+    };
+    // The leaf line below a group card: its subscribers on each WAN, and up to 50 labels.
+    let leaves = move |c: Card| {
+        let id = StoredValue::new(c.id.clone());
+        let source = c.node.source_id.clone().unwrap_or_default();
+        let warn = nodes.with_untracked(|ns| routing_warning(ns, &c.node.id, writer_off()));
+        let pos = move || id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
+        let wan = move |w: &str| {
+            wan_names.with(|n| {
+                let i = n.iter().position(|(id, _)| id == w);
+                (
+                    i.map_or(0, |i| i % 6),
+                    i.map_or_else(|| w.to_string(), |i| n[i].1.clone()),
+                )
+            })
+        };
+        let open = move || id.with_value(|i| expanded.with(|e| e.contains(i)));
+        move || {
+            let b = id.with_value(|i| balance_of(i))?;
+            let line = b
+                .by_wan
+                .iter()
+                .map(|(w, n)| {
+                    let (mark, name) = wan(w);
+                    view! {<span class="canvas-leaf-wan" data-wan=mark>{format!("{name} {n}")}</span>}
+                })
+                .collect_view();
+            let toggle_label = if open() {
+                "Hide subscribers"
+            } else {
+                "Show subscribers"
+            };
+            let labels = open().then(|| {
+                let more = b.more;
+                let href = format!("/topology?tab=assignments&group={}", source);
+                view! {
+                  <ul class="canvas-leaf-list">
+                    {b.leaves.iter().map(|l|{
+                      let (mark, name) = wan(&l.wan);
+                      view!{<li><span class="canvas-leaf-wan" data-wan=mark title=name.clone()>{l.name.clone()}</span></li>}
+                    }).collect_view()}
+                  </ul>
+                  {(more > 0).then(||view!{<a class="canvas-link" href=href>{format!("+{more} more")}</a>})}
+                }
+            });
+            Some(view! {
+              <div class="canvas-leaves" data-card=id.get_value()
+                style:left=move||format!("{}px",pos()[0])
+                style:top=move||format!("{}px",pos()[1]+CARD_H+leaf_top(warn))>
+                <p class="canvas-leaf-line">{line}
+                  <button type="button" class="quiet canvas-leaf-toggle" aria-expanded=move||open().to_string()
+                    on:click=move|_|expanded.update(|e|{let i=id.get_value(); if !e.remove(&i){e.insert(i);}})>{toggle_label}</button>
+                </p>
+                {labels}
+              </div>
+            })
+        }
     };
     // The connector that the operator drags from a parent card.
     let pending = move || {
         connect.get().and_then(|(from, _, _, _, end)| {
-            let a = point_of(&from)?;
-            let d = format!(
-                "M{} {} L{} {}",
-                a[0] + CARD_W / 2.0,
-                a[1] + CARD_H,
-                end[0],
-                end[1]
-            );
+            let a = port(point_of(&from)?, direction.get(), true);
+            let d = format!("M{} {} L{} {}", a[0], a[1], end[0], end[1]);
             Some(view! {<path d=d class="pending"/>})
         })
     };
     let size = move || points.with(|p| surface(p));
     let selected_node = move || {
         let id = selected.get()?;
-        nodes.with(|n| n.iter().find(|x| x.id == id).cloned())
+        nodes.with(|n| n.iter().find(|x| card_of(x) == id).cloned())
     };
 
     Effect::new(move |_| match read_action.get() {
         Some(Change::AddSource(key, _)) => {
             submit(BuilderEdit::SourceAdd {
                 key,
-                parent: selected.get_untracked(),
+                parent: selected_first(),
             });
             read_action.set(None);
         }
@@ -688,8 +842,8 @@ pub(crate) fn Canvas(
         <div class="canvas-frame">
           <Show when=move||list_view.get()>
             <ul class="canvas-list" aria-label="Topology cards">
-              {move||nodes.get().into_iter().map(|n|{
-                let id=n.id.clone();
+              {move||card_list.get().into_iter().map(|c|{
+                let (id,n)=(c.id.clone(),c.node);
                 let chips=[n.tree_excluded.then_some("Excluded from tree"),
                   data.with_untracked(|d|d.as_ref().is_some_and(|s|routing_warning(&visible(&s.nodes),&n.id,s.wan_lists.is_none()))).then_some(ROUTING_WARNING)]
                   .into_iter().flatten().collect::<Vec<_>>().join(" · ");
@@ -707,19 +861,29 @@ pub(crate) fn Canvas(
             </ul>
           </Show>
           <div class="canvas-viewport" node_ref=viewport hidden=move||list_view.get() tabindex="0" role="region"
-            aria-label="Topology canvas. Arrow keys scroll. Tab moves between cards." on:keydown=cancel_drag
+            aria-label="Topology canvas. Arrow keys scroll. Tab moves between cards."
+            on:keydown=move|ev: web_sys::KeyboardEvent|{
+              if matches!(ev.key().as_str(),"Delete"|"Backspace") && !locked()
+                && let Some((from,to))=selected_link.get_untracked() {
+                ev.prevent_default();
+                remove_link(from,to);
+                return;
+              }
+              cancel_drag(ev);
+            }
             on:click=move|ev: web_sys::MouseEvent|{
               // A click on empty canvas clears the selection.
               let empty=ev.target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())
                 .is_some_and(|e|e.class_list().contains("canvas-layer")||e.class_list().contains("canvas-surface"));
-              if empty { selected.set(None); }
+              if empty { selected.set(None); selected_link.set(None); }
             }>
             <div class="canvas-surface" style:width=move||format!("{}px",size().0*zoom.get()) style:height=move||format!("{}px",size().1*zoom.get())>
-              <div class="canvas-layer" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
+              <div class="canvas-layer" data-direction=move||direction_name(direction.get()) style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}{pending}</svg>
-                <For each=move||nodes.get() key=|n|format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",n.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,n.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded)) children=card/>
-                <For each=move||parents.get() key=|n|n.id.clone() children=handle/>
+                <For each=move||card_list.get() key=|c|{let n=&c.node; format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",c.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,c.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded))} children=card/>
+                <For each=move||group_cards.get() key=|c|c.id.clone() children=leaves/>
+                <For each=move||parents.get() key=|c|c.id.clone() children=handle/>
                 <For each=move||candidate_cards(&candidates.get()) key=|c|c.0.clone() children=candidate/>
               </div>
             </div>
@@ -762,14 +926,42 @@ pub(crate) fn Canvas(
               let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
                 d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
               leptos::task::spawn_local(async move{
-                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:Default::default()}).await{
+                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:direction.get_untracked()}).await{
                   Ok(r)=>{layout_revision.set(Some(r));status.set("Layout reset. Shaping does not change.".into());}
                   Err(e)=>{layout_revision.set(None);status.set(e.into());}
                 }
                 reload.run(());
               });
             }>"Reset layout"</button>
+            <label class="canvas-direction"><span class="sr-only">"Layout direction"</span>
+              <select aria-label="Layout direction" disabled=locked prop:value=move||direction_name(direction.get())
+                on:change=move|ev|{
+                  let Some(next)=direction_of(&event_target_value(&ev)) else {return};
+                  direction_set.set_value(true);
+                  direction.set(next);
+                  // The new direction restores its saved positions; the old ones stay saved.
+                  local.set(HashMap::new());
+                  let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
+                    d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
+                  leptos::task::spawn_local(async move{
+                    match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:next}).await{
+                      Ok(r)=>{layout_revision.set(Some(r));status.set("Layout direction saved. Shaping does not change.".into());}
+                      Err(e)=>{layout_revision.set(None);status.set(e.into());}
+                    }
+                    reload.run(());
+                  });
+                }>
+                <option value="top_down">"Top-down"</option>
+                <option value="bottom_up">"Bottom-up"</option>
+                <option value="left_right">"Left to right"</option>
+                <option value="right_left">"Right to left"</option>
+              </select></label>
             <button type="button" class="quiet" aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>"List view"</button>
+            <Show when=move||selected_link.get().is_some()>
+              <span class="canvas-zoom-sep" aria-hidden="true"></span>
+              <button type="button" class="quiet danger" disabled=locked
+                on:click=move|_|if let Some((from,to))=selected_link.get_untracked(){remove_link(from,to);}>"Remove link"</button>
+            </Show>
             <Show when=move||selected.get().is_some()>
               <span class="canvas-zoom-sep" aria-hidden="true"></span>
               <button type="button" class="quiet" on:click=move|_|open(Panel::Node)>"Card settings"</button>
@@ -799,7 +991,8 @@ pub(crate) fn Canvas(
           </header>
           <div class="canvas-dialog-body">
             {move||match panel.get(){
-              Some(Panel::Node)=>view!{<NodeEditor data forms selected locked flush act=Callback::new(move|(c,d)|act(c,d)) send=Callback::new(submit) close=Callback::new(move|()|close())/>}.into_any(),
+              Some(Panel::Node)=>view!{<NodeEditor data forms selected locked flush act=Callback::new(move|(c,d)|act(c,d)) send=Callback::new(submit) close=Callback::new(move|()|close())
+                unlink=Callback::new(move|(from,to)|remove_link(from,to)) status/>}.into_any(),
               Some(Panel::Inventory)=>view!{
                 <p class="field-help">{move||match selected_node(){Some(n)=>format!("New items go under {}.",n.name),None=>"New items go at the top level. Select a card first to place them under it.".into()}}</p>
                 <div class="form-actions">
@@ -880,6 +1073,21 @@ pub(crate) fn Canvas(
                   <div class="form-actions">
                     <button type="button" class="quiet" disabled=locked on:click=move|_|{close();adopt.set(Some(Change::AdoptRouting));}>"Adopt current routing"</button>
                   </div>
+                  {move||{
+                    let moves=data.with(|d|d.as_ref().map(|s|s.routing_moves).unwrap_or(0));
+                    view!{
+                      <p class="field-help">{if moves==0 {"Routing is balanced. Rebalance routing moves nobody now.".to_string()}
+                        else {format!("Rebalance routing moves {moves} subscriber{} to another WAN. Their open connections break.",if moves==1{""}else{"s"})}}</p>
+                      <div class="form-actions">
+                        <button type="button" class="quiet" disabled=move||locked()||moves==0 on:click=move|_|{
+                          if confirm_rebalance.get_untracked(){
+                            submit(BuilderEdit::RoutingRebalance{apply:true});
+                            confirm_rebalance.set(false);
+                          } else { confirm_rebalance.set(true); }
+                        }>{move||if confirm_rebalance.get(){format!("Confirm: move {moves}")}else{"Rebalance routing".to_string()}}</button>
+                      </div>
+                    }
+                  }}
                 </fieldset>
               }.into_any(),
               Some(Panel::Allocation)=>view!{
@@ -987,10 +1195,12 @@ fn NodeEditor(
     act: Callback<(Change, Draft)>,
     send: Callback<BuilderEdit>,
     close: Callback<()>,
+    unlink: Callback<(String, String)>,
+    status: RwSignal<String>,
 ) -> impl IntoView {
     let node = move || {
         let id = selected.get()?;
-        data.with(|d| d.as_ref()?.nodes.iter().find(|n| n.id == id).cloned())
+        data.with(|d| d.as_ref()?.nodes.iter().find(|n| card_of(n) == id).cloned())
     };
     let form = move || {
         selected
@@ -1039,14 +1249,25 @@ fn NodeEditor(
         let routers:Vec<(String,String)>=data.with(|d|d.as_ref().map(|s|s.collection.iter()
           .filter(|r|n.router_id.as_deref()==Some(r.router_id.as_str())||!s.nodes.iter().any(|m|m.router_id.as_deref()==Some(r.router_id.as_str())))
           .map(|r|(r.router_id.clone(),r.name.clone())).collect()).unwrap_or_default());
-        let (move_node,remove_node,child_id,parent_node)=(n.clone(),n.clone(),n.id.clone(),n.clone());
-        // Only a subscriber group shares its source between several parents.
-        let (more_parents,placements)=data.with(|d|d.as_ref().filter(|_|n.kind=="group").map(|s|(additional_parents(&s.nodes,&n),
-          n.source_id.as_deref().map(|src|shared_parent_names(&s.nodes,src)).unwrap_or_default())).unwrap_or_default());
-        // A group is the last instance of its source when it has one placement: it cannot be
-        // removed, only not read. A WAN, router, or Site card can hold child cards.
+        let (move_node,remove_node,child_id)=(n.clone(),n.clone(),n.id.clone());
+        let card=card_of(&n).to_string();
+        let shown=data.with(|d|d.as_ref().map(|s|visible(&s.nodes)).unwrap_or_default());
+        let count=shown.iter().filter(|m|card_of(m)==card).count();
+        let names=|id:&str|shown.iter().find(|m|card_of(m)==id).map_or(id.to_string(),|m|m.name.clone());
+        // The lines into this card, as text: the parent card, its subscribers, and removal.
+        let links:Vec<(String,String,u64,bool)>=data.with(|d|d.as_ref().map(|s|s.flows.iter().filter(|f|f.to==card).map(|f|{
+          let ok=link_of(&shown,&f.from,&f.to).is_some_and(|(p,c)|removable(&shown,&p,&c));
+          (f.from.clone(),names(&f.from),f.subscribers,ok)
+        }).collect()).unwrap_or_default());
+        // Cards that can take a new line to this card: the same rules as a connector drag.
+        let linkable:Vec<(String,String)>=cards(&shown).into_iter()
+          .filter(|c|c.id!=card && can_parent(&c.node) && !links.iter().any(|l|l.0==c.id) && drop_edit(&shown,&c.id,&card).is_ok())
+          .map(|c|(c.id,c.name)).collect();
+        let (card2,shown2)=(card.clone(),shown.clone());
+        // A group is removed through its links or not read. A merged card is removed through
+        // its links. A WAN, router, or Site card can hold child cards.
         let group_source=(n.kind=="group").then(||n.source_id.clone()).flatten();
-        let removable=group_source.is_none()||placements.len()>1;
+        let removable_node=group_source.is_none()&&count==1;
         let can_add_child=n.kind!="group";
         view!{
         <form class="canvas-node-form" on:submit=move|ev|{ev.prevent_default();flush();}>
@@ -1086,9 +1307,17 @@ fn NodeEditor(
               </Show>
             </div>
           </fieldset>
-          {(!wan||!more_parents.is_empty()).then(||view!{<fieldset><legend>"Placement"</legend>
+          {(!wan).then(||view!{<fieldset><legend>"Links"</legend>
+            <ul class="canvas-links">
+              {links.into_iter().map(|(from,name,subscribers,ok)|{
+                let (from2,to)=(from.clone(),card2.clone());
+                view!{<li><span>{format!("{name} · {subscribers} subscriber{}",if subscribers==1{""}else{"s"})}</span>
+                  {ok.then(||view!{<button type="button" class="quiet danger" disabled=locked aria-label=format!("Remove link from {name}")
+                    on:click=move|_|unlink.run((from2.clone(),to.clone()))>"Remove link"</button>})}</li>}
+              }).collect_view()}
+            </ul>
             <div class="canvas-row" data-cols="2">
-              {(!wan).then(||view!{
+              {(count==1).then(||view!{
                 <label>"Parent"<select prop:value=current_parent.clone() disabled=locked
                   on:change=move|ev|{
                     act.run((Change::Move(move_node.clone()),Draft{parent:event_target_value(&ev),..Draft::default()}));
@@ -1097,23 +1326,23 @@ fn NodeEditor(
                   {parents.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
                 </select></label>
               })}
-              {(!more_parents.is_empty()).then(||view!{
-                <label>"Add another parent"<select disabled=locked on:change=move|ev|{
+              {(!linkable.is_empty()).then(||view!{
+                <label>"Add link from"<select disabled=locked on:change=move|ev|{
                     let v=event_target_value(&ev);
-                    if !v.is_empty(){ act.run((Change::AddParent(parent_node.clone()),Draft{parent:v,..Draft::default()})); }
+                    if v.is_empty(){ return; }
+                    match drop_edit(&shown2,&v,&card){
+                      Ok(edit)=>send.run(edit),
+                      Err(why)=>status.set(format!("Not connected: {why}")),
+                    }
                   }>
-                  <option value="">"Select a WAN or node"</option>
-                  {more_parents.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
+                  <option value="">"Select a card"</option>
+                  {linkable.into_iter().map(|(pid,name)|view!{<option value=pid>{name}</option>}).collect_view()}
                 </select></label>
               })}
             </div>
-            {(placements.len()>1).then(||view!{<p class="field-help">{format!("Placed under {}. Each subscriber uses one placement.",placements.join(", "))}</p>})}
           </fieldset>})}
           {n.router_id.is_some().then(||{
-            let (id,id2)=(n.id.clone(),n.id.clone());
-            let wans:Vec<(String,String)>=data.with(|d|d.as_ref().map(|s|s.nodes.iter()
-              .filter(|w|w.kind=="wan" && n.parent.as_deref()!=Some(w.id.as_str()))
-              .map(|w|(w.id.clone(),w.name.clone())).collect()).unwrap_or_default());
+            let id=n.id.clone();
             view!{
             <fieldset><legend>"Router"</legend>
               <div class="check">
@@ -1122,15 +1351,6 @@ fn NodeEditor(
                 <label for="canvas-tree-exclude">"Exclude from network tree"
                   <small>"Its groups go to the parent of this card in network.json."</small></label>
               </div>
-              {(!wans.is_empty()).then(||view!{
-                <label>"Add another WAN parent"<select disabled=locked on:change=move|ev|{
-                    let v=event_target_value(&ev);
-                    if !v.is_empty(){ send.run(BuilderEdit::NodeInstanceAdd{node_id:id2.clone(),parent:Some(v)}); }
-                  }>
-                  <option value="">"Select a WAN"</option>
-                  {wans.into_iter().map(|(wid,name)|view!{<option value=wid>{name}</option>}).collect_view()}
-                </select></label>
-              })}
               <a class="canvas-link" href="/routers">"Router connection settings"</a>
             </fieldset>}
           })}
@@ -1172,7 +1392,7 @@ fn NodeEditor(
                   } else { confirm_exclude.set(true); }
                 }>{move||if confirm_exclude.get(){"Confirm do not read"}else{"Do not read"}}</button>
             })}
-            {removable.then(||view!{
+            {removable_node.then(||view!{
               <button type="button" class="quiet danger" disabled=locked on:click=move|_|{
                 if confirm_remove.get_untracked(){
                   act.run((Change::Remove(remove_node.clone()),Draft::default()));
@@ -1185,7 +1405,7 @@ fn NodeEditor(
           <details class="canvas-ids"><summary>"Details"</summary>
             <dl>
               <dt>"Kind"</dt><dd>{kind_label(&n.kind)}</dd>
-              <dt>"Node ID"</dt><dd>{n.id.clone()}</dd>
+              <dt>"Card ID"</dt><dd>{card_of(&n).to_string()}</dd>
               {n.source_id.clone().map(|s|view!{<dt>"Source ID"</dt><dd>{s}</dd>})}
             </dl>
           </details>

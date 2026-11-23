@@ -41,7 +41,7 @@ const fs=require('node:fs');
     assert.equal(await node.getAttribute('aria-pressed'),'false');
     await node.click();
     assert.equal(await node.getAttribute('aria-pressed'),'true');
-    assert.match(await node.innerText(),/400 \/ 200 Mbps\s*3 subscribers/);
+    assert.match(await node.innerText(),/600 \/ 300 Mbps\s*5 subscribers/,'one card: the total of both placements');
     if(scheme==='dark')await page.screenshot({path:`${out}/topology-builder-${scheme}.png`,fullPage:true});
 
     // Changes: the latest write without paths, and the web change history.

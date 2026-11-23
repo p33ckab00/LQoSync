@@ -83,7 +83,6 @@ fn title(action: &Change) -> String {
         Change::Create => "Create node".into(),
         Change::CreateChild(_) => "Create child node".into(),
         Change::AttachSource(_, name, _) => format!("Attach source {name}"),
-        Change::AddParent(n) => format!("Add parent for {}", n.name),
         Change::Edit(n) => format!("Edit {}", n.name),
         Change::Move(n) => format!("Move {}", n.name),
         Change::Remove(n) => format!("Remove {}", n.name),
@@ -425,16 +424,9 @@ fn fields(
         }
         .into_any(),
         Change::AttachSource(_, name, _) => view! {
-          <p class="panel-note">{format!("Add an instance of {name}. Choose its parent in the hierarchy. The source identity stays shared.")}</p>
+          <p class="panel-note">{format!("Add {name} to the canvas. Choose its parent in the hierarchy. The source identity stays shared.")}</p>
           {parent_select(None)}
         }.into_any(),
-        Change::AddParent(n) => {
-            let options=data.with_untracked(|d|d.as_ref().map(|s|additional_parents(&s.nodes,&n)).unwrap_or_default());
-            view!{
-              <p class="panel-note">"Add a placement of this shared source beneath another parent. The current placement stays. Each subscriber keeps one effective placement."</p>
-              {choice("Additional parent","Select a parent…",options)}
-            }.into_any()
-        },
         Change::Edit(_) => view! {
           <div class="field"><label for="change-name">"Name"</label>
             <input id="change-name" type="text" maxlength="64" required autofocus autocomplete="off" prop:value=text(|d|d.name.clone()) on:input=set(|d,v|d.name=v)/></div>

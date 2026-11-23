@@ -531,6 +531,15 @@ pub struct TopologySummary {
     /// Default-route WAN interfaces without a WAN node ("not configured" cards).
     #[serde(default)]
     pub wan_candidates: Vec<DiscoveredRouter>,
+    #[serde(default)]
+    pub layout_direction: Direction,
+    #[serde(default)]
+    pub routing_moves: u64,
+    #[serde(default)]
+    pub flows: Vec<Flow>,
+    /// The leaf labels can be cut by the reply limit; `by_wan` stays.
+    #[serde(default)]
+    pub balance: Vec<CardBalance>,
 }
 
 /// One page of a filtered list. The cursor binds the snapshot and the filter.

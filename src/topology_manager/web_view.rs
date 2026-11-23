@@ -113,9 +113,6 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                 error: w.error.clone(),
             }
         });
-        node.position = input
-            .layout
-            .and_then(|l| l.positions.get(&node.id).copied());
         // Only a node with a subscriber source can become inactive.
         node.active = node.source_id.is_none()
             || node.kind != "group"
@@ -147,9 +144,18 @@ pub fn project(input: &Input<'_>) -> TopologyView {
     for node in &mut nodes {
         node.card_id = match (node.kind.as_str(), &node.source_id, &node.router_id) {
             ("group", Some(source), _) => format!("source:{source}"),
-            (kind, _, Some(router)) if kind != "group" => format!("router:{router}"),
+            (kind, _, Some(router)) if kind != "group" && kind != "wan" => {
+                format!("router:{router}")
+            }
             _ => node.id.clone(),
         };
+        // A card position is saved by card ID; an older layout has node IDs.
+        node.position = input.layout.and_then(|l| {
+            l.positions
+                .get(&node.card_id)
+                .or_else(|| l.positions.get(&node.id))
+                .copied()
+        });
     }
     let card_of: HashMap<&str, &str> = nodes
         .iter()

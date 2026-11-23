@@ -771,7 +771,7 @@ fn node_instance_add(
 pub fn card_key(n: &CatalogNode) -> String {
     match (n.kind, &n.source_id, &n.router_id) {
         (NodeKind::SubscriberGroup, Some(s), _) => format!("source:{s}"),
-        (NodeKind::SubscriberGroup, None, _) => n.id.clone(),
+        (NodeKind::SubscriberGroup | NodeKind::Wan, _, _) => n.id.clone(),
         (_, _, Some(r)) => format!("router:{r}"),
         _ => n.id.clone(),
     }

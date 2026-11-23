@@ -13,7 +13,8 @@ const out=process.env.TOPOLOGY_EVIDENCE_DIR||'/tmp/lqosync-topology-initializati
   await page.route('**/api/v1/topology',async route=>{
    const response=await route.fetch(),s=await response.json();
    if(empty)Object.assign(s,{registry_revision:initialized?'43':null,enrolled:false,frontend_initialized:initialized,writer:'legacy',nodes:[],sources:[],plans:[],factors:[],fallback:null,subscribers_total:0,subscribers_active:0,ppp_total:0,dhcp_total:0,observed:null,publication:null,history:[]});
-   else if(placed){const n=s.nodes.find(n=>n.id==='tm-node-ppp-north');s.nodes.push({...n,id:'tm-node-ppp-south',name:'PPPoE south placement',parent:'tm-node-wan-south'});}
+   // Before the new link the PPPoE source has one placement; the fixture has two.
+   else if(!placed){s.nodes=s.nodes.filter(n=>n.id!=='tm-node-ppp-south');s.flows=s.flows.filter(f=>!(f.from==='tm-node-wan-south'&&f.to==='source:access-ppp'));}
    await route.fulfill({response,json:s});
   });
   await page.route('**/api/v1/topology/operations/*',async route=>{
@@ -44,17 +45,20 @@ const out=process.env.TOPOLOGY_EVIDENCE_DIR||'/tmp/lqosync-topology-initializati
   const ppp=canvas.getByRole('button',{name:/^PPPoE access,/});
   await ppp.click();await ppp.press('Enter');
   const dialog=page.getByRole('dialog',{name:'PPPoE access',exact:true});await dialog.waitFor();
-  assert.equal(await dialog.getByText('Placed under',{exact:false}).count(),0,'one placement needs no note');
-  const select=dialog.getByLabel('Add another parent');assert.equal(await select.inputValue(),'');
+  assert.equal(await dialog.getByText('Add another',{exact:false}).count(),0,'no Add another parent field');
+  const select=dialog.getByLabel('Add link from');assert.equal(await select.inputValue(),'');
   assert.equal(await select.locator('option[value="tm-node-wan-north"]').count(),0,'the current parent is not offered');
   await page.screenshot({path:`${out}/add-parent.png`,fullPage:true});
   await select.selectOption('tm-node-wan-south');
   await page.waitForFunction(()=>[...document.querySelectorAll('[role=status]')].some(s=>/Saved revision 43/.test(s.textContent)));
   assert.deepEqual(requests.filter(r=>r.url.endsWith('/edits')).at(-1).body.edit,{kind:'instance.add',source_id:'access-ppp',parent:'tm-node-wan-south',name:null});
-  await dialog.getByText('Placed under WAN North, WAN South.',{exact:false}).waitFor({timeout:15000});
-  assert.equal(await dialog.getByLabel('Add another parent').count(),0,'no parent is left to add');
+  await dialog.getByText('WAN South · 2 subscribers',{exact:false}).waitFor({timeout:15000});
+  await dialog.getByText('WAN North · 3 subscribers',{exact:false}).waitFor();
+  assert.equal(await dialog.getByLabel('Add link from').count(),0,'no parent is left to add');
+  assert.equal(await canvas.locator('.canvas-node').filter({hasText:'PPPoE access'}).count(),1,'one card with two lines');
+  assert.equal(await canvas.locator('.canvas-flow[data-to="source:access-ppp"]').count(),2);
   await page.screenshot({path:`${out}/shared-source-two-parents.png`,fullPage:true});
   assert.deepEqual(errors,[]);
-  console.log('PASS: empty setup, automatic save, second source parent, original parent retained.');
+  console.log('PASS: empty setup, automatic save, second WAN link on one card, original link retained.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

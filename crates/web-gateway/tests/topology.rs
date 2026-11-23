@@ -339,3 +339,41 @@ fn the_summary_carries_the_layout_revision_and_card_positions() {
     assert_eq!(s.layout_revision.as_deref(), Some("4"));
     assert_eq!(s.nodes[0].position, Some([10.0, 20.5]));
 }
+
+#[test]
+fn canvas_flows_and_leaf_labels_stay_inside_the_reply_limit() {
+    use web_contract::topology::{CardBalance, Flow, Leaf};
+    let mut v = view(3_000);
+    v.flows = (0..100)
+        .map(|i| Flow {
+            from: format!("wan-{i}"),
+            to: format!("source:{i}"),
+            subscribers: i,
+        })
+        .collect();
+    v.balance = (0..200)
+        .map(|i| CardBalance {
+            card_id: format!("source:{i}"),
+            by_wan: vec![("wan1".into(), 15), ("wan2".into(), 8)],
+            leaves: (0..50)
+                .map(|j| Leaf {
+                    name: format!("subscriber-{i}-{j}"),
+                    wan: "wan1".into(),
+                })
+                .collect(),
+            more: 0,
+        })
+        .collect();
+    let TopologyReply::Summary(s) = answer(&v, &Read::Summary) else {
+        panic!()
+    };
+    assert!(!s.flows.is_empty() && !s.nodes.is_empty());
+    assert!(!s.balance.is_empty() && s.balance[0].leaves.len() == 50);
+    let cut = s
+        .balance
+        .iter()
+        .find(|b| b.leaves.is_empty())
+        .expect("a cut card");
+    assert_eq!((cut.by_wan.len(), cut.more), (2, 50));
+    reply_fits(&TopologyReply::Summary(s));
+}

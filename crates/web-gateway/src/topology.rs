@@ -13,6 +13,9 @@ const MAX_CACHE: u64 = 64 * 1024 * 1024;
 const HISTORY: usize = 20;
 /// The summary keeps this much room for the first conflicts.
 const CONFLICT_BUDGET: usize = 8 * 1024;
+/// Flow lines, and WAN counts with leaf labels, of the canvas.
+const FLOW_BUDGET: usize = 8 * 1024;
+const BALANCE_BUDGET: usize = 12 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -125,8 +128,37 @@ fn summary(v: &TopologyView) -> TopologySummary {
         history: v.history.iter().take(HISTORY).cloned().collect(),
         layout_revision: v.layout_revision.clone(),
         wan_candidates: v.wan_candidates.clone(),
+        layout_direction: v.layout_direction,
+        routing_moves: v.routing_moves,
+        flows: Vec::new(),
+        balance: Vec::new(),
     };
-    // Envelope: `{"summary":{...}}`.
+    // Canvas lines first, then the WAN counts of each card; leaf labels only while there is
+    // room. The nodes get the rest of the budget.
+    let mut room = FLOW_BUDGET;
+    for f in &v.flows {
+        let n = size(f) + 1;
+        if n > room {
+            break;
+        }
+        room -= n;
+        s.flows.push(f.clone());
+    }
+    let mut room = BALANCE_BUDGET;
+    for b in &v.balance {
+        let mut b = b.clone();
+        if size(&b) + 1 > room {
+            b.more += b.leaves.len() as u64;
+            b.leaves.clear();
+        }
+        let n = size(&b) + 1;
+        if n > room {
+            break;
+        }
+        room -= n;
+        s.balance.push(b);
+    }
+    // Envelope: `{"summary":{...}}`. `size(&s)` includes the canvas lists above.
     let mut used = size(&s) + 16;
     let mut room = CONFLICT_BUDGET;
     for c in &v.conflicts {

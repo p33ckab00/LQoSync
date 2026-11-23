@@ -755,6 +755,27 @@ button.danger{color:var(--bad);border-color:var(--bad)}
 .canvas-connector::after{content:"";position:absolute;inset:-11px}
 .canvas-connector:hover{background:var(--accent);color:var(--on-accent)}
 .canvas-connector:disabled{display:none}
+.canvas-flow path{transition-property:stroke;transition-duration:.12s;stroke-linecap:round}
+.canvas-flow path.hit{stroke:transparent;stroke-width:14px!important;pointer-events:stroke;cursor:pointer}
+.canvas-flow:hover path:not(.hit){stroke:color-mix(in srgb,var(--wire) 60%,var(--line))}
+.canvas-wires .canvas-flow path.active{stroke:var(--wire)}
+.canvas-wires .canvas-flow path.picked{stroke:var(--accent);stroke-dasharray:none;filter:drop-shadow(0 0 2px color-mix(in srgb,var(--accent) 50%,transparent))}
+.canvas-leaves{position:absolute;inline-size:232px;display:grid;gap:4px;font-size:12px;line-height:18px;color:var(--muted)}
+.canvas-leaf-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0;min-block-size:22px}
+.canvas-leaf-wan{display:inline-flex;align-items:center;gap:5px;min-inline-size:0;max-inline-size:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text)}
+.canvas-leaf-wan::before{content:"";flex:none;inline-size:7px;block-size:7px;border-radius:2px;background:var(--wan-mark,var(--accent))}
+.canvas-leaf-wan[data-wan="1"]{--wan-mark:var(--good)}.canvas-leaf-wan[data-wan="2"]{--wan-mark:var(--warn)}.canvas-leaf-wan[data-wan="3"]{--wan-mark:var(--wire)}.canvas-leaf-wan[data-wan="4"]{--wan-mark:var(--bad)}.canvas-leaf-wan[data-wan="5"]{--wan-mark:var(--muted)}
+.canvas-leaf-toggle{min-height:0!important;block-size:22px;padding:0 6px!important;font-size:12px;margin-inline-start:auto}
+.canvas-leaf-list{list-style:none;margin:0;padding:6px 8px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.canvas-leaf-list li{min-inline-size:0;display:flex;block-size:18px}
+.canvas-links{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.canvas-links li{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text);min-block-size:32px}
+.canvas-links button{min-height:0;block-size:28px;padding:0 10px;font-size:12px}
+.canvas-direction select{block-size:32px;margin:0;padding:0 6px;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px}
+.canvas-direction select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.canvas-layer[data-direction=bottom_up] .canvas-node::before{inset-block-start:auto;inset-block-end:-5px}
+.canvas-layer[data-direction=left_right] .canvas-node::before{inset-block-start:calc(50% - 4px);inset-inline-start:-5px}
+.canvas-layer[data-direction=right_left] .canvas-node::before{inset-block-start:calc(50% - 4px);inset-inline-start:auto;inset-inline-end:-5px}
 .canvas-wires path.pending{stroke:var(--accent);stroke-width:2;stroke-dasharray:6 4}
 .canvas-node-warning{position:absolute;inset-inline:14px;inset-block-end:-20px;font-size:11px;color:var(--warn);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .canvas-list{list-style:none;margin:0;padding:12px;display:grid;gap:6px;overflow:auto;position:absolute;inset:0}
@@ -831,7 +852,7 @@ dialog.canvas-dialog[open]{display:flex}
 .canvas-dialog legend{margin-block-end:4px;font-size:13px;font-weight:600}
 .canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .canvas-modes label{display:flex;align-items:center;gap:8px}
-@media(max-width:640px){.canvas-frame{block-size:calc(100dvh - 200px)}.canvas-dock{inset-block-start:8px;inset-inline-end:8px;padding:4px}.canvas-zoom{inset-block-end:8px;inset-inline-start:8px}dialog.canvas-dialog{inline-size:100vw;max-inline-size:100vw;block-size:100dvh;max-block-size:100dvh;margin:0;border-radius:0}.canvas-pair{grid-template-columns:1fr}.canvas-row[data-cols]{grid-template-columns:1fr}.canvas-row[data-cols=geo]{grid-template-columns:88px 1fr}.canvas-row[data-cols=geo]>label:last-child{grid-column:1/-1}}
+@media(max-width:640px){.canvas-frame{block-size:calc(100dvh - 200px)}.canvas-dock{inset-block-start:8px;inset-inline-end:8px;padding:4px}.canvas-zoom{inset-block-end:8px;inset-inline-start:8px;inset-inline-end:8px;flex-wrap:wrap}dialog.canvas-dialog{inline-size:100vw;max-inline-size:100vw;block-size:100dvh;max-block-size:100dvh;margin:0;border-radius:0}.canvas-pair{grid-template-columns:1fr}.canvas-row[data-cols]{grid-template-columns:1fr}.canvas-row[data-cols=geo]{grid-template-columns:88px 1fr}.canvas-row[data-cols=geo]>label:last-child{grid-column:1/-1}}
 
 /* Topology Builder: the canvas fills the window; the page itself does not scroll. */
 @media(min-width:641px){

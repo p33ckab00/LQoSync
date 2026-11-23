@@ -71,7 +71,6 @@ pub fn layout(
 /// with the card sizes swapped for a horizontal direction, then turns into canvas coordinates:
 /// mirrored for bottom-up and right-to-left, transposed for the horizontal directions. Manual
 /// positions stay; an automatic card that hits one moves along the cross axis.
-#[allow(dead_code)] // shortcut: the canvas uses it from Task 6 of the flows plan; remove then.
 pub fn layout_in(
     cards: &[CardBox],
     manual: &BTreeMap<String, [f64; 2]>,

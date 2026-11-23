@@ -307,10 +307,17 @@ async fn main() -> anyhow::Result<()> {
       "observed":{"revision":"42","collected_at":at.saturating_sub(8),"generation":7,"state":"ok","stale":false},
       "nodes":[
         {"id":"tm-node-wan-north","name":"WAN North","parent":null,"kind":"wan","source_id":"wan-north","capacity":{"mode":"fixed","down_mbps":1000,"up_mbps":500,"factor_percent":null},"alias":false,"calculated_mbps":[1000.0,500.0],"exported_mbps":[1000.0,500.0],"members":3,"auto_members":2,"wan_health":{"state":"up","quality_percent":87},"address_list":"via-WAN-North","routed":24},
-        {"id":"tm-node-ppp-north","name":"PPPoE access","parent":"tm-node-wan-north","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[400.0,200.0],"exported_mbps":[400.0,200.0],"members":3},
+        {"id":"tm-node-ppp-north","name":"PPPoE access","parent":"tm-node-wan-north","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[400.0,200.0],"exported_mbps":[400.0,200.0],"members":3,"card_id":"source:access-ppp"},
+        {"id":"tm-node-ppp-south","name":"PPPoE access","parent":"tm-node-wan-south","kind":"group","source_id":"access-ppp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":2,"card_id":"source:access-ppp"},
         {"id":"tm-node-wan-south","name":"WAN South","parent":null,"kind":"wan","source_id":"wan-south","capacity":{"mode":"fixed","down_mbps":500,"up_mbps":250,"factor_percent":null},"alias":false,"calculated_mbps":[500.0,250.0],"exported_mbps":[500.0,250.0],"members":1,"wan_health":{"state":"waiting_for_rebalance","quality_percent":100},"address_list":"via-WAN-South"},
-        {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":1,"router_id":"lq3-00000000000000a1"}
+        {"id":"tm-node-dhcp-south","name":"DHCP access","parent":"tm-node-wan-south","kind":"group","source_id":"access-dhcp","capacity":{"mode":"automatic"},"alias":false,"calculated_mbps":[200.0,100.0],"exported_mbps":[200.0,100.0],"members":1,"router_id":"lq3-00000000000000a1","card_id":"source:access-dhcp"}
       ],
+      "flows":[{"from":"tm-node-wan-north","to":"source:access-ppp","subscribers":3},
+               {"from":"tm-node-wan-south","to":"source:access-dhcp","subscribers":1},
+               {"from":"tm-node-wan-south","to":"source:access-ppp","subscribers":2}],
+      "balance":[{"card_id":"source:access-ppp","by_wan":[["tm-node-wan-north",3],["tm-node-wan-south",2]],
+        "leaves":[{"name":"account-02","wan":"tm-node-wan-north"},{"name":"account-03","wan":"tm-node-wan-south"},{"name":"account-04","wan":"tm-node-wan-north"}],"more":2}],
+      "routing_moves":2,
       "sources":[{"id":"wan-north","name":"pppoe-wan-north","kind":"wan"},{"id":"wan-south","name":"pppoe-wan-south","kind":"wan"},
                  {"id":"access-ppp","name":"PPPoE access","kind":"subscribers"},{"id":"access-dhcp","name":"DHCP service","kind":"subscribers"},
                  {"id":"access-ppp-silver","name":"PPPoE Silver","kind":"subscribers","auto_parents":["tm-node-wan-north"]},
