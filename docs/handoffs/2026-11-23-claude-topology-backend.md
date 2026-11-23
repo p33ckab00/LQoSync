@@ -106,3 +106,23 @@ Do not report a task complete from a mock response or an unexecuted test command
 | Open work | B1–B5. Known limits: the fixture page cursor is a plain offset. `POST /api/v1/topology/edits` keeps the 4 KiB body limit until B5. A fixture job finishes `done` at once, with no `queued`/`running` steps. |
 | Next frontend step | F0 can start from the G0 commit. F1 uses the fixture cases. Request a contract change through this file. |
 | Time | 2026-11-23T17:38:53+08:00 |
+
+## Return packet: B1 (2026-11-23T18:12:04+08:00, Asia/Manila)
+
+| Item | Value |
+| --- | --- |
+| Task | B1. |
+| Branch/worktree | `claude/topology-studio-backend` in `/home/pi/LQoSync3.0-worktrees/claude-topology-studio-backend`. Separate target directory in that worktree. |
+| Base/head | Base `a0e6035` (G0). Head `86870cc54f647961bef7c8f5f3cd5be31670c6f3`. |
+| Contract version | `1`, commit `f7e3977e`. B1 changes no shared type. |
+| Files | `src/config.rs`, `src/router_edit.rs`, `src/cli.rs`, `src/mikrotik.rs`, `src/api/dispatch.rs`, `src/runner.rs`, `src/runner/tests/api.rs`, `src/topology_manager/mod.rs`, `src/topology_manager/source_studio/{mod,connection}.rs`, `crates/web-gateway/src/{broker,http,lib,topology_jobs,source_studio}.rs`, `crates/web-gateway/tests/{source_studio,router_edit,routers,overview}.rs`, `crates/web-gateway/examples/browser_fixture.rs`, `docs/CONFIGURATION.md`, `docs/frontend/TOPOLOGY_STUDIO_API.md`. |
+| API state | Production: `GET /api/v1/topology/source-capabilities` and the `draft_test` job of `POST /api/v1/topology/source-jobs`. Service operations `source_studio.capabilities` and `source_studio.test`. Advertised features: `draft_test` only. `RouterEdit.access_profiles` works, but `access_profiles` is not advertised until `RouterSourceConfig` exists (B2). `collect` and `evaluate` jobs return `404` with `unavailable`. |
+| Fixture state | All six cases. `legacy_backend` now returns `404` itself, because the production router has Studio routes. |
+| Named tests | `draft_test_never_saves_or_enables`, `disabled_registered_router_stays_no_io`, `secret_is_absent_from_reports`, `shared_profile_does_not_enable_writes` (all in `source_studio/connection.rs`). Also `each_failure_names_its_stage`, `a_stalled_router_ends_at_the_deadline`, `an_invalid_draft_is_refused_before_any_connect`, three router-edit profile tests, `source_studio_ops_report_capabilities_and_never_echo_a_draft`, three gateway HTTP tests, and `a_profile_credential_needs_the_current_password`. |
+| Checks | All passed: `cargo test --locked -p lqosync3 -p web-contract -p web-gateway --no-fail-fast` (1968 passed, 0 failed, 13 ignored; 1807 in `lqosync3 --lib`). `cargo clippy --locked --workspace --all-targets -- -D warnings`. `cargo clippy --locked -p web-ui --target wasm32-unknown-unknown -- -D warnings`. `cargo fmt --all -- --check`. `git diff --check`. |
+| TDD note | The connection tests failed first on a `todo!()` stub. The router-edit profile tests failed first ("no change"). The config, `check`, and reauth tests were written with their code. |
+| Not run | Browser fixture smoke for the B1 fixture change: port `19581` was in use by the frontend lane. `tools/frontend/check-all.sh`. No live router test. |
+| Migration | Config: an optional new key `access_profiles`. Old configs load unchanged. Registry schema stays 9. Rollback: revert `86870cc5`. A config with `access_profiles` then fails to load on the older binary, so remove that key first. |
+| Open work | B2–B5. Known limits: the table permission check reads every row ID of each table (no count-only print). A draft test holds the service API for up to 60 seconds. A removed profile keeps its secret file on disk. `writer_username` is not an access profile. |
+| Next frontend step | F1 can use `GET source-capabilities` and the `draft_test` job against the real gateway. `AccessProfileEdit` saves through the existing router edit transport with `current_password` for a new secret. |
+| Time | 2026-11-23T18:12:04+08:00 |
