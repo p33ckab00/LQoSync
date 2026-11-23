@@ -1074,3 +1074,11 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 .studio-router-dialog .form-actions button,.canvas-frame dialog[data-panel=studio-add] .form-actions button{min-inline-size:44px;min-block-size:44px}
 .studio-router-dialog .form-actions svg,.studio-router-dialog .password-field svg,.canvas-frame dialog[data-panel=studio-add] button svg{inline-size:22px;block-size:22px;fill:none;stroke:currentColor}
 .canvas-frame dialog.reauth.topology-dialog{--studio-dialog-width:480px}
+
+/* Keep router choices reachable while the form scrolls. */
+.studio-router-body{grid-template-rows:minmax(0,1fr);overflow:hidden}
+.studio-router-list,.studio-router-content{min-block-size:0;overflow:auto}
+@media(max-width:760px){
+.studio-router-body{grid-template-rows:88px minmax(0,1fr)}
+.studio-router-list{overflow-x:auto;overflow-y:hidden}
+}

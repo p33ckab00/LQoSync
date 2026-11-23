@@ -249,7 +249,7 @@ pub(crate) fn Studio(
         <Show when=move||open.get()&&!adding.get()>
         <div class="studio-router-body">
           <aside class="studio-router-list" aria-label="Registered routers">
-            <div class="studio-inline"><button type="button" class="canvas-tool" aria-label="Add router" title="Add router" disabled=move||inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty())) on:click=move|_|adding.set(true)>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
+            <div class="studio-inline"><button type="button" class="canvas-tool" aria-label="Add router" title="Add router" disabled=move||inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty())) on:click=move|_|{credentials.update(|f|f.password.clear());adding.set(true);}>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
               <button type="button" class="canvas-tool" aria-label="Reload router configuration" title="Reload router configuration" on:click=move|_|refresh.update(|n|*n=n.wrapping_add(1))>{crate::topology_canvas::icon("M20 11a8 8 0 1 0-2 6M20 4v7h-7")}</button></div>
             {move||inventory.with(|i|i.as_ref().map(|i|i.routers.iter().map(|r|{let id=r.id.clone();let selected=id.clone();view!{<button type="button" class="quiet studio-router-choice" aria-label=format!("Configure {}",r.name) aria-pressed=move||(router_id.get().as_ref()==Some(&selected)).to_string()
               on:click=move|_|{credentials.set(Form::default());section.set(StudioSection::Connection);profile.set(0);router_id.set(Some(id.clone()));}><strong>{r.name.clone()}</strong><small>{if r.enabled{"Enabled"}else{"Disabled · no connections"}}</small></button>}}).collect_view()))}
