@@ -28,8 +28,8 @@ const fs=require('node:fs');
       assert.ok(inner.x>=outer.x-1&&inner.y>=outer.y-1&&inner.x+inner.width<=outer.x+outer.width+1&&inner.y+inner.height<=outer.y+outer.height+1,`${label} stays inside canvas: ${JSON.stringify({outer,inner})}`);
     };
     async function tools_stay_inside_canvas(){
-      for(const controls of ['.canvas-dock','.canvas-zoom','.topology-head','.canvas-evidence'])await inside(page.locator(controls),controls);
-      for(const tool of await frame.locator('.canvas-dock button,.canvas-zoom button').all()){
+      for(const controls of ['.canvas-dock','.canvas-zoom','.canvas-appearance','.topology-head','.canvas-evidence'])await inside(page.locator(controls),controls);
+      for(const tool of await frame.locator('.canvas-dock button,.canvas-zoom button,.canvas-appearance button').all()){
         const box=await tool.boundingBox();if(!box)continue;
         assert.ok(box.width>=44&&box.height>=44,'canvas tool has a 44 px target');
         assert.ok(await tool.getAttribute('aria-label'),'icon action has an accessible name');
@@ -87,11 +87,11 @@ const fs=require('node:fs');
     await page.keyboard.press('Escape');
     const appearance=page.getByRole('button',{name:'Canvas appearance',exact:true});
     for(const mode of ['light','dark','system']){
-      await appearance.click();const dialog=await modal_stays_inside_canvas('Canvas appearance');
-      await dialog.getByLabel('Color theme',{exact:true}).selectOption(mode);
+      await appearance.click();
+      await page.locator('.canvas-appearance').getByRole('button',{name:`${mode[0].toUpperCase()+mode.slice(1)} theme`,exact:true}).click();
       assert.equal(await page.locator('html').getAttribute('data-theme'),mode);
-      assert.equal(await page.locator('.main-top').getByLabel('Color theme',{exact:true}).inputValue(),mode,'both selectors share the theme state');
-      await page.keyboard.press('Escape');await card_data_survives_shell_change();
+      assert.equal(await page.locator('.main-top').getByLabel('Color theme',{exact:true}).count(),0,'Builder keeps appearance inside the canvas');
+      await card_data_survives_shell_change();
       await page.screenshot({path:`${out}/studio-canvas-${mode}.png`});
     }
     await page.emulateMedia({colorScheme:'dark'});

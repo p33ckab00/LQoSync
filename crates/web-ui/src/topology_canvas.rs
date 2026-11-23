@@ -20,8 +20,6 @@ enum Panel {
     Allocation,
     Preview,
     Excluded,
-    Help,
-    Appearance,
     Layout,
 }
 
@@ -151,7 +149,6 @@ const ICON_PREVIEW: &str =
     "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z";
 
 const ICON_HELP: &str = "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v6M12 7v1";
-const ICON_THEME: &str = "M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11z";
 const ICON_LAYOUT: &str = "M4 3h6v6H4zM14 15h6v6h-6zM7 9v9h7M14 6h6M17 3v6";
 const ICON_LIST: &str = "M8 6h12M8 12h12M8 18h12M3 6h1M3 12h1M3 18h1";
 const ICON_MINUS: &str = "M4 12h16";
@@ -177,6 +174,8 @@ pub(crate) fn Canvas(
     let queue = StoredValue::new(VecDeque::<BuilderEdit>::new());
     let draining = RwSignal::new(false);
     let policy_revision = RwSignal::new(None::<u64>);
+    let help_dialog = NodeRef::<leptos::html::Dialog>::new();
+    let help_open = RwSignal::new(false);
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     let viewport = NodeRef::<leptos::html::Div>::new();
     let frame = NodeRef::<leptos::html::Div>::new();
@@ -936,8 +935,7 @@ pub(crate) fn Canvas(
             {tool(Panel::Preview,"Preview and evidence",ICON_PREVIEW)}
             {tool(Panel::Excluded,"Excluded sources",ICON_EXCLUDED)}
             {tool(Panel::Layout,"Canvas layout",ICON_LAYOUT)}
-            {tool(Panel::Appearance,"Canvas appearance",ICON_THEME)}
-            {tool(Panel::Help,"Configuration information",ICON_HELP)}
+            <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
             <button type="button" class="canvas-tool" aria-label="List view" title="List view" aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>{icon(ICON_LIST)}</button>
             <Show when=move||selected_link.get().is_some()>
               <span class="canvas-zoom-sep" aria-hidden="true"></span>
@@ -968,7 +966,8 @@ pub(crate) fn Canvas(
               v.set_scroll_top((b[1]*z) as i32);
             }>{icon(ICON_FIT)}</button>
           </div>
-        <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||match panel.get(){Some(Panel::Inventory)=>"inventory",Some(Panel::Help)=>"help",_=>"settings"} aria-labelledby="canvas-dialog-title"
+        <crate::app::Theme icons=true/>
+        <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||match panel.get(){Some(Panel::Inventory)=>"inventory",_=>"settings"} aria-labelledby="canvas-dialog-title"
           on:close=move|_|{
             // A late close event of an earlier modal must not clear a modal that is open again.
             if dialog.get_untracked().is_some_and(|d|d.open()) { return; }
@@ -983,11 +982,10 @@ pub(crate) fn Canvas(
               Some(Panel::Allocation)=>"Subscriber allocation".into(),
               Some(Panel::Preview)=>"Preview and evidence".into(),
               Some(Panel::Excluded)=>"Excluded sources".into(),
-              Some(Panel::Help)=>"Configuration workflow".into(),
-              Some(Panel::Appearance)=>"Canvas appearance".into(),
               Some(Panel::Layout)=>"Canvas layout".into(),
               None=>String::new(),
             }}</h2></div>
+            <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
             <button type="button" class="router-icon quiet" aria-label="Close" title="Close" on:click=move|_|close()>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
             </button>
@@ -1145,11 +1143,6 @@ pub(crate) fn Canvas(
                   <p class="field-help">"No source is excluded."</p>
                 </Show>
               }.into_any(),
-              Some(Panel::Help)=>view!{<crate::topology_studio_help::StudioHelp selected=selected_node()/>}.into_any(),
-              Some(Panel::Appearance)=>view!{
-                <p>"Light, Dark, and System use the same application preference. Theme changes keep the current draft and canvas position."</p>
-                <crate::app::Theme/>
-              }.into_any(),
               Some(Panel::Layout)=>view!{
                 <p class="field-help">"Layout changes do not change shaping policy."</p>
             <button type="button" class="quiet" disabled=locked on:click=move|_|{
@@ -1197,6 +1190,12 @@ pub(crate) fn Canvas(
             <p role="status">{move||status.get()}</p>
             <button type="button" class="canvas-tool" aria-label="Close" title="Close" on:click=move|_|close()>{icon("M6 6l12 12M18 6 6 18")}</button>
           </footer>
+        </dialog>
+        <dialog node_ref=help_dialog class="topology-dialog canvas-dialog" data-panel="help" aria-labelledby="studio-help-title" on:close=move|_|help_open.set(false)>
+            <header class="add-router-heading"><h2 id="studio-help-title">"Configuration workflow"</h2>
+                <button type="button" class="canvas-tool" aria-label="Close" title="Close" on:click=move|_|{if let Some(d)=help_dialog.get_untracked(){d.close();}}>{icon("M6 6l12 12M18 6 6 18")}</button>
+            </header>
+            <div class="canvas-dialog-body"><Show when=move||help_open.get()><crate::topology_studio_help::StudioHelp selected=if panel.get()==Some(Panel::Inventory){None}else{selected_node()}/></Show></div>
         </dialog>
         <crate::topology_forms::ChangeDialog session data action=adopt reload/>
         </div>

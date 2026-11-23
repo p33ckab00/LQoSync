@@ -17,18 +17,64 @@ fn Brand(#[prop(default = false)] compact: bool) -> impl IntoView {
 #[derive(Clone, Copy)]
 struct ThemePreference(RwSignal<String>);
 
-#[component]
-pub(crate) fn Theme() -> impl IntoView {
-    let theme = expect_context::<ThemePreference>().0;
-    view! {<label class="theme"><span>"Theme"</span><select aria-label="Color theme" prop:value=move||theme.get() on:change=move|ev|{
-    let value=event_target_value(&ev);if !matches!(value.as_str(),"light"|"dark"|"system"){return;}
-    theme.set(value.clone());
-    if let Some(document)=web_sys::window().and_then(|w|w.document()){
-    if let Some(root)=document.document_element(){let _=root.set_attribute("data-theme",&value);}
-    let age=if value=="system"{0}else{31536000};let cookie=format!("lqosync_theme={value}; Path=/; SameSite=Strict; Max-Age={age}{}",if web_sys::window().unwrap().location().protocol().unwrap_or_default()=="https:"{"; Secure"}else{""});
-    if let Some(html)=document.dyn_ref::<web_sys::HtmlDocument>(){let _=html.set_cookie(&cookie);}
+fn set_theme(theme: RwSignal<String>, value: &str) {
+    if !matches!(value, "light" | "dark" | "system") {
+        return;
     }
-    }><option value="light">"Light"</option><option value="dark">"Dark"</option><option value="system">"System"</option></select></label>}
+    theme.set(value.to_string());
+    if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+        if let Some(root) = document.document_element() {
+            let _ = root.set_attribute("data-theme", value);
+        }
+        let age = if value == "system" { 0 } else { 31536000 };
+        let cookie = format!(
+            "lqosync_theme={value}; Path=/; SameSite=Strict; Max-Age={age}{}",
+            if web_sys::window()
+                .unwrap()
+                .location()
+                .protocol()
+                .unwrap_or_default()
+                == "https:"
+            {
+                "; Secure"
+            } else {
+                ""
+            }
+        );
+        if let Some(html) = document.dyn_ref::<web_sys::HtmlDocument>() {
+            let _ = html.set_cookie(&cookie);
+        }
+    }
+}
+#[component]
+pub(crate) fn Theme(#[prop(default = false)] icons: bool) -> impl IntoView {
+    let theme = expect_context::<ThemePreference>().0;
+    if icons {
+        let expanded = RwSignal::new(false);
+        let launcher = NodeRef::<leptos::html::Button>::new();
+        return view! {
+            <div class="canvas-appearance" on:keydown=move |ev: web_sys::KeyboardEvent| {
+                if ev.key()=="Escape" {expanded.set(false);if let Some(b)=launcher.get_untracked(){let _=b.focus();}}
+            }>
+                <button type="button" node_ref=launcher class="canvas-tool" aria-label="Canvas appearance" title="Canvas appearance"
+                    aria-expanded=move||expanded.get().to_string() on:click=move|_|expanded.update(|v|*v = !*v)>
+                    {crate::topology_canvas::icon("M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11z")}
+                </button>
+                <Show when=move||expanded.get()>
+                    <div class="canvas-theme-options" role="group" aria-label="Color theme">
+                        {[ ("light","Light theme","M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0"),
+                           ("dark","Dark theme","M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11z"),
+                           ("system","System theme","M3 4h18v13H3zM8 21h8M12 17v4") ].into_iter().map(move|(mode,label,path)|view!{
+                            <button type="button" class="canvas-tool" aria-label=label title=label aria-pressed=move||(theme.get()==mode).to_string()
+                                on:click=move|_|{set_theme(theme, mode);expanded.set(false);if let Some(b)=launcher.get_untracked(){let _=b.focus();}}>{crate::topology_canvas::icon(path)}</button>
+                        }).collect_view()}
+                    </div>
+                </Show>
+            </div>
+        }.into_any();
+    }
+    view! {<label class="theme"><span>"Theme"</span><select aria-label="Color theme" prop:value=move||theme.get()
+        on:change=move|ev|set_theme(theme, &event_target_value(&ev))><option value="light">"Light"</option><option value="dark">"Dark"</option><option value="system">"System"</option></select></label>}.into_any()
 }
 #[component]
 fn NetworkArt() -> impl IntoView {
@@ -129,7 +175,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             <div class="top-actions">
               <span class="header-time" title="Time in your browser's local timezone">{move||{data.with(|_|format!("{} Local",local_time(js_now())))}}</span>
               <span class="header-update">{move||data.with(|d|d.as_ref().and_then(|v|v.observed_at).map(|t|format!("Updated {}s ago",js_now().saturating_sub(t))).unwrap_or("Waiting for update".into()))}</span>
-              <Theme/>
+              <Show when=move||!matches!(page.get(),crate::route_model::Page::Topology{tab:"builder",..})><Theme/></Show>
               <span class="username">{move||session.get().map(|p|p.username).unwrap_or_default()}</span>
               <button class="quiet" disabled=move||signing_out.get() on:click=move|_|{
                 if signing_out.get_untracked(){return;}
