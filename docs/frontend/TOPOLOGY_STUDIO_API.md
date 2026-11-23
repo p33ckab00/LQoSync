@@ -433,6 +433,21 @@ Owner decision: the service translates each draft into the current engine struct
 | Source discovery | `source.add` refuses a source of a router that has saved policies. |
 | Body limit | `POST /api/v1/topology/edits` takes 32 KiB. Other routes keep 4 KiB. |
 
+## Service operations (task B5)
+
+The broker calls these core service operations on the service API socket. The browser cannot name an operation.
+
+| Operation | Arguments | Result |
+| --- | --- | --- |
+| `source_studio.capabilities` | none | `StudioCapabilities` |
+| `source_studio.test` | `connection`, `required_sources` | `DraftTestReport` |
+| `source_studio.collect` | `router_id`, `expected_config_digest`, `sources` | `SnapshotRef` |
+| `source_studio.evaluate` | `actor`, `router_id`, `expected_revision`, `expected_config_digest`, `snapshot_id`, `policies` | `CandidateRef` |
+| `source_studio.candidate` | `actor`, `id`, `part` (`summary`, `records`, `issues`), `cursor`, `limit` | `{ status, value }` with `status` `ok`, `not_found`, `expired`, or `bad_cursor` |
+| `topology.web.mutate` | the current mutation arguments | the current receipt; `router.sources_set` and `wan.candidate_set` use it |
+
+The plan proposed `source_studio.config`. It does not exist: `GET /api/v1/routers/{id}/source-config` reads the service cache `source-studio.json`, so a GET never waits for the service.
+
 ## Browser fixture cases
 
 The browser fixture (`crates/web-gateway/examples/browser_fixture.rs`) serves the new routes from `crates/web-contract/tests/fixtures/studio/`.

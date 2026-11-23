@@ -447,3 +447,35 @@ async fn large_policy_uses_scoped_body_limit() {
         "other routes keep 4 KiB"
     );
 }
+
+#[tokio::test]
+async fn studio_posts_need_the_same_origin() {
+    let (_dir, app, seen) = app(true).await;
+    let (cookie, csrf) = sign_in(&app).await;
+    let edit = json!({"key": "studio-save-0000000001", "expected_revision": 1, "edit": {
+        "kind": "router.sources_set", "router_id": "lq3-00000000000000a1",
+        "expected_config_digest": "d1", "policies": []}})
+    .to_string();
+    for (path, body) in [
+        ("/api/v1/topology/source-jobs", job("studio")),
+        ("/api/v1/topology/edits", edit),
+    ] {
+        let r = Request::builder()
+            .method("POST")
+            .uri(path)
+            .header("cookie", &cookie)
+            .header("origin", "https://other.test")
+            .header("x-csrf-token", &csrf)
+            .header("content-type", "application/json")
+            .body(Body::from(body))
+            .unwrap();
+        let (status, _) = send(&app, r).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{path}");
+    }
+    assert!(
+        seen.lock()
+            .unwrap()
+            .iter()
+            .all(|v| v["op"] != "source_studio.test")
+    );
+}
