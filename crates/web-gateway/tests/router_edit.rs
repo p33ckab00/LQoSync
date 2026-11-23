@@ -143,6 +143,36 @@ async fn edits_need_csrf_use_the_session_actor_and_map_core_codes() {
 }
 
 #[tokio::test]
+async fn a_profile_credential_needs_the_current_password() {
+    let ok = r#"{"code":"ok","message":"","reply":{"router_id":"lq3-0000000000000001","digest":"d2","reload":"sent","warnings":[]}}"#;
+    let (dir, app) = app(ok).await;
+    let (cookie, csrf) = sign_in(&app).await;
+    let path = "/api/v1/routers/lq3-0000000000000001";
+    let edit = |password: &str| {
+        format!(
+            r#"{{"edit":{{"expected_digest":"d1","access_profiles":[{{"id":"reader","label":"Reader","username":"ro","password":{password},"supported_writes":[]}}]}},"current_password":null}}"#
+        )
+    };
+    let r = app
+        .clone()
+        .oneshot(req("PATCH", path, &cookie, &csrf, &edit("\"new-secret\"")))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::FORBIDDEN);
+    assert!(!dir.path().join("request.json").exists());
+    // A profile change without a new secret needs no reauthentication.
+    let r = app
+        .clone()
+        .oneshot(req("PATCH", path, &cookie, &csrf, &edit("null")))
+        .await
+        .unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    let sent: web_contract::routers::RouterEditRequest =
+        serde_json::from_slice(&std::fs::read(dir.path().join("request.json")).unwrap()).unwrap();
+    assert_eq!(sent.edit.access_profiles.unwrap()[0].id, "reader");
+}
+
+#[tokio::test]
 async fn a_credential_replacement_needs_the_current_password() {
     let ok = r#"{"code":"ok","message":"","reply":{"router_id":"lq3-0000000000000001","digest":"d2","reload":"sent","warnings":[]}}"#;
     let (dir, app) = app(ok).await;

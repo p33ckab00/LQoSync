@@ -28,6 +28,7 @@ pub mod publication;
 pub mod settings;
 pub mod source_policy;
 pub mod source_rate;
+pub mod source_studio;
 pub mod store;
 
 pub mod ownership;

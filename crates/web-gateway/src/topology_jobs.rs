@@ -12,6 +12,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Mutex, Semaphore};
+use web_contract::source_studio::{
+    DraftTestReport, StudioCapabilities, StudioJob, StudioJobRequest, StudioJobResult,
+};
 use web_contract::topology::{
     CapacityChange, DiscoveredRouter, Discovery, LayoutRequest, Moved, Node, NodeChange, Operation,
     ProposalRequest, RateChange, ReadJob, ReadRequest, Review, SourceCandidate, WanCandidate,
@@ -488,6 +491,76 @@ impl Jobs {
             this.set(&request.key, state).await;
         });
         Ok(op(&key, "queued", None))
+    }
+
+    /// The Studio features of the service. `None`: an older service without Studio operations.
+    pub async fn studio_capabilities(&self) -> Result<Option<StudioCapabilities>, Refused> {
+        match call(
+            &self.root,
+            "source_studio.capabilities",
+            serde_json::json!({}),
+            LOOKUP_LIMIT,
+        )
+        .await
+        {
+            Ok(v) => Ok(serde_json::from_value(v).ok()),
+            Err(CallError::Refused(_)) => Ok(None),
+            Err(_) => Err(Refused::Unavailable),
+        }
+    }
+
+    /// Start one Studio source job. The typed result arrives on `Operation.source_result`.
+    /// The job keeps a digest of the request only, never the draft secret.
+    pub async fn studio(
+        &self,
+        actor: &str,
+        request: StudioJobRequest,
+    ) -> Result<Operation, Refused> {
+        use sha2::{Digest, Sha256};
+        let StudioJob::DraftTest {
+            connection,
+            required_sources,
+        } = request.job
+        else {
+            // Collection and evaluation arrive with plan tasks B2 and B3.
+            return Err(Refused::Invalid);
+        };
+        let key = request.key;
+        let bytes =
+            serde_json::to_vec(&(&connection, &required_sources)).map_err(|_| Refused::Invalid)?;
+        let digest: String = Sha256::digest(&bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        let payload = serde_json::json!({"studio": "draft_test", "digest": digest});
+        if let Some(known) = self.admit(actor, &key, payload).await? {
+            return Ok(known);
+        }
+        let this = self.clone();
+        let queued = op(&key, "queued", None);
+        tokio::spawn(async move {
+            let _lane = this.lane.acquire().await;
+            this.set(&key, State::Running).await;
+            let args =
+                serde_json::json!({"connection": connection, "required_sources": required_sources});
+            let failed = |error: Option<String>| Operation {
+                error,
+                ..op(&key, "failed", None)
+            };
+            let state = match call(&this.root, "source_studio.test", args, MUTATE_LIMIT).await {
+                Ok(v) => match serde_json::from_value::<DraftTestReport>(v) {
+                    Ok(report) => Operation {
+                        source_result: Some(StudioJobResult::DraftTest(report)),
+                        ..op(&key, "done", None)
+                    },
+                    Err(_) => failed(Some("The service answer is not valid.".into())),
+                },
+                Err(CallError::Refused(error)) => failed(error),
+                Err(_) => failed(Some("The service did not answer the test.".into())),
+            };
+            this.set(&key, State::Done(Box::new(state))).await;
+        });
+        Ok(queued)
     }
 
     /// Start one explicit router read. The answer arrives on the operation (`done`).

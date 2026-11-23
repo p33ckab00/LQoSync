@@ -227,6 +227,26 @@ download_factor = 1.0
 upload_factor = 1.0
 ```
 
+## Access profiles
+
+An access profile is one more router account for Topology Studio source reads.
+The router credential (`username` and `password_file`) is the implicit profile `default`.
+
+```toml
+[[routers.access_profiles]]
+id = "reader"                   # 1 to 32 of a-z, 0-9, or -; not "default"
+label = "Read-only account"
+username = "lqosync-ro"
+password_file = "/etc/lqosync3/secrets/Router-1.reader.password"
+supported_writes = []           # optional: ["wan_address_lists"]
+```
+
+- A router has at most 7 extra profiles (8 with `default`).
+- `supported_writes` describes the account only. It enables no write. The WAN address-list writer uses `writer_username` and `writer_password_file`.
+- Set access profiles in each `[[routers]]` entry. `[router_defaults]` cannot have them.
+- `lqosync3 check` reads each profile password file, as it does for the router credential.
+- The web router edit saves a profile secret in `secrets/<router>.<id>.password`. A new secret needs the operator password again.
+
 ## DHCP servers
 
 The tool reads all DHCP servers from `/ip/dhcp-server` on each router, as it reads all PPP secrets. A server needs no entry in the TOML file.

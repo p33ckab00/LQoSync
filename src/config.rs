@@ -378,7 +378,36 @@ pub struct RouterCfg {
     pub latitude: Option<f64>,
     #[serde(default)]
     pub longitude: Option<f64>,
+    /// More router accounts for source reads (`[[routers.access_profiles]]`). The router
+    /// credential above is the implicit profile `default`.
+    #[serde(default)]
+    pub access_profiles: Vec<AccessProfileCfg>,
+    /// An unsaved connection of a Topology Studio draft test. Memory only; never in a file.
+    #[serde(skip)]
+    pub draft: Option<DraftSecret>,
 }
+
+/// One more router account. `supported_writes` describes the account only: it enables no write.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AccessProfileCfg {
+    pub id: String,
+    pub label: String,
+    pub username: String,
+    pub password_file: String,
+    #[serde(default)]
+    pub supported_writes: Vec<web_contract::source_studio::WriteScope>,
+}
+
+/// The secrets of a draft connection. `Debug` shows no value.
+#[derive(Debug, Clone)]
+pub struct DraftSecret {
+    pub password: web_contract::source_studio::SecretInput,
+    pub ca_pem: Option<String>,
+}
+
+/// The profile ID of the router credential.
+pub const DEFAULT_PROFILE: &str = "default";
 
 fn router_enabled() -> bool {
     true
@@ -389,6 +418,17 @@ impl RouterCfg {
     /// A router that the cycle does not read keeps no rows and no nodes: they go after the grace time.
     pub fn reads_subscribers(&self) -> bool {
         self.enabled && (self.pppoe.enabled || self.dhcp.enabled || self.hotspot.enabled)
+    }
+
+    /// The username and password file of one access profile. `default` is the router credential.
+    pub fn profile_credential(&self, id: &str) -> Option<(&str, &str)> {
+        if id == DEFAULT_PROFILE {
+            return Some((&self.username, &self.password_file));
+        }
+        self.access_profiles
+            .iter()
+            .find(|p| p.id == id)
+            .map(|p| (p.username.as_str(), p.password_file.as_str()))
     }
 }
 
@@ -633,7 +673,14 @@ impl Config {
         match user.remove("router_defaults") {
             Some(toml::Value::Table(t)) => {
                 // These keys are different for each router. A shared value would be a mistake.
-                for k in ["name", "address", "username", "password_file", "enabled"] {
+                for k in [
+                    "name",
+                    "address",
+                    "username",
+                    "password_file",
+                    "enabled",
+                    "access_profiles",
+                ] {
                     ensure!(
                         !t.contains_key(k),
                         "config: router_defaults.{k} is not allowed; set {k} in each [[routers]] entry"
@@ -840,6 +887,7 @@ impl Config {
         }
         for r in &self.routers {
             check_exclude(&format!("router \"{}\": exclude", r.name), &r.exclude)?;
+            check_profiles(r)?;
         }
         let mut names = BTreeSet::new();
         for r in &self.routers {
@@ -1284,8 +1332,107 @@ impl Config {
     }
 }
 
+/// Access profile rules: unique IDs, `default` reserved, and the version 1 limit of 8 profiles.
+fn check_profiles(r: &RouterCfg) -> anyhow::Result<()> {
+    let at = format!("config: router \"{}\": access_profiles", r.name);
+    let extra = web_contract::source_studio::MAX_ACCESS_PROFILES - 1;
+    ensure!(
+        r.access_profiles.len() <= extra,
+        "{at}: at most {extra} profiles (the router credential is the profile default)"
+    );
+    let mut ids = BTreeSet::new();
+    for p in &r.access_profiles {
+        let id_ok = (1..=32).contains(&p.id.len())
+            && p.id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+        ensure!(
+            id_ok && p.id != DEFAULT_PROFILE,
+            "{at}: id \"{}\" must be 1 to 32 of a-z, 0-9, or -, and not default",
+            p.id
+        );
+        ensure!(
+            ids.insert(p.id.as_str()),
+            "{at}: id \"{}\" is in the list twice",
+            p.id
+        );
+        ensure!(
+            (1..=64).contains(&p.label.chars().count()) && !p.label.chars().any(char::is_control),
+            "{at}: {}: use a label of 1 to 64 characters",
+            p.id
+        );
+        ensure!(
+            (1..=64).contains(&p.username.len())
+                && !p
+                    .username
+                    .chars()
+                    .any(|c| c.is_control() || c.is_whitespace()),
+            "{at}: {}: check the username",
+            p.id
+        );
+        ensure!(
+            !p.password_file.is_empty(),
+            "{at}: {}: set password_file",
+            p.id
+        );
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn access_profiles_resolve_default_and_follow_their_rules() {
+        let c = Config::from_toml_str(ROUTER).unwrap();
+        let r = &c.routers[0];
+        assert!(r.access_profiles.is_empty());
+        assert_eq!(r.profile_credential("default"), Some(("u", "/x")));
+        assert_eq!(r.profile_credential("reader"), None);
+        let one = format!(
+            "{ROUTER}access_profiles=[{{id='reader',label='Reader',username='ro',password_file='/r',supported_writes=['wan_address_lists']}}]\n"
+        );
+        let c = Config::from_toml_str(&one).unwrap();
+        assert_eq!(
+            c.routers[0].profile_credential("reader"),
+            Some(("ro", "/r"))
+        );
+        let profile = |id: &str, extra: &str| {
+            format!("{{id='{id}',label='L',username='ro',password_file='/r'{extra}}}")
+        };
+        let bad = [
+            (profile("default", ""), "not default"),
+            (
+                format!("{},{}", profile("a", ""), profile("a", "")),
+                "twice",
+            ),
+            (profile("A b", ""), "a-z"),
+            (
+                profile("a", ",supported_writes=['firewall']"),
+                "unknown variant",
+            ),
+            (profile("a", ",script='/x'"), "unknown field"),
+            (
+                (0..8)
+                    .map(|i| profile(&format!("p{i}"), ""))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                "at most 7",
+            ),
+        ];
+        for (list, want) in bad {
+            let e = format!(
+                "{:#}",
+                Config::from_toml_str(&format!("{ROUTER}access_profiles=[{list}]\n")).unwrap_err()
+            );
+            assert!(e.contains(want), "{list}: {e}");
+        }
+        let shared = format!(
+            "{ROUTER}[router_defaults]\naccess_profiles=[{}]\n",
+            profile("a", "")
+        );
+        assert!(Config::from_toml_str(&shared).is_err());
+    }
 
     const ROUTER: &str =
         "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n";

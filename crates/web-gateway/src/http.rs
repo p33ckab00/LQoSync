@@ -40,7 +40,7 @@ fn token(h: &HeaderMap) -> &str {
 fn same_origin(s: &WebState, h: &HeaderMap) -> bool {
     h.get(header::ORIGIN).and_then(|v| v.to_str().ok()) == Some(&s.origin)
 }
-async fn principal(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
+pub(crate) async fn principal(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
     let sessions = s.sessions.clone();
     let key = token(h).to_owned();
     let record = tokio::task::spawn_blocking(move || sessions.get(&key))
@@ -173,7 +173,7 @@ async fn routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     Ok(Json(inventory).into_response())
 }
 /// A state-changing request: same origin, a current session, and its CSRF token.
-async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
+pub(crate) async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
     if !same_origin(s, h) {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -315,7 +315,7 @@ async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read)
     )
 }
 /// Send one queue request to the broker: `202` with the operation and its URL, or the refusal.
-async fn queued(s: &WebState, request: &BrokerRequest) -> ApiResult {
+pub(crate) async fn queued(s: &WebState, request: &BrokerRequest) -> ApiResult {
     let reply = exchange(&s.broker, request)
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -643,6 +643,16 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
             post(topology_cancel),
         )
         .route("/api/v1/topology/operations/{key}", get(topology_operation))
+        .route(
+            "/api/v1/topology/source-capabilities",
+            get(crate::source_studio::capabilities),
+        )
+        .route(
+            "/api/v1/topology/source-jobs",
+            post(crate::source_studio::jobs).layer(DefaultBodyLimit::max(
+                web_contract::source_studio::MAX_JOB_BODY,
+            )),
+        )
         .route("/api/v1/topology/assignments", get(topology_assignments))
         .route("/api/v1/topology/observations", get(topology_observations))
         .route(

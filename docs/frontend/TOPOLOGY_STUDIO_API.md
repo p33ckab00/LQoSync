@@ -1,7 +1,8 @@
 # Topology Studio: frontend and backend contract
 
 Status: contract version 1 types exist since task B0 in `crates/web-contract/src/source_studio.rs`.
-No production route or service operation exists yet. The browser fixture serves the new HTTP shapes.
+Since task B1, the production service has `GET /api/v1/topology/source-capabilities` and the `draft_test` job of `POST /api/v1/topology/source-jobs`.
+It advertises `draft_test` only. The other routes and jobs return `404` until their tasks pass. The browser fixture serves all new HTTP shapes.
 The [product design](ROUTER_SOURCE_CONFIGURATION.md) defines the required behavior.
 The [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) assigns the work.
 
@@ -368,7 +369,21 @@ The Rust types are the authority. This section records the decisions that the ta
 | `CandidatePageQuery.limit` | Default 50. |
 
 The core service parses `router.sources_set` and `wan.candidate_set`. It refuses both with `invalid` before any I/O until task B4 passes.
-The production gateway has no new route. A new route returns `404`, so the frontend treats the backend as an old backend.
+A route that the service does not have returns `404`, so the frontend treats that feature as unavailable. Task B1 adds the first routes.
+
+## Version 1 details from task B1
+
+| Item | Task B1 behavior |
+| --- | --- |
+| Capabilities | The gateway asks the core service operation `source_studio.capabilities`. An older service without it gives `404` with `unavailable`. |
+| Draft test | The core service operation `source_studio.test` takes `connection` and `required_sources`. The gateway job keeps a SHA-256 digest of the request, never the secret. |
+| Draft test checks | `checks` always has one entry for each of the five stages, in order. A stage after a failure is `not_run`. Without TLS, the `tls` stage is `not_run` with `tls_off`. |
+| Check codes | `ok`, `unreachable`, `tls`, `login`, `timeout`, `trap`, `protocol`, `disabled`, `tls_off`, `not_run`. |
+| Table permission | One check for all tables of `required_sources`. The first table that fails gives the code. No source gives `not_run`. |
+| Disabled router | A draft with the address and port of a disabled registered router fails `transport` with `disabled`. It makes no connection. |
+| Fingerprint | `connection_fingerprint` names address, port, TLS settings, username, and CA text. It does not use the password. |
+| Refusal | An invalid draft gives a `failed` operation with a safe `error`. A source job without the session token gives `403`. Collection and evaluation jobs give `404` with `unavailable`. |
+| Access profiles | `RouterEdit.access_profiles` saves through the router edit and its config digest. The entry `default` changes the router credential. A new secret needs `current_password`. Profiles appear in `RouterSourceConfig` with task B2. |
 
 ## Browser fixture cases
 

@@ -33,6 +33,14 @@ struct RouterTestArgs {
     actor: String,
 }
 
+/// `source_studio.test`. The arguments carry a draft secret: a refusal never repeats them.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceTestArgs {
+    connection: web_contract::source_studio::DraftConnection,
+    required_sources: Vec<web_contract::source_studio::SourceKind>,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WanDiscoverArgs {
@@ -154,6 +162,18 @@ where
             let args: RouterTestArgs = parse(request)?;
             runner
                 .api_router_test(&args.router_id, &args.actor)
+                .await
+                .map_err(fail)
+        }
+        "source_studio.capabilities" => {
+            serde_json::to_value(crate::topology_manager::source_studio::capabilities())
+                .map_err(|e| fail(e.into()))
+        }
+        "source_studio.test" => {
+            let a: SourceTestArgs = serde_json::from_value(request.args.clone())
+                .map_err(|_| ApiError::new(ErrorCode::BadRequest, "invalid arguments"))?;
+            runner
+                .api_source_test(&a.connection, &a.required_sources)
                 .await
                 .map_err(fail)
         }

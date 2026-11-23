@@ -401,10 +401,12 @@ mod studio {
             return next.run(request).await;
         }
         let case = s.scenario.case();
+        let legacy = case.capabilities.is_none() && !control;
         let Some(p) = principal(&s.inner, request.headers()).await else {
-            let legacy = case.capabilities.is_none() && !control;
-            return if operation.is_some() || legacy {
+            return if operation.is_some() {
                 next.run(request).await
+            } else if legacy {
+                StatusCode::NOT_FOUND.into_response()
             } else {
                 StatusCode::UNAUTHORIZED.into_response()
             };
@@ -422,9 +424,9 @@ mod studio {
                 None => next.run(request).await,
             };
         }
-        // An old backend: the production router answers `404`.
-        if case.capabilities.is_none() && !control {
-            return next.run(request).await;
+        // An old backend has no Studio route: `404`, as its production router answers.
+        if legacy {
+            return StatusCode::NOT_FOUND.into_response();
         }
         let post = request.method() == Method::POST;
         if post {

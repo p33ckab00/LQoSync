@@ -391,6 +391,17 @@ pub fn check_with(
                 Err(e) => out.push(line(Level::Error, format!("{at}: writer password: {e:#}"))),
             }
         }
+        for p in &r.access_profiles {
+            if typed.contains(Path::new(&p.password_file)) {
+                continue;
+            }
+            if let Err(e) = read_secret(Path::new(&p.password_file), owner_uid) {
+                out.push(line(
+                    Level::Error,
+                    format!("{at}: access profile {}: {e:#}", p.id),
+                ));
+            }
+        }
         if !(r.pppoe.enabled || r.hotspot.enabled || r.dhcp.enabled) {
             out.push(line(Level::Warn, format!("{at}: no source is enabled (pppoe, hotspot, dhcp); its subscribers will be removed")));
         }
@@ -911,6 +922,17 @@ mod tests {
         let lines = check(&Config::from_toml_str(&e.toml).unwrap(), e.uid);
         let errors = texts(&lines, Level::Error).join("\n");
         assert!(errors.contains("writer password"), "{errors}");
+    }
+
+    #[test]
+    fn check_reports_a_missing_access_profile_password_file() {
+        let e = env(
+            "access_profiles=[{id='reader',label='Reader',username='ro',password_file='/nonexistent/r.password'}]\n",
+            "",
+        );
+        let lines = check(&Config::from_toml_str(&e.toml).unwrap(), e.uid);
+        let errors = texts(&lines, Level::Error).join("\n");
+        assert!(errors.contains("access profile reader"), "{errors}");
     }
 
     #[test]

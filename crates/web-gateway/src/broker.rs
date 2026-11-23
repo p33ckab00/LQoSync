@@ -118,6 +118,13 @@ pub enum Request {
     TopologyLayout {
         request: web_contract::topology::LayoutRequest,
     },
+    /// The Studio features of the service. No router I/O.
+    StudioCapabilities,
+    /// One Studio source job. A draft test carries its secret in this request only.
+    StudioJob {
+        actor: String,
+        request: web_contract::source_studio::StudioJobRequest,
+    },
 }
 #[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
@@ -147,6 +154,9 @@ pub struct Reply {
     /// Why a mutation was not queued: `invalid`, `key_reused`, or `busy`.
     #[serde(default)]
     pub refused: Option<String>,
+    /// `None` with `ok`: the service has no Studio operations.
+    #[serde(default)]
+    pub capabilities: Option<web_contract::source_studio::StudioCapabilities>,
 }
 impl Reply {
     fn no() -> Self {
@@ -165,6 +175,7 @@ impl Reply {
             layout: None,
             operation: None,
             refused: None,
+            capabilities: None,
         }
     }
 }
@@ -365,6 +376,19 @@ pub async fn serve(
                         }
                         Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
                     },
+                    Request::StudioCapabilities => match jobs.studio_capabilities().await {
+                        Ok(caps) => {
+                            reply.capabilities = caps;
+                            reply.ok = true;
+                        }
+                        Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
+                    },
+                    Request::StudioJob { actor, request } => {
+                        crate::topology_jobs::answer(
+                            &mut reply,
+                            jobs.studio(&actor, request).await,
+                        );
+                    }
                     Request::TopologyCancel { actor, proposal } => {
                         reply.ok = jobs.cancel(&actor, &proposal).await;
                     }
@@ -441,8 +465,15 @@ pub async fn serve(
                             anyhow::bail!("no router editor");
                         };
                         // A credential replacement or a disable needs the operator password again (owner decision D2).
+                        let profile_secret = form
+                            .edit
+                            .access_profiles
+                            .as_ref()
+                            .is_some_and(|list| list.iter().any(|p| p.password.is_some()));
                         let replaces = router_id.is_some()
-                            && (form.edit.password.is_some() || form.edit.enabled == Some(false));
+                            && (form.edit.password.is_some()
+                                || profile_secret
+                                || form.edit.enabled == Some(false));
                         let confirmed = match (replaces, form.current_password.clone()) {
                             (false, _) => true,
                             // Only a real password try counts against the login rate limit.

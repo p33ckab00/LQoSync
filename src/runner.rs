@@ -847,6 +847,22 @@ where
         Ok(answer)
     }
 
+    /// API `source_studio.test`: the explicit one-shot test of an unsaved connection. It uses its
+    /// own session and saves nothing. The answer is a `DraftTestReport`, never error text.
+    pub async fn api_source_test(
+        &mut self,
+        draft: &web_contract::source_studio::DraftConnection,
+        required: &[web_contract::source_studio::SourceKind],
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::source_studio::connection::draft_test;
+        let report = draft_test(self.connector.as_ref(), &self.cfg, draft, required)
+            .await
+            .map_err(|e| {
+                anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(e.message))
+            })?;
+        Ok(serde_json::to_value(report)?)
+    }
+
     /// API `router.test`: one connection test of one enabled router: TCP, TLS, sign-in, and an
     /// identity read. It uses its own session, never the cycle session. A disabled router gets no
     /// connection. The answer has a class, never error text, and the audit log gets one line.

@@ -506,6 +506,49 @@ mod operations {
     }
 
     #[tokio::test]
+    async fn source_studio_ops_report_capabilities_and_never_echo_a_draft() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let caps = call(&mut r, "source_studio.capabilities", json!({})).await;
+        assert_eq!(caps["result"]["version"], json!(1), "{caps}");
+        assert_eq!(caps["result"]["features"], json!(["draft_test"]));
+        let secret = "s3cret-in-args";
+        let connection = |address: Value| {
+            json!({"address": address, "port": 8729, "tls": true, "tls_verify": true,
+                   "username": "studio", "password": secret, "ca_pem": null})
+        };
+        let bad = call(
+            &mut r,
+            "source_studio.test",
+            json!({"connection": connection(json!(5)), "required_sources": []}),
+        )
+        .await;
+        assert_eq!(bad["error"]["code"], json!("bad_request"), "{bad}");
+        let invalid = call(
+            &mut r,
+            "source_studio.test",
+            json!({"connection": connection(json!("bad address")), "required_sources": []}),
+        )
+        .await;
+        assert_eq!(invalid["error"]["code"], json!("invalid"), "{invalid}");
+        let ok = call(
+            &mut r,
+            "source_studio.test",
+            json!({"connection": connection(json!("198.51.100.7")), "required_sources": ["ppp"]}),
+        )
+        .await;
+        assert_eq!(
+            ok["result"]["checks"].as_array().map(Vec::len),
+            Some(5),
+            "{ok}"
+        );
+        for v in [bad, invalid, ok] {
+            assert!(!v.to_string().contains(secret), "{v}");
+        }
+    }
+
+    #[tokio::test]
     async fn a_lost_lock_answers_internal_and_returns_lost_lock() {
         let e = env();
         let mut r = runner(&e, setup(&e, None));
