@@ -1014,7 +1014,7 @@ pub(crate) fn Canvas(
             }}</h2></div>
             <Show when=move||selected_node().is_some_and(|n|n.router_id.is_some())>
               <button type="button" class="canvas-tool" aria-label="Configure source router" title="Configure source router" on:click=move|_|{
-                if let Some(id)=selected_node().and_then(|n|n.router_id){measure();studio_router.set(Some(id));studio_open.set(true);}
+                if let Some(id)=selected_node().and_then(|n|n.router_id){close();measure();studio_router.set(Some(id));studio_open.set(true);}
               }>{icon(ICON_SETTINGS)}</button>
             </Show>
             <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>

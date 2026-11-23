@@ -25,6 +25,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   await p.emulateMedia({colorScheme:'dark'});await p.screenshot({path:`${out}/studio-preview-details-dark.png`});await p.emulateMedia({colorScheme:'light'});  await p.keyboard.press('Escape');await p.setViewportSize({width:1440,height:1000});await p.screenshot({path:`${out}/studio-preview-canvas.png`});
   const before=writes.length;await p.getByRole('button',{name:'Load saved topology',exact:true}).click();await p.locator('.studio-preview-card').waitFor({state:'hidden'});assert.equal(writes.length,before,'load_saved_sends_no_mutation');assert.equal(await p.locator('.canvas-node').count(),4);
   await editor();assert.equal(await modal.getByLabel('Policy name',{exact:true}).inputValue(),'Preview PPP');await p.keyboard.press('Escape');
+  // Entering Studio from a saved card must release its parent modal before preview.
+  const savedCard=p.getByRole('button',{name:/^DHCP access,/});await savedCard.click();await savedCard.press('Enter');
+  await p.getByRole('dialog',{name:'DHCP access',exact:true}).getByRole('button',{name:'Configure source router',exact:true}).click();
+  await modal.getByRole('button',{name:'Source policies',exact:true}).click();await preview();
+  assert.equal(await p.locator('dialog:modal').count(),0,'card configuration must not cover the canvas preview');
+  await p.getByRole('button',{name:'Load saved topology',exact:true}).click();
   // A delayed result must not overwrite a newer draft, even after the editor is reopened.
   await editor();let release,seen;const held=new Promise(r=>release=r),started=new Promise(r=>seen=r);
   await p.route('**/api/v1/topology/source-candidates/cand-fixture-0001',async route=>{const response=await route.fetch();seen();await held;await route.fulfill({response}).catch(()=>{});});
