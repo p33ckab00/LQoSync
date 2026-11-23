@@ -127,3 +127,23 @@ Do not report a task complete from a mock response or an unexecuted test command
 | Open work | B2–B5. Known limits: the table permission check reads every row ID of each table (no count-only print). A draft test holds the service API for up to 60 seconds. A removed profile keeps its secret file on disk. `writer_username` is not an access profile. |
 | Next frontend step | F1 can use `GET source-capabilities` and the `draft_test` job against the real gateway. `AccessProfileEdit` saves through the existing router edit transport with `current_password` for a new secret. |
 | Time | 2026-11-23T18:12:04+08:00 |
+
+## Return packet: B2 (2026-11-23T18:34:35+08:00, Asia/Manila)
+
+| Item | Value |
+| --- | --- |
+| Task | B2. |
+| Branch/worktree | `claude/topology-studio-backend` in `/home/pi/LQoSync3.0-worktrees/claude-topology-studio-backend`. |
+| Base/head | Base `6ab3742` (B1 packet). Head `ca8dcc801323286a833252a10fbdd039412e545f`. |
+| Contract version | `1`. Additive change in `ca8dcc80`: `web_contract::source_studio::StudioCache` and `CACHE` (`source-studio.json`). Only the service and the gateway use them. No browser type changed. |
+| Files | `src/topology_manager/source_studio/{snapshots,snapshots_tests,mod,connection}.rs`, `src/topology_manager/{wan,wan_tests}.rs`, `src/runner.rs`, `src/runner/tests/api.rs`, `src/api/dispatch.rs`, `src/router_view.rs`, `crates/web-contract/src/source_studio.rs`, `crates/web-gateway/src/{broker,http,source_studio,topology_jobs}.rs`, `crates/web-gateway/tests/{source_studio,routers,overview}.rs`, `docs/frontend/TOPOLOGY_STUDIO_API.md`. |
+| API state | Production: `GET /api/v1/topology/source-capabilities`, `GET /api/v1/routers/{id}/source-config` (cache read, no service call), and the `draft_test` and `collect` jobs. Service operations `source_studio.capabilities`, `source_studio.test`, and `source_studio.collect`. Advertised: `draft_test`, `access_profiles`, `source_collect`, `wan_evidence`. Not advertised: `policy_preview`, `policy_save`. `fields` stays empty until B3. |
+| Fixture state | Six cases, unchanged. The fixture answers the Studio routes before the production router. |
+| Named tests | `route_failure_keeps_last_evidence`, `collection_limit_is_partial`, `disabled_router_is_not_collected`, `snapshot_digest_matches_loaded_config`, `the_config_view_shows_profiles_without_secret_paths`, `a_failed_route_read_is_not_an_empty_route_table` (wan), `source_collection_answers_a_snapshot_and_writes_the_studio_cache` (runner API), and the gateway tests `an_authenticated_collect_job_answers_a_snapshot` and `source_config_reads_the_cache_without_router_io`. |
+| Checks | All passed: `cargo test --locked -p lqosync3 -p web-contract -p web-gateway --no-fail-fast` (1977 passed, 0 failed, 13 ignored). `cargo clippy --locked --workspace --all-targets -- -D warnings`. `cargo clippy --locked -p web-ui --target wasm32-unknown-unknown -- -D warnings`. `cargo fmt --all -- --check`. `git diff --check`. |
+| TDD note | The wan test failed first (type). The snapshot tests were written with their code. A deliberate break of the last-good rule made `route_failure_keeps_last_evidence` fail, then the code was restored. |
+| Not run | Browser fixture smoke (fixture unchanged in B2). `tools/frontend/check-all.sh`. No live router read. |
+| Migration | No config or registry change. The service writes a new cache file `/var/lib/lqosync3/source-studio.json` (mode 0600). Rollback: revert `ca8dcc80`, then delete that file. |
+| Open work | B3–B5. Known limits: a collection uses the `default` profile only. A print loads the whole reply before the row limit applies. A collection holds the service API for up to 60 seconds. The config view appears after the next cycle or collection. |
+| Next frontend step | F1 can read `RouterSourceConfig` (profiles, snapshots, WAN evidence) and start a `collect` job against the real gateway. |
+| Time | 2026-11-23T18:34:35+08:00 |
