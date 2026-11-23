@@ -8,6 +8,22 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24T06:51:39+08:00 (Asia/Manila) — Topology Studio F2 complete
+
+- Last agent: Codex. Goal: explicit read-only discovery and candidate preview from the shared plan.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `f58b924`. Code commits: `93d5a44`, `d546293`. Test correction: `b5325fc`. Contract: B0 `f7e3977`.
+- Changed: typed Studio API, preview controller, draft model, app memory, router forms, canvas, CSS, help, and two browser checks.
+- Workspace: 2037 passed, 0 failed, 13 ignored. Workspace native/Wasm Clippy passed before the final modal fix.
+- Final modal fix: native/Wasm Clippy for `web-ui`, format, whitespace, and the full browser gate passed.
+- Browser: 24 checks and both builds passed. `pulse-check` remained the established exclusion. Logs: `/tmp/lqosync-checks.T2xkuC/`.
+- Independent review could not run because of a usage limit. Separate author review found a card modal that covered preview. Regression proof now passes.
+- Deferred minor: an older snapshot selection can hide the locally collected choice if cached metadata omits it.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f2/`.
+- Unfinished: F3, backend integration, and I0. Backend work has its own status. Only B0 fixture behavior was checked.
+- Next: F3 after review of the B4/B5 behavior. Check explicit-profile username semantics and the combined plan-binding limit.
+- No backend or fixture edit, live service change, merge, push, or deploy occurred. Keep the branch and worktree.
+
 ## 2026-11-24T00:03:19+08:00 (Asia/Manila) — Topology Studio F1 complete
 
 - Last agent: Codex. Goal: the router modal and typed source editor from the shared plan.

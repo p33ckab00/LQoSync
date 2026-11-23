@@ -244,17 +244,17 @@ Create `tools/frontend/studio-preview-check.cjs`.
 **Interface:** Use `StudioJobRequest`, existing `Operation`, and candidate page types directly from `web-contract`.
 Add a typed source-job client without changing the old endpoint error shape.
 
-- [ ] Add `old_preview_cannot_replace_new_draft` and assert an old epoch leaves the newer router and policy draft untouched.
+- [x] Add `old_preview_cannot_replace_new_draft` and assert an old epoch leaves the newer router and policy draft untouched.
 
-- [ ] Add `expired_candidate_keeps_draft`, `load_saved_sends_no_mutation`, and `secret_input_is_not_in_draft_state`.
+- [x] Add `expired_candidate_keeps_draft`, `load_saved_sends_no_mutation`, and `secret_input_is_not_in_draft_state`.
 
-- [ ] Add `different_actor_cannot_recover_draft`. Reauthentication can recover only that actor's non-secret draft in the current tab.
+- [x] Add `different_actor_cannot_recover_draft`. Reauthentication can recover only that actor's non-secret draft in the current tab.
 
-- [ ] Overlay candidate nodes and diff markers on the same canvas. Keep counts distinct from throughput.
+- [x] Overlay candidate nodes and diff markers on the same canvas. Keep counts distinct from throughput.
 
-- [ ] Add paged issue/record details, source provenance, freshness, explicit refresh, and request-key recovery.
+- [x] Add paged issue/record details, source provenance, freshness, explicit refresh, and request-key recovery.
 
-- [ ] Run `cargo test --locked -p web-ui topology_studio_model` and `CHECKS=studio-preview-check STAGES=browser bash tools/frontend/check-all.sh`.
+- [x] Run `cargo test --locked -p web-ui topology_studio_model` and `CHECKS=studio-preview-check STAGES=browser bash tools/frontend/check-all.sh`.
 
 ## B4 — Save source policy through the current writer path
 

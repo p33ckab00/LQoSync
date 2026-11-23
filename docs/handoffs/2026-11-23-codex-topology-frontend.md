@@ -157,3 +157,73 @@ The optional design inspector is unavailable. Playwright supplied the rendered c
 Next action: F2 discovery snapshots and candidate preview with B0 fixtures, then B3 at G3.
 F3 owns profile/policy persistence, CAS errors, request recovery, saved-load behavior, and runtime feedback.
 Keep the branch and worktree. Integration and I0 remain separate tasks.
+
+## F2 return packet — 2026-11-24T06:51:39+08:00 (Asia/Manila)
+
+Status: complete. Base: `f58b924`. Code commits: `93d5a44`, `d546293`. Test correction: `b5325fc`.
+
+Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+Contract: B0 `f7e3977`, from G0 `a0e6035`.
+
+No backend, contract, fixture, manifest, or lock file changed.
+No merge, push, or deploy occurred.
+
+The new typed client reads Studio errors and runs explicit read jobs through the operation endpoint.
+It bounds request size and the job poll loop. A lost reply queries the original operation without automatic resubmission.
+Manual recovery checks that operation first. An absent operation permits the original key and input to repeat.
+
+The actor and CSRF token scope each request. A late 401 cannot end a newer session.
+The draft connection test now uses the same typed client.
+
+The source form exposes cached table evidence, age, completeness, and an explicit refresh.
+Collection uses saved access configuration and the source types in the draft.
+Evaluation binds the actor, router, configuration digest, base revision, snapshot, and draft epoch.
+An old response, changed input, or expired candidate cannot replace the current preview.
+
+The current tab keeps only non-secret drafts through same-actor reauthentication.
+Explicit logout and another actor clear that memory.
+
+Candidate cards and count-based flows share the current canvas and layout engine.
+Saved positions remain intact. Saved card interactions become inert during preview.
+The details modal shows full issue counts, paged issues and records, truncation, unknown values, and provenance.
+
+Load saved topology sends a cached GET without a policy or layout write.
+It retains the source draft. Studio closes the parent card modal before it opens. The user can then inspect the canvas preview.
+
+Owned files: `topology_studio_api.rs`, `topology_studio_preview.rs`, Studio model/editor, app memory, router forms, canvas, CSS, help, and module registration.
+Browser files: `studio-preview-check.cjs` and `studio-preview-auth-check.cjs`.
+
+Checks:
+
+- Studio model: 14 tests passed. All named F2 model cases passed.
+
+- Workspace: 2037 passed, 0 failed, 13 ignored.
+
+- Workspace native/Wasm Clippy passed with `-D warnings` before the final modal correction.
+
+- After that correction, native/Wasm Clippy for `web-ui`, format, and whitespace passed.
+
+- Final browser gate: 24 checks and both builds passed. `pulse-check` remained the established exclusion.
+
+- Logs: `/tmp/lqosync-checks.T2xkuC/`. Workspace test log: `/tmp/lqosync-f2-workspace-tests.log`.
+
+- Regression checks cover delayed results, partial reads, expiry, paged totals, lost replies, manual recovery, actor changes, and late old-session 401 replies.
+
+- The parent-card-modal test failed before its correction, then passed in the final browser gate.
+
+- An earlier run read the old inventory layout immediately after resize. The check now waits for its expected hidden header.
+
+The independent reviewer could not run because of a usage limit. A separate author review supplied the fallback.
+This review is weaker than an independent review. It found one important card-modal defect, now corrected.
+
+Minor deferred issue: an older snapshot selection can hide the locally collected choice if cached metadata omits it.
+F0/F1 minor items remain in their return packets.
+
+Evidence: [F2 screenshots and checksums](../frontend/evidence/topology-studio-f2/README.md).
+
+The optional design inspector is unavailable. Playwright supplied the rendered checks.
+
+Next action: F3 profile/policy persistence and save recovery, after review of the B4/B5 behavior.
+Check explicit-profile username/update semantics and the combined advertised limit for `PlanBinding` before save.
+B3/G3 integration and I0 remain separate tasks. This packet claims B0 fixture behavior only.
+Keep the branch and worktree.

@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-24-topology-studio-f2]] — Read-only discovery, candidate canvas, validation evidence, and actor-bound draft recovery
+
 - [[2026-11-23-topology-studio-f1]] — Typed router/source drafts, shared connection forms, and explicit draft test
 
 - [[2026-11-23-topology-studio-f0]] — Real Leptos canvas shell, optional guide, bounded panels, and shared themes
