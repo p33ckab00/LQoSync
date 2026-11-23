@@ -16,6 +16,7 @@ The MikroTik routing (the `via-WAN` address lists) must balance all subscribers 
 ## Owner decisions (2026-11-23)
 
 1. One card for each node on the canvas, whatever the number of WAN parents. The child cards below it are also one card each. The canvas must not grow with the number of WANs ("dynamic").
+   The canvas, the List view, and the card settings never show an instance, a copy of a card, or the word "instance". Instances exist only in the registry and in `network.json`. The operator adds a WAN by dragging a link from the WAN card, and removes it by removing the link; the "Add another parent" and "Add another WAN parent" fields go away.
 2. Flow lines in the Sankey style between the cards. The cards stay cards.
 3. A link can be removed. When the only WAN link of a card is removed, the card becomes a top-level card (a parent), and its child cards stay below it.
 4. All subscribers are load balanced over the WANs through the address lists, also when their card has no WAN link. A card without a WAN link is balanced over all available WANs, by the load balance setting (Count, Capacity, or Quality).
