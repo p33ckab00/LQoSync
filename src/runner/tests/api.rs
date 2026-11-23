@@ -512,7 +512,15 @@ mod operations {
         r.lock().unwrap();
         let caps = call(&mut r, "source_studio.capabilities", json!({})).await;
         assert_eq!(caps["result"]["version"], json!(1), "{caps}");
-        assert_eq!(caps["result"]["features"], json!(["draft_test"]));
+        assert_eq!(
+            caps["result"]["features"],
+            json!([
+                "draft_test",
+                "access_profiles",
+                "source_collect",
+                "wan_evidence"
+            ])
+        );
         let secret = "s3cret-in-args";
         let connection = |address: Value| {
             json!({"address": address, "port": 8729, "tls": true, "tls_verify": true,
@@ -546,6 +554,38 @@ mod operations {
         for v in [bad, invalid, ok] {
             assert!(!v.to_string().contains(secret), "{v}");
         }
+    }
+
+    #[tokio::test]
+    async fn source_collection_answers_a_snapshot_and_writes_the_studio_cache() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        let stale = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": "old", "sources": ["ppp"]}),
+        )
+        .await;
+        assert_eq!(stale["error"]["code"], json!("invalid"), "{stale}");
+        let ok = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": digest, "sources": ["ppp"]}),
+        )
+        .await;
+        let snapshot = &ok["result"];
+        assert_eq!(snapshot["router_id"], json!(id), "{ok}");
+        assert_eq!(snapshot["tables"].as_array().map(Vec::len), Some(11));
+        let cache: web_contract::source_studio::StudioCache = serde_json::from_slice(
+            &std::fs::read(e.state.join(web_contract::source_studio::CACHE)).unwrap(),
+        )
+        .unwrap();
+        let view = cache.routers.iter().find(|v| v.router_id == id).unwrap();
+        assert_eq!(view.snapshots.len(), 1);
+        assert_eq!(view.snapshots[0].id, snapshot["id"].as_str().unwrap());
     }
 
     #[tokio::test]

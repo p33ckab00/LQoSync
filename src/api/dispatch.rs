@@ -43,6 +43,14 @@ struct SourceTestArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct SourceCollectArgs {
+    router_id: String,
+    expected_config_digest: String,
+    sources: Vec<web_contract::source_studio::SourceKind>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WanDiscoverArgs {
     #[serde(default)]
     routers: Vec<String>,
@@ -174,6 +182,13 @@ where
                 .map_err(|_| ApiError::new(ErrorCode::BadRequest, "invalid arguments"))?;
             runner
                 .api_source_test(&a.connection, &a.required_sources)
+                .await
+                .map_err(fail)
+        }
+        "source_studio.collect" => {
+            let a: SourceCollectArgs = parse(request)?;
+            runner
+                .api_source_collect(&a.router_id, &a.expected_config_digest, &a.sources)
                 .await
                 .map_err(fail)
         }

@@ -1,8 +1,8 @@
 # Topology Studio: frontend and backend contract
 
 Status: contract version 1 types exist since task B0 in `crates/web-contract/src/source_studio.rs`.
-Since task B1, the production service has `GET /api/v1/topology/source-capabilities` and the `draft_test` job of `POST /api/v1/topology/source-jobs`.
-It advertises `draft_test` only. The other routes and jobs return `404` until their tasks pass. The browser fixture serves all new HTTP shapes.
+Since task B2, the production service has `GET /api/v1/topology/source-capabilities`, `GET /api/v1/routers/{id}/source-config`, and the `draft_test` and `collect` jobs of `POST /api/v1/topology/source-jobs`.
+It advertises `draft_test`, `access_profiles`, `source_collect`, and `wan_evidence`. The candidate routes and the `evaluate` job return `404` until task B3 passes. The browser fixture serves all new HTTP shapes.
 The [product design](ROUTER_SOURCE_CONFIGURATION.md) defines the required behavior.
 The [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) assigns the work.
 
@@ -384,6 +384,19 @@ A route that the service does not have returns `404`, so the frontend treats tha
 | Fingerprint | `connection_fingerprint` names address, port, TLS settings, username, and CA text. It does not use the password. |
 | Refusal | An invalid draft gives a `failed` operation with a safe `error`. A source job without the session token gives `403`. Collection and evaluation jobs give `404` with `unavailable`. |
 | Access profiles | `RouterEdit.access_profiles` saves through the router edit and its config digest. The entry `default` changes the router credential. A new secret needs `current_password`. Profiles appear in `RouterSourceConfig` with task B2. |
+
+## Version 1 details from task B2
+
+| Item | Task B2 behavior |
+| --- | --- |
+| Source config | The service writes `source-studio.json` (`StudioCache`) after each cycle and each collection. The GET reads that cache through the broker. It sends nothing to the service and reads no router. A router without a cache entry gives `404` with `not_found`. |
+| Digests | `config_digest` is the saved file when the service wrote the cache. `loaded_config_digest` is the loaded config. |
+| Collection | The core service operation `source_studio.collect` reads the allowlisted tables of the named sources with the router credential (`default`). A disabled or unknown router, a changed loaded config, or a repeated source gives a `failed` operation with a safe `error`. It makes no connection. |
+| Table evidence | `SnapshotRef.tables` lists all 11 tables in a fixed order. Tables of other sources are `not_requested` with `collected_at: null`. A failed table keeps 0 records and an `issue_code`. |
+| Limits | More than 20,000 rows gives `partial` with `row_limit`. More than 16 MiB gives `partial` with `byte_limit`. The 60-second deadline gives `failed` with `timeout`. A row with an unrequested field gives `failed` with `protocol`. |
+| Snapshots | The service keeps the last 2 snapshots of each router in memory for 10 minutes. A restart drops them. |
+| WAN evidence | `wan_candidates` comes from the last complete interface and route reads, at most 32 interfaces and 4 default routes each. A failed or partial read keeps the last good evidence and sets `read_state`. A complete empty route table gives no routes. `decision` stays `null` until task B4. |
+| WAN discovery | The `wan.discover` answer has a new `routes_state` (`ok` or `failed`) for each router. A failed route read no longer looks like an empty route table. |
 
 ## Browser fixture cases
 

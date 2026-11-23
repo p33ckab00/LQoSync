@@ -42,6 +42,11 @@ fn core(dir: &std::path::Path, studio: bool) -> Arc<Mutex<Vec<Value>>> {
                     "source_studio.test" if studio => Some(json!({
                         "connection_fingerprint": "f1", "at": 1, "elapsed_ms": 2,
                         "checks": [{"stage": "transport", "state": "passed", "code": "ok"}]})),
+                    "source_studio.collect" if studio => Some(json!({
+                        "id": "snap-1", "router_id": v["args"]["router_id"], "config_digest": "d1",
+                        "collected_from": 1, "collected_to": 2, "expires_at": 3,
+                        "tables": [{"table": "routes", "state": "failed", "records": 0,
+                                    "collected_at": 2, "issue_code": "trap"}]})),
                     "topology.web.operation" => Some(Value::Null),
                     _ => None,
                 };
@@ -189,13 +194,13 @@ async fn source_jobs_refuse_bad_bodies_and_unreleased_jobs() {
     let (_dir, app, seen) = app(true).await;
     let (cookie, csrf) = sign_in(&app).await;
     let jobs = "/api/v1/topology/source-jobs";
-    let collect = json!({"key": KEY, "job": {"kind": "collect", "router_id": "lq3-a1",
-        "expected_config_digest": "d", "sources": ["ppp"]}});
+    let evaluate = json!({"key": KEY, "job": {"kind": "evaluate", "router_id": "lq3-a1",
+        "expected_revision": "1", "expected_config_digest": "d", "snapshot_id": "s", "policies": []}});
     let mut unknown: Value = serde_json::from_str(&job("studio")).unwrap();
     unknown["job"]["path"] = json!("/system/reboot");
     let big = "x".repeat(33 * 1024);
     for (body, want, code) in [
-        (collect.to_string(), StatusCode::NOT_FOUND, "unavailable"),
+        (evaluate.to_string(), StatusCode::NOT_FOUND, "unavailable"),
         (unknown.to_string(), StatusCode::BAD_REQUEST, "invalid"),
         (big, StatusCode::PAYLOAD_TOO_LARGE, "too_large"),
     ] {
@@ -221,5 +226,78 @@ async fn an_older_service_has_no_studio_capabilities() {
     assert_eq!(
         (status, &body["code"]),
         (StatusCode::NOT_FOUND, &json!("unavailable"))
+    );
+}
+
+async fn settle(app: &axum::Router, cookie: &str, key: &str) -> Value {
+    let path = format!("/api/v1/topology/operations/{key}");
+    for _ in 0..100 {
+        let (_, op) = send(app, req("GET", &path, cookie, "", String::new())).await;
+        if op["state"] == "done" || op["state"] == "failed" {
+            return op;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    panic!("the operation did not finish");
+}
+
+#[tokio::test]
+async fn an_authenticated_collect_job_answers_a_snapshot() {
+    let (_dir, app, seen) = app(true).await;
+    let (cookie, csrf) = sign_in(&app).await;
+    let body = json!({"key": KEY, "job": {"kind": "collect", "router_id": "lq3-00000000000000a1",
+        "expected_config_digest": "d1", "sources": ["wan"]}})
+    .to_string();
+    let jobs = "/api/v1/topology/source-jobs";
+    let (status, _) = send(&app, req("POST", jobs, "", "", body.clone())).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "no session, no job");
+    let (status, _) = send(&app, req("POST", jobs, &cookie, &csrf, body)).await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    let op = settle(&app, &cookie, KEY).await;
+    assert_eq!(op["state"], json!("done"), "{op}");
+    assert_eq!(op["source_result"]["kind"], json!("snapshot"));
+    // The failed table stays failed: it is not an empty complete table.
+    assert_eq!(op["source_result"]["tables"][0]["state"], json!("failed"));
+    let calls: Vec<Value> = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|v| v["op"] == "source_studio.collect")
+        .cloned()
+        .collect();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(
+        calls[0]["args"],
+        json!({"router_id": "lq3-00000000000000a1", "expected_config_digest": "d1", "sources": ["wan"]})
+    );
+}
+
+#[tokio::test]
+async fn source_config_reads_the_cache_without_router_io() {
+    let (dir, app, seen) = app(true).await;
+    let view = json!({"version": 1, "router_id": "lq3-00000000000000a1", "config_digest": "d2",
+        "loaded_config_digest": "d1", "policy_revision": null, "enabled": true,
+        "access_profiles": [{"id": "default", "label": "Router credential", "credential_set": true,
+                             "supported_writes": []}],
+        "policies": [], "snapshots": [], "wan_candidates": []});
+    let cache = json!({"version": 1, "updated": 1, "routers": [view]});
+    std::fs::write(dir.path().join("source-studio.json"), cache.to_string()).unwrap();
+    let path = "/api/v1/routers/lq3-00000000000000a1/source-config";
+    let (status, _) = send(&app, req("GET", path, "", "", String::new())).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (cookie, _) = sign_in(&app).await;
+    let before = seen.lock().unwrap().len();
+    let (status, body) = send(&app, req("GET", path, &cookie, "", String::new())).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, view);
+    for other in ["lq3-00000000000000b2", "..%2Fetc"] {
+        let path = format!("/api/v1/routers/{other}/source-config");
+        let (status, _) = send(&app, req("GET", &path, &cookie, "", String::new())).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+    assert_eq!(
+        seen.lock().unwrap().len(),
+        before,
+        "a GET sends nothing to the service"
     );
 }

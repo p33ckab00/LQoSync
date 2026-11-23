@@ -113,6 +113,8 @@ pub struct Runner<C: Connector + 'static> {
     web_receipts: Option<crate::topology_manager::web_receipts::Receipts>,
     /// The receipt of the web mutation in progress. `api_edit` marks it prepared before writing.
     web_pending: Option<crate::topology_manager::web_receipts::Record>,
+    /// Topology Studio snapshots and WAN evidence, in memory only.
+    studio: crate::topology_manager::source_studio::snapshots::Studio,
     last_topology_generation: u64,
     /// Start time of the most recent cycle, in Unix seconds.
     last_cycle_started: Option<u64>,
@@ -280,6 +282,7 @@ where
             topology_store: None,
             web_receipts: None,
             web_pending: None,
+            studio: Default::default(),
             last_topology_generation: 0,
             last_cycle_started: None,
             last_preview: None,
@@ -861,6 +864,52 @@ where
                 anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(e.message))
             })?;
         Ok(serde_json::to_value(report)?)
+    }
+
+    /// Write `source-studio.json`: the Studio view of each configured router. No router I/O.
+    fn publish_studio(&self, revision: Option<u64>, now: u64) {
+        // The saved file can differ from the loaded config until the next reload.
+        let file_digest = std::fs::read(&self.config_path)
+            .map(|b| crate::cli::config_digest(&b))
+            .unwrap_or_else(|_| self.config_digest.clone());
+        let cache = self
+            .studio
+            .cache(&self.cfg, &file_digest, &self.config_digest, revision, now);
+        let path = Path::new(&self.cfg.runtime.state_dir).join(web_contract::source_studio::CACHE);
+        let written = serde_json::to_vec(&cache)
+            .map_err(anyhow::Error::from)
+            .and_then(|b| crate::files::write_private(&path, &b));
+        if let Err(error) = written {
+            eprintln!(
+                "warning: cannot write {}: {error:#}",
+                web_contract::source_studio::CACHE
+            );
+        }
+    }
+
+    /// API `source_studio.collect`: one explicit read of the allowlisted tables of an enabled
+    /// router. It changes no registry, routing, or output state.
+    pub async fn api_source_collect(
+        &mut self,
+        router_id: &str,
+        expected_digest: &str,
+        sources: &[web_contract::source_studio::SourceKind],
+    ) -> anyhow::Result<serde_json::Value> {
+        let reference = self
+            .studio
+            .collect(
+                self.connector.as_ref(),
+                &self.cfg,
+                &self.config_digest,
+                router_id,
+                expected_digest,
+                sources,
+            )
+            .await
+            .map_err(|m| anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(m)))?;
+        let revision = self.api_document().ok().flatten().map(|d| d.revision);
+        self.publish_studio(revision, reference.collected_to);
+        Ok(serde_json::to_value(reference)?)
     }
 
     /// API `router.test`: one connection test of one enabled router: TCP, TLS, sign-in, and an
@@ -3028,7 +3077,9 @@ where
             eprintln!("warning: cannot write collection.json: {error:#}");
         }
         // The web router inventory: config, catalog WAN roles, and this collection. No router I/O.
-        let catalog = self.api_document().ok().flatten().and_then(|d| d.catalog);
+        let doc = self.api_document().ok().flatten();
+        let revision = doc.as_ref().map(|d| d.revision);
+        let catalog = doc.and_then(|d| d.catalog);
         let inventory = crate::router_view::project(
             &self.cfg,
             catalog.as_ref(),
@@ -3040,6 +3091,7 @@ where
         if let Err(error) = crate::router_view::publish(state_dir, &inventory) {
             eprintln!("warning: cannot write routers.json: {error:#}");
         }
+        self.publish_studio(revision, now);
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
         self.record_live_groups(now).await;

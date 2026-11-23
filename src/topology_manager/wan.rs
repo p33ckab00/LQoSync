@@ -18,8 +18,8 @@ pub struct RouterInterfaces {
     pub router_id: String,
     pub name: String,
     pub read: Result<Vec<RosRow>, String>,
-    /// The `/ip/route` rows. A failed route read gives no rows: no interface is a default route.
-    pub routes: Vec<RosRow>,
+    /// The `/ip/route` rows. A failed route read is an error, never an empty route table.
+    pub routes: Result<Vec<RosRow>, String>,
 }
 
 /// The interfaces of the active `0.0.0.0/0` routes, in any routing table. The gateway is an
@@ -72,7 +72,7 @@ where
                     .await
                     .map_err(|e| e.to_string())?;
                 let (path, fields) = Table::Routes.command();
-                let routes = session.print(path, fields).await.unwrap_or_default();
+                let routes = session.print(path, fields).await.map_err(|e| e.to_string());
                 Ok::<_, String>((interfaces, routes))
             };
             let out = timeout_at(deadline, read)
@@ -87,7 +87,7 @@ where
         .map(|r| RouterInterfaces {
             router_id: router_id(&r.name),
             name: r.name.clone(),
-            routes: Vec::new(),
+            routes: Ok(Vec::new()),
             read: Err(if r.enabled {
                 "the read task stopped".into()
             } else {
@@ -169,7 +169,8 @@ pub fn answer(
                 .iter()
                 .filter(|w| w.router_name == Some(r.name.as_str()))
                 .collect();
-            let defaults = default_route_interfaces(&r.routes);
+            // A failed route read marks no default route, and the answer says it failed.
+            let defaults = default_route_interfaces(r.routes.as_deref().unwrap_or_default());
             // Server-side dynamic tunnels (`pppoe-in` and others) are subscriber sessions.
             let mut found: BTreeMap<(bool, &str), Value> = BTreeMap::new();
             for row in rows {
@@ -203,6 +204,7 @@ pub fn answer(
                 .collect();
             json!({
                 "router_id": r.router_id, "name": r.name, "state": "ok", "error": null,
+                "routes_state": if r.routes.is_ok() { "ok" } else { "failed" },
                 "candidates": found.into_values().collect::<Vec<_>>(), "missing": missing,
             })
         })

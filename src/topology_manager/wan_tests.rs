@@ -24,7 +24,7 @@ fn ok(name: &str, rows: Vec<RosRow>) -> RouterInterfaces {
         router_id: format!("id-{name}"),
         name: name.into(),
         read: Ok(rows),
-        routes: Vec::new(),
+        routes: Ok(Vec::new()),
     }
 }
 
@@ -119,7 +119,7 @@ fn a_failed_router_gives_its_error_and_no_missing_list() {
         router_id: "id-Core".into(),
         name: "Core".into(),
         read: Err("login refused".into()),
-        routes: Vec::new(),
+        routes: Ok(Vec::new()),
     };
     let cat = catalog("id-Core", "Core", "pppoe-out1", &["n1"]);
     let v = answer(&[failed], Some(&cat), 0);
@@ -263,7 +263,7 @@ fn the_answer_marks_default_route_candidates() {
         "Core",
         vec![iface("pppoe-out1", "pppoe-out"), iface("ether2", "ether")],
     );
-    read.routes = vec![route("main", "pppoe-out1", "pppoe-out1", true)];
+    read.routes = Ok(vec![route("main", "pppoe-out1", "pppoe-out1", true)]);
     let answer = answer(&[read], None, 0);
     let flags: Vec<_> = answer["routers"][0]["candidates"]
         .as_array()
@@ -277,4 +277,18 @@ fn the_answer_marks_default_route_candidates() {
         })
         .collect();
     assert_eq!(flags, [("pppoe-out1", true), ("ether2", false)]);
+}
+
+#[test]
+fn a_failed_route_read_is_not_an_empty_route_table() {
+    let mut failed = ok("Core", vec![iface("pppoe-out1", "pppoe-out")]);
+    failed.routes = Err("trap".into());
+    let empty = ok("Core", vec![iface("pppoe-out1", "pppoe-out")]);
+    let a = answer(&[failed, empty], None, 0);
+    assert_eq!(a["routers"][0]["routes_state"], json!("failed"));
+    assert_eq!(a["routers"][1]["routes_state"], json!("ok"));
+    assert_eq!(
+        a["routers"][0]["candidates"][0]["default_route"],
+        json!(false)
+    );
 }

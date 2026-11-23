@@ -184,7 +184,7 @@ pub(crate) async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, Statu
     Ok(p)
 }
 /// A router ID from the inventory: `lq3-` and hex digits.
-fn router_id(id: &str) -> bool {
+pub(crate) fn router_id(id: &str) -> bool {
     id.len() <= 64 && id.starts_with("lq3-") && id[4..].bytes().all(|b| b.is_ascii_hexdigit())
 }
 /// Save a local router change. The core command checks and writes it; no router I/O.
@@ -627,6 +627,10 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
                 .layer(DefaultBodyLimit::max(64 * 1024)),
         )
         .route("/api/v1/routers/{id}/activity", get(router_activity))
+        .route(
+            "/api/v1/routers/{id}/source-config",
+            get(crate::source_studio::config),
+        )
         .route("/api/v1/routers/{id}/test", post(test_router))
         .route("/api/v1/routers/sync", post(sync_routers))
         .route("/api/v1/topology", get(topology))

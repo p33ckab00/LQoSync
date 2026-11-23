@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Mutex, Semaphore};
 use web_contract::source_studio::{
-    DraftTestReport, StudioCapabilities, StudioJob, StudioJobRequest, StudioJobResult,
+    StudioCapabilities, StudioJob, StudioJobRequest, StudioJobResult,
 };
 use web_contract::topology::{
     CapacityChange, DiscoveredRouter, Discovery, LayoutRequest, Moved, Node, NodeChange, Operation,
@@ -517,22 +517,40 @@ impl Jobs {
         request: StudioJobRequest,
     ) -> Result<Operation, Refused> {
         use sha2::{Digest, Sha256};
-        let StudioJob::DraftTest {
-            connection,
-            required_sources,
-        } = request.job
-        else {
-            // Collection and evaluation arrive with plan tasks B2 and B3.
-            return Err(Refused::Invalid);
+        let (operation, args) = match &request.job {
+            StudioJob::DraftTest {
+                connection,
+                required_sources,
+            } => (
+                "source_studio.test",
+                serde_json::json!({"connection": connection, "required_sources": required_sources}),
+            ),
+            StudioJob::Collect {
+                router_id,
+                expected_config_digest,
+                sources,
+            } => {
+                if !(1..=64).contains(&router_id.len()) || expected_config_digest.len() > 128 {
+                    return Err(Refused::Invalid);
+                }
+                (
+                    "source_studio.collect",
+                    serde_json::json!({"router_id": router_id,
+                        "expected_config_digest": expected_config_digest, "sources": sources}),
+                )
+            }
+            // Evaluation arrives with plan task B3.
+            StudioJob::Evaluate { .. } => return Err(Refused::Invalid),
         };
         let key = request.key;
-        let bytes =
-            serde_json::to_vec(&(&connection, &required_sources)).map_err(|_| Refused::Invalid)?;
+        let bytes = serde_json::to_vec(&request.job).map_err(|_| Refused::Invalid)?;
+        drop(request.job);
         let digest: String = Sha256::digest(&bytes)
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
-        let payload = serde_json::json!({"studio": "draft_test", "digest": digest});
+        drop(bytes);
+        let payload = serde_json::json!({"studio": operation, "digest": digest});
         if let Some(known) = self.admit(actor, &key, payload).await? {
             return Ok(known);
         }
@@ -541,22 +559,26 @@ impl Jobs {
         tokio::spawn(async move {
             let _lane = this.lane.acquire().await;
             this.set(&key, State::Running).await;
-            let args =
-                serde_json::json!({"connection": connection, "required_sources": required_sources});
             let failed = |error: Option<String>| Operation {
                 error,
                 ..op(&key, "failed", None)
             };
-            let state = match call(&this.root, "source_studio.test", args, MUTATE_LIMIT).await {
-                Ok(v) => match serde_json::from_value::<DraftTestReport>(v) {
-                    Ok(report) => Operation {
-                        source_result: Some(StudioJobResult::DraftTest(report)),
-                        ..op(&key, "done", None)
-                    },
-                    Err(_) => failed(Some("The service answer is not valid.".into())),
+            let result = match call(&this.root, operation, args, MUTATE_LIMIT).await {
+                Ok(v) if operation == "source_studio.test" => serde_json::from_value(v)
+                    .map(StudioJobResult::DraftTest)
+                    .map_err(|_| Some("The service answer is not valid.".to_string())),
+                Ok(v) => serde_json::from_value(v)
+                    .map(StudioJobResult::Snapshot)
+                    .map_err(|_| Some("The service answer is not valid.".to_string())),
+                Err(CallError::Refused(error)) => Err(error),
+                Err(_) => Err(Some("The service did not answer the job.".to_string())),
+            };
+            let state = match result {
+                Ok(r) => Operation {
+                    source_result: Some(r),
+                    ..op(&key, "done", None)
                 },
-                Err(CallError::Refused(error)) => failed(error),
-                Err(_) => failed(Some("The service did not answer the test.".into())),
+                Err(error) => failed(error),
             };
             this.set(&key, State::Done(Box::new(state))).await;
         });

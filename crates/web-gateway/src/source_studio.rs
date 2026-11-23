@@ -9,7 +9,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use web_contract::source_studio::{StudioError, StudioJob, StudioJobRequest};
+use web_contract::source_studio::{
+    CACHE, RouterSourceConfig, StudioCache, StudioError, StudioJob, StudioJobRequest, VERSION,
+};
 
 fn error(status: StatusCode, code: &str, message: &str) -> Response {
     let body = StudioError {
@@ -81,8 +83,8 @@ pub(crate) async fn jobs(
     let Ok(request) = serde_json::from_slice::<StudioJobRequest>(&body) else {
         return error(StatusCode::BAD_REQUEST, "invalid", "Check the source job.");
     };
-    // Collection and evaluation arrive with plan tasks B2 and B3.
-    if !matches!(request.job, StudioJob::DraftTest { .. }) {
+    // Evaluation arrives with plan task B3.
+    if matches!(request.job, StudioJob::Evaluate { .. }) {
         return error(
             StatusCode::NOT_FOUND,
             "unavailable",
@@ -94,4 +96,40 @@ pub(crate) async fn jobs(
         request,
     };
     queued(&s, &request).await.unwrap_or_else(status_error)
+}
+
+/// One router from the service cache. The service bounds its WAN evidence, so the view fits
+/// the reply budget; a larger view is not served.
+pub fn load_config(root: &std::path::Path, router_id: &str) -> Option<RouterSourceConfig> {
+    let cache: StudioCache = crate::overview::read(root, CACHE)?;
+    let r = (cache.version == VERSION)
+        .then_some(cache.routers)?
+        .into_iter()
+        .find(|r| r.router_id == router_id)?;
+    (serde_json::to_vec(&r).ok()?.len() <= crate::routers::BUDGET).then_some(r)
+}
+
+/// `GET /api/v1/routers/{id}/source-config`, from the service cache. It starts no router read.
+pub(crate) async fn config(
+    State(s): State<WebState>,
+    h: HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    if let Err(status) = principal(&s, &h).await {
+        return status_error(status);
+    }
+    if !crate::http::router_id(&id) {
+        return error(StatusCode::NOT_FOUND, "not_found", "No such router.");
+    }
+    match exchange(&s.broker, &BrokerRequest::StudioConfig { router_id: id }).await {
+        Ok(r) => match r.source_config {
+            Some(c) => Json(c).into_response(),
+            None => error(
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "No Studio view for this router yet. The service writes it after its next cycle.",
+            ),
+        },
+        Err(_) => status_error(StatusCode::SERVICE_UNAVAILABLE),
+    }
 }

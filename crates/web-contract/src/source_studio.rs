@@ -128,6 +128,17 @@ pub struct RouterSourceConfig {
     pub wan_candidates: Vec<WanEvidence>,
 }
 
+/// The service cache `source-studio.json`: one `RouterSourceConfig` for each configured router.
+/// The service writes it after each cycle and each collection. A GET reads it without router I/O.
+pub const CACHE: &str = "source-studio.json";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StudioCache {
+    pub version: u32,
+    pub updated: u64,
+    pub routers: Vec<RouterSourceConfig>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccessProfileView {
     pub id: String,

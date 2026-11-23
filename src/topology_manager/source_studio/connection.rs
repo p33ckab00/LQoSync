@@ -101,7 +101,7 @@ fn draft_router(cfg: &Config, d: &DraftConnection) -> RouterCfg {
     r
 }
 
-fn code(e: &ReadError) -> &'static str {
+pub(super) fn code(e: &ReadError) -> &'static str {
     match e {
         ReadError::Unreachable(_) => "unreachable",
         ReadError::Login(_) => "login",

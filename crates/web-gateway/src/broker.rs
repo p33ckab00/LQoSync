@@ -120,6 +120,10 @@ pub enum Request {
     },
     /// The Studio features of the service. No router I/O.
     StudioCapabilities,
+    /// The cached Studio view of one router. No router I/O.
+    StudioConfig {
+        router_id: String,
+    },
     /// One Studio source job. A draft test carries its secret in this request only.
     StudioJob {
         actor: String,
@@ -157,6 +161,8 @@ pub struct Reply {
     /// `None` with `ok`: the service has no Studio operations.
     #[serde(default)]
     pub capabilities: Option<web_contract::source_studio::StudioCapabilities>,
+    #[serde(default)]
+    pub source_config: Option<web_contract::source_studio::RouterSourceConfig>,
 }
 impl Reply {
     fn no() -> Self {
@@ -176,6 +182,7 @@ impl Reply {
             operation: None,
             refused: None,
             capabilities: None,
+            source_config: None,
         }
     }
 }
@@ -383,6 +390,14 @@ pub async fn serve(
                         }
                         Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
                     },
+                    Request::StudioConfig { router_id } => {
+                        ensure!(router_id.len() <= 64, "invalid input");
+                        reply.source_config = tokio::task::spawn_blocking(move || {
+                            crate::source_studio::load_config(&root, &router_id)
+                        })
+                        .await?;
+                        reply.ok = reply.source_config.is_some();
+                    }
                     Request::StudioJob { actor, request } => {
                         crate::topology_jobs::answer(
                             &mut reply,
