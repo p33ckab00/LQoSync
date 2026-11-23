@@ -147,3 +147,29 @@ Do not report a task complete from a mock response or an unexecuted test command
 | Open work | B3–B5. Known limits: a collection uses the `default` profile only. A print loads the whole reply before the row limit applies. A collection holds the service API for up to 60 seconds. The config view appears after the next cycle or collection. |
 | Next frontend step | F1 can read `RouterSourceConfig` (profiles, snapshots, WAN evidence) and start a `collect` job against the real gateway. |
 | Time | 2026-11-23T18:34:35+08:00 |
+
+## B3 owner decision and sub-plan (2026-11-23T23:25:45+08:00, Asia/Manila)
+
+Owner decision: translate each `SourcePolicyDraft` into the current engine structures (catalog sources, nodes, and `SourceSelection` rate bindings). Run the existing identity, resolver, aggregate, and preview code on a cloned registry and a cloned grace gate. Do not build a second policy engine.
+A draft that the engine cannot express is a blocker with code `unsupported_in_v1`. The capabilities list advertises only the fields and operators that the translation supports.
+
+Version 1 translation subset:
+
+| Draft element | Translation | Other values |
+| --- | --- | --- |
+| `source: ppp` | One selection with scope `source_id = "ppp"` and `PppSecretName` authority, the same scope as `policy_draft::propose`. At most one enabled PPP policy for each router. | — |
+| `source: dhcp` | One selection for each server, scope `dhcp-<encoded server>`, `DhcpClientMac` authority, per-site only. | — |
+| `source: hotspot` or `wan` | No translation. | Blocker. Hotspot has no reference authority in the engine. WAN uses `wan.candidate_set` (B4). |
+| `members` | PPP `joined`, DHCP `active`. | Blocker. |
+| `filter` | No filter (`all` with no rules). DHCP: `lease.server` with `eq` or `in` selects servers. | Blocker. |
+| `group` | PPP: `by_field account.profile` (one group for each profile) or `fixed` (one group). DHCP: `by_field lease.server`. | Blocker. |
+| `rates` | Must give the same order as the current legacy priority of that source. | Blocker. Do not change the saved order. |
+| `parent` / `capacity` | Catalog node parent and `GroupDefaults`. | Validation issue. |
+
+Stable scopes keep every identity reference. A new subscriber has a `draft:` reference. A candidate never allocates a durable ID.
+
+| Step | Content | Named tests |
+| --- | --- | --- |
+| B3.1 | Draft validation and translation (pure functions). | `hotspot_authority_is_not_invented`, unsupported-construct and equal-priority overlap blockers |
+| B3.2 | Engine run on the clone with snapshot evidence: records, issues, graph, diff. | `preview_preserves_durable_state`, `missing_ppp_join_is_a_blocker`, `dynamic_dhcp_keeps_identity`, `explicit_rate_precedes_profile_rate` |
+| B3.3 | Candidate cache, `source_studio.evaluate` and candidate service operations, gateway GETs and the job, advertisement of `policy_preview` and `fields`. | `paged_issues_keep_complete_counts`, `foreign_actor_cannot_read_candidate`, `restart_expires_candidate` |
