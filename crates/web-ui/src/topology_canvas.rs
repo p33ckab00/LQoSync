@@ -696,7 +696,11 @@ pub(crate) fn Canvas(
         let sel = selected.get();
         let link = selected_link.get();
         let dir = direction.get();
-        let flows = data.with(|d| d.as_ref().map(|s| s.flows.clone()).unwrap_or_default());
+        let flows = data.with(|d| {
+            d.as_ref()
+                .map(|s| lines(&nodes.get(), &s.flows))
+                .unwrap_or_default()
+        });
         let max = flows.iter().map(|f| f.subscribers).max().unwrap_or(0);
         flows
             .into_iter()
@@ -1255,7 +1259,7 @@ fn NodeEditor(
         let count=shown.iter().filter(|m|card_of(m)==card).count();
         let names=|id:&str|shown.iter().find(|m|card_of(m)==id).map_or(id.to_string(),|m|m.name.clone());
         // The lines into this card, as text: the parent card, its subscribers, and removal.
-        let links:Vec<(String,String,u64,bool)>=data.with(|d|d.as_ref().map(|s|s.flows.iter().filter(|f|f.to==card).map(|f|{
+        let links:Vec<(String,String,u64,bool)>=data.with(|d|d.as_ref().map(|s|lines(&shown,&s.flows).into_iter().filter(|f|f.to==card).map(|f|{
           let ok=link_of(&shown,&f.from,&f.to).is_some_and(|(p,c)|removable(&shown,&p,&c));
           (f.from.clone(),names(&f.from),f.subscribers,ok)
         }).collect()).unwrap_or_default());
@@ -1264,6 +1268,7 @@ fn NodeEditor(
           .filter(|c|c.id!=card && can_parent(&c.node) && !links.iter().any(|l|l.0==c.id) && drop_edit(&shown,&c.id,&card).is_ok())
           .map(|c|(c.id,c.name)).collect();
         let (card2,shown2)=(card.clone(),shown.clone());
+        let whole=cards(&shown).into_iter().find(|c|c.id==card);
         // A group is removed through its links or not read. A merged card is removed through
         // its links. A WAN, router, or Site card can hold child cards.
         let group_source=(n.kind=="group").then(||n.source_id.clone()).flatten();
@@ -1347,7 +1352,11 @@ fn NodeEditor(
             <fieldset><legend>"Router"</legend>
               <div class="check">
                 <input type="checkbox" id="canvas-tree-exclude" disabled=locked prop:checked=n.tree_excluded
-                  on:change=move|ev|send.run(BuilderEdit::NodeTreeExclude{node_id:id.clone(),excluded:event_target_checked(&ev)})/>
+                  on:change=move|ev|{
+                    let edit=BuilderEdit::NodeTreeExclude{node_id:id.clone(),excluded:event_target_checked(&ev)};
+                    // Every copy of the router card leaves or joins the tree together.
+                    match &whole{Some(c)=>card_edits(c,vec![edit]).into_iter().for_each(|e|send.run(e)),None=>send.run(edit)}
+                  }/>
                 <label for="canvas-tree-exclude">"Exclude from network tree"
                   <small>"Its groups go to the parent of this card in network.json."</small></label>
               </div>

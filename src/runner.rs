@@ -713,9 +713,9 @@ where
     /// I/O. The cycle, each registry commit, and each preview refresh call it.
     fn publish_web_view(&mut self, now: u64) {
         let routed = self.rebalanced(now);
-        let routing_moves = routed
-            .as_ref()
-            .map_or(0, |(current, _, fresh)| moves(current, fresh));
+        let routing_moves = routed.as_ref().map_or(0, |(current, _, fresh)| {
+            crate::topology_manager::routing_balance::moves(current, fresh)
+        });
         let routing = routed.map(|(_, sticky, _)| sticky);
         let doc = self.api_document().ok().flatten();
         let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
@@ -2574,9 +2574,16 @@ where
             return Ok(None);
         }
         let catalog = pair.catalog().context("the pair has no catalog")?;
+        let registered = pair
+            .candidate()
+            .subscribers
+            .iter()
+            .map(|s| s.id.as_str())
+            .collect();
         let routing = self.route(
             &crate::topology_manager::routing_balance::placed_of(pair),
             catalog,
+            &registered,
         );
         crate::topology_manager::wan_lists::wanted(pair, catalog, &routing).map(Some)
     }
@@ -2594,7 +2601,7 @@ where
         let (current, _, next) = self
             .rebalanced(now)
             .ok_or_else(|| rule("refresh the observations first".into()))?;
-        let count = moves(&current, &next);
+        let count = crate::topology_manager::routing_balance::moves(&current, &next);
         if apply {
             next.save(&Path::new(&self.cfg.runtime.state_dir).join("topology-manager"))?;
             self.routing = Some(next);
@@ -2642,9 +2649,10 @@ where
         &mut self,
         placed: &[crate::topology_manager::routing_balance::Placed],
         catalog: &crate::topology_manager::catalog::TopologyCatalog,
+        registered: &std::collections::HashSet<&str>,
     ) -> crate::topology_manager::routing_balance::RoutingState {
         use crate::topology_manager::routing_balance::{
-            RoutingState, balance, candidates, demands,
+            RoutingState, balance, candidates, carry_absent, demands,
         };
         let dir = Path::new(&self.cfg.runtime.state_dir).join("topology-manager");
         let now = std::time::SystemTime::now()
@@ -2656,11 +2664,12 @@ where
             .map(|m| m.snapshot(now))
             .unwrap_or_default();
         let previous = self.routing.get_or_insert_with(|| RoutingState::load(&dir));
-        let next = balance(
+        let mut next = balance(
             &demands(placed, catalog),
             &candidates(catalog, &wan),
             previous,
         );
+        carry_absent(&mut next, previous, registered);
         if &next != previous {
             if let Err(e) = next.save(&dir) {
                 eprintln!("warning: cannot write the routing balance: {e:#}");
@@ -3224,16 +3233,6 @@ where
 }
 
 /// The subscribers whose routing WAN differs between two routing states.
-fn moves(
-    current: &crate::topology_manager::routing_balance::RoutingState,
-    next: &crate::topology_manager::routing_balance::RoutingState,
-) -> u64 {
-    next.assigned
-        .iter()
-        .filter(|(s, w)| current.assigned.get(*s) != Some(*w))
-        .count() as u64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

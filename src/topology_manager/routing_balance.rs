@@ -117,6 +117,30 @@ pub fn balance(demands: &[Demand], wans: &[WanCandidate], previous: &RoutingStat
     out
 }
 
+/// The subscribers that change routing WAN from `current` to `next`. A subscriber without a
+/// routing WAN in `current` (new, or the writer was off) is not a move: no route changes.
+pub fn moves(current: &RoutingState, next: &RoutingState) -> u64 {
+    next.assigned
+        .iter()
+        .filter(|(s, w)| current.assigned.get(*s).is_some_and(|c| c != *w))
+        .count() as u64
+}
+
+/// Keep the routing WAN of a registered subscriber that is not shaped in this cycle (offline, or
+/// a placement conflict), so that it returns to the same WAN. Forget a subscriber that left the
+/// registry. The writer gives an entry only to shaped subscribers.
+pub fn carry_absent(
+    next: &mut RoutingState,
+    previous: &RoutingState,
+    registered: &std::collections::HashSet<&str>,
+) {
+    for (subscriber, wan) in &previous.assigned {
+        if registered.contains(subscriber.as_str()) && !next.assigned.contains_key(subscriber) {
+            next.assigned.insert(subscriber.clone(), wan.clone());
+        }
+    }
+}
+
 /// One placed subscriber: subscriber ID, placement node ID (empty: flat), max download Mbps.
 pub type Placed = (String, String, f64);
 
@@ -326,6 +350,27 @@ mod tests {
         ];
         let s = balance(&d, &wans, &prev(&[("s0", "w1")]));
         assert_eq!(s, prev(&[("s0", "w1")]));
+    }
+
+    #[test]
+    fn an_absent_subscriber_keeps_its_wan_until_it_leaves_the_registry() {
+        let wans = [wan("w1", 100, None, true), wan("w2", 100, None, true)];
+        let p = prev(&[("s00", "w2"), ("gone", "w2"), ("s01", "w1")]);
+        // s00 is offline this cycle; "gone" left the registry.
+        let mut next = balance(&[demand("s01", &[], AllocationMode::Count)], &wans, &p);
+        carry_absent(&mut next, &p, &["s00", "s01"].into_iter().collect());
+        assert_eq!(next, prev(&[("s00", "w2"), ("s01", "w1")]));
+        // On its return, s00 keeps w2.
+        let back = balance(&many(2, AllocationMode::Count), &wans, &next);
+        assert_eq!(back.assigned["s00"], "w2");
+    }
+
+    #[test]
+    fn a_move_counts_only_a_subscriber_that_changes_wan() {
+        // s02 has no routing WAN yet (the writer was off): it is not a move.
+        let current = prev(&[("s00", "w1"), ("s01", "w1")]);
+        let next = prev(&[("s00", "w1"), ("s01", "w2"), ("s02", "w2")]);
+        assert_eq!(moves(&current, &next), 1);
     }
 
     #[test]

@@ -896,7 +896,8 @@ fn router_copies_share_one_card_id() {
 #[test]
 fn flows_merge_duplicate_lines_and_count_subscribers() {
     let d = router_copies_doc();
-    let p = sized_preview(&[("r1", 3), ("r2", 2), ("group1", 3), ("group2", 2)], &[]);
+    // As in the preview: a router copy has no direct subscribers; its groups have them.
+    let p = sized_preview(&[("r1", 0), ("r2", 0), ("group1", 3), ("group2", 2)], &[]);
     let mut i = input(Some(&d), Some(&p), None);
     i.now = 90;
     let v = project(&i);

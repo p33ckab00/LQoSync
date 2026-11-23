@@ -2191,3 +2191,32 @@ fn a_fixed_card_capacity_is_split_by_wan_capacity() {
     assert_eq!(base("group1"), (30, 10));
     assert_eq!(base("group2"), (60, 20));
 }
+
+#[test]
+fn a_card_capacity_gives_each_placement_at_least_1_mbps() {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    // A 10 Gbit/s WAN and a 50 Mbit/s LTE WAN.
+    for (id, mbps) in [("wan1", 10_000), ("wan2", 50)] {
+        let n = c.nodes.iter_mut().find(|n| n.id == id).unwrap();
+        if let catalog::CapacityPolicy::Fixed { base, .. } = &mut n.capacity {
+            *base = RateBps {
+                down: mbps * 1_000_000,
+                up: mbps * 1_000_000,
+            };
+        }
+    }
+    let fixed = |down: u64, up: u64| {
+        json!({"kind": "card.capacity", "card_id": "source:profile-source",
+               "capacity": {"mode": "fixed", "down_mbps": down, "up_mbps": up, "factor_percent": null}})
+    };
+    let out = run(&d, fixed(100, 30)).unwrap();
+    let base = |id: &str| match node(&out.candidate, id).capacity {
+        catalog::CapacityPolicy::Fixed { base, .. } => (base.down / 1_000_000, base.up / 1_000_000),
+        ref other => panic!("{other:?}"),
+    };
+    assert_eq!(base("group2"), (1, 1));
+    assert_eq!(base("group1"), (99, 29));
+    let why = refused(&d, fixed(1, 30));
+    assert!(why.contains("at least 1 Mbps"), "{why}");
+}

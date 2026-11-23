@@ -1,6 +1,6 @@
 //! Pure geometry and form rules of the Topology canvas, so native tests cover them.
 use crate::canvas_layout::{CardBox, Tier, edge_path, layout_in};
-use web_contract::topology::{BuilderEdit, Direction, DiscoveredRouter, Location, Node};
+use web_contract::topology::{BuilderEdit, Direction, DiscoveredRouter, Flow, Location, Node};
 
 pub(crate) const CARD_W: f64 = 232.0;
 pub(crate) const CARD_H: f64 = 84.0;
@@ -141,8 +141,8 @@ pub(crate) fn saved_positions(
 }
 
 /// The edits of a card form for every node of the card. With one node the edits stay. With
-/// several, a capacity is the card total (`card.capacity`), and a name, a location, or a router
-/// goes to each node.
+/// several, a capacity is the card total (`card.capacity`), and a name, a location, a router, or
+/// the tree exclusion goes to each node.
 pub(crate) fn card_edits(card: &Card, edits: Vec<BuilderEdit>) -> Vec<BuilderEdit> {
     if card.nodes.len() < 2 {
         return edits;
@@ -176,6 +176,12 @@ pub(crate) fn card_edits(card: &Card, edits: Vec<BuilderEdit>) -> Vec<BuilderEdi
                 out.extend(card.nodes.iter().map(|id| BuilderEdit::NodeRouter {
                     node_id: id.clone(),
                     router_id: router_id.clone(),
+                }))
+            }
+            BuilderEdit::NodeTreeExclude { excluded, .. } => {
+                out.extend(card.nodes.iter().map(|id| BuilderEdit::NodeTreeExclude {
+                    node_id: id.clone(),
+                    excluded,
                 }))
             }
             other => out.push(other),
@@ -222,6 +228,34 @@ pub(crate) fn direction_of(name: &str) -> Option<Direction> {
     ]
     .into_iter()
     .find(|d| direction_name(*d) == name)
+}
+
+/// One line for each pair of cards with a parent link, in node order. The count comes from the
+/// view flows; a flow that the reply limit cut counts 0, but its line stays.
+pub(crate) fn lines(nodes: &[Node], flows: &[Flow]) -> Vec<Flow> {
+    let mut out: Vec<Flow> = Vec::new();
+    for n in nodes {
+        let Some(p) = nodes
+            .iter()
+            .find(|p| Some(p.id.as_str()) == n.parent.as_deref())
+        else {
+            continue;
+        };
+        let (from, to) = (card_of(p), card_of(n));
+        if out.iter().any(|f| f.from == from && f.to == to) {
+            continue;
+        }
+        let subscribers = flows
+            .iter()
+            .find(|f| f.from == from && f.to == to)
+            .map_or(0, |f| f.subscribers);
+        out.push(Flow {
+            from: from.into(),
+            to: to.into(),
+            subscribers,
+        });
+    }
+    out
 }
 
 /// The width of a flow line: 1.5 px to 10 px by the largest flow on the canvas.
@@ -456,7 +490,7 @@ pub(crate) fn split_paste(text: &str) -> Option<Result<Location, String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use web_contract::topology::{Capacity, Direction, WanCandidate};
+    use web_contract::topology::{Capacity, Direction, Flow, WanCandidate};
 
     fn node(id: &str, parent: Option<&str>, position: Option<[f64; 2]>) -> Node {
         Node {
@@ -719,6 +753,20 @@ mod tests {
             .len(),
             2
         );
+        let router = cards(&merged()).remove(2);
+        assert_eq!(
+            card_edits(
+                &router,
+                vec![BuilderEdit::NodeTreeExclude {
+                    node_id: "r1".into(),
+                    excluded: true
+                }]
+            ),
+            ["r1", "r2"].map(|id| BuilderEdit::NodeTreeExclude {
+                node_id: id.into(),
+                excluded: true
+            })
+        );
         let single = cards(&merged()).remove(0);
         let move_edit = vec![BuilderEdit::NodeRemove {
             node_id: "wan1".into(),
@@ -739,6 +787,30 @@ mod tests {
         assert_eq!(direction_of("sideways"), None);
         assert!(leaf_top(true) > leaf_top(false));
         const { assert!(LEAF_LINE > 0.0 && LEAF_ROW > 0.0) };
+    }
+
+    #[test]
+    fn every_parent_link_is_a_line_even_without_its_flow() {
+        let nodes = merged();
+        // The reply limit cut the flows: only one count arrived.
+        let flows = [Flow {
+            from: "wan1".into(),
+            to: "router:hub-1".into(),
+            subscribers: 3,
+        }];
+        let l = lines(&nodes, &flows);
+        let pairs: Vec<(&str, &str, u64)> = l
+            .iter()
+            .map(|f| (f.from.as_str(), f.to.as_str(), f.subscribers))
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("wan1", "router:hub-1", 3),
+                ("wan2", "router:hub-1", 0),
+                ("router:hub-1", "source:S", 0)
+            ]
+        );
     }
 
     #[test]

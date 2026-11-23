@@ -161,12 +161,28 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         .iter()
         .map(|n| (n.id.as_str(), n.card_id.as_str()))
         .collect();
+    // The subscribers below each node: its own and those of every node under it.
+    let parent_of: HashMap<&str, &str> = nodes
+        .iter()
+        .filter_map(|n| Some((n.id.as_str(), n.parent.as_deref()?)))
+        .collect();
+    let mut below: HashMap<&str, u64> = HashMap::new();
+    for node in &nodes {
+        let count = node.members.unwrap_or(0);
+        let mut at = Some(node.id.as_str());
+        // A parent cycle cannot loop: at most one step for each node.
+        for _ in 0..=nodes.len() {
+            let Some(id) = at else { break };
+            *below.entry(id).or_default() += count;
+            at = parent_of.get(id).copied();
+        }
+    }
     let mut lines: BTreeMap<(String, String), u64> = BTreeMap::new();
     for node in &nodes {
         if let Some(from) = node.parent.as_deref().and_then(|p| card_of.get(p)) {
             *lines
                 .entry((from.to_string(), node.card_id.clone()))
-                .or_default() += node.members.unwrap_or(0);
+                .or_default() += below.get(node.id.as_str()).copied().unwrap_or(0);
         }
     }
     let flows: Vec<web_contract::topology::Flow> = lines

@@ -843,8 +843,8 @@ fn card_capacity(
         return Err(invalid("the card does not exist"));
     };
     let policy = capacity.policy(c.nodes[first].kind)?;
-    // The fixed capacity of the WAN at the root above a node; 1 when there is none.
-    let wan_of = |mut i: usize| -> RateBps {
+    // The fixed capacity of the WAN at the root above a node.
+    let wan_of = |mut i: usize| -> Option<RateBps> {
         while let Some(p) = c.nodes[i].parent.as_deref() {
             match c.nodes.iter().position(|n| n.id == p) {
                 Some(j) => i = j,
@@ -852,33 +852,54 @@ fn card_capacity(
             }
         }
         match (c.nodes[i].kind, c.nodes[i].capacity) {
-            (NodeKind::Wan, CapacityPolicy::Fixed { base, .. }) => base,
-            _ => RateBps { down: 1, up: 1 },
+            (NodeKind::Wan, CapacityPolicy::Fixed { base, .. }) => Some(base),
+            _ => None,
         }
     };
-    let weights: Vec<RateBps> = members.iter().map(|&i| wan_of(i)).collect();
-    let split = |total: u64, w: &[u64]| -> Vec<u64> {
+    // A placement without a WAN above it: every placement gets an equal share.
+    let weights: Vec<RateBps> = members
+        .iter()
+        .map(|&i| wan_of(i))
+        .collect::<Option<Vec<_>>>()
+        .unwrap_or_else(|| vec![RateBps { down: 1, up: 1 }; members.len()]);
+    // Whole Mbps in the WAN ratio, at least 1 for each placement; the largest WAN takes the rest.
+    let split = |total: u64, w: &[u64]| -> anyhow::Result<Vec<u64>> {
+        if total < w.len() as u64 {
+            return Err(invalid(
+                "a card capacity needs at least 1 Mbps for each WAN link of the card",
+            ));
+        }
         let sum = w.iter().map(|&x| u128::from(x)).sum::<u128>().max(1);
         let mut parts: Vec<u64> = w
             .iter()
-            .map(|&x| u64::try_from(u128::from(total) * u128::from(x) / sum).unwrap_or(0))
+            .map(|&x| {
+                u64::try_from(u128::from(total) * u128::from(x) / sum)
+                    .unwrap_or(0)
+                    .max(1)
+            })
             .collect();
         let largest = (0..w.len())
             .max_by_key(|&i| (w[i], std::cmp::Reverse(i)))
             .unwrap_or(0);
-        parts[largest] += total - parts.iter().sum::<u64>();
-        parts
+        let others: u64 = parts.iter().sum::<u64>() - parts[largest];
+        parts[largest] = total.saturating_sub(others);
+        if parts.contains(&0) {
+            return Err(invalid(
+                "a card capacity needs at least 1 Mbps for each WAN link of the card",
+            ));
+        }
+        Ok(parts)
     };
     let policies: Vec<CapacityPolicy> = match policy {
         CapacityPolicy::Fixed { base, factors } if members.len() > 1 => {
             let down = split(
                 base.down / 1_000_000,
                 &weights.iter().map(|w| w.down).collect::<Vec<_>>(),
-            );
+            )?;
             let up = split(
                 base.up / 1_000_000,
                 &weights.iter().map(|w| w.up).collect::<Vec<_>>(),
-            );
+            )?;
             down.into_iter()
                 .zip(up)
                 .map(|(d, u)| CapacityPolicy::Fixed {

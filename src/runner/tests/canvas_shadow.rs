@@ -1135,9 +1135,32 @@ async fn rebalance_routing_reports_then_applies() {
         serde_json::from_slice(&std::fs::read(e.state.join(web_contract::topology::CACHE)).unwrap())
             .unwrap()
     };
-    // The view always counts the subscribers that a Rebalance would move.
+    // No routing WAN yet: a Rebalance changes no route.
+    assert_eq!(view(&e).routing_moves, 0);
+    let dir = e.state.join("topology-manager");
+    let state = dir.join(crate::topology_manager::routing_balance::FILE);
+    // All subscribers on one WAN: a Rebalance by count moves some of them.
+    let mut lopsided = crate::topology_manager::routing_balance::RoutingState::default();
+    let wan = r
+        .api_document()
+        .unwrap()
+        .unwrap()
+        .catalog
+        .unwrap()
+        .nodes
+        .into_iter()
+        .find(|n| n.kind == crate::topology_manager::layout::NodeKind::Wan)
+        .unwrap()
+        .id;
+    for s in &r.api_document().unwrap().unwrap().subscribers {
+        lopsided.assigned.insert(s.id.clone(), wan.clone());
+    }
+    lopsided.save(&dir).unwrap();
+    r.routing = None;
+    r.api_preview_refresh().await.unwrap();
     let moves = view(&e).routing_moves;
     assert!(moves > 0);
+    let before = std::fs::read(&state).unwrap();
     let revision = r.api_document().unwrap().unwrap().revision;
     let ask = |apply: bool| WebCommand::Edit {
         expected_revision: revision,
@@ -1146,17 +1169,18 @@ async fn rebalance_routing_reports_then_applies() {
     r.api_web_mutate("routing-rebalance-report", "operator", ask(false))
         .await
         .unwrap();
-    let state = e
-        .state
-        .join("topology-manager")
-        .join(crate::topology_manager::routing_balance::FILE);
-    assert!(!state.exists(), "a report changes nothing");
+    assert_eq!(
+        std::fs::read(&state).unwrap(),
+        before,
+        "a report changes nothing"
+    );
     r.api_web_mutate("routing-rebalance-applied", "operator", ask(true))
         .await
         .unwrap();
-    let saved = crate::topology_manager::routing_balance::RoutingState::load(
-        &e.state.join("topology-manager"),
+    let saved = crate::topology_manager::routing_balance::RoutingState::load(&dir);
+    assert_eq!(
+        crate::topology_manager::routing_balance::moves(&lopsided, &saved),
+        moves
     );
-    assert_eq!(saved.assigned.len() as u64, moves);
     assert_eq!(view(&e).routing_moves, 0);
 }
