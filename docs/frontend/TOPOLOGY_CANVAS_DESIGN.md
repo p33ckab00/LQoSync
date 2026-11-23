@@ -193,11 +193,25 @@ Strict-pin failure behavior and quality probe policy require a separate decision
 
 ### WAN routing lists (2026-11-22)
 
-- The writer puts each client address in the `via-` list of the WAN above its current node, with the comment `lqosync: <client>`. It changes only such entries.
+- The writer puts each client address in the `via-` list of its routing WAN, with the comment `lqosync: <client>`. It changes only such entries. The routing balance gives a WAN also to clients of a card without a WAN link (2026-11-23).
 - Each publication writes the lists first. The shaping pair goes out only after the router confirms the lists.
 - A write that removes too many clients holds for one cycle. A failed write keeps the previous pair.
 - The one-time adoption (Topology settings, **Adopt current routing**) keeps the WAN that the old range lists give each client.
 - Operator procedure: [WAN routing lists](../operations/WAN_ROUTING_LISTS.md).
+
+### Flows, links, and layout directions (2026-11-23)
+
+- One card for each node. The placements of one source below several WANs are one card. The copies of one router below several WANs are one card. The canvas, the List view, and the card settings never show the placements as separate cards.
+- The service gives each node its card ID (`source:<id>`, `router:<id>`, else the node ID) and the lines between cards (`flows`). The line width shows the subscriber count: 1.5 px to 10 px, by the largest line on the canvas.
+- Add a link: drag from the connector of a WAN, router, or Site card, or use **Add link from** in the card settings.
+- Remove a link: click the line, then click **Remove link** or push Delete. With the keyboard, use **Remove link** in the **Links** list of the card settings. The list also gives each line as text.
+  - The only link of a card: the card goes to the top level. Its child cards stay below it.
+  - One of several WAN links: the placement below that WAN goes. Its subscribers go to the other placements by the allocation mode.
+  - You cannot remove the link between a group and its own router card.
+- A fixed capacity of a card with several placements is the card total. The service divides it in the ratio of the WAN capacities.
+- Below each group card, one line shows the subscribers on each WAN. **Show subscribers** opens up to 50 names with a WAN mark, and **+N more** opens the Assignments tab. The layout keeps space for the open list.
+- Layout directions: Top-down, Bottom-up, Left to right, and Right to left. The ports follow the direction. `canvas-layout.json` keeps the manual positions of each direction (schema 2).
+- **Rebalance routing** in Topology settings shows the count of clients that change WAN, then applies after a confirmation.
 
 ### Automatic placement (2026-11-22)
 

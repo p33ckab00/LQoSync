@@ -169,6 +169,13 @@ Enrollment and recovery do not claim topology runtime ownership or activate the 
 - Not done: automatic router nodes (Task 2), the routing warning in the review step, and the copy of later groups to other router node copies.
 - Before deploy: the schema-8 backup for rollback, and read access to `/ip/route` on the WAN routers.
 
+## Canvas flows and routing balance (2026-11-23)
+
+- Status: done on branch `lqosync3`, Tasks 1–7 of `docs/superpowers/plans/2026-11-23-canvas-flows-and-routing-balance.md`. Not deployed.
+- Backend: the routing balance (`routing_balance.rs`, runtime state `routing-balance.json`) and the lists from the balance. Also `routing.rebalance`, card IDs, flows and leaf labels in the view, `link.remove`, `card.capacity`, and layout directions.
+- Web: one card for each node, flow lines by subscriber count, link removal by mouse and keyboard, leaf labels, the direction selector, and Rebalance routing.
+- Rollback: a top-down layout stays schema 1. After a change to another direction, `canvas-layout.json` is schema 2, and an older build cannot read it. Keep a copy of `canvas-layout.json` before deploy.
+
 ## Recorded verification
 
 At checkpoint `79ba5a2`, the recorded full suite has 1,193 passed tests, zero failures, and 13 ignored tests.

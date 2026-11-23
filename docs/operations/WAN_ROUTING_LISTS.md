@@ -1,6 +1,6 @@
 # WAN routing lists: setup and cutover
 
-Status: procedure for the first setup. Version: 2026-11-22.
+Status: procedure for the first setup. Version: 2026-11-23.
 
 LQoSync chooses the WAN of each client. The routing list writer puts each client address in one list on the core router: `via-WAN1`, `via-WAN2`, and so on. Mangle rules on the core router send the traffic of each list to its WAN. Thus shaping (LibreQoS) and routing (MikroTik) use the same WAN.
 
@@ -159,8 +159,29 @@ Remove the old rules only when their packet counters stay at zero for one week. 
    /ip firewall address-list remove [find list~"^via-" and comment~"^lqosync"]
    ```
 
+## Routing balance
+
+Each client has one routing WAN. The service keeps the routing WAN of each client in `topology-manager/routing-balance.json`. This file is runtime state, not a policy revision.
+
+- A client of a card with WAN links gets one of the WANs of those links.
+- A client of a card without a WAN link also gets a routing WAN. The service balances these clients over all WANs that accept new clients. It uses the allocation mode of the source, else the topology default. The modes are Count (fewest clients), Capacity (load against WAN capacity), and Quality (capacity multiplied by the WAN quality score).
+- The balance compares the total load of each WAN: clients with and without WAN links together.
+- A client keeps its routing WAN while that WAN accepts clients. A new client goes to the best WAN for the mode.
+- When all linked WANs of a client are down, routing moves the client to a WAN that is up. Shaping does not move. The client returns by the automatic failback rule.
+- When all WANs are down, no client moves.
+
+To balance all clients again:
+
+1. Open Topology, then **Topology settings**.
+2. In **Routing lists**, read the text. It shows how many clients change WAN.
+3. Click **Rebalance routing**, then **Confirm: move N**.
+
+CAUTION: A client that changes WAN loses its open connections.
+
 ## Limits
 
 - IPv6 client addresses get no list entry.
+- A card without a WAN link has no WAN node above it in `network.json`. Thus no WAN ceiling limits its shaping. The rate of each client stays correct.
+- While the writer is off, the canvas shows the balance, but the router does not follow it.
 - A change of the writer user or the router address applies after a service restart.
 - A WAN failover in LQoSync moves the list entries. The fallback routes on the router (`distance=2`) also stay active.
