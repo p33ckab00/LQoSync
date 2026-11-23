@@ -207,6 +207,10 @@ pub struct RouterEdit {
     pub dhcp_clients: Option<Vec<DhcpClientOverride>>,
     pub dhcp_server_mode: Option<String>,
     pub dhcp_servers: Option<Vec<DhcpServerSetting>>,
+    /// A present list replaces all access profiles, at most 8. An absent password keeps the
+    /// saved secret. Older forms omit the field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_profiles: Option<Vec<crate::source_studio::AccessProfileEdit>>,
 }
 
 /// What the browser sends: the edit, and the operator password when the edit replaces a credential.

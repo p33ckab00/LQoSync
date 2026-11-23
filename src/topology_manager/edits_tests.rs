@@ -1362,11 +1362,33 @@ fn every_web_builder_edit_is_a_service_edit() {
             default_up_mbps: 5,
         },
         B::FallbackClear,
+        B::RouterSourcesSet {
+            router_id: "r1".into(),
+            expected_config_digest: "d".into(),
+            policies: vec![],
+        },
+        B::WanCandidateSet {
+            router_id: "r1".into(),
+            expected_config_digest: "d".into(),
+            interface: "ether1".into(),
+            decision: web_contract::source_studio::WanCandidateDecision::Pin,
+        },
     ];
     for edit in edits {
         let wire = serde_json::to_value(&edit).unwrap();
         let parsed: Result<Edit, _> = serde_json::from_value(wire.clone());
         assert!(parsed.is_ok(), "{wire}: {parsed:?}");
+    }
+}
+
+#[test]
+fn studio_source_edits_are_refused_until_their_task() {
+    for edit in [
+        json!({"kind":"router.sources_set","router_id":"r1","expected_config_digest":"d","policies":[]}),
+        json!({"kind":"wan.candidate_set","router_id":"r1","expected_config_digest":"d",
+               "interface":"ether1","decision":"pin"}),
+    ] {
+        assert!(refused(&doc(), edit).contains("not available"));
     }
 }
 

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub mod dpdk;
 pub mod journal;
 pub mod routers;
+pub mod source_studio;
 pub mod topology;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Overview {

@@ -205,6 +205,381 @@ fn fake_router_edit(config: &std::path::Path) -> anyhow::Result<()> {
     )
 }
 
+/// Topology Studio routes of the fixture only. Each answer comes from the shared contract fixture
+/// `crates/web-contract/tests/fixtures/studio/`. The production router has none of these routes.
+mod studio {
+    use axum::{
+        Json, Router,
+        body::{Body, to_bytes},
+        extract::{Query, Request, State},
+        http::{HeaderMap, HeaderValue, Method, StatusCode, header},
+        middleware::Next,
+        response::{IntoResponse, Response},
+    };
+    use serde::Deserialize;
+    use serde_json::Value;
+    use std::{
+        collections::{BTreeMap, HashMap},
+        sync::{Arc, Mutex},
+    };
+    use tower::ServiceExt;
+    use web_contract::{Principal, source_studio::*, topology::Operation};
+
+    const DIR: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../web-contract/tests/fixtures/studio"
+    );
+    const CASES: [&str; 6] = [
+        "normal",
+        "partial_read",
+        "revision_conflict",
+        "expired_candidate",
+        "lost_reply",
+        "legacy_backend",
+    ];
+    const ORIGIN: &str = "http://127.0.0.1:19581";
+
+    #[derive(Deserialize)]
+    pub struct Refusal {
+        pub status: u16,
+        pub error: StudioError,
+    }
+
+    /// One case: `normal.json` with the top-level sections of the case file replaced.
+    #[derive(Deserialize)]
+    pub struct Case {
+        case: String,
+        /// `None`: an old backend without Studio endpoints.
+        capabilities: Option<StudioCapabilities>,
+        source_configs: BTreeMap<String, RouterSourceConfig>,
+        operations: BTreeMap<String, Operation>,
+        pub refusals: BTreeMap<String, Refusal>,
+        /// The service accepts a job, but the HTTP answer is lost (`503`).
+        lost_reply: bool,
+        candidate_status: u16,
+        candidate: CandidateSummary,
+        records: Vec<ResolvedRecord>,
+        issues: Vec<ValidationIssue>,
+    }
+
+    pub struct Scenario {
+        cases: HashMap<String, Arc<Case>>,
+        current: Mutex<Arc<Case>>,
+        /// Accepted source jobs by actor and key, with the request payload.
+        jobs: Mutex<HashMap<(String, String), (StudioJobRequest, Operation)>>,
+    }
+
+    impl Scenario {
+        /// Reads every case, so that a fixture file that breaks the contract stops the start.
+        pub fn load() -> anyhow::Result<Arc<Self>> {
+            let read = |n: &str| -> anyhow::Result<Value> {
+                Ok(serde_json::from_str(&std::fs::read_to_string(format!(
+                    "{DIR}/{n}.json"
+                ))?)?)
+            };
+            let mut cases = HashMap::new();
+            for name in CASES {
+                let mut base = read("normal")?;
+                for (k, v) in read(name)?.as_object().into_iter().flatten() {
+                    base[k] = v.clone();
+                }
+                let case: Case = serde_json::from_value(base)?;
+                anyhow::ensure!(case.case == name, "fixture case {name} names {}", case.case);
+                cases.insert(name.to_owned(), Arc::new(case));
+            }
+            let current = Mutex::new(cases["normal"].clone());
+            Ok(Arc::new(Self {
+                cases,
+                current,
+                jobs: Mutex::default(),
+            }))
+        }
+
+        pub fn case(&self) -> Arc<Case> {
+            self.current.lock().unwrap().clone()
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct Studio {
+        pub scenario: Arc<Scenario>,
+        /// The production router, for the session check.
+        pub inner: Router,
+    }
+
+    fn error(status: StatusCode, code: &str, message: &str) -> Response {
+        let body = StudioError {
+            code: code.into(),
+            message: message.into(),
+            field: None,
+        };
+        (status, Json(body)).into_response()
+    }
+
+    fn valid_key(key: &str) -> bool {
+        (16..=64).contains(&key.len())
+            && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    }
+
+    /// The production session check, through the production router.
+    async fn principal(inner: &Router, h: &HeaderMap) -> Option<Principal> {
+        let mut request = Request::get("/api/v1/session").body(Body::empty()).ok()?;
+        if let Some(cookie) = h.get(header::COOKIE) {
+            request.headers_mut().insert(header::COOKIE, cookie.clone());
+        }
+        let r = inner.clone().oneshot(request).await.ok()?;
+        if !r.status().is_success() {
+            return None;
+        }
+        serde_json::from_slice(&to_bytes(r.into_body(), 4096).await.ok()?).ok()
+    }
+
+    /// A shortcut: the cursor is a plain offset. The real service binds it to the actor,
+    /// candidate, draft digest, and filter (task B3).
+    fn page<T: Clone + serde::Serialize>(
+        id: &str,
+        items: &[T],
+        q: &CandidatePageQuery,
+    ) -> Response {
+        if !(1..=PAGE_MAX).contains(&q.limit) {
+            return error(
+                StatusCode::BAD_REQUEST,
+                "invalid",
+                "The page limit is 1 to 100.",
+            );
+        }
+        let start = match q.cursor.as_deref().map(str::parse::<usize>) {
+            None => 0,
+            Some(Ok(n)) if n > 0 && n < items.len() => n,
+            Some(_) => {
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "invalid_cursor",
+                    "Load the first page again.",
+                );
+            }
+        };
+        let end = (start + usize::from(q.limit)).min(items.len());
+        Json(CandidatePage {
+            candidate_id: id.into(),
+            items: items[start..end].to_vec(),
+            next_cursor: (end < items.len()).then(|| end.to_string()),
+            total: items.len() as u64,
+        })
+        .into_response()
+    }
+
+    pub async fn layer(State(s): State<Studio>, request: Request, next: Next) -> Response {
+        let mut r = handle(&s, request, next).await;
+        r.headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        r
+    }
+
+    async fn handle(s: &Studio, request: Request, next: Next) -> Response {
+        let path = request.uri().path().to_owned();
+        let control = path == "/__fixture/studio/scenario";
+        let operation = path
+            .strip_prefix("/api/v1/topology/operations/")
+            .map(str::to_owned);
+        let config = path
+            .strip_prefix("/api/v1/routers/")
+            .and_then(|p| p.strip_suffix("/source-config"))
+            .map(str::to_owned);
+        let candidate = path
+            .strip_prefix("/api/v1/topology/source-candidates/")
+            .map(str::to_owned);
+        let capabilities = path == "/api/v1/topology/source-capabilities";
+        let jobs = path == "/api/v1/topology/source-jobs";
+        if !(control
+            || capabilities
+            || jobs
+            || operation.is_some()
+            || config.is_some()
+            || candidate.is_some())
+        {
+            return next.run(request).await;
+        }
+        let case = s.scenario.case();
+        let Some(p) = principal(&s.inner, request.headers()).await else {
+            let legacy = case.capabilities.is_none() && !control;
+            return if operation.is_some() || legacy {
+                next.run(request).await
+            } else {
+                StatusCode::UNAUTHORIZED.into_response()
+            };
+        };
+        if let Some(key) = operation {
+            let known = s
+                .scenario
+                .jobs
+                .lock()
+                .unwrap()
+                .get(&(p.username.clone(), key))
+                .map(|j| j.1.clone());
+            return match known {
+                Some(op) => Json(op).into_response(),
+                None => next.run(request).await,
+            };
+        }
+        // An old backend: the production router answers `404`.
+        if case.capabilities.is_none() && !control {
+            return next.run(request).await;
+        }
+        let post = request.method() == Method::POST;
+        if post {
+            let h = request.headers();
+            let origin = h.get(header::ORIGIN).and_then(|v| v.to_str().ok()) == Some(ORIGIN);
+            let csrf = h.get("x-csrf-token").and_then(|v| v.to_str().ok()) == Some(p.csrf.as_str());
+            if !origin || !csrf {
+                return StatusCode::FORBIDDEN.into_response();
+            }
+        } else if request.method() != Method::GET {
+            return StatusCode::METHOD_NOT_ALLOWED.into_response();
+        }
+        if (control || jobs) != post {
+            return StatusCode::METHOD_NOT_ALLOWED.into_response();
+        }
+        if control {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Control {
+                case: String,
+            }
+            let body = to_bytes(request.into_body(), 1024)
+                .await
+                .unwrap_or_default();
+            let Some(next_case) = serde_json::from_slice::<Control>(&body)
+                .ok()
+                .and_then(|c| s.scenario.cases.get(&c.case).cloned())
+            else {
+                return error(StatusCode::BAD_REQUEST, "invalid", "Name a fixture case.");
+            };
+            *s.scenario.current.lock().unwrap() = next_case.clone();
+            s.scenario.jobs.lock().unwrap().clear();
+            return Json(serde_json::json!({"case": next_case.case})).into_response();
+        }
+        if capabilities {
+            return Json(case.capabilities.clone()).into_response();
+        }
+        if let Some(id) = config {
+            return match case.source_configs.get(&id) {
+                Some(c) => Json(c).into_response(),
+                None => error(
+                    StatusCode::NOT_FOUND,
+                    "not_found",
+                    "No source configuration for this router.",
+                ),
+            };
+        }
+        if let Some(rest) = candidate {
+            let (id, part) = rest.split_once('/').unwrap_or((&rest, ""));
+            if id != case.candidate.reference.id {
+                return error(StatusCode::NOT_FOUND, "not_found", "No such candidate.");
+            }
+            if case.candidate_status == 410 {
+                return error(
+                    StatusCode::GONE,
+                    "expired",
+                    "The preview expired. Evaluate the draft again.",
+                );
+            }
+            if case.candidate_status != 200 {
+                return error(StatusCode::NOT_FOUND, "not_found", "No such candidate.");
+            }
+            let Ok(Query(q)) = Query::<CandidatePageQuery>::try_from_uri(request.uri()) else {
+                return error(StatusCode::BAD_REQUEST, "invalid", "Check the page query.");
+            };
+            return match part {
+                "" => Json(&case.candidate).into_response(),
+                "records" => page(id, &case.records, &q),
+                "issues" => page(id, &case.issues, &q),
+                _ => error(
+                    StatusCode::NOT_FOUND,
+                    "not_found",
+                    "No such candidate resource.",
+                ),
+            };
+        }
+        // `POST /api/v1/topology/source-jobs`.
+        let Ok(body) = to_bytes(request.into_body(), MAX_JOB_BODY).await else {
+            return error(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "too_large",
+                "The request is larger than 32 KiB.",
+            );
+        };
+        let Ok(job) = serde_json::from_slice::<StudioJobRequest>(&body) else {
+            return error(StatusCode::BAD_REQUEST, "invalid", "Check the source job.");
+        };
+        if !valid_key(&job.key) {
+            return error(
+                StatusCode::BAD_REQUEST,
+                "invalid",
+                "The request key is 16 to 64 letters, digits, or -.",
+            );
+        }
+        let (kind, router) = match &job.job {
+            StudioJob::DraftTest { .. } => ("draft_test", None),
+            StudioJob::Collect { router_id, .. } => ("collect", Some(router_id)),
+            StudioJob::Evaluate { router_id, .. } => ("evaluate", Some(router_id)),
+        };
+        // The disabled-router rule: only an enabled registered router has a source job.
+        if router.is_some_and(|id| !case.source_configs.get(id).is_some_and(|c| c.enabled)) {
+            return error(
+                StatusCode::CONFLICT,
+                "router_disabled",
+                "Enable the registered router first.",
+            );
+        }
+        let slot = (p.username.clone(), job.key.clone());
+        if let Some((known, op)) = s.scenario.jobs.lock().unwrap().get(&slot) {
+            return if *known == job {
+                accepted(op.clone())
+            } else {
+                error(
+                    StatusCode::CONFLICT,
+                    "key_reused",
+                    "Use a new key for a changed request.",
+                )
+            };
+        }
+        if let Some(r) = case.refusals.get(kind) {
+            let status = StatusCode::from_u16(r.status).unwrap_or(StatusCode::CONFLICT);
+            return (status, Json(&r.error)).into_response();
+        }
+        let Some(op) = case.operations.get(kind) else {
+            return error(
+                StatusCode::NOT_FOUND,
+                "unavailable",
+                "The fixture has no result for this job.",
+            );
+        };
+        let op = Operation {
+            key: job.key.clone(),
+            ..op.clone()
+        };
+        s.scenario
+            .jobs
+            .lock()
+            .unwrap()
+            .insert(slot, (job, op.clone()));
+        if case.lost_reply {
+            return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        }
+        accepted(op)
+    }
+
+    fn accepted(op: Operation) -> Response {
+        let location = format!("/api/v1/topology/operations/{}", op.key);
+        let mut r = (StatusCode::ACCEPTED, Json(op)).into_response();
+        if let Ok(v) = HeaderValue::from_str(&location) {
+            r.headers_mut().insert(header::LOCATION, v);
+        }
+        r
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -365,6 +740,8 @@ async fn main() -> anyhow::Result<()> {
     ] {
         std::fs::write(dir.path().join(name), serde_json::to_vec(&value)?)?;
     }
+    let scenario = studio::Scenario::load()?;
+    let refusals = scenario.clone();
     // A fake service API socket: connection tests answer from the synthetic routers.
     let api = tokio::net::UnixListener::bind(dir.path().join("api.sock"))?;
     tokio::spawn(async move {
@@ -411,6 +788,17 @@ async fn main() -> anyhow::Result<()> {
                 "topology.web.operation" => Some(serde_json::Value::Null),
                 _ => None,
             };
+            // A Studio case can refuse a source policy save, as the service does for a stale revision.
+            if v["op"] == "topology.web.mutate"
+                && v["args"]["command"]["edit"]["kind"] == "router.sources_set"
+                && let Some(r) = refusals.case().refusals.get("router.sources_set")
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                let answer = serde_json::json!({"v":1,"id":v["id"],"ok":false,
+                    "error":{"code":r.error.code,"message":r.error.message}});
+                let _ = write.write_all(format!("{answer}\n").as_bytes()).await;
+                continue;
+            }
             // A router node above a source of another router breaks the family rule.
             if v["op"] == "topology.web.mutate"
                 && v["args"]["command"]["edit"]["kind"] == "node.router"
@@ -514,8 +902,13 @@ async fn main() -> anyhow::Result<()> {
         secure: false,
         index: Arc::new(std::fs::read_to_string(dist.join("index.html"))?),
     };
+    let inner = router(state, dist);
+    let app = inner.clone().layer(axum::middleware::from_fn_with_state(
+        studio::Studio { scenario, inner },
+        studio::layer,
+    ));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:19581").await?;
     println!("Browser fixture ready on loopback 19581; synthetic data only");
-    axum::serve(listener, router(state, dist)).await?;
+    axum::serve(listener, app).await?;
     Ok(())
 }

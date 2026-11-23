@@ -1,0 +1,61 @@
+{
+  "case": "partial_read",
+  "operations": {
+    "draft_test": {
+      "key": "", "state": "done", "receipt": null,
+      "source_result": {"kind": "draft_test", "connection_fingerprint": "fp-fixture-0001", "at": 1795400010, "elapsed_ms": 61,
+        "checks": [
+          {"stage": "transport", "state": "passed", "code": "ok"},
+          {"stage": "tls", "state": "passed", "code": "ok"},
+          {"stage": "authentication", "state": "passed", "code": "ok"},
+          {"stage": "identity", "state": "passed", "code": "ok"},
+          {"stage": "table_permission", "state": "failed", "code": "permission_denied"}
+        ]}
+    },
+    "collect": {
+      "key": "", "state": "done", "receipt": null,
+      "source_result": {"kind": "snapshot", "id": "snap-fixture-0003", "router_id": "lq3-00000000000000a1", "config_digest": "0000000000000001",
+        "collected_from": 1795400020, "collected_to": 1795400080, "expires_at": 4102444800,
+        "tables": [
+          {"table": "routes", "state": "failed", "records": 0, "collected_at": 1795400021, "issue_code": "trap"},
+          {"table": "ppp_secrets", "state": "complete", "records": 5, "collected_at": 1795400021, "issue_code": null},
+          {"table": "ppp_profiles", "state": "complete", "records": 2, "collected_at": 1795400021, "issue_code": null},
+          {"table": "ppp_active", "state": "partial", "records": 20000, "collected_at": 1795400080, "issue_code": "row_limit"},
+          {"table": "dhcp_leases", "state": "complete", "records": 0, "collected_at": 1795400023, "issue_code": null}
+        ]}
+    },
+    "evaluate": {
+      "key": "", "state": "done", "receipt": null,
+      "source_result": {"kind": "candidate", "id": "cand-fixture-0003", "base_revision": "42", "config_digest": "0000000000000001",
+        "snapshot_id": "snap-fixture-0003", "draft_digest": "draft-fixture-0001", "expires_at": 4102444800}
+    }
+  },
+  "candidate": {
+    "reference": {"id": "cand-fixture-0003", "base_revision": "42", "config_digest": "0000000000000001",
+      "snapshot_id": "snap-fixture-0003", "draft_digest": "draft-fixture-0001", "expires_at": 4102444800},
+    "graph": {
+      "nodes": [
+        {"id": "tm-node-wan-north", "name": "WAN North", "parent": null, "kind": "wan", "source_id": "wan-north",
+         "capacity": {"mode": "fixed", "down_mbps": 1000, "up_mbps": 500, "factor_percent": null}, "alias": false,
+         "calculated_mbps": [1000.0, 500.0], "exported_mbps": [1000.0, 500.0], "members": 3, "card_id": "tm-node-wan-north"},
+        {"id": "tm-node-ppp-north", "name": "PPPoE access", "parent": "tm-node-wan-north", "kind": "group", "source_id": "access-ppp",
+         "capacity": {"mode": "automatic"}, "alias": false, "calculated_mbps": null, "exported_mbps": null,
+         "members": null, "router_id": "lq3-00000000000000a1", "card_id": "source:access-ppp"}
+      ],
+      "flows": [],
+      "nodes_truncated": false,
+      "flows_truncated": false
+    },
+    "diff": {"added": 0, "removed": 0, "changed": 0, "unchanged": 2, "markers": [], "markers_truncated": false},
+    "issues": {"blockers": 2, "warnings": 0, "information": 0},
+    "publishable": false,
+    "complete": false
+  },
+  "records": [],
+  "issues": [
+    {"code": "partial_table", "severity": "blocker", "entity_ref": "table:ppp_active", "field": null,
+     "message": "The PPP active table reached the row limit. Absent records do not remove circuits.", "remedy": "Narrow the filter, then collect again."},
+    {"code": "failed_table", "severity": "blocker", "entity_ref": "table:routes", "field": "route.routing_table",
+     "message": "The route table read failed. The last WAN evidence stays.", "remedy": "Check the read permission of the access profile, then collect again."}
+  ]
+}

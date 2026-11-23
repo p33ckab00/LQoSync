@@ -1,0 +1,7 @@
+{
+  "case": "revision_conflict",
+  "refusals": {
+    "evaluate": {"status": 409, "error": {"code": "revision_conflict", "message": "The topology changed after this draft loaded. Load the current revision, then evaluate again.", "field": "expected_revision"}},
+    "router.sources_set": {"status": 409, "error": {"code": "conflict", "message": "The registry revision changed. Load the current revision, then save again.", "field": null}}
+  }
+}

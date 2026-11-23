@@ -48,6 +48,21 @@ pub enum Edit {
     },
     #[serde(rename = "fallback.clear")]
     FallbackClear,
+    /// Topology Studio policy save (plan task B4). Refused until that task is complete.
+    #[serde(rename = "router.sources_set")]
+    RouterSourcesSet {
+        router_id: String,
+        expected_config_digest: String,
+        policies: Vec<web_contract::source_studio::SourcePolicyDraft>,
+    },
+    /// Topology Studio WAN candidate decision (plan task B4). Refused until that task is complete.
+    #[serde(rename = "wan.candidate_set")]
+    WanCandidateSet {
+        router_id: String,
+        expected_config_digest: String,
+        interface: String,
+        decision: web_contract::source_studio::WanCandidateDecision,
+    },
     /// Add one source of a fresh enrollment draft. The runner reads the routers for it.
     #[serde(rename = "source.add")]
     SourceAdd {
@@ -1684,6 +1699,14 @@ pub fn apply(
     discovery: Option<&Value>,
     cfg: &Config,
 ) -> anyhow::Result<Applied> {
+    if matches!(
+        edit,
+        Edit::RouterSourcesSet { .. } | Edit::WanCandidateSet { .. }
+    ) {
+        return Err(invalid(
+            "source policy edits are not available in this service version",
+        ));
+    }
     if matches!(edit, Edit::Initialize) {
         if !can_initialize(doc) {
             return Err(invalid(
@@ -1742,7 +1765,9 @@ pub fn apply(
     let mut legacy_replaced = 0;
     let mut clear_fallback = false;
     match edit {
-        Edit::Initialize => unreachable!("handled above"),
+        Edit::Initialize | Edit::RouterSourcesSet { .. } | Edit::WanCandidateSet { .. } => {
+            unreachable!("handled above")
+        }
         Edit::WanCreate {
             router_id,
             endpoint_ref,

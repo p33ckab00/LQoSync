@@ -1,0 +1,189 @@
+{
+  "case": "normal",
+  "capabilities": {
+    "version": 1,
+    "features": ["draft_test", "access_profiles", "source_collect", "policy_preview", "policy_save", "wan_evidence"],
+    "fields": [
+      {"field": "active.service", "source": "ppp", "operators": ["eq", "ne", "in"], "groupable": true},
+      {"field": "account.profile", "source": "ppp", "operators": ["eq", "ne", "prefix", "contains", "in"], "groupable": true},
+      {"field": "account.comment", "source": "ppp", "operators": ["eq", "prefix", "contains"], "groupable": false},
+      {"field": "lease.status", "source": "dhcp", "operators": ["eq", "ne", "in"], "groupable": false},
+      {"field": "lease.server", "source": "dhcp", "operators": ["eq", "ne", "in"], "groupable": true},
+      {"field": "user.profile", "source": "hotspot", "operators": ["eq", "ne", "in"], "groupable": true},
+      {"field": "hotspot.server", "source": "hotspot", "operators": ["eq", "in"], "groupable": true},
+      {"field": "interface.name", "source": "wan", "operators": ["eq", "prefix"], "groupable": false},
+      {"field": "route.routing_table", "source": "wan", "operators": ["eq", "in"], "groupable": false}
+    ],
+    "limits": {
+      "job_body_bytes": 32768, "policies_per_router": 32, "policy_set_bytes": 24576, "policy_name_bytes": 128,
+      "filter_leaves": 32, "filter_depth": 3, "plan_bindings": 128, "access_profiles": 8,
+      "page_default": 50, "page_max": 100, "table_rows": 20000, "snapshot_bytes": 16777216,
+      "job_deadline_secs": 60, "candidate_ttl_secs": 600, "candidates_per_actor": 4
+    }
+  },
+  "source_configs": {
+    "lq3-00000000000000a1": {
+      "version": 1,
+      "router_id": "lq3-00000000000000a1",
+      "config_digest": "0000000000000001",
+      "loaded_config_digest": "0000000000000001",
+      "policy_revision": "42",
+      "enabled": true,
+      "access_profiles": [
+        {"id": "default", "label": "Default credential", "credential_set": true, "supported_writes": []},
+        {"id": "wan-writer", "label": "WAN list writer", "credential_set": true, "supported_writes": ["wan_address_lists"]}
+      ],
+      "policies": [
+        {
+          "id": "policy-ppp-0001", "name": "PPPoE subscribers", "enabled": true, "priority": 10,
+          "source": "ppp", "read_access_ref": "default", "members": "joined",
+          "filter": {"kind": "all", "rules": [
+            {"kind": "match", "field": "account.profile", "op": "ne", "value": {"kind": "text", "value": "staff"}}
+          ]},
+          "group": {"kind": "by_field", "field": "account.profile"},
+          "identity": "registry",
+          "rates": [
+            {"kind": "subscriber_override"},
+            {"kind": "account_comment", "format": "legacy_configured"},
+            {"kind": "profile_rate_limit"},
+            {"kind": "profile_map", "bindings": [{"selector": "Access-100", "plan_id": "plan-access-100"}]},
+            {"kind": "fallback", "plan_id": "plan-access-100"}
+          ],
+          "parent": {"kind": "router"},
+          "capacity": {"kind": "from_plans", "down_factor": "0.5", "up_factor": "0.5", "minimum_down_bps": "0", "minimum_up_bps": "0"},
+          "writes": []
+        },
+        {
+          "id": "policy-dhcp-0001", "name": "DHCP clients", "enabled": true, "priority": 20,
+          "source": "dhcp", "read_access_ref": "default", "members": "active",
+          "filter": {"kind": "match", "field": "lease.status", "op": "eq", "value": {"kind": "text", "value": "bound"}},
+          "group": {"kind": "fixed", "name": "DHCP access"},
+          "identity": "registry",
+          "rates": [{"kind": "server_map", "bindings": [{"selector": "LAN", "plan_id": "plan-access-100"}]}],
+          "parent": {"kind": "node", "node_id": "tm-node-wan-south"},
+          "capacity": {"kind": "fixed", "down_bps": "200000000", "up_bps": "100000000"},
+          "writes": []
+        }
+      ],
+      "snapshots": [
+        {
+          "id": "snap-fixture-0001", "router_id": "lq3-00000000000000a1", "config_digest": "0000000000000001",
+          "collected_from": 1795400000, "collected_to": 1795400004, "expires_at": 4102444800,
+          "tables": [
+            {"table": "interfaces", "state": "complete", "records": 6, "collected_at": 1795400001, "issue_code": null},
+            {"table": "routes", "state": "complete", "records": 4, "collected_at": 1795400001, "issue_code": null},
+            {"table": "ppp_secrets", "state": "complete", "records": 5, "collected_at": 1795400002, "issue_code": null},
+            {"table": "ppp_profiles", "state": "complete", "records": 2, "collected_at": 1795400002, "issue_code": null},
+            {"table": "ppp_active", "state": "complete", "records": 3, "collected_at": 1795400003, "issue_code": null},
+            {"table": "dhcp_servers", "state": "complete", "records": 1, "collected_at": 1795400003, "issue_code": null},
+            {"table": "dhcp_leases", "state": "complete", "records": 3, "collected_at": 1795400004, "issue_code": null},
+            {"table": "hotspot_users", "state": "not_requested", "records": 0, "collected_at": null, "issue_code": null},
+            {"table": "hotspot_servers", "state": "not_requested", "records": 0, "collected_at": null, "issue_code": null},
+            {"table": "hotspot_profiles", "state": "not_requested", "records": 0, "collected_at": null, "issue_code": null},
+            {"table": "hotspot_active", "state": "complete", "records": 0, "collected_at": 1795400004, "issue_code": null}
+          ]
+        }
+      ],
+      "wan_candidates": [
+        {
+          "interface": "pppoe-out3", "interface_state": "running", "read_state": "complete", "last_observed_at": 1795400001,
+          "routes": [{"routing_table": "main", "active": true, "gateway": "203.0.113.1", "resolved_interface": "pppoe-out3", "observed_at": 1795400001}],
+          "decision": null
+        },
+        {
+          "interface": "ether5", "interface_state": "stopped", "read_state": "complete", "last_observed_at": 1795400001,
+          "routes": [], "decision": "ignore"
+        }
+      ]
+    }
+  },
+  "operations": {
+    "draft_test": {
+      "key": "", "state": "done", "receipt": null,
+      "source_result": {"kind": "draft_test", "connection_fingerprint": "fp-fixture-0001", "at": 1795400010, "elapsed_ms": 42,
+        "checks": [
+          {"stage": "transport", "state": "passed", "code": "ok"},
+          {"stage": "tls", "state": "passed", "code": "ok"},
+          {"stage": "authentication", "state": "passed", "code": "ok"},
+          {"stage": "identity", "state": "passed", "code": "ok"},
+          {"stage": "table_permission", "state": "passed", "code": "ok"}
+        ]}
+    },
+    "collect": {
+      "key": "", "state": "done", "receipt": null,
+      "source_result": {"kind": "snapshot", "id": "snap-fixture-0002", "router_id": "lq3-00000000000000a1", "config_digest": "0000000000000001",
+        "collected_from": 1795400020, "collected_to": 1795400023, "expires_at": 4102444800,
+        "tables": [
+          {"table": "ppp_secrets", "state": "complete", "records": 5, "collected_at": 1795400021, "issue_code": null},
+          {"table": "ppp_profiles", "state": "complete", "records": 2, "collected_at": 1795400021, "issue_code": null},
+          {"table": "ppp_active", "state": "complete", "records": 3, "collected_at": 1795400022, "issue_code": null},
+          {"table": "dhcp_servers", "state": "complete", "records": 1, "collected_at": 1795400022, "issue_code": null},
+          {"table": "dhcp_leases", "state": "complete", "records": 0, "collected_at": 1795400023, "issue_code": null}
+        ]}
+    },
+    "evaluate": {
+      "key": "", "state": "done", "receipt": null,
+      "source_result": {"kind": "candidate", "id": "cand-fixture-0001", "base_revision": "42", "config_digest": "0000000000000001",
+        "snapshot_id": "snap-fixture-0002", "draft_digest": "draft-fixture-0001", "expires_at": 4102444800}
+    }
+  },
+  "refusals": {},
+  "lost_reply": false,
+  "candidate_status": 200,
+  "candidate": {
+    "reference": {"id": "cand-fixture-0001", "base_revision": "42", "config_digest": "0000000000000001",
+      "snapshot_id": "snap-fixture-0002", "draft_digest": "draft-fixture-0001", "expires_at": 4102444800},
+    "graph": {
+      "nodes": [
+        {"id": "tm-node-wan-north", "name": "WAN North", "parent": null, "kind": "wan", "source_id": "wan-north",
+         "capacity": {"mode": "fixed", "down_mbps": 1000, "up_mbps": 500, "factor_percent": null}, "alias": false,
+         "calculated_mbps": [1000.0, 500.0], "exported_mbps": [1000.0, 500.0], "members": 3, "card_id": "tm-node-wan-north"},
+        {"id": "tm-node-ppp-north", "name": "PPPoE access", "parent": "tm-node-wan-north", "kind": "group", "source_id": "access-ppp",
+         "capacity": {"mode": "automatic"}, "alias": false, "calculated_mbps": [400.0, 200.0], "exported_mbps": [400.0, 200.0],
+         "members": 2, "router_id": "lq3-00000000000000a1", "card_id": "source:access-ppp"},
+        {"id": "draft:group-access-200", "name": "Access-200", "parent": "tm-node-wan-north", "kind": "group", "source_id": null,
+         "capacity": {"mode": "automatic"}, "alias": false, "calculated_mbps": [200.0, 100.0], "exported_mbps": null,
+         "members": 1, "router_id": "lq3-00000000000000a1", "card_id": "draft:group-access-200"}
+      ],
+      "flows": [
+        {"from": "tm-node-wan-north", "to": "source:access-ppp", "subscribers": 2},
+        {"from": "tm-node-wan-north", "to": "draft:group-access-200", "subscribers": 1}
+      ],
+      "nodes_truncated": false,
+      "flows_truncated": false
+    },
+    "diff": {"added": 1, "removed": 0, "changed": 1, "unchanged": 2,
+      "markers": [{"entity_ref": "draft:group-access-200", "change": "added"}, {"entity_ref": "tm-node-ppp-north", "change": "changed"}],
+      "markers_truncated": false},
+    "issues": {"blockers": 0, "warnings": 1, "information": 1},
+    "publishable": true,
+    "complete": true
+  },
+  "records": [
+    {"record_ref": "ppp-name/v1/account-02", "policy_id": "policy-ppp-0001",
+     "identity_ref": {"router_id": "lq3-00000000000000a1", "source_id": "access-ppp", "kind": "ppp", "account_ref": "ppp-name/v1/account-02"},
+     "group_ref": "tm-node-ppp-north", "parent_ref": "tm-node-wan-north", "down_bps": "25000000", "up_bps": "10000000",
+     "speed_source": "subscriber_override",
+     "provenance": [{"router_id": "lq3-00000000000000a1", "table": "ppp_secrets", "snapshot_id": "snap-fixture-0002", "record_ref": "ppp-name/v1/account-02", "fields": ["account.profile", "account.comment"]},
+                    {"router_id": "lq3-00000000000000a1", "table": "ppp_active", "snapshot_id": "snap-fixture-0002", "record_ref": "ppp-name/v1/account-02", "fields": ["active.service"]}],
+     "issue_codes": ["competing_rate"]},
+    {"record_ref": "ppp-name/v1/account-03", "policy_id": "policy-ppp-0001",
+     "identity_ref": {"router_id": "lq3-00000000000000a1", "source_id": "access-ppp", "kind": "ppp", "account_ref": "ppp-name/v1/account-03"},
+     "group_ref": "tm-node-ppp-north", "parent_ref": "tm-node-wan-north", "down_bps": "100000000", "up_bps": "50000000",
+     "speed_source": "profile_map",
+     "provenance": [{"router_id": "lq3-00000000000000a1", "table": "ppp_secrets", "snapshot_id": "snap-fixture-0002", "record_ref": "ppp-name/v1/account-03", "fields": ["account.profile"]}],
+     "issue_codes": []},
+    {"record_ref": "ppp-name/v1/account-07", "policy_id": "policy-ppp-0001",
+     "identity_ref": null,
+     "group_ref": "draft:group-access-200", "parent_ref": "tm-node-wan-north", "down_bps": "200000000", "up_bps": "100000000",
+     "speed_source": "profile_rate_limit",
+     "provenance": [{"router_id": "lq3-00000000000000a1", "table": "ppp_secrets", "snapshot_id": "snap-fixture-0002", "record_ref": "ppp-name/v1/account-07", "fields": ["account.profile"]}],
+     "issue_codes": ["new_identity"]}
+  ],
+  "issues": [
+    {"code": "competing_rate", "severity": "warning", "entity_ref": "ppp-name/v1/account-02", "field": "account.comment",
+     "message": "The subscriber override (25 Mbps) precedes the profile rate (15 Mbps).", "remedy": "Change the rate order if the profile rate must win."},
+    {"code": "new_identity", "severity": "information", "entity_ref": "ppp-name/v1/account-07", "field": null,
+     "message": "A save adds one new subscriber identity.", "remedy": null}
+  ]
+}

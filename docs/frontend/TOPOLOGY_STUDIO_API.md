@@ -1,6 +1,7 @@
 # Topology Studio: frontend and backend contract
 
-Status: implementation proposal. These additions do not exist at baseline `d38113e`.
+Status: contract version 1 types exist since task B0 in `crates/web-contract/src/source_studio.rs`.
+No production route or service operation exists yet. The browser fixture serves the new HTTP shapes.
 The [product design](ROUTER_SOURCE_CONFIGURATION.md) defines the required behavior.
 The [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) assigns the work.
 
@@ -346,3 +347,51 @@ Contract version 1 freezes at Task B0. Later changes need a new coordinated cont
 Use the existing schema migration path if policy storage changes. Record the exact backup and rollback state.
 
 No new router write scope activates the existing WAN writer as a side effect.
+
+## Version 1 details from task B0
+
+The Rust types are the authority. This section records the decisions that the tables above do not state.
+
+| Item | Version 1 decision |
+| --- | --- |
+| `TableEvidence.collected_at` | `Option<u64>`. `None` for a `not_requested` table. |
+| `StudioLimits` | `job_body_bytes`, `policies_per_router`, `policy_set_bytes`, `policy_name_bytes`, `filter_leaves`, `filter_depth`, `plan_bindings`, `access_profiles`, `page_default`, `page_max`, `table_rows`, `snapshot_bytes`, `job_deadline_secs`, `candidate_ttl_secs`, `candidates_per_actor`. `StudioLimits::default()` gives the limits table values. |
+| `WanEvidence.interface_state` | `InterfaceState`: `running`, `stopped`, `disabled`, `missing`, `unknown`. |
+| `WanEvidence.decision` | `Option<WanCandidateDecision>`. `None` means no saved decision. It is never `clear`. |
+| `TestCheck` | `stage: TestStage` (`transport`, `tls`, `authentication`, `identity`, `table_permission`). `state: CheckState` (`passed`, `failed`, `not_run`). |
+| `DiffMarker.change` | `ChangeKind`: `added`, `removed`, `changed`. |
+| `ValidationIssue` | `severity: Severity` (`blocker`, `warning`, `information`). `remedy: Option<String>`. |
+| `ResolvedRecord` | `policy_id` is the saved ID or `draft:<index>`. `down_bps` and `up_bps` are `Option<String>`. `speed_source` is `Option<RateKind>`, the `kind` of the winning `RateSource`. `provenance` is `Vec<Provenance>`, one entry for each joined table. |
+| `IdentityMode` | The plain string `"registry"`. |
+| Secrets | `SecretInput` is a JSON string. Its `Debug` output is `<redacted>`. `DraftConnection.password` and `AccessProfileEdit.password` use it. |
+| Old forms | `RouterEdit.access_profiles` and `Operation.source_result` are absent from serialized JSON when they are `None`. |
+| `CandidatePageQuery.limit` | Default 50. |
+
+The core service parses `router.sources_set` and `wan.candidate_set`. It refuses both with `invalid` before any I/O until task B4 passes.
+The production gateway has no new route. A new route returns `404`, so the frontend treats the backend as an old backend.
+
+## Browser fixture cases
+
+The browser fixture (`crates/web-gateway/examples/browser_fixture.rs`) serves the new routes from `crates/web-contract/tests/fixtures/studio/`.
+Each case file replaces top-level sections of `normal.json`. The contract test `studio_contract` parses every case.
+
+Select a case with `POST /__fixture/studio/scenario` and the body `{ "case": "normal" }`.
+This route needs a signed-in session, the same origin, and the CSRF header. A case change clears the fixture source jobs.
+The production router has no fixture route.
+
+| Case | Fixture behavior |
+| --- | --- |
+| `normal` | All features. Router `lq3-00000000000000a1` has two access profiles, two policies, one snapshot, and two WAN candidates. Each job finishes `done`. The candidate is publishable. |
+| `partial_read` | The draft test fails `table_permission`. The collection has a failed `routes` table and a partial `ppp_active` table. The candidate is not complete and not publishable, with two blockers. |
+| `revision_conflict` | An `evaluate` job returns `409` with `revision_conflict`. A `router.sources_set` edit finishes `failed` with a conflict message. |
+| `expired_candidate` | Candidate GETs return `410` with `expired`. |
+| `lost_reply` | The fixture accepts the job, then returns `503`. `GET /api/v1/topology/operations/{key}` returns the `done` operation. |
+| `legacy_backend` | No Studio route exists. Each new route returns `404`. |
+
+Fixture rules in all cases:
+
+- A new route without a session returns `401`. A POST without the same origin or the CSRF header returns `403`.
+- A source job for a router other than `lq3-00000000000000a1` returns `409` with `router_disabled`.
+- The same key with the same payload returns the same operation. The same key with a changed payload returns `409` with `key_reused`.
+- The page cursor is a plain offset in the fixture only. The service binds the cursor to the actor, candidate, draft digest, and filter.
+- The source-job body limit is 32 KiB. The existing `POST /api/v1/topology/edits` keeps the 4 KiB limit until task B5.

@@ -98,6 +98,7 @@ fn op(key: &str, state: &str, receipt: Option<WebReceipt>) -> Operation {
         review: None,
         error: None,
         discovery: None,
+        source_result: None,
     }
 }
 

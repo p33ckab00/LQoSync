@@ -679,6 +679,9 @@ pub struct Operation {
     /// The answer of a discovery job (`done`).
     #[serde(default)]
     pub discovery: Option<Discovery>,
+    /// The typed result of a Topology Studio source job (`done`). Older services omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_result: Option<crate::source_studio::StudioJobResult>,
 }
 
 /// An explicit read that contacts the enabled routers. No GET starts one.
@@ -911,6 +914,23 @@ pub enum BuilderEdit {
     },
     #[serde(rename = "fallback.clear")]
     FallbackClear,
+    /// Replace the complete source policy set of one router. `policies: []` explicitly removes
+    /// every source policy; a missing field is an error, never an empty set. The service checks
+    /// the config digest and the envelope registry revision separately.
+    #[serde(rename = "router.sources_set")]
+    RouterSourcesSet {
+        router_id: String,
+        expected_config_digest: String,
+        policies: Vec<crate::source_studio::SourcePolicyDraft>,
+    },
+    /// Pin, ignore, or clear one source WAN candidate. It writes nothing to the router.
+    #[serde(rename = "wan.candidate_set")]
+    WanCandidateSet {
+        router_id: String,
+        expected_config_digest: String,
+        interface: String,
+        decision: crate::source_studio::WanCandidateDecision,
+    },
 }
 
 /// A speed rule as typed: a percent of the plan (one decimal) or whole Mbps. The service checks
