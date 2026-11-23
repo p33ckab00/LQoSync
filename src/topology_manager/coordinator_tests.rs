@@ -184,6 +184,53 @@ async fn selected_sources_prepare_a_fresh_pair_without_reading_other_protocols_o
 }
 
 #[tokio::test(start_paused = true)]
+async fn kept_evidence_prepares_the_same_pair_without_router_io() {
+    let (cfg, registry, fake, mut coordinator) = fixture();
+    let live = coordinator
+        .prepare(&cfg, &registry, 0, Duration::from_secs(10))
+        .await
+        .unwrap();
+    let connects = fake.connects.load(std::sync::atomic::Ordering::SeqCst);
+    let (rows, csv) = (live.rows().to_vec(), live.csv().to_owned());
+    let mut tables = data().rows;
+    tables.retain(|t, _| matches!(t, Table::PppSecrets | Table::PppProfiles | Table::PppActive));
+    let id = registry.source_settings.as_ref().unwrap().selections[0]
+        .scope
+        .router_id
+        .clone();
+    let kept = coordinator
+        .prepare_with_evidence(
+            &cfg,
+            &registry,
+            vec![(id.clone(), tables)],
+            Duration::from_secs(10),
+        )
+        .unwrap();
+    assert_eq!(kept.rows(), rows.as_slice());
+    assert_eq!(kept.csv(), csv);
+    assert_eq!(
+        fake.connects.load(std::sync::atomic::Ordering::SeqCst),
+        connects,
+        "no router connection"
+    );
+    // Evidence of an unknown router, or with a missing row locator, is refused.
+    let bad = vec![("tm-router-unknown".to_string(), data().rows)];
+    assert!(
+        coordinator
+            .prepare_with_evidence(&cfg, &registry, bad, Duration::from_secs(10))
+            .is_err()
+    );
+    let mut broken = data().rows;
+    broken.get_mut(&Table::PppSecrets).unwrap()[0].remove(".id");
+    let broken = vec![(id, broken)];
+    assert!(
+        coordinator
+            .prepare_with_evidence(&cfg, &registry, broken, Duration::from_secs(10))
+            .is_err()
+    );
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_failed_source_batch_cannot_republish_previous_observations_as_current() {
     let (cfg, registry, fake, mut coordinator) = fixture();
     coordinator

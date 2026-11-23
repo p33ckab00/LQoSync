@@ -316,6 +316,69 @@ where
         Ok(pair)
     }
 
+    /// Prepare a pair from evidence that this process already holds: no router I/O, no
+    /// session, and no change to this coordinator. A fresh gate takes the one generation of
+    /// the evidence, so the durable observation state stays as it is.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "Studio evaluation (task B3.2b) calls it")
+    )]
+    pub(crate) fn prepare_with_evidence(
+        &self,
+        cfg: &Config,
+        registry: &RegistryDocument,
+        evidence: Vec<(
+            String,
+            BTreeMap<super::reader::Table, Vec<crate::model::RosRow>>,
+        )>,
+        max_age: Duration,
+    ) -> anyhow::Result<PreparedPair> {
+        const GENERATION: u64 = 1;
+        let issues = super::preflight::source_issues(cfg, registry)?;
+        ensure!(
+            issues.is_empty(),
+            "unsupported configured source policies: {issues:?}"
+        );
+        let global = cfg.exclude.clone();
+        let catalog = registry
+            .catalog
+            .as_ref()
+            .context("topology catalog is unconfigured")?;
+        let mut current = Vec::with_capacity(evidence.len());
+        // Evidence is keyed by catalog router ID; the config router has the catalog name.
+        for (router_id, tables) in evidence {
+            let router = catalog
+                .routers
+                .iter()
+                .find(|r| r.id == router_id)
+                .and_then(|c| cfg.routers.iter().find(|r| r.name == c.name))
+                .context("evidence of a router that is not configured")?;
+            let read =
+                super::reader::RouterRead::from_tables(&router_id, GENERATION, tables, max_age)
+                    .map_err(|_| anyhow::anyhow!("kept evidence is not valid"))?;
+            current.push(
+                normalize_configured(&read, &global, &router.exclude)
+                    .map_err(|_| anyhow::anyhow!("source normalization failed"))?,
+            );
+        }
+        let static_source = super::static_input::required(registry)
+            .then(|| {
+                super::static_input::CurrentStatic::load(std::path::Path::new(
+                    &cfg.runtime.state_dir,
+                ))
+            })
+            .transpose()?;
+        let mut authorized =
+            authorize_configured(registry, registry.revision, GENERATION, current)?
+                .reconcile(&mut ObservationGate::default())?;
+        authorized.router_locations = super::publication::router_locations(cfg);
+        authorized.reconciliation.wan = self.wan.clone();
+        let mut pair = prepare_with_static(authorized, static_source.as_ref().map(|s| s.input()))?;
+        pair.static_source = static_source.map(|s| s.binding);
+        pair.check_fresh()?;
+        Ok(pair)
+    }
+
     /// Read the selected sources of `registry` and reconcile them, without publication.
     pub(crate) async fn reconcile_for(
         &mut self,
