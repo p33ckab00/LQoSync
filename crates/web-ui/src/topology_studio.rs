@@ -67,6 +67,19 @@ pub(crate) fn Studio(
             }),
             on_saved: load_saved,
         });
+    let save = crate::topology_studio_save::controller(crate::topology_studio_save::Inputs {
+        draft,
+        caps,
+        config,
+        data,
+        session,
+        section,
+        profile,
+        credentials,
+        open,
+        load_saved,
+        clock: preview.clock,
+    });
     let actor = StoredValue::new(session.get_untracked().map(|p| p.username));
     let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let end = alive.clone();
@@ -77,7 +90,10 @@ pub(crate) fn Studio(
             actor.set_value(next);
             drafts.update_value(|d| d.clear());
             draft.set(None);
-            credentials.update(|f| f.password.clear());
+            credentials.update(|f| {
+                f.password.clear();
+                f.replace_password = false;
+            });
         }
     });
     Effect::new(move |_| {
@@ -107,7 +123,10 @@ pub(crate) fn Studio(
         }
         draft.set(None);
         config.set(None);
-        credentials.update(|f| f.password.clear());
+        credentials.update(|f| {
+            f.password.clear();
+            f.replace_password = false;
+        });
         loading.set(true);
         error.set(String::new());
         let expected_actor = actor.get_value();
@@ -185,6 +204,7 @@ pub(crate) fn Studio(
                                                 })
                                                 .unwrap_or_default();
                                         }
+                                        d.saved_profiles = d.profiles.clone();
                                         d
                                     });
                                 draft.set(Some(local));
@@ -248,6 +268,9 @@ pub(crate) fn Studio(
     // Profile metadata is durable draft state. Credentials use the shared, separate form.
     Effect::new(move |_| {
         let username = credentials.with(|f| f.username.clone());
+        if section.get_untracked() != StudioSection::Access {
+            return;
+        }
         draft.update(|d| {
             if let Some(d) = d
                 && let Some(p) = d.profiles.get_mut(profile.get_untracked())
@@ -275,7 +298,10 @@ pub(crate) fn Studio(
     };
     let close = move || {
         open.set(false);
-        credentials.update(|f| f.password.clear());
+        credentials.update(|f| {
+            f.password.clear();
+            f.replace_password = false;
+        });
     };
     view! {
       <dialog node_ref=dialog class="topology-dialog canvas-dialog studio-router-dialog" data-panel="studio" aria-labelledby="studio-router-title"
@@ -287,7 +313,7 @@ pub(crate) fn Studio(
         <Show when=move||open.get()&&!adding.get()>
         <div class="studio-router-body">
           <aside class="studio-router-list" aria-label="Registered routers">
-            <div class="studio-inline"><button type="button" class="canvas-tool" aria-label="Add router" title="Add router" disabled=move||inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty())) on:click=move|_|{credentials.update(|f|f.password.clear());adding.set(true);}>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
+            <div class="studio-inline"><button type="button" class="canvas-tool" aria-label="Add router" title="Add router" disabled=move||inventory.with(|i|i.as_ref().is_none_or(|i|i.config_digest.is_empty())) on:click=move|_|{credentials.update(|f|{f.password.clear();f.replace_password=false;});adding.set(true);}>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
               <button type="button" class="canvas-tool" aria-label="Reload router configuration" title="Reload router configuration" on:click=move|_|refresh.update(|n|*n=n.wrapping_add(1))>{crate::topology_canvas::icon("M20 11a8 8 0 1 0-2 6M20 4v7h-7")}</button></div>
             {move||inventory.with(|i|i.as_ref().map(|i|i.routers.iter().map(|r|{let id=r.id.clone();let selected=id.clone();view!{<button type="button" class="quiet studio-router-choice" aria-label=format!("Configure {}",r.name) aria-pressed=move||(router_id.get().as_ref()==Some(&selected)).to_string()
               on:click=move|_|{credentials.set(Form::default());section.set(StudioSection::Connection);profile.set(0);router_id.set(Some(id.clone()));}><strong>{r.name.clone()}</strong><small>{if r.enabled{"Enabled"}else{"Disabled · no connections"}}</small></button>}}).collect_view()))}
@@ -297,7 +323,7 @@ pub(crate) fn Studio(
             <nav class="studio-section-tabs" aria-label="Router configuration sections">
               {[(StudioSection::Connection,"Connection","M5 3v5h14V3M3 8h18v8H3M5 16v5M19 16v5"),(StudioSection::Access,"Access profiles","M14 7a4 4 0 1 1 0 6l-7 7H3v-4l7-7"),(StudioSection::Sources,"Source policies","M4 5h16M4 12h16M4 19h16M8 3v4M16 10v4M10 17v4")].into_iter().map(move|(part,label,path)|view!{
                 <button type="button" class="canvas-tool" aria-label=label title=move||reason(part).unwrap_or(label) aria-pressed=move||(section.get()==part).to_string() disabled=move||loading.get()||reason(part).is_some()
-                  on:click=move|_|{credentials.update(|f|f.password.clear());if part==StudioSection::Access{select_profile(profile.get_untracked());}section.set(part);}>{crate::topology_canvas::icon(path)}</button>
+                  on:click=move|_|{credentials.update(|f|{f.password.clear();f.replace_password=false;});if part==StudioSection::Access{select_profile(profile.get_untracked());}section.set(part);}>{crate::topology_canvas::icon(path)}</button>
               }).collect_view()}
             </nav>
             <Show when=move||loading.get()><p role="status">"Loading cached router configuration…"</p></Show>
@@ -307,32 +333,34 @@ pub(crate) fn Studio(
             <Show when=move||draft.with(|d|d.as_ref().is_some_and(|d|d.config_digest!=d.loaded_config_digest))><p class="notice">"The service has not loaded the saved access configuration. Policy save remains unavailable."</p></Show>
             {move||match section.get(){
               StudioSection::Connection=>view!{<h3>"Connection"</h3>{move||router().map(|r|view!{<EditableSection router=r section=Section::Connection icons=true/>})}}.into_any(),
-              StudioSection::Sources=>view!{<p class="studio-draft-note" role="note">"Local draft. Discovery and preview are read-only. Source-policy save is unavailable in this build."</p>
+              StudioSection::Sources=>view!{<p class="studio-draft-note" role="note">"Local draft. Preview is optional. Save configuration sends the complete source-policy set through the current service."</p>
                 {move||caps.get().filter(|_|source_ready.get()).map(|caps|view!{<crate::topology_source_editor::SourceEditor draft caps data/>})}
                 <crate::topology_studio_preview::EvidencePane state=preview/>
               }.into_any(),
               StudioSection::Access=>view!{
-                <h3>"Access profiles"</h3><p class="field-help">"One profile can serve reads and explicit supported writes. Stored passwords never return to this page."</p>
+                <h3>"Access profiles"</h3><p class="field-help">"One profile can serve reads and explicit supported writes. Stored passwords never return to this page. Enter every profile username before saving the complete set. Save new profiles one at a time."</p>
                 <label>"Access profile"<select aria-label="Access profile" prop:value=move||profile.get().to_string() on:change={move|ev|if let Ok(i)=event_target_value(&ev).parse::<usize>(){select_profile(i);}}>
                   {move||draft.with(|d|d.as_ref().map(|d|d.profiles.iter().enumerate().map(|(i,p)|view!{<option value=i.to_string()>{p.label.clone()}</option>}).collect_view()))}
                 </select></label>
                 <button type="button" class="canvas-tool" aria-label="Add access profile" title="Add access profile" disabled=move||draft.with(|d|d.as_ref().is_none_or(|d|d.profiles.len()>=caps.with(|c|c.as_ref().map(|c|c.limits.access_profiles.min(MAX_ACCESS_PROFILES as u64) as usize).unwrap_or(0))))
                   on:click=move|_|{draft.update(|d|if let Some(d)=d{let i=d.profiles.len();d.profiles.push(ProfileDraft{id:format!("profile-{}",i+1),label:"New access profile".into(),username:String::new(),credential_set:false,supported_writes:vec![]});d.epoch=d.epoch.wrapping_add(1);profile.set(i);});credentials.set(Form::default());}>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
+                <button type="button" class="canvas-tool" aria-label="Remove access profile" title="Remove this explicit access profile from the draft" disabled=move||selected_profile().is_none_or(|p|p.id=="default") on:click=move|_|{let i=profile.get_untracked();draft.update(|d|if let Some(d)=d&&i<d.profiles.len(){d.profiles.remove(i);d.epoch=d.epoch.wrapping_add(1);});select_profile(0);}>{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18")}</button>
                 <label>"Profile ID"<input aria-label="Profile ID" prop:value=move||selected_profile().map(|p|p.id).unwrap_or_default() disabled=move||selected_profile().is_some_and(|p|p.credential_set)
                   on:input=move|ev|{let v=event_target_value(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.id=v;d.epoch=d.epoch.wrapping_add(1);});}/></label>
-                <label>"Profile label"<input aria-label="Profile label" prop:value=move||selected_profile().map(|p|p.label).unwrap_or_default()
+                <label>"Profile label"<input aria-label="Profile label" disabled=move||selected_profile().is_some_and(|p|p.id=="default") prop:value=move||selected_profile().map(|p|p.label).unwrap_or_default()
                   on:input=move|ev|{let v=event_target_value(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.label=v;d.epoch=d.epoch.wrapping_add(1);});}/></label>
                 <p class="field-help">{move||if selected_profile().is_some_and(|p|p.credential_set){"Credential stored. Enter the profile user before an edit; leave replacement off to keep its secret."}else{"Unsaved profile. Save is unavailable in this build. Leaving this panel clears secret input."}}</p>
                 <Show when=move||credential_new.get() fallback=move||view!{<CredentialFields form=credentials errors=credential_errors new=false icons=true/>}><CredentialFields form=credentials errors=credential_errors new=true icons=true/></Show>
-                <label class="check"><input type="checkbox" aria-label="Allow WAN address-list writes" prop:checked=move||selected_profile().is_some_and(|p|p.supported_writes.contains(&WriteScope::WanAddressLists))
+                <label class="check"><input type="checkbox" aria-label="Allow WAN address-list writes" disabled=move||selected_profile().is_some_and(|p|p.id=="default") prop:checked=move||selected_profile().is_some_and(|p|p.supported_writes.contains(&WriteScope::WanAddressLists))
                   on:change=move|ev|{let on=event_target_checked(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.supported_writes=if on{vec![WriteScope::WanAddressLists]}else{vec![]};d.epoch=d.epoch.wrapping_add(1);});}/>"Allow WAN address-list writes"</label>
               }.into_any(),
             }}
+            <crate::topology_studio_save::SaveUi state=save/>
           </div>
         </div>
-        <footer class="canvas-dialog-footer"><p role="status">{move||if section.get()==StudioSection::Connection{"Connection edits use the current service."}else{"Local source configuration draft"}}</p>
+        <footer class="canvas-dialog-footer"><p role="status">{move||if section.get()==StudioSection::Connection{"Connection edits use the current service.".to_string()}else{save.footer_status()}}</p>
           <button type="button" class="canvas-tool" aria-label="Preview draft" title=move||preview.reason(true).unwrap_or("Preview draft".into()) disabled=move||section.get()!=StudioSection::Sources||preview.reason(true).is_some() on:click=move|_|preview.evaluate()>{crate::topology_canvas::icon("M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0")}</button>
-          <button type="button" class="canvas-tool" aria-label="Save configuration" title="Source configuration save is unavailable in this build" disabled>{crate::topology_canvas::icon("M4 3h13l4 4v14H4zM8 3v6h8V3M8 21v-8h9v8")}</button>
+          <button type="button" class="canvas-tool" aria-label="Save configuration" title=move||save.reason().unwrap_or("Save configuration".into()) disabled=move||save.reason().is_some() on:click=move|_|save.save()>{crate::topology_canvas::icon("M4 3h13l4 4v14H4zM8 3v6h8V3M8 21v-8h9v8")}</button>
         </footer>
         </Show>
         <Show when=move||adding.get()>

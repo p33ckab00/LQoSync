@@ -94,3 +94,5 @@ mod topology_studio;
 mod topology_studio_api;
 #[cfg(target_arch = "wasm32")]
 mod topology_studio_preview;
+#[cfg(target_arch = "wasm32")]
+mod topology_studio_save;

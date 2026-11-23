@@ -97,11 +97,23 @@ pub(crate) struct StudioDraft {
     pub policy_revision: Option<String>,
     pub policies: Vec<PolicyDraft>,
     pub profiles: Vec<ProfileDraft>,
+    pub saved_profiles: Vec<ProfileDraft>,
     pub selected: Option<usize>,
     pub epoch: u64,
 }
 impl From<RouterSourceConfig> for StudioDraft {
     fn from(c: RouterSourceConfig) -> Self {
+        let profiles: Vec<_> = c
+            .access_profiles
+            .into_iter()
+            .map(|p| ProfileDraft {
+                id: p.id,
+                label: p.label,
+                username: String::new(),
+                credential_set: p.credential_set,
+                supported_writes: p.supported_writes,
+            })
+            .collect();
         Self {
             router_id: c.router_id,
             config_digest: c.config_digest,
@@ -117,17 +129,8 @@ impl From<RouterSourceConfig> for StudioDraft {
                     policy: p,
                 })
                 .collect(),
-            profiles: c
-                .access_profiles
-                .into_iter()
-                .map(|p| ProfileDraft {
-                    id: p.id,
-                    label: p.label,
-                    username: String::new(),
-                    credential_set: p.credential_set,
-                    supported_writes: p.supported_writes,
-                })
-                .collect(),
+            profiles: profiles.clone(),
+            saved_profiles: profiles,
         }
     }
 }
@@ -259,6 +262,10 @@ pub(crate) fn rate_label(rate: &RateSource) -> &'static str {
         RateSource::ProfileMap { .. } => "Profile to plan",
         RateSource::ServerMap { .. } => "Server to plan",
         RateSource::ProfileRateLimit => "Profile rate limit",
+        RateSource::ProfileComment { .. } => "Profile comment",
+        RateSource::ProfileName => "Profile name",
+        RateSource::ServerComment { .. } => "Server comment",
+        RateSource::Settings => "Configured defaults",
         RateSource::Fallback { .. } => "Fallback plan",
     }
 }
@@ -290,6 +297,18 @@ pub(crate) fn rate_choices(source: SourceKind, caps: &StudioCapabilities) -> Vec
     rates.push(RateSource::Fallback {
         plan_id: String::new(),
     });
+    if source == SourceKind::Ppp {
+        rates.push(RateSource::ProfileName);
+        rates.push(RateSource::ProfileComment {
+            format: CommentRateFormat::LegacyConfigured,
+        });
+    }
+    if source == SourceKind::Dhcp {
+        rates.push(RateSource::ServerComment {
+            format: CommentRateFormat::LegacyConfigured,
+        });
+    }
+    rates.push(RateSource::Settings);
     rates
 }
 /// Only non-secret drafts survive a same-actor reauthentication in this tab.
@@ -297,11 +316,13 @@ pub(crate) fn rate_choices(source: SourceKind, caps: &StudioCapabilities) -> Vec
 pub(crate) struct DraftVault {
     pub actor: Option<String>,
     pub drafts: std::collections::HashMap<String, StudioDraft>,
+    pub saves: std::collections::HashMap<String, web_contract::topology::EditRequest>,
 }
 impl DraftVault {
     pub fn bind_actor(&mut self, actor: &str) {
         if self.actor.as_deref() != Some(actor) {
             self.drafts.clear();
+            self.saves.clear();
             self.actor = Some(actor.into());
         }
     }
@@ -319,6 +340,7 @@ impl DraftVault {
     }
     pub fn clear(&mut self) {
         self.drafts.clear();
+        self.saves.clear();
         self.actor = None;
     }
 }
@@ -712,5 +734,368 @@ mod tests {
         let stamp = DraftStamp::new("alice", &d, "").unwrap();
         assert!(stamp.matches("alice", &d, ""));
         assert!(DraftStamp::new("", &d, "").is_none());
+    }
+}
+
+fn filter_depth(root: &FilterExpr) -> usize {
+    match root {
+        FilterExpr::Match { .. } => 0,
+        FilterExpr::All { rules } | FilterExpr::Any { rules } => {
+            1 + rules.iter().map(filter_depth).max().unwrap_or(0)
+        }
+    }
+}
+pub(crate) fn binding_count(policy: &SourcePolicyDraft) -> usize {
+    policy
+        .rates
+        .iter()
+        .map(|r| match r {
+            RateSource::ProfileMap { bindings } | RateSource::ServerMap { bindings } => {
+                bindings.len()
+            }
+            _ => 0,
+        })
+        .sum()
+}
+pub(crate) fn policy_edit(
+    d: &StudioDraft,
+    caps: &StudioCapabilities,
+    key: String,
+) -> Result<web_contract::topology::EditRequest, String> {
+    use web_contract::topology::{BuilderEdit, EditRequest};
+    if !caps.features.contains(&StudioFeature::PolicySave) {
+        return Err("Policy save is unavailable on this backend.".into());
+    }
+    if d.config_digest != d.loaded_config_digest {
+        return Err("Wait for the service to load the saved access configuration.".into());
+    }
+    if d.profiles != d.saved_profiles {
+        return Err("Save access profiles before the source policy.".into());
+    }
+    let revision = d
+        .policy_revision
+        .as_ref()
+        .and_then(|r| r.parse::<u64>().ok())
+        .ok_or("Initialize the topology and reload its revision first.")?;
+    let policies = evaluation_policies(d)?;
+    if policies.len() > caps.limits.policies_per_router.min(MAX_POLICIES as u64) as usize {
+        return Err("Too many source policies.".into());
+    }
+    for p in &policies {
+        if p.name.len() > caps.limits.policy_name_bytes as usize
+            || filter_leaves(&p.filter)
+                > caps.limits.filter_leaves.min(MAX_FILTER_LEAVES as u64) as usize
+            || filter_depth(&p.filter)
+                > caps.limits.filter_depth.min(MAX_FILTER_DEPTH as u64) as usize
+            || binding_count(p) > caps.limits.plan_bindings.min(MAX_PLAN_BINDINGS as u64) as usize
+        {
+            return Err(
+                "A policy exceeds the advertised name, query, or combined plan-binding limit."
+                    .into(),
+            );
+        }
+    }
+    if serde_json::to_vec(&policies)
+        .map_err(|_| "Invalid policy set.")?
+        .len()
+        > caps
+            .limits
+            .policy_set_bytes
+            .min(MAX_POLICY_SET_BYTES as u64) as usize
+    {
+        return Err("The policy set exceeds the advertised size limit.".into());
+    }
+    let request = EditRequest {
+        key,
+        expected_revision: revision,
+        edit: BuilderEdit::RouterSourcesSet {
+            router_id: d.router_id.clone(),
+            expected_config_digest: d.config_digest.clone(),
+            policies,
+        },
+    };
+    if serde_json::to_vec(&request)
+        .map_err(|_| "Invalid policy request.")?
+        .len()
+        > MAX_JOB_BODY
+    {
+        return Err("The policy request exceeds 32 KiB.".into());
+    }
+    Ok(request)
+}
+pub(crate) fn access_edit(
+    d: &StudioDraft,
+    caps: &StudioCapabilities,
+    selected: usize,
+    password: Option<&str>,
+) -> Result<web_contract::routers::RouterEdit, String> {
+    if !caps.features.contains(&StudioFeature::AccessProfiles) {
+        return Err("Access-profile save is unavailable.".into());
+    }
+    if d.profiles.len() > caps.limits.access_profiles.min(MAX_ACCESS_PROFILES as u64) as usize {
+        return Err("Too many access profiles.".into());
+    }
+    let mut ids = std::collections::HashSet::new();
+    let mut profiles = Vec::new();
+    for (i, p) in d.profiles.iter().enumerate() {
+        if p.id.is_empty()
+            || p.id.len() > 32
+            || !p
+                .id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+            || !ids.insert(p.id.clone())
+        {
+            return Err("Use a unique profile ID: 1 to 32 of a-z, 0-9, or -.".into());
+        }
+        if p.username.is_empty()
+            || p.username.chars().count() > 64
+            || p.username.chars().any(char::is_control)
+        {
+            return Err("Enter every profile username before saving the complete set. Saved explicit-profile usernames are absent from this API.".into());
+        }
+        if p.label.is_empty() || p.label.len() > 128 {
+            return Err("Use a profile label from 1 to 128 UTF-8 bytes.".into());
+        }
+        if p.id == "default" && !p.supported_writes.is_empty() {
+            return Err(
+                "The default profile is for reads. Use an explicit profile for supported writes."
+                    .into(),
+            );
+        }
+        let secret = if i == selected { password } else { None };
+        if !p.credential_set && secret.is_none() {
+            return Err(
+                "Save new profiles one at a time. Select the new profile and enter its credential."
+                    .into(),
+            );
+        }
+        if secret.is_some_and(|s| {
+            s.is_empty() || s.chars().count() > 256 || s.chars().any(char::is_control)
+        }) {
+            return Err(
+                "Use a credential from 1 to 256 characters without control characters.".into(),
+            );
+        }
+        profiles.push(AccessProfileEdit {
+            id: p.id.clone(),
+            label: p.label.clone(),
+            username: p.username.clone(),
+            password: secret.map(|s| SecretInput(s.into())),
+            supported_writes: p.supported_writes.clone(),
+        });
+    }
+    Ok(web_contract::routers::RouterEdit {
+        expected_digest: d.config_digest.clone(),
+        access_profiles: Some(profiles),
+        ..Default::default()
+    })
+}
+pub(crate) fn policy_values_match(
+    d: &StudioDraft,
+    r: &web_contract::topology::EditRequest,
+) -> bool {
+    match &r.edit {
+        web_contract::topology::BuilderEdit::RouterSourcesSet {
+            router_id,
+            expected_config_digest,
+            policies,
+        } => {
+            d.router_id == *router_id
+                && d.config_digest == *expected_config_digest
+                && evaluation_policies(d).is_ok_and(|p| p == *policies)
+        }
+        _ => false,
+    }
+}
+pub(crate) fn saved_revision(
+    op: &web_contract::topology::Operation,
+    r: &web_contract::topology::EditRequest,
+) -> Option<String> {
+    let receipt = op.receipt.as_ref()?;
+    (op.key == r.key
+        && op.state == "saved"
+        && receipt.key == r.key
+        && receipt.state == "saved"
+        && receipt.base_revision == r.expected_revision.to_string())
+    .then(|| receipt.revision.clone())
+    .flatten()
+    .filter(|r| r.parse::<u64>().is_ok())
+}
+pub(crate) fn runtime_applied(
+    s: &web_contract::topology::TopologySummary,
+    revision: &str,
+    now: u64,
+) -> bool {
+    s.updated.saturating_add(s.fresh_for) >= now
+        && s.registry_revision.as_deref() == Some(revision)
+        && s.observed
+            .as_ref()
+            .is_some_and(|o| o.revision == revision && !o.stale && o.state == "ok")
+        && s.publication.as_ref().is_some_and(|p| {
+            p.policy_revision.as_deref() == Some(revision)
+                && p.phase == "applied"
+                && p.accepted
+                && !p.failed
+                && p.superseded_by.is_none()
+        })
+}
+
+#[cfg(test)]
+mod save_tests {
+    use super::*;
+    use web_contract::topology::*;
+    fn input() -> (StudioCapabilities, StudioDraft) {
+        let v: serde_json::Value = serde_json::from_str(include_str!(
+            "../../web-contract/tests/fixtures/studio/normal.json"
+        ))
+        .unwrap();
+        let c = serde_json::from_value(v["capabilities"].clone()).unwrap();
+        let d = StudioDraft::from(
+            serde_json::from_value::<RouterSourceConfig>(
+                v["source_configs"]["lq3-00000000000000a1"].clone(),
+            )
+            .unwrap(),
+        );
+        (c, d)
+    }
+    #[test]
+    fn policy_save_needs_no_preview_and_waits_for_loaded_config() {
+        let (c, mut d) = input();
+        let r = policy_edit(&d, &c, "same-policy-request".into()).unwrap();
+        assert_eq!(r.expected_revision, 42);
+        assert!(matches!(r.edit, BuilderEdit::RouterSourcesSet { .. }));
+        d.loaded_config_digest = "old".into();
+        assert!(policy_edit(&d, &c, "another-policy-request".into()).is_err());
+    }
+    #[test]
+    fn bindings_use_the_advertised_combined_limit() {
+        let (mut c, mut d) = input();
+        c.limits.plan_bindings = 1;
+        let b = PlanBinding {
+            selector: "x".into(),
+            plan_id: "plan".into(),
+        };
+        d.policies[0].policy.rates = vec![
+            RateSource::ProfileMap {
+                bindings: vec![b.clone()],
+            },
+            RateSource::ServerMap { bindings: vec![b] },
+        ];
+        assert!(policy_edit(&d, &c, "limited-policy-request".into()).is_err());
+    }
+    #[test]
+    fn profiles_require_all_usernames_and_keep_absent_secrets() {
+        let (c, mut d) = input();
+        assert!(access_edit(&d, &c, 0, None).is_err());
+        for p in &mut d.profiles {
+            p.username = "api".into();
+        }
+        let e = access_edit(&d, &c, 0, None).unwrap();
+        assert!(
+            e.access_profiles
+                .unwrap()
+                .iter()
+                .all(|p| p.password.is_none())
+        );
+        d.profiles[0].supported_writes = vec![WriteScope::WanAddressLists];
+        assert!(access_edit(&d, &c, 0, None).is_err());
+    }
+    #[test]
+    fn saved_receipt_is_not_runtime_acceptance() {
+        let (c, d) = input();
+        let r = policy_edit(&d, &c, "receipt-policy-request".into()).unwrap();
+        let mut op = Operation {
+            key: r.key.clone(),
+            state: "saved".into(),
+            receipt: None,
+            review: None,
+            error: None,
+            discovery: None,
+            source_result: None,
+        };
+        assert!(saved_revision(&op, &r).is_none());
+        op.receipt = Some(WebReceipt {
+            key: r.key.clone(),
+            state: "saved".into(),
+            base_revision: "42".into(),
+            revision: Some("43".into()),
+            subject_id: None,
+            error: None,
+        });
+        assert_eq!(saved_revision(&op, &r), Some("43".into()));
+        assert!(!runtime_applied(&TopologySummary::default(), "43", 1));
+        op.receipt.as_mut().unwrap().key = "foreign".into();
+        assert!(saved_revision(&op, &r).is_none());
+    }
+    #[test]
+    fn recovered_receipt_does_not_mark_changed_values_saved() {
+        let (c, mut d) = input();
+        let request = policy_edit(&d, &c, "older-policy-request".into()).unwrap();
+        assert!(policy_values_match(&d, &request));
+        d.policies[0].policy.name = "Newer draft".into();
+        assert!(!policy_values_match(&d, &request));
+    }
+    #[test]
+    fn pending_saves_cannot_cross_actors() {
+        let (c, d) = input();
+        let r = policy_edit(&d, &c, "actor-policy-request".into()).unwrap();
+        let mut v = DraftVault::default();
+        v.bind_actor("a");
+        v.saves.insert(d.router_id.clone(), r);
+        v.bind_actor("a");
+        assert_eq!(v.saves.len(), 1);
+        v.bind_actor("b");
+        assert!(v.saves.is_empty());
+    }
+    #[test]
+    fn applied_requires_current_complete_acceptance_evidence() {
+        let at = 100;
+        let mut s = TopologySummary {
+            updated: at,
+            fresh_for: 10,
+            registry_revision: Some("43".into()),
+            observed: Some(Observed {
+                revision: "43".into(),
+                collected_at: at,
+                generation: None,
+                state: "ok".into(),
+                stale: false,
+            }),
+            publication: Some(Publication {
+                write_id: "proof".into(),
+                phase: "applied".into(),
+                started: at,
+                updated: at,
+                policy_revision: Some("43".into()),
+                files: vec![],
+                failed: false,
+                accepted: true,
+                superseded_by: None,
+            }),
+            ..Default::default()
+        };
+        assert!(runtime_applied(&s, "43", 105));
+        assert!(!runtime_applied(&s, "43", 111));
+        s.observed.as_mut().unwrap().stale = true;
+        assert!(!runtime_applied(&s, "43", 105));
+        s.observed.as_mut().unwrap().stale = false;
+        s.publication.as_mut().unwrap().accepted = false;
+        assert!(!runtime_applied(&s, "43", 105));
+    }
+    #[test]
+    fn amended_rate_kinds_have_labels() {
+        for rate in [
+            RateSource::ProfileName,
+            RateSource::ProfileComment {
+                format: CommentRateFormat::LegacyConfigured,
+            },
+            RateSource::ServerComment {
+                format: CommentRateFormat::LegacyConfigured,
+            },
+            RateSource::Settings,
+        ] {
+            assert!(!rate_label(&rate).is_empty());
+        }
     }
 }

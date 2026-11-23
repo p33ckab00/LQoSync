@@ -113,6 +113,7 @@ fn PlanChoice(
 
 #[component]
 fn RateRow(
+    limit: usize,
     draft: RwSignal<Option<StudioDraft>>,
     index: usize,
     data: RwSignal<Option<TopologySummary>>,
@@ -141,7 +142,7 @@ fn RateRow(
 
         <button type="button" class="canvas-tool" aria-label="Remove plan binding" title="Remove plan binding" on:click=move|_|edit(draft,|p|if let Some(RateSource::ProfileMap{bindings}|RateSource::ServerMap{bindings})=p.policy.rates.get_mut(index)&&i<bindings.len(){bindings.remove(i);})>{glyph("M6 6l12 12M18 6 6 18")}</button></div>
       }/>
-      <button type="button" class="canvas-tool" aria-label="Add plan binding" title="Add plan binding" disabled=move||bindings().len()>=MAX_PLAN_BINDINGS
+      <button type="button" class="canvas-tool" aria-label="Add plan binding" title="Add plan binding" disabled=move||current(draft).is_none_or(|p|binding_count(&p.policy)>=limit.min(MAX_PLAN_BINDINGS))
         on:click=move|_|edit(draft,|p|if let Some(RateSource::ProfileMap{bindings}|RateSource::ServerMap{bindings})=p.policy.rates.get_mut(index){bindings.push(PlanBinding{selector:String::new(),plan_id:String::new()});})>{glyph("M12 5v14M5 12h14")}</button>
     })}
     {fallback.then(||view!{<PlanChoice label="Fallback speed plan" data value=Signal::derive(move||match rate(){Some(RateSource::Fallback{plan_id})=>plan_id,_=>String::new()})
@@ -204,7 +205,7 @@ pub(crate) fn SourceEditor(
             <option value="">"This router"</option>{move||data.with(|d|d.as_ref().map(|d|d.nodes.iter().filter(|n|n.active).map(|n|view!{<option value=n.id.clone()>{n.name.clone()}</option>}).collect_view()))}
           </select></label>
           <h4>"Speed plan precedence"</h4><p class="field-help">"The first rate source that resolves wins. Exact selectors map to saved speed plans. The service validates compatibility."</p>
-          <ol class="studio-rates"><For each={move||current(draft).map(|p|p.policy.rates.iter().enumerate().map(|(i,r)|(i,rate_label(r))).collect::<Vec<_>>()).unwrap_or_default()} key=|x|*x children=move|(index,_)|view!{<RateRow draft index data/>}/></ol>
+          <ol class="studio-rates"><For each={move||current(draft).map(|p|p.policy.rates.iter().enumerate().map(|(i,r)|(i,rate_label(r))).collect::<Vec<_>>()).unwrap_or_default()} key=|x|*x children=move|(index,_)|view!{<RateRow draft index data limit=caps.with_value(|c|c.limits.plan_bindings as usize)/>}/></ol>
           <label>"Add rate source"<select aria-label="Add rate source" prop:value="" on:change={move|ev|if let Ok(i)=event_target_value(&ev).parse::<usize>()&&let Some(r)=caps.with_value(|c|rate_choices(source,c)).get(i).cloned(){edit(draft,|p|p.policy.rates.push(r));}}>
             <option value="">"Select a rate source"</option>{caps.with_value(|c|rate_choices(source,c)).into_iter().enumerate().map(|(i,r)|view!{<option value=i.to_string()>{rate_label(&r)}</option>}).collect_view()}</select></label>
           <h4>"Bandwidth capacity"</h4><label>"Capacity mode"<select aria-label="Capacity mode" prop:value=move||capacity_mode.get() on:change=move|ev|{let fixed=event_target_value(&ev)=="fixed";edit(draft,|p|p.policy.capacity=if fixed{CapacityRule::Fixed{down_bps:String::new(),up_bps:String::new()}}else{CapacityRule::FromPlans{down_factor:"1".into(),up_factor:"1".into(),minimum_down_bps:"0".into(),minimum_up_bps:"0".into()}});}>

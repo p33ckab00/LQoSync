@@ -22,6 +22,12 @@ impl ApiError {
 pub(crate) fn encoded(s: &str) -> String {
     js_sys::encode_uri_component(s).into()
 }
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum FailureBody {
+    Studio(StudioError),
+    Router(web_contract::routers::RouterEditOutcome),
+}
 struct Client {
     session: RwSignal<Option<Principal>>,
     actor: String,
@@ -44,10 +50,11 @@ impl Client {
             .flatten()
             .is_some_and(|p| p.username == self.actor && p.csrf == self.csrf)
     }
-    async fn response(
+    async fn response<B: serde::Serialize>(
         &self,
         url: &str,
-        body: Option<&StudioJobRequest>,
+        method: &str,
+        body: Option<&B>,
     ) -> Result<Response, ApiError> {
         if !self.current() {
             return Err(ApiError::local(
@@ -55,10 +62,10 @@ impl Client {
             ));
         }
         let (signal, _timer) = crate::app::deadline();
-        let builder = if body.is_some() {
-            Request::post(url).header("x-csrf-token", &self.csrf)
-        } else {
-            Request::get(url)
+        let builder = match method {
+            "patch" => Request::patch(url).header("x-csrf-token", &self.csrf),
+            "post" => Request::post(url).header("x-csrf-token", &self.csrf),
+            _ => Request::get(url),
         }
         .abort_signal(Some(&signal));
         let request = match body {
@@ -85,7 +92,14 @@ impl Client {
         if status == 401 {
             self.session.set(None);
         }
-        let body = response.json::<StudioError>().await.ok();
+        let body = response.json::<FailureBody>().await.ok().map(|e| match e {
+            FailureBody::Studio(e) => e,
+            FailureBody::Router(e) => StudioError {
+                code: e.code,
+                message: e.message,
+                field: None,
+            },
+        });
         let message = body.as_ref().map(|e| e.message.clone()).unwrap_or_else(|| {
             match status {
                 401 => "Your session ended. Sign in to recover your non-secret draft.",
@@ -107,7 +121,7 @@ impl Client {
         })
     }
     async fn get<T: serde::de::DeserializeOwned>(&self, url: &str) -> Result<T, ApiError> {
-        self.response(url, None)
+        self.response::<StudioJobRequest>(url, "get", None)
             .await?
             .json()
             .await
@@ -119,7 +133,7 @@ impl Client {
         key: &str,
         seconds: u64,
     ) -> Result<Operation, ApiError> {
-        let end = js_sys::Date::now() + seconds.min(JOB_DEADLINE_SECS) as f64 * 1000.;
+        let end = js_sys::Date::now() + seconds.min(600) as f64 * 1000.;
         loop {
             if op.key != key {
                 return Err(ApiError::local(
@@ -127,7 +141,9 @@ impl Client {
                 ));
             }
             match op.state.as_str() {
-                "done" => return Ok(op),
+                "done" | "saved" | "failed" | "not_committed" | "outcome_unknown" | "not_found" => {
+                    return Ok(op);
+                }
                 "queued" | "running" => {}
                 _ => {
                     return Err(ApiError::local(
@@ -167,7 +183,14 @@ pub(crate) async fn job(
     let operation_url = format!("/api/v1/topology/operations/{}", encoded(&request.key));
     if resume {
         match client.get::<Operation>(&operation_url).await {
-            Ok(op) => return client.settle(op, &request.key, seconds).await,
+            Ok(op) if op.state == "not_found" => {}
+            Ok(op) => {
+                return read_result(
+                    client
+                        .settle(op, &request.key, seconds.min(JOB_DEADLINE_SECS))
+                        .await?,
+                );
+            }
             Err(e) if e.status == Some(404) => {}
             Err(e) => return Err(e),
         }
@@ -181,7 +204,7 @@ pub(crate) async fn job(
         ));
     }
     let result = match client
-        .response("/api/v1/topology/source-jobs", Some(request))
+        .response("/api/v1/topology/source-jobs", "post", Some(request))
         .await
     {
         Ok(r) => r.json::<Operation>().await.map_err(|_| ApiError {
@@ -200,5 +223,88 @@ pub(crate) async fn job(
         },
         Err(e) => return Err(e),
     };
-    client.settle(op, &request.key, seconds).await
+    read_result(
+        client
+            .settle(op, &request.key, seconds.min(JOB_DEADLINE_SECS))
+            .await?,
+    )
+}
+
+fn read_result(op: Operation) -> Result<Operation, ApiError> {
+    if op.state == "done" {
+        Ok(op)
+    } else {
+        Err(ApiError::local(
+            op.error
+                .or_else(|| op.receipt.and_then(|r| r.error))
+                .unwrap_or("The read job failed. Check its evidence and retry explicitly.".into()),
+        ))
+    }
+}
+pub(crate) async fn edit(
+    session: RwSignal<Option<Principal>>,
+    request: &web_contract::topology::EditRequest,
+    resume: bool,
+    allow_resubmit: bool,
+) -> Result<Operation, ApiError> {
+    let client = Client::new(session)?;
+    let url = format!("/api/v1/topology/operations/{}", encoded(&request.key));
+    if resume {
+        match client.get::<Operation>(&url).await {
+            Ok(op) if op.state == "not_found" && allow_resubmit => {}
+            Ok(op) if op.state == "not_found" => {
+                return Err(ApiError {status:Some(404),code:"absent_changed".into(),message:"The old operation is absent and the draft changed. No old payload was resubmitted.".into(),uncertain:false});
+            }
+            Ok(op) => return client.settle(op, &request.key, 600).await,
+            Err(e) if e.status == Some(404) && allow_resubmit => {}
+            Err(e) if e.status == Some(404) => {
+                return Err(ApiError {status:Some(404),code:"absent_changed".into(),message:"The old operation is absent and the draft changed. No old payload was resubmitted.".into(),uncertain:false});
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    let result = match client
+        .response("/api/v1/topology/edits", "post", Some(request))
+        .await
+    {
+        Ok(r) => r.json::<Operation>().await.map_err(|_| ApiError {
+            status: None,
+            code: "invalid_reply".into(),
+            message:
+                "The save answer is unknown. Recover the original request before another save."
+                    .into(),
+            uncertain: true,
+        }),
+        Err(e) => Err(e),
+    };
+    let op = match result {
+        Ok(op) => op,
+        Err(e) if e.uncertain => match client.get::<Operation>(&url).await {
+            Ok(op) => op,
+            Err(_) => return Err(e),
+        },
+        Err(e) => return Err(e),
+    };
+    client.settle(op, &request.key, 600).await
+}
+pub(crate) async fn profiles(
+    session: RwSignal<Option<Principal>>,
+    router: &str,
+    form: &web_contract::routers::RouterEditForm,
+) -> Result<web_contract::routers::RouterEditReply, ApiError> {
+    let c = Client::new(session)?;
+    let reply=c.response(&format!("/api/v1/routers/{}",encoded(router)),"patch",Some(form)).await?.json::<web_contract::routers::RouterEditOutcome>().await.map_err(|_|ApiError::local("The access-save reply is unknown. Reload cached configuration before another save."))?;
+    if reply.code != "ok" {
+        return Err(ApiError {
+            status: None,
+            code: reply.code,
+            message: reply.message,
+            uncertain: false,
+        });
+    }
+    reply.reply.ok_or_else(|| {
+        ApiError::local(
+            "The access-save reply is unknown. Reload cached configuration before another save.",
+        )
+    })
 }

@@ -543,7 +543,7 @@ pub(crate) fn NewRouter(
 /// The password check before a credential replacement (owner decision D2). A native modal dialog
 /// keeps focus inside, closes with Escape, and returns focus to the trigger.
 #[component]
-fn Reauth(
+pub(crate) fn Reauth(
     open: RwSignal<bool>,
     error: RwSignal<String>,
     on_confirm: Callback<String>,
