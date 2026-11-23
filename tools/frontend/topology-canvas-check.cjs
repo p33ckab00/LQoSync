@@ -222,6 +222,7 @@ const fs=require('node:fs');
     await srcs.getByRole('button',{name:'Add source Hotspot Access-01'}).waitFor({timeout:15000});
     await page.setViewportSize({width:390,height:800});
     assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=390),'no sideways scroll at 390 px');
+    await srcs.locator('thead').waitFor({state:'hidden'});
     assert.equal(await srcs.locator('thead').isVisible(),false,'narrow rows stack, without a header row');
     await page.screenshot({path:`${out}/inventory-390.png`});
     await page.setViewportSize({width:1440,height:1000});
