@@ -173,3 +173,12 @@ Stable scopes keep every identity reference. A new subscriber has a `draft:` ref
 | B3.1 | Draft validation and translation (pure functions). | `hotspot_authority_is_not_invented`, unsupported-construct and equal-priority overlap blockers |
 | B3.2 | Engine run on the clone with snapshot evidence: records, issues, graph, diff. | `preview_preserves_durable_state`, `missing_ppp_join_is_a_blocker`, `dynamic_dhcp_keeps_identity`, `explicit_rate_precedes_profile_rate` |
 | B3.3 | Candidate cache, `source_studio.evaluate` and candidate service operations, gateway GETs and the job, advertisement of `policy_preview` and `fields`. | `paged_issues_keep_complete_counts`, `foreign_actor_cannot_read_candidate`, `restart_expires_candidate` |
+
+## Contract change for the frontend (2026-11-23T23:28:34+08:00, Asia/Manila)
+
+Owner decision: contract version 1 gets four more rate kinds. Commit `4ec8a0adf09df4751cd32df571d1f2059445cb2a` on `claude/topology-studio-backend`.
+
+- `RateSource`: `profile_comment { format }`, `profile_name`, `server_comment { format }`, `settings`.
+- `RateKind`: `profile_comment`, `profile_name`, `server_comment`, `settings`.
+- Required frontend change: the exhaustive `match` on `RateSource` in `crates/web-ui/src/topology_studio_model.rs` (about line 256 in `codex/topology-studio-ui`) needs four new arms after integration. Claude Code did not edit that file.
+- Reason: the engine rate orders use profile name, profile comment, server comment, and the configured default. Without these kinds, a draft for the default PPP configuration is a blocker.
