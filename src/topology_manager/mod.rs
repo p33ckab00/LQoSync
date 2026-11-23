@@ -14,6 +14,7 @@ pub mod observation;
 pub mod rates;
 pub mod reader;
 pub mod resolver;
+pub mod routing_balance;
 pub mod wan;
 pub mod wan_health;
 pub mod wan_lists;
