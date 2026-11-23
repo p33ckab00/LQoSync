@@ -878,14 +878,24 @@ where
     }
 
     /// Write `source-studio.json`: the Studio view of each configured router. No router I/O.
-    fn publish_studio(&self, revision: Option<u64>, now: u64) {
+    fn publish_studio(
+        &self,
+        revision: Option<u64>,
+        catalog: Option<&crate::topology_manager::catalog::TopologyCatalog>,
+        now: u64,
+    ) {
         // The saved file can differ from the loaded config until the next reload.
         let file_digest = std::fs::read(&self.config_path)
             .map(|b| crate::cli::config_digest(&b))
             .unwrap_or_else(|_| self.config_digest.clone());
-        let cache = self
-            .studio
-            .cache(&self.cfg, &file_digest, &self.config_digest, revision, now);
+        let cache = self.studio.cache(
+            &self.cfg,
+            catalog,
+            &file_digest,
+            &self.config_digest,
+            revision,
+            now,
+        );
         let path = Path::new(&self.cfg.runtime.state_dir).join(web_contract::source_studio::CACHE);
         let written = serde_json::to_vec(&cache)
             .map_err(anyhow::Error::from)
@@ -918,8 +928,10 @@ where
             )
             .await
             .map_err(|m| anyhow::Error::new(crate::topology_manager::store::InvalidPolicy(m)))?;
-        let revision = self.api_document().ok().flatten().map(|d| d.revision);
-        self.publish_studio(revision, reference.collected_to);
+        let doc = self.api_document().ok().flatten();
+        let revision = doc.as_ref().map(|d| d.revision);
+        let catalog = doc.and_then(|d| d.catalog);
+        self.publish_studio(revision, catalog.as_ref(), reference.collected_to);
         Ok(serde_json::to_value(reference)?)
     }
 
@@ -2570,6 +2582,36 @@ where
         if let crate::topology_manager::edits::Edit::RoutingRebalance { apply } = edit {
             return self.routing_rebalance(expected_revision, apply);
         }
+        use crate::topology_manager::edits::Edit as E;
+        let edit = match edit {
+            E::RouterSourcesSet {
+                router_id,
+                expected_config_digest,
+                policies,
+            } => {
+                return self.api_sources_set(
+                    expected_revision,
+                    &router_id,
+                    &expected_config_digest,
+                    policies,
+                );
+            }
+            E::WanCandidateSet {
+                router_id,
+                expected_config_digest,
+                interface,
+                decision,
+            } => {
+                return self.api_wan_decision(
+                    expected_revision,
+                    &router_id,
+                    &expected_config_digest,
+                    &interface,
+                    decision,
+                );
+            }
+            other => other,
+        };
         if matches!(edit, crate::topology_manager::edits::Edit::FailbackRelease) {
             let monitor = self
                 .wan_monitor
@@ -2587,6 +2629,141 @@ where
         let saved = self.api_edit_confirm(&id)?;
         self.reconcile_requested = true;
         Ok(saved)
+    }
+
+    /// Edit `router.sources_set`: the complete policy set of one router. Both the config digest
+    /// and the registry revision must be current. The set goes through the current edit commit
+    /// and receipt; the next cycle publishes through the current publisher.
+    fn api_sources_set(
+        &mut self,
+        expected_revision: u64,
+        router_id: &str,
+        expected_digest: &str,
+        mut policies: Vec<web_contract::source_studio::SourcePolicyDraft>,
+    ) -> anyhow::Result<serde_json::Value> {
+        use crate::topology_manager::source_studio::evaluate as ev;
+        use web_contract::source_studio::Severity;
+        // No registry change happens before every check passes.
+        let doc = self
+            .api_document()?
+            .filter(|d| d.catalog.is_some() && d.source_settings.is_some())
+            .ok_or_else(|| rule("not_initialized: initialize the topology first".into()))?;
+        if doc.revision != expected_revision {
+            return Err(anyhow::Error::new(
+                crate::topology_manager::store::RevisionConflict,
+            ));
+        }
+        if expected_digest != self.config_digest {
+            return Err(rule(
+                "stale_config_digest: the loaded configuration changed; load the router again"
+                    .into(),
+            ));
+        }
+        let router = self
+            .cfg
+            .routers
+            .iter()
+            .find(|r| crate::topology_manager::policy_draft::router_id(&r.name) == router_id)
+            .cloned()
+            .ok_or_else(|| rule("this router is not in the loaded configuration".into()))?;
+        if !doc
+            .catalog
+            .iter()
+            .flat_map(|c| &c.routers)
+            .any(|r| r.id == router_id)
+        {
+            return Err(rule("this router is not in the topology catalog".into()));
+        }
+        ev::check_limits(&policies).map_err(rule)?;
+        for (i, p) in policies.iter_mut().enumerate() {
+            if p.id.is_none() {
+                let seed = format!("{router_id}\n{}\n{i}\n{}", p.name, doc.revision);
+                p.id = Some(format!(
+                    "policy-{:016x}",
+                    crate::topology::fnv1a64(seed.as_bytes())
+                ));
+            }
+        }
+        let ids: std::collections::BTreeSet<_> = policies.iter().map(|p| p.id.clone()).collect();
+        if ids.len() != policies.len() {
+            return Err(rule("each policy ID can be in the set once".into()));
+        }
+        let (intent, issues) = ev::translate(&self.cfg, &router, &policies);
+        if let Some(b) = issues.iter().find(|i| i.severity == Severity::Blocker) {
+            return Err(rule(format!("{}: {}", b.code, b.message)));
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        // An empty intent (no enabled policy) needs no evidence: it removes the policy sources.
+        let current = (intent.ppp.is_some() || !intent.dhcp.is_empty())
+            .then(|| ev::saved_evidence(&self.cfg, &router, &self.studio, &intent, now))
+            .transpose()
+            .map_err(rule)?;
+        let mut candidate =
+            ev::candidate(&self.cfg, &doc, &router, &intent, current.as_ref()).map_err(rule)?;
+        if let Some(r) = candidate
+            .catalog
+            .iter_mut()
+            .flat_map(|c| &mut c.routers)
+            .find(|r| r.id == router_id)
+        {
+            r.source_policies = Some(policies);
+        }
+        candidate.validate().map_err(|e| rule(format!("{e:#}")))?;
+        let (revision, ()) = self.api_edit(expected_revision, |_, _| Ok((candidate, ())))?;
+        self.last_preview = None;
+        self.reconcile_requested = true;
+        Ok(serde_json::json!({"revision": revision}))
+    }
+
+    /// Edit `wan.candidate_set`: save `pin` or `ignore` for one interface, or `clear` it. It
+    /// writes nothing to the router and changes no routing list.
+    fn api_wan_decision(
+        &mut self,
+        expected_revision: u64,
+        router_id: &str,
+        expected_digest: &str,
+        interface: &str,
+        decision: web_contract::source_studio::WanCandidateDecision,
+    ) -> anyhow::Result<serde_json::Value> {
+        use web_contract::source_studio::WanCandidateDecision as D;
+        if expected_digest != self.config_digest {
+            return Err(rule(
+                "stale_config_digest: the loaded configuration changed; load the router again"
+                    .into(),
+            ));
+        }
+        if !(1..=64).contains(&interface.len())
+            || interface
+                .chars()
+                .any(|c| c.is_control() || c.is_whitespace())
+        {
+            return Err(rule("check the interface name".into()));
+        }
+        let (revision, ()) = self.api_edit(expected_revision, |current, _| {
+            let mut c = current.clone();
+            let router = c
+                .catalog
+                .iter_mut()
+                .flat_map(|c| &mut c.routers)
+                .find(|r| r.id == router_id)
+                .ok_or_else(|| rule("this router is not in the topology catalog".into()))?;
+            router.wan_decisions.retain(|d| d.interface != interface);
+            if decision != D::Clear {
+                if router.wan_decisions.len() >= 64 {
+                    return Err(rule("a router keeps at most 64 WAN decisions".into()));
+                }
+                router
+                    .wan_decisions
+                    .push(crate::topology_manager::catalog::StoredWanDecision {
+                        interface: interface.into(),
+                        decision,
+                    });
+            }
+            Ok((c, ()))
+        })?;
+        Ok(serde_json::json!({"revision": revision}))
     }
 
     /// API `topology.web.operation`: the receipt of one request key, or `null` for another actor.
@@ -3192,7 +3369,7 @@ where
         if let Err(error) = crate::router_view::publish(state_dir, &inventory) {
             eprintln!("warning: cannot write routers.json: {error:#}");
         }
-        self.publish_studio(revision, now);
+        self.publish_studio(revision, catalog.as_ref(), now);
         self.collection_config_digest = self.config_digest.clone();
         self.collection = Some(collection);
         self.record_live_groups(now).await;

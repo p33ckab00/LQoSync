@@ -1174,6 +1174,7 @@ mod fallback_fixes {
             id: "edge".into(),
             name: "Edge".into(),
             roles: vec![catalog::RouterRole::Dhcp],
+            ..Default::default()
         });
         let mut source = draft
             .catalog
@@ -1212,6 +1213,17 @@ mod fallback_fixes {
         let c = a.candidate.catalog.as_ref().unwrap();
         let router = c.routers.iter().find(|r| r.id == "edge").unwrap();
         assert!(router.roles.contains(&catalog::RouterRole::Dhcp));
+        // A router with saved Studio policies has one source authority: its policies.
+        let mut owned = d.clone();
+        owned.catalog.as_mut().unwrap().routers.push(CatalogRouter {
+            id: "edge".into(),
+            name: "Edge".into(),
+            roles: vec![catalog::RouterRole::Dhcp],
+            source_policies: Some(vec![]),
+            ..Default::default()
+        });
+        let refused = add_source(&owned, &draft, "edge-lan", Some("wan2")).map(|_| ());
+        assert!(rule(refused.unwrap_err()).contains("source policies own"));
     }
 
     #[test]

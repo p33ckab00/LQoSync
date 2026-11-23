@@ -103,7 +103,7 @@ async fn route_failure_keeps_last_evidence() {
         .unwrap();
     assert_eq!(state(&first, TableId::Routes).0, ReadState::Complete);
     let view = |s: &Studio| {
-        s.router_config(&c.routers[0], D, D, None, now_secs())
+        s.router_config(&c.routers[0], None, D, D, None, now_secs())
             .wan_candidates
     };
     let good = view(&studio);
@@ -214,7 +214,7 @@ async fn disabled_router_is_not_collected() {
     assert_eq!(*fake.connects.lock().unwrap(), 0);
     assert!(
         studio
-            .router_config(&c.routers[1], D, D, None, now_secs())
+            .router_config(&c.routers[1], None, D, D, None, now_secs())
             .snapshots
             .is_empty()
     );
@@ -235,7 +235,7 @@ async fn snapshot_digest_matches_loaded_config() {
         .unwrap();
     assert_eq!(r.config_digest, D);
     assert!(r.expires_at > r.collected_to && r.collected_to >= r.collected_from);
-    let view = studio.router_config(&c.routers[0], "digest-2", D, Some(42), now_secs());
+    let view = studio.router_config(&c.routers[0], None, "digest-2", D, Some(42), now_secs());
     assert_eq!(
         (
             view.config_digest.as_str(),
@@ -258,7 +258,7 @@ async fn the_config_view_shows_profiles_without_secret_paths() {
             .await
             .unwrap();
     }
-    let cache = studio.cache(&c, D, D, None, now_secs());
+    let cache = studio.cache(&c, None, D, D, None, now_secs());
     assert_eq!(cache.routers.len(), 2);
     let core_view = &cache.routers[0];
     assert_eq!(

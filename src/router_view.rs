@@ -234,6 +234,7 @@ mod tests {
                 id: crate::topology_manager::policy_draft::router_id("Core"),
                 name: "Core".into(),
                 roles: vec![],
+                ..Default::default()
             }],
             sources: vec![CatalogSource {
                 excluded: false,

@@ -10,12 +10,13 @@ use web_contract::source_studio::{
 };
 
 /// The features whose plan task passed in this build. Add a feature only with its tests.
-pub const FEATURES: [StudioFeature; 5] = [
+pub const FEATURES: [StudioFeature; 6] = [
     StudioFeature::DraftTest,
     StudioFeature::AccessProfiles,
     StudioFeature::SourceCollect,
     StudioFeature::WanEvidence,
     StudioFeature::PolicyPreview,
+    StudioFeature::PolicySave,
 ];
 
 /// API `source_studio.capabilities`. It reads nothing. The fields are the ones that the

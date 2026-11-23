@@ -333,7 +333,7 @@ impl Studio {
                     routes,
                     read_state,
                     last_observed_at: Some(*seen),
-                    // Saved decisions arrive with plan task B4.
+                    // `router_config` adds the saved decision.
                     decision: None,
                 }
             })
@@ -344,6 +344,7 @@ impl Studio {
     pub fn router_config(
         &self,
         r: &RouterCfg,
+        saved: Option<&crate::topology_manager::catalog::CatalogRouter>,
         file_digest: &str,
         loaded_digest: &str,
         revision: Option<u64>,
@@ -370,8 +371,9 @@ impl Studio {
             policy_revision: revision.map(|v| v.to_string()),
             enabled: r.enabled,
             access_profiles,
-            // Saved source policies arrive with plan task B4.
-            policies: Vec::new(),
+            policies: saved
+                .and_then(|c| c.source_policies.clone())
+                .unwrap_or_default(),
             snapshots: self
                 .snapshots
                 .get(&id)
@@ -380,7 +382,16 @@ impl Studio {
                 .filter(|c| c.reference.expires_at > now)
                 .map(|c| c.reference.clone())
                 .collect(),
-            wan_candidates: self.wan_evidence(&id),
+            wan_candidates: self
+                .wan_evidence(&id)
+                .into_iter()
+                .map(|mut w| {
+                    w.decision = saved
+                        .and_then(|c| c.wan_decisions.iter().find(|d| d.interface == w.interface))
+                        .map(|d| d.decision);
+                    w
+                })
+                .collect(),
         }
     }
 
@@ -388,6 +399,7 @@ impl Studio {
     pub fn cache(
         &self,
         cfg: &Config,
+        catalog: Option<&crate::topology_manager::catalog::TopologyCatalog>,
         file_digest: &str,
         loaded_digest: &str,
         revision: Option<u64>,
@@ -399,7 +411,11 @@ impl Studio {
             routers: cfg
                 .routers
                 .iter()
-                .map(|r| self.router_config(r, file_digest, loaded_digest, revision, now))
+                .map(|r| {
+                    let id = router_id(&r.name);
+                    let saved = catalog.and_then(|c| c.routers.iter().find(|x| x.id == id));
+                    self.router_config(r, saved, file_digest, loaded_digest, revision, now)
+                })
                 .collect(),
         }
     }

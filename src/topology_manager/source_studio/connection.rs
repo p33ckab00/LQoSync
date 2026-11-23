@@ -431,11 +431,8 @@ mod tests {
         enabled.enabled = true;
         let writer = rt.block_on(connector.connect_writer(&enabled, &c.router_access));
         assert!(matches!(writer, Err(ReadError::Login(m)) if m.contains("no writer user")));
-        assert!(
-            !super::super::FEATURES
-                .iter()
-                .any(|f| matches!(f, web_contract::source_studio::StudioFeature::PolicySave))
-        );
+        // A saved access profile or policy grants no writer credential.
+        assert!(c.routers.iter().all(|r| r.writer_username.is_empty()));
     }
 
     #[tokio::test]

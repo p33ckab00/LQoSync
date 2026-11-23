@@ -44,6 +44,7 @@ fn catalog(router_id: &str, router_name: &str, endpoint: &str, nodes: &[&str]) -
             id: router_id.into(),
             name: router_name.into(),
             roles: vec![RouterRole::Wan],
+            ..Default::default()
         }],
         sources: vec![CatalogSource {
             excluded: false,

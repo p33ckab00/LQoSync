@@ -2,7 +2,7 @@
 
 Status: contract version 1 types exist since task B0 in `crates/web-contract/src/source_studio.rs`.
 Since task B3, the production service has all new routes and the three jobs (`draft_test`, `collect`, `evaluate`).
-It advertises `draft_test`, `access_profiles`, `source_collect`, `wan_evidence`, and `policy_preview`. `policy_save` waits for task B4. The browser fixture serves all new HTTP shapes.
+It advertises `draft_test`, `access_profiles`, `source_collect`, `wan_evidence`, `policy_preview`, and (since task B4) `policy_save`. The browser fixture serves all new HTTP shapes.
 The [product design](ROUTER_SOURCE_CONFIGURATION.md) defines the required behavior.
 The [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) assigns the work.
 
@@ -419,6 +419,20 @@ Owner decision: the service translates each draft into the current engine struct
 | Cache | 10 minutes, at most 4 candidates and 64 MiB for each actor, 128 MiB in total. The oldest candidate leaves first. A page ends early at 48 KiB. |
 | Fields | `account.profile` (PPP, group only) and `lease.server` (DHCP, `eq` and `in`, group). |
 
+## Version 1 details from task B4
+
+| Item | Task B4 behavior |
+| --- | --- |
+| Registry schema | 10. `CatalogRouter.source_policies` (`None` keeps the legacy sources; `Some([])` removes every policy source of the router) and `CatalogRouter.wan_decisions`. A schema-9 file loads as schema 10 with neither field. An older binary cannot read schema 10. |
+| `router.sources_set` | Through `POST /api/v1/topology/edits` and the current receipt. Checks in this order, before any change: initialized topology (`not_initialized`), exact registry revision (conflict), loaded config digest (`stale_config_digest`), router, input limits, translation blockers, then evidence. |
+| Evidence | An enabled policy needs the newest complete Studio snapshot of the router (`collect_router_first`, `partial_table`, `missing_ppp_join`). An empty set needs none. |
+| Commit | The translated catalog sources, nodes, and selections of the router, with the policy set, in one registry commit. The next topology cycle publishes through the current publisher. The save does not run the compiler; the cycle does, and holds the output on failure. |
+| Policy IDs | A policy without `id` gets `policy-<16 hex digits>`. IDs are unique in a set. |
+| Error text | A failed receipt `error` starts with the code, for example `stale_config_digest: ...`. |
+| `wan.candidate_set` | Saves `pin` or `ignore`, or removes the entry for `clear`. At most 64 decisions for each router. It reads no router and writes no router or routing list. `RouterSourceConfig.wan_candidates[].decision` shows the saved decision. |
+| Source discovery | `source.add` refuses a source of a router that has saved policies. |
+| Body limit | `POST /api/v1/topology/edits` takes 32 KiB. Other routes keep 4 KiB. |
+
 ## Browser fixture cases
 
 The browser fixture (`crates/web-gateway/examples/browser_fixture.rs`) serves the new routes from `crates/web-contract/tests/fixtures/studio/`.
@@ -443,4 +457,4 @@ Fixture rules in all cases:
 - A source job for a router other than `lq3-00000000000000a1` returns `409` with `router_disabled`.
 - The same key with the same payload returns the same operation. The same key with a changed payload returns `409` with `key_reused`.
 - The page cursor is a plain offset in the fixture only. The service binds the cursor to the actor, candidate, draft digest, and filter.
-- The source-job body limit is 32 KiB. The existing `POST /api/v1/topology/edits` keeps the 4 KiB limit until task B5.
+- The source-job body limit is 32 KiB. Since task B4, `POST /api/v1/topology/edits` also takes 32 KiB.

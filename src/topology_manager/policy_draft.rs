@@ -47,6 +47,7 @@ pub fn read_catalog(cfg: &Config) -> TopologyCatalog {
                 .into_iter()
                 .filter_map(|(on, role)| on.then_some(role))
                 .collect(),
+                ..Default::default()
             })
             .collect(),
         ..TopologyCatalog::default()

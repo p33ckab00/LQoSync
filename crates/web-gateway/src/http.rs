@@ -636,7 +636,11 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/topology", get(topology))
         .route("/api/v1/topology/proposals", post(topology_propose))
         .route("/api/v1/topology/reads", post(topology_reads))
-        .route("/api/v1/topology/edits", post(topology_edit))
+        // A source policy set is larger than other edits; other routes keep 4 KiB.
+        .route(
+            "/api/v1/topology/edits",
+            post(topology_edit).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
         .route("/api/v1/topology/layout", put(topology_layout))
         .route(
             "/api/v1/topology/proposals/{key}/confirm",

@@ -398,11 +398,13 @@ fn document() -> RegistryDocument {
                     id: "core".into(),
                     name: "Core".into(),
                     roles: vec![RouterRole::Wan],
+                    ..Default::default()
                 },
                 CatalogRouter {
                     id: "distro".into(),
                     name: "Distro".into(),
                     roles: vec![RouterRole::Hotspot, RouterRole::Ppp],
+                    ..Default::default()
                 },
             ],
             sources: vec![

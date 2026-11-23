@@ -616,6 +616,7 @@ fn wan_create(
                 id: router_id.into(),
                 name: router_name,
                 roles: vec![RouterRole::Wan],
+                ..Default::default()
             });
             router_id.into()
         }
@@ -1351,6 +1352,7 @@ pub fn auto_read(
                     id: r.id.clone(),
                     name: r.name.clone(),
                     roles: vec![role],
+                    ..Default::default()
                 });
             }
         }
@@ -1543,6 +1545,26 @@ pub fn add_source(
     if !fresh.iter().any(|k| k == key) {
         return Err(gone());
     }
+    // A router with saved Studio policies has one source authority: its policies.
+    let owner = draft
+        .catalog
+        .sources
+        .iter()
+        .find(|s| s.id == key)
+        .and_then(|s| match &s.origin {
+            SourceOrigin::Subscribers { scope, .. } => Some(scope.router_id.as_str()),
+            SourceOrigin::Wan { .. } => None,
+        });
+    let owned = doc
+        .catalog
+        .iter()
+        .flat_map(|c| &c.routers)
+        .any(|r| Some(r.id.as_str()) == owner && r.source_policies.is_some());
+    if owned {
+        return Err(invalid(
+            "source policies own the sources of this router; change them in Topology Studio",
+        ));
+    }
     if let Some(r) = rebinds(doc, draft).into_iter().find(|r| r.source_id == key) {
         let mut d = doc.clone();
         let settings = d.source_settings.as_mut().ok_or_else(gone)?;
@@ -1600,6 +1622,7 @@ pub fn add_source(
                 id: r.id.clone(),
                 name: r.name.clone(),
                 roles: vec![role],
+                ..Default::default()
             });
         }
     }
@@ -1704,7 +1727,7 @@ pub fn apply(
         Edit::RouterSourcesSet { .. } | Edit::WanCandidateSet { .. }
     ) {
         return Err(invalid(
-            "source policy edits are not available in this service version",
+            "source policy edits are not available as a reviewed proposal; use the automatic edit",
         ));
     }
     if matches!(edit, Edit::Initialize) {

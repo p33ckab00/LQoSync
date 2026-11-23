@@ -123,6 +123,7 @@ async fn current(router: &str, generation: u64, rows: Rows, roles: &[RouterRole]
             id: router.into(),
             name: "Router".into(),
             roles: roles.into(),
+            ..Default::default()
         }],
         ..Default::default()
     };
@@ -1122,6 +1123,7 @@ async fn duplicate_ppp_name_in_one_scope_fails_normalization() {
             id: "router-a".into(),
             name: "Router".into(),
             roles: vec![RouterRole::Ppp],
+            ..Default::default()
         }],
         ..Default::default()
     };

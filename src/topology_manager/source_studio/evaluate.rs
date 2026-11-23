@@ -446,7 +446,7 @@ pub fn candidate(
     doc: &RegistryDocument,
     router: &RouterCfg,
     intent: &RouterIntent,
-    current: &CurrentRouter,
+    current: Option<&CurrentRouter>,
 ) -> Result<RegistryDocument, String> {
     let rid = router_id(&router.name);
     let mut one = cfg.clone();
@@ -465,8 +465,11 @@ pub fn candidate(
         r.dhcp.discover = false;
     }
     one.routers = vec![r];
-    let draft = crate::topology_manager::policy_draft::propose(&one, std::slice::from_ref(current))
-        .map_err(|e| format!("{e:#}"))?;
+    let draft = crate::topology_manager::policy_draft::propose(
+        &one,
+        current.map_or(&[], std::slice::from_ref),
+    )
+    .map_err(|e| format!("{e:#}"))?;
     let scope_owner: HashMap<String, (EngineKind, Option<String>)> = draft
         .source_settings
         .selections
@@ -612,7 +615,7 @@ const MAX_NODES: usize = 400;
 const MAX_MARKERS: usize = 100;
 const EVIDENCE_AGE: Duration = Duration::from_secs(60);
 
-fn tables_for(intent: &RouterIntent) -> Vec<Table> {
+pub(crate) fn tables_for(intent: &RouterIntent) -> Vec<Table> {
     let mut t = Vec::new();
     if intent.ppp.is_some() {
         t.extend([Table::PppSecrets, Table::PppProfiles, Table::PppActive]);
@@ -621,6 +624,44 @@ fn tables_for(intent: &RouterIntent) -> Vec<Table> {
         t.extend([Table::DhcpServers, Table::DhcpLeases]);
     }
     t
+}
+
+/// The current evidence of one router from its newest complete snapshot, for a policy save.
+/// A partial or failed table is refused: absence is never evidence.
+pub(crate) fn saved_evidence(
+    cfg: &Config,
+    router: &RouterCfg,
+    studio: &Studio,
+    intent: &RouterIntent,
+    now: u64,
+) -> Result<CurrentRouter, String> {
+    let id = router_id(&router.name);
+    let snap = studio
+        .latest(&id, now)
+        .ok_or("collect_router_first: the save uses the newest snapshot of this router")?;
+    for t in tables_for(intent) {
+        let complete = snap
+            .reference
+            .tables
+            .iter()
+            .any(|e| e.table == table_id(t) && e.state == ReadState::Complete);
+        if !complete {
+            return Err(
+                "partial_table: collect every table of the policy sources completely".into(),
+            );
+        }
+    }
+    let read = RouterRead::from_tables(&id, 1, snap.tables_snapshot(), EVIDENCE_AGE)
+        .map_err(|e| format!("invalid_evidence: {e}"))?;
+    crate::topology_manager::normalize::normalize_configured(&read, &cfg.exclude, &router.exclude)
+        .map_err(|e| match e {
+            NormalizeError::Row {
+                table: Table::PppActive,
+                issue: Issue::MissingAccount,
+                ..
+            } => "missing_ppp_join: an active PPP session has no PPP secret".to_string(),
+            e => format!("invalid_evidence: {e}"),
+        })
 }
 
 /// Evaluate the drafts of one router on a clone of the current topology. It reads no router,
@@ -729,7 +770,7 @@ where
             return Ok(Evaluation::stopped(issues));
         }
     };
-    let candidate = match candidate(cfg, doc, router, &intent, &current) {
+    let candidate = match candidate(cfg, doc, router, &intent, Some(&current)) {
         Ok(c) => c,
         Err(m) => {
             issues.push(issue("engine_refused", Severity::Blocker, id, None, &m));

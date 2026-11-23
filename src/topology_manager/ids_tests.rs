@@ -7,6 +7,7 @@ fn router(id: String) -> CatalogRouter {
         id,
         name: "Same label".into(),
         roles: Vec::new(),
+        ..Default::default()
     }
 }
 

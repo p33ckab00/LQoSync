@@ -408,3 +408,42 @@ async fn an_evaluate_job_keeps_a_candidate_that_only_its_actor_reads() {
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn large_policy_uses_scoped_body_limit() {
+    let (_dir, app, _) = app(true).await;
+    let (cookie, csrf) = sign_in(&app).await;
+    // About 12 KiB: a policy set of several policies.
+    let names: Vec<String> = (0..1200).map(|i| format!("n{i:05}")).collect();
+    let edit = json!({"key": "studio-save-0000000001", "expected_revision": 1, "edit": {
+        "kind": "router.sources_set", "router_id": "lq3-00000000000000a1",
+        "expected_config_digest": "d1", "policies": [], "padding": names}})
+    .to_string();
+    assert!(edit.len() > 8 * 1024 && edit.len() < 32 * 1024);
+    let (status, _) = send(
+        &app,
+        req(
+            "POST",
+            "/api/v1/topology/edits",
+            &cookie,
+            &csrf,
+            edit.clone(),
+        ),
+    )
+    .await;
+    assert_ne!(
+        status,
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "the edit route takes 32 KiB"
+    );
+    let (status, _) = send(
+        &app,
+        req("POST", "/api/v1/topology/reads", &cookie, &csrf, edit),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "other routes keep 4 KiB"
+    );
+}

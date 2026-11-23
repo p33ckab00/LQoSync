@@ -877,6 +877,7 @@ fn accounts_on_two_routers_use_the_intersection() {
         id: "edge".into(),
         name: "Edge".into(),
         roles: vec![catalog::RouterRole::Ppp],
+        ..Default::default()
     });
     let mut source = c.sources[2].clone();
     source.id = "edge-source".into();
