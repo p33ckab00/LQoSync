@@ -212,18 +212,23 @@ fn normalize_inner(
         account.service_refs.sort_unstable();
         account.service_refs.dedup();
     }
-    // A profile or a service is active when an account of this read uses it.
-    let used: HashSet<&str> = current
+    // A profile or a service is active when an account of this read uses it. RouterOS `.id`
+    // values are per table, so profiles and services of each kind are matched apart.
+    let profiles: HashSet<(SourceKind, &str)> = current
         .accounts
         .iter()
-        .flat_map(|a| a.profile_ref.iter().chain(a.service_refs.iter()))
-        .map(String::as_str)
+        .filter_map(|a| Some((a.kind, a.profile_ref.as_deref()?)))
+        .collect();
+    let services: HashSet<(SourceKind, &str)> = current
+        .accounts
+        .iter()
+        .flat_map(|a| a.service_refs.iter().map(move |s| (a.kind, s.as_str())))
         .collect();
     for profile in &mut current.profiles {
-        profile.active = used.contains(profile.row_ref.as_str());
+        profile.active = profiles.contains(&(profile.kind, profile.row_ref.as_str()));
     }
     for service in &mut current.services {
-        service.active = used.contains(service.row_ref.as_str());
+        service.active = services.contains(&(service.kind, service.row_ref.as_str()));
     }
     current
         .accounts

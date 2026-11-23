@@ -121,12 +121,20 @@ pub(crate) fn tables(snap: &RouterSnapshot) -> BTreeMap<Table, Vec<RosRow>> {
 }
 
 pub(crate) async fn current(cfg: &Config, snap: &RouterSnapshot) -> CurrentRouter {
+    current_tables(cfg, tables(snap)).await
+}
+
+/// As `current`, from router rows that the test sets itself.
+pub(crate) async fn current_tables(
+    cfg: &Config,
+    rows: BTreeMap<Table, Vec<RosRow>>,
+) -> CurrentRouter {
     let catalog = read_catalog(cfg);
     let plan = ReadPlan::for_router(&catalog, &catalog.routers[0].id).unwrap();
     let evidence = ReadGuard::new(catalog.routers[0].id.clone())
         .unwrap()
         .read(
-            &mut Some(Session(tables(snap))),
+            &mut Some(Session(rows)),
             &plan,
             1,
             Duration::from_secs(1),
@@ -333,4 +341,37 @@ async fn a_secret_that_moves_to_a_profile_without_a_group_keeps_the_others() {
         .filter(|r| r.parent_node.is_empty())
         .count();
     assert_eq!(ungrouped, 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_profile_id_equal_to_a_leased_server_id_is_not_active() {
+    // RouterOS `.id` values are per table: profile `*1` and DHCP server `*1` can both exist.
+    let (cfg, mut snap) = scenario();
+    let mut unused = snap.ppp_profile[0].clone();
+    unused.insert("name".into(), "Unused".into());
+    snap.ppp_profile.push(unused);
+    let mut rows = tables(&snap);
+    let server = rows[&Table::DhcpServers][0][".id"].clone();
+    let leased = rows[&Table::DhcpServers][0]["name"].clone();
+    assert!(snap.dhcp_lease.iter().any(|l| l["server"] == leased));
+    for p in rows.get_mut(&Table::PppProfiles).unwrap() {
+        if p["name"] == "Unused" {
+            p.insert(".id".into(), server.clone());
+        }
+    }
+    let draft = propose(&cfg, &[current_tables(&cfg, rows).await]).unwrap();
+    assert!(
+        !draft
+            .catalog
+            .nodes
+            .iter()
+            .any(|n| n.name.starts_with("Unused")),
+        "{:?}",
+        draft
+            .catalog
+            .nodes
+            .iter()
+            .map(|n| &n.name)
+            .collect::<Vec<_>>()
+    );
 }
