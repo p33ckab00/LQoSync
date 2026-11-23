@@ -271,3 +271,49 @@ Planned backend task after B3 (not started): live throughput for each node and l
 | Open work | B5 (transport and release evidence, `studio-service-smoke.sh`). Known limits: the save does not run the compiler (the cycle does). In legacy writer mode the saved policy changes the registry only; the live output follows the config until the topology writer owns publication. A removed profile or source keeps its files. |
 | Next frontend step | F3 can save access profiles (router edit), wait for `loaded_config_digest`, then send `router.sources_set` with the registry revision. A failed receipt `error` starts with its code. |
 | Time | 2026-11-24T06:54:13+08:00 |
+
+## Return packet: B5 (2026-11-24T07:37:14+08:00, Asia/Manila)
+
+| Item | Value |
+| --- | --- |
+| Task | B5. The backend lane (B0–B5) is complete. |
+| Branch/worktree | `claude/topology-studio-backend` in `/home/pi/LQoSync3.0-worktrees/claude-topology-studio-backend`. |
+| Base/head | Base `f92764b` (B4 packet). Head `238f4894d76fa4b42aacca2612a134e55f82f643`. B5 commits: `e39f912` (transport tests and operation names), `238f489` (smoke test and a fix). |
+| Contract version | `1` with the B3 amendment `4ec8a0a`. No contract change in B5. |
+| Owner decision | The smoke test uses an in-process harness: the installed broker needs root, and the core reads root-owned secrets. |
+| API state | Final service operations: `source_studio.capabilities`, `.test`, `.collect`, `.evaluate`, `.candidate`, and `topology.web.mutate` for saves. `source_studio.config` does not exist; the source-config GET reads the service cache. All six features are advertised. |
+| Named tests | `lost_policy_reply_recovers_receipt`, `apply_failure_never_reports_applied`, `studio_posts_need_the_same_origin`, `large_policy_uses_scoped_body_limit` (B4), and the earlier CSRF, actor, and bound tests. |
+| Fix | The smoke test found that a `ppp` + `wan` collection could not be saved: `tables_snapshot` gave route rows (no row locator) as engine evidence. Fixed in `238f489`, with a unit assertion. |
+| Checks | All passed: `cargo test --locked --workspace --no-fail-fast` (2076 passed, 0 failed, 13 ignored). `cargo clippy --locked --workspace --all-targets --examples -- -D warnings`. `cargo fmt --all`. `git diff --check`. `bash tools/integration/studio-service-smoke.sh` on `238f489`: 19 of 19 checks. |
+| Smoke evidence | See the block below. It is test evidence from a synthetic router and test runtime, not production acceptance. |
+| Not run | `tools/frontend/check-all.sh` (frontend lane). Production binaries as root. Publication by the topology writer: activation needs the live-test gates, so the smoke test proves the save and the engine preview, not an output pair from the topology writer. |
+| Migration | None in B5. B4 schema 10 applies. |
+| Open work | I0 (integration, Codex). Owner follow-up: live throughput for each node and link (Sankey reference), after integration. Known limits: see the B3 and B4 packets. |
+| Next frontend step | F2/F3 use the real gateway. Integration needs the four `RateSource` arms. |
+| Time | 2026-11-24T07:37:14+08:00 |
+
+Smoke output:
+
+    TEST EVIDENCE — synthetic router and test runtime; not production acceptance
+    root /tmp/lqosync3-studio-smoke.243lCf, repo 238f489, 2026-11-24T07:36:38+08:00
+    PASS core and gateway started
+    PASS capabilities advertise policy_save
+    PASS draft test accepted
+    PASS draft test passes every stage that runs (TLS off)
+    PASS draft secret absent from the operation
+    PASS source config is served from the cache
+    PASS topology initialize accepted
+    PASS topology initialized
+    PASS collection gives complete PPP tables
+    PASS candidate summary is complete and publishable
+    PASS candidate has the active PPP record at the profile rate
+    PASS evaluation changes no durable topology state
+    PASS policy save gives a saved receipt
+    PASS the registry holds the policy set
+    PASS the current engine prepares the saved policy
+    PASS WAN decision saved
+    PASS WAN evidence shows the saved decision
+    PASS the fake router saw no write or other command
+    PASS no password in any log
+    not covered: publication by the topology writer (activation needs live-test gates); production binaries as root
+    RESULT PASS
