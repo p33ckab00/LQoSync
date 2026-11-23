@@ -24,6 +24,10 @@ See the [aggregate traffic comparison](AGGREGATE_TRAFFIC.md) for Actual/Mapped/U
 See the [mirrored traffic and queue research](MIRRORED_TRAFFIC_RESEARCH.md) for the proposed comparison chart, compact figures, and backend gaps.
 See the [diagnostics banner](DIAGNOSTICS_TICKER.md) for live status motion, pause controls, and reduced motion.
 
+See the [Topology Studio review and implementation guide](TOPOLOGY_STUDIO_REVIEW.md) for the supplied design package, source gaps, and proposed improvements.
+
+See [Router Source Configuration](ROUTER_SOURCE_CONFIGURATION.md) for the detailed source-policy workflow and interactive SVG design reference.
+
 ## Read order
 
 1. [Feature design](DESIGN.md): scope, ownership, layouts, and behavior.
