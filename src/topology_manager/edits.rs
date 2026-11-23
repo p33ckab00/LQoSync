@@ -143,6 +143,13 @@ pub enum Edit {
     FailbackRelease,
     #[serde(rename = "routing.rebalance")]
     RoutingRebalance { apply: bool },
+    #[serde(rename = "link.remove")]
+    LinkRemove { parent: String, child: String },
+    #[serde(rename = "card.capacity")]
+    CardCapacity {
+        card_id: String,
+        capacity: CapacityInput,
+    },
     /// One time: assign each client to a node below the WAN of its operator range list.
     #[serde(rename = "wan.adopt")]
     WanAdopt,
@@ -755,6 +762,142 @@ fn node_instance_add(
         });
     for source in sources {
         instance_add(d, revision, &source, Some(&ids[0]), None)?;
+    }
+    Ok(())
+}
+
+/// The canvas card of a node: the instances of one source, or the copies of one router, share
+/// one card. The web view uses the same rule.
+pub fn card_key(n: &CatalogNode) -> String {
+    match (n.kind, &n.source_id, &n.router_id) {
+        (NodeKind::SubscriberGroup, Some(s), _) => format!("source:{s}"),
+        (NodeKind::SubscriberGroup, None, _) => n.id.clone(),
+        (_, _, Some(r)) => format!("router:{r}"),
+        _ => n.id.clone(),
+    }
+}
+
+/// Remove the canvas link from `parent` to `child`. The only parent: the child card moves to the
+/// top level with its children. One of several: that instance goes (a router copy with its group
+/// instances); its subscribers go to the other instances.
+fn link_remove(
+    doc: &RegistryDocument,
+    d: &mut RegistryDocument,
+    parent: &str,
+    child: &str,
+    affected: &mut BTreeSet<String>,
+    cleared: &mut Vec<String>,
+) -> anyhow::Result<()> {
+    let c = d.catalog.as_ref().expect("enrolled");
+    let node = find(c, child)?.clone();
+    if node.parent.as_deref() != Some(parent) {
+        return Err(invalid("the link does not exist"));
+    }
+    let above = find(c, parent)?;
+    if node.kind == NodeKind::SubscriberGroup
+        && above.kind != NodeKind::Wan
+        && above.router_id.is_some()
+    {
+        return Err(invalid("the router branch keeps its groups"));
+    }
+    let key = card_key(&node);
+    let others = c
+        .nodes
+        .iter()
+        .filter(|n| n.id != node.id && card_key(n) == key)
+        .count();
+    if others == 0 || key == node.id {
+        affected.extend(sources_below(c, &top(c, child)));
+        let i = position(c, child)?;
+        d.catalog.as_mut().expect("enrolled").nodes[i].parent = None;
+        return Ok(());
+    }
+    if node.kind != NodeKind::SubscriberGroup {
+        let groups: Vec<String> = c
+            .nodes
+            .iter()
+            .filter(|n| n.parent.as_deref() == Some(child) && n.kind == NodeKind::SubscriberGroup)
+            .map(|n| n.id.clone())
+            .collect();
+        for g in groups {
+            node_remove(doc, d, &g, affected, cleared)?;
+        }
+    }
+    node_remove(doc, d, child, affected, cleared)
+}
+
+/// Set the capacity of every instance of a canvas card. A fixed value is the card total, split
+/// in whole Mbps over the instances in the ratio of the WAN capacity above each; the remainder
+/// goes to the instance with the largest WAN.
+fn card_capacity(
+    d: &mut RegistryDocument,
+    card_id: &str,
+    capacity: &CapacityInput,
+    affected: &mut BTreeSet<String>,
+) -> anyhow::Result<()> {
+    let c = d.catalog.as_ref().expect("enrolled");
+    let members: Vec<usize> = (0..c.nodes.len())
+        .filter(|&i| card_key(&c.nodes[i]) == card_id)
+        .collect();
+    let Some(&first) = members.first() else {
+        return Err(invalid("the card does not exist"));
+    };
+    let policy = capacity.policy(c.nodes[first].kind)?;
+    // The fixed capacity of the WAN at the root above a node; 1 when there is none.
+    let wan_of = |mut i: usize| -> RateBps {
+        while let Some(p) = c.nodes[i].parent.as_deref() {
+            match c.nodes.iter().position(|n| n.id == p) {
+                Some(j) => i = j,
+                None => break,
+            }
+        }
+        match (c.nodes[i].kind, c.nodes[i].capacity) {
+            (NodeKind::Wan, CapacityPolicy::Fixed { base, .. }) => base,
+            _ => RateBps { down: 1, up: 1 },
+        }
+    };
+    let weights: Vec<RateBps> = members.iter().map(|&i| wan_of(i)).collect();
+    let split = |total: u64, w: &[u64]| -> Vec<u64> {
+        let sum = w.iter().map(|&x| u128::from(x)).sum::<u128>().max(1);
+        let mut parts: Vec<u64> = w
+            .iter()
+            .map(|&x| u64::try_from(u128::from(total) * u128::from(x) / sum).unwrap_or(0))
+            .collect();
+        let largest = (0..w.len())
+            .max_by_key(|&i| (w[i], std::cmp::Reverse(i)))
+            .unwrap_or(0);
+        parts[largest] += total - parts.iter().sum::<u64>();
+        parts
+    };
+    let policies: Vec<CapacityPolicy> = match policy {
+        CapacityPolicy::Fixed { base, factors } if members.len() > 1 => {
+            let down = split(
+                base.down / 1_000_000,
+                &weights.iter().map(|w| w.down).collect::<Vec<_>>(),
+            );
+            let up = split(
+                base.up / 1_000_000,
+                &weights.iter().map(|w| w.up).collect::<Vec<_>>(),
+            );
+            down.into_iter()
+                .zip(up)
+                .map(|(d, u)| CapacityPolicy::Fixed {
+                    base: RateBps {
+                        down: d * 1_000_000,
+                        up: u * 1_000_000,
+                    },
+                    factors,
+                })
+                .collect()
+        }
+        other => vec![other; members.len()],
+    };
+    for &i in &members {
+        affected.extend(sources_below(c, &top(c, &c.nodes[i].id)));
+    }
+    let c = d.catalog.as_mut().expect("enrolled");
+    for (&i, p) in members.iter().zip(policies) {
+        c.nodes[i].capacity = p;
     }
     Ok(())
 }
@@ -1559,6 +1702,8 @@ pub fn apply(
             | Edit::NodeTreeExclude { .. }
             | Edit::SourceExclude { .. }
             | Edit::SourceAdd { .. }
+            | Edit::LinkRemove { .. }
+            | Edit::CardCapacity { .. }
     );
     if doc.catalog.is_none()
         || (doc.export_ownership.is_none() && !(frontend_draft(doc) && structural))
@@ -1699,6 +1844,12 @@ pub fn apply(
         }
         Edit::NodeRemove { node_id } => {
             node_remove(doc, &mut d, node_id, &mut affected, &mut cleared)?;
+        }
+        Edit::LinkRemove { parent, child } => {
+            link_remove(doc, &mut d, parent, child, &mut affected, &mut cleared)?;
+        }
+        Edit::CardCapacity { card_id, capacity } => {
+            card_capacity(&mut d, card_id, capacity, &mut affected)?;
         }
         Edit::NodeLocation {
             node_id,
@@ -1928,8 +2079,10 @@ pub fn apply(
         .expect("enrolled")
         .check_router_nodes()
         .map_err(|e| invalid(format!("{e:#}")))?;
-    // Refuse a new violation only, so an older saved policy still opens and edits.
-    if let Some(name) = shared_fixed(d.catalog.as_ref().expect("enrolled"))
+    // Refuse a new violation only, so an older saved policy still opens and edits. A card
+    // capacity sets the total of the card and splits it, so it is not a violation (owner, 11-23).
+    if !matches!(edit, Edit::CardCapacity { .. })
+        && let Some(name) = shared_fixed(d.catalog.as_ref().expect("enrolled"))
         && doc.catalog.as_ref().and_then(shared_fixed).is_none()
     {
         return Err(invalid(format!(

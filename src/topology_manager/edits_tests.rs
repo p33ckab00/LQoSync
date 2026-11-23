@@ -2076,3 +2076,118 @@ async fn auto_router_nodes_adds_one_card_that_adopts_the_parentless_groups() {
     }
     assert!(auto_router_nodes(&next, &draft, true).unwrap().is_none());
 }
+
+// Canvas flows plan, Task 4: link removal and card capacity.
+
+fn fixed_node(id: &str, parent: Option<&str>, router: Option<&str>) -> catalog::CatalogNode {
+    let mut n = node(&doc(), "wan1").clone();
+    n.id = id.into();
+    n.name = id.into();
+    n.parent = parent.map(Into::into);
+    n.source_id = None;
+    n.router_id = router.map(Into::into);
+    n.kind = NodeKind::Intermediate;
+    n
+}
+
+/// Router copies r1 (below wan1) and r2 (below wan2), with one group instance below each.
+fn router_copies() -> RegistryDocument {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes.push(fixed_node("r1", Some("wan1"), Some("distro")));
+    c.nodes.push(fixed_node("r2", Some("wan2"), Some("distro")));
+    for (g, r) in [("group1", "r1"), ("group2", "r2")] {
+        c.nodes.iter_mut().find(|n| n.id == g).unwrap().parent = Some(r.into());
+    }
+    d
+}
+
+#[test]
+fn removing_the_only_link_moves_the_card_to_the_top_with_its_children() {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes.push(fixed_node("site", Some("wan1"), None));
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .parent = Some("site".into());
+    let out = run(
+        &d,
+        json!({"kind": "link.remove", "parent": "wan1", "child": "site"}),
+    )
+    .unwrap();
+    assert_eq!(node(&out.candidate, "site").parent, None);
+    assert_eq!(
+        node(&out.candidate, "group1").parent.as_deref(),
+        Some("site")
+    );
+}
+
+#[test]
+fn removing_one_wan_of_a_router_card_removes_that_copy_and_its_groups() {
+    let out = run(
+        &router_copies(),
+        json!({"kind": "link.remove", "parent": "wan2", "child": "r2"}),
+    )
+    .unwrap();
+    let ids: Vec<&str> = out
+        .candidate
+        .catalog
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .map(|n| n.id.as_str())
+        .collect();
+    assert!(!ids.contains(&"r2") && !ids.contains(&"group2"), "{ids:?}");
+    assert!(ids.contains(&"r1") && ids.contains(&"group1"));
+}
+
+#[test]
+fn removing_one_wan_of_a_group_removes_that_instance() {
+    let out = run(
+        &doc(),
+        json!({"kind": "link.remove", "parent": "wan2", "child": "group2"}),
+    )
+    .unwrap();
+    let ids: Vec<&str> = out
+        .candidate
+        .catalog
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .map(|n| n.id.as_str())
+        .collect();
+    assert!(
+        !ids.contains(&"group2") && ids.contains(&"group1"),
+        "{ids:?}"
+    );
+}
+
+#[test]
+fn a_group_link_to_its_router_card_is_refused() {
+    let why = refused(
+        &router_copies(),
+        json!({"kind": "link.remove", "parent": "r1", "child": "group1"}),
+    );
+    assert!(why.contains("router branch"), "{why}");
+}
+
+#[test]
+fn a_fixed_card_capacity_is_split_by_wan_capacity() {
+    // wan1 310/100 and wan2 620/200 Mbps: a 1:2 ratio.
+    let out = run(
+        &doc(),
+        json!({"kind": "card.capacity", "card_id": "source:profile-source",
+               "capacity": {"mode": "fixed", "down_mbps": 90, "up_mbps": 30, "factor_percent": null}}),
+    )
+    .unwrap();
+    let base = |id: &str| match node(&out.candidate, id).capacity {
+        catalog::CapacityPolicy::Fixed { base, .. } => (base.down / 1_000_000, base.up / 1_000_000),
+        ref other => panic!("{other:?}"),
+    };
+    assert_eq!(base("group1"), (30, 10));
+    assert_eq!(base("group2"), (60, 20));
+}

@@ -856,6 +856,14 @@ pub enum BuilderEdit {
     /// subscribers that would change WAN; `apply: true` changes them.
     #[serde(rename = "routing.rebalance")]
     RoutingRebalance { apply: bool },
+    /// Remove the canvas link from `parent` to `child` (node IDs). The only link moves the child
+    /// card to the top level with its children; one of several WAN links removes that instance.
+    #[serde(rename = "link.remove")]
+    LinkRemove { parent: String, child: String },
+    /// The capacity of a whole canvas card. A fixed value is the card total, split over its
+    /// instances in the ratio of their WAN capacities.
+    #[serde(rename = "card.capacity")]
+    CardCapacity { card_id: String, capacity: Capacity },
     /// Place the subscribers of one source again, or of all sources with `None`.
     #[serde(rename = "rebalance")]
     Rebalance { source_id: Option<String> },
