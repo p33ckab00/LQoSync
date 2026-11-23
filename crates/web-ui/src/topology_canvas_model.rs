@@ -283,6 +283,7 @@ mod tests {
             address_list: None,
             routed: None,
             active: true,
+            card_id: String::new(),
             tree_excluded: false,
         }
     }

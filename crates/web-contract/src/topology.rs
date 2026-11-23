@@ -67,6 +67,38 @@ pub struct TopologyView {
     /// The subscribers that "Rebalance routing" would move to another routing WAN now.
     #[serde(default)]
     pub routing_moves: u64,
+    /// One line for each distinct parent card and child card.
+    #[serde(default)]
+    pub flows: Vec<Flow>,
+    /// The routing WAN of the subscribers of each card.
+    #[serde(default)]
+    pub balance: Vec<CardBalance>,
+}
+
+/// One canvas line: the subscribers of the child card below that parent card.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Flow {
+    pub from: String,
+    pub to: String,
+    pub subscribers: u64,
+}
+
+/// The routing WANs of the subscribers of one card, with at most 50 leaf labels.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CardBalance {
+    pub card_id: String,
+    /// WAN node ID and subscriber count, in WAN ID order.
+    pub by_wan: Vec<(String, u64)>,
+    pub leaves: Vec<Leaf>,
+    /// The subscribers that have no leaf label.
+    pub more: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Leaf {
+    pub name: String,
+    /// The WAN node ID.
+    pub wan: String,
 }
 
 /// The latest shaping write and its evidence. Saved policy, files, import, and native
@@ -223,6 +255,10 @@ pub struct Node {
     /// The canvas hides an inactive node; its settings stay.
     #[serde(default = "yes")]
     pub active: bool,
+    /// The canvas card of this node: the instances of one source, or the copies of one router,
+    /// share one card. `source:<id>`, `router:<id>`, else the node ID.
+    #[serde(default)]
+    pub card_id: String,
     /// A router node that `network.json` does not contain. The canvas still shows it.
     #[serde(default)]
     pub tree_excluded: bool,

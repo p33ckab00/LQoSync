@@ -10,7 +10,7 @@ use crate::topology_manager::model::{IdentityRef, RegistryDocument, SourceKind};
 use crate::topology_manager::policy_draft::router_id;
 use crate::topology_manager::rates::RateRule;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use web_contract::topology::*;
 
@@ -39,6 +39,8 @@ pub struct Input<'a> {
     pub grace: u64,
     /// The subscribers that a routing Rebalance would move now.
     pub routing_moves: u64,
+    /// The routing WAN of each subscriber, as the writer would write it now.
+    pub routing: Option<&'a crate::topology_manager::routing_balance::RoutingState>,
     /// The last WAN discovery answer (`wan::answer`), and the names of the WAN routers.
     pub wan_discovery: Option<&'a Value>,
     pub wan_routers: &'a std::collections::BTreeSet<String>,
@@ -141,6 +143,35 @@ pub fn project(input: &Input<'_>) -> TopologyView {
             node.active = shown.contains(&node.id);
         }
     }
+    // One card for the instances of one source, and one for the copies of one router.
+    for node in &mut nodes {
+        node.card_id = match (node.kind.as_str(), &node.source_id, &node.router_id) {
+            ("group", Some(source), _) => format!("source:{source}"),
+            (kind, _, Some(router)) if kind != "group" => format!("router:{router}"),
+            _ => node.id.clone(),
+        };
+    }
+    let card_of: HashMap<&str, &str> = nodes
+        .iter()
+        .map(|n| (n.id.as_str(), n.card_id.as_str()))
+        .collect();
+    let mut lines: BTreeMap<(String, String), u64> = BTreeMap::new();
+    for node in &nodes {
+        if let Some(from) = node.parent.as_deref().and_then(|p| card_of.get(p)) {
+            *lines
+                .entry((from.to_string(), node.card_id.clone()))
+                .or_default() += node.members.unwrap_or(0);
+        }
+    }
+    let flows: Vec<web_contract::topology::Flow> = lines
+        .into_iter()
+        .map(|((from, to), subscribers)| web_contract::topology::Flow {
+            from,
+            to,
+            subscribers,
+        })
+        .collect();
+    let balance = card_balance(&list("subscribers"), &card_of, input.routing, doc);
     let active: HashMap<String, Active> = list("subscribers")
         .into_iter()
         .filter_map(|s| {
@@ -291,6 +322,8 @@ pub fn project(input: &Input<'_>) -> TopologyView {
         },
         layout_revision: input.layout.map(|l| l.revision.to_string()),
         routing_moves: input.routing_moves,
+        flows,
+        balance,
         wan_candidates: wan_candidates(input),
     }
 }
@@ -575,6 +608,93 @@ pub fn publish(directory: &Path, view: &TopologyView) -> anyhow::Result<()> {
     file.sync_all()?;
     std::fs::rename(temp, directory.join(CACHE))?;
     Ok(())
+}
+
+/// The routing WAN of the subscribers of each card, with at most 50 leaf labels each.
+fn card_balance(
+    subscribers: &[Value],
+    card_of: &HashMap<&str, &str>,
+    routing: Option<&crate::topology_manager::routing_balance::RoutingState>,
+    doc: Option<&RegistryDocument>,
+) -> Vec<web_contract::topology::CardBalance> {
+    const LEAVES: usize = 50;
+    let Some(routing) = routing else {
+        return Vec::new();
+    };
+    let names: HashMap<&str, String> = doc
+        .map(|d| {
+            d.subscribers
+                .iter()
+                .filter_map(|r| {
+                    Some((r.id.as_str(), leaf_name(&r.identities.first()?.account_ref)))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut cards: BTreeMap<&str, web_contract::topology::CardBalance> = BTreeMap::new();
+    let mut counts: BTreeMap<&str, BTreeMap<String, u64>> = BTreeMap::new();
+    for s in subscribers {
+        let (Some(id), Some(node)) = (s["id"].as_str(), s["node"].as_str()) else {
+            continue;
+        };
+        let (Some(card), Some(wan)) = (card_of.get(node), routing.assigned.get(id)) else {
+            continue;
+        };
+        *counts
+            .entry(card)
+            .or_default()
+            .entry(wan.clone())
+            .or_default() += 1;
+        let entry = cards
+            .entry(card)
+            .or_insert_with(|| web_contract::topology::CardBalance {
+                card_id: card.to_string(),
+                by_wan: Vec::new(),
+                leaves: Vec::new(),
+                more: 0,
+            });
+        if entry.leaves.len() < LEAVES {
+            entry.leaves.push(web_contract::topology::Leaf {
+                name: names.get(id).cloned().unwrap_or_else(|| id.to_string()),
+                wan: wan.clone(),
+            });
+        } else {
+            entry.more += 1;
+        }
+    }
+    cards
+        .into_iter()
+        .map(|(card, mut b)| {
+            b.by_wan = counts
+                .remove(card)
+                .unwrap_or_default()
+                .into_iter()
+                .collect();
+            b
+        })
+        .collect()
+}
+
+/// The readable name of an account reference: its last segment, percent-decoded.
+fn leaf_name(account_ref: &str) -> String {
+    let last = account_ref.rsplit('/').next().unwrap_or(account_ref);
+    let bytes = last.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%'
+            && let Some(b) = last
+                .get(i + 1..i + 3)
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+        {
+            out.push(b);
+            i += 3;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 #[cfg(test)]

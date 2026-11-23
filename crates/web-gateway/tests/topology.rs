@@ -87,6 +87,7 @@ fn view(n: usize) -> TopologyView {
                 address_list: None,
                 routed: None,
                 active: true,
+                card_id: String::new(),
                 tree_excluded: false,
             })
             .collect(),
@@ -297,6 +298,7 @@ fn release_scale_reads_stay_bounded() {
             address_list: None,
             routed: None,
             active: true,
+            card_id: String::new(),
             tree_excluded: false,
         })
         .collect();

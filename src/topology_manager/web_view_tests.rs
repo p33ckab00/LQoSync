@@ -198,6 +198,7 @@ fn input<'a>(
         activity: None,
         grace: 600,
         routing_moves: 0,
+        routing: None,
         wan_discovery: None,
         wan_routers: &NO_ROUTERS,
     }
@@ -832,5 +833,156 @@ fn every_instance_of_an_active_source_stays_active() {
     assert_eq!(
         active(&off),
         [("group1".to_string(), false), ("group2".to_string(), false)]
+    );
+}
+
+// Canvas flows plan, Task 3: card IDs, flows, and balance.
+
+fn card(v: &TopologyView, id: &str) -> String {
+    v.nodes.iter().find(|n| n.id == id).unwrap().card_id.clone()
+}
+
+/// The fixture with one router card above each group instance (one router copy per WAN).
+fn router_copies_doc() -> RegistryDocument {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    for (copy, wan, group) in [("r1", "wan1", "group1"), ("r2", "wan2", "group2")] {
+        let mut node = c.nodes.iter().find(|n| n.id == group).unwrap().clone();
+        node.id = copy.into();
+        node.name = "Distro".into();
+        node.parent = Some(wan.into());
+        node.source_id = None;
+        node.router_id = Some("distro".into());
+        node.kind = crate::topology_manager::layout::NodeKind::Intermediate;
+        c.nodes.push(node);
+        c.nodes.iter_mut().find(|n| n.id == group).unwrap().parent = Some(copy.into());
+    }
+    d
+}
+
+fn sized_preview(nodes: &[(&str, u64)], subscribers: &[(&str, &str)]) -> Value {
+    json!({
+        "collected_at": 80, "registry_revision": 7, "generation": 3, "state": "ok",
+        "nodes": nodes.iter().map(|(id, n)| json!({"id": id, "label": id, "parent": null,
+            "kind": "group", "source": null, "calculated_mbps": [1.0, 1.0],
+            "exported_mbps": [1.0, 1.0], "subscribers": n})).collect::<Vec<_>>(),
+        "subscribers": subscribers.iter().map(|(id, node)| json!({"id": id, "identities": [],
+            "account_ref": "", "scope": "", "ips": [], "macs": [], "node": node, "pin": null,
+            "profile": null, "min_mbps": [1.0, 1.0], "max_mbps": [10.0, 10.0],
+            "fallback": false})).collect::<Vec<_>>(),
+        "inventory": [], "conflicts": [], "rounded": []
+    })
+}
+
+#[test]
+fn instances_of_one_source_share_one_card_id() {
+    let d = doc();
+    let v = project(&input(Some(&d), None, None));
+    assert_eq!(card(&v, "group1"), "source:profile-source");
+    assert_eq!(card(&v, "group2"), "source:profile-source");
+    assert_eq!(card(&v, "wan1"), "wan1");
+}
+
+#[test]
+fn router_copies_share_one_card_id() {
+    let d = router_copies_doc();
+    let v = project(&input(Some(&d), None, None));
+    assert_eq!(card(&v, "r1"), "router:distro");
+    assert_eq!(card(&v, "r2"), "router:distro");
+}
+
+#[test]
+fn flows_merge_duplicate_lines_and_count_subscribers() {
+    let d = router_copies_doc();
+    let p = sized_preview(&[("r1", 3), ("r2", 2), ("group1", 3), ("group2", 2)], &[]);
+    let mut i = input(Some(&d), Some(&p), None);
+    i.now = 90;
+    let v = project(&i);
+    let flow = |from: &str, to: &str| {
+        v.flows
+            .iter()
+            .find(|f| f.from == from && f.to == to)
+            .map(|f| f.subscribers)
+    };
+    assert_eq!(flow("wan1", "router:distro"), Some(3));
+    assert_eq!(flow("wan2", "router:distro"), Some(2));
+    assert_eq!(flow("router:distro", "source:profile-source"), Some(5));
+    assert_eq!(v.flows.len(), 3);
+}
+
+#[test]
+fn a_card_keeps_one_card_id_after_its_wan_goes() {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes.retain(|n| n.id != "wan1");
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .parent = None;
+    let v = project(&input(Some(&d), None, None));
+    assert_eq!(card(&v, "group1"), "source:profile-source");
+    assert!(!v.flows.iter().any(|f| f.from == "wan1"));
+}
+
+#[test]
+fn leaf_labels_are_bounded() {
+    let d = doc();
+    let ids: Vec<String> = (0..60).map(|i| format!("s{i:02}")).collect();
+    let subs: Vec<(&str, &str)> = ids.iter().map(|i| (i.as_str(), "group1")).collect();
+    let p = sized_preview(&[("group1", 60)], &subs);
+    let routing = crate::topology_manager::routing_balance::RoutingState {
+        assigned: ids
+            .iter()
+            .map(|i| (i.clone(), "wan1".to_string()))
+            .collect(),
+    };
+    let mut i = input(Some(&d), Some(&p), None);
+    i.routing = Some(&routing);
+    let v = project(&i);
+    let b = v
+        .balance
+        .iter()
+        .find(|b| b.card_id == "source:profile-source")
+        .unwrap();
+    assert_eq!(b.by_wan, vec![("wan1".to_string(), 60)]);
+    assert_eq!((b.leaves.len(), b.more), (50, 10));
+}
+
+#[test]
+fn an_unlinked_card_gets_counts_for_each_wan() {
+    let mut d = doc();
+    let c = d.catalog.as_mut().unwrap();
+    c.nodes
+        .iter_mut()
+        .find(|n| n.id == "group1")
+        .unwrap()
+        .parent = None;
+    let p = sized_preview(
+        &[("group1", 4)],
+        &[
+            ("a", "group1"),
+            ("b", "group1"),
+            ("c", "group1"),
+            ("e", "group1"),
+        ],
+    );
+    let routing = crate::topology_manager::routing_balance::RoutingState {
+        assigned: [("a", "wan1"), ("b", "wan2"), ("c", "wan1"), ("e", "wan2")]
+            .into_iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect(),
+    };
+    let mut i = input(Some(&d), Some(&p), None);
+    i.routing = Some(&routing);
+    let v = project(&i);
+    let b = v
+        .balance
+        .iter()
+        .find(|b| b.card_id == "source:profile-source")
+        .unwrap();
+    assert_eq!(
+        b.by_wan,
+        vec![("wan1".to_string(), 2), ("wan2".to_string(), 2)]
     );
 }

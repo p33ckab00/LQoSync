@@ -712,9 +712,11 @@ where
     /// Write the web Topology view: registry, cached preview, and the last collection. No router
     /// I/O. The cycle, each registry commit, and each preview refresh call it.
     fn publish_web_view(&mut self, now: u64) {
-        let routing_moves = self
-            .rebalanced(now)
-            .map_or(0, |(current, next)| moves(&current, &next));
+        let routed = self.rebalanced(now);
+        let routing_moves = routed
+            .as_ref()
+            .map_or(0, |(current, _, fresh)| moves(current, fresh));
+        let routing = routed.map(|(_, sticky, _)| sticky);
         let doc = self.api_document().ok().flatten();
         let mode = format!("{:?}", self.cfg.runtime.mode).to_lowercase();
         let publication = self
@@ -750,6 +752,7 @@ where
                 activity: self.activity.as_ref(),
                 grace: self.cfg.runtime.subscriber_grace,
                 routing_moves,
+                routing: routing.as_ref(),
                 wan_discovery: self.wan_discovery.as_ref(),
                 wan_routers: &wan_routers,
             });
@@ -2582,7 +2585,7 @@ where
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_secs());
-        let (current, next) = self
+        let (current, _, next) = self
             .rebalanced(now)
             .ok_or_else(|| rule("refresh the observations first".into()))?;
         let count = moves(&current, &next);
@@ -2595,12 +2598,14 @@ where
         Ok(serde_json::json!({"revision": expected_revision, "moves": count}))
     }
 
-    /// The current routing state and a balance of the cached preview from an empty state.
-    /// `None` without a policy or a preview. It writes nothing.
+    /// For the cached preview: the current routing state, the balance that the writer would
+    /// write now (sticky), and a balance from an empty state (Rebalance). `None` without a policy
+    /// or a preview. It writes nothing.
     fn rebalanced(
         &mut self,
         now: u64,
     ) -> Option<(
+        crate::topology_manager::routing_balance::RoutingState,
         crate::topology_manager::routing_balance::RoutingState,
         crate::topology_manager::routing_balance::RoutingState,
     )> {
@@ -2619,12 +2624,11 @@ where
             .routing
             .clone()
             .unwrap_or_else(|| RoutingState::load(&dir));
-        let next = balance(
-            &demands(&placed_from_preview(&preview), &catalog),
-            &candidates(&catalog, &wan),
-            &RoutingState::default(),
-        );
-        Some((current, next))
+        let demands = demands(&placed_from_preview(&preview), &catalog);
+        let wans = candidates(&catalog, &wan);
+        let sticky = balance(&demands, &wans, &current);
+        let fresh = balance(&demands, &wans, &RoutingState::default());
+        Some((current, sticky, fresh))
     }
 
     /// Run the routing balance for `placed`, keep the result, and save it.
