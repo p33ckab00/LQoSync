@@ -105,6 +105,11 @@ pub(crate) struct StudioDraft {
     pub selected: Option<usize>,
     pub epoch: u64,
 }
+/// Contract v1 reads with the router credential only; the service refuses other profiles.
+pub const READ_PROFILE: &str = "default";
+pub fn read_profile_supported(id: &str) -> bool {
+    id == READ_PROFILE
+}
 impl From<RouterSourceConfig> for StudioDraft {
     fn from(c: RouterSourceConfig) -> Self {
         let profiles: Vec<_> = c
@@ -178,11 +183,7 @@ impl StudioDraft {
             enabled: false,
             priority: 100,
             source,
-            read_access_ref: self
-                .profiles
-                .first()
-                .map(|p| p.id.clone())
-                .unwrap_or_default(),
+            read_access_ref: READ_PROFILE.into(),
             members: match source {
                 SourceKind::Dhcp => MemberMode::Active,
                 SourceKind::Wan => MemberMode::Configured,
@@ -859,6 +860,17 @@ mod tests {
         assert!(
             !operators(&caps, SourceKind::Ppp, FieldKey::AccountComment).contains(&FilterOp::Ne)
         );
+    }
+    #[test]
+    fn new_policy_reads_with_the_default_profile() {
+        let (caps, mut config) = fixture();
+        let mut reader = config.access_profiles[0].clone();
+        reader.id = "reader".into();
+        config.access_profiles.insert(0, reader);
+        let mut d = StudioDraft::from(config);
+        assert!(d.add_policy(SourceKind::Ppp, &caps));
+        assert_eq!(d.current().unwrap().policy.read_access_ref, READ_PROFILE);
+        assert!(!read_profile_supported("reader"));
     }
     #[test]
     fn source_switch_keeps_each_draft() {

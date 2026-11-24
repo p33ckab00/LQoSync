@@ -188,7 +188,7 @@ pub(crate) fn SourceEditor(
           <div class="studio-inline"><label class="check"><input type="checkbox" aria-label="Enable policy" prop:checked=move||current(draft).is_some_and(|p|p.policy.enabled) on:change=move|ev|{let v=event_target_checked(&ev);edit(draft,|p|p.policy.enabled=v);}/>"Enable policy"</label>
           <label>"Priority"<input aria-label="Priority" inputmode="numeric" prop:value=move||current(draft).map(|p|p.priority).unwrap_or_default() on:input=move|ev|{let v=event_target_value(&ev);edit(draft,|p|p.priority=v);}/></label></div>
           <label>"Read access profile"<select aria-label="Read access profile" prop:value=move||current(draft).map(|p|p.policy.read_access_ref).unwrap_or_default() on:change=move|ev|{let v=event_target_value(&ev);edit(draft,|p|p.policy.read_access_ref=v);}>
-            {move||draft.with(|d|d.as_ref().map(|d|d.profiles.iter().map(|p|view!{<option value=p.id.clone()>{p.label.clone()}</option>}).collect_view()))}
+            {move||draft.with(|d|d.as_ref().map(|d|d.profiles.iter().map(|p|view!{<option value=p.id.clone() disabled=!read_profile_supported(&p.id) title=(!read_profile_supported(&p.id)).then_some("Version 1 reads with the default router credential only")>{p.label.clone()}</option>}).collect_view()))}
           </select></label>
           <label>"Member set"<select aria-label="Member set" prop:value=move||current(draft).map(|p|key(&p.policy.members)).unwrap_or_default() on:change={move|ev|if let Some(v)=parse(event_target_value(&ev)){edit(draft,|p|p.policy.members=v);}}>
             <option value="active">"Active records"</option><option value="configured">"Configured records"</option><option value="joined">"Active records joined to accounts"</option></select></label>
