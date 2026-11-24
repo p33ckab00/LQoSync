@@ -1,0 +1,26 @@
+TEST EVIDENCE — synthetic router and test runtime; not production acceptance
+root /tmp/claude-1000/lqosync3-studio-smoke.kcwbxh, repo 41190c0, 2026-11-24T13:42:40+08:00
+PASS core and gateway started
+PASS capabilities advertise policy_save
+PASS draft test accepted
+PASS draft test passes every stage that runs (TLS off)
+PASS draft secret absent from the operation
+PASS source config is served from the cache
+PASS topology initialize accepted
+PASS topology initialized
+PASS collection gives complete PPP tables
+PASS candidate summary is complete and publishable
+PASS candidate has the active PPP record at the profile rate
+PASS evaluation changes no durable topology state
+PASS policy save gives a saved receipt
+PASS the registry holds the policy set
+PASS the current engine prepares the saved policy
+PASS WAN decision saved
+PASS WAN evidence shows the saved decision
+PASS the real UI previews and saves a policy through the service
+  UI operation 1a20c14d46c-35426238bc004-f88ac27a6aacc saved revision 4 (base 3); service policy "PPPoE from UI"
+PASS the registry holds the policy that the UI saved
+PASS the fake router saw no write or other command
+PASS no password in any log
+not covered: publication by the topology writer (activation needs live-test gates); production binaries as root
+RESULT PASS

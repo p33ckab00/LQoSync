@@ -346,3 +346,10 @@ The owner asked for a review of this branch before integration, then for a fix o
 
 Checks: `cargo test --locked --workspace --no-fail-fast` (2084 passed, 0 failed, 13 ignored), `cargo clippy --locked --workspace --all-targets --examples -- -D warnings`, `cargo fmt --all -- --check`, `git diff --check`, and `bash tools/integration/studio-service-smoke.sh` (19 of 19, test evidence).
 Frontend note: the new blockers use the existing code `unsupported_in_v1`. No contract type changed.
+
+## I0 integration support (2026-11-24T13:43:50+08:00, Asia/Manila)
+
+The owner asked Claude Code to do I0. Branch `integration/topology-studio` in `/home/pi/LQoSync3.0-worktrees/integration-topology-studio` merges both lanes onto `lqosync3` (`a0e6035`) with no conflicts.
+Integration fixes: `d0bc5f1` (a save now refreshes `source-studio.json`), `7d10aa7` (the UI reads with profile `default` only), and `41190c0` (the smoke test drives the real Wasm UI).
+On `41190c0`, all gates pass: 2109 workspace tests, both Clippy runs, fmt, whitespace, 29 browser checks (`pulse-check` skipped), and the smoke test (22 of 22).
+Evidence: [integration evidence](../frontend/evidence/topology-studio-integration/README.md). The owner decides the merge into `lqosync3`.
