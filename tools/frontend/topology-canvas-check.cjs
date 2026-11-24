@@ -341,6 +341,55 @@ const fs=require('node:fs');
     for(const b of await canvas.locator('.sankey-card').evaluateAll(cs=>cs.map(c=>c.getBoundingClientRect().toJSON())))
       assert.ok(b.left>=view.x-1&&b.right<=view.x+view.width+1&&b.top>=view.y-1&&b.bottom<=view.y+view.height+1,'Fit view shows every card');
     assert.equal(await page.locator('.sankey-minimap rect.sankey-minimap-card').count(),await canvas.locator('.sankey-card, .canvas-candidate').count(),'the minimap shows each card');
+    // Infinite canvas: no scroll box; drag the background to pan anywhere; the wheel zooms at the cursor.
+    assert.equal(await canvas.evaluate(v=>getComputedStyle(v).overflow),'hidden','no scrollbars');
+    const vb=await canvas.boundingBox();
+    const frameBox=await page.locator('.canvas-frame').boundingBox();
+    assert.ok(vb.width>=frameBox.width-2&&vb.height>=frameBox.height-2,'the canvas fills its frame');
+    const northBox=async()=>canvas.getByRole('button',{name:/^WAN North,/}).boundingBox();
+    // A point on the empty background, found again before each drag because the cards move.
+    const findEmpty=async()=>{const p=await canvas.evaluate(v=>{const r=v.getBoundingClientRect();
+      for(let y=r.bottom-120;y>r.top+130;y-=20)for(let x=r.left+r.width*0.45;x<r.right-220;x+=20){
+        const e=document.elementFromPoint(x,y);if(e&&(e===v||e.classList.contains('canvas-layer')||e.classList.contains('canvas-surface')))return {x,y};}
+      return null;});assert.ok(p,'an empty point on the canvas');return p;};
+    let empty=await findEmpty();
+    let before=await northBox();
+    await page.mouse.move(empty.x,empty.y);await page.mouse.down();
+    await page.mouse.move(empty.x+300,empty.y+220,{steps:6});await page.mouse.up();
+    let after=await northBox();
+    assert.ok(Math.abs(after.x-before.x-300)<2&&Math.abs(after.y-before.y-220)<2,`a background drag pans the canvas ${JSON.stringify([before,after])}`);
+    assert.equal(await page.getByRole('dialog',{name:/details$/}).count(),0,'a drag opens no popover');
+    before=after;empty=await findEmpty();
+    await page.mouse.move(empty.x,empty.y);await page.mouse.down();
+    await page.mouse.move(empty.x-900,empty.y-700,{steps:6});await page.mouse.up();
+    after=await northBox();
+    assert.ok(Math.abs(after.x-before.x+900)<2,'the canvas pans past any edge');
+    const mm=await page.locator('.sankey-minimap').boundingBox(),mv=await page.locator('.sankey-minimap-view').boundingBox();
+    assert.ok(mv.x>=mm.x-1&&mv.x+mv.width<=mm.x+mm.width+1&&mv.y>=mm.y-1&&mv.y+mv.height<=mm.y+mm.height+1,'the minimap shows the view far from the cards');
+    await page.getByRole('button',{name:'Fit view',exact:true}).click();
+    before=await northBox();
+    const cx=before.x+before.width/2,cy=before.y+before.height/2;
+    await page.mouse.move(cx,cy);await page.mouse.wheel(0,-400);
+    await page.waitForFunction(w=>{const b=[...document.querySelectorAll('.sankey-card')].find(c=>c.dataset.nodeId==='tm-node-wan-north').getBoundingClientRect();return b.width>w+4},before.width);
+    after=await northBox();
+    assert.ok(after.x<=cx&&cx<=after.x+after.width&&after.y<=cy&&cy<=after.y+after.height,'the wheel zooms at the cursor');
+    const grid=await canvas.evaluate(v=>getComputedStyle(v).backgroundSize);
+    assert.notEqual(grid,'24px 24px','the dot grid follows the zoom');
+    // Keyboard: arrows pan, 0 fits.
+    await canvas.focus();before=await northBox();
+    await page.keyboard.press('ArrowRight');after=await northBox();
+    assert.ok(after.x<before.x-20,'ArrowRight moves the view to the right');
+    await page.keyboard.press('0');
+    for(const b of await canvas.locator('.sankey-card').evaluateAll(cs=>cs.map(c=>c.getBoundingClientRect().toJSON())))
+      assert.ok(b.left>=vb.x-1&&b.right<=vb.x+vb.width+1&&b.top>=vb.y-1&&b.bottom<=vb.y+vb.height+1,'0 fits every card');
+    // A card that gets keyboard focus outside the view comes into view.
+    empty=await findEmpty();
+    await page.mouse.move(empty.x,empty.y);await page.mouse.down();
+    await page.mouse.move(empty.x+1500,empty.y+900,{steps:4});await page.mouse.up();
+    await canvas.locator('.sankey-card[data-node-id="tier:ppp"]').focus();
+    const t=await canvas.locator('.sankey-card[data-node-id="tier:ppp"]').boundingBox();
+    assert.ok(t.x>=vb.x&&t.x+t.width<=vb.x+vb.width&&t.y>=vb.y&&t.y+t.height<=vb.y+vb.height,'focus brings the card into view');
+    await page.getByRole('button',{name:'Fit view',exact:true}).click();
     await page.setViewportSize({width:390,height:800});
     assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=390),'no sideways scroll at 390 px');
     await page.setViewportSize({width:1440,height:1000});

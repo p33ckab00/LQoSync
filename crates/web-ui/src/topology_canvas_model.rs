@@ -5,9 +5,12 @@ use web_contract::topology::{BuilderEdit, Direction, DiscoveredRouter, Flow, Loc
 pub(crate) const CARD_W: f64 = 232.0;
 pub(crate) const CARD_H: f64 = 84.0;
 pub(crate) const MARGIN: f64 = 48.0;
-// Wasm-only modules (canvas, Studio preview) use this item; native tests do not.
+// Wasm-only modules (canvas, Studio preview) use these items; native tests do not.
+/// The free border that "Fit view" keeps for the floating controls: top, right, bottom, left.
 #[cfg_attr(test, allow(dead_code))]
+pub(crate) const FIT_PAD: [f64; 4] = [130.0, 100.0, 84.0, 16.0];
 /// The room above the Sankey for the column headers.
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) const SANKEY_TOP: f64 = 56.0;
 /// The canvas is never smaller than this, so there is room to drag a card outward.
 const MIN_SURFACE: (f64, f64) = (1600.0, 1000.0);

@@ -136,6 +136,8 @@ pub(crate) fn Canvas(
     let panel = RwSignal::new(None::<Panel>);
     let status = RwSignal::new(String::new());
     let zoom = RwSignal::new(1.0_f64);
+    // The camera of the infinite canvas: screen point = world point × zoom + pan.
+    let pan = RwSignal::new([0.0_f64; 2]);
     let forms = RwSignal::new(HashMap::<String, NodeForm>::new());
     let queue = StoredValue::new(VecDeque::<BuilderEdit>::new());
     let draining = RwSignal::new(false);
@@ -810,17 +812,83 @@ pub(crate) fn Canvas(
         let bottom = sk.with(|k| k.as_ref().map_or(0.0, |(_, o)| o.bounds[3]));
         (w, h.max(bottom + SANKEY_TOP + 4.0 * MARGIN))
     };
-    // The viewport scroll and size, for the minimap: left, top, width, height.
-    let scroll = RwSignal::new([0.0_f64; 4]);
-    let track = move || {
-        if let Some(v) = viewport.get_untracked() {
-            scroll.set([
-                v.scroll_left() as f64,
-                v.scroll_top() as f64,
-                v.client_width() as f64,
-                v.client_height() as f64,
-            ]);
+    let view_size = move || {
+        viewport.get_untracked().map_or([0.0; 2], |v| {
+            [v.client_width() as f64, v.client_height() as f64]
+        })
+    };
+    // Zoom to `next`, and keep the world point below the screen point `at` in place.
+    // True while the camera shows the last "Fit view". A window resize then fits again.
+    let auto_fit = StoredValue::new(true);
+    let zoom_at = move |next: f64, at: [f64; 2]| {
+        auto_fit.set_value(false);
+        let (z, n) = (zoom.get_untracked(), clamp_zoom(next));
+        pan.update(|p| {
+            p[0] = at[0] - (at[0] - p[0]) * n / z;
+            p[1] = at[1] - (at[1] - p[1]) * n / z;
+        });
+        zoom.set(n);
+    };
+    let center = move || {
+        let [w, h] = view_size();
+        [w / 2.0, h / 2.0]
+    };
+    // The minimap box: the content and the visible part, so the view rectangle always shows.
+    let mini_box = move || {
+        let (w, h) = size();
+        let (z, [px, py], f) = (zoom.get(), pan.get(), frame_bounds.get());
+        let (vx, vy, vw, vh) = (-px / z, -py / z, f[2] / z, f[3] / z);
+        let (x0, y0) = (vx.min(0.0), vy.min(0.0));
+        [x0, y0, (vx + vw).max(w) - x0, (vy + vh).max(h) - y0]
+    };
+    // Fit every card in the part of the canvas that the floating controls leave free.
+    let fit_view = move || {
+        let b = world_points.with_untracked(|p| {
+            p.iter()
+                .fold([f64::MAX, f64::MAX, f64::MIN, f64::MIN], |b, (id, q)| {
+                    let h = box_of(id).map_or(CARD_H, |c| c.h);
+                    [
+                        b[0].min(q[0]),
+                        b[1].min(q[1]),
+                        b[2].max(q[0] + CARD_W),
+                        b[3].max(q[1] + h),
+                    ]
+                })
+        });
+        let [w, h] = view_size();
+        if b[0] > b[2] || w <= 0.0 {
+            return;
         }
+        let [top, right, bottom, left] = FIT_PAD;
+        let (z, x, y) = fit(b, [w - left - right, h - top - bottom]);
+        zoom.set(z);
+        pan.set([x + left, y + top]);
+        auto_fit.set_value(true);
+    };
+    let refit = window_event_listener(leptos::ev::resize, move |_| {
+        if auto_fit.get_value() {
+            request_animation_frame(fit_view);
+        }
+    });
+    on_cleanup(move || refit.remove());
+    // Fit once, when the first layout is ready.
+    let fitted = StoredValue::new(false);
+    Effect::new(move |_| {
+        if sk.with(Option::is_some) && !fitted.get_value() {
+            fitted.set_value(true);
+            request_animation_frame(fit_view);
+        }
+    });
+    // A pointer drag on the background pans. It starts after 4 px, so a click stays a click.
+    let drag = StoredValue::new(None::<(i32, f64, f64, [f64; 2], bool)>);
+    let panned = StoredValue::new(false);
+    // Touch pointers, for a two-finger pinch: pointer ID and screen point.
+    let touches = StoredValue::new(Vec::<(i32, f64, f64)>::new());
+    let local_point = move |x: f64, y: f64| {
+        viewport.get_untracked().map_or([x, y], |v| {
+            let r = v.get_bounding_client_rect();
+            [x - r.x(), y - r.y()]
+        })
     };
     Effect::new(move |_| {
         if projection.with(Option::is_some) {
@@ -937,17 +1005,120 @@ pub(crate) fn Canvas(
             </ul>
           </Show>
           <div class="canvas-viewport" node_ref=viewport hidden=move||list_view.get() tabindex="0" role="region"
-            aria-label="Topology canvas. Arrow keys scroll. Tab moves between cards."
-            on:scroll=move|_|track()
+            aria-label="Topology canvas. Arrow keys move the view, plus and minus zoom, 0 fits. Tab moves between cards."
+            style:background-size=move||{let g=24.0*zoom.get();format!("{g}px {g}px")}
+            style:background-position=move||{let [x,y]=pan.get();format!("{x}px {y}px")}
+            on:scroll=move|ev: web_sys::Event|{
+              // A browser scroll (for example to show a focused card) becomes a camera move.
+              let Some(v)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) else {return};
+              let (sx,sy)=(v.scroll_left() as f64,v.scroll_top() as f64);
+              if sx!=0.0||sy!=0.0 { pan.update(|p|{p[0]-=sx;p[1]-=sy;}); v.set_scroll_left(0); v.set_scroll_top(0); }
+            }
+            on:pointerdown=move|ev: web_sys::PointerEvent|{
+              if ev.pointer_type()=="touch" { touches.update_value(|t|{t.retain(|p|p.0!=ev.pointer_id());t.push((ev.pointer_id(),ev.client_x() as f64,ev.client_y() as f64));}); }
+              if ev.button()!=0 { return; }
+              let on_control=ev.target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())
+                .is_some_and(|e|e.closest("button, a, input, select, textarea, .sankey-popover, path.sankey-ribbon").ok().flatten().is_some());
+              if !on_control { drag.set_value(Some((ev.pointer_id(),ev.client_x() as f64,ev.client_y() as f64,pan.get_untracked(),false))); }
+            }
+            on:pointermove=move|ev: web_sys::PointerEvent|{
+              // Two touch pointers: the pinch zooms at their midpoint.
+              if ev.pointer_type()=="touch" {
+                let before=touches.get_value();
+                touches.update_value(|t|if let Some(p)=t.iter_mut().find(|p|p.0==ev.pointer_id()){p.1=ev.client_x() as f64;p.2=ev.client_y() as f64;});
+                let after=touches.get_value();
+                if before.len()==2 && after.len()==2 {
+                  let d=|t:&[(i32,f64,f64)]|((t[0].1-t[1].1).powi(2)+(t[0].2-t[1].2).powi(2)).sqrt();
+                  if d(&before)>0.0 {
+                    let mid=local_point((after[0].1+after[1].1)/2.0,(after[0].2+after[1].2)/2.0);
+                    zoom_at(zoom.get_untracked()*d(&after)/d(&before),mid);
+                  }
+                  drag.set_value(None);
+                  return;
+                }
+              }
+              let Some((id,x0,y0,start,moved))=drag.get_value() else {return};
+              if id!=ev.pointer_id() { return; }
+              // The button was released outside the window: the drag is over.
+              if ev.buttons()==0 {
+                drag.set_value(None);
+                if let Some(v)=viewport.get_untracked() { let _=v.class_list().remove_1("panning"); }
+                return;
+              }
+              let (dx,dy)=(ev.client_x() as f64-x0,ev.client_y() as f64-y0);
+              if !moved && dx.abs()+dy.abs()<4.0 { return; }
+              if !moved {
+                if let Some(v)=viewport.get_untracked() { let _=v.set_pointer_capture(ev.pointer_id()); let _=v.class_list().add_1("panning"); }
+                drag.set_value(Some((id,x0,y0,start,true)));
+              }
+              auto_fit.set_value(false);
+              pan.set([start[0]+dx,start[1]+dy]);
+            }
+            on:pointerup=move|ev: web_sys::PointerEvent|{
+              touches.update_value(|t|t.retain(|p|p.0!=ev.pointer_id()));
+              if let Some((_,_,_,_,true))=drag.get_value() { panned.set_value(true); }
+              drag.set_value(None);
+              if let Some(v)=viewport.get_untracked() { let _=v.class_list().remove_1("panning"); }
+            }
+            on:lostpointercapture=move|_|{
+              if let Some((_,_,_,_,true))=drag.get_value() { panned.set_value(true); }
+              drag.set_value(None);
+              if let Some(v)=viewport.get_untracked() { let _=v.class_list().remove_1("panning"); }
+            }
+            on:pointercancel=move|ev: web_sys::PointerEvent|{
+              touches.update_value(|t|t.retain(|p|p.0!=ev.pointer_id()));
+              drag.set_value(None);
+              if let Some(v)=viewport.get_untracked() { let _=v.class_list().remove_1("panning"); }
+            }
+            on:wheel=move|ev: web_sys::WheelEvent|{
+              // The wheel zooms at the cursor. A line-mode wheel counts about 33 px per line.
+              ev.prevent_default();
+              let dy=ev.delta_y()*if ev.delta_mode()==1 {33.0} else {1.0};
+              zoom_at(zoom.get_untracked()*(-dy*0.0015).exp(),local_point(ev.client_x() as f64,ev.client_y() as f64));
+            }
+            on:keydown=move|ev: web_sys::KeyboardEvent|{
+              let typing=ev.target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())
+                .is_some_and(|e|e.closest("input, select, textarea, dialog").ok().flatten().is_some());
+              if typing || ev.ctrl_key() || ev.meta_key() || ev.alt_key() { return; }
+              let step=48.0;
+              if ev.key().starts_with("Arrow") { auto_fit.set_value(false); }
+              match ev.key().as_str() {
+                "ArrowLeft"=>pan.update(|p|p[0]+=step),
+                "ArrowRight"=>pan.update(|p|p[0]-=step),
+                "ArrowUp"=>pan.update(|p|p[1]+=step),
+                "ArrowDown"=>pan.update(|p|p[1]-=step),
+                "+"|"="=>zoom_at(zoom.get_untracked()*1.2,center()),
+                "-"|"_"=>zoom_at(zoom.get_untracked()/1.2,center()),
+                "0"=>fit_view(),
+                _=>return,
+              }
+              ev.prevent_default();
+            }
+            on:focusin=move|ev: web_sys::FocusEvent|{
+              // A card that gets focus outside the view comes to the center of the view.
+              let Some(e)=ev.target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) else {return};
+              let Some(card)=e.closest(".sankey-card, .canvas-candidate").ok().flatten() else {return};
+              let (Some(v),r)=(viewport.get_untracked(),card.get_bounding_client_rect()) else {return};
+              let b=v.get_bounding_client_rect();
+              let inside=r.left()>=b.left()&&r.right()<=b.right()&&r.top()>=b.top()&&r.bottom()<=b.bottom();
+              if !inside {
+                let (cx,cy)=((r.left()+r.right())/2.0,(r.top()+r.bottom())/2.0);
+                let (vx,vy)=((b.left()+b.right())/2.0,(b.top()+b.bottom())/2.0);
+                auto_fit.set_value(false);
+                pan.update(|p|{p[0]+=vx-cx;p[1]+=vy-cy;});
+              }
+            }
             on:click=move|ev: web_sys::MouseEvent|{
+              // The click at the end of a pan keeps the selection.
+              if panned.get_value() { panned.set_value(false); return; }
               // A click on empty canvas clears the selection.
               let empty=ev.target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())
                 .is_some_and(|e|e.class_list().contains("canvas-layer")||e.class_list().contains("canvas-surface"));
               if empty { selected.set(None); selected_link.set(None); popover.set(false); }
             }>
-            <div class="canvas-surface" style:width=move||format!("{}px",size().0*zoom.get()) style:height=move||format!("{}px",size().1*zoom.get())>
+            <div class="canvas-surface">
               <div class="canvas-layer" data-direction="left_right" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
-                style:transform=move||format!("scale({})",zoom.get())>
+                style:transform=move||{let [x,y]=pan.get();format!("translate({x}px,{y}px) scale({})",zoom.get())}>
                 <div class="canvas-saved-layer" style="display:contents" inert=move||projection.with(Option::is_some) data-preview=move||projection.with(Option::is_some).to_string()>
                 {move||headers().into_iter().map(|(col,text)|view!{
                   <p class="sankey-column-head" style:left=format!("{}px",MARGIN+col as f64*(crate::sankey::CARD_W+crate::sankey::COL_GAP))>{text}</p>
@@ -991,40 +1162,37 @@ pub(crate) fn Canvas(
           // The minimap: every card at a small scale and the visible part. "Fit view" is the
           // keyboard path, so the minimap is pointer-only.
           <svg class="sankey-minimap" aria-hidden="true"
-            viewBox=move||{let (w,h)=size();format!("0 0 {w} {h}")}
+            viewBox=move||{let [x,y,w,h]=mini_box();format!("{x} {y} {w} {h}")}
             on:click=move|ev: web_sys::MouseEvent|{
-              let (Some(v),Some(t))=(viewport.get_untracked(),ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())) else {return};
+              // The clicked world point goes to the center of the view.
+              let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) else {return};
               let r=t.get_bounding_client_rect();
-              let (w,h)=size();let z=zoom.get_untracked();
-              let x=(ev.client_x() as f64-r.x())/r.width()*w*z-v.client_width() as f64/2.0;
-              let y=(ev.client_y() as f64-r.y())/r.height()*h*z-v.client_height() as f64/2.0;
-              v.set_scroll_left(x.max(0.0) as i32);v.set_scroll_top(y.max(0.0) as i32);track();
+              let z=zoom.get_untracked();let [cx,cy]=center();
+              let [bx,by,bw,bh]=mini_box();
+              // preserveAspectRatio: xMidYMid meet. One scale for both axes, centered.
+              let k=(r.width()/bw).min(r.height()/bh);
+              let (ox,oy)=((r.width()-bw*k)/2.0,(r.height()-bh*k)/2.0);
+              let wx=bx+(ev.client_x() as f64-r.x()-ox)/k;
+              let wy=by+(ev.client_y() as f64-r.y()-oy)/k;
+              auto_fit.set_value(false);
+              pan.set([cx-wx*z,cy-wy*z]);
             }>
             {move||world_points.get().into_iter().map(|(id,p)|{
               let h=box_of(&id).map_or(CARD_H,|c|c.h);
               view!{<rect class="sankey-minimap-card" x=p[0] y=p[1] width=CARD_W height=h rx="6"/>}
             }).collect_view()}
-            <rect class="sankey-minimap-view" x=move||scroll.get()[0]/zoom.get() y=move||scroll.get()[1]/zoom.get()
-              width=move||scroll.get()[2]/zoom.get() height=move||scroll.get()[3]/zoom.get()/>
+            <rect class="sankey-minimap-view" x=move||-pan.get()[0]/zoom.get() y=move||-pan.get()[1]/zoom.get()
+              width=move||frame_bounds.get()[2]/zoom.get() height=move||frame_bounds.get()[3]/zoom.get()/>
           </svg>
           <div class="canvas-zoom" role="group" aria-label="Zoom">
-            <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z-0.1)*10.0).round()/10.0))
+            <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom_at(((zoom.get_untracked()-0.1)*10.0).round()/10.0,center())
               title="Zoom out" disabled={move||zoom.get()<=0.26}>{icon(ICON_MINUS)}</button>
             <button type="button" class="quiet canvas-zoom-level" aria-label="Zoom to 100%" title="Zoom to 100%"
-              on:click=move|_|zoom.set(1.0)>{icon(ICON_ACTUAL)}</button>
-            <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z+0.1)*10.0).round()/10.0))
+              on:click=move|_|zoom_at(1.0,center())>{icon(ICON_ACTUAL)}</button>
+            <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom_at(((zoom.get_untracked()+0.1)*10.0).round()/10.0,center())
               title="Zoom in" disabled={move||zoom.get()>=1.99}>{icon(ICON_PLUS)}</button>
             <span class="canvas-zoom-sep" aria-hidden="true"></span>
-            <button type="button" class="quiet" aria-label="Fit view" title="Fit view" on:click=move|_|{
-              let Some(v)=viewport.get_untracked() else {return};
-              let b=world_points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(id,q)|{
-                let h=box_of(id).map_or(CARD_H,|c|c.h);
-                [b[0].min(q[0]),b[1].min(q[1]),b[2].max(q[0]+CARD_W),b[3].max(q[1]+h)]}));
-              let (z,_,_)=fit(b,[v.client_width() as f64,v.client_height() as f64]);
-              zoom.set(z);
-              v.set_scroll_left((b[0]*z) as i32);
-              v.set_scroll_top((b[1]*z) as i32);
-            }>{icon(ICON_FIT)}</button>
+            <button type="button" class="quiet" aria-label="Fit view" title="Fit view" on:click=move|_|fit_view()>{icon(ICON_FIT)}</button>
           </div>
         <crate::topology_studio::Studio open=studio_open router_id=studio_router session data projection load_saved=Callback::new(move|()|{projection.set(None);reload.run(());})/>
         <crate::app::Theme icons=true/>

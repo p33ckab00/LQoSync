@@ -1197,3 +1197,8 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 }
 @media(max-width:760px){.nav-toggle{display:none}}
 @media(prefers-reduced-motion:reduce){.sidebar .dashboard-nav a::after{transition:none}}
+/* Infinite canvas: the viewport fills the frame; the camera moves the world, never a scrollbar. */
+.canvas-viewport{overflow:hidden;touch-action:none;cursor:grab}
+.canvas-viewport.panning{cursor:grabbing}
+.canvas-viewport .sankey-card,.canvas-viewport .canvas-candidate,.canvas-viewport .sankey-popover{cursor:pointer}
+.topology-canvas-page .canvas-frame>.canvas-viewport.canvas-viewport{inset:0}
