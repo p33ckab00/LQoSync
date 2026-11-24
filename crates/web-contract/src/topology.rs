@@ -115,6 +115,9 @@ pub struct NodeThroughput {
 pub struct FlowThroughput {
     pub from: String,
     pub to: String,
+    /// The WAN node of the hosts in this stream. `None`: the hosts have no known WAN.
+    #[serde(default)]
+    pub wan: Option<String>,
     pub down_bps: u64,
     pub up_bps: u64,
 }
@@ -303,7 +306,7 @@ pub struct Node {
     /// share one card. `source:<id>`, `router:<id>`, else the node ID.
     #[serde(default)]
     pub card_id: String,
-    /// A router node that `network.json` does not contain. The canvas still shows it.
+    /// An intermediate node that `network.json` does not contain. The canvas still shows it.
     #[serde(default)]
     pub tree_excluded: bool,
 }
@@ -476,6 +479,9 @@ pub struct Active {
     pub min_mbps: [f64; 2],
     pub max_mbps: [f64; 2],
     pub fallback: bool,
+    /// The routing WAN node of the subscriber (`RoutingState.assigned`). `None`: no assignment.
+    #[serde(default)]
+    pub wan: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -205,6 +205,9 @@ pub fn project(input: &Input<'_>) -> TopologyView {
                     min_mbps: serde_json::from_value(s["min_mbps"].clone()).ok()?,
                     max_mbps: serde_json::from_value(s["max_mbps"].clone()).ok()?,
                     fallback: s["fallback"].as_bool().unwrap_or(false),
+                    wan: input
+                        .routing
+                        .and_then(|r| r.assigned.get(s["id"].as_str()?).cloned()),
                 },
             ))
         })

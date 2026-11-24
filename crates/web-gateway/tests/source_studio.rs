@@ -520,7 +520,7 @@ async fn throughput_joins_the_two_service_caches_without_a_service_call() {
     );
     assert_eq!(
         body["flows"],
-        json!([{"from": "wan-1", "to": "source:ppp", "down_bps": 12_500_000, "up_bps": 2_000_000}])
+        json!([{"from": "wan-1", "to": "source:ppp", "wan": null, "down_bps": 12_500_000, "up_bps": 2_000_000}])
     );
     assert_eq!(seen.lock().unwrap().len(), before, "no service call");
 }

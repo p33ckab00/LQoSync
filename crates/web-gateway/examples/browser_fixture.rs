@@ -667,7 +667,7 @@ async fn main() -> anyhow::Result<()> {
     // Synthetic topology view: two WANs, one shared plan with four unique members, one subscriber
     // with both PPPoE and DHCP identities, and observation-only rows.
     let ident = |kind: &str, account: &str| serde_json::json!({"router_id":"lq3-00000000000000a1","source_id":format!("access-{kind}"),"kind":kind,"account_ref":account});
-    let active = |node: &str, ip: &str| serde_json::json!({"node":node,"ips":[ip],"min_mbps":[50.0,25.0],"max_mbps":[100.0,50.0],"fallback":false});
+    let active = |node: &str, ip: &str, wan: &str| serde_json::json!({"node":node,"ips":[ip],"min_mbps":[50.0,25.0],"max_mbps":[100.0,50.0],"fallback":false,"wan":wan});
     let obs = |kind: &str,
                name: &str,
                ip: &str,
@@ -706,10 +706,10 @@ async fn main() -> anyhow::Result<()> {
       "wan_lists":{"state":"written","at":at.saturating_sub(60),"added":3,"changed":1,"removed":0,"owned":24,"error":null},
       "plans":[{"id":"plan-access-100","name":"Access 100","down_mbps":100,"up_mbps":50,"ppp_identities":3,"dhcp_identities":2,"subscribers":4}],
       "subscribers":[
-        {"id":"tm-sub-0000000000000002","identities":[ident("ppp","ppp-name/v1/account-02"),ident("dhcp","dhcp-mac/v1/02:00:00:00:00:02")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-ppp-north","192.0.2.12")},
-        {"id":"tm-sub-0000000000000003","identities":[ident("ppp","ppp-name/v1/account-03")],"plan_id":"plan-access-100","pin":"tm-node-wan-south","assignment":null,"active":active("tm-node-ppp-north","192.0.2.13")},
+        {"id":"tm-sub-0000000000000002","identities":[ident("ppp","ppp-name/v1/account-02"),ident("dhcp","dhcp-mac/v1/02:00:00:00:00:02")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-ppp-north","192.0.2.12","tm-node-wan-north")},
+        {"id":"tm-sub-0000000000000003","identities":[ident("ppp","ppp-name/v1/account-03")],"plan_id":"plan-access-100","pin":"tm-node-wan-south","assignment":null,"active":active("tm-node-ppp-north","192.0.2.13","tm-node-wan-north")},
         {"id":"tm-sub-0000000000000004","identities":[ident("ppp","ppp-name/v1/account-04")],"plan_id":"plan-access-100","pin":"tm-node-wan-north","assignment":null,"active":null},
-        {"id":"tm-sub-0000000000000006","identities":[ident("dhcp","dhcp-mac/v1/02:00:00:00:00:06")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-dhcp-south","192.0.2.16")}
+        {"id":"tm-sub-0000000000000006","identities":[ident("dhcp","dhcp-mac/v1/02:00:00:00:00:06")],"plan_id":"plan-access-100","pin":null,"assignment":null,"active":active("tm-node-dhcp-south","192.0.2.16","tm-node-wan-south")}
       ],
       "observations":[
         obs("ppp","account-02","192.0.2.12","online",Some("tm-sub-0000000000000002"),None,Some("tm-node-ppp-north")),

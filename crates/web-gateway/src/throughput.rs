@@ -169,6 +169,7 @@ pub fn compute(view: &TopologyView, telemetry: Option<&Telemetry>, now: u64) -> 
             .map(|((from, to), (down, up))| FlowThroughput {
                 from,
                 to,
+                wan: None,
                 down_bps: down,
                 up_bps: up,
             })

@@ -1017,3 +1017,28 @@ fn sources_name_their_router_access_and_endpoint() {
         (Some(wan.1), Some(wan.2))
     );
 }
+
+#[test]
+fn view_gives_each_active_subscriber_its_routing_wan() {
+    let d = doc();
+    let p = sized_preview(&[("group1", 2)], &[("sub-1", "group1"), ("sub-2", "group1")]);
+    let routing = crate::topology_manager::routing_balance::RoutingState {
+        assigned: [("sub-1".to_string(), "wan2".to_string())].into(),
+    };
+    let wan = |v: &TopologyView, id: &str| {
+        v.subscribers
+            .iter()
+            .find(|s| s.id == id)
+            .and_then(|s| s.active.as_ref())
+            .unwrap_or_else(|| panic!("{id} is not active"))
+            .wan
+            .clone()
+    };
+    let mut i = input(Some(&d), Some(&p), None);
+    i.routing = Some(&routing);
+    let v = project(&i);
+    assert_eq!(wan(&v, "sub-1").as_deref(), Some("wan2"));
+    assert_eq!(wan(&v, "sub-2"), None, "no routing assignment");
+    let v = project(&input(Some(&d), Some(&p), None));
+    assert_eq!(wan(&v, "sub-1"), None, "no routing state");
+}

@@ -19,6 +19,7 @@ fn subscriber(i: usize, plan: Option<&str>, active: bool) -> Subscriber {
             min_mbps: [1.0, 1.0],
             max_mbps: [2.0, 2.0],
             fallback: false,
+            wan: None,
         }),
     }
 }
