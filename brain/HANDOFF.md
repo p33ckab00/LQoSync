@@ -8,6 +8,17 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24 (Asia/Manila) — Topology Studio canvas cards: handoff to Codex
+
+- Last agent: Claude Code (design only, no code change). Next agent: Codex (frontend, phase 1).
+- Owner direction (2026-11-24): one canvas workspace. The router card drives all configuration and discovery. Minimal dialogs. Discovered resources replace the inventory screen. Icon-only WAN pin. Pinned WANs become WAN cards with capacity settings.
+- Owner decision: Codex builds this change on the canvas. This supersedes "the Codex lane does not change the canvas" for this change only.
+- Design: `docs/superpowers/specs/2026-11-24-topology-studio-canvas-cards-design.md` (layout B, world-space cards, support matrix in section 8).
+- Handoff and tasks C0–C7: `docs/handoffs/2026-11-24-codex-studio-canvas-cards.md`.
+- References: `docs/frontend/prototypes/topology-studio-v3/` and the Stitch project "LQoSync v3 — Topology Studio" (Mockup B).
+- Phase 2 backend gaps (Claude lane, each needs an owner go): router information from the test, more write scopes, unpin rule, WAN ribbon color, data mapping, naming templates, subscriber limits, DHCP VLAN.
+- Baseline: `lqosync3` `007a30c`. No deploy or production service change occurred.
+
 ## 2026-11-24 (Asia/Manila) — Topology Sankey canvas complete (not merged)
 
 - Last agent: Claude Code. Goal: the Sankey canvas as the main Topology canvas.
