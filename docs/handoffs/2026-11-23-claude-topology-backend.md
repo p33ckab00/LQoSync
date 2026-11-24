@@ -317,3 +317,14 @@ Smoke output:
     PASS no password in any log
     not covered: publication by the topology writer (activation needs live-test gates); production binaries as root
     RESULT PASS
+
+## Live throughput for the Sankey (2026-11-24T08:33:21+08:00, Asia/Manila)
+
+Owner follow-up, backend only. Commit `854fa52304f0a1edc5df0d2622322e9bc45a1827`. The frontend is not changed.
+
+- New endpoint: `GET /api/v1/topology/throughput` → `web_contract::topology::TopologyThroughput` (additive contract types). The API contract section "Live throughput" describes the fields.
+- Frontend step for the owner Sankey reference: take the ribbon width from `flows[].down_bps` (match `from` and `to` with `TopologySummary.flows`). Take the large card value from `nodes[].down_bps` / `up_bps`. Show `rtt_ms` where the reference shows RTT. Keep the subscriber count as a label. When `stale` or `!complete`, show the state; do not show the values as current.
+- Still unavailable: drop rate, router CPU, and queue counts. Hide them.
+- The browser fixture serves synthetic rates for its three active subscribers (updated every second).
+- Checks: `cargo test --locked --workspace --no-fail-fast` (2080 passed, 0 failed, 13 ignored), workspace clippy with examples, wasm clippy, fmt, `git diff --check`. A loopback fixture check returned live flows. No production run.
+- Production note: this host has a live sample of 27 hosts, far below the 512-row limit. A larger network can reach the limit; the answer is then `complete: false`.
