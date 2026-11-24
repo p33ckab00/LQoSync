@@ -16,9 +16,11 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 - Gate: full `tools/frontend/check-all.sh` PASS. `pulse-check` stays skipped. Evidence: `docs/frontend/evidence/topology-sankey/`.
 - Removed from the canvas: free card drag, connector drag, layout direction, Remove link on a line, leaf labels. The card modal keeps Parent, Add link from, and Remove link.
 - Contract: `Active.wan` and `FlowThroughput.wan` (both `serde(default)`). Edit rule: `node.tree_exclude` accepts every intermediate node.
-- Owner decision open: "a WAN node stays a root" (`edits.rs` NodeMove) blocks a display-only core router before a WAN.
+- Owner decision (2026-11-24): keep "a WAN node stays a root". A core router does not become the parent of a WAN unless an operator explicitly asks; that is a separate change.
+- Final review (opus): "With fixes". The fix pass corrected 1 Critical and 5 Important findings, each with a test that failed first: structural columns, ribbon lanes, stale state on a failed fetch, "All WANs" in subscriber mode, popover focus and labels, and tree exclusion of router groups. Full gate after the fix pass: 35 PASS, `pulse-check` skipped.
+- Deferred minors (10): Partial reason, 0 Mbps vs no data, capacity on display-only cards, hover highlight, WAN colors after 5 WANs, dropped segments, Tab order, refresh cost, clock skew, popover Tab reach. The ledger lists them.
 - Rulings: `.superpowers/sdd/2026-11-24-topology-sankey-canvas/progress.md` in the worktree (git-ignored).
-- No merge, push, deploy, or production service change occurred.
+- The owner approved a local fast-forward of `lqosync3` and a push of `lqosync3`. No deploy or production service change occurred.
 
 ## 2026-11-24 (Asia/Manila) — Topology canvas lane moves to Claude Code
 

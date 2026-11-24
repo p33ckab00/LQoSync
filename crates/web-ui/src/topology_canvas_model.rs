@@ -430,6 +430,14 @@ pub(crate) fn live_chip(
     }
 }
 
+/// The name of a stream without a WAN. Subscriber counts carry no WAN split.
+pub(crate) fn unknown_stream(metric: crate::sankey::Metric) -> &'static str {
+    match metric {
+        crate::sankey::Metric::Subscribers => "All WANs",
+        crate::sankey::Metric::LiveMbps => "WAN unknown",
+    }
+}
+
 /// The name of a service tier card (`tier:<access>`), else `None`.
 pub(crate) fn tier_name(id: &str) -> Option<&'static str> {
     match id {
@@ -880,5 +888,13 @@ mod tests {
             )
         );
         assert_eq!(live_chip(None, 100).1, "muted");
+    }
+
+    #[test]
+    fn a_stream_without_wan_names_its_metric() {
+        use crate::sankey::Metric;
+        // Subscriber counts have no WAN split: the stream is every WAN, not an unknown one.
+        assert_eq!(unknown_stream(Metric::Subscribers), "All WANs");
+        assert_eq!(unknown_stream(Metric::LiveMbps), "WAN unknown");
     }
 }

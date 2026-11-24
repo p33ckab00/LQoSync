@@ -483,8 +483,10 @@ impl TopologyCatalog {
         let mut router_nodes = HashSet::new();
         for node in &self.nodes {
             ensure!(
-                !node.tree_excluded || node.kind == NodeKind::Intermediate,
-                "only an intermediate node can be excluded from the network tree"
+                !node.tree_excluded
+                    || node.kind == NodeKind::Intermediate
+                    || node.router_id.is_some(),
+                "only an intermediate node or a router node can be excluded from the network tree"
             );
             if let Some(router) = &node.router_id {
                 ensure!(

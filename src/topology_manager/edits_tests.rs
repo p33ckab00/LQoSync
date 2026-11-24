@@ -1941,7 +1941,10 @@ fn tree_exclusion_accepts_intermediate_nodes_only() {
             &d,
             json!({"kind": "node.tree_exclude", "node_id": id, "excluded": true}),
         );
-        assert!(error.contains("intermediate node"), "{id}: {error}");
+        assert!(
+            error.contains("intermediate node or a router node"),
+            "{id}: {error}"
+        );
     }
     // An excluded node can get and lose a router and stays excluded.
     let d = run(
@@ -1957,6 +1960,35 @@ fn tree_exclusion_accepts_intermediate_nodes_only() {
     .unwrap()
     .candidate;
     assert!(node(&d, &tower).tree_excluded);
+}
+
+#[test]
+fn a_router_group_can_still_be_excluded() {
+    // Before the display-only change, every node with a router could leave the tree.
+    let d = doc();
+    let group = d
+        .catalog
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|n| n.kind == NodeKind::SubscriberGroup)
+        .unwrap()
+        .id
+        .clone();
+    let d = run(
+        &d,
+        json!({"kind": "node.router", "node_id": group, "router_id": "distro"}),
+    )
+    .unwrap()
+    .candidate;
+    let d = run(
+        &d,
+        json!({"kind": "node.tree_exclude", "node_id": group, "excluded": true}),
+    )
+    .unwrap()
+    .candidate;
+    assert!(node(&d, &group).tree_excluded);
 }
 
 #[test]

@@ -23,6 +23,9 @@ pub struct Segment {
 pub struct Input {
     pub cards: Vec<String>,
     pub segments: Vec<Segment>,
+    /// The structure: parent → child card pairs. They set the columns and the order, so a card
+    /// keeps its column when its hosts are not in the live sample. They draw no ribbon.
+    pub edges: Vec<(String, String)>,
     /// The WAN node IDs in stream order.
     pub wans: Vec<String>,
     pub metric: Metric,
@@ -46,6 +49,9 @@ pub struct Ribbon {
     pub wan: Option<String>,
     pub value: f64,
     pub d: String,
+    /// The lanes of a ribbon that skips columns: column, top, and height. A lane holds space
+    /// in the column stack, so the ribbon never passes under a card.
+    pub lanes: Vec<(usize, f64, f64)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -148,14 +154,41 @@ pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input
         }
     }
     for tier in ["tier:ppp", "tier:dhcp", "tier:hotspot"] {
-        if extra.iter().any(|e| e.to == tier) {
+        if tiers.iter().any(|(_, t)| t == tier) {
             cards.push(tier.to_string());
         }
     }
     segments.extend(extra);
+    let mut edges: Vec<(String, String)> = Vec::new();
+    let mut add = |a: &str, b: &str| {
+        let pair = (a.to_string(), b.to_string());
+        if a != b && !edges.contains(&pair) {
+            edges.push(pair);
+        }
+    };
+    for n in &summary.nodes {
+        match n
+            .parent
+            .as_deref()
+            .and_then(|p| summary.nodes.iter().find(|x| x.id == p))
+        {
+            Some(p) => add(card_of(p), card_of(n)),
+            // The routing WANs feed a top card of a tree without WAN nodes.
+            None if n.kind != "wan" => {
+                for w in summary.nodes.iter().filter(|w| w.kind == "wan") {
+                    add(card_of(w), card_of(n));
+                }
+            }
+            None => {}
+        }
+    }
+    for (group, tier) in &tiers {
+        add(group, tier);
+    }
     Input {
         cards,
         segments,
+        edges,
         wans,
         metric,
     }
@@ -173,7 +206,11 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
         .collect();
     let edge = |s: &Segment| Some((*index.get(s.from.as_str())?, *index.get(s.to.as_str())?));
     let mut succ: Vec<Vec<usize>> = vec![Vec::new(); n];
-    for (a, b) in input.segments.iter().filter_map(edge) {
+    let structure = input
+        .edges
+        .iter()
+        .filter_map(|(a, b)| Some((*index.get(a.as_str())?, *index.get(b.as_str())?)));
+    for (a, b) in input.segments.iter().filter_map(edge).chain(structure) {
         if a != b && !succ[a].contains(&b) {
             succ[a].push(b);
         }
@@ -247,6 +284,9 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
         .enumerate()
         .map(|(i, c)| (c.as_str(), i))
         .collect();
+    let band = |v: f64| v.max(0.0) * scale;
+    // A lane for each column that a ribbon skips: (segment, column) → top.
+    let mut lane_y: HashMap<(usize, usize), f64> = HashMap::new();
     let mut y = vec![0.0f64; n];
     for c in 0..columns {
         let mut members: Vec<(usize, f64)> = (0..n)
@@ -281,6 +321,18 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
             y[i] = at;
             at += height[i] + GAP;
         }
+        // Lanes go below the cards of the column, in the order of their source height.
+        let mut lanes: Vec<(usize, f64)> = segments
+            .iter()
+            .enumerate()
+            .filter(|(_, (a, b, _))| column[*a] < c && c < column[*b])
+            .map(|(k, (a, _, _))| (k, y[*a]))
+            .collect();
+        lanes.sort_by(|p, q| p.1.total_cmp(&q.1).then(p.0.cmp(&q.0)));
+        for (k, _) in lanes {
+            lane_y.insert((k, c), at);
+            at += band(segments[k].2.value) + GAP;
+        }
     }
     let x = |i: usize| column[i] as f64 * (CARD_W + COL_GAP);
     // Stack the stream ends on each card edge: WAN order (None last), then the far card height.
@@ -308,7 +360,7 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
             .then(wan_rank(&s.wan).cmp(&wan_rank(&s2.wan)))
             .then(y[a].total_cmp(&y[a2]))
     });
-    let band = |i: usize| segments[i].2.value.max(0.0) * scale;
+    let band = |i: usize| band(segments[i].2.value);
     let mut start = vec![0.0f64; segments.len()];
     let mut end = vec![0.0f64; segments.len()];
     let mut cursor: BTreeMap<usize, f64> = BTreeMap::new();
@@ -334,17 +386,41 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
         .enumerate()
         .map(|(i, (a, b, s))| {
             let (x0, x1) = (x(*a) + CARD_W, x(*b));
-            let mid = (x0 + x1) / 2.0;
             let (y0a, y1a, h) = (start[i], end[i], band(i));
-            let (y0b, y1b) = (y0a + h, y1a + h);
+            let lanes: Vec<(usize, f64, f64)> = (column[*a] + 1..column[*b])
+                .map(|c| (c, lane_y[&(i, c)], h))
+                .collect();
+            let lane_x = |c: usize| c as f64 * (CARD_W + COL_GAP);
+            // Top edge forward through each lane, bottom edge back.
+            let (mut d, mut cx, mut cy) = (format!("M{x0},{y0a}"), x0, y0a);
+            for &(c, ly, _) in &lanes {
+                let (lx, mid) = (lane_x(c), (cx + lane_x(c)) / 2.0);
+                d += &format!(" C{mid},{cy} {mid},{ly} {lx},{ly} L{},{ly}", lx + CARD_W);
+                (cx, cy) = (lx + CARD_W, ly);
+            }
+            let mid = (cx + x1) / 2.0;
+            d += &format!(" C{mid},{cy} {mid},{y1a} {x1},{y1a} L{x1},{}", y1a + h);
+            (cx, cy) = (x1, y1a + h);
+            for &(c, ly, _) in lanes.iter().rev() {
+                let (rx, mid) = (lane_x(c) + CARD_W, (cx + lane_x(c) + CARD_W) / 2.0);
+                d += &format!(
+                    " C{mid},{cy} {mid},{} {rx},{} L{},{}",
+                    ly + h,
+                    ly + h,
+                    rx - CARD_W,
+                    ly + h
+                );
+                (cx, cy) = (rx - CARD_W, ly + h);
+            }
+            let mid = (cx + x0) / 2.0;
+            d += &format!(" C{mid},{cy} {mid},{} {x0},{} Z", y0a + h, y0a + h);
             Ribbon {
                 from: s.from.clone(),
                 to: s.to.clone(),
                 wan: s.wan.clone(),
                 value: s.value,
-                d: format!(
-                    "M{x0},{y0a} C{mid},{y0a} {mid},{y1a} {x1},{y1a} L{x1},{y1b} C{mid},{y1b} {mid},{y0b} {x0},{y0b} Z"
-                ),
+                d,
+                lanes,
             }
         })
         .collect();
@@ -360,7 +436,11 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
             value: value[i],
         })
         .collect();
-    let bounds = cards.iter().fold([0.0f64; 4], |b, c| {
+    let lanes_bottom = lane_y
+        .iter()
+        .map(|(&(k, _), &top)| top + band(k))
+        .fold(0.0, f64::max);
+    let bounds = cards.iter().fold([0.0, 0.0, 0.0, lanes_bottom], |b, c| {
         [b[0], b[1], b[2].max(c.x + c.w), b[3].max(c.y + c.h)]
     });
     Sankey {
@@ -391,6 +471,7 @@ mod tests {
         Input {
             cards: cards.iter().map(|c| c.to_string()).collect(),
             segments,
+            edges: Vec::new(),
             wans: wans.iter().map(|w| w.to_string()).collect(),
             metric: Metric::LiveMbps,
         }
@@ -655,5 +736,122 @@ mod tests {
             !i.cards.contains(&"tier:hotspot".to_string()),
             "only used tiers"
         );
+    }
+
+    /// WAN → distro → PPP group, and a DHCP group right below the WAN. The live sample has only
+    /// the PPP hosts.
+    fn mixed() -> (TopologySummary, TopologyThroughput) {
+        let node = |id: &str, parent: Option<&str>, kind: &str, source: Option<&str>| -> Node {
+            serde_json::from_value(json!({"id": id, "name": id, "parent": parent, "kind": kind,
+                "source_id": source, "capacity": {"mode": "automatic"}, "alias": false,
+                "calculated_mbps": null, "exported_mbps": null, "members": null, "card_id": ""}))
+            .unwrap()
+        };
+        let source = |id: &str, access: &str| -> Source {
+            serde_json::from_value(
+                json!({"id": id, "name": id, "kind": "subscribers", "access": access}),
+            )
+            .unwrap()
+        };
+        let summary = TopologySummary {
+            nodes: vec![
+                node("wan-1", None, "wan", None),
+                node("distro", Some("wan-1"), "intermediate", None),
+                node("ppp-1", Some("distro"), "group", Some("src-ppp")),
+                node("dhcp-1", Some("wan-1"), "group", Some("src-dhcp")),
+            ],
+            flows: vec![
+                Flow {
+                    from: "wan-1".into(),
+                    to: "distro".into(),
+                    subscribers: 4,
+                },
+                Flow {
+                    from: "distro".into(),
+                    to: "ppp-1".into(),
+                    subscribers: 4,
+                },
+                Flow {
+                    from: "wan-1".into(),
+                    to: "dhcp-1".into(),
+                    subscribers: 2,
+                },
+            ],
+            sources: vec![source("src-ppp", "ppp"), source("src-dhcp", "dhcp")],
+            ..Default::default()
+        };
+        let f = |from: &str, to: &str| FlowThroughput {
+            from: from.into(),
+            to: to.into(),
+            wan: Some("wan-1".into()),
+            down_bps: 30_000_000,
+            up_bps: 0,
+        };
+        let live = TopologyThroughput {
+            updated: 1,
+            complete: true,
+            flows: vec![f("wan-1", "distro"), f("distro", "ppp-1")],
+            ..Default::default()
+        };
+        (summary, live)
+    }
+
+    fn columns(s: &Sankey) -> Vec<(String, usize)> {
+        let mut c: Vec<(String, usize)> =
+            s.cards.iter().map(|c| (c.id.clone(), c.column)).collect();
+        c.sort();
+        c
+    }
+
+    #[test]
+    fn columns_do_not_depend_on_the_live_sample() {
+        let (summary, live) = mixed();
+        let with_hosts = layout(&input(&summary, Some(&live)), &[]);
+        let stale = TopologyThroughput {
+            stale: true,
+            ..live.clone()
+        };
+        let without = layout(&input(&summary, Some(&stale)), &[]);
+        assert_eq!(columns(&with_hosts), columns(&without));
+        assert_eq!(
+            card(&with_hosts, "dhcp-1").column,
+            1,
+            "an idle group keeps its column"
+        );
+        assert!(
+            with_hosts.cards.iter().any(|c| c.id == "tier:dhcp"),
+            "an idle tier keeps its card"
+        );
+    }
+
+    #[test]
+    fn ribbons_that_skip_a_column_pass_beside_its_cards() {
+        let input = live(
+            &["w", "r", "g", "t"],
+            vec![
+                seg("w", "r", None, 10.0),
+                seg("r", "g", None, 10.0),
+                seg("g", "t", None, 10.0),
+                seg("w", "t", None, 5.0),
+            ],
+            &[],
+        );
+        let s = layout(&input, &[]);
+        let long = s
+            .ribbons
+            .iter()
+            .find(|r| r.from == "w" && r.to == "t")
+            .unwrap();
+        assert_eq!(long.lanes.iter().map(|l| l.0).collect::<Vec<_>>(), [1, 2]);
+        for (column, top, height) in &long.lanes {
+            for c in s.cards.iter().filter(|c| c.column == *column) {
+                assert!(
+                    top + height <= c.y + 1e-9 || c.y + c.h <= *top + 1e-9,
+                    "lane {column} crosses {}",
+                    c.id
+                );
+            }
+        }
+        assert!(s.bounds[3] >= long.lanes.iter().map(|l| l.1 + l.2).fold(0.0, f64::max));
     }
 }

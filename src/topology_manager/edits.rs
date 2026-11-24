@@ -1946,9 +1946,13 @@ pub fn apply(
         Edit::NodeTreeExclude { node_id, excluded } => {
             let c = d.catalog.as_ref().expect("enrolled");
             let i = position(c, node_id)?;
-            if *excluded && c.nodes[i].kind != NodeKind::Intermediate {
+            // A router node (since schema 9) or a display-only intermediate node.
+            if *excluded
+                && c.nodes[i].kind != NodeKind::Intermediate
+                && c.nodes[i].router_id.is_none()
+            {
                 return Err(invalid(
-                    "only an intermediate node can be excluded from the network tree",
+                    "only an intermediate node or a router node can be excluded from the network tree",
                 ));
             }
             affected.extend(sources_below(c, &top(c, node_id)));

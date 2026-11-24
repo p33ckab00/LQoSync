@@ -62,6 +62,11 @@ const fs=require('node:fs');
     await canvas.getByText('5 subs',{exact:true}).first().waitFor();
     await page.unroute('**/api/v1/topology/throughput');
     await chips.getByText(/^Live · /).waitFor({timeout:12000});
+    // A gateway that stops answering: the kept sample turns stale and never stays "Live".
+    await page.route('**/api/v1/topology/throughput',r=>r.abort());
+    await chips.getByText('Subscribers, not live',{exact:true}).waitFor({timeout:12000});
+    await page.unroute('**/api/v1/topology/throughput');
+    await chips.getByText(/^Live · /).waitFor({timeout:12000});
     assert.equal(await page.getByText(/instance/i).count(),0,'the word instance never shows');
     const dock=page.getByRole('toolbar',{name:'Topology tools'});
     for(const name of ['Router inventory','Topology settings','Subscriber allocation','Preview and evidence']){
@@ -84,6 +89,13 @@ const fs=require('node:fs');
     await north.focus();await north.click();await pop.waitFor();
     await page.keyboard.press('Escape');await pop.waitFor({state:'hidden'});
     assert.equal(await north.evaluate(el=>el===document.activeElement),true,'focus stays on the card');
+    // The card names its popover and reads its live value. Escape inside the popover returns focus to the card.
+    await north.click();await pop.waitFor();
+    assert.equal(await north.getAttribute('aria-describedby'),await pop.getAttribute('id'),'the card names its popover');
+    assert.match(await north.getAttribute('aria-label'),/^WAN North, [\d.]+ Mbps,/,'the label reads the live value');
+    await pop.getByRole('button',{name:'Open full settings',exact:true}).focus();
+    await page.keyboard.press('Escape');await pop.waitFor({state:'hidden'});
+    assert.equal(await north.evaluate(el=>el===document.activeElement),true,'Escape returns focus to the card');
     // Enter on the selected card opens its modal; a Google Maps paste saves the full text.
     await north.focus();await page.keyboard.press('Enter');
     const dialog=page.getByRole('dialog',{name:'WAN North'});await dialog.waitFor();

@@ -167,9 +167,21 @@ pub(crate) fn Canvas(
     // The popover of the selected card or stream. Non-modal: focus stays on the canvas.
     let popover = RwSignal::new(false);
     // Escape closes the popover wherever the focus is. The focus does not move.
+    // Escape inside the popover returns the focus to the selected card.
     let escape = window_event_listener(leptos::ev::keydown, move |ev| {
-        if ev.key() == "Escape" && popover.get_untracked() {
-            popover.set(false);
+        if ev.key() != "Escape" || !popover.get_untracked() {
+            return;
+        }
+        popover.set(false);
+        let inside = document()
+            .active_element()
+            .is_some_and(|e| e.closest(".sankey-popover").ok().flatten().is_some());
+        if inside
+            && let Some(id) = selected.get_untracked()
+            && let Ok(Some(card)) = document().query_selector(&format!("[data-node-id=\"{id}\"]"))
+            && let Ok(card) = card.dyn_into::<web_sys::HtmlElement>()
+        {
+            let _ = card.focus();
         }
     });
     on_cleanup(move || escape.remove());
@@ -182,6 +194,20 @@ pub(crate) fn Canvas(
                 crate::topology::get::<TopologyThroughput>(session, "/api/v1/topology/throughput")
                     .await
             else {
+                // A gateway that does not answer: the kept sample is old, never live.
+                let gone = live
+                    .try_update(|t| {
+                        if let Some(t) = t {
+                            t.stale = true;
+                            t.complete = false;
+                            t.reason =
+                                Some("The gateway did not answer. The last sample is old.".into());
+                        }
+                    })
+                    .is_none();
+                if gone {
+                    break;
+                }
                 gloo_timers::future::TimeoutFuture::new(5000).await;
                 continue;
             };
@@ -502,6 +528,12 @@ pub(crate) fn Canvas(
             .flatten()
             .map(|t| format!(" {t}."))
             .collect::<String>();
+        // The label starts with the name and the live value; the value changes each refresh.
+        let label_rest = label
+            .strip_prefix(&format!("{}, ", n.name))
+            .unwrap_or(&label)
+            .to_string();
+        let card_name = n.name.clone();
         let height = move || id.with_value(|i| box_of(i)).map_or(CARD_H, |b| b.h);
         let column = move || id.with_value(|i| box_of(i)).map_or(0, |b| b.column);
         let value = move || id.with_value(|i| box_of(i)).map(|b| b.value);
@@ -520,7 +552,9 @@ pub(crate) fn Canvas(
         view! {
           <button type="button" class="canvas-node sankey-card" data-kind=n.kind.clone() data-node-id=c.id.clone()
             data-column=move||column().to_string() data-tone=move||wan_id.is_some().then(&tone)
-            aria-pressed=move||is_selected().to_string() aria-label=label
+            aria-pressed=move||is_selected().to_string()
+            aria-describedby=move||(is_selected()&&popover.get()).then_some("sankey-details")
+            aria-label=move||format!("{}, {}, {}",card_name,value_text(value(),metric()),label_rest)
             style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
             style:height=move||format!("{}px",height())
             on:click=move|_|{
@@ -626,7 +660,7 @@ pub(crate) fn Canvas(
         Some(w) => wan_names
             .with(|n| n.iter().find(|(id, _)| id == w).map(|(_, n)| n.clone()))
             .unwrap_or_else(|| w.to_string()),
-        None => "WAN unknown".to_string(),
+        None => unknown_stream(metric()).to_string(),
     };
     // The details of the selected card or stream, next to it on the canvas.
     let details = move || {
@@ -666,7 +700,7 @@ pub(crate) fn Canvas(
                 crate::sankey::Metric::Subscribers => value_text(Some(r.value), input.metric),
             };
             return Some(view! {
-              <div class="sankey-popover" role="dialog" aria-label="Stream details"
+              <div class="sankey-popover" id="sankey-details" role="dialog" aria-label="Stream details"
                 style:left=format!("{}px",a.x+a.w+MARGIN+12.0) style:top=format!("{}px",a.y+SANKEY_TOP)>
                 <strong>{title}</strong><p>{rate}</p>
               </div>
@@ -690,7 +724,7 @@ pub(crate) fn Canvas(
         let name = name_of(&id);
         let tier = tier_name(&id).is_some();
         Some(view! {
-          <div class="sankey-popover" role="dialog" aria-label=format!("{name} details")
+          <div class="sankey-popover" id="sankey-details" role="dialog" aria-label=format!("{name} details")
             style:left=format!("{}px",c.x+c.w+MARGIN+12.0) style:top=format!("{}px",c.y+SANKEY_TOP)>
             <strong>{name.clone()}</strong>
             <p>{value_text(Some(c.value),input.metric)}</p>
