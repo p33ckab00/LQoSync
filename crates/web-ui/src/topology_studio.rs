@@ -3,7 +3,6 @@ use crate::router_form::{CredentialFields, Ctx, EditableSection, NewRouter, Save
 use crate::router_form_model::{Form, Section};
 use crate::topology_studio_model::*;
 use leptos::prelude::*;
-use std::collections::HashMap;
 use web_contract::{
     Principal, routers::RouterInventory, source_studio::*, topology::TopologySummary,
 };
@@ -35,7 +34,6 @@ pub(crate) fn Studio(
     let caps = RwSignal::new(None::<StudioCapabilities>);
     let config = RwSignal::new(None::<RouterSourceConfig>);
     let draft = RwSignal::new(None::<StudioDraft>);
-    let drafts = StoredValue::new(HashMap::<String, StudioDraft>::new());
     let section = RwSignal::new(StudioSection::Connection);
     let adding = RwSignal::new(false);
     let loading = RwSignal::new(false);
@@ -88,7 +86,6 @@ pub(crate) fn Studio(
         let next = session.get().map(|p| p.username);
         if actor.get_value() != next {
             actor.set_value(next);
-            drafts.update_value(|d| d.clear());
             draft.set(None);
             credentials.update(|f| {
                 f.password.clear();
@@ -117,8 +114,8 @@ pub(crate) fn Studio(
             return;
         }
         if let Some(d) = draft.get_untracked() {
-            drafts.update_value(|all| {
-                all.insert(d.router_id.clone(), d);
+            memory.update(|m| {
+                m.remember(actor.get_value().as_deref().unwrap_or(""), d);
             });
         }
         draft.set(None);
@@ -178,15 +175,9 @@ pub(crate) fn Studio(
                         }
                         if let Ok(c) = source {
                             if c.version == VERSION && c.router_id == id {
-                                let local = drafts
-                                    .with_value(|all| all.get(&id).cloned())
-                                    .or_else(|| {
-                                        memory.with_untracked(|m| {
-                                            m.recover(
-                                                &expected_actor.clone().unwrap_or_default(),
-                                                &id,
-                                            )
-                                        })
+                                let local = memory
+                                    .with_untracked(|m| {
+                                        m.recover(&expected_actor.clone().unwrap_or_default(), &id)
                                     })
                                     .unwrap_or_else(|| {
                                         let mut d = StudioDraft::from(c.clone());
@@ -343,14 +334,15 @@ pub(crate) fn Studio(
                   {move||draft.with(|d|d.as_ref().map(|d|d.profiles.iter().enumerate().map(|(i,p)|view!{<option value=i.to_string()>{p.label.clone()}</option>}).collect_view()))}
                 </select></label>
                 <button type="button" class="canvas-tool" aria-label="Add access profile" title="Add access profile" disabled=move||draft.with(|d|d.as_ref().is_none_or(|d|d.profiles.len()>=caps.with(|c|c.as_ref().map(|c|c.limits.access_profiles.min(MAX_ACCESS_PROFILES as u64) as usize).unwrap_or(0))))
-                  on:click=move|_|{draft.update(|d|if let Some(d)=d{let i=d.profiles.len();d.profiles.push(ProfileDraft{id:format!("profile-{}",i+1),label:"New access profile".into(),username:String::new(),credential_set:false,supported_writes:vec![]});d.epoch=d.epoch.wrapping_add(1);profile.set(i);});credentials.set(Form::default());}>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
+                  on:click=move|_|{draft.update(|d|if let Some(d)=d{let i=d.profiles.len();d.profiles.push(ProfileDraft{needs_confirmation:false,id:format!("profile-{}",i+1),label:"New access profile".into(),username:String::new(),credential_set:false,supported_writes:vec![]});d.epoch=d.epoch.wrapping_add(1);profile.set(i);});credentials.set(Form::default());}>{crate::topology_canvas::icon("M12 5v14M5 12h14")}</button>
                 <button type="button" class="canvas-tool" aria-label="Remove access profile" title="Remove this explicit access profile from the draft" disabled=move||selected_profile().is_none_or(|p|p.id=="default") on:click=move|_|{let i=profile.get_untracked();draft.update(|d|if let Some(d)=d&&i<d.profiles.len(){d.profiles.remove(i);d.epoch=d.epoch.wrapping_add(1);});select_profile(0);}>{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18")}</button>
                 <label>"Profile ID"<input aria-label="Profile ID" prop:value=move||selected_profile().map(|p|p.id).unwrap_or_default() disabled=move||selected_profile().is_some_and(|p|p.credential_set)
                   on:input=move|ev|{let v=event_target_value(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.id=v;d.epoch=d.epoch.wrapping_add(1);});}/></label>
                 <label>"Profile label"<input aria-label="Profile label" disabled=move||selected_profile().is_some_and(|p|p.id=="default") prop:value=move||selected_profile().map(|p|p.label).unwrap_or_default()
                   on:input=move|ev|{let v=event_target_value(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.label=v;d.epoch=d.epoch.wrapping_add(1);});}/></label>
-                <p class="field-help">{move||if selected_profile().is_some_and(|p|p.credential_set){"Credential stored. Enter the profile user before an edit; leave replacement off to keep its secret."}else{"Unsaved profile. Save is unavailable in this build. Leaving this panel clears secret input."}}</p>
+                <p class="field-help">{move||if selected_profile().is_some_and(|p|p.credential_set){"Credential stored. Enter the profile user before an edit; leave replacement off to keep its secret."}else{"Unsaved profile. Enter every profile username. A new profile needs a credential; saved profiles keep their secret when it is absent. Leaving this panel clears secret input."}}</p>
                 <Show when=move||credential_new.get() fallback=move||view!{<CredentialFields form=credentials errors=credential_errors new=false icons=true/>}><CredentialFields form=credentials errors=credential_errors new=true icons=true/></Show>
+                <Show when=move||selected_profile().is_some_and(|p|p.needs_confirmation)><label class="check"><input type="checkbox" aria-label="Confirm displayed RouterOS user" on:change=move|ev|{let confirmed=event_target_checked(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.needs_confirmation = !confirmed;d.epoch=d.epoch.wrapping_add(1);});}/>"Confirm this displayed username after the configuration change. The API omits explicit-profile usernames."</label></Show>
                 <label class="check"><input type="checkbox" aria-label="Allow WAN address-list writes" disabled=move||selected_profile().is_some_and(|p|p.id=="default") prop:checked=move||selected_profile().is_some_and(|p|p.supported_writes.contains(&WriteScope::WanAddressLists))
                   on:change=move|ev|{let on=event_target_checked(&ev);draft.update(|d|if let Some(d)=d&&let Some(p)=d.profiles.get_mut(profile.get_untracked()){p.supported_writes=if on{vec![WriteScope::WanAddressLists]}else{vec![]};d.epoch=d.epoch.wrapping_add(1);});}/>"Allow WAN address-list writes"</label>
               }.into_any(),

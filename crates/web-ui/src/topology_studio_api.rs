@@ -245,18 +245,18 @@ pub(crate) async fn edit(
     session: RwSignal<Option<Principal>>,
     request: &web_contract::topology::EditRequest,
     resume: bool,
-    allow_resubmit: bool,
+    allow_resubmit: impl Fn() -> bool,
 ) -> Result<Operation, ApiError> {
     let client = Client::new(session)?;
     let url = format!("/api/v1/topology/operations/{}", encoded(&request.key));
     if resume {
         match client.get::<Operation>(&url).await {
-            Ok(op) if op.state == "not_found" && allow_resubmit => {}
+            Ok(op) if op.state == "not_found" && allow_resubmit() => {}
             Ok(op) if op.state == "not_found" => {
                 return Err(ApiError {status:Some(404),code:"absent_changed".into(),message:"The old operation is absent and the draft changed. No old payload was resubmitted.".into(),uncertain:false});
             }
             Ok(op) => return client.settle(op, &request.key, 600).await,
-            Err(e) if e.status == Some(404) && allow_resubmit => {}
+            Err(e) if e.status == Some(404) && allow_resubmit() => {}
             Err(e) if e.status == Some(404) => {
                 return Err(ApiError {status:Some(404),code:"absent_changed".into(),message:"The old operation is absent and the draft changed. No old payload was resubmitted.".into(),uncertain:false});
             }
@@ -293,18 +293,37 @@ pub(crate) async fn profiles(
     form: &web_contract::routers::RouterEditForm,
 ) -> Result<web_contract::routers::RouterEditReply, ApiError> {
     let c = Client::new(session)?;
-    let reply=c.response(&format!("/api/v1/routers/{}",encoded(router)),"patch",Some(form)).await?.json::<web_contract::routers::RouterEditOutcome>().await.map_err(|_|ApiError::local("The access-save reply is unknown. Reload cached configuration before another save."))?;
+    let reply = c
+        .response(
+            &format!("/api/v1/routers/{}", encoded(router)),
+            "patch",
+            Some(form),
+        )
+        .await?
+        .json::<web_contract::routers::RouterEditOutcome>()
+        .await
+        .map_err(|_| ApiError {
+            status: None,
+            code: "unknown_access_reply".into(),
+            message: "The access-save reply is unknown. Reconcile before another save.".into(),
+            uncertain: true,
+        })?;
     if reply.code != "ok" {
+        let uncertain = !matches!(
+            reply.code.as_str(),
+            "invalid" | "conflict" | "not_found" | "forbidden" | "reauth"
+        );
         return Err(ApiError {
             status: None,
             code: reply.code,
             message: reply.message,
-            uncertain: false,
+            uncertain,
         });
     }
-    reply.reply.ok_or_else(|| {
-        ApiError::local(
-            "The access-save reply is unknown. Reload cached configuration before another save.",
-        )
+    reply.reply.ok_or_else(|| ApiError {
+        status: None,
+        code: "unknown_access_reply".into(),
+        message: "The access-save reply is unknown. Reconcile before another save.".into(),
+        uncertain: true,
     })
 }

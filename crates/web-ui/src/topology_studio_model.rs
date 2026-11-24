@@ -78,11 +78,13 @@ pub(crate) fn source_label(kind: SourceKind) -> &'static str {
 }
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct PolicyDraft {
+    pub local_token: u64,
     pub policy: SourcePolicyDraft,
     pub priority: String,
 }
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ProfileDraft {
+    pub needs_confirmation: bool,
     pub id: String,
     pub label: String,
     pub username: String,
@@ -98,6 +100,8 @@ pub(crate) struct StudioDraft {
     pub policies: Vec<PolicyDraft>,
     pub profiles: Vec<ProfileDraft>,
     pub saved_profiles: Vec<ProfileDraft>,
+    pub saved_policies: Vec<PolicyDraft>,
+    pub next_policy: u64,
     pub selected: Option<usize>,
     pub epoch: u64,
 }
@@ -107,6 +111,7 @@ impl From<RouterSourceConfig> for StudioDraft {
             .access_profiles
             .into_iter()
             .map(|p| ProfileDraft {
+                needs_confirmation: false,
                 id: p.id,
                 label: p.label,
                 username: String::new(),
@@ -114,21 +119,26 @@ impl From<RouterSourceConfig> for StudioDraft {
                 supported_writes: p.supported_writes,
             })
             .collect();
+        let policies: Vec<_> = c
+            .policies
+            .into_iter()
+            .enumerate()
+            .map(|(i, p)| PolicyDraft {
+                local_token: i as u64 + 1,
+                priority: p.priority.to_string(),
+                policy: p,
+            })
+            .collect();
         Self {
             router_id: c.router_id,
             config_digest: c.config_digest,
             loaded_config_digest: c.loaded_config_digest,
             policy_revision: c.policy_revision,
-            selected: (!c.policies.is_empty()).then_some(0),
+            selected: (!policies.is_empty()).then_some(0),
             epoch: 0,
-            policies: c
-                .policies
-                .into_iter()
-                .map(|p| PolicyDraft {
-                    priority: p.priority.to_string(),
-                    policy: p,
-                })
-                .collect(),
+            next_policy: policies.len() as u64 + 1,
+            saved_policies: policies.clone(),
+            policies,
             profiles: profiles.clone(),
             saved_profiles: profiles,
         }
@@ -202,7 +212,10 @@ impl StudioDraft {
             },
             writes: vec![],
         };
+        let local_token = self.next_policy;
+        self.next_policy += 1;
         self.policies.push(PolicyDraft {
+            local_token,
             policy,
             priority: "100".into(),
         });
@@ -311,18 +324,359 @@ pub(crate) fn rate_choices(source: SourceKind, caps: &StudioCapabilities) -> Vec
     rates.push(RateSource::Settings);
     rates
 }
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct PendingPolicy {
+    pub request: web_contract::topology::EditRequest,
+    pub rows: Vec<PolicyDraft>,
+    pub saved_revision: Option<String>,
+}
+impl PendingPolicy {
+    pub fn new(d: &StudioDraft, request: web_contract::topology::EditRequest) -> Self {
+        let mut rows = d.policies.clone();
+        if let web_contract::topology::BuilderEdit::RouterSourcesSet { policies, .. } =
+            &request.edit
+        {
+            for (row, p) in rows.iter_mut().zip(policies) {
+                row.policy = p.clone();
+                row.priority = p.priority.to_string();
+            }
+        }
+        Self {
+            request,
+            rows,
+            saved_revision: None,
+        }
+    }
+    pub fn needs_ids(&self) -> bool {
+        self.rows.iter().any(|r| r.policy.id.is_none())
+    }
+}
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+pub(crate) struct AccessState {
+    pub phase: String,
+    pub digest: String,
+    pub before_digest: String,
+    pub reload: String,
+    pub warnings: Vec<String>,
+    pub secret_profile: Option<String>,
+}
+#[derive(Clone, Debug)]
+pub(crate) struct MergeConflict {
+    pub key: String,
+    pub label: String,
+    pub local: String,
+    pub saved: String,
+}
+fn same_policy_values(a: &SourcePolicyDraft, b: &SourcePolicyDraft) -> bool {
+    let mut a = a.clone();
+    let mut b = b.clone();
+    a.id = None;
+    b.id = None;
+    a == b
+}
+pub(crate) fn adopt_saved_ids(
+    d: &mut StudioDraft,
+    p: &PendingPolicy,
+    c: &RouterSourceConfig,
+) -> bool {
+    let Some(saved) = p
+        .saved_revision
+        .as_ref()
+        .and_then(|r| r.parse::<u64>().ok())
+    else {
+        return false;
+    };
+    if c.router_id != d.router_id
+        || c.policy_revision
+            .as_ref()
+            .and_then(|r| r.parse::<u64>().ok())
+            .is_none_or(|r| r < saved)
+        || p.rows.len() != c.policies.len()
+    {
+        return false;
+    }
+    for (row, remote) in p.rows.iter().zip(&c.policies) {
+        if !same_policy_values(&row.policy, remote)
+            || remote.id.as_deref().is_none_or(str::is_empty)
+            || row
+                .policy
+                .id
+                .as_ref()
+                .is_some_and(|id| Some(id) != remote.id.as_ref())
+        {
+            return false;
+        }
+        if d.policies
+            .iter()
+            .find(|l| l.local_token == row.local_token)
+            .is_some_and(|l| l.policy.id.is_some() && l.policy.id != remote.id)
+        {
+            return false;
+        }
+    }
+    let mut baseline = p.rows.clone();
+    for (row, remote) in baseline.iter_mut().zip(&c.policies) {
+        row.policy.id = remote.id.clone();
+        if let Some(local) = d
+            .policies
+            .iter_mut()
+            .find(|l| l.local_token == row.local_token)
+        {
+            local.policy.id = remote.id.clone();
+        }
+    }
+    d.saved_policies = baseline;
+    true
+}
+fn merged<T: Clone + PartialEq + serde::Serialize>(
+    base: &[(String, T)],
+    local: &[(String, T)],
+    remote: &[(String, T)],
+    choices: &std::collections::HashMap<String, bool>,
+    kind: &str,
+) -> Result<Vec<T>, Vec<MergeConflict>> {
+    let mut keys = Vec::new();
+    for (k, _) in remote.iter().chain(local).chain(base) {
+        if !keys.contains(k) {
+            keys.push(k.clone());
+        }
+    }
+    let mut out = Vec::new();
+    let mut conflicts = Vec::new();
+    for key in keys {
+        let b = base.iter().find(|(k, _)| k == &key).map(|(_, v)| v);
+        let l = local.iter().find(|(k, _)| k == &key).map(|(_, v)| v);
+        let r = remote.iter().find(|(k, _)| k == &key).map(|(_, v)| v);
+        let selected = if l == b {
+            r
+        } else if r == b || l == r {
+            l
+        } else {
+            match choices.get(&format!("{kind}:{key}")) {
+                Some(true) => l,
+                Some(false) => r,
+                None => {
+                    let display = |entry: Option<&T>, remote: bool| {
+                        if let Some(v) = entry {
+                            let mut v = serde_json::to_value(v).unwrap_or_default();
+                            if kind == "Policy" {
+                                let priority = v.get("priority").cloned();
+                                if let Some(policy) = v.get("policy").cloned() {
+                                    v = policy;
+                                    if let (Some(priority), Some(p)) = (priority, v.as_object_mut())
+                                    {
+                                        p.insert("priority".into(), priority);
+                                    }
+                                }
+                            } else if let Some(p) = v.as_object_mut() {
+                                p.remove("needs_confirmation");
+                            }
+
+                            if remote
+                                && kind == "Profile"
+                                && key != "default"
+                                && let Some(v) = v.as_object_mut()
+                            {
+                                v.insert(
+                                    "username".into(),
+                                    serde_json::Value::String(
+                                        "Not returned by the API; confirm the local username."
+                                            .into(),
+                                    ),
+                                );
+                            }
+                            serde_json::to_string_pretty(&v).unwrap_or_default()
+                        } else {
+                            "Entry removed".into()
+                        }
+                    };
+                    conflicts.push(MergeConflict{key:format!("{kind}:{key}"),label:format!("{kind} {key}: both the draft and saved entry changed (or one removed it)."),local:display(l,false),saved:display(r,true)});
+                    continue;
+                }
+            }
+        };
+        if let Some(v) = selected {
+            out.push(v.clone());
+        }
+    }
+    if conflicts.is_empty() {
+        Ok(out)
+    } else {
+        Err(conflicts)
+    }
+}
+pub(crate) fn rebase_draft(
+    d: &mut StudioDraft,
+    c: &RouterSourceConfig,
+    default_username: Option<&str>,
+    choices: &std::collections::HashMap<String, bool>,
+) -> Result<(), Vec<MergeConflict>> {
+    if d.router_id != c.router_id {
+        return Err(vec![MergeConflict {
+            local: String::new(),
+            saved: String::new(),
+            key: "router".into(),
+            label: "The saved configuration names another router.".into(),
+        }]);
+    }
+    let mut next = d.clone();
+    let mut remote_policies = Vec::new();
+    for (i, p) in c.policies.iter().enumerate() {
+        let old = d
+            .saved_policies
+            .iter()
+            .chain(&d.policies)
+            .find(|b| p.id.is_some() && b.policy.id == p.id)
+            .or_else(|| {
+                d.saved_policies
+                    .iter()
+                    .find(|b| b.policy.id.is_none() && same_policy_values(&b.policy, p))
+            })
+            .or_else(|| {
+                d.saved_policies
+                    .get(i)
+                    .filter(|b| b.policy.id.is_none() && p.id.is_none())
+            });
+        let token = old.map(|r| r.local_token).unwrap_or_else(|| {
+            let t = next.next_policy;
+            next.next_policy += 1;
+            t
+        });
+        remote_policies.push(PolicyDraft {
+            local_token: token,
+            policy: p.clone(),
+            priority: p.priority.to_string(),
+        });
+    }
+    let policy_key = |p: &PolicyDraft| {
+        p.policy
+            .id
+            .clone()
+            .unwrap_or_else(|| format!("local-{}", p.local_token))
+    };
+    // A formerly implicit policy can acquire its ID in the saved set.
+    let key_for = |p: &PolicyDraft| {
+        remote_policies
+            .iter()
+            .find(|r| r.local_token == p.local_token)
+            .map(policy_key)
+            .unwrap_or_else(|| policy_key(p))
+    };
+    let bp: Vec<_> = d
+        .saved_policies
+        .iter()
+        .map(|p| (key_for(p), p.clone()))
+        .collect();
+    let lp: Vec<_> = d.policies.iter().map(|p| (key_for(p), p.clone())).collect();
+    let rp: Vec<_> = remote_policies
+        .iter()
+        .map(|p| (policy_key(p), p.clone()))
+        .collect();
+    // ID assignment is metadata, not an overlapping policy-value edit.
+    let normalize = |rows: Vec<(String, PolicyDraft)>| {
+        rows.into_iter()
+            .map(|(k, mut v)| {
+                if let Some(r) = remote_policies
+                    .iter()
+                    .find(|r| r.local_token == v.local_token)
+                    && v.policy.id.is_none()
+                {
+                    v.policy.id = r.policy.id.clone();
+                }
+                (k, v)
+            })
+            .collect::<Vec<_>>()
+    };
+    let policies = merged(&normalize(bp), &normalize(lp), &rp, choices, "Policy");
+    let mut remote_profiles = Vec::new();
+    for p in &c.access_profiles {
+        let baseline = d.saved_profiles.iter().find(|b| b.id == p.id);
+        remote_profiles.push(ProfileDraft {
+            id: p.id.clone(),
+            label: p.label.clone(),
+            username: if p.id == "default" {
+                default_username
+                    .map(str::to_owned)
+                    .or_else(|| baseline.map(|b| b.username.clone()))
+                    .unwrap_or_default()
+            } else {
+                baseline.map(|b| b.username.clone()).unwrap_or_default()
+            },
+            credential_set: p.credential_set,
+            supported_writes: p.supported_writes.clone(),
+            needs_confirmation: false,
+        });
+    }
+    let profile_rows = |ps: &[ProfileDraft]| {
+        ps.iter()
+            .map(|p| {
+                let mut p = p.clone();
+                p.needs_confirmation = false;
+                (p.id.clone(), p)
+            })
+            .collect::<Vec<_>>()
+    };
+    let profiles = merged(
+        &profile_rows(&d.saved_profiles),
+        &profile_rows(&d.profiles),
+        &profile_rows(&remote_profiles),
+        choices,
+        "Profile",
+    );
+    match (policies, profiles) {
+        (Ok(policies), Ok(mut profiles)) => {
+            if d.config_digest != c.config_digest {
+                for p in &mut profiles {
+                    p.needs_confirmation = true;
+                }
+                for p in &mut remote_profiles {
+                    p.needs_confirmation = true;
+                }
+            }
+            next.policies = policies;
+            next.saved_policies = remote_policies;
+            next.profiles = profiles;
+            next.saved_profiles = remote_profiles;
+            let selected_token = d
+                .selected
+                .and_then(|i| d.policies.get(i))
+                .map(|p| p.local_token);
+            next.selected = selected_token
+                .and_then(|token| next.policies.iter().position(|p| p.local_token == token))
+                .or_else(|| (!next.policies.is_empty()).then_some(0));
+            next.config_digest = c.config_digest.clone();
+            next.loaded_config_digest = c.loaded_config_digest.clone();
+            next.policy_revision = c.policy_revision.clone();
+            next.epoch = next.epoch.wrapping_add(1);
+            *d = next;
+            Ok(())
+        }
+        (a, b) => {
+            let mut errors = a.err().unwrap_or_default();
+            errors.extend(b.err().unwrap_or_default());
+            Err(errors)
+        }
+    }
+}
+
 /// Only non-secret drafts survive a same-actor reauthentication in this tab.
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DraftVault {
     pub actor: Option<String>,
     pub drafts: std::collections::HashMap<String, StudioDraft>,
-    pub saves: std::collections::HashMap<String, web_contract::topology::EditRequest>,
+    pub saves: std::collections::HashMap<String, PendingPolicy>,
+    pub last_policies: std::collections::HashMap<String, PendingPolicy>,
+    pub access: std::collections::HashMap<String, AccessState>,
+    pub messages: std::collections::HashMap<String, String>,
 }
 impl DraftVault {
     pub fn bind_actor(&mut self, actor: &str) {
         if self.actor.as_deref() != Some(actor) {
             self.drafts.clear();
             self.saves.clear();
+            self.last_policies.clear();
+            self.access.clear();
+            self.messages.clear();
             self.actor = Some(actor.into());
         }
     }
@@ -341,6 +695,9 @@ impl DraftVault {
     pub fn clear(&mut self) {
         self.drafts.clear();
         self.saves.clear();
+        self.last_policies.clear();
+        self.access.clear();
+        self.messages.clear();
         self.actor = None;
     }
 }
@@ -848,6 +1205,12 @@ pub(crate) fn access_edit(
         {
             return Err("Use a unique profile ID: 1 to 32 of a-z, 0-9, or -.".into());
         }
+        if p.needs_confirmation {
+            return Err(format!(
+                "Confirm the displayed username for profile {} after the configuration change. The API does not return explicit-profile usernames.",
+                p.label
+            ));
+        }
         if p.username.is_empty()
             || p.username.chars().count() > 64
             || p.username.chars().any(char::is_control)
@@ -903,7 +1266,16 @@ pub(crate) fn policy_values_match(
         } => {
             d.router_id == *router_id
                 && d.config_digest == *expected_config_digest
-                && evaluation_policies(d).is_ok_and(|p| p == *policies)
+                && evaluation_policies(d).is_ok_and(|p| {
+                    p.len() == policies.len()
+                        && p.iter().zip(policies).all(|(a, b)| {
+                            if b.id.is_none() {
+                                same_policy_values(a, b)
+                            } else {
+                                a == b
+                            }
+                        })
+                })
         }
         _ => false,
     }
@@ -1042,7 +1414,8 @@ mod save_tests {
         let r = policy_edit(&d, &c, "actor-policy-request".into()).unwrap();
         let mut v = DraftVault::default();
         v.bind_actor("a");
-        v.saves.insert(d.router_id.clone(), r);
+        v.saves
+            .insert(d.router_id.clone(), PendingPolicy::new(&d, r));
         v.bind_actor("a");
         assert_eq!(v.saves.len(), 1);
         v.bind_actor("b");
@@ -1082,6 +1455,79 @@ mod save_tests {
         s.observed.as_mut().unwrap().stale = false;
         s.publication.as_mut().unwrap().accepted = false;
         assert!(!runtime_applied(&s, "43", 105));
+    }
+    #[test]
+    fn rebase_keeps_other_operators_entries_and_reports_overlap() {
+        let (caps, mut d) = input();
+        let mut cfg: RouterSourceConfig = serde_json::from_value(
+            serde_json::from_str::<serde_json::Value>(include_str!(
+                "../../web-contract/tests/fixtures/studio/normal.json"
+            ))
+            .unwrap()["source_configs"]["lq3-00000000000000a1"]
+                .clone(),
+        )
+        .unwrap();
+        d.policies[0].policy.name = "Local change".into();
+        let mut remote = cfg.policies[1].clone();
+        remote.id = Some("remote-policy".into());
+        remote.name = "Other operator".into();
+        cfg.policies.push(remote);
+        cfg.policy_revision = Some("43".into());
+        rebase_draft(&mut d, &cfg, None, &Default::default()).unwrap();
+        assert!(
+            d.policies
+                .iter()
+                .any(|p| p.policy.id.as_deref() == Some("remote-policy"))
+        );
+        assert_eq!(d.policies[0].policy.name, "Local change");
+        assert!(policy_edit(&d, &caps, "rebased-request-key".into()).is_ok());
+        d.policies[0].policy.name = "Second local".into();
+        cfg.policies[0].name = "Other edit same policy".into();
+        let before = d.policies.clone();
+        let conflicts = rebase_draft(&mut d, &cfg, None, &Default::default()).unwrap_err();
+        assert!(!conflicts.is_empty());
+        assert!(conflicts[0].label.contains("both"));
+        assert!(conflicts[0].local.contains("Second local"));
+        assert!(conflicts[0].saved.contains("Other edit same policy"));
+        assert!(!conflicts[0].local.contains("local_token"));
+        assert!(d.policies == before);
+        let choices = std::collections::HashMap::from([(conflicts[0].key.clone(), true)]);
+        rebase_draft(&mut d, &cfg, None, &choices).unwrap();
+        assert_eq!(d.policies[0].policy.name, "Second local");
+    }
+    #[test]
+    fn assigned_ids_keep_in_flight_edits_and_do_not_attach_to_replacements() {
+        let (caps, mut d) = input();
+        d.add_policy(SourceKind::Ppp, &caps);
+        let i = d.policies.len() - 1;
+        let mut saved = PendingPolicy::new(
+            &d,
+            policy_edit(&d, &caps, "new-policy-request-key".into()).unwrap(),
+        );
+        assert!(saved.needs_ids());
+        saved.saved_revision = Some("43".into());
+        let mut cfg: RouterSourceConfig = serde_json::from_value(
+            serde_json::from_str::<serde_json::Value>(include_str!(
+                "../../web-contract/tests/fixtures/studio/normal.json"
+            ))
+            .unwrap()["source_configs"]["lq3-00000000000000a1"]
+                .clone(),
+        )
+        .unwrap();
+        saved.saved_revision = Some("43".into());
+        cfg.policies = evaluation_policies(&d).unwrap();
+        cfg.policies[i].id = Some("assigned-policy".into());
+        cfg.policy_revision = Some("43".into());
+        d.policies[i].policy.name = "Edited while metadata pending".into();
+        d.policies[i].priority = "invalid".into();
+        assert!(adopt_saved_ids(&mut d, &saved, &cfg));
+        assert_eq!(d.policies[i].policy.id.as_deref(), Some("assigned-policy"));
+        assert_eq!(d.policies[i].policy.name, "Edited while metadata pending");
+        assert_eq!(d.policies[i].priority, "invalid");
+        d.policies.remove(i);
+        d.add_policy(SourceKind::Ppp, &caps);
+        assert!(adopt_saved_ids(&mut d, &saved, &cfg));
+        assert!(d.policies.last().unwrap().policy.id.is_none());
     }
     #[test]
     fn amended_rate_kinds_have_labels() {

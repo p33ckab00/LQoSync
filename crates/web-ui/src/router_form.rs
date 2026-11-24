@@ -547,14 +547,17 @@ pub(crate) fn Reauth(
     open: RwSignal<bool>,
     error: RwSignal<String>,
     on_confirm: Callback<String>,
+    #[prop(optional, into)] on_cancel: Option<Callback<()>>,
     #[prop(default = false)] studio: bool,
 ) -> impl IntoView {
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     let password = RwSignal::new(String::new());
+    let submitted = StoredValue::new(false);
     Effect::new(move |_| {
         let Some(d) = dialog.get() else { return };
         if open.get() {
             if !d.open() {
+                submitted.set_value(false);
                 let _ = d.show_modal();
             }
         } else if d.open() {
@@ -562,8 +565,8 @@ pub(crate) fn Reauth(
         }
     });
     view! {
-      <dialog node_ref=dialog class=if studio{"reauth topology-dialog"}else{"reauth"} data-panel="settings" aria-labelledby="reauth-title" on:close=move|_|{open.set(false);password.set(String::new());}>
-        <form method="dialog" on:submit=move|ev|{ev.prevent_default();on_confirm.run(password.get_untracked());}>
+      <dialog node_ref=dialog class=if studio{"reauth topology-dialog"}else{"reauth"} data-panel="settings" aria-labelledby="reauth-title" on:close=move|_|{open.set(false);password.set(String::new());if !submitted.get_value()&&let Some(cb)=on_cancel{cb.run(());}}>
+        <form method="dialog" on:submit=move|ev|{ev.prevent_default();submitted.set_value(true);on_confirm.run(password.get_untracked());}>
           <h2 id="reauth-title">"Confirm with your password"</h2>
           <p>"Replacing a router credential needs your current LQoSync password."</p>
           <label for="current-password">"Your password"</label>
