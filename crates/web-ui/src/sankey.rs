@@ -1,8 +1,6 @@
 //! Sankey geometry for the Topology canvas. Pure Rust: no Leptos, no browser.
 //! Columns come from the graph (longest path), card height follows the card value, and each WAN
 //! is a separate stream that stacks on the card edges.
-// Task 5 of the Sankey plan uses this module and removes this line.
-#![cfg_attr(not(test), allow(dead_code))]
 
 use web_contract::topology::{TopologySummary, TopologyThroughput};
 
@@ -62,9 +60,9 @@ pub struct Sankey {
 pub const CARD_W: f64 = 232.0;
 pub const COL_GAP: f64 = 168.0;
 pub const GAP: f64 = 14.0;
-pub const MIN_H: f64 = 72.0;
+pub const MIN_H: f64 = 104.0;
 /// The band height of the column with the largest total value.
-pub const MAX_BAND: f64 = 720.0;
+pub const MAX_BAND: f64 = 280.0;
 
 /// The card of a node: the instances of one source, or the copies of one router, share one card.
 fn card_of(n: &web_contract::topology::Node) -> &str {

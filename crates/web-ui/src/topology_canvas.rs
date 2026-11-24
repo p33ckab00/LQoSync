@@ -1,11 +1,11 @@
-//! The Topology canvas: cards, wires, a tool dock, and modal editors. Every valid edit saves
-//! automatically through the service; card moves save the layout only.
+//! The Topology canvas: a Sankey of the network tree, a tool dock, and modal editors. Columns,
+//! card heights, and one live stream for each WAN come from `crate::sankey`. Every valid edit
+//! saves automatically through the service.
 use crate::canvas_layout::{clamp_zoom, fit};
 use crate::topology::{Evidence, now};
 use crate::topology_canvas_model::*;
 use crate::topology_forms::{blocked, new_key, post, settle, structural_blocked};
 use crate::topology_model::*;
-use gloo_net::http::Request;
 use leptos::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use wasm_bindgen::JsCast;
@@ -20,7 +20,6 @@ enum Panel {
     Allocation,
     Preview,
     Excluded,
-    Layout,
 }
 
 /// The fields of the node modal. An invalid form stays as a draft for its node.
@@ -109,34 +108,6 @@ fn form_edits(n: &Node, f: &NodeForm) -> Result<Vec<BuilderEdit>, String> {
     Ok(edits)
 }
 
-async fn put_layout(
-    session: RwSignal<Option<Principal>>,
-    body: &LayoutRequest,
-) -> Result<u64, &'static str> {
-    let csrf = session.get_untracked().map(|p| p.csrf).unwrap_or_default();
-    let (signal, _timer) = crate::app::deadline();
-    let request = Request::put("/api/v1/topology/layout")
-        .abort_signal(Some(&signal))
-        .header("x-csrf-token", &csrf)
-        .json(body)
-        .map_err(|_| "The layout could not be prepared.")?;
-    match request.send().await {
-        Ok(r) if r.ok() => r
-            .json::<LayoutReply>()
-            .await
-            .map(|l| l.revision)
-            .map_err(|_| "The layout answer is not valid."),
-        Ok(r) if r.status() == 409 => {
-            Err("Another editor moved cards. The canvas shows the saved layout.")
-        }
-        Ok(r) if r.status() == 401 => {
-            session.set(None);
-            Err("Your session ended. Sign in again.")
-        }
-        _ => Err("The layout was not saved. Move a card again to retry."),
-    }
-}
-
 pub(crate) fn icon(path: &'static str) -> impl IntoView {
     view! {<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=path/></svg>}
 }
@@ -149,13 +120,11 @@ const ICON_PREVIEW: &str =
     "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z";
 
 const ICON_HELP: &str = "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v6M12 7v1";
-const ICON_LAYOUT: &str = "M4 3h6v6H4zM14 15h6v6h-6zM7 9v9h7M14 6h6M17 3v6";
 const ICON_LIST: &str = "M8 6h12M8 12h12M8 18h12M3 6h1M3 12h1M3 18h1";
 const ICON_MINUS: &str = "M4 12h16";
 const ICON_PLUS: &str = "M4 12h16M12 4v16";
 const ICON_FIT: &str = "M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6";
 const ICON_ACTUAL: &str = "M5 7v10M3 9l2-2 2 2M12 7h7v10h-7z";
-const ICON_REMOVE: &str = "M8 7l3-3a5 5 0 0 1 7 7l-1 1M7 8l-3 3a5 5 0 0 0 7 7l1-1M3 3l18 18";
 
 #[component]
 pub(crate) fn Canvas(
@@ -167,9 +136,6 @@ pub(crate) fn Canvas(
     let panel = RwSignal::new(None::<Panel>);
     let status = RwSignal::new(String::new());
     let zoom = RwSignal::new(1.0_f64);
-    let local = RwSignal::new(HashMap::<String, [f64; 2]>::new());
-    let layout_revision = RwSignal::new(None::<u64>);
-    let layout_generation = StoredValue::new(0u64);
     let forms = RwSignal::new(HashMap::<String, NodeForm>::new());
     let queue = StoredValue::new(VecDeque::<BuilderEdit>::new());
     let draining = RwSignal::new(false);
@@ -195,17 +161,34 @@ pub(crate) fn Canvas(
 
     let list_view = RwSignal::new(false);
     // The selected line: parent card ID and child card ID.
-    let selected_link = RwSignal::new(None::<(String, String)>);
-    // Cards with their subscriber labels open. Per browser tab; not saved.
-    let expanded = RwSignal::new(std::collections::HashSet::<String>::new());
-    let direction = RwSignal::new(Direction::TopDown);
-    let direction_set = StoredValue::new(false);
-    Effect::new(move |_| {
-        let saved = data.with(|d| d.as_ref().map(|s| s.layout_direction));
-        if let Some(d) = saved
-            && !direction_set.get_value()
-        {
-            direction.set(d);
+    let selected_link = RwSignal::new(None::<(String, String, Option<String>)>);
+    // The Sankey always runs from left to right. The Studio preview overlay reads this signal.
+    let direction = RwSignal::new(Direction::LeftRight);
+    // The popover of the selected card or stream. Non-modal: focus stays on the canvas.
+    let popover = RwSignal::new(false);
+    // Escape closes the popover wherever the focus is. The focus does not move.
+    let escape = window_event_listener(leptos::ev::keydown, move |ev| {
+        if ev.key() == "Escape" && popover.get_untracked() {
+            popover.set(false);
+        }
+    });
+    on_cleanup(move || escape.remove());
+    // The live throughput, read every 5 s while the canvas is open. The last good reply stays.
+    let live = RwSignal::new(None::<TopologyThroughput>);
+    // The loop ends when the canvas is gone: its signals are then disposed.
+    leptos::task::spawn_local(async move {
+        while live.try_with_untracked(|_| ()).is_some() {
+            let Ok(t) =
+                crate::topology::get::<TopologyThroughput>(session, "/api/v1/topology/throughput")
+                    .await
+            else {
+                gloo_timers::future::TimeoutFuture::new(5000).await;
+                continue;
+            };
+            if live.try_set(Some(t)).is_some() {
+                break;
+            }
+            gloo_timers::future::TimeoutFuture::new(5000).await;
         }
     });
 
@@ -222,23 +205,6 @@ pub(crate) fn Canvas(
     });
     // One card for each card ID: the canvas never shows the instances of a node.
     let card_list = Memo::new(move |_| nodes.with(|n| cards(n)));
-    // Cards that can be a parent get a connector port: WAN, router, and Site/AP cards.
-    let parents = Memo::new(move |_| {
-        card_list.with(|c| {
-            c.iter()
-                .filter(|c| can_parent(&c.node))
-                .cloned()
-                .collect::<Vec<_>>()
-        })
-    });
-    let group_cards = Memo::new(move |_| {
-        card_list.with(|c| {
-            c.iter()
-                .filter(|c| c.node.kind == "group")
-                .cloned()
-                .collect::<Vec<_>>()
-        })
-    });
     let wan_names = Memo::new(move |_| {
         nodes.with(|n| {
             n.iter()
@@ -247,33 +213,7 @@ pub(crate) fn Canvas(
                 .collect::<Vec<_>>()
         })
     });
-    let balance_of = move |card: &str| {
-        data.with(|d| {
-            d.as_ref()
-                .and_then(|s| s.balance.iter().find(|b| b.card_id == card).cloned())
-        })
-    };
     let writer_off = move || data.with(|d| d.as_ref().is_some_and(|s| s.wan_lists.is_none()));
-    // The height below a group card that its warning and leaf labels take.
-    let extra = Memo::new(move |_| {
-        let open = expanded.get();
-        let off = writer_off();
-        card_list.with(|cs| {
-            cs.iter()
-                .filter_map(|c| {
-                    let b = balance_of(&c.id)?;
-                    let warn = nodes.with(|ns| routing_warning(ns, &c.node.id, off));
-                    let rows = if open.contains(&c.id) {
-                        b.leaves.len().div_ceil(2) as f64 * LEAF_ROW
-                            + if b.more > 0 { LEAF_ROW } else { 0.0 }
-                    } else {
-                        0.0
-                    };
-                    Some((c.id.clone(), leaf_top(warn) + LEAF_LINE + rows))
-                })
-                .collect::<HashMap<_, _>>()
-        })
-    });
     let candidates = Memo::new(move |_| {
         data.with(|d| {
             d.as_ref()
@@ -281,18 +221,56 @@ pub(crate) fn Canvas(
                 .unwrap_or_default()
         })
     });
+    // The order of the last layout keeps cards in place between refreshes.
+    let order = StoredValue::new(Vec::<String>::new());
+    let sk = Memo::new(move |_| {
+        let input = data.with(|d| {
+            d.as_ref().map(|s| {
+                let shown = TopologySummary {
+                    nodes: nodes.get(),
+                    ..s.clone()
+                };
+                live.with(|t| crate::sankey::input(&shown, t.as_ref()))
+            })
+        })?;
+        let out = crate::sankey::layout(&input, &order.get_value());
+        let mut next: Vec<&crate::sankey::CardBox> = out.cards.iter().collect();
+        next.sort_by(|a, b| a.column.cmp(&b.column).then(a.y.total_cmp(&b.y)));
+        order.set_value(next.into_iter().map(|c| c.id.clone()).collect());
+        Some((input, out))
+    });
+    let metric = move || {
+        sk.with(|k| {
+            k.as_ref()
+                .map_or(crate::sankey::Metric::Subscribers, |(i, _)| i.metric)
+        })
+    };
+    let box_of = move |id: &str| {
+        sk.with(|k| {
+            k.as_ref()
+                .and_then(|(_, o)| o.cards.iter().find(|c| c.id == id).cloned())
+        })
+    };
+    // Card corners in canvas pixels. WAN candidates stack below the first column.
     let points = Memo::new(move |_| {
-        let overrides = local.get();
-        let mut p = positions(
-            &card_list.get(),
-            &candidates.get(),
-            direction.get(),
-            &extra.get(),
-        );
-        for (id, point) in &mut p {
-            if let Some(o) = overrides.get(id) {
-                *point = *o;
-            }
+        let mut p: Vec<(String, [f64; 2])> = sk.with(|k| {
+            k.as_ref()
+                .map(|(_, o)| {
+                    o.cards
+                        .iter()
+                        .map(|c| (c.id.clone(), [c.x + MARGIN, c.y + SANKEY_TOP]))
+                        .collect()
+                })
+                .unwrap_or_default()
+        });
+        let mut below = p
+            .iter()
+            .filter_map(|(id, at)| box_of(id).filter(|b| b.column == 0).map(|b| at[1] + b.h))
+            .fold(SANKEY_TOP, f64::max)
+            + crate::sankey::GAP;
+        for (id, ..) in candidate_cards(&candidates.get()) {
+            p.push((id, [MARGIN, below]));
+            below += CARD_H + crate::sankey::GAP;
         }
         p
     });
@@ -415,47 +393,6 @@ pub(crate) fn Canvas(
         None => status.set("Not removed: the router branch keeps its groups.".into()),
     };
 
-    // Save the layout 600 ms after the last card move.
-    let save_layout = move || {
-        let generation = layout_generation.with_value(|g| g + 1);
-        layout_generation.set_value(generation);
-        leptos::task::spawn_local(async move {
-            gloo_timers::future::TimeoutFuture::new(600).await;
-            if layout_generation.get_value() != generation {
-                return;
-            }
-            let expected_revision = layout_revision.get_untracked().unwrap_or_else(|| {
-                data.with_untracked(|d| {
-                    d.as_ref()
-                        .and_then(|s| s.layout_revision.as_deref())
-                        .and_then(|r| r.parse().ok())
-                        .unwrap_or(0)
-                })
-            });
-            let body = LayoutRequest {
-                expected_revision,
-                direction: direction.get_untracked(),
-                positions: data.with_untracked(|d| {
-                    d.as_ref()
-                        .map(|s| saved_positions(&s.nodes, &local.get_untracked()))
-                        .unwrap_or_default()
-                }),
-            };
-            match put_layout(session, &body).await {
-                Ok(revision) => {
-                    layout_revision.set(Some(revision));
-                    status.set("Layout saved. Shaping does not change.".into());
-                }
-                Err(e) => {
-                    layout_revision.set(None);
-                    local.set(HashMap::new());
-                    status.set(e.into());
-                    reload.run(());
-                }
-            }
-        });
-    };
-
     let open = move |p: Panel| {
         if p == Panel::Node {
             let Some(id) = selected.get_untracked() else {
@@ -508,9 +445,6 @@ pub(crate) fn Canvas(
         }
     };
 
-    // Card drag: pointer ID, start pointer, start card position, moved.
-    let drag = StoredValue::new(None::<(i32, f64, f64, [f64; 2], bool)>);
-    let just_dragged = StoredValue::new(false);
     let card = move |c: Card| {
         let n = c.node.clone();
         let id = StoredValue::new(c.id.clone());
@@ -542,12 +476,12 @@ pub(crate) fn Canvas(
             .wan_health
             .as_ref()
             .map(|h| (h.state.clone(), health_label(h)));
-        let excluded = n.tree_excluded.then_some("Excluded from tree");
+        let excluded = n.tree_excluded.then_some("Display only · not shaped");
         let warning = nodes
             .with_untracked(|ns| routing_warning(ns, &n.id, writer_off()))
             .then_some(ROUTING_WARNING);
         let label = format!(
-            "{}, {kind}, {meta}{}{}{}{}{}. Enter opens settings. Shift and arrow keys move the card.",
+            "{}, {kind}, {meta}{}{}{}{}{}. Enter shows details. Enter again opens settings.",
             n.name,
             if located { ", located" } else { "" },
             routed
@@ -568,49 +502,35 @@ pub(crate) fn Canvas(
             .flatten()
             .map(|t| format!(" {t}."))
             .collect::<String>();
+        let height = move || id.with_value(|i| box_of(i)).map_or(CARD_H, |b| b.h);
+        let column = move || id.with_value(|i| box_of(i)).map_or(0, |b| b.column);
+        let value = move || id.with_value(|i| box_of(i)).map(|b| b.value);
+        // A WAN card wears the color of its stream.
+        let wan_id = (n.kind == "wan").then(|| n.id.clone());
+        let tone = {
+            let wan_id = wan_id.clone();
+            move || {
+                sk.with(|k| {
+                    k.as_ref()
+                        .map(|(i, _)| wan_tone(&i.wans, wan_id.as_deref()))
+                        .unwrap_or_default()
+                })
+            }
+        };
         view! {
-          <button type="button" class="canvas-node" data-kind=n.kind.clone() data-node-id=c.id.clone()
+          <button type="button" class="canvas-node sankey-card" data-kind=n.kind.clone() data-node-id=c.id.clone()
+            data-column=move||column().to_string() data-tone=move||wan_id.is_some().then(&tone)
             aria-pressed=move||is_selected().to_string() aria-label=label
             style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
+            style:height=move||format!("{}px",height())
             on:click=move|_|{
-              if just_dragged.get_value(){ just_dragged.set_value(false); return; }
               selected.set(Some(id.get_value()));
               selected_link.set(None);
+              popover.set(true);
             }
             on:dblclick=move|_|{ selected.set(Some(id.get_value())); open(Panel::Node); }
             on:keydown=move|ev: web_sys::KeyboardEvent|{
-              let key=ev.key();
-              if key=="Enter" && is_selected() { ev.prevent_default(); open(Panel::Node); return; }
-              if !ev.shift_key() { return; }
-              let (dx,dy)=match key.as_str(){"ArrowLeft"=>(-16.0,0.0),"ArrowRight"=>(16.0,0.0),"ArrowUp"=>(0.0,-16.0),"ArrowDown"=>(0.0,16.0),_=>return};
-              ev.prevent_default();
-              let next=nudge(pos(),dx,dy);
-              local.update(|l|{l.insert(id.get_value(),next);});
-              save_layout();
-            }
-            on:pointerdown=move|ev: web_sys::PointerEvent|{
-              if ev.button()!=0 { return; }
-              if let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) {
-                let _=t.set_pointer_capture(ev.pointer_id());
-              }
-              drag.set_value(Some((ev.pointer_id(),ev.client_x() as f64,ev.client_y() as f64,pos(),false)));
-            }
-            on:pointermove=move|ev: web_sys::PointerEvent|{
-              let Some((pid,x0,y0,start,moved))=drag.get_value() else {return};
-              if pid!=ev.pointer_id() {return;}
-              let z=zoom.get_untracked();
-              let (dx,dy)=((ev.client_x() as f64-x0)/z,(ev.client_y() as f64-y0)/z);
-              if !moved && dx.abs()+dy.abs()<4.0 {return;}
-              drag.set_value(Some((pid,x0,y0,start,true)));
-              local.update(|l|{l.insert(id.get_value(),nudge(start,dx,dy));});
-            }
-            on:pointerup=move|_|{
-              if let Some((_,_,_,_,true))=drag.get_value() { just_dragged.set_value(true); save_layout(); }
-              drag.set_value(None);
-            }
-            on:pointercancel=move|_|{
-              if let Some((_,_,_,start,true))=drag.get_value() { local.update(|l|{l.insert(id.get_value(),start);}); }
-              drag.set_value(None);
+              if ev.key()=="Enter" && is_selected() { ev.prevent_default(); popover.set(false); open(Panel::Node); }
             }>
             <span class="canvas-node-top">
               <span class="canvas-node-kind">{kind}</span>
@@ -620,75 +540,18 @@ pub(crate) fn Canvas(
               {excluded.map(|t|view!{<span class="canvas-node-router">{t}</span>})}
             </span>
             <strong>{n.name.clone()}</strong>
+            <span class="sankey-value">{move||value_text(value(),metric())}</span>
             <span class="canvas-node-meta"><span>{rate}</span>{members.map(|m|view!{<span>{m}</span>})}</span>
             {warning.map(|t|view!{<span class="canvas-node-warning">{t}</span>})}
           </button>
         }
     };
-    // Escape cancels a running card drag before any layout save.
-    let cancel_drag = move |ev: web_sys::KeyboardEvent| {
-        if ev.key() != "Escape" {
-            return;
-        }
-        if let Some((_, _, _, start, true)) = drag.get_value() {
-            if let Some(id) = selected.get_untracked() {
-                local.update(|l| {
-                    l.insert(id, start);
-                });
-            }
-            drag.set_value(None);
-            just_dragged.set_value(true);
-        }
-    };
-
     // Inventory actions from the router reads.
     let read_action = RwSignal::new(None::<Change>);
     let wan_form = RwSignal::new(None::<(Change, Draft, String)>);
     // The one-time routing adoption is a reviewed change in the house change dialog.
     let adopt = RwSignal::new(None::<Change>);
     let confirm_rebalance = RwSignal::new(false);
-    // Connector drag: parent node ID, start pointer, start point, end point (canvas pixels).
-    let connect = RwSignal::new(None::<(String, f64, f64, [f64; 2], [f64; 2])>);
-    let handle = move |c: Card| {
-        let n = c.node.clone();
-        let id = StoredValue::new(c.id.clone());
-        let pos = move || id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
-        let out = move || port(pos(), direction.get(), true);
-        // The pointer drag is a shortcut. Keyboard users set a parent in the settings of a card.
-        view! {
-          <button type="button" class="canvas-connector" tabindex="-1" aria-hidden="true"
-            title=format!("Drag from {} to the card that goes below it",n.name) disabled=locked
-            style:left=move||format!("{}px",out()[0]-9.0) style:top=move||format!("{}px",out()[1]-9.0)
-            on:pointerdown=move|ev: web_sys::PointerEvent|{
-              if ev.button()!=0 { return; }
-              ev.stop_propagation();
-              if let Some(t)=ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok()) {
-                let _=t.set_pointer_capture(ev.pointer_id());
-              }
-              let start=out();
-              connect.set(Some((id.get_value(),ev.client_x() as f64,ev.client_y() as f64,start,start)));
-            }
-            on:pointermove=move|ev: web_sys::PointerEvent|{
-              let z=zoom.get_untracked();
-              connect.update(|c|if let Some((_,x0,y0,start,end))=c{
-                *end=[start[0]+(ev.client_x() as f64-*x0)/z,start[1]+(ev.client_y() as f64-*y0)/z];
-              });
-            }
-            on:pointerup=move|ev: web_sys::PointerEvent|{
-              let Some((from,..))=connect.get_untracked() else {return};
-              connect.set(None);
-              let target=document().element_from_point(ev.client_x() as f32,ev.client_y() as f32)
-                .and_then(|e|e.closest("[data-node-id]").ok().flatten())
-                .and_then(|e|e.get_attribute("data-node-id"));
-              let Some(target)=target else {return};
-              match nodes.with_untracked(|ns|drop_edit(ns,&from,&target)) {
-                Ok(edit)=>submit(edit),
-                Err(why)=>status.set(format!("Not connected: {why}")),
-              }
-            }
-            on:pointercancel=move|_|connect.set(None)>"+"</button>
-        }
-    };
     let candidate = move |(id, router_id, router, iface): (String, String, String, String)| {
         let card_id = StoredValue::new(id);
         let pos = move || card_id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
@@ -719,101 +582,179 @@ pub(crate) fn Canvas(
           </button>
         }
     };
-    // One line for each flow between two shown cards; the width is the subscriber count.
-    let wires = move || {
+    // One filled band for each WAN stream between two cards. The selection dims the others.
+    let ribbons = move || {
         let sel = selected.get();
         let link = selected_link.get();
-        let dir = direction.get();
-        let flows = data.with(|d| {
-            d.as_ref()
-                .map(|s| lines(&nodes.get(), &s.flows))
+        let (wans, list) = sk.with(|k| {
+            k.as_ref()
+                .map(|(i, o)| (i.wans.clone(), o.ribbons.clone()))
                 .unwrap_or_default()
         });
-        let max = flows.iter().map(|f| f.subscribers).max().unwrap_or(0);
-        flows
-            .into_iter()
-            .filter_map(|f| {
-                let d = wire_in(point_of(&f.from)?, point_of(&f.to)?, dir);
-                let active = sel.as_deref().is_some_and(|s| s == f.to || s == f.from);
-                let picked = link.as_ref().is_some_and(|(a, b)| *a == f.from && *b == f.to);
-                let width = format!("{}", flow_width(f.subscribers, max));
-                let (from, to) = (f.from.clone(), f.to.clone());
-                Some(view! {
-                  <g class="canvas-flow" data-from=f.from.clone() data-to=f.to.clone()>
-                    <path d=d.clone() class:active=active class:picked=picked style:stroke-width=width/>
-                    <path d=d class="hit" on:click=move|ev: web_sys::MouseEvent|{
+        list.into_iter()
+            .map(|r| {
+                let active = sel.as_deref().is_some_and(|s| s == r.from || s == r.to)
+                    || link
+                        .as_ref()
+                        .is_some_and(|(a, b, w)| *a == r.from && *b == r.to && *w == r.wan);
+                let dim = (sel.is_some() || link.is_some()) && !active;
+                let tone = wan_tone(&wans, r.wan.as_deref());
+                let (from, to, wan) = (r.from.clone(), r.to.clone(), r.wan.clone());
+                view! {
+                  <path class="sankey-ribbon" class:active=active class:dim=dim d=r.d.clone()
+                    data-from=r.from.clone() data-to=r.to.clone() data-tone=tone.clone()
+                    data-wan=r.wan.clone().unwrap_or_else(||"unknown".into())
+                    on:click=move|ev: web_sys::MouseEvent|{
                       ev.stop_propagation();
                       selected.set(None);
-                      selected_link.set(Some((from.clone(),to.clone())));
+                      selected_link.set(Some((from.clone(),to.clone(),wan.clone())));
+                      popover.set(true);
                     }/>
-                  </g>
-                })
+                }
             })
             .collect_view()
     };
-    // The leaf line below a group card: its subscribers on each WAN, and up to 50 labels.
-    let leaves = move |c: Card| {
-        let id = StoredValue::new(c.id.clone());
-        let source = c.node.source_id.clone().unwrap_or_default();
-        let warn = nodes.with_untracked(|ns| routing_warning(ns, &c.node.id, writer_off()));
-        let pos = move || id.with_value(|i| point_of(i)).unwrap_or([0.0, 0.0]);
-        let wan = move |w: &str| {
-            wan_names.with(|n| {
-                let i = n.iter().position(|(id, _)| id == w);
-                (
-                    i.map_or(0, |i| i % 6),
-                    i.map_or_else(|| w.to_string(), |i| n[i].1.clone()),
-                )
-            })
-        };
-        let open = move || id.with_value(|i| expanded.with(|e| e.contains(i)));
-        move || {
-            let b = id.with_value(|i| balance_of(i))?;
-            let line = b
-                .by_wan
+    // The name of a card, a service tier, or a WAN stream.
+    let name_of = move |id: &str| -> String {
+        tier_name(id).map(str::to_string).unwrap_or_else(|| {
+            card_list
+                .with(|c| c.iter().find(|c| c.id == id).map(|c| c.node.name.clone()))
+                .unwrap_or_else(|| id.to_string())
+        })
+    };
+    let wan_name = move |w: Option<&str>| match w {
+        Some(w) => wan_names
+            .with(|n| n.iter().find(|(id, _)| id == w).map(|(_, n)| n.clone()))
+            .unwrap_or_else(|| w.to_string()),
+        None => "WAN unknown".to_string(),
+    };
+    // The details of the selected card or stream, next to it on the canvas.
+    let details = move || {
+        if !popover.get() {
+            return None;
+        }
+        let (input, out) = sk.get()?;
+        let at = |id: &str| out.cards.iter().find(|c| c.id == id).cloned();
+        if let Some((from, to, wan)) = selected_link.get() {
+            let a = at(&from)?;
+            let title = format!(
+                "{} · {} → {}",
+                wan_name(wan.as_deref()),
+                name_of(&from),
+                name_of(&to)
+            );
+            let r = out
+                .ribbons
                 .iter()
-                .map(|(w, n)| {
-                    let (mark, name) = wan(w);
-                    view! {<span class="canvas-leaf-wan" data-wan=mark>{format!("{name} {n}")}</span>}
-                })
-                .collect_view();
-            let toggle_label = if open() {
-                "Hide subscribers"
-            } else {
-                "Show subscribers"
-            };
-            let labels = open().then(|| {
-                let more = b.more;
-                let href = format!("/topology?tab=assignments&group={}", source);
-                view! {
-                  <ul class="canvas-leaf-list">
-                    {b.leaves.iter().map(|l|{
-                      let (mark, name) = wan(&l.wan);
-                      view!{<li><span class="canvas-leaf-wan" data-wan=mark title=name.clone()>{l.name.clone()}</span></li>}
-                    }).collect_view()}
-                  </ul>
-                  {(more > 0).then(||view!{<a class="canvas-link" href=href>{format!("+{more} more")}</a>})}
+                .find(|r| r.from == from && r.to == to && r.wan == wan)?;
+            let rate = match input.metric {
+                crate::sankey::Metric::LiveMbps => {
+                    let up = live.with(|t| {
+                        t.as_ref().and_then(|t| {
+                            t.flows
+                                .iter()
+                                .find(|f| f.from == from && f.to == to && f.wan == wan)
+                                .map(|f| f.up_bps)
+                        })
+                    });
+                    format!(
+                        "{} down · {} up",
+                        value_text(Some(r.value), input.metric),
+                        value_text(up.map(|u| u as f64 / 1_000_000.0), input.metric)
+                    )
                 }
-            });
-            Some(view! {
-              <div class="canvas-leaves" data-card=id.get_value()
-                style:left=move||format!("{}px",pos()[0])
-                style:top=move||format!("{}px",pos()[1]+CARD_H+leaf_top(warn))>
-                <p class="canvas-leaf-line">{line}
-                  <button type="button" class="quiet canvas-leaf-toggle" aria-expanded=move||open().to_string()
-                    on:click=move|_|expanded.update(|e|{let i=id.get_value(); if !e.remove(&i){e.insert(i);}})>{toggle_label}</button>
-                </p>
-                {labels}
+                crate::sankey::Metric::Subscribers => value_text(Some(r.value), input.metric),
+            };
+            return Some(view! {
+              <div class="sankey-popover" role="dialog" aria-label="Stream details"
+                style:left=format!("{}px",a.x+a.w+MARGIN+12.0) style:top=format!("{}px",a.y+SANKEY_TOP)>
+                <strong>{title}</strong><p>{rate}</p>
               </div>
-            })
+            }.into_any());
+        }
+        let id = selected.get()?;
+        let c = at(&id)?;
+        // The streams into the card, or out of it for a first-column card, summed for each WAN.
+        let mut lines: Vec<(Option<String>, f64)> = Vec::new();
+        let into = out.ribbons.iter().any(|r| r.to == id);
+        for r in out
+            .ribbons
+            .iter()
+            .filter(|r| if into { r.to == id } else { r.from == id })
+        {
+            match lines.iter_mut().find(|(w, _)| *w == r.wan) {
+                Some((_, v)) => *v += r.value,
+                None => lines.push((r.wan.clone(), r.value)),
+            }
+        }
+        let name = name_of(&id);
+        let tier = tier_name(&id).is_some();
+        Some(view! {
+          <div class="sankey-popover" role="dialog" aria-label=format!("{name} details")
+            style:left=format!("{}px",c.x+c.w+MARGIN+12.0) style:top=format!("{}px",c.y+SANKEY_TOP)>
+            <strong>{name.clone()}</strong>
+            <p>{value_text(Some(c.value),input.metric)}</p>
+            <ul>{lines.into_iter().map(|(w,v)|{
+              let tone=wan_tone(&input.wans,w.as_deref());
+              view!{<li><span class="sankey-swatch" data-tone=tone></span>{format!("{}: {}",wan_name(w.as_deref()),value_text(Some(v),input.metric))}</li>}
+            }).collect_view()}</ul>
+            {(!tier).then(||view!{<button type="button" class="quiet" on:click=move|_|{popover.set(false);open(Panel::Node);}>"Open full settings"</button>})}
+          </div>
+        }.into_any())
+    };
+    // The service tier cards: the last column. They have no settings.
+    let tiers = move || {
+        sk.with(|k| {
+            k.as_ref()
+                .map(|(i, o)| (i.metric, o.cards.clone()))
+                .unwrap_or((crate::sankey::Metric::Subscribers, Vec::new()))
+        })
+    };
+    let tier_card = move |c: crate::sankey::CardBox| {
+        let id = c.id.clone();
+        let name = tier_name(&c.id).unwrap_or("Service tier");
+        let is_selected = {
+            let id = id.clone();
+            move || selected.get().as_deref() == Some(id.as_str())
+        };
+        view! {
+          <button type="button" class="sankey-card sankey-tier" data-node-id=c.id.clone() data-column=c.column.to_string()
+            aria-pressed=move||is_selected().to_string()
+            aria-label=format!("{name}, service tier, {}. Enter shows details.",value_text(Some(c.value),tiers().0))
+            style:left=format!("{}px",c.x+MARGIN) style:top=format!("{}px",c.y+SANKEY_TOP) style:height=format!("{}px",c.h)
+            on:click=move|_|{selected.set(Some(id.clone()));selected_link.set(None);popover.set(true);}>
+            <span class="canvas-node-top"><span class="canvas-node-kind">"Service tier"</span></span>
+            <strong>{name}</strong>
+            <span class="sankey-value">{value_text(Some(c.value),tiers().0)}</span>
+          </button>
         }
     };
-    // The connector that the operator drags from a parent card.
-    let pending = move || {
-        connect.get().and_then(|(from, _, _, _, end)| {
-            let a = port(point_of(&from)?, direction.get(), true);
-            let d = format!("M{} {} L{} {}", a[0], a[1], end[0], end[1]);
-            Some(view! {<path d=d class="pending"/>})
+    // Column headers: the card kinds in each column.
+    let headers = move || {
+        sk.with(|k| {
+            let Some((_, o)) = k.as_ref() else {
+                return Vec::new();
+            };
+            (0..o.columns)
+                .map(|col| {
+                    let mut kinds: Vec<&'static str> = Vec::new();
+                    for c in o.cards.iter().filter(|c| c.column == col) {
+                        let kind = if tier_name(&c.id).is_some() {
+                            "Service tier"
+                        } else {
+                            card_list
+                                .with(|l| {
+                                    l.iter().find(|x| x.id == c.id).map(|x| card_kind(&x.node))
+                                })
+                                .unwrap_or("Node")
+                        };
+                        if !kinds.contains(&kind) {
+                            kinds.push(kind);
+                        }
+                    }
+                    (col, kinds.join(" · "))
+                })
+                .collect::<Vec<_>>()
         })
     };
     let world_points = Memo::new(move |_| {
@@ -829,7 +770,24 @@ pub(crate) fn Canvas(
         }
         at
     });
-    let size = move || world_points.with(|p| surface(p));
+    // The canvas size: the cards with their Sankey heights, and room around them.
+    let size = move || {
+        let (w, h) = world_points.with(|p| surface(p));
+        let bottom = sk.with(|k| k.as_ref().map_or(0.0, |(_, o)| o.bounds[3]));
+        (w, h.max(bottom + SANKEY_TOP + 4.0 * MARGIN))
+    };
+    // The viewport scroll and size, for the minimap: left, top, width, height.
+    let scroll = RwSignal::new([0.0_f64; 4]);
+    let track = move || {
+        if let Some(v) = viewport.get_untracked() {
+            scroll.set([
+                v.scroll_left() as f64,
+                v.scroll_top() as f64,
+                v.client_width() as f64,
+                v.client_height() as f64,
+            ]);
+        }
+    };
     Effect::new(move |_| {
         if projection.with(Option::is_some) {
             list_view.set(false);
@@ -879,7 +837,8 @@ pub(crate) fn Canvas(
     };
 
     view! {
-      <section class="canvas-shell" aria-label="Topology canvas workspace">
+      <section class="canvas-shell" aria-label="Topology canvas workspace"
+        data-metric=move||match metric(){crate::sankey::Metric::LiveMbps=>"live",crate::sankey::Metric::Subscribers=>"subscribers"}>
         <div class="canvas-bar">
           <p class="canvas-facts">{move||data.with(|d|d.as_ref().map(|s|{
             let wans=s.nodes.iter().filter(|n|n.kind=="wan").count();
@@ -915,32 +874,29 @@ pub(crate) fn Canvas(
           </Show>
           <div class="canvas-viewport" node_ref=viewport hidden=move||list_view.get() tabindex="0" role="region"
             aria-label="Topology canvas. Arrow keys scroll. Tab moves between cards."
-            on:keydown=move|ev: web_sys::KeyboardEvent|{
-              if matches!(ev.key().as_str(),"Delete"|"Backspace") && !locked()
-                && let Some((from,to))=selected_link.get_untracked() {
-                ev.prevent_default();
-                remove_link(from,to);
-                return;
-              }
-              cancel_drag(ev);
-            }
+            on:scroll=move|_|track()
             on:click=move|ev: web_sys::MouseEvent|{
               // A click on empty canvas clears the selection.
               let empty=ev.target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())
                 .is_some_and(|e|e.class_list().contains("canvas-layer")||e.class_list().contains("canvas-surface"));
-              if empty { selected.set(None); selected_link.set(None); }
+              if empty { selected.set(None); selected_link.set(None); popover.set(false); }
             }>
             <div class="canvas-surface" style:width=move||format!("{}px",size().0*zoom.get()) style:height=move||format!("{}px",size().1*zoom.get())>
-              <div class="canvas-layer" data-direction=move||direction_name(direction.get()) style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
+              <div class="canvas-layer" data-direction="left_right" style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
                 <div class="canvas-saved-layer" style="display:contents" inert=move||projection.with(Option::is_some) data-preview=move||projection.with(Option::is_some).to_string()>
-                <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}{pending}</svg>
+                {move||headers().into_iter().map(|(col,text)|view!{
+                  <p class="sankey-column-head" style:left=format!("{}px",MARGIN+col as f64*(crate::sankey::CARD_W+crate::sankey::COL_GAP))>{text}</p>
+                }).collect_view()}
+                <svg class="canvas-wires sankey-ribbons" aria-hidden="true" width=move||size().0 height=move||size().1>
+                  <g transform=format!("translate({MARGIN} {SANKEY_TOP})")>{ribbons}</g>
+                </svg>
                 <For each=move||card_list.get() key=|c|{let n=&c.node; format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",c.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,c.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded))} children=card/>
-                <For each=move||group_cards.get() key=|c|c.id.clone() children=leaves/>
-                <For each=move||parents.get() key=|c|c.id.clone() children=handle/>
+                {move||tiers().1.into_iter().filter(|c|tier_name(&c.id).is_some()).map(tier_card).collect_view()}
                 <For each=move||candidate_cards(&candidates.get()) key=|c|c.0.clone() children=candidate/>
                 </div>
                 <crate::topology_studio_preview::CandidateOverlay projection saved=data points direction/>
+                {details}
 
               </div>
             </div>
@@ -960,20 +916,33 @@ pub(crate) fn Canvas(
             {tool(Panel::Allocation,"Subscriber allocation",ICON_ALLOCATION)}
             {tool(Panel::Preview,"Preview and evidence",ICON_PREVIEW)}
             {tool(Panel::Excluded,"Excluded sources",ICON_EXCLUDED)}
-            {tool(Panel::Layout,"Canvas layout",ICON_LAYOUT)}
             <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
             <button type="button" class="canvas-tool" aria-label="List view" title="List view" disabled=move||projection.with(Option::is_some) aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>{icon(ICON_LIST)}</button>
-            <Show when=move||selected_link.get().is_some()>
-              <span class="canvas-zoom-sep" aria-hidden="true"></span>
-              <button type="button" class="canvas-tool danger" aria-label="Remove link" title="Remove link" disabled=locked
-                on:click=move|_|if let Some((from,to))=selected_link.get_untracked(){remove_link(from,to);}>{icon(ICON_REMOVE)}</button>
-            </Show>
             <Show when=move||selected.get().is_some()>
               <span class="canvas-zoom-sep" aria-hidden="true"></span>
               <button type="button" class="canvas-tool" aria-label="Card settings" title="Card settings" disabled=move||projection.with(Option::is_some) on:click=move|_|open(Panel::Node)>{icon(ICON_SETTINGS)}</button>
             </Show>
 
           </div>
+          // The minimap: every card at a small scale and the visible part. "Fit view" is the
+          // keyboard path, so the minimap is pointer-only.
+          <svg class="sankey-minimap" aria-hidden="true"
+            viewBox=move||{let (w,h)=size();format!("0 0 {w} {h}")}
+            on:click=move|ev: web_sys::MouseEvent|{
+              let (Some(v),Some(t))=(viewport.get_untracked(),ev.current_target().and_then(|t|t.dyn_into::<web_sys::Element>().ok())) else {return};
+              let r=t.get_bounding_client_rect();
+              let (w,h)=size();let z=zoom.get_untracked();
+              let x=(ev.client_x() as f64-r.x())/r.width()*w*z-v.client_width() as f64/2.0;
+              let y=(ev.client_y() as f64-r.y())/r.height()*h*z-v.client_height() as f64/2.0;
+              v.set_scroll_left(x.max(0.0) as i32);v.set_scroll_top(y.max(0.0) as i32);track();
+            }>
+            {move||world_points.get().into_iter().map(|(id,p)|{
+              let h=box_of(&id).map_or(CARD_H,|c|c.h);
+              view!{<rect class="sankey-minimap-card" x=p[0] y=p[1] width=CARD_W height=h rx="6"/>}
+            }).collect_view()}
+            <rect class="sankey-minimap-view" x=move||scroll.get()[0]/zoom.get() y=move||scroll.get()[1]/zoom.get()
+              width=move||scroll.get()[2]/zoom.get() height=move||scroll.get()[3]/zoom.get()/>
+          </svg>
           <div class="canvas-zoom" role="group" aria-label="Zoom">
             <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z-0.1)*10.0).round()/10.0))
               title="Zoom out" disabled={move||zoom.get()<=0.26}>{icon(ICON_MINUS)}</button>
@@ -982,10 +951,11 @@ pub(crate) fn Canvas(
             <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z+0.1)*10.0).round()/10.0))
               title="Zoom in" disabled={move||zoom.get()>=1.99}>{icon(ICON_PLUS)}</button>
             <span class="canvas-zoom-sep" aria-hidden="true"></span>
-            <button type="button" class="quiet" aria-label="Fit" title="Fit topology" on:click=move|_|{
+            <button type="button" class="quiet" aria-label="Fit view" title="Fit view" on:click=move|_|{
               let Some(v)=viewport.get_untracked() else {return};
-              let b=world_points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
-                [b[0].min(q[0]),b[1].min(q[1]),b[2].max(q[0]+CARD_W),b[3].max(q[1]+CARD_H)]));
+              let b=world_points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(id,q)|{
+                let h=box_of(id).map_or(CARD_H,|c|c.h);
+                [b[0].min(q[0]),b[1].min(q[1]),b[2].max(q[0]+CARD_W),b[3].max(q[1]+h)]}));
               let (z,_,_)=fit(b,[v.client_width() as f64,v.client_height() as f64]);
               zoom.set(z);
               v.set_scroll_left((b[0]*z) as i32);
@@ -1009,7 +979,6 @@ pub(crate) fn Canvas(
               Some(Panel::Allocation)=>"Subscriber allocation".into(),
               Some(Panel::Preview)=>"Preview and evidence".into(),
               Some(Panel::Excluded)=>"Excluded sources".into(),
-              Some(Panel::Layout)=>"Canvas layout".into(),
               None=>String::new(),
             }}</h2></div>
             <Show when=move||selected_node().is_some_and(|n|n.router_id.is_some())>
@@ -1174,46 +1143,6 @@ pub(crate) fn Canvas(
                 <Show when=move||data.with(|d|d.as_ref().is_none_or(|s|!s.sources.iter().any(|x|x.excluded)))>
                   <p class="field-help">"No source is excluded."</p>
                 </Show>
-              }.into_any(),
-              Some(Panel::Layout)=>view!{
-                <p class="field-help">"Layout changes do not change shaping policy."</p>
-            <button type="button" class="quiet" disabled=locked on:click=move|_|{
-              // Clear the saved positions: every card returns to the automatic layout.
-              local.set(HashMap::new());
-              let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
-                d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
-              leptos::task::spawn_local(async move{
-                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:direction.get_untracked()}).await{
-                  Ok(r)=>{layout_revision.set(Some(r));status.set("Layout reset. Shaping does not change.".into());}
-                  Err(e)=>{layout_revision.set(None);status.set(e.into());}
-                }
-                reload.run(());
-              });
-            }>"Reset layout"</button>
-            <label class="canvas-direction"><span class="sr-only">"Layout direction"</span>
-              <select aria-label="Layout direction" disabled=locked prop:value=move||direction_name(direction.get())
-                on:change=move|ev|{
-                  let Some(next)=direction_of(&event_target_value(&ev)) else {return};
-                  direction_set.set_value(true);
-                  direction.set(next);
-                  // The new direction restores its saved positions; the old ones stay saved.
-                  local.set(HashMap::new());
-                  let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
-                    d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
-                  leptos::task::spawn_local(async move{
-                    match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:next}).await{
-                      Ok(r)=>{layout_revision.set(Some(r));status.set("Layout direction saved. Shaping does not change.".into());}
-                      Err(e)=>{layout_revision.set(None);status.set(e.into());}
-                    }
-                    reload.run(());
-                  });
-                }>
-                <option value="top_down">"Top-down"</option>
-                <option value="bottom_up">"Bottom-up"</option>
-                <option value="left_right">"Left to right"</option>
-                <option value="right_left">"Right to left"</option>
-              </select></label>
-
               }.into_any(),
               None=>().into_any(),
             }}

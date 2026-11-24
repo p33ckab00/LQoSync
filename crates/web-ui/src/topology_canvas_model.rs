@@ -1,12 +1,18 @@
 //! Pure geometry and form rules of the Topology canvas, so native tests cover them.
-use crate::canvas_layout::{CardBox, Tier, edge_path, layout_in};
+use crate::canvas_layout::Tier;
 use web_contract::topology::{BuilderEdit, Direction, DiscoveredRouter, Flow, Location, Node};
 
 pub(crate) const CARD_W: f64 = 232.0;
 pub(crate) const CARD_H: f64 = 84.0;
-const MARGIN: f64 = 48.0;
+pub(crate) const MARGIN: f64 = 48.0;
+// Wasm-only modules (canvas, Studio preview) use this item; native tests do not.
+#[cfg_attr(test, allow(dead_code))]
+/// The room above the Sankey for the column headers.
+pub(crate) const SANKEY_TOP: f64 = 56.0;
 /// The canvas is never smaller than this, so there is room to drag a card outward.
 const MIN_SURFACE: (f64, f64) = (1600.0, 1000.0);
+// Wasm-only modules (canvas, Studio preview) use this item; native tests do not.
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) const SIZE: [f64; 2] = [CARD_W, CARD_H];
 
 /// The card ID of a default-route WAN interface that has no WAN node yet.
@@ -75,6 +81,8 @@ pub(crate) fn cards(nodes: &[Node]) -> Vec<Card> {
     out
 }
 
+// Wasm-only modules (canvas, Studio preview) use this item; native tests do not.
+#[cfg_attr(test, allow(dead_code))]
 /// The shared tier of a saved or candidate card.
 pub(crate) fn node_tier(n: &Node) -> Tier {
     match (n.kind.as_str(), n.router_id.is_some()) {
@@ -83,65 +91,6 @@ pub(crate) fn node_tier(n: &Node) -> Tier {
         ("group", _) => Tier::Group,
         _ => Tier::Other,
     }
-}
-
-/// The card position of each card and candidate WAN: the saved position, else the tier layout
-/// of the direction (WAN row, router row, group row, a child next to its parent). `extra` is the
-/// height below a card that its leaf labels take.
-pub(crate) fn positions(
-    cards: &[Card],
-    candidates: &[DiscoveredRouter],
-    direction: Direction,
-    extra: &std::collections::HashMap<String, f64>,
-) -> Vec<(String, [f64; 2])> {
-    let card_by_node = |id: &str| {
-        cards
-            .iter()
-            .find(|c| c.nodes.iter().any(|n| n == id))
-            .map(|c| c.id.clone())
-    };
-    let mut boxes: Vec<CardBox> = cards
-        .iter()
-        .map(|c| CardBox {
-            id: c.id.clone(),
-            tier: node_tier(&c.node),
-            parent: c.node.parent.as_deref().and_then(card_by_node),
-            size: [CARD_W, CARD_H + extra.get(&c.id).copied().unwrap_or(0.0)],
-        })
-        .collect();
-    boxes.extend(candidates.iter().flat_map(|r| {
-        r.candidates.iter().map(|c| CardBox {
-            id: candidate_id(&r.router_id, &c.name),
-            tier: Tier::Wan,
-            parent: None,
-            size: SIZE,
-        })
-    }));
-    let manual = cards
-        .iter()
-        .filter_map(|c| c.node.position.map(|p| (c.id.clone(), p)))
-        .collect();
-    let at = layout_in(&boxes, &manual, direction);
-    boxes
-        .into_iter()
-        .map(|c| (c.id.clone(), at[&c.id]))
-        .collect()
-}
-
-/// The positions to save, by card ID: each saved position (also of a hidden card), with the
-/// cards that the operator moved. Automatic positions and candidate WAN cards are not saved, so
-/// the service never gets an unknown ID and an unmoved card keeps its automatic place.
-pub(crate) fn saved_positions(
-    nodes: &[Node],
-    moved: &std::collections::HashMap<String, [f64; 2]>,
-) -> std::collections::BTreeMap<String, [f64; 2]> {
-    let mut out = std::collections::BTreeMap::new();
-    for n in nodes {
-        if let Some(p) = moved.get(card_of(n)).copied().or(n.position) {
-            out.entry(card_of(n).to_string()).or_insert(p);
-        }
-    }
-    out
 }
 
 /// The edits of a card form for every node of the card. With one node the edits stay. With
@@ -194,6 +143,8 @@ pub(crate) fn card_edits(card: &Card, edits: Vec<BuilderEdit>) -> Vec<BuilderEdi
     out
 }
 
+// Wasm-only modules (canvas, Studio preview) use this item; native tests do not.
+#[cfg_attr(test, allow(dead_code))]
 /// The out port (`out`) or the in port of a card at `p` in a direction.
 pub(crate) fn port(p: [f64; 2], direction: Direction, out: bool) -> [f64; 2] {
     let side = match (direction, out) {
@@ -203,35 +154,6 @@ pub(crate) fn port(p: [f64; 2], direction: Direction, out: bool) -> [f64; 2] {
         (Direction::LeftRight, false) | (Direction::RightLeft, true) => [0.0, CARD_H / 2.0],
     };
     [p[0] + side[0], p[1] + side[1]]
-}
-
-/// The leaf line below a group card, and one row of two subscriber labels, in canvas pixels.
-pub(crate) const LEAF_LINE: f64 = 28.0;
-pub(crate) const LEAF_ROW: f64 = 20.0;
-
-/// The space between a card and its leaf line: the routing warning goes first.
-pub(crate) fn leaf_top(warning: bool) -> f64 {
-    if warning { 26.0 } else { 6.0 }
-}
-
-pub(crate) fn direction_name(d: Direction) -> &'static str {
-    match d {
-        Direction::TopDown => "top_down",
-        Direction::BottomUp => "bottom_up",
-        Direction::LeftRight => "left_right",
-        Direction::RightLeft => "right_left",
-    }
-}
-
-pub(crate) fn direction_of(name: &str) -> Option<Direction> {
-    [
-        Direction::TopDown,
-        Direction::BottomUp,
-        Direction::LeftRight,
-        Direction::RightLeft,
-    ]
-    .into_iter()
-    .find(|d| direction_name(*d) == name)
 }
 
 /// One line for each pair of cards with a parent link, in node order. The count comes from the
@@ -260,14 +182,6 @@ pub(crate) fn lines(nodes: &[Node], flows: &[Flow]) -> Vec<Flow> {
         });
     }
     out
-}
-
-/// The width of a flow line: 1.5 px to 10 px by the largest flow on the canvas.
-pub(crate) fn flow_width(subscribers: u64, max: u64) -> f64 {
-    if max == 0 {
-        return 1.5;
-    }
-    1.5 + 8.5 * subscribers.min(max) as f64 / max as f64
 }
 
 /// The parent node and child node of the line from card `from` to card `to`.
@@ -311,28 +225,6 @@ pub(crate) fn candidate_cards(
             })
         })
         .collect()
-}
-
-/// The path from the out port of the parent to the in port of the child in a direction: the
-/// ports are bottom and top (top-down), top and bottom (bottom-up), right and left (left to
-/// right), left and right (right to left). A straight line when the two ports line up.
-pub(crate) fn wire_in(parent: [f64; 2], child: [f64; 2], direction: Direction) -> String {
-    if direction == Direction::TopDown && (parent[0] - child[0]).abs() < 1.0 {
-        return edge_path(parent, SIZE, child, SIZE).0;
-    }
-    let [x1, y1] = port(parent, direction, true);
-    let [x2, y2] = port(child, direction, false);
-    match direction {
-        Direction::LeftRight | Direction::RightLeft => {
-            let mid = (x1 + x2) / 2.0;
-            format!("M{x1},{y1} C{mid},{y1} {mid},{y2} {x2},{y2}")
-        }
-        _ if (x1 - x2).abs() < 1.0 => format!("M{x1},{y1} L{x2},{y2}"),
-        _ => {
-            let mid = (y1 + y2) / 2.0;
-            format!("M{x1},{y1} C{x1},{mid} {x2},{mid} {x2},{y2}")
-        }
-    }
 }
 
 /// The kind of a card in one short word.
@@ -449,11 +341,6 @@ pub(crate) fn surface(points: &[(String, [f64; 2])]) -> (f64, f64) {
     })
 }
 
-/// Move a card by a keyboard or pointer step. A card never leaves the top-left edge.
-pub(crate) fn nudge(p: [f64; 2], dx: f64, dy: f64) -> [f64; 2] {
-    [(p[0] + dx).max(0.0).round(), (p[1] + dy).max(0.0).round()]
-}
-
 /// The location of the Location form. Both fields empty: no location.
 /// A paste fills both fields; otherwise both fields must be present.
 pub(crate) fn location_draft(latitude: &str, longitude: &str) -> Result<Option<Location>, String> {
@@ -491,10 +378,40 @@ pub(crate) fn split_paste(text: &str) -> Option<Result<Location, String>> {
     text.contains(',').then(|| Location::parse_pair(text))
 }
 
+/// The color tone of a WAN stream: its index in the WAN list (five tones), or `unknown`.
+pub(crate) fn wan_tone(wans: &[String], wan: Option<&str>) -> String {
+    match wan.and_then(|w| wans.iter().position(|x| x == w)) {
+        Some(i) => (i % 5).to_string(),
+        None => "unknown".to_string(),
+    }
+}
+
+/// The Sankey value of a card or stream as text. A card without a value has no live data.
+pub(crate) fn value_text(value: Option<f64>, metric: crate::sankey::Metric) -> String {
+    use crate::sankey::Metric;
+    match (value, metric) {
+        (None, _) => "No live data".into(),
+        (Some(v), Metric::LiveMbps) if v <= 0.0 => "No live data".into(),
+        (Some(v), Metric::LiveMbps) if v < 10.0 => format!("{v:.1} Mbps"),
+        (Some(v), Metric::LiveMbps) => format!("{v:.0} Mbps"),
+        (Some(v), Metric::Subscribers) => format!("{v:.0} sub{}", if v == 1.0 { "" } else { "s" }),
+    }
+}
+
+/// The name of a service tier card (`tier:<access>`), else `None`.
+pub(crate) fn tier_name(id: &str) -> Option<&'static str> {
+    match id {
+        "tier:ppp" => Some("PPPoE"),
+        "tier:dhcp" => Some("IPoE / DHCP"),
+        "tier:hotspot" => Some("Hotspot"),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use web_contract::topology::{Capacity, Direction, Flow, WanCandidate};
+    use web_contract::topology::{Capacity, Flow, WanCandidate};
 
     fn node(id: &str, parent: Option<&str>, position: Option<[f64; 2]>) -> Node {
         Node {
@@ -556,45 +473,12 @@ mod tests {
     }
 
     #[test]
-    fn cards_follow_the_tiers_and_a_saved_position_wins() {
-        let nodes = [
-            kind(node("wan1", None, None), "wan"),
-            router(node("r1", Some("wan1"), None)),
-            node("g1", Some("r1"), None),
-            node("g2", None, Some([900.5, 12.0])),
-        ];
-        let p: std::collections::HashMap<_, _> =
-            positions(&cards(&nodes), &[], Direction::TopDown, &Default::default())
-                .into_iter()
-                .collect();
-        assert!(p["wan1"][1] < p["r1"][1] && p["r1"][1] < p["g1"][1]);
-        assert_eq!(p["g1"][0], p["r1"][0]);
-        assert_eq!(p["g2"], [900.5, 12.0]);
-    }
-
-    #[test]
     fn inactive_nodes_are_hidden() {
         let mut gone = node("g2", None, None);
         gone.active = false;
         let shown = visible(&[node("g1", None, None), gone]);
         assert_eq!(shown.len(), 1);
         assert_eq!(shown[0].id, "g1");
-    }
-
-    #[test]
-    fn a_candidate_wan_is_a_card() {
-        let nodes = [kind(node("wan1", None, None), "wan")];
-        let p: std::collections::HashMap<_, _> = positions(
-            &cards(&nodes),
-            &candidates(),
-            Direction::TopDown,
-            &Default::default(),
-        )
-        .into_iter()
-        .collect();
-        let id = candidate_id("core", "pppoe-out2");
-        assert_eq!(p[&id][1], p["wan1"][1], "the candidate is in the WAN row");
-        assert_ne!(p[&id], p["wan1"]);
     }
 
     #[test]
@@ -608,11 +492,6 @@ mod tests {
                 "Core".to_string(),
                 "pppoe-out2".to_string()
             )]
-        );
-        // One column: a line from the bottom of the parent to the top of the child.
-        assert_eq!(
-            wire_in([0.0, 0.0], [0.0, 200.0], Direction::TopDown),
-            "M116,84 L116,200"
         );
         assert!(ROUTING_WARNING.contains("writer off"));
     }
@@ -697,12 +576,6 @@ mod tests {
             Some([30.0, 15.0]),
             "the rate of the card is the total"
         );
-        let p: std::collections::HashMap<_, _> =
-            positions(&c, &[], Direction::TopDown, &Default::default())
-                .into_iter()
-                .collect();
-        assert_eq!(p.len(), 4);
-        assert!(p["router:hub-1"][1] < p["source:S"][1]);
         // A drop goes on the card: WAN1 is already a parent of the router card.
         assert_eq!(
             drop_edit(&nodes, "wan1", "router:hub-1"),
@@ -779,21 +652,6 @@ mod tests {
     }
 
     #[test]
-    fn directions_round_trip_and_leaf_labels_take_space() {
-        for d in [
-            Direction::TopDown,
-            Direction::BottomUp,
-            Direction::LeftRight,
-            Direction::RightLeft,
-        ] {
-            assert_eq!(direction_of(direction_name(d)), Some(d));
-        }
-        assert_eq!(direction_of("sideways"), None);
-        assert!(leaf_top(true) > leaf_top(false));
-        const { assert!(LEAF_LINE > 0.0 && LEAF_ROW > 0.0) };
-    }
-
-    #[test]
     fn every_parent_link_is_a_line_even_without_its_flow() {
         let nodes = merged();
         // The reply limit cut the flows: only one count arrived.
@@ -815,14 +673,6 @@ mod tests {
                 ("router:hub-1", "source:S", 0)
             ]
         );
-    }
-
-    #[test]
-    fn flow_width_scales_between_1_5_and_10() {
-        assert_eq!(flow_width(0, 0), 1.5);
-        assert_eq!(flow_width(0, 10), 1.5);
-        assert_eq!(flow_width(5, 10), 5.75);
-        assert_eq!(flow_width(10, 10), 10.0);
     }
 
     #[test]
@@ -854,59 +704,6 @@ mod tests {
         let mut g = node("g", None, None);
         g.router_id = Some("hub-1".into());
         assert_eq!(card_kind(&g), "Group");
-    }
-
-    #[test]
-    fn wires_use_the_ports_of_the_direction() {
-        use web_contract::topology::Direction;
-        // Bottom-up: from the top of the parent to the bottom of the child.
-        assert_eq!(
-            wire_in([0.0, 200.0], [0.0, 0.0], Direction::BottomUp),
-            "M116,200 L116,84"
-        );
-        // Left to right: from the right side of the parent to the left side of the child.
-        assert_eq!(
-            wire_in([0.0, 0.0], [300.0, 0.0], Direction::LeftRight),
-            "M232,42 C266,42 266,42 300,42"
-        );
-        // Right to left: from the left side of the parent to the right side of the child.
-        assert_eq!(
-            wire_in([300.0, 0.0], [0.0, 0.0], Direction::RightLeft),
-            "M300,42 C266,42 266,42 232,42"
-        );
-    }
-
-    #[test]
-    fn a_wire_leaves_the_bottom_port_and_enters_the_top_port() {
-        // Another column: a curve from the bottom center of the parent to the top center.
-        assert_eq!(
-            wire_in([0.0, 0.0], [300.0, 200.0], Direction::TopDown),
-            "M116,84 C116,142 416,142 416,200"
-        );
-    }
-
-    #[test]
-    fn the_saved_layout_keeps_hidden_cards_and_skips_candidates() {
-        let mut hidden = node("old", None, Some([5.0, 5.0]));
-        hidden.active = false;
-        let nodes = [
-            node("a", None, Some([1.0, 2.0])),
-            node("b", None, None),
-            hidden,
-        ];
-        let moved = std::collections::HashMap::from([
-            ("b".to_string(), [30.0, 40.0]),
-            (candidate_id("core", "pppoe-out1"), [9.0, 9.0]),
-        ]);
-        let saved = saved_positions(&nodes, &moved);
-        assert_eq!(
-            saved.into_iter().collect::<Vec<_>>(),
-            vec![
-                ("a".to_string(), [1.0, 2.0]),
-                ("b".to_string(), [30.0, 40.0]),
-                ("old".to_string(), [5.0, 5.0]),
-            ]
-        );
     }
 
     #[test]
@@ -968,11 +765,6 @@ mod tests {
     }
 
     #[test]
-    fn a_nudge_stays_inside_the_canvas() {
-        assert_eq!(nudge([10.0, 10.0], -16.0, 16.4), [0.0, 26.0]);
-    }
-
-    #[test]
     fn a_location_needs_both_values_and_keeps_the_text() {
         assert_eq!(location_draft(" ", ""), Ok(None));
         let l = location_draft("12.236199459585354", " 122.02419129509887 ")
@@ -1006,5 +798,22 @@ mod tests {
         );
         assert!(split_paste("12.5").is_none());
         assert!(split_paste("12.5, 999").unwrap().is_err());
+    }
+
+    #[test]
+    fn sankey_labels_name_tones_values_and_tiers() {
+        use crate::sankey::Metric;
+        let wans = ["wan1".to_string(), "wan2".to_string()];
+        assert_eq!(wan_tone(&wans, Some("wan2")), "1");
+        assert_eq!(wan_tone(&wans, Some("other")), "unknown");
+        assert_eq!(wan_tone(&wans, None), "unknown");
+        assert_eq!(value_text(Some(412.4), Metric::LiveMbps), "412 Mbps");
+        assert_eq!(value_text(Some(2.25), Metric::LiveMbps), "2.2 Mbps");
+        assert_eq!(value_text(Some(0.0), Metric::LiveMbps), "No live data");
+        assert_eq!(value_text(None, Metric::Subscribers), "No live data");
+        assert_eq!(value_text(Some(1.0), Metric::Subscribers), "1 sub");
+        assert_eq!(value_text(Some(21.0), Metric::Subscribers), "21 subs");
+        assert_eq!(tier_name("tier:dhcp"), Some("IPoE / DHCP"));
+        assert_eq!(tier_name("source:x"), None);
     }
 }

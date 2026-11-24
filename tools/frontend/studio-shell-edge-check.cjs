@@ -23,9 +23,8 @@ const fs=require('node:fs');
   await check('landscape world and last tool',{width:667,height:375},async p=>{
    const viewport=p.locator('.canvas-viewport');assert.ok(await viewport.evaluate(e=>e.clientHeight)>=80,'world has at least 80 px height');
    const north=viewport.getByRole('button',{name:/^WAN North,/});await north.scrollIntoViewIfNeeded();await north.click();
-   await north.focus();await p.keyboard.press('Shift+ArrowRight');
-   await p.waitForFunction(()=>document.querySelector('.canvas-bar .canvas-status')?.textContent.includes('Layout saved.'));
-   assert.equal(await p.locator('.canvas-bar .canvas-status').isVisible(),true,'short screens keep save feedback visible');
+   // The Sankey has no free card moves: a click shows the card details instead.
+   await p.getByRole('dialog',{name:'WAN North details',exact:true}).waitFor();
    const last=p.getByRole('button',{name:'Card settings',exact:true});await last.scrollIntoViewIfNeeded();
    const frame=await p.locator('.canvas-frame').boundingBox(),box=await last.boundingBox();
    assert.ok(box.y>=frame.y&&box.y+box.height<=frame.y+frame.height,'last tool stays in the canvas');

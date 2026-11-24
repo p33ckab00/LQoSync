@@ -1123,3 +1123,34 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 .studio-preview-card small,.studio-preview-card span{font-size:12px}
 
 .studio-preview-dialog .canvas-dialog-body .canvas-tool::after{inset-inline-start:0;inset-inline-end:auto}
+
+/* Sankey canvas (spec 2026-11-24). The ribbons carry the color; the cards stay quiet. */
+[data-tone="0"]{--tone:#4fd1e8}
+[data-tone="1"]{--tone:#2bd391}
+[data-tone="2"]{--tone:#80aaff}
+[data-tone="3"]{--tone:#c792ea}
+[data-tone="4"]{--tone:#ff9e64}
+[data-tone="unknown"]{--tone:#8d909d}
+/* A solid fill: the page policy blocks paint-server url(#id) references. */
+.canvas-wires path.sankey-ribbon{fill:var(--tone);fill-opacity:.5;stroke:none;pointer-events:visiblePainted;cursor:pointer;transition:opacity .15s,fill-opacity .15s}
+.canvas-wires path.sankey-ribbon.active,.canvas-wires path.sankey-ribbon:hover{fill-opacity:.78}
+.canvas-wires path.sankey-ribbon.dim{opacity:.22}
+.canvas-node.sankey-card{align-content:start;grid-template-rows:18px 20px auto auto;border-inline-start:4px solid var(--border)}
+.canvas-node.sankey-card::before{display:none}
+.canvas-node.sankey-card[data-tone]{border-inline-start-color:var(--tone);box-shadow:none}
+.sankey-tier{position:absolute;box-sizing:border-box;inline-size:232px;display:grid;align-content:start;row-gap:3px;padding:10px 14px;text-align:start;border:1px solid var(--border);border-inline-start:4px solid var(--muted);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;cursor:pointer}
+.sankey-tier strong{font-size:14px;line-height:20px;font-weight:600}
+.sankey-tier[aria-pressed=true]{border-color:var(--wire)}
+.sankey-tier:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.sankey-value{font-size:20px;line-height:26px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)}
+.sankey-column-head{position:absolute;inset-block-start:16px;inline-size:232px;margin:0;font-size:12px;line-height:18px;font-weight:600;color:var(--muted)}
+.sankey-popover{position:absolute;z-index:3;box-sizing:border-box;inline-size:264px;display:grid;gap:6px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);box-shadow:0 8px 24px rgb(0 0 0/.18)}
+.sankey-popover p{margin:0;font-variant-numeric:tabular-nums}
+.sankey-popover ul{display:grid;gap:4px;margin:0;padding:0;list-style:none;font-size:13px;font-variant-numeric:tabular-nums}
+.sankey-popover button{justify-self:start}
+.sankey-swatch{display:inline-block;inline-size:10px;block-size:10px;margin-inline-end:6px;border-radius:2px;background:var(--tone)}
+.sankey-minimap{position:absolute;z-index:2;inset-block-end:84px;inset-inline-end:16px;inline-size:184px;block-size:112px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 92%,transparent);cursor:pointer}
+.sankey-minimap-card{fill:color-mix(in srgb,var(--muted) 45%,transparent)}
+.sankey-minimap-view{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+@media (prefers-reduced-motion:reduce){.canvas-wires path.sankey-ribbon{transition:none}}
+@media (max-width:700px){.sankey-minimap{display:none}}

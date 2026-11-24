@@ -56,7 +56,8 @@ const out=process.env.TOPOLOGY_EVIDENCE_DIR||'/tmp/lqosync-topology-initializati
   await dialog.getByText('WAN North · 3 subscribers',{exact:false}).waitFor();
   assert.equal(await dialog.getByLabel('Add link from').count(),0,'no parent is left to add');
   assert.equal(await canvas.locator('.canvas-node').filter({hasText:'PPPoE access'}).count(),1,'one card with two lines');
-  assert.equal(await canvas.locator('.canvas-flow[data-to="source:access-ppp"]').count(),2);
+  // Live ribbons show traffic, not links: the dialog above lists both links as text.
+  assert.ok(await canvas.locator('path.sankey-ribbon[data-to="source:access-ppp"]').count()>=1,'the card gets its live stream');
   await page.screenshot({path:`${out}/shared-source-two-parents.png`,fullPage:true});
   assert.deepEqual(errors,[]);
   console.log('PASS: empty setup, automatic save, second WAN link on one card, original link retained.');

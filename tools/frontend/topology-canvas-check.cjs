@@ -1,5 +1,5 @@
 // Synthetic loopback fixture only. No production account, router, or shaping write.
-// Checks the Topology canvas: cards, keyboard moves, automatic edits, modals, and narrow screens.
+// Checks the Topology Sankey canvas: cards, WAN streams, popovers, automatic edits, modals, and narrow screens.
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -26,11 +26,19 @@ const fs=require('node:fs');
     const canvas=page.getByRole('region',{name:/^Topology canvas\./});
     const cards=canvas.locator('.canvas-node');await cards.nth(3).waitFor();
     assert.equal(await cards.count(),4,'one card for each node: the two PPPoE placements are one card');
-    assert.equal(await canvas.locator('.canvas-flow').count(),3,'one line for each WAN of a card');
+    // Sankey: filled ribbons, one for each WAN stream between two cards (live fixture sample).
+    const ribbons=canvas.locator('path.sankey-ribbon');await ribbons.nth(3).waitFor();
+    assert.equal(await ribbons.count(),4,'two WAN streams into the groups and two into the service tiers');
+    for(const [d,wan] of await ribbons.evaluateAll(ps=>ps.map(p=>[p.getAttribute('d'),p.dataset.wan]))){
+      assert.match(d,/Z$/,'a ribbon is a closed shape');assert.ok(wan,'each ribbon names its WAN');}
+    assert.equal(await page.locator('[data-metric]').getAttribute('data-metric'),'live');
+    const columns=await canvas.locator('.sankey-card').evaluateAll(cs=>Object.fromEntries(cs.map(c=>[c.dataset.nodeId,+c.dataset.column])));
+    assert.deepEqual([columns['tm-node-wan-north'],columns['source:access-ppp'],columns['tier:ppp']],[0,1,2],'columns follow the paths');
+    const boxes=await canvas.locator('.sankey-card').evaluateAll(cs=>cs.map(c=>c.getBoundingClientRect().toJSON()));
+    for(const [i,a] of boxes.entries())for(const b of boxes.slice(i+1))
+      assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,'no card covers another card');
     assert.equal(await canvas.locator('[data-node-id="source:access-ppp"]').count(),1);
     assert.match(await canvas.getByRole('button',{name:/^PPPoE access,/}).getAttribute('aria-label'),/5 subscribers/);
-    const widths=await canvas.locator('.canvas-flow path:not(.hit)').evaluateAll(ps=>ps.map(p=>parseFloat(p.style.strokeWidth)));
-    assert.ok(Math.max(...widths)===10&&Math.min(...widths)>=1.5&&Math.min(...widths)<10,`line width by subscribers ${widths}`);
     assert.equal(await page.getByText(/instance/i).count(),0,'the word instance never shows');
     const dock=page.getByRole('toolbar',{name:'Topology tools'});
     for(const name of ['Router inventory','Topology settings','Subscriber allocation','Preview and evidence']){
@@ -41,19 +49,18 @@ const fs=require('node:fs');
     const north=canvas.getByRole('button',{name:/^WAN North,/});
     await north.click();
     assert.equal(await north.getAttribute('aria-pressed'),'true');
-    assert.equal(await canvas.locator('.canvas-wires path.active').count(),1);
+    assert.equal(await canvas.locator('path.sankey-ribbon.active').count(),1,'the stream of WAN North stands out');
+    // The popover: the card rate, one line for each WAN, and the way to the full settings.
+    const pop=page.getByRole('dialog',{name:'WAN North details'});await pop.waitFor();
+    await pop.getByText(/Mbps/).first().waitFor();
     await page.screenshot({path:`${out}/canvas-light.png`});
-    // Keyboard move: Shift+Arrow moves the card and saves the layout only.
-    const before=await north.boundingBox();
-    await north.focus();await page.keyboard.press('Shift+ArrowRight');await page.keyboard.press('Shift+ArrowRight');
-    await page.waitForTimeout(900);
-    const after=await north.boundingBox();
-    assert.equal(Math.round(after.x-before.x),32,'two 16 px steps');
-    assert.equal(layouts.length,1,'one debounced layout save');
-    assert.equal(layouts[0].positions['tm-node-wan-north'][0],48+32);
-    assert.equal(edits.length,0,'a card move is not a policy edit');
-    await canvas.locator('.canvas-node').first().waitFor();
-    await page.getByRole('status').filter({hasText:'Layout saved'}).first().waitFor();
+    await pop.getByRole('button',{name:'Open full settings',exact:true}).click();
+    await page.getByRole('dialog',{name:'WAN North'}).waitFor();
+    await page.keyboard.press('Escape');await page.getByRole('dialog',{name:'WAN North'}).waitFor({state:'hidden'});
+    // Escape closes the popover and keeps the focus on the card.
+    await north.focus();await north.click();await pop.waitFor();
+    await page.keyboard.press('Escape');await pop.waitFor({state:'hidden'});
+    assert.equal(await north.evaluate(el=>el===document.activeElement),true,'focus stays on the card');
     // Enter on the selected card opens its modal; a Google Maps paste saves the full text.
     await north.focus();await page.keyboard.press('Enter');
     const dialog=page.getByRole('dialog',{name:'WAN North'});await dialog.waitFor();
@@ -239,19 +246,11 @@ const fs=require('node:fs');
     const wanInv=page.getByRole('dialog',{name:'Router inventory'});await wanInv.waitFor();
     await wanInv.getByRole('heading',{name:'New WAN · pppoe-out3 on Core-01'}).waitFor();
     await page.keyboard.press('Escape');await wanInv.waitFor({state:'hidden'});
-    // Drag a WAN connector to a card: a second WAN parent for a group, and a router card copy.
-    const drag=async(wan,card)=>{
-      const h=await canvas.locator(`.canvas-connector[title^="Drag from ${wan} "]`).boundingBox();
-      const t=await card.boundingBox();
-      await page.mouse.move(h.x+h.width/2,h.y+h.height/2);await page.mouse.down();
-      await page.mouse.move(t.x+t.width/2,t.y+t.height/2,{steps:8});
-      assert.equal(await canvas.locator('.canvas-wires path.pending').count(),1,'the connector follows the pointer');
-      await page.mouse.up();
-    };
-    await drag('WAN South',ppp);
-    await page.getByRole('status').filter({hasText:'Not connected: This WAN is already a parent of the card.'}).first().waitFor();
-    await drag('WAN North',dhcp);
+    // Add link from: the card settings add a second WAN parent (the old connector drag).
+    await dhcp.click();await page.keyboard.press('Enter');await dhcpDialog.waitFor();
+    await dhcpDialog.getByLabel('Add link from').selectOption({label:'WAN North'});
     assert.deepEqual(await edit('node.instance_add'),{kind:'node.instance_add',node_id:'tm-node-dhcp-south',parent:'tm-node-wan-north'});
+    await page.keyboard.press('Escape');await dhcpDialog.waitFor({state:'hidden'});
     // Router card settings: exclusion from the network tree, and a link to the Routers screen.
     await dhcp.click();await page.keyboard.press('Enter');await dhcpDialog.waitFor();
     await dhcpDialog.getByRole('link',{name:'Router connection settings'}).waitFor();
@@ -270,19 +269,13 @@ const fs=require('node:fs');
     await excluded.getByRole('button',{name:'Read PPPoE Trial again',exact:true}).click();
     assert.deepEqual(await edit('source.exclude'),{kind:'source.exclude',source_id:'access-ppp-trial',excluded:false});
     await page.keyboard.press('Escape');await excluded.waitFor({state:'hidden'});
-    // A line: a click selects it; Remove link and the Delete key remove it.
-    const clickLine=async(from,to)=>{
-      const p=await canvas.locator(`.canvas-flow[data-from="${from}"][data-to="${to}"] path.hit`).evaluate(el=>{
-        const q=el.getPointAtLength(el.getTotalLength()/2).matrixTransform(el.getScreenCTM());return {x:q.x,y:q.y};});
-      await page.mouse.click(p.x,p.y);
-    };
-    await clickLine('tm-node-wan-south','source:access-ppp');
-    assert.equal(await canvas.locator('.canvas-flow path.picked').count(),1,'the line is selected');
-    await page.getByRole('button',{name:'Remove link',exact:true}).click();
-    assert.deepEqual(await edit('link.remove'),{kind:'link.remove',parent:'tm-node-wan-south',child:'tm-node-ppp-south'});
-    await clickLine('tm-node-wan-south','source:access-ppp');
-    await page.keyboard.press('Delete');
-    assert.deepEqual(await edit('link.remove'),{kind:'link.remove',parent:'tm-node-wan-south',child:'tm-node-ppp-south'});
+    // A ribbon: a click shows its stream. Links change only in the card settings.
+    await canvas.locator('path.sankey-ribbon[data-from="tm-node-wan-north"][data-to="source:access-ppp"]').dispatchEvent('click');
+    const stream=page.getByRole('dialog',{name:'Stream details'});await stream.waitFor();
+    await stream.getByText('WAN North · WAN North → PPPoE access').waitFor();
+    await stream.getByText(/Mbps down/).waitFor();
+    assert.equal(await page.getByRole('button',{name:'Remove link',exact:true}).count(),0,'no link removal on the canvas');
+    await page.keyboard.press('Escape');await stream.waitFor({state:'hidden'});
     // By keyboard: the card settings list the lines as text, each with Remove link.
     await ppp.click();await page.keyboard.press('Enter');await pppDialog.waitFor();
     const links=pppDialog.getByRole('group',{name:'Links'});
@@ -292,31 +285,6 @@ const fs=require('node:fs');
     await links.getByRole('button',{name:'Remove link from WAN North'}).focus();await page.keyboard.press('Enter');
     assert.deepEqual(await edit('link.remove'),{kind:'link.remove',parent:'tm-node-wan-north',child:'tm-node-ppp-north'});
     await page.keyboard.press('Escape');await pppDialog.waitFor({state:'hidden'});
-    // Leaf labels: the WAN counts always show; up to 50 names expand, and the layout makes room.
-    const leaves=canvas.locator('.canvas-leaves[data-card="source:access-ppp"]');
-    await leaves.getByText('WAN North 3').waitFor();await leaves.getByText('WAN South 2').waitFor();
-    await leaves.getByRole('button',{name:'Show subscribers'}).click();
-    assert.equal(await leaves.locator('.canvas-leaf-list li').count(),3);
-    assert.equal(await leaves.getByRole('link',{name:'+2 more'}).getAttribute('href'),'/topology?tab=assignments&group=access-ppp');
-    const lb=await leaves.boundingBox();
-    for(const c of await cards.all()){const b=await c.boundingBox();
-      assert.ok(b.x>=lb.x+lb.width||lb.x>=b.x+b.width||b.y>=lb.y+lb.height||lb.y>=b.y+b.height-1||await c.getAttribute('data-node-id')==='source:access-ppp','the labels cover no card');}
-    await page.screenshot({path:`${out}/leaf-labels.png`});
-    await leaves.getByRole('button',{name:'Hide subscribers'}).click();
-    // Layout directions: the WAN cards go to the start side; each choice saves the direction.
-    await dock.getByRole('button',{name:'Canvas layout',exact:true}).click();
-    const layoutDialog=page.getByRole('dialog',{name:'Canvas layout',exact:true});await layoutDialog.waitFor();
-    const dirSelect=layoutDialog.getByRole('combobox',{name:'Layout direction'});
-    const at=async()=>[await north.boundingBox(),await ppp.boundingBox()];
-    for(const [value,check] of [['bottom_up',([w,g])=>w.y>g.y],['left_right',([w,g])=>w.x<g.x],['right_left',([w,g])=>w.x>g.x],['top_down',([w,g])=>w.y<g.y]]){
-      await dirSelect.selectOption(value);
-      for(let i=0;i<50&&layouts.at(-1).direction!==value;i++)await page.waitForTimeout(100);
-      assert.equal(layouts.at(-1).direction,value);
-      await page.waitForTimeout(300);
-      assert.ok(check(await at()),`${value}: the WAN card is on its side`);
-      await page.screenshot({path:`${out}/direction-${value}.png`});
-    }
-    await page.keyboard.press('Escape');await layoutDialog.waitFor({state:'hidden'});
     // Rebalance routing: the count of moves, then a confirmation.
     await dock.getByRole('button',{name:'Topology settings',exact:true}).click();await settings.waitFor();
     await settings.getByText('Rebalance routing moves 2 subscribers to another WAN. Their open connections break.').waitFor();
@@ -333,7 +301,11 @@ const fs=require('node:fs');
     await cardList.getByRole('button',{name:/^pppoe-out3 on Core-01/}).waitFor();
     await listButton.click();await cardList.waitFor({state:'hidden'});
     // Fit keeps every card inside the viewport.
-    await page.getByRole('button',{name:'Fit',exact:true}).click();
+    await page.getByRole('button',{name:'Fit view',exact:true}).click();
+    const view=await canvas.boundingBox();
+    for(const b of await canvas.locator('.sankey-card').evaluateAll(cs=>cs.map(c=>c.getBoundingClientRect().toJSON())))
+      assert.ok(b.left>=view.x-1&&b.right<=view.x+view.width+1&&b.top>=view.y-1&&b.bottom<=view.y+view.height+1,'Fit view shows every card');
+    assert.equal(await page.locator('.sankey-minimap rect.sankey-minimap-card').count(),await canvas.locator('.sankey-card, .canvas-candidate').count(),'the minimap shows each card');
     await page.setViewportSize({width:390,height:800});
     assert.ok(await page.evaluate(()=>document.scrollingElement.scrollWidth<=390),'no sideways scroll at 390 px');
     await page.setViewportSize({width:1440,height:1000});

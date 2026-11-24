@@ -1,5 +1,5 @@
 //! Ported from p33ckab00/traffic-intelligence src/ui/canvas.rs (same owner).
-//! Framework-independent canvas geometry: card positions, connector paths, fit, and zoom.
+//! Framework-independent canvas geometry: card positions, fit, and zoom.
 
 use std::collections::BTreeMap;
 
@@ -132,46 +132,6 @@ pub fn layout_in(
     out
 }
 
-/// SVG path from card `a` to card `b`, and the label point. Cards in one column (within 1 px)
-/// connect bottom to top with a line. Other cards connect side to side with a curve.
-pub fn edge_path(
-    a: [f64; 2],
-    a_size: [f64; 2],
-    b: [f64; 2],
-    b_size: [f64; 2],
-) -> (String, f64, f64) {
-    if (a[0] - b[0]).abs() < 1.0 {
-        let x = a[0] + a_size[0] / 2.0;
-        let (y1, y2) = if a[1] < b[1] {
-            (a[1] + a_size[1], b[1])
-        } else {
-            (b[1] + b_size[1], a[1])
-        };
-        return (format!("M{x},{y1} L{x},{y2}"), x, (y1 + y2) / 2.0);
-    }
-    let (x1, y1, x2, y2) = if a[0] < b[0] {
-        (
-            a[0] + a_size[0],
-            a[1] + a_size[1] / 2.0,
-            b[0],
-            b[1] + b_size[1] / 2.0,
-        )
-    } else {
-        (
-            a[0],
-            a[1] + a_size[1] / 2.0,
-            b[0] + b_size[0],
-            b[1] + b_size[1] / 2.0,
-        )
-    };
-    let mid = (x1 + x2) / 2.0;
-    (
-        format!("M{x1},{y1} C{mid},{y1} {mid},{y2} {x2},{y2}"),
-        mid,
-        (y1 + y2) / 2.0,
-    )
-}
-
 /// Zoom and pan that fit `bounds` (`[min x, min y, max x, max y]`) in `viewport`, with a 4 %
 /// border. Returns `(zoom, pan x, pan y)`.
 pub fn fit(bounds: [f64; 4], viewport: [f64; 2]) -> (f64, f64, f64) {
@@ -297,15 +257,6 @@ mod tests {
             assert!(at[g][1] > at["r1"][1] + 100.0, "{g}");
         }
         assert_eq!(at["g1"][0], at["r1"][0]);
-    }
-
-    #[test]
-    fn edge_path_is_vertical_in_one_column() {
-        let (path, x, y) = edge_path([10.0, 0.0], [200.0, 100.0], [10.5, 300.0], [200.0, 100.0]);
-        assert_eq!(path, "M110,100 L110,300");
-        assert_eq!((x, y), (110.0, 200.0));
-        let (path, _, _) = edge_path([0.0, 0.0], [200.0, 100.0], [400.0, 300.0], [200.0, 100.0]);
-        assert!(path.starts_with("M200,50 C"), "{path}");
     }
 
     #[test]
