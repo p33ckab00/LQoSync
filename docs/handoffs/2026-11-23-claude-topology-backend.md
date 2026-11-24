@@ -328,3 +328,21 @@ Owner follow-up, backend only. Commit `854fa52304f0a1edc5df0d2622322e9bc45a1827`
 - The browser fixture serves synthetic rates for its three active subscribers (updated every second).
 - Checks: `cargo test --locked --workspace --no-fail-fast` (2080 passed, 0 failed, 13 ignored), workspace clippy with examples, wasm clippy, fmt, `git diff --check`. A loopback fixture check returned live flows. No production run.
 - Production note: this host has a live sample of 27 hosts, far below the 512-row limit. A larger network can reach the limit; the answer is then `complete: false`.
+
+## Branch review before integration (2026-11-24T08:59:13+08:00, Asia/Manila)
+
+The owner asked for a review of this branch before integration, then for a fix of every finding. Fix commit `87e56035f9c2c96785eeb3e472eaa31b2d1b94f1`.
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 1 | A preview or save could use a snapshot of an older loaded config. | Refused unless `config_digest` equals the loaded digest, also for other routers. |
+| 2 | A DHCP policy without a filter did not honor the config discovery rule, and the engine preflight refuses a server set that differs from the config. | A clear blocker: with `discover = false`, the policies must name exactly the listed servers. |
+| 2b | Found during fix 2: the cycle reads a protocol only when the config enables it and the catalog router has its role. | A blocker for a disabled source or non-strict DHCP settings. A save sets the catalog router roles from the translation and keeps a WAN role. |
+| 3 | `read_access_ref` was accepted but reads use the router credential. | A blocker for any profile other than `default`. |
+| 4 | The gateway kept an unkeyed SHA-256 of a draft test request (with its password). | The digest uses a random key of the process. |
+| 5 | The disabled-router rule compared address text and port. | It compares resolved addresses, on any port. |
+| 6 | No test for factor fractions. | Added. |
+| 7 | Duplicate RouterOS wire code. | `tests/support/routeros_wire.rs`, shared by the mock test and the fake router. |
+
+Checks: `cargo test --locked --workspace --no-fail-fast` (2084 passed, 0 failed, 13 ignored), `cargo clippy --locked --workspace --all-targets --examples -- -D warnings`, `cargo fmt --all -- --check`, `git diff --check`, and `bash tools/integration/studio-service-smoke.sh` (19 of 19, test evidence).
+Frontend note: the new blockers use the existing code `unsupported_in_v1`. No contract type changed.
