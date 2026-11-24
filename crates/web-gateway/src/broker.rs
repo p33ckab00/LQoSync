@@ -118,6 +118,8 @@ pub enum Request {
     TopologyLayout {
         request: web_contract::topology::LayoutRequest,
     },
+    /// Live throughput by placement, from two service caches. No router I/O.
+    TopologyThroughput,
     /// The Studio features of the service. No router I/O.
     StudioCapabilities,
     /// The cached Studio view of one router. No router I/O.
@@ -174,6 +176,8 @@ pub struct Reply {
     /// The service answer to a candidate read, with its `status`.
     #[serde(default)]
     pub candidate: Option<serde_json::Value>,
+    #[serde(default)]
+    pub throughput: Option<web_contract::topology::TopologyThroughput>,
 }
 impl Reply {
     fn no() -> Self {
@@ -195,6 +199,7 @@ impl Reply {
             capabilities: None,
             source_config: None,
             candidate: None,
+            throughput: None,
         }
     }
 }
@@ -395,6 +400,13 @@ pub async fn serve(
                         }
                         Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
                     },
+                    Request::TopologyThroughput => {
+                        reply.throughput = tokio::task::spawn_blocking(move || {
+                            crate::throughput::load(&root, now())
+                        })
+                        .await?;
+                        reply.ok = reply.throughput.is_some();
+                    }
                     Request::StudioCapabilities => match jobs.studio_capabilities().await {
                         Ok(caps) => {
                             reply.capabilities = caps;

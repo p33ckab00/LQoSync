@@ -78,6 +78,47 @@ pub struct TopologyView {
     pub balance: Vec<CardBalance>,
 }
 
+/// `GET /api/v1/topology/throughput`: live rates by placement, from the dataplane host sample
+/// and the cached topology view. No router read. Rates are bps. A node rate includes every node
+/// below it. Flows have the same `from` and `to` as `TopologySummary.flows`.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct TopologyThroughput {
+    /// Unix seconds of the host sample. 0: no sample.
+    pub updated: u64,
+    /// The host sample is old, failed, or absent. The rates are then the last values or empty.
+    pub stale: bool,
+    /// False when a part is missing: a stale sample or placement, a host sample at its row
+    /// limit, or hosts that no placed subscriber owns.
+    pub complete: bool,
+    /// A safe reason when the sample is stale.
+    #[serde(default)]
+    pub reason: Option<String>,
+    pub nodes: Vec<NodeThroughput>,
+    pub flows: Vec<FlowThroughput>,
+    /// Sampled hosts whose address no placed subscriber has. Their rates are in no node.
+    pub unmapped_hosts: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NodeThroughput {
+    pub node_id: String,
+    pub down_bps: u64,
+    pub up_bps: u64,
+    /// Sampled hosts below the node.
+    pub hosts: u64,
+    /// The median host round-trip time below the node. `None` without samples.
+    #[serde(default)]
+    pub rtt_ms: Option<f64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FlowThroughput {
+    pub from: String,
+    pub to: String,
+    pub down_bps: u64,
+    pub up_bps: u64,
+}
+
 /// One canvas line: the subscribers of the child card below that parent card.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Flow {

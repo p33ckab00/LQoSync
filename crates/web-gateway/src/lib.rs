@@ -9,5 +9,6 @@ pub mod overview;
 pub mod routers;
 pub mod sessions;
 pub mod source_studio;
+pub mod throughput;
 pub mod topology;
 pub mod topology_jobs;

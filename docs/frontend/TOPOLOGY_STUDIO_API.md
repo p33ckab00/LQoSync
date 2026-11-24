@@ -433,6 +433,21 @@ Owner decision: the service translates each draft into the current engine struct
 | Source discovery | `source.add` refuses a source of a router that has saved policies. |
 | Body limit | `POST /api/v1/topology/edits` takes 32 KiB. Other routes keep 4 KiB. |
 
+## Live throughput (owner follow-up for the Sankey reference)
+
+`GET /api/v1/topology/throughput` returns `TopologyThroughput`. It needs the current session. The gateway joins two service caches by subscriber address: the dataplane host sample (`subscriber-telemetry.json`) and the placed subscribers of `topology.json`. It sends nothing to the service and reads no router.
+
+| Item | Behavior |
+| --- | --- |
+| `nodes[]` | `node_id`, `down_bps`, `up_bps`, `hosts`, `rtt_ms` (median). A node includes every node below it. Only nodes with sampled hosts are listed. |
+| `flows[]` | `from`, `to`, `down_bps`, `up_bps`. The keys are the same as `TopologySummary.flows`: the parent card and the child card. A Sankey ribbon can take its width from this rate and keep the subscriber count as a label. |
+| `stale` | The sample is older than 15 seconds, failed, or absent. `reason` says why. The rates are the last values or empty. |
+| `complete` | False for a stale sample, a stale placement (`observed.stale`), sampled hosts that no placed subscriber owns (`unmapped_hosts`), or a sample at its 512-row limit. |
+| Not available | Drop rate, router CPU, and queue counts. The service has no source for them for each node. Do not show an invented value. |
+| `404` | The service has written no topology view yet. |
+
+The browser fixture writes a synthetic host sample every second for its subscribers.
+
 ## Service operations (task B5)
 
 The broker calls these core service operations on the service API socket. The browser cannot name an operation.

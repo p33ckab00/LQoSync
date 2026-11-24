@@ -293,6 +293,14 @@ async fn journal(
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(reply.journal.ok_or(StatusCode::SERVICE_UNAVAILABLE)?).into_response())
 }
+/// `GET /api/v1/topology/throughput`: live rates by placement, from service caches only.
+async fn topology_throughput(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
+    principal(&s, &h).await?;
+    let reply = exchange(&s.broker, &BrokerRequest::TopologyThroughput)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(reply.throughput.ok_or(StatusCode::NOT_FOUND)?).into_response())
+}
 /// A topology read from the service cache. It starts no router I/O and no mutation.
 async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read) -> ApiResult {
     use web_contract::topology::TopologyReply;
@@ -634,6 +642,7 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
         .route("/api/v1/routers/{id}/test", post(test_router))
         .route("/api/v1/routers/sync", post(sync_routers))
         .route("/api/v1/topology", get(topology))
+        .route("/api/v1/topology/throughput", get(topology_throughput))
         .route("/api/v1/topology/proposals", post(topology_propose))
         .route("/api/v1/topology/reads", post(topology_reads))
         // A source policy set is larger than other edits; other routes keep 4 KiB.

@@ -479,3 +479,48 @@ async fn studio_posts_need_the_same_origin() {
             .all(|v| v["op"] != "source_studio.test")
     );
 }
+
+#[tokio::test]
+async fn throughput_joins_the_two_service_caches_without_a_service_call() {
+    let (dir, app, seen) = app(true).await;
+    let path = "/api/v1/topology/throughput";
+    let (status, _) = send(&app, req("GET", path, "", "", String::new())).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (cookie, _) = sign_in(&app).await;
+    let (status, _) = send(&app, req("GET", path, &cookie, "", String::new())).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "no topology view yet");
+    let now = web_gateway::broker::now();
+    let node = |id: &str, parent: Option<&str>, card: &str| {
+        json!({"id": id, "name": id, "parent": parent, "kind": "group", "source_id": null,
+               "capacity": {"mode": "automatic"}, "alias": false, "calculated_mbps": null,
+               "exported_mbps": null, "members": null, "card_id": card})
+    };
+    let view = json!({"version": 1, "updated": now, "fresh_for": 60, "snapshot_id": "s",
+        "registry_revision": "2", "mode": "apply", "writer": "topology", "enrolled": true,
+        "observed": {"revision": "2", "collected_at": now, "generation": 1, "state": "ok", "stale": false},
+        "nodes": [node("wan-1", None, "wan-1"), node("ppp-1", Some("wan-1"), "source:ppp")],
+        "sources": [], "plans": [], "observations": [], "collection": [], "conflicts": [],
+        "subscribers": [{"id": "s1", "identities": [], "plan_id": null, "pin": null, "assignment": null,
+            "active": {"node": "ppp-1", "ips": ["100.64.0.1"], "min_mbps": [1.0, 1.0], "max_mbps": [9.0, 9.0], "fallback": false}}]});
+    let telemetry = json!({"version": 1, "updated": now, "stale": false, "reason": null,
+        "hosts": {"alice": {"100.64.0.1": {"down_mbps": 12.5, "up_mbps": 2.0, "rtt_ms": 4.0}}}});
+    std::fs::write(dir.path().join("topology.json"), view.to_string()).unwrap();
+    std::fs::write(
+        dir.path().join("subscriber-telemetry.json"),
+        telemetry.to_string(),
+    )
+    .unwrap();
+    let before = seen.lock().unwrap().len();
+    let (status, body) = send(&app, req("GET", path, &cookie, "", String::new())).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        (body["stale"].clone(), body["complete"].clone()),
+        (json!(false), json!(true)),
+        "{body}"
+    );
+    assert_eq!(
+        body["flows"],
+        json!([{"from": "wan-1", "to": "source:ppp", "down_bps": 12_500_000, "up_bps": 2_000_000}])
+    );
+    assert_eq!(seen.lock().unwrap().len(), before, "no service call");
+}
