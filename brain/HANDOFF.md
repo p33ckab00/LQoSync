@@ -8,6 +8,18 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24 (Asia/Manila) — Topology Sankey canvas complete (not merged)
+
+- Last agent: Claude Code. Goal: the Sankey canvas as the main Topology canvas.
+- Branch: `claude/topology-sankey`. Worktree: `/home/pi/LQoSync3.0-worktrees/claude-topology-sankey`. Base: `071c357`.
+- Commits: `11628eb` routing WAN in the view, `e3f8c6b` per-WAN flows, `4401d27` display-only intermediate nodes, `a77abb1` Sankey model, `8c9a518` Sankey canvas, `d57a371` toolbar and states, `bc6ba7f` navigation rail, then the evidence commit.
+- Gate: full `tools/frontend/check-all.sh` PASS. `pulse-check` stays skipped. Evidence: `docs/frontend/evidence/topology-sankey/`.
+- Removed from the canvas: free card drag, connector drag, layout direction, Remove link on a line, leaf labels. The card modal keeps Parent, Add link from, and Remove link.
+- Contract: `Active.wan` and `FlowThroughput.wan` (both `serde(default)`). Edit rule: `node.tree_exclude` accepts every intermediate node.
+- Owner decision open: "a WAN node stays a root" (`edits.rs` NodeMove) blocks a display-only core router before a WAN.
+- Rulings: `.superpowers/sdd/2026-11-24-topology-sankey-canvas/progress.md` in the worktree (git-ignored).
+- No merge, push, deploy, or production service change occurred.
+
 ## 2026-11-24 (Asia/Manila) — Topology canvas lane moves to Claude Code
 
 - Owner decision (2026-11-24): Claude Code builds the Topology canvas UI from now on. The Codex lane does not change the canvas.
