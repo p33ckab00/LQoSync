@@ -8,6 +8,15 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24 (Asia/Manila) — Topology canvas lane moves to Claude Code
+
+- Owner decision (2026-11-24): Claude Code builds the Topology canvas UI from now on. The Codex lane does not change the canvas.
+- Goal: the Sankey canvas becomes the main Topology canvas. Ribbons show exact live throughput, one stream for each WAN.
+- Branch: `claude/topology-sankey`. Worktree: `/home/pi/LQoSync3.0-worktrees/claude-topology-sankey`. Base: `lqosync3` `071c357`.
+- Spec: `docs/superpowers/specs/2026-11-24-topology-sankey-canvas-design.md`. Plan: `docs/superpowers/plans/2026-11-24-topology-sankey-canvas.md`.
+- Files that change: `crates/web-ui` canvas, topology page, app shell; `crates/web-gateway/src/throughput.rs`; `src/topology_manager/web_view.rs` and `edits.rs`.
+- No merge, push, deploy, or production service change without the owner.
+
 ## 2026-11-24T12:19:57+08:00 (Asia/Manila) — Topology Studio F3 complete
 
 - Last agent: Codex. Goal: separate access/policy saves, conflict recovery, and runtime evidence.
